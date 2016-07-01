@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EC3A1828E1
-	for <linux-mm@kvack.org>; Fri,  1 Jul 2016 11:40:42 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id a4so84812223lfa.1
-        for <linux-mm@kvack.org>; Fri, 01 Jul 2016 08:40:42 -0700 (PDT)
-Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
-        by mx.google.com with ESMTPS id i6si4543261wjz.54.2016.07.01.08.40.41
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CE487828E1
+	for <linux-mm@kvack.org>; Fri,  1 Jul 2016 11:40:52 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id f126so21800794wma.3
+        for <linux-mm@kvack.org>; Fri, 01 Jul 2016 08:40:52 -0700 (PDT)
+Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
+        by mx.google.com with ESMTPS id ru19si4056406wjb.157.2016.07.01.08.40.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Jul 2016 08:40:41 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 01 Jul 2016 08:40:51 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 348E71C2263
-	for <linux-mm@kvack.org>; Fri,  1 Jul 2016 16:40:41 +0100 (IST)
+	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 6F59398593
+	for <linux-mm@kvack.org>; Fri,  1 Jul 2016 15:40:51 +0000 (UTC)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 16/31] mm: move page mapped accounting to the node
-Date: Fri,  1 Jul 2016 16:37:31 +0100
-Message-Id: <1467387466-10022-17-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 17/31] mm: rename NR_ANON_PAGES to NR_ANON_MAPPED
+Date: Fri,  1 Jul 2016 16:37:32 +0100
+Message-Id: <1467387466-10022-18-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1467387466-10022-1-git-send-email-mgorman@techsingularity.net>
 References: <1467387466-10022-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,150 +23,94 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
 Cc: Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-Reclaim makes decisions based on the number of pages that are mapped but
-it's mixing node and zone information.  Account NR_FILE_MAPPED and
-NR_ANON_PAGES pages on the node.
+NR_FILE_PAGES  is the number of        file pages.
+NR_FILE_MAPPED is the number of mapped file pages.
+NR_ANON_PAGES  is the number of mapped anon pages.
 
-Link: http://lkml.kernel.org/r/1466518566-30034-17-git-send-email-mgorman@techsingularity.net
+This is unhelpful naming as it's easy to confuse NR_FILE_MAPPED and
+NR_ANON_PAGES for mapped pages.  This patch renames NR_ANON_PAGES so we
+have
+
+NR_FILE_PAGES  is the number of        file pages.
+NR_FILE_MAPPED is the number of mapped file pages.
+NR_ANON_MAPPED is the number of mapped anon pages.
+
+Link: http://lkml.kernel.org/r/1466518566-30034-18-git-send-email-mgorman@techsingularity.net
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 Acked-by: Vlastimil Babka <vbabka@suse.cz>
-Acked-by: Michal Hocko <mhocko@suse.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Rik van Riel <riel@surriel.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
- arch/tile/mm/pgtable.c |  2 +-
- drivers/base/node.c    |  4 ++--
- fs/proc/meminfo.c      |  4 ++--
- include/linux/mmzone.h |  6 +++---
- mm/page_alloc.c        |  6 +++---
- mm/rmap.c              | 14 +++++++-------
- mm/vmscan.c            |  2 +-
- mm/vmstat.c            |  4 ++--
- 8 files changed, 21 insertions(+), 21 deletions(-)
+ drivers/base/node.c    | 2 +-
+ fs/proc/meminfo.c      | 2 +-
+ include/linux/mmzone.h | 2 +-
+ mm/migrate.c           | 2 +-
+ mm/rmap.c              | 8 ++++----
+ 5 files changed, 8 insertions(+), 8 deletions(-)
 
-diff --git a/arch/tile/mm/pgtable.c b/arch/tile/mm/pgtable.c
-index 9e389213580d..c606b0ef2f7e 100644
---- a/arch/tile/mm/pgtable.c
-+++ b/arch/tile/mm/pgtable.c
-@@ -55,7 +55,7 @@ void show_mem(unsigned int filter)
- 	       global_page_state(NR_FREE_PAGES),
- 	       (global_page_state(NR_SLAB_RECLAIMABLE) +
- 		global_page_state(NR_SLAB_UNRECLAIMABLE)),
--	       global_page_state(NR_FILE_MAPPED),
-+	       global_node_page_state(NR_FILE_MAPPED),
- 	       global_page_state(NR_PAGETABLE),
- 	       global_page_state(NR_BOUNCE),
- 	       global_page_state(NR_FILE_PAGES),
 diff --git a/drivers/base/node.c b/drivers/base/node.c
-index b7f01a4a642d..acca09536ad9 100644
+index acca09536ad9..ac69a7215bcc 100644
 --- a/drivers/base/node.c
 +++ b/drivers/base/node.c
-@@ -121,8 +121,8 @@ static ssize_t node_read_meminfo(struct device *dev,
- 		       nid, K(sum_zone_node_page_state(nid, NR_FILE_DIRTY)),
+@@ -122,7 +122,7 @@ static ssize_t node_read_meminfo(struct device *dev,
  		       nid, K(sum_zone_node_page_state(nid, NR_WRITEBACK)),
  		       nid, K(sum_zone_node_page_state(nid, NR_FILE_PAGES)),
--		       nid, K(sum_zone_node_page_state(nid, NR_FILE_MAPPED)),
--		       nid, K(sum_zone_node_page_state(nid, NR_ANON_PAGES)),
-+		       nid, K(node_page_state(pgdat, NR_FILE_MAPPED)),
-+		       nid, K(node_page_state(pgdat, NR_ANON_PAGES)),
+ 		       nid, K(node_page_state(pgdat, NR_FILE_MAPPED)),
+-		       nid, K(node_page_state(pgdat, NR_ANON_PAGES)),
++		       nid, K(node_page_state(pgdat, NR_ANON_MAPPED)),
  		       nid, K(i.sharedram),
  		       nid, sum_zone_node_page_state(nid, NR_KERNEL_STACK) *
  				THREAD_SIZE / 1024,
 diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index cf301a9ef512..b8d52aa2f19a 100644
+index b8d52aa2f19a..40f108783d59 100644
 --- a/fs/proc/meminfo.c
 +++ b/fs/proc/meminfo.c
-@@ -140,8 +140,8 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+@@ -140,7 +140,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
  		K(i.freeswap),
  		K(global_page_state(NR_FILE_DIRTY)),
  		K(global_page_state(NR_WRITEBACK)),
--		K(global_page_state(NR_ANON_PAGES)),
--		K(global_page_state(NR_FILE_MAPPED)),
-+		K(global_node_page_state(NR_ANON_PAGES)),
-+		K(global_node_page_state(NR_FILE_MAPPED)),
+-		K(global_node_page_state(NR_ANON_PAGES)),
++		K(global_node_page_state(NR_ANON_MAPPED)),
+ 		K(global_node_page_state(NR_FILE_MAPPED)),
  		K(i.sharedram),
  		K(global_page_state(NR_SLAB_RECLAIMABLE) +
- 				global_page_state(NR_SLAB_UNRECLAIMABLE)),
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 0e18e87cb965..3f87306b3a37 100644
+index 3f87306b3a37..21aaafcee7de 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
-@@ -115,9 +115,6 @@ enum zone_stat_item {
- 	NR_ZONE_LRU_ANON = NR_ZONE_LRU_BASE,
- 	NR_ZONE_LRU_FILE,
- 	NR_MLOCK,		/* mlock()ed pages found and moved off LRU */
--	NR_ANON_PAGES,	/* Mapped anonymous pages */
--	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
--			   only modified from process context */
- 	NR_FILE_PAGES,
- 	NR_FILE_DIRTY,
- 	NR_WRITEBACK,
-@@ -164,6 +161,9 @@ enum node_stat_item {
+@@ -161,7 +161,7 @@ enum node_stat_item {
  	WORKINGSET_REFAULT,
  	WORKINGSET_ACTIVATE,
  	WORKINGSET_NODERECLAIM,
-+	NR_ANON_PAGES,	/* Mapped anonymous pages */
-+	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
-+			   only modified from process context */
+-	NR_ANON_PAGES,	/* Mapped anonymous pages */
++	NR_ANON_MAPPED,	/* Mapped anonymous pages */
+ 	NR_FILE_MAPPED,	/* pagecache pages mapped into pagetables.
+ 			   only modified from process context */
  	NR_VM_NODE_STAT_ITEMS
- };
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index d87a5e930bef..77977188543d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4355,7 +4355,7 @@ void show_free_areas(unsigned int filter)
- 		global_page_state(NR_UNSTABLE_NFS),
- 		global_page_state(NR_SLAB_RECLAIMABLE),
- 		global_page_state(NR_SLAB_UNRECLAIMABLE),
--		global_page_state(NR_FILE_MAPPED),
-+		global_node_page_state(NR_FILE_MAPPED),
- 		global_page_state(NR_SHMEM),
- 		global_page_state(NR_PAGETABLE),
- 		global_page_state(NR_BOUNCE),
-@@ -4377,6 +4377,7 @@ void show_free_areas(unsigned int filter)
- 			" unevictable:%lukB"
- 			" isolated(anon):%lukB"
- 			" isolated(file):%lukB"
-+			" mapped:%lukB"
- 			" all_unreclaimable? %s"
- 			"\n",
- 			pgdat->node_id,
-@@ -4387,6 +4388,7 @@ void show_free_areas(unsigned int filter)
- 			K(node_page_state(pgdat, NR_UNEVICTABLE)),
- 			K(node_page_state(pgdat, NR_ISOLATED_ANON)),
- 			K(node_page_state(pgdat, NR_ISOLATED_FILE)),
-+			K(node_page_state(pgdat, NR_FILE_MAPPED)),
- 			!pgdat_reclaimable(pgdat) ? "yes" : "no");
- 	}
- 
-@@ -4411,7 +4413,6 @@ void show_free_areas(unsigned int filter)
- 			" mlocked:%lukB"
- 			" dirty:%lukB"
- 			" writeback:%lukB"
--			" mapped:%lukB"
- 			" shmem:%lukB"
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 			" shmem_thp: %lukB"
-@@ -4440,7 +4441,6 @@ void show_free_areas(unsigned int filter)
- 			K(zone_page_state(zone, NR_MLOCK)),
- 			K(zone_page_state(zone, NR_FILE_DIRTY)),
- 			K(zone_page_state(zone, NR_WRITEBACK)),
--			K(zone_page_state(zone, NR_FILE_MAPPED)),
- 			K(zone_page_state(zone, NR_SHMEM)),
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 			K(zone_page_state(zone, NR_SHMEM_THPS) * HPAGE_PMD_NR),
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 3033dae33a0a..fba770c54d84 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -501,7 +501,7 @@ int migrate_page_move_mapping(struct address_space *mapping,
+ 	 * new page and drop references to the old page.
+ 	 *
+ 	 * Note that anonymous pages are accounted for
+-	 * via NR_FILE_PAGES and NR_ANON_PAGES if they
++	 * via NR_FILE_PAGES and NR_ANON_MAPPED if they
+ 	 * are mapped to swap space.
+ 	 */
+ 	if (newzone != oldzone) {
 diff --git a/mm/rmap.c b/mm/rmap.c
-index 573253efb645..17876517f5fa 100644
+index 17876517f5fa..a66f80bc8703 100644
 --- a/mm/rmap.c
 +++ b/mm/rmap.c
 @@ -1217,7 +1217,7 @@ void do_page_add_anon_rmap(struct page *page,
  		 */
  		if (compound)
  			__inc_zone_page_state(page, NR_ANON_THPS);
--		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, nr);
-+		__mod_node_page_state(page_pgdat(page), NR_ANON_PAGES, nr);
+-		__mod_node_page_state(page_pgdat(page), NR_ANON_PAGES, nr);
++		__mod_node_page_state(page_pgdat(page), NR_ANON_MAPPED, nr);
  	}
  	if (unlikely(PageKsm(page)))
  		return;
@@ -174,40 +118,17 @@ index 573253efb645..17876517f5fa 100644
  		/* increment count (starts at -1) */
  		atomic_set(&page->_mapcount, 0);
  	}
--	__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, nr);
-+	__mod_node_page_state(page_pgdat(page), NR_ANON_PAGES, nr);
+-	__mod_node_page_state(page_pgdat(page), NR_ANON_PAGES, nr);
++	__mod_node_page_state(page_pgdat(page), NR_ANON_MAPPED, nr);
  	__page_set_anon_rmap(page, vma, address, 1);
  }
  
-@@ -1296,7 +1296,7 @@ void page_add_file_rmap(struct page *page, bool compound)
- 		if (!atomic_inc_and_test(&page->_mapcount))
- 			goto out;
- 	}
--	__mod_zone_page_state(page_zone(page), NR_FILE_MAPPED, nr);
-+	__mod_node_page_state(page_pgdat(page), NR_FILE_MAPPED, nr);
- 	mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
- out:
- 	unlock_page_memcg(page);
-@@ -1332,11 +1332,11 @@ static void page_remove_file_rmap(struct page *page, bool compound)
- 	}
- 
- 	/*
--	 * We use the irq-unsafe __{inc|mod}_zone_page_stat because
-+	 * We use the irq-unsafe __{inc|mod}_zone_page_state because
- 	 * these counters are not modified in interrupt context, and
- 	 * pte lock(a spinlock) is held, which implies preemption disabled.
- 	 */
--	__mod_zone_page_state(page_zone(page), NR_FILE_MAPPED, -nr);
-+	__mod_node_page_state(page_pgdat(page), NR_FILE_MAPPED, -nr);
- 	mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_FILE_MAPPED);
- 
- 	if (unlikely(PageMlocked(page)))
 @@ -1378,7 +1378,7 @@ static void page_remove_anon_compound_rmap(struct page *page)
  		clear_page_mlock(page);
  
  	if (nr) {
--		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, -nr);
-+		__mod_node_page_state(page_pgdat(page), NR_ANON_PAGES, -nr);
+-		__mod_node_page_state(page_pgdat(page), NR_ANON_PAGES, -nr);
++		__mod_node_page_state(page_pgdat(page), NR_ANON_MAPPED, -nr);
  		deferred_split_huge_page(page);
  	}
  }
@@ -215,46 +136,11 @@ index 573253efb645..17876517f5fa 100644
  	 * these counters are not modified in interrupt context, and
  	 * pte lock(a spinlock) is held, which implies preemption disabled.
  	 */
--	__dec_zone_page_state(page, NR_ANON_PAGES);
-+	__dec_node_page_state(page, NR_ANON_PAGES);
+-	__dec_node_page_state(page, NR_ANON_PAGES);
++	__dec_node_page_state(page, NR_ANON_MAPPED);
  
  	if (unlikely(PageMlocked(page)))
  		clear_page_mlock(page);
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 82b59b63b481..bc06a77d53fa 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3590,7 +3590,7 @@ int sysctl_min_slab_ratio = 5;
- 
- static inline unsigned long zone_unmapped_file_pages(struct zone *zone)
- {
--	unsigned long file_mapped = zone_page_state(zone, NR_FILE_MAPPED);
-+	unsigned long file_mapped = node_page_state(zone->zone_pgdat, NR_FILE_MAPPED);
- 	unsigned long file_lru = node_page_state(zone->zone_pgdat, NR_INACTIVE_FILE) +
- 		node_page_state(zone->zone_pgdat, NR_ACTIVE_FILE);
- 
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 89426c250a9a..226370ee771c 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -912,8 +912,6 @@ const char * const vmstat_text[] = {
- 	"nr_zone_anon_lru",
- 	"nr_zone_file_lru",
- 	"nr_mlock",
--	"nr_anon_pages",
--	"nr_mapped",
- 	"nr_file_pages",
- 	"nr_dirty",
- 	"nr_writeback",
-@@ -957,6 +955,8 @@ const char * const vmstat_text[] = {
- 	"workingset_refault",
- 	"workingset_activate",
- 	"workingset_nodereclaim",
-+	"nr_anon_pages",
-+	"nr_mapped",
- 
- 	/* enum writeback_stat_item counters */
- 	"nr_dirty_threshold",
 -- 
 2.6.4
 
