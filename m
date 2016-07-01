@@ -1,102 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DAD7828E1
-	for <linux-mm@kvack.org>; Fri,  1 Jul 2016 13:47:07 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id g62so249467295pfb.3
-        for <linux-mm@kvack.org>; Fri, 01 Jul 2016 10:47:07 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id g80si4928165pfb.296.2016.07.01.10.47.04
+	by kanga.kvack.org (Postfix) with ESMTP id 75075828E1
+	for <linux-mm@kvack.org>; Fri,  1 Jul 2016 13:47:09 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id a69so249283084pfa.1
+        for <linux-mm@kvack.org>; Fri, 01 Jul 2016 10:47:09 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id y7si5099197pal.7.2016.07.01.10.47.06
         for <linux-mm@kvack.org>;
-        Fri, 01 Jul 2016 10:47:05 -0700 (PDT)
-Subject: [PATCH 2/4] x86, pagetable: ignore A/D bits in pte/pmd/pud_none()
+        Fri, 01 Jul 2016 10:47:06 -0700 (PDT)
+Subject: [PATCH 3/4] x86: disallow running with 32-bit PTEs to work around erratum 
 From: Dave Hansen <dave@sr71.net>
-Date: Fri, 01 Jul 2016 10:47:04 -0700
+Date: Fri, 01 Jul 2016 10:47:05 -0700
 References: <20160701174658.6ED27E64@viggo.jf.intel.com>
 In-Reply-To: <20160701174658.6ED27E64@viggo.jf.intel.com>
-Message-Id: <20160701174704.66070F77@viggo.jf.intel.com>
+Message-Id: <20160701174705.3C08E126@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: x86@kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, bp@alien8.de, ak@linux.intel.com, mhocko@suse.com, Dave Hansen <dave@sr71.net>
 
 
-The erratum we are fixing here can lead to stray setting of the
-A and D bits.  That means that a pte that we cleared might
-suddenly have A/D set.  So, stop considering those bits when
-determining if a pte is pte_none().  The same goes for the
-other pmd_none() and pud_none().  pgd_none() can be skipped
-because it is not affected; we do not use PGD entries for
-anything other than pagetables on affected configurations.
+The Intel(R) Xeon Phi(TM) Processor x200 Family (codename: Knights
+Landing) has an erratum where a processor thread setting the Accessed
+or Dirty bits may not do so atomically against its checks for the
+Present bit.  This may cause a thread (which is about to page fault)
+to set A and/or D, even though the Present bit had already been
+atomically cleared.
 
-This adds a tiny amount of overhead to all pte_none() checks.
-I doubt we'll be able to measure it anywhere.
+If the PTE is used for storing a swap index or a NUMA migration index,
+the A bit could be misinterpreted as part of the swap type.  The stray
+bits being set cause a software-cleared PTE to be interpreted as a
+swap entry.  In some cases (like when the swap index ends up being
+for a non-existent swapfile), the kernel detects the stray value
+and WARN()s about it, but there is no guarantee that the kernel can
+always detect it.
+
+When we have 64-bit PTEs (64-bit mode or 32-bit PAE), we were able
+to move the swap PTE format around to avoid these troublesome bits.
+But, 32-bit non-PAE is tight on bits.  So, disallow it from running
+on this hardware.  I can't imagine anyone wanting to run 32-bit
+on this hardware, but this is the safe thing to do.
 
 ---
 
- b/arch/x86/include/asm/pgtable.h       |   13 ++++++++++---
- b/arch/x86/include/asm/pgtable_types.h |    6 ++++++
- 2 files changed, 16 insertions(+), 3 deletions(-)
+ b/arch/x86/boot/boot.h     |    1 +
+ b/arch/x86/boot/cpu.c      |    2 ++
+ b/arch/x86/boot/cpucheck.c |   32 ++++++++++++++++++++++++++++++++
+ b/arch/x86/boot/cpuflags.c |    1 +
+ b/arch/x86/boot/cpuflags.h |    1 +
+ 5 files changed, 37 insertions(+)
 
-diff -puN arch/x86/include/asm/pgtable.h~knl-strays-20-mod-pte-none arch/x86/include/asm/pgtable.h
---- a/arch/x86/include/asm/pgtable.h~knl-strays-20-mod-pte-none	2016-07-01 10:42:06.895771764 -0700
-+++ b/arch/x86/include/asm/pgtable.h	2016-07-01 10:42:06.900771991 -0700
-@@ -480,7 +480,7 @@ pte_t *populate_extra_pte(unsigned long
+diff -puN arch/x86/boot/boot.h~knl-strays-40-disallow-non-PAE-32-bit-on-KNL arch/x86/boot/boot.h
+--- a/arch/x86/boot/boot.h~knl-strays-40-disallow-non-PAE-32-bit-on-KNL	2016-07-01 10:42:07.302790241 -0700
++++ b/arch/x86/boot/boot.h	2016-07-01 10:42:07.311790650 -0700
+@@ -295,6 +295,7 @@ static inline int cmdline_find_option_bo
  
- static inline int pte_none(pte_t pte)
- {
--	return !pte.pte;
-+	return !(pte.pte & ~(_PAGE_KNL_ERRATUM_MASK));
+ /* cpu.c, cpucheck.c */
+ int check_cpu(int *cpu_level_ptr, int *req_level_ptr, u32 **err_flags_ptr);
++int check_knl_erratum(void);
+ int validate_cpu(void);
+ 
+ /* early_serial_console.c */
+diff -puN arch/x86/boot/cpu.c~knl-strays-40-disallow-non-PAE-32-bit-on-KNL arch/x86/boot/cpu.c
+--- a/arch/x86/boot/cpu.c~knl-strays-40-disallow-non-PAE-32-bit-on-KNL	2016-07-01 10:42:07.303790286 -0700
++++ b/arch/x86/boot/cpu.c	2016-07-01 10:42:07.312790695 -0700
+@@ -93,6 +93,8 @@ int validate_cpu(void)
+ 		show_cap_strs(err_flags);
+ 		putchar('\n');
+ 		return -1;
++	} else if (check_knl_erratum()) {
++		return -1;
+ 	} else {
+ 		return 0;
+ 	}
+diff -puN arch/x86/boot/cpucheck.c~knl-strays-40-disallow-non-PAE-32-bit-on-KNL arch/x86/boot/cpucheck.c
+--- a/arch/x86/boot/cpucheck.c~knl-strays-40-disallow-non-PAE-32-bit-on-KNL	2016-07-01 10:42:07.305790377 -0700
++++ b/arch/x86/boot/cpucheck.c	2016-07-01 10:42:07.312790695 -0700
+@@ -24,6 +24,7 @@
+ # include "boot.h"
+ #endif
+ #include <linux/types.h>
++#include <asm/intel-family.h>
+ #include <asm/processor-flags.h>
+ #include <asm/required-features.h>
+ #include <asm/msr-index.h>
+@@ -175,6 +176,8 @@ int check_cpu(int *cpu_level_ptr, int *r
+ 			puts("WARNING: PAE disabled. Use parameter 'forcepae' to enable at your own risk!\n");
+ 		}
+ 	}
++	if (!err)
++		err = check_knl_erratum();
+ 
+ 	if (err_flags_ptr)
+ 		*err_flags_ptr = err ? err_flags : NULL;
+@@ -185,3 +188,32 @@ int check_cpu(int *cpu_level_ptr, int *r
+ 
+ 	return (cpu.level < req_level || err) ? -1 : 0;
  }
- 
- #define __HAVE_ARCH_PTE_SAME
-@@ -552,7 +552,8 @@ static inline int pmd_none(pmd_t pmd)
- {
- 	/* Only check low word on 32-bit platforms, since it might be
- 	   out of sync with upper half. */
--	return (unsigned long)native_pmd_val(pmd) == 0;
-+	unsigned long val = native_pmd_val(pmd);
-+	return (val & ~_PAGE_KNL_ERRATUM_MASK) == 0;
- }
- 
- static inline unsigned long pmd_page_vaddr(pmd_t pmd)
-@@ -616,7 +617,7 @@ static inline unsigned long pages_to_mb(
- #if CONFIG_PGTABLE_LEVELS > 2
- static inline int pud_none(pud_t pud)
- {
--	return native_pud_val(pud) == 0;
-+	return (native_pud_val(pud) & ~(_PAGE_KNL_ERRATUM_MASK)) == 0;
- }
- 
- static inline int pud_present(pud_t pud)
-@@ -694,6 +695,12 @@ static inline int pgd_bad(pgd_t pgd)
- 
- static inline int pgd_none(pgd_t pgd)
- {
-+	/*
-+	 * There is no need to do a workaround for the KNL stray
-+	 * A/D bit erratum here.  PGDs only point to page tables
-+	 * except on 32-bit non-PAE which is not supported on
-+	 * KNL.
-+	 */
- 	return !native_pgd_val(pgd);
- }
- #endif	/* CONFIG_PGTABLE_LEVELS > 3 */
-diff -puN arch/x86/include/asm/pgtable_types.h~knl-strays-20-mod-pte-none arch/x86/include/asm/pgtable_types.h
---- a/arch/x86/include/asm/pgtable_types.h~knl-strays-20-mod-pte-none	2016-07-01 10:42:06.896771809 -0700
-+++ b/arch/x86/include/asm/pgtable_types.h	2016-07-01 10:42:06.900771991 -0700
-@@ -70,6 +70,12 @@
- 			 _PAGE_PKEY_BIT2 | \
- 			 _PAGE_PKEY_BIT3)
- 
-+#if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
-+#define _PAGE_KNL_ERRATUM_MASK (_PAGE_DIRTY | _PAGE_ACCESSED)
-+#else
-+#define _PAGE_KNL_ERRATUM_MASK 0
-+#endif
 +
- #ifdef CONFIG_KMEMCHECK
- #define _PAGE_HIDDEN	(_AT(pteval_t, 1) << _PAGE_BIT_HIDDEN)
- #else
++int check_knl_erratum(void)
++{
++	/*
++	 * First check for the affected model/family:
++	 */
++	if (!is_intel() ||
++	    cpu.family != 6 ||
++	    cpu.model != INTEL_FAM6_XEON_PHI_KNL)
++		return 0;
++
++	/*
++	 * This erratum affects the Accessed/Dirty bits, and can
++	 * cause stray bits to be set in !Present PTEs.  We have
++	 * enough bits in our 64-bit PTEs (which we have on real
++	 * 64-bit mode or PAE) to avoid using these troublesome
++	 * bits.  But, we do not have enough soace in our 32-bit
++	 * PTEs.  So, refuse to run on 32-bit non-PAE kernels.
++	 */
++	if (IS_ENABLED(CONFIG_X86_64) || IS_ENABLED(CONFIG_X86_PAE))
++		return 0;
++
++	puts("This 32-bit kernel can not run on this processor due\n"
++	     "to a processor erratum.  Use a 64-bit kernel, or PAE.\n\n");
++
++	return -1;
++}
++
++
+diff -puN arch/x86/boot/cpuflags.c~knl-strays-40-disallow-non-PAE-32-bit-on-KNL arch/x86/boot/cpuflags.c
+--- a/arch/x86/boot/cpuflags.c~knl-strays-40-disallow-non-PAE-32-bit-on-KNL	2016-07-01 10:42:07.307790468 -0700
++++ b/arch/x86/boot/cpuflags.c	2016-07-01 10:42:07.312790695 -0700
+@@ -102,6 +102,7 @@ void get_cpuflags(void)
+ 			cpuid(0x1, &tfms, &ignored, &cpu.flags[4],
+ 			      &cpu.flags[0]);
+ 			cpu.level = (tfms >> 8) & 15;
++			cpu.family = cpu.level;
+ 			cpu.model = (tfms >> 4) & 15;
+ 			if (cpu.level >= 6)
+ 				cpu.model += ((tfms >> 16) & 0xf) << 4;
+diff -puN arch/x86/boot/cpuflags.h~knl-strays-40-disallow-non-PAE-32-bit-on-KNL arch/x86/boot/cpuflags.h
+--- a/arch/x86/boot/cpuflags.h~knl-strays-40-disallow-non-PAE-32-bit-on-KNL	2016-07-01 10:42:07.308790514 -0700
++++ b/arch/x86/boot/cpuflags.h	2016-07-01 10:42:07.313790740 -0700
+@@ -6,6 +6,7 @@
+ 
+ struct cpu_features {
+ 	int level;		/* Family, or 64 for x86-64 */
++	int family;		/* Family, always */
+ 	int model;
+ 	u32 flags[NCAPINTS];
+ };
 _
 
 --
