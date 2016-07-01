@@ -1,125 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 86C04828E1
-	for <linux-mm@kvack.org>; Fri,  1 Jul 2016 13:47:11 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 143so249727317pfx.0
-        for <linux-mm@kvack.org>; Fri, 01 Jul 2016 10:47:11 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id g80si4928165pfb.296.2016.07.01.10.47.07
-        for <linux-mm@kvack.org>;
-        Fri, 01 Jul 2016 10:47:08 -0700 (PDT)
-Subject: [PATCH 4/4] x86: use pte_none() to test for empty PTE
-From: Dave Hansen <dave@sr71.net>
-Date: Fri, 01 Jul 2016 10:47:07 -0700
-References: <20160701174658.6ED27E64@viggo.jf.intel.com>
-In-Reply-To: <20160701174658.6ED27E64@viggo.jf.intel.com>
-Message-Id: <20160701174707.B9BBFAE8@viggo.jf.intel.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 17C71828E1
+	for <linux-mm@kvack.org>; Fri,  1 Jul 2016 14:25:18 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 143so251616152pfx.0
+        for <linux-mm@kvack.org>; Fri, 01 Jul 2016 11:25:18 -0700 (PDT)
+Received: from out01.mta.xmission.com (out01.mta.xmission.com. [166.70.13.231])
+        by mx.google.com with ESMTPS id hj10si5234457pac.0.2016.07.01.11.25.17
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Fri, 01 Jul 2016 11:25:17 -0700 (PDT)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <20160701001209.7DA24D1C@viggo.jf.intel.com>
+	<20160701001218.3D316260@viggo.jf.intel.com>
+	<CA+55aFwm74uiqwsV5dvVMDBAthwmHub3J3Wz9cso0PpgVTHUPA@mail.gmail.com>
+	<5775F418.2000803@sr71.net>
+	<CA+55aFydq3kpT-mzPqcU1_1h=+vSUj6RmQwiz5NVnfY4HfSjXw@mail.gmail.com>
+	<874m89cu61.fsf@x220.int.ebiederm.org> <57769188.9060708@sr71.net>
+Date: Fri, 01 Jul 2016 13:12:55 -0500
+In-Reply-To: <57769188.9060708@sr71.net> (Dave Hansen's message of "Fri, 1 Jul
+	2016 08:51:36 -0700")
+Message-ID: <878txlb520.fsf@x220.int.ebiederm.org>
+MIME-Version: 1.0
+Content-Type: text/plain
+Subject: Re: [PATCH 6/6] x86: Fix stray A/D bit setting into non-present PTEs
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: x86@kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, bp@alien8.de, ak@linux.intel.com, mhocko@suse.com, Dave Hansen <dave@sr71.net>
+To: Dave Hansen <dave@sr71.net>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, the arch/x86 maintainers <x86@kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Borislav Petkov <bp@alien8.de>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>
 
+Dave Hansen <dave@sr71.net> writes:
 
-The page table manipulation code seems to have grown a couple of
-sites that are looking for empty PTEs.  Just in case one of these
-entries got a stray bit set, use pte_none() instead of checking
-for a zero pte_val().
+> On 07/01/2016 07:25 AM, Eric W. Biederman wrote:
+>> Linus Torvalds <torvalds@linux-foundation.org> writes:
+>>> > On Thu, Jun 30, 2016 at 9:39 PM, Dave Hansen <dave@sr71.net> wrote:
+>>>> >>
+>>>> >> I think what you suggest will work if we don't consider A/D in
+>>>> >> pte_none().  I think there are a bunch of code path where assume that
+>>>> >> !pte_present() && !pte_none() means swap.
+>>> >
+>>> > Yeah, we would need to change pte_none() to mask off D/A, but I think
+>>> > that might be the only real change needed (other than making sure that
+>>> > we don't use the bits in the swap entries, I didn't look at that part
+>>> > at all)
+>> It looks like __pte_to_swp_entry also needs to be changed to mask out
+>> those bits when the swap code reads pte entries.  For all of the same
+>> reasons as pte_none.
+>
+> I guess that would be nice, but isn't it redundant?
+>
+> static inline swp_entry_t pte_to_swp_entry(pte_t pte)
+> {
+> 	...
+>         arch_entry = __pte_to_swp_entry(pte);
+> 	return swp_entry(__swp_type(arch_entry), __swp_offset(arch_entry));
+> }
+>
+> As long as __swp_type() and __swp_offset() don't let A/D through, then
+> we should be OK.  This site is the only call to __pte_to_swp_entry()
+> that I can find in the entire codebase.
+>
+> Or am I missing something?
 
-The use pte_same() makes me a bit nervous.  If we were doing a
-pte_same() check against two cleared entries and one of them had
-a stray bit set, it might fail the pte_same() check.  But, I
-don't think we ever _do_ pte_same() for cleared entries.  It is
-almost entirely used for checking for races in fault-in paths.
+Given that __pte_to_swp_entry on x86_64 is just __pte_val or pte.pte it
+does no filtering.  Similarly __swp_type(arch_entry) is a >> and
+swp_entry(type, ...) is a << of what appears to be same amount
+for the swap type.
 
----
+So any corruption in the upper bits of the pte will be preserved as a
+swap type.
 
- b/arch/x86/mm/init_64.c    |   12 ++++++------
- b/arch/x86/mm/pageattr.c   |    2 +-
- b/arch/x86/mm/pgtable_32.c |    2 +-
- 3 files changed, 8 insertions(+), 8 deletions(-)
+In fact I strongly suspect that the compiler can optimize out all of the
+work done by "swp_entry(__swp_type(arch_entry), _swp_offset(arch_entry))".
 
-diff -puN arch/x86/mm/init_64.c~knl-strays-50-pte_val-cleanups arch/x86/mm/init_64.c
---- a/arch/x86/mm/init_64.c~knl-strays-50-pte_val-cleanups	2016-07-01 10:42:07.781811987 -0700
-+++ b/arch/x86/mm/init_64.c	2016-07-01 10:42:07.788812305 -0700
-@@ -354,7 +354,7 @@ phys_pte_init(pte_t *pte_page, unsigned
- 		 * pagetable pages as RO. So assume someone who pre-setup
- 		 * these mappings are more intelligent.
- 		 */
--		if (pte_val(*pte)) {
-+		if (!pte_none(*pte)) {
- 			if (!after_bootmem)
- 				pages++;
- 			continue;
-@@ -396,7 +396,7 @@ phys_pmd_init(pmd_t *pmd_page, unsigned
- 			continue;
- 		}
- 
--		if (pmd_val(*pmd)) {
-+		if (!pmd_none(*pmd)) {
- 			if (!pmd_large(*pmd)) {
- 				spin_lock(&init_mm.page_table_lock);
- 				pte = (pte_t *)pmd_page_vaddr(*pmd);
-@@ -470,7 +470,7 @@ phys_pud_init(pud_t *pud_page, unsigned
- 			continue;
- 		}
- 
--		if (pud_val(*pud)) {
-+		if (!pud_none(*pud)) {
- 			if (!pud_large(*pud)) {
- 				pmd = pmd_offset(pud, 0);
- 				last_map_addr = phys_pmd_init(pmd, addr, end,
-@@ -673,7 +673,7 @@ static void __meminit free_pte_table(pte
- 
- 	for (i = 0; i < PTRS_PER_PTE; i++) {
- 		pte = pte_start + i;
--		if (pte_val(*pte))
-+		if (!pte_none(*pte))
- 			return;
- 	}
- 
-@@ -691,7 +691,7 @@ static void __meminit free_pmd_table(pmd
- 
- 	for (i = 0; i < PTRS_PER_PMD; i++) {
- 		pmd = pmd_start + i;
--		if (pmd_val(*pmd))
-+		if (!pmd_none(*pmd))
- 			return;
- 	}
- 
-@@ -710,7 +710,7 @@ static bool __meminit free_pud_table(pud
- 
- 	for (i = 0; i < PTRS_PER_PUD; i++) {
- 		pud = pud_start + i;
--		if (pud_val(*pud))
-+		if (!pud_none(*pud))
- 			return false;
- 	}
- 
-diff -puN arch/x86/mm/pageattr.c~knl-strays-50-pte_val-cleanups arch/x86/mm/pageattr.c
---- a/arch/x86/mm/pageattr.c~knl-strays-50-pte_val-cleanups	2016-07-01 10:42:07.783812078 -0700
-+++ b/arch/x86/mm/pageattr.c	2016-07-01 10:42:07.789812350 -0700
-@@ -1185,7 +1185,7 @@ repeat:
- 		return __cpa_process_fault(cpa, address, primary);
- 
- 	old_pte = *kpte;
--	if (!pte_val(old_pte))
-+	if (pte_none(old_pte))
- 		return __cpa_process_fault(cpa, address, primary);
- 
- 	if (level == PG_LEVEL_4K) {
-diff -puN arch/x86/mm/pgtable_32.c~knl-strays-50-pte_val-cleanups arch/x86/mm/pgtable_32.c
---- a/arch/x86/mm/pgtable_32.c~knl-strays-50-pte_val-cleanups	2016-07-01 10:42:07.785812169 -0700
-+++ b/arch/x86/mm/pgtable_32.c	2016-07-01 10:42:07.789812350 -0700
-@@ -47,7 +47,7 @@ void set_pte_vaddr(unsigned long vaddr,
- 		return;
- 	}
- 	pte = pte_offset_kernel(pmd, vaddr);
--	if (pte_val(pteval))
-+	if (!pte_none(pteval))
- 		set_pte_at(&init_mm, vaddr, pte, pteval);
- 	else
- 		pte_clear(&init_mm, vaddr, pte);
-_
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
