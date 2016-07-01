@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5007F828E1
-	for <linux-mm@kvack.org>; Fri,  1 Jul 2016 11:42:56 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id f126so21836824wma.3
-        for <linux-mm@kvack.org>; Fri, 01 Jul 2016 08:42:56 -0700 (PDT)
-Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
-        by mx.google.com with ESMTPS id 185si1741329wmc.80.2016.07.01.08.42.54
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A13A82958
+	for <linux-mm@kvack.org>; Fri,  1 Jul 2016 11:43:06 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id r190so21620477wmr.0
+        for <linux-mm@kvack.org>; Fri, 01 Jul 2016 08:43:06 -0700 (PDT)
+Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
+        by mx.google.com with ESMTPS id x9si1759168wmg.67.2016.07.01.08.43.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Jul 2016 08:42:55 -0700 (PDT)
+        Fri, 01 Jul 2016 08:43:05 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 87A101C1DA6
-	for <linux-mm@kvack.org>; Fri,  1 Jul 2016 16:42:54 +0100 (IST)
+	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id C68781C1E51
+	for <linux-mm@kvack.org>; Fri,  1 Jul 2016 16:43:04 +0100 (IST)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 29/31] mm: vmstat: account per-zone stalls and pages skipped during reclaim
-Date: Fri,  1 Jul 2016 16:37:44 +0100
-Message-Id: <1467387466-10022-30-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 30/31] mm, vmstat: print node-based stats in zoneinfo file
+Date: Fri,  1 Jul 2016 16:37:45 +0100
+Message-Id: <1467387466-10022-31-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1467387466-10022-1-git-send-email-mgorman@techsingularity.net>
 References: <1467387466-10022-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,127 +23,56 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
 Cc: Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-The vmstat allocstall was fairly useful in the general sense but
-node-based LRUs change that.  It's important to know if a stall was for an
-address-limited allocation request as this will require skipping pages
-from other zones.  This patch adds pgstall_* counters to replace
-allocstall.  The sum of the counters will equal the old allocstall so it
-can be trivially recalculated.  A high number of address-limited
-allocation requests may result in a lot of useless LRU scanning for
-suitable pages.
+There are a number of stats that were previously accessible via zoneinfo
+that are now invisible. While it is possible to create a new file for the
+node stats, this may be missed by users. Instead this patch prints the
+stats under the first populated zone in /proc/zoneinfo.
 
-As address-limited allocations require pages to be skipped, it's important
-to know how much useless LRU scanning took place so this patch adds
-pgskip* counters.  This yields the following model
-
-1. The number of address-space limited stalls can be accounted for (pgstall)
-2. The amount of useless work required to reclaim the data is accounted (pgskip)
-3. The total number of scans is available from pgscan_kswapd and pgscan_direct
-   so from that the ratio of useful to useless scans can be calculated.
-
-Link: http://lkml.kernel.org/r/1466518566-30034-28-git-send-email-mgorman@techsingularity.net
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Rik van Riel <riel@surriel.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
- include/linux/vm_event_item.h |  4 +++-
- mm/vmscan.c                   | 15 +++++++++++++--
- mm/vmstat.c                   |  3 ++-
- 3 files changed, 18 insertions(+), 4 deletions(-)
+ mm/vmstat.c | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
 
-diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index 1798ff542517..6d47f66f0e9c 100644
---- a/include/linux/vm_event_item.h
-+++ b/include/linux/vm_event_item.h
-@@ -23,6 +23,8 @@
- 
- enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		FOR_ALL_ZONES(PGALLOC),
-+		FOR_ALL_ZONES(PGSTALL),
-+		FOR_ALL_ZONES(PGSCAN_SKIP),
- 		PGFREE, PGACTIVATE, PGDEACTIVATE,
- 		PGFAULT, PGMAJFAULT,
- 		PGLAZYFREED,
-@@ -37,7 +39,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- #endif
- 		PGINODESTEAL, SLABS_SCANNED, KSWAPD_INODESTEAL,
- 		KSWAPD_LOW_WMARK_HIT_QUICKLY, KSWAPD_HIGH_WMARK_HIT_QUICKLY,
--		PAGEOUTRUN, ALLOCSTALL, PGROTATED,
-+		PAGEOUTRUN, PGROTATED,
- 		DROP_PAGECACHE, DROP_SLAB,
- #ifdef CONFIG_NUMA_BALANCING
- 		NUMA_PTE_UPDATES,
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a687cfa91166..151c30dd27e2 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1394,6 +1394,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 	struct list_head *src = &lruvec->lists[lru];
- 	unsigned long nr_taken = 0;
- 	unsigned long nr_zone_taken[MAX_NR_ZONES] = { 0 };
-+	unsigned long nr_skipped[MAX_NR_ZONES] = { 0, };
- 	unsigned long scan, nr_pages;
- 	LIST_HEAD(pages_skipped);
- 
-@@ -1408,6 +1409,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 
- 		if (page_zonenum(page) > sc->reclaim_idx) {
- 			list_move(&page->lru, &pages_skipped);
-+			nr_skipped[page_zonenum(page)]++;
- 			continue;
- 		}
- 
-@@ -1436,8 +1438,17 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
- 	 * scanning would soon rescan the same pages to skip and put the
- 	 * system at risk of premature OOM.
- 	 */
--	if (!list_empty(&pages_skipped))
-+	if (!list_empty(&pages_skipped)) {
-+		int zid;
-+
- 		list_splice(&pages_skipped, src);
-+		for (zid = 0; zid < MAX_NR_ZONES; zid++) {
-+			if (!nr_skipped[zid])
-+				continue;
-+
-+			__count_zid_vm_events(PGSCAN_SKIP, zid, nr_skipped[zid]);
-+		}
-+	}
- 	*nr_scanned = scan;
- 	trace_mm_vmscan_lru_isolate(sc->reclaim_idx, sc->order, nr_to_scan, scan,
- 				    nr_taken, mode, is_file_lru(lru));
-@@ -2676,7 +2687,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
- 	delayacct_freepages_start();
- 
- 	if (global_reclaim(sc))
--		count_vm_event(ALLOCSTALL);
-+		__count_zid_vm_events(PGSTALL, sc->reclaim_idx, 1);
- 
- 	do {
- 		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup,
 diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 905ea9ae2d5a..b9a9844e3142 100644
+index b9a9844e3142..ce09be63e8c7 100644
 --- a/mm/vmstat.c
 +++ b/mm/vmstat.c
-@@ -970,6 +970,8 @@ const char * const vmstat_text[] = {
- 	"pswpout",
+@@ -1402,11 +1402,35 @@ static const struct file_operations pagetypeinfo_file_ops = {
+ 	.release	= seq_release,
+ };
  
- 	TEXTS_FOR_ZONES("pgalloc")
-+	TEXTS_FOR_ZONES("pgstall")
-+	TEXTS_FOR_ZONES("pgskip")
- 
- 	"pgfree",
- 	"pgactivate",
-@@ -995,7 +997,6 @@ const char * const vmstat_text[] = {
- 	"kswapd_low_wmark_hit_quickly",
- 	"kswapd_high_wmark_hit_quickly",
- 	"pageoutrun",
--	"allocstall",
- 
- 	"pgrotated",
- 
++static bool is_zone_first_populated(pg_data_t *pgdat, struct zone *zone)
++{
++	int zid;
++
++	for (zid = 0; zid < MAX_NR_ZONES; zid++) {
++		struct zone *compare = &pgdat->node_zones[zid];
++
++		if (populated_zone(compare))
++			return zone == compare;
++	}
++
++	/* The zone must be somewhere! */
++	WARN_ON_ONCE(1);
++	return false;
++}
++
+ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
+ 							struct zone *zone)
+ {
+ 	int i;
+ 	seq_printf(m, "Node %d, zone %8s", pgdat->node_id, zone->name);
++	if (is_zone_first_populated(pgdat, zone)) {
++		seq_printf(m, "\n  per-node stats");
++		for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++) {
++			seq_printf(m, "\n      %-12s %lu",
++				vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
++				node_page_state(pgdat, i));
++		}
++	}
+ 	seq_printf(m,
+ 		   "\n  pages free     %lu"
+ 		   "\n        min      %lu"
 -- 
 2.6.4
 
