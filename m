@@ -1,110 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 994ED828E4
-	for <linux-mm@kvack.org>; Fri,  1 Jul 2016 02:41:26 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id ts6so190392087pac.1
-        for <linux-mm@kvack.org>; Thu, 30 Jun 2016 23:41:26 -0700 (PDT)
-Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
-        by mx.google.com with ESMTPS id r85si2606715pfb.223.2016.06.30.23.41.24
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B5F9828E4
+	for <linux-mm@kvack.org>; Fri,  1 Jul 2016 02:41:50 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id g62so218493805pfb.3
+        for <linux-mm@kvack.org>; Thu, 30 Jun 2016 23:41:50 -0700 (PDT)
+Received: from mail-pa0-x242.google.com (mail-pa0-x242.google.com. [2607:f8b0:400e:c03::242])
+        by mx.google.com with ESMTPS id h190si2481746pfb.251.2016.06.30.23.41.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Jun 2016 23:41:24 -0700 (PDT)
-Received: by mail-pf0-x244.google.com with SMTP id i123so9302662pfg.3
-        for <linux-mm@kvack.org>; Thu, 30 Jun 2016 23:41:24 -0700 (PDT)
+        Thu, 30 Jun 2016 23:41:49 -0700 (PDT)
+Received: by mail-pa0-x242.google.com with SMTP id hf6so9024750pac.2
+        for <linux-mm@kvack.org>; Thu, 30 Jun 2016 23:41:49 -0700 (PDT)
 From: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Subject: [PATCH 1/8] mm/zsmalloc: modify zs compact trace interface
-Date: Fri,  1 Jul 2016 14:40:59 +0800
-Message-Id: <1467355266-9735-1-git-send-email-opensource.ganesh@gmail.com>
+Subject: [PATCH 2/8] mm/zsmalloc: add per class compact trace event
+Date: Fri,  1 Jul 2016 14:41:00 +0800
+Message-Id: <1467355266-9735-2-git-send-email-opensource.ganesh@gmail.com>
+In-Reply-To: <1467355266-9735-1-git-send-email-opensource.ganesh@gmail.com>
+References: <1467355266-9735-1-git-send-email-opensource.ganesh@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: akpm@linux-foundation.org, minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, rostedt@goodmis.org, mingo@redhat.com, Ganesh Mahendran <opensource.ganesh@gmail.com>
 
-1. change trace_zsmalloc_compact_* to trace_zs_compact_* to keep
-consistent with other definition in zsmalloc module.
+add per class compact trace event. It will show how many zs pages
+isolated, how many zs pages reclaimed.
 
-2. remove pages_total_compacted information in trace_zs_compact_end(),
-since this is not very userfull for per zs_compact.
+----
+  <...>-627   [002] ....   192.641122: zs_compact_start: pool zram0
+  <...>-627   [002] ....   192.641166: zs_compact_class: class 254: 0 zspage isolated, 0 reclaimed
+  <...>-627   [002] ....   192.641169: zs_compact_class: class 202: 0 zspage isolated, 0 reclaimed
+  <...>-627   [002] ....   192.641172: zs_compact_class: class 190: 0 zspage isolated, 0 reclaimed
+  <...>-627   [002] ....   192.641180: zs_compact_class: class 168: 3 zspage isolated, 1 reclaimed
+  <...>-627   [002] ....   192.641190: zs_compact_class: class 151: 3 zspage isolated, 1 reclaimed
+  <...>-627   [002] ....   192.641201: zs_compact_class: class 144: 6 zspage isolated, 1 reclaimed
+  <...>-627   [002] ....   192.641224: zs_compact_class: class 126: 24 zspage isolated, 12 reclaimed
+  <...>-627   [002] ....   192.641261: zs_compact_class: class 111: 10 zspage isolated, 2 reclaimed
+kswapd0-627   [002] ....   192.641333: zs_compact_class: class 107: 38 zspage isolated, 8 reclaimed
+kswapd0-627   [002] ....   192.641415: zs_compact_class: class 100: 45 zspage isolated, 12 reclaimed
+kswapd0-627   [002] ....   192.641481: zs_compact_class: class  94: 24 zspage isolated, 5 reclaimed
+kswapd0-627   [002] ....   192.641568: zs_compact_class: class  91: 69 zspage isolated, 14 reclaimed
+kswapd0-627   [002] ....   192.641688: zs_compact_class: class  83: 120 zspage isolated, 47 reclaimed
+kswapd0-627   [002] ....   192.641765: zs_compact_class: class  76: 34 zspage isolated, 5 reclaimed
+kswapd0-627   [002] ....   192.641832: zs_compact_class: class  74: 34 zspage isolated, 6 reclaimed
+kswapd0-627   [002] ....   192.641958: zs_compact_class: class  71: 66 zspage isolated, 17 reclaimed
+kswapd0-627   [002] ....   192.642000: zs_compact_class: class  67: 17 zspage isolated, 3 reclaimed
+kswapd0-627   [002] ....   192.642063: zs_compact_class: class  66: 29 zspage isolated, 5 reclaimed
+kswapd0-627   [002] ....   192.642113: zs_compact_class: class  62: 38 zspage isolated, 12 reclaimed
+kswapd0-627   [002] ....   192.642143: zs_compact_class: class  58: 8 zspage isolated, 1 reclaimed
+kswapd0-627   [002] ....   192.642176: zs_compact_class: class  57: 25 zspage isolated, 5 reclaimed
+kswapd0-627   [002] ....   192.642184: zs_compact_class: class  54: 11 zspage isolated, 2 reclaimed
+kswapd0-627   [002] ....   192.642191: zs_compact_class: class  52: 5 zspage isolated, 1 reclaimed
+kswapd0-627   [002] ....   192.642201: zs_compact_class: class  51: 6 zspage isolated, 1 reclaimed
+kswapd0-627   [002] ....   192.642211: zs_compact_class: class  49: 11 zspage isolated, 3 reclaimed
+kswapd0-627   [002] ....   192.642216: zs_compact_class: class  46: 2 zspage isolated, 1 reclaimed
+kswapd0-627   [002] ....   192.642218: zs_compact_class: class  44: 0 zspage isolated, 0 reclaimed
+kswapd0-627   [002] ....   192.642221: zs_compact_class: class  43: 0 zspage isolated, 0 reclaimed
+  ...
+----
 
 Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
 ---
- include/trace/events/zsmalloc.h | 16 ++++++----------
- mm/zsmalloc.c                   |  7 +++----
- 2 files changed, 9 insertions(+), 14 deletions(-)
+ include/trace/events/zsmalloc.h | 24 ++++++++++++++++++++++++
+ mm/zsmalloc.c                   | 16 +++++++++++++++-
+ 2 files changed, 39 insertions(+), 1 deletion(-)
 
 diff --git a/include/trace/events/zsmalloc.h b/include/trace/events/zsmalloc.h
-index 3b6f14e..c7a39f4 100644
+index c7a39f4..e745246 100644
 --- a/include/trace/events/zsmalloc.h
 +++ b/include/trace/events/zsmalloc.h
-@@ -7,7 +7,7 @@
- #include <linux/types.h>
- #include <linux/tracepoint.h>
- 
--TRACE_EVENT(zsmalloc_compact_start,
-+TRACE_EVENT(zs_compact_start,
- 
- 	TP_PROTO(const char *pool_name),
- 
-@@ -25,29 +25,25 @@ TRACE_EVENT(zsmalloc_compact_start,
- 		  __entry->pool_name)
+@@ -46,6 +46,30 @@ TRACE_EVENT(zs_compact_end,
+ 		  __entry->pages_compacted)
  );
  
--TRACE_EVENT(zsmalloc_compact_end,
-+TRACE_EVENT(zs_compact_end,
- 
--	TP_PROTO(const char *pool_name, unsigned long pages_compacted,
--			unsigned long pages_total_compacted),
-+	TP_PROTO(const char *pool_name, unsigned long pages_compacted),
- 
--	TP_ARGS(pool_name, pages_compacted, pages_total_compacted),
-+	TP_ARGS(pool_name, pages_compacted),
- 
- 	TP_STRUCT__entry(
- 		__field(const char *, pool_name)
- 		__field(unsigned long, pages_compacted)
--		__field(unsigned long, pages_total_compacted)
- 	),
- 
- 	TP_fast_assign(
- 		__entry->pool_name = pool_name;
- 		__entry->pages_compacted = pages_compacted;
--		__entry->pages_total_compacted = pages_total_compacted;
- 	),
- 
--	TP_printk("pool %s: %ld pages compacted(total %ld)",
-+	TP_printk("pool %s: %ld pages compacted",
- 		  __entry->pool_name,
--		  __entry->pages_compacted,
--		  __entry->pages_total_compacted)
-+		  __entry->pages_compacted)
- );
- 
++TRACE_EVENT(zs_compact_class,
++
++	TP_PROTO(int class, unsigned long zspage_isolated, unsigned long zspage_reclaimed),
++
++	TP_ARGS(class, zspage_isolated, zspage_reclaimed),
++
++	TP_STRUCT__entry(
++		__field(int, class)
++		__field(unsigned long, zspage_isolated)
++		__field(unsigned long, zspage_reclaimed)
++	),
++
++	TP_fast_assign(
++		__entry->class = class;
++		__entry->zspage_isolated = zspage_isolated;
++		__entry->zspage_reclaimed = zspage_reclaimed;
++	),
++
++	TP_printk("class %3d: %ld zspage isolated, %ld zspage reclaimed",
++		  __entry->class,
++		  __entry->zspage_isolated,
++		  __entry->zspage_reclaimed)
++);
++
  #endif /* _TRACE_ZSMALLOC_H */
+ 
+ /* This part must be outside protection */
 diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index e425de4..c7f79d5 100644
+index c7f79d5..405baa5 100644
 --- a/mm/zsmalloc.c
 +++ b/mm/zsmalloc.c
-@@ -2323,7 +2323,7 @@ unsigned long zs_compact(struct zs_pool *pool)
- 	struct size_class *class;
- 	unsigned long pages_compacted_before = pool->stats.pages_compacted;
+@@ -1780,6 +1780,11 @@ struct zs_compact_control {
+ 	 /* Starting object index within @s_page which used for live object
+ 	  * in the subpage. */
+ 	int index;
++
++	/* zspage isolated */
++	unsigned long nr_isolated;
++	/* zspage reclaimed */
++	unsigned long nr_reclaimed;
+ };
  
--	trace_zsmalloc_compact_start(pool->name);
-+	trace_zs_compact_start(pool->name);
+ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
+@@ -2272,7 +2277,10 @@ static unsigned long zs_can_compact(struct size_class *class)
  
- 	for (i = zs_size_classes - 1; i >= 0; i--) {
- 		class = pool->size_class[i];
-@@ -2334,9 +2334,8 @@ unsigned long zs_compact(struct zs_pool *pool)
- 		__zs_compact(pool, class);
- 	}
+ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
+ {
+-	struct zs_compact_control cc;
++	struct zs_compact_control cc = {
++		.nr_isolated = 0,
++		.nr_reclaimed = 0,
++	};
+ 	struct zspage *src_zspage;
+ 	struct zspage *dst_zspage = NULL;
  
--	trace_zsmalloc_compact_end(pool->name,
--		pool->stats.pages_compacted - pages_compacted_before,
--		pool->stats.pages_compacted);
-+	trace_zs_compact_end(pool->name,
-+		pool->stats.pages_compacted - pages_compacted_before);
+@@ -2282,10 +2290,13 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
+ 		if (!zs_can_compact(class))
+ 			break;
  
- 	return pool->stats.pages_compacted;
++		cc.nr_isolated++;
++
+ 		cc.index = 0;
+ 		cc.s_page = get_first_page(src_zspage);
+ 
+ 		while ((dst_zspage = isolate_zspage(class, false))) {
++			cc.nr_isolated++;
+ 			cc.d_page = get_first_page(dst_zspage);
+ 			/*
+ 			 * If there is no more space in dst_page, resched
+@@ -2304,6 +2315,7 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
+ 		putback_zspage(class, dst_zspage);
+ 		if (putback_zspage(class, src_zspage) == ZS_EMPTY) {
+ 			free_zspage(pool, class, src_zspage);
++			cc.nr_reclaimed++;
+ 			pool->stats.pages_compacted += class->pages_per_zspage;
+ 		}
+ 		spin_unlock(&class->lock);
+@@ -2315,6 +2327,8 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
+ 		putback_zspage(class, src_zspage);
+ 
+ 	spin_unlock(&class->lock);
++
++	trace_zs_compact_class(class->index, cc.nr_isolated, cc.nr_reclaimed);
  }
+ 
+ unsigned long zs_compact(struct zs_pool *pool)
 -- 
 1.9.1
 
