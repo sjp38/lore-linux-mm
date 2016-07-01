@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BD9D6B0253
-	for <linux-mm@kvack.org>; Fri,  1 Jul 2016 02:42:21 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id he1so187353900pac.0
-        for <linux-mm@kvack.org>; Thu, 30 Jun 2016 23:42:21 -0700 (PDT)
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 14BB96B025E
+	for <linux-mm@kvack.org>; Fri,  1 Jul 2016 02:42:26 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id b13so189313449pat.3
+        for <linux-mm@kvack.org>; Thu, 30 Jun 2016 23:42:26 -0700 (PDT)
 Received: from mail-pa0-x242.google.com (mail-pa0-x242.google.com. [2607:f8b0:400e:c03::242])
-        by mx.google.com with ESMTPS id v85si2488571pfj.222.2016.06.30.23.42.20
+        by mx.google.com with ESMTPS id k26si2688889pfk.85.2016.06.30.23.42.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Jun 2016 23:42:20 -0700 (PDT)
-Received: by mail-pa0-x242.google.com with SMTP id av7so9048719pac.3
-        for <linux-mm@kvack.org>; Thu, 30 Jun 2016 23:42:20 -0700 (PDT)
+        Thu, 30 Jun 2016 23:42:25 -0700 (PDT)
+Received: by mail-pa0-x242.google.com with SMTP id hf6so9026037pac.2
+        for <linux-mm@kvack.org>; Thu, 30 Jun 2016 23:42:25 -0700 (PDT)
 From: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Subject: [PATCH 6/8] mm/zsmalloc: keep comments consistent with code
-Date: Fri,  1 Jul 2016 14:41:04 +0800
-Message-Id: <1467355266-9735-6-git-send-email-opensource.ganesh@gmail.com>
+Subject: [PATCH 7/8] mm/zsmalloc: add __init,__exit attribute
+Date: Fri,  1 Jul 2016 14:41:05 +0800
+Message-Id: <1467355266-9735-7-git-send-email-opensource.ganesh@gmail.com>
 In-Reply-To: <1467355266-9735-1-git-send-email-opensource.ganesh@gmail.com>
 References: <1467355266-9735-1-git-send-email-opensource.ganesh@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,54 +22,45 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: akpm@linux-foundation.org, minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, rostedt@goodmis.org, mingo@redhat.com, Ganesh Mahendran <opensource.ganesh@gmail.com>
 
-some minor change of comments:
-1). update zs_malloc(),zs_create_pool() function header
-2). update "Usage of struct page fields"
+Add __init,__exit attribute for function that is only called in
+module init/exit
 
 Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
 ---
- mm/zsmalloc.c | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ mm/zsmalloc.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 2690914..6fc631a 100644
+index 6fc631a..1c7460b 100644
 --- a/mm/zsmalloc.c
 +++ b/mm/zsmalloc.c
-@@ -20,6 +20,7 @@
-  *	page->freelist(index): links together all component pages of a zspage
-  *		For the huge page, this is always 0, so we use this field
-  *		to store handle.
-+ *	page->units: first object index in a subpage of zspage
-  *
-  * Usage of struct page flags:
-  *	PG_private: identifies the first component page
-@@ -140,9 +141,6 @@
-  */
- #define ZS_SIZE_CLASS_DELTA	(PAGE_SIZE >> CLASS_BITS)
+@@ -1349,7 +1349,7 @@ static void zs_unregister_cpu_notifier(void)
+ 	cpu_notifier_register_done();
+ }
  
--/*
-- * We do not maintain any list for completely empty or full pages
-- */
- enum fullness_group {
- 	ZS_EMPTY,
- 	ZS_ALMOST_EMPTY,
-@@ -1540,6 +1538,7 @@ static unsigned long obj_malloc(struct size_class *class,
-  * zs_malloc - Allocate block of given size from pool.
-  * @pool: pool to allocate from
-  * @size: size of block to allocate
-+ * @gfp: gfp flags when allocating object
-  *
-  * On success, handle to the allocated object is returned,
-  * otherwise 0.
-@@ -2418,7 +2417,7 @@ static int zs_register_shrinker(struct zs_pool *pool)
+-static void init_zs_size_classes(void)
++static void __init init_zs_size_classes(void)
+ {
+ 	int nr;
  
- /**
-  * zs_create_pool - Creates an allocation pool to work from.
-- * @flags: allocation flags used to allocate pool metadata
-+ * @name: pool name to be created
-  *
-  * This function must be called before anything when using
-  * the zsmalloc allocator.
+@@ -1896,7 +1896,7 @@ static struct file_system_type zsmalloc_fs = {
+ 	.kill_sb	= kill_anon_super,
+ };
+ 
+-static int zsmalloc_mount(void)
++static int __init zsmalloc_mount(void)
+ {
+ 	int ret = 0;
+ 
+@@ -1907,7 +1907,7 @@ static int zsmalloc_mount(void)
+ 	return ret;
+ }
+ 
+-static void zsmalloc_unmount(void)
++static void __exit zsmalloc_unmount(void)
+ {
+ 	kern_unmount(zsmalloc_mnt);
+ }
 -- 
 1.9.1
 
