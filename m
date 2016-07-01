@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B61296B025E
-	for <linux-mm@kvack.org>; Fri,  1 Jul 2016 16:03:34 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id c82so25875254wme.2
-        for <linux-mm@kvack.org>; Fri, 01 Jul 2016 13:03:34 -0700 (PDT)
-Received: from outbound-smtp06.blacknight.com (outbound-smtp06.blacknight.com. [81.17.249.39])
-        by mx.google.com with ESMTPS id l8si4451426wmf.15.2016.07.01.13.03.33
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 46B42828E1
+	for <linux-mm@kvack.org>; Fri,  1 Jul 2016 16:03:45 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id a2so87341075lfe.0
+        for <linux-mm@kvack.org>; Fri, 01 Jul 2016 13:03:45 -0700 (PDT)
+Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.16])
+        by mx.google.com with ESMTPS id x14si2194010wma.128.2016.07.01.13.03.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 01 Jul 2016 13:03:33 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 01 Jul 2016 13:03:44 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp06.blacknight.com (Postfix) with ESMTPS id 5B07798A9B
-	for <linux-mm@kvack.org>; Fri,  1 Jul 2016 20:03:33 +0000 (UTC)
+	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id 97AFF1C2201
+	for <linux-mm@kvack.org>; Fri,  1 Jul 2016 21:03:43 +0100 (IST)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 10/31] mm, vmscan: remove duplicate logic clearing node congestion and dirty state
-Date: Fri,  1 Jul 2016 21:01:18 +0100
-Message-Id: <1467403299-25786-11-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 11/31] mm: vmscan: do not reclaim from kswapd if there is any eligible zone
+Date: Fri,  1 Jul 2016 21:01:19 +0100
+Message-Id: <1467403299-25786-12-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1467403299-25786-1-git-send-email-mgorman@techsingularity.net>
 References: <1467403299-25786-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,66 +23,103 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
 Cc: Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-Reclaim may stall if there is too much dirty or congested data on a node.
-This was previously based on zone flags and the logic for clearing the
-flags is in two places.  As congestion/dirty tracking is now tracked on a
-per-node basis, we can remove some duplicate logic.
+kswapd scans from highest to lowest for a zone that requires balancing.
+This was necessary when reclaim was per-zone to fairly age pages on lower
+zones.  Now that we are reclaiming on a per-node basis, any eligible zone
+can be used and pages will still be aged fairly.  This patch avoids
+reclaiming excessively unless buffer_heads are over the limit and it's
+necessary to reclaim from a higher zone than requested by the waker of
+kswapd to relieve low memory pressure.
 
+[hillf.zj@alibaba-inc.com: Force kswapd reclaim no more than needed]
+Link: http://lkml.kernel.org/r/1466518566-30034-12-git-send-email-mgorman@techsingularity.net
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+Signed-off-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/vmscan.c | 24 ++++++++++++------------
- 1 file changed, 12 insertions(+), 12 deletions(-)
+ mm/vmscan.c | 56 ++++++++++++++++++++++++--------------------------------
+ 1 file changed, 24 insertions(+), 32 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 34656173a670..911142d25de2 100644
+index 911142d25de2..2f898ba2ee2e 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -3005,7 +3005,17 @@ static bool zone_balanced(struct zone *zone, int order, int classzone_idx)
- {
- 	unsigned long mark = high_wmark_pages(zone);
+@@ -3141,31 +3141,36 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
  
--	return zone_watermark_ok_safe(zone, order, mark, classzone_idx);
-+	if (!zone_watermark_ok_safe(zone, order, mark, classzone_idx))
-+		return false;
-+
-+	/*
-+	 * If any eligible zone is balanced then the node is not considered
-+	 * to be congested or dirty
-+	 */
-+	clear_bit(PGDAT_CONGESTED, &zone->zone_pgdat->flags);
-+	clear_bit(PGDAT_DIRTY, &zone->zone_pgdat->flags);
-+
-+	return true;
- }
+ 		sc.nr_reclaimed = 0;
  
- /*
-@@ -3151,13 +3161,6 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
- 			if (!zone_balanced(zone, order, 0)) {
+-		/* Scan from the highest requested zone to dma */
+-		for (i = classzone_idx; i >= 0; i--) {
+-			zone = pgdat->node_zones + i;
+-			if (!populated_zone(zone))
+-				continue;
+-
+-			/*
+-			 * If the number of buffer_heads in the machine
+-			 * exceeds the maximum allowed level and this node
+-			 * has a highmem zone, force kswapd to reclaim from
+-			 * it to relieve lowmem pressure.
+-			 */
+-			if (buffer_heads_over_limit && is_highmem_idx(i)) {
+-				classzone_idx = i;
+-				break;
+-			}
++		/*
++		 * If the number of buffer_heads in the machine exceeds the
++		 * maximum allowed level then reclaim from all zones. This is
++		 * not specific to highmem as highmem may not exist but it is
++		 * it is expected that buffer_heads are stripped in writeback.
++		 */
++		if (buffer_heads_over_limit) {
++			for (i = MAX_NR_ZONES - 1; i >= 0; i--) {
++				zone = pgdat->node_zones + i;
++				if (!populated_zone(zone))
++					continue;
+ 
+-			if (!zone_balanced(zone, order, 0)) {
  				classzone_idx = i;
  				break;
--			} else {
--				/*
--				 * If any eligible zone is balanced then the
--				 * node is not considered congested or dirty.
--				 */
--				clear_bit(PGDAT_CONGESTED, &zone->zone_pgdat->flags);
--				clear_bit(PGDAT_DIRTY, &zone->zone_pgdat->flags);
  			}
  		}
  
-@@ -3216,11 +3219,8 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
- 			if (!populated_zone(zone))
- 				continue;
- 
--			if (zone_balanced(zone, sc.order, classzone_idx)) {
--				clear_bit(PGDAT_CONGESTED, &pgdat->flags);
--				clear_bit(PGDAT_DIRTY, &pgdat->flags);
+-		if (i < 0)
+-			goto out;
++		/*
++		 * Only reclaim if there are no eligible zones. Check from
++		 * high to low zone to avoid prematurely clearing pgdat
++		 * congested state.
++		 */
++		for (i = classzone_idx; i >= 0; i--) {
++			zone = pgdat->node_zones + i;
++			if (!populated_zone(zone))
++				continue;
++
 +			if (zone_balanced(zone, sc.order, classzone_idx))
- 				goto out;
--			}
- 		}
++				goto out;
++		}
  
  		/*
+ 		 * Do some background aging of the anon list, to give
+@@ -3211,19 +3216,6 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+ 			break;
+ 
+ 		/*
+-		 * Stop reclaiming if any eligible zone is balanced and clear
+-		 * node writeback or congested.
+-		 */
+-		for (i = 0; i <= classzone_idx; i++) {
+-			zone = pgdat->node_zones + i;
+-			if (!populated_zone(zone))
+-				continue;
+-
+-			if (zone_balanced(zone, sc.order, classzone_idx))
+-				goto out;
+-		}
+-
+-		/*
+ 		 * Raise priority if scanning rate is too low or there was no
+ 		 * progress in reclaiming pages
+ 		 */
 -- 
 2.6.4
 
