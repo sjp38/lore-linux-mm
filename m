@@ -1,153 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 75075828E1
-	for <linux-mm@kvack.org>; Fri,  1 Jul 2016 13:47:09 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id a69so249283084pfa.1
-        for <linux-mm@kvack.org>; Fri, 01 Jul 2016 10:47:09 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id y7si5099197pal.7.2016.07.01.10.47.06
+	by kanga.kvack.org (Postfix) with ESMTP id 86C04828E1
+	for <linux-mm@kvack.org>; Fri,  1 Jul 2016 13:47:11 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id 143so249727317pfx.0
+        for <linux-mm@kvack.org>; Fri, 01 Jul 2016 10:47:11 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id g80si4928165pfb.296.2016.07.01.10.47.07
         for <linux-mm@kvack.org>;
-        Fri, 01 Jul 2016 10:47:06 -0700 (PDT)
-Subject: [PATCH 3/4] x86: disallow running with 32-bit PTEs to work around erratum 
+        Fri, 01 Jul 2016 10:47:08 -0700 (PDT)
+Subject: [PATCH 4/4] x86: use pte_none() to test for empty PTE
 From: Dave Hansen <dave@sr71.net>
-Date: Fri, 01 Jul 2016 10:47:05 -0700
+Date: Fri, 01 Jul 2016 10:47:07 -0700
 References: <20160701174658.6ED27E64@viggo.jf.intel.com>
 In-Reply-To: <20160701174658.6ED27E64@viggo.jf.intel.com>
-Message-Id: <20160701174705.3C08E126@viggo.jf.intel.com>
+Message-Id: <20160701174707.B9BBFAE8@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: x86@kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, bp@alien8.de, ak@linux.intel.com, mhocko@suse.com, Dave Hansen <dave@sr71.net>
 
 
-The Intel(R) Xeon Phi(TM) Processor x200 Family (codename: Knights
-Landing) has an erratum where a processor thread setting the Accessed
-or Dirty bits may not do so atomically against its checks for the
-Present bit.  This may cause a thread (which is about to page fault)
-to set A and/or D, even though the Present bit had already been
-atomically cleared.
+The page table manipulation code seems to have grown a couple of
+sites that are looking for empty PTEs.  Just in case one of these
+entries got a stray bit set, use pte_none() instead of checking
+for a zero pte_val().
 
-If the PTE is used for storing a swap index or a NUMA migration index,
-the A bit could be misinterpreted as part of the swap type.  The stray
-bits being set cause a software-cleared PTE to be interpreted as a
-swap entry.  In some cases (like when the swap index ends up being
-for a non-existent swapfile), the kernel detects the stray value
-and WARN()s about it, but there is no guarantee that the kernel can
-always detect it.
-
-When we have 64-bit PTEs (64-bit mode or 32-bit PAE), we were able
-to move the swap PTE format around to avoid these troublesome bits.
-But, 32-bit non-PAE is tight on bits.  So, disallow it from running
-on this hardware.  I can't imagine anyone wanting to run 32-bit
-on this hardware, but this is the safe thing to do.
+The use pte_same() makes me a bit nervous.  If we were doing a
+pte_same() check against two cleared entries and one of them had
+a stray bit set, it might fail the pte_same() check.  But, I
+don't think we ever _do_ pte_same() for cleared entries.  It is
+almost entirely used for checking for races in fault-in paths.
 
 ---
 
- b/arch/x86/boot/boot.h     |    1 +
- b/arch/x86/boot/cpu.c      |    2 ++
- b/arch/x86/boot/cpucheck.c |   32 ++++++++++++++++++++++++++++++++
- b/arch/x86/boot/cpuflags.c |    1 +
- b/arch/x86/boot/cpuflags.h |    1 +
- 5 files changed, 37 insertions(+)
+ b/arch/x86/mm/init_64.c    |   12 ++++++------
+ b/arch/x86/mm/pageattr.c   |    2 +-
+ b/arch/x86/mm/pgtable_32.c |    2 +-
+ 3 files changed, 8 insertions(+), 8 deletions(-)
 
-diff -puN arch/x86/boot/boot.h~knl-strays-40-disallow-non-PAE-32-bit-on-KNL arch/x86/boot/boot.h
---- a/arch/x86/boot/boot.h~knl-strays-40-disallow-non-PAE-32-bit-on-KNL	2016-07-01 10:42:07.302790241 -0700
-+++ b/arch/x86/boot/boot.h	2016-07-01 10:42:07.311790650 -0700
-@@ -295,6 +295,7 @@ static inline int cmdline_find_option_bo
- 
- /* cpu.c, cpucheck.c */
- int check_cpu(int *cpu_level_ptr, int *req_level_ptr, u32 **err_flags_ptr);
-+int check_knl_erratum(void);
- int validate_cpu(void);
- 
- /* early_serial_console.c */
-diff -puN arch/x86/boot/cpu.c~knl-strays-40-disallow-non-PAE-32-bit-on-KNL arch/x86/boot/cpu.c
---- a/arch/x86/boot/cpu.c~knl-strays-40-disallow-non-PAE-32-bit-on-KNL	2016-07-01 10:42:07.303790286 -0700
-+++ b/arch/x86/boot/cpu.c	2016-07-01 10:42:07.312790695 -0700
-@@ -93,6 +93,8 @@ int validate_cpu(void)
- 		show_cap_strs(err_flags);
- 		putchar('\n');
- 		return -1;
-+	} else if (check_knl_erratum()) {
-+		return -1;
- 	} else {
- 		return 0;
- 	}
-diff -puN arch/x86/boot/cpucheck.c~knl-strays-40-disallow-non-PAE-32-bit-on-KNL arch/x86/boot/cpucheck.c
---- a/arch/x86/boot/cpucheck.c~knl-strays-40-disallow-non-PAE-32-bit-on-KNL	2016-07-01 10:42:07.305790377 -0700
-+++ b/arch/x86/boot/cpucheck.c	2016-07-01 10:42:07.312790695 -0700
-@@ -24,6 +24,7 @@
- # include "boot.h"
- #endif
- #include <linux/types.h>
-+#include <asm/intel-family.h>
- #include <asm/processor-flags.h>
- #include <asm/required-features.h>
- #include <asm/msr-index.h>
-@@ -175,6 +176,8 @@ int check_cpu(int *cpu_level_ptr, int *r
- 			puts("WARNING: PAE disabled. Use parameter 'forcepae' to enable at your own risk!\n");
+diff -puN arch/x86/mm/init_64.c~knl-strays-50-pte_val-cleanups arch/x86/mm/init_64.c
+--- a/arch/x86/mm/init_64.c~knl-strays-50-pte_val-cleanups	2016-07-01 10:42:07.781811987 -0700
++++ b/arch/x86/mm/init_64.c	2016-07-01 10:42:07.788812305 -0700
+@@ -354,7 +354,7 @@ phys_pte_init(pte_t *pte_page, unsigned
+ 		 * pagetable pages as RO. So assume someone who pre-setup
+ 		 * these mappings are more intelligent.
+ 		 */
+-		if (pte_val(*pte)) {
++		if (!pte_none(*pte)) {
+ 			if (!after_bootmem)
+ 				pages++;
+ 			continue;
+@@ -396,7 +396,7 @@ phys_pmd_init(pmd_t *pmd_page, unsigned
+ 			continue;
  		}
+ 
+-		if (pmd_val(*pmd)) {
++		if (!pmd_none(*pmd)) {
+ 			if (!pmd_large(*pmd)) {
+ 				spin_lock(&init_mm.page_table_lock);
+ 				pte = (pte_t *)pmd_page_vaddr(*pmd);
+@@ -470,7 +470,7 @@ phys_pud_init(pud_t *pud_page, unsigned
+ 			continue;
+ 		}
+ 
+-		if (pud_val(*pud)) {
++		if (!pud_none(*pud)) {
+ 			if (!pud_large(*pud)) {
+ 				pmd = pmd_offset(pud, 0);
+ 				last_map_addr = phys_pmd_init(pmd, addr, end,
+@@ -673,7 +673,7 @@ static void __meminit free_pte_table(pte
+ 
+ 	for (i = 0; i < PTRS_PER_PTE; i++) {
+ 		pte = pte_start + i;
+-		if (pte_val(*pte))
++		if (!pte_none(*pte))
+ 			return;
  	}
-+	if (!err)
-+		err = check_knl_erratum();
  
- 	if (err_flags_ptr)
- 		*err_flags_ptr = err ? err_flags : NULL;
-@@ -185,3 +188,32 @@ int check_cpu(int *cpu_level_ptr, int *r
+@@ -691,7 +691,7 @@ static void __meminit free_pmd_table(pmd
  
- 	return (cpu.level < req_level || err) ? -1 : 0;
- }
-+
-+int check_knl_erratum(void)
-+{
-+	/*
-+	 * First check for the affected model/family:
-+	 */
-+	if (!is_intel() ||
-+	    cpu.family != 6 ||
-+	    cpu.model != INTEL_FAM6_XEON_PHI_KNL)
-+		return 0;
-+
-+	/*
-+	 * This erratum affects the Accessed/Dirty bits, and can
-+	 * cause stray bits to be set in !Present PTEs.  We have
-+	 * enough bits in our 64-bit PTEs (which we have on real
-+	 * 64-bit mode or PAE) to avoid using these troublesome
-+	 * bits.  But, we do not have enough soace in our 32-bit
-+	 * PTEs.  So, refuse to run on 32-bit non-PAE kernels.
-+	 */
-+	if (IS_ENABLED(CONFIG_X86_64) || IS_ENABLED(CONFIG_X86_PAE))
-+		return 0;
-+
-+	puts("This 32-bit kernel can not run on this processor due\n"
-+	     "to a processor erratum.  Use a 64-bit kernel, or PAE.\n\n");
-+
-+	return -1;
-+}
-+
-+
-diff -puN arch/x86/boot/cpuflags.c~knl-strays-40-disallow-non-PAE-32-bit-on-KNL arch/x86/boot/cpuflags.c
---- a/arch/x86/boot/cpuflags.c~knl-strays-40-disallow-non-PAE-32-bit-on-KNL	2016-07-01 10:42:07.307790468 -0700
-+++ b/arch/x86/boot/cpuflags.c	2016-07-01 10:42:07.312790695 -0700
-@@ -102,6 +102,7 @@ void get_cpuflags(void)
- 			cpuid(0x1, &tfms, &ignored, &cpu.flags[4],
- 			      &cpu.flags[0]);
- 			cpu.level = (tfms >> 8) & 15;
-+			cpu.family = cpu.level;
- 			cpu.model = (tfms >> 4) & 15;
- 			if (cpu.level >= 6)
- 				cpu.model += ((tfms >> 16) & 0xf) << 4;
-diff -puN arch/x86/boot/cpuflags.h~knl-strays-40-disallow-non-PAE-32-bit-on-KNL arch/x86/boot/cpuflags.h
---- a/arch/x86/boot/cpuflags.h~knl-strays-40-disallow-non-PAE-32-bit-on-KNL	2016-07-01 10:42:07.308790514 -0700
-+++ b/arch/x86/boot/cpuflags.h	2016-07-01 10:42:07.313790740 -0700
-@@ -6,6 +6,7 @@
+ 	for (i = 0; i < PTRS_PER_PMD; i++) {
+ 		pmd = pmd_start + i;
+-		if (pmd_val(*pmd))
++		if (!pmd_none(*pmd))
+ 			return;
+ 	}
  
- struct cpu_features {
- 	int level;		/* Family, or 64 for x86-64 */
-+	int family;		/* Family, always */
- 	int model;
- 	u32 flags[NCAPINTS];
- };
+@@ -710,7 +710,7 @@ static bool __meminit free_pud_table(pud
+ 
+ 	for (i = 0; i < PTRS_PER_PUD; i++) {
+ 		pud = pud_start + i;
+-		if (pud_val(*pud))
++		if (!pud_none(*pud))
+ 			return false;
+ 	}
+ 
+diff -puN arch/x86/mm/pageattr.c~knl-strays-50-pte_val-cleanups arch/x86/mm/pageattr.c
+--- a/arch/x86/mm/pageattr.c~knl-strays-50-pte_val-cleanups	2016-07-01 10:42:07.783812078 -0700
++++ b/arch/x86/mm/pageattr.c	2016-07-01 10:42:07.789812350 -0700
+@@ -1185,7 +1185,7 @@ repeat:
+ 		return __cpa_process_fault(cpa, address, primary);
+ 
+ 	old_pte = *kpte;
+-	if (!pte_val(old_pte))
++	if (pte_none(old_pte))
+ 		return __cpa_process_fault(cpa, address, primary);
+ 
+ 	if (level == PG_LEVEL_4K) {
+diff -puN arch/x86/mm/pgtable_32.c~knl-strays-50-pte_val-cleanups arch/x86/mm/pgtable_32.c
+--- a/arch/x86/mm/pgtable_32.c~knl-strays-50-pte_val-cleanups	2016-07-01 10:42:07.785812169 -0700
++++ b/arch/x86/mm/pgtable_32.c	2016-07-01 10:42:07.789812350 -0700
+@@ -47,7 +47,7 @@ void set_pte_vaddr(unsigned long vaddr,
+ 		return;
+ 	}
+ 	pte = pte_offset_kernel(pmd, vaddr);
+-	if (pte_val(pteval))
++	if (!pte_none(pteval))
+ 		set_pte_at(&init_mm, vaddr, pte, pteval);
+ 	else
+ 		pte_clear(&init_mm, vaddr, pte);
 _
 
 --
