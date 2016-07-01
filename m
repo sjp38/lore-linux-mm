@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C33F46B025F
-	for <linux-mm@kvack.org>; Fri,  1 Jul 2016 05:26:56 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id f126so13369061wma.3
-        for <linux-mm@kvack.org>; Fri, 01 Jul 2016 02:26:56 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id lp5si2763579wjb.121.2016.07.01.02.26.53
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FF696B0260
+	for <linux-mm@kvack.org>; Fri,  1 Jul 2016 05:26:59 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id a4so78320424lfa.1
+        for <linux-mm@kvack.org>; Fri, 01 Jul 2016 02:26:59 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id pa7si2805749wjb.109.2016.07.01.02.26.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 01 Jul 2016 02:26:54 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id r201so3870743wme.0
-        for <linux-mm@kvack.org>; Fri, 01 Jul 2016 02:26:53 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id 187so3863900wmz.1
+        for <linux-mm@kvack.org>; Fri, 01 Jul 2016 02:26:54 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH 3/6] exit, oom: postpone exit_oom_victim to later
-Date: Fri,  1 Jul 2016 11:26:27 +0200
-Message-Id: <1467365190-24640-4-git-send-email-mhocko@kernel.org>
+Subject: [RFC PATCH 4/6] oom, oom_reaper: consider mmget_not_zero as a failure
+Date: Fri,  1 Jul 2016 11:26:28 +0200
+Message-Id: <1467365190-24640-5-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1467365190-24640-1-git-send-email-mhocko@kernel.org>
 References: <1467365190-24640-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,58 +24,55 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-lo
 
 From: Michal Hocko <mhocko@suse.com>
 
-exit_oom_victim was called after mmput because it is expected that
-address space of the victim would get released by that time and there is
-no reason to hold off the oom killer from selecting another task should
-that be insufficient to handle the oom situation. In order to catch
-post exit_mm() allocations we used to check for PF_EXITING but this
-got removed by 6a618957ad17 ("mm: oom_kill: don't ignore oom score on
-exiting tasks") because this check was lockup prone.
+mmget_not_zero failing means that we are racing with mmput->__mmput
+and we are currently interpreting this as a success because we believe
+that __mmput will release the address space. This is not guaranteed
+though because at least exit_aio might wait on IO and it is not entirely
+clear whether it will terminate in a bounded amount of time. It is hard
+to tell what else is lurking there.
 
-It seems that we have all needed pieces ready now and can finally
-fix this properly (at least for CONFIG_MMU cases where we have the
-oom_reaper).  Since "oom: keep mm of the killed task available" we have
-a reliable way to ignore oom victims which are no longer interesting
-because they either were reaped and do not sit on a lot of memory or
-they are not reapable for some reason and it is safer to ignore them
-and move on to another victim. That means that we can safely postpone
-exit_oom_victim to closer to the final schedule.
-
-There is possible advantages of this because we are reducing chances
-of further interference of the oom victim with the rest of the system
-after oom_killer_disable(). Strictly speaking this is possible right
-now because there are indeed allocations possible past exit_mm() and
-who knows whether some of them can trigger IO. I haven't seen this in
-practice though.
+This patch makes this path more conservative and we report a failure
+which will lead to setting MMF_OOM_NOT_REAPABLE and MMF_OOM_REAPED if
+this state is permanent.
 
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- kernel/exit.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ mm/oom_kill.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
 
-diff --git a/kernel/exit.c b/kernel/exit.c
-index 9e6e1356e6bb..a7260c05f18c 100644
---- a/kernel/exit.c
-+++ b/kernel/exit.c
-@@ -434,8 +434,6 @@ static void exit_mm(struct task_struct *tsk)
- 	task_unlock(tsk);
- 	mm_update_next_owner(mm);
- 	mmput(mm);
--	if (test_thread_flag(TIF_MEMDIE))
--		exit_oom_victim(tsk);
- }
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 4ac089cba353..b2210b6c38ba 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -460,7 +460,7 @@ static bool __oom_reap_task(struct task_struct *tsk)
+ 	struct mm_struct *mm = NULL;
+ 	struct zap_details details = {.check_swap_entries = true,
+ 				      .ignore_dirty = true};
+-	bool ret = true;
++	bool ret = false;
  
- static struct task_struct *find_alive_thread(struct task_struct *p)
-@@ -822,6 +820,9 @@ void do_exit(long code)
- 	smp_mb();
- 	raw_spin_unlock_wait(&tsk->pi_lock);
+ 	/*
+ 	 * We have to make sure to not race with the victim exit path
+@@ -479,10 +479,8 @@ static bool __oom_reap_task(struct task_struct *tsk)
+ 	mutex_lock(&oom_lock);
  
-+	if (test_thread_flag(TIF_MEMDIE))
-+		exit_oom_victim(tsk);
-+
- 	/* causes final put_task_struct in finish_task_switch(). */
- 	tsk->state = TASK_DEAD;
- 	tsk->flags |= PF_NOFREEZE;	/* tell freezer to ignore us */
+ 	mm = tsk->signal->oom_mm;
+-	if (!down_read_trylock(&mm->mmap_sem)) {
+-		ret = false;
++	if (!down_read_trylock(&mm->mmap_sem))
+ 		goto unlock_oom;
+-	}
+ 
+ 	/*
+ 	 * increase mm_users only after we know we will reap something so
+@@ -494,6 +492,7 @@ static bool __oom_reap_task(struct task_struct *tsk)
+ 		goto unlock_oom;
+ 	}
+ 
++	ret = true;
+ 	tlb_gather_mmu(&tlb, mm, 0, -1);
+ 	for (vma = mm->mmap ; vma; vma = vma->vm_next) {
+ 		if (is_vm_hugetlb_page(vma))
 -- 
 2.8.1
 
