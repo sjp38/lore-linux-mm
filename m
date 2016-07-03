@@ -1,42 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BFC7A6B0005
-	for <linux-mm@kvack.org>; Sun,  3 Jul 2016 13:10:45 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id a69so347942873pfa.1
-        for <linux-mm@kvack.org>; Sun, 03 Jul 2016 10:10:45 -0700 (PDT)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id b2si4679711pav.216.2016.07.03.10.10.42
-        for <linux-mm@kvack.org>;
-        Sun, 03 Jul 2016 10:10:42 -0700 (PDT)
-Subject: Re: [PATCH 6/6] x86: Fix stray A/D bit setting into non-present PTEs
-References: <20160701001209.7DA24D1C@viggo.jf.intel.com>
- <20160701001218.3D316260@viggo.jf.intel.com>
- <CA+55aFwm74uiqwsV5dvVMDBAthwmHub3J3Wz9cso0PpgVTHUPA@mail.gmail.com>
- <CAMzpN2iLBKF7vK3TuTPwYn2nZOw2q_Pn=q+g6pNuVs0k6Xd5LQ@mail.gmail.com>
-From: Dave Hansen <dave@sr71.net>
-Message-ID: <5779470F.8020205@sr71.net>
-Date: Sun, 3 Jul 2016 10:10:39 -0700
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A40C6B0005
+	for <linux-mm@kvack.org>; Sun,  3 Jul 2016 17:18:02 -0400 (EDT)
+Received: by mail-vk0-f70.google.com with SMTP id v6so415369171vkb.2
+        for <linux-mm@kvack.org>; Sun, 03 Jul 2016 14:18:02 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q72si66272qka.110.2016.07.03.14.18.01
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 03 Jul 2016 14:18:01 -0700 (PDT)
+Date: Mon, 4 Jul 2016 00:17:55 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [RFC PATCH 5/6] vhost, mm: make sure that oom_reaper doesn't
+ reap memory read by vhost
+Message-ID: <20160703215250-mutt-send-email-mst@redhat.com>
+References: <1467365190-24640-1-git-send-email-mhocko@kernel.org>
+ <1467365190-24640-6-git-send-email-mhocko@kernel.org>
+ <20160703134719.GA28492@redhat.com>
+ <20160703140904.GA26908@redhat.com>
+ <20160703151829.GA28667@redhat.com>
+ <20160703182254-mutt-send-email-mst@redhat.com>
+ <20160703164723.GA30151@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <CAMzpN2iLBKF7vK3TuTPwYn2nZOw2q_Pn=q+g6pNuVs0k6Xd5LQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160703164723.GA30151@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brian Gerst <brgerst@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, the arch/x86 maintainers <x86@kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Borislav Petkov <bp@alien8.de>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Michal Hocko <mhocko@suse.com>
 
-On 06/30/2016 08:06 PM, Brian Gerst wrote:
->> > It's not like anybody will ever care about 32-bit page tables on
->> > Knights Landing anyway.
-> Could this affect a 32-bit guest VM?
+On Sun, Jul 03, 2016 at 06:47:23PM +0200, Oleg Nesterov wrote:
+> On 07/03, Michael S. Tsirkin wrote:
+> >
+> > On Sun, Jul 03, 2016 at 05:18:29PM +0200, Oleg Nesterov wrote:
+> > >
+> > > Well, we are going to kill all tasks which share this memory. I mean, ->mm.
+> > > If "sharing memory with another task" means, say, a file, then this memory
+> > > won't be unmapped (if shared).
+> > >
+> > > So let me ask again... Suppose, say, QEMU does VHOST_SET_OWNER and then we
+> > > unmap its (anonymous/non-shared) memory. Who else's memory can be corrupted?
+> >
+> > As you say, I mean anyone who shares memory with QEMU through a file.
+> 
+> And in this case vhost_worker() reads the anonymous memory of QEMU process,
+> not the memory which can be shared with another task, correct?
+> 
+> And if QEMU simply crashes, this can't affect anyone who shares memory with
+> QEMU through a file, yes?
+> 
+> Oleg.
 
-This isn't about 32-bit *mode*.  It's about using the the 32-bit 2-level
-_paging_ mode that supports only 4GB virtual and 4GB physical addresses.
- That mode also doesn't support the No-eXecute (NX) bit, which basically
-everyone needs today for its security benefits.
+Well no - the VM memory is not always anonymous memory. It can be an
+mmaped file.
 
-Even the little Quark CPU supports PAE (64-bit page tables).
-
+-- 
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
