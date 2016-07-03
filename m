@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f200.google.com (mail-ob0-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 90DFD6B0253
-	for <linux-mm@kvack.org>; Sat,  2 Jul 2016 22:40:29 -0400 (EDT)
-Received: by mail-ob0-f200.google.com with SMTP id o10so232686048obp.3
-        for <linux-mm@kvack.org>; Sat, 02 Jul 2016 19:40:29 -0700 (PDT)
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 173066B025E
+	for <linux-mm@kvack.org>; Sat,  2 Jul 2016 22:40:56 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id d132so195058272oig.0
+        for <linux-mm@kvack.org>; Sat, 02 Jul 2016 19:40:56 -0700 (PDT)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id y130si684329ioy.129.2016.07.02.19.40.28
+        by mx.google.com with ESMTPS id l206si129680ita.11.2016.07.02.19.40.54
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 02 Jul 2016 19:40:29 -0700 (PDT)
-Subject: [PATCH 4/8] mm,oom: Remove OOM_SCAN_ABORT case.
+        Sat, 02 Jul 2016 19:40:55 -0700 (PDT)
+Subject: [PATCH 6/8] mm,oom_reaper: Stop clearing TIF_MEMDIE on remote thread.
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 References: <201607031135.AAH95347.MVOHQtFJFLOOFS@I-love.SAKURA.ne.jp>
 In-Reply-To: <201607031135.AAH95347.MVOHQtFJFLOOFS@I-love.SAKURA.ne.jp>
-Message-Id: <201607031139.DFD39537.QLVOHJMSFtOOFF@I-love.SAKURA.ne.jp>
-Date: Sun, 3 Jul 2016 11:39:16 +0900
+Message-Id: <201607031140.BDG64095.VJFOOLHSFMFtOQ@I-love.SAKURA.ne.jp>
+Date: Sun, 3 Jul 2016 11:40:41 +0900
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
@@ -22,102 +22,124 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: akpm@linux-foundation.org, oleg@redhat.com, rientjes@google.com, vdavydov@parallels.com, mst@redhat.com, mhocko@suse.com, mhocko@kernel.org
 
->From e2d850ccbc7abc2643f5aac4dd09787f09270fd4 Mon Sep 17 00:00:00 2001
+>From 00b7a14653c9700429f89e4512f6000a39cce59d Mon Sep 17 00:00:00 2001
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Sat, 2 Jul 2016 23:01:17 +0900
-Subject: [PATCH 4/8] mm,oom: Remove OOM_SCAN_ABORT case.
+Date: Sat, 2 Jul 2016 23:03:03 +0900
+Subject: [PATCH 6/8] mm,oom_reaper: Stop clearing TIF_MEMDIE on remote thread.
 
 Since oom_has_pending_mm() controls whether to select next OOM victim,
-we no longer need to abort OOM victim selection loop using OOM_SCAN_ABORT
-case. Remove it.
+we no longer need to clear TIF_MEMDIE on remote thread. Therefore,
+revert related changes in commit 36324a990cf578b5 ("oom: clear TIF_MEMDIE
+after oom_reaper managed to unmap the address space") and
+commit e26796066fdf929c ("oom: make oom_reaper freezable") and
+commit 74070542099c66d8 ("oom, suspend: fix oom_reaper vs.
+oom_killer_disable race").
+
+This patch temporarily breaks what commit 36324a990cf578b5 ("oom: clear
+TIF_MEMDIE after oom_reaper managed to unmap the address space") and
+commit 449d777d7ad6d7f9 ("mm, oom_reaper: clear TIF_MEMDIE for all tasks
+queued for oom_reaper") try to solve due to oom_has_pending_mm().
+Future patch in this series will fix it.
 
 Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 ---
- include/linux/oom.h |  1 -
- mm/memcontrol.c     |  8 --------
- mm/oom_kill.c       | 24 +-----------------------
- 3 files changed, 1 insertion(+), 32 deletions(-)
+ include/linux/oom.h    |  2 +-
+ kernel/exit.c          |  2 +-
+ kernel/power/process.c | 12 ------------
+ mm/oom_kill.c          | 15 ++-------------
+ 4 files changed, 4 insertions(+), 27 deletions(-)
 
 diff --git a/include/linux/oom.h b/include/linux/oom.h
-index 1e538c5..5991d41 100644
+index 5991d41..4844325 100644
 --- a/include/linux/oom.h
 +++ b/include/linux/oom.h
-@@ -49,7 +49,6 @@ enum oom_constraint {
- enum oom_scan_t {
- 	OOM_SCAN_OK,		/* scan thread and find its badness */
- 	OOM_SCAN_CONTINUE,	/* do not consider thread for oom kill */
--	OOM_SCAN_ABORT,		/* abort the iteration and return */
- 	OOM_SCAN_SELECT,	/* always select this thread first */
- };
+@@ -98,7 +98,7 @@ extern enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
  
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 835c95c..c17160d 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1263,14 +1263,6 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 				/* fall through */
- 			case OOM_SCAN_CONTINUE:
- 				continue;
--			case OOM_SCAN_ABORT:
--				css_task_iter_end(&it);
--				mem_cgroup_iter_break(memcg, iter);
--				if (chosen)
--					put_task_struct(chosen);
--				/* Set a dummy value to return "true". */
--				chosen = (void *) 1;
--				goto unlock;
- 			case OOM_SCAN_OK:
- 				break;
- 			};
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 39c5034..734378a 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -324,25 +324,6 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
- 		return OOM_SCAN_CONTINUE;
+ extern bool out_of_memory(struct oom_control *oc);
  
- 	/*
--	 * This task already has access to memory reserves and is being killed.
--	 * Don't allow any other task to have access to the reserves unless
--	 * the task has MMF_OOM_REAPED because chances that it would release
--	 * any memory is quite low.
+-extern void exit_oom_victim(struct task_struct *tsk);
++extern void exit_oom_victim(void);
+ 
+ extern int register_oom_notifier(struct notifier_block *nb);
+ extern int unregister_oom_notifier(struct notifier_block *nb);
+diff --git a/kernel/exit.c b/kernel/exit.c
+index 84ae830..1b1dada 100644
+--- a/kernel/exit.c
++++ b/kernel/exit.c
+@@ -511,7 +511,7 @@ static void exit_mm(struct task_struct *tsk)
+ 	mm_update_next_owner(mm);
+ 	mmput(mm);
+ 	if (test_thread_flag(TIF_MEMDIE))
+-		exit_oom_victim(tsk);
++		exit_oom_victim();
+ }
+ 
+ static struct task_struct *find_alive_thread(struct task_struct *p)
+diff --git a/kernel/power/process.c b/kernel/power/process.c
+index 0c2ee97..df058be 100644
+--- a/kernel/power/process.c
++++ b/kernel/power/process.c
+@@ -146,18 +146,6 @@ int freeze_processes(void)
+ 	if (!error && !oom_killer_disable())
+ 		error = -EBUSY;
+ 
+-	/*
+-	 * There is a hard to fix race between oom_reaper kernel thread
+-	 * and oom_killer_disable. oom_reaper calls exit_oom_victim
+-	 * before the victim reaches exit_mm so try to freeze all the tasks
+-	 * again and catch such a left over task.
 -	 */
--	if (!is_sysrq_oom(oc) && atomic_read(&task->signal->oom_victims)) {
--		struct task_struct *p = find_lock_task_mm(task);
--		enum oom_scan_t ret = OOM_SCAN_ABORT;
--
--		if (p) {
--			if (test_bit(MMF_OOM_REAPED, &p->mm->flags))
--				ret = OOM_SCAN_CONTINUE;
--			task_unlock(p);
--		}
--
--		return ret;
+-	if (!error) {
+-		pr_info("Double checking all user space processes after OOM killer disable... ");
+-		error = try_to_freeze_tasks(true);
+-		pr_cont("\n");
 -	}
 -
+ 	if (error)
+ 		thaw_processes();
+ 	return error;
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 55e0ffb..45e7de2 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -582,15 +582,7 @@ static void oom_reap_task(struct task_struct *tsk)
+ 	debug_show_all_locks();
+ 
+ done:
 -	/*
- 	 * If task is allocating a lot of memory and has been marked to be
- 	 * killed first if it triggers an oom, then select it.
- 	 */
-@@ -374,9 +355,6 @@ static struct task_struct *select_bad_process(struct oom_control *oc,
- 			/* fall through */
- 		case OOM_SCAN_CONTINUE:
- 			continue;
--		case OOM_SCAN_ABORT:
--			rcu_read_unlock();
--			return (struct task_struct *)(-1UL);
- 		case OOM_SCAN_OK:
- 			break;
- 		};
-@@ -1075,7 +1053,7 @@ bool out_of_memory(struct oom_control *oc)
- 		dump_header(oc, NULL);
- 		panic("Out of memory and no killable processes...\n");
- 	}
--	if (p && p != (void *)-1UL) {
-+	if (p) {
- 		oom_kill_process(oc, p, points, totalpages, "Out of memory");
- 		/*
- 		 * Give the killed process a good chance to exit before trying
+-	 * Clear TIF_MEMDIE because the task shouldn't be sitting on a
+-	 * reasonably reclaimable memory anymore or it is not a good candidate
+-	 * for the oom victim right now because it cannot release its memory
+-	 * itself nor by the oom reaper.
+-	 */
+ 	tsk->oom_reaper_list = NULL;
+-	exit_oom_victim(tsk);
+-
+ 	/* Drop a reference taken by wake_oom_reaper */
+ 	put_task_struct(tsk);
+ 	/* Drop a reference taken above. */
+@@ -600,8 +592,6 @@ done:
+ 
+ static int oom_reaper(void *unused)
+ {
+-	set_freezable();
+-
+ 	while (true) {
+ 		struct task_struct *tsk = NULL;
+ 
+@@ -688,10 +678,9 @@ void mark_oom_victim(struct task_struct *tsk, struct oom_control *oc)
+ /**
+  * exit_oom_victim - note the exit of an OOM victim
+  */
+-void exit_oom_victim(struct task_struct *tsk)
++void exit_oom_victim(void)
+ {
+-	if (!test_and_clear_tsk_thread_flag(tsk, TIF_MEMDIE))
+-		return;
++	clear_thread_flag(TIF_MEMDIE);
+ 
+ 	if (!atomic_dec_return(&oom_victims))
+ 		wake_up_all(&oom_victims_wait);
 -- 
 1.8.3.1
 
