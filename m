@@ -1,32 +1,36 @@
 From: Borislav Petkov <bp@alien8.de>
 Subject: Re: [PATCH 1/6] x86: fix duplicated X86_BUG(9) macro
-Date: Fri, 1 Jul 2016 18:46:56 +0200
-Message-ID: <20160701164656.GG4593@pd.tnic>
+Date: Sun, 3 Jul 2016 20:44:18 +0200
+Message-ID: <20160703184418.GC1781@pd.tnic>
 References: <20160701001209.7DA24D1C@viggo.jf.intel.com>
  <20160701001210.AA77B917@viggo.jf.intel.com>
  <20160701092300.GD4593@pd.tnic>
  <CALCETrV+uq4fcgmUK_u6_Tu6Ex3FrYM0fQjDbjwy5KZ8f8OuHg@mail.gmail.com>
+ <20160701164656.GG4593@pd.tnic>
+ <CALCETrXXTijS0pbd2n9Rh_1AMsaerbGxC06mDmXoYm8rCDKpvg@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Return-path: <stable-owner@vger.kernel.org>
 Content-Disposition: inline
-In-Reply-To: <CALCETrV+uq4fcgmUK_u6_Tu6Ex3FrYM0fQjDbjwy5KZ8f8OuHg@mail.gmail.com>
+In-Reply-To: <CALCETrXXTijS0pbd2n9Rh_1AMsaerbGxC06mDmXoYm8rCDKpvg@mail.gmail.com>
 Sender: stable-owner@vger.kernel.org
 To: Andy Lutomirski <luto@amacapital.net>
-Cc: Michal Hocko <mhocko@suse.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, stable <stable@vger.kernel.org>, Andi Kleen <ak@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, X86 ML <x86@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, Dave Hansen <dave@sr71.net>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Michal Hocko <mhocko@suse.com>, X86 ML <x86@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, stable <stable@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Hansen <dave@sr71.net>, Linus Torvalds <torvalds@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>
 List-Id: linux-mm.kvack.org
 
-On Fri, Jul 01, 2016 at 09:30:37AM -0700, Andy Lutomirski wrote:
-> I put the ifdef there to prevent anyone from accidentally using it in
-> a 64-bit code path, not to save a bit.  We could put in the middle of
-> the list to make the mistake much less likely to be repeated, I
-> suppose.
+On Sun, Jul 03, 2016 at 07:36:30AM -0700, Andy Lutomirski wrote:
+> Dunno.  ESPFIX was broken under KVM for years and no one notices.
 
-Well, if someone does, someone will notice pretty soon, no?
+Ah, so this really was the case already. :-\
 
-I just don't see the reason to worry but maybe I'm missing it.
+> We could do that, too, I guess.  But the current solution is only two
+> extra lines of code.  We could reorder the things so that it's in the
+> middle instead of at the end, I suppose.
 
-And we can call it X86_BUG_ESPFIX_X86_32 or so too...
+Yeah, sounds good. Especially if it was already broken - I missed that
+fact.
+
+Thanks.
 
 -- 
 Regards/Gruss,
