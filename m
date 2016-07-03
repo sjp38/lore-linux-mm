@@ -1,80 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C2AC76B0005
-	for <linux-mm@kvack.org>; Sun,  3 Jul 2016 13:10:29 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id v18so370302444qtv.0
-        for <linux-mm@kvack.org>; Sun, 03 Jul 2016 10:10:29 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w6si2129983qkc.67.2016.07.03.10.10.28
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 03 Jul 2016 10:10:28 -0700 (PDT)
-Date: Sun, 3 Jul 2016 19:10:22 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 1/8] mm,oom_reaper: Remove pointless kthread_run()
- failure check.
-Message-ID: <20160703171022.GA31065@redhat.com>
-References: <201607031135.AAH95347.MVOHQtFJFLOOFS@I-love.SAKURA.ne.jp>
- <201607031136.GGI52642.OMLFFOHQtFVJOS@I-love.SAKURA.ne.jp>
- <20160703124246.GA23902@redhat.com>
- <201607040103.DEB48914.HQFFJFOOOVtSLM@I-love.SAKURA.ne.jp>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BFC7A6B0005
+	for <linux-mm@kvack.org>; Sun,  3 Jul 2016 13:10:45 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id a69so347942873pfa.1
+        for <linux-mm@kvack.org>; Sun, 03 Jul 2016 10:10:45 -0700 (PDT)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id b2si4679711pav.216.2016.07.03.10.10.42
+        for <linux-mm@kvack.org>;
+        Sun, 03 Jul 2016 10:10:42 -0700 (PDT)
+Subject: Re: [PATCH 6/6] x86: Fix stray A/D bit setting into non-present PTEs
+References: <20160701001209.7DA24D1C@viggo.jf.intel.com>
+ <20160701001218.3D316260@viggo.jf.intel.com>
+ <CA+55aFwm74uiqwsV5dvVMDBAthwmHub3J3Wz9cso0PpgVTHUPA@mail.gmail.com>
+ <CAMzpN2iLBKF7vK3TuTPwYn2nZOw2q_Pn=q+g6pNuVs0k6Xd5LQ@mail.gmail.com>
+From: Dave Hansen <dave@sr71.net>
+Message-ID: <5779470F.8020205@sr71.net>
+Date: Sun, 3 Jul 2016 10:10:39 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201607040103.DEB48914.HQFFJFOOOVtSLM@I-love.SAKURA.ne.jp>
+In-Reply-To: <CAMzpN2iLBKF7vK3TuTPwYn2nZOw2q_Pn=q+g6pNuVs0k6Xd5LQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, rientjes@google.com, vdavydov@parallels.com, mst@redhat.com, mhocko@suse.com, mhocko@kernel.org
+To: Brian Gerst <brgerst@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, the arch/x86 maintainers <x86@kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Borislav Petkov <bp@alien8.de>, Andi Kleen <ak@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Dave Hansen <dave.hansen@linux.intel.com>
 
-On 07/04, Tetsuo Handa wrote:
->
-> Oleg Nesterov wrote:
-> > On 07/03, Tetsuo Handa wrote:
-> > >
-> > > If kthread_run() in oom_init() fails due to reasons other than OOM
-> > > (e.g. no free pid is available), userspace processes won't be able to
-> > > start as well.
-> >
-> > Why?
-> >
-> > The kernel will boot with or without your change, but
-> >
-> > > Therefore, trying to continue with error message is
-> > > also pointless.
-> >
-> > Can't understand...
-> >
-> > I think this warning makes sense. And since you removed the oom_reaper_the
-> > check in wake_oom_reaper(), the kernel will leak every task_struct passed
-> > to wake_oom_reaper() ?
->
-> We are trying to prove that OOM livelock is impossible for CONFIG_MMU=y
-> kernels (as long as OOM killer is invoked) because the OOM reaper always
-> gives feedback to the OOM killer, right? Then, preserving code which
-> continues without OOM reaper no longer makes sense.
->
-> In the past discussion, I suggested Michal to use BUG_ON() or panic()
-> ( http://lkml.kernel.org/r/20151127123525.GG2493@dhcp22.suse.cz ). At that
-> time, we chose continue with pr_err(). If you think that kthread_run()
-> failure in oom_init() will ever happen, I can change my patch to call
-> BUG_ON() or panic(). I don't like continuing without OOM reaper.
+On 06/30/2016 08:06 PM, Brian Gerst wrote:
+>> > It's not like anybody will ever care about 32-bit page tables on
+>> > Knights Landing anyway.
+> Could this affect a 32-bit guest VM?
 
-And probably this makes sense, but
+This isn't about 32-bit *mode*.  It's about using the the 32-bit 2-level
+_paging_ mode that supports only 4GB virtual and 4GB physical addresses.
+ That mode also doesn't support the No-eXecute (NX) bit, which basically
+everyone needs today for its security benefits.
 
-> Anyway, [PATCH 8/8] in this series removes get_task_struct().
-> Thus, the kernel won't leak every task_struct after all.
+Even the little Quark CPU supports PAE (64-bit page tables).
 
-which I can't read yet. I am still trying to clone linux-net, currently
-my internet connection is very slow.
-
-Anyway, this means that this 1/1 patch depends on 8/8, but 0/8 says
-
-	[PATCH 1/8] can be sent to current linux.git as a clean up.
-
-IOW, this patch doesn't look correct without other changes?
-
-Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
