@@ -1,184 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D8156B0005
-	for <linux-mm@kvack.org>; Sat,  2 Jul 2016 19:54:50 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e189so315622764pfa.2
-        for <linux-mm@kvack.org>; Sat, 02 Jul 2016 16:54:50 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id oi7si769686pab.13.2016.07.02.16.54.49
-        for <linux-mm@kvack.org>;
-        Sat, 02 Jul 2016 16:54:49 -0700 (PDT)
-Date: Sun, 3 Jul 2016 07:53:20 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: {standard input}:122: Error: number (0x9000000080000000) larger than
- 32 bits
-Message-ID: <201607030718.JFY1BnQC%fengguang.wu@intel.com>
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="PEIAKu/WMn1b1Hv9"
-Content-Disposition: inline
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 654A76B0005
+	for <linux-mm@kvack.org>; Sat,  2 Jul 2016 22:37:12 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id cx13so65561386pac.2
+        for <linux-mm@kvack.org>; Sat, 02 Jul 2016 19:37:12 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id d196si1381895pfd.10.2016.07.02.19.37.11
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 02 Jul 2016 19:37:11 -0700 (PDT)
+Subject: [PATCH 0/8] Change OOM killer to use list of mm_struct.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-Id: <201607031135.AAH95347.MVOHQtFJFLOOFS@I-love.SAKURA.ne.jp>
+Date: Sun, 3 Jul 2016 11:35:56 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, oleg@redhat.com, rientjes@google.com, vdavydov@parallels.com, mst@redhat.com, mhocko@suse.com, mhocko@kernel.org
 
+This is my alternative proposal compared to what Michal posted at
+http://lkml.kernel.org/r/1467365190-24640-1-git-send-email-mhocko@kernel.org .
 
---PEIAKu/WMn1b1Hv9
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+The series is based on top of linux-next-20160701 +
+http://lkml.kernel.org/r/1467201562-6709-1-git-send-email-mhocko@kernel.org .
 
-Hi,
+The key point of the series is [PATCH 3/8].
+[PATCH 1/8] can be sent to current linux.git as a clean up.
 
-FYI, the error/warning still remains.
+The series does not include patches for use_mm() users and wait_event()
+in oom_killer_disable(). Thus, some of Michal's patches can be added
+on top of the series.
 
-tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
-head:   99b0f54e6a3a4012aacfaada5644a8e520447d80
-commit: 71458cfc782eafe4b27656e078d379a34e472adf kernel: add support for gcc 5
-date:   1 year, 9 months ago
-config: mips-tb0226_defconfig (attached as .config)
-compiler: mips-linux-gnu-gcc (Debian 5.3.1-8) 5.3.1 20160205
-reproduce:
-        wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
-        chmod +x ~/bin/make.cross
-        git checkout 71458cfc782eafe4b27656e078d379a34e472adf
-        # save the attached .config to linux build tree
-        make.cross ARCH=mips 
+[PATCH 1/8] mm,oom_reaper: Remove pointless kthread_run() failure check.
+[PATCH 2/8] mm,oom_reaper: Reduce find_lock_task_mm() usage.
+[PATCH 3/8] mm,oom: Use list of mm_struct used by OOM victims.
+[PATCH 4/8] mm,oom: Remove OOM_SCAN_ABORT case.
+[PATCH 5/8] mm,oom: Remove unused signal_struct->oom_victims.
+[PATCH 6/8] mm,oom_reaper: Stop clearing TIF_MEMDIE on remote thread.
+[PATCH 7/8] mm,oom_reaper: Pass OOM victim's comm and pid values via mm_struct.
+[PATCH 8/8] mm,oom_reaper: Make OOM reaper use list of mm_struct.
 
-All errors (new ones prefixed by >>):
-
-   {standard input}: Assembler messages:
->> {standard input}:122: Error: number (0x9000000080000000) larger than 32 bits
-   {standard input}:156: Error: number (0x9000000080000000) larger than 32 bits
-   {standard input}:178: Error: number (0x9000000080000000) larger than 32 bits
-
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
-
---PEIAKu/WMn1b1Hv9
-Content-Type: application/octet-stream
-Content-Disposition: attachment; filename=".config.gz"
-Content-Transfer-Encoding: base64
-
-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
-
---PEIAKu/WMn1b1Hv9--
+ include/linux/mm_types.h |   12 +
+ include/linux/oom.h      |   16 --
+ include/linux/sched.h    |    4
+ kernel/exit.c            |    2
+ kernel/fork.c            |    1
+ kernel/power/process.c   |   12 -
+ mm/memcontrol.c          |   16 --
+ mm/oom_kill.c            |  336 +++++++++++++++++++++--------------------------
+ 8 files changed, 177 insertions(+), 222 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
