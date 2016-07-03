@@ -1,129 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2036C6B0253
-	for <linux-mm@kvack.org>; Sat,  2 Jul 2016 22:42:33 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 143so321234154pfx.0
-        for <linux-mm@kvack.org>; Sat, 02 Jul 2016 19:42:33 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 5CD716B0005
+	for <linux-mm@kvack.org>; Sat,  2 Jul 2016 22:45:45 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id a69so320797496pfa.1
+        for <linux-mm@kvack.org>; Sat, 02 Jul 2016 19:45:45 -0700 (PDT)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id f64si1425728pfd.84.2016.07.02.19.42.32
+        by mx.google.com with ESMTPS id x78si1391828pfa.126.2016.07.02.19.45.44
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 02 Jul 2016 19:42:32 -0700 (PDT)
-Subject: [PATCH 7/8] mm,oom_reaper: Pass OOM victim's comm and pid values via mm_struct.
+        Sat, 02 Jul 2016 19:45:44 -0700 (PDT)
+Subject: Re: [RFC PATCH 1/6] oom: keep mm of the killed task available
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201607031135.AAH95347.MVOHQtFJFLOOFS@I-love.SAKURA.ne.jp>
-In-Reply-To: <201607031135.AAH95347.MVOHQtFJFLOOFS@I-love.SAKURA.ne.jp>
-Message-Id: <201607031141.IFH64089.FHMSOFQFtLJOOV@I-love.SAKURA.ne.jp>
-Date: Sun, 3 Jul 2016 11:41:20 +0900
+References: <1467365190-24640-1-git-send-email-mhocko@kernel.org>
+	<1467365190-24640-2-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1467365190-24640-2-git-send-email-mhocko@kernel.org>
+Message-Id: <201607031145.HIF90125.LMHQVFJOtOSOFF@I-love.SAKURA.ne.jp>
+Date: Sun, 3 Jul 2016 11:45:34 +0900
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, oleg@redhat.com, rientjes@google.com, vdavydov@parallels.com, mst@redhat.com, mhocko@suse.com, mhocko@kernel.org
+To: mhocko@kernel.org, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, oleg@redhat.com, rientjes@google.com, vdavydov@parallels.com, mhocko@suse.com
 
->From 14cb84f6c1cd3a7ace58e52fea2fb52cb8e16f91 Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Sat, 2 Jul 2016 23:04:23 +0900
-Subject: [PATCH 7/8] mm,oom_reaper: Pass OOM victim's comm and pid values via mm_struct.
+Michal Hocko wrote:
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 7d0a275df822..4ea4a649822d 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -286,16 +286,17 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
+>  	 * Don't allow any other task to have access to the reserves unless
+>  	 * the task has MMF_OOM_REAPED because chances that it would release
+>  	 * any memory is quite low.
+> +	 * MMF_OOM_NOT_REAPABLE means that the oom_reaper backed off last time
+> +	 * so let it try again.
+>  	 */
+>  	if (!is_sysrq_oom(oc) && atomic_read(&task->signal->oom_victims)) {
+> -		struct task_struct *p = find_lock_task_mm(task);
+> +		struct mm_struct *mm = task->signal->oom_mm;
+>  		enum oom_scan_t ret = OOM_SCAN_ABORT;
+>  
+> -		if (p) {
+> -			if (test_bit(MMF_OOM_REAPED, &p->mm->flags))
+> -				ret = OOM_SCAN_CONTINUE;
+> -			task_unlock(p);
+> -		}
+> +		if (test_bit(MMF_OOM_REAPED, &mm->flags))
+> +			ret = OOM_SCAN_CONTINUE;
+> +		else if (test_bit(MMF_OOM_NOT_REAPABLE, &mm->flags))
+> +			ret = OOM_SCAN_SELECT;
 
-In order to make OOM reaper operate on mm_struct, pass comm and pid values
-which are used for printing result of OOM reap attempt via oom_mm embedded
-into mm_struct.
+I don't think this is useful.
 
-While it is possible to add pointer to task_struct to oom_mm struct,
-we don't want to hold a reference to task_struct because that OOM victim
-might be able to exit soon. Thus, copy comm and pid values as of calling
-mark_oom_victim().
+MMF_OOM_NOT_REAPABLE is set when mm->mmap_sem could not be held for read
+by the OOM reaper thread. That occurs when someone is blocked at unkillable
+wait with that mm->mmap_sem held for write. Unless the reason that someone
+is blocked is lack of CPU time, the reason is likely that that someone is
+blocked due to waiting for somebody else's memory allocation. Then, it
+won't succeed that retrying OOM reaping MMF_OOM_NOT_REAPABLE mm as soon as
+oom_scan_process_thread() finds it. At least, retrying OOM reaping
+MMF_OOM_NOT_REAPABLE mm should be attempted after that someone is no longer
+blocked due to waiting for somebody else's memory allocation (e.g. retry
+only when oom_scan_process_thread() is sure that the OOM reaper thread can
+hold mm->mmap_sem for read).
 
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
----
- include/linux/mm_types.h |  4 ++++
- mm/oom_kill.c            | 20 ++++++++++++--------
- 2 files changed, 16 insertions(+), 8 deletions(-)
+But I don't think with need to dance with task->signal->oom_mm.
+See my series which removes task->signal->oom_victims and OOM_SCAN_ABORT case.
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 718c0bd..3eabea9 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -397,6 +397,10 @@ struct oom_mm {
- 	struct list_head list; /* Linked to oom_mm_list list. */
- 	struct mem_cgroup *memcg; /* No deref. Maybe NULL. */
- 	const nodemask_t *nodemask; /* No deref. Maybe NULL. */
-+#ifdef CONFIG_MMU
-+	char comm[16]; /* Copy of task_struct->comm[TASK_COMM_LEN]. */
-+	pid_t pid; /* Copy of task_struct->pid. */
-+#endif
- };
- 
- struct kioctx_table;
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 45e7de2..317ce2c 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -471,7 +471,7 @@ static DECLARE_WAIT_QUEUE_HEAD(oom_reaper_wait);
- static struct task_struct *oom_reaper_list;
- static DEFINE_SPINLOCK(oom_reaper_lock);
- 
--static bool __oom_reap_task(struct task_struct *tsk, struct mm_struct *mm)
-+static bool __oom_reap_vmas(struct mm_struct *mm)
- {
- 	struct mmu_gather tlb;
- 	struct vm_area_struct *vma;
-@@ -519,10 +519,10 @@ static bool __oom_reap_task(struct task_struct *tsk, struct mm_struct *mm)
- 	}
- 	tlb_finish_mmu(&tlb, 0, -1);
- 	pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
--			task_pid_nr(tsk), tsk->comm,
--			K(get_mm_counter(mm, MM_ANONPAGES)),
--			K(get_mm_counter(mm, MM_FILEPAGES)),
--			K(get_mm_counter(mm, MM_SHMEMPAGES)));
-+		mm->oom_mm.pid, mm->oom_mm.comm,
-+		K(get_mm_counter(mm, MM_ANONPAGES)),
-+		K(get_mm_counter(mm, MM_FILEPAGES)),
-+		K(get_mm_counter(mm, MM_SHMEMPAGES)));
- 	up_read(&mm->mmap_sem);
- 
- 	/*
-@@ -559,14 +559,14 @@ static void oom_reap_task(struct task_struct *tsk)
- 	task_unlock(p);
- 
- 	/* Retry the down_read_trylock(mmap_sem) a few times */
--	while (attempts++ < MAX_OOM_REAP_RETRIES && !__oom_reap_task(tsk, mm))
-+	while (attempts++ < MAX_OOM_REAP_RETRIES && !__oom_reap_vmas(mm))
- 		schedule_timeout_idle(HZ/10);
- 
- 	if (attempts <= MAX_OOM_REAP_RETRIES)
- 		goto done;
- 
- 	pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
--		task_pid_nr(tsk), tsk->comm);
-+		mm->oom_mm.pid, mm->oom_mm.comm);
- 
- 	/*
- 	 * If we've already tried to reap this task in the past and
-@@ -576,7 +576,7 @@ static void oom_reap_task(struct task_struct *tsk)
- 	 */
- 	if (test_and_set_bit(MMF_OOM_NOT_REAPABLE, &mm->flags)) {
- 		pr_info("oom_reaper: giving up pid:%d (%s)\n",
--			task_pid_nr(tsk), tsk->comm);
-+			mm->oom_mm.pid, mm->oom_mm.comm);
- 		set_bit(MMF_OOM_REAPED, &mm->flags);
- 	}
- 	debug_show_all_locks();
-@@ -662,6 +662,10 @@ void mark_oom_victim(struct task_struct *tsk, struct oom_control *oc)
- 		atomic_inc(&mm->mm_count);
- 		mm->oom_mm.memcg = oc->memcg;
- 		mm->oom_mm.nodemask = oc->nodemask;
-+#ifdef CONFIG_MMU
-+		strncpy(mm->oom_mm.comm, tsk->comm, sizeof(mm->oom_mm.comm));
-+		mm->oom_mm.pid = task_pid_nr(tsk);
-+#endif
- 		list_add_tail(&mm->oom_mm.list, &oom_mm_list);
- 	}
- 	spin_unlock(&oom_mm_lock);
--- 
-1.8.3.1
+>  
+>  		return ret;
+>  	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
