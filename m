@@ -1,65 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D06206B0005
-	for <linux-mm@kvack.org>; Sun,  3 Jul 2016 09:32:54 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id f89so364907353qtd.1
-        for <linux-mm@kvack.org>; Sun, 03 Jul 2016 06:32:54 -0700 (PDT)
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EDEB46B0005
+	for <linux-mm@kvack.org>; Sun,  3 Jul 2016 09:47:26 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id i12so61733506ywa.0
+        for <linux-mm@kvack.org>; Sun, 03 Jul 2016 06:47:26 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d198si1737722qka.153.2016.07.03.06.32.54
+        by mx.google.com with ESMTPS id t40si1791431qtc.2.2016.07.03.06.47.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 03 Jul 2016 06:32:54 -0700 (PDT)
-Date: Sun, 3 Jul 2016 15:32:49 +0200
+        Sun, 03 Jul 2016 06:47:26 -0700 (PDT)
+Date: Sun, 3 Jul 2016 15:47:19 +0200
 From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH] mm,oom: use per signal_struct flag rather than clear
- TIF_MEMDIE
-Message-ID: <20160703133249.GA28436@redhat.com>
-References: <20160628101956.GA510@dhcp22.suse.cz>
- <20160629001353.GA9377@redhat.com>
- <20160629083314.GA27153@dhcp22.suse.cz>
- <20160629200108.GA19253@redhat.com>
- <20160630075904.GC18783@dhcp22.suse.cz>
- <201606301951.AAB26052.OtOOQMLHVFJSFF@I-love.SAKURA.ne.jp>
+Subject: Re: [RFC PATCH 5/6] vhost, mm: make sure that oom_reaper doesn't
+ reap memory read by vhost
+Message-ID: <20160703134719.GA28492@redhat.com>
+References: <1467365190-24640-1-git-send-email-mhocko@kernel.org>
+ <1467365190-24640-6-git-send-email-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201606301951.AAB26052.OtOOQMLHVFJSFF@I-love.SAKURA.ne.jp>
+In-Reply-To: <1467365190-24640-6-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: mhocko@kernel.org, linux-mm@kvack.org, vdavydov@virtuozzo.com, rientjes@google.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Michal Hocko <mhocko@suse.com>, "Michael S. Tsirkin" <mst@redhat.com>
 
-On 06/30, Tetsuo Handa wrote:
+On 07/01, Michal Hocko wrote:
 >
-> Michal Hocko wrote:
-> > On Wed 29-06-16 22:01:08, Oleg Nesterov wrote:
+> From: Michal Hocko <mhocko@suse.com>
 >
-> > > Btw, do we still need this list_for_each_entry(child, &t->children, sibling)
-> > > loop in oom_kill_process() ?
-> >
-> > Well, to be honest, I don't know. This is a heuristic we have been doing
-> > for a long time. I do not know how many times it really matters. It can
-> > even be harmful in loads where children are created in the same pace OOM
-> > killer is killing them. Not sure how likely is that though...
-> > Let me think whether we can do something about that.
+> vhost driver relies on copy_from_user/get_user from a kernel thread.
+> This makes it impossible to reap the memory of an oom victim which
+> shares mm with the vhost kernel thread because it could see a zero
+> page unexpectedly and theoretically make an incorrect decision visible
+> outside of the killed task context.
+
+And I still can't understand how, but let me repeat that I don't understand
+this code at all.
+
+> To quote Michael S. Tsirkin:
+> : Getting an error from __get_user and friends is handled gracefully.
+> : Getting zero instead of a real value will cause userspace
+> : memory corruption.
+
+Which userspace memory corruption? We are going to kill the dev->mm owner,
+the task which did ioctl(VHOST_SET_OWNER) and (at first glance) the task
+who communicates with the callbacks fired by vhost_worker().
+
+Michael, could you please spell why should we care?
+
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -492,6 +492,14 @@ static bool __oom_reap_task(struct task_struct *tsk)
+>  		goto unlock_oom;
+>  	}
 >
-> I'm using that behavior in order to test almost OOM situation. ;)
+> +	/*
+> +	 * Tell all users of get_user_mm/copy_from_user_mm that the content
+> +	 * is no longer stable. No barriers really needed because unmapping
+> +	 * should imply barriers already and the reader would hit a page fault
+> +	 * if it stumbled over a reaped memory.
+> +	 */
+> +	set_bit(MMF_UNSTABLE, &mm->flags);
 
-Can you explain why do we want this behaviour?
-
-Except, again, sysctl_oom_kill_allocating_task, see my reply to Michal.
-
-> By the way, are you going to fix use_mm() race? Currently, we don't wake up
-> OOM reaper if some kernel thread is holding a reference to that mm via
-> use_mm(). But currently we can hit
-
-Yes, and I already mention this race, and this is why I think we should not
-skip kthreads.
-
-> race. I think we need to make use_mm() fail after mark_oom_victim() is called.
-
-Perhaps this makes sense anyway later, but I still think we do not really
-care. I'll write another email...
+And this is racy anyway.
 
 Oleg.
 
