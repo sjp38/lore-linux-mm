@@ -1,155 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 748136B0005
-	for <linux-mm@kvack.org>; Sun,  3 Jul 2016 17:55:02 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id s63so334729437ioi.1
-        for <linux-mm@kvack.org>; Sun, 03 Jul 2016 14:55:02 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id r186si786771oia.51.2016.07.03.14.55.00
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 03 Jul 2016 14:55:01 -0700 (PDT)
-Subject: Re: [PATCH 1/8] mm,oom_reaper: Remove pointless kthread_run() failure check.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201607031135.AAH95347.MVOHQtFJFLOOFS@I-love.SAKURA.ne.jp>
-	<201607031136.GGI52642.OMLFFOHQtFVJOS@I-love.SAKURA.ne.jp>
-	<20160703124246.GA23902@redhat.com>
-	<201607040103.DEB48914.HQFFJFOOOVtSLM@I-love.SAKURA.ne.jp>
-	<20160703171022.GA31065@redhat.com>
-In-Reply-To: <20160703171022.GA31065@redhat.com>
-Message-Id: <201607040653.DJB81254.FFOOSHFOQMtJLV@I-love.SAKURA.ne.jp>
-Date: Mon, 4 Jul 2016 06:53:49 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4606C6B0005
+	for <linux-mm@kvack.org>; Sun,  3 Jul 2016 19:48:41 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id cx13so103862894pac.2
+        for <linux-mm@kvack.org>; Sun, 03 Jul 2016 16:48:41 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id x194si601915pfd.200.2016.07.03.16.48.39
+        for <linux-mm@kvack.org>;
+        Sun, 03 Jul 2016 16:48:40 -0700 (PDT)
+Date: Mon, 4 Jul 2016 08:49:21 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 2/8] mm/zsmalloc: add per class compact trace event
+Message-ID: <20160703234921.GA19044@bbox>
+References: <1467355266-9735-1-git-send-email-opensource.ganesh@gmail.com>
+ <1467355266-9735-2-git-send-email-opensource.ganesh@gmail.com>
+MIME-Version: 1.0
+In-Reply-To: <1467355266-9735-2-git-send-email-opensource.ganesh@gmail.com>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: oleg@redhat.com
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, rientjes@google.com, vdavydov@parallels.com, mst@redhat.com, mhocko@suse.com, mhocko@kernel.org
+To: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, rostedt@goodmis.org, mingo@redhat.com
 
-Oleg Nesterov wrote:
-> On 07/04, Tetsuo Handa wrote:
-> >
-> > Oleg Nesterov wrote:
-> > > On 07/03, Tetsuo Handa wrote:
-> > > >
-> > > > If kthread_run() in oom_init() fails due to reasons other than OOM
-> > > > (e.g. no free pid is available), userspace processes won't be able to
-> > > > start as well.
-> > >
-> > > Why?
-> > >
-> > > The kernel will boot with or without your change, but
-> > >
-> > > > Therefore, trying to continue with error message is
-> > > > also pointless.
-> > >
-> > > Can't understand...
-> > >
-> > > I think this warning makes sense. And since you removed the oom_reaper_the
-> > > check in wake_oom_reaper(), the kernel will leak every task_struct passed
-> > > to wake_oom_reaper() ?
-> >
-> > We are trying to prove that OOM livelock is impossible for CONFIG_MMU=y
-> > kernels (as long as OOM killer is invoked) because the OOM reaper always
-> > gives feedback to the OOM killer, right? Then, preserving code which
-> > continues without OOM reaper no longer makes sense.
-> >
-> > In the past discussion, I suggested Michal to use BUG_ON() or panic()
-> > ( http://lkml.kernel.org/r/20151127123525.GG2493@dhcp22.suse.cz ). At that
-> > time, we chose continue with pr_err(). If you think that kthread_run()
-> > failure in oom_init() will ever happen, I can change my patch to call
-> > BUG_ON() or panic(). I don't like continuing without OOM reaper.
-> 
-> And probably this makes sense, but
-> 
-> > Anyway, [PATCH 8/8] in this series removes get_task_struct().
-> > Thus, the kernel won't leak every task_struct after all.
-> 
-> which I can't read yet. I am still trying to clone linux-net, currently
-> my internet connection is very slow.
-> 
-> Anyway, this means that this 1/1 patch depends on 8/8, but 0/8 says
-> 
-> 	[PATCH 1/8] can be sent to current linux.git as a clean up.
-> 
-> IOW, this patch doesn't look correct without other changes?
+On Fri, Jul 01, 2016 at 02:41:00PM +0800, Ganesh Mahendran wrote:
+> add per class compact trace event. It will show how many zs pages
+> isolated, how many zs pages reclaimed.
 
-If you think that global init can successfully start after kthread_run()
-in oom_init() failed.
+I don't know what you want with this event trace.
 
-Here is an updated patch.
+What's the relation betwwen the number of zspage isolated and zspage
+reclaimed? IOW, with that, what do you want to know?
 
 > 
-> Oleg.
+> ----
+>   <...>-627   [002] ....   192.641122: zs_compact_start: pool zram0
+>   <...>-627   [002] ....   192.641166: zs_compact_class: class 254: 0 zspage isolated, 0 reclaimed
+>   <...>-627   [002] ....   192.641169: zs_compact_class: class 202: 0 zspage isolated, 0 reclaimed
+>   <...>-627   [002] ....   192.641172: zs_compact_class: class 190: 0 zspage isolated, 0 reclaimed
+>   <...>-627   [002] ....   192.641180: zs_compact_class: class 168: 3 zspage isolated, 1 reclaimed
+>   <...>-627   [002] ....   192.641190: zs_compact_class: class 151: 3 zspage isolated, 1 reclaimed
+>   <...>-627   [002] ....   192.641201: zs_compact_class: class 144: 6 zspage isolated, 1 reclaimed
+>   <...>-627   [002] ....   192.641224: zs_compact_class: class 126: 24 zspage isolated, 12 reclaimed
+>   <...>-627   [002] ....   192.641261: zs_compact_class: class 111: 10 zspage isolated, 2 reclaimed
+> kswapd0-627   [002] ....   192.641333: zs_compact_class: class 107: 38 zspage isolated, 8 reclaimed
+> kswapd0-627   [002] ....   192.641415: zs_compact_class: class 100: 45 zspage isolated, 12 reclaimed
+> kswapd0-627   [002] ....   192.641481: zs_compact_class: class  94: 24 zspage isolated, 5 reclaimed
+> kswapd0-627   [002] ....   192.641568: zs_compact_class: class  91: 69 zspage isolated, 14 reclaimed
+> kswapd0-627   [002] ....   192.641688: zs_compact_class: class  83: 120 zspage isolated, 47 reclaimed
+> kswapd0-627   [002] ....   192.641765: zs_compact_class: class  76: 34 zspage isolated, 5 reclaimed
+> kswapd0-627   [002] ....   192.641832: zs_compact_class: class  74: 34 zspage isolated, 6 reclaimed
+> kswapd0-627   [002] ....   192.641958: zs_compact_class: class  71: 66 zspage isolated, 17 reclaimed
+> kswapd0-627   [002] ....   192.642000: zs_compact_class: class  67: 17 zspage isolated, 3 reclaimed
+> kswapd0-627   [002] ....   192.642063: zs_compact_class: class  66: 29 zspage isolated, 5 reclaimed
+> kswapd0-627   [002] ....   192.642113: zs_compact_class: class  62: 38 zspage isolated, 12 reclaimed
+> kswapd0-627   [002] ....   192.642143: zs_compact_class: class  58: 8 zspage isolated, 1 reclaimed
+> kswapd0-627   [002] ....   192.642176: zs_compact_class: class  57: 25 zspage isolated, 5 reclaimed
+> kswapd0-627   [002] ....   192.642184: zs_compact_class: class  54: 11 zspage isolated, 2 reclaimed
+> kswapd0-627   [002] ....   192.642191: zs_compact_class: class  52: 5 zspage isolated, 1 reclaimed
+> kswapd0-627   [002] ....   192.642201: zs_compact_class: class  51: 6 zspage isolated, 1 reclaimed
+> kswapd0-627   [002] ....   192.642211: zs_compact_class: class  49: 11 zspage isolated, 3 reclaimed
+> kswapd0-627   [002] ....   192.642216: zs_compact_class: class  46: 2 zspage isolated, 1 reclaimed
+> kswapd0-627   [002] ....   192.642218: zs_compact_class: class  44: 0 zspage isolated, 0 reclaimed
+> kswapd0-627   [002] ....   192.642221: zs_compact_class: class  43: 0 zspage isolated, 0 reclaimed
+>   ...
+> ----
 > 
+> Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
+> ---
+>  include/trace/events/zsmalloc.h | 24 ++++++++++++++++++++++++
+>  mm/zsmalloc.c                   | 16 +++++++++++++++-
+>  2 files changed, 39 insertions(+), 1 deletion(-)
 > 
-
->From 977b0f4368a7ca07af7e519aa8795e7b2ee653d0 Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Mon, 4 Jul 2016 06:40:05 +0900
-Subject: [PATCH 1/8] mm,oom_reaper: Don't boot without OOM reaper kernel thread.
-
-We are trying to prove that OOM livelock is impossible for CONFIG_MMU=y
-kernels (as long as OOM killer is invoked) because the OOM reaper always
-gives feedback to the OOM killer. Therefore, preserving code which
-continues without OOM reaper no longer makes sense.
-
-Since oom_init() is called before OOM-killable userspace processes are
-started, the system will panic if out_of_memory() is called before
-oom_init() returns. Therefore, oom_reaper_th == NULL check in
-wake_oom_reaper() is pointless.
-
-If kthread_run() in oom_init() fails due to reasons other than
-out_of_memory(), userspace processes won't be able to start as well.
-Therefore, trying to continue with error message is also pointless.
-But in case something unexpected occurred, let's explicitly add
-BUG_ON() check.
-
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
----
- mm/oom_kill.c | 13 +++----------
- 1 file changed, 3 insertions(+), 10 deletions(-)
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 7d0a275..079ce96 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -447,7 +447,6 @@ bool process_shares_mm(struct task_struct *p, struct mm_struct *mm)
-  * OOM Reaper kernel thread which tries to reap the memory used by the OOM
-  * victim (if that is possible) to help the OOM killer to move on.
-  */
--static struct task_struct *oom_reaper_th;
- static DECLARE_WAIT_QUEUE_HEAD(oom_reaper_wait);
- static struct task_struct *oom_reaper_list;
- static DEFINE_SPINLOCK(oom_reaper_lock);
-@@ -629,9 +628,6 @@ static int oom_reaper(void *unused)
- 
- void wake_oom_reaper(struct task_struct *tsk)
- {
--	if (!oom_reaper_th)
--		return;
--
- 	/* tsk is already queued? */
- 	if (tsk == oom_reaper_list || tsk->oom_reaper_list)
- 		return;
-@@ -647,12 +643,9 @@ void wake_oom_reaper(struct task_struct *tsk)
- 
- static int __init oom_init(void)
- {
--	oom_reaper_th = kthread_run(oom_reaper, NULL, "oom_reaper");
--	if (IS_ERR(oom_reaper_th)) {
--		pr_err("Unable to start OOM reaper %ld. Continuing regardless\n",
--				PTR_ERR(oom_reaper_th));
--		oom_reaper_th = NULL;
--	}
-+	struct task_struct *p = kthread_run(oom_reaper, NULL, "oom_reaper");
-+
-+	BUG_ON(IS_ERR(p));
- 	return 0;
- }
- subsys_initcall(oom_init)
--- 
-1.8.3.1
+> diff --git a/include/trace/events/zsmalloc.h b/include/trace/events/zsmalloc.h
+> index c7a39f4..e745246 100644
+> --- a/include/trace/events/zsmalloc.h
+> +++ b/include/trace/events/zsmalloc.h
+> @@ -46,6 +46,30 @@ TRACE_EVENT(zs_compact_end,
+>  		  __entry->pages_compacted)
+>  );
+>  
+> +TRACE_EVENT(zs_compact_class,
+> +
+> +	TP_PROTO(int class, unsigned long zspage_isolated, unsigned long zspage_reclaimed),
+> +
+> +	TP_ARGS(class, zspage_isolated, zspage_reclaimed),
+> +
+> +	TP_STRUCT__entry(
+> +		__field(int, class)
+> +		__field(unsigned long, zspage_isolated)
+> +		__field(unsigned long, zspage_reclaimed)
+> +	),
+> +
+> +	TP_fast_assign(
+> +		__entry->class = class;
+> +		__entry->zspage_isolated = zspage_isolated;
+> +		__entry->zspage_reclaimed = zspage_reclaimed;
+> +	),
+> +
+> +	TP_printk("class %3d: %ld zspage isolated, %ld zspage reclaimed",
+> +		  __entry->class,
+> +		  __entry->zspage_isolated,
+> +		  __entry->zspage_reclaimed)
+> +);
+> +
+>  #endif /* _TRACE_ZSMALLOC_H */
+>  
+>  /* This part must be outside protection */
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index c7f79d5..405baa5 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -1780,6 +1780,11 @@ struct zs_compact_control {
+>  	 /* Starting object index within @s_page which used for live object
+>  	  * in the subpage. */
+>  	int index;
+> +
+> +	/* zspage isolated */
+> +	unsigned long nr_isolated;
+> +	/* zspage reclaimed */
+> +	unsigned long nr_reclaimed;
+>  };
+>  
+>  static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
+> @@ -2272,7 +2277,10 @@ static unsigned long zs_can_compact(struct size_class *class)
+>  
+>  static void __zs_compact(struct zs_pool *pool, struct size_class *class)
+>  {
+> -	struct zs_compact_control cc;
+> +	struct zs_compact_control cc = {
+> +		.nr_isolated = 0,
+> +		.nr_reclaimed = 0,
+> +	};
+>  	struct zspage *src_zspage;
+>  	struct zspage *dst_zspage = NULL;
+>  
+> @@ -2282,10 +2290,13 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
+>  		if (!zs_can_compact(class))
+>  			break;
+>  
+> +		cc.nr_isolated++;
+> +
+>  		cc.index = 0;
+>  		cc.s_page = get_first_page(src_zspage);
+>  
+>  		while ((dst_zspage = isolate_zspage(class, false))) {
+> +			cc.nr_isolated++;
+>  			cc.d_page = get_first_page(dst_zspage);
+>  			/*
+>  			 * If there is no more space in dst_page, resched
+> @@ -2304,6 +2315,7 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
+>  		putback_zspage(class, dst_zspage);
+>  		if (putback_zspage(class, src_zspage) == ZS_EMPTY) {
+>  			free_zspage(pool, class, src_zspage);
+> +			cc.nr_reclaimed++;
+>  			pool->stats.pages_compacted += class->pages_per_zspage;
+>  		}
+>  		spin_unlock(&class->lock);
+> @@ -2315,6 +2327,8 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
+>  		putback_zspage(class, src_zspage);
+>  
+>  	spin_unlock(&class->lock);
+> +
+> +	trace_zs_compact_class(class->index, cc.nr_isolated, cc.nr_reclaimed);
+>  }
+>  
+>  unsigned long zs_compact(struct zs_pool *pool)
+> -- 
+> 1.9.1
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
