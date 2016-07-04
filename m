@@ -1,107 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DE2F26B0005
-	for <linux-mm@kvack.org>; Mon,  4 Jul 2016 14:25:57 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id t2so221862841qkh.1
-        for <linux-mm@kvack.org>; Mon, 04 Jul 2016 11:25:57 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s48si2841354qta.19.2016.07.04.11.25.56
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BA9D86B0005
+	for <linux-mm@kvack.org>; Mon,  4 Jul 2016 19:11:03 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id k78so387100994ioi.2
+        for <linux-mm@kvack.org>; Mon, 04 Jul 2016 16:11:03 -0700 (PDT)
+Received: from mail-oi0-x236.google.com (mail-oi0-x236.google.com. [2607:f8b0:4003:c06::236])
+        by mx.google.com with ESMTPS id p41si87555otc.122.2016.07.04.16.11.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Jul 2016 11:25:57 -0700 (PDT)
-Date: Mon, 4 Jul 2016 20:25:50 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 3/8] mm,oom: Use list of mm_struct used by OOM victims.
-Message-ID: <20160704182549.GB8396@redhat.com>
-References: <201607031135.AAH95347.MVOHQtFJFLOOFS@I-love.SAKURA.ne.jp>
- <201607031138.AHB35971.FLVQOtJFOMFHSO@I-love.SAKURA.ne.jp>
- <20160704103931.GA3882@redhat.com>
- <201607042150.CIB00512.FSOtMHLOOVFFQJ@I-love.SAKURA.ne.jp>
+        Mon, 04 Jul 2016 16:11:02 -0700 (PDT)
+Received: by mail-oi0-x236.google.com with SMTP id u201so208962648oie.0
+        for <linux-mm@kvack.org>; Mon, 04 Jul 2016 16:11:02 -0700 (PDT)
+Date: Mon, 4 Jul 2016 16:10:53 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: mm: BUG in page_move_anon_rmap
+In-Reply-To: <CACT4Y+Y9rhgTCuFbg5f4KHzR-_p4-mf4sVn4zoa-3hnY6iEmMQ@mail.gmail.com>
+Message-ID: <alpine.LSU.2.11.1607041551550.25497@eggly.anvils>
+References: <CACT4Y+Y9rhgTCuFbg5f4KHzR-_p4-mf4sVn4zoa-3hnY6iEmMQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201607042150.CIB00512.FSOtMHLOOVFFQJ@I-love.SAKURA.ne.jp>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, rientjes@google.com, vdavydov@parallels.com, mst@redhat.com, mhocko@suse.com, mhocko@kernel.org
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>
 
-On 07/04, Tetsuo Handa wrote:
->
-> Oleg Nesterov wrote:
-> > >
-> > > --- a/kernel/fork.c
-> > > +++ b/kernel/fork.c
-> > > @@ -722,6 +722,7 @@ static inline void __mmput(struct mm_struct *mm)
-> > >  	}
-> > >  	if (mm->binfmt)
-> > >  		module_put(mm->binfmt->module);
-> > > +	exit_oom_mm(mm);
-> >
-> > Is it strictly necessary? At first glance not. Sooner or later oom_reaper() should
-> > find this mm_struct and do exit_oom_mm(). And given that mm->mm_users is already 0
-> > the "extra" __oom_reap_vmas() doesn't really hurt.
-> >
-> > It would be nice to remove exit_oom_mm() from __mmput(); it takes the global spinlock
-> > for the very unlikely case, and if we can avoid it here then perhaps we can remove
-> > ->oom_mm from mm_struct.
->
-> I changed not to take global spinlock from __mmput() unless that mm was used by
-> TIF_MEMDIE threads.
+On Fri, 1 Jul 2016, Dmitry Vyukov wrote:
+> Hello,
+> 
+> I am getting the following crashes while running syzkaller fuzzer on
+> 00bf377d19ad3d80cbc7a036521279a86e397bfb (Jun 29). So far I did not
+> manage to reproduce it outside of fuzzer, but fuzzer hits it once per
+> hour or so.
+> 
+> flags: 0xfffe0000044079(locked|uptodate|dirty|lru|active|head|swapbacked)
+> page dumped because: VM_BUG_ON_PAGE(page->index !=
+> linear_page_index(vma, address))
+> page->mem_cgroup:ffff88003e829be0
+> ------------[ cut here ]------------
+> kernel BUG at mm/rmap.c:1103!
+> invalid opcode: 0000 [#2] SMP DEBUG_PAGEALLOC KASAN
+> Modules linked in:
+> CPU: 0 PID: 7043 Comm: syz-fuzzer Tainted: G      D         4.7.0-rc5+ #22
+> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+> task: ffff8800342f46c0 ti: ffff880034008000 task.ti: ffff880034008000
+> RIP: 0010:[<ffffffff817693d8>] [<ffffffff817693d8>]
+> page_move_anon_rmap+0x278/0x310 mm/rmap.c:1103
+> RSP: 0000:ffff88003400fad0  EFLAGS: 00010286
+> RAX: ffff8800342f46c0 RBX: ffffea0000928000 RCX: 0000000000000000
+> RDX: 0000000000000000 RSI: ffff88003ec16de8 RDI: ffffed0006801f41
+> RBP: ffff88003400fb00 R08: 0000000000000001 R09: 0000000000000000
+> R10: 0000000000000000 R11: ffffed000fffea01 R12: ffff88006776b8e8
+> R13: 001000000c829e00 R14: ffff88006247c3e8 R15: 000000000c829e00
+> FS:  00007f7627bc5700(0000) GS:ffff88003ec00000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 000000c829fd8000 CR3: 0000000034b23000 CR4: 00000000000006f0
+> Stack:
+>  ffffea0000928000 ffffea000092f600 ffff88006776b8e8 ffffea0000928000
+>  ffffea0000928001 000000c829fd8000 ffff88003400fc38 ffffffff8173a25f
+>  0000000000000086 ffff88003400fbd0 ffffea0000928001 ffff880036cd3ec0
+> Call Trace:
+>  [<ffffffff8173a25f>] do_wp_page+0x7df/0x1c90 mm/memory.c:2402
+>  [<ffffffff817404f5>] handle_pte_fault+0x1e85/0x4960 mm/memory.c:3381
+>  [<     inline     >] __handle_mm_fault mm/memory.c:3489
+>  [<ffffffff8174443b>] handle_mm_fault+0xeab/0x11a0 mm/memory.c:3518
+>  [<ffffffff81290f77>] __do_page_fault+0x457/0xbb0 arch/x86/mm/fault.c:1356
+>  [<ffffffff8129181f>] trace_do_page_fault+0xdf/0x5b0 arch/x86/mm/fault.c:1449
+>  [<ffffffff81281c24>] do_async_page_fault+0x14/0xd0 arch/x86/kernel/kvm.c:265
+>  [<ffffffff86a9d538>] async_page_fault+0x28/0x30 arch/x86/entry/entry_64.S:923
+> Code: 0b e8 dd d5 e2 ff 48 c7 c6 40 f7 d0 86 48 89 df e8 2e 4a fc ff
+> 0f 0b e8 c7 d5 e2 ff 48 c7 c6 c0 f7 d0 86 48 89 df e8 18 4a fc ff <0f>
+> 0b e8 b1 d5 e2 ff 4c 89 ee 4c 89 e7 e8 96 80 02 00 49 89 c5
+> RIP  [<ffffffff817693d8>] page_move_anon_rmap+0x278/0x310 mm/rmap.c:1103
+>  RSP <ffff88003400fad0>
+> ---[ end trace b6c02a1136e2a9ec ]---
+> BUG: sleeping function called from invalid context at include/linux/sched.h:2955
+> in_atomic(): 1, irqs_disabled(): 0, pid: 7043, name: syz-fuzzer
+> lockdep is turned off.
+> CPU: 0 PID: 7043 Comm: syz-fuzzer Tainted: G      D         4.7.0-rc5+ #22
+> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+>  ffffffff880b58e0 ffff88003400f5c0 ffffffff82cc924f ffffffff342f46c0
+>  fffffbfff1016b1c ffff8800342f46c0 0000000000001b83 0000000000000000
+>  0000000000000000 dffffc0000000000 ffff88003400f5e8 ffffffff813efbfb
+> Call Trace:
+>  [<     inline     >] __dump_stack lib/dump_stack.c:15
+>  [<ffffffff82cc924f>] dump_stack+0x12e/0x18f lib/dump_stack.c:51
+>  [<ffffffff813efbfb>] ___might_sleep+0x27b/0x3a0 kernel/sched/core.c:7573
+>  [<ffffffff813efdb0>] __might_sleep+0x90/0x1a0 kernel/sched/core.c:7535
+>  [<     inline     >] threadgroup_change_begin include/linux/sched.h:2955
+>  [<ffffffff813a175f>] exit_signals+0x7f/0x430 kernel/signal.c:2392
+>  [<ffffffff8137a6a4>] do_exit+0x234/0x2c80 kernel/exit.c:701
+>  [<ffffffff81204331>] oops_end+0xa1/0xd0 arch/x86/kernel/dumpstack.c:250
+>  [<ffffffff812045c6>] die+0x46/0x60 arch/x86/kernel/dumpstack.c:308
+>  [<     inline     >] do_trap_no_signal arch/x86/kernel/traps.c:192
+>  [<ffffffff811fd9f2>] do_trap+0x192/0x380 arch/x86/kernel/traps.c:238
+>  [<ffffffff811fde4e>] do_error_trap+0x11e/0x280 arch/x86/kernel/traps.c:275
+>  [<ffffffff811ff18b>] do_invalid_op+0x1b/0x20 arch/x86/kernel/traps.c:288
+>  [<ffffffff86a9cf0e>] invalid_op+0x1e/0x30 arch/x86/entry/entry_64.S:761
+>  [<ffffffff8173a25f>] do_wp_page+0x7df/0x1c90 mm/memory.c:2402
+>  [<ffffffff817404f5>] handle_pte_fault+0x1e85/0x4960 mm/memory.c:3381
+>  [<     inline     >] __handle_mm_fault mm/memory.c:3489
+>  [<ffffffff8174443b>] handle_mm_fault+0xeab/0x11a0 mm/memory.c:3518
+>  [<ffffffff81290f77>] __do_page_fault+0x457/0xbb0 arch/x86/mm/fault.c:1356
+>  [<ffffffff8129181f>] trace_do_page_fault+0xdf/0x5b0 arch/x86/mm/fault.c:1449
+>  [<ffffffff81281c24>] do_async_page_fault+0x14/0xd0 arch/x86/kernel/kvm.c:265
+>  [<ffffffff86a9d538>] async_page_fault+0x28/0x30 arch/x86/entry/entry_64.S:923
+> note: syz-fuzzer[7043] exited with preempt_count 1
 
-This new version doesn't apply on top of 2/8, I can't really understand it...
+I think 0798d3c022dc ("mm: thp: avoid false positive VM_BUG_ON_PAGE in
+page_move_anon_rmap()") is flawed.  It would certainly be interesting
+to hear whether this patch fixes your crashes:
 
-> But I don't think I can remove oom_mm from mm_struct
+--- 4.7-rc6/include/linux/pagemap.h	2016-05-29 15:47:38.303064058 -0700
++++ linux/include/linux/pagemap.h	2016-07-04 15:44:46.635147739 -0700
+@@ -408,7 +408,7 @@ static inline pgoff_t linear_page_index(
+ 	pgoff_t pgoff;
+ 	if (unlikely(is_vm_hugetlb_page(vma)))
+ 		return linear_hugepage_index(vma, address);
+-	pgoff = (address - vma->vm_start) >> PAGE_SHIFT;
++	pgoff = (long)(address - vma->vm_start) >> PAGE_SHIFT;
+ 	pgoff += vma->vm_pgoff;
+ 	return pgoff;
+ }
 
-I think we can try later. oom_init() can create a small mem-pool or we can even
-use GFP_ATOMIC for the start to (try to) alloc
+But if it does work, I'm not sure that we really want to extend
+linear_page_index() to go in a backward direction, just for this case.
 
-	struct oom_mm {
-		struct mm_struct *mm;	// mm to reap
-		struct list_head list;	// node in the oom_mm_list
-		...
-	};
+I think I'd prefer to skip page_move_anon_rmap()'s linear_page_index()
+check in the PageTransHuge case; or, indeed, remove that check (and
+the address arg) completely - address plays no further part there.
+But let's wait to see what Kirill prefers before committing.
 
-lets discuss this later, but to do this we need to remove exit_oom_mm() from exit_mm().
-Although we can probably add another MMF_flag, but I think it would be nice to avoid
-exit_oom_mm anyway, if it is possible.
-
-And in any case personally I really hate oom_mm->comm/pid ;) but I think we
-can remove it later either way.
-
-> Thus, I think I need to remember task_struct which got TIF_MEMDIE.
-
-Well, this is unfortunate imho. This in fact turns "reap mm" back into "reap task".
-
-> I'd like to wait for Michal to come back...
-
-Yes. imho this series doesn't look bad, but lets wait for Michal.
-
-> +void exit_oom_mm(struct mm_struct *mm)
-> +{
-> +	/* Nothing to do unless mark_oom_victim() was called with this mm. */
-> +	if (!mm->oom_mm.victim)
-> +		return;
-> +#ifdef CONFIG_MMU
-> +	/*
-> +	 * OOM reaper will eventually call __exit_oom_mm().
-> +	 * Allow oom_has_pending_mm() to ignore this mm.
-> +	 */
-> +	set_bit(MMF_OOM_REAPED, &mm->flags);
-
-If the caller is exit_mm(), then mm->mm_users == 0 and oom_has_pending_mm()
-can check it is zero instead?
-
-So,
-
-> +#else
-> +	__exit_oom_mm(mm);
-> +#endif
-
-it seems that only CONFIG_MMU=n needs this... Apart from oom_has_pending_mm()
-why do we bother to add the victim's mm to oom_mm_list?
-
-Oleg.
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
