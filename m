@@ -1,136 +1,187 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BA9D86B0005
-	for <linux-mm@kvack.org>; Mon,  4 Jul 2016 19:11:03 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id k78so387100994ioi.2
-        for <linux-mm@kvack.org>; Mon, 04 Jul 2016 16:11:03 -0700 (PDT)
-Received: from mail-oi0-x236.google.com (mail-oi0-x236.google.com. [2607:f8b0:4003:c06::236])
-        by mx.google.com with ESMTPS id p41si87555otc.122.2016.07.04.16.11.02
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BC46F6B0005
+	for <linux-mm@kvack.org>; Mon,  4 Jul 2016 19:42:33 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id g4so116301331ith.3
+        for <linux-mm@kvack.org>; Mon, 04 Jul 2016 16:42:33 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id v186si643484iod.113.2016.07.04.16.42.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Jul 2016 16:11:02 -0700 (PDT)
-Received: by mail-oi0-x236.google.com with SMTP id u201so208962648oie.0
-        for <linux-mm@kvack.org>; Mon, 04 Jul 2016 16:11:02 -0700 (PDT)
-Date: Mon, 4 Jul 2016 16:10:53 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: mm: BUG in page_move_anon_rmap
-In-Reply-To: <CACT4Y+Y9rhgTCuFbg5f4KHzR-_p4-mf4sVn4zoa-3hnY6iEmMQ@mail.gmail.com>
-Message-ID: <alpine.LSU.2.11.1607041551550.25497@eggly.anvils>
-References: <CACT4Y+Y9rhgTCuFbg5f4KHzR-_p4-mf4sVn4zoa-3hnY6iEmMQ@mail.gmail.com>
+        Mon, 04 Jul 2016 16:42:32 -0700 (PDT)
+Subject: Re: [PATCH v5] mm, kasan: switch SLUB to stackdepot, enable memory
+ quarantine for SLUB
+References: <1466617421-58518-1-git-send-email-glider@google.com>
+From: Sasha Levin <sasha.levin@oracle.com>
+Message-ID: <577AF45A.5080503@oracle.com>
+Date: Mon, 4 Jul 2016 19:42:18 -0400
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <1466617421-58518-1-git-send-email-glider@google.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>
+To: Alexander Potapenko <glider@google.com>, adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, rostedt@goodmis.org, iamjoonsoo.kim@lge.com, js1304@gmail.com, kcc@google.com, aryabinin@virtuozzo.com, kuthonuzo.luruo@hpe.com
+Cc: kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 1 Jul 2016, Dmitry Vyukov wrote:
-> Hello,
-> 
-> I am getting the following crashes while running syzkaller fuzzer on
-> 00bf377d19ad3d80cbc7a036521279a86e397bfb (Jun 29). So far I did not
-> manage to reproduce it outside of fuzzer, but fuzzer hits it once per
-> hour or so.
-> 
-> flags: 0xfffe0000044079(locked|uptodate|dirty|lru|active|head|swapbacked)
-> page dumped because: VM_BUG_ON_PAGE(page->index !=
-> linear_page_index(vma, address))
-> page->mem_cgroup:ffff88003e829be0
-> ------------[ cut here ]------------
-> kernel BUG at mm/rmap.c:1103!
-> invalid opcode: 0000 [#2] SMP DEBUG_PAGEALLOC KASAN
-> Modules linked in:
-> CPU: 0 PID: 7043 Comm: syz-fuzzer Tainted: G      D         4.7.0-rc5+ #22
-> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-> task: ffff8800342f46c0 ti: ffff880034008000 task.ti: ffff880034008000
-> RIP: 0010:[<ffffffff817693d8>] [<ffffffff817693d8>]
-> page_move_anon_rmap+0x278/0x310 mm/rmap.c:1103
-> RSP: 0000:ffff88003400fad0  EFLAGS: 00010286
-> RAX: ffff8800342f46c0 RBX: ffffea0000928000 RCX: 0000000000000000
-> RDX: 0000000000000000 RSI: ffff88003ec16de8 RDI: ffffed0006801f41
-> RBP: ffff88003400fb00 R08: 0000000000000001 R09: 0000000000000000
-> R10: 0000000000000000 R11: ffffed000fffea01 R12: ffff88006776b8e8
-> R13: 001000000c829e00 R14: ffff88006247c3e8 R15: 000000000c829e00
-> FS:  00007f7627bc5700(0000) GS:ffff88003ec00000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 000000c829fd8000 CR3: 0000000034b23000 CR4: 00000000000006f0
-> Stack:
->  ffffea0000928000 ffffea000092f600 ffff88006776b8e8 ffffea0000928000
->  ffffea0000928001 000000c829fd8000 ffff88003400fc38 ffffffff8173a25f
->  0000000000000086 ffff88003400fbd0 ffffea0000928001 ffff880036cd3ec0
-> Call Trace:
->  [<ffffffff8173a25f>] do_wp_page+0x7df/0x1c90 mm/memory.c:2402
->  [<ffffffff817404f5>] handle_pte_fault+0x1e85/0x4960 mm/memory.c:3381
->  [<     inline     >] __handle_mm_fault mm/memory.c:3489
->  [<ffffffff8174443b>] handle_mm_fault+0xeab/0x11a0 mm/memory.c:3518
->  [<ffffffff81290f77>] __do_page_fault+0x457/0xbb0 arch/x86/mm/fault.c:1356
->  [<ffffffff8129181f>] trace_do_page_fault+0xdf/0x5b0 arch/x86/mm/fault.c:1449
->  [<ffffffff81281c24>] do_async_page_fault+0x14/0xd0 arch/x86/kernel/kvm.c:265
->  [<ffffffff86a9d538>] async_page_fault+0x28/0x30 arch/x86/entry/entry_64.S:923
-> Code: 0b e8 dd d5 e2 ff 48 c7 c6 40 f7 d0 86 48 89 df e8 2e 4a fc ff
-> 0f 0b e8 c7 d5 e2 ff 48 c7 c6 c0 f7 d0 86 48 89 df e8 18 4a fc ff <0f>
-> 0b e8 b1 d5 e2 ff 4c 89 ee 4c 89 e7 e8 96 80 02 00 49 89 c5
-> RIP  [<ffffffff817693d8>] page_move_anon_rmap+0x278/0x310 mm/rmap.c:1103
->  RSP <ffff88003400fad0>
-> ---[ end trace b6c02a1136e2a9ec ]---
-> BUG: sleeping function called from invalid context at include/linux/sched.h:2955
-> in_atomic(): 1, irqs_disabled(): 0, pid: 7043, name: syz-fuzzer
-> lockdep is turned off.
-> CPU: 0 PID: 7043 Comm: syz-fuzzer Tainted: G      D         4.7.0-rc5+ #22
-> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
->  ffffffff880b58e0 ffff88003400f5c0 ffffffff82cc924f ffffffff342f46c0
->  fffffbfff1016b1c ffff8800342f46c0 0000000000001b83 0000000000000000
->  0000000000000000 dffffc0000000000 ffff88003400f5e8 ffffffff813efbfb
-> Call Trace:
->  [<     inline     >] __dump_stack lib/dump_stack.c:15
->  [<ffffffff82cc924f>] dump_stack+0x12e/0x18f lib/dump_stack.c:51
->  [<ffffffff813efbfb>] ___might_sleep+0x27b/0x3a0 kernel/sched/core.c:7573
->  [<ffffffff813efdb0>] __might_sleep+0x90/0x1a0 kernel/sched/core.c:7535
->  [<     inline     >] threadgroup_change_begin include/linux/sched.h:2955
->  [<ffffffff813a175f>] exit_signals+0x7f/0x430 kernel/signal.c:2392
->  [<ffffffff8137a6a4>] do_exit+0x234/0x2c80 kernel/exit.c:701
->  [<ffffffff81204331>] oops_end+0xa1/0xd0 arch/x86/kernel/dumpstack.c:250
->  [<ffffffff812045c6>] die+0x46/0x60 arch/x86/kernel/dumpstack.c:308
->  [<     inline     >] do_trap_no_signal arch/x86/kernel/traps.c:192
->  [<ffffffff811fd9f2>] do_trap+0x192/0x380 arch/x86/kernel/traps.c:238
->  [<ffffffff811fde4e>] do_error_trap+0x11e/0x280 arch/x86/kernel/traps.c:275
->  [<ffffffff811ff18b>] do_invalid_op+0x1b/0x20 arch/x86/kernel/traps.c:288
->  [<ffffffff86a9cf0e>] invalid_op+0x1e/0x30 arch/x86/entry/entry_64.S:761
->  [<ffffffff8173a25f>] do_wp_page+0x7df/0x1c90 mm/memory.c:2402
->  [<ffffffff817404f5>] handle_pte_fault+0x1e85/0x4960 mm/memory.c:3381
->  [<     inline     >] __handle_mm_fault mm/memory.c:3489
->  [<ffffffff8174443b>] handle_mm_fault+0xeab/0x11a0 mm/memory.c:3518
->  [<ffffffff81290f77>] __do_page_fault+0x457/0xbb0 arch/x86/mm/fault.c:1356
->  [<ffffffff8129181f>] trace_do_page_fault+0xdf/0x5b0 arch/x86/mm/fault.c:1449
->  [<ffffffff81281c24>] do_async_page_fault+0x14/0xd0 arch/x86/kernel/kvm.c:265
->  [<ffffffff86a9d538>] async_page_fault+0x28/0x30 arch/x86/entry/entry_64.S:923
-> note: syz-fuzzer[7043] exited with preempt_count 1
+On 06/22/2016 01:43 PM, Alexander Potapenko wrote:
+> For KASAN builds:
+>  - switch SLUB allocator to using stackdepot instead of storing the
+>    allocation/deallocation stacks in the objects;
+>  - change the freelist hook so that parts of the freelist can be put
+>    into the quarantine.
 
-I think 0798d3c022dc ("mm: thp: avoid false positive VM_BUG_ON_PAGE in
-page_move_anon_rmap()") is flawed.  It would certainly be interesting
-to hear whether this patch fixes your crashes:
+This commit seems to be causing the following on boot (bisected):
 
---- 4.7-rc6/include/linux/pagemap.h	2016-05-29 15:47:38.303064058 -0700
-+++ linux/include/linux/pagemap.h	2016-07-04 15:44:46.635147739 -0700
-@@ -408,7 +408,7 @@ static inline pgoff_t linear_page_index(
- 	pgoff_t pgoff;
- 	if (unlikely(is_vm_hugetlb_page(vma)))
- 		return linear_hugepage_index(vma, address);
--	pgoff = (address - vma->vm_start) >> PAGE_SHIFT;
-+	pgoff = (long)(address - vma->vm_start) >> PAGE_SHIFT;
- 	pgoff += vma->vm_pgoff;
- 	return pgoff;
- }
+[    0.000000] =============================================================================
 
-But if it does work, I'm not sure that we really want to extend
-linear_page_index() to go in a backward direction, just for this case.
+[    0.000000] BUG radix_tree_node (Not tainted): Object padding overwritten
 
-I think I'd prefer to skip page_move_anon_rmap()'s linear_page_index()
-check in the PageTransHuge case; or, indeed, remove that check (and
-the address arg) completely - address plays no further part there.
-But let's wait to see what Kirill prefers before committing.
+[    0.000000] -----------------------------------------------------------------------------
 
-Hugh
+[    0.000000]
+
+[    0.000000] Disabling lock debugging due to kernel taint
+
+[    0.000000] INFO: 0xffff88004fc01600-0xffff88004fc01600. First byte 0x58 instead of 0x5a
+
+[    0.000000] INFO: Slab 0xffffea00013f0000 objects=34 used=34 fp=0x          (null) flags=0x1fffff80004080
+
+[    0.000000] INFO: Object 0xffff88004fc01278 @offset=4728 fp=0xffff88004fc033a8
+
+[    0.000000]
+
+[    0.000000] Redzone ffff88004fc01270: bb bb bb bb bb bb bb bb                          ........
+
+[    0.000000] Object ffff88004fc01278: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc01288: 00 00 00 00 00 00 00 00 90 12 c0 4f 00 88 ff ff  ...........O....
+
+[    0.000000] Object ffff88004fc01298: 90 12 c0 4f 00 88 ff ff 00 00 00 00 00 00 00 00  ...O............
+
+[    0.000000] Object ffff88004fc012a8: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc012b8: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc012c8: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc012d8: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc012e8: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc012f8: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc01308: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc01318: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc01328: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc01338: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc01348: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc01358: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc01368: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc01378: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc01388: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc01398: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc013a8: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc013b8: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc013c8: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc013d8: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc013e8: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc013f8: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc01408: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc01418: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc01428: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc01438: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc01448: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc01458: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc01468: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc01478: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc01488: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc01498: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Object ffff88004fc014a8: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+
+[    0.000000] Redzone ffff88004fc014b8: bb bb bb bb bb bb bb bb                          ........
+
+[    0.000000] Padding ffff88004fc015f8: 5a 5a 5a 5a 5a 5a 5a 5a 58 5a 5a 5a 5a 5a 5a 5a  ZZZZZZZZXZZZZZZZ
+
+[    0.000000] Padding ffff88004fc01608: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a  ZZZZZZZZZZZZZZZZ
+
+[    0.000000] Padding ffff88004fc01618: 5a 5a 5a 5a 5a 5a 5a 5a                          ZZZZZZZZ
+
+[    0.000000] CPU: 0 PID: 0 Comm: swapper/0 Tainted: G    B           4.7.0-rc5-next-20160704-sasha-00024-ge77e3f3 #3135
+
+[    0.000000]  1ffffffff4c40f12 9d094fbe896d693a ffffffffa6207918 ffffffff9b06d567
+
+[    0.000000]  ffffffff00000000 fffffbfff4cb1f60 0000000041b58ab3 ffffffffa5d082b8
+
+[    0.000000]  ffffffff9b06d3f8 9d094fbe896d693a ffffffffa6238040 ffffffffa5d26f04
+
+[    0.000000] Call Trace:
+
+[    0.000000] dump_stack (lib/dump_stack.c:53)
+[    0.000000] ? arch_local_irq_restore (./arch/x86/include/asm/paravirt.h:134)
+[    0.000000] ? print_section (./arch/x86/include/asm/current.h:14 include/linux/kasan.h:35 mm/slub.c:481 mm/slub.c:512)
+[    0.000000] print_trailer (mm/slub.c:670)
+[    0.000000] check_bytes_and_report (mm/slub.c:712 mm/slub.c:738)
+[    0.000000] check_object (mm/slub.c:868)
+[    0.000000] ? radix_tree_node_alloc (lib/radix-tree.c:306)
+[    0.000000] alloc_debug_processing (mm/slub.c:1068 mm/slub.c:1079)
+[    0.000000] ___slab_alloc (mm/slub.c:2571 (discriminator 1))
+[    0.000000] ? radix_tree_node_alloc (lib/radix-tree.c:306)
+[    0.000000] ? radix_tree_node_alloc (lib/radix-tree.c:306)
+[    0.000000] ? check_preemption_disabled (lib/smp_processor_id.c:52)
+[    0.000000] ? radix_tree_node_alloc (lib/radix-tree.c:306)
+[    0.000000] __slab_alloc.isra.23 (./arch/x86/include/asm/paravirt.h:789 mm/slub.c:2602)
+[    0.000000] ? radix_tree_node_alloc (lib/radix-tree.c:306)
+[    0.000000] kmem_cache_alloc (mm/slub.c:2664 mm/slub.c:2706 mm/slub.c:2711)
+[    0.000000] ? deactivate_slab (mm/slub.c:2129)
+[    0.000000] radix_tree_node_alloc (lib/radix-tree.c:306)
+[    0.000000] __radix_tree_create (lib/radix-tree.c:505 lib/radix-tree.c:561)
+[    0.000000] ? radix_tree_maybe_preload_order (lib/radix-tree.c:550)
+[    0.000000] ? alloc_cpumask_var_node (lib/cpumask.c:64)
+[    0.000000] ? kasan_unpoison_shadow (mm/kasan/kasan.c:59)
+[    0.000000] ? kasan_kmalloc (mm/kasan/kasan.c:498 mm/kasan/kasan.c:592)
+[    0.000000] __radix_tree_insert (lib/radix-tree.c:637)
+[    0.000000] ? __radix_tree_create (lib/radix-tree.c:629)
+[    0.000000] ? _find_next_bit (lib/find_bit.c:54)
+[    0.000000] ? alloc_desc (kernel/irq/irqdesc.c:190)
+[    0.000000] early_irq_init (kernel/irq/irqdesc.c:279 (discriminator 1))
+[    0.000000] start_kernel (init/main.c:563)
+[    0.000000] ? thread_stack_cache_init (??:?)
+[    0.000000] ? memblock_reserve (mm/memblock.c:737)
+[    0.000000] ? early_idt_handler_array (arch/x86/kernel/head_64.S:361)
+[    0.000000] x86_64_start_reservations (arch/x86/kernel/head64.c:196)
+[    0.000000] x86_64_start_kernel (arch/x86/kernel/head64.c:176)
+[    0.000000] FIX radix_tree_node: Restoring 0xffff88004fc01600-0xffff88004fc01600=0x5a
+
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
