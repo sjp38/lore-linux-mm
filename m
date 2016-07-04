@@ -1,93 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6971F6B0005
-	for <linux-mm@kvack.org>; Mon,  4 Jul 2016 01:46:27 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id a69so373589128pfa.1
-        for <linux-mm@kvack.org>; Sun, 03 Jul 2016 22:46:27 -0700 (PDT)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id g7si2300166pfc.293.2016.07.03.22.46.26
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F6B76B0005
+	for <linux-mm@kvack.org>; Mon,  4 Jul 2016 02:50:13 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id cx13so116684628pac.2
+        for <linux-mm@kvack.org>; Sun, 03 Jul 2016 23:50:13 -0700 (PDT)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id r194si2642104pfr.68.2016.07.03.23.50.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 03 Jul 2016 22:46:26 -0700 (PDT)
-Received: by mail-pf0-x242.google.com with SMTP id c74so15535169pfb.0
-        for <linux-mm@kvack.org>; Sun, 03 Jul 2016 22:46:26 -0700 (PDT)
-Date: Mon, 4 Jul 2016 14:45:24 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH 3/3] mm/page_owner: track page free call chain
-Message-ID: <20160704054524.GD898@swordfish>
-References: <20160702161656.14071-1-sergey.senozhatsky@gmail.com>
- <20160702161656.14071-4-sergey.senozhatsky@gmail.com>
- <20160704045714.GC14840@js1304-P5Q-DELUXE>
- <20160704050730.GC898@swordfish>
- <20160704052955.GD14840@js1304-P5Q-DELUXE>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160704052955.GD14840@js1304-P5Q-DELUXE>
+        Sun, 03 Jul 2016 23:50:12 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id 66so15638357pfy.1
+        for <linux-mm@kvack.org>; Sun, 03 Jul 2016 23:50:11 -0700 (PDT)
+From: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Subject: [PATCH v2 1/8] mm/zsmalloc: modify zs compact trace interface
+Date: Mon,  4 Jul 2016 14:49:52 +0800
+Message-Id: <1467614999-4326-1-git-send-email-opensource.ganesh@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, rostedt@goodmis.org, mingo@redhat.com, Ganesh Mahendran <opensource.ganesh@gmail.com>
 
-On (07/04/16 14:29), Joonsoo Kim wrote:
-> > > On Sun, Jul 03, 2016 at 01:16:56AM +0900, Sergey Senozhatsky wrote:
-> > > > Introduce PAGE_OWNER_TRACK_FREE config option to extend page owner with
-> > > > free_pages() tracking functionality. This adds to the dump_page_owner()
-> > > > output an additional backtrace, that tells us what path has freed the
-> > > > page.
-> > > 
-> > > Hmm... Do you have other ideas to use this feature? Following example is
-> > > just to detect use-after-free and we have other good tools for it
-> > > (KASAN or DEBUG_PAGEALLOC) so I'm not sure whether it's useful or not.
-> > 
-> > there is no kasan for ARM32, for example (apart from the fact that
-> > it's really hard to use kasan sometimes due to its cpu cycles and
-> > memory requirements).
-> 
-> Hmm... for debugging purpose, KASAN provides many more things so IMO it's
-> better to implement/support KASAN in ARM32 rather than expand
-> PAGE_OWNER for free.
-> 
+This patch changes trace_zsmalloc_compact_start[end] to
+trace_zs_compact_start[end] to keep function naming consistent
+with others in zsmalloc
 
-hm, the last time I checked kasan didn't catch that extra put_page() on
-x86_64. AFAIK, kasan on ARM32 is a bit hard to do properly
-http://www.serverphorums.com/read.php?12,1206479,1281087#msg-1281087
+Also this patch remove pages_total_compacted information which
+may not really needed.
 
-I've played with kasan on arm32 (an internal custom version)... and
-extended page_owner turned out to be *incomparably* easier and faster
-to use (especially paired with stackdepot).
+Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
+---
+v2: change commit message
+---
+ include/trace/events/zsmalloc.h | 16 ++++++----------
+ mm/zsmalloc.c                   |  7 +++----
+ 2 files changed, 9 insertions(+), 14 deletions(-)
 
-> > educate me, will DEBUG_PAGEALLOC tell us what path has triggered the
-> > extra put_page()? hm... does ARM32 provide ARCH_SUPPORTS_DEBUG_PAGEALLOC?
-> 
-> Hmm... Now, I notice that PAGE_OWNER_TRACK_FREE will detect
-> double-free rather than use-after-free.
-
-well, yes. current hits bad_page(), page_owner helps to find out who
-stole and spoiled it from under current.
-
-CPU a							CPU b
-
-	alloc_page()
-	put_page() << legitimate
-							alloc_page()
-err:
-	put_page() << legitimate, again.
-	           << but is actually buggy.
-
-							put_page() << double free. but we need
-								   << to report put_page() from
-								   << CPU a.
-
-	-ss
-
-> DEBUG_PAGEALLOC doesn't catch double-free but it can be implemented
-> easily. In this case, we can show call path for second free.
-> 
-> AFAIK, ARM32 doesn't support ARCH_SUPPORTS_DEBUG_PAGEALLOC.
-> 
-> Thanks.
-> 
+diff --git a/include/trace/events/zsmalloc.h b/include/trace/events/zsmalloc.h
+index 3b6f14e..c7a39f4 100644
+--- a/include/trace/events/zsmalloc.h
++++ b/include/trace/events/zsmalloc.h
+@@ -7,7 +7,7 @@
+ #include <linux/types.h>
+ #include <linux/tracepoint.h>
+ 
+-TRACE_EVENT(zsmalloc_compact_start,
++TRACE_EVENT(zs_compact_start,
+ 
+ 	TP_PROTO(const char *pool_name),
+ 
+@@ -25,29 +25,25 @@ TRACE_EVENT(zsmalloc_compact_start,
+ 		  __entry->pool_name)
+ );
+ 
+-TRACE_EVENT(zsmalloc_compact_end,
++TRACE_EVENT(zs_compact_end,
+ 
+-	TP_PROTO(const char *pool_name, unsigned long pages_compacted,
+-			unsigned long pages_total_compacted),
++	TP_PROTO(const char *pool_name, unsigned long pages_compacted),
+ 
+-	TP_ARGS(pool_name, pages_compacted, pages_total_compacted),
++	TP_ARGS(pool_name, pages_compacted),
+ 
+ 	TP_STRUCT__entry(
+ 		__field(const char *, pool_name)
+ 		__field(unsigned long, pages_compacted)
+-		__field(unsigned long, pages_total_compacted)
+ 	),
+ 
+ 	TP_fast_assign(
+ 		__entry->pool_name = pool_name;
+ 		__entry->pages_compacted = pages_compacted;
+-		__entry->pages_total_compacted = pages_total_compacted;
+ 	),
+ 
+-	TP_printk("pool %s: %ld pages compacted(total %ld)",
++	TP_printk("pool %s: %ld pages compacted",
+ 		  __entry->pool_name,
+-		  __entry->pages_compacted,
+-		  __entry->pages_total_compacted)
++		  __entry->pages_compacted)
+ );
+ 
+ #endif /* _TRACE_ZSMALLOC_H */
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index e425de4..c7f79d5 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -2323,7 +2323,7 @@ unsigned long zs_compact(struct zs_pool *pool)
+ 	struct size_class *class;
+ 	unsigned long pages_compacted_before = pool->stats.pages_compacted;
+ 
+-	trace_zsmalloc_compact_start(pool->name);
++	trace_zs_compact_start(pool->name);
+ 
+ 	for (i = zs_size_classes - 1; i >= 0; i--) {
+ 		class = pool->size_class[i];
+@@ -2334,9 +2334,8 @@ unsigned long zs_compact(struct zs_pool *pool)
+ 		__zs_compact(pool, class);
+ 	}
+ 
+-	trace_zsmalloc_compact_end(pool->name,
+-		pool->stats.pages_compacted - pages_compacted_before,
+-		pool->stats.pages_compacted);
++	trace_zs_compact_end(pool->name,
++		pool->stats.pages_compacted - pages_compacted_before);
+ 
+ 	return pool->stats.pages_compacted;
+ }
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
