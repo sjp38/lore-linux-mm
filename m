@@ -1,122 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A33BA6B0005
-	for <linux-mm@kvack.org>; Mon,  4 Jul 2016 11:38:29 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id ts6so354279506pac.1
-        for <linux-mm@kvack.org>; Mon, 04 Jul 2016 08:38:29 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id 185si4799079pfz.17.2016.07.04.08.38.28
-        for <linux-mm@kvack.org>;
-        Mon, 04 Jul 2016 08:38:28 -0700 (PDT)
-Subject: Re: kmem_cache_alloc fail with unable to handle paging request after
- pci hotplug remove.
-References: <577A7203.9010305@linux.intel.com>
- <CAJZ5v0ji9pVgAZZJT+RG83RNE4-GgJAp88Mw2ddVt3H6eHG72g@mail.gmail.com>
- <577A7B0A.4090107@linux.intel.com> <20160704152131.GA2766@wunner.de>
-From: Mathias Nyman <mathias.nyman@linux.intel.com>
-Message-ID: <577A84B4.8020505@linux.intel.com>
-Date: Mon, 4 Jul 2016 18:45:56 +0300
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DE2F26B0005
+	for <linux-mm@kvack.org>; Mon,  4 Jul 2016 14:25:57 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id t2so221862841qkh.1
+        for <linux-mm@kvack.org>; Mon, 04 Jul 2016 11:25:57 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id s48si2841354qta.19.2016.07.04.11.25.56
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 04 Jul 2016 11:25:57 -0700 (PDT)
+Date: Mon, 4 Jul 2016 20:25:50 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 3/8] mm,oom: Use list of mm_struct used by OOM victims.
+Message-ID: <20160704182549.GB8396@redhat.com>
+References: <201607031135.AAH95347.MVOHQtFJFLOOFS@I-love.SAKURA.ne.jp>
+ <201607031138.AHB35971.FLVQOtJFOMFHSO@I-love.SAKURA.ne.jp>
+ <20160704103931.GA3882@redhat.com>
+ <201607042150.CIB00512.FSOtMHLOOVFFQJ@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20160704152131.GA2766@wunner.de>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201607042150.CIB00512.FSOtMHLOOVFFQJ@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lukas Wunner <lukas@wunner.de>
-Cc: "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Bjorn Helgaas <bhelgaas@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linux PCI <linux-pci@vger.kernel.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, USB <linux-usb@vger.kernel.org>, acelan@gmail.com
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, rientjes@google.com, vdavydov@parallels.com, mst@redhat.com, mhocko@suse.com, mhocko@kernel.org
 
-On 04.07.2016 18:21, Lukas Wunner wrote:
-> On Mon, Jul 04, 2016 at 06:04:42PM +0300, Mathias Nyman wrote:
->> On 04.07.2016 17:25, Rafael J. Wysocki wrote:
->>> On Mon, Jul 4, 2016 at 4:26 PM, Mathias Nyman <mathias.nyman@linux.intel.com> wrote:
->>>> AceLan Kao can get his DELL XPS 13 laptop to hang by plugging/un-plugging
->>>> a USB 3.1 key via thunderbolt port.
->>>>
->>>> Allocating memory fails after this, always pointing to NULL pointer or
->>>> page request failing in get_freepointer() called by
->>>> kmalloc/kmem_cache_alloc.
->>>>
->>>> Unplugging a usb type-c device from the thunderbolt port on Alpine Ridge
->>>> based systems like this one will hotplug remove PCI bridges together
->>>> with the USB xhci controller behind them.
+On 07/04, Tetsuo Handa wrote:
 >
-> Yes, that matches with the lspci output you've posted, the whole
-> Thunderbolt controller is gone after unplug. Perhaps it's powered
-> down? What does "lspci -vvvv -s 00:1d.6" say? (Does the root port
-> still have a link to the Thunderbolt controller?)
+> Oleg Nesterov wrote:
+> > >
+> > > --- a/kernel/fork.c
+> > > +++ b/kernel/fork.c
+> > > @@ -722,6 +722,7 @@ static inline void __mmput(struct mm_struct *mm)
+> > >  	}
+> > >  	if (mm->binfmt)
+> > >  		module_put(mm->binfmt->module);
+> > > +	exit_oom_mm(mm);
+> >
+> > Is it strictly necessary? At first glance not. Sooner or later oom_reaper() should
+> > find this mm_struct and do exit_oom_mm(). And given that mm->mm_users is already 0
+> > the "extra" __oom_reap_vmas() doesn't really hurt.
+> >
+> > It would be nice to remove exit_oom_mm() from __mmput(); it takes the global spinlock
+> > for the very unlikely case, and if we can avoid it here then perhaps we can remove
+> > ->oom_mm from mm_struct.
 >
+> I changed not to take global spinlock from __mmput() unless that mm was used by
+> TIF_MEMDIE threads.
 
+This new version doesn't apply on top of 2/8, I can't really understand it...
 
-"lspci -vvvv -s 00:1d.6" after unplug (on my working DELL XPS)
+> But I don't think I can remove oom_mm from mm_struct
 
+I think we can try later. oom_init() can create a small mem-pool or we can even
+use GFP_ATOMIC for the start to (try to) alloc
 
-00:1d.6 PCI bridge: Intel Corporation Sunrise Point-H PCI Express Root Port #15 (rev f1) (prog-if 00 [Normal decode])
-	Control: I/O+ Mem+ BusMaster+ SpecCycle- MemWINV- VGASnoop- ParErr- Stepping- SERR- FastB2B- DisINTx-
-	Status: Cap+ 66MHz- UDF- FastB2B- ParErr- DEVSEL=fast >TAbort- <TAbort- <MAbort- >SERR- <PERR- INTx-
-	Latency: 0
-	Interrupt: pin C routed to IRQ 18
-	Bus: primary=00, secondary=06, subordinate=3e, sec-latency=0
-	I/O behind bridge: 00002000-00002fff
-	Memory behind bridge: c4000000-da0fffff
-	Prefetchable memory behind bridge: 0000000080000000-00000000a1ffffff
-	Secondary status: 66MHz- FastB2B- ParErr- DEVSEL=fast >TAbort- <TAbort- <MAbort+ <SERR- <PERR-
-	BridgeCtl: Parity- SERR- NoISA- VGA- MAbort- >Reset- FastB2B-
-		PriDiscTmr- SecDiscTmr- DiscTmrStat- DiscTmrSERREn-
-	Capabilities: [40] Express (v2) Root Port (Slot+), MSI 00
-		DevCap:	MaxPayload 256 bytes, PhantFunc 0
-			ExtTag- RBE+
-		DevCtl:	Report errors: Correctable- Non-Fatal- Fatal- Unsupported-
-			RlxdOrd- ExtTag- PhantFunc- AuxPwr- NoSnoop-
-			MaxPayload 128 bytes, MaxReadReq 128 bytes
-		DevSta:	CorrErr+ UncorrErr- FatalErr- UnsuppReq- AuxPwr+ TransPend-
-		LnkCap:	Port #15, Speed 8GT/s, Width x2, ASPM L0s L1, Exit Latency L0s <1us, L1 <16us
-			ClockPM- Surprise- LLActRep+ BwNot+ ASPMOptComp+
-		LnkCtl:	ASPM Disabled; RCB 64 bytes Disabled- CommClk+
-			ExtSynch- ClockPM- AutWidDis- BWInt- AutBWInt-
-		LnkSta:	Speed 2.5GT/s, Width x2, TrErr- Train- SlotClk+ DLActive- BWMgmt+ ABWMgmt-
-		SltCap:	AttnBtn- PwrCtrl- MRL- AttnInd- PwrInd- HotPlug+ Surprise+
-			Slot #18, PowerLimit 25.000W; Interlock- NoCompl+
-		SltCtl:	Enable: AttnBtn- PwrFlt- MRL- PresDet+ CmdCplt- HPIrq- LinkChg-
-			Control: AttnInd Unknown, PwrInd Unknown, Power- Interlock-
-		SltSta:	Status: AttnBtn- PowerFlt- MRL- CmdCplt- PresDet- Interlock-
-			Changed: MRL- PresDet- LinkState+
-		RootCtl: ErrCorrectable- ErrNon-Fatal- ErrFatal- PMEIntEna- CRSVisible-
-		RootCap: CRSVisible-
-		RootSta: PME ReqID 0000, PMEStatus- PMEPending-
-		DevCap2: Completion Timeout: Range ABC, TimeoutDis+, LTR+, OBFF Not Supported ARIFwd+
-		DevCtl2: Completion Timeout: 50us to 50ms, TimeoutDis-, LTR-, OBFF Disabled ARIFwd-
-		LnkCtl2: Target Link Speed: 2.5GT/s, EnterCompliance- SpeedDis-
-			 Transmit Margin: Normal Operating Range, EnterModifiedCompliance- ComplianceSOS-
-			 Compliance De-emphasis: -6dB
-		LnkSta2: Current De-emphasis Level: -3.5dB, EqualizationComplete-, EqualizationPhase1-
-			 EqualizationPhase2-, EqualizationPhase3-, LinkEqualizationRequest-
-	Capabilities: [80] MSI: Enable- Count=1/1 Maskable- 64bit-
-		Address: 00000000  Data: 0000
-	Capabilities: [90] Subsystem: Dell Sunrise Point-H PCI Express Root Port
-	Capabilities: [a0] Power Management version 3
-		Flags: PMEClk- DSI- D1- D2- AuxCurrent=0mA PME(D0+,D1-,D2-,D3hot+,D3cold+)
-		Status: D0 NoSoftRst- PME-Enable- DSel=0 DScale=0 PME-
-	Capabilities: [100 v1] Advanced Error Reporting
-		UESta:	DLP- SDES- TLP- FCP- CmpltTO- CmpltAbrt- UnxCmplt- RxOF- MalfTLP- ECRC- UnsupReq- ACSViol-
-		UEMsk:	DLP- SDES- TLP- FCP- CmpltTO+ CmpltAbrt- UnxCmplt+ RxOF- MalfTLP- ECRC- UnsupReq- ACSViol-
-		UESvrt:	DLP+ SDES- TLP- FCP- CmpltTO- CmpltAbrt- UnxCmplt- RxOF+ MalfTLP+ ECRC- UnsupReq- ACSViol-
-		CESta:	RxErr+ BadTLP- BadDLLP- Rollover+ Timeout+ NonFatalErr+
-		CEMsk:	RxErr- BadTLP- BadDLLP- Rollover- Timeout- NonFatalErr+
-		AERCap:	First Error Pointer: 00, GenCap- CGenEn- ChkCap- ChkEn-
-	Capabilities: [140 v1] Access Control Services
-		ACSCap:	SrcValid+ TransBlk+ ReqRedir+ CmpltRedir+ UpstreamFwd- EgressCtrl- DirectTrans-
-		ACSCtl:	SrcValid- TransBlk- ReqRedir- CmpltRedir- UpstreamFwd- EgressCtrl- DirectTrans-
-	Capabilities: [200 v1] L1 PM Substates
-		L1SubCap: PCI-PM_L1.2+ PCI-PM_L1.1+ ASPM_L1.2+ ASPM_L1.1+ L1_PM_Substates+
-			  PortCommonModeRestoreTime=40us PortTPowerOnTime=10us
-	Capabilities: [220 v1] #19
-	Kernel driver in use: pcieport
-	Kernel modules: shpchp
+	struct oom_mm {
+		struct mm_struct *mm;	// mm to reap
+		struct list_head list;	// node in the oom_mm_list
+		...
+	};
 
+lets discuss this later, but to do this we need to remove exit_oom_mm() from exit_mm().
+Although we can probably add another MMF_flag, but I think it would be nice to avoid
+exit_oom_mm anyway, if it is possible.
 
-AceLan Kao, can you confirm your lspci output looks similar on the failing DELL XPS?
+And in any case personally I really hate oom_mm->comm/pid ;) but I think we
+can remove it later either way.
 
--Mathias
+> Thus, I think I need to remember task_struct which got TIF_MEMDIE.
+
+Well, this is unfortunate imho. This in fact turns "reap mm" back into "reap task".
+
+> I'd like to wait for Michal to come back...
+
+Yes. imho this series doesn't look bad, but lets wait for Michal.
+
+> +void exit_oom_mm(struct mm_struct *mm)
+> +{
+> +	/* Nothing to do unless mark_oom_victim() was called with this mm. */
+> +	if (!mm->oom_mm.victim)
+> +		return;
+> +#ifdef CONFIG_MMU
+> +	/*
+> +	 * OOM reaper will eventually call __exit_oom_mm().
+> +	 * Allow oom_has_pending_mm() to ignore this mm.
+> +	 */
+> +	set_bit(MMF_OOM_REAPED, &mm->flags);
+
+If the caller is exit_mm(), then mm->mm_users == 0 and oom_has_pending_mm()
+can check it is zero instead?
+
+So,
+
+> +#else
+> +	__exit_oom_mm(mm);
+> +#endif
+
+it seems that only CONFIG_MMU=n needs this... Apart from oom_has_pending_mm()
+why do we bother to add the victim's mm to oom_mm_list?
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
