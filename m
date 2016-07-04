@@ -1,54 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 012BB6B0005
-	for <linux-mm@kvack.org>; Mon,  4 Jul 2016 06:33:29 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id c82so63806549wme.2
-        for <linux-mm@kvack.org>; Mon, 04 Jul 2016 03:33:28 -0700 (PDT)
-Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
-        by mx.google.com with ESMTPS id wn5si2405590wjb.116.2016.07.04.03.33.27
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 144E56B0005
+	for <linux-mm@kvack.org>; Mon,  4 Jul 2016 06:39:43 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id r68so158971266qka.3
+        for <linux-mm@kvack.org>; Mon, 04 Jul 2016 03:39:43 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x18si1667122qtx.42.2016.07.04.03.39.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Jul 2016 03:33:27 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id 007671C1B0A
-	for <linux-mm@kvack.org>; Mon,  4 Jul 2016 11:33:26 +0100 (IST)
-Date: Mon, 4 Jul 2016 11:33:25 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 04/31] mm, vmscan: begin reclaiming pages on a per-node
- basis
-Message-ID: <20160704103325.GD11498@techsingularity.net>
-References: <009e01d1d5d8$fcf06440$f6d12cc0$@alibaba-inc.com>
- <00a301d1d5dc$02643ca0$072cb5e0$@alibaba-inc.com>
+        Mon, 04 Jul 2016 03:39:42 -0700 (PDT)
+Date: Mon, 4 Jul 2016 12:39:32 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 3/8] mm,oom: Use list of mm_struct used by OOM victims.
+Message-ID: <20160704103931.GA3882@redhat.com>
+References: <201607031135.AAH95347.MVOHQtFJFLOOFS@I-love.SAKURA.ne.jp>
+ <201607031138.AHB35971.FLVQOtJFOMFHSO@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <00a301d1d5dc$02643ca0$072cb5e0$@alibaba-inc.com>
+In-Reply-To: <201607031138.AHB35971.FLVQOtJFOMFHSO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, rientjes@google.com, vdavydov@parallels.com, mst@redhat.com, mhocko@suse.com, mhocko@kernel.org
 
-On Mon, Jul 04, 2016 at 06:08:27PM +0800, Hillf Danton wrote:
-> > @@ -2561,17 +2580,23 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
-> >  	 * highmem pages could be pinning lowmem pages storing buffer_heads
-> >  	 */
-> >  	orig_mask = sc->gfp_mask;
-> > -	if (buffer_heads_over_limit)
-> > +	if (buffer_heads_over_limit) {
-> >  		sc->gfp_mask |= __GFP_HIGHMEM;
-> > +		sc->reclaim_idx = classzone_idx = gfp_zone(sc->gfp_mask);
-> > +	}
-> > 
-> We need to push/pop ->reclaim_idx as ->gfp_mask handled?
-> 
+Tetsuo,
 
-I saw no harm in having one full reclaim attempt reclaiming from all
-zones if buffer_heads_over_limit was triggered. If it fails, the page
-allocator will loop again and reset the reclaim_idx.
+I'll try to actually read this series later, although I will leave the
+actual review to maintainers anyway...
 
--- 
-Mel Gorman
-SUSE Labs
+Just a couple of questions for now,
+
+On 07/03, Tetsuo Handa wrote:
+>
+> --- a/kernel/fork.c
+> +++ b/kernel/fork.c
+> @@ -722,6 +722,7 @@ static inline void __mmput(struct mm_struct *mm)
+>  	}
+>  	if (mm->binfmt)
+>  		module_put(mm->binfmt->module);
+> +	exit_oom_mm(mm);
+
+Is it strictly necessary? At first glance not. Sooner or later oom_reaper() should
+find this mm_struct and do exit_oom_mm(). And given that mm->mm_users is already 0
+the "extra" __oom_reap_vmas() doesn't really hurt.
+
+It would be nice to remove exit_oom_mm() from __mmput(); it takes the global spinlock
+for the very unlikely case, and if we can avoid it here then perhaps we can remove
+->oom_mm from mm_struct.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
