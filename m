@@ -1,44 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F3BA86B0005
-	for <linux-mm@kvack.org>; Mon,  4 Jul 2016 21:32:00 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id ts6so375929729pac.1
-        for <linux-mm@kvack.org>; Mon, 04 Jul 2016 18:32:00 -0700 (PDT)
-Received: from mail-pa0-x243.google.com (mail-pa0-x243.google.com. [2607:f8b0:400e:c03::243])
-        by mx.google.com with ESMTPS id p128si1238725pfb.108.2016.07.04.18.32.00
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 95B176B0005
+	for <linux-mm@kvack.org>; Mon,  4 Jul 2016 21:39:30 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id j185so197354671ith.0
+        for <linux-mm@kvack.org>; Mon, 04 Jul 2016 18:39:30 -0700 (PDT)
+Received: from mail-oi0-x231.google.com (mail-oi0-x231.google.com. [2607:f8b0:4003:c06::231])
+        by mx.google.com with ESMTPS id w200si401447oie.103.2016.07.04.18.39.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Jul 2016 18:32:00 -0700 (PDT)
-Received: by mail-pa0-x243.google.com with SMTP id ib6so929189pad.3
-        for <linux-mm@kvack.org>; Mon, 04 Jul 2016 18:32:00 -0700 (PDT)
-Date: Tue, 5 Jul 2016 10:32:04 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH v2 3/8] mm/zsmalloc: take obj index back from
- find_alloced_obj
-Message-ID: <20160705013204.GF459@swordfish>
-References: <1467614999-4326-1-git-send-email-opensource.ganesh@gmail.com>
- <1467614999-4326-3-git-send-email-opensource.ganesh@gmail.com>
+        Mon, 04 Jul 2016 18:39:29 -0700 (PDT)
+Received: by mail-oi0-x231.google.com with SMTP id u201so211612148oie.0
+        for <linux-mm@kvack.org>; Mon, 04 Jul 2016 18:39:29 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1467614999-4326-3-git-send-email-opensource.ganesh@gmail.com>
+In-Reply-To: <20160630123443.GA18789@dhcp22.suse.cz>
+References: <CAOVJa8EPGfWwLtAY8YNOzBqG99J7xL0dMrRmvXs0d8GaXJF9Xw@mail.gmail.com>
+ <20160630123443.GA18789@dhcp22.suse.cz>
+From: pierre kuo <vichy.kuo@gmail.com>
+Date: Tue, 5 Jul 2016 09:39:28 +0800
+Message-ID: <CAOVJa8FF-1Gc=j52KePWOfe3WMFZ9De5BA4wDEJu0F5Nmehh+A@mail.gmail.com>
+Subject: Re: [PATCH 1/1] mm: allocate order 0 page from pcb before zone_watermark_ok
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, rostedt@goodmis.org, mingo@redhat.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org
 
-On (07/04/16 14:49), Ganesh Mahendran wrote:
-> the obj index value should be updated after return from
-> find_alloced_obj() to avoid CPU buring caused by unnecessary
-> object scanning.
+hi Michal
+2016-06-30 20:35 GMT+08:00 Michal Hocko <mhocko@kernel.org>:
+> On Wed 29-06-16 22:44:19, vichy wrote:
+>> hi all:
+>> In normal case, the allocation of any order page started after
+>> zone_watermark_ok. But if so far pcp->count of this zone is not 0,
+>> why don't we just let order-0-page allocation before zone_watermark_ok.
+>> That mean the order-0-page will be successfully allocated even
+>> free_pages is beneath zone->watermark.
+>
+> The watermark check has a good reason. It protects the memory reserves
+> which are used for important users or emergency situations. The mere
+> fact that there are pages available for the pcp usage doesn't mean that
+> we should break this protection. Note that those emergency users might
+> want order 0 pages as well.
+Got it.
+And due to your friendly reminder I found the "emergency users" you
+mean, the cases in gfp_to_alloc_flags that will return with
+ALLOC_NO_WATERMARKS as below
+    if (likely(!(gfp_mask & __GFP_NOMEMALLOC))) {
+        if (gfp_mask & __GFP_MEMALLOC)
+            alloc_flags |= ALLOC_NO_WATERMARKS;
+        else if (in_serving_softirq() && (current->flags & PF_MEMALLOC))
+            alloc_flags |= ALLOC_NO_WATERMARKS;
+        else if (!in_interrupt() &&
+                ((current->flags & PF_MEMALLOC) ||
+                 unlikely(test_thread_flag(TIF_MEMDIE))))
+            alloc_flags |= ALLOC_NO_WATERMARKS;
+    }
 
-'burning'
-
-> Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
-
-Reviewed-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-
-	-ss
+Appreciate your kind review,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
