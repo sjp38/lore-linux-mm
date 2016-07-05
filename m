@@ -1,143 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 426B16B0005
-	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 02:10:37 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id b13so382791518pat.3
-        for <linux-mm@kvack.org>; Mon, 04 Jul 2016 23:10:37 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id hh7si2348735pac.33.2016.07.04.23.10.35
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DFB106B0005
+	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 02:22:25 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id a69so430746702pfa.1
+        for <linux-mm@kvack.org>; Mon, 04 Jul 2016 23:22:25 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id k26si2600113pfk.85.2016.07.04.23.22.23
         for <linux-mm@kvack.org>;
-        Mon, 04 Jul 2016 23:10:36 -0700 (PDT)
-Date: Tue, 5 Jul 2016 15:11:17 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 11/31] mm: vmscan: do not reclaim from kswapd if there is
- any eligible zone
-Message-ID: <20160705061117.GD28164@bbox>
-References: <1467403299-25786-1-git-send-email-mgorman@techsingularity.net>
- <1467403299-25786-12-git-send-email-mgorman@techsingularity.net>
+        Mon, 04 Jul 2016 23:22:25 -0700 (PDT)
+Date: Tue, 5 Jul 2016 14:22:22 +0800
+From: Aaron Lu <aaron.lu@intel.com>
+Subject: Re: [RFC RESEND PATCH] swap: choose swap device according to numa
+ node
+Message-ID: <20160705062221.GA12620@aaronlu.sh.intel.com>
+References: <20160429083408.GA20728@aaronlu.sh.intel.com>
+ <263e604d-aa8c-1b6b-e80a-0c34142349c9@intel.com>
+ <CADjb_WQGuUULfiMhY3LzwcMUyFa7XcuF6vbgEXcRP2iFNh3TXQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1467403299-25786-12-git-send-email-mgorman@techsingularity.net>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <CADjb_WQGuUULfiMhY3LzwcMUyFa7XcuF6vbgEXcRP2iFNh3TXQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: Yu Chen <yu.chen.surf@gmail.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Fri, Jul 01, 2016 at 09:01:19PM +0100, Mel Gorman wrote:
-> kswapd scans from highest to lowest for a zone that requires balancing.
-> This was necessary when reclaim was per-zone to fairly age pages on lower
-> zones.  Now that we are reclaiming on a per-node basis, any eligible zone
-> can be used and pages will still be aged fairly.  This patch avoids
-> reclaiming excessively unless buffer_heads are over the limit and it's
-> necessary to reclaim from a higher zone than requested by the waker of
-> kswapd to relieve low memory pressure.
-> 
-> [hillf.zj@alibaba-inc.com: Force kswapd reclaim no more than needed]
-> Link: http://lkml.kernel.org/r/1466518566-30034-12-git-send-email-mgorman@techsingularity.net
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> Signed-off-by: Hillf Danton <hillf.zj@alibaba-inc.com>
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> ---
->  mm/vmscan.c | 56 ++++++++++++++++++++++++--------------------------------
->  1 file changed, 24 insertions(+), 32 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 911142d25de2..2f898ba2ee2e 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -3141,31 +3141,36 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
->  
->  		sc.nr_reclaimed = 0;
->  
-> -		/* Scan from the highest requested zone to dma */
-> -		for (i = classzone_idx; i >= 0; i--) {
-> -			zone = pgdat->node_zones + i;
-> -			if (!populated_zone(zone))
-> -				continue;
-> -
-> -			/*
-> -			 * If the number of buffer_heads in the machine
-> -			 * exceeds the maximum allowed level and this node
-> -			 * has a highmem zone, force kswapd to reclaim from
-> -			 * it to relieve lowmem pressure.
-> -			 */
-> -			if (buffer_heads_over_limit && is_highmem_idx(i)) {
-> -				classzone_idx = i;
-> -				break;
-> -			}
-> +		/*
-> +		 * If the number of buffer_heads in the machine exceeds the
-> +		 * maximum allowed level then reclaim from all zones. This is
-> +		 * not specific to highmem as highmem may not exist but it is
-> +		 * it is expected that buffer_heads are stripped in writeback.
-> +		 */
-> +		if (buffer_heads_over_limit) {
-> +			for (i = MAX_NR_ZONES - 1; i >= 0; i--) {
-> +				zone = pgdat->node_zones + i;
-> +				if (!populated_zone(zone))
-> +					continue;
->  
-> -			if (!zone_balanced(zone, order, 0)) {
->  				classzone_idx = i;
->  				break;
->  			}
->  		}
->  
-> -		if (i < 0)
-> -			goto out;
-> +		/*
-> +		 * Only reclaim if there are no eligible zones. Check from
-> +		 * high to low zone to avoid prematurely clearing pgdat
-> +		 * congested state.
+On Tue, Jul 05, 2016 at 01:57:35PM +0800, Yu Chen wrote:
+> On Tue, Jul 5, 2016 at 11:19 AM, Aaron Lu <aaron.lu@intel.com> wrote:
+> > Resend:
+> > This is a resend, the original patch doesn't catch much attention.
+> > It may not be a big deal for swap devices that used to be hosted on
+> > HDD but with devices like 3D Xpoint to be used as swap device, it could
+> > make a real difference if we consider NUMA information when doing IO.
+> > Comments are appreciated, thanks for your time.
+> >
+> -------------------------%<-------------------------
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 71b1c29948db..dd7e44a315b0 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -3659,9 +3659,11 @@ void kswapd_stop(int nid)
+> >
+> >  static int __init kswapd_init(void)
+> >  {
+> > -       int nid;
+> > +       int nid, err;
+> >
+> > -       swap_setup();
+> > +       err = swap_setup();
+> > +       if (err)
+> > +               return err;
+> >         for_each_node_state(nid, N_MEMORY)
+> >                 kswapd_run(nid);
+> >         hotcpu_notifier(cpu_callback, 0);
+> In original implementation, although swap_setup failed,
 
-I cannot understand "prematurely clearing pgdat congested state".
-Could you add more words to clear it out?
+In current implementaion swap_setup never fail :-)
 
-> +		 */
-> +		for (i = classzone_idx; i >= 0; i--) {
-> +			zone = pgdat->node_zones + i;
-> +			if (!populated_zone(zone))
-> +				continue;
-> +
-> +			if (zone_balanced(zone, sc.order, classzone_idx))
+> the swapd would also be created, since swapd is
+> not only  used for swap out but also for other page reclaim,
+> so this change above might modify its semantic? Sorry if
+> I understand incorrectly.
 
-If buffer_head is over limit, old logic force to reclaim highmem but
-this zone_balanced logic will prevent it.
+Indeed it's a behaviour change. The only reason swap_setup can return an
+error code now is when it fails to allocate nr_node_ids * sizeof(struct
+plist_head) memory and if that happens, I don't think it makes much
+sense to continue boot the system.
 
-> +				goto out;
-> +		}
->  
->  		/*
->  		 * Do some background aging of the anon list, to give
-> @@ -3211,19 +3216,6 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
->  			break;
->  
->  		/*
-> -		 * Stop reclaiming if any eligible zone is balanced and clear
-> -		 * node writeback or congested.
-> -		 */
-> -		for (i = 0; i <= classzone_idx; i++) {
-> -			zone = pgdat->node_zones + i;
-> -			if (!populated_zone(zone))
-> -				continue;
-> -
-> -			if (zone_balanced(zone, sc.order, classzone_idx))
-> -				goto out;
-> -		}
-> -
-> -		/*
->  		 * Raise priority if scanning rate is too low or there was no
->  		 * progress in reclaiming pages
->  		 */
-> -- 
-> 2.6.4
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Thanks,
+Aaron
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
