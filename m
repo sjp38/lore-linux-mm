@@ -1,147 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 11A716B0005
-	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 07:39:45 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id a66so86122139wme.1
-        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 04:39:45 -0700 (PDT)
-Received: from mail-lf0-x22a.google.com (mail-lf0-x22a.google.com. [2a00:1450:4010:c07::22a])
-        by mx.google.com with ESMTPS id 32si3017566lfv.419.2016.07.05.04.39.43
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C7C7828E1
+	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 07:41:12 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id a69so443112668pfa.1
+        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 04:41:12 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id o129si3823328pfb.247.2016.07.05.04.41.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Jul 2016 04:39:43 -0700 (PDT)
-Received: by mail-lf0-x22a.google.com with SMTP id h129so132907332lfh.1
-        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 04:39:43 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 05 Jul 2016 04:41:11 -0700 (PDT)
+Message-ID: <577B9CC5.3090404@huawei.com>
+Date: Tue, 5 Jul 2016 19:40:53 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Tue, 5 Jul 2016 13:39:23 +0200
-Message-ID: <CACT4Y+a99OW7TYeLsuEic19uY2j45DGXL=LowUMq3TywWS3f2Q@mail.gmail.com>
-Subject: mm: GPF in find_get_pages_tag
-Content-Type: text/plain; charset=UTF-8
+Subject: is pid_namespace leak in v3.10?
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, ross.zwisler@linux.intel.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>
+To: oleg@redhat.com, ebiederm@xmission.com
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hello,
+I find pid_namespace leak by "cat /proc/slabinfo | grep pid_namespace".
+The kernel version is RHEL 7.1 (kernel v3.10 stable).
+The following is the test case, after several times, the count of pid_namespace
+become very large, is it correct?
 
-The following program triggers GPF in find_get_pages_tag if run in
-parallel loop for minutes:
+I also test mainline, and the count will increase too, but it seems stably later.
 
-kasan: CONFIG_KASAN_INLINE enabled
-kasan: GPF could be caused by NULL-ptr deref or user memory access
-general protection fault: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN
-Modules linked in:
-CPU: 2 PID: 301 Comm: a.out Tainted: G        W       4.7.0-rc5+ #28
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-task: ffff880063d12440 ti: ffff880067350000 task.ti: ffff880067350000
-RIP: 0010:[<ffffffff816951a4>]
-  [<     inline     >] radix_tree_next_slot include/linux/radix-tree.h:473
-  [<ffffffff816951a4>] find_get_pages_tag+0x334/0x930 mm/filemap.c:1452
-RSP: 0018:ffff880067357840  EFLAGS: 00010202
-RAX: 0000000000000001 RBX: 0000000000000001 RCX: ffff880063d12c80
-RDX: 0000000000000000 RSI: dffffc0000000000 RDI: 0000000000000008
-RBP: ffff880067357910 R08: 0000000000000002 R09: 0000000000000000
-R10: 0000000000000000 R11: ffffffff89f06360 R12: 0000000000000001
-R13: 0000000000000000 R14: 0000000000000000 R15: ffffed0007058ee5
-FS:  00007f56e017c700(0000) GS:ffff88006d400000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 00007f56df97ae78 CR3: 0000000063d9e000 CR4: 00000000000006e0
-Stack:
- ffffffff81694efc ffff8800673578a8 0000010267357860 ffff880067357a50
- ffff880065986aa0 1ffff1000ce6af11 0000000e00000000 ffff880067357a00
- 0000000000000003 0000000041b58ab3 ffffffff87e2a722 ffffffff81694e70
-Call Trace:
- [<ffffffff816cd91a>] pagevec_lookup_tag+0x3a/0x80 mm/swap.c:960
- [<ffffffff81ab4231>] mpage_prepare_extent_to_map+0x321/0xa90
-fs/ext4/inode.c:2516
- [<ffffffff81ac883e>] ext4_writepages+0x10be/0x2b20 fs/ext4/inode.c:2736
- [<ffffffff816c99c7>] do_writepages+0x97/0x100 mm/page-writeback.c:2364
- [<ffffffff8169bee8>] __filemap_fdatawrite_range+0x248/0x2e0 mm/filemap.c:300
- [<ffffffff8169c371>] filemap_write_and_wait_range+0x121/0x1b0 mm/filemap.c:490
- [<ffffffff81aa584d>] ext4_sync_file+0x34d/0xdb0 fs/ext4/fsync.c:115
- [<ffffffff818b667a>] vfs_fsync_range+0x10a/0x250 fs/sync.c:195
- [<     inline     >] vfs_fsync fs/sync.c:209
- [<ffffffff818b6832>] do_fsync+0x42/0x70 fs/sync.c:219
- [<     inline     >] SYSC_fdatasync fs/sync.c:232
- [<ffffffff818b6f89>] SyS_fdatasync+0x19/0x20 fs/sync.c:230
- [<ffffffff86a94e00>] entry_SYSCALL_64_fastpath+0x23/0xc1
-arch/x86/entry/entry_64.S:207
-Code: 85 70 ff ff ff 49 d1 ec 4d 85 e4 4c 89 65 a8 74 65 e8 51 06 f0
-ff 49 8d 7e 08 48 be 00 00 00 00 00 fc ff df 48 89 f8 48 c1 e8 03 <80>
-3c 30 00 0f 85 9c 05 00 00 4d 8b 6e 08 4c 89 eb 83 e3 03 48
-RIP  [<     inline     >] radix_tree_next_slot include/linux/radix-tree.h:473
-RIP  [<ffffffff816951a4>] find_get_pages_tag+0x334/0x930 mm/filemap.c:1452
- RSP <ffff880067357840>
----[ end trace 33a0cc4dd9a49a67 ]---
+BTW, this patch doesn't help.
+24c037ebf5723d4d9ab0996433cee4f96c292a4d
+exit: pidns: alloc_pid() leaks pid_namespace if child_reaper is exiting
+
+Thanks,
+Xishi Qiu
 
 
-
-// autogenerated by syzkaller (http://github.com/google/syzkaller)
-#include <pthread.h>
-#include <stdint.h>
-#include <string.h>
 #include <stdio.h>
-#include <sys/syscall.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
+#include <signal.h>
 
-int fd;
-char buf[8192];
-char filename[256];
+#ifndef CLONE_NEWPID
+#define CLONE_NEWPID            0x20000000
+#endif
 
-void* thr(void* arg)
+void test(void)
 {
-  switch ((long)arg) {
-  case 0:
-    write(fd, buf, 0x1001ul);
-    break;
-  case 1:
-    fdatasync(fd);
-    break;
-  case 2:
-    ftruncate(fd, 2);
-    break;
-  case 3:
-    write(fd, buf, 0x20ul);
-    break;
-  case 5:
-    fd = open(filename, 0x50042ul, 0x41ul);
-    break;
-  }
-  return 0;
+        printf("clone child\n");
+        exit(0);
 }
 
 int main()
 {
-  long i;
-  pthread_t th[10];
+        pid_t pid, child_pid;
+        int  i, status;
+        void *stack;
 
-  srand(getpid());
-  sprintf(filename, "./file%d", getpid());
-  fd = open(filename, 0x50042ul, 0x41ul);
-  for (i = 0; i < 10; i++) {
-    pthread_create(&th[i], 0, thr, (void*)(i % 5));
-    usleep(rand() % 10);
-  }
-  for (i = 0; i < 10; i++)
-    pthread_join(th[i], 0);
-  unlink(filename);
-  return 0;
+        for (i = 0; i < 100; i++) {
+                stack = malloc(8192);
+                pid = clone(&test, (char *)stack + 8192, CLONE_NEWPID|SIGCHLD, 0);
+        }
+
+        sleep(5);
+
+        return 0;
 }
-
-The faulting instruction is:
-ffffffff816951a4:       80 3c 30 00             cmpb   $0x0,(%rax,%rsi,1)
-So this is KASAN shadow check for NULL address.
-
-
-The previous taint is not relevant, it is:
-
-[   74.786477] ------------[ cut here ]------------
-[   74.786885] WARNING: CPU: 2 PID: 717 at lib/stackdepot.c:119
-depot_save_stack+0x34f/0x5b0
-[   74.787196] Stack depot reached limit capacity
-
-
-On commit 1a0a02d1efa066001fd315c1b4df583d939fa2c4 (Jun 30).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
