@@ -1,73 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F8E86B0005
-	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 06:38:10 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id f126so85037061wma.3
-        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 03:38:10 -0700 (PDT)
-Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.16])
-        by mx.google.com with ESMTPS id 185si562699wmc.80.2016.07.05.03.38.08
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CE77A6B0005
+	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 06:40:23 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id r190so84481841wmr.0
+        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 03:40:23 -0700 (PDT)
+Received: from outbound-smtp06.blacknight.com (outbound-smtp06.blacknight.com. [81.17.249.39])
+        by mx.google.com with ESMTPS id h142si3275362wmd.3.2016.07.05.03.40.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Jul 2016 03:38:09 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id A2FED1C1EC8
-	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 11:38:08 +0100 (IST)
-Date: Tue, 5 Jul 2016 11:38:06 +0100
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 05 Jul 2016 03:40:22 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp06.blacknight.com (Postfix) with ESMTPS id 6DC3F98C3A
+	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 10:40:22 +0000 (UTC)
+Date: Tue, 5 Jul 2016 11:40:20 +0100
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 11/31] mm: vmscan: do not reclaim from kswapd if there is
- any eligible zone
-Message-ID: <20160705103806.GH11498@techsingularity.net>
+Subject: Re: [PATCH 12/31] mm, vmscan: make shrink_node decisions more
+ node-centric
+Message-ID: <20160705104020.GI11498@techsingularity.net>
 References: <1467403299-25786-1-git-send-email-mgorman@techsingularity.net>
- <1467403299-25786-12-git-send-email-mgorman@techsingularity.net>
- <20160705061117.GD28164@bbox>
+ <1467403299-25786-13-git-send-email-mgorman@techsingularity.net>
+ <20160705062436.GE28164@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20160705061117.GD28164@bbox>
+In-Reply-To: <20160705062436.GE28164@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Jul 05, 2016 at 03:11:17PM +0900, Minchan Kim wrote:
-> > -		if (i < 0)
-> > -			goto out;
-> > +		/*
-> > +		 * Only reclaim if there are no eligible zones. Check from
-> > +		 * high to low zone to avoid prematurely clearing pgdat
-> > +		 * congested state.
-> 
-> I cannot understand "prematurely clearing pgdat congested state".
-> Could you add more words to clear it out?
-> 
-
-It's surprisingly difficult to concisely explain. Is this any better?
-
-                /*
-                 * Only reclaim if there are no eligible zones. Check from
-                 * high to low zone as allocations prefer higher zones.
-                 * Scanning from low to high zone would allow congestion to be
-                 * cleared during a very small window when a small low
-                 * zone was balanced even under extreme pressure when the
-                 * overall node may be congested.
-                 */
-> > +		 */
-> > +		for (i = classzone_idx; i >= 0; i--) {
-> > +			zone = pgdat->node_zones + i;
-> > +			if (!populated_zone(zone))
-> > +				continue;
-> > +
-> > +			if (zone_balanced(zone, sc.order, classzone_idx))
-> 
-> If buffer_head is over limit, old logic force to reclaim highmem but
-> this zone_balanced logic will prevent it.
+On Tue, Jul 05, 2016 at 03:24:36PM +0900, Minchan Kim wrote:
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 2f898ba2ee2e..b8e0f76b6e00 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -2226,10 +2226,11 @@ static inline void init_tlb_ubc(void)
+> >  /*
+> >   * This is a basic per-zone page freer.  Used by both kswapd and direct reclaim.
+>          
+>                       per-node freer
 > 
 
-The old logic was always busted on 64-bit because is_highmem would always
-be 0. The original intent appears to be that buffer_heads_over_limit
-would release the buffers when pages went inactive. There are a number
-of things we treated inconsistently that get fixed up in the series and
-buffer_heads_over_limit is one of them.
+Fixed.
 
 -- 
 Mel Gorman
