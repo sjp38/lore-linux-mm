@@ -1,86 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D6FD66B0005
-	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 06:26:42 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id w130so47886143lfd.3
-        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 03:26:42 -0700 (PDT)
-Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
-        by mx.google.com with ESMTPS id 78si446871wmw.25.2016.07.05.03.26.41
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F8E86B0005
+	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 06:38:10 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id f126so85037061wma.3
+        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 03:38:10 -0700 (PDT)
+Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.16])
+        by mx.google.com with ESMTPS id 185si562699wmc.80.2016.07.05.03.38.08
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 05 Jul 2016 03:26:41 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id B571698FE2
-	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 10:26:40 +0000 (UTC)
-Date: Tue, 5 Jul 2016 11:26:39 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 05 Jul 2016 03:38:09 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id A2FED1C1EC8
+	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 11:38:08 +0100 (IST)
+Date: Tue, 5 Jul 2016 11:38:06 +0100
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 08/31] mm, vmscan: simplify the logic deciding whether
- kswapd sleeps
-Message-ID: <20160705102639.GG11498@techsingularity.net>
+Subject: Re: [PATCH 11/31] mm: vmscan: do not reclaim from kswapd if there is
+ any eligible zone
+Message-ID: <20160705103806.GH11498@techsingularity.net>
 References: <1467403299-25786-1-git-send-email-mgorman@techsingularity.net>
- <1467403299-25786-9-git-send-email-mgorman@techsingularity.net>
- <20160705055931.GC28164@bbox>
+ <1467403299-25786-12-git-send-email-mgorman@techsingularity.net>
+ <20160705061117.GD28164@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20160705055931.GC28164@bbox>
+In-Reply-To: <20160705061117.GD28164@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Jul 05, 2016 at 02:59:31PM +0900, Minchan Kim wrote:
-> > @@ -3249,9 +3249,19 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int order,
-> >  
-> >  	prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
-> >  
-> > +	/*
-> > +	 * If kswapd has not been woken recently, then kswapd goes fully
-> > +	 * to sleep. kcompactd may still need to wake if the original
-> > +	 * request was high-order.
-> > +	 */
-> > +	if (classzone_idx == -1) {
-> > +		wakeup_kcompactd(pgdat, alloc_order, classzone_idx);
-> > +		classzone_idx = MAX_NR_ZONES - 1;
-> > +		goto full_sleep;
-> > +	}
+On Tue, Jul 05, 2016 at 03:11:17PM +0900, Minchan Kim wrote:
+> > -		if (i < 0)
+> > -			goto out;
+> > +		/*
+> > +		 * Only reclaim if there are no eligible zones. Check from
+> > +		 * high to low zone to avoid prematurely clearing pgdat
+> > +		 * congested state.
+> 
+> I cannot understand "prematurely clearing pgdat congested state".
+> Could you add more words to clear it out?
+> 
+
+It's surprisingly difficult to concisely explain. Is this any better?
+
+                /*
+                 * Only reclaim if there are no eligible zones. Check from
+                 * high to low zone as allocations prefer higher zones.
+                 * Scanning from low to high zone would allow congestion to be
+                 * cleared during a very small window when a small low
+                 * zone was balanced even under extreme pressure when the
+                 * overall node may be congested.
+                 */
+> > +		 */
+> > +		for (i = classzone_idx; i >= 0; i--) {
+> > +			zone = pgdat->node_zones + i;
+> > +			if (!populated_zone(zone))
+> > +				continue;
 > > +
-> >  	/* Try to sleep for a short interval */
-> > -	if (prepare_kswapd_sleep(pgdat, order, remaining,
-> > -						balanced_classzone_idx)) {
-> > +	if (prepare_kswapd_sleep(pgdat, reclaim_order, remaining, classzone_idx)) {
+> > +			if (zone_balanced(zone, sc.order, classzone_idx))
 > 
-> 
-> Just trivial but this is clean up patch so I suggest one.
-> If it doesn't help readability, just ignore, please.
-> 
-> This(ie, first prepare_kswapd_sleep always get 0 remaining value so
-> it's pointless argument for the function. We could remove it and
-> check it before second prepare_kswapd_sleep call.
+> If buffer_head is over limit, old logic force to reclaim highmem but
+> this zone_balanced logic will prevent it.
 > 
 
-Yeah, fair point. I added a new patch that does this near the end of
-the series with the other patches that avoid unnecessarily passing
-parameters.
-
-> > @@ -3418,10 +3426,10 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
-> >  	if (!cpuset_zone_allowed(zone, GFP_KERNEL | __GFP_HARDWALL))
-> >  		return;
-> >  	pgdat = zone->zone_pgdat;
-> > -	if (pgdat->kswapd_max_order < order) {
-> > -		pgdat->kswapd_max_order = order;
-> > -		pgdat->classzone_idx = min(pgdat->classzone_idx, classzone_idx);
-> > -	}
-> > +	if (pgdat->kswapd_classzone_idx == -1)
-> > +		pgdat->kswapd_classzone_idx = classzone_idx;
-> 
-> It's tricky. Couldn't we change kswapd_classzone_idx to integer type
-> and remove if above if condition?
-> 
-
-It's tricky and not necessarily better overall. It's perfectly possible
-to be woken up for zone index 0 so it's changing -1 to another magic
-value.
+The old logic was always busted on 64-bit because is_highmem would always
+be 0. The original intent appears to be that buffer_heads_over_limit
+would release the buffers when pages went inactive. There are a number
+of things we treated inconsistently that get fixed up in the series and
+buffer_heads_over_limit is one of them.
 
 -- 
 Mel Gorman
