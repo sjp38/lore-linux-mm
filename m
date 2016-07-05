@@ -1,129 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 910E26B025E
-	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 08:00:50 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id a66so86504965wme.1
-        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 05:00:50 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id kb8si3025312wjc.290.2016.07.05.05.00.49
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C71576B025F
+	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 08:00:52 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id a69so443882495pfa.1
+        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 05:00:52 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id hi6si3602617pac.108.2016.07.05.05.00.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Jul 2016 05:00:49 -0700 (PDT)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u65Bs9Ew069654
-	for <linux-mm@kvack.org>; Tue, 5 Jul 2016 08:00:48 -0400
+        Tue, 05 Jul 2016 05:00:50 -0700 (PDT)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u65BsAhV076847
+	for <linux-mm@kvack.org>; Tue, 5 Jul 2016 08:00:49 -0400
 Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 23x7rvyvna-1
+	by mx0a-001b2d01.pphosted.com with ESMTP id 23x7xfgfqk-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 05 Jul 2016 08:00:48 -0400
+	for <linux-mm@kvack.org>; Tue, 05 Jul 2016 08:00:49 -0400
 Received: from localhost
 	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
 	Tue, 5 Jul 2016 13:00:46 +0100
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 7561C1B08069
-	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 13:02:00 +0100 (BST)
-Received: from d06av05.portsmouth.uk.ibm.com (d06av05.portsmouth.uk.ibm.com [9.149.37.229])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u65C0gVS16515528
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
+	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id C5F3917D8056
+	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 13:02:05 +0100 (BST)
+Received: from d06av02.portsmouth.uk.ibm.com (d06av02.portsmouth.uk.ibm.com [9.149.37.228])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u65C0gvR5177678
 	for <linux-mm@kvack.org>; Tue, 5 Jul 2016 12:00:42 GMT
-Received: from d06av05.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av05.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u65C0gta020322
+Received: from d06av02.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av02.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u65C0gTv009361
 	for <linux-mm@kvack.org>; Tue, 5 Jul 2016 06:00:42 -0600
 From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: [PATCH 1/2] mm: add callback to prepare the update of multiple page table entries
-Date: Tue,  5 Jul 2016 14:00:39 +0200
-In-Reply-To: <1467720040-4280-1-git-send-email-schwidefsky@de.ibm.com>
-References: <1467720040-4280-1-git-send-email-schwidefsky@de.ibm.com>
-Message-Id: <1467720040-4280-2-git-send-email-schwidefsky@de.ibm.com>
+Subject: [PATCH 0/2][RFC] mm callback for batched pte updates
+Date: Tue,  5 Jul 2016 14:00:38 +0200
+Message-Id: <1467720040-4280-1-git-send-email-schwidefsky@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-Add a new callback 'ptep_prepare_range' to allow the architecture
-code to optimize the modification of multiple page table entries.
+Hello,
 
-The background for the callback is an instruction found on s390.
-The IPTE-range instruction can be used to invalidate up to 256 ptes
-with a single IPI, including the flush of the TLB entries associated
-to the address range.
+there is another peculiarity on s390 I would like to exploit, the
+range option of the IPTE instruction. This is an extension that allows
+to set the invalid bit and clear the associated TLB entry for multiple
+page table entries with a single instruction instead of doing an IPTE
+for each pte. Each IPTE or IPTE-range is a quiescing operation, basically
+an IPI to all other CPUs to coordinate the pte invalidation.
 
-This has similarities to the arch_[enter|leave]_lazy_mmu_mode, but for
-a more specific situation. ptep_prepare_range is called for the update
-of a block of ptes.
+The IPTE-range is useful in mulit-threaded programs for a fork or a
+mprotect/munmap/mremap affecting large memory areas where s390 may not
+just do the pte update and clear the TLBs later.
 
-ptep_prepare_range is called optimistically, the callback may choose
-to do nothing. In this case the individual single pte operation and
-the arch_[enter|leave]_lazy_mmu_mode mechanics need to deal with the
-invalidation and the associated TLB flush.
+In order to add the IPTE range optimization another mm callback is
+needed in copy_page_range, unmap_page_range, move_page_tables, and
+change_protection_range. The name is 'ptep_prepare_range', suggestions
+for a better name are welcome.
 
-Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
----
- include/asm-generic/pgtable.h | 4 ++++
- mm/memory.c                   | 2 ++
- mm/mprotect.c                 | 1 +
- mm/mremap.c                   | 1 +
- 4 files changed, 8 insertions(+)
+With the two patches the update for the ptes inside a single page table
+is done in two steps. First the prep_prepare_range invalidates all ptes,
+this makes the address range inaccessible for all CPUs. The pages are
+still marked as present and could be revalidated again if the page table
+lock is released, but this does not happen with the current code.
+The second step is the usual update loop over all single ptes.
 
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index 9401f48..b29f360 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -192,6 +192,10 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addres
- }
- #endif
- 
-+#ifndef ptep_prepare_range
-+#define ptep_prepare_range(mm, start, end, ptep, full) do {} while (0)
-+#endif
-+
- #ifndef __HAVE_ARCH_PMDP_SET_WRPROTECT
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- static inline void pmdp_set_wrprotect(struct mm_struct *mm,
-diff --git a/mm/memory.c b/mm/memory.c
-index 07493e3..eeecb92 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -934,6 +934,7 @@ again:
- 	orig_src_pte = src_pte;
- 	orig_dst_pte = dst_pte;
- 	arch_enter_lazy_mmu_mode();
-+	ptep_prepare_range(src_mm, addr, end, src_pte, 0);
- 
- 	do {
- 		/*
-@@ -1114,6 +1115,7 @@ again:
- 	start_pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
- 	pte = start_pte;
- 	arch_enter_lazy_mmu_mode();
-+	ptep_prepare_range(mm, addr, end, pte, tlb->fullmm);
- 	do {
- 		pte_t ptent = *pte;
- 		if (pte_none(ptent)) {
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index b650c54..3fa15b5 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -74,6 +74,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 		return 0;
- 
- 	arch_enter_lazy_mmu_mode();
-+	ptep_prepare_range(mm, addr, end, pte, 0);
- 	do {
- 		oldpte = *pte;
- 		if (pte_present(oldpte)) {
-diff --git a/mm/mremap.c b/mm/mremap.c
-index 3fa0a467..5f4d0af 100644
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -135,6 +135,7 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
- 	if (new_ptl != old_ptl)
- 		spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
- 	arch_enter_lazy_mmu_mode();
-+	ptep_prepare_range(mm, old_addr, old_end, old_pte, 0);
- 
- 	for (; old_addr < old_end; old_pte++, old_addr += PAGE_SIZE,
- 				   new_pte++, new_addr += PAGE_SIZE) {
+Given a multi-threaded program a fork or a mprotect/munmap/mremap of a
+large address range now needs fewer IPTEs / IPIs by a factor up to 256.
+My mprotect stress test runs faster by an order of magnitude.
+
+Martin Schwidefsky (2):
+  mm: add callback to prepare the update of multiple page table entries
+  s390/mm: use ipte range to invalidate multiple page table entries
+
+ arch/s390/include/asm/pgtable.h | 25 +++++++++++++++++++++++++
+ arch/s390/include/asm/setup.h   |  2 ++
+ arch/s390/kernel/early.c        |  2 ++
+ arch/s390/mm/pageattr.c         |  2 +-
+ arch/s390/mm/pgtable.c          | 17 +++++++++++++++++
+ include/asm-generic/pgtable.h   |  4 ++++
+ mm/memory.c                     |  2 ++
+ mm/mprotect.c                   |  1 +
+ mm/mremap.c                     |  1 +
+ 9 files changed, 55 insertions(+), 1 deletion(-)
+
 -- 
 2.6.6
 
