@@ -1,140 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B9755828E1
-	for <linux-mm@kvack.org>; Mon,  4 Jul 2016 20:03:15 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id g62so418203669pfb.3
-        for <linux-mm@kvack.org>; Mon, 04 Jul 2016 17:03:15 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id g25si917568pfd.87.2016.07.04.17.03.14
-        for <linux-mm@kvack.org>;
-        Mon, 04 Jul 2016 17:03:14 -0700 (PDT)
-Date: Tue, 5 Jul 2016 09:03:56 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 02/31] mm, vmscan: move lru_lock to the node
-Message-ID: <20160705000356.GA28164@bbox>
-References: <1467403299-25786-1-git-send-email-mgorman@techsingularity.net>
- <1467403299-25786-3-git-send-email-mgorman@techsingularity.net>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C65A56B0005
+	for <linux-mm@kvack.org>; Mon,  4 Jul 2016 20:11:15 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id a69so418274146pfa.1
+        for <linux-mm@kvack.org>; Mon, 04 Jul 2016 17:11:15 -0700 (PDT)
+Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
+        by mx.google.com with ESMTPS id c133si967076pfc.145.2016.07.04.17.11.14
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 04 Jul 2016 17:11:15 -0700 (PDT)
+Received: by mail-pa0-x22e.google.com with SMTP id b13so62140466pat.0
+        for <linux-mm@kvack.org>; Mon, 04 Jul 2016 17:11:14 -0700 (PDT)
+Date: Mon, 4 Jul 2016 17:11:05 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [patch] Allow user.* xattr in tmpfs
+In-Reply-To: <20160630223608.6ecbec55@lembas.zaitcev.lan>
+Message-ID: <alpine.LSU.2.11.1607041614360.25599@eggly.anvils>
+References: <20160630223608.6ecbec55@lembas.zaitcev.lan>
 MIME-Version: 1.0
-In-Reply-To: <1467403299-25786-3-git-send-email-mgorman@techsingularity.net>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: Pete Zaitcev <zaitcev@kotori.zaitcev.us>
+Cc: linux-mm@kvack.org, Hugh Dickins <hughd@google.com>
 
-On Fri, Jul 01, 2016 at 09:01:10PM +0100, Mel Gorman wrote:
-> Node-based reclaim requires node-based LRUs and locking.  This is a
-> preparation patch that just moves the lru_lock to the node so later
-> patches are easier to review.  It is a mechanical change but note this
-> patch makes contention worse because the LRU lock is hotter and direct
-> reclaim and kswapd can contend on the same lock even when reclaiming from
-> different zones.
+On Thu, 30 Jun 2016, Pete Zaitcev wrote:
+
+> The lack of user extended attributes is a source of annoyance when
+> testing something that uses it, such as OpenStack Swift (including
+> Hummingbird). We used to "monkey-patch" this in Python, so that
+> tests can run on development systems, but it became desirable
+> to store correct attributes and existing stubs became impractical.
 > 
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> See:
+> - my failed attempt to use /var/tmp:
+>  https://review.openstack.org/328508
+> - Sam Merritt removing monkey-patching:
+>  https://review.openstack.org/336323
+
+> 
+> Signed-off-by: Pete Zaitcev <zaitcev@redhat.com>
 > ---
->  Documentation/cgroup-v1/memcg_test.txt |  4 +--
->  Documentation/cgroup-v1/memory.txt     |  4 +--
->  include/linux/mm_types.h               |  2 +-
->  include/linux/mmzone.h                 | 10 +++++--
->  mm/compaction.c                        | 10 +++----
->  mm/filemap.c                           |  4 +--
->  mm/huge_memory.c                       |  6 ++---
->  mm/memcontrol.c                        |  6 ++---
->  mm/mlock.c                             | 10 +++----
->  mm/page_alloc.c                        |  4 +--
->  mm/page_idle.c                         |  4 +--
->  mm/rmap.c                              |  2 +-
->  mm/swap.c                              | 30 ++++++++++-----------
->  mm/vmscan.c                            | 48 +++++++++++++++++-----------------
->  14 files changed, 75 insertions(+), 69 deletions(-)
+
+I use a very similar patch for testing xattrs on tmpfs with xfstests.
+
 > 
-> diff --git a/Documentation/cgroup-v1/memcg_test.txt b/Documentation/cgroup-v1/memcg_test.txt
-> index 8870b0212150..78a8c2963b38 100644
-> --- a/Documentation/cgroup-v1/memcg_test.txt
-> +++ b/Documentation/cgroup-v1/memcg_test.txt
-> @@ -107,9 +107,9 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
+> This seems entirely too obvious. I'm getting concerned that we omitted
+> the user xattr for a reason. Just can't imagine what it might be.
+
+The reason is that it lets anyone who can write to a tmpfs file
+allocate almost all of RAM (or lowmem) to those xattrs; without
+even being able to swap them out.
+
+We cannot enable user xattrs on tmpfs for everybody without
+limiting them in some way: so NAK to your patch as it stands.
+
+Config option?  Too inflexible, not much use here, except to you and me.
+
+MEMCG KMEM charging?  A good solution, but we don't want to force every
+system which might want tmpfs user xattrs to have to switch on MEMCG.
+
+New mount option to limit the amount?  Probably the right solution,
+consistent with how we limit swappable data with "nr_blocks=" or "size=".
+
+Extend the "nr_inodes=" mount option to include memory for user xattrs?
+I hadn't thought of this before your mail, maybe it's a good answer,
+maybe not.  It is perfectly reasonable to account the two together:
+xattrs are inode extensions, and they both use unswappable lowmem
+slab memory.  Perhaps it would be the right solution if we invent
+a new name to cover both uses, rather like "size=" got added as an
+alternative for "nr_blocks=".
+
+(And there is already a peculiar extra use of it in tmpfs: nr_inodes
+limits hard links as well as inodes, to limit dentry memory usage.)
+
+The advantage of the last would be, that installations would
+automatically get (probably more than enough) space for tmpfs user
+xattrs with a new kernel, without needing to mess with mount options.
+
+Or would that be a disadvantage - a new way of quietly using up RAM?
+
+But without a stronger case for user xattrs on tmpfs,
+shouldn't you and I just stick with our patches?
+
+Hugh
+
+> 
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index 24463b6..4ddec69 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -2655,6 +2655,12 @@ static int shmem_xattr_handler_set(const struct xattr_handler *handler,
+>  	return simple_xattr_set(&info->xattrs, name, value, size, flags);
+>  }
 >  
->  8. LRU
->          Each memcg has its own private LRU. Now, its handling is under global
-> -	VM's control (means that it's handled under global zone->lru_lock).
-> +	VM's control (means that it's handled under global zone_lru_lock).
->  	Almost all routines around memcg's LRU is called by global LRU's
-> -	list management functions under zone->lru_lock().
-> +	list management functions under zone_lru_lock().
->  
->  	A special function is mem_cgroup_isolate_pages(). This scans
->  	memcg's private LRU and call __isolate_lru_page() to extract a page
-> diff --git a/Documentation/cgroup-v1/memory.txt b/Documentation/cgroup-v1/memory.txt
-> index b14abf217239..946e69103cdd 100644
-> --- a/Documentation/cgroup-v1/memory.txt
-> +++ b/Documentation/cgroup-v1/memory.txt
-> @@ -267,11 +267,11 @@ When oom event notifier is registered, event will be delivered.
->     Other lock order is following:
->     PG_locked.
->     mm->page_table_lock
-> -       zone->lru_lock
-> +       zone_lru_lock
->  	  lock_page_cgroup.
->    In many cases, just lock_page_cgroup() is called.
->    per-zone-per-cgroup LRU (cgroup's private LRU) is just guarded by
-> -  zone->lru_lock, it has no lock of its own.
-> +  zone_lru_lock, it has no lock of its own.
->  
->  2.7 Kernel Memory Extension (CONFIG_MEMCG_KMEM)
->  
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index e093e1d3285b..ca2ed9a6c8d8 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -118,7 +118,7 @@ struct page {
->  	 */
->  	union {
->  		struct list_head lru;	/* Pageout list, eg. active_list
-> -					 * protected by zone->lru_lock !
-> +					 * protected by zone_lru_lock !
->  					 * Can be used as a generic list
->  					 * by the page owner.
->  					 */
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 078ecb81e209..2d5087e3c034 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -93,7 +93,7 @@ struct free_area {
->  struct pglist_data;
->  
->  /*
-> - * zone->lock and zone->lru_lock are two of the hottest locks in the kernel.
-> + * zone->lock and the zone lru_lock are two of the hottest locks in the kernel.
->   * So add a wild amount of padding here to ensure that they fall into separate
->   * cachelines.  There are very few zone structures in the machine, so space
->   * consumption is not a concern here.
-> @@ -496,7 +496,6 @@ struct zone {
->  	/* Write-intensive fields used by page reclaim */
->  
->  	/* Fields commonly accessed by the page reclaim scanner */
-> -	spinlock_t		lru_lock;
->  	struct lruvec		lruvec;
->  
->  	/*
-> @@ -690,6 +689,9 @@ typedef struct pglist_data {
->  	/* Number of pages migrated during the rate limiting time interval */
->  	unsigned long numabalancing_migrate_nr_pages;
+> +static const struct xattr_handler shmem_user_xattr_handler = {
+> +	.prefix = XATTR_USER_PREFIX,
+> +	.get = shmem_xattr_handler_get,
+> +	.set = shmem_xattr_handler_set,
+> +};
+> +
+>  static const struct xattr_handler shmem_security_xattr_handler = {
+>  	.prefix = XATTR_SECURITY_PREFIX,
+>  	.get = shmem_xattr_handler_get,
+> @@ -2672,6 +2678,7 @@ static const struct xattr_handler *shmem_xattr_handlers[] = {
+>  	&posix_acl_access_xattr_handler,
+>  	&posix_acl_default_xattr_handler,
 >  #endif
-> +	/* Write-intensive fields used from the page allocator */
-
-                                                page reclaim.
-> +	ZONE_PADDING(_pad1_)
-> +	spinlock_t		lru_lock;
->  
->  #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
->  	/*
-
-Otherwise, looks good to me.
-
-Reviewed-by: Minchan Kim <minchan@kernel.org>
+> +	&shmem_user_xattr_handler,
+>  	&shmem_security_xattr_handler,
+>  	&shmem_trusted_xattr_handler,
+>  	NULL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
