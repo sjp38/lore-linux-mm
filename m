@@ -1,99 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D4800828E1
-	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 09:29:31 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id a2so138558269lfe.0
-        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 06:29:31 -0700 (PDT)
-Received: from mail-lf0-x235.google.com (mail-lf0-x235.google.com. [2a00:1450:4010:c07::235])
-        by mx.google.com with ESMTPS id l130si1296973lfb.159.2016.07.05.06.29.30
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D9B066B0005
+	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 10:34:57 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id m127so137347167vkb.3
+        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 07:34:57 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id n51si2468353qta.15.2016.07.05.07.34.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Jul 2016 06:29:30 -0700 (PDT)
-Received: by mail-lf0-x235.google.com with SMTP id l188so134698588lfe.2
-        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 06:29:30 -0700 (PDT)
+        Tue, 05 Jul 2016 07:34:57 -0700 (PDT)
+Date: Tue, 5 Jul 2016 16:34:52 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: is pid_namespace leak in v3.10?
+Message-ID: <20160705143452.GA20099@redhat.com>
+References: <577B9CC5.3090404@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <1467606714-30231-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1467606714-30231-1-git-send-email-iamjoonsoo.kim@lge.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Tue, 5 Jul 2016 15:29:10 +0200
-Message-ID: <CACT4Y+ZOkiPNfEL9hiaNP4iqag1CrXLZVpUmNG_iu49V43FsEg@mail.gmail.com>
-Subject: Re: [PATCH v4] kasan/quarantine: fix bugs on qlist_move_cache()
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <577B9CC5.3090404@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Kuthonuzo Luruo <poll.stdin@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: ebiederm@xmission.com, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Jul 4, 2016 at 6:31 AM,  <js1304@gmail.com> wrote:
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On 07/05, Xishi Qiu wrote:
 >
-> There are two bugs on qlist_move_cache(). One is that qlist's tail
-> isn't set properly. curr->next can be NULL since it is singly linked
-> list and NULL value on tail is invalid if there is one item on qlist.
-> Another one is that if cache is matched, qlist_put() is called and
-> it will set curr->next to NULL. It would cause to stop the loop
-> prematurely.
+> I find pid_namespace leak by "cat /proc/slabinfo | grep pid_namespace".
+> The kernel version is RHEL 7.1 (kernel v3.10 stable).
+> The following is the test case, after several times, the count of pid_namespace
+> become very large, is it correct?
+
+Apparently not,
+
+> I also test mainline, and the count will increase too, but it seems stably later.
+
+And I can't reproduce the problem with the latest rhel7 kernel.
+
+And just in case, I have no idea what actually slub reports as "active_objs" but
+certainly this is not the number of allocated "in use" objects, so it is fine if
+this counter doesn't go to zero when your test-case exits. But it should not grow
+"too much".
+
+> BTW, this patch doesn't help.
+> 24c037ebf5723d4d9ab0996433cee4f96c292a4d
+> exit: pidns: alloc_pid() leaks pid_namespace if child_reaper is exiting
+
+Sure, it can't help, your test-case doesn't fork other processes which could race
+with the exiting sub-namespace init.
+
+
+> int main()
+> {
+>         pid_t pid, child_pid;
+>         int  i, status;
+>         void *stack;
 >
-> These problems come from complicated implementation so I'd like to
-> re-implement it completely. Implementation in this patch is really
-> simple. Iterate all qlist_nodes and put them to appropriate list.
->
-> Unfortunately, I got this bug sometime ago and lose oops message.
-> But, the bug looks trivial and no need to attach oops.
->
-> v4: fix cache size bug s/cache->size/obj_cache->size/
-> v3: fix build warning
->
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> ---
->  mm/kasan/quarantine.c | 21 +++++++--------------
->  1 file changed, 7 insertions(+), 14 deletions(-)
->
-> diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
-> index 4973505..b2e1827 100644
-> --- a/mm/kasan/quarantine.c
-> +++ b/mm/kasan/quarantine.c
-> @@ -238,30 +238,23 @@ static void qlist_move_cache(struct qlist_head *from,
->                                    struct qlist_head *to,
->                                    struct kmem_cache *cache)
->  {
-> -       struct qlist_node *prev = NULL, *curr;
-> +       struct qlist_node *curr;
->
->         if (unlikely(qlist_empty(from)))
->                 return;
->
->         curr = from->head;
-> +       qlist_init(from);
->         while (curr) {
->                 struct qlist_node *qlink = curr;
->                 struct kmem_cache *obj_cache = qlink_to_cache(qlink);
->
-> -               if (obj_cache == cache) {
-> -                       if (unlikely(from->head == qlink)) {
-> -                               from->head = curr->next;
-> -                               prev = curr;
-> -                       } else
-> -                               prev->next = curr->next;
-> -                       if (unlikely(from->tail == qlink))
-> -                               from->tail = curr->next;
-> -                       from->bytes -= cache->size;
-> -                       qlist_put(to, qlink, cache->size);
-> -               } else {
-> -                       prev = curr;
-> -               }
->                 curr = curr->next;
-> +
-> +               if (obj_cache == cache)
-> +                       qlist_put(to, qlink, obj_cache->size);
-> +               else
-> +                       qlist_put(from, qlink, obj_cache->size);
+>         for (i = 0; i < 100; i++) {
+>                 stack = malloc(8192);
+>                 pid = clone(&test, (char *)stack + 8192, CLONE_NEWPID|SIGCHLD, 0);
 >         }
->  }
+>
+>         sleep(5);
 
-Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+is this sleep() really needed to trigger the problem?
 
-Thanks for fixing this!
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
