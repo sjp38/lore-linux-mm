@@ -1,168 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f198.google.com (mail-ob0-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 447AC6B0005
-	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 08:00:49 -0400 (EDT)
-Received: by mail-ob0-f198.google.com with SMTP id da8so204818529obb.1
-        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 05:00:49 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id w14si4017751pfa.187.2016.07.05.05.00.48
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 910E26B025E
+	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 08:00:50 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id a66so86504965wme.1
+        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 05:00:50 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id kb8si3025312wjc.290.2016.07.05.05.00.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Jul 2016 05:00:48 -0700 (PDT)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u65BsKiw054080
-	for <linux-mm@kvack.org>; Tue, 5 Jul 2016 08:00:47 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 23x8ww7d6h-1
+        Tue, 05 Jul 2016 05:00:49 -0700 (PDT)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u65Bs9Ew069654
+	for <linux-mm@kvack.org>; Tue, 5 Jul 2016 08:00:48 -0400
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 23x7rvyvna-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 05 Jul 2016 08:00:47 -0400
+	for <linux-mm@kvack.org>; Tue, 05 Jul 2016 08:00:48 -0400
 Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <schwidefsky@de.ibm.com>;
-	Tue, 5 Jul 2016 13:00:45 +0100
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
-	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 46154219005F
-	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 13:00:12 +0100 (BST)
-Received: from d06av02.portsmouth.uk.ibm.com (d06av02.portsmouth.uk.ibm.com [9.149.37.228])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u65C0hSs1901024
-	for <linux-mm@kvack.org>; Tue, 5 Jul 2016 12:00:43 GMT
-Received: from d06av02.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av02.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u65C0gOk009367
+	Tue, 5 Jul 2016 13:00:46 +0100
+Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
+	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 7561C1B08069
+	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 13:02:00 +0100 (BST)
+Received: from d06av05.portsmouth.uk.ibm.com (d06av05.portsmouth.uk.ibm.com [9.149.37.229])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u65C0gVS16515528
+	for <linux-mm@kvack.org>; Tue, 5 Jul 2016 12:00:42 GMT
+Received: from d06av05.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av05.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u65C0gta020322
 	for <linux-mm@kvack.org>; Tue, 5 Jul 2016 06:00:42 -0600
 From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: [PATCH 2/2] s390/mm: use ipte range to invalidate multiple page table entries
-Date: Tue,  5 Jul 2016 14:00:40 +0200
+Subject: [PATCH 1/2] mm: add callback to prepare the update of multiple page table entries
+Date: Tue,  5 Jul 2016 14:00:39 +0200
 In-Reply-To: <1467720040-4280-1-git-send-email-schwidefsky@de.ibm.com>
 References: <1467720040-4280-1-git-send-email-schwidefsky@de.ibm.com>
-Message-Id: <1467720040-4280-3-git-send-email-schwidefsky@de.ibm.com>
+Message-Id: <1467720040-4280-2-git-send-email-schwidefsky@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-The IPTE instruction with the range option can invalidate up to 256 page
-table entries at once. This speeds up the mprotect, munmap, mremap and
-fork operations for multi-threaded programs.
+Add a new callback 'ptep_prepare_range' to allow the architecture
+code to optimize the modification of multiple page table entries.
+
+The background for the callback is an instruction found on s390.
+The IPTE-range instruction can be used to invalidate up to 256 ptes
+with a single IPI, including the flush of the TLB entries associated
+to the address range.
+
+This has similarities to the arch_[enter|leave]_lazy_mmu_mode, but for
+a more specific situation. ptep_prepare_range is called for the update
+of a block of ptes.
+
+ptep_prepare_range is called optimistically, the callback may choose
+to do nothing. In this case the individual single pte operation and
+the arch_[enter|leave]_lazy_mmu_mode mechanics need to deal with the
+invalidation and the associated TLB flush.
 
 Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
 ---
- arch/s390/include/asm/pgtable.h | 25 +++++++++++++++++++++++++
- arch/s390/include/asm/setup.h   |  2 ++
- arch/s390/kernel/early.c        |  2 ++
- arch/s390/mm/pageattr.c         |  2 +-
- arch/s390/mm/pgtable.c          | 17 +++++++++++++++++
- 5 files changed, 47 insertions(+), 1 deletion(-)
+ include/asm-generic/pgtable.h | 4 ++++
+ mm/memory.c                   | 2 ++
+ mm/mprotect.c                 | 1 +
+ mm/mremap.c                   | 1 +
+ 4 files changed, 8 insertions(+)
 
-diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
-index 20e5f7d..2caf726 100644
---- a/arch/s390/include/asm/pgtable.h
-+++ b/arch/s390/include/asm/pgtable.h
-@@ -997,6 +997,31 @@ static inline int ptep_set_access_flags(struct vm_area_struct *vma,
- 	return 1;
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 9401f48..b29f360 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -192,6 +192,10 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addres
  }
+ #endif
  
-+void ptep_invalidate_range(struct mm_struct *mm, unsigned long start,
-+			   unsigned long end, pte_t *ptep);
++#ifndef ptep_prepare_range
++#define ptep_prepare_range(mm, start, end, ptep, full) do {} while (0)
++#endif
 +
-+static inline void ptep_prepare_range(struct mm_struct *mm,
-+				      unsigned long start,
-+				      unsigned long end,
-+				      pte_t *ptep, int full)
-+{
-+	if (!full)
-+		ptep_invalidate_range(mm, start, end, ptep);
-+}
-+#define ptep_prepare_range ptep_prepare_range
-+
-+#define __HAVE_ARCH_MOVE_PTE
-+static inline pte_t move_pte(pte_t pte, pgprot_t prot,
-+			     unsigned long old_addr,
-+			     unsigned long new_addr)
-+{
-+	if ((pte_val(pte) & _PAGE_PRESENT) &&
-+	    (pte_val(pte) & _PAGE_READ) &&
-+	    (pte_val(pte) & _PAGE_YOUNG))
-+		pte_val(pte) &= ~_PAGE_INVALID;
-+	return pte;
-+}
-+
- /*
-  * Additional functions to handle KVM guest page tables
-  */
-diff --git a/arch/s390/include/asm/setup.h b/arch/s390/include/asm/setup.h
-index c0f0efb..58b13e0 100644
---- a/arch/s390/include/asm/setup.h
-+++ b/arch/s390/include/asm/setup.h
-@@ -30,6 +30,7 @@
- #define MACHINE_FLAG_TLB_LC	_BITUL(12)
- #define MACHINE_FLAG_VX		_BITUL(13)
- #define MACHINE_FLAG_CAD	_BITUL(14)
-+#define MACHINE_FLAG_IPTE_RANGE	_BITUL(15)
+ #ifndef __HAVE_ARCH_PMDP_SET_WRPROTECT
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
+diff --git a/mm/memory.c b/mm/memory.c
+index 07493e3..eeecb92 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -934,6 +934,7 @@ again:
+ 	orig_src_pte = src_pte;
+ 	orig_dst_pte = dst_pte;
+ 	arch_enter_lazy_mmu_mode();
++	ptep_prepare_range(src_mm, addr, end, src_pte, 0);
  
- #define LPP_MAGIC		_BITUL(31)
- #define LPP_PFAULT_PID_MASK	_AC(0xffffffff, UL)
-@@ -71,6 +72,7 @@ extern void detect_memory_memblock(void);
- #define MACHINE_HAS_TLB_LC	(S390_lowcore.machine_flags & MACHINE_FLAG_TLB_LC)
- #define MACHINE_HAS_VX		(S390_lowcore.machine_flags & MACHINE_FLAG_VX)
- #define MACHINE_HAS_CAD		(S390_lowcore.machine_flags & MACHINE_FLAG_CAD)
-+#define MACHINE_HAS_IPTE_RANGE	(S390_lowcore.machine_flags & MACHINE_FLAG_IPTE_RANGE)
+ 	do {
+ 		/*
+@@ -1114,6 +1115,7 @@ again:
+ 	start_pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+ 	pte = start_pte;
+ 	arch_enter_lazy_mmu_mode();
++	ptep_prepare_range(mm, addr, end, pte, tlb->fullmm);
+ 	do {
+ 		pte_t ptent = *pte;
+ 		if (pte_none(ptent)) {
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index b650c54..3fa15b5 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -74,6 +74,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 		return 0;
  
- /*
-  * Console mode. Override with conmode=
-diff --git a/arch/s390/kernel/early.c b/arch/s390/kernel/early.c
-index 717b03a..ebf69c4 100644
---- a/arch/s390/kernel/early.c
-+++ b/arch/s390/kernel/early.c
-@@ -339,6 +339,8 @@ static __init void detect_machine_facilities(void)
- 		S390_lowcore.machine_flags |= MACHINE_FLAG_EDAT1;
- 		__ctl_set_bit(0, 23);
- 	}
-+	if (test_facility(13))
-+		S390_lowcore.machine_flags |= MACHINE_FLAG_IPTE_RANGE;
- 	if (test_facility(78))
- 		S390_lowcore.machine_flags |= MACHINE_FLAG_EDAT2;
- 	if (test_facility(3))
-diff --git a/arch/s390/mm/pageattr.c b/arch/s390/mm/pageattr.c
-index 7104ffb..91809d9 100644
---- a/arch/s390/mm/pageattr.c
-+++ b/arch/s390/mm/pageattr.c
-@@ -306,7 +306,7 @@ static void ipte_range(pte_t *pte, unsigned long address, int nr)
- {
- 	int i;
+ 	arch_enter_lazy_mmu_mode();
++	ptep_prepare_range(mm, addr, end, pte, 0);
+ 	do {
+ 		oldpte = *pte;
+ 		if (pte_present(oldpte)) {
+diff --git a/mm/mremap.c b/mm/mremap.c
+index 3fa0a467..5f4d0af 100644
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -135,6 +135,7 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
+ 	if (new_ptl != old_ptl)
+ 		spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
+ 	arch_enter_lazy_mmu_mode();
++	ptep_prepare_range(mm, old_addr, old_end, old_pte, 0);
  
--	if (test_facility(13)) {
-+	if (MACHINE_HAS_IPTE_RANGE) {
- 		__ptep_ipte_range(address, nr - 1, pte);
- 		return;
- 	}
-diff --git a/arch/s390/mm/pgtable.c b/arch/s390/mm/pgtable.c
-index 74f8f2a..3dd85ec 100644
---- a/arch/s390/mm/pgtable.c
-+++ b/arch/s390/mm/pgtable.c
-@@ -283,6 +283,23 @@ void ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
- }
- EXPORT_SYMBOL(ptep_modify_prot_commit);
- 
-+void ptep_invalidate_range(struct mm_struct *mm, unsigned long start,
-+			   unsigned long end, pte_t *ptep)
-+{
-+	unsigned long nr;
-+
-+	if (!MACHINE_HAS_IPTE_RANGE || mm_has_pgste(mm))
-+		return;
-+	preempt_disable();
-+	nr = (end - start) >> PAGE_SHIFT;
-+	/* If the flush is likely to be local skip the ipte range */
-+	if (nr && !cpumask_equal(mm_cpumask(mm),
-+				 cpumask_of(smp_processor_id())))
-+		__ptep_ipte_range(start, nr - 1, ptep);
-+	preempt_enable();
-+}
-+EXPORT_SYMBOL(ptep_invalidate_range);
-+
- static inline pmd_t pmdp_flush_direct(struct mm_struct *mm,
- 				      unsigned long addr, pmd_t *pmdp)
- {
+ 	for (; old_addr < old_end; old_pte++, old_addr += PAGE_SIZE,
+ 				   new_pte++, new_addr += PAGE_SIZE) {
 -- 
 2.6.6
 
