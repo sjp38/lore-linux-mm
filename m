@@ -1,65 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 18EB6828E1
-	for <linux-mm@kvack.org>; Wed,  6 Jul 2016 02:42:33 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e189so491797087pfa.2
-        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 23:42:33 -0700 (PDT)
-Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
-        by mx.google.com with ESMTP id u80si2631836pfi.227.2016.07.05.23.42.30
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 58E86828E1
+	for <linux-mm@kvack.org>; Wed,  6 Jul 2016 02:49:32 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id s63so454860330ioi.1
+        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 23:49:32 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id j27si2232490ioi.109.2016.07.05.23.49.30
         for <linux-mm@kvack.org>;
-        Tue, 05 Jul 2016 23:42:32 -0700 (PDT)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <014201d1d738$744c8f90$5ce5aeb0$@alibaba-inc.com>	<014601d1d73b$5a3c0420$0eb40c60$@alibaba-inc.com> <20160706082350.5c56ca40@mschwide>
-In-Reply-To: <20160706082350.5c56ca40@mschwide>
-Subject: Re: [PATCH 2/2] s390/mm: use ipte range to invalidate multiple page table entries
-Date: Wed, 06 Jul 2016 14:42:16 +0800
-Message-ID: <015301d1d751$8973de50$9c5b9af0$@alibaba-inc.com>
+        Tue, 05 Jul 2016 23:49:31 -0700 (PDT)
+Date: Wed, 6 Jul 2016 15:50:16 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [patch for-4.7] mm, compaction: prevent VM_BUG_ON when
+ terminating freeing scanner
+Message-ID: <20160706065016.GA16614@bbox>
+References: <alpine.DEB.2.10.1606291436300.145590@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+In-Reply-To: <alpine.DEB.2.10.1606291436300.145590@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Martin Schwidefsky' <schwidefsky@de.ibm.com>
-Cc: 'linux-kernel' <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, mgorman@techsingularity.net, stable@vger.kernel.org, vbabka@suse.cz
 
-> > >
-> > > +void ptep_invalidate_range(struct mm_struct *mm, unsigned long start,
-> > > +			   unsigned long end, pte_t *ptep)
-> > > +{
-> > > +	unsigned long nr;
-> > > +
-> > > +	if (!MACHINE_HAS_IPTE_RANGE || mm_has_pgste(mm))
-> > > +		return;
-> > > +	preempt_disable();
-> > > +	nr = (end - start) >> PAGE_SHIFT;
-> > > +	/* If the flush is likely to be local skip the ipte range */
-> > > +	if (nr && !cpumask_equal(mm_cpumask(mm),
-> > > +				 cpumask_of(smp_processor_id())))
-> >
-> > s/smp/raw_smp/ to avoid adding schedule entry with page table
-> > lock held?
+On Wed, Jun 29, 2016 at 02:47:20PM -0700, David Rientjes wrote:
+> It's possible to isolate some freepages in a pageblock and then fail 
+> split_free_page() due to the low watermark check.  In this case, we hit 
+> VM_BUG_ON() because the freeing scanner terminated early without a 
+> contended lock or enough freepages.
 > 
-> There can not be a schedule entry with either the page table lock held
-> or the preempt_disable() a few lines above.
+> This should never have been a VM_BUG_ON() since it's not a fatal 
+> condition.  It should have been a VM_WARN_ON() at best, or even handled 
+> gracefully.
 > 
-Yes, Sir.
+> Regardless, we need to terminate anytime the full pageblock scan was not 
+> done.  The logic belongs in isolate_freepages_block(), so handle its state
+> gracefully by terminating the pageblock loop and making a note to restart 
+> at the same pageblock next time since it was not possible to complete the 
+> scan this time.
+> 
+> Reported-by: Minchan Kim <minchan@kernel.org>
+> Signed-off-by: David Rientjes <rientjes@google.com>
+Tested-by: Minchan Kim <minchan@kernel.org>
 
-> > > +		__ptep_ipte_range(start, nr - 1, ptep);
-> > > +	preempt_enable();
+I don't know you sill send updated version based on Joonsoo again.
+Anyway, this patch itself doesn't trigger VM_BUG_ON in my test. 
 
-Then would you please, Sir, take a look at another case where
-preempt is enabled?
-
-> > > +}
-> > > +EXPORT_SYMBOL(ptep_invalidate_range);
-> > > +
-> >
-
-thanks
-Hillf
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
