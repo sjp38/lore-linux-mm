@@ -1,79 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 87DCC828E1
-	for <linux-mm@kvack.org>; Wed,  6 Jul 2016 04:20:12 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 143so497078660pfx.0
-        for <linux-mm@kvack.org>; Wed, 06 Jul 2016 01:20:12 -0700 (PDT)
-Received: from mail-pa0-x241.google.com (mail-pa0-x241.google.com. [2607:f8b0:400e:c03::241])
-        by mx.google.com with ESMTPS id ud9si2767852pab.247.2016.07.06.01.20.11
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 53578828E1
+	for <linux-mm@kvack.org>; Wed,  6 Jul 2016 04:31:24 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id c82so105835038wme.2
+        for <linux-mm@kvack.org>; Wed, 06 Jul 2016 01:31:24 -0700 (PDT)
+Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
+        by mx.google.com with ESMTPS id kr10si2337856wjc.169.2016.07.06.01.31.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Jul 2016 01:20:11 -0700 (PDT)
-Received: by mail-pa0-x241.google.com with SMTP id us13so20472801pab.1
-        for <linux-mm@kvack.org>; Wed, 06 Jul 2016 01:20:11 -0700 (PDT)
-Date: Wed, 6 Jul 2016 16:20:05 +0800
-From: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Subject: Re: [PATCH v3 6/8] mm/zsmalloc: add __init,__exit attribute
-Message-ID: <20160706082005.GA3922@leo-test>
-References: <1467786233-4481-1-git-send-email-opensource.ganesh@gmail.com>
- <1467786233-4481-6-git-send-email-opensource.ganesh@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 06 Jul 2016 01:31:23 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id B5761210047
+	for <linux-mm@kvack.org>; Wed,  6 Jul 2016 08:31:22 +0000 (UTC)
+Date: Wed, 6 Jul 2016 09:31:21 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 08/31] mm, vmscan: simplify the logic deciding whether
+ kswapd sleeps
+Message-ID: <20160706083121.GL11498@techsingularity.net>
+References: <1467403299-25786-1-git-send-email-mgorman@techsingularity.net>
+ <1467403299-25786-9-git-send-email-mgorman@techsingularity.net>
+ <20160705055931.GC28164@bbox>
+ <20160705102639.GG11498@techsingularity.net>
+ <20160706003054.GC12570@bbox>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1467786233-4481-6-git-send-email-opensource.ganesh@gmail.com>
+In-Reply-To: <20160706003054.GC12570@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, rostedt@goodmis.org, mingo@redhat.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Jul 06, 2016 at 02:23:51PM +0800, Ganesh Mahendran wrote:
-> Add __init,__exit attribute for function that only called in
-> module init/exit to save memory.
+On Wed, Jul 06, 2016 at 09:30:54AM +0900, Minchan Kim wrote:
+> On Tue, Jul 05, 2016 at 11:26:39AM +0100, Mel Gorman wrote:
 > 
-> Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
-> ----
-> v3:
->     revert change in v2 - Sergey
-> v2:
->     add __init/__exit for zs_register_cpu_notifier/zs_unregister_cpu_notifier
-> ---
->  mm/zsmalloc.c | 6 +++---
->  1 file changed, 3 insertions(+), 3 deletions(-)
+> <snip>
 > 
-> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index ded312b..46526b9 100644
-> --- a/mm/zsmalloc.c
-> +++ b/mm/zsmalloc.c
-> @@ -1344,7 +1344,7 @@ static void zs_unregister_cpu_notifier(void)
->  	cpu_notifier_register_done();
->  }
->  
-> -static void init_zs_size_classes(void)
-> +static void __init init_zs_size_classes(void)
->  {
->  	int nr;
->  
-> @@ -1887,7 +1887,7 @@ static struct file_system_type zsmalloc_fs = {
->  	.kill_sb	= kill_anon_super,
->  };
->  
-> -static int zsmalloc_mount(void)
-> +static int __init zsmalloc_mount(void)
->  {
->  	int ret = 0;
->  
-> @@ -1898,7 +1898,7 @@ static int zsmalloc_mount(void)
->  	return ret;
->  }
->  
-> -static void zsmalloc_unmount(void)
-> +static void __exit zsmalloc_unmount(void)
->  {
->  	kern_unmount(zsmalloc_mnt);
->  }
+> > > > @@ -3418,10 +3426,10 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
+> > > >  	if (!cpuset_zone_allowed(zone, GFP_KERNEL | __GFP_HARDWALL))
+> > > >  		return;
+> > > >  	pgdat = zone->zone_pgdat;
+> > > > -	if (pgdat->kswapd_max_order < order) {
+> > > > -		pgdat->kswapd_max_order = order;
+> > > > -		pgdat->classzone_idx = min(pgdat->classzone_idx, classzone_idx);
+> > > > -	}
+> > > > +	if (pgdat->kswapd_classzone_idx == -1)
+> > > > +		pgdat->kswapd_classzone_idx = classzone_idx;
+> > > 
+> > > It's tricky. Couldn't we change kswapd_classzone_idx to integer type
+> > > and remove if above if condition?
+> > > 
+> > 
+> > It's tricky and not necessarily better overall. It's perfectly possible
+> > to be woken up for zone index 0 so it's changing -1 to another magic
+> > value.
+> 
+> I don't get it. What is a problem with this?
+> 
 
-Sorry, the __exit zsmalloc_umount is called in __init zs_init.
+It becomes difficult to tell the difference between "no wakeup and init to
+zone 0" and "wakeup and reclaim for zone 0". At least that's the problem
+I ran into when I tried before settling on -1.
 
-updated patch is :
+-- 
+Mel Gorman
+SUSE Labs
 
----
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
