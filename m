@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7730C828E4
-	for <linux-mm@kvack.org>; Wed,  6 Jul 2016 18:25:58 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id g62so601382pfb.3
-        for <linux-mm@kvack.org>; Wed, 06 Jul 2016 15:25:58 -0700 (PDT)
-Received: from mail-pf0-x22c.google.com (mail-pf0-x22c.google.com. [2607:f8b0:400e:c00::22c])
-        by mx.google.com with ESMTPS id q1si342985pap.58.2016.07.06.15.25.46
+	by kanga.kvack.org (Postfix) with ESMTP id 79F30828E4
+	for <linux-mm@kvack.org>; Wed,  6 Jul 2016 18:26:00 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id a69so742004pfa.1
+        for <linux-mm@kvack.org>; Wed, 06 Jul 2016 15:26:00 -0700 (PDT)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id zw4si1397187pac.130.2016.07.06.15.25.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 06 Jul 2016 15:25:46 -0700 (PDT)
-Received: by mail-pf0-x22c.google.com with SMTP id c2so121427pfa.2
+Received: by mail-pa0-x22b.google.com with SMTP id bz2so129477pad.1
         for <linux-mm@kvack.org>; Wed, 06 Jul 2016 15:25:46 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH 6/9] powerpc/uaccess: Enable hardened usercopy
-Date: Wed,  6 Jul 2016 15:25:25 -0700
-Message-Id: <1467843928-29351-7-git-send-email-keescook@chromium.org>
+Subject: [PATCH 7/9] sparc/uaccess: Enable hardened usercopy
+Date: Wed,  6 Jul 2016 15:25:26 -0700
+Message-Id: <1467843928-29351-8-git-send-email-keescook@chromium.org>
 In-Reply-To: <1467843928-29351-1-git-send-email-keescook@chromium.org>
 References: <1467843928-29351-1-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,87 +22,97 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Kees Cook <keescook@chromium.org>, Rik van Riel <riel@redhat.com>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, x86@kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
-Enables CONFIG_HARDENED_USERCOPY checks on powerpc.
+Enables CONFIG_HARDENED_USERCOPY checks on sparc.
 
 Based on code from PaX and grsecurity.
 
 Signed-off-by: Kees Cook <keescook@chromium.org>
 ---
- arch/powerpc/Kconfig               |  1 +
- arch/powerpc/include/asm/uaccess.h | 21 +++++++++++++++++++--
- 2 files changed, 20 insertions(+), 2 deletions(-)
+ arch/sparc/Kconfig                  |  1 +
+ arch/sparc/include/asm/uaccess_32.h | 14 ++++++++++----
+ arch/sparc/include/asm/uaccess_64.h | 11 +++++++++--
+ 3 files changed, 20 insertions(+), 6 deletions(-)
 
-diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
-index 01f7464d9fea..b7a18b2604be 100644
---- a/arch/powerpc/Kconfig
-+++ b/arch/powerpc/Kconfig
-@@ -164,6 +164,7 @@ config PPC
- 	select ARCH_HAS_UBSAN_SANITIZE_ALL
- 	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
- 	select HAVE_LIVEPATCH if HAVE_DYNAMIC_FTRACE_WITH_REGS
+diff --git a/arch/sparc/Kconfig b/arch/sparc/Kconfig
+index 546293d9e6c5..59b09600dd32 100644
+--- a/arch/sparc/Kconfig
++++ b/arch/sparc/Kconfig
+@@ -43,6 +43,7 @@ config SPARC
+ 	select OLD_SIGSUSPEND
+ 	select ARCH_HAS_SG_CHAIN
+ 	select CPU_NO_EFFICIENT_FFS
 +	select HAVE_ARCH_HARDENED_USERCOPY
  
- config GENERIC_CSUM
- 	def_bool CPU_LITTLE_ENDIAN
-diff --git a/arch/powerpc/include/asm/uaccess.h b/arch/powerpc/include/asm/uaccess.h
-index b7c20f0b8fbe..c1dc6c14deb8 100644
---- a/arch/powerpc/include/asm/uaccess.h
-+++ b/arch/powerpc/include/asm/uaccess.h
-@@ -310,10 +310,15 @@ static inline unsigned long copy_from_user(void *to,
- {
- 	unsigned long over;
+ config SPARC32
+ 	def_bool !64BIT
+diff --git a/arch/sparc/include/asm/uaccess_32.h b/arch/sparc/include/asm/uaccess_32.h
+index 57aca2792d29..341a5a133f48 100644
+--- a/arch/sparc/include/asm/uaccess_32.h
++++ b/arch/sparc/include/asm/uaccess_32.h
+@@ -248,22 +248,28 @@ unsigned long __copy_user(void __user *to, const void __user *from, unsigned lon
  
--	if (access_ok(VERIFY_READ, from, n))
-+	if (access_ok(VERIFY_READ, from, n)) {
-+		if (!__builtin_constant_p(n))
-+			check_object_size(to, n, false);
- 		return __copy_tofrom_user((__force void __user *)to, from, n);
-+	}
- 	if ((unsigned long)from < TASK_SIZE) {
- 		over = (unsigned long)from + n - TASK_SIZE;
-+		if (!__builtin_constant_p(n - over))
-+			check_object_size(to, n - over, false);
- 		return __copy_tofrom_user((__force void __user *)to, from,
- 				n - over) + over;
- 	}
-@@ -325,10 +330,15 @@ static inline unsigned long copy_to_user(void __user *to,
+ static inline unsigned long copy_to_user(void __user *to, const void *from, unsigned long n)
  {
- 	unsigned long over;
- 
--	if (access_ok(VERIFY_WRITE, to, n))
-+	if (access_ok(VERIFY_WRITE, to, n)) {
+-	if (n && __access_ok((unsigned long) to, n))
++	if (n && __access_ok((unsigned long) to, n)) {
 +		if (!__builtin_constant_p(n))
 +			check_object_size(from, n, true);
- 		return __copy_tofrom_user(to, (__force void __user *)from, n);
-+	}
- 	if ((unsigned long)to < TASK_SIZE) {
- 		over = (unsigned long)to + n - TASK_SIZE;
-+		if (!__builtin_constant_p(n))
-+			check_object_size(from, n - over, true);
- 		return __copy_tofrom_user(to, (__force void __user *)from,
- 				n - over) + over;
- 	}
-@@ -372,6 +382,10 @@ static inline unsigned long __copy_from_user_inatomic(void *to,
- 		if (ret == 0)
- 			return 0;
- 	}
-+
-+	if (!__builtin_constant_p(n))
-+		check_object_size(to, n, false);
-+
- 	return __copy_tofrom_user((__force void __user *)to, from, n);
+ 		return __copy_user(to, (__force void __user *) from, n);
+-	else
++	} else
+ 		return n;
  }
  
-@@ -398,6 +412,9 @@ static inline unsigned long __copy_to_user_inatomic(void __user *to,
- 		if (ret == 0)
- 			return 0;
- 	}
+ static inline unsigned long __copy_to_user(void __user *to, const void *from, unsigned long n)
+ {
 +	if (!__builtin_constant_p(n))
 +		check_object_size(from, n, true);
-+
- 	return __copy_tofrom_user(to, (__force const void __user *)from, n);
+ 	return __copy_user(to, (__force void __user *) from, n);
  }
  
+ static inline unsigned long copy_from_user(void *to, const void __user *from, unsigned long n)
+ {
+-	if (n && __access_ok((unsigned long) from, n))
++	if (n && __access_ok((unsigned long) from, n)) {
++		if (!__builtin_constant_p(n))
++			check_object_size(to, n, false);
+ 		return __copy_user((__force void __user *) to, from, n);
+-	else
++	} else
+ 		return n;
+ }
+ 
+diff --git a/arch/sparc/include/asm/uaccess_64.h b/arch/sparc/include/asm/uaccess_64.h
+index e9a51d64974d..8bda94fab8e8 100644
+--- a/arch/sparc/include/asm/uaccess_64.h
++++ b/arch/sparc/include/asm/uaccess_64.h
+@@ -210,8 +210,12 @@ unsigned long copy_from_user_fixup(void *to, const void __user *from,
+ static inline unsigned long __must_check
+ copy_from_user(void *to, const void __user *from, unsigned long size)
+ {
+-	unsigned long ret = ___copy_from_user(to, from, size);
++	unsigned long ret;
+ 
++	if (!__builtin_constant_p(size))
++		check_object_size(to, size, false);
++
++	ret = ___copy_from_user(to, from, size);
+ 	if (unlikely(ret))
+ 		ret = copy_from_user_fixup(to, from, size);
+ 
+@@ -227,8 +231,11 @@ unsigned long copy_to_user_fixup(void __user *to, const void *from,
+ static inline unsigned long __must_check
+ copy_to_user(void __user *to, const void *from, unsigned long size)
+ {
+-	unsigned long ret = ___copy_to_user(to, from, size);
++	unsigned long ret;
+ 
++	if (!__builtin_constant_p(size))
++		check_object_size(from, size, true);
++	ret = ___copy_to_user(to, from, size);
+ 	if (unlikely(ret))
+ 		ret = copy_to_user_fixup(to, from, size);
+ 	return ret;
 -- 
 2.7.4
 
