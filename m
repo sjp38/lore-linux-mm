@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CEDDE828E1
-	for <linux-mm@kvack.org>; Wed,  6 Jul 2016 02:25:10 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id b13so438931228pat.3
-        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 23:25:10 -0700 (PDT)
-Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
-        by mx.google.com with ESMTPS id ut1si2583146pac.88.2016.07.05.23.25.10
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 58D5E828E1
+	for <linux-mm@kvack.org>; Wed,  6 Jul 2016 02:25:51 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id he1so435172515pac.0
+        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 23:25:51 -0700 (PDT)
+Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
+        by mx.google.com with ESMTPS id u29si2440203pfi.150.2016.07.05.23.25.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Jul 2016 23:25:10 -0700 (PDT)
-Received: by mail-pf0-x244.google.com with SMTP id c74so21029553pfb.0
-        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 23:25:10 -0700 (PDT)
+        Tue, 05 Jul 2016 23:25:50 -0700 (PDT)
+Received: by mail-pf0-x243.google.com with SMTP id t190so20988305pfb.2
+        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 23:25:50 -0700 (PDT)
 From: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Subject: [PATCH v3 2/8] mm/zsmalloc: take obj index back from find_alloced_obj
-Date: Wed,  6 Jul 2016 14:23:47 +0800
-Message-Id: <1467786233-4481-2-git-send-email-opensource.ganesh@gmail.com>
+Subject: [PATCH v3 3/8] mm/zsmalloc: use class->objs_per_zspage to get num of max objects
+Date: Wed,  6 Jul 2016 14:23:48 +0800
+Message-Id: <1467786233-4481-3-git-send-email-opensource.ganesh@gmail.com>
 In-Reply-To: <1467786233-4481-1-git-send-email-opensource.ganesh@gmail.com>
 References: <1467786233-4481-1-git-send-email-opensource.ganesh@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,58 +22,80 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: akpm@linux-foundation.org, minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, rostedt@goodmis.org, mingo@redhat.com, Ganesh Mahendran <opensource.ganesh@gmail.com>
 
-the obj index value should be updated after return from
-find_alloced_obj() to avoid CPU burning caused by unnecessary
-object scanning.
+num of max objects in zspage is stored in each size_class now.
+So there is no need to re-calculate it.
 
 Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Reviewed-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 Acked-by: Minchan Kim <minchan@kernel.org>
-----
-v3:
-  none
-v2:
-  - update commit description
+Reviewed-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 ---
- mm/zsmalloc.c | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+ mm/zsmalloc.c | 18 +++++++-----------
+ 1 file changed, 7 insertions(+), 11 deletions(-)
 
 diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 3a37977..1f144f1 100644
+index 1f144f1..82ff2c0 100644
 --- a/mm/zsmalloc.c
 +++ b/mm/zsmalloc.c
-@@ -1744,10 +1744,11 @@ static void zs_object_copy(struct size_class *class, unsigned long dst,
-  * return handle.
-  */
- static unsigned long find_alloced_obj(struct size_class *class,
--					struct page *page, int index)
-+					struct page *page, int *obj_idx)
- {
- 	unsigned long head;
- 	int offset = 0;
-+	int index = *obj_idx;
- 	unsigned long handle = 0;
- 	void *addr = kmap_atomic(page);
+@@ -638,8 +638,7 @@ static int zs_stats_size_show(struct seq_file *s, void *v)
+ 		freeable = zs_can_compact(class);
+ 		spin_unlock(&class->lock);
  
-@@ -1768,6 +1769,9 @@ static unsigned long find_alloced_obj(struct size_class *class,
- 	}
+-		objs_per_zspage = get_maxobj_per_zspage(class->size,
+-				class->pages_per_zspage);
++		objs_per_zspage = class->objs_per_zspage;
+ 		pages_used = obj_allocated / objs_per_zspage *
+ 				class->pages_per_zspage;
  
- 	kunmap_atomic(addr);
-+
-+	*obj_idx = index;
-+
- 	return handle;
+@@ -1017,8 +1016,7 @@ static void __free_zspage(struct zs_pool *pool, struct size_class *class,
+ 
+ 	cache_free_zspage(pool, zspage);
+ 
+-	zs_stat_dec(class, OBJ_ALLOCATED, get_maxobj_per_zspage(
+-			class->size, class->pages_per_zspage));
++	zs_stat_dec(class, OBJ_ALLOCATED, class->objs_per_zspage);
+ 	atomic_long_sub(class->pages_per_zspage,
+ 					&pool->pages_allocated);
  }
+@@ -1369,7 +1367,7 @@ static bool can_merge(struct size_class *prev, int size, int pages_per_zspage)
+ 	if (prev->pages_per_zspage != pages_per_zspage)
+ 		return false;
  
-@@ -1793,7 +1797,7 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
- 	int ret = 0;
+-	if (get_maxobj_per_zspage(prev->size, prev->pages_per_zspage)
++	if (prev->objs_per_zspage
+ 		!= get_maxobj_per_zspage(size, pages_per_zspage))
+ 		return false;
  
- 	while (1) {
--		handle = find_alloced_obj(class, s_page, obj_idx);
-+		handle = find_alloced_obj(class, s_page, &obj_idx);
- 		if (!handle) {
- 			s_page = get_next_page(s_page);
- 			if (!s_page)
+@@ -1595,8 +1593,7 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size, gfp_t gfp)
+ 	record_obj(handle, obj);
+ 	atomic_long_add(class->pages_per_zspage,
+ 				&pool->pages_allocated);
+-	zs_stat_inc(class, OBJ_ALLOCATED, get_maxobj_per_zspage(
+-			class->size, class->pages_per_zspage));
++	zs_stat_inc(class, OBJ_ALLOCATED, class->objs_per_zspage);
+ 
+ 	/* We completely set up zspage so mark them as movable */
+ 	SetZsPageMovable(pool, zspage);
+@@ -2268,8 +2265,7 @@ static unsigned long zs_can_compact(struct size_class *class)
+ 		return 0;
+ 
+ 	obj_wasted = obj_allocated - obj_used;
+-	obj_wasted /= get_maxobj_per_zspage(class->size,
+-			class->pages_per_zspage);
++	obj_wasted /= class->objs_per_zspage;
+ 
+ 	return obj_wasted * class->pages_per_zspage;
+ }
+@@ -2483,8 +2479,8 @@ struct zs_pool *zs_create_pool(const char *name)
+ 		class->size = size;
+ 		class->index = i;
+ 		class->pages_per_zspage = pages_per_zspage;
+-		class->objs_per_zspage = class->pages_per_zspage *
+-						PAGE_SIZE / class->size;
++		class->objs_per_zspage = get_maxobj_per_zspage(class->size,
++							class->pages_per_zspage);
+ 		spin_lock_init(&class->lock);
+ 		pool->size_class[i] = class;
+ 		for (fullness = ZS_EMPTY; fullness < NR_ZS_FULLNESS;
 -- 
 1.9.1
 
