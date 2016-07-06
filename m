@@ -1,73 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f199.google.com (mail-ob0-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 118D6828E1
-	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 21:37:47 -0400 (EDT)
-Received: by mail-ob0-f199.google.com with SMTP id fq2so460502273obb.2
-        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 18:37:47 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id b75si4150386ioe.115.2016.07.05.18.37.45
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C268828E1
+	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 21:52:23 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id he1so426713162pac.0
+        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 18:52:23 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id 2si1237096pfu.115.2016.07.05.18.52.21
         for <linux-mm@kvack.org>;
-        Tue, 05 Jul 2016 18:37:46 -0700 (PDT)
-Date: Wed, 6 Jul 2016 10:41:09 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [patch for-4.7] mm, compaction: prevent VM_BUG_ON when
- terminating freeing scanner
-Message-ID: <20160706014109.GC23627@js1304-P5Q-DELUXE>
-References: <alpine.DEB.2.10.1606291436300.145590@chino.kir.corp.google.com>
- <7ecb4f2d-724f-463f-961f-efba1bdb63d2@suse.cz>
- <alpine.DEB.2.10.1607051357050.110721@chino.kir.corp.google.com>
+        Tue, 05 Jul 2016 18:52:22 -0700 (PDT)
+Date: Wed, 6 Jul 2016 10:51:43 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 00/31] Move LRU page reclaim from zones to nodes v8
+Message-ID: <20160706015143.GE12570@bbox>
+References: <1467403299-25786-1-git-send-email-mgorman@techsingularity.net>
+ <20160704013703.GA19943@bbox>
+ <20160704043405.GB11498@techsingularity.net>
+ <20160704080412.GA24605@bbox>
+ <20160704095509.GC11498@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20160704095509.GC11498@techsingularity.net>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1607051357050.110721@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, mgorman@techsingularity.net, minchan@kernel.org, stable@vger.kernel.org
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, daniel.vetter@intel.com, intel-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, David Airlie <airlied@linux.ie>
 
-On Tue, Jul 05, 2016 at 02:01:29PM -0700, David Rientjes wrote:
-> On Thu, 30 Jun 2016, Vlastimil Babka wrote:
-> 
-> > >  Note: I really dislike the low watermark check in split_free_page() and
-> > >  consider it poor software engineering.  The function should split a free
-> > >  page, nothing more.  Terminating memory compaction because of a low
-> > >  watermark check when we're simply trying to migrate memory seems like an
-> > >  arbitrary heuristic.  There was an objection to removing it in the first
-> > >  proposed patch, but I think we should really consider removing that
-> > >  check so this is simpler.
+On Mon, Jul 04, 2016 at 10:55:09AM +0100, Mel Gorman wrote:
+> On Mon, Jul 04, 2016 at 05:04:12PM +0900, Minchan Kim wrote:
+> > > > How big ratio between highmem:lowmem do you think a problem?
+> > > > 
+> > > 
+> > > That's a "how long is a piece of string" type question.  The ratio does
+> > > not matter as much as whether the workload is both under memory pressure
+> > > and requires large amounts of lowmem pages. Even on systems with very high
+> > > ratios, it may not be a problem if HIGHPTE is enabled.
 > > 
-> > There's a patch changing it to min watermark (you were CC'd on the series). We
-> > could argue whether it belongs to split_free_page() or some wrapper of it, but
-> > I don't think removing it completely should be done. If zone is struggling
-> > with order-0 pages, a functionality for making higher-order pages shouldn't
-> > make it even worse. It's also not that arbitrary, even if we succeeded the
-> > migration and created a high-order page, the higher-order allocation would
-> > still fail due to watermark checks. Worse, __compact_finished() would keep
-> > telling the compaction to continue, creating an even longer lag, which is also
-> > against your recent patches.
+> > As well page table, pgd/kernelstack/zbud/slab and so on, every kernel
+> > allocations wanted to mask __GFP_HIGHMEM off would be a problem in
+> > 32bit system.
 > > 
 > 
-> I'm suggesting we shouldn't check any zone watermark in split_free_page(): 
-> that function should just split the free page.
+> The same point applies -- it depends on the rate of these allocations,
+> not the ratio of highmem:lowmem per se.
 > 
-> I don't find our current watermark checks to determine if compaction is 
-> worthwhile to be invalid, but I do think that we should avoid checking or 
-> acting on any watermark in isolate_freepages() itself.  We could do more 
-> effective checking in __compact_finished() to determine if we should 
-> terminate compaction, but the freeing scanner feels like the wrong place 
-> to do it -- it's also expensive to check while gathering free pages for 
-> memory that we have already successfully isolated as part of the 
-> iteration.
+> > It also depends on that how many drivers needed lowmem only we have
+> > in the system.
+> > 
+> > I don't know how many such driver in the world. When I simply do grep,
+> > I found several cases which mask __GFP_HIGHMEM off and among them,
+> > I guess DRM might be a popular for us. However, it might be really rare
+> > usecase among various i915 usecases.
+> > 
 > 
-> Do you have any objection to this fix for 4.7?
+> It's also perfectly possible that such allocations are long-lived in which
+> case they are not going to cause many skips. Hence why I cannot make a
+> general prediction.
 > 
-> Joonson and/or Minchan, does this address the issue that you reported?
+> > > > > Conceptually, moving to node LRUs should be easier to understand. The
+> > > > > page allocator plays fewer tricks to game reclaim and reclaim behaves
+> > > > > similarly on all nodes. 
+> > > > > 
+> > > > > The series has been tested on a 16 core UMA machine and a 2-socket 48
+> > > > > core NUMA machine. The UMA results are presented in most cases as the NUMA
+> > > > > machine behaved similarly.
+> > > > 
+> > > > I guess you would already test below with various highmem system(e.g.,
+> > > > 2:1, 3:1, 4:1 and so on). If you have, could you mind sharing it?
+> > > > 
+> > > 
+> > > I haven't that data, the baseline distribution used doesn't even have
+> > > 32-bit support. Even if it was, the results may not be that interesting.
+> > > The workloads used were not necessarily going to trigger lowmem pressure
+> > > as HIGHPTE was set on the 32-bit configs.
+> > 
+> > That means we didn't test this on 32-bit with highmem.
+> > 
+> 
+> No. I tested the skip logic and noticed that when forced on purpose that
+> system CPU usage was higher but it functionally worked.
 
-Unfortunately, I have no test case to trigger it. But, I think that
-this patch will address it. Anyway, I commented one problem on this
-patch in other e-mail so please fix it.
+Yeb, it would work well functionally. I meant not functionally but
+performance point of view, system cpu usage and majfault rate
+and so on.
 
-Thanks.
+> 
+> > I'm not sure it's really too rare case to spend a time for testing.
+> > In fact, I really want to test all series to our production system
+> > which is 32bit and highmem but as we know well, most of embedded
+> > system kernel is rather old so backporting needs lots of time and
+> > care. However, if we miss testing in those system at the moment,
+> > we will be suprised after 1~2 years.
+> > 
+> 
+> It would be appreciated if it could be tested on such platforms if at all
+> possible. Even if I did set up a 32-bit x86 system, it won't have the same
+> allocation/reclaim profile as the platforms you are considering.
+
+Yeb. I just finished reviewing of all patches and found no *big* problem
+with my brain so my remanining homework is just testing which would find
+what my brain have missed.
+
+I will give the backporing to old 32-bit production kernel a shot and
+report if something strange happens.
+
+Thanks for great work, Mel!
+
+
+> 
+> > I don't know what kinds of benchmark can we can check it so I cannot
+> > insist on it but you might know it.
+> > 
+> 
+> One method would be to use fsmark with very large numbers of small files
+> to force slab to require low memory. It's not representative of many real
+> workloads unfortunately. Usually such a configuration is for checking the
+> slab shrinker is working as expected.
+
+Thanks for the suggestion.
+
+> 
+> > Okay, do you have any idea to fix it if we see such regression report
+> > in 32-bit system in future?
+> 
+> Two options, neither whose complexity is justified without a "real"
+> workload to use as a reference.
+> 
+> 1. Long-term isolation of highmem pages when reclaim is lowmem
+> 
+>    When pages are skipped, they are immediately added back onto the LRU
+>    list. If lowmem reclaim persisted for long periods of time, the same
+>    highmem pages get continually scanned. The idea would be that lowmem
+>    keeps those pages on a separate list until a reclaim for highmem pages
+>    arrives that splices the highmem pages back onto the LRU.
+> 
+>    That would reduce the skip rate, the potential corner case is that
+>    highmem pages have to be scanned and reclaimed to free lowmem slab pages.
+> 
+> 2. Linear scan lowmem pages if the initial LRU shrink fails
+> 
+>    This will break LRU ordering but may be preferable and faster during
+>    memory pressure than skipping LRU pages.
+
+Okay. I guess it would be better to include this in descripion of [4/31].
+
+> 
+> -- 
+> Mel Gorman
+> SUSE Labs
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
