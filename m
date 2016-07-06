@@ -1,119 +1,237 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 49A67828E4
-	for <linux-mm@kvack.org>; Wed,  6 Jul 2016 01:06:17 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id u201so328148039oie.2
-        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 22:06:17 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0078C828E1
+	for <linux-mm@kvack.org>; Wed,  6 Jul 2016 01:36:33 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id a69so490023476pfa.1
+        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 22:36:32 -0700 (PDT)
 Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id k11si1835179ioi.41.2016.07.05.22.06.15
+        by mx.google.com with ESMTP id mv18si2365610pab.17.2016.07.05.22.36.31
         for <linux-mm@kvack.org>;
-        Tue, 05 Jul 2016 22:06:16 -0700 (PDT)
-Date: Wed, 6 Jul 2016 14:09:39 +0900
+        Tue, 05 Jul 2016 22:36:32 -0700 (PDT)
+Date: Wed, 6 Jul 2016 14:39:54 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v3 09/17] mm, compaction: make whole_zone flag ignore
- cached scanner positions
-Message-ID: <20160706050939.GD23627@js1304-P5Q-DELUXE>
+Subject: Re: [PATCH v3 12/17] mm, compaction: more reliably increase direct
+ compaction priority
+Message-ID: <20160706053954.GE23627@js1304-P5Q-DELUXE>
 References: <20160624095437.16385-1-vbabka@suse.cz>
- <20160624095437.16385-10-vbabka@suse.cz>
+ <20160624095437.16385-13-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160624095437.16385-10-vbabka@suse.cz>
+In-Reply-To: <20160624095437.16385-13-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
 
-On Fri, Jun 24, 2016 at 11:54:29AM +0200, Vlastimil Babka wrote:
-> A recent patch has added whole_zone flag that compaction sets when scanning
-> starts from the zone boundary, in order to report that zone has been fully
-> scanned in one attempt. For allocations that want to try really hard or cannot
-> fail, we will want to introduce a mode where scanning whole zone is guaranteed
-> regardless of the cached positions.
+On Fri, Jun 24, 2016 at 11:54:32AM +0200, Vlastimil Babka wrote:
+> During reclaim/compaction loop, compaction priority can be increased by the
+> should_compact_retry() function, but the current code is not optimal. Priority
+> is only increased when compaction_failed() is true, which means that compaction
+> has scanned the whole zone. This may not happen even after multiple attempts
+> with the lower priority due to parallel activity, so we might needlessly
+> struggle on the lower priority and possibly run out of compaction retry
+> attempts in the process.
 > 
-> This patch reuses the whole_zone flag in a way that if it's already passed true
-> to compaction, the cached scanner positions are ignored. Employing this flag
+> We can remove these corner cases by increasing compaction priority regardless
+> of compaction_failed(). Examining further the compaction result can be
+> postponed only after reaching the highest priority. This is a simple solution
+> and we don't need to worry about reaching the highest priority "too soon" here,
+> because hen should_compact_retry() is called it means that the system is
+> already struggling and the allocation is supposed to either try as hard as
+> possible, or it cannot fail at all. There's not much point staying at lower
+> priorities with heuristics that may result in only partial compaction.
+> Also we now count compaction retries only after reaching the highest priority.
 
-Okay. But, please don't reset cached scanner position even if whole_zone
-flag is set. Just set cc->migrate_pfn and free_pfn, appropriately. With
-your following patches, whole_zone could be set without any compaction
-try so there is no point to reset cached scanner position in this
-case.
+I'm not sure that this patch is safe. Deferring and skip-bit in
+compaction is highly related to reclaim/compaction. Just ignoring them and (almost)
+unconditionally increasing compaction priority will result in less
+reclaim and less success rate on compaction. And, as a necessarily, it
+would trigger OOM more frequently.
+
+It would not be your fault. This patch is reasonable in current
+situation. It just makes current things more deterministic
+although I dislike that current things and this patch would amplify
+those problem.
 
 Thanks.
 
-> during reclaim/compaction loop will be done in the next patch. This patch
-> however converts compaction invoked from userspace via procfs to use this flag.
-> Before this patch, the cached positions were first reset to zone boundaries and
-> then read back from struct zone, so there was a window where a parallel
-> compaction could replace the reset values, making the manual compaction less
-> effective. Using the flag instead of performing reset is more robust.
+> The only exception here is the COMPACT_SKIPPED result, which means that
+> compaction could not run at all due to being below order-0 watermarks. In that
+> case, don't increase compaction priority, and check if compaction could proceed
+> when everything reclaimable was reclaimed. Before this patch, this was tied to
+> compaction_withdrawn(), but the other results considered there are in fact only
+> possible due to low compaction priority so we can ignore them thanks to the
+> patch. Since there are no other callers of compaction_withdrawn(), change its
+> semantics to remove the low priority scenarios.
 > 
 > Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 > Acked-by: Michal Hocko <mhocko@suse.com>
 > ---
->  mm/compaction.c | 15 +++++----------
->  mm/internal.h   |  2 +-
->  2 files changed, 6 insertions(+), 11 deletions(-)
+>  include/linux/compaction.h | 28 ++-----------------------
+>  mm/page_alloc.c            | 51 ++++++++++++++++++++++++++--------------------
+>  2 files changed, 31 insertions(+), 48 deletions(-)
 > 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index f825a58bc37c..e7fe848e318e 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -1501,11 +1501,13 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
->  	 */
->  	cc->migrate_pfn = zone->compact_cached_migrate_pfn[sync];
->  	cc->free_pfn = zone->compact_cached_free_pfn;
-> -	if (cc->free_pfn < start_pfn || cc->free_pfn >= end_pfn) {
-> +	if (cc->whole_zone || cc->free_pfn < start_pfn ||
-> +						cc->free_pfn >= end_pfn) {
->  		cc->free_pfn = pageblock_start_pfn(end_pfn - 1);
->  		zone->compact_cached_free_pfn = cc->free_pfn;
->  	}
-> -	if (cc->migrate_pfn < start_pfn || cc->migrate_pfn >= end_pfn) {
-> +	if (cc->whole_zone || cc->migrate_pfn < start_pfn ||
-> +						cc->migrate_pfn >= end_pfn) {
->  		cc->migrate_pfn = start_pfn;
->  		zone->compact_cached_migrate_pfn[0] = cc->migrate_pfn;
->  		zone->compact_cached_migrate_pfn[1] = cc->migrate_pfn;
-> @@ -1751,14 +1753,6 @@ static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
->  		INIT_LIST_HEAD(&cc->freepages);
->  		INIT_LIST_HEAD(&cc->migratepages);
+> diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+> index 869b594cf4ff..a6b3d5d2ae53 100644
+> --- a/include/linux/compaction.h
+> +++ b/include/linux/compaction.h
+> @@ -106,8 +106,8 @@ static inline bool compaction_failed(enum compact_result result)
+>  }
 >  
-> -		/*
-> -		 * When called via /proc/sys/vm/compact_memory
-> -		 * this makes sure we compact the whole zone regardless of
-> -		 * cached scanner positions.
-> -		 */
-> -		if (is_via_compact_memory(cc->order))
-> -			__reset_isolation_suitable(zone);
+>  /*
+> - * Compaction  has backed off for some reason. It might be throttling or
+> - * lock contention. Retrying is still worthwhile.
+> + * Compaction has backed off because it cannot proceed until there is enough
+> + * free memory. Retrying is still worthwhile after reclaim.
+>   */
+>  static inline bool compaction_withdrawn(enum compact_result result)
+>  {
+> @@ -118,30 +118,6 @@ static inline bool compaction_withdrawn(enum compact_result result)
+>  	if (result == COMPACT_SKIPPED)
+>  		return true;
+>  
+> -	/*
+> -	 * If compaction is deferred for high-order allocations, it is
+> -	 * because sync compaction recently failed. If this is the case
+> -	 * and the caller requested a THP allocation, we do not want
+> -	 * to heavily disrupt the system, so we fail the allocation
+> -	 * instead of entering direct reclaim.
+> -	 */
+> -	if (result == COMPACT_DEFERRED)
+> -		return true;
 > -
->  		if (is_via_compact_memory(cc->order) ||
->  				!compaction_deferred(zone, cc->order))
->  			compact_zone(zone, cc);
-> @@ -1794,6 +1788,7 @@ static void compact_node(int nid)
->  		.order = -1,
->  		.mode = MIGRATE_SYNC,
->  		.ignore_skip_hint = true,
-> +		.whole_zone = true,
->  	};
+> -	/*
+> -	 * If compaction in async mode encounters contention or blocks higher
+> -	 * priority task we back off early rather than cause stalls.
+> -	 */
+> -	if (result == COMPACT_CONTENDED)
+> -		return true;
+> -
+> -	/*
+> -	 * Page scanners have met but we haven't scanned full zones so this
+> -	 * is a back off in fact.
+> -	 */
+> -	if (result == COMPACT_PARTIAL_SKIPPED)
+> -		return true;
+> -
+>  	return false;
+>  }
 >  
->  	__compact_pgdat(NODE_DATA(nid), &cc);
-> diff --git a/mm/internal.h b/mm/internal.h
-> index 680e5ce2ab37..153bb52335b4 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -179,7 +179,7 @@ struct compact_control {
->  	enum migrate_mode mode;		/* Async or sync migration mode */
->  	bool ignore_skip_hint;		/* Scan blocks even if marked skip */
->  	bool direct_compaction;		/* False from kcompactd or /proc/... */
-> -	bool whole_zone;		/* Whole zone has been scanned */
-> +	bool whole_zone;		/* Whole zone should/has been scanned */
->  	int order;			/* order a direct compactor needs */
->  	const gfp_t gfp_mask;		/* gfp mask of a direct compactor */
->  	const unsigned int alloc_flags;	/* alloc flags of a direct compactor */
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 204cc988fd64..e1efdc8d2a52 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3217,7 +3217,7 @@ static inline bool
+>  should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
+>  		     enum compact_result compact_result,
+>  		     enum compact_priority *compact_priority,
+> -		     int compaction_retries)
+> +		     int *compaction_retries)
+>  {
+>  	int max_retries = MAX_COMPACT_RETRIES;
+>  
+> @@ -3225,28 +3225,35 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
+>  		return false;
+>  
+>  	/*
+> -	 * compaction considers all the zone as desperately out of memory
+> -	 * so it doesn't really make much sense to retry except when the
+> -	 * failure could be caused by insufficient priority
+> +	 * Compaction backed off due to watermark checks for order-0
+> +	 * so the regular reclaim has to try harder and reclaim something
+> +	 * Retry only if it looks like reclaim might have a chance.
+>  	 */
+> -	if (compaction_failed(compact_result)) {
+> -		if (*compact_priority > MIN_COMPACT_PRIORITY) {
+> -			(*compact_priority)--;
+> -			return true;
+> -		}
+> -		return false;
+> +	if (compaction_withdrawn(compact_result))
+> +		return compaction_zonelist_suitable(ac, order, alloc_flags);
+> +
+> +	/*
+> +	 * Compaction could have withdrawn early or skip some zones or
+> +	 * pageblocks. We were asked to retry, which means the allocation
+> +	 * should try really hard, so increase the priority if possible.
+> +	 */
+> +	if (*compact_priority > MIN_COMPACT_PRIORITY) {
+> +		(*compact_priority)--;
+> +		return true;
+>  	}
+>  
+>  	/*
+> -	 * make sure the compaction wasn't deferred or didn't bail out early
+> -	 * due to locks contention before we declare that we should give up.
+> -	 * But do not retry if the given zonelist is not suitable for
+> -	 * compaction.
+> +	 * Compaction considers all the zones as unfixably fragmented and we
+> +	 * are on the highest priority, which means it can't be due to
+> +	 * heuristics and it doesn't really make much sense to retry.
+>  	 */
+> -	if (compaction_withdrawn(compact_result))
+> -		return compaction_zonelist_suitable(ac, order, alloc_flags);
+> +	if (compaction_failed(compact_result))
+> +		return false;
+>  
+>  	/*
+> +	 * The remaining possibility is that compaction made progress and
+> +	 * created a high-order page, but it was allocated by somebody else.
+> +	 * To prevent thrashing, limit the number of retries in such case.
+>  	 * !costly requests are much more important than __GFP_REPEAT
+>  	 * costly ones because they are de facto nofail and invoke OOM
+>  	 * killer to move on while costly can fail and users are ready
+> @@ -3254,9 +3261,12 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
+>  	 * would need much more detailed feedback from compaction to
+>  	 * make a better decision.
+>  	 */
+> +	if (compaction_made_progress(compact_result))
+> +		(*compaction_retries)++;
+> +
+>  	if (order > PAGE_ALLOC_COSTLY_ORDER)
+>  		max_retries /= 4;
+> -	if (compaction_retries <= max_retries)
+> +	if (*compaction_retries <= max_retries)
+>  		return true;
+>  
+>  	return false;
+> @@ -3275,7 +3285,7 @@ static inline bool
+>  should_compact_retry(struct alloc_context *ac, unsigned int order, int alloc_flags,
+>  		     enum compact_result compact_result,
+>  		     enum compact_priority *compact_priority,
+> -		     int compaction_retries)
+> +		     int *compaction_retries)
+>  {
+>  	struct zone *zone;
+>  	struct zoneref *z;
+> @@ -3672,9 +3682,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  	if (page)
+>  		goto got_pg;
+>  
+> -	if (order && compaction_made_progress(compact_result))
+> -		compaction_retries++;
+> -
+>  	/* Do not loop if specifically requested */
+>  	if (gfp_mask & __GFP_NORETRY)
+>  		goto nopage;
+> @@ -3709,7 +3716,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  	if (did_some_progress > 0 &&
+>  			should_compact_retry(ac, order, alloc_flags,
+>  				compact_result, &compact_priority,
+> -				compaction_retries))
+> +				&compaction_retries))
+>  		goto retry;
+>  
+>  	/* Reclaim has failed us, start killing things */
 > -- 
 > 2.8.4
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
