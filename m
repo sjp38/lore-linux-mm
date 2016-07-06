@@ -1,50 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1486F828E1
-	for <linux-mm@kvack.org>; Wed,  6 Jul 2016 10:36:35 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id l125so207455265ywb.2
-        for <linux-mm@kvack.org>; Wed, 06 Jul 2016 07:36:35 -0700 (PDT)
-Received: from mail-vk0-x230.google.com (mail-vk0-x230.google.com. [2607:f8b0:400c:c05::230])
-        by mx.google.com with ESMTPS id m35si1379089uam.186.2016.07.06.07.36.34
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Jul 2016 07:36:34 -0700 (PDT)
-Received: by mail-vk0-x230.google.com with SMTP id t66so23147322vka.1
-        for <linux-mm@kvack.org>; Wed, 06 Jul 2016 07:36:34 -0700 (PDT)
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id ED85B828E1
+	for <linux-mm@kvack.org>; Wed,  6 Jul 2016 12:02:27 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id ts6so463752120pac.1
+        for <linux-mm@kvack.org>; Wed, 06 Jul 2016 09:02:27 -0700 (PDT)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id m69si4770179pfc.279.2016.07.06.09.02.26
+        for <linux-mm@kvack.org>;
+        Wed, 06 Jul 2016 09:02:26 -0700 (PDT)
+Subject: Re: [PATCH 3/4] x86: disallow running with 32-bit PTEs to work around
+ erratum
+References: <006001d1d5a8$dd26e1f0$9774a5d0$@alibaba-inc.com>
+ <006401d1d5ab$5e154070$1a3fc150$@alibaba-inc.com>
+From: Dave Hansen <dave@sr71.net>
+Message-ID: <577D2B91.2030007@sr71.net>
+Date: Wed, 6 Jul 2016 09:02:25 -0700
 MIME-Version: 1.0
-In-Reply-To: <20160629105736.15017-7-dsafonov@virtuozzo.com>
-References: <20160629105736.15017-1-dsafonov@virtuozzo.com> <20160629105736.15017-7-dsafonov@virtuozzo.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Wed, 6 Jul 2016 07:36:14 -0700
-Message-ID: <CALCETrWdkG26n=rK5C4GPs1U=Xq_f1JtdsNTaMufurpdNJzRdw@mail.gmail.com>
-Subject: Re: [PATCHv2 6/6] x86/signal: add SA_{X32,IA32}_ABI sa_flags
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <006401d1d5ab$5e154070$1a3fc150$@alibaba-inc.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Safonov <dsafonov@virtuozzo.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Safonov <0x7f454c46@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Cyrill Gorcunov <gorcunov@openvz.org>, xemul@virtuozzo.com, Oleg Nesterov <oleg@redhat.com>, Andy Lutomirski <luto@kernel.org>, X86 ML <x86@kernel.org>
+To: Hillf Danton <hillf.zj@alibaba-inc.com>, Dave Hansen <dave.hansen@linux.intel.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Wed, Jun 29, 2016 at 3:57 AM, Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
-> Introduce new flags that defines which ABI to use on creating sigframe.
-> Those flags kernel will set according to sigaction syscall ABI,
-> which set handler for the signal being delivered.
->
-> So that will drop the dependency on TIF_IA32/TIF_X32 flags on signal deliver.
-> Those flags will be used only under CONFIG_COMPAT.
->
-> Similar way ARM uses sa_flags to differ in which mode deliver signal
-> for 26-bit applications (look at SA_THIRYTWO).
+On 07/03/2016 09:20 PM, Hillf Danton wrote:
+...
+>> When we have 64-bit PTEs (64-bit mode or 32-bit PAE), we were able
+>> to move the swap PTE format around to avoid these troublesome bits.
+>> But, 32-bit non-PAE is tight on bits.  So, disallow it from running
+>> on this hardware.  I can't imagine anyone wanting to run 32-bit
+>> on this hardware, but this is the safe thing to do.
+> 
+> <jawoff>
+> 
+> Isn't this work from Mr. Tlb?
 
-Reviewed-by: Andy Lutomirski <luto@kernel.org>
+I have no idea what you mean.
+>> +	if (!err)
+>> +		err = check_knl_erratum();
+>>
+>>  	if (err_flags_ptr)
+>>  		*err_flags_ptr = err ? err_flags : NULL;
+>> @@ -185,3 +188,32 @@ int check_cpu(int *cpu_level_ptr, int *r
+>>
+>>  	return (cpu.level < req_level || err) ? -1 : 0;
+>>  }
+>> +
+>> +int check_knl_erratum(void)
+> 
+> s/knl/xeon_knl/ ?
 
->
-> Cc: Oleg Nesterov <oleg@redhat.com>
-> Cc: Andy Lutomirski <luto@kernel.org>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: Cyrill Gorcunov <gorcunov@openvz.org>
-> Cc: Pavel Emelyanov <xemul@virtuozzo.com>
-> Cc: x86@kernel.org
-> Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
+Nah.  I mean we could say xeon_phi_knl, but I don't think it's worth
+worrying too much about a function called in one place and commented
+heavily.
+
+>> +	puts("This 32-bit kernel can not run on this processor due\n"
+>> +	     "to a processor erratum.  Use a 64-bit kernel, or PAE.\n\n");
+> 
+> Give processor name to the scared readers please.
+
+Yeah, that's a pretty good idea.  I'll be more explicit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
