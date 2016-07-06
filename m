@@ -1,20 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E5DE0828E1
-	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 22:31:48 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id 143so484986700pfx.0
-        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 19:31:48 -0700 (PDT)
+Received: from mail-ob0-f198.google.com (mail-ob0-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 23804828E1
+	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 22:36:23 -0400 (EDT)
+Received: by mail-ob0-f198.google.com with SMTP id wu1so97221178obb.0
+        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 19:36:23 -0700 (PDT)
 Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id r85si1373885pfb.223.2016.07.05.19.31.47
+        by mx.google.com with ESMTP id w200si602139iod.250.2016.07.05.19.36.21
         for <linux-mm@kvack.org>;
-        Tue, 05 Jul 2016 19:31:48 -0700 (PDT)
-Date: Wed, 6 Jul 2016 11:32:32 +0900
+        Tue, 05 Jul 2016 19:36:22 -0700 (PDT)
+Date: Wed, 6 Jul 2016 11:37:09 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2 1/8] mm/zsmalloc: modify zs compact trace interface
-Message-ID: <20160706023232.GB13566@bbox>
+Subject: Re: [PATCH v2 2/8] mm/zsmalloc: use obj_index to keep consistent
+ with others
+Message-ID: <20160706023709.GC13566@bbox>
 References: <1467614999-4326-1-git-send-email-opensource.ganesh@gmail.com>
+ <1467614999-4326-2-git-send-email-opensource.ganesh@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1467614999-4326-1-git-send-email-opensource.ganesh@gmail.com>
+In-Reply-To: <1467614999-4326-2-git-send-email-opensource.ganesh@gmail.com>
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
@@ -22,30 +24,12 @@ List-ID: <linux-mm.kvack.org>
 To: Ganesh Mahendran <opensource.ganesh@gmail.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, rostedt@goodmis.org, mingo@redhat.com
 
-Hi Ganesh,
-
-On Mon, Jul 04, 2016 at 02:49:52PM +0800, Ganesh Mahendran wrote:
-> This patch changes trace_zsmalloc_compact_start[end] to
-> trace_zs_compact_start[end] to keep function naming consistent
-> with others in zsmalloc
-> 
-> Also this patch remove pages_total_compacted information which
-> may not really needed.
+On Mon, Jul 04, 2016 at 02:49:53PM +0800, Ganesh Mahendran wrote:
+> This is a cleanup patch. Change "index" to "obj_index" to keep
+> consistent with others in zsmalloc.
 > 
 > Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
-
-Once we decide to add event trace, I prefer getting more detailed
-information which is hard to get it via /sys/block/zram/.
-So, we can add trace __zs_compact as well as zs_compact with
-some changes.
-
-IOW,
-
-zs_compact
-        trace_zs_compact_start(pool->name)
-        __zs_compact
-                trace_zs_compact(class, scanned_obj, freed_pages)
-        trace_zs_compact_end(pool->name)
+Acked-by: Minchan Kim <minchan@kernel.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
