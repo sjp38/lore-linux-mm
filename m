@@ -1,237 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0078C828E1
-	for <linux-mm@kvack.org>; Wed,  6 Jul 2016 01:36:33 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id a69so490023476pfa.1
-        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 22:36:32 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id mv18si2365610pab.17.2016.07.05.22.36.31
+	by kanga.kvack.org (Postfix) with ESMTP id 328BF828E1
+	for <linux-mm@kvack.org>; Wed,  6 Jul 2016 01:44:01 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e189so489729216pfa.2
+        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 22:44:01 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id xj8si2301180pab.203.2016.07.05.22.43.59
         for <linux-mm@kvack.org>;
-        Tue, 05 Jul 2016 22:36:32 -0700 (PDT)
-Date: Wed, 6 Jul 2016 14:39:54 +0900
+        Tue, 05 Jul 2016 22:44:00 -0700 (PDT)
+Date: Wed, 6 Jul 2016 14:47:23 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v3 12/17] mm, compaction: more reliably increase direct
- compaction priority
-Message-ID: <20160706053954.GE23627@js1304-P5Q-DELUXE>
+Subject: Re: [PATCH v3 13/17] mm, compaction: use correct watermark when
+ checking allocation success
+Message-ID: <20160706054722.GF23627@js1304-P5Q-DELUXE>
 References: <20160624095437.16385-1-vbabka@suse.cz>
- <20160624095437.16385-13-vbabka@suse.cz>
+ <20160624095437.16385-14-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160624095437.16385-13-vbabka@suse.cz>
+In-Reply-To: <20160624095437.16385-14-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
 
-On Fri, Jun 24, 2016 at 11:54:32AM +0200, Vlastimil Babka wrote:
-> During reclaim/compaction loop, compaction priority can be increased by the
-> should_compact_retry() function, but the current code is not optimal. Priority
-> is only increased when compaction_failed() is true, which means that compaction
-> has scanned the whole zone. This may not happen even after multiple attempts
-> with the lower priority due to parallel activity, so we might needlessly
-> struggle on the lower priority and possibly run out of compaction retry
-> attempts in the process.
+On Fri, Jun 24, 2016 at 11:54:33AM +0200, Vlastimil Babka wrote:
+> The __compact_finished() function uses low watermark in a check that has to
+> pass if the direct compaction is to finish and allocation should succeed. This
+> is too pessimistic, as the allocation will typically use min watermark. It may
+> happen that during compaction, we drop below the low watermark (due to parallel
+> activity), but still form the target high-order page. By checking against low
+> watermark, we might needlessly continue compaction.
 > 
-> We can remove these corner cases by increasing compaction priority regardless
-> of compaction_failed(). Examining further the compaction result can be
-> postponed only after reaching the highest priority. This is a simple solution
-> and we don't need to worry about reaching the highest priority "too soon" here,
-> because hen should_compact_retry() is called it means that the system is
-> already struggling and the allocation is supposed to either try as hard as
-> possible, or it cannot fail at all. There's not much point staying at lower
-> priorities with heuristics that may result in only partial compaction.
-> Also we now count compaction retries only after reaching the highest priority.
-
-I'm not sure that this patch is safe. Deferring and skip-bit in
-compaction is highly related to reclaim/compaction. Just ignoring them and (almost)
-unconditionally increasing compaction priority will result in less
-reclaim and less success rate on compaction. And, as a necessarily, it
-would trigger OOM more frequently.
-
-It would not be your fault. This patch is reasonable in current
-situation. It just makes current things more deterministic
-although I dislike that current things and this patch would amplify
-those problem.
-
-Thanks.
-
-> The only exception here is the COMPACT_SKIPPED result, which means that
-> compaction could not run at all due to being below order-0 watermarks. In that
-> case, don't increase compaction priority, and check if compaction could proceed
-> when everything reclaimable was reclaimed. Before this patch, this was tied to
-> compaction_withdrawn(), but the other results considered there are in fact only
-> possible due to low compaction priority so we can ignore them thanks to the
-> patch. Since there are no other callers of compaction_withdrawn(), change its
-> semantics to remove the low priority scenarios.
+> Similarly, __compaction_suitable() uses low watermark in a check whether
+> allocation can succeed without compaction. Again, this is unnecessarily
+> pessimistic.
+> 
+> After this patch, these check will use direct compactor's alloc_flags to
+> determine the watermark, which is effectively the min watermark.
 > 
 > Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 > Acked-by: Michal Hocko <mhocko@suse.com>
 > ---
->  include/linux/compaction.h | 28 ++-----------------------
->  mm/page_alloc.c            | 51 ++++++++++++++++++++++++++--------------------
->  2 files changed, 31 insertions(+), 48 deletions(-)
+>  mm/compaction.c | 6 +++---
+>  1 file changed, 3 insertions(+), 3 deletions(-)
 > 
-> diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-> index 869b594cf4ff..a6b3d5d2ae53 100644
-> --- a/include/linux/compaction.h
-> +++ b/include/linux/compaction.h
-> @@ -106,8 +106,8 @@ static inline bool compaction_failed(enum compact_result result)
->  }
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 76897850c3c2..371760a85085 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -1320,7 +1320,7 @@ static enum compact_result __compact_finished(struct zone *zone, struct compact_
+>  		return COMPACT_CONTINUE;
 >  
->  /*
-> - * Compaction  has backed off for some reason. It might be throttling or
-> - * lock contention. Retrying is still worthwhile.
-> + * Compaction has backed off because it cannot proceed until there is enough
-> + * free memory. Retrying is still worthwhile after reclaim.
->   */
->  static inline bool compaction_withdrawn(enum compact_result result)
->  {
-> @@ -118,30 +118,6 @@ static inline bool compaction_withdrawn(enum compact_result result)
->  	if (result == COMPACT_SKIPPED)
->  		return true;
+>  	/* Compaction run is not finished if the watermark is not met */
+> -	watermark = low_wmark_pages(zone);
+> +	watermark = zone->watermark[cc->alloc_flags & ALLOC_WMARK_MASK];
+
+finish condition is changed. We have two more watermark checks in
+try_to_compact_pages() and kcompactd_do_work() and they should be
+changed too.
+
+Thanks.
 >  
-> -	/*
-> -	 * If compaction is deferred for high-order allocations, it is
-> -	 * because sync compaction recently failed. If this is the case
-> -	 * and the caller requested a THP allocation, we do not want
-> -	 * to heavily disrupt the system, so we fail the allocation
-> -	 * instead of entering direct reclaim.
-> -	 */
-> -	if (result == COMPACT_DEFERRED)
-> -		return true;
-> -
-> -	/*
-> -	 * If compaction in async mode encounters contention or blocks higher
-> -	 * priority task we back off early rather than cause stalls.
-> -	 */
-> -	if (result == COMPACT_CONTENDED)
-> -		return true;
-> -
-> -	/*
-> -	 * Page scanners have met but we haven't scanned full zones so this
-> -	 * is a back off in fact.
-> -	 */
-> -	if (result == COMPACT_PARTIAL_SKIPPED)
-> -		return true;
-> -
->  	return false;
->  }
+>  	if (!zone_watermark_ok(zone, cc->order, watermark, cc->classzone_idx,
+>  							cc->alloc_flags))
+> @@ -1385,7 +1385,7 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
+>  	if (is_via_compact_memory(order))
+>  		return COMPACT_CONTINUE;
 >  
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 204cc988fd64..e1efdc8d2a52 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3217,7 +3217,7 @@ static inline bool
->  should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
->  		     enum compact_result compact_result,
->  		     enum compact_priority *compact_priority,
-> -		     int compaction_retries)
-> +		     int *compaction_retries)
->  {
->  	int max_retries = MAX_COMPACT_RETRIES;
->  
-> @@ -3225,28 +3225,35 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
->  		return false;
->  
+> -	watermark = low_wmark_pages(zone);
+> +	watermark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
 >  	/*
-> -	 * compaction considers all the zone as desperately out of memory
-> -	 * so it doesn't really make much sense to retry except when the
-> -	 * failure could be caused by insufficient priority
-> +	 * Compaction backed off due to watermark checks for order-0
-> +	 * so the regular reclaim has to try harder and reclaim something
-> +	 * Retry only if it looks like reclaim might have a chance.
+>  	 * If watermarks for high-order allocation are already met, there
+>  	 * should be no need for compaction at all.
+> @@ -1399,7 +1399,7 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
+>  	 * This is because during migration, copies of pages need to be
+>  	 * allocated and for a short time, the footprint is higher
 >  	 */
-> -	if (compaction_failed(compact_result)) {
-> -		if (*compact_priority > MIN_COMPACT_PRIORITY) {
-> -			(*compact_priority)--;
-> -			return true;
-> -		}
-> -		return false;
-> +	if (compaction_withdrawn(compact_result))
-> +		return compaction_zonelist_suitable(ac, order, alloc_flags);
-> +
-> +	/*
-> +	 * Compaction could have withdrawn early or skip some zones or
-> +	 * pageblocks. We were asked to retry, which means the allocation
-> +	 * should try really hard, so increase the priority if possible.
-> +	 */
-> +	if (*compact_priority > MIN_COMPACT_PRIORITY) {
-> +		(*compact_priority)--;
-> +		return true;
->  	}
->  
->  	/*
-> -	 * make sure the compaction wasn't deferred or didn't bail out early
-> -	 * due to locks contention before we declare that we should give up.
-> -	 * But do not retry if the given zonelist is not suitable for
-> -	 * compaction.
-> +	 * Compaction considers all the zones as unfixably fragmented and we
-> +	 * are on the highest priority, which means it can't be due to
-> +	 * heuristics and it doesn't really make much sense to retry.
->  	 */
-> -	if (compaction_withdrawn(compact_result))
-> -		return compaction_zonelist_suitable(ac, order, alloc_flags);
-> +	if (compaction_failed(compact_result))
-> +		return false;
->  
->  	/*
-> +	 * The remaining possibility is that compaction made progress and
-> +	 * created a high-order page, but it was allocated by somebody else.
-> +	 * To prevent thrashing, limit the number of retries in such case.
->  	 * !costly requests are much more important than __GFP_REPEAT
->  	 * costly ones because they are de facto nofail and invoke OOM
->  	 * killer to move on while costly can fail and users are ready
-> @@ -3254,9 +3261,12 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
->  	 * would need much more detailed feedback from compaction to
->  	 * make a better decision.
->  	 */
-> +	if (compaction_made_progress(compact_result))
-> +		(*compaction_retries)++;
-> +
->  	if (order > PAGE_ALLOC_COSTLY_ORDER)
->  		max_retries /= 4;
-> -	if (compaction_retries <= max_retries)
-> +	if (*compaction_retries <= max_retries)
->  		return true;
->  
->  	return false;
-> @@ -3275,7 +3285,7 @@ static inline bool
->  should_compact_retry(struct alloc_context *ac, unsigned int order, int alloc_flags,
->  		     enum compact_result compact_result,
->  		     enum compact_priority *compact_priority,
-> -		     int compaction_retries)
-> +		     int *compaction_retries)
->  {
->  	struct zone *zone;
->  	struct zoneref *z;
-> @@ -3672,9 +3682,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	if (page)
->  		goto got_pg;
->  
-> -	if (order && compaction_made_progress(compact_result))
-> -		compaction_retries++;
-> -
->  	/* Do not loop if specifically requested */
->  	if (gfp_mask & __GFP_NORETRY)
->  		goto nopage;
-> @@ -3709,7 +3716,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	if (did_some_progress > 0 &&
->  			should_compact_retry(ac, order, alloc_flags,
->  				compact_result, &compact_priority,
-> -				compaction_retries))
-> +				&compaction_retries))
->  		goto retry;
->  
->  	/* Reclaim has failed us, start killing things */
+> -	watermark += (2UL << order);
+> +	watermark = low_wmark_pages(zone) + (2UL << order);
+>  	if (!__zone_watermark_ok(zone, 0, watermark, classzone_idx,
+>  				 alloc_flags, wmark_target))
+>  		return COMPACT_SKIPPED;
 > -- 
 > 2.8.4
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
