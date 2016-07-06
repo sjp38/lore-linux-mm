@@ -1,97 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 60A0D828E1
-	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 20:54:12 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e189so479745496pfa.2
-        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 17:54:12 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id y62si1000555pfy.262.2016.07.05.17.54.10
+Received: from mail-ob0-f199.google.com (mail-ob0-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D40A828E1
+	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 21:25:05 -0400 (EDT)
+Received: by mail-ob0-f199.google.com with SMTP id fq2so460073398obb.2
+        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 18:25:05 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id z64si852080itd.81.2016.07.05.18.25.04
         for <linux-mm@kvack.org>;
-        Tue, 05 Jul 2016 17:54:10 -0700 (PDT)
-Date: Wed, 6 Jul 2016 09:57:18 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v4] kasan/quarantine: fix bugs on qlist_move_cache()
-Message-ID: <20160706005718.GA23627@js1304-P5Q-DELUXE>
-References: <1467606714-30231-1-git-send-email-iamjoonsoo.kim@lge.com>
- <577A3114.9080008@virtuozzo.com>
+        Tue, 05 Jul 2016 18:25:04 -0700 (PDT)
+Date: Wed, 6 Jul 2016 10:25:54 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 11/31] mm: vmscan: do not reclaim from kswapd if there is
+ any eligible zone
+Message-ID: <20160706012554.GD12570@bbox>
+References: <1467403299-25786-1-git-send-email-mgorman@techsingularity.net>
+ <1467403299-25786-12-git-send-email-mgorman@techsingularity.net>
+ <20160705061117.GD28164@bbox>
+ <20160705103806.GH11498@techsingularity.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <577A3114.9080008@virtuozzo.com>
+In-Reply-To: <20160705103806.GH11498@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, Kuthonuzo Luruo <poll.stdin@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Jul 04, 2016 at 12:49:08PM +0300, Andrey Ryabinin wrote:
+On Tue, Jul 05, 2016 at 11:38:06AM +0100, Mel Gorman wrote:
+> On Tue, Jul 05, 2016 at 03:11:17PM +0900, Minchan Kim wrote:
+> > > -		if (i < 0)
+> > > -			goto out;
+> > > +		/*
+> > > +		 * Only reclaim if there are no eligible zones. Check from
+> > > +		 * high to low zone to avoid prematurely clearing pgdat
+> > > +		 * congested state.
+> > 
+> > I cannot understand "prematurely clearing pgdat congested state".
+> > Could you add more words to clear it out?
+> > 
 > 
+> It's surprisingly difficult to concisely explain. Is this any better?
 > 
-> On 07/04/2016 07:31 AM, js1304@gmail.com wrote:
-> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > 
-> > There are two bugs on qlist_move_cache(). One is that qlist's tail
-> > isn't set properly. curr->next can be NULL since it is singly linked
-> > list and NULL value on tail is invalid if there is one item on qlist.
-> > Another one is that if cache is matched, qlist_put() is called and
-> > it will set curr->next to NULL. It would cause to stop the loop
-> > prematurely.
-> > 
-> > These problems come from complicated implementation so I'd like to
-> > re-implement it completely. Implementation in this patch is really
-> > simple. Iterate all qlist_nodes and put them to appropriate list.
-> > 
-> > Unfortunately, I got this bug sometime ago and lose oops message.
-> > But, the bug looks trivial and no need to attach oops.
-> > 
-> > v4: fix cache size bug s/cache->size/obj_cache->size/
-> > v3: fix build warning
-> > 
-> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > ---
-> >  mm/kasan/quarantine.c | 21 +++++++--------------
-> >  1 file changed, 7 insertions(+), 14 deletions(-)
-> > 
-> > diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
-> > index 4973505..b2e1827 100644
-> > --- a/mm/kasan/quarantine.c
-> > +++ b/mm/kasan/quarantine.c
-> > @@ -238,30 +238,23 @@ static void qlist_move_cache(struct qlist_head *from,
-> >  				   struct qlist_head *to,
-> >  				   struct kmem_cache *cache)
-> >  {
-> > -	struct qlist_node *prev = NULL, *curr;
-> > +	struct qlist_node *curr;
-> >  
-> >  	if (unlikely(qlist_empty(from)))
-> >  		return;
-> >  
-> >  	curr = from->head;
-> > +	qlist_init(from);
-> >  	while (curr) {
-> >  		struct qlist_node *qlink = curr;
-> >  		struct kmem_cache *obj_cache = qlink_to_cache(qlink);
-> >  
-> > -		if (obj_cache == cache) {
-> > -			if (unlikely(from->head == qlink)) {
-> > -				from->head = curr->next;
-> > -				prev = curr;
-> > -			} else
-> > -				prev->next = curr->next;
-> > -			if (unlikely(from->tail == qlink))
-> > -				from->tail = curr->next;
-> > -			from->bytes -= cache->size;
-> > -			qlist_put(to, qlink, cache->size);
-> > -		} else {
-> > -			prev = curr;
-> > -		}
-> >  		curr = curr->next;
-> 
-> Nit: Wouldn't be more appropriate to swap 'curr' and 'qlink' variable names?
-> Because now qlink is acts as a "current" pointer.
+>                 /*
+>                  * Only reclaim if there are no eligible zones. Check from
+>                  * high to low zone as allocations prefer higher zones.
+>                  * Scanning from low to high zone would allow congestion to be
+>                  * cleared during a very small window when a small low
+>                  * zone was balanced even under extreme pressure when the
+>                  * overall node may be congested.
+>                  */
 
-Okay. I sent fixed version.
+Surely, it's better. Thanks for the explaining.
 
-Thanks.
+I doubt we need such corner case logic at this moment and how it works well
+without consistent scan from other callers of zone_balanced where scans
+from low to high.
+
+> > > +		 */
+> > > +		for (i = classzone_idx; i >= 0; i--) {
+> > > +			zone = pgdat->node_zones + i;
+> > > +			if (!populated_zone(zone))
+> > > +				continue;
+> > > +
+> > > +			if (zone_balanced(zone, sc.order, classzone_idx))
+> > 
+> > If buffer_head is over limit, old logic force to reclaim highmem but
+> > this zone_balanced logic will prevent it.
+> > 
+> 
+> The old logic was always busted on 64-bit because is_highmem would always
+> be 0. The original intent appears to be that buffer_heads_over_limit
+> would release the buffers when pages went inactive. There are a number
+
+Yes but the difference is in old, it was handled both direct and background
+reclaim once buffers_heads is over the limit but your change slightly
+changs it so kswapd couldn't reclaim high zone if any eligible zone
+is balanced. I don't know how big difference it can make but we saw
+highmem buffer_head problems several times, IIRC. So, I just wanted
+to notice it to you. whether it's handled or not, it's up to you.
+
+> of things we treated inconsistently that get fixed up in the series and
+> buffer_heads_over_limit is one of them.
+> 
+> -- 
+> Mel Gorman
+> SUSE Labs
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
