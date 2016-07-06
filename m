@@ -1,71 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E0FFA828E1
-	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 20:30:05 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id 143so480335975pfx.0
-        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 17:30:05 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id z25si916475pff.218.2016.07.05.17.30.04
-        for <linux-mm@kvack.org>;
-        Tue, 05 Jul 2016 17:30:05 -0700 (PDT)
-Date: Wed, 6 Jul 2016 09:30:54 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 08/31] mm, vmscan: simplify the logic deciding whether
- kswapd sleeps
-Message-ID: <20160706003054.GC12570@bbox>
-References: <1467403299-25786-1-git-send-email-mgorman@techsingularity.net>
- <1467403299-25786-9-git-send-email-mgorman@techsingularity.net>
- <20160705055931.GC28164@bbox>
- <20160705102639.GG11498@techsingularity.net>
-MIME-Version: 1.0
-In-Reply-To: <20160705102639.GG11498@techsingularity.net>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 87501828E1
+	for <linux-mm@kvack.org>; Tue,  5 Jul 2016 20:52:38 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id ts6so429982086pac.1
+        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 17:52:38 -0700 (PDT)
+Received: from mail-pa0-x241.google.com (mail-pa0-x241.google.com. [2607:f8b0:400e:c03::241])
+        by mx.google.com with ESMTPS id e132si2849088pfg.292.2016.07.05.17.52.37
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 05 Jul 2016 17:52:37 -0700 (PDT)
+Received: by mail-pa0-x241.google.com with SMTP id ib6so3577675pad.3
+        for <linux-mm@kvack.org>; Tue, 05 Jul 2016 17:52:37 -0700 (PDT)
+From: js1304@gmail.com
+Subject: [PATCH v5] kasan/quarantine: fix bugs on qlist_move_cache()
+Date: Wed,  6 Jul 2016 09:52:28 +0900
+Message-Id: <1467766348-22419-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, Kuthonuzo Luruo <poll.stdin@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Tue, Jul 05, 2016 at 11:26:39AM +0100, Mel Gorman wrote:
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-<snip>
+There are two bugs on qlist_move_cache(). One is that qlist's tail
+isn't set properly. curr->next can be NULL since it is singly linked
+list and NULL value on tail is invalid if there is one item on qlist.
+Another one is that if cache is matched, qlist_put() is called and
+it will set curr->next to NULL. It would cause to stop the loop
+prematurely.
 
-> > > @@ -3418,10 +3426,10 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
-> > >  	if (!cpuset_zone_allowed(zone, GFP_KERNEL | __GFP_HARDWALL))
-> > >  		return;
-> > >  	pgdat = zone->zone_pgdat;
-> > > -	if (pgdat->kswapd_max_order < order) {
-> > > -		pgdat->kswapd_max_order = order;
-> > > -		pgdat->classzone_idx = min(pgdat->classzone_idx, classzone_idx);
-> > > -	}
-> > > +	if (pgdat->kswapd_classzone_idx == -1)
-> > > +		pgdat->kswapd_classzone_idx = classzone_idx;
-> > 
-> > It's tricky. Couldn't we change kswapd_classzone_idx to integer type
-> > and remove if above if condition?
-> > 
-> 
-> It's tricky and not necessarily better overall. It's perfectly possible
-> to be woken up for zone index 0 so it's changing -1 to another magic
-> value.
+These problems come from complicated implementation so I'd like to
+re-implement it completely. Implementation in this patch is really
+simple. Iterate all qlist_nodes and put them to appropriate list.
 
-I don't get it. What is a problem with this?
+Unfortunately, I got this bug sometime ago and lose oops message.
+But, the bug looks trivial and no need to attach oops.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index c538a8c..6eb23f5 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3413,9 +3413,7 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
- 	if (!cpuset_zone_allowed(zone, GFP_KERNEL | __GFP_HARDWALL))
+v5: rename some variable for better readability
+v4: fix cache size bug s/cache->size/obj_cache->size/
+v3: fix build warning
+
+Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+---
+ mm/kasan/quarantine.c | 29 +++++++++++------------------
+ 1 file changed, 11 insertions(+), 18 deletions(-)
+
+diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
+index 4973505..65793f1 100644
+--- a/mm/kasan/quarantine.c
++++ b/mm/kasan/quarantine.c
+@@ -238,30 +238,23 @@ static void qlist_move_cache(struct qlist_head *from,
+ 				   struct qlist_head *to,
+ 				   struct kmem_cache *cache)
+ {
+-	struct qlist_node *prev = NULL, *curr;
++	struct qlist_node *curr;
+ 
+ 	if (unlikely(qlist_empty(from)))
  		return;
- 	pgdat = zone->zone_pgdat;
--	if (pgdat->kswapd_classzone_idx == -1)
--		pgdat->kswapd_classzone_idx = classzone_idx;
--	pgdat->kswapd_classzone_idx = max(pgdat->kswapd_classzone_idx, classzone_idx);
-+	pgdat->kswapd_classzone_idx = max_t(int, pgdat->kswapd_classzone_idx, classzone_idx);
- 	pgdat->kswapd_order = max(pgdat->kswapd_order, order);
- 	if (!waitqueue_active(&pgdat->kswapd_wait))
- 		return;
+ 
+ 	curr = from->head;
++	qlist_init(from);
+ 	while (curr) {
+-		struct qlist_node *qlink = curr;
+-		struct kmem_cache *obj_cache = qlink_to_cache(qlink);
+-
+-		if (obj_cache == cache) {
+-			if (unlikely(from->head == qlink)) {
+-				from->head = curr->next;
+-				prev = curr;
+-			} else
+-				prev->next = curr->next;
+-			if (unlikely(from->tail == qlink))
+-				from->tail = curr->next;
+-			from->bytes -= cache->size;
+-			qlist_put(to, qlink, cache->size);
+-		} else {
+-			prev = curr;
+-		}
+-		curr = curr->next;
++		struct qlist_node *next = curr->next;
++		struct kmem_cache *obj_cache = qlink_to_cache(curr);
++
++		if (obj_cache == cache)
++			qlist_put(to, curr, obj_cache->size);
++		else
++			qlist_put(from, curr, obj_cache->size);
++
++		curr = next;
+ 	}
+ }
+ 
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
