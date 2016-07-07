@@ -1,57 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BAED6B0253
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 06:27:29 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id a66so15142714wme.1
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 03:27:29 -0700 (PDT)
-Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
-        by mx.google.com with ESMTPS id y4si2236998wjh.3.2016.07.07.03.27.28
+	by kanga.kvack.org (Postfix) with ESMTP id 7EA5A6B0253
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 06:55:19 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id r190so15593607wmr.0
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 03:55:19 -0700 (PDT)
+Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
+        by mx.google.com with ESMTPS id q6si1819833wjo.270.2016.07.07.03.55.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jul 2016 03:27:28 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 07 Jul 2016 03:55:18 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 2C0C11C1ADA
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 11:27:28 +0100 (IST)
-Date: Thu, 7 Jul 2016 11:27:26 +0100
+	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id F1A1198E33
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 10:55:17 +0000 (UTC)
+Date: Thu, 7 Jul 2016 11:55:16 +0100
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 09/31] mm, vmscan: by default have direct reclaim only
- shrink once per node
-Message-ID: <20160707102726.GS11498@techsingularity.net>
+Subject: Re: [PATCH 11/31] mm: vmscan: do not reclaim from kswapd if there is
+ any eligible zone
+Message-ID: <20160707105516.GT11498@techsingularity.net>
 References: <1467403299-25786-1-git-send-email-mgorman@techsingularity.net>
- <1467403299-25786-10-git-send-email-mgorman@techsingularity.net>
- <20160707014321.GD27987@js1304-P5Q-DELUXE>
+ <1467403299-25786-12-git-send-email-mgorman@techsingularity.net>
+ <20160705061117.GD28164@bbox>
+ <20160705103806.GH11498@techsingularity.net>
+ <20160706012554.GD12570@bbox>
+ <20160706084200.GM11498@techsingularity.net>
+ <20160707062701.GC18072@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20160707014321.GD27987@js1304-P5Q-DELUXE>
+In-Reply-To: <20160707062701.GC18072@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Minchan Kim <minchan@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Jul 07, 2016 at 10:43:22AM +0900, Joonsoo Kim wrote:
-> > @@ -2600,6 +2593,16 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
-> >  			classzone_idx--;
-> >  
-> >  		/*
-> > +		 * Shrink each node in the zonelist once. If the zonelist is
-> > +		 * ordered by zone (not the default) then a node may be
-> > +		 * shrunk multiple times but in that case the user prefers
-> > +		 * lower zones being preserved
-> > +		 */
-> > +		if (zone->zone_pgdat == last_pgdat)
-> > +			continue;
-> > +		last_pgdat = zone->zone_pgdat;
-> > +
-> > +		/*
+On Thu, Jul 07, 2016 at 03:27:01PM +0900, Minchan Kim wrote:
+> > I'm not going to go with it for now because buffer_heads_over_limit is not
+> > necessarily a problem unless lowmem is factor. We don't want background
+> > reclaim to go ahead unnecessarily just because buffer_heads_over_limit.
+> > It could be distinguished by only forcing reclaim to go ahead on systems
+> > with highmem.
 > 
-> After this change, compaction_ready() which uses zone information
-> would be called with highest zone in node. So, if some lower zone in
-> that node is compaction-ready, we cannot stop the reclaim.
-> 
+> If you don't think it's a problem, I don't want to insist on it because I don't
+> have any report/workload right now. Instead, please write some comment in there
+> for others to understand why kswapd is okay to ignore buffer_heads_over_limit
+> unlike direct reclaim. Such non-symmetric behavior is really hard to follow
+> without any description.
 
-Yes. It only impacts direct reclaim but potentially it's an issue. I'll
-fix it.
+Ok, I'll add a patch later in the series that addresses the issue.
+Currently it's called "mm, vmscan: Have kswapd reclaim from all zones if
+reclaiming and buffer_heads_over_limit".
 
 -- 
 Mel Gorman
