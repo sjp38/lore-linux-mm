@@ -1,49 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C00EF6B0253
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 04:42:02 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id a66so13142971wme.1
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 01:42:02 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id p6si1075805wjx.285.2016.07.07.01.42.01
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DDBB6B0253
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 05:05:56 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id b13so22234102pat.3
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 02:05:56 -0700 (PDT)
+Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
+        by mx.google.com with ESMTPS id c1si3203401pfj.113.2016.07.07.02.05.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jul 2016 01:42:01 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id i4so3340422wmg.3
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 01:42:01 -0700 (PDT)
-Date: Thu, 7 Jul 2016 10:42:00 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 5/6] vhost, mm: make sure that oom_reaper doesn't
- reap memory read by vhost
-Message-ID: <20160707084159.GE5379@dhcp22.suse.cz>
-References: <1467365190-24640-1-git-send-email-mhocko@kernel.org>
- <1467365190-24640-6-git-send-email-mhocko@kernel.org>
- <20160703134719.GA28492@redhat.com>
- <20160703140904.GA26908@redhat.com>
- <20160703151829.GA28667@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160703151829.GA28667@redhat.com>
+        Thu, 07 Jul 2016 02:05:55 -0700 (PDT)
+Received: by mail-pf0-x243.google.com with SMTP id c74so1294704pfb.0
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 02:05:55 -0700 (PDT)
+From: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Subject: [PATCH v4 1/8] mm/zsmalloc: use obj_index to keep consistent with others
+Date: Thu,  7 Jul 2016 17:05:31 +0800
+Message-Id: <1467882338-4300-1-git-send-email-opensource.ganesh@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, mingo@redhat.com, rostedt@goodmis.org, Ganesh Mahendran <opensource.ganesh@gmail.com>
 
-On Sun 03-07-16 17:18:29, Oleg Nesterov wrote:
-[...]
-> Or perhaps we can change oom_kill_process() to send SIGKILL to kthreads as
-> well, this should not have any effect unless kthread does allow_signal(SIGKILL),
-> then we can change vhost_worker() to catch SIGKILL and react somehow. Not sure
-> this is really possible.
+This is a cleanup patch. Change "index" to "obj_index" to keep
+consistent with others in zsmalloc.
 
-But then we would have to check for the signal after every memory
-access no? This sounds much more error prone than the test being wrapped
-inside the copy_from... API to me.
+Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Reviewed-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Acked-by: Minchan Kim <minchan@kernel.org>
+----
+v4: none
+v3: none
+v2: none
+---
+ mm/zsmalloc.c | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
 
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index e425de4..3a37977 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -1779,7 +1779,7 @@ struct zs_compact_control {
+ 	struct page *d_page;
+ 	 /* Starting object index within @s_page which used for live object
+ 	  * in the subpage. */
+-	int index;
++	int obj_idx;
+ };
+ 
+ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
+@@ -1789,16 +1789,16 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
+ 	unsigned long handle;
+ 	struct page *s_page = cc->s_page;
+ 	struct page *d_page = cc->d_page;
+-	unsigned long index = cc->index;
++	int obj_idx = cc->obj_idx;
+ 	int ret = 0;
+ 
+ 	while (1) {
+-		handle = find_alloced_obj(class, s_page, index);
++		handle = find_alloced_obj(class, s_page, obj_idx);
+ 		if (!handle) {
+ 			s_page = get_next_page(s_page);
+ 			if (!s_page)
+ 				break;
+-			index = 0;
++			obj_idx = 0;
+ 			continue;
+ 		}
+ 
+@@ -1812,7 +1812,7 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
+ 		used_obj = handle_to_obj(handle);
+ 		free_obj = obj_malloc(class, get_zspage(d_page), handle);
+ 		zs_object_copy(class, free_obj, used_obj);
+-		index++;
++		obj_idx++;
+ 		/*
+ 		 * record_obj updates handle's value to free_obj and it will
+ 		 * invalidate lock bit(ie, HANDLE_PIN_BIT) of handle, which
+@@ -1827,7 +1827,7 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
+ 
+ 	/* Remember last position in this iteration */
+ 	cc->s_page = s_page;
+-	cc->index = index;
++	cc->obj_idx = obj_idx;
+ 
+ 	return ret;
+ }
+@@ -2282,7 +2282,7 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
+ 		if (!zs_can_compact(class))
+ 			break;
+ 
+-		cc.index = 0;
++		cc.obj_idx = 0;
+ 		cc.s_page = get_first_page(src_zspage);
+ 
+ 		while ((dst_zspage = isolate_zspage(class, false))) {
 -- 
-Michal Hocko
-SUSE Labs
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
