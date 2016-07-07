@@ -1,42 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EFEAA6B0253
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 06:22:10 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id j134so13514464oib.1
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 03:22:10 -0700 (PDT)
-Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20093.outbound.protection.outlook.com. [40.107.2.93])
-        by mx.google.com with ESMTPS id i15si525524otd.79.2016.07.07.03.22.09
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BAED6B0253
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 06:27:29 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id a66so15142714wme.1
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 03:27:29 -0700 (PDT)
+Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
+        by mx.google.com with ESMTPS id y4si2236998wjh.3.2016.07.07.03.27.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 07 Jul 2016 03:22:10 -0700 (PDT)
-Subject: Re: [PATCH v5] mm, kasan: switch SLUB to stackdepot, enable memory
- quarantine for SLUB
-References: <1466617421-58518-1-git-send-email-glider@google.com>
- <577AF45A.5080503@oracle.com>
- <CAG_fn=WWWbeGkcxCnn37OBNjJiwVp=BHUeVX6T_5XACQQdJT5g@mail.gmail.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <577E2D8B.8060404@virtuozzo.com>
-Date: Thu, 7 Jul 2016 13:23:07 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Jul 2016 03:27:28 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 2C0C11C1ADA
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 11:27:28 +0100 (IST)
+Date: Thu, 7 Jul 2016 11:27:26 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 09/31] mm, vmscan: by default have direct reclaim only
+ shrink once per node
+Message-ID: <20160707102726.GS11498@techsingularity.net>
+References: <1467403299-25786-1-git-send-email-mgorman@techsingularity.net>
+ <1467403299-25786-10-git-send-email-mgorman@techsingularity.net>
+ <20160707014321.GD27987@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
-In-Reply-To: <CAG_fn=WWWbeGkcxCnn37OBNjJiwVp=BHUeVX6T_5XACQQdJT5g@mail.gmail.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20160707014321.GD27987@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>
-Cc: Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitriy Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Joonsoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, Kuthonuzo Luruo <kuthonuzo.luruo@hpe.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-
-
-On 07/07/2016 01:01 PM, Alexander Potapenko wrote:
-> Any idea which config option triggers this code path?
-> I don't see it with my config, and the config from kbuild doesn't boot for me.
-> (I'm trying to bisect the diff between them now)
+On Thu, Jul 07, 2016 at 10:43:22AM +0900, Joonsoo Kim wrote:
+> > @@ -2600,6 +2593,16 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+> >  			classzone_idx--;
+> >  
+> >  		/*
+> > +		 * Shrink each node in the zonelist once. If the zonelist is
+> > +		 * ordered by zone (not the default) then a node may be
+> > +		 * shrunk multiple times but in that case the user prefers
+> > +		 * lower zones being preserved
+> > +		 */
+> > +		if (zone->zone_pgdat == last_pgdat)
+> > +			continue;
+> > +		last_pgdat = zone->zone_pgdat;
+> > +
+> > +		/*
+> 
+> After this change, compaction_ready() which uses zone information
+> would be called with highest zone in node. So, if some lower zone in
+> that node is compaction-ready, we cannot stop the reclaim.
 > 
 
-Boot with slub_debug=FPZU.
+Yes. It only impacts direct reclaim but potentially it's an issue. I'll
+fix it.
 
-As I said before, check_pad_bytes() is broken. Sasha's problem very likely caused by it.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
