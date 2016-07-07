@@ -1,56 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f200.google.com (mail-ob0-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9504B6B0253
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 04:39:35 -0400 (EDT)
-Received: by mail-ob0-f200.google.com with SMTP id fq2so20695059obb.2
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 01:39:35 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id v131si1842296wmf.1.2016.07.07.01.39.34
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C00EF6B0253
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 04:42:02 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id a66so13142971wme.1
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 01:42:02 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id p6si1075805wjx.285.2016.07.07.01.42.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jul 2016 01:39:34 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id i4so3325470wmg.3
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 01:39:34 -0700 (PDT)
-Date: Thu, 7 Jul 2016 10:39:33 +0200
+        Thu, 07 Jul 2016 01:42:01 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id i4so3340422wmg.3
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 01:42:01 -0700 (PDT)
+Date: Thu, 7 Jul 2016 10:42:00 +0200
 From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [RFC PATCH 5/6] vhost, mm: make sure that oom_reaper doesn't
  reap memory read by vhost
-Message-ID: <20160707083932.GD5379@dhcp22.suse.cz>
+Message-ID: <20160707084159.GE5379@dhcp22.suse.cz>
 References: <1467365190-24640-1-git-send-email-mhocko@kernel.org>
  <1467365190-24640-6-git-send-email-mhocko@kernel.org>
  <20160703134719.GA28492@redhat.com>
  <20160703140904.GA26908@redhat.com>
+ <20160703151829.GA28667@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160703140904.GA26908@redhat.com>
+In-Reply-To: <20160703151829.GA28667@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>
 
-On Sun 03-07-16 17:09:04, Michael S. Tsirkin wrote:
+On Sun 03-07-16 17:18:29, Oleg Nesterov wrote:
 [...]
-> Having said all that, how about we just add some kind of per-mm
-> notifier list, and let vhost know that owner is going away so
-> it should stop looking at memory?
+> Or perhaps we can change oom_kill_process() to send SIGKILL to kthreads as
+> well, this should not have any effect unless kthread does allow_signal(SIGKILL),
+> then we can change vhost_worker() to catch SIGKILL and react somehow. Not sure
+> this is really possible.
 
-But this would have to be a synchronous operation from the oom killer,
-no? I would really like to reduce the number of external dependencies
-from the oom killer paths as much as possible. This is the whole point
-of these patches. If we have a notification mechanism, what would
-guarantee that the oom killer would make a forward progress if the
-notified end cannot continue (wait for a lock etc...)?
+But then we would have to check for the signal after every memory
+access no? This sounds much more error prone than the test being wrapped
+inside the copy_from... API to me.
 
-I do realize that a test per each memory access is not welcome that
-much. An alternative would be to hook the check into the page fault
-handler because then the overhead would be reduced only to the slowpath
-(from the copy_from_user POV). But then also non use_mm users would have
-to pay the price which is even less attractive.
-
-Another alternative would be disabling pagefaults when copying from the
-userspace. This would require that the memory is prefault when used
-which might be a problem for the current implementation.
 -- 
 Michal Hocko
 SUSE Labs
