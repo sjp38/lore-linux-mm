@@ -1,78 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0ABEC6B025E
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 11:39:00 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id c185so43411794qkd.1
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 08:39:00 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m185si2905313qkd.303.2016.07.07.08.38.59
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jul 2016 08:38:59 -0700 (PDT)
-Date: Thu, 7 Jul 2016 18:38:52 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [RFC PATCH 5/6] vhost, mm: make sure that oom_reaper doesn't
- reap memory read by vhost
-Message-ID: <20160707183848-mutt-send-email-mst@redhat.com>
-References: <1467365190-24640-1-git-send-email-mhocko@kernel.org>
- <1467365190-24640-6-git-send-email-mhocko@kernel.org>
- <20160703134719.GA28492@redhat.com>
- <20160703140904.GA26908@redhat.com>
- <20160703151829.GA28667@redhat.com>
- <20160703182254-mutt-send-email-mst@redhat.com>
- <20160703164723.GA30151@redhat.com>
- <20160703215250-mutt-send-email-mst@redhat.com>
- <20160707082811.GC5379@dhcp22.suse.cz>
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E160E6B0253
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 11:42:02 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id ib6so32015328pad.0
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 08:42:02 -0700 (PDT)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id s9si633790pay.67.2016.07.07.08.42.02
+        for <linux-mm@kvack.org>;
+        Thu, 07 Jul 2016 08:42:02 -0700 (PDT)
+Subject: Re: [PATCH 1/9] x86, pkeys: add fault handling for PF_PK page fault
+ bit
+References: <20160707124719.3F04C882@viggo.jf.intel.com>
+ <20160707124720.6E0DC397@viggo.jf.intel.com>
+ <20160707144027.GX11498@techsingularity.net>
+From: Dave Hansen <dave@sr71.net>
+Message-ID: <577E7848.3060908@sr71.net>
+Date: Thu, 7 Jul 2016 08:42:00 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160707082811.GC5379@dhcp22.suse.cz>
+In-Reply-To: <20160707144027.GX11498@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: linux-kernel@vger.kernel.org, x86@kernel.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, dave.hansen@linux.intel.com, arnd@arndb.de, hughd@google.com, viro@zeniv.linux.org.uk
 
-On Thu, Jul 07, 2016 at 10:28:12AM +0200, Michal Hocko wrote:
-> On Mon 04-07-16 00:17:55, Michael S. Tsirkin wrote:
-> > On Sun, Jul 03, 2016 at 06:47:23PM +0200, Oleg Nesterov wrote:
-> > > On 07/03, Michael S. Tsirkin wrote:
-> > > >
-> > > > On Sun, Jul 03, 2016 at 05:18:29PM +0200, Oleg Nesterov wrote:
-> > > > >
-> > > > > Well, we are going to kill all tasks which share this memory. I mean, ->mm.
-> > > > > If "sharing memory with another task" means, say, a file, then this memory
-> > > > > won't be unmapped (if shared).
-> > > > >
-> > > > > So let me ask again... Suppose, say, QEMU does VHOST_SET_OWNER and then we
-> > > > > unmap its (anonymous/non-shared) memory. Who else's memory can be corrupted?
-> > > >
-> > > > As you say, I mean anyone who shares memory with QEMU through a file.
-> > > 
-> > > And in this case vhost_worker() reads the anonymous memory of QEMU process,
-> > > not the memory which can be shared with another task, correct?
-> > > 
-> > > And if QEMU simply crashes, this can't affect anyone who shares memory with
-> > > QEMU through a file, yes?
-> > > 
-> > > Oleg.
-> > 
-> > Well no - the VM memory is not always anonymous memory. It can be an
-> > mmaped file.
+On 07/07/2016 07:40 AM, Mel Gorman wrote:
+> On Thu, Jul 07, 2016 at 05:47:20AM -0700, Dave Hansen wrote:
+>> From: Dave Hansen <dave.hansen@linux.intel.com>
+>> PF_PK means that a memory access violated the protection key
+>> access restrictions.  It is unconditionally an access_error()
+>> because the permissions set on the VMA don't matter (the PKRU
+>> value overrides it), and we never "resolve" PK faults (like
+>> how a COW can "resolve write fault).
+>>
+>> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 > 
-> Just to make sure we are all at the same page. I guess the scenario is
-> as follows. The owner of the mm has ring and other statefull information
-> in the private memory but consumers living with their own mm consume
-> some data from a shared memory segments (e.g. files). The worker would
-> misinterpret statefull information (zeros rather than the original
-> content) and would copy invalid/corrupted data to the consumer. Am I
-> correct?
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
+> An access fault gets propgated as SEGV_PKUERR. What happens if glibc
+> does not recognise it?
 
-
-Exactly.
+It passes it through to the handler without any side-effects.  I don't
+think it does anything differently with SEGV_* codes that it knows about
+vs. unknown ones.  The only negative side-effect that I can think of is
+that it won't have a nice error message for it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
