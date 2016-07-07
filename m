@@ -1,88 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D5866B0253
-	for <linux-mm@kvack.org>; Wed,  6 Jul 2016 21:39:57 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id x68so21303191ioi.0
-        for <linux-mm@kvack.org>; Wed, 06 Jul 2016 18:39:57 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id i1si995881ith.118.2016.07.06.18.39.55
-        for <linux-mm@kvack.org>;
-        Wed, 06 Jul 2016 18:39:56 -0700 (PDT)
-Date: Thu, 7 Jul 2016 10:43:22 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 09/31] mm, vmscan: by default have direct reclaim only
- shrink once per node
-Message-ID: <20160707014321.GD27987@js1304-P5Q-DELUXE>
-References: <1467403299-25786-1-git-send-email-mgorman@techsingularity.net>
- <1467403299-25786-10-git-send-email-mgorman@techsingularity.net>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 36E226B0253
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 00:35:22 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id g62so14138082pfb.3
+        for <linux-mm@kvack.org>; Wed, 06 Jul 2016 21:35:22 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id sp8si1885730pab.2.2016.07.06.21.35.20
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Jul 2016 21:35:21 -0700 (PDT)
+Message-ID: <577ddc09.e890420a.4e319.ffffc75cSMTPIN_ADDED_BROKEN@mx.google.com>
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [PATCH 9/9] mm: SLUB hardened usercopy support
+In-Reply-To: <1467843928-29351-10-git-send-email-keescook@chromium.org>
+References: <1467843928-29351-1-git-send-email-keescook@chromium.org> <1467843928-29351-10-git-send-email-keescook@chromium.org>
+Date: Thu, 07 Jul 2016 14:35:17 +1000
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1467403299-25786-10-git-send-email-mgorman@techsingularity.net>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org
+Cc: Rik van Riel <riel@redhat.com>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, x86@kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, lin@kvack.org, ux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
-On Fri, Jul 01, 2016 at 09:01:17PM +0100, Mel Gorman wrote:
-> Direct reclaim iterates over all zones in the zonelist and shrinking them
-> but this is in conflict with node-based reclaim.  In the default case,
-> only shrink once per node.
-> 
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> ---
->  mm/vmscan.c | 19 +++++++++++--------
->  1 file changed, 11 insertions(+), 8 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index b524d3b72527..34656173a670 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2552,14 +2552,6 @@ static inline bool compaction_ready(struct zone *zone, int order, int classzone_
->   * try to reclaim pages from zones which will satisfy the caller's allocation
->   * request.
->   *
-> - * We reclaim from a zone even if that zone is over high_wmark_pages(zone).
-> - * Because:
-> - * a) The caller may be trying to free *extra* pages to satisfy a higher-order
-> - *    allocation or
-> - * b) The target zone may be at high_wmark_pages(zone) but the lower zones
-> - *    must go *over* high_wmark_pages(zone) to satisfy the `incremental min'
-> - *    zone defense algorithm.
-> - *
->   * If a zone is deemed to be full of pinned pages then just give it a light
->   * scan then give up on it.
->   */
-> @@ -2571,6 +2563,7 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
->  	unsigned long nr_soft_scanned;
->  	gfp_t orig_mask;
->  	enum zone_type classzone_idx;
-> +	pg_data_t *last_pgdat = NULL;
+Kees Cook <keescook@chromium.org> writes:
+
+> Under CONFIG_HARDENED_USERCOPY, this adds object size checking to the
+> SLUB allocator to catch any copies that may span objects.
+>
+> Based on code from PaX and grsecurity.
+>
+> Signed-off-by: Kees Cook <keescook@chromium.org>
+
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 825ff4505336..0c8ace04f075 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -3614,6 +3614,33 @@ void *__kmalloc_node(size_t size, gfp_t flags, int node)
+>  EXPORT_SYMBOL(__kmalloc_node);
+>  #endif
 >  
->  	/*
->  	 * If the number of buffer_heads in the machine exceeds the maximum
-> @@ -2600,6 +2593,16 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
->  			classzone_idx--;
->  
->  		/*
-> +		 * Shrink each node in the zonelist once. If the zonelist is
-> +		 * ordered by zone (not the default) then a node may be
-> +		 * shrunk multiple times but in that case the user prefers
-> +		 * lower zones being preserved
-> +		 */
-> +		if (zone->zone_pgdat == last_pgdat)
-> +			continue;
-> +		last_pgdat = zone->zone_pgdat;
+> +#ifdef CONFIG_HARDENED_USERCOPY
+> +/*
+> + * Rejects objects that are incorrectly sized.
+> + *
+> + * Returns NULL if check passes, otherwise const char * to name of cache
+> + * to indicate an error.
+> + */
+> +const char *__check_heap_object(const void *ptr, unsigned long n,
+> +				struct page *page)
+> +{
+> +	struct kmem_cache *s;
+> +	unsigned long offset;
 > +
-> +		/*
+> +	/* Find object. */
+> +	s = page->slab_cache;
+> +
+> +	/* Find offset within object. */
+> +	offset = (ptr - page_address(page)) % s->size;
+> +
+> +	/* Allow address range falling entirely within object size. */
+> +	if (offset <= s->object_size && n <= s->object_size - offset)
+> +		return NULL;
+> +
+> +	return s->name;
+> +}
 
-After this change, compaction_ready() which uses zone information
-would be called with highest zone in node. So, if some lower zone in
-that node is compaction-ready, we cannot stop the reclaim.
+I gave this a quick spin on powerpc, it blew up immediately :)
 
-Thanks.
+  Brought up 16 CPUs
+  usercopy: kernel memory overwrite attempt detected to c0000001fe023868 (kmalloc-16) (9 bytes)
+  CPU: 8 PID: 103 Comm: kdevtmpfs Not tainted 4.7.0-rc3-00098-g09d9556ae5d1 #55
+  Call Trace:
+  [c0000001fa0cfb40] [c0000000009bdbe8] dump_stack+0xb0/0xf0 (unreliable)
+  [c0000001fa0cfb80] [c00000000029cf44] __check_object_size+0x74/0x320
+  [c0000001fa0cfc00] [c00000000005d4d0] copy_from_user+0x60/0xd4
+  [c0000001fa0cfc40] [c00000000022b6cc] memdup_user+0x5c/0xf0
+  [c0000001fa0cfc80] [c00000000022b90c] strndup_user+0x7c/0x110
+  [c0000001fa0cfcc0] [c0000000002d6c28] SyS_mount+0x58/0x180
+  [c0000001fa0cfd10] [c0000000005ee908] devtmpfsd+0x98/0x210
+  [c0000001fa0cfd80] [c0000000000df810] kthread+0x110/0x130
+  [c0000001fa0cfe30] [c0000000000095e8] ret_from_kernel_thread+0x5c/0x74
+
+SLUB tracing says:
+
+  TRACE kmalloc-16 alloc 0xc0000001fe023868 inuse=186 fp=0x          (null)
+
+Which is not 16-byte aligned, which seems to be caused by the red zone?
+The following patch fixes it for me, but I don't know SLUB enough to say
+if it's always correct.
+
+
+diff --git a/mm/slub.c b/mm/slub.c
+index 0c8ace04f075..66191ea4545a 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3630,6 +3630,9 @@ const char *__check_heap_object(const void *ptr, unsigned long n,
+ 	/* Find object. */
+ 	s = page->slab_cache;
+ 
++	/* Subtract red zone if enabled */
++	ptr = restore_red_left(s, ptr);
++
+ 	/* Find offset within object. */
+ 	offset = (ptr - page_address(page)) % s->size;
+ 
+cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
