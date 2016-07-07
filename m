@@ -1,193 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2423C6B0253
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 07:19:37 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id r190so16064741wmr.0
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 04:19:37 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k66si444923wmb.105.2016.07.07.04.19.35
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D10616B0253
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 07:26:23 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id i4so14689585wmg.2
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 04:26:23 -0700 (PDT)
+Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
+        by mx.google.com with ESMTPS id c127si667277wmd.112.2016.07.07.04.26.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 07 Jul 2016 04:19:35 -0700 (PDT)
-Date: Thu, 7 Jul 2016 13:19:34 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 2/8] mm,oom_reaper: Reduce find_lock_task_mm() usage.
-Message-ID: <20160707111933.GH5379@dhcp22.suse.cz>
-References: <201607031135.AAH95347.MVOHQtFJFLOOFS@I-love.SAKURA.ne.jp>
- <201607031137.HBF15174.HQJLOVMStFOFOF@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Jul 2016 04:26:22 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id 02FE11C2FF1
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 12:26:22 +0100 (IST)
+Date: Thu, 7 Jul 2016 12:26:20 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 31/31] mm, vmstat: Remove zone and node double accounting
+ by approximating retries
+Message-ID: <20160707112620.GV11498@techsingularity.net>
+References: <1467403299-25786-1-git-send-email-mgorman@techsingularity.net>
+ <1467403299-25786-32-git-send-email-mgorman@techsingularity.net>
+ <577D4A24.1090800@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <201607031137.HBF15174.HQJLOVMStFOFOF@I-love.SAKURA.ne.jp>
+In-Reply-To: <577D4A24.1090800@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, oleg@redhat.com, rientjes@google.com, vdavydov@parallels.com, mst@redhat.com
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Sun 03-07-16 11:37:33, Tetsuo Handa wrote:
-> >From 3be379c6b42a0901cd81fb2c743e321b6fbdec5b Mon Sep 17 00:00:00 2001
-> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Date: Sat, 2 Jul 2016 22:55:17 +0900
-> Subject: [PATCH 2/8] mm,oom_reaper: Reduce find_lock_task_mm() usage.
+On Wed, Jul 06, 2016 at 11:12:52AM -0700, Dave Hansen wrote:
+> On 07/01/2016 01:01 PM, Mel Gorman wrote:
+> > +#ifdef CONFIG_HIGHMEM
+> > +extern unsigned long highmem_file_pages;
+> > +
+> > +static inline void acct_highmem_file_pages(int zid, enum lru_list lru,
+> > +							int nr_pages)
+> > +{
+> > +	if (is_highmem_idx(zid) && is_file_lru(lru))
+> > +		highmem_file_pages += nr_pages;
+> > +}
+> > +#else
 > 
-> Since holding mm_struct with elevated mm_count for a second is harmless,
-> we can determine mm_struct and hold it upon entry of oom_reap_task().
-> This patch has no functional change. Future patch in this series will
-> eliminate find_lock_task_mm() usage from the OOM reaper.
+> Shouldn't highmem_file_pages technically be an atomic_t (or atomic64_t)?
+>  We could have highmem on two nodes which take two different LRU locks.
 
-OK, this seems to reduce the code size and makes the code more readable.
-
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/oom_kill.c | 79 ++++++++++++++++++++++++++++-------------------------------
->  1 file changed, 37 insertions(+), 42 deletions(-)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 16340f2..76c765e 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -451,12 +451,10 @@ static DECLARE_WAIT_QUEUE_HEAD(oom_reaper_wait);
->  static struct task_struct *oom_reaper_list;
->  static DEFINE_SPINLOCK(oom_reaper_lock);
->  
-> -static bool __oom_reap_task(struct task_struct *tsk)
-> +static bool __oom_reap_task(struct task_struct *tsk, struct mm_struct *mm)
->  {
->  	struct mmu_gather tlb;
->  	struct vm_area_struct *vma;
-> -	struct mm_struct *mm = NULL;
-> -	struct task_struct *p;
->  	struct zap_details details = {.check_swap_entries = true,
->  				      .ignore_dirty = true};
->  	bool ret = true;
-> @@ -477,22 +475,9 @@ static bool __oom_reap_task(struct task_struct *tsk)
->  	 */
->  	mutex_lock(&oom_lock);
->  
-> -	/*
-> -	 * Make sure we find the associated mm_struct even when the particular
-> -	 * thread has already terminated and cleared its mm.
-> -	 * We might have race with exit path so consider our work done if there
-> -	 * is no mm.
-> -	 */
-> -	p = find_lock_task_mm(tsk);
-> -	if (!p)
-> -		goto unlock_oom;
-> -	mm = p->mm;
-> -	atomic_inc(&mm->mm_count);
-> -	task_unlock(p);
-> -
->  	if (!down_read_trylock(&mm->mmap_sem)) {
->  		ret = false;
-> -		goto mm_drop;
-> +		goto unlock_oom;
->  	}
->  
->  	/*
-> @@ -502,7 +487,7 @@ static bool __oom_reap_task(struct task_struct *tsk)
->  	 */
->  	if (!mmget_not_zero(mm)) {
->  		up_read(&mm->mmap_sem);
-> -		goto mm_drop;
-> +		goto unlock_oom;
->  	}
->  
->  	tlb_gather_mmu(&tlb, mm, 0, -1);
-> @@ -550,8 +535,6 @@ static bool __oom_reap_task(struct task_struct *tsk)
->  	 * put the oom_reaper out of the way.
->  	 */
->  	mmput_async(mm);
-> -mm_drop:
-> -	mmdrop(mm);
->  unlock_oom:
->  	mutex_unlock(&oom_lock);
->  	return ret;
-> @@ -561,36 +544,45 @@ unlock_oom:
->  static void oom_reap_task(struct task_struct *tsk)
->  {
->  	int attempts = 0;
-> +	struct mm_struct *mm = NULL;
-> +	struct task_struct *p = find_lock_task_mm(tsk);
-> +
-> +	/*
-> +	 * Make sure we find the associated mm_struct even when the particular
-> +	 * thread has already terminated and cleared its mm.
-> +	 * We might have race with exit path so consider our work done if there
-> +	 * is no mm.
-> +	 */
-> +	if (!p)
-> +		goto done;
-> +	mm = p->mm;
-> +	atomic_inc(&mm->mm_count);
-> +	task_unlock(p);
->  
->  	/* Retry the down_read_trylock(mmap_sem) a few times */
-> -	while (attempts++ < MAX_OOM_REAP_RETRIES && !__oom_reap_task(tsk))
-> +	while (attempts++ < MAX_OOM_REAP_RETRIES && !__oom_reap_task(tsk, mm))
->  		schedule_timeout_idle(HZ/10);
->  
-> -	if (attempts > MAX_OOM_REAP_RETRIES) {
-> -		struct task_struct *p;
-> +	if (attempts <= MAX_OOM_REAP_RETRIES)
-> +		goto done;
->  
-> -		pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
-> -				task_pid_nr(tsk), tsk->comm);
-> +	pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
-> +		task_pid_nr(tsk), tsk->comm);
->  
-> -		/*
-> -		 * If we've already tried to reap this task in the past and
-> -		 * failed it probably doesn't make much sense to try yet again
-> -		 * so hide the mm from the oom killer so that it can move on
-> -		 * to another task with a different mm struct.
-> -		 */
-> -		p = find_lock_task_mm(tsk);
-> -		if (p) {
-> -			if (test_and_set_bit(MMF_OOM_NOT_REAPABLE, &p->mm->flags)) {
-> -				pr_info("oom_reaper: giving up pid:%d (%s)\n",
-> -						task_pid_nr(tsk), tsk->comm);
-> -				set_bit(MMF_OOM_REAPED, &p->mm->flags);
-> -			}
-> -			task_unlock(p);
-> -		}
-> -
-> -		debug_show_all_locks();
-> +	/*
-> +	 * If we've already tried to reap this task in the past and
-> +	 * failed it probably doesn't make much sense to try yet again
-> +	 * so hide the mm from the oom killer so that it can move on
-> +	 * to another task with a different mm struct.
-> +	 */
-> +	if (test_and_set_bit(MMF_OOM_NOT_REAPABLE, &mm->flags)) {
-> +		pr_info("oom_reaper: giving up pid:%d (%s)\n",
-> +			task_pid_nr(tsk), tsk->comm);
-> +		set_bit(MMF_OOM_REAPED, &mm->flags);
->  	}
-> +	debug_show_all_locks();
->  
-> +done:
->  	/*
->  	 * Clear TIF_MEMDIE because the task shouldn't be sitting on a
->  	 * reasonably reclaimable memory anymore or it is not a good candidate
-> @@ -602,6 +594,9 @@ static void oom_reap_task(struct task_struct *tsk)
->  
->  	/* Drop a reference taken by wake_oom_reaper */
->  	put_task_struct(tsk);
-> +	/* Drop a reference taken above. */
-> +	if (mm)
-> +		mmdrop(mm);
->  }
->  
->  static int oom_reaper(void *unused)
-> -- 
-> 1.8.3.1
+It would require a NUMA machine with highmem or very weird
+configurations but sure, atomic is safer.
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
