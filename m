@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 24EDA6B0263
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 05:32:04 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id x68so36039207ioi.0
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 02:32:04 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id t8si4400880ita.115.2016.07.07.02.31.51
+Received: from mail-ob0-f200.google.com (mail-ob0-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 60FA86B0264
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 05:32:06 -0400 (EDT)
+Received: by mail-ob0-f200.google.com with SMTP id da8so22837311obb.1
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 02:32:06 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id w144si2664205itc.63.2016.07.07.02.31.51
         for <linux-mm@kvack.org>;
         Thu, 07 Jul 2016 02:31:52 -0700 (PDT)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [RFC v2 06/13] lockdep: Apply crossrelease to completion
-Date: Thu,  7 Jul 2016 18:29:56 +0900
-Message-Id: <1467883803-29132-7-git-send-email-byungchul.park@lge.com>
+Subject: [RFC v2 13/13] lockdep: Add a document describing crossrelease feature
+Date: Thu,  7 Jul 2016 18:30:03 +0900
+Message-Id: <1467883803-29132-14-git-send-email-byungchul.park@lge.com>
 In-Reply-To: <1467883803-29132-1-git-send-email-byungchul.park@lge.com>
 References: <1467883803-29132-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,419 +19,478 @@ List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org
 Cc: tglx@linutronix.de, npiggin@kernel.dk, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-wait_for_complete() and its family can cause deadlock. Nevertheless, it
-cannot use the lock correntness validator because complete() will be
-called in different context from the context calling wait_for_complete(),
-which violates original lockdep's assumption.
-
-However, thanks to CONFIG_LOCKDEP_CROSSRELEASE, we can apply the lockdep
-detector to wait_for_complete() and complete(). Applied it.
+Crossrelease feature introduces new concept and data structure. Thus
+the document is necessary. So added it.
 
 Signed-off-by: Byungchul Park <byungchul.park@lge.com>
 ---
- include/linux/completion.h | 121 +++++++++++++++++++++++++++++++++++++++++----
- kernel/locking/lockdep.c   |  18 +++++++
- kernel/sched/completion.c  |  55 ++++++++++++---------
- lib/Kconfig.debug          |   8 +++
- 4 files changed, 169 insertions(+), 33 deletions(-)
+ Documentation/locking/crossrelease.txt | 457 +++++++++++++++++++++++++++++++++
+ 1 file changed, 457 insertions(+)
+ create mode 100644 Documentation/locking/crossrelease.txt
 
-diff --git a/include/linux/completion.h b/include/linux/completion.h
-index 5d5aaae..67a27af 100644
---- a/include/linux/completion.h
-+++ b/include/linux/completion.h
-@@ -9,6 +9,9 @@
-  */
- 
- #include <linux/wait.h>
-+#ifdef CONFIG_LOCKDEP_COMPLETE
-+#include <linux/lockdep.h>
-+#endif
- 
- /*
-  * struct completion - structure used to maintain state for a "completion"
-@@ -25,10 +28,53 @@
- struct completion {
- 	unsigned int done;
- 	wait_queue_head_t wait;
-+#ifdef CONFIG_LOCKDEP_COMPLETE
-+	struct lockdep_map map;
-+	struct cross_lock xlock;
-+#endif
- };
- 
-+#ifdef CONFIG_LOCKDEP_COMPLETE
-+static inline void complete_acquire(struct completion *x)
-+{
-+	lock_acquire_exclusive(&x->map, 0, 0, NULL, _RET_IP_);
-+}
+diff --git a/Documentation/locking/crossrelease.txt b/Documentation/locking/crossrelease.txt
+new file mode 100644
+index 0000000..51b583b
+--- /dev/null
++++ b/Documentation/locking/crossrelease.txt
+@@ -0,0 +1,457 @@
++Crossrelease dependency check
++=============================
 +
-+static inline void complete_release(struct completion *x)
-+{
-+	lock_release(&x->map, 0, _RET_IP_);
-+}
++Started by Byungchul Park <byungchul.park@lge.com>
 +
-+static inline void complete_release_commit(struct completion *x)
-+{
-+	lock_commit_crosslock(&x->map);
-+}
++Contents:
 +
-+#define init_completion(x)				\
-+do {							\
-+	static struct lock_class_key __key;		\
-+	lockdep_init_map_crosslock(&(x)->map,		\
-+			&(x)->xlock,			\
-+			"(complete)" #x,		\
-+			&__key, 0);			\
-+	__init_completion(x);				\
-+} while (0)
-+#else
-+#define init_completion(x) __init_completion(x)
-+static inline void complete_acquire(struct completion *x, int try) {}
-+static inline void complete_release(struct completion *x) {}
-+static inline void complete_release_commit(struct completion *x) {}
-+#endif
++ (*) Introduction.
 +
-+#ifdef CONFIG_LOCKDEP_COMPLETE
-+#define COMPLETION_INITIALIZER(work) \
-+	{ 0, __WAIT_QUEUE_HEAD_INITIALIZER((work).wait), \
-+	STATIC_CROSS_LOCKDEP_MAP_INIT("(complete)" #work, &(work), \
-+	&(work).xlock), STATIC_CROSS_LOCK_INIT()}
-+#else
- #define COMPLETION_INITIALIZER(work) \
- 	{ 0, __WAIT_QUEUE_HEAD_INITIALIZER((work).wait) }
-+#endif
- 
- #define COMPLETION_INITIALIZER_ONSTACK(work) \
- 	({ init_completion(&work); work; })
-@@ -70,7 +116,7 @@ struct completion {
-  * This inline function will initialize a dynamically created completion
-  * structure.
-  */
--static inline void init_completion(struct completion *x)
-+static inline void __init_completion(struct completion *x)
- {
- 	x->done = 0;
- 	init_waitqueue_head(&x->wait);
-@@ -88,18 +134,75 @@ static inline void reinit_completion(struct completion *x)
- 	x->done = 0;
- }
- 
--extern void wait_for_completion(struct completion *);
--extern void wait_for_completion_io(struct completion *);
--extern int wait_for_completion_interruptible(struct completion *x);
--extern int wait_for_completion_killable(struct completion *x);
--extern unsigned long wait_for_completion_timeout(struct completion *x,
-+extern void __wait_for_completion(struct completion *);
-+extern void __wait_for_completion_io(struct completion *);
-+extern int __wait_for_completion_interruptible(struct completion *x);
-+extern int __wait_for_completion_killable(struct completion *x);
-+extern unsigned long __wait_for_completion_timeout(struct completion *x,
- 						   unsigned long timeout);
--extern unsigned long wait_for_completion_io_timeout(struct completion *x,
-+extern unsigned long __wait_for_completion_io_timeout(struct completion *x,
- 						    unsigned long timeout);
--extern long wait_for_completion_interruptible_timeout(
-+extern long __wait_for_completion_interruptible_timeout(
- 	struct completion *x, unsigned long timeout);
--extern long wait_for_completion_killable_timeout(
-+extern long __wait_for_completion_killable_timeout(
- 	struct completion *x, unsigned long timeout);
++     - What the lockdep checks.
 +
-+static inline void wait_for_completion(struct completion *x)
-+{
-+	complete_acquire(x);
-+	__wait_for_completion(x);
-+	complete_release(x);
-+}
++ (*) What is a problem?
 +
-+static inline void wait_for_completion_io(struct completion *x)
-+{
-+	complete_acquire(x);
-+	__wait_for_completion_io(x);
-+	complete_release(x);
-+}
++     - Examples.
++     - Lockdep's assumption.
++     - Lockdep's limitation.
 +
-+static inline int wait_for_completion_interruptible(struct completion *x)
-+{
-+	int ret;
-+	complete_acquire(x);
-+	ret = __wait_for_completion_interruptible(x);
-+	complete_release(x);
-+	return ret;
-+}
++ (*) How to solve the problem.
 +
-+static inline int wait_for_completion_killable(struct completion *x)
-+{
-+	int ret;
-+	complete_acquire(x);
-+	ret = __wait_for_completion_killable(x);
-+	complete_release(x);
-+	return ret;
-+}
++     - What causes deadlock?
++     - Relax the assumption.
++     - Relax the limitation.
 +
-+static inline unsigned long wait_for_completion_timeout(struct completion *x,
-+		unsigned long timeout)
-+{
-+	return __wait_for_completion_timeout(x, timeout);
-+}
++ (*) Implementation.
 +
-+static inline unsigned long wait_for_completion_io_timeout(struct completion *x,
-+		unsigned long timeout)
-+{
-+	return __wait_for_completion_io_timeout(x, timeout);
-+}
++     - Introduce crosslock.
++     - Introduce commit stage.
++     - Acquire vs commit vs release.
++     - Data structures.
 +
-+static inline long wait_for_completion_interruptible_timeout(
-+	struct completion *x, unsigned long timeout)
-+{
-+	return __wait_for_completion_interruptible_timeout(x, timeout);
-+}
++ (*) Optimizations.
 +
-+static inline long wait_for_completion_killable_timeout(
-+	struct completion *x, unsigned long timeout)
-+{
-+	return __wait_for_completion_killable_timeout(x, timeout);
-+}
 +
- extern bool try_wait_for_completion(struct completion *x);
- extern bool completion_done(struct completion *x);
- 
-diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-index 12903f9..ea19108 100644
---- a/kernel/locking/lockdep.c
-+++ b/kernel/locking/lockdep.c
-@@ -4694,6 +4694,12 @@ static void add_plock(struct held_lock *hlock, unsigned int prev_gen_id,
- 	}
- }
- 
-+#ifdef CONFIG_LOCKDEP_COMPLETE
-+static int xlock_might_onstack = 1;
-+#else
-+static int xlock_might_onstack = 0;
-+#endif
++============
++Introduction
++============
 +
- /*
-  * No contention. Irq disable is only required.
-  */
-@@ -4774,6 +4780,15 @@ static void check_add_plock(struct held_lock *hlock)
- 	if (!dep_before(hlock) || check_dup_plock(hlock))
- 		return;
- 
-+	/*
-+	 * If a xlock instance is on stack, it can be
-+	 * overwritten randomly after escaping the
-+	 * stack fraem, so we cannot refer rcu protected
-+	 * list without holding lock.
-+	 */
-+	if (xlock_might_onstack && !graph_lock())
-+		return;
++What the lockdep checks
++-----------------------
 +
- 	gen_id = (unsigned int)atomic_read(&cross_gen_id);
- 	gen_id_e = gen_id_done();
- 	start = current->held_locks;
-@@ -4797,6 +4812,9 @@ static void check_add_plock(struct held_lock *hlock)
- 			break;
- 		}
- 	}
++Lockdep checks dependency between locks and reports it if a deadlock
++possibility is detected in advance or if an actual deadlock occures at
++the time checking it.
 +
-+	if (xlock_might_onstack)
-+		graph_unlock();
- }
- 
- /*
-diff --git a/kernel/sched/completion.c b/kernel/sched/completion.c
-index 8d0f35d..b695699 100644
---- a/kernel/sched/completion.c
-+++ b/kernel/sched/completion.c
-@@ -31,6 +31,11 @@ void complete(struct completion *x)
- 	unsigned long flags;
- 
- 	spin_lock_irqsave(&x->wait.lock, flags);
-+	/*
-+	 * Actual lock dependency building should be
-+	 * performed when complete() is called.
-+	 */
-+	complete_release_commit(x);
- 	x->done++;
- 	__wake_up_locked(&x->wait, TASK_NORMAL, 1);
- 	spin_unlock_irqrestore(&x->wait.lock, flags);
-@@ -108,7 +113,7 @@ wait_for_common_io(struct completion *x, long timeout, int state)
- }
- 
- /**
-- * wait_for_completion: - waits for completion of a task
-+ * __wait_for_completion: - waits for completion of a task
-  * @x:  holds the state of this particular completion
-  *
-  * This waits to be signaled for completion of a specific task. It is NOT
-@@ -117,14 +122,14 @@ wait_for_common_io(struct completion *x, long timeout, int state)
-  * See also similar routines (i.e. wait_for_completion_timeout()) with timeout
-  * and interrupt capability. Also see complete().
-  */
--void __sched wait_for_completion(struct completion *x)
-+void __sched __wait_for_completion(struct completion *x)
- {
- 	wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_UNINTERRUPTIBLE);
- }
--EXPORT_SYMBOL(wait_for_completion);
-+EXPORT_SYMBOL(__wait_for_completion);
- 
- /**
-- * wait_for_completion_timeout: - waits for completion of a task (w/timeout)
-+ * __wait_for_completion_timeout: - waits for completion of a task (w/timeout)
-  * @x:  holds the state of this particular completion
-  * @timeout:  timeout value in jiffies
-  *
-@@ -136,28 +141,28 @@ EXPORT_SYMBOL(wait_for_completion);
-  * till timeout) if completed.
-  */
- unsigned long __sched
--wait_for_completion_timeout(struct completion *x, unsigned long timeout)
-+__wait_for_completion_timeout(struct completion *x, unsigned long timeout)
- {
- 	return wait_for_common(x, timeout, TASK_UNINTERRUPTIBLE);
- }
--EXPORT_SYMBOL(wait_for_completion_timeout);
-+EXPORT_SYMBOL(__wait_for_completion_timeout);
- 
- /**
-- * wait_for_completion_io: - waits for completion of a task
-+ * __wait_for_completion_io: - waits for completion of a task
-  * @x:  holds the state of this particular completion
-  *
-  * This waits to be signaled for completion of a specific task. It is NOT
-  * interruptible and there is no timeout. The caller is accounted as waiting
-  * for IO (which traditionally means blkio only).
-  */
--void __sched wait_for_completion_io(struct completion *x)
-+void __sched __wait_for_completion_io(struct completion *x)
- {
- 	wait_for_common_io(x, MAX_SCHEDULE_TIMEOUT, TASK_UNINTERRUPTIBLE);
- }
--EXPORT_SYMBOL(wait_for_completion_io);
-+EXPORT_SYMBOL(__wait_for_completion_io);
- 
- /**
-- * wait_for_completion_io_timeout: - waits for completion of a task (w/timeout)
-+ * __wait_for_completion_io_timeout: - waits for completion of a task (w/timeout)
-  * @x:  holds the state of this particular completion
-  * @timeout:  timeout value in jiffies
-  *
-@@ -170,14 +175,14 @@ EXPORT_SYMBOL(wait_for_completion_io);
-  * till timeout) if completed.
-  */
- unsigned long __sched
--wait_for_completion_io_timeout(struct completion *x, unsigned long timeout)
-+__wait_for_completion_io_timeout(struct completion *x, unsigned long timeout)
- {
- 	return wait_for_common_io(x, timeout, TASK_UNINTERRUPTIBLE);
- }
--EXPORT_SYMBOL(wait_for_completion_io_timeout);
-+EXPORT_SYMBOL(__wait_for_completion_io_timeout);
- 
- /**
-- * wait_for_completion_interruptible: - waits for completion of a task (w/intr)
-+ * __wait_for_completion_interruptible: - waits for completion of a task (w/intr)
-  * @x:  holds the state of this particular completion
-  *
-  * This waits for completion of a specific task to be signaled. It is
-@@ -185,17 +190,18 @@ EXPORT_SYMBOL(wait_for_completion_io_timeout);
-  *
-  * Return: -ERESTARTSYS if interrupted, 0 if completed.
-  */
--int __sched wait_for_completion_interruptible(struct completion *x)
-+int __sched __wait_for_completion_interruptible(struct completion *x)
- {
- 	long t = wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_INTERRUPTIBLE);
++The former is more valuable because the possibility detection without
++lockdep is much harder. When an actual deadlock occures, we can identify
++what happens in the system by some means or other, even without lockdep.
 +
- 	if (t == -ERESTARTSYS)
- 		return t;
- 	return 0;
- }
--EXPORT_SYMBOL(wait_for_completion_interruptible);
-+EXPORT_SYMBOL(__wait_for_completion_interruptible);
- 
- /**
-- * wait_for_completion_interruptible_timeout: - waits for completion (w/(to,intr))
-+ * __wait_for_completion_interruptible_timeout: - waits for completion (w/(to,intr))
-  * @x:  holds the state of this particular completion
-  * @timeout:  timeout value in jiffies
-  *
-@@ -206,15 +212,15 @@ EXPORT_SYMBOL(wait_for_completion_interruptible);
-  * or number of jiffies left till timeout) if completed.
-  */
- long __sched
--wait_for_completion_interruptible_timeout(struct completion *x,
-+__wait_for_completion_interruptible_timeout(struct completion *x,
- 					  unsigned long timeout)
- {
- 	return wait_for_common(x, timeout, TASK_INTERRUPTIBLE);
- }
--EXPORT_SYMBOL(wait_for_completion_interruptible_timeout);
-+EXPORT_SYMBOL(__wait_for_completion_interruptible_timeout);
- 
- /**
-- * wait_for_completion_killable: - waits for completion of a task (killable)
-+ * __wait_for_completion_killable: - waits for completion of a task (killable)
-  * @x:  holds the state of this particular completion
-  *
-  * This waits to be signaled for completion of a specific task. It can be
-@@ -222,17 +228,18 @@ EXPORT_SYMBOL(wait_for_completion_interruptible_timeout);
-  *
-  * Return: -ERESTARTSYS if interrupted, 0 if completed.
-  */
--int __sched wait_for_completion_killable(struct completion *x)
-+int __sched __wait_for_completion_killable(struct completion *x)
- {
- 	long t = wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_KILLABLE);
++It checks dependency between locks (exactly lock classes, see
++Documentation/locking/lockdep-design.txt for more) and builds the
++relationship between them when the lock is acquired. Eventually it forms
++the global dependency graph which connects between related locks based
++on dependency they have, like e.g.
 +
- 	if (t == -ERESTARTSYS)
- 		return t;
- 	return 0;
- }
--EXPORT_SYMBOL(wait_for_completion_killable);
-+EXPORT_SYMBOL(__wait_for_completion_killable);
- 
- /**
-- * wait_for_completion_killable_timeout: - waits for completion of a task (w/(to,killable))
-+ * __wait_for_completion_killable_timeout: - waits for completion of a task (w/(to,killable))
-  * @x:  holds the state of this particular completion
-  * @timeout:  timeout value in jiffies
-  *
-@@ -244,12 +251,12 @@ EXPORT_SYMBOL(wait_for_completion_killable);
-  * or number of jiffies left till timeout) if completed.
-  */
- long __sched
--wait_for_completion_killable_timeout(struct completion *x,
-+__wait_for_completion_killable_timeout(struct completion *x,
- 				     unsigned long timeout)
- {
- 	return wait_for_common(x, timeout, TASK_KILLABLE);
- }
--EXPORT_SYMBOL(wait_for_completion_killable_timeout);
-+EXPORT_SYMBOL(__wait_for_completion_killable_timeout);
- 
- /**
-  *	try_wait_for_completion - try to decrement a completion without blocking
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index bb8bf88..b5946c7 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -1006,6 +1006,14 @@ config LOCKDEP_CROSSRELEASE
- 	 or wait_for_complete() can use lock correctness detector using
- 	 lockdep.
- 
-+config LOCKDEP_COMPLETE
-+	bool "Lock debugging: allow complete to use deadlock detector"
-+	select LOCKDEP_CROSSRELEASE
-+	default n
-+	help
-+	 A deadlock caused by wait and complete can be detected by lockdep
-+	 using crossrelease feature.
++A - B -       - F - G
++       \     /
++        - E -       - L
++       /     \     /
++C - D -       - H -
++                   \
++                    - I - K
++                   /
++                J -
 +
- config PROVE_LOCKING
- 	bool "Lock debugging: prove locking correctness"
- 	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
++where A, B, C,..., L are different lock classes.
++
++Lockdep basically works based on this global dependency graph. The more
++nodes it has, the stronger check can be performed.
++
++For example, lockdep can detect a deadlock when acquiring a C class lock
++while it already held a K class lock, because it forms a cycle which
++means deadlock, like
++
++A - B -       - F - G
++       \     /
++        - E -       - L
++       /     \     /
++C - D -       - H -
++|                  \
++|                   - I - K
++|                  /      |
++|               J -       |
+++-------------------------+
++
++where A, B, C,..., L are different lock classes.
++
++If any of nodes making up the cycle was not built into the graph, we
++cannot detect this kind of deadlock because there's no cycle. For
++example, it might be
++
++A - B -       - F - G
++       \     /
++        - E -       L
++       /
++C - D -
++|
++|                   - I - K
++|                  /      |
++|               J -       |
+++-------------------------+
++
++where A, B, C,..., L are different lock classes.
++
++Adding nodes and edges gives us additional opportunity to check if it
++causes deadlock or not, so makes the detection stronger.
++
++
++=================
++What is a problem
++=================
++
++Examples
++--------
++
++Can we detect deadlocks descriped below, with lockdep? No.
++
++Example 1)
++
++	PROCESS X	PROCESS Y
++	--------------	--------------
++	mutext_lock A
++			lock_page B
++	lock_page B
++			mutext_lock A // DEADLOCK
++	unlock_page B
++			mutext_unlock A
++	mutex_unlock A
++			unlock_page B
++
++We are not checking the dependency for lock_page() at all now.
++
++Example 2)
++
++	PROCESS X	PROCESS Y	PROCESS Z
++	--------------	--------------	--------------
++			mutex_lock A
++	lock_page B
++			lock_page B
++					mutext_lock A // DEADLOCK
++					mutext_unlock A
++					unlock_page B
++					(B was held by PROCESS X)
++			unlock_page B
++			mutex_unlock A
++
++We cannot detect this kind of deadlock with lockdep, even though we
++apply the dependency check using lockdep on lock_page().
++
++Example 3)
++
++	PROCESS X	PROCESS Y
++	--------------	--------------
++			mutex_lock A
++	mutex_lock A
++	mutex_unlock A
++			wait_for_complete B // DEADLOCK
++	complete B
++			mutex_unlock A
++
++wait_for_complete() and complete() also can cause a deadlock, however
++we cannot detect it with lockdep, either.
++
++
++lockdep's assumption
++--------------------
++
++Lockdep (not crossrelease featured one) assumes that,
++
++	A lock will be unlocked within the context holding the lock.
++
++Thus we can say that a lock has dependency with all locks being already
++in held_locks. So we can check dependency and build the dependency graph
++when acquiring it.
++
++
++lockdep's limitation
++--------------------
++
++It can be applied only to typical lock operations, e.g. spin_lock,
++mutex and so on. However, e.g. lock_page() cannot play with the lockdep
++thingy because it violates assumptions of lockdep, even though it's
++considered as a lock for the page access.
++
++In the view point of lockdep, it must be released within the context
++which held the lock, however, the page lock can be released by different
++context from the context which held it. Another example,
++wait_for_complete() and complete() are also the case by nature, which
++the lockdep cannot deal with.
++
++
++========================
++How to solve the problem
++========================
++
++What causes deadlock
++--------------------
++
++Not only lock operations, but also any operations causing to wait or
++spin for something can cause deadlock unless it's eventually *released*
++by someone. The important point here is that the waiting or spinning
++must be *released* by someone. In other words, we have to focus whether
++the waiting or spinning can be *released* or not to check a deadlock
++possibility, rather than the waiting or spinning itself.
++
++In this point of view, typical lock is a special case where the acquire
++context is same as the release context, so no matter in which context
++the checking is performed for typical lock.
++
++Of course, in order to be able to report deadlock imediately at the time
++real deadlock actually occures, the checking must be performed before
++actual blocking or spinning happens when acquiring it. However, deadlock
++*possibility* can be detected and reported even the checking is done
++when releasing it, which means the time we can identify the release
++context.
++
++
++Relax the assumption
++--------------------
++
++Since whether waiting or spinning can be released or not is more
++important to check deadlock possibility as decribed above, we can relax
++the assumtion the lockdep has.
++
++	A lock can be unlocked in any context, unless the context
++	itself causes a deadlock e.g. acquiring a lock in irq-safe
++	context before releasing the lock in irq-unsafe context.
++
++A lock has dependency with all locks in the release context, having been
++held since the lock was held. Thus basically we can check the dependency
++only after we identify the release context at first. Of course, we can
++identify the release context at the time acquiring a lock for typical
++lock because the acquire context is same as the release context.
++
++However, generally if we cannot identify the release context at the time
++acquiring a lock, we have to wait until the lock having been held will
++be eventually released to identify the release context.
++
++
++Relax the limitation
++--------------------
++
++Given that the assumption is relaxed, we can check dependency and detect
++deadlock possibility not only for typical lock, but also for lock_page()
++using PG_locked, wait_for_xxx() and so on which might be released by
++different context from the context which held the lock.
++
++
++==============
++Implementation
++==============
++
++Introduce crosslock
++-------------------
++
++Crossrelease feature names a lock "crosslock" if it is releasable by a
++different context from the context which held the lock. All locks
++having been held in the context unlocking the crosslock, since the
++crosslock was held until eventually it's unlocked, have dependency with
++the crosslock. That's the key idea to implement crossrelease feature.
++
++
++Introduce commit stage
++----------------------
++
++Crossrelease feature names it "commit", to check dependency and build
++the dependency graph and chain in batches. Lockdep already performs what
++the commit does, when acquiring a lock. This way it works for typical
++lock, since it's guarrented that the acquire context is same as the
++release context for that. However, that way must be changed for
++crosslock so that it identify the release context when releasing the
++crosslock and then performs the commit.
++
++Let's demonstrate it though several examples.
++
++The below is how the current lockdep works for typical lock. Note that
++context 1 == context 2 for typical lock.
++
++	CONTEXT 1	CONTEXT 2
++	acquiring A	releasing A
++	-------------	-------------
++	acquire A	acquire A
++
++	acquire B	acquire B -> build "A - B"
++
++	acquire C	acquire C -> build "A - C"
++
++	release C	release C
++
++	release B	release B
++
++	release A	release A
++
++After building "A - B", the dependency graph forms like,
++
++A - B
++
++And after building "A - C", the dependency graph forms like,
++
++    - B
++   /
++A -
++   \
++    - C
++
++What if we apply the commit to lockdep for typical lock? Of course, it's
++not necessary for typical lock. Just a example for what the commit does.
++
++	CONTEXT 1	CONTEXT 2
++	acquiring A	releasing A
++	-------------	-------------
++	acquire A	acquire A -> mark A started
++
++	acquire B	acquire B -> queue B
++
++	acquire C	acquire C -> queue C
++
++	release C	release C
++
++	release B	release B
++
++	release A	release A -> commit A (build "A - B", "A - C")
++
++After commiting A, the dependency graph forms like, at a time
++
++    - B
++   /
++A -
++   \
++    - C
++
++Here we can see both the former and the latter end in building a same
++dependency graph consisting of "A - B" and "A - C". Of course, the
++former can build the graph earlier than the latter, which means the
++former can detect a deadlock sooner, maybe, as soon as possible. So the
++former would be prefered if possible.
++
++Let's look at the way the commit works for crosslock.
++
++	CONTEXT 1	CONTEXT 2
++	acquiring A	releasing A
++	-------------	-------------
++	lock A
++	acquire A -> mark A started
++
++	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ <- serialized by some means
++
++			acquire X -> queue X
++			lock X
++	acquire B
++			release X
++	acquire C
++			acquire Y -> queue Y
++	release C
++			release Y
++	release B
++			release A -> commit A (build "A - X", "A - Y")
++
++where A is a crosslock and the others are typical locks.
++
++Since a crosslock is held, it starts to queue all candidates whenever
++acquiring typical lock, and keep it until finally it will be released.
++Then it can commit all proper candidates queued until now. In other
++words, it checks dependency and builds the dependency graph and chain
++at the commit stage.
++
++And it is serialized so that the sequence, A -> X -> Y can be seen,
++using atomic operations and proper barriers.
++
++
++Acquire vs commit vs release
++----------------------------
++
++What the lockdep should do in each stage to make it work even for
++crosslock is like, (Note that it does not change any current logic
++by which lockdep works, but only adds additional detection capability.)
++
++1. Acquire
++
++	1) For typical lock
++
++		It's queued into additional data structure so that the
++		commit stage can check depedndency and build the
++		dependency graph and chain with this later.
++
++	2) For crosslock
++
++		It's added to the global linked list so that the commit
++		stage can check dependency and build the dependency
++		graph and chain with this later.
++
++2. Commit
++
++	1) For typical lock
++
++		N/A.
++
++	2) For crosslock
++
++		It checks dependency and builds the dependency graph and
++		chain with data saved in the acquire stage. Here, we
++		establish dependency between the crosslock we are
++		unlocking now and all locks in that context, having been
++		held since the lock was held. Of course, it avoids
++		unnecessary checking and building as far as possible.
++
++3. Release
++
++	1) For typical lock
++
++		No change.
++
++	2) For crosslock
++
++		Just remove this crosslock from the global linked list,
++		to which the crosslock was added at acquire stage.
++		Release operation should be used with commit operation
++		together for crosslock.
++
++
++Data structures
++---------------
++
++Crossrelease feature introduces two new data structures.
++
++1. pend_lock (or plock)
++
++	This is for keeping locks waiting to be committed so that the
++	actual dependency graph and chain can be built in the commit
++	stage. Every task_struct has a pend_lock array to keep these
++	locks. pend_lock entry will be consumed and filled whenever
++	lock_acquire() is called for typical lock and will be flushed,
++	namely committed at proper time. And this array is managed by
++	circular buffer mean.
++
++2. cross_lock (or xlock)
++
++	This keeps some additional data only for crosslock. One
++	instance exists per one crosslock's lockdep_map.
++	lockdep_init_map_crosslock() should be used instead of
++	lockdep_init_map() to use a lock as a crosslock.
++
++
++=============
++Optimizations
++=============
++
++Adding a pend_lock is an operation which very frequently happened
++because it happens whenever a typical lock is acquired. So the operation
++is implemented locklessly using rcu mechanism if possible. Unfortunitly,
++we cannot apply this optimization if any object managed by rcu e.g.
++xlock is on stack or somewhere else where it can be freed or destroyed
++unpredictably.
++
++And chain cache for crosslock is also used to avoid unnecessary checking
++and building dependency, like how the lockdep is already doing for that
++purpose for typical lock.
++
 -- 
 1.9.1
 
