@@ -1,80 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EA3E6B0253
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 09:33:02 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id r190so18627519wmr.0
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 06:33:02 -0700 (PDT)
-Received: from mail-lf0-f66.google.com (mail-lf0-f66.google.com. [209.85.215.66])
-        by mx.google.com with ESMTPS id s2si2588672lfs.401.2016.07.07.06.33.01
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E12EA6B0253
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 10:03:23 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id a66so19295265wme.1
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 07:03:23 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w7si3104292wjf.146.2016.07.07.07.03.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jul 2016 06:33:01 -0700 (PDT)
-Received: by mail-lf0-f66.google.com with SMTP id w130so1458115lfd.2
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 06:33:01 -0700 (PDT)
-Date: Thu, 7 Jul 2016 15:32:59 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 1/6] oom: keep mm of the killed task available
-Message-ID: <20160707133259.GL5379@dhcp22.suse.cz>
-References: <1467365190-24640-1-git-send-email-mhocko@kernel.org>
- <1467365190-24640-2-git-send-email-mhocko@kernel.org>
- <201607031145.HIF90125.LMHQVFJOtOSOFF@I-love.SAKURA.ne.jp>
- <20160707082431.GB5379@dhcp22.suse.cz>
- <201607072048.JBE13074.FSOJVHLOFFMOtQ@I-love.SAKURA.ne.jp>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 07 Jul 2016 07:03:22 -0700 (PDT)
+Date: Thu, 7 Jul 2016 16:03:18 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 5/8] mm,oom: Remove unused signal_struct->oom_victims.
+Message-ID: <20160707140318.GM5379@dhcp22.suse.cz>
+References: <201607031135.AAH95347.MVOHQtFJFLOOFS@I-love.SAKURA.ne.jp>
+ <201607031140.GAF05212.tMFJFOOSLOQHVF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201607072048.JBE13074.FSOJVHLOFFMOtQ@I-love.SAKURA.ne.jp>
+In-Reply-To: <201607031140.GAF05212.tMFJFOOSLOQHVF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, oleg@redhat.com, rientjes@google.com, vdavydov@parallels.com
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, oleg@redhat.com, rientjes@google.com, vdavydov@parallels.com, mst@redhat.com
 
-On Thu 07-07-16 20:48:46, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Sun 03-07-16 11:45:34, Tetsuo Handa wrote:
-> > > Michal Hocko wrote:
-> > > > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > > > index 7d0a275df822..4ea4a649822d 100644
-> > > > --- a/mm/oom_kill.c
-> > > > +++ b/mm/oom_kill.c
-> > > > @@ -286,16 +286,17 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
-> > > >  	 * Don't allow any other task to have access to the reserves unless
-> > > >  	 * the task has MMF_OOM_REAPED because chances that it would release
-> > > >  	 * any memory is quite low.
-> > > > +	 * MMF_OOM_NOT_REAPABLE means that the oom_reaper backed off last time
-> > > > +	 * so let it try again.
-> > > >  	 */
-> > > >  	if (!is_sysrq_oom(oc) && atomic_read(&task->signal->oom_victims)) {
-> > > > -		struct task_struct *p = find_lock_task_mm(task);
-> > > > +		struct mm_struct *mm = task->signal->oom_mm;
-> > > >  		enum oom_scan_t ret = OOM_SCAN_ABORT;
-> > > >  
-> > > > -		if (p) {
-> > > > -			if (test_bit(MMF_OOM_REAPED, &p->mm->flags))
-> > > > -				ret = OOM_SCAN_CONTINUE;
-> > > > -			task_unlock(p);
-> > > > -		}
-> > > > +		if (test_bit(MMF_OOM_REAPED, &mm->flags))
-> > > > +			ret = OOM_SCAN_CONTINUE;
-> > > > +		else if (test_bit(MMF_OOM_NOT_REAPABLE, &mm->flags))
-> > > > +			ret = OOM_SCAN_SELECT;
-> > > 
-> > > I don't think this is useful.
-> > 
-> > Well, to be honest me neither but changing the retry logic is not in
-> > scope of this patch. It just preserved the existing logic. I guess we
-> > can get rid of it but that deserves a separate patch. The retry was
-> > implemented to cover unlikely stalls when the lock is held but as this
-> > hasn't ever been observed in the real life I would agree to remove it to
-> > simplify the code (even though it is literally few lines of code). I was
-> > probably overcautious when adding the flag.
-> > 
+On Sun 03-07-16 11:40:03, Tetsuo Handa wrote:
+> >From e2e22cd0c0c486d1aef01232fcc62b00fb01709f Mon Sep 17 00:00:00 2001
+> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Date: Sat, 2 Jul 2016 23:02:19 +0900
+> Subject: [PATCH 5/8] mm,oom: Remove unused signal_struct->oom_victims.
 > 
-> You mean reverting http://lkml.kernel.org/r/1466426628-15074-10-git-send-email-mhocko@kernel.org ?
+> Since OOM_SCAN_ABORT case was removed, we no longer need to use
+> signal_struct->oom_victims useless. Remove it.
 
-Yes, asuming that MMF_OOM_REAPED is set in that case of course.
+I would squash this one into the previous.
 
-[Skipping the rest as this is not related to this patch.]
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> ---
+>  include/linux/sched.h | 1 -
+>  mm/oom_kill.c         | 2 --
+>  2 files changed, 3 deletions(-)
+> 
+> diff --git a/include/linux/sched.h b/include/linux/sched.h
+> index 553af29..f472f27 100644
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -671,7 +671,6 @@ struct signal_struct {
+>  	atomic_t		sigcnt;
+>  	atomic_t		live;
+>  	int			nr_threads;
+> -	atomic_t oom_victims; /* # of TIF_MEDIE threads in this thread group */
+>  	struct list_head	thread_head;
+>  
+>  	wait_queue_head_t	wait_chldexit;	/* for wait4() */
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 734378a..55e0ffb 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -659,7 +659,6 @@ void mark_oom_victim(struct task_struct *tsk, struct oom_control *oc)
+>  	/* OOM killer might race with memcg OOM */
+>  	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
+>  		return;
+> -	atomic_inc(&tsk->signal->oom_victims);
+>  	/*
+>  	 * Since mark_oom_victim() is called from multiple threads,
+>  	 * connect this mm to oom_mm_list only if not yet connected.
+> @@ -693,7 +692,6 @@ void exit_oom_victim(struct task_struct *tsk)
+>  {
+>  	if (!test_and_clear_tsk_thread_flag(tsk, TIF_MEMDIE))
+>  		return;
+> -	atomic_dec(&tsk->signal->oom_victims);
+>  
+>  	if (!atomic_dec_return(&oom_victims))
+>  		wake_up_all(&oom_victims_wait);
+> -- 
+> 1.8.3.1
+
 -- 
 Michal Hocko
 SUSE Labs
