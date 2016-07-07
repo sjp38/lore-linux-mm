@@ -1,135 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BB9B6B0253
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 11:38:29 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id ib6so31897579pad.0
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 08:38:29 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id v76si4759232pfa.20.2016.07.07.08.38.27
-        for <linux-mm@kvack.org>;
-        Thu, 07 Jul 2016 08:38:28 -0700 (PDT)
-Subject: Re: [PATCH 5/9] x86, pkeys: allocation/free syscalls
-References: <20160707124719.3F04C882@viggo.jf.intel.com>
- <20160707124727.62F2BEE0@viggo.jf.intel.com>
- <20160707144017.GW11498@techsingularity.net>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <577E7762.1010003@intel.com>
-Date: Thu, 7 Jul 2016 08:38:10 -0700
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0ABEC6B025E
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 11:39:00 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id c185so43411794qkd.1
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 08:39:00 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id m185si2905313qkd.303.2016.07.07.08.38.59
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Jul 2016 08:38:59 -0700 (PDT)
+Date: Thu, 7 Jul 2016 18:38:52 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [RFC PATCH 5/6] vhost, mm: make sure that oom_reaper doesn't
+ reap memory read by vhost
+Message-ID: <20160707183848-mutt-send-email-mst@redhat.com>
+References: <1467365190-24640-1-git-send-email-mhocko@kernel.org>
+ <1467365190-24640-6-git-send-email-mhocko@kernel.org>
+ <20160703134719.GA28492@redhat.com>
+ <20160703140904.GA26908@redhat.com>
+ <20160703151829.GA28667@redhat.com>
+ <20160703182254-mutt-send-email-mst@redhat.com>
+ <20160703164723.GA30151@redhat.com>
+ <20160703215250-mutt-send-email-mst@redhat.com>
+ <20160707082811.GC5379@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20160707144017.GW11498@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-15
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160707082811.GC5379@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: linux-kernel@vger.kernel.org, x86@kernel.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, dave.hansen@linux.intel.com, arnd@arndb.de, hughd@google.com, viro@zeniv.linux.org.uk
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>
 
-On 07/07/2016 07:40 AM, Mel Gorman wrote:
-> Ok, so the last patch wired up the system call before the kernel was
-> tracking which numbers were in use. It doesn't really matter as such but
-> the patches should be swapped around and only expose the systemcall when
-> it's actually safe.
-
-I can do that.
-
->> These system calls are also very important given the kernel's use
->> of pkeys to implement execute-only support.  These help ensure
->> that userspace can never assume that it has control of a key
->> unless it first asks the kernel.
->>
->> The 'init_access_rights' argument to pkey_alloc() specifies the
->> rights that will be established for the returned pkey.  For
->> instance:
->>
->> 	pkey = pkey_alloc(flags, PKEY_DENY_WRITE);
->>
->> will allocate 'pkey', but also sets the bits in PKRU[1] such that
->> writing to 'pkey' is already denied.  This keeps userspace from
->> needing to have knowledge about manipulating PKRU with the
->> RDPKRU/WRPKRU instructions.  Userspace is still free to use these
->> instructions as it wishes, but this facility ensures it is no
->> longer required.
->>
->> The kernel does _not_ enforce that this interface must be used for
->> changes to PKRU, even for keys it does not control.
->>
->> The kernel does not prevent pkey_free() from successfully freeing
->> in-use pkeys (those still assigned to a memory range by
->> pkey_mprotect()).  It would be expensive to implement the checks
->> for this, so we instead say, "Just don't do it" since sane
->> software will never do it anyway.
+On Thu, Jul 07, 2016 at 10:28:12AM +0200, Michal Hocko wrote:
+> On Mon 04-07-16 00:17:55, Michael S. Tsirkin wrote:
+> > On Sun, Jul 03, 2016 at 06:47:23PM +0200, Oleg Nesterov wrote:
+> > > On 07/03, Michael S. Tsirkin wrote:
+> > > >
+> > > > On Sun, Jul 03, 2016 at 05:18:29PM +0200, Oleg Nesterov wrote:
+> > > > >
+> > > > > Well, we are going to kill all tasks which share this memory. I mean, ->mm.
+> > > > > If "sharing memory with another task" means, say, a file, then this memory
+> > > > > won't be unmapped (if shared).
+> > > > >
+> > > > > So let me ask again... Suppose, say, QEMU does VHOST_SET_OWNER and then we
+> > > > > unmap its (anonymous/non-shared) memory. Who else's memory can be corrupted?
+> > > >
+> > > > As you say, I mean anyone who shares memory with QEMU through a file.
+> > > 
+> > > And in this case vhost_worker() reads the anonymous memory of QEMU process,
+> > > not the memory which can be shared with another task, correct?
+> > > 
+> > > And if QEMU simply crashes, this can't affect anyone who shares memory with
+> > > QEMU through a file, yes?
+> > > 
+> > > Oleg.
+> > 
+> > Well no - the VM memory is not always anonymous memory. It can be an
+> > mmaped file.
 > 
-> Unfortunately, it could manifest as either corruption due to an area
-> expected to be protected being accessible or an unexpected SEGV.
+> Just to make sure we are all at the same page. I guess the scenario is
+> as follows. The owner of the mm has ring and other statefull information
+> in the private memory but consumers living with their own mm consume
+> some data from a shared memory segments (e.g. files). The worker would
+> misinterpret statefull information (zeros rather than the original
+> content) and would copy invalid/corrupted data to the consumer. Am I
+> correct?
 > 
-> I accept the expensive arguement but it opens a new class of problems
-> that userspace debuggers will need to evaluate.
+> -- 
+> Michal Hocko
+> SUSE Labs
 
-Yeah.  I guess it would be good to have a debugging mechanism here at least.
 
->> +static inline
->> +bool mm_pkey_is_allocated(struct mm_struct *mm, unsigned long pkey)
->> +{
->> +	if (!validate_pkey(pkey))
->> +		return true;
->> +
->> +	return mm_pkey_allocation_map(mm) & (1 << pkey);
->> +}
->> +
-> 
-> We flip-flop between whether pkey is signed or unsigned.
-
-Yeah, I can add some consistency here, for sure.
-
->> +SYSCALL_DEFINE2(pkey_alloc, unsigned long, flags, unsigned long, init_val)
->> +{
->> +	int pkey;
->> +	int ret;
->> +
->> +	/* No flags supported yet. */
->> +	if (flags)
->> +		return -EINVAL;
->> +	/* check for unsupported init values */
->> +	if (init_val & ~PKEY_ACCESS_MASK)
->> +		return -EINVAL;
->> +
->> +	down_write(&current->mm->mmap_sem);
->> +	pkey = mm_pkey_alloc(current->mm);
->> +
->> +	ret = -ENOSPC;
->> +	if (pkey == -1)
->> +		goto out;
->> +
->> +	ret = arch_set_user_pkey_access(current, pkey, init_val);
->> +	if (ret) {
->> +		mm_pkey_free(current->mm, pkey);
->> +		goto out;
->> +	}
->> +	ret = pkey;
->> +out:
->> +	up_write(&current->mm->mmap_sem);
->> +	return ret;
->> +}
-> 
-> It's not wrong as such but mmap_sem taken for write seems *extremely*
-> heavy to protect the allocation mask. If userspace is racing a key
-> allocation with mprotect, it's already game over in terms of random
-> behaviour.
-> 
-> I've no idea what the frequency of pkey alloc/free is expected to be. If
-> it's really low then maybe it doesn't matter but if it's high this is
-> going to be a bottleneck later.
-
-I think pkey_alloc() is fundamentally less frequent than mprotect().  If
-you're doing a pkey_alloc() it's because you want to set it on at least
-one memory area, which means at least one mprotect().  So, at _worst_,
-it's 1:1.  If you've got more than one thing you're protecting, you'll
-have many mprotect()s for each pkey_alloc().
-
-The real reason I did this, though, was to avoid having _some_ other
-lock.  It'll cost more storage space, have more locking rules and I need
-exclusion against pkey_mprotect() which already holds mmap_sem for
-write.  IOW, I think this was the simplest thing to do.
+Exactly.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
