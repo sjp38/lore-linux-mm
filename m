@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A73CB6B0253
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 12:04:58 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id ib6so33106962pad.0
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 09:04:58 -0700 (PDT)
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 524866B0260
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 12:06:25 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id l202so48632154ioe.1
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 09:06:25 -0700 (PDT)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id m87si4555834pfi.190.2016.07.07.09.04.57
+        by mx.google.com with ESMTPS id 185si38764oia.232.2016.07.07.09.06.24
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 07 Jul 2016 09:04:57 -0700 (PDT)
-Subject: [PATCH 4/6] mm,oom_reaper: Make OOM reaper use list of mm_struct.
+        Thu, 07 Jul 2016 09:06:24 -0700 (PDT)
+Subject: [PATCH 5/6] mm,oom: Remove OOM_SCAN_ABORT case and signal_struct->oom_victims.
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 References: <201607080058.BFI87504.JtFOOFQFVHSLOM@I-love.SAKURA.ne.jp>
 In-Reply-To: <201607080058.BFI87504.JtFOOFQFVHSLOM@I-love.SAKURA.ne.jp>
-Message-Id: <201607080104.JDA41505.OtOFMSLOQVJFHF@I-love.SAKURA.ne.jp>
-Date: Fri, 8 Jul 2016 01:04:46 +0900
+Message-Id: <201607080106.DCD82819.tJFHVLSOOQFMFO@I-love.SAKURA.ne.jp>
+Date: Fri, 8 Jul 2016 01:06:12 +0900
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
@@ -22,243 +22,133 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: akpm@linux-foundation.org, oleg@redhat.com, rientjes@google.com, vdavydov@parallels.com, mst@redhat.com, mhocko@suse.com, mhocko@kernel.org
 
->From acc85fdd36452e39bace6aa73b3aaa41bbe776a5 Mon Sep 17 00:00:00 2001
+>From 2da51204250a2f1127792f98c12436771c07b67d Mon Sep 17 00:00:00 2001
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Fri, 8 Jul 2016 00:39:36 +0900
-Subject: [PATCH 4/6] mm,oom_reaper: Make OOM reaper use list of mm_struct.
+Date: Fri, 8 Jul 2016 00:41:38 +0900
+Subject: [PATCH 5/6] mm,oom: Remove OOM_SCAN_ABORT case and signal_struct->oom_victims.
 
-Since OOM reaping is per mm_struct operation, it is natural to use
-list of mm_struct used by OOM victims. By using list of mm_struct,
-we can eliminate find_lock_task_mm() usage from the OOM reaper.
+Since oom_has_pending_mm() controls whether to select next OOM victim,
+we no longer need to abort OOM victim selection loop using OOM_SCAN_ABORT
+case. Also, since signal_struct->oom_victims was used only for allowing
+oom_scan_process_thread() to return OOM_SCAN_ABORT, we no longer need to
+use signal_struct->oom_victims.
 
 Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 ---
- include/linux/oom.h |   8 -----
- mm/memcontrol.c     |   1 -
- mm/oom_kill.c       | 100 +++++++++++++++-------------------------------------
- 3 files changed, 29 insertions(+), 80 deletions(-)
+ include/linux/oom.h   |  1 -
+ include/linux/sched.h |  1 -
+ mm/memcontrol.c       |  8 --------
+ mm/oom_kill.c         | 26 +-------------------------
+ 4 files changed, 1 insertion(+), 35 deletions(-)
 
 diff --git a/include/linux/oom.h b/include/linux/oom.h
-index bdcb331..cb3f041 100644
+index cb3f041..27be4ba 100644
 --- a/include/linux/oom.h
 +++ b/include/linux/oom.h
-@@ -72,14 +72,6 @@ static inline bool oom_task_origin(const struct task_struct *p)
+@@ -49,7 +49,6 @@ enum oom_constraint {
+ enum oom_scan_t {
+ 	OOM_SCAN_OK,		/* scan thread and find its badness */
+ 	OOM_SCAN_CONTINUE,	/* do not consider thread for oom kill */
+-	OOM_SCAN_ABORT,		/* abort the iteration and return */
+ 	OOM_SCAN_SELECT,	/* always select this thread first */
+ };
  
- extern void mark_oom_victim(struct task_struct *tsk);
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index c0efd80..2f57cf1c 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -670,7 +670,6 @@ struct signal_struct {
+ 	atomic_t		sigcnt;
+ 	atomic_t		live;
+ 	int			nr_threads;
+-	atomic_t oom_victims; /* # of TIF_MEDIE threads in this thread group */
+ 	struct list_head	thread_head;
  
--#ifdef CONFIG_MMU
--extern void wake_oom_reaper(struct task_struct *tsk);
--#else
--static inline void wake_oom_reaper(struct task_struct *tsk)
--{
--}
--#endif
--
- extern unsigned long oom_badness(struct task_struct *p,
- 		struct mem_cgroup *memcg, const nodemask_t *nodemask,
- 		unsigned long totalpages);
+ 	wait_queue_head_t	wait_chldexit;	/* for wait4() */
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 8f7a5b7..5043324 100644
+index 5043324..6afe1c5 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -1236,7 +1236,6 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
- 	 */
- 	if (task_will_free_mem(current)) {
- 		mark_oom_victim(current);
--		wake_oom_reaper(current);
- 		goto unlock;
- 	}
- 
+@@ -1262,14 +1262,6 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 				/* fall through */
+ 			case OOM_SCAN_CONTINUE:
+ 				continue;
+-			case OOM_SCAN_ABORT:
+-				css_task_iter_end(&it);
+-				mem_cgroup_iter_break(memcg, iter);
+-				if (chosen)
+-					put_task_struct(chosen);
+-				/* Set a dummy value to return "true". */
+-				chosen = (void *) 1;
+-				goto unlock;
+ 			case OOM_SCAN_OK:
+ 				break;
+ 			};
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 87e7ff3..223e1fe 100644
+index 223e1fe..b6b79ae 100644
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -471,8 +471,6 @@ bool process_shares_mm(struct task_struct *p, struct mm_struct *mm)
-  */
- static struct task_struct *oom_reaper_th;
- static DECLARE_WAIT_QUEUE_HEAD(oom_reaper_wait);
--static struct task_struct *oom_reaper_list;
--static DEFINE_SPINLOCK(oom_reaper_lock);
- 
- static bool __oom_reap_task(struct task_struct *tsk, struct mm_struct *mm)
- {
-@@ -543,30 +541,23 @@ static bool __oom_reap_task(struct task_struct *tsk, struct mm_struct *mm)
- }
- 
- #define MAX_OOM_REAP_RETRIES 10
--static void oom_reap_task(struct task_struct *tsk)
-+static void oom_reap_task(struct task_struct *tsk, struct mm_struct *mm)
- {
- 	int attempts = 0;
--	struct mm_struct *mm = NULL;
--	struct task_struct *p = find_lock_task_mm(tsk);
+@@ -304,25 +304,6 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
+ 		return OOM_SCAN_CONTINUE;
  
  	/*
--	 * Make sure we find the associated mm_struct even when the particular
--	 * thread has already terminated and cleared its mm.
--	 * We might have race with exit path so consider our work done if there
--	 * is no mm.
-+	 * Check MMF_OOM_REAPED in case oom_kill_process() found this mm
-+	 * pinned.
- 	 */
--	if (!p)
--		goto done;
--	mm = p->mm;
--	atomic_inc(&mm->mm_count);
--	task_unlock(p);
-+	if (test_bit(MMF_OOM_REAPED, &mm->flags))
-+		return;
- 
- 	/* Retry the down_read_trylock(mmap_sem) a few times */
- 	while (attempts++ < MAX_OOM_REAP_RETRIES && !__oom_reap_task(tsk, mm))
- 		schedule_timeout_idle(HZ/10);
- 
- 	if (attempts <= MAX_OOM_REAP_RETRIES)
--		goto done;
-+		return;
- 
- 	/* Ignore this mm because somebody can't call up_write(mmap_sem). */
- 	set_bit(MMF_OOM_REAPED, &mm->flags);
-@@ -574,25 +565,6 @@ static void oom_reap_task(struct task_struct *tsk)
- 	pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
- 		task_pid_nr(tsk), tsk->comm);
- 	debug_show_all_locks();
--
--done:
--	/*
--	 * Clear TIF_MEMDIE because the task shouldn't be sitting on a
--	 * reasonably reclaimable memory anymore or it is not a good candidate
--	 * for the oom victim right now because it cannot release its memory
--	 * itself nor by the oom reaper.
+-	 * This task already has access to memory reserves and is being killed.
+-	 * Don't allow any other task to have access to the reserves unless
+-	 * the task has MMF_OOM_REAPED because chances that it would release
+-	 * any memory is quite low.
 -	 */
--	tsk->oom_reaper_list = NULL;
--	exit_oom_victim(tsk);
+-	if (!is_sysrq_oom(oc) && atomic_read(&task->signal->oom_victims)) {
+-		struct task_struct *p = find_lock_task_mm(task);
+-		enum oom_scan_t ret = OOM_SCAN_ABORT;
 -
--	/* Drop a reference taken by wake_oom_reaper */
--	put_task_struct(tsk);
--	/* Drop references taken by mark_oom_victim() */
--	if (mm)
--		exit_oom_mm(mm);
--	/* Drop a reference taken above. */
--	if (mm)
--		mmdrop(mm);
- }
- 
- static int oom_reaper(void *unused)
-@@ -600,41 +572,31 @@ static int oom_reaper(void *unused)
- 	set_freezable();
- 
- 	while (true) {
--		struct task_struct *tsk = NULL;
--
--		wait_event_freezable(oom_reaper_wait, oom_reaper_list != NULL);
--		spin_lock(&oom_reaper_lock);
--		if (oom_reaper_list != NULL) {
--			tsk = oom_reaper_list;
--			oom_reaper_list = tsk->oom_reaper_list;
+-		if (p) {
+-			if (test_bit(MMF_OOM_REAPED, &p->mm->flags))
+-				ret = OOM_SCAN_CONTINUE;
+-			task_unlock(p);
 -		}
--		spin_unlock(&oom_reaper_lock);
 -
--		if (tsk)
--			oom_reap_task(tsk);
-+		struct mm_struct *mm;
-+		struct task_struct *victim;
-+
-+		wait_event_freezable(oom_reaper_wait,
-+				     !list_empty(&oom_mm_list));
-+		mutex_lock(&oom_lock);
-+		mm = list_first_entry(&oom_mm_list, struct mm_struct,
-+				      oom_mm.list);
-+		victim = mm->oom_mm.victim;
-+		/*
-+		 * Take a reference on current victim thread in case
-+		 * oom_reap_task() raced with mark_oom_victim() by
-+		 * other threads sharing this mm.
-+		 */
-+		get_task_struct(victim);
-+		mutex_unlock(&oom_lock);
-+		oom_reap_task(victim, mm);
-+		put_task_struct(victim);
-+		/* Drop references taken by mark_oom_victim() */
-+		exit_oom_mm(mm);
- 	}
- 
- 	return 0;
- }
- 
--void wake_oom_reaper(struct task_struct *tsk)
--{
--	if (!oom_reaper_th)
--		return;
+-		return ret;
+-	}
 -
--	/* tsk is already queued? */
--	if (tsk == oom_reaper_list || tsk->oom_reaper_list)
--		return;
--
--	get_task_struct(tsk);
--
--	spin_lock(&oom_reaper_lock);
--	tsk->oom_reaper_list = oom_reaper_list;
--	oom_reaper_list = tsk;
--	spin_unlock(&oom_reaper_lock);
--	wake_up(&oom_reaper_wait);
--}
--
- static int __init oom_init(void)
- {
- 	oom_reaper_th = kthread_run(oom_reaper, NULL, "oom_reaper");
-@@ -682,6 +644,9 @@ void mark_oom_victim(struct task_struct *tsk)
- 	if (!old_tsk) {
- 		atomic_inc(&mm->mm_count);
- 		list_add_tail(&mm->oom_mm.list, &oom_mm_list);
-+#ifdef CONFIG_MMU
-+		wake_up(&oom_reaper_wait);
-+#endif
- 	} else {
- 		put_task_struct(old_tsk);
- 	}
-@@ -826,7 +791,6 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 	unsigned int victim_points = 0;
- 	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
- 					      DEFAULT_RATELIMIT_BURST);
--	bool can_oom_reap = true;
- 
- 	/*
- 	 * If the task is already exiting, don't alarm the sysadmin or kill
-@@ -835,7 +799,6 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 	task_lock(p);
- 	if (task_will_free_mem(p)) {
- 		mark_oom_victim(p);
--		wake_oom_reaper(p);
- 		task_unlock(p);
- 		put_task_struct(p);
- 		return;
-@@ -925,7 +888,6 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 			 * memory might be still used. Hide the mm from the oom
- 			 * killer to guarantee OOM forward progress.
- 			 */
--			can_oom_reap = false;
- 			set_bit(MMF_OOM_REAPED, &mm->flags);
- 			pr_info("oom killer %d (%s) has mm pinned by %d (%s)\n",
- 					task_pid_nr(victim), victim->comm,
-@@ -936,9 +898,6 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 	}
- 	rcu_read_unlock();
- 
--	if (can_oom_reap)
--		wake_oom_reaper(victim);
--
- 	mmdrop(mm);
- 	put_task_struct(victim);
- }
-@@ -1014,7 +973,6 @@ bool out_of_memory(struct oom_control *oc)
+-	/*
+ 	 * If task is allocating a lot of memory and has been marked to be
+ 	 * killed first if it triggers an oom, then select it.
  	 */
- 	if (task_will_free_mem(current)) {
- 		mark_oom_victim(current);
--		wake_oom_reaper(current);
- 		return true;
- 	}
+@@ -354,9 +335,6 @@ static struct task_struct *select_bad_process(struct oom_control *oc,
+ 			/* fall through */
+ 		case OOM_SCAN_CONTINUE:
+ 			continue;
+-		case OOM_SCAN_ABORT:
+-			rcu_read_unlock();
+-			return (struct task_struct *)(-1UL);
+ 		case OOM_SCAN_OK:
+ 			break;
+ 		};
+@@ -626,7 +604,6 @@ void mark_oom_victim(struct task_struct *tsk)
+ 	/* OOM killer might race with memcg OOM */
+ 	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
+ 		return;
+-	atomic_inc(&tsk->signal->oom_victims);
+ 	/*
+ 	 * Make sure that the task is woken up from uninterruptible sleep
+ 	 * if it is frozen because OOM killer wouldn't be able to free
+@@ -659,7 +636,6 @@ void exit_oom_victim(struct task_struct *tsk)
+ {
+ 	if (!test_and_clear_tsk_thread_flag(tsk, TIF_MEMDIE))
+ 		return;
+-	atomic_dec(&tsk->signal->oom_victims);
  
+ 	if (!atomic_dec_return(&oom_victims))
+ 		wake_up_all(&oom_victims_wait);
+@@ -1012,7 +988,7 @@ bool out_of_memory(struct oom_control *oc)
+ 		dump_header(oc, NULL);
+ 		panic("Out of memory and no killable processes...\n");
+ 	}
+-	if (p && p != (void *)-1UL) {
++	if (p) {
+ 		oom_kill_process(oc, p, points, totalpages, "Out of memory");
+ 		/*
+ 		 * Give the killed process a good chance to exit before trying
 -- 
 1.8.3.1
 
