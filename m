@@ -1,71 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E1606B0253
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 13:41:11 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id ib6so37538591pad.0
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 10:41:11 -0700 (PDT)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id o128si4967976pfg.246.2016.07.07.10.33.01
-        for <linux-mm@kvack.org>;
-        Thu, 07 Jul 2016 10:33:07 -0700 (PDT)
-Subject: Re: [PATCH 6/9] x86, pkeys: add pkey set/get syscalls
-References: <20160707124719.3F04C882@viggo.jf.intel.com>
- <20160707124728.C1116BB1@viggo.jf.intel.com>
- <20160707144508.GZ11498@techsingularity.net>
-From: Dave Hansen <dave@sr71.net>
-Message-ID: <577E924C.6010406@sr71.net>
-Date: Thu, 7 Jul 2016 10:33:00 -0700
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 865D06B025E
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 13:41:32 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id n127so143264wme.1
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 10:41:32 -0700 (PDT)
+Received: from mail-wm0-x22a.google.com (mail-wm0-x22a.google.com. [2a00:1450:400c:c09::22a])
+        by mx.google.com with ESMTPS id uw2si3946171wjb.55.2016.07.07.10.41.31
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Jul 2016 10:41:31 -0700 (PDT)
+Received: by mail-wm0-x22a.google.com with SMTP id n127so25179987wme.1
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 10:41:31 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20160707144508.GZ11498@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-15
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1467909317.13253.17.camel@redhat.com>
+References: <1467843928-29351-1-git-send-email-keescook@chromium.org>
+ <1467843928-29351-2-git-send-email-keescook@chromium.org> <1467909317.13253.17.camel@redhat.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Thu, 7 Jul 2016 13:41:30 -0400
+Message-ID: <CAGXu5j+zxyPEfswD-03TDhuzxaG6itKsoc6-15rMuE+Sz3booA@mail.gmail.com>
+Subject: Re: [PATCH 1/9] mm: Hardened usercopy
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: linux-kernel@vger.kernel.org, x86@kernel.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, dave.hansen@linux.intel.com, arnd@arndb.de, hughd@google.com, viro@zeniv.linux.org.uk
+To: Rik van Riel <riel@redhat.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, "x86@kernel.org" <x86@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, linux-ia64@vger.kernel.org, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, sparclinux <sparclinux@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-On 07/07/2016 07:45 AM, Mel Gorman wrote:
-> On Thu, Jul 07, 2016 at 05:47:28AM -0700, Dave Hansen wrote:
->> > 
->> > From: Dave Hansen <dave.hansen@linux.intel.com>
->> > 
->> > This establishes two more system calls for protection key management:
->> > 
->> > 	unsigned long pkey_get(int pkey);
->> > 	int pkey_set(int pkey, unsigned long access_rights);
->> > 
->> > The return value from pkey_get() and the 'access_rights' passed
->> > to pkey_set() are the same format: a bitmask containing
->> > PKEY_DENY_WRITE and/or PKEY_DENY_ACCESS, or nothing set at all.
->> > 
->> > These can replace userspace's direct use of the new rdpkru/wrpkru
->> > instructions.
-...
-> This one feels like something that can or should be implemented in
-> glibc.
+On Thu, Jul 7, 2016 at 12:35 PM, Rik van Riel <riel@redhat.com> wrote:
+> On Wed, 2016-07-06 at 15:25 -0700, Kees Cook wrote:
+>>
+>> +     /* Allow kernel rodata region (if not marked as Reserved).
+>> */
+>> +     if (ptr >= (const void *)__start_rodata &&
+>> +         end <= (const void *)__end_rodata)
+>> +             return NULL;
+>>
+> One comment here.
+>
+> __check_object_size gets "to_user" as an argument.
+>
+> It may make sense to pass that to check_heap_object, and
+> only allow copy_to_user from rodata, never copy_from_user,
+> since that section should be read only.
 
-I generally agree, except that glibc doesn't have any visibility into
-whether a pkey is currently valid or not.
+Well, that's two votes for this extra check, but I'm still not sure
+since it may already be allowed by the Reserved check, but I can
+reorder things to _reject_ on rodata writes before the Reserved check,
+etc.
 
-> There is no real enforcement of the values yet looking them up or
-> setting them takes mmap_sem for write.
+I'll see what could work here...
 
-There are checks for mm_pkey_is_allocated().  That's the main thing
-these syscalls add on top of the raw instructions.
+-Kees
 
-> Applications that frequently get
-> called will get hammed into the ground with serialisation on mmap_sem
-> not to mention the cost of the syscall entry/exit.
+>
+>> +void __check_object_size(const void *ptr, unsigned long n, bool
+>> to_user)
+>> +{
+>>
+>
+> --
+>
+> All Rights Reversed.
 
-I think we can do both of them without mmap_sem, as long as we resign
-ourselves to this just being fundamentally racy (which it is already, I
-think).  But, is it worth performance-tuning things that we don't expect
-performance-sensitive apps to be using in the first place?  They'll just
-use the RDPKRU/WRPKRU instructions directly.
 
-Ingo, do you still feel strongly that these syscalls (pkey_set/get())
-should be included?  Of the 5, they're definitely the two with the
-weakest justification.
+
+-- 
+Kees Cook
+Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
