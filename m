@@ -1,133 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A48E6B0253
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 13:37:45 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id i4so21729943wmg.2
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 10:37:45 -0700 (PDT)
-Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
-        by mx.google.com with ESMTPS id y75si3996437wmc.75.2016.07.07.10.37.44
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jul 2016 10:37:44 -0700 (PDT)
-Received: by mail-wm0-x22f.google.com with SMTP id z126so157403555wme.0
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 10:37:44 -0700 (PDT)
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E1606B0253
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 13:41:11 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id ib6so37538591pad.0
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 10:41:11 -0700 (PDT)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id o128si4967976pfg.246.2016.07.07.10.33.01
+        for <linux-mm@kvack.org>;
+        Thu, 07 Jul 2016 10:33:07 -0700 (PDT)
+Subject: Re: [PATCH 6/9] x86, pkeys: add pkey set/get syscalls
+References: <20160707124719.3F04C882@viggo.jf.intel.com>
+ <20160707124728.C1116BB1@viggo.jf.intel.com>
+ <20160707144508.GZ11498@techsingularity.net>
+From: Dave Hansen <dave@sr71.net>
+Message-ID: <577E924C.6010406@sr71.net>
+Date: Thu, 7 Jul 2016 10:33:00 -0700
 MIME-Version: 1.0
-In-Reply-To: <3418914.byvl8Wuxlf@wuerfel>
-References: <1467843928-29351-1-git-send-email-keescook@chromium.org>
- <1467843928-29351-2-git-send-email-keescook@chromium.org> <3418914.byvl8Wuxlf@wuerfel>
-From: Kees Cook <keescook@chromium.org>
-Date: Thu, 7 Jul 2016 13:37:43 -0400
-Message-ID: <CAGXu5jLyBfqXJKxohHiZgztRVrFyqwbta1W_Dw6KyyGM3LzshQ@mail.gmail.com>
-Subject: Re: [PATCH 1/9] mm: Hardened usercopy
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20160707144508.GZ11498@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, LKML <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Linux-MM <linux-mm@kvack.org>, sparclinux <sparclinux@vger.kernel.org>, linux-ia64@vger.kernel.org, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-arch <linux-arch@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, Russell King <linux@armlinux.org.uk>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, PaX Team <pageexec@freemail.hu>, Mathias Krause <minipli@googlemail.com>, Fenghua Yu <fenghua.yu@intel.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Tony Luck <tony.luck@intel.com>, Andy Lutomirski <luto@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, Brad Spengler <spender@grsecurity.net>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Pekka Enberg <penberg@kernel.org>, Casey Schaufler <casey@schaufler-ca.com>, Andrew Morton <akpm@linux-foundation.org>, "David S. Miller" <davem@davemloft.net>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: linux-kernel@vger.kernel.org, x86@kernel.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, dave.hansen@linux.intel.com, arnd@arndb.de, hughd@google.com, viro@zeniv.linux.org.uk
 
-On Thu, Jul 7, 2016 at 4:01 AM, Arnd Bergmann <arnd@arndb.de> wrote:
-> On Wednesday, July 6, 2016 3:25:20 PM CEST Kees Cook wrote:
->> This is the start of porting PAX_USERCOPY into the mainline kernel. This
->> is the first set of features, controlled by CONFIG_HARDENED_USERCOPY. The
->> work is based on code by PaX Team and Brad Spengler, and an earlier port
->> from Casey Schaufler. Additional non-slab page tests are from Rik van Riel.
->>
->> This patch contains the logic for validating several conditions when
->> performing copy_to_user() and copy_from_user() on the kernel object
->> being copied to/from:
->> - address range doesn't wrap around
->> - address range isn't NULL or zero-allocated (with a non-zero copy size)
->> - if on the slab allocator:
->>   - object size must be less than or equal to copy size (when check is
->>     implemented in the allocator, which appear in subsequent patches)
->> - otherwise, object must not span page allocations
->> - if on the stack
->>   - object must not extend before/after the current process task
->>   - object must be contained by the current stack frame (when there is
->>     arch/build support for identifying stack frames)
->> - object must not overlap with kernel text
->>
->> Signed-off-by: Kees Cook <keescook@chromium.org>
->
-> Nice!
->
-> I have a few further thoughts, most of which have probably been
-> considered before:
->
->> +static inline const char *check_bogus_address(const void *ptr, unsigned long n)
->> +{
->> +     /* Reject if object wraps past end of memory. */
->> +     if (ptr + n < ptr)
->> +             return "<wrapped address>";
->> +
->> +     /* Reject if NULL or ZERO-allocation. */
->> +     if (ZERO_OR_NULL_PTR(ptr))
->> +             return "<null>";
->> +
->> +     return NULL;
->> +}
->
-> This checks against address (void*)16, but I guess on most architectures the
-> lowest possible kernel address is much higher. While there may not be much
-> that to exploit if the expected kernel address points to userland, forbidding
-> any obviously incorrect address that is outside of the kernel may be easier.
->
-> Even on architectures like s390 that start the kernel memory at (void *)0x0,
-> the lowest address to which we may want to do a copy_to_user would be much
-> higher than (void*)0x16.
+On 07/07/2016 07:45 AM, Mel Gorman wrote:
+> On Thu, Jul 07, 2016 at 05:47:28AM -0700, Dave Hansen wrote:
+>> > 
+>> > From: Dave Hansen <dave.hansen@linux.intel.com>
+>> > 
+>> > This establishes two more system calls for protection key management:
+>> > 
+>> > 	unsigned long pkey_get(int pkey);
+>> > 	int pkey_set(int pkey, unsigned long access_rights);
+>> > 
+>> > The return value from pkey_get() and the 'access_rights' passed
+>> > to pkey_set() are the same format: a bitmask containing
+>> > PKEY_DENY_WRITE and/or PKEY_DENY_ACCESS, or nothing set at all.
+>> > 
+>> > These can replace userspace's direct use of the new rdpkru/wrpkru
+>> > instructions.
+...
+> This one feels like something that can or should be implemented in
+> glibc.
 
-Yeah, that's worth exploring, but given the shenanigans around
-set_fs(), I'd like to leave this as-is, and we can add to these checks
-as we remove as much of the insane usage of set_fs().
+I generally agree, except that glibc doesn't have any visibility into
+whether a pkey is currently valid or not.
 
->> +
->> +     /* Allow kernel rodata region (if not marked as Reserved). */
->> +     if (ptr >= (const void *)__start_rodata &&
->> +         end <= (const void *)__end_rodata)
->> +             return NULL;
->
-> Should we explicitly forbid writing to rodata, or is it enough to
-> rely on page protection here?
+> There is no real enforcement of the values yet looking them up or
+> setting them takes mmap_sem for write.
 
-Hm, interesting. That's a very small check to add. My knee-jerk is to
-just leave it up to page protection. I'm on the fence. :)
+There are checks for mm_pkey_is_allocated().  That's the main thing
+these syscalls add on top of the raw instructions.
 
->
->> +     /* Allow kernel bss region (if not marked as Reserved). */
->> +     if (ptr >= (const void *)__bss_start &&
->> +         end <= (const void *)__bss_stop)
->> +             return NULL;
->
-> accesses to .data/.rodata/.bss are probably not performance critical,
-> so we could go further here and check the kallsyms table to ensure
-> that we are not spanning multiple symbols here.
+> Applications that frequently get
+> called will get hammed into the ground with serialisation on mmap_sem
+> not to mention the cost of the syscall entry/exit.
 
-Oh, interesting! Yeah, would you be willing to put together that patch
-and test it? I wonder if there are any cases where there are
-legitimate usercopys across multiple symbols.
+I think we can do both of them without mmap_sem, as long as we resign
+ourselves to this just being fundamentally racy (which it is already, I
+think).  But, is it worth performance-tuning things that we don't expect
+performance-sensitive apps to be using in the first place?  They'll just
+use the RDPKRU/WRPKRU instructions directly.
 
-> For stuff that is performance critical, should there be a way to
-> opt out of the checks, or do we assume it already uses functions
-> that avoid the checks? I looked at the file and network I/O path
-> briefly and they seem to use kmap_atomic() to get to the user pages
-> at least in some of the common cases (but I may well be missing
-> important ones).
-
-I don't want to start with an exemption here, so until such a case is
-found, I'd rather leave this as-is. That said, the primary protection
-here tends to be buggy lengths (which is why put/get_user() is
-untouched). For constant-sized copies, some checks could be skipped.
-In the second part of this protection (what I named
-CONFIG_HARDENED_USERCOPY_WHITELIST in the RFC version of this series),
-there are cases where we want to skip the whitelist checking since it
-is for a constant-sized copy the code understands is okay to pull out
-of an otherwise disallowed allocator object.
-
--Kees
-
--- 
-Kees Cook
-Chrome OS & Brillo Security
+Ingo, do you still feel strongly that these syscalls (pkey_set/get())
+should be included?  Of the 5, they're definitely the two with the
+weakest justification.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
