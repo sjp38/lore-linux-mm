@@ -1,92 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E76686B0253
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 06:58:12 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id i4so14150686wmg.2
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 03:58:12 -0700 (PDT)
-Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
-        by mx.google.com with ESMTPS id ck7si2301679wjc.148.2016.07.07.03.58.11
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EB586B0253
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 07:04:26 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id w130so9038844lfd.3
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 04:04:26 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 131si2768529wmj.63.2016.07.07.04.04.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jul 2016 03:58:11 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id 69E6C1C3030
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 11:58:11 +0100 (IST)
-Date: Thu, 7 Jul 2016 11:58:09 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 20/31] mm, vmscan: only wakeup kswapd once per node for
- the requested classzone
-Message-ID: <20160707105809.GU11498@techsingularity.net>
-References: <1467403299-25786-1-git-send-email-mgorman@techsingularity.net>
- <1467403299-25786-21-git-send-email-mgorman@techsingularity.net>
- <20160707012423.GC27987@js1304-P5Q-DELUXE>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 07 Jul 2016 04:04:24 -0700 (PDT)
+Date: Thu, 7 Jul 2016 13:04:20 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 0/8] Change OOM killer to use list of mm_struct.
+Message-ID: <20160707110419.GF5379@dhcp22.suse.cz>
+References: <201607031135.AAH95347.MVOHQtFJFLOOFS@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160707012423.GC27987@js1304-P5Q-DELUXE>
+In-Reply-To: <201607031135.AAH95347.MVOHQtFJFLOOFS@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, oleg@redhat.com, rientjes@google.com, vdavydov@parallels.com, mst@redhat.com
 
-On Thu, Jul 07, 2016 at 10:24:23AM +0900, Joonsoo Kim wrote:
-> On Fri, Jul 01, 2016 at 09:01:28PM +0100, Mel Gorman wrote:
-> > kswapd is woken when zones are below the low watermark but the wakeup
-> > decision is not taking the classzone into account.  Now that reclaim is
-> > node-based, it is only required to wake kswapd once per node and only if
-> > all zones are unbalanced for the requested classzone.
-> > 
-> > Note that one node might be checked multiple times if the zonelist is
-> > ordered by node because there is no cheap way of tracking what nodes have
-> > already been visited.  For zone-ordering, each node should be checked only
-> > once.
-> > 
-> > Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> > Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> > ---
-> >  mm/page_alloc.c |  8 ++++++--
-> >  mm/vmscan.c     | 13 +++++++++++--
-> >  2 files changed, 17 insertions(+), 4 deletions(-)
-> > 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 441f482bf9a2..2fe2fbb4f2ad 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -3410,10 +3410,14 @@ static void wake_all_kswapds(unsigned int order, const struct alloc_context *ac)
-> >  {
-> >  	struct zoneref *z;
-> >  	struct zone *zone;
-> > +	pg_data_t *last_pgdat = NULL;
-> >  
-> >  	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist,
-> > -						ac->high_zoneidx, ac->nodemask)
-> > -		wakeup_kswapd(zone, order, ac_classzone_idx(ac));
-> > +					ac->high_zoneidx, ac->nodemask) {
-> > +		if (last_pgdat != zone->zone_pgdat)
-> > +			wakeup_kswapd(zone, order, ac_classzone_idx(ac));
-> > +		last_pgdat = zone->zone_pgdat;
-> > +	}
-> >  }
+On Sun 03-07-16 11:35:56, Tetsuo Handa wrote:
+> This is my alternative proposal compared to what Michal posted at
+> http://lkml.kernel.org/r/1467365190-24640-1-git-send-email-mhocko@kernel.org .
 > 
-> In wakeup_kswapd(), there is a check if it is a populated zone or not.
-
-It's redundant.
-
-> If first zone in node is not a populated zone, wakeup_kswapd() would be
-> skipped. Though, I'm not sure if zonelist can include a un-populated
-> zone.
-
-Zonelists do not contain unpopulated zones.
-
-> Perhaps, moving populated zone check in wakeup_kswapd() to here
-> would be a safe code.
+> The series is based on top of linux-next-20160701 +
+> http://lkml.kernel.org/r/1467201562-6709-1-git-send-email-mhocko@kernel.org .
 > 
+> The key point of the series is [PATCH 3/8].
 
-If anything was going to happen to it, it should be deleted. It's a
-minor cleanup.
+I have only checked the diff between the whole patchset applied with
+what I have posted as an RFC last week, so I cannot comment on specific
+patches.  Let me summarize the differences between the two approaches
+though.
 
+My proposal adds a stable reference of the killed mm struct into the
+signal struct and most oom decisions can refer to this mm and its flags
+because signal struct life time exceeds its visible task_struct. We still
+need signal->oom_victims counter to catch different threads lifetime.
+
+Yours enqueues the mm to a linked list and has a similar effect with
+an advantage that signal->oom_victims is no longer needed because you
+have pulled the OOM_SCAN_ABORT out of select_bad_process to earlier
+{mem_cgroup_}out_of_memory and check existence of a compatible mm for
+the oom domain. This means that mm struct has to remember all the
+information that might be gone by the time we look at the enqueued mm
+again. This means a slightly larger memory foot print (nothing earth
+shattering though).
+
+That being said, I believe both approaches are sound. So let's discuss
+{ad,dis}vantages of those approaches.
+
+You are introducing more code but to be fair I guess the mm rather than
+task queuing is better long term. Copying the state for later use is
+unfortunate but it might turn out better to have all the oom specific
+stuff inside the mm rather than spread around in other structures.
+
+As I've said I haven't looked very deeply into details but at least
+memcg handling would need more work, I will respond to the specific
+patch.
+
+I guess the mm visibility is basically same with both approaches. Even
+though you hide the mm from __mmput while mine has it alive until signal
+struct goes away this is basically the equivalent because mine is hiding
+the mm with MMF_OOM_REAPED from the oom reaper and oom_reaper is just a
+weaker form of __mmput.
+
+I am not tight to my approach but could you name main arguments why you
+think yours is better?
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
