@@ -1,138 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BD134828E1
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 05:08:24 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id g18so7196686lfg.2
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 02:08:24 -0700 (PDT)
-Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
-        by mx.google.com with ESMTPS id kv8si573169wjb.294.2016.07.07.02.08.23
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jul 2016 02:08:23 -0700 (PDT)
-Received: by mail-wm0-x242.google.com with SMTP id 187so3941333wmz.1
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 02:08:23 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20160707074420.GE18072@bbox>
-References: <1467786233-4481-1-git-send-email-opensource.ganesh@gmail.com>
- <1467786233-4481-8-git-send-email-opensource.ganesh@gmail.com> <20160707074420.GE18072@bbox>
-From: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Date: Thu, 7 Jul 2016 17:08:22 +0800
-Message-ID: <CADAEsF-X8Jrff6cMUvvb320kkPZ-p5g6ZX23nck_=B=T75dW3w@mail.gmail.com>
-Subject: Re: [PATCH v3 8/8] mm/zsmalloc: add per-class compact trace event
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-ob0-f199.google.com (mail-ob0-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D34136B0253
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 05:31:52 -0400 (EDT)
+Received: by mail-ob0-f199.google.com with SMTP id fq2so22680434obb.2
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 02:31:52 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id b37si4832084iod.103.2016.07.07.02.31.51
+        for <linux-mm@kvack.org>;
+        Thu, 07 Jul 2016 02:31:52 -0700 (PDT)
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: [RFC v2 04/13] lockdep: Make save_trace can copy from other stack_trace
+Date: Thu,  7 Jul 2016 18:29:54 +0900
+Message-Id: <1467883803-29132-5-git-send-email-byungchul.park@lge.com>
+In-Reply-To: <1467883803-29132-1-git-send-email-byungchul.park@lge.com>
+References: <1467883803-29132-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, rostedt@goodmis.org, mingo@redhat.com
+To: peterz@infradead.org, mingo@kernel.org
+Cc: tglx@linutronix.de, npiggin@kernel.dk, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-2016-07-07 15:44 GMT+08:00 Minchan Kim <minchan@kernel.org>:
-> Hello Ganesh,
->
-> On Wed, Jul 06, 2016 at 02:23:53PM +0800, Ganesh Mahendran wrote:
->> add per-class compact trace event to get scanned objects and freed pages
->> number.
->> trace log is like below:
->> ----
->>          kswapd0-629   [001] ....   293.161053: zs_compact_start: pool zram0
->>          kswapd0-629   [001] ....   293.161056: zs_compact: class 254: 0 objects scanned, 0 pages freed
->>          kswapd0-629   [001] ....   293.161057: zs_compact: class 202: 0 objects scanned, 0 pages freed
->>          kswapd0-629   [001] ....   293.161062: zs_compact: class 190: 1 objects scanned, 3 pages freed
->>          kswapd0-629   [001] ....   293.161063: zs_compact: class 168: 0 objects scanned, 0 pages freed
->>          kswapd0-629   [001] ....   293.161065: zs_compact: class 151: 0 objects scanned, 0 pages freed
->>          kswapd0-629   [001] ....   293.161073: zs_compact: class 144: 4 objects scanned, 8 pages freed
->>          kswapd0-629   [001] ....   293.161087: zs_compact: class 126: 20 objects scanned, 10 pages freed
->>          kswapd0-629   [001] ....   293.161095: zs_compact: class 111: 6 objects scanned, 8 pages freed
->>          kswapd0-629   [001] ....   293.161122: zs_compact: class 107: 27 objects scanned, 27 pages freed
->>          kswapd0-629   [001] ....   293.161157: zs_compact: class 100: 36 objects scanned, 24 pages freed
->>          kswapd0-629   [001] ....   293.161173: zs_compact: class  94: 10 objects scanned, 15 pages freed
->>          kswapd0-629   [001] ....   293.161221: zs_compact: class  91: 30 objects scanned, 40 pages freed
->>          kswapd0-629   [001] ....   293.161256: zs_compact: class  83: 120 objects scanned, 30 pages freed
->>          kswapd0-629   [001] ....   293.161266: zs_compact: class  76: 8 objects scanned, 8 pages freed
->>          kswapd0-629   [001] ....   293.161282: zs_compact: class  74: 20 objects scanned, 15 pages freed
->>          kswapd0-629   [001] ....   293.161306: zs_compact: class  71: 40 objects scanned, 20 pages freed
->>          kswapd0-629   [001] ....   293.161313: zs_compact: class  67: 8 objects scanned, 6 pages freed
->> ...
->>          kswapd0-629   [001] ....   293.161454: zs_compact: class   0: 0 objects scanned, 0 pages freed
->>          kswapd0-629   [001] ....   293.161455: zs_compact_end: pool zram0: 301 pages compacted
->> ----
->>
->> Also this patch changes trace_zsmalloc_compact_start[end] to
->> trace_zs_compact_start[end] to keep function naming consistent
->> with others in zsmalloc.
->>
->> Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
->> ----
->> v3:
->>     add per-class compact trace event - Minchan
->>
->>     I put this patch from 1/8 to 8/8, since this patch depends on below patch:
->>        mm/zsmalloc: use obj_index to keep consistent with others
->>        mm/zsmalloc: take obj index back from find_alloced_obj
->>
->
-> Thanks for looking into this, Ganesh!
->
-> Small change I want is to see the number of migrated object rather than
-> the number of scanning object.
->
-> If you don't mind, could you resend it with below?
+Currently, save_trace() can only save current context's stack trace.
+However, it would be useful if it can save(copy from) another context's
+stack trace. Especially, it can be used by crossrelease feature.
 
-I will resend a patch.
+Signed-off-by: Byungchul Park <byungchul.park@lge.com>
+---
+ kernel/locking/lockdep.c | 22 ++++++++++++++--------
+ 1 file changed, 14 insertions(+), 8 deletions(-)
 
-Thanks.
-
->
-> Thanks.
->
-> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index 3a1315e54057..166232a0aed6 100644
-> --- a/mm/zsmalloc.c
-> +++ b/mm/zsmalloc.c
-> @@ -1774,7 +1774,7 @@ struct zs_compact_control {
->          * in the subpage. */
->         int obj_idx;
->
-> -       unsigned long nr_scanned_obj;
-> +       unsigned long nr_migrated_obj;
->         unsigned long nr_freed_pages;
->  };
->
-> @@ -1809,6 +1809,7 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
->                 free_obj = obj_malloc(class, get_zspage(d_page), handle);
->                 zs_object_copy(class, free_obj, used_obj);
->                 obj_idx++;
-> +               cc->nr_migrated_obj++;
->                 /*
->                  * record_obj updates handle's value to free_obj and it will
->                  * invalidate lock bit(ie, HANDLE_PIN_BIT) of handle, which
-> @@ -1821,8 +1822,6 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
->                 obj_free(class, used_obj);
->         }
->
-> -       cc->nr_scanned_obj += obj_idx - cc->obj_idx;
-> -
->         /* Remember last position in this iteration */
->         cc->s_page = s_page;
->         cc->obj_idx = obj_idx;
-> @@ -2270,7 +2269,7 @@ static unsigned long zs_can_compact(struct size_class *class)
->  static void __zs_compact(struct zs_pool *pool, struct size_class *class)
->  {
->         struct zs_compact_control cc = {
-> -               .nr_scanned_obj = 0,
-> +               .nr_migrated_obj = 0,
->                 .nr_freed_pages = 0,
->         };
->         struct zspage *src_zspage;
-> @@ -2317,7 +2316,7 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
->         spin_unlock(&class->lock);
->
->         pool->stats.pages_compacted += cc.nr_freed_pages;
-> -       trace_zs_compact(class->index, cc.nr_scanned_obj, cc.nr_freed_pages);
-> +       trace_zs_compact(class->index, cc.nr_migrated_obj, cc.nr_freed_pages);
->  }
->
->  unsigned long zs_compact(struct zs_pool *pool)
->
+diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
+index c596bef..b03014b 100644
+--- a/kernel/locking/lockdep.c
++++ b/kernel/locking/lockdep.c
+@@ -389,7 +389,7 @@ static void print_lockdep_off(const char *bug_msg)
+ #endif
+ }
+ 
+-static int save_trace(struct stack_trace *trace)
++static int save_trace(struct stack_trace *trace, struct stack_trace *copy)
+ {
+ 	trace->nr_entries = 0;
+ 	trace->max_entries = MAX_STACK_TRACE_ENTRIES - nr_stack_trace_entries;
+@@ -397,7 +397,13 @@ static int save_trace(struct stack_trace *trace)
+ 
+ 	trace->skip = 3;
+ 
+-	save_stack_trace(trace);
++	if (copy) {
++		trace->nr_entries = min(copy->nr_entries, trace->max_entries);
++		trace->skip = copy->skip;
++		memcpy(trace->entries, copy->entries,
++				trace->nr_entries * sizeof(unsigned long));
++	} else
++		save_stack_trace(trace);
+ 
+ 	/*
+ 	 * Some daft arches put -1 at the end to indicate its a full trace.
+@@ -1201,7 +1207,7 @@ static noinline int print_circular_bug(struct lock_list *this,
+ 	if (!debug_locks_off_graph_unlock() || debug_locks_silent)
+ 		return 0;
+ 
+-	if (!save_trace(&this->trace))
++	if (!save_trace(&this->trace, NULL))
+ 		return 0;
+ 
+ 	depth = get_lock_depth(target);
+@@ -1547,13 +1553,13 @@ print_bad_irq_dependency(struct task_struct *curr,
+ 
+ 	printk("\nthe dependencies between %s-irq-safe lock", irqclass);
+ 	printk(" and the holding lock:\n");
+-	if (!save_trace(&prev_root->trace))
++	if (!save_trace(&prev_root->trace, NULL))
+ 		return 0;
+ 	print_shortest_lock_dependencies(backwards_entry, prev_root);
+ 
+ 	printk("\nthe dependencies between the lock to be acquired");
+ 	printk(" and %s-irq-unsafe lock:\n", irqclass);
+-	if (!save_trace(&next_root->trace))
++	if (!save_trace(&next_root->trace, NULL))
+ 		return 0;
+ 	print_shortest_lock_dependencies(forwards_entry, next_root);
+ 
+@@ -1885,7 +1891,7 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
+ 	}
+ 
+ 	if (!own_trace && stack_saved && !*stack_saved) {
+-		if (!save_trace(&trace))
++		if (!save_trace(&trace, NULL))
+ 			return 0;
+ 		*stack_saved = 1;
+ 	}
+@@ -2436,7 +2442,7 @@ print_irq_inversion_bug(struct task_struct *curr,
+ 	lockdep_print_held_locks(curr);
+ 
+ 	printk("\nthe shortest dependencies between 2nd lock and 1st lock:\n");
+-	if (!save_trace(&root->trace))
++	if (!save_trace(&root->trace, NULL))
+ 		return 0;
+ 	print_shortest_lock_dependencies(other, root);
+ 
+@@ -3015,7 +3021,7 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
+ 
+ 	hlock_class(this)->usage_mask |= new_mask;
+ 
+-	if (!save_trace(hlock_class(this)->usage_traces + new_bit))
++	if (!save_trace(hlock_class(this)->usage_traces + new_bit, NULL))
+ 		return 0;
+ 
+ 	switch (new_bit) {
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
