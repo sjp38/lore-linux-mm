@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0481D6B026B
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 05:32:26 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id x68so36052180ioi.0
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 02:32:26 -0700 (PDT)
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E56966B026C
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 05:32:27 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id j185so39143940ith.0
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 02:32:27 -0700 (PDT)
 Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id y10si2718583iod.45.2016.07.07.02.32.21
+        by mx.google.com with ESMTP id c90si2750267ioa.243.2016.07.07.02.32.21
         for <linux-mm@kvack.org>;
         Thu, 07 Jul 2016 02:32:22 -0700 (PDT)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [RFC v2 07/13] pagemap.h: Remove trailing white space
-Date: Thu,  7 Jul 2016 18:29:57 +0900
-Message-Id: <1467883803-29132-8-git-send-email-byungchul.park@lge.com>
+Subject: [RFC v2 10/13] mm/swap_state.c: Remove trailing white space
+Date: Thu,  7 Jul 2016 18:30:00 +0900
+Message-Id: <1467883803-29132-11-git-send-email-byungchul.park@lge.com>
 In-Reply-To: <1467883803-29132-1-git-send-email-byungchul.park@lge.com>
 References: <1467883803-29132-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,31 +24,44 @@ them.
 
 Signed-off-by: Byungchul Park <byungchul.park@lge.com>
 ---
- include/linux/pagemap.h | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ mm/swap_state.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index 92395a0..c0049d9 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -513,7 +513,7 @@ static inline void wake_up_page(struct page *page, int bit)
- 	__wake_up_bit(page_waitqueue(page), &page->flags, bit);
- }
- 
--/* 
-+/*
-  * Wait for a page to be unlocked.
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 69cb246..3fb7013 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -156,7 +156,7 @@ void __delete_from_swap_cache(struct page *page)
+  * @page: page we want to move to swap
   *
-  * This must be called with the caller "holding" the page,
-@@ -526,7 +526,7 @@ static inline void wait_on_page_locked(struct page *page)
- 		wait_on_page_bit(compound_head(page), PG_locked);
+  * Allocate swap space for the page and add the page to the
+- * swap cache.  Caller needs to hold the page lock. 
++ * swap cache.  Caller needs to hold the page lock.
+  */
+ int add_to_swap(struct page *page, struct list_head *list)
+ {
+@@ -229,9 +229,9 @@ void delete_from_swap_cache(struct page *page)
+ 	page_cache_release(page);
+ }
+ 
+-/* 
+- * If we are the only user, then try to free up the swap cache. 
+- * 
++/*
++ * If we are the only user, then try to free up the swap cache.
++ *
+  * Its ok to check for PageSwapCache without the page lock
+  * here because we are going to recheck again inside
+  * try_to_free_swap() _with_ the lock.
+@@ -245,7 +245,7 @@ static inline void free_swap_cache(struct page *page)
+ 	}
  }
  
 -/* 
 +/*
-  * Wait for a page to complete writeback
+  * Perform a free_page(), also freeing any swap cache associated with
+  * this page if it is the last user of the page.
   */
- static inline void wait_on_page_writeback(struct page *page)
 -- 
 1.9.1
 
