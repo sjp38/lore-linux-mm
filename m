@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 380B86B0264
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 08:47:38 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e189so33340007pfa.2
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 05:47:38 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id e64si3887219pfe.100.2016.07.07.05.47.32
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FCB26B0265
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 08:47:40 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id a69so33471995pfa.1
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 05:47:40 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id pq5si4127683pac.15.2016.07.07.05.47.33
         for <linux-mm@kvack.org>;
-        Thu, 07 Jul 2016 05:47:32 -0700 (PDT)
-Subject: [PATCH 8/9] pkeys: add details of system call use to Documentation/
+        Thu, 07 Jul 2016 05:47:33 -0700 (PDT)
+Subject: [PATCH 4/9] x86: wire up mprotect_key() system call
 From: Dave Hansen <dave@sr71.net>
-Date: Thu, 07 Jul 2016 05:47:32 -0700
+Date: Thu, 07 Jul 2016 05:47:25 -0700
 References: <20160707124719.3F04C882@viggo.jf.intel.com>
 In-Reply-To: <20160707124719.3F04C882@viggo.jf.intel.com>
-Message-Id: <20160707124732.E96A2825@viggo.jf.intel.com>
+Message-Id: <20160707124725.B9E23E1D@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,9 +22,8 @@ Cc: x86@kernel.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-This spells out all of the pkey-related system calls that we have
-and provides some example code fragments to demonstrate how we
-expect them to be used.
+This is all that we need to get the new system call itself
+working on x86.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: linux-api@vger.kernel.org
@@ -39,82 +38,29 @@ Cc: hughd@google.com
 Cc: viro@zeniv.linux.org.uk
 ---
 
- b/Documentation/x86/protection-keys.txt |   63 ++++++++++++++++++++++++++++++++
- 1 file changed, 63 insertions(+)
+ b/arch/x86/entry/syscalls/syscall_32.tbl |    1 +
+ b/arch/x86/entry/syscalls/syscall_64.tbl |    1 +
+ 2 files changed, 2 insertions(+)
 
-diff -puN Documentation/x86/protection-keys.txt~pkeys-120-syscall-docs Documentation/x86/protection-keys.txt
---- a/Documentation/x86/protection-keys.txt~pkeys-120-syscall-docs	2016-07-07 05:47:03.208911498 -0700
-+++ b/Documentation/x86/protection-keys.txt	2016-07-07 05:47:03.212911679 -0700
-@@ -18,6 +18,69 @@ even though there is theoretically space
- permissions are enforced on data access only and have no effect on
- instruction fetches.
+diff -puN arch/x86/entry/syscalls/syscall_32.tbl~pkeys-114-x86-mprotect_key arch/x86/entry/syscalls/syscall_32.tbl
+--- a/arch/x86/entry/syscalls/syscall_32.tbl~pkeys-114-x86-mprotect_key	2016-07-07 05:47:00.972810040 -0700
++++ b/arch/x86/entry/syscalls/syscall_32.tbl	2016-07-07 05:47:00.977810267 -0700
+@@ -386,3 +386,4 @@
+ 377	i386	copy_file_range		sys_copy_file_range
+ 378	i386	preadv2			sys_preadv2			compat_sys_preadv2
+ 379	i386	pwritev2		sys_pwritev2			compat_sys_pwritev2
++380	i386	pkey_mprotect		sys_pkey_mprotect
+diff -puN arch/x86/entry/syscalls/syscall_64.tbl~pkeys-114-x86-mprotect_key arch/x86/entry/syscalls/syscall_64.tbl
+--- a/arch/x86/entry/syscalls/syscall_64.tbl~pkeys-114-x86-mprotect_key	2016-07-07 05:47:00.973810086 -0700
++++ b/arch/x86/entry/syscalls/syscall_64.tbl	2016-07-07 05:47:00.977810267 -0700
+@@ -335,6 +335,7 @@
+ 326	common	copy_file_range		sys_copy_file_range
+ 327	64	preadv2			sys_preadv2
+ 328	64	pwritev2		sys_pwritev2
++329	common	pkey_mprotect		sys_pkey_mprotect
  
-+=========================== Syscalls ===========================
-+
-+There are 5 system calls which directly interact with pkeys:
-+
-+	int pkey_alloc(unsigned long flags, unsigned long init_access_rights)
-+	int pkey_free(int pkey);
-+	int pkey_mprotect(unsigned long start, size_t len,
-+			  unsigned long prot, int pkey);
-+	unsigned long pkey_get(int pkey);
-+	int pkey_set(int pkey, unsigned long access_rights);
-+
-+Before a pkey can be used, it must first be allocated with
-+pkey_alloc().  An application may either call pkey_set() or the
-+WRPKRU instruction directly in order to change access permissions
-+to memory covered with a key.
-+
-+	int real_prot = PROT_READ|PROT_WRITE;
-+	pkey = pkey_alloc(0, PKEY_DENY_WRITE);
-+	ptr = mmap(NULL, PAGE_SIZE, PROT_NONE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
-+	ret = pkey_mprotect(ptr, PAGE_SIZE, real_prot, pkey);
-+	... application runs here
-+
-+Now, if the application needs to update the data at 'ptr', it can
-+gain access, do the update, then remove its write access:
-+
-+	pkey_set(pkey, 0); // clear PKEY_DENY_WRITE
-+	*ptr = foo; // assign something
-+	pkey_set(pkey, PKEY_DENY_WRITE); // set PKEY_DENY_WRITE again
-+
-+Now when it frees the memory, it will also free the pkey since it
-+is no longer in use:
-+
-+	munmap(ptr, PAGE_SIZE);
-+	pkey_free(pkey);
-+
-+=========================== Behavior ===========================
-+
-+The kernel attempts to make protection keys consistent with the
-+behavior of a plain mprotect().  For instance if you do this:
-+
-+	mprotect(ptr, size, PROT_NONE);
-+	something(ptr);
-+
-+you can expect the same effects with protection keys when doing this:
-+
-+	pkey = pkey_alloc(0, PKEY_DISABLE_WRITE | PKEY_DISABLE_READ);
-+	pkey_mprotect(ptr, size, PROT_READ|PROT_WRITE, pkey);
-+	something(ptr);
-+
-+That should be true whether something() is a direct access to 'ptr'
-+like:
-+
-+	*ptr = foo;
-+
-+or when the kernel does the access on the application's behalf like
-+with a read():
-+
-+	read(fd, ptr, 1);
-+
-+The kernel will send a SIGSEGV in both cases, but si_code will be set
-+to SEGV_PKERR when violating protection keys versus SEGV_ACCERR when
-+the plain mprotect() permissions are violated.
-+
- =========================== Config Option ===========================
- 
- This config option adds approximately 1.5kb of text. and 50 bytes of
+ #
+ # x32-specific system call numbers start at 512 to avoid cache impact
 _
 
 --
