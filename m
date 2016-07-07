@@ -1,209 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D3086B0265
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 05:32:17 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id j134so11377376oib.1
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 02:32:17 -0700 (PDT)
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A022A6B0267
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 05:32:19 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id t74so32856650ioi.3
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 02:32:19 -0700 (PDT)
 Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id p191si2751627ioe.171.2016.07.07.02.32.16
+        by mx.google.com with ESMTP id m140si620076itm.70.2016.07.07.02.32.16
         for <linux-mm@kvack.org>;
         Thu, 07 Jul 2016 02:32:16 -0700 (PDT)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [RFC v2 01/13] lockdep: Refactor lookup_chain_cache()
-Date: Thu,  7 Jul 2016 18:29:51 +0900
-Message-Id: <1467883803-29132-2-git-send-email-byungchul.park@lge.com>
-In-Reply-To: <1467883803-29132-1-git-send-email-byungchul.park@lge.com>
-References: <1467883803-29132-1-git-send-email-byungchul.park@lge.com>
+Subject: [RFC v2 00/13] lockdep: Implement crossrelease feature
+Date: Thu,  7 Jul 2016 18:29:50 +0900
+Message-Id: <1467883803-29132-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org
 Cc: tglx@linutronix.de, npiggin@kernel.dk, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Currently, lookup_chain_cache() provides both "lookup" and "add"
-functionalities in a function. However each one is useful indivisually.
-Some features, e.g. crossrelease, can use each one indivisually.
-Thus, splited these functionalities into 2 functions.
+Change from v1
+	- enhanced the document
+	- removed save_stack_trace() optimizing patch
+	- made this based on the seperated save_stack_trace patchset
+	  https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1182242.html
 
-Signed-off-by: Byungchul Park <byungchul.park@lge.com>
+Can we detect deadlocks descriped below, with lockdep? No.
+
+Example 1)
+
+	PROCESS X	PROCESS Y
+	--------------	--------------
+	mutext_lock A
+			lock_page B
+	lock_page B
+			mutext_lock A // DEADLOCK
+	unlock_page B
+			mutext_unlock A
+	mutex_unlock A
+			unlock_page B
+
+We are not checking the dependency for lock_page() at all now.
+
+Example 2)
+
+	PROCESS X	PROCESS Y	PROCESS Z
+	--------------	--------------	--------------
+			mutex_lock A
+	lock_page B
+			lock_page B
+					mutext_lock A // DEADLOCK
+					mutext_unlock A
+					unlock_page B
+					(B was held by PROCESS X)
+			unlock_page B
+			mutex_unlock A
+
+We cannot detect this kind of deadlock with lockdep, even though we
+apply the dependency check using lockdep on lock_page().
+
+Example 3)
+
+	PROCESS X	PROCESS Y
+	--------------	--------------
+			mutex_lock A
+	mutex_lock A
+	mutex_unlock A
+			wait_for_complete B // DEADLOCK
+	complete B
+			mutex_unlock A
+
+wait_for_complete() and complete() also can cause a deadlock, however
+we cannot detect it with lockdep, either.
+
+Not only lock operations, but also any operations causing to wait or
+spin for something can cause deadlock unless it's eventually *released*
+by someone. The important point here is that the waiting or spinning
+must be *released* by someone. In other words, we have to focus whether
+the waiting or spinning can be *released* or not to check a deadlock
+possibility, rather than the waiting or spinning itself.
+
+In this point of view, typical lock is a special case where the acquire
+context is same as the release context, so no matter in which context
+the checking is performed for typical lock.
+
+Of course, in order to be able to report deadlock imediately at the time
+real deadlock actually occures, the checking must be performed before
+actual blocking or spinning happens when acquiring it. However, deadlock
+*possibility* can be detected and reported even the checking is done
+when releasing it, which means the time we can identify the release
+context.
+
+Given that the assumption the current lockdep has is relaxed, we can
+check dependency and detect deadlock possibility not only for typical
+lock, but also for lock_page() using PG_locked, wait_for_xxx() and so
+on, which might be released by different context from the context which
+held the lock.
+
+My implementation makes it possible. See the last patch including the
+document for more information.
+
 ---
- kernel/locking/lockdep.c | 125 ++++++++++++++++++++++++++++++-----------------
- 1 file changed, 79 insertions(+), 46 deletions(-)
 
-diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-index 716547f..efd001c 100644
---- a/kernel/locking/lockdep.c
-+++ b/kernel/locking/lockdep.c
-@@ -2010,15 +2010,9 @@ struct lock_class *lock_chain_get_class(struct lock_chain *chain, int i)
- 	return lock_classes + chain_hlocks[chain->base + i];
- }
- 
--/*
-- * Look up a dependency chain. If the key is not present yet then
-- * add it and return 1 - in this case the new dependency chain is
-- * validated. If the key is already hashed, return 0.
-- * (On return with 1 graph_lock is held.)
-- */
--static inline int lookup_chain_cache(struct task_struct *curr,
--				     struct held_lock *hlock,
--				     u64 chain_key)
-+static inline int add_chain_cache(struct task_struct *curr,
-+				  struct held_lock *hlock,
-+				  u64 chain_key)
- {
- 	struct lock_class *class = hlock_class(hlock);
- 	struct hlist_head *hash_head = chainhashentry(chain_key);
-@@ -2027,46 +2021,18 @@ static inline int lookup_chain_cache(struct task_struct *curr,
- 	int i, j;
- 
- 	/*
-+	 * Allocate a new chain entry from the static array, and add
-+	 * it to the hash:
-+	 */
-+
-+	/*
- 	 * We might need to take the graph lock, ensure we've got IRQs
- 	 * disabled to make this an IRQ-safe lock.. for recursion reasons
- 	 * lockdep won't complain about its own locking errors.
- 	 */
- 	if (DEBUG_LOCKS_WARN_ON(!irqs_disabled()))
- 		return 0;
--	/*
--	 * We can walk it lock-free, because entries only get added
--	 * to the hash:
--	 */
--	hlist_for_each_entry_rcu(chain, hash_head, entry) {
--		if (chain->chain_key == chain_key) {
--cache_hit:
--			debug_atomic_inc(chain_lookup_hits);
--			if (very_verbose(class))
--				printk("\nhash chain already cached, key: "
--					"%016Lx tail class: [%p] %s\n",
--					(unsigned long long)chain_key,
--					class->key, class->name);
--			return 0;
--		}
--	}
--	if (very_verbose(class))
--		printk("\nnew hash chain, key: %016Lx tail class: [%p] %s\n",
--			(unsigned long long)chain_key, class->key, class->name);
--	/*
--	 * Allocate a new chain entry from the static array, and add
--	 * it to the hash:
--	 */
--	if (!graph_lock())
--		return 0;
--	/*
--	 * We have to walk the chain again locked - to avoid duplicates:
--	 */
--	hlist_for_each_entry(chain, hash_head, entry) {
--		if (chain->chain_key == chain_key) {
--			graph_unlock();
--			goto cache_hit;
--		}
--	}
-+
- 	if (unlikely(nr_lock_chains >= MAX_LOCKDEP_CHAINS)) {
- 		if (!debug_locks_off_graph_unlock())
- 			return 0;
-@@ -2102,6 +2068,72 @@ cache_hit:
- 	return 1;
- }
- 
-+/*
-+ * Look up a dependency chain.
-+ */
-+static inline struct lock_chain *lookup_chain_cache(u64 chain_key)
-+{
-+	struct hlist_head *hash_head = chainhashentry(chain_key);
-+	struct lock_chain *chain;
-+
-+	/*
-+	 * We can walk it lock-free, because entries only get added
-+	 * to the hash:
-+	 */
-+	hlist_for_each_entry_rcu(chain, hash_head, entry) {
-+		if (chain->chain_key == chain_key) {
-+			debug_atomic_inc(chain_lookup_hits);
-+			return chain;
-+		}
-+	}
-+	return NULL;
-+}
-+
-+/*
-+ * If the key is not present yet in dependency chain cache then
-+ * add it and return 1 - in this case the new dependency chain is
-+ * validated. If the key is already hashed, return 0.
-+ * (On return with 1 graph_lock is held.)
-+ */
-+static inline int lookup_chain_cache_add(struct task_struct *curr,
-+					 struct held_lock *hlock,
-+					 u64 chain_key)
-+{
-+	struct lock_class *class = hlock_class(hlock);
-+	struct lock_chain *chain = lookup_chain_cache(chain_key);
-+
-+	if (chain) {
-+cache_hit:
-+		if (very_verbose(class))
-+			printk("\nhash chain already cached, key: "
-+					"%016Lx tail class: [%p] %s\n",
-+					(unsigned long long)chain_key,
-+					class->key, class->name);
-+		return 0;
-+	}
-+
-+	if (very_verbose(class))
-+		printk("\nnew hash chain, key: %016Lx tail class: [%p] %s\n",
-+			(unsigned long long)chain_key, class->key, class->name);
-+
-+	if (!graph_lock())
-+		return 0;
-+
-+	/*
-+	 * We have to walk the chain again locked - to avoid duplicates:
-+	 */
-+	chain = lookup_chain_cache(chain_key);
-+	if (chain) {
-+		graph_unlock();
-+		goto cache_hit;
-+	}
-+
-+	if (!add_chain_cache(curr, hlock, chain_key))
-+		return 0;
-+
-+	return 1;
-+}
-+
- static int validate_chain(struct task_struct *curr, struct lockdep_map *lock,
- 		struct held_lock *hlock, int chain_head, u64 chain_key)
- {
-@@ -2112,11 +2144,11 @@ static int validate_chain(struct task_struct *curr, struct lockdep_map *lock,
- 	 *
- 	 * We look up the chain_key and do the O(N^2) check and update of
- 	 * the dependencies only if this is a new dependency chain.
--	 * (If lookup_chain_cache() returns with 1 it acquires
-+	 * (If lookup_chain_cache_add() return with 1 it acquires
- 	 * graph_lock for us)
- 	 */
- 	if (!hlock->trylock && hlock->check &&
--	    lookup_chain_cache(curr, hlock, chain_key)) {
-+	    lookup_chain_cache_add(curr, hlock, chain_key)) {
- 		/*
- 		 * Check whether last held lock:
- 		 *
-@@ -2147,9 +2179,10 @@ static int validate_chain(struct task_struct *curr, struct lockdep_map *lock,
- 		if (!chain_head && ret != 2)
- 			if (!check_prevs_add(curr, hlock))
- 				return 0;
-+
- 		graph_unlock();
- 	} else
--		/* after lookup_chain_cache(): */
-+		/* after lookup_chain_cache_add(): */
- 		if (unlikely(!debug_locks))
- 			return 0;
- 
+Byungchul Park (13):
+  lockdep: Refactor lookup_chain_cache()
+  lockdep: Add a function building a chain between two hlocks
+  lockdep: Make check_prev_add can use a stack_trace of other context
+  lockdep: Make save_trace can copy from other stack_trace
+  lockdep: Implement crossrelease feature
+  lockdep: Apply crossrelease to completion
+  pagemap.h: Remove trailing white space
+  lockdep: Apply crossrelease to PG_locked lock
+  cifs/file.c: Remove trailing white space
+  mm/swap_state.c: Remove trailing white space
+  lockdep: Call lock_acquire(release) when accessing PG_locked manually
+  lockdep: Make crossrelease use save_stack_trace_norm() instead
+  lockdep: Add a document describing crossrelease feature
+
+ Documentation/locking/crossrelease.txt | 457 ++++++++++++++++++
+ fs/cifs/file.c                         |   6 +-
+ include/linux/completion.h             | 121 ++++-
+ include/linux/irqflags.h               |  16 +-
+ include/linux/lockdep.h                | 139 ++++++
+ include/linux/mm_types.h               |   9 +
+ include/linux/pagemap.h                | 104 +++-
+ include/linux/sched.h                  |   5 +
+ kernel/fork.c                          |   4 +
+ kernel/locking/lockdep.c               | 852 ++++++++++++++++++++++++++++++---
+ kernel/sched/completion.c              |  55 ++-
+ lib/Kconfig.debug                      |  30 ++
+ mm/filemap.c                           |  10 +-
+ mm/ksm.c                               |   1 +
+ mm/migrate.c                           |   1 +
+ mm/page_alloc.c                        |   3 +
+ mm/shmem.c                             |   2 +
+ mm/swap_state.c                        |  12 +-
+ mm/vmscan.c                            |   1 +
+ 19 files changed, 1706 insertions(+), 122 deletions(-)
+ create mode 100644 Documentation/locking/crossrelease.txt
+
 -- 
 1.9.1
 
