@@ -1,57 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 957D86B0253
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 03:42:34 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id g62so20722162pfb.3
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 00:42:34 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id f15si2815452pap.97.2016.07.07.00.42.33
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Jul 2016 00:42:33 -0700 (PDT)
-Date: Thu, 7 Jul 2016 09:42:32 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: divide error: 0000 [#1] SMP in task_numa_migrate -
- handle_mm_fault vanilla 4.4.6
-Message-ID: <20160707074232.GS30921@twins.programming.kicks-ass.net>
-References: <56EDD206.3070202@suse.cz>
- <56EF15BB.3080509@profihost.ag>
- <20160320214130.GB23920@kroah.com>
- <56EFD267.9070609@profihost.ag>
- <20160321133815.GA14188@kroah.com>
- <573AB3BF.3030604@profihost.ag>
- <CAPerZE_OCJGp2v8dXM=dY8oP1ydX_oB29UbzaXMHKZcrsL_iJg@mail.gmail.com>
- <CAPerZE_WLYzrALa3YOzC2+NWr--1GL9na8WLssFBNbRsXcYMiA@mail.gmail.com>
- <20160622061356.GW30154@twins.programming.kicks-ass.net>
- <CAPerZE99rBx6YCZrudJPTh7L-LCWitk7n7g41pt7JLej_2KR1g@mail.gmail.com>
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 378E16B025E
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 03:43:40 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id b13so19316996pat.3
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 00:43:40 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id y144si2858009pfb.83.2016.07.07.00.43.38
+        for <linux-mm@kvack.org>;
+        Thu, 07 Jul 2016 00:43:39 -0700 (PDT)
+Date: Thu, 7 Jul 2016 16:44:20 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v3 8/8] mm/zsmalloc: add per-class compact trace event
+Message-ID: <20160707074420.GE18072@bbox>
+References: <1467786233-4481-1-git-send-email-opensource.ganesh@gmail.com>
+ <1467786233-4481-8-git-send-email-opensource.ganesh@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <1467786233-4481-8-git-send-email-opensource.ganesh@gmail.com>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <CAPerZE99rBx6YCZrudJPTh7L-LCWitk7n7g41pt7JLej_2KR1g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Campbell Steven <casteven@gmail.com>
-Cc: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, Greg KH <greg@kroah.com>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-mm@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, rostedt@goodmis.org, mingo@redhat.com
 
-On Thu, Jul 07, 2016 at 11:20:36AM +1200, Campbell Steven wrote:
+Hello Ganesh,
 
-> > commit 8974189222159154c55f24ddad33e3613960521a
-> > Author: Peter Zijlstra <peterz@infradead.org>
-> > Date:   Thu Jun 16 10:50:40 2016 +0200
+On Wed, Jul 06, 2016 at 02:23:53PM +0800, Ganesh Mahendran wrote:
+> add per-class compact trace event to get scanned objects and freed pages
+> number.
+> trace log is like below:
+> ----
+>          kswapd0-629   [001] ....   293.161053: zs_compact_start: pool zram0
+>          kswapd0-629   [001] ....   293.161056: zs_compact: class 254: 0 objects scanned, 0 pages freed
+>          kswapd0-629   [001] ....   293.161057: zs_compact: class 202: 0 objects scanned, 0 pages freed
+>          kswapd0-629   [001] ....   293.161062: zs_compact: class 190: 1 objects scanned, 3 pages freed
+>          kswapd0-629   [001] ....   293.161063: zs_compact: class 168: 0 objects scanned, 0 pages freed
+>          kswapd0-629   [001] ....   293.161065: zs_compact: class 151: 0 objects scanned, 0 pages freed
+>          kswapd0-629   [001] ....   293.161073: zs_compact: class 144: 4 objects scanned, 8 pages freed
+>          kswapd0-629   [001] ....   293.161087: zs_compact: class 126: 20 objects scanned, 10 pages freed
+>          kswapd0-629   [001] ....   293.161095: zs_compact: class 111: 6 objects scanned, 8 pages freed
+>          kswapd0-629   [001] ....   293.161122: zs_compact: class 107: 27 objects scanned, 27 pages freed
+>          kswapd0-629   [001] ....   293.161157: zs_compact: class 100: 36 objects scanned, 24 pages freed
+>          kswapd0-629   [001] ....   293.161173: zs_compact: class  94: 10 objects scanned, 15 pages freed
+>          kswapd0-629   [001] ....   293.161221: zs_compact: class  91: 30 objects scanned, 40 pages freed
+>          kswapd0-629   [001] ....   293.161256: zs_compact: class  83: 120 objects scanned, 30 pages freed
+>          kswapd0-629   [001] ....   293.161266: zs_compact: class  76: 8 objects scanned, 8 pages freed
+>          kswapd0-629   [001] ....   293.161282: zs_compact: class  74: 20 objects scanned, 15 pages freed
+>          kswapd0-629   [001] ....   293.161306: zs_compact: class  71: 40 objects scanned, 20 pages freed
+>          kswapd0-629   [001] ....   293.161313: zs_compact: class  67: 8 objects scanned, 6 pages freed
+> ...
+>          kswapd0-629   [001] ....   293.161454: zs_compact: class   0: 0 objects scanned, 0 pages freed
+>          kswapd0-629   [001] ....   293.161455: zs_compact_end: pool zram0: 301 pages compacted
+> ----
+> 
+> Also this patch changes trace_zsmalloc_compact_start[end] to
+> trace_zs_compact_start[end] to keep function naming consistent
+> with others in zsmalloc.
+> 
+> Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
+> ----
+> v3:
+>     add per-class compact trace event - Minchan
+> 
+>     I put this patch from 1/8 to 8/8, since this patch depends on below patch:
+>        mm/zsmalloc: use obj_index to keep consistent with others
+>        mm/zsmalloc: take obj index back from find_alloced_obj
+> 
 
-> Since these early reports from Stefan and I it looks like it's been
-> hit but alot more folks now so I'd like to ask what the process is for
-> getting this backported into 4.6, 4.5 and 4.4 as in our testing all
-> those versions for their latest point release seem to have the same
-> problem.
+Thanks for looking into this, Ganesh!
 
-I think this should do; Greg is on Cc and will mark the commit
-somewhere. It is already in Linus' tree and should indeed be sufficient.
+Small change I want is to see the number of migrated object rather than
+the number of scanning object.
 
-It has a Fixes tag referring the commit that introduced it, which IIRC
-is somewhere around v4.2.
+If you don't mind, could you resend it with below?
 
-Greg, anything else required?
+Thanks.
+
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 3a1315e54057..166232a0aed6 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -1774,7 +1774,7 @@ struct zs_compact_control {
+ 	 * in the subpage. */
+ 	int obj_idx;
+ 
+-	unsigned long nr_scanned_obj;
++	unsigned long nr_migrated_obj;
+ 	unsigned long nr_freed_pages;
+ };
+ 
+@@ -1809,6 +1809,7 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
+ 		free_obj = obj_malloc(class, get_zspage(d_page), handle);
+ 		zs_object_copy(class, free_obj, used_obj);
+ 		obj_idx++;
++		cc->nr_migrated_obj++;
+ 		/*
+ 		 * record_obj updates handle's value to free_obj and it will
+ 		 * invalidate lock bit(ie, HANDLE_PIN_BIT) of handle, which
+@@ -1821,8 +1822,6 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
+ 		obj_free(class, used_obj);
+ 	}
+ 
+-	cc->nr_scanned_obj += obj_idx - cc->obj_idx;
+-
+ 	/* Remember last position in this iteration */
+ 	cc->s_page = s_page;
+ 	cc->obj_idx = obj_idx;
+@@ -2270,7 +2269,7 @@ static unsigned long zs_can_compact(struct size_class *class)
+ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
+ {
+ 	struct zs_compact_control cc = {
+-		.nr_scanned_obj = 0,
++		.nr_migrated_obj = 0,
+ 		.nr_freed_pages = 0,
+ 	};
+ 	struct zspage *src_zspage;
+@@ -2317,7 +2316,7 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
+ 	spin_unlock(&class->lock);
+ 
+ 	pool->stats.pages_compacted += cc.nr_freed_pages;
+-	trace_zs_compact(class->index, cc.nr_scanned_obj, cc.nr_freed_pages);
++	trace_zs_compact(class->index, cc.nr_migrated_obj, cc.nr_freed_pages);
+ }
+ 
+ unsigned long zs_compact(struct zs_pool *pool)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
