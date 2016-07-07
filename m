@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f199.google.com (mail-ob0-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D34136B0253
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 05:31:52 -0400 (EDT)
-Received: by mail-ob0-f199.google.com with SMTP id fq2so22680434obb.2
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 02:31:52 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id b37si4832084iod.103.2016.07.07.02.31.51
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E2986B025E
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 05:31:53 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id 143so25320749pfx.0
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 02:31:53 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id f8si3371092pff.71.2016.07.07.02.31.51
         for <linux-mm@kvack.org>;
         Thu, 07 Jul 2016 02:31:52 -0700 (PDT)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [RFC v2 04/13] lockdep: Make save_trace can copy from other stack_trace
-Date: Thu,  7 Jul 2016 18:29:54 +0900
-Message-Id: <1467883803-29132-5-git-send-email-byungchul.park@lge.com>
+Subject: [RFC v2 02/13] lockdep: Add a function building a chain between two hlocks
+Date: Thu,  7 Jul 2016 18:29:52 +0900
+Message-Id: <1467883803-29132-3-git-send-email-byungchul.park@lge.com>
 In-Reply-To: <1467883803-29132-1-git-send-email-byungchul.park@lge.com>
 References: <1467883803-29132-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,95 +19,90 @@ List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org
 Cc: tglx@linutronix.de, npiggin@kernel.dk, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Currently, save_trace() can only save current context's stack trace.
-However, it would be useful if it can save(copy from) another context's
-stack trace. Especially, it can be used by crossrelease feature.
+add_chain_cache() can only be used by current context since it
+depends on a task's held_locks which is not protected by lock.
+However, it would be useful if a dependency chain can be built
+in any context. This patch makes the chain building not depend
+on its context.
+
+Especially, crossrelease feature wants to do this. Crossrelease
+feature introduces a additional dependency chain consisting of 2
+lock classes using 2 hlock instances, to connect dependency
+between different contexts.
 
 Signed-off-by: Byungchul Park <byungchul.park@lge.com>
 ---
- kernel/locking/lockdep.c | 22 ++++++++++++++--------
- 1 file changed, 14 insertions(+), 8 deletions(-)
+ kernel/locking/lockdep.c | 57 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 57 insertions(+)
 
 diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-index c596bef..b03014b 100644
+index efd001c..4d51208 100644
 --- a/kernel/locking/lockdep.c
 +++ b/kernel/locking/lockdep.c
-@@ -389,7 +389,7 @@ static void print_lockdep_off(const char *bug_msg)
- #endif
+@@ -2010,6 +2010,63 @@ struct lock_class *lock_chain_get_class(struct lock_chain *chain, int i)
+ 	return lock_classes + chain_hlocks[chain->base + i];
  }
  
--static int save_trace(struct stack_trace *trace)
-+static int save_trace(struct stack_trace *trace, struct stack_trace *copy)
- {
- 	trace->nr_entries = 0;
- 	trace->max_entries = MAX_STACK_TRACE_ENTRIES - nr_stack_trace_entries;
-@@ -397,7 +397,13 @@ static int save_trace(struct stack_trace *trace)
- 
- 	trace->skip = 3;
- 
--	save_stack_trace(trace);
-+	if (copy) {
-+		trace->nr_entries = min(copy->nr_entries, trace->max_entries);
-+		trace->skip = copy->skip;
-+		memcpy(trace->entries, copy->entries,
-+				trace->nr_entries * sizeof(unsigned long));
-+	} else
-+		save_stack_trace(trace);
- 
- 	/*
- 	 * Some daft arches put -1 at the end to indicate its a full trace.
-@@ -1201,7 +1207,7 @@ static noinline int print_circular_bug(struct lock_list *this,
- 	if (!debug_locks_off_graph_unlock() || debug_locks_silent)
- 		return 0;
- 
--	if (!save_trace(&this->trace))
-+	if (!save_trace(&this->trace, NULL))
- 		return 0;
- 
- 	depth = get_lock_depth(target);
-@@ -1547,13 +1553,13 @@ print_bad_irq_dependency(struct task_struct *curr,
- 
- 	printk("\nthe dependencies between %s-irq-safe lock", irqclass);
- 	printk(" and the holding lock:\n");
--	if (!save_trace(&prev_root->trace))
-+	if (!save_trace(&prev_root->trace, NULL))
- 		return 0;
- 	print_shortest_lock_dependencies(backwards_entry, prev_root);
- 
- 	printk("\nthe dependencies between the lock to be acquired");
- 	printk(" and %s-irq-unsafe lock:\n", irqclass);
--	if (!save_trace(&next_root->trace))
-+	if (!save_trace(&next_root->trace, NULL))
- 		return 0;
- 	print_shortest_lock_dependencies(forwards_entry, next_root);
- 
-@@ -1885,7 +1891,7 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
- 	}
- 
- 	if (!own_trace && stack_saved && !*stack_saved) {
--		if (!save_trace(&trace))
-+		if (!save_trace(&trace, NULL))
- 			return 0;
- 		*stack_saved = 1;
- 	}
-@@ -2436,7 +2442,7 @@ print_irq_inversion_bug(struct task_struct *curr,
- 	lockdep_print_held_locks(curr);
- 
- 	printk("\nthe shortest dependencies between 2nd lock and 1st lock:\n");
--	if (!save_trace(&root->trace))
-+	if (!save_trace(&root->trace, NULL))
- 		return 0;
- 	print_shortest_lock_dependencies(other, root);
- 
-@@ -3015,7 +3021,7 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
- 
- 	hlock_class(this)->usage_mask |= new_mask;
- 
--	if (!save_trace(hlock_class(this)->usage_traces + new_bit))
-+	if (!save_trace(hlock_class(this)->usage_traces + new_bit, NULL))
- 		return 0;
- 
- 	switch (new_bit) {
++/*
++ * This can make it possible to build a chain between just two
++ * specified hlocks rather than between already held locks of
++ * the current task and newly held lock, which can be done by
++ * add_chain_cache().
++ *
++ * add_chain_cache() must be done within the lock owner's context,
++ * however this can be called in any context if two racy-less hlock
++ * instances were already taken by caller. Thus this can be useful
++ * when building a chain between two hlocks regardless of context.
++ */
++static inline int add_chain_cache_2hlocks(struct held_lock *prev,
++					  struct held_lock *next,
++					  u64 chain_key)
++{
++	struct hlist_head *hash_head = chainhashentry(chain_key);
++	struct lock_chain *chain;
++
++	/*
++	 * Allocate a new chain entry from the static array, and add
++	 * it to the hash:
++	 */
++
++	/*
++	 * We might need to take the graph lock, ensure we've got IRQs
++	 * disabled to make this an IRQ-safe lock.. for recursion reasons
++	 * lockdep won't complain about its own locking errors.
++	 */
++	if (DEBUG_LOCKS_WARN_ON(!irqs_disabled()))
++		return 0;
++
++	if (unlikely(nr_lock_chains >= MAX_LOCKDEP_CHAINS)) {
++		if (!debug_locks_off_graph_unlock())
++			return 0;
++
++		print_lockdep_off("BUG: MAX_LOCKDEP_CHAINS too low!");
++		dump_stack();
++		return 0;
++	}
++
++	chain = lock_chains + nr_lock_chains++;
++	chain->chain_key = chain_key;
++	chain->irq_context = next->irq_context;
++	chain->depth = 2;
++	if (likely(nr_chain_hlocks + chain->depth <= MAX_LOCKDEP_CHAIN_HLOCKS)) {
++		chain->base = nr_chain_hlocks;
++		nr_chain_hlocks += chain->depth;
++		chain_hlocks[chain->base] = prev->class_idx - 1;
++		chain_hlocks[chain->base + 1] = next->class_idx -1;
++	}
++	hlist_add_head_rcu(&chain->entry, hash_head);
++	debug_atomic_inc(chain_lookup_misses);
++	inc_chains();
++
++	return 1;
++}
++
+ static inline int add_chain_cache(struct task_struct *curr,
+ 				  struct held_lock *hlock,
+ 				  u64 chain_key)
 -- 
 1.9.1
 
