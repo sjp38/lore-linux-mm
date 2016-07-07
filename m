@@ -1,54 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EB9036B0253
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 01:37:17 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id g18so4346642lfg.2
-        for <linux-mm@kvack.org>; Wed, 06 Jul 2016 22:37:17 -0700 (PDT)
-Received: from mx.tkos.co.il (guitar.tcltek.co.il. [192.115.133.116])
-        by mx.google.com with ESMTPS id g3si1329414wjw.62.2016.07.06.22.37.15
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Jul 2016 22:37:15 -0700 (PDT)
-Date: Thu, 7 Jul 2016 08:37:10 +0300
-From: Baruch Siach <baruch@tkos.co.il>
-Subject: Re: [PATCH 1/9] mm: Hardened usercopy
-Message-ID: <20160707053710.GH2118@tarshish>
-References: <1467843928-29351-1-git-send-email-keescook@chromium.org>
- <1467843928-29351-2-git-send-email-keescook@chromium.org>
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DA0776B0253
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 01:50:41 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id j134so4126344oib.1
+        for <linux-mm@kvack.org>; Wed, 06 Jul 2016 22:50:41 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id g185si2133883ioe.130.2016.07.06.22.50.40
+        for <linux-mm@kvack.org>;
+        Wed, 06 Jul 2016 22:50:40 -0700 (PDT)
+Date: Thu, 7 Jul 2016 14:51:21 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 08/31] mm, vmscan: simplify the logic deciding whether
+ kswapd sleeps
+Message-ID: <20160707055121.GA18072@bbox>
+References: <1467403299-25786-1-git-send-email-mgorman@techsingularity.net>
+ <1467403299-25786-9-git-send-email-mgorman@techsingularity.net>
+ <20160705055931.GC28164@bbox>
+ <20160705102639.GG11498@techsingularity.net>
+ <20160706003054.GC12570@bbox>
+ <20160706083121.GL11498@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20160706083121.GL11498@techsingularity.net>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <1467843928-29351-2-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: linux-kernel@vger.kernel.org, Jan Kara <jack@suse.cz>, kernel-hardening@lists.openwall.com, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-ia64@vger.kernel.org, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-arch@vger.kernel.org, Michael Ellerman <mpe@ellerman.id.au>, x86@kernel.org, Russell King <linux@armlinux.org.uk>, linux-arm-kernel@lists.infradead.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, PaX Team <pageexec@freemail.hu>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Fenghua Yu <fenghua.yu@intel.com>, Rik van Riel <riel@redhat.com>, Vitaly Wool <vitalywool@gmail.com>, David Rientjes <rientjes@google.com>, Tony Luck <tony.luck@intel.com>, Andy Lutomirski <luto@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, Brad Spengler <spender@grsecurity.net>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Pekka Enberg <penberg@kernel.org>, Casey Schaufler <casey@schaufler-ca.com>, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, "David S. Miller" <davem@davemloft.net>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi Kees,
+On Wed, Jul 06, 2016 at 09:31:21AM +0100, Mel Gorman wrote:
+> On Wed, Jul 06, 2016 at 09:30:54AM +0900, Minchan Kim wrote:
+> > On Tue, Jul 05, 2016 at 11:26:39AM +0100, Mel Gorman wrote:
+> > 
+> > <snip>
+> > 
+> > > > > @@ -3418,10 +3426,10 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
+> > > > >  	if (!cpuset_zone_allowed(zone, GFP_KERNEL | __GFP_HARDWALL))
+> > > > >  		return;
+> > > > >  	pgdat = zone->zone_pgdat;
+> > > > > -	if (pgdat->kswapd_max_order < order) {
+> > > > > -		pgdat->kswapd_max_order = order;
+> > > > > -		pgdat->classzone_idx = min(pgdat->classzone_idx, classzone_idx);
+> > > > > -	}
+> > > > > +	if (pgdat->kswapd_classzone_idx == -1)
+> > > > > +		pgdat->kswapd_classzone_idx = classzone_idx;
+> > > > 
+> > > > It's tricky. Couldn't we change kswapd_classzone_idx to integer type
+> > > > and remove if above if condition?
+> > > > 
+> > > 
+> > > It's tricky and not necessarily better overall. It's perfectly possible
+> > > to be woken up for zone index 0 so it's changing -1 to another magic
+> > > value.
+> > 
+> > I don't get it. What is a problem with this?
+> > 
+> 
+> It becomes difficult to tell the difference between "no wakeup and init to
+> zone 0" and "wakeup and reclaim for zone 0". At least that's the problem
+> I ran into when I tried before settling on -1.
 
-On Wed, Jul 06, 2016 at 03:25:20PM -0700, Kees Cook wrote:
-> +#ifdef CONFIG_HAVE_HARDENED_USERCOPY_ALLOCATOR
+Sorry for bothering you several times. I cannot parse what you mean.
+I didn't mean -1 is problem here but why do we need below two lines
+I removed?
 
-Should be CONFIG_HARDENED_USERCOPY to match the slab/slub implementation 
-condition.
+IOW, what's the problem if we apply below patch?
 
-> +const char *__check_heap_object(const void *ptr, unsigned long n,
-> +				struct page *page);
-> +#else
-> +static inline const char *__check_heap_object(const void *ptr,
-> +					      unsigned long n,
-> +					      struct page *page)
-> +{
-> +	return NULL;
-> +}
-> +#endif
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index c538a8c..6eb23f5 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -3413,9 +3413,7 @@ void wakeup_kswapd(struct zone *zone, int order, enum zone_type classzone_idx)
+        if (!cpuset_zone_allowed(zone, GFP_KERNEL | __GFP_HARDWALL))
+                return;
+        pgdat = zone->zone_pgdat;
+-       if (pgdat->kswapd_classzone_idx == -1)
+-               pgdat->kswapd_classzone_idx = classzone_idx;
+-       pgdat->kswapd_classzone_idx = max(pgdat->kswapd_classzone_idx, classzone_idx);
++       pgdat->kswapd_classzone_idx = max_t(int, pgdat->kswapd_classzone_idx, classzone_idx);
+        pgdat->kswapd_order = max(pgdat->kswapd_order, order);
+        if (!waitqueue_active(&pgdat->kswapd_wait))
+                return;  
 
-baruch
-
--- 
-     http://baruch.siach.name/blog/                  ~. .~   Tk Open Systems
-=}------------------------------------------------ooO--U--Ooo------------{=
-   - baruch@tkos.co.il - tel: +972.52.368.4656, http://www.tkos.co.il -
+> 
+> -- 
+> Mel Gorman
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
