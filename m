@@ -1,79 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EB586B0253
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 07:04:26 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id w130so9038844lfd.3
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 04:04:26 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 131si2768529wmj.63.2016.07.07.04.04.24
+Received: from mail-ob0-f199.google.com (mail-ob0-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C7C856B0253
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 07:05:48 -0400 (EDT)
+Received: by mail-ob0-f199.google.com with SMTP id gv4so27307501obc.3
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 04:05:48 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0135.outbound.protection.outlook.com. [104.47.1.135])
+        by mx.google.com with ESMTPS id g133si3257216itg.61.2016.07.07.04.05.47
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 07 Jul 2016 04:04:24 -0700 (PDT)
-Date: Thu, 7 Jul 2016 13:04:20 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 0/8] Change OOM killer to use list of mm_struct.
-Message-ID: <20160707110419.GF5379@dhcp22.suse.cz>
-References: <201607031135.AAH95347.MVOHQtFJFLOOFS@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 07 Jul 2016 04:05:47 -0700 (PDT)
+Subject: Re: [PATCHv2 2/6] x86/vdso: introduce do_map_vdso() and vdso_type
+ enum
+References: <20160629105736.15017-1-dsafonov@virtuozzo.com>
+ <20160629105736.15017-3-dsafonov@virtuozzo.com>
+ <CALCETrXUvxx_BLqUxwz0ENNeaCbS5zLqxsSE1+Ts03mTyQWZjw@mail.gmail.com>
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Message-ID: <23274480-7eec-f5da-8eb3-301ed7882a9f@virtuozzo.com>
+Date: Thu, 7 Jul 2016 14:04:35 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201607031135.AAH95347.MVOHQtFJFLOOFS@I-love.SAKURA.ne.jp>
+In-Reply-To: <CALCETrXUvxx_BLqUxwz0ENNeaCbS5zLqxsSE1+Ts03mTyQWZjw@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, oleg@redhat.com, rientjes@google.com, vdavydov@parallels.com, mst@redhat.com
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Safonov <0x7f454c46@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Cyrill Gorcunov <gorcunov@openvz.org>, xemul@virtuozzo.com, Oleg Nesterov <oleg@redhat.com>, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>
 
-On Sun 03-07-16 11:35:56, Tetsuo Handa wrote:
-> This is my alternative proposal compared to what Michal posted at
-> http://lkml.kernel.org/r/1467365190-24640-1-git-send-email-mhocko@kernel.org .
-> 
-> The series is based on top of linux-next-20160701 +
-> http://lkml.kernel.org/r/1467201562-6709-1-git-send-email-mhocko@kernel.org .
-> 
-> The key point of the series is [PATCH 3/8].
+On 07/06/2016 05:21 PM, Andy Lutomirski wrote:
+> On Wed, Jun 29, 2016 at 3:57 AM, Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
+>> Make in-kernel API to map vDSO blobs on x86.
+>
+> I think the addr calculation was already confusing and is now even
+> worse.  How about simplifying it?  Get rid of calculate_addr entirely
+> and push the vdso_addr calls into arch_setup_additional_pages, etc.
+> Then just use addr directly in the map_vdso code.
 
-I have only checked the diff between the whole patchset applied with
-what I have posted as an RFC last week, so I cannot comment on specific
-patches.  Let me summarize the differences between the two approaches
-though.
+Thanks, will do.
 
-My proposal adds a stable reference of the killed mm struct into the
-signal struct and most oom decisions can refer to this mm and its flags
-because signal struct life time exceeds its visible task_struct. We still
-need signal->oom_victims counter to catch different threads lifetime.
+>> +int do_map_vdso(vdso_type type, unsigned long addr, bool randomize_addr)
+>>  {
+>> -       if (vdso32_enabled != 1)  /* Other values all mean "disabled" */
+>> -               return 0;
+>> -
+>> -       return map_vdso(&vdso_image_32, false);
+>> -}
+>> +       switch (type) {
+>> +#if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
+>> +       case VDSO_32:
+>> +               if (vdso32_enabled != 1)  /* Other values all mean "disabled" */
+>> +                       return 0;
+>> +               /* vDSO aslr turned off for i386 vDSO */
+>> +               return map_vdso(&vdso_image_32, addr, false);
+>> +#endif
+>> +#ifdef CONFIG_X86_64
+>> +       case VDSO_64:
+>> +               if (!vdso64_enabled)
+>> +                       return 0;
+>> +               return map_vdso(&vdso_image_64, addr, randomize_addr);
+>> +#endif
+>> +#ifdef CONFIG_X86_X32_ABI
+>> +       case VDSO_X32:
+>> +               if (!vdso64_enabled)
+>> +                       return 0;
+>> +               return map_vdso(&vdso_image_x32, addr, randomize_addr);
+>>  #endif
+>> +       default:
+>> +               return -EINVAL;
+>> +       }
+>> +}
+>
+> Why is this better than just passing the vdso_image pointer in?
 
-Yours enqueues the mm to a linked list and has a similar effect with
-an advantage that signal->oom_victims is no longer needed because you
-have pulled the OOM_SCAN_ABORT out of select_bad_process to earlier
-{mem_cgroup_}out_of_memory and check existence of a compatible mm for
-the oom domain. This means that mm struct has to remember all the
-information that might be gone by the time we look at the enqueued mm
-again. This means a slightly larger memory foot print (nothing earth
-shattering though).
-
-That being said, I believe both approaches are sound. So let's discuss
-{ad,dis}vantages of those approaches.
-
-You are introducing more code but to be fair I guess the mm rather than
-task queuing is better long term. Copying the state for later use is
-unfortunate but it might turn out better to have all the oom specific
-stuff inside the mm rather than spread around in other structures.
-
-As I've said I haven't looked very deeply into details but at least
-memcg handling would need more work, I will respond to the specific
-patch.
-
-I guess the mm visibility is basically same with both approaches. Even
-though you hide the mm from __mmput while mine has it alive until signal
-struct goes away this is basically the equivalent because mine is hiding
-the mm with MMF_OOM_REAPED from the oom reaper and oom_reaper is just a
-weaker form of __mmput.
-
-I am not tight to my approach but could you name main arguments why you
-think yours is better?
--- 
-Michal Hocko
-SUSE Labs
+Hmm, then all callers should be under the same ifdefs as vdso_image
+blobs. Ok, will do.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
