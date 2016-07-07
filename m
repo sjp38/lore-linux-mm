@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 095466B0262
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 05:32:02 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e189so25030579pfa.2
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 02:32:02 -0700 (PDT)
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 24EDA6B0263
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 05:32:04 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id x68so36039207ioi.0
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 02:32:04 -0700 (PDT)
 Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id yk3si3356365pac.233.2016.07.07.02.31.51
+        by mx.google.com with ESMTP id t8si4400880ita.115.2016.07.07.02.31.51
         for <linux-mm@kvack.org>;
         Thu, 07 Jul 2016 02:31:52 -0700 (PDT)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [RFC v2 11/13] lockdep: Call lock_acquire(release) when accessing PG_locked manually
-Date: Thu,  7 Jul 2016 18:30:01 +0900
-Message-Id: <1467883803-29132-12-git-send-email-byungchul.park@lge.com>
+Subject: [RFC v2 06/13] lockdep: Apply crossrelease to completion
+Date: Thu,  7 Jul 2016 18:29:56 +0900
+Message-Id: <1467883803-29132-7-git-send-email-byungchul.park@lge.com>
 In-Reply-To: <1467883803-29132-1-git-send-email-byungchul.park@lge.com>
 References: <1467883803-29132-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,167 +19,419 @@ List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org
 Cc: tglx@linutronix.de, npiggin@kernel.dk, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-The PG_locked bit can be updated through SetPageLocked() or
-ClearPageLocked(), not by lock_page() and unlock_page().
-SetPageLockded() and ClearPageLocked() also have to be considered to
-get balanced between acquring and releasing the PG_locked lock.
+wait_for_complete() and its family can cause deadlock. Nevertheless, it
+cannot use the lock correntness validator because complete() will be
+called in different context from the context calling wait_for_complete(),
+which violates original lockdep's assumption.
+
+However, thanks to CONFIG_LOCKDEP_CROSSRELEASE, we can apply the lockdep
+detector to wait_for_complete() and complete(). Applied it.
 
 Signed-off-by: Byungchul Park <byungchul.park@lge.com>
 ---
- fs/cifs/file.c          | 4 ++++
- include/linux/pagemap.h | 5 ++++-
- mm/filemap.c            | 6 ++++--
- mm/ksm.c                | 1 +
- mm/migrate.c            | 1 +
- mm/shmem.c              | 2 ++
- mm/swap_state.c         | 2 ++
- mm/vmscan.c             | 1 +
- 8 files changed, 19 insertions(+), 3 deletions(-)
+ include/linux/completion.h | 121 +++++++++++++++++++++++++++++++++++++++++----
+ kernel/locking/lockdep.c   |  18 +++++++
+ kernel/sched/completion.c  |  55 ++++++++++++---------
+ lib/Kconfig.debug          |   8 +++
+ 4 files changed, 169 insertions(+), 33 deletions(-)
 
-diff --git a/fs/cifs/file.c b/fs/cifs/file.c
-index bcf9ead..7b250c1 100644
---- a/fs/cifs/file.c
-+++ b/fs/cifs/file.c
-@@ -3392,12 +3392,14 @@ readpages_get_pages(struct address_space *mapping, struct list_head *page_list,
- 	 * PG_locked without checking it first.
- 	 */
- 	__SetPageLocked(page);
-+	lock_page_acquire(page, 1);
- 	rc = add_to_page_cache_locked(page, mapping,
- 				      page->index, gfp);
+diff --git a/include/linux/completion.h b/include/linux/completion.h
+index 5d5aaae..67a27af 100644
+--- a/include/linux/completion.h
++++ b/include/linux/completion.h
+@@ -9,6 +9,9 @@
+  */
  
- 	/* give up if we can't stick it in the cache */
- 	if (rc) {
- 		__ClearPageLocked(page);
-+		lock_page_release(page);
- 		return rc;
- 	}
+ #include <linux/wait.h>
++#ifdef CONFIG_LOCKDEP_COMPLETE
++#include <linux/lockdep.h>
++#endif
  
-@@ -3419,8 +3421,10 @@ readpages_get_pages(struct address_space *mapping, struct list_head *page_list,
- 			break;
+ /*
+  * struct completion - structure used to maintain state for a "completion"
+@@ -25,10 +28,53 @@
+ struct completion {
+ 	unsigned int done;
+ 	wait_queue_head_t wait;
++#ifdef CONFIG_LOCKDEP_COMPLETE
++	struct lockdep_map map;
++	struct cross_lock xlock;
++#endif
+ };
  
- 		__SetPageLocked(page);
-+		lock_page_acquire(page, 1);
- 		if (add_to_page_cache_locked(page, mapping, page->index, gfp)) {
- 			__ClearPageLocked(page);
-+			lock_page_release(page);
- 			break;
- 		}
- 		list_move_tail(&page->lru, tmplist);
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index 2fc4af1..f92972c 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -760,9 +760,12 @@ static inline int add_to_page_cache(struct page *page,
- 	int error;
++#ifdef CONFIG_LOCKDEP_COMPLETE
++static inline void complete_acquire(struct completion *x)
++{
++	lock_acquire_exclusive(&x->map, 0, 0, NULL, _RET_IP_);
++}
++
++static inline void complete_release(struct completion *x)
++{
++	lock_release(&x->map, 0, _RET_IP_);
++}
++
++static inline void complete_release_commit(struct completion *x)
++{
++	lock_commit_crosslock(&x->map);
++}
++
++#define init_completion(x)				\
++do {							\
++	static struct lock_class_key __key;		\
++	lockdep_init_map_crosslock(&(x)->map,		\
++			&(x)->xlock,			\
++			"(complete)" #x,		\
++			&__key, 0);			\
++	__init_completion(x);				\
++} while (0)
++#else
++#define init_completion(x) __init_completion(x)
++static inline void complete_acquire(struct completion *x, int try) {}
++static inline void complete_release(struct completion *x) {}
++static inline void complete_release_commit(struct completion *x) {}
++#endif
++
++#ifdef CONFIG_LOCKDEP_COMPLETE
++#define COMPLETION_INITIALIZER(work) \
++	{ 0, __WAIT_QUEUE_HEAD_INITIALIZER((work).wait), \
++	STATIC_CROSS_LOCKDEP_MAP_INIT("(complete)" #work, &(work), \
++	&(work).xlock), STATIC_CROSS_LOCK_INIT()}
++#else
+ #define COMPLETION_INITIALIZER(work) \
+ 	{ 0, __WAIT_QUEUE_HEAD_INITIALIZER((work).wait) }
++#endif
  
- 	__SetPageLocked(page);
-+	lock_page_acquire(page, 1);
- 	error = add_to_page_cache_locked(page, mapping, offset, gfp_mask);
--	if (unlikely(error))
-+	if (unlikely(error)) {
- 		__ClearPageLocked(page);
-+		lock_page_release(page);
-+	}
- 	return error;
+ #define COMPLETION_INITIALIZER_ONSTACK(work) \
+ 	({ init_completion(&work); work; })
+@@ -70,7 +116,7 @@ struct completion {
+  * This inline function will initialize a dynamically created completion
+  * structure.
+  */
+-static inline void init_completion(struct completion *x)
++static inline void __init_completion(struct completion *x)
+ {
+ 	x->done = 0;
+ 	init_waitqueue_head(&x->wait);
+@@ -88,18 +134,75 @@ static inline void reinit_completion(struct completion *x)
+ 	x->done = 0;
  }
  
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 47fc5c0..7acce5e 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -690,11 +690,13 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
- 	int ret;
+-extern void wait_for_completion(struct completion *);
+-extern void wait_for_completion_io(struct completion *);
+-extern int wait_for_completion_interruptible(struct completion *x);
+-extern int wait_for_completion_killable(struct completion *x);
+-extern unsigned long wait_for_completion_timeout(struct completion *x,
++extern void __wait_for_completion(struct completion *);
++extern void __wait_for_completion_io(struct completion *);
++extern int __wait_for_completion_interruptible(struct completion *x);
++extern int __wait_for_completion_killable(struct completion *x);
++extern unsigned long __wait_for_completion_timeout(struct completion *x,
+ 						   unsigned long timeout);
+-extern unsigned long wait_for_completion_io_timeout(struct completion *x,
++extern unsigned long __wait_for_completion_io_timeout(struct completion *x,
+ 						    unsigned long timeout);
+-extern long wait_for_completion_interruptible_timeout(
++extern long __wait_for_completion_interruptible_timeout(
+ 	struct completion *x, unsigned long timeout);
+-extern long wait_for_completion_killable_timeout(
++extern long __wait_for_completion_killable_timeout(
+ 	struct completion *x, unsigned long timeout);
++
++static inline void wait_for_completion(struct completion *x)
++{
++	complete_acquire(x);
++	__wait_for_completion(x);
++	complete_release(x);
++}
++
++static inline void wait_for_completion_io(struct completion *x)
++{
++	complete_acquire(x);
++	__wait_for_completion_io(x);
++	complete_release(x);
++}
++
++static inline int wait_for_completion_interruptible(struct completion *x)
++{
++	int ret;
++	complete_acquire(x);
++	ret = __wait_for_completion_interruptible(x);
++	complete_release(x);
++	return ret;
++}
++
++static inline int wait_for_completion_killable(struct completion *x)
++{
++	int ret;
++	complete_acquire(x);
++	ret = __wait_for_completion_killable(x);
++	complete_release(x);
++	return ret;
++}
++
++static inline unsigned long wait_for_completion_timeout(struct completion *x,
++		unsigned long timeout)
++{
++	return __wait_for_completion_timeout(x, timeout);
++}
++
++static inline unsigned long wait_for_completion_io_timeout(struct completion *x,
++		unsigned long timeout)
++{
++	return __wait_for_completion_io_timeout(x, timeout);
++}
++
++static inline long wait_for_completion_interruptible_timeout(
++	struct completion *x, unsigned long timeout)
++{
++	return __wait_for_completion_interruptible_timeout(x, timeout);
++}
++
++static inline long wait_for_completion_killable_timeout(
++	struct completion *x, unsigned long timeout)
++{
++	return __wait_for_completion_killable_timeout(x, timeout);
++}
++
+ extern bool try_wait_for_completion(struct completion *x);
+ extern bool completion_done(struct completion *x);
  
- 	__SetPageLocked(page);
-+	lock_page_acquire(page, 1);
- 	ret = __add_to_page_cache_locked(page, mapping, offset,
- 					 gfp_mask, &shadow);
--	if (unlikely(ret))
-+	if (unlikely(ret)) {
- 		__ClearPageLocked(page);
--	else {
-+		lock_page_release(page);
-+	} else {
- 		/*
- 		 * The page might have been evicted from cache only
- 		 * recently, in which case it should be activated like
-diff --git a/mm/ksm.c b/mm/ksm.c
-index ca6d2a0..c89debd 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -1869,6 +1869,7 @@ struct page *ksm_might_need_to_copy(struct page *page,
- 		SetPageDirty(new_page);
- 		__SetPageUptodate(new_page);
- 		__SetPageLocked(new_page);
-+		lock_page_acquire(new_page, 1);
+diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
+index 12903f9..ea19108 100644
+--- a/kernel/locking/lockdep.c
++++ b/kernel/locking/lockdep.c
+@@ -4694,6 +4694,12 @@ static void add_plock(struct held_lock *hlock, unsigned int prev_gen_id,
  	}
+ }
  
- 	return new_page;
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 3ad0fea..9aab7c4 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1773,6 +1773,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
++#ifdef CONFIG_LOCKDEP_COMPLETE
++static int xlock_might_onstack = 1;
++#else
++static int xlock_might_onstack = 0;
++#endif
++
+ /*
+  * No contention. Irq disable is only required.
+  */
+@@ -4774,6 +4780,15 @@ static void check_add_plock(struct held_lock *hlock)
+ 	if (!dep_before(hlock) || check_dup_plock(hlock))
+ 		return;
  
- 	/* Prepare a page as a migration target */
- 	__SetPageLocked(new_page);
-+	lock_page_acquire(new_page, 1);
- 	SetPageSwapBacked(new_page);
++	/*
++	 * If a xlock instance is on stack, it can be
++	 * overwritten randomly after escaping the
++	 * stack fraem, so we cannot refer rcu protected
++	 * list without holding lock.
++	 */
++	if (xlock_might_onstack && !graph_lock())
++		return;
++
+ 	gen_id = (unsigned int)atomic_read(&cross_gen_id);
+ 	gen_id_e = gen_id_done();
+ 	start = current->held_locks;
+@@ -4797,6 +4812,9 @@ static void check_add_plock(struct held_lock *hlock)
+ 			break;
+ 		}
+ 	}
++
++	if (xlock_might_onstack)
++		graph_unlock();
+ }
  
- 	/* anon mapping, we can simply copy page->mapping to the new page: */
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 440e2a7..da35ca8 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -1090,6 +1090,7 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
- 	flush_dcache_page(newpage);
+ /*
+diff --git a/kernel/sched/completion.c b/kernel/sched/completion.c
+index 8d0f35d..b695699 100644
+--- a/kernel/sched/completion.c
++++ b/kernel/sched/completion.c
+@@ -31,6 +31,11 @@ void complete(struct completion *x)
+ 	unsigned long flags;
  
- 	__SetPageLocked(newpage);
-+	lock_page_acquire(newpage, 1);
- 	SetPageUptodate(newpage);
- 	SetPageSwapBacked(newpage);
- 	set_page_private(newpage, swap_index);
-@@ -1283,6 +1284,7 @@ repeat:
+ 	spin_lock_irqsave(&x->wait.lock, flags);
++	/*
++	 * Actual lock dependency building should be
++	 * performed when complete() is called.
++	 */
++	complete_release_commit(x);
+ 	x->done++;
+ 	__wake_up_locked(&x->wait, TASK_NORMAL, 1);
+ 	spin_unlock_irqrestore(&x->wait.lock, flags);
+@@ -108,7 +113,7 @@ wait_for_common_io(struct completion *x, long timeout, int state)
+ }
  
- 		__SetPageSwapBacked(page);
- 		__SetPageLocked(page);
-+		lock_page_acquire(page, 1);
- 		if (sgp == SGP_WRITE)
- 			__SetPageReferenced(page);
+ /**
+- * wait_for_completion: - waits for completion of a task
++ * __wait_for_completion: - waits for completion of a task
+  * @x:  holds the state of this particular completion
+  *
+  * This waits to be signaled for completion of a specific task. It is NOT
+@@ -117,14 +122,14 @@ wait_for_common_io(struct completion *x, long timeout, int state)
+  * See also similar routines (i.e. wait_for_completion_timeout()) with timeout
+  * and interrupt capability. Also see complete().
+  */
+-void __sched wait_for_completion(struct completion *x)
++void __sched __wait_for_completion(struct completion *x)
+ {
+ 	wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_UNINTERRUPTIBLE);
+ }
+-EXPORT_SYMBOL(wait_for_completion);
++EXPORT_SYMBOL(__wait_for_completion);
  
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 3fb7013..200edbf 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -358,6 +358,7 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ /**
+- * wait_for_completion_timeout: - waits for completion of a task (w/timeout)
++ * __wait_for_completion_timeout: - waits for completion of a task (w/timeout)
+  * @x:  holds the state of this particular completion
+  * @timeout:  timeout value in jiffies
+  *
+@@ -136,28 +141,28 @@ EXPORT_SYMBOL(wait_for_completion);
+  * till timeout) if completed.
+  */
+ unsigned long __sched
+-wait_for_completion_timeout(struct completion *x, unsigned long timeout)
++__wait_for_completion_timeout(struct completion *x, unsigned long timeout)
+ {
+ 	return wait_for_common(x, timeout, TASK_UNINTERRUPTIBLE);
+ }
+-EXPORT_SYMBOL(wait_for_completion_timeout);
++EXPORT_SYMBOL(__wait_for_completion_timeout);
  
- 		/* May fail (-ENOMEM) if radix-tree node allocation failed. */
- 		__SetPageLocked(new_page);
-+		lock_page_acquire(new_page, 1);
- 		SetPageSwapBacked(new_page);
- 		err = __add_to_swap_cache(new_page, entry);
- 		if (likely(!err)) {
-@@ -372,6 +373,7 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
- 		radix_tree_preload_end();
- 		ClearPageSwapBacked(new_page);
- 		__ClearPageLocked(new_page);
-+		lock_page_release(new_page);
- 		/*
- 		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
- 		 * clear SWAP_HAS_CACHE flag.
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 71b1c29..5baff91 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1199,6 +1199,7 @@ lazyfree:
- 		 * waiting on the page lock, because there are no references.
- 		 */
- 		__ClearPageLocked(page);
-+		lock_page_release(page);
- free_it:
- 		if (ret == SWAP_LZFREE)
- 			count_vm_event(PGLAZYFREED);
+ /**
+- * wait_for_completion_io: - waits for completion of a task
++ * __wait_for_completion_io: - waits for completion of a task
+  * @x:  holds the state of this particular completion
+  *
+  * This waits to be signaled for completion of a specific task. It is NOT
+  * interruptible and there is no timeout. The caller is accounted as waiting
+  * for IO (which traditionally means blkio only).
+  */
+-void __sched wait_for_completion_io(struct completion *x)
++void __sched __wait_for_completion_io(struct completion *x)
+ {
+ 	wait_for_common_io(x, MAX_SCHEDULE_TIMEOUT, TASK_UNINTERRUPTIBLE);
+ }
+-EXPORT_SYMBOL(wait_for_completion_io);
++EXPORT_SYMBOL(__wait_for_completion_io);
+ 
+ /**
+- * wait_for_completion_io_timeout: - waits for completion of a task (w/timeout)
++ * __wait_for_completion_io_timeout: - waits for completion of a task (w/timeout)
+  * @x:  holds the state of this particular completion
+  * @timeout:  timeout value in jiffies
+  *
+@@ -170,14 +175,14 @@ EXPORT_SYMBOL(wait_for_completion_io);
+  * till timeout) if completed.
+  */
+ unsigned long __sched
+-wait_for_completion_io_timeout(struct completion *x, unsigned long timeout)
++__wait_for_completion_io_timeout(struct completion *x, unsigned long timeout)
+ {
+ 	return wait_for_common_io(x, timeout, TASK_UNINTERRUPTIBLE);
+ }
+-EXPORT_SYMBOL(wait_for_completion_io_timeout);
++EXPORT_SYMBOL(__wait_for_completion_io_timeout);
+ 
+ /**
+- * wait_for_completion_interruptible: - waits for completion of a task (w/intr)
++ * __wait_for_completion_interruptible: - waits for completion of a task (w/intr)
+  * @x:  holds the state of this particular completion
+  *
+  * This waits for completion of a specific task to be signaled. It is
+@@ -185,17 +190,18 @@ EXPORT_SYMBOL(wait_for_completion_io_timeout);
+  *
+  * Return: -ERESTARTSYS if interrupted, 0 if completed.
+  */
+-int __sched wait_for_completion_interruptible(struct completion *x)
++int __sched __wait_for_completion_interruptible(struct completion *x)
+ {
+ 	long t = wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_INTERRUPTIBLE);
++
+ 	if (t == -ERESTARTSYS)
+ 		return t;
+ 	return 0;
+ }
+-EXPORT_SYMBOL(wait_for_completion_interruptible);
++EXPORT_SYMBOL(__wait_for_completion_interruptible);
+ 
+ /**
+- * wait_for_completion_interruptible_timeout: - waits for completion (w/(to,intr))
++ * __wait_for_completion_interruptible_timeout: - waits for completion (w/(to,intr))
+  * @x:  holds the state of this particular completion
+  * @timeout:  timeout value in jiffies
+  *
+@@ -206,15 +212,15 @@ EXPORT_SYMBOL(wait_for_completion_interruptible);
+  * or number of jiffies left till timeout) if completed.
+  */
+ long __sched
+-wait_for_completion_interruptible_timeout(struct completion *x,
++__wait_for_completion_interruptible_timeout(struct completion *x,
+ 					  unsigned long timeout)
+ {
+ 	return wait_for_common(x, timeout, TASK_INTERRUPTIBLE);
+ }
+-EXPORT_SYMBOL(wait_for_completion_interruptible_timeout);
++EXPORT_SYMBOL(__wait_for_completion_interruptible_timeout);
+ 
+ /**
+- * wait_for_completion_killable: - waits for completion of a task (killable)
++ * __wait_for_completion_killable: - waits for completion of a task (killable)
+  * @x:  holds the state of this particular completion
+  *
+  * This waits to be signaled for completion of a specific task. It can be
+@@ -222,17 +228,18 @@ EXPORT_SYMBOL(wait_for_completion_interruptible_timeout);
+  *
+  * Return: -ERESTARTSYS if interrupted, 0 if completed.
+  */
+-int __sched wait_for_completion_killable(struct completion *x)
++int __sched __wait_for_completion_killable(struct completion *x)
+ {
+ 	long t = wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_KILLABLE);
++
+ 	if (t == -ERESTARTSYS)
+ 		return t;
+ 	return 0;
+ }
+-EXPORT_SYMBOL(wait_for_completion_killable);
++EXPORT_SYMBOL(__wait_for_completion_killable);
+ 
+ /**
+- * wait_for_completion_killable_timeout: - waits for completion of a task (w/(to,killable))
++ * __wait_for_completion_killable_timeout: - waits for completion of a task (w/(to,killable))
+  * @x:  holds the state of this particular completion
+  * @timeout:  timeout value in jiffies
+  *
+@@ -244,12 +251,12 @@ EXPORT_SYMBOL(wait_for_completion_killable);
+  * or number of jiffies left till timeout) if completed.
+  */
+ long __sched
+-wait_for_completion_killable_timeout(struct completion *x,
++__wait_for_completion_killable_timeout(struct completion *x,
+ 				     unsigned long timeout)
+ {
+ 	return wait_for_common(x, timeout, TASK_KILLABLE);
+ }
+-EXPORT_SYMBOL(wait_for_completion_killable_timeout);
++EXPORT_SYMBOL(__wait_for_completion_killable_timeout);
+ 
+ /**
+  *	try_wait_for_completion - try to decrement a completion without blocking
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index bb8bf88..b5946c7 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -1006,6 +1006,14 @@ config LOCKDEP_CROSSRELEASE
+ 	 or wait_for_complete() can use lock correctness detector using
+ 	 lockdep.
+ 
++config LOCKDEP_COMPLETE
++	bool "Lock debugging: allow complete to use deadlock detector"
++	select LOCKDEP_CROSSRELEASE
++	default n
++	help
++	 A deadlock caused by wait and complete can be detected by lockdep
++	 using crossrelease feature.
++
+ config PROVE_LOCKING
+ 	bool "Lock debugging: prove locking correctness"
+ 	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
 -- 
 1.9.1
 
