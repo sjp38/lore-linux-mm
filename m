@@ -1,129 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 378E16B025E
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 03:43:40 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id b13so19316996pat.3
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 00:43:40 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id y144si2858009pfb.83.2016.07.07.00.43.38
-        for <linux-mm@kvack.org>;
-        Thu, 07 Jul 2016 00:43:39 -0700 (PDT)
-Date: Thu, 7 Jul 2016 16:44:20 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v3 8/8] mm/zsmalloc: add per-class compact trace event
-Message-ID: <20160707074420.GE18072@bbox>
-References: <1467786233-4481-1-git-send-email-opensource.ganesh@gmail.com>
- <1467786233-4481-8-git-send-email-opensource.ganesh@gmail.com>
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A954A6B0253
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 03:45:42 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id g18so5959646lfg.2
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 00:45:42 -0700 (PDT)
+Received: from Galois.linutronix.de (linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id v139si2020186wmv.78.2016.07.07.00.45.41
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 07 Jul 2016 00:45:41 -0700 (PDT)
+Date: Thu, 7 Jul 2016 09:42:17 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 1/9] mm: Hardened usercopy
+In-Reply-To: <1467843928-29351-2-git-send-email-keescook@chromium.org>
+Message-ID: <alpine.DEB.2.11.1607070938430.4083@nanos>
+References: <1467843928-29351-1-git-send-email-keescook@chromium.org> <1467843928-29351-2-git-send-email-keescook@chromium.org>
 MIME-Version: 1.0
-In-Reply-To: <1467786233-4481-8-git-send-email-opensource.ganesh@gmail.com>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, rostedt@goodmis.org, mingo@redhat.com
+To: Kees Cook <keescook@chromium.org>
+Cc: linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, x86@kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
-Hello Ganesh,
+On Wed, 6 Jul 2016, Kees Cook wrote:
+> +
+> +#if defined(CONFIG_FRAME_POINTER) && defined(CONFIG_X86)
+> +	const void *frame = NULL;
+> +	const void *oldframe;
+> +#endif
 
-On Wed, Jul 06, 2016 at 02:23:53PM +0800, Ganesh Mahendran wrote:
-> add per-class compact trace event to get scanned objects and freed pages
-> number.
-> trace log is like below:
-> ----
->          kswapd0-629   [001] ....   293.161053: zs_compact_start: pool zram0
->          kswapd0-629   [001] ....   293.161056: zs_compact: class 254: 0 objects scanned, 0 pages freed
->          kswapd0-629   [001] ....   293.161057: zs_compact: class 202: 0 objects scanned, 0 pages freed
->          kswapd0-629   [001] ....   293.161062: zs_compact: class 190: 1 objects scanned, 3 pages freed
->          kswapd0-629   [001] ....   293.161063: zs_compact: class 168: 0 objects scanned, 0 pages freed
->          kswapd0-629   [001] ....   293.161065: zs_compact: class 151: 0 objects scanned, 0 pages freed
->          kswapd0-629   [001] ....   293.161073: zs_compact: class 144: 4 objects scanned, 8 pages freed
->          kswapd0-629   [001] ....   293.161087: zs_compact: class 126: 20 objects scanned, 10 pages freed
->          kswapd0-629   [001] ....   293.161095: zs_compact: class 111: 6 objects scanned, 8 pages freed
->          kswapd0-629   [001] ....   293.161122: zs_compact: class 107: 27 objects scanned, 27 pages freed
->          kswapd0-629   [001] ....   293.161157: zs_compact: class 100: 36 objects scanned, 24 pages freed
->          kswapd0-629   [001] ....   293.161173: zs_compact: class  94: 10 objects scanned, 15 pages freed
->          kswapd0-629   [001] ....   293.161221: zs_compact: class  91: 30 objects scanned, 40 pages freed
->          kswapd0-629   [001] ....   293.161256: zs_compact: class  83: 120 objects scanned, 30 pages freed
->          kswapd0-629   [001] ....   293.161266: zs_compact: class  76: 8 objects scanned, 8 pages freed
->          kswapd0-629   [001] ....   293.161282: zs_compact: class  74: 20 objects scanned, 15 pages freed
->          kswapd0-629   [001] ....   293.161306: zs_compact: class  71: 40 objects scanned, 20 pages freed
->          kswapd0-629   [001] ....   293.161313: zs_compact: class  67: 8 objects scanned, 6 pages freed
-> ...
->          kswapd0-629   [001] ....   293.161454: zs_compact: class   0: 0 objects scanned, 0 pages freed
->          kswapd0-629   [001] ....   293.161455: zs_compact_end: pool zram0: 301 pages compacted
-> ----
-> 
-> Also this patch changes trace_zsmalloc_compact_start[end] to
-> trace_zs_compact_start[end] to keep function naming consistent
-> with others in zsmalloc.
-> 
-> Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
-> ----
-> v3:
->     add per-class compact trace event - Minchan
-> 
->     I put this patch from 1/8 to 8/8, since this patch depends on below patch:
->        mm/zsmalloc: use obj_index to keep consistent with others
->        mm/zsmalloc: take obj index back from find_alloced_obj
-> 
+That's ugly
 
-Thanks for looking into this, Ganesh!
+> +
+> +	/* Object is not on the stack at all. */
+> +	if (obj + len <= stack || stackend <= obj)
+> +		return 0;
+> +
+> +	/*
+> +	 * Reject: object partially overlaps the stack (passing the
+> +	 * the check above means at least one end is within the stack,
+> +	 * so if this check fails, the other end is outside the stack).
+> +	 */
+> +	if (obj < stack || stackend < obj + len)
+> +		return -1;
+> +
+> +#if defined(CONFIG_FRAME_POINTER) && defined(CONFIG_X86)
+> +	oldframe = __builtin_frame_address(1);
+> +	if (oldframe)
+> +		frame = __builtin_frame_address(2);
+> +	/*
+> +	 * low ----------------------------------------------> high
+> +	 * [saved bp][saved ip][args][local vars][saved bp][saved ip]
+> +	 *		     ^----------------^
+> +	 *             allow copies only within here
+> +	 */
+> +	while (stack <= frame && frame < stackend) {
+> +		/*
+> +		 * If obj + len extends past the last frame, this
+> +		 * check won't pass and the next frame will be 0,
+> +		 * causing us to bail out and correctly report
+> +		 * the copy as invalid.
+> +		 */
+> +		if (obj + len <= frame)
+> +			return obj >= oldframe + 2 * sizeof(void *) ? 2 : -1;
+> +		oldframe = frame;
+> +		frame = *(const void * const *)frame;
+> +	}
+> +	return -1;
+> +#else
+> +	return 1;
+> +#endif
 
-Small change I want is to see the number of migrated object rather than
-the number of scanning object.
+I'd rather make that a weak function returning 1 which can be replaced by
+x86 for CONFIG_FRAME_POINTER=y. That also allows other architectures to
+implement their specific frame checks.
 
-If you don't mind, could you resend it with below?
+Thanks,
 
-Thanks.
-
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 3a1315e54057..166232a0aed6 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -1774,7 +1774,7 @@ struct zs_compact_control {
- 	 * in the subpage. */
- 	int obj_idx;
- 
--	unsigned long nr_scanned_obj;
-+	unsigned long nr_migrated_obj;
- 	unsigned long nr_freed_pages;
- };
- 
-@@ -1809,6 +1809,7 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
- 		free_obj = obj_malloc(class, get_zspage(d_page), handle);
- 		zs_object_copy(class, free_obj, used_obj);
- 		obj_idx++;
-+		cc->nr_migrated_obj++;
- 		/*
- 		 * record_obj updates handle's value to free_obj and it will
- 		 * invalidate lock bit(ie, HANDLE_PIN_BIT) of handle, which
-@@ -1821,8 +1822,6 @@ static int migrate_zspage(struct zs_pool *pool, struct size_class *class,
- 		obj_free(class, used_obj);
- 	}
- 
--	cc->nr_scanned_obj += obj_idx - cc->obj_idx;
--
- 	/* Remember last position in this iteration */
- 	cc->s_page = s_page;
- 	cc->obj_idx = obj_idx;
-@@ -2270,7 +2269,7 @@ static unsigned long zs_can_compact(struct size_class *class)
- static void __zs_compact(struct zs_pool *pool, struct size_class *class)
- {
- 	struct zs_compact_control cc = {
--		.nr_scanned_obj = 0,
-+		.nr_migrated_obj = 0,
- 		.nr_freed_pages = 0,
- 	};
- 	struct zspage *src_zspage;
-@@ -2317,7 +2316,7 @@ static void __zs_compact(struct zs_pool *pool, struct size_class *class)
- 	spin_unlock(&class->lock);
- 
- 	pool->stats.pages_compacted += cc.nr_freed_pages;
--	trace_zs_compact(class->index, cc.nr_scanned_obj, cc.nr_freed_pages);
-+	trace_zs_compact(class->index, cc.nr_migrated_obj, cc.nr_freed_pages);
- }
- 
- unsigned long zs_compact(struct zs_pool *pool)
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
