@@ -1,287 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 340F36B0253
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 10:15:54 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id i4so18062408wmg.2
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 07:15:54 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fs8si2875362wjb.153.2016.07.07.07.15.52
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D99896B025F
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 10:40:20 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id a4so12627555lfa.1
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 07:40:20 -0700 (PDT)
+Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
+        by mx.google.com with ESMTPS id c11si756171wmi.99.2016.07.07.07.40.19
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 07 Jul 2016 07:15:53 -0700 (PDT)
-Date: Thu, 7 Jul 2016 16:15:50 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 8/8] mm,oom_reaper: Make OOM reaper use list of mm_struct.
-Message-ID: <20160707141548.GO5379@dhcp22.suse.cz>
-References: <201607031135.AAH95347.MVOHQtFJFLOOFS@I-love.SAKURA.ne.jp>
- <201607031141.FII82373.FMHQLFOOtVSJOF@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Jul 2016 07:40:19 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id C94941C168B
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 15:40:18 +0100 (IST)
+Date: Thu, 7 Jul 2016 15:40:17 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 5/9] x86, pkeys: allocation/free syscalls
+Message-ID: <20160707144017.GW11498@techsingularity.net>
+References: <20160707124719.3F04C882@viggo.jf.intel.com>
+ <20160707124727.62F2BEE0@viggo.jf.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <201607031141.FII82373.FMHQLFOOtVSJOF@I-love.SAKURA.ne.jp>
+In-Reply-To: <20160707124727.62F2BEE0@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, oleg@redhat.com, rientjes@google.com, vdavydov@parallels.com, mst@redhat.com
+To: Dave Hansen <dave@sr71.net>
+Cc: linux-kernel@vger.kernel.org, x86@kernel.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, dave.hansen@linux.intel.com, arnd@arndb.de, hughd@google.com, viro@zeniv.linux.org.uk
 
-On Sun 03-07-16 11:41:59, Tetsuo Handa wrote:
-> >From ce97a7f6b94a6003bc2b41e5f69da2fedc934a9d Mon Sep 17 00:00:00 2001
-> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Date: Sat, 2 Jul 2016 23:10:06 +0900
-> Subject: [PATCH 8/8] mm,oom_reaper: Make OOM reaper use list of mm_struct.
+On Thu, Jul 07, 2016 at 05:47:27AM -0700, Dave Hansen wrote:
 > 
-> Since OOM reaping is per mm_struct operation, it is natural to use
-> list of mm_struct used by OOM victims.
-
-I would expect that this would be an immediate follow up for "[PATCH 3/8]
-mm,oom: Use list of mm_struct used by OOM victims."
-
-> This patch eliminates find_lock_task_mm() usage from the OOM reaper.
-
-It would be good to explain what are the consequences.
-
-> This patch fixes what commit 36324a990cf578b5 ("oom: clear TIF_MEMDIE
-> after oom_reaper managed to unmap the address space") and
-> commit 449d777d7ad6d7f9 ("mm, oom_reaper: clear TIF_MEMDIE for all tasks
-> queued for oom_reaper") tried to address, by always calling exit_oom_mm()
-> after OOM reap attempt was made.
-
-And rather than mentioning the above two commits it would be better to
-explain what is the difference wrt. to the current implementation.
-
-Other than that it looks good to me.
-
+> From: Dave Hansen <dave.hansen@linux.intel.com>
 > 
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> ---
->  include/linux/oom.h   |  8 -----
->  include/linux/sched.h |  3 --
->  mm/memcontrol.c       |  1 -
->  mm/oom_kill.c         | 84 +++++++++++++++++----------------------------------
->  4 files changed, 27 insertions(+), 69 deletions(-)
+> This patch adds two new system calls:
 > 
-> diff --git a/include/linux/oom.h b/include/linux/oom.h
-> index 4844325..1a212c1 100644
-> --- a/include/linux/oom.h
-> +++ b/include/linux/oom.h
-> @@ -71,14 +71,6 @@ static inline bool oom_task_origin(const struct task_struct *p)
->  
->  extern void mark_oom_victim(struct task_struct *tsk, struct oom_control *oc);
->  
-> -#ifdef CONFIG_MMU
-> -extern void wake_oom_reaper(struct task_struct *tsk);
-> -#else
-> -static inline void wake_oom_reaper(struct task_struct *tsk)
-> -{
-> -}
-> -#endif
-> -
->  extern unsigned long oom_badness(struct task_struct *p,
->  		struct mem_cgroup *memcg, const nodemask_t *nodemask,
->  		unsigned long totalpages);
-> diff --git a/include/linux/sched.h b/include/linux/sched.h
-> index f472f27..4379279 100644
-> --- a/include/linux/sched.h
-> +++ b/include/linux/sched.h
-> @@ -1916,9 +1916,6 @@ struct task_struct {
->  	unsigned long	task_state_change;
->  #endif
->  	int pagefault_disabled;
-> -#ifdef CONFIG_MMU
-> -	struct task_struct *oom_reaper_list;
-> -#endif
->  /* CPU-specific state of this task */
->  	struct thread_struct thread;
->  /*
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index c17160d..9acc840 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1236,7 +1236,6 @@ static bool mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
->  	 */
->  	if (task_will_free_mem(current)) {
->  		mark_oom_victim(current, &oc);
-> -		wake_oom_reaper(current);
->  		goto unlock;
->  	}
->  
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 317ce2c..bdc192f 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -468,8 +468,6 @@ bool process_shares_mm(struct task_struct *p, struct mm_struct *mm)
->   * victim (if that is possible) to help the OOM killer to move on.
->   */
->  static DECLARE_WAIT_QUEUE_HEAD(oom_reaper_wait);
-> -static struct task_struct *oom_reaper_list;
-> -static DEFINE_SPINLOCK(oom_reaper_lock);
->  
->  static bool __oom_reap_vmas(struct mm_struct *mm)
+> 	int pkey_alloc(unsigned long flags, unsigned long init_access_rights)
+> 	int pkey_free(int pkey);
+> 
+> These implement an "allocator" for the protection keys
+> themselves, which can be thought of as analogous to the allocator
+> that the kernel has for file descriptors.  The kernel tracks
+> which numbers are in use, and only allows operations on keys that
+> are valid.  A key which was not obtained by pkey_alloc() may not,
+> for instance, be passed to pkey_mprotect() (or the forthcoming
+> get/set syscalls).
+> 
+
+Ok, so the last patch wired up the system call before the kernel was
+tracking which numbers were in use. It doesn't really matter as such but
+the patches should be swapped around and only expose the systemcall when
+it's actually safe.
+
+> These system calls are also very important given the kernel's use
+> of pkeys to implement execute-only support.  These help ensure
+> that userspace can never assume that it has control of a key
+> unless it first asks the kernel.
+> 
+> The 'init_access_rights' argument to pkey_alloc() specifies the
+> rights that will be established for the returned pkey.  For
+> instance:
+> 
+> 	pkey = pkey_alloc(flags, PKEY_DENY_WRITE);
+> 
+> will allocate 'pkey', but also sets the bits in PKRU[1] such that
+> writing to 'pkey' is already denied.  This keeps userspace from
+> needing to have knowledge about manipulating PKRU with the
+> RDPKRU/WRPKRU instructions.  Userspace is still free to use these
+> instructions as it wishes, but this facility ensures it is no
+> longer required.
+> 
+> The kernel does _not_ enforce that this interface must be used for
+> changes to PKRU, even for keys it does not control.
+> 
+> The kernel does not prevent pkey_free() from successfully freeing
+> in-use pkeys (those still assigned to a memory range by
+> pkey_mprotect()).  It would be expensive to implement the checks
+> for this, so we instead say, "Just don't do it" since sane
+> software will never do it anyway.
+> 
+
+Unfortunately, it could manifest as either corruption due to an area
+expected to be protected being accessible or an unexpected SEGV.
+
+I accept the expensive arguement but it opens a new class of problems
+that userspace debuggers will need to evaluate.
+
+> diff -puN arch/x86/include/asm/mmu_context.h~pkeys-116-syscalls-allocation arch/x86/include/asm/mmu_context.h
+> --- a/arch/x86/include/asm/mmu_context.h~pkeys-116-syscalls-allocation	2016-07-07 05:47:01.435831049 -0700
+> +++ b/arch/x86/include/asm/mmu_context.h	2016-07-07 05:47:01.454831911 -0700
+> @@ -108,7 +108,16 @@ static inline void enter_lazy_tlb(struct
+>  static inline int init_new_context(struct task_struct *tsk,
+>  				   struct mm_struct *mm)
 >  {
-> @@ -540,30 +538,27 @@ static bool __oom_reap_vmas(struct mm_struct *mm)
->  }
->  
->  #define MAX_OOM_REAP_RETRIES 10
-> -static void oom_reap_task(struct task_struct *tsk)
-> +static void oom_reap_vmas(struct mm_struct *mm)
->  {
->  	int attempts = 0;
-> -	struct mm_struct *mm = NULL;
-> -	struct task_struct *p = find_lock_task_mm(tsk);
-> +	bool ret;
->  
->  	/*
-> -	 * Make sure we find the associated mm_struct even when the particular
-> -	 * thread has already terminated and cleared its mm.
-> -	 * We might have race with exit path so consider our work done if there
-> -	 * is no mm.
-> +	 * Check MMF_OOM_REAPED after holding oom_lock because
-> +	 * oom_kill_process() might find this mm pinned.
->  	 */
-> -	if (!p)
-> -		goto done;
-> -	mm = p->mm;
-> -	atomic_inc(&mm->mm_count);
-> -	task_unlock(p);
-> +	mutex_lock(&oom_lock);
-> +	ret = test_bit(MMF_OOM_REAPED, &mm->flags);
-> +	mutex_unlock(&oom_lock);
-> +	if (ret)
-> +		return;
->  
->  	/* Retry the down_read_trylock(mmap_sem) a few times */
->  	while (attempts++ < MAX_OOM_REAP_RETRIES && !__oom_reap_vmas(mm))
->  		schedule_timeout_idle(HZ/10);
->  
->  	if (attempts <= MAX_OOM_REAP_RETRIES)
-> -		goto done;
-> +		return;
->  
->  	pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
->  		mm->oom_mm.pid, mm->oom_mm.comm);
-> @@ -580,51 +575,30 @@ static void oom_reap_task(struct task_struct *tsk)
->  		set_bit(MMF_OOM_REAPED, &mm->flags);
->  	}
->  	debug_show_all_locks();
-> -
-> -done:
-> -	tsk->oom_reaper_list = NULL;
-> -	/* Drop a reference taken by wake_oom_reaper */
-> -	put_task_struct(tsk);
-> -	/* Drop a reference taken above. */
-> -	if (mm)
-> -		mmdrop(mm);
->  }
->  
->  static int oom_reaper(void *unused)
->  {
->  	while (true) {
-> -		struct task_struct *tsk = NULL;
-> -
-> -		wait_event_freezable(oom_reaper_wait, oom_reaper_list != NULL);
-> -		spin_lock(&oom_reaper_lock);
-> -		if (oom_reaper_list != NULL) {
-> -			tsk = oom_reaper_list;
-> -			oom_reaper_list = tsk->oom_reaper_list;
-> -		}
-> -		spin_unlock(&oom_reaper_lock);
-> -
-> -		if (tsk)
-> -			oom_reap_task(tsk);
-> +		struct mm_struct *mm = NULL;
+> +	#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
+> +	if (cpu_feature_enabled(X86_FEATURE_OSPKE)) {
+> +		/* pkey 0 is the default and always allocated */
+> +		mm->context.pkey_allocation_map = 0x1;
+> +		/* -1 means unallocated or invalid */
+> +		mm->context.execute_only_pkey = -1;
+> +	}
+> +	#endif
+>  	init_new_context_ldt(tsk, mm);
 > +
-> +		wait_event_freezable(oom_reaper_wait,
-> +				     !list_empty(&oom_mm_list));
-> +		spin_lock(&oom_mm_lock);
-> +		if (!list_empty(&oom_mm_list))
-> +			mm = list_first_entry(&oom_mm_list, struct mm_struct,
-> +					      oom_mm.list);
-> +		spin_unlock(&oom_mm_lock);
-> +		if (!mm)
-> +			continue;
-> +		oom_reap_vmas(mm);
-> +		/* Drop a reference taken by mark_oom_victim(). */
-> +		exit_oom_mm(mm);
->  	}
->  
 >  	return 0;
 >  }
->  
-> -void wake_oom_reaper(struct task_struct *tsk)
-> -{
-> -	/* tsk is already queued? */
-> -	if (tsk == oom_reaper_list || tsk->oom_reaper_list)
-> -		return;
-> -
-> -	get_task_struct(tsk);
-> -
-> -	spin_lock(&oom_reaper_lock);
-> -	tsk->oom_reaper_list = oom_reaper_list;
-> -	oom_reaper_list = tsk;
-> -	spin_unlock(&oom_reaper_lock);
-> -	wake_up(&oom_reaper_wait);
-> -}
-> -
->  static int __init oom_init(void)
->  {
->  	kthread_run(oom_reaper, NULL, "oom_reaper");
-> @@ -667,6 +641,9 @@ void mark_oom_victim(struct task_struct *tsk, struct oom_control *oc)
->  		mm->oom_mm.pid = task_pid_nr(tsk);
->  #endif
->  		list_add_tail(&mm->oom_mm.list, &oom_mm_list);
-> +#ifdef CONFIG_MMU
-> +		wake_up(&oom_reaper_wait);
-> +#endif
->  	}
->  	spin_unlock(&oom_mm_lock);
->  	/*
-> @@ -816,7 +793,6 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
->  	unsigned int victim_points = 0;
->  	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
->  					      DEFAULT_RATELIMIT_BURST);
-> -	bool can_oom_reap = true;
->  
->  	/*
->  	 * If the task is already exiting, don't alarm the sysadmin or kill
-> @@ -825,7 +801,6 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
->  	task_lock(p);
->  	if (task_will_free_mem(p)) {
->  		mark_oom_victim(p, oc);
-> -		wake_oom_reaper(p);
->  		task_unlock(p);
->  		put_task_struct(p);
->  		return;
-> @@ -915,7 +890,6 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
->  			 * memory might be still used. Hide the mm from the oom
->  			 * killer to guarantee OOM forward progress.
->  			 */
-> -			can_oom_reap = false;
->  			set_bit(MMF_OOM_REAPED, &mm->flags);
->  			pr_info("oom killer %d (%s) has mm pinned by %d (%s)\n",
->  					task_pid_nr(victim), victim->comm,
-> @@ -926,9 +900,6 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
->  	}
->  	rcu_read_unlock();
->  
-> -	if (can_oom_reap)
-> -		wake_oom_reaper(victim);
-> -
->  	mmdrop(mm);
->  	put_task_struct(victim);
->  }
-> @@ -1004,7 +975,6 @@ bool out_of_memory(struct oom_control *oc)
->  	 */
->  	if (task_will_free_mem(current)) {
->  		mark_oom_victim(current, oc);
-> -		wake_oom_reaper(current);
->  		return true;
->  	}
->  
-> -- 
-> 1.8.3.1
+>  static inline void destroy_context(struct mm_struct *mm)
+
+I prevents userspace modifying the default key from userspace with WRPKRU
+or an unallocated key for that matter.  However, I also cannot find a case
+where it really matters. An application screwing it up may ask mprotect
+to do something very unexpected but that's about it.
+
+> +static inline
+> +bool mm_pkey_is_allocated(struct mm_struct *mm, unsigned long pkey)
+> +{
+> +	if (!validate_pkey(pkey))
+> +		return true;
+> +
+> +	return mm_pkey_allocation_map(mm) & (1 << pkey);
+> +}
+> +
+
+We flip-flop between whether pkey is signed or unsigned.
+
+> +SYSCALL_DEFINE2(pkey_alloc, unsigned long, flags, unsigned long, init_val)
+> +{
+> +	int pkey;
+> +	int ret;
+> +
+> +	/* No flags supported yet. */
+> +	if (flags)
+> +		return -EINVAL;
+> +	/* check for unsupported init values */
+> +	if (init_val & ~PKEY_ACCESS_MASK)
+> +		return -EINVAL;
+> +
+> +	down_write(&current->mm->mmap_sem);
+> +	pkey = mm_pkey_alloc(current->mm);
+> +
+> +	ret = -ENOSPC;
+> +	if (pkey == -1)
+> +		goto out;
+> +
+> +	ret = arch_set_user_pkey_access(current, pkey, init_val);
+> +	if (ret) {
+> +		mm_pkey_free(current->mm, pkey);
+> +		goto out;
+> +	}
+> +	ret = pkey;
+> +out:
+> +	up_write(&current->mm->mmap_sem);
+> +	return ret;
+> +}
+
+It's not wrong as such but mmap_sem taken for write seems *extremely*
+heavy to protect the allocation mask. If userspace is racing a key
+allocation with mprotect, it's already game over in terms of random
+behaviour.
+
+I've no idea what the frequency of pkey alloc/free is expected to be. If
+it's really low then maybe it doesn't matter but if it's high this is
+going to be a bottleneck later.
+
+> +
+> +SYSCALL_DEFINE1(pkey_free, int, pkey)
+> +{
+> +	int ret;
+> +
+> +	down_write(&current->mm->mmap_sem);
+> +	ret = mm_pkey_free(current->mm, pkey);
+> +	up_write(&current->mm->mmap_sem);
+> +
+> +	/*
+> +	 * We could provie warnings or errors if any VMA still
+> +	 * has the pkey set here.
+> +	 */
+> +	return ret;
+> +}
+> _
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
