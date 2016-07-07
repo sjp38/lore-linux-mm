@@ -1,93 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 24C096B0253
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 07:48:57 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id g8so47415036itb.2
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 04:48:57 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id v127si2589045itg.48.2016.07.07.04.48.55
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 27EE16B0253
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 07:51:29 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id w130so9755225lfd.3
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 04:51:29 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id y200si3134603wme.141.2016.07.07.04.51.27
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 07 Jul 2016 04:48:56 -0700 (PDT)
-Subject: Re: [RFC PATCH 1/6] oom: keep mm of the killed task available
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1467365190-24640-1-git-send-email-mhocko@kernel.org>
-	<1467365190-24640-2-git-send-email-mhocko@kernel.org>
-	<201607031145.HIF90125.LMHQVFJOtOSOFF@I-love.SAKURA.ne.jp>
-	<20160707082431.GB5379@dhcp22.suse.cz>
-In-Reply-To: <20160707082431.GB5379@dhcp22.suse.cz>
-Message-Id: <201607072048.JBE13074.FSOJVHLOFFMOtQ@I-love.SAKURA.ne.jp>
-Date: Thu, 7 Jul 2016 20:48:46 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Jul 2016 04:51:27 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id n127so2360544wme.0
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 04:51:27 -0700 (PDT)
+Date: Thu, 7 Jul 2016 13:51:26 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm,oom: use per signal_struct flag rather than clear
+ TIF_MEMDIE
+Message-ID: <20160707115125.GJ5379@dhcp22.suse.cz>
+References: <20160627103609.GE31799@dhcp22.suse.cz>
+ <20160627155119.GA17686@redhat.com>
+ <20160627160616.GN31799@dhcp22.suse.cz>
+ <20160627175555.GA24370@redhat.com>
+ <20160628101956.GA510@dhcp22.suse.cz>
+ <20160629001353.GA9377@redhat.com>
+ <20160629083314.GA27153@dhcp22.suse.cz>
+ <20160629200108.GA19253@redhat.com>
+ <20160630075904.GC18783@dhcp22.suse.cz>
+ <20160703132147.GA28267@redhat.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160703132147.GA28267@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, oleg@redhat.com, rientjes@google.com, vdavydov@parallels.com
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org, vdavydov@virtuozzo.com, rientjes@google.com
 
-Michal Hocko wrote:
-> On Sun 03-07-16 11:45:34, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > > index 7d0a275df822..4ea4a649822d 100644
-> > > --- a/mm/oom_kill.c
-> > > +++ b/mm/oom_kill.c
-> > > @@ -286,16 +286,17 @@ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
-> > >  	 * Don't allow any other task to have access to the reserves unless
-> > >  	 * the task has MMF_OOM_REAPED because chances that it would release
-> > >  	 * any memory is quite low.
-> > > +	 * MMF_OOM_NOT_REAPABLE means that the oom_reaper backed off last time
-> > > +	 * so let it try again.
-> > >  	 */
-> > >  	if (!is_sysrq_oom(oc) && atomic_read(&task->signal->oom_victims)) {
-> > > -		struct task_struct *p = find_lock_task_mm(task);
-> > > +		struct mm_struct *mm = task->signal->oom_mm;
-> > >  		enum oom_scan_t ret = OOM_SCAN_ABORT;
-> > >  
-> > > -		if (p) {
-> > > -			if (test_bit(MMF_OOM_REAPED, &p->mm->flags))
-> > > -				ret = OOM_SCAN_CONTINUE;
-> > > -			task_unlock(p);
-> > > -		}
-> > > +		if (test_bit(MMF_OOM_REAPED, &mm->flags))
-> > > +			ret = OOM_SCAN_CONTINUE;
-> > > +		else if (test_bit(MMF_OOM_NOT_REAPABLE, &mm->flags))
-> > > +			ret = OOM_SCAN_SELECT;
-> > 
-> > I don't think this is useful.
+On Sun 03-07-16 15:21:47, Oleg Nesterov wrote:
+> On 06/30, Michal Hocko wrote:
+> > On Wed 29-06-16 22:01:08, Oleg Nesterov wrote:
+> > > On 06/29, Michal Hocko wrote:
+> > > >
+> > > > > > +void mark_oom_victim(struct task_struct *tsk, struct mm_struct *mm)
+> > > > > >  {
+> > > > > >  	WARN_ON(oom_killer_disabled);
+> > > > > >  	/* OOM killer might race with memcg OOM */
+> > > > > >  	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
+> > > > > >  		return;
+> > > > > > +
+> > > > > >  	atomic_inc(&tsk->signal->oom_victims);
+> > > > > > +
+> > > > > > +	/* oom_mm is bound to the signal struct life time */
+> > > > > > +	if (!tsk->signal->oom_mm) {
+> > > > > > +		atomic_inc(&mm->mm_count);
+> > > > > > +		tsk->signal->oom_mm = mm;
+> > > > >
+> > > > > Looks racy, but it is not because we rely on oom_lock? Perhaps a comment
+> > > > > makes sense.
+> > > >
+> > > > mark_oom_victim will be called only for the current or under the
+> > > > task_lock so it should be stable. Except for...
+> > >
+> > > I meant that the code looks racy because 2 threads can see ->oom_mm == NULL
+> > > at the same time and in this case we have the extra atomic_inc(mm_count).
+> > > But I guess oom_lock saves us, so the code is correct but not clear.
+> >
+> > I have changed that to cmpxchg because lowmemory killer is called
+> > outside of oom_lock.
 > 
-> Well, to be honest me neither but changing the retry logic is not in
-> scope of this patch. It just preserved the existing logic. I guess we
-> can get rid of it but that deserves a separate patch. The retry was
-> implemented to cover unlikely stalls when the lock is held but as this
-> hasn't ever been observed in the real life I would agree to remove it to
-> simplify the code (even though it is literally few lines of code). I was
-> probably overcautious when adding the flag.
+> Hmm. I do not see anything in android/lowmemorykiller.c which can call
+> mark_oom_victim() ...
+
+I was just working on the pure mmotm tree and the lmk change was routed
+via Greg. In short mark_oom_victim is no longer used out of oom proper.
+
+> And btw this check probably needs a comment too, we rely on SIGKILL sent
+> to this task before we do wake_oom_reaper(), or task_will_free_mem() == T.
+> Otherwise tsk->oom_reaper_list can be non-NULL if a victim forks before
+> exit, the child will have ->oom_reaper_list copied from parent by
+> dup_task_struct().
+
+Yes there is the dependency and probably worth a comment.
+
+> > > > Hmm, I didn't think about exec case. And I guess we have never cared
+> > > > about that race. We just select a task and then kill it.
+> > >
+> > > And I guess we want to fix this too, although this is not that important,
+> > > but this looks like a minor security problem.
+> >
+> > I am not sure I can see security implications but I agree this is less
+> > than optimal,
 > 
+> Well, just suppose that a memory hog execs a setuid application which does
+> something important, then we can kill it in some "inconsistent" state. Say,
+> after it created a file-lock which blocks other instances.
 
-You mean reverting http://lkml.kernel.org/r/1466426628-15074-10-git-send-email-mhocko@kernel.org ?
+How that would differ from selecting and killing the suid application
+right away?
 
-If we hit a situation where MMF_OOM_NOT_REAPABLE is set, it means that that mm
-was used by multiple threads and one of them is blocked. On the other hand,
-since currently task_struct->oom_reaper_list is used, we can hit
-(say, T1 and T2 and T3 are sharing the same mm)
+[...]
+> > > Btw, do we still need this list_for_each_entry(child, &t->children, sibling)
+> > > loop in oom_kill_process() ?
+> >
+> > Well, to be honest, I don't know. This is a heuristic we have been doing
+> > for a long time. I do not know how many times it really matters. It can
+> > even be harmful in loads where children are created in the same pace OOM
+> > killer is killing them. Not sure how likely is that though...
+> 
+> And it is not clear to me why "child_points > victim_points" can be true if
+> the victim was chosen by select_bad_process() (to simplify the discussion,
+> lets ignore has_intersects_mems_allowed/etc).
 
-  (1) The T1's mm is queued to oom_reaper_list for the first time by T1.
-  (2) The OOM reaper finds that mm for the first time.
-  (3) The OOM reaper fails to hold mm->mmap_sem for read because T3 is blocked with that mm->mmap_sem held for write.
-  (4) The T2's mm (which is same with T1's mm) is queued to oom_reaper_list for the second time by T2.
-  (5) The OOM reaper still fails to hold mm->mmap_sem for read because T3 is blocked with that mm->mmap_sem held for write.
-  (6) The OOM reaper sets MMF_OOM_NOT_REAPABLE.
-  (7) That mm is dequeued from oom_reaper_list for the first time by the OOM reaper.
-  (8) The OOM reaper finds that mm for the second time.
-  (9) The OOM reaper still fails to hold mm->mmap_sem for read because T3 is blocked with that mm->mmap_sem held for write.
-  (10) The OOM reaper sets MMF_OOM_REAPED.
-  (11) That mm is dequeued from oom_reaper_list for the second time by the OOM reaper.
-
-sequences. To me, MMF_OOM_NOT_REAPABLE alone is unlikely helpful.
-
-If oom_mm_list list which chains mm_struct is used, at least we won't
-concurrently queue same mm which is currently under OOM reaper's operation.
+Because victim_points is a bit of misnomer. It doesn't have anything to
+do with selected victim's score. victim_points is 0 before the loop.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
