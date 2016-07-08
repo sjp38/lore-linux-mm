@@ -1,68 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EEAD06B0005
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 20:19:11 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id b13so60345402pat.3
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 17:19:11 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id pw6si788147pab.161.2016.07.07.17.19.10
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 777896B025E
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 20:19:13 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id ts6so61236205pac.1
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 17:19:13 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id g3si847172pfg.118.2016.07.07.17.19.11
         for <linux-mm@kvack.org>;
-        Thu, 07 Jul 2016 17:19:10 -0700 (PDT)
-Subject: [PATCH 0/4] [RFC][v4] Workaround for Xeon Phi PTE A/D bits erratum
+        Thu, 07 Jul 2016 17:19:12 -0700 (PDT)
+Subject: [PATCH 1/4] x86, swap: move swap offset/type up in PTE to work around erratum
 From: Dave Hansen <dave@sr71.net>
-Date: Thu, 07 Jul 2016 17:19:09 -0700
-Message-Id: <20160708001909.FB2443E2@viggo.jf.intel.com>
+Date: Thu, 07 Jul 2016 17:19:11 -0700
+References: <20160708001909.FB2443E2@viggo.jf.intel.com>
+In-Reply-To: <20160708001909.FB2443E2@viggo.jf.intel.com>
+Message-Id: <20160708001911.9A3FD2B6@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: x86@kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, bp@alien8.de, ak@linux.intel.com, mhocko@suse.com, dave.hansen@intel.com, Dave Hansen <dave@sr71.net>
+Cc: x86@kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, bp@alien8.de, ak@linux.intel.com, mhocko@suse.com, dave.hansen@intel.com, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com
 
-This patch survived a bunch of testing over the past week, including
-on hardware affected by the issue.  A debugging patch showed the
-"stray" bits being set, and no ill effects were noticed.
 
-Barring any heartburn from folks, I think this is ready for the tip
-tree.
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
---
+This erratum can result in Accessed/Dirty getting set by the hardware
+when we do not expect them to be (on !Present PTEs).
 
-The Intel(R) Xeon Phi(TM) Processor x200 Family (codename: Knights
-Landing) has an erratum where a processor thread setting the Accessed
-or Dirty bits may not do so atomically against its checks for the
-Present bit.  This may cause a thread (which is about to page fault)
-to set A and/or D, even though the Present bit had already been
-atomically cleared.
+Instead of trying to fix them up after this happens, we just
+allow the bits to get set and try to ignore them.  We do this by
+shifting the layout of the bits we use for swap offset/type in
+our 64-bit PTEs.
 
-These bits are truly "stray".  In the case of the Dirty bit, the
-thread associated with the stray set was *not* allowed to write to
-the page.  This means that we do not have to launder the bit(s); we
-can simply ignore them.
+It looks like this:
 
-More details can be found in the "Specification Update" under "KNL4":
+bitnrs: |     ...            | 11| 10|  9|8|7|6|5| 4| 3|2|1|0|
+names:  |     ...            |SW3|SW2|SW1|G|L|D|A|CD|WT|U|W|P|
+before: |         OFFSET (9-63)          |0|X|X| TYPE(1-5) |0|
+ after: | OFFSET (14-63)  |  TYPE (9-13) |0|X|X|X| X| X|X|X|0|
 
-	http://www.intel.com/content/dam/www/public/us/en/documents/specification-updates/xeon-phi-processor-specification-update.pdf
+Note that D was already a don't care (X) even before.  We just
+move TYPE up and turn its old spot (which could be hit by the
+A bit) into all don't cares.
 
-If the PTE is used for storing a swap index or a NUMA migration index,
-the A bit could be misinterpreted as part of the swap type.  The stray
-bits being set cause a software-cleared PTE to be interpreted as a
-swap entry.  In some cases (like when the swap index ends up being
-for a non-existent swapfile), the kernel detects the stray value
-and WARN()s about it, but there is no guarantee that the kernel can
-always detect it.
+We take 5 bits away from the offset, but that still leaves us
+with 50 bits which lets us index into a 62-bit swapfile (4 EiB).
+I think that's probably fine for the moment.  We could
+theoretically reclaim 5 of the bits (1, 2, 3, 4, 7) but it
+doesn't gain us anything.
 
-This patch changes the kernel to attempt to ignore those stray bits
-when they get set.  We do this by making our swap PTE format
-completely ignore the A/D bits, and also by ignoring them in our
-pte_none() checks.
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+---
 
-Andi Kleen wrote the original version of this patch.  Dave Hansen
-wrote the later ones.
+ b/arch/x86/include/asm/pgtable_64.h |   26 ++++++++++++++++++++------
+ 1 file changed, 20 insertions(+), 6 deletions(-)
 
-v4: complete rework: let the bad bits stay around, but try to
-    ignore them
-v3: huge rework to keep batching working in unmap case
-v2: out of line. avoid single thread flush. cover more clear
-    cases
+diff -puN arch/x86/include/asm/pgtable_64.h~knl-strays-10-move-swp-pte-bits arch/x86/include/asm/pgtable_64.h
+--- a/arch/x86/include/asm/pgtable_64.h~knl-strays-10-move-swp-pte-bits	2016-07-07 17:17:43.556746185 -0700
++++ b/arch/x86/include/asm/pgtable_64.h	2016-07-07 17:17:43.559746319 -0700
+@@ -140,18 +140,32 @@ static inline int pgd_large(pgd_t pgd) {
+ #define pte_offset_map(dir, address) pte_offset_kernel((dir), (address))
+ #define pte_unmap(pte) ((void)(pte))/* NOP */
+ 
+-/* Encode and de-code a swap entry */
++/*
++ * Encode and de-code a swap entry
++ *
++ * |     ...            | 11| 10|  9|8|7|6|5| 4| 3|2|1|0| <- bit number
++ * |     ...            |SW3|SW2|SW1|G|L|D|A|CD|WT|U|W|P| <- bit names
++ * | OFFSET (14->63) | TYPE (10-13) |0|X|X|X| X| X|X|X|0| <- swp entry
++ *
++ * G (8) is aliased and used as a PROT_NONE indicator for
++ * !present ptes.  We need to start storing swap entries above
++ * there.  We also need to avoid using A and D because of an
++ * erratum where they can be incorrectly set by hardware on
++ * non-present PTEs.
++ */
++#define SWP_TYPE_FIRST_BIT (_PAGE_BIT_PROTNONE + 1)
+ #define SWP_TYPE_BITS 5
+-#define SWP_OFFSET_SHIFT (_PAGE_BIT_PROTNONE + 1)
++/* Place the offset above the type: */
++#define SWP_OFFSET_FIRST_BIT (SWP_TYPE_FIRST_BIT + SWP_TYPE_BITS + 1)
+ 
+ #define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > SWP_TYPE_BITS)
+ 
+-#define __swp_type(x)			(((x).val >> (_PAGE_BIT_PRESENT + 1)) \
++#define __swp_type(x)			(((x).val >> (SWP_TYPE_FIRST_BIT)) \
+ 					 & ((1U << SWP_TYPE_BITS) - 1))
+-#define __swp_offset(x)			((x).val >> SWP_OFFSET_SHIFT)
++#define __swp_offset(x)			((x).val >> SWP_OFFSET_FIRST_BIT)
+ #define __swp_entry(type, offset)	((swp_entry_t) { \
+-					 ((type) << (_PAGE_BIT_PRESENT + 1)) \
+-					 | ((offset) << SWP_OFFSET_SHIFT) })
++					 ((type) << (SWP_TYPE_FIRST_BIT)) \
++					 | ((offset) << SWP_OFFSET_FIRST_BIT) })
+ #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val((pte)) })
+ #define __swp_entry_to_pte(x)		((pte_t) { .pte = (x).val })
+ 
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
