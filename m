@@ -1,76 +1,39 @@
 From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH 9/9] mm: SLUB hardened usercopy support
-Date: Thu, 07 Jul 2016 14:35:17 +1000
-Message-ID: <20403.5479379401$1467866197@news.gmane.org>
-References: <1467843928-29351-1-git-send-email-keescook@chromium.org>
- <1467843928-29351-10-git-send-email-keescook@chromium.org>
+Subject: Re: [PATCH 1/9] mm: Hardened usercopy
+Date: Fri, 08 Jul 2016 15:34:19 +1000
+Message-ID: <48360.8328424909$1467956081@news.gmane.org>
+References: <1467843928-29351-1-git-send-email-keescook@chromium.org> <1467843928-29351-2-git-send-email-keescook@chromium.org> <3418914.byvl8Wuxlf@wuerfel> <CAGXu5jLyBfqXJKxohHiZgztRVrFyqwbta1W_Dw6KyyGM3LzshQ@mail.gmail.com>
+Reply-To: kernel-hardening@lists.openwall.com
 Mime-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-Return-path: <linuxppc-dev-bounces+glppd-linuxppc64-dev=m.gmane.org@lists.ozlabs.org>
-In-Reply-To: <1467843928-29351-10-git-send-email-keescook@chromium.org>
-List-Unsubscribe: <https://lists.ozlabs.org/options/linuxppc-dev>,
- <mailto:linuxppc-dev-request@lists.ozlabs.org?subject=unsubscribe>
-List-Archive: <http://lists.ozlabs.org/pipermail/linuxppc-dev/>
-List-Post: <mailto:linuxppc-dev@lists.ozlabs.org>
-List-Help: <mailto:linuxppc-dev-request@lists.ozlabs.org?subject=help>
-List-Subscribe: <https://lists.ozlabs.org/listinfo/linuxppc-dev>,
- <mailto:linuxppc-dev-request@lists.ozlabs.org?subject=subscribe>
-Errors-To: linuxppc-dev-bounces+glppd-linuxppc64-dev=m.gmane.org@lists.ozlabs.org
-Sender: "Linuxppc-dev"
- <linuxppc-dev-bounces+glppd-linuxppc64-dev=m.gmane.org@lists.ozlabs.org>
-To: linux-kernel@vger.kernel.org
-Cc: Jan Kara <jack@suse.cz>, kernel-hardening@lists.openwall.com, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, sparclinux@vger.kernel.org, linux-ia64@vger.kernel.org, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-arch@vger.kernel.org, x86@kernel.org, Russell King <linux@armlinux.org.uk>, linux-arm-kernel@lists.infradead.org, PaX Team <pageexec@freemail.hu>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Fenghua Yu <fenghua.yu@intel.com>, Rik van Riel <riel@redhat.com>, Kees Cook <keescook@chromium.org>, David Rientjes <rientjes@google.com>, Tony Luck <tony.luck@intel.com>, Andy Lutomirski <luto@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, Brad Spengler <spender@grsecurity.net>, Ard
+Content-Type: text/plain
+Return-path: <kernel-hardening-return-3851-glkh-kernel-hardening=m.gmane.org@lists.openwall.com>
+List-Post: <mailto:kernel-hardening@lists.openwall.com>
+List-Help: <mailto:kernel-hardening-help@lists.openwall.com>
+List-Unsubscribe: <mailto:kernel-hardening-unsubscribe@lists.openwall.com>
+List-Subscribe: <mailto:kernel-hardening-subscribe@lists.openwall.com>
+In-Reply-To: <CAGXu5jLyBfqXJKxohHiZgztRVrFyqwbta1W_Dw6KyyGM3LzshQ@mail.gmail.com>
+To: Kees Cook <keescook@chromium.org>, Arnd Bergmann <arnd@arndb.de>
+Cc: Jan Kara <jack@suse.cz>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Linux-MM <linux-mm@kvack.org>, sparclinux <sparclinux@vger.kernel.org>, linux-ia64@vger.kernel.org, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, "x86@kernel.org" <x86@kernel.org>, Russell King <linux@armlinux.org.uk>, Dmitry Vyukov <dvyukov@google.com>, David Rientjes <rientjes@google.com>, PaX Team <pageexec@freemail.hu>, Mathias Krause <minipli@googlemail.com>, linux-arch <linux-arch@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Brad Spengler <spender@grsecurity.net>, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-arm-kernel@lists.inf
+ radead.org" <linux-arm-kernel@lists.infradead.org>, Laura Abbott <labbott@fedoraproject.org>, Tony
 List-Id: linux-mm.kvack.org
 
-S2VlcyBDb29rIDxrZWVzY29va0BjaHJvbWl1bS5vcmc+IHdyaXRlczoKCj4gVW5kZXIgQ09ORklH
-X0hBUkRFTkVEX1VTRVJDT1BZLCB0aGlzIGFkZHMgb2JqZWN0IHNpemUgY2hlY2tpbmcgdG8gdGhl
-Cj4gU0xVQiBhbGxvY2F0b3IgdG8gY2F0Y2ggYW55IGNvcGllcyB0aGF0IG1heSBzcGFuIG9iamVj
-dHMuCj4KPiBCYXNlZCBvbiBjb2RlIGZyb20gUGFYIGFuZCBncnNlY3VyaXR5Lgo+Cj4gU2lnbmVk
-LW9mZi1ieTogS2VlcyBDb29rIDxrZWVzY29va0BjaHJvbWl1bS5vcmc+Cgo+IGRpZmYgLS1naXQg
-YS9tbS9zbHViLmMgYi9tbS9zbHViLmMKPiBpbmRleCA4MjVmZjQ1MDUzMzYuLjBjOGFjZTA0ZjA3
-NSAxMDA2NDQKPiAtLS0gYS9tbS9zbHViLmMKPiArKysgYi9tbS9zbHViLmMKPiBAQCAtMzYxNCw2
-ICszNjE0LDMzIEBAIHZvaWQgKl9fa21hbGxvY19ub2RlKHNpemVfdCBzaXplLCBnZnBfdCBmbGFn
-cywgaW50IG5vZGUpCj4gIEVYUE9SVF9TWU1CT0woX19rbWFsbG9jX25vZGUpOwo+ICAjZW5kaWYK
-PiAgCj4gKyNpZmRlZiBDT05GSUdfSEFSREVORURfVVNFUkNPUFkKPiArLyoKPiArICogUmVqZWN0
-cyBvYmplY3RzIHRoYXQgYXJlIGluY29ycmVjdGx5IHNpemVkLgo+ICsgKgo+ICsgKiBSZXR1cm5z
-IE5VTEwgaWYgY2hlY2sgcGFzc2VzLCBvdGhlcndpc2UgY29uc3QgY2hhciAqIHRvIG5hbWUgb2Yg
-Y2FjaGUKPiArICogdG8gaW5kaWNhdGUgYW4gZXJyb3IuCj4gKyAqLwo+ICtjb25zdCBjaGFyICpf
-X2NoZWNrX2hlYXBfb2JqZWN0KGNvbnN0IHZvaWQgKnB0ciwgdW5zaWduZWQgbG9uZyBuLAo+ICsJ
-CQkJc3RydWN0IHBhZ2UgKnBhZ2UpCj4gK3sKPiArCXN0cnVjdCBrbWVtX2NhY2hlICpzOwo+ICsJ
-dW5zaWduZWQgbG9uZyBvZmZzZXQ7Cj4gKwo+ICsJLyogRmluZCBvYmplY3QuICovCj4gKwlzID0g
-cGFnZS0+c2xhYl9jYWNoZTsKPiArCj4gKwkvKiBGaW5kIG9mZnNldCB3aXRoaW4gb2JqZWN0LiAq
-Lwo+ICsJb2Zmc2V0ID0gKHB0ciAtIHBhZ2VfYWRkcmVzcyhwYWdlKSkgJSBzLT5zaXplOwo+ICsK
-PiArCS8qIEFsbG93IGFkZHJlc3MgcmFuZ2UgZmFsbGluZyBlbnRpcmVseSB3aXRoaW4gb2JqZWN0
-IHNpemUuICovCj4gKwlpZiAob2Zmc2V0IDw9IHMtPm9iamVjdF9zaXplICYmIG4gPD0gcy0+b2Jq
-ZWN0X3NpemUgLSBvZmZzZXQpCj4gKwkJcmV0dXJuIE5VTEw7Cj4gKwo+ICsJcmV0dXJuIHMtPm5h
-bWU7Cj4gK30KCkkgZ2F2ZSB0aGlzIGEgcXVpY2sgc3BpbiBvbiBwb3dlcnBjLCBpdCBibGV3IHVw
-IGltbWVkaWF0ZWx5IDopCgogIEJyb3VnaHQgdXAgMTYgQ1BVcwogIHVzZXJjb3B5OiBrZXJuZWwg
-bWVtb3J5IG92ZXJ3cml0ZSBhdHRlbXB0IGRldGVjdGVkIHRvIGMwMDAwMDAxZmUwMjM4NjggKGtt
-YWxsb2MtMTYpICg5IGJ5dGVzKQogIENQVTogOCBQSUQ6IDEwMyBDb21tOiBrZGV2dG1wZnMgTm90
-IHRhaW50ZWQgNC43LjAtcmMzLTAwMDk4LWcwOWQ5NTU2YWU1ZDEgIzU1CiAgQ2FsbCBUcmFjZToK
-ICBbYzAwMDAwMDFmYTBjZmI0MF0gW2MwMDAwMDAwMDA5YmRiZThdIGR1bXBfc3RhY2srMHhiMC8w
-eGYwICh1bnJlbGlhYmxlKQogIFtjMDAwMDAwMWZhMGNmYjgwXSBbYzAwMDAwMDAwMDI5Y2Y0NF0g
-X19jaGVja19vYmplY3Rfc2l6ZSsweDc0LzB4MzIwCiAgW2MwMDAwMDAxZmEwY2ZjMDBdIFtjMDAw
-MDAwMDAwMDVkNGQwXSBjb3B5X2Zyb21fdXNlcisweDYwLzB4ZDQKICBbYzAwMDAwMDFmYTBjZmM0
-MF0gW2MwMDAwMDAwMDAyMmI2Y2NdIG1lbWR1cF91c2VyKzB4NWMvMHhmMAogIFtjMDAwMDAwMWZh
-MGNmYzgwXSBbYzAwMDAwMDAwMDIyYjkwY10gc3RybmR1cF91c2VyKzB4N2MvMHgxMTAKICBbYzAw
-MDAwMDFmYTBjZmNjMF0gW2MwMDAwMDAwMDAyZDZjMjhdIFN5U19tb3VudCsweDU4LzB4MTgwCiAg
-W2MwMDAwMDAxZmEwY2ZkMTBdIFtjMDAwMDAwMDAwNWVlOTA4XSBkZXZ0bXBmc2QrMHg5OC8weDIx
-MAogIFtjMDAwMDAwMWZhMGNmZDgwXSBbYzAwMDAwMDAwMDBkZjgxMF0ga3RocmVhZCsweDExMC8w
-eDEzMAogIFtjMDAwMDAwMWZhMGNmZTMwXSBbYzAwMDAwMDAwMDAwOTVlOF0gcmV0X2Zyb21fa2Vy
-bmVsX3RocmVhZCsweDVjLzB4NzQKClNMVUIgdHJhY2luZyBzYXlzOgoKICBUUkFDRSBrbWFsbG9j
-LTE2IGFsbG9jIDB4YzAwMDAwMDFmZTAyMzg2OCBpbnVzZT0xODYgZnA9MHggICAgICAgICAgKG51
-bGwpCgpXaGljaCBpcyBub3QgMTYtYnl0ZSBhbGlnbmVkLCB3aGljaCBzZWVtcyB0byBiZSBjYXVz
-ZWQgYnkgdGhlIHJlZCB6b25lPwpUaGUgZm9sbG93aW5nIHBhdGNoIGZpeGVzIGl0IGZvciBtZSwg
-YnV0IEkgZG9uJ3Qga25vdyBTTFVCIGVub3VnaCB0byBzYXkKaWYgaXQncyBhbHdheXMgY29ycmVj
-dC4KCgpkaWZmIC0tZ2l0IGEvbW0vc2x1Yi5jIGIvbW0vc2x1Yi5jCmluZGV4IDBjOGFjZTA0ZjA3
-NS4uNjYxOTFlYTQ1NDVhIDEwMDY0NAotLS0gYS9tbS9zbHViLmMKKysrIGIvbW0vc2x1Yi5jCkBA
-IC0zNjMwLDYgKzM2MzAsOSBAQCBjb25zdCBjaGFyICpfX2NoZWNrX2hlYXBfb2JqZWN0KGNvbnN0
-IHZvaWQgKnB0ciwgdW5zaWduZWQgbG9uZyBuLAogCS8qIEZpbmQgb2JqZWN0LiAqLwogCXMgPSBw
-YWdlLT5zbGFiX2NhY2hlOwogCisJLyogU3VidHJhY3QgcmVkIHpvbmUgaWYgZW5hYmxlZCAqLwor
-CXB0ciA9IHJlc3RvcmVfcmVkX2xlZnQocywgcHRyKTsKKwogCS8qIEZpbmQgb2Zmc2V0IHdpdGhp
-biBvYmplY3QuICovCiAJb2Zmc2V0ID0gKHB0ciAtIHBhZ2VfYWRkcmVzcyhwYWdlKSkgJSBzLT5z
-aXplOwogCmNoZWVycwpfX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19f
-X19fXwpMaW51eHBwYy1kZXYgbWFpbGluZyBsaXN0CkxpbnV4cHBjLWRldkBsaXN0cy5vemxhYnMu
-b3JnCmh0dHBzOi8vbGlzdHMub3psYWJzLm9yZy9saXN0aW5mby9saW51eHBwYy1kZXY=
+Kees Cook <keescook@chromium.org> writes:
+
+> On Thu, Jul 7, 2016 at 4:01 AM, Arnd Bergmann <arnd@arndb.de> wrote:
+>> On Wednesday, July 6, 2016 3:25:20 PM CEST Kees Cook wrote:
+>>> +
+>>> +     /* Allow kernel rodata region (if not marked as Reserved). */
+>>> +     if (ptr >= (const void *)__start_rodata &&
+>>> +         end <= (const void *)__end_rodata)
+>>> +             return NULL;
+>>
+>> Should we explicitly forbid writing to rodata, or is it enough to
+>> rely on page protection here?
+>
+> Hm, interesting. That's a very small check to add. My knee-jerk is to
+> just leave it up to page protection. I'm on the fence. :)
+
+There are platforms that don't have page protection, so it would be nice
+if they could at least opt-in to checking for it here.
+
+cheers
