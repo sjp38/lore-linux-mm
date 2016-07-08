@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B0716B0277
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 05:39:39 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id f126so8344455wma.3
-        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 02:39:39 -0700 (PDT)
-Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
-        by mx.google.com with ESMTPS id gw8si1181282wjb.84.2016.07.08.02.39.37
+	by kanga.kvack.org (Postfix) with ESMTP id 3D41B6B027A
+	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 05:39:49 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id n127so8309367wme.1
+        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 02:39:49 -0700 (PDT)
+Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
+        by mx.google.com with ESMTPS id gg6si1451897wjd.237.2016.07.08.02.39.48
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 08 Jul 2016 02:39:38 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 08 Jul 2016 02:39:48 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id A08CE98604
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 09:39:37 +0000 (UTC)
+	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id DD8A41C24F0
+	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 10:39:47 +0100 (IST)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 25/34] mm, vmscan: avoid passing in classzone_idx unnecessarily to compaction_ready
-Date: Fri,  8 Jul 2016 10:35:01 +0100
-Message-Id: <1467970510-21195-26-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 26/34] mm, vmscan: avoid passing in remaining unnecessarily to prepare_kswapd_sleep
+Date: Fri,  8 Jul 2016 10:35:02 +0100
+Message-Id: <1467970510-21195-27-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
 References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,102 +23,56 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
 Cc: Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-The scan_control structure has enough information available for
-compaction_ready() to make a decision. The classzone_idx manipulations in
-shrink_zones() are no longer necessary as the highest populated zone is
-no longer used to determine if shrink_slab should be called or not.
+As pointed out by Minchan Kim, the first call to prepare_kswapd_sleep
+always passes in 0 for remaining and the second call can trivially
+check the parameter in advance.
 
+Suggested-by: Minchan Kim <minchan@kernel.org>
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 ---
- mm/vmscan.c | 28 ++++++++--------------------
- 1 file changed, 8 insertions(+), 20 deletions(-)
+ mm/vmscan.c | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index bba71b6c9a4c..6d5c78e2312b 100644
+index 6d5c78e2312b..8a67aa53aa7b 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -2521,7 +2521,7 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
-  * Returns true if compaction should go ahead for a high-order request, or
-  * the high-order allocation would succeed without compaction.
+@@ -3020,15 +3020,10 @@ static bool zone_balanced(struct zone *zone, int order, int classzone_idx)
+  *
+  * Returns true if kswapd is ready to sleep
   */
--static inline bool compaction_ready(struct zone *zone, int order, int classzone_idx)
-+static inline bool compaction_ready(struct zone *zone, struct scan_control *sc)
+-static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, long remaining,
+-					int classzone_idx)
++static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, int classzone_idx)
  {
- 	unsigned long watermark;
- 	bool watermark_ok;
-@@ -2532,21 +2532,21 @@ static inline bool compaction_ready(struct zone *zone, int order, int classzone_
- 	 * there is a buffer of free pages available to give compaction
- 	 * a reasonable chance of completing and allocating the page
- 	 */
--	watermark = high_wmark_pages(zone) + (2UL << order);
--	watermark_ok = zone_watermark_ok_safe(zone, 0, watermark, classzone_idx);
-+	watermark = high_wmark_pages(zone) + (2UL << sc->order);
-+	watermark_ok = zone_watermark_ok_safe(zone, 0, watermark, sc->reclaim_idx);
+ 	int i;
  
+-	/* If a direct reclaimer woke kswapd within HZ/10, it's premature */
+-	if (remaining)
+-		return false;
+-
  	/*
- 	 * If compaction is deferred, reclaim up to a point where
- 	 * compaction will have a chance of success when re-enabled
+ 	 * The throttled processes are normally woken up in balance_pgdat() as
+ 	 * soon as pfmemalloc_watermark_ok() is true. But there is a potential
+@@ -3243,7 +3238,7 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int alloc_order, int reclaim_o
+ 	prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
+ 
+ 	/* Try to sleep for a short interval */
+-	if (prepare_kswapd_sleep(pgdat, reclaim_order, remaining, classzone_idx)) {
++	if (prepare_kswapd_sleep(pgdat, reclaim_order, classzone_idx)) {
+ 		/*
+ 		 * Compaction records what page blocks it recently failed to
+ 		 * isolate pages from and skips them in the future scanning.
+@@ -3278,7 +3273,8 @@ static void kswapd_try_to_sleep(pg_data_t *pgdat, int alloc_order, int reclaim_o
+ 	 * After a short sleep, check if it was a premature sleep. If not, then
+ 	 * go fully to sleep until explicitly woken up.
  	 */
--	if (compaction_deferred(zone, order))
-+	if (compaction_deferred(zone, sc->order))
- 		return watermark_ok;
- 
- 	/*
- 	 * If compaction is not ready to start and allocation is not likely
- 	 * to succeed without it, then keep reclaiming.
- 	 */
--	if (compaction_suitable(zone, order, 0, classzone_idx) == COMPACT_SKIPPED)
-+	if (compaction_suitable(zone, sc->order, 0, sc->reclaim_idx) == COMPACT_SKIPPED)
- 		return false;
- 
- 	return watermark_ok;
-@@ -2567,7 +2567,6 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
- 	unsigned long nr_soft_reclaimed;
- 	unsigned long nr_soft_scanned;
- 	gfp_t orig_mask;
--	enum zone_type classzone_idx;
- 	pg_data_t *last_pgdat = NULL;
- 
- 	/*
-@@ -2578,7 +2577,7 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
- 	orig_mask = sc->gfp_mask;
- 	if (buffer_heads_over_limit) {
- 		sc->gfp_mask |= __GFP_HIGHMEM;
--		sc->reclaim_idx = classzone_idx = gfp_zone(sc->gfp_mask);
-+		sc->reclaim_idx = gfp_zone(sc->gfp_mask);
- 	}
- 
- 	for_each_zone_zonelist_nodemask(zone, z, zonelist,
-@@ -2587,17 +2586,6 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
- 			continue;
+-	if (prepare_kswapd_sleep(pgdat, reclaim_order, remaining, classzone_idx)) {
++	if (!remaining &&
++	    prepare_kswapd_sleep(pgdat, reclaim_order, classzone_idx)) {
+ 		trace_mm_vmscan_kswapd_sleep(pgdat->node_id);
  
  		/*
--		 * Note that reclaim_idx does not change as it is the highest
--		 * zone reclaimed from which for empty zones is a no-op but
--		 * classzone_idx is used by shrink_node to test if the slabs
--		 * should be shrunk on a given node.
--		 */
--		classzone_idx = sc->reclaim_idx;
--		while (!populated_zone(zone->zone_pgdat->node_zones +
--							classzone_idx))
--			classzone_idx--;
--
--		/*
- 		 * Take care memory controller reclaiming has small influence
- 		 * to global LRU.
- 		 */
-@@ -2621,8 +2609,8 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
- 			 */
- 			if (IS_ENABLED(CONFIG_COMPACTION) &&
- 			    sc->order > PAGE_ALLOC_COSTLY_ORDER &&
--			    zonelist_zone_idx(z) <= classzone_idx &&
--			    compaction_ready(zone, sc->order, classzone_idx)) {
-+			    zonelist_zone_idx(z) <= sc->reclaim_idx &&
-+			    compaction_ready(zone, sc)) {
- 				sc->compaction_ready = true;
- 				continue;
- 			}
 -- 
 2.6.4
 
