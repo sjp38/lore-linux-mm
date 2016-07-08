@@ -1,125 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E62D1828E1
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 06:15:34 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id r190so9055103wmr.0
-        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 03:15:34 -0700 (PDT)
-Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
-        by mx.google.com with ESMTPS id 201si2206594wms.49.2016.07.08.03.15.32
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EC5A828E1
+	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 06:20:03 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id a69so87899212pfa.1
+        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 03:20:03 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id y72si3506417pfa.277.2016.07.08.03.20.02
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 08 Jul 2016 03:15:32 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 8DC222F80D5
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 10:15:32 +0000 (UTC)
-Date: Fri, 8 Jul 2016 11:15:31 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 2/9] mm: implement new pkey_mprotect() system call
-Message-ID: <20160708101530.GE11498@techsingularity.net>
-References: <20160707124719.3F04C882@viggo.jf.intel.com>
- <20160707124722.DE1EE343@viggo.jf.intel.com>
- <20160707144031.GY11498@techsingularity.net>
- <577E88A8.8030909@sr71.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <577E88A8.8030909@sr71.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 08 Jul 2016 03:20:02 -0700 (PDT)
+Message-Id: <577f7e52.4b4b620a.e74b1.2d23SMTPIN_ADDED_MISSING@mx.google.com>
+Date: Fri, 08 Jul 2016 20:19:58 +1000
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [kernel-hardening] Re: [PATCH 9/9] mm: SLUB hardened usercopy support
+In-Reply-To: <CAGXu5jJbmLD-zPzJodM0=imuj-=w_s8RGP=vwtGuhmXJjQjuSw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-kernel@vger.kernel.org, x86@kernel.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, dave.hansen@linux.intel.com, arnd@arndb.de, hughd@google.com, viro@zeniv.linux.org.uk
+To: Kees Cook <keescook@chromium.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+Cc: Jan Kara <jack@suse.cz>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Linux-MM <linux-mm@kvack.org>, sparclinux <sparclinux@vger.kernel.org>, linux-ia64@vger.kernel.org, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-arch <linux-arch@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, Russell King <linux@armlinux.org.uk>, PaX Team <pageexec@freemail.hu>, Borislav Petkov <bp@suse.de>, lin <ux-arm-kernel@lists.infradead.org>, Mathias Krause <minipli@googlemail.com>, Fenghua Yu <fenghua.yu@intel.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Tony Luck <tony.luck@intel.com>, Andy Lutomirski <luto@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, Brad Spengler <spender@grsecurity.net>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, LKML <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, Casey Schauf ler <casey@schaufler-ca.com>, Andrew Morton <akpm@linux-foundation.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "David S. Miller" <davem@davemloft.net>
 
-On Thu, Jul 07, 2016 at 09:51:52AM -0700, Dave Hansen wrote:
-> > Looks like MASK could have been statically defined and be a simple shift
-> > and mask known at compile time. Minor though.
-> 
-> The VM_PKEY_BIT*'s are only ever defined as masks and not bit numbers.
-> So, if you want to use a mask, you end up doing something like:
-> 
-> 	unsigned long mask = (NR_PKEYS-1) << ffz(~VM_PKEY_BIT0);
-> 
-> Which ends up with the same thing, but I think ends up being pretty on
-> par for ugliness.
-> 
+Kees Cook <keescook@chromium.org> writes:
+> On Thu, Jul 7, 2016 at 12:35 AM, Michael Ellerman <mpe@ellerman.id.au> wrote:
+>> I gave this a quick spin on powerpc, it blew up immediately :)
+>
+> Wheee :) This series is rather easy to test: blows up REALLY quickly
+> if it's wrong. ;)
 
-Fair enough.
+Better than subtle race conditions which is the usual :)
 
-> >> +/*
-> >> + * When setting a userspace-provided value, we need to ensure
-> >> + * that it is valid.  The __ version can get used by
-> >> + * kernel-internal uses like the execute-only support.
-> >> + */
-> >> +int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
-> >> +		unsigned long init_val)
-> >> +{
-> >> +	if (!validate_pkey(pkey))
-> >> +		return -EINVAL;
-> >> +	return __arch_set_user_pkey_access(tsk, pkey, init_val);
-> >> +}
-> > 
-> > There appears to be a subtle bug fixed for validate_key. It appears
-> > there wasn't protection of the dedicated key before but nothing could
-> > reach it.
-> 
-> Right.  There was no user interface that took a key and we trusted that
-> the kernel knew what it was doing.
-> 
+>> diff --git a/mm/slub.c b/mm/slub.c
+>> index 0c8ace04f075..66191ea4545a 100644
+>> --- a/mm/slub.c
+>> +++ b/mm/slub.c
+>> @@ -3630,6 +3630,9 @@ const char *__check_heap_object(const void *ptr, unsigned long n,
+>>         /* Find object. */
+>>         s = page->slab_cache;
+>>
+>> +       /* Subtract red zone if enabled */
+>> +       ptr = restore_red_left(s, ptr);
+>> +
+>
+> Ah, interesting. Just to make sure: you've built with
+> CONFIG_SLUB_DEBUG and either CONFIG_SLUB_DEBUG_ON or booted with
+> either slub_debug or slub_debug=z ?
 
-Ok. I was fairly sure that was the thinking behind it but wanted to be suire.
+Yeah built with CONFIG_SLUB_DEBUG_ON, and booted with and without slub_debug
+options.
 
-> > The arch_max_pkey and PKEY_DEDICATE_EXECUTE_ONLY interaction is subtle
-> > but I can't find a problem with it either.
-> > 
-> > That aside, the validate_pkey check looks weak. It might be a number
-> > that works but no guarantee it's an allocated key or initialised
-> > properly. At this point, garbage can be handed into the system call
-> > potentially but maybe that gets fixed later.
-> 
-> It's called in three paths:
-> 1. by the kernel when setting up execute-only support
-> 2. by pkey_alloc() on the pkey we just allocated
-> 3. by pkey_set() on a pkey we just checked was allocated
-> 
-> So, it isn't broken, but it's also not clear at all why it is safe and
-> what validate_pkey() is actually validating.
-> 
-> But, that said, this does make me realize that with
-> pkey_alloc()/pkey_free(), this is probably redundant.  We verify that
-> the key is allocated, and we only allow valid keys to be allocated.
-> 
-> IOW, I think I can remove validate_pkey(), but only if we keep pkey_alloc().
-> 
+> Thanks for the slub fix!
+>
+> I wonder if this code should be using size_from_object() instead of s->size?
 
-Ok, it's not a major problem. I simply worried that the protection of
-key slots is pretty weak as it can be interfered with from userspace.
-On the other hand, the kernel never interprets the information so it's
-unlikely to cause a security problem. Applications can still shoot
-themselves in the foot but hopefully the developers are aware that the
-protection they get with keys is not absolute.
+Hmm, not sure. Who's SLUB maintainer? :)
 
-> ...
-> >> -		newflags = calc_vm_prot_bits(prot, pkey);
-> >> +		new_vma_pkey = arch_override_mprotect_pkey(vma, prot, pkey);
-> >> +		newflags = calc_vm_prot_bits(prot, new_vma_pkey);
-> >>  		newflags |= (vma->vm_flags & ~(VM_READ | VM_WRITE | VM_EXEC));
-> >>  
-> > 
-> > On CPUs that do not support the feature, arch_override_mprotect_pkey
-> > returns 0 and the normal protections are used. It's not clear how an
-> > application is meant to detect if the operation succeeded or not. What
-> > if the application relies on pkeys to be working?
-> 
-> It actually shows up as -ENOSPC from pkey_alloc().  This sounds goofy,
-> but it teaches programs something very important: they always have to
-> look for ENOSPC, and must always be prepared to function without
-> protection keys.
+I was modelling it on the logic in check_valid_pointer(), which also does the
+restore_red_left(), and then checks for % s->size:
 
-Ok, that makes sense. I don't think it's goofy. Sure, they cannot detect
-the CPU support directly from the interface but it's close enough.
+static inline int check_valid_pointer(struct kmem_cache *s,
+				struct page *page, void *object)
+{
+	void *base;
 
--- 
-Mel Gorman
-SUSE Labs
+	if (!object)
+		return 1;
+
+	base = page_address(page);
+	object = restore_red_left(s, object);
+	if (object < base || object >= base + page->objects * s->size ||
+		(object - base) % s->size) {
+		return 0;
+	}
+
+	return 1;
+}
+
+cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
