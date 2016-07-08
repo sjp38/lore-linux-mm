@@ -1,110 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A273828E1
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 06:11:50 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id x83so5869033wma.2
-        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 03:11:50 -0700 (PDT)
-Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
-        by mx.google.com with ESMTPS id e90si2174138wmc.113.2016.07.08.03.11.49
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E62D1828E1
+	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 06:15:34 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id r190so9055103wmr.0
+        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 03:15:34 -0700 (PDT)
+Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
+        by mx.google.com with ESMTPS id 201si2206594wms.49.2016.07.08.03.15.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Jul 2016 03:11:49 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id E73C91C23B6
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 11:11:48 +0100 (IST)
-Date: Fri, 8 Jul 2016 11:11:47 +0100
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 08 Jul 2016 03:15:32 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 8DC222F80D5
+	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 10:15:32 +0000 (UTC)
+Date: Fri, 8 Jul 2016 11:15:31 +0100
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 08/31] mm, vmscan: simplify the logic deciding whether
- kswapd sleeps
-Message-ID: <20160708101147.GD11498@techsingularity.net>
-References: <1467403299-25786-1-git-send-email-mgorman@techsingularity.net>
- <1467403299-25786-9-git-send-email-mgorman@techsingularity.net>
- <20160707012038.GB27987@js1304-P5Q-DELUXE>
- <20160707101701.GR11498@techsingularity.net>
- <20160708024447.GB2370@js1304-P5Q-DELUXE>
+Subject: Re: [PATCH 2/9] mm: implement new pkey_mprotect() system call
+Message-ID: <20160708101530.GE11498@techsingularity.net>
+References: <20160707124719.3F04C882@viggo.jf.intel.com>
+ <20160707124722.DE1EE343@viggo.jf.intel.com>
+ <20160707144031.GY11498@techsingularity.net>
+ <577E88A8.8030909@sr71.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20160708024447.GB2370@js1304-P5Q-DELUXE>
+In-Reply-To: <577E88A8.8030909@sr71.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: Dave Hansen <dave@sr71.net>
+Cc: linux-kernel@vger.kernel.org, x86@kernel.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, dave.hansen@linux.intel.com, arnd@arndb.de, hughd@google.com, viro@zeniv.linux.org.uk
 
-On Fri, Jul 08, 2016 at 11:44:47AM +0900, Joonsoo Kim wrote:
-> > > > @@ -3390,12 +3386,24 @@ static int kswapd(void *p)
-> > > >  		 * We can speed up thawing tasks if we don't call balance_pgdat
-> > > >  		 * after returning from the refrigerator
-> > > >  		 */
-> > > > -		if (!ret) {
-> > > > -			trace_mm_vmscan_kswapd_wake(pgdat->node_id, order);
-> > > > +		if (ret)
-> > > > +			continue;
-> > > >  
-> > > > -			/* return value ignored until next patch */
-> > > > -			balance_pgdat(pgdat, order, classzone_idx);
-> > > > -		}
-> > > > +		/*
-> > > > +		 * Reclaim begins at the requested order but if a high-order
-> > > > +		 * reclaim fails then kswapd falls back to reclaiming for
-> > > > +		 * order-0. If that happens, kswapd will consider sleeping
-> > > > +		 * for the order it finished reclaiming at (reclaim_order)
-> > > > +		 * but kcompactd is woken to compact for the original
-> > > > +		 * request (alloc_order).
-> > > > +		 */
-> > > > +		trace_mm_vmscan_kswapd_wake(pgdat->node_id, alloc_order);
-> > > > +		reclaim_order = balance_pgdat(pgdat, alloc_order, classzone_idx);
-> > > > +		if (reclaim_order < alloc_order)
-> > > > +			goto kswapd_try_sleep;
-> > > 
-> > > This 'goto' would cause kswapd to sleep prematurely. We need to check
-> > > *new* pgdat->kswapd_order and classzone_idx even in this case.
-> > > 
+On Thu, Jul 07, 2016 at 09:51:52AM -0700, Dave Hansen wrote:
+> > Looks like MASK could have been statically defined and be a simple shift
+> > and mask known at compile time. Minor though.
+> 
+> The VM_PKEY_BIT*'s are only ever defined as masks and not bit numbers.
+> So, if you want to use a mask, you end up doing something like:
+> 
+> 	unsigned long mask = (NR_PKEYS-1) << ffz(~VM_PKEY_BIT0);
+> 
+> Which ends up with the same thing, but I think ends up being pretty on
+> par for ugliness.
+> 
+
+Fair enough.
+
+> >> +/*
+> >> + * When setting a userspace-provided value, we need to ensure
+> >> + * that it is valid.  The __ version can get used by
+> >> + * kernel-internal uses like the execute-only support.
+> >> + */
+> >> +int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
+> >> +		unsigned long init_val)
+> >> +{
+> >> +	if (!validate_pkey(pkey))
+> >> +		return -EINVAL;
+> >> +	return __arch_set_user_pkey_access(tsk, pkey, init_val);
+> >> +}
 > > 
-> > It only matters if the next request coming is also high-order requests but
-> > one thing that needs to be avoided is kswapd staying awake periods of time
-> > constantly reclaiming for high-order pages. This is why the check means
-> > "If we reclaimed for high-order and failed, then consider sleeping now".
-> > If allocations still require it, they direct reclaim instead.
+> > There appears to be a subtle bug fixed for validate_key. It appears
+> > there wasn't protection of the dedicated key before but nothing could
+> > reach it.
 > 
-> But, assume that next request is zone-constrained allocation. We need
-> to balance memory for it but kswapd would skip it.
+> Right.  There was no user interface that took a key and we trusted that
+> the kernel knew what it was doing.
 > 
 
-Then it'll also be woken up again in the very near future as the
-zone-constrained allocation. If the zone is at the min watermark, then
-it'll have direct reclaimed but between min and low, it'll be a simple
-wakeup.
+Ok. I was fairly sure that was the thinking behind it but wanted to be suire.
 
-The premature sleep, wakeup with new requests logic was a complete mess.
-However, what I did do is remove the -1 handling of kswapd_classzone_idx
-handling and the goto full-sleep. In the event of a premature wakeup,
-it'll recheck for wakeups and if none has occured, it'll use the old
-classzone information.
-
-Note that it will *not* use the original allocation order if it's a
-premature sleep. This is because it's known that high-order reclaim
-failed in the near past and restarting it has a high risk of
-overreclaiming.
-
-> > > And, I'd like to know why max() is used for classzone_idx rather than
-> > > min()? I think that kswapd should balance the lowest zone requested.
-> > > 
+> > The arch_max_pkey and PKEY_DEDICATE_EXECUTE_ONLY interaction is subtle
+> > but I can't find a problem with it either.
 > > 
-> > If there are two allocation requests -- one zone-constraned and the other
-> > zone-unconstrained, it does not make sense to have kswapd skip the pages
-> > usable for the zone-unconstrained and waste a load of CPU. You could
+> > That aside, the validate_pkey check looks weak. It might be a number
+> > that works but no guarantee it's an allocated key or initialised
+> > properly. At this point, garbage can be handed into the system call
+> > potentially but maybe that gets fixed later.
 > 
-> I agree that, in this case, it's not good to skip the pages usable
-> for the zone-unconstrained request. But, what I am concerned is that
-> kswapd stop reclaim prematurely in the view of zone-constrained
-> requestor.
+> It's called in three paths:
+> 1. by the kernel when setting up execute-only support
+> 2. by pkey_alloc() on the pkey we just allocated
+> 3. by pkey_set() on a pkey we just checked was allocated
+> 
+> So, it isn't broken, but it's also not clear at all why it is safe and
+> what validate_pkey() is actually validating.
+> 
+> But, that said, this does make me realize that with
+> pkey_alloc()/pkey_free(), this is probably redundant.  We verify that
+> the key is allocated, and we only allow valid keys to be allocated.
+> 
+> IOW, I think I can remove validate_pkey(), but only if we keep pkey_alloc().
+> 
 
-It doesn't stop reclaiming for the lower zones. It's reclaiming the LRU
-for the whole node that may or may not have lower zone pages at the end
-of the LRU. If it does, then the allocation request will be satisfied.
-If it does not, then kswapd will think the node is balanced and get
-rewoken to do a zone-constrained reclaim pass.
+Ok, it's not a major problem. I simply worried that the protection of
+key slots is pretty weak as it can be interfered with from userspace.
+On the other hand, the kernel never interprets the information so it's
+unlikely to cause a security problem. Applications can still shoot
+themselves in the foot but hopefully the developers are aware that the
+protection they get with keys is not absolute.
+
+> ...
+> >> -		newflags = calc_vm_prot_bits(prot, pkey);
+> >> +		new_vma_pkey = arch_override_mprotect_pkey(vma, prot, pkey);
+> >> +		newflags = calc_vm_prot_bits(prot, new_vma_pkey);
+> >>  		newflags |= (vma->vm_flags & ~(VM_READ | VM_WRITE | VM_EXEC));
+> >>  
+> > 
+> > On CPUs that do not support the feature, arch_override_mprotect_pkey
+> > returns 0 and the normal protections are used. It's not clear how an
+> > application is meant to detect if the operation succeeded or not. What
+> > if the application relies on pkeys to be working?
+> 
+> It actually shows up as -ENOSPC from pkey_alloc().  This sounds goofy,
+> but it teaches programs something very important: they always have to
+> look for ENOSPC, and must always be prepared to function without
+> protection keys.
+
+Ok, that makes sense. I don't think it's goofy. Sure, they cannot detect
+the CPU support directly from the interface but it's close enough.
 
 -- 
 Mel Gorman
