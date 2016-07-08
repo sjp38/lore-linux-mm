@@ -1,39 +1,44 @@
 From: Michael Ellerman <mpe@ellerman.id.au>
 Subject: Re: [PATCH 1/9] mm: Hardened usercopy
 Date: Fri, 08 Jul 2016 15:34:19 +1000
-Message-ID: <48360.8328424909$1467956081@news.gmane.org>
-References: <1467843928-29351-1-git-send-email-keescook@chromium.org> <1467843928-29351-2-git-send-email-keescook@chromium.org> <3418914.byvl8Wuxlf@wuerfel> <CAGXu5jLyBfqXJKxohHiZgztRVrFyqwbta1W_Dw6KyyGM3LzshQ@mail.gmail.com>
-Reply-To: kernel-hardening@lists.openwall.com
+Message-ID: <26854.6398533092$1467956122@news.gmane.org>
+References: <1467843928-29351-1-git-send-email-keescook@chromium.org>
+ <1467843928-29351-2-git-send-email-keescook@chromium.org>
+ <3418914.byvl8Wuxlf@wuerfel>
+ <CAGXu5jLyBfqXJKxohHiZgztRVrFyqwbta1W_Dw6KyyGM3LzshQ@mail.gmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain
-Return-path: <kernel-hardening-return-3851-glkh-kernel-hardening=m.gmane.org@lists.openwall.com>
-List-Post: <mailto:kernel-hardening@lists.openwall.com>
-List-Help: <mailto:kernel-hardening-help@lists.openwall.com>
-List-Unsubscribe: <mailto:kernel-hardening-unsubscribe@lists.openwall.com>
-List-Subscribe: <mailto:kernel-hardening-subscribe@lists.openwall.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+Return-path: <linuxppc-dev-bounces+glppe-linuxppc-embedded-2=m.gmane.org@lists.ozlabs.org>
 In-Reply-To: <CAGXu5jLyBfqXJKxohHiZgztRVrFyqwbta1W_Dw6KyyGM3LzshQ@mail.gmail.com>
+List-Unsubscribe: <https://lists.ozlabs.org/options/linuxppc-dev>,
+ <mailto:linuxppc-dev-request@lists.ozlabs.org?subject=unsubscribe>
+List-Archive: <http://lists.ozlabs.org/pipermail/linuxppc-dev/>
+List-Post: <mailto:linuxppc-dev@lists.ozlabs.org>
+List-Help: <mailto:linuxppc-dev-request@lists.ozlabs.org?subject=help>
+List-Subscribe: <https://lists.ozlabs.org/listinfo/linuxppc-dev>,
+ <mailto:linuxppc-dev-request@lists.ozlabs.org?subject=subscribe>
+Errors-To: linuxppc-dev-bounces+glppe-linuxppc-embedded-2=m.gmane.org@lists.ozlabs.org
+Sender: "Linuxppc-dev"
+ <linuxppc-dev-bounces+glppe-linuxppc-embedded-2=m.gmane.org@lists.ozlabs.org>
 To: Kees Cook <keescook@chromium.org>, Arnd Bergmann <arnd@arndb.de>
-Cc: Jan Kara <jack@suse.cz>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Linux-MM <linux-mm@kvack.org>, sparclinux <sparclinux@vger.kernel.org>, linux-ia64@vger.kernel.org, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, "x86@kernel.org" <x86@kernel.org>, Russell King <linux@armlinux.org.uk>, Dmitry Vyukov <dvyukov@google.com>, David Rientjes <rientjes@google.com>, PaX Team <pageexec@freemail.hu>, Mathias Krause <minipli@googlemail.com>, linux-arch <linux-arch@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Brad Spengler <spender@grsecurity.net>, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-arm-kernel@lists.inf
- radead.org" <linux-arm-kernel@lists.infradead.org>, Laura Abbott <labbott@fedoraproject.org>, Tony
+Cc: nel.org@lists.ozlabs.org, Jan Kara <jack@suse.cz>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Linux-MM <linux-mm@kvack.org>, sparclinux <sparclinux@vger.kernel.org>, linux-ia64@vger.kernel.org, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, "x86@kernel.org" <x86@kernel.org>, Russell King <linux@armlinux.org.uk>, Dmitry Vyukov <dvyukov@google.com>, David Rientjes <rientjes@google.com>, PaX Team <pageexec@freemail.hu>, Mathias Krause <minipli@googlemail.com>, linux-arch <linux-arch@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Tony Luck <tony.luck@intel.com>, Andy Lutomirski <luto@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>Laura Abbott <lab>
 List-Id: linux-mm.kvack.org
 
-Kees Cook <keescook@chromium.org> writes:
-
-> On Thu, Jul 7, 2016 at 4:01 AM, Arnd Bergmann <arnd@arndb.de> wrote:
->> On Wednesday, July 6, 2016 3:25:20 PM CEST Kees Cook wrote:
->>> +
->>> +     /* Allow kernel rodata region (if not marked as Reserved). */
->>> +     if (ptr >= (const void *)__start_rodata &&
->>> +         end <= (const void *)__end_rodata)
->>> +             return NULL;
->>
->> Should we explicitly forbid writing to rodata, or is it enough to
->> rely on page protection here?
->
-> Hm, interesting. That's a very small check to add. My knee-jerk is to
-> just leave it up to page protection. I'm on the fence. :)
-
-There are platforms that don't have page protection, so it would be nice
-if they could at least opt-in to checking for it here.
-
-cheers
+S2VlcyBDb29rIDxrZWVzY29va0BjaHJvbWl1bS5vcmc+IHdyaXRlczoKCj4gT24gVGh1LCBKdWwg
+NywgMjAxNiBhdCA0OjAxIEFNLCBBcm5kIEJlcmdtYW5uIDxhcm5kQGFybmRiLmRlPiB3cm90ZToK
+Pj4gT24gV2VkbmVzZGF5LCBKdWx5IDYsIDIwMTYgMzoyNToyMCBQTSBDRVNUIEtlZXMgQ29vayB3
+cm90ZToKPj4+ICsKPj4+ICsgICAgIC8qIEFsbG93IGtlcm5lbCByb2RhdGEgcmVnaW9uIChpZiBu
+b3QgbWFya2VkIGFzIFJlc2VydmVkKS4gKi8KPj4+ICsgICAgIGlmIChwdHIgPj0gKGNvbnN0IHZv
+aWQgKilfX3N0YXJ0X3JvZGF0YSAmJgo+Pj4gKyAgICAgICAgIGVuZCA8PSAoY29uc3Qgdm9pZCAq
+KV9fZW5kX3JvZGF0YSkKPj4+ICsgICAgICAgICAgICAgcmV0dXJuIE5VTEw7Cj4+Cj4+IFNob3Vs
+ZCB3ZSBleHBsaWNpdGx5IGZvcmJpZCB3cml0aW5nIHRvIHJvZGF0YSwgb3IgaXMgaXQgZW5vdWdo
+IHRvCj4+IHJlbHkgb24gcGFnZSBwcm90ZWN0aW9uIGhlcmU/Cj4KPiBIbSwgaW50ZXJlc3Rpbmcu
+IFRoYXQncyBhIHZlcnkgc21hbGwgY2hlY2sgdG8gYWRkLiBNeSBrbmVlLWplcmsgaXMgdG8KPiBq
+dXN0IGxlYXZlIGl0IHVwIHRvIHBhZ2UgcHJvdGVjdGlvbi4gSSdtIG9uIHRoZSBmZW5jZS4gOikK
+ClRoZXJlIGFyZSBwbGF0Zm9ybXMgdGhhdCBkb24ndCBoYXZlIHBhZ2UgcHJvdGVjdGlvbiwgc28g
+aXQgd291bGQgYmUgbmljZQppZiB0aGV5IGNvdWxkIGF0IGxlYXN0IG9wdC1pbiB0byBjaGVja2lu
+ZyBmb3IgaXQgaGVyZS4KCmNoZWVycwpfX19fX19fX19fX19fX19fX19fX19fX19fX19fX19fX19f
+X19fX19fX19fX19fXwpMaW51eHBwYy1kZXYgbWFpbGluZyBsaXN0CkxpbnV4cHBjLWRldkBsaXN0
+cy5vemxhYnMub3JnCmh0dHBzOi8vbGlzdHMub3psYWJzLm9yZy9saXN0aW5mby9saW51eHBwYy1k
+ZXY=
