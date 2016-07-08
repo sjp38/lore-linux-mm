@@ -1,50 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CD1046B0260
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 08:17:07 -0400 (EDT)
-Received: by mail-yw0-f199.google.com with SMTP id l125so82886503ywb.2
-        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 05:17:07 -0700 (PDT)
-Received: from mail-qk0-x244.google.com (mail-qk0-x244.google.com. [2607:f8b0:400d:c09::244])
-        by mx.google.com with ESMTPS id l62si1851481qke.229.2016.07.08.05.17.07
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4844E6B0260
+	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 08:29:53 -0400 (EDT)
+Received: by mail-vk0-f70.google.com with SMTP id v6so90752668vkb.2
+        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 05:29:53 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q18si898193qte.36.2016.07.08.05.29.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Jul 2016 05:17:07 -0700 (PDT)
-Received: by mail-qk0-x244.google.com with SMTP id r68so8299302qka.3
-        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 05:17:07 -0700 (PDT)
-Date: Fri, 8 Jul 2016 14:17:04 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCHv10 2/2] selftest/x86: add mremap vdso test
-Message-ID: <20160708121704.GA31371@gmail.com>
-References: <20160628113539.13606-1-dsafonov@virtuozzo.com>
- <20160628113539.13606-3-dsafonov@virtuozzo.com>
+        Fri, 08 Jul 2016 05:29:52 -0700 (PDT)
+Date: Fri, 8 Jul 2016 14:29:48 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [RFC PATCH 5/6] vhost, mm: make sure that oom_reaper doesn't
+ reap memory read by vhost
+Message-ID: <20160708122948.GA4733@redhat.com>
+References: <1467365190-24640-1-git-send-email-mhocko@kernel.org>
+ <1467365190-24640-6-git-send-email-mhocko@kernel.org>
+ <20160703134719.GA28492@redhat.com>
+ <20160703140904.GA26908@redhat.com>
+ <20160703151829.GA28667@redhat.com>
+ <20160703182254-mutt-send-email-mst@redhat.com>
+ <20160703164723.GA30151@redhat.com>
+ <20160703215250-mutt-send-email-mst@redhat.com>
+ <20160707082811.GC5379@dhcp22.suse.cz>
+ <20160707183848-mutt-send-email-mst@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160628113539.13606-3-dsafonov@virtuozzo.com>
+In-Reply-To: <20160707183848-mutt-send-email-mst@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Safonov <dsafonov@virtuozzo.com>
-Cc: linux-kernel@vger.kernel.org, 0x7f454c46@gmail.com, mingo@redhat.com, luto@kernel.org, linux-mm@kvack.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Shuah Khan <shuahkh@osg.samsung.com>, x86@kernel.org, linux-kselftest@vger.kernel.org
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>
 
+On 07/07, Michael S. Tsirkin wrote:
+>
+> On Thu, Jul 07, 2016 at 10:28:12AM +0200, Michal Hocko wrote:
+> >
+> > Just to make sure we are all at the same page. I guess the scenario is
+> > as follows. The owner of the mm has ring and other statefull information
+> > in the private memory but consumers living with their own mm consume
+> > some data from a shared memory segments (e.g. files). The worker would
+> > misinterpret statefull information (zeros rather than the original
+> > content) and would copy invalid/corrupted data to the consumer. Am I
+> > correct?
+>
+> Exactly.
 
-* Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
+Michael, let me ask again.
 
-> Or print that mremap for vDSO is unsupported:
-> [root@localhost ~]# ./test_mremap_vdso_32
-> 	AT_SYSINFO_EHDR is 0xf773c000
-> [NOTE]	Moving vDSO: [0xf773c000, 0xf773d000] -> [0xf7737000, 0xf7738000]
-> [FAIL]	mremap() of the vDSO does not work on this kernel!
+But what if we simply kill the owner of this mm? Yes, if we dont't unmap its
+memory then vhost_worker() can't read the wrong zero from anonymous vma.
+But the killed process obviously won't be able to update this statefull info
+after that, it will be frozen. Are you saying this can't affect other apps
+which share the memory with the (killed) mm owner?
 
-Hm, I tried this on a 64-bit kernel and got:
+IOW. If we kill a process, this can affect other applications anyway. Just for
+example, suppose that this process takes a non-robust futex in the shared memory
+segment. After that other users of this futex will hang forever.
 
-triton:~/tip/tools/testing/selftests/x86> ./test_mremap_vdso_32 
-        AT_SYSINFO_EHDR is 0xf7773000
-[NOTE]  Moving vDSO: [0xf7773000, 0xf7774000] -> [0xf776e000, 0xf776f000]
-Segmentation fault
+So do you think that this particular "vhost" problem is really worse and we must
+specialy avoid it?
 
-Thanks,
+If yes, note that this means that any process which can do VHOST_SET_OWNER becomes
+"oom-unkillable" to some degree, and this doesn't look right. It can spawn another
+CLONE_FILES process and this will block fops->release() which (iiuc) should stop
+the kernel thread which pins the memory hog's memory.
 
-	Ingo
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
