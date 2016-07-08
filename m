@@ -1,37 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f197.google.com (mail-ob0-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 48BBE6B0005
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 12:20:51 -0400 (EDT)
-Received: by mail-ob0-f197.google.com with SMTP id t8so54836289obs.2
-        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 09:20:51 -0700 (PDT)
-Received: from resqmta-ch2-04v.sys.comcast.net (resqmta-ch2-04v.sys.comcast.net. [2001:558:fe21:29:69:252:207:36])
-        by mx.google.com with ESMTPS id p9si3215235itd.38.2016.07.08.09.20.50
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Jul 2016 09:20:50 -0700 (PDT)
-Date: Fri, 8 Jul 2016 11:20:47 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [kernel-hardening] Re: [PATCH 9/9] mm: SLUB hardened usercopy
- support
-In-Reply-To: <CAGXu5jKE=h32tHVLsDeaPN1GfC+BB3YbFvC+5TE5TK1oR-xU3A@mail.gmail.com>
-Message-ID: <alpine.DEB.2.20.1607081119170.6192@east.gentwo.org>
-References: <577f7e55.4668420a.84f17.5cb9SMTPIN_ADDED_MISSING@mx.google.com> <alpine.DEB.2.20.1607080844370.3379@east.gentwo.org> <CAGXu5jKE=h32tHVLsDeaPN1GfC+BB3YbFvC+5TE5TK1oR-xU3A@mail.gmail.com>
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 25E3A6B0005
+	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 12:32:10 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id p64so32913747pfb.0
+        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 09:32:10 -0700 (PDT)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id h82si4870308pfd.43.2016.07.08.09.32.09
+        for <linux-mm@kvack.org>;
+        Fri, 08 Jul 2016 09:32:09 -0700 (PDT)
+Subject: Re: [PATCH 6/9] x86, pkeys: add pkey set/get syscalls
+References: <20160707124719.3F04C882@viggo.jf.intel.com>
+ <20160707124728.C1116BB1@viggo.jf.intel.com>
+ <20160707144508.GZ11498@techsingularity.net> <577E924C.6010406@sr71.net>
+ <20160708071810.GA27457@gmail.com>
+From: Dave Hansen <dave@sr71.net>
+Message-ID: <577FD587.6050101@sr71.net>
+Date: Fri, 8 Jul 2016 09:32:07 -0700
+MIME-Version: 1.0
+In-Reply-To: <20160708071810.GA27457@gmail.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Jan Kara <jack@suse.cz>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Linux-MM <linux-mm@kvack.org>, sparclinux <sparclinux@vger.kernel.org>, linux-ia64@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, linux-arch <linux-arch@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, Russell King <linux@armlinux.org.uk>, PaX Team <pageexec@freemail.hu>, Borislav Petkov <bp@suse.de>, lin <ux-arm-kernel@lists.infradead.org>, Mathias Krause <minipli@googlemail.com>, Fenghua Yu <fenghua.yu@intel.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Tony Luck <tony.luck@intel.com>, Andy Lutomirski <luto@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, Brad Spengler <spender@grsecurity.net>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, LKML <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, Case y Schauf ler <casey@schaufler-ca.com>, Andrew Morton <akpm@linux-foundation.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "David S. Miller" <davem@davemloft.net>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, x86@kernel.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, dave.hansen@linux.intel.com, arnd@arndb.de, hughd@google.com, viro@zeniv.linux.org.uk
 
-On Fri, 8 Jul 2016, Kees Cook wrote:
+On 07/08/2016 12:18 AM, Ingo Molnar wrote:
+> So the question is, what is user-space going to do? Do any glibc
+> patches exist? How are the user-space library side APIs going to look
+> like?
 
-> Is check_valid_pointer() making sure the pointer is within the usable
-> size? It seemed like it was checking that it was within the slub
-> object (checks against s->size, wants it above base after moving
-> pointer to include redzone, etc).
+My goal at the moment is to get folks enabled to the point that they can
+start modifying apps to use pkeys without having to patch their kernels.
+ I don't have confidence that we can design good high-level userspace
+interfaces without seeing some real apps try to use the low-level ones
+and seeing how they struggle.
 
-check_valid_pointer verifies that a pointer is pointing to the start of an
-object. It is used to verify the internal points that SLUB used and
-should not be modified to do anything different.
+I had some glibc code to do the pkey alloc/free operations, but those
+aren't necessary if we're doing it in the kernel.  Other than getting
+the syscall wrappers in place, I don't have any immediate plans to do
+anything in glibc.
+
+Was there something you were expecting to see?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
