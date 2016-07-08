@@ -1,41 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D67196B0005
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 12:19:05 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id q62so47549984oih.0
-        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 09:19:05 -0700 (PDT)
-Received: from mail-oi0-x244.google.com (mail-oi0-x244.google.com. [2607:f8b0:4003:c06::244])
-        by mx.google.com with ESMTPS id b22si986601oii.52.2016.07.08.09.19.05
+Received: from mail-ob0-f197.google.com (mail-ob0-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 48BBE6B0005
+	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 12:20:51 -0400 (EDT)
+Received: by mail-ob0-f197.google.com with SMTP id t8so54836289obs.2
+        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 09:20:51 -0700 (PDT)
+Received: from resqmta-ch2-04v.sys.comcast.net (resqmta-ch2-04v.sys.comcast.net. [2001:558:fe21:29:69:252:207:36])
+        by mx.google.com with ESMTPS id p9si3215235itd.38.2016.07.08.09.20.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Jul 2016 09:19:05 -0700 (PDT)
-Received: by mail-oi0-x244.google.com with SMTP id e84so7792824oib.2
-        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 09:19:05 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20160708084639.GA4562@gmail.com>
-References: <1467843928-29351-1-git-send-email-keescook@chromium.org> <20160708084639.GA4562@gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Fri, 8 Jul 2016 09:19:04 -0700
-Message-ID: <CA+55aFzv4kQitzhWgxRAi5XXM30f70d4dbTGkr7t=fZSh4r3Ow@mail.gmail.com>
-Subject: Re: [PATCH 0/9] mm: Hardened usercopy
-Content-Type: text/plain; charset=UTF-8
+        Fri, 08 Jul 2016 09:20:50 -0700 (PDT)
+Date: Fri, 8 Jul 2016 11:20:47 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [kernel-hardening] Re: [PATCH 9/9] mm: SLUB hardened usercopy
+ support
+In-Reply-To: <CAGXu5jKE=h32tHVLsDeaPN1GfC+BB3YbFvC+5TE5TK1oR-xU3A@mail.gmail.com>
+Message-ID: <alpine.DEB.2.20.1607081119170.6192@east.gentwo.org>
+References: <577f7e55.4668420a.84f17.5cb9SMTPIN_ADDED_MISSING@mx.google.com> <alpine.DEB.2.20.1607080844370.3379@east.gentwo.org> <CAGXu5jKE=h32tHVLsDeaPN1GfC+BB3YbFvC+5TE5TK1oR-xU3A@mail.gmail.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Kees Cook <keescook@chromium.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, the arch/x86 maintainers <x86@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, ppc-dev <linuxppc-dev@lists.ozlabs.org>, sparclinux@vger.kernel.org, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Kees Cook <keescook@chromium.org>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Jan Kara <jack@suse.cz>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Linux-MM <linux-mm@kvack.org>, sparclinux <sparclinux@vger.kernel.org>, linux-ia64@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, linux-arch <linux-arch@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, Russell King <linux@armlinux.org.uk>, PaX Team <pageexec@freemail.hu>, Borislav Petkov <bp@suse.de>, lin <ux-arm-kernel@lists.infradead.org>, Mathias Krause <minipli@googlemail.com>, Fenghua Yu <fenghua.yu@intel.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Tony Luck <tony.luck@intel.com>, Andy Lutomirski <luto@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, Brad Spengler <spender@grsecurity.net>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, LKML <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, Case y Schauf ler <casey@schaufler-ca.com>, Andrew Morton <akpm@linux-foundation.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "David S. Miller" <davem@davemloft.net>
 
-On Fri, Jul 8, 2016 at 1:46 AM, Ingo Molnar <mingo@kernel.org> wrote:
->
-> Could you please try to find some syscall workload that does many small user
-> copies and thus excercises this code path aggressively?
+On Fri, 8 Jul 2016, Kees Cook wrote:
 
-Any stat()-heavy path will hit cp_new_stat() very heavily. Think the
-usual kind of "traverse the whole tree looking for something". "git
-diff" will do it, just checking that everything is up-to-date.
+> Is check_valid_pointer() making sure the pointer is within the usable
+> size? It seemed like it was checking that it was within the slub
+> object (checks against s->size, wants it above base after moving
+> pointer to include redzone, etc).
 
-That said, other things tend to dominate.
-
-                 Linus
+check_valid_pointer verifies that a pointer is pointing to the start of an
+object. It is used to verify the internal points that SLUB used and
+should not be modified to do anything different.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
