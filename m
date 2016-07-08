@@ -1,91 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DB2F06B0253
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 16:48:40 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id n127so19490055wme.1
-        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 13:48:40 -0700 (PDT)
-Received: from mail-wm0-x22a.google.com (mail-wm0-x22a.google.com. [2a00:1450:400c:c09::22a])
-        by mx.google.com with ESMTPS id gw8si3436246wjb.84.2016.07.08.13.48.39
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 85F1A6B0253
+	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 17:48:20 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e189so119592524pfa.2
+        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 14:48:20 -0700 (PDT)
+Received: from mail-pf0-x235.google.com (mail-pf0-x235.google.com. [2607:f8b0:400e:c00::235])
+        by mx.google.com with ESMTPS id j87si81240pfa.273.2016.07.08.14.48.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Jul 2016 13:48:39 -0700 (PDT)
-Received: by mail-wm0-x22a.google.com with SMTP id k123so24440520wme.0
-        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 13:48:39 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAGXu5j+UdkQA+k39GNLe5CwBPVD5ZbRGTCQLqS8VF=kWx+PtsQ@mail.gmail.com>
-References: <577f7e55.4668420a.84f17.5cb9SMTPIN_ADDED_MISSING@mx.google.com>
- <alpine.DEB.2.20.1607080844370.3379@east.gentwo.org> <CAGXu5jKE=h32tHVLsDeaPN1GfC+BB3YbFvC+5TE5TK1oR-xU3A@mail.gmail.com>
- <alpine.DEB.2.20.1607081119170.6192@east.gentwo.org> <CAGXu5j+UdkQA+k39GNLe5CwBPVD5ZbRGTCQLqS8VF=kWx+PtsQ@mail.gmail.com>
+        Fri, 08 Jul 2016 14:48:19 -0700 (PDT)
+Received: by mail-pf0-x235.google.com with SMTP id h14so16232687pfe.1
+        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 14:48:19 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
-Date: Fri, 8 Jul 2016 16:48:38 -0400
-Message-ID: <CAGXu5jKxw3RxWNKLX4XVCwJ6x_zA=_RwiU9jLDm2+VRO79G7+w@mail.gmail.com>
-Subject: Re: [kernel-hardening] Re: [PATCH 9/9] mm: SLUB hardened usercopy support
-Content-Type: text/plain; charset=UTF-8
+Subject: [PATCH 2/2] mm: refuse wrapped vm_brk requests
+Date: Fri,  8 Jul 2016 14:48:14 -0700
+Message-Id: <1468014494-25291-3-git-send-email-keescook@chromium.org>
+In-Reply-To: <1468014494-25291-1-git-send-email-keescook@chromium.org>
+References: <1468014494-25291-1-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Jan Kara <jack@suse.cz>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Linux-MM <linux-mm@kvack.org>, sparclinux <sparclinux@vger.kernel.org>, linux-ia64@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, linux-arch <linux-arch@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, Russell King <linux@armlinux.org.uk>, PaX Team <pageexec@freemail.hu>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Fenghua Yu <fenghua.yu@intel.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Tony Luck <tony.luck@intel.com>, Andy Lutomirski <luto@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, Brad Spengler <spender@grsecurity.net>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, LKML <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, Case y Schauf ler <casey@schaufler-ca.com>, Andrew Morton <akpm@linux-foundation.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "David S. Miller" <davem@davemloft.net>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Kees Cook <keescook@chromium.org>, Hector Marco-Gisbert <hecmargi@upv.es>, Ismael Ripoll Ripoll <iripoll@upv.es>, Alexander Viro <viro@zeniv.linux.org.uk>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, Chen Gang <gang.chen.5i5j@gmail.com>, Michal Hocko <mhocko@suse.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jul 8, 2016 at 1:41 PM, Kees Cook <keescook@chromium.org> wrote:
-> On Fri, Jul 8, 2016 at 12:20 PM, Christoph Lameter <cl@linux.com> wrote:
->> On Fri, 8 Jul 2016, Kees Cook wrote:
->>
->>> Is check_valid_pointer() making sure the pointer is within the usable
->>> size? It seemed like it was checking that it was within the slub
->>> object (checks against s->size, wants it above base after moving
->>> pointer to include redzone, etc).
->>
->> check_valid_pointer verifies that a pointer is pointing to the start of an
->> object. It is used to verify the internal points that SLUB used and
->> should not be modified to do anything different.
->
-> Yup, no worries -- I won't touch it. :) I just wanted to verify my
-> understanding.
->
-> And after playing a bit more, I see that the only thing to the left is
-> padding and redzone. SLUB layout, from what I saw:
->
-> offset: what's there
-> -------
-> start: padding, redzone
-> red_left_pad: object itself
-> inuse: rest of metadata
-> size: start of next slub object
->
-> (and object_size == inuse - red_left_pad)
->
-> i.e. a pointer must be between red_left_pad and inuse, which is the
-> same as pointer - ref_left_pad being less than object_size.
->
-> So, as found already, the position in the usercopy check needs to be
-> bumped down by red_left_pad, which is what Michael's fix does, so I'll
-> include it in the next version.
+The vm_brk() alignment calculations should refuse to overflow. The ELF
+loader depending on this, but it has been fixed now. No other unsafe
+callers have been found.
 
-Actually, after some offline chats, I think this is better, since it
-makes sure the ptr doesn't end up somewhere weird before we start the
-calculations. This leaves the pointer as-is, but explicitly handles
-the redzone on the offset instead, with no wrapping, etc:
+Reported-by: Hector Marco-Gisbert <hecmargi@upv.es>
+Signed-off-by: Kees Cook <keescook@chromium.org>
+---
+ mm/mmap.c | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
 
-        /* Find offset within object. */
-        offset = (ptr - page_address(page)) % s->size;
-
-+       /* Adjust for redzone and reject if within the redzone. */
-+       if (s->flags & SLAB_RED_ZONE) {
-+               if (offset < s->red_left_pad)
-+                       return s->name;
-+               offset -= s->red_left_pad;
-+       }
-+
-        /* Allow address range falling entirely within object size. */
-        if (offset <= s->object_size && n <= s->object_size - offset)
-                return NULL;
-
--Kees
-
-
+diff --git a/mm/mmap.c b/mm/mmap.c
+index de2c1769cc68..1874ee0e1266 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2625,16 +2625,18 @@ static inline void verify_mm_writelocked(struct mm_struct *mm)
+  *  anonymous maps.  eventually we may be able to do some
+  *  brk-specific accounting here.
+  */
+-static int do_brk(unsigned long addr, unsigned long len)
++static int do_brk(unsigned long addr, unsigned long request)
+ {
+ 	struct mm_struct *mm = current->mm;
+ 	struct vm_area_struct *vma, *prev;
+-	unsigned long flags;
++	unsigned long flags, len;
+ 	struct rb_node **rb_link, *rb_parent;
+ 	pgoff_t pgoff = addr >> PAGE_SHIFT;
+ 	int error;
+ 
+-	len = PAGE_ALIGN(len);
++	len = PAGE_ALIGN(request);
++	if (len < request)
++		return -ENOMEM;
+ 	if (!len)
+ 		return 0;
+ 
 -- 
-Kees Cook
-Chrome OS & Brillo Security
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
