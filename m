@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 777896B025E
-	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 20:19:13 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id ts6so61236205pac.1
-        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 17:19:13 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id g3si847172pfg.118.2016.07.07.17.19.11
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 913506B025F
+	for <linux-mm@kvack.org>; Thu,  7 Jul 2016 20:19:15 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id a69so65450830pfa.1
+        for <linux-mm@kvack.org>; Thu, 07 Jul 2016 17:19:15 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id f71si712718pfa.157.2016.07.07.17.19.13
         for <linux-mm@kvack.org>;
-        Thu, 07 Jul 2016 17:19:12 -0700 (PDT)
-Subject: [PATCH 1/4] x86, swap: move swap offset/type up in PTE to work around erratum
+        Thu, 07 Jul 2016 17:19:13 -0700 (PDT)
+Subject: [PATCH 2/4] x86, pagetable: ignore A/D bits in pte/pmd/pud_none()
 From: Dave Hansen <dave@sr71.net>
-Date: Thu, 07 Jul 2016 17:19:11 -0700
+Date: Thu, 07 Jul 2016 17:19:12 -0700
 References: <20160708001909.FB2443E2@viggo.jf.intel.com>
 In-Reply-To: <20160708001909.FB2443E2@viggo.jf.intel.com>
-Message-Id: <20160708001911.9A3FD2B6@viggo.jf.intel.com>
+Message-Id: <20160708001912.5216F89C@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,79 +22,84 @@ Cc: x86@kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linu
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-This erratum can result in Accessed/Dirty getting set by the hardware
-when we do not expect them to be (on !Present PTEs).
+The erratum we are fixing here can lead to stray setting of the
+A and D bits.  That means that a pte that we cleared might
+suddenly have A/D set.  So, stop considering those bits when
+determining if a pte is pte_none().  The same goes for the
+other pmd_none() and pud_none().  pgd_none() can be skipped
+because it is not affected; we do not use PGD entries for
+anything other than pagetables on affected configurations.
 
-Instead of trying to fix them up after this happens, we just
-allow the bits to get set and try to ignore them.  We do this by
-shifting the layout of the bits we use for swap offset/type in
-our 64-bit PTEs.
-
-It looks like this:
-
-bitnrs: |     ...            | 11| 10|  9|8|7|6|5| 4| 3|2|1|0|
-names:  |     ...            |SW3|SW2|SW1|G|L|D|A|CD|WT|U|W|P|
-before: |         OFFSET (9-63)          |0|X|X| TYPE(1-5) |0|
- after: | OFFSET (14-63)  |  TYPE (9-13) |0|X|X|X| X| X|X|X|0|
-
-Note that D was already a don't care (X) even before.  We just
-move TYPE up and turn its old spot (which could be hit by the
-A bit) into all don't cares.
-
-We take 5 bits away from the offset, but that still leaves us
-with 50 bits which lets us index into a 62-bit swapfile (4 EiB).
-I think that's probably fine for the moment.  We could
-theoretically reclaim 5 of the bits (1, 2, 3, 4, 7) but it
-doesn't gain us anything.
+This adds a tiny amount of overhead to all pte_none() checks.
+I doubt we'll be able to measure it anywhere.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 ---
 
- b/arch/x86/include/asm/pgtable_64.h |   26 ++++++++++++++++++++------
- 1 file changed, 20 insertions(+), 6 deletions(-)
+ b/arch/x86/include/asm/pgtable.h       |   13 ++++++++++---
+ b/arch/x86/include/asm/pgtable_types.h |    6 ++++++
+ 2 files changed, 16 insertions(+), 3 deletions(-)
 
-diff -puN arch/x86/include/asm/pgtable_64.h~knl-strays-10-move-swp-pte-bits arch/x86/include/asm/pgtable_64.h
---- a/arch/x86/include/asm/pgtable_64.h~knl-strays-10-move-swp-pte-bits	2016-07-07 17:17:43.556746185 -0700
-+++ b/arch/x86/include/asm/pgtable_64.h	2016-07-07 17:17:43.559746319 -0700
-@@ -140,18 +140,32 @@ static inline int pgd_large(pgd_t pgd) {
- #define pte_offset_map(dir, address) pte_offset_kernel((dir), (address))
- #define pte_unmap(pte) ((void)(pte))/* NOP */
+diff -puN arch/x86/include/asm/pgtable.h~knl-strays-20-mod-pte-none arch/x86/include/asm/pgtable.h
+--- a/arch/x86/include/asm/pgtable.h~knl-strays-20-mod-pte-none	2016-07-07 17:17:43.974764976 -0700
++++ b/arch/x86/include/asm/pgtable.h	2016-07-07 17:17:43.980765246 -0700
+@@ -480,7 +480,7 @@ pte_t *populate_extra_pte(unsigned long
  
--/* Encode and de-code a swap entry */
-+/*
-+ * Encode and de-code a swap entry
-+ *
-+ * |     ...            | 11| 10|  9|8|7|6|5| 4| 3|2|1|0| <- bit number
-+ * |     ...            |SW3|SW2|SW1|G|L|D|A|CD|WT|U|W|P| <- bit names
-+ * | OFFSET (14->63) | TYPE (10-13) |0|X|X|X| X| X|X|X|0| <- swp entry
-+ *
-+ * G (8) is aliased and used as a PROT_NONE indicator for
-+ * !present ptes.  We need to start storing swap entries above
-+ * there.  We also need to avoid using A and D because of an
-+ * erratum where they can be incorrectly set by hardware on
-+ * non-present PTEs.
-+ */
-+#define SWP_TYPE_FIRST_BIT (_PAGE_BIT_PROTNONE + 1)
- #define SWP_TYPE_BITS 5
--#define SWP_OFFSET_SHIFT (_PAGE_BIT_PROTNONE + 1)
-+/* Place the offset above the type: */
-+#define SWP_OFFSET_FIRST_BIT (SWP_TYPE_FIRST_BIT + SWP_TYPE_BITS + 1)
+ static inline int pte_none(pte_t pte)
+ {
+-	return !pte.pte;
++	return !(pte.pte & ~(_PAGE_KNL_ERRATUM_MASK));
+ }
  
- #define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > SWP_TYPE_BITS)
+ #define __HAVE_ARCH_PTE_SAME
+@@ -552,7 +552,8 @@ static inline int pmd_none(pmd_t pmd)
+ {
+ 	/* Only check low word on 32-bit platforms, since it might be
+ 	   out of sync with upper half. */
+-	return (unsigned long)native_pmd_val(pmd) == 0;
++	unsigned long val = native_pmd_val(pmd);
++	return (val & ~_PAGE_KNL_ERRATUM_MASK) == 0;
+ }
  
--#define __swp_type(x)			(((x).val >> (_PAGE_BIT_PRESENT + 1)) \
-+#define __swp_type(x)			(((x).val >> (SWP_TYPE_FIRST_BIT)) \
- 					 & ((1U << SWP_TYPE_BITS) - 1))
--#define __swp_offset(x)			((x).val >> SWP_OFFSET_SHIFT)
-+#define __swp_offset(x)			((x).val >> SWP_OFFSET_FIRST_BIT)
- #define __swp_entry(type, offset)	((swp_entry_t) { \
--					 ((type) << (_PAGE_BIT_PRESENT + 1)) \
--					 | ((offset) << SWP_OFFSET_SHIFT) })
-+					 ((type) << (SWP_TYPE_FIRST_BIT)) \
-+					 | ((offset) << SWP_OFFSET_FIRST_BIT) })
- #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val((pte)) })
- #define __swp_entry_to_pte(x)		((pte_t) { .pte = (x).val })
+ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
+@@ -616,7 +617,7 @@ static inline unsigned long pages_to_mb(
+ #if CONFIG_PGTABLE_LEVELS > 2
+ static inline int pud_none(pud_t pud)
+ {
+-	return native_pud_val(pud) == 0;
++	return (native_pud_val(pud) & ~(_PAGE_KNL_ERRATUM_MASK)) == 0;
+ }
  
+ static inline int pud_present(pud_t pud)
+@@ -694,6 +695,12 @@ static inline int pgd_bad(pgd_t pgd)
+ 
+ static inline int pgd_none(pgd_t pgd)
+ {
++	/*
++	 * There is no need to do a workaround for the KNL stray
++	 * A/D bit erratum here.  PGDs only point to page tables
++	 * except on 32-bit non-PAE which is not supported on
++	 * KNL.
++	 */
+ 	return !native_pgd_val(pgd);
+ }
+ #endif	/* CONFIG_PGTABLE_LEVELS > 3 */
+diff -puN arch/x86/include/asm/pgtable_types.h~knl-strays-20-mod-pte-none arch/x86/include/asm/pgtable_types.h
+--- a/arch/x86/include/asm/pgtable_types.h~knl-strays-20-mod-pte-none	2016-07-07 17:17:43.976765066 -0700
++++ b/arch/x86/include/asm/pgtable_types.h	2016-07-07 17:17:43.980765246 -0700
+@@ -70,6 +70,12 @@
+ 			 _PAGE_PKEY_BIT2 | \
+ 			 _PAGE_PKEY_BIT3)
+ 
++#if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
++#define _PAGE_KNL_ERRATUM_MASK (_PAGE_DIRTY | _PAGE_ACCESSED)
++#else
++#define _PAGE_KNL_ERRATUM_MASK 0
++#endif
++
+ #ifdef CONFIG_KMEMCHECK
+ #define _PAGE_HIDDEN	(_AT(pteval_t, 1) << _PAGE_BIT_HIDDEN)
+ #else
 _
 
 --
