@@ -1,80 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EC5A828E1
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 06:20:03 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id a69so87899212pfa.1
-        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 03:20:03 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id y72si3506417pfa.277.2016.07.08.03.20.02
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CD1C828E1
+	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 06:22:32 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id n127so9085242wme.1
+        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 03:22:32 -0700 (PDT)
+Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
+        by mx.google.com with ESMTPS id u6si2236852wjv.222.2016.07.08.03.22.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Jul 2016 03:20:02 -0700 (PDT)
-Message-Id: <577f7e52.4b4b620a.e74b1.2d23SMTPIN_ADDED_MISSING@mx.google.com>
-Date: Fri, 08 Jul 2016 20:19:58 +1000
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [kernel-hardening] Re: [PATCH 9/9] mm: SLUB hardened usercopy support
-In-Reply-To: <CAGXu5jJbmLD-zPzJodM0=imuj-=w_s8RGP=vwtGuhmXJjQjuSw@mail.gmail.com>
+        Fri, 08 Jul 2016 03:22:31 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id B28CD1C2149
+	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 11:22:30 +0100 (IST)
+Date: Fri, 8 Jul 2016 11:22:28 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 6/9] x86, pkeys: add pkey set/get syscalls
+Message-ID: <20160708102228.GF11498@techsingularity.net>
+References: <20160707124719.3F04C882@viggo.jf.intel.com>
+ <20160707124728.C1116BB1@viggo.jf.intel.com>
+ <20160707144508.GZ11498@techsingularity.net>
+ <577E924C.6010406@sr71.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <577E924C.6010406@sr71.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
-Cc: Jan Kara <jack@suse.cz>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Linux-MM <linux-mm@kvack.org>, sparclinux <sparclinux@vger.kernel.org>, linux-ia64@vger.kernel.org, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-arch <linux-arch@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, Russell King <linux@armlinux.org.uk>, PaX Team <pageexec@freemail.hu>, Borislav Petkov <bp@suse.de>, lin <ux-arm-kernel@lists.infradead.org>, Mathias Krause <minipli@googlemail.com>, Fenghua Yu <fenghua.yu@intel.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Tony Luck <tony.luck@intel.com>, Andy Lutomirski <luto@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, Brad Spengler <spender@grsecurity.net>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, LKML <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, Casey Schauf ler <casey@schaufler-ca.com>, Andrew Morton <akpm@linux-foundation.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "David S. Miller" <davem@davemloft.net>
+To: Dave Hansen <dave@sr71.net>
+Cc: linux-kernel@vger.kernel.org, x86@kernel.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, dave.hansen@linux.intel.com, arnd@arndb.de, hughd@google.com, viro@zeniv.linux.org.uk
 
-Kees Cook <keescook@chromium.org> writes:
-> On Thu, Jul 7, 2016 at 12:35 AM, Michael Ellerman <mpe@ellerman.id.au> wrote:
->> I gave this a quick spin on powerpc, it blew up immediately :)
->
-> Wheee :) This series is rather easy to test: blows up REALLY quickly
-> if it's wrong. ;)
+On Thu, Jul 07, 2016 at 10:33:00AM -0700, Dave Hansen wrote:
+> On 07/07/2016 07:45 AM, Mel Gorman wrote:
+> > On Thu, Jul 07, 2016 at 05:47:28AM -0700, Dave Hansen wrote:
+> >> > 
+> >> > From: Dave Hansen <dave.hansen@linux.intel.com>
+> >> > 
+> >> > This establishes two more system calls for protection key management:
+> >> > 
+> >> > 	unsigned long pkey_get(int pkey);
+> >> > 	int pkey_set(int pkey, unsigned long access_rights);
+> >> > 
+> >> > The return value from pkey_get() and the 'access_rights' passed
+> >> > to pkey_set() are the same format: a bitmask containing
+> >> > PKEY_DENY_WRITE and/or PKEY_DENY_ACCESS, or nothing set at all.
+> >> > 
+> >> > These can replace userspace's direct use of the new rdpkru/wrpkru
+> >> > instructions.
+> ...
+> > This one feels like something that can or should be implemented in
+> > glibc.
+> 
+> I generally agree, except that glibc doesn't have any visibility into
+> whether a pkey is currently valid or not.
+> 
 
-Better than subtle race conditions which is the usual :)
+Well, it could if it tracked the pkey_alloc/pkey_free calls too. I accept
+that's not perfect as nothing prevents the syscalls being used directly.
 
->> diff --git a/mm/slub.c b/mm/slub.c
->> index 0c8ace04f075..66191ea4545a 100644
->> --- a/mm/slub.c
->> +++ b/mm/slub.c
->> @@ -3630,6 +3630,9 @@ const char *__check_heap_object(const void *ptr, unsigned long n,
->>         /* Find object. */
->>         s = page->slab_cache;
->>
->> +       /* Subtract red zone if enabled */
->> +       ptr = restore_red_left(s, ptr);
->> +
->
-> Ah, interesting. Just to make sure: you've built with
-> CONFIG_SLUB_DEBUG and either CONFIG_SLUB_DEBUG_ON or booted with
-> either slub_debug or slub_debug=z ?
+> > Applications that frequently get
+> > called will get hammed into the ground with serialisation on mmap_sem
+> > not to mention the cost of the syscall entry/exit.
+> 
+> I think we can do both of them without mmap_sem, as long as we resign
+> ourselves to this just being fundamentally racy (which it is already, I
+> think).  But, is it worth performance-tuning things that we don't expect
+> performance-sensitive apps to be using in the first place?  They'll just
+> use the RDPKRU/WRPKRU instructions directly.
+> 
 
-Yeah built with CONFIG_SLUB_DEBUG_ON, and booted with and without slub_debug
-options.
+I accept the premature optimisation arguement but I think it'll eventually
+bite us. Why this red-flagged for me was because so many people have
+complained about just system call overhead when using particular types of
+hardware -- DAX springs to mind with the MAP_PMEM_AWARE discussions. Using
+mmap_sem means that pkey operations stop parallel faults, mmaps and so on. If
+the applications that care are trying to minimise page table operations,
+TLB flushes and so on, they might not be that happy if parallel faults
+are stalled.
 
-> Thanks for the slub fix!
->
-> I wonder if this code should be using size_from_object() instead of s->size?
+I think whether you serialise pkey_get/pkey_set operations or not, it's
+going to be inherently racy with different sized windows. A sequence counter
+would be sufficient to protect it to prevent partial reads. If userspace
+cares about the race, then userspace is going to have to serialise its
+threads access to the keys anyway.
 
-Hmm, not sure. Who's SLUB maintainer? :)
-
-I was modelling it on the logic in check_valid_pointer(), which also does the
-restore_red_left(), and then checks for % s->size:
-
-static inline int check_valid_pointer(struct kmem_cache *s,
-				struct page *page, void *object)
-{
-	void *base;
-
-	if (!object)
-		return 1;
-
-	base = page_address(page);
-	object = restore_red_left(s, object);
-	if (object < base || object >= base + page->objects * s->size ||
-		(object - base) % s->size) {
-		return 0;
-	}
-
-	return 1;
-}
-
-cheers
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
