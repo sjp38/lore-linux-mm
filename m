@@ -1,56 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 37AD16B0253
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 16:00:34 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id f126so19021575wma.3
-        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 13:00:34 -0700 (PDT)
-Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
-        by mx.google.com with ESMTPS id as5si750787wjc.68.2016.07.08.13.00.32
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 51F90828E2
+	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 16:00:36 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id x83so15714505wma.2
+        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 13:00:36 -0700 (PDT)
+Received: from outbound-smtp06.blacknight.com (outbound-smtp06.blacknight.com. [81.17.249.39])
+        by mx.google.com with ESMTPS id n67si4194642wmd.71.2016.07.08.13.00.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
         Fri, 08 Jul 2016 13:00:32 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id BBD501C3257
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 21:00:31 +0100 (IST)
+	by outbound-smtp06.blacknight.com (Postfix) with ESMTPS id 21414994FB
+	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 20:00:32 +0000 (UTC)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 0/3] Fix boot problem with deferred meminit on machine with no node 0
-Date: Fri,  8 Jul 2016 21:00:28 +0100
-Message-Id: <1468008031-3848-1-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 2/3] mm, meminit: Always return a valid node from early_pfn_to_nid
+Date: Fri,  8 Jul 2016 21:00:30 +0100
+Message-Id: <1468008031-3848-3-git-send-email-mgorman@techsingularity.net>
+In-Reply-To: <1468008031-3848-1-git-send-email-mgorman@techsingularity.net>
+References: <1468008031-3848-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-A machine with only node 1 was observed to crash very early in boot with
-the following message
+early_pfn_to_nid can return node 0 if a PFN is invalid on machines
+that has no node 0. A machine with only node 1 was observed to crash
+with the following message
 
-[    0.000000] BUG: unable to handle kernel paging request at 000000000002a3c8
-[    0.000000] PGD 0
-[    0.000000] Modules linked in:
-[    0.000000] Hardware name: Supermicro H8DSP-8/H8DSP-8, BIOS 080011  06/30/2006
-[    0.000000] task: ffffffff81c0d500 ti: ffffffff81c00000 task.ti: ffffffff81c00000
-[    0.000000] RIP: 0010:[<ffffffff816dbd63>]  [<ffffffff816dbd63>] reserve_bootmem_region+0x6a/0xef
-[    0.000000] RSP: 0000:ffffffff81c03eb0  EFLAGS: 00010086
-[    0.000000] RAX: 0000000000000000 RBX: 0000000000000000 RCX: 0000000000000000
-[    0.000000] RDX: ffffffff81c03ec0 RSI: ffffffff81d205c0 RDI: ffffffff8213ee60
-[    0.000000] R13: ffffea0000000000 R14: ffffea0000000020 R15: ffffea0000000020
-[    0.000000] FS:  0000000000000000(0000) GS:ffff8800fba00000(0000) knlGS:0000000000000000
-[    0.000000] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[    0.000000] CR2: 000000000002a3c8 CR3: 0000000001c06000 CR4: 00000000000006b0
-[    0.000000] Stack:
-[    0.000000]  ffffffff81c03f00 0000000000000400 ffff8800fbfc3200 ffffffff81e2a2c0
-[    0.000000]  ffffffff81c03fb0 ffffffff81c03f20 ffffffff81dadf7d ffffea0002000040
-[    0.000000]  ffffea0000000000 0000000000000000 000000000000ffff 0000000000000001
-[    0.000000] Call Trace:
-[    0.000000]  [<ffffffff81dadf7d>] free_all_bootmem+0x4b/0x12a
-[    0.000000]  [<ffffffff81d97122>] mem_init+0x70/0xa3
-[    0.000000]  [<ffffffff81d78f21>] start_kernel+0x25b/0x49b
+ BUG: unable to handle kernel paging request at 000000000002a3c8
+ PGD 0
+ Modules linked in:
+ Hardware name: Supermicro H8DSP-8/H8DSP-8, BIOS 080011  06/30/2006
+ task: ffffffff81c0d500 ti: ffffffff81c00000 task.ti: ffffffff81c00000
+ RIP: 0010:[<ffffffff816dbd63>]  [<ffffffff816dbd63>] reserve_bootmem_region+0x6a/0xef
+ RSP: 0000:ffffffff81c03eb0  EFLAGS: 00010086
+ RAX: 0000000000000000 RBX: 0000000000000000 RCX: 0000000000000000
+ RDX: ffffffff81c03ec0 RSI: ffffffff81d205c0 RDI: ffffffff8213ee60
+ R13: ffffea0000000000 R14: ffffea0000000020 R15: ffffea0000000020
+ FS:  0000000000000000(0000) GS:ffff8800fba00000(0000) knlGS:0000000000000000
+ CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+ CR2: 000000000002a3c8 CR3: 0000000001c06000 CR4: 00000000000006b0
+ Stack:
+  ffffffff81c03f00 0000000000000400 ffff8800fbfc3200 ffffffff81e2a2c0
+  ffffffff81c03fb0 ffffffff81c03f20 ffffffff81dadf7d ffffea0002000040
+  ffffea0000000000 0000000000000000 000000000000ffff 0000000000000001
+ Call Trace:
+  [<ffffffff81dadf7d>] free_all_bootmem+0x4b/0x12a
+  [<ffffffff81d97122>] mem_init+0x70/0xa3
+  [<ffffffff81d78f21>] start_kernel+0x25b/0x49b
 
-This series is the lowest-risk solution to the problem.
+The problem is that early_page_uninitialised uses the early_pfn_to_nid
+helper which returns node 0 for invalid PFNs. No caller of early_pfn_to_nid
+cares except early_page_uninitialised. This patch has early_pfn_to_nid
+always return a valid node.
 
- mm/page_alloc.c | 17 +++--------------
- 1 file changed, 3 insertions(+), 14 deletions(-)
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+Cc: <stable@vger.kernel.org> # 4.2+
+---
+ mm/page_alloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index a19527aa4243..5a616de1adca 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1097,7 +1097,7 @@ int __meminit early_pfn_to_nid(unsigned long pfn)
+ 	spin_lock(&early_pfn_lock);
+ 	nid = __early_pfn_to_nid(pfn, &early_pfnnid_cache);
+ 	if (nid < 0)
+-		nid = 0;
++		nid = first_online_node;
+ 	spin_unlock(&early_pfn_lock);
+ 
+ 	return nid;
 -- 
 2.6.4
 
