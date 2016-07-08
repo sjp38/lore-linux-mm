@@ -1,75 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 249A2828E5
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 05:52:06 -0400 (EDT)
-Received: by mail-vk0-f69.google.com with SMTP id v6so84116457vkb.2
-        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 02:52:06 -0700 (PDT)
-Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
-        by mx.google.com with ESMTPS id s83si2145054wmf.10.2016.07.08.02.52.04
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D528828E5
+	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 06:05:36 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id x83so5759835wma.2
+        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 03:05:36 -0700 (PDT)
+Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
+        by mx.google.com with ESMTPS id d8si2215922wjq.12.2016.07.08.03.05.34
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 08 Jul 2016 02:52:05 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id 8F5781DC084
-	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 09:52:04 +0000 (UTC)
-Date: Fri, 8 Jul 2016 10:52:03 +0100
+        Fri, 08 Jul 2016 03:05:35 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id A9DAB9902A
+	for <linux-mm@kvack.org>; Fri,  8 Jul 2016 10:05:34 +0000 (UTC)
+Date: Fri, 8 Jul 2016 11:05:32 +0100
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 00/31] Move LRU page reclaim from zones to nodes v8
-Message-ID: <20160708095203.GB11498@techsingularity.net>
-References: <1467387466-10022-1-git-send-email-mgorman@techsingularity.net>
- <20160707232713.GM27480@dastard>
+Subject: Re: [PATCH 04/31] mm, vmscan: begin reclaiming pages on a per-node
+ basis
+Message-ID: <20160708100532.GC11498@techsingularity.net>
+References: <1467403299-25786-1-git-send-email-mgorman@techsingularity.net>
+ <1467403299-25786-5-git-send-email-mgorman@techsingularity.net>
+ <20160707011211.GA27987@js1304-P5Q-DELUXE>
+ <20160707094808.GP11498@techsingularity.net>
+ <20160708022852.GA2370@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20160707232713.GM27480@dastard>
+In-Reply-To: <20160708022852.GA2370@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Jul 08, 2016 at 09:27:13AM +1000, Dave Chinner wrote:
-> .....
-> > This series is not without its hazards. There are at least three areas
-> > that I'm concerned with even though I could not reproduce any problems in
-> > that area.
+On Fri, Jul 08, 2016 at 11:28:52AM +0900, Joonsoo Kim wrote:
+> On Thu, Jul 07, 2016 at 10:48:08AM +0100, Mel Gorman wrote:
+> > On Thu, Jul 07, 2016 at 10:12:12AM +0900, Joonsoo Kim wrote:
+> > > > @@ -1402,6 +1406,11 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+> > > >  
+> > > >  		VM_BUG_ON_PAGE(!PageLRU(page), page);
+> > > >  
+> > > > +		if (page_zonenum(page) > sc->reclaim_idx) {
+> > > > +			list_move(&page->lru, &pages_skipped);
+> > > > +			continue;
+> > > > +		}
+> > > > +
+> > > 
+> > > I think that we don't need to skip LRU pages in active list. What we'd
+> > > like to do is just skipping actual reclaim since it doesn't make
+> > > freepage that we need. It's unrelated to skip the page in active list.
+> > > 
 > > 
-> > 1. Reclaim/compaction is going to be affected because the amount of reclaim is
-> >    no longer targetted at a specific zone. Compaction works on a per-zone basis
-> >    so there is no guarantee that reclaiming a few THP's worth page pages will
-> >    have a positive impact on compaction success rates.
+> > Why?
 > > 
-> > 2. The Slab/LRU reclaim ratio is affected because the frequency the shrinkers
-> >    are called is now different. This may or may not be a problem but if it
-> >    is, it'll be because shrinkers are not called enough and some balancing
-> >    is required.
+> > The active aging is sometimes about simply aging the LRU list. Aging the
+> > active list based on the timing of when a zone-constrained allocation arrives
+> > potentially introduces the same zone-balancing problems we currently have
+> > and applying them to node-lru.
 > 
-> Given that XFS has a much more complex set of shrinkers and has a
-> much more finely tuned balancing between LRU and shrinker reclaim,
-> I'd be interested to see if you get the same results on XFS for the
-> tests you ran on ext4. It might also be worth running some highly
-> concurrent inode cache benchmarks (e.g. the 50-million inode, 16-way
-> concurrent fsmark tests) to see what impact heavy slab cache
-> pressure has on shrinker behaviour and system balance...
+> Could you explain more? I don't understand why aging the active list
+> based on the timing of when a zone-constrained allocation arrives
+> introduces the zone-balancing problem again.
 > 
 
-I had tested XFS with earlier releases and noticed no major problems
-so later releases tested only one filesystem.  Given the changes since,
-a retest is desirable. I've posted the current version of the series but
-I'll queue the tests to run over the weekend. They are quite time consuming
-to run unfortunately.
+I mispoke. Avoid rotation of the active list based on the timing of a
+zone-constrained allocation is what I think potentially introduces problems.
+If there are zone-constrained allocations aging the active list then I worry
+that pages would be artificially preserved on the active list.  No matter
+what we do, there is distortion of the aging for zone-constrained allocation
+because right now, it may deactivate high zone pages sooner than expected.
 
-On the fsmark configuration, I configured the test to use 4K files
-instead of 0-sized files that normally would be used to stress inode
-creation/deletion. This is to have a mix of page cache and slab
-allocations. Shout if this does not suit your expectations.
+> I think that if above logic is applied to both the active/inactive
+> list, it could cause zone-balancing problem. LRU pages on lower zone
+> can be resident on memory with more chance.
 
-Finally, not all the machines I'm using can store 50 million inodes
-of this size. The benchmark has been configured to use as many inodes
-as it estimates will fit in the disk. In all cases, it'll exert memory
-pressure. Unfortunately, the storage is simple so there is no guarantee
-it'll find all problems but that's standard unfortunately.
+If anything, with node-based LRU, it's high zone pages that can be resident
+on memory for longer but only if there are zone-constrained allocations.
+If we always reclaim based on age regardless of allocation requirements
+then there is a risk that high zones are reclaimed far earlier than expected.
 
-Thanks.
+Basically, whether we skip pages in the active list or not there are
+distortions with page aging and the impact is workload dependent. Right now,
+I see no clear advantage to special casing active aging.
+
+If we suspect this is a problem in the future, it would be a simple matter
+of adding an additional bool parameter to isolate_lru_pages.
+
+> > > And, I have a concern that if inactive LRU is full with higher zone's
+> > > LRU pages, reclaim with low reclaim_idx could be stuck.
+> > 
+> > That is an outside possibility but unlikely given that it would require
+> > that all outstanding allocation requests are zone-contrained. If it happens
+> 
+> I'm not sure that it is outside possibility. It can also happens if there
+> is zone-contrained allocation requestor and parallel memory hogger. In
+> this case, memory would be reclaimed by memory hogger but memory hogger would
+> consume them again so inactive LRU is continually full with higher
+> zone's LRU pages and zone-contrained allocation requestor cannot
+> progress.
+> 
+
+The same memory hogger will also be reclaiming the highmem pages and
+reallocating highmem pages.
+
+> > It would be preferred to have an actual test case for this so the
+> > altered ratio can be tested instead of introducing code that may be
+> > useless or dead.
+> 
+> Yes, actual test case would be preferred. I will try to implement
+> an artificial test case by myself but I'm not sure when I can do it.
+> 
+
+That would be appreciated.
 
 -- 
 Mel Gorman
