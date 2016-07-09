@@ -1,67 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DBBF36B0005
-	for <linux-mm@kvack.org>; Sat,  9 Jul 2016 19:17:29 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id o80so3433679wme.1
-        for <linux-mm@kvack.org>; Sat, 09 Jul 2016 16:17:29 -0700 (PDT)
-Received: from r00tworld.com (r00tworld.com. [212.85.137.150])
-        by mx.google.com with ESMTPS id uv1si174795wjc.96.2016.07.09.16.17.28
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A56E6B0005
+	for <linux-mm@kvack.org>; Sat,  9 Jul 2016 19:49:35 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id l89so5975754lfi.3
+        for <linux-mm@kvack.org>; Sat, 09 Jul 2016 16:49:35 -0700 (PDT)
+Received: from mail-lf0-x22b.google.com (mail-lf0-x22b.google.com. [2a00:1450:4010:c07::22b])
+        by mx.google.com with ESMTPS id n8si953924lfi.264.2016.07.09.16.49.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 09 Jul 2016 16:17:28 -0700 (PDT)
-From: "PaX Team" <pageexec@freemail.hu>
-Date: Sun, 10 Jul 2016 01:16:36 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 09 Jul 2016 16:49:33 -0700 (PDT)
+Received: by mail-lf0-x22b.google.com with SMTP id f6so48637273lfg.0
+        for <linux-mm@kvack.org>; Sat, 09 Jul 2016 16:49:33 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/9] mm: Hardened usercopy
-Reply-to: pageexec@freemail.hu
-Message-ID: <578185D4.29090.242668C8@pageexec.freemail.hu>
-In-reply-to: <CALCETrU5Emr7jZNH5bh7Z+C8fLOcAah9SzeJbDjqW7N-xWGxHA@mail.gmail.com>
-References: <1467843928-29351-1-git-send-email-keescook@chromium.org>, <CALCETrU5Emr7jZNH5bh7Z+C8fLOcAah9SzeJbDjqW7N-xWGxHA@mail.gmail.com>
-Content-type: text/plain; charset=US-ASCII
-Content-transfer-encoding: 7BIT
-Content-description: Mail message body
+From: Shayan Pooya <shayan@liveve.org>
+Date: Sat, 9 Jul 2016 16:49:32 -0700
+Message-ID: <CABAubThf6gbi243BqYgoCjqRW36sXJuJ6e_8zAqzkYRiu0GVtQ@mail.gmail.com>
+Subject: bug in memcg oom-killer results in a hung syscall in another process
+ in the same cgroup
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>, Andy Lutomirski <luto@amacapital.net>
-Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Brad Spengler <spender@grsecurity.net>, Pekka Enberg <penberg@kernel.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Casey Schaufler <casey@schaufler-ca.com>, Will Deacon <will.deacon@arm.com>, Rik van Riel <riel@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dmitry Vyukov <dvyukov@google.com>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, X86 ML <x86@kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, linux-arch <linux-arch@vger.kernel.org>, David Rientjes <rientjes@google.com>, Mathias Krause <minipli@googlemail.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "David S. Miller" <davem@davemloft.net>, Laura Abbott <labbott@fedoraproject.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jan Kara <jack@suse.cz>, Russell King <linux@armlinux.org.uk>, Michael Ellerman <mpe@ellerman.id.au>, Andrea Arcangeli <aarcange@redhat.com>, Fenghua Yu <fenghua.yu@intel.com>, linuxppc-dev@lists.ozlabs.org, Vitaly Wool <vitalywool@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@suse.de>, Tony Luck <tony.luck@intel.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, sparclinux@vger.kernel.org
+To: cgroups mailinglist <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On 9 Jul 2016 at 14:27, Andy Lutomirski wrote:
+I came across the following issue in kernel 3.16 (Ubuntu 14.04) which
+was then reproduced in kernels 4.4 LTS:
+After a couple of of memcg oom-kills in a cgroup, a syscall in
+*another* process in the same cgroup hangs indefinitely.
 
-> On Jul 6, 2016 6:25 PM, "Kees Cook" <keescook@chromium.org> wrote:
-> >
-> > Hi,
-> >
-> > This is a start of the mainline port of PAX_USERCOPY[1]. After I started
-> > writing tests (now in lkdtm in -next) for Casey's earlier port[2], I
-> > kept tweaking things further and further until I ended up with a whole
-> > new patch series. To that end, I took Rik's feedback and made a number
-> > of other changes and clean-ups as well.
-> >
-> 
-> I like the series, but I have one minor nit to pick.  The effect of
-> this series is to harden usercopy, but most of the code is really
-> about infrastructure to validate that a pointed-to object is valid.
+Reproducing:
 
-actually USERCOPY has never been about validating pointers. its sole purpose
-is to validate the *size* argument of copy*user calls, a very specific form
-of runtime bounds checking. it's only really relevant for slab objects and the
-pointer checks (that one might mistake for being a part of the defense mechanism)
-are only there to determine whether the kernel pointer refers to a slab object
-or not (the stack part is a small bonus and was never the main goal either).
+# mkdir -p strace_run
+#  mkdir /sys/fs/cgroup/memory/1
+# echo 1073741824 > /sys/fs/cgroup/memory/1/memory.limit_in_bytes
+# echo 0 > /sys/fs/cgroup/memory/1/memory.swappiness
+# for i in $(seq 1000); do ./call-mem-hog
+/sys/fs/cgroup/memory/1/cgroup.procs & done
 
-> Might it make sense to call the infrastructure part something else?
+Where call-mem-hog is:
+#!/bin/sh
+set -ex
+echo $$ > $1
+echo "Adding $$ to $1"
+strace -ff -tt ./mem-hog 2> strace_run/$$
 
-yes, more bikeshedding will surely help, like the renaming of .data..read_only
-to .data..ro_after_init which also had nothing to do with init but everything
-to do with objects being conceptually read-only...
 
-> After all, this could be extended in the future for memcpy or even for
-> some GCC plugin to check pointers passed to ordinary (non-allocator)
-> functions.
+Initially I thought it was a userspace bug in dash as it only happened
+with /bin/sh (which points to dash) and not with bash. I see the
+following hanging processes:
 
-what kind of checks are you thinking of here? and more fundamentally, against
-what kind of threats? as for memcpy, it's the standard mandated memory copying
-function, what security related properties can it check on its pointer arguments?
+USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root     20999  0.0  0.0   4508   100 pts/6    S    16:28   0:00
+/bin/sh ./call-mem-hog /sys/fs/cgroup/memory/1/cgroup.procs
+
+However, when using strace, I noticed that sometimes there is actually
+a mem-hog process hanging on sbrk syscall (Of course the
+memory.oom_control is 0 and this is not expected).
+Sending an ABRT signal to the waiting strace process then resulted in
+the mem-hog process getting oom-killed by the kernel.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
