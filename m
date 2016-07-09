@@ -1,62 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2599E6B0253
-	for <linux-mm@kvack.org>; Sat,  9 Jul 2016 01:21:26 -0400 (EDT)
-Received: by mail-vk0-f70.google.com with SMTP id a5so133277515vkc.1
-        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 22:21:26 -0700 (PDT)
-Received: from out4-smtp.messagingengine.com (out4-smtp.messagingengine.com. [66.111.4.28])
-        by mx.google.com with ESMTPS id 44si950752qtn.142.2016.07.08.22.21.25
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CCCC6B0253
+	for <linux-mm@kvack.org>; Sat,  9 Jul 2016 01:58:30 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e189so135431054pfa.2
+        for <linux-mm@kvack.org>; Fri, 08 Jul 2016 22:58:30 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id p6si2358766pai.232.2016.07.08.22.58.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Jul 2016 22:21:25 -0700 (PDT)
-Date: Fri, 8 Jul 2016 22:21:36 -0700
-From: Greg KH <greg@kroah.com>
-Subject: Re: divide error: 0000 [#1] SMP in task_numa_migrate -
- handle_mm_fault vanilla 4.4.6
-Message-ID: <20160709052136.GB6330@kroah.com>
-References: <56EF15BB.3080509@profihost.ag>
- <20160320214130.GB23920@kroah.com>
- <56EFD267.9070609@profihost.ag>
- <20160321133815.GA14188@kroah.com>
- <573AB3BF.3030604@profihost.ag>
- <CAPerZE_OCJGp2v8dXM=dY8oP1ydX_oB29UbzaXMHKZcrsL_iJg@mail.gmail.com>
- <CAPerZE_WLYzrALa3YOzC2+NWr--1GL9na8WLssFBNbRsXcYMiA@mail.gmail.com>
- <20160622061356.GW30154@twins.programming.kicks-ass.net>
- <CAPerZE99rBx6YCZrudJPTh7L-LCWitk7n7g41pt7JLej_2KR1g@mail.gmail.com>
- <20160707074232.GS30921@twins.programming.kicks-ass.net>
+        Fri, 08 Jul 2016 22:58:29 -0700 (PDT)
+Message-ID: <57809285.4621420a.1191c.ffffff68SMTPIN_ADDED_BROKEN@mx.google.com>
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [kernel-hardening] Re: [PATCH 9/9] mm: SLUB hardened usercopy support
+In-Reply-To: <CAGXu5jKxw3RxWNKLX4XVCwJ6x_zA=_RwiU9jLDm2+VRO79G7+w@mail.gmail.com>
+References: <577f7e55.4668420a.84f17.5cb9SMTPIN_ADDED_MISSING@mx.google.com> <alpine.DEB.2.20.1607080844370.3379@east.gentwo.org> <CAGXu5jKE=h32tHVLsDeaPN1GfC+BB3YbFvC+5TE5TK1oR-xU3A@mail.gmail.com> <alpine.DEB.2.20.1607081119170.6192@east.gentwo.org> <CAGXu5j+UdkQA+k39GNLe5CwBPVD5ZbRGTCQLqS8VF=kWx+PtsQ@mail.gmail.com> <CAGXu5jKxw3RxWNKLX4XVCwJ6x_zA=_RwiU9jLDm2+VRO79G7+w@mail.gmail.com>
+Date: Sat, 09 Jul 2016 15:58:20 +1000
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160707074232.GS30921@twins.programming.kicks-ass.net>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Campbell Steven <casteven@gmail.com>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-mm@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Kees Cook <keescook@chromium.org>, Christoph Lameter <cl@linux.com>
+Cc: "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Jan Kara <jack@suse.cz>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Linux-MM <linux-mm@kvack.org>, sparclinux <sparclinux@vger.kernel.org>, linux-ia64@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, linux-arch <linux-arch@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, Russell King <linux@armlinux.org.uk>, PaX Team <pageexec@freemail.hu>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Fenghua Yu <fenghua.yu@intel.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Tony Luck <tony.luck@intel.com>, Andy Lutomirski <luto@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, Brad Spengler <spender@grsecurity.net>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, LKML <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, Case y Sc hauf ler <casey@schaufler-ca.com>, Andrew Morton <akpm@linux-foundation.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "David S. Miller" <davem@davemloft.net>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Thu, Jul 07, 2016 at 09:42:32AM +0200, Peter Zijlstra wrote:
-> On Thu, Jul 07, 2016 at 11:20:36AM +1200, Campbell Steven wrote:
-> 
-> > > commit 8974189222159154c55f24ddad33e3613960521a
-> > > Author: Peter Zijlstra <peterz@infradead.org>
-> > > Date:   Thu Jun 16 10:50:40 2016 +0200
-> 
-> > Since these early reports from Stefan and I it looks like it's been
-> > hit but alot more folks now so I'd like to ask what the process is for
-> > getting this backported into 4.6, 4.5 and 4.4 as in our testing all
-> > those versions for their latest point release seem to have the same
-> > problem.
-> 
-> I think this should do; Greg is on Cc and will mark the commit
-> somewhere. It is already in Linus' tree and should indeed be sufficient.
-> 
-> It has a Fixes tag referring the commit that introduced it, which IIRC
-> is somewhere around v4.2.
-> 
-> Greg, anything else required?
+Kees Cook <keescook@chromium.org> writes:
 
-Nope, that should be fine.
+> On Fri, Jul 8, 2016 at 1:41 PM, Kees Cook <keescook@chromium.org> wrote:
+>> So, as found already, the position in the usercopy check needs to be
+>> bumped down by red_left_pad, which is what Michael's fix does, so I'll
+>> include it in the next version.
+>
+> Actually, after some offline chats, I think this is better, since it
+> makes sure the ptr doesn't end up somewhere weird before we start the
+> calculations. This leaves the pointer as-is, but explicitly handles
+> the redzone on the offset instead, with no wrapping, etc:
+>
+>         /* Find offset within object. */
+>         offset = (ptr - page_address(page)) % s->size;
+>
+> +       /* Adjust for redzone and reject if within the redzone. */
+> +       if (s->flags & SLAB_RED_ZONE) {
+> +               if (offset < s->red_left_pad)
+> +                       return s->name;
+> +               offset -= s->red_left_pad;
+> +       }
+> +
+>         /* Allow address range falling entirely within object size. */
+>         if (offset <= s->object_size && n <= s->object_size - offset)
+>                 return NULL;
 
-greg k-h
+That fixes the case for me in kstrndup(), which allows the system to boot.
+
+I then get two hits, which may or may not be valid:
+
+[    2.309556] usercopy: kernel memory overwrite attempt detected to d000000003510028 (kernfs_node_cache) (64 bytes)
+[    2.309995] CPU: 7 PID: 2241 Comm: wait-for-root Not tainted 4.7.0-rc3-00099-g97872fc89d41 #64
+[    2.310480] Call Trace:
+[    2.310556] [c0000001f4773bf0] [c0000000009bdbe8] dump_stack+0xb0/0xf0 (unreliable)
+[    2.311016] [c0000001f4773c30] [c00000000029cf44] __check_object_size+0x74/0x320
+[    2.311472] [c0000001f4773cb0] [c00000000005d4d0] copy_from_user+0x60/0xd4
+[    2.311873] [c0000001f4773cf0] [c0000000008b38f4] __get_filter+0x74/0x160
+[    2.312230] [c0000001f4773d30] [c0000000008b408c] sk_attach_filter+0x2c/0xc0
+[    2.312596] [c0000001f4773d60] [c000000000871c34] sock_setsockopt+0x954/0xc00
+[    2.313021] [c0000001f4773dd0] [c00000000086ac44] SyS_setsockopt+0x134/0x150
+[    2.313380] [c0000001f4773e30] [c000000000009260] system_call+0x38/0x108
+[    2.317045] usercopy: kernel memory overwrite attempt detected to d000000003530028 (kernfs_node_cache) (64 bytes)
+[    2.317297] CPU: 10 PID: 2242 Comm: wait-for-root Not tainted 4.7.0-rc3-00099-g97872fc89d41 #64
+[    2.317475] Call Trace:
+[    2.317511] [c0000001f471fbf0] [c0000000009bdbe8] dump_stack+0xb0/0xf0 (unreliable)
+[    2.317689] [c0000001f471fc30] [c00000000029cf44] __check_object_size+0x74/0x320
+[    2.317861] [c0000001f471fcb0] [c00000000005d4d0] copy_from_user+0x60/0xd4
+[    2.318011] [c0000001f471fcf0] [c0000000008b38f4] __get_filter+0x74/0x160
+[    2.318165] [c0000001f471fd30] [c0000000008b408c] sk_attach_filter+0x2c/0xc0
+[    2.318313] [c0000001f471fd60] [c000000000871c34] sock_setsockopt+0x954/0xc00
+[    2.318485] [c0000001f471fdd0] [c00000000086ac44] SyS_setsockopt+0x134/0x150
+[    2.318632] [c0000001f471fe30] [c000000000009260] system_call+0x38/0x108
+
+
+With:
+
+# zgrep SLUB /proc/config.gz
+CONFIG_SLUB_DEBUG=y
+CONFIG_SLUB=y
+CONFIG_SLUB_CPU_PARTIAL=y
+CONFIG_SLUB_DEBUG_ON=y
+# CONFIG_SLUB_STATS is not set
+
+cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
