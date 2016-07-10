@@ -1,92 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A58676B0005
-	for <linux-mm@kvack.org>; Sun, 10 Jul 2016 08:44:48 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id f7so169435412vkb.3
-        for <linux-mm@kvack.org>; Sun, 10 Jul 2016 05:44:48 -0700 (PDT)
-Received: from mail-vk0-x22b.google.com (mail-vk0-x22b.google.com. [2607:f8b0:400c:c05::22b])
-        by mx.google.com with ESMTPS id o12si795869uao.147.2016.07.10.05.44.47
+Received: from mail-ob0-f198.google.com (mail-ob0-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BB2B26B0005
+	for <linux-mm@kvack.org>; Sun, 10 Jul 2016 19:46:42 -0400 (EDT)
+Received: by mail-ob0-f198.google.com with SMTP id wu1so208504861obb.0
+        for <linux-mm@kvack.org>; Sun, 10 Jul 2016 16:46:42 -0700 (PDT)
+Received: from mail-oi0-x232.google.com (mail-oi0-x232.google.com. [2607:f8b0:4003:c06::232])
+        by mx.google.com with ESMTPS id u107si305178otb.100.2016.07.10.16.46.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 10 Jul 2016 05:44:47 -0700 (PDT)
-Received: by mail-vk0-x22b.google.com with SMTP id v6so107703342vkb.2
-        for <linux-mm@kvack.org>; Sun, 10 Jul 2016 05:44:47 -0700 (PDT)
+        Sun, 10 Jul 2016 16:46:42 -0700 (PDT)
+Received: by mail-oi0-x232.google.com with SMTP id u201so126378719oie.0
+        for <linux-mm@kvack.org>; Sun, 10 Jul 2016 16:46:42 -0700 (PDT)
+Date: Sun, 10 Jul 2016 16:46:32 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH] tmpfs: fix regression hang in fallocate undo
+Message-ID: <alpine.LSU.2.11.1607101637420.6514@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <b451bdf2-3ce9-dc86-6f9c-fe3bd665d1d8@virtuozzo.com>
-References: <20160629105736.15017-1-dsafonov@virtuozzo.com>
- <20160629105736.15017-4-dsafonov@virtuozzo.com> <CALCETrW+xWp-xVDjOyPkB5P3-zAubt4U65R4tVNsY34+406tTg@mail.gmail.com>
- <b451bdf2-3ce9-dc86-6f9c-fe3bd665d1d8@virtuozzo.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Sun, 10 Jul 2016 05:44:28 -0700
-Message-ID: <CALCETrUEP-q-Be1i=L7hxX-nf4OpBv7edq2Mg0gi5TRX73FTsA@mail.gmail.com>
-Subject: Re: [PATCHv2 3/6] x86/arch_prctl/vdso: add ARCH_MAP_VDSO_*
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Safonov <dsafonov@virtuozzo.com>, Oleg Nesterov <oleg@redhat.com>
-Cc: Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Safonov <0x7f454c46@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Cyrill Gorcunov <gorcunov@openvz.org>, xemul@virtuozzo.com, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Anthony Romano <anthony.romano@coreos.com>, Brandon Philips <brandon@ifup.co>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Jul 7, 2016 at 4:11 AM, Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
-> On 07/06/2016 05:30 PM, Andy Lutomirski wrote:
->>
->> On Wed, Jun 29, 2016 at 3:57 AM, Dmitry Safonov <dsafonov@virtuozzo.com>
->> wrote:
->>>
->>> Add API to change vdso blob type with arch_prctl.
->>> As this is usefull only by needs of CRIU, expose
->>> this interface under CONFIG_CHECKPOINT_RESTORE.
->>
->>
->>> +#ifdef CONFIG_CHECKPOINT_RESTORE
->>> +       case ARCH_MAP_VDSO_X32:
->>> +               return do_map_vdso(VDSO_X32, addr, false);
->>> +       case ARCH_MAP_VDSO_32:
->>> +               return do_map_vdso(VDSO_32, addr, false);
->>> +       case ARCH_MAP_VDSO_64:
->>> +               return do_map_vdso(VDSO_64, addr, false);
->>> +#endif
->>> +
->>
->>
->> This will have an odd side effect: if the old mapping is still around,
->> its .fault will start behaving erratically.  I wonder if we can either
->> reliably zap the old vma (or check that it's not there any more)
->> before mapping a new one or whether we can associate the vdso image
->> with the vma (possibly by having a separate vm_special_mapping for
->> each vdso_image.  The latter is quite easy: change vdso_image to embed
->> vm_special_mapping and use container_of in vdso_fault to fish the
->> vdso_image back out.  But we'd have to embed another
->> vm_special_mapping for the vvar mapping as well for the same reason.
->>
->> I'm also a bit concerned that __install_special_mapping might not get
->> all the cgroup and rlimit stuff right.  If we ensure that any old
->> mappings are gone, then the damage is bounded, but otherwise someone
->> might call this in a loop and fill their address space with arbitrary
->> numbers of special mappings.
->
->
-> Well, I have deleted code that unmaps old vdso because I didn't saw
-> a reason why it's bad and wanted to reduce code. But well, now I do see
-> reasons, thanks.
->
-> Hmm, what do you think if I do it a little different way then embedding
-> vm_special_mapping: just that old hack with vma_ops. If I add a close()
-> hook there and make there context.vdso = NULL pointer, then I can test
-> it on remap. This can also have nice feature as restricting partial
-> munmap of vdso blob. Is this sounds sane?
+The well-spotted fallocate undo fix is good in most cases, but not when
+fallocate failed on the very first page.  index 0 then passes lend -1
+to shmem_undo_range(), and that has two bad effects: (a) that it will
+undo every fallocation throughout the file, unrestricted by the current
+range; but more importantly (b) it can cause the undo to hang, because
+lend -1 is treated as truncation, which makes it keep on retrying until
+every page has gone, but those already fully instantiated will never go
+away.  Big thank you to xfstests generic/269 which demonstrates this.
 
-I think so, as long as you do something to make sure that vvar gets
-unmapped as well.
+Fixes: b9b4bb26af01 ("tmpfs: don't undo fallocate past its last page")
+Cc: stable@vger.kernel.org
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
 
-Oleg, want to sanity-check us?  Do you believe that if .mremap ensures
-that only entire vma can be remapped and .close ensures that only the
-whole vma can be unmapped, are we okay?  Or will we have issues with
-mprotect?
+ mm/shmem.c |    8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
 
-
--- 
-Andy Lutomirski
-AMA Capital Management, LLC
+--- 4.7-rc6/mm/shmem.c	2016-06-26 22:02:27.543373427 -0700
++++ linux/mm/shmem.c	2016-07-10 15:19:24.000000000 -0700
+@@ -2225,9 +2225,11 @@ static long shmem_fallocate(struct file
+ 			error = shmem_getpage(inode, index, &page, SGP_FALLOC);
+ 		if (error) {
+ 			/* Remove the !PageUptodate pages we added */
+-			shmem_undo_range(inode,
+-				(loff_t)start << PAGE_SHIFT,
+-				((loff_t)index << PAGE_SHIFT) - 1, true);
++			if (index > start) {
++				shmem_undo_range(inode,
++				    (loff_t)start << PAGE_SHIFT,
++				    ((loff_t)index << PAGE_SHIFT) - 1, true);
++			}
+ 			goto undone;
+ 		}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
