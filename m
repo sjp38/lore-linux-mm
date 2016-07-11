@@ -1,90 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 59FF56B0005
-	for <linux-mm@kvack.org>; Mon, 11 Jul 2016 02:43:37 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id j8so167852938itb.1
-        for <linux-mm@kvack.org>; Sun, 10 Jul 2016 23:43:37 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id d2si1228147oic.122.2016.07.10.23.43.11
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A15596B0005
+	for <linux-mm@kvack.org>; Mon, 11 Jul 2016 03:26:20 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 63so103508015pfx.3
+        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 00:26:20 -0700 (PDT)
+Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
+        by mx.google.com with ESMTPS id c63si2232947pfa.138.2016.07.11.00.26.19
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 10 Jul 2016 23:43:36 -0700 (PDT)
-From: zhongjiang <zhongjiang@huawei.com>
-Subject: [PATCH 1/2] kexec: remove unnecessary unusable_pages
-Date: Mon, 11 Jul 2016 14:36:00 +0800
-Message-ID: <1468218961-11018-1-git-send-email-zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Jul 2016 00:26:19 -0700 (PDT)
+Received: by mail-pf0-x244.google.com with SMTP id g202so2244551pfb.1
+        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 00:26:19 -0700 (PDT)
+Date: Mon, 11 Jul 2016 16:24:17 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [RFC][PATCH v2 3/3] mm/page_owner: track page free call chain
+Message-ID: <20160711072417.GA524@swordfish>
+References: <20160708121132.8253-1-sergey.senozhatsky@gmail.com>
+ <20160708121132.8253-4-sergey.senozhatsky@gmail.com>
+ <20160711062115.GC14107@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160711062115.GC14107@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 
-From: zhong jiang <zhongjiang@huawei.com>
+On (07/11/16 15:21), Joonsoo Kim wrote:
+[..]
+> > +void __page_owner_free_pages(struct page *page, unsigned int order)
+> > +{
+> > +	int i;
+> > +	depot_stack_handle_t handle = save_stack(0);
+> > +
+> > +	for (i = 0; i < (1 << order); i++) {
+> > +		struct page_ext *page_ext = lookup_page_ext(page + i);
+> > +
+> > +		if (unlikely(!page_ext))
+> > +			continue;
+> > +
+> > +		page_ext->handles[PAGE_OWNER_HANDLE_FREE] = handle;
+> > +		__set_bit(PAGE_EXT_OWNER_FREE, &page_ext->flags);
+> > +		__clear_bit(PAGE_EXT_OWNER_ALLOC, &page_ext->flags);
+> > +	}
+> > +}
+> 
+> I can't find any clear function to PAGE_EXT_OWNER_FREE. Isn't it
+> intended? If so, why?
 
-In general, kexec alloc pages from buddy system, it cannot exceed
-the physical address in the system.
+the PAGE_EXT_OWNER_FREE bit is not heavily used now. the
+only place is this test in __dump_page_owner()
 
-The patch just remove this code, no functional change.
+	if (!test_bit(PAGE_EXT_OWNER_ALLOC, &page_ext->flags) &&
+			!test_bit(PAGE_EXT_OWNER_FREE, &page_ext->flags)) {
+		pr_alert("page_owner info is not active (free page?)\n");
+		return;
+	}
 
-Signed-off-by: zhong jiang <zhongjiang@huawei.com>
----
- include/linux/kexec.h |  1 -
- kernel/kexec_core.c   | 13 -------------
- 2 files changed, 14 deletions(-)
+other than that it's for symmetry/future use.
 
-diff --git a/include/linux/kexec.h b/include/linux/kexec.h
-index e8acb2b..26e4917 100644
---- a/include/linux/kexec.h
-+++ b/include/linux/kexec.h
-@@ -162,7 +162,6 @@ struct kimage {
- 
- 	struct list_head control_pages;
- 	struct list_head dest_pages;
--	struct list_head unusable_pages;
- 
- 	/* Address of next control page to allocate for crash kernels. */
- 	unsigned long control_page;
-diff --git a/kernel/kexec_core.c b/kernel/kexec_core.c
-index 56b3ed0..448127d 100644
---- a/kernel/kexec_core.c
-+++ b/kernel/kexec_core.c
-@@ -257,9 +257,6 @@ struct kimage *do_kimage_alloc_init(void)
- 	/* Initialize the list of destination pages */
- 	INIT_LIST_HEAD(&image->dest_pages);
- 
--	/* Initialize the list of unusable pages */
--	INIT_LIST_HEAD(&image->unusable_pages);
--
- 	return image;
- }
- 
-@@ -517,10 +514,6 @@ static void kimage_free_extra_pages(struct kimage *image)
- {
- 	/* Walk through and free any extra destination pages I may have */
- 	kimage_free_page_list(&image->dest_pages);
--
--	/* Walk through and free any unusable pages I have cached */
--	kimage_free_page_list(&image->unusable_pages);
--
- }
- void kimage_terminate(struct kimage *image)
- {
-@@ -647,12 +640,6 @@ static struct page *kimage_alloc_page(struct kimage *image,
- 		page = kimage_alloc_pages(gfp_mask, 0);
- 		if (!page)
- 			return NULL;
--		/* If the page cannot be used file it away */
--		if (page_to_pfn(page) >
--				(KEXEC_SOURCE_MEMORY_LIMIT >> PAGE_SHIFT)) {
--			list_add(&page->lru, &image->unusable_pages);
--			continue;
--		}
- 		addr = page_to_pfn(page) << PAGE_SHIFT;
- 
- 		/* If it is the destination page we want use it */
--- 
-1.8.3.1
+[..]
+> > @@ -1073,6 +1073,9 @@ static void pagetypeinfo_showmixedcount_print(struct seq_file *m,
+> >  			if (!test_bit(PAGE_EXT_OWNER_ALLOC, &page_ext->flags))
+> >  				continue;
+> >  
+> > +			if (!test_bit(PAGE_EXT_OWNER_FREE, &page_ext->flags))
+> > +				continue;
+> > +
+> 
+> I don't think this line is correct. Above PAGE_EXT_OWNER_ALLOC
+> check is to find allocated page.
+
+you are right. that PAGE_EXT_OWNER_FREE test is wrong, indeed.
+thanks for spotting.
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
