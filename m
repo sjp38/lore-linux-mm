@@ -1,67 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 345806B0005
-	for <linux-mm@kvack.org>; Mon, 11 Jul 2016 09:44:57 -0400 (EDT)
-Received: by mail-vk0-f70.google.com with SMTP id r135so188306819vkf.0
-        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 06:44:57 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o13si1817143qko.135.2016.07.11.06.44.56
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7877E6B0005
+	for <linux-mm@kvack.org>; Mon, 11 Jul 2016 10:13:39 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id a5so253172969vkc.1
+        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 07:13:39 -0700 (PDT)
+Received: from shelob.surriel.com (shelob.surriel.com. [74.92.59.67])
+        by mx.google.com with ESMTPS id d43si1849975qtc.61.2016.07.11.07.13.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jul 2016 06:44:56 -0700 (PDT)
-Date: Mon, 11 Jul 2016 09:44:54 -0400
-From: Mike Snitzer <snitzer@redhat.com>
-Subject: Re: [4.7.0rc6] Page Allocation Failures with dm-crypt
-Message-ID: <20160711134454.GA28370@redhat.com>
-References: <28dc911645dce0b5741c369dd7650099@mail.ud19.udmedia.de>
- <e7af885e08e1ced4f75313bfdfda166d@mail.ud19.udmedia.de>
- <20160711131818.GA28102@redhat.com>
- <fe0eb105b21013453bc3375e7026925b@mail.ud19.udmedia.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <fe0eb105b21013453bc3375e7026925b@mail.ud19.udmedia.de>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 11 Jul 2016 07:13:38 -0700 (PDT)
+Message-ID: <1468246371.13253.63.camel@surriel.com>
+Subject: Re: [PATCH 1/3] Add a new field to struct shrinker
+From: Rik van Riel <riel@surriel.com>
+Date: Mon, 11 Jul 2016 10:12:51 -0400
+In-Reply-To: <20160711063730.GA5284@dhcp22.suse.cz>
+References: <cover.1468051277.git.janani.rvchndrn@gmail.com>
+ <85a9712f3853db5d9bc14810b287c23776235f01.1468051281.git.janani.rvchndrn@gmail.com>
+	 <20160711063730.GA5284@dhcp22.suse.cz>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-hJHjyUrk0GF1qSA3pRx+"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthias Dahl <ml_linux-kernel@binary-island.eu>
-Cc: linux-mm@kvack.org, dm-devel@redhat.com, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, Janani Ravichandran <janani.rvchndrn@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@virtuozzo.com, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, bywxiaobai@163.com
 
-On Mon, Jul 11 2016 at  9:27am -0400,
-Matthias Dahl <ml_linux-kernel@binary-island.eu> wrote:
 
-> Hello Mike...
-> 
-> On 2016-07-11 15:18, Mike Snitzer wrote:
-> 
-> >Something must explain the execessive nature of your leak but
-> >it isn't a known issue.
-> 
-> Since I am currently setting up the new machine, all tests were
-> performed w/ various live cd images (Fedora Rawhide, Gentoo, ...)
-> and I saw the exact same behavior everywhere.
-> 
-> >Have you tried running with kmemleak enabled?
-> 
-> I would have to check if that is enabled on the live images but even if
-> it is, how would that work? The default interval is 10min. If I fire up
-> a dd, the memory is full within two seconds or so... and after that, the
-> OOM killer kicks in and all hell breaks loose unfortunately.
+--=-hJHjyUrk0GF1qSA3pRx+
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-You can control when kmemleak scans.  See Documentation/kmemleak.txt
+On Mon, 2016-07-11 at 08:37 +0200, Michal Hocko wrote:
+> On Sat 09-07-16 04:43:31, Janani Ravichandran wrote:
+> > Struct shrinker does not have a field to uniquely identify the
+> > shrinkers
+> > it represents. It would be helpful to have a new field to hold
+> > names of
+> > shrinkers. This information would be useful while analyzing their
+> > behavior using tracepoints.
+>=20
+> This will however increase the vmlinux size even when no tracing is
+> enabled. Why cannot we simply print the name of the shrinker
+> callbacks?
 
-You could manually trigger a scan just after the dd is started.
+What mechanism do you have in mind for obtaining the name,
+Michal?
 
-But I doubt the livecds have kmemleak compiled into their kernels.
+> > ---
+> > =C2=A0include/linux/shrinker.h | 1 +
+> > =C2=A01 file changed, 1 insertion(+)
+> >=20
+> > diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
+> > index 4fcacd9..431125c 100644
+> > --- a/include/linux/shrinker.h
+> > +++ b/include/linux/shrinker.h
+> > @@ -52,6 +52,7 @@ struct shrinker {
+> > =C2=A0	unsigned long (*scan_objects)(struct shrinker *,
+> > =C2=A0				=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0struct shrink_control *sc=
+);
+> > =C2=A0
+> > +	const char *name;
+> > =C2=A0	int seeks;	/* seeks to recreate an obj */
+> > =C2=A0	long batch;	/* reclaim batch size, 0 =3D default */
+> > =C2=A0	unsigned long flags;
+> > --=C2=A0
+> > 2.7.0
+> >=20
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.=C2=A0=C2=A0For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>=20
+--=20
 
-> I don't think this is a particular unique issue on my side. You could,
-> if I am right, easily try a Fedora Rawhide image and reproduce it there
-> yourself. The only unique point here is my RAID10 which is a Intel Rapid
-> Storage s/w RAID. I have no clue if this could indeed cause such a "bug"
-> and how.
+All Rights Reversed.
+--=-hJHjyUrk0GF1qSA3pRx+
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
 
-What is your raid10's full stripesize?  Is your dd IO size of 512K
-somehow triggering excess R-M-W cycles which is exacerbating the
-problem?
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQEcBAABCAAGBQJXg6ljAAoJEM553pKExN6Dv3UH/R04G/yua5ZPtP3ZAwqMQzvB
+4L28V5spWYgZ43C/MqJu+U54G2RVDFHg8J+LTlyDSLNZ4zLvzMIe+Fwve6xPU8KQ
+mvAgKOiUdDqQnXYQHg4DDcMoI6yHKIO0DLBY4EVPPLt0K76bqErSJcIC8NU1O+9+
+JtSWGVttRSYmWCyrRyEGAD2gFk8Ht26TYzn4Ep1JyffmgDm4t2nDjbbWMXUnSjoi
+6N9xsuPKgcvqKZYO5ugWaWCN+2tgR/zth5/ENIvpJdYSRPPiY6mrPur5kModY01y
+sDku0fFN8XSlcNlSM7lmgPtfOo8pvJjFhUNM4YoqVAbav1SOWQo3py1dq4QXOHk=
+=xhqp
+-----END PGP SIGNATURE-----
+
+--=-hJHjyUrk0GF1qSA3pRx+--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
