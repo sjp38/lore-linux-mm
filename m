@@ -1,308 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EDC2B6B025F
-	for <linux-mm@kvack.org>; Mon, 11 Jul 2016 10:28:32 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id ib6so224869775pad.0
-        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 07:28:32 -0700 (PDT)
-Received: from mail-pa0-x242.google.com (mail-pa0-x242.google.com. [2607:f8b0:400e:c03::242])
-        by mx.google.com with ESMTPS id h28si766139pfk.146.2016.07.11.07.28.31
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jul 2016 07:28:31 -0700 (PDT)
-Received: by mail-pa0-x242.google.com with SMTP id q2so2079658pap.0
-        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 07:28:31 -0700 (PDT)
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: [PATCH 3/3] mm/page_owner: track page free call chain
-Date: Mon, 11 Jul 2016 23:27:55 +0900
-Message-Id: <20160711142755.1256-1-sergey.senozhatsky@gmail.com>
-In-Reply-To: <20160708121132.8253-4-sergey.senozhatsky@gmail.com>
-References: <20160708121132.8253-4-sergey.senozhatsky@gmail.com>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A4196B0261
+	for <linux-mm@kvack.org>; Mon, 11 Jul 2016 10:28:58 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id p64so181500365pfb.0
+        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 07:28:58 -0700 (PDT)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id xe5si1424148pab.215.2016.07.11.07.28.56
+        for <linux-mm@kvack.org>;
+        Mon, 11 Jul 2016 07:28:56 -0700 (PDT)
+Subject: Re: [PATCH 6/9] x86, pkeys: add pkey set/get syscalls
+References: <20160707124719.3F04C882@viggo.jf.intel.com>
+ <20160707124728.C1116BB1@viggo.jf.intel.com>
+ <20160707144508.GZ11498@techsingularity.net> <577E924C.6010406@sr71.net>
+ <20160708071810.GA27457@gmail.com> <577FD587.6050101@sr71.net>
+ <20160709083715.GA29939@gmail.com>
+ <CALCETrXJhVz6Za4=oidiM2Vfbb+XdggFBYiVyvOCcia+w064aQ@mail.gmail.com>
+ <20160711073534.GA19615@gmail.com>
+From: Dave Hansen <dave@sr71.net>
+Message-ID: <5783AD25.8020303@sr71.net>
+Date: Mon, 11 Jul 2016 07:28:53 -0700
+MIME-Version: 1.0
+In-Reply-To: <20160711073534.GA19615@gmail.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Ingo Molnar <mingo@kernel.org>, Andy Lutomirski <luto@amacapital.net>
+Cc: linux-arch <linux-arch@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hughd@google.com>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>
 
-Extend page_owner with free_pages() tracking functionality. This adds to the
-dump_page_owner() output an additional backtrace, that tells us what path has
-freed the page.
+On 07/11/2016 12:35 AM, Ingo Molnar wrote:
+> * Andy Lutomirski <luto@amacapital.net> wrote:
+> mprotect_pkey()'s effects are per MM, but the system calls related to managing the 
+> keys (alloc/free/get/set) are fundamentally per CPU.
+> 
+> Here's an example of how this could matter to applications:
+> 
+>  - 'writer thread' gets a RW- key into index 1 to a specific data area
+>  - a pool of 'reader threads' may get the same pkey index 1 R-- to read the data 
+>    area.
+> 
+> Same page tables, same index, two protections and two purposes.
+> 
+> With a global, per MM allocation of keys we'd have to use two indices: index 1 and 2.
 
-Aa a trivial example, let's assume that do_some_foo() has an error - an extra
-put_page() on error return path, and the function is also getting preempted,
-letting some other task to allocate the same page, which is then 'mistakenly'
-getting freed once again by do_some_foo().
+I'm not sure how this would work.  A piece of data mapped at only one
+virtual address can have only one key associated with it.  For a data
+area, you would need to indicate between threads which key they needed
+in order to access the data.  Both threads need to agree on the virtual
+address *and* the key used for access.
 
-CPUA					CPUB
+Remember, PKRU is just a *bitmap*.  The only place keys are stored is in
+the page tables.
 
-void do_some_foo(void)
-{
-	page = alloc_page();
-	if (error) {
-		put_page(page);
-		goto out;
-	}
-	...
-out:
-	<<preempted>>
-					void do_some_bar()
-					{
-						page = alloc_page();
-						...
-						<<preempted>>
-	...
-	put_page(page);
-}
-						<<use freed page>>
-						put_page(page);
-					}
+Here's how this ends up looking in practice when we have an initializer,
+a reader and a writer:
 
-With the existing implementation we would see only CPUB's backtrace
-from bad_page. The extended page_owner would also report CPUA's
-put_page(), which can be a helpful hint.
+	/* allocator: */
+	pkey = pkey_alloc();
+	data = mmap(PAGE_SIZE, PROT_NONE, ...);
+	pkey_mprotect(data, PROT_WRITE|PROT_READ, pkey);
+	metadata[data].pkey = pkey;
 
-Backtrace:
+	/* reader */
+	pkey_set(metadata[data].pkey, PKEY_DENY_WRITE);
+	readerfoo = *data;
+	pkey_set(metadata[data].pkey, PKEY_DENY_WRITE|ACCESS);
 
- BUG: Bad page state in process cc1  pfn:bae1d
- page:ffffea0002eb8740 count:-1 mapcount:0 mapping:          (null) index:0x0
- flags: 0x4000000000000000()
- page dumped because: nonzero _count
- page allocated via order 0, migratetype Unmovable, gfp_mask 0x2000200(GFP_NOWAIT|__GFP_NOWARN)
-  [<ffffffff8101bc9c>] save_stack_trace+0x26/0x41
-  [<ffffffff81110fe4>] save_stack+0x46/0xc3
-  [<ffffffff81111481>] __page_owner_alloc_pages+0x24/0x41
-  [<ffffffff810c9867>] post_alloc_hook+0x1e/0x20
-  [<ffffffff810ca63d>] get_page_from_freelist+0x4fd/0x756
-  [<ffffffff810cadea>] __alloc_pages_nodemask+0xe7/0xbcf
-  [<ffffffff810cb8e4>] __get_free_pages+0x12/0x40
-  [<ffffffff810e6b64>] __tlb_remove_page_size.part.12+0x37/0x78
-  [<ffffffff810e6d9b>] __tlb_remove_page_size+0x21/0x23
-  [<ffffffff810e7ff2>] unmap_page_range+0x63a/0x75b
-  [<ffffffff810e81cf>] unmap_single_vma+0xbc/0xc6
-  [<ffffffff810e82d2>] unmap_vmas+0x35/0x44
-  [<ffffffff810ee6f4>] exit_mmap+0x5a/0xec
-  [<ffffffff810385b4>] mmput+0x4a/0xdc
-  [<ffffffff8103dff7>] do_exit+0x398/0x8de
-  [<ffffffff8103e5ae>] do_group_exit+0x45/0xb0
- page freed, was allocated via order 0, migratetype Unmovable, gfp_mask 0x2000200(GFP_NOWAIT|__GFP_NOWARN)
-  [<ffffffff8101bc9c>] save_stack_trace+0x26/0x41
-  [<ffffffff81110fe4>] save_stack+0x46/0xc3
-  [<ffffffff81111411>] __page_owner_free_pages+0x25/0x71
-  [<ffffffff810c9f0a>] free_hot_cold_page+0x1d6/0x1ea
-  [<ffffffff810d03e1>] __put_page+0x37/0x3a
-  [<ffffffff8115b8da>] do_some_foo()+0x8a/0x8e
-	...
- Modules linked in: ....
- CPU: 3 PID: 1274 Comm: cc1 Not tainted 4.7.0-rc5-next-20160701-dbg-00009-ge01494f-dirty #535
-  0000000000000000 ffff8800aeea3c18 ffffffff811e67ca ffffea0002eb8740
-  ffffffff8175675e ffff8800aeea3c40 ffffffff810c87f5 0000000000000000
-  ffffffff81880b40 ffff880137d98438 ffff8800aeea3c50 ffffffff810c88d5
- Call Trace:
-  [<ffffffff811e67ca>] dump_stack+0x68/0x92
-  [<ffffffff810c87f5>] bad_page+0xf8/0x11e
-  [<ffffffff810c88d5>] check_new_page_bad+0x63/0x65
-  [<ffffffff810ca36a>] get_page_from_freelist+0x22a/0x756
-  [<ffffffff810cadea>] __alloc_pages_nodemask+0xe7/0xbcf
-  [<ffffffff81073a43>] ? trace_hardirqs_on_caller+0x16d/0x189
-  [<ffffffff810ede8d>] ? vma_merge+0x159/0x249
-  [<ffffffff81074aa0>] ? __lock_acquire+0x2ac/0x15c7
-  [<ffffffff81034ace>] pte_alloc_one+0x1b/0x67
-  [<ffffffff810e922b>] __pte_alloc+0x19/0xa6
-  [<ffffffff810eb09f>] handle_mm_fault+0x409/0xc59
-  [<ffffffff810309f6>] __do_page_fault+0x1d8/0x3ac
-  [<ffffffff81030bf7>] do_page_fault+0xc/0xe
-  [<ffffffff814a84af>] page_fault+0x1f/0x30
+	/* writer */
+	pkey_set(metadata[data].pkey, 0); /* 0 == deny nothing */
+	*data = bar;
+	pkey_set(metadata[data].pkey, PKEY_DENY_WRITE|ACCESS);
 
-Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
----
- include/linux/page_ext.h | 11 ++++++-
- mm/page_owner.c          | 74 ++++++++++++++++++++++++++++++------------------
- 2 files changed, 56 insertions(+), 29 deletions(-)
 
-diff --git a/include/linux/page_ext.h b/include/linux/page_ext.h
-index 66ba2bb..0cccc94 100644
---- a/include/linux/page_ext.h
-+++ b/include/linux/page_ext.h
-@@ -27,12 +27,21 @@ enum page_ext_flags {
- 	PAGE_EXT_DEBUG_POISON,		/* Page is poisoned */
- 	PAGE_EXT_DEBUG_GUARD,
- 	PAGE_EXT_OWNER_ALLOC,
-+	PAGE_EXT_OWNER_FREE,
- #if defined(CONFIG_IDLE_PAGE_TRACKING) && !defined(CONFIG_64BIT)
- 	PAGE_EXT_YOUNG,
- 	PAGE_EXT_IDLE,
- #endif
- };
- 
-+#ifdef CONFIG_PAGE_OWNER
-+enum page_owner_handles {
-+	PAGE_OWNER_HANDLE_ALLOC,
-+	PAGE_OWNER_HANDLE_FREE,
-+	PAGE_OWNER_HANDLE_MAX
-+};
-+#endif
-+
- /*
-  * Page Extension can be considered as an extended mem_map.
-  * A page_ext page is associated with every page descriptor. The
-@@ -46,7 +55,7 @@ struct page_ext {
- 	unsigned int order;
- 	gfp_t gfp_mask;
- 	int last_migrate_reason;
--	depot_stack_handle_t handle;
-+	depot_stack_handle_t handles[PAGE_OWNER_HANDLE_MAX];
- #endif
- };
- 
-diff --git a/mm/page_owner.c b/mm/page_owner.c
-index 4acccb7..c431ac4 100644
---- a/mm/page_owner.c
-+++ b/mm/page_owner.c
-@@ -13,6 +13,11 @@
- 
- #define PAGE_OWNER_STACK_DEPTH (16)
- 
-+static const char *page_owner_handles_names[PAGE_OWNER_HANDLE_MAX] = {
-+	"page allocated",
-+	"page freed, was allocated",
-+};
-+
- static bool page_owner_disabled = true;
- DEFINE_STATIC_KEY_FALSE(page_owner_inited);
- 
-@@ -85,19 +90,6 @@ struct page_ext_operations page_owner_ops = {
- 	.init = init_page_owner,
- };
- 
--void __page_owner_free_pages(struct page *page, unsigned int order)
--{
--	int i;
--	struct page_ext *page_ext;
--
--	for (i = 0; i < (1 << order); i++) {
--		page_ext = lookup_page_ext(page + i);
--		if (unlikely(!page_ext))
--			continue;
--		__clear_bit(PAGE_EXT_OWNER_ALLOC, &page_ext->flags);
--	}
--}
--
- static inline bool check_recursive_alloc(struct stack_trace *trace,
- 					unsigned long ip)
- {
-@@ -147,6 +139,23 @@ static noinline depot_stack_handle_t save_stack(gfp_t flags)
- 	return handle;
- }
- 
-+void __page_owner_free_pages(struct page *page, unsigned int order)
-+{
-+	int i;
-+	depot_stack_handle_t handle = save_stack(0);
-+
-+	for (i = 0; i < (1 << order); i++) {
-+		struct page_ext *page_ext = lookup_page_ext(page + i);
-+
-+		if (unlikely(!page_ext))
-+			continue;
-+
-+		page_ext->handles[PAGE_OWNER_HANDLE_FREE] = handle;
-+		__set_bit(PAGE_EXT_OWNER_FREE, &page_ext->flags);
-+		__clear_bit(PAGE_EXT_OWNER_ALLOC, &page_ext->flags);
-+	}
-+}
-+
- noinline void __page_owner_alloc_pages(struct page *page, unsigned int order,
- 					gfp_t gfp_mask)
- {
-@@ -155,7 +164,7 @@ noinline void __page_owner_alloc_pages(struct page *page, unsigned int order,
- 	if (unlikely(!page_ext))
- 		return;
- 
--	page_ext->handle = save_stack(gfp_mask);
-+	page_ext->handles[PAGE_OWNER_HANDLE_ALLOC] = save_stack(gfp_mask);
- 	page_ext->order = order;
- 	page_ext->gfp_mask = gfp_mask;
- 	page_ext->last_migrate_reason = -1;
-@@ -189,6 +198,7 @@ void __copy_page_owner(struct page *oldpage, struct page *newpage)
- {
- 	struct page_ext *old_ext = lookup_page_ext(oldpage);
- 	struct page_ext *new_ext = lookup_page_ext(newpage);
-+	int i;
- 
- 	if (unlikely(!old_ext || !new_ext))
- 		return;
-@@ -196,7 +206,9 @@ void __copy_page_owner(struct page *oldpage, struct page *newpage)
- 	new_ext->order = old_ext->order;
- 	new_ext->gfp_mask = old_ext->gfp_mask;
- 	new_ext->last_migrate_reason = old_ext->last_migrate_reason;
--	new_ext->handle = old_ext->handle;
-+
-+	for (i = 0; i < PAGE_OWNER_HANDLE_MAX; i++)
-+		new_ext->handles[i] = old_ext->handles[i];
- 
- 	/*
- 	 * We don't clear the bit on the oldpage as it's going to be freed
-@@ -292,7 +304,7 @@ void __dump_page_owner(struct page *page)
- 	};
- 	depot_stack_handle_t handle;
- 	gfp_t gfp_mask;
--	int mt;
-+	int mt, i;
- 
- 	if (unlikely(!page_ext)) {
- 		pr_alert("There is not page extension available.\n");
-@@ -301,25 +313,31 @@ void __dump_page_owner(struct page *page)
- 	gfp_mask = page_ext->gfp_mask;
- 	mt = gfpflags_to_migratetype(gfp_mask);
- 
--	if (!test_bit(PAGE_EXT_OWNER_ALLOC, &page_ext->flags)) {
-+	if (!test_bit(PAGE_EXT_OWNER_ALLOC, &page_ext->flags) &&
-+			!test_bit(PAGE_EXT_OWNER_FREE, &page_ext->flags)) {
- 		pr_alert("page_owner info is not active (free page?)\n");
- 		return;
- 	}
- 
--	handle = READ_ONCE(page_ext->handle);
--	if (!handle) {
--		pr_alert("page_owner info is not active (free page?)\n");
--		return;
--	}
-+	for (i = 0; i < PAGE_OWNER_HANDLE_MAX; i++) {
-+		handle = READ_ONCE(page_ext->handles[i]);
-+		if (!handle) {
-+			pr_alert("page_owner info is not active for `%s'\n",
-+					page_owner_handles_names[i]);
-+			continue;
-+		}
- 
--	depot_fetch_stack(handle, &trace);
--	pr_alert("page allocated via order %u, migratetype %s, gfp_mask %#x(%pGg)\n",
--		 page_ext->order, migratetype_names[mt], gfp_mask, &gfp_mask);
--	print_stack_trace(&trace, 0);
-+		depot_fetch_stack(handle, &trace);
-+		pr_alert("%s via order %u, migratetype %s, gfp_mask %#x(%pGg)\n",
-+				page_owner_handles_names[i], page_ext->order,
-+				migratetype_names[mt], gfp_mask, &gfp_mask);
-+		print_stack_trace(&trace, 0);
- 
--	if (page_ext->last_migrate_reason != -1)
-+		if (page_ext->last_migrate_reason == -1)
-+			continue;
- 		pr_alert("page has been migrated, last migrate reason: %s\n",
- 			migrate_reason_names[page_ext->last_migrate_reason]);
-+	}
- }
- 
- static ssize_t
-@@ -381,7 +399,7 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
- 		 * Access to page_ext->handle isn't synchronous so we should
- 		 * be careful to access it.
- 		 */
--		handle = READ_ONCE(page_ext->handle);
-+		handle = READ_ONCE(page_ext->handles[PAGE_OWNER_HANDLE_ALLOC]);
- 		if (!handle)
- 			continue;
- 
--- 
-2.9.0.243.g5c589a7
+I'm also not sure what the indexes are that you're referring to.
+
+> Depending on how scarce the index space turns out to be making the key indices per 
+> thread is probably the right model.
+
+Yeah, I'm totally confused about what you mean by indexes.
+
+>> There are still two issues that I think we need to address, though:
+>>
+>> 1. Signal delivery shouldn't unconditionally clear PKRU.  That's what
+>> the current patches do, and it's unsafe.  I'd rather set PKRU to the
+>> maximally locked down state on signal delivery (except for the
+>> PROT_EXEC key), although that might cause its own set of problems.
+> 
+> Right now the historic pattern for signal handlers is that they safely and 
+> transparently stack on top of existing FPU related resources and do a save/restore 
+> of them. In that sense saving+clearing+restoring the pkeys state would be the 
+> correct approach that follows that pattern. There are two extra considerations:
+> 
+> - If we think of pkeys as a temporary register that can be used to access/unaccess 
+>   normally unaccessible memory regions then this makes sense, in fact it's more 
+>   secure: signal handlers cannot accidentally stomp on an encryption key or on a
+>   database area, unless they intentionally gain access to them.
+> 
+> - If we think of pkeys as permanent memory mappings that enhance existing MM
+>   permissions then it would be correct to let them leak into signal handler state. 
+>   The globl true-PROT_EXEC key would fall into this category.
+> 
+> So I agree, mostly: the correct approach is to save+clear+restore the first 14 
+> pkey indices, and to leave alone the two 'global' indices.
+
+The current scheme is the most permissive, but it has an important
+property: it's the most _flexible_.  You can implement almost any scheme
+you want in userspace on top of it.  The first userspace instruction of
+the handler could easily be WRKRU to fully lock down access in whatever
+scheme a program wants.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
