@@ -1,55 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2789B6B0261
-	for <linux-mm@kvack.org>; Mon, 11 Jul 2016 10:33:46 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id x83so54188765wma.2
-        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 07:33:46 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id 72si15420799wmh.117.2016.07.11.07.33.45
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jul 2016 07:33:45 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id w75so15935859wmd.1
-        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 07:33:45 -0700 (PDT)
-Date: Mon, 11 Jul 2016 16:33:42 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/3] Add a new field to struct shrinker
-Message-ID: <20160711143342.GN1811@dhcp22.suse.cz>
-References: <cover.1468051277.git.janani.rvchndrn@gmail.com>
- <85a9712f3853db5d9bc14810b287c23776235f01.1468051281.git.janani.rvchndrn@gmail.com>
- <20160711063730.GA5284@dhcp22.suse.cz>
- <1468246371.13253.63.camel@surriel.com>
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C73676B0262
+	for <linux-mm@kvack.org>; Mon, 11 Jul 2016 10:34:57 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id ib6so225136884pad.0
+        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 07:34:57 -0700 (PDT)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id u3si609931pay.67.2016.07.11.07.34.56
+        for <linux-mm@kvack.org>;
+        Mon, 11 Jul 2016 07:34:57 -0700 (PDT)
+Subject: Re: [PATCH 6/9] x86, pkeys: add pkey set/get syscalls
+References: <20160707124719.3F04C882@viggo.jf.intel.com>
+ <20160707124728.C1116BB1@viggo.jf.intel.com>
+ <20160707144508.GZ11498@techsingularity.net> <577E924C.6010406@sr71.net>
+ <20160708071810.GA27457@gmail.com> <577FD587.6050101@sr71.net>
+ <20160709083715.GA29939@gmail.com>
+ <CALCETrXJhVz6Za4=oidiM2Vfbb+XdggFBYiVyvOCcia+w064aQ@mail.gmail.com>
+From: Dave Hansen <dave@sr71.net>
+Message-ID: <5783AE8F.3@sr71.net>
+Date: Mon, 11 Jul 2016 07:34:55 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1468246371.13253.63.camel@surriel.com>
+In-Reply-To: <CALCETrXJhVz6Za4=oidiM2Vfbb+XdggFBYiVyvOCcia+w064aQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@surriel.com>
-Cc: Janani Ravichandran <janani.rvchndrn@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@virtuozzo.com, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, bywxiaobai@163.com
+To: Andy Lutomirski <luto@amacapital.net>, Ingo Molnar <mingo@kernel.org>
+Cc: linux-arch <linux-arch@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hughd@google.com>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>
 
-On Mon 11-07-16 10:12:51, Rik van Riel wrote:
-> On Mon, 2016-07-11 at 08:37 +0200, Michal Hocko wrote:
-> > On Sat 09-07-16 04:43:31, Janani Ravichandran wrote:
-> > > Struct shrinker does not have a field to uniquely identify the
-> > > shrinkers
-> > > it represents. It would be helpful to have a new field to hold
-> > > names of
-> > > shrinkers. This information would be useful while analyzing their
-> > > behavior using tracepoints.
-> > 
-> > This will however increase the vmlinux size even when no tracing is
-> > enabled. Why cannot we simply print the name of the shrinker
-> > callbacks?
+On 07/10/2016 09:25 PM, Andy Lutomirski wrote:
+> 2. When thread A allocates a pkey, how does it lock down thread B?
 > 
-> What mechanism do you have in mind for obtaining the name,
-> Michal?
+> #2 could be addressed by using fully-locked-down as the initial state
+> post-exec() and copying the state on clone().  Dave, are there any
+> cases in practice where one thread would allocate a pkey and want
+> other threads to immediately have access to the memory with that key?
 
-Not sure whether tracing infrastructure allows printk like %ps. If not
-then it doesn't sound too hard to add.
--- 
-Michal Hocko
-SUSE Labs
+The only one I can think of is a model where pkeys are used more in a
+"denial" mode rather than an "allow" mode.
+
+For instance, perhaps you don't want to modify your app to use pkeys,
+except for a small routine where you handle untrusted user data.  You
+would, in that routine, deny access to a bunch of keys, but otherwise
+allow access to all so you didn't have to change any other parts of the app.
+
+Should we instead just recommend to userspace that they lock down access
+to keys by default in all threads as a best practice?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
