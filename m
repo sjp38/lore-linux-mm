@@ -1,60 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B72D26B025E
-	for <linux-mm@kvack.org>; Mon, 11 Jul 2016 10:45:40 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id u1so259569912qkc.0
-        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 07:45:40 -0700 (PDT)
-Received: from mail-vk0-x233.google.com (mail-vk0-x233.google.com. [2607:f8b0:400c:c05::233])
-        by mx.google.com with ESMTPS id 3si276660uaw.45.2016.07.11.07.45.39
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 570036B0005
+	for <linux-mm@kvack.org>; Mon, 11 Jul 2016 10:47:19 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id g18so72163095lfg.2
+        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 07:47:19 -0700 (PDT)
+Received: from mail.ud19.udmedia.de (ud19.udmedia.de. [194.117.254.59])
+        by mx.google.com with ESMTPS id o10si145974wjz.233.2016.07.11.07.47.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jul 2016 07:45:40 -0700 (PDT)
-Received: by mail-vk0-x233.google.com with SMTP id o63so58676960vkg.1
-        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 07:45:39 -0700 (PDT)
+        Mon, 11 Jul 2016 07:47:17 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <5783AE8F.3@sr71.net>
-References: <20160707124719.3F04C882@viggo.jf.intel.com> <20160707124728.C1116BB1@viggo.jf.intel.com>
- <20160707144508.GZ11498@techsingularity.net> <577E924C.6010406@sr71.net>
- <20160708071810.GA27457@gmail.com> <577FD587.6050101@sr71.net>
- <20160709083715.GA29939@gmail.com> <CALCETrXJhVz6Za4=oidiM2Vfbb+XdggFBYiVyvOCcia+w064aQ@mail.gmail.com>
- <5783AE8F.3@sr71.net>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Mon, 11 Jul 2016 07:45:20 -0700
-Message-ID: <CALCETrW1qLZE_cq1CvmLkdnFyKRWVZuah29xERTC7o0eZ8DbwQ@mail.gmail.com>
-Subject: Re: [PATCH 6/9] x86, pkeys: add pkey set/get syscalls
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=US-ASCII;
+ format=flowed
+Content-Transfer-Encoding: 7bit
+Date: Mon, 11 Jul 2016 16:47:17 +0200
+From: Matthias Dahl <ml_linux-kernel@binary-island.eu>
+Subject: Re: [dm-devel] [4.7.0rc6] Page Allocation Failures with dm-crypt
+In-Reply-To: <20160711133051.GA28308@redhat.com>
+References: <28dc911645dce0b5741c369dd7650099@mail.ud19.udmedia.de>
+ <e7af885e08e1ced4f75313bfdfda166d@mail.ud19.udmedia.de>
+ <20160711131818.GA28102@redhat.com> <20160711133051.GA28308@redhat.com>
+Message-ID: <2786d2f951a90eb00502096aca71e05b@mail.ud19.udmedia.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: Ingo Molnar <mingo@kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hughd@google.com>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Mike Snitzer <snitzer@redhat.com>
+Cc: linux-mm@kvack.org, dm-devel@redhat.com, linux-kernel@vger.kernel.org
 
-On Mon, Jul 11, 2016 at 7:34 AM, Dave Hansen <dave@sr71.net> wrote:
-> On 07/10/2016 09:25 PM, Andy Lutomirski wrote:
->> 2. When thread A allocates a pkey, how does it lock down thread B?
->>
->> #2 could be addressed by using fully-locked-down as the initial state
->> post-exec() and copying the state on clone().  Dave, are there any
->> cases in practice where one thread would allocate a pkey and want
->> other threads to immediately have access to the memory with that key?
->
-> The only one I can think of is a model where pkeys are used more in a
-> "denial" mode rather than an "allow" mode.
->
-> For instance, perhaps you don't want to modify your app to use pkeys,
-> except for a small routine where you handle untrusted user data.  You
-> would, in that routine, deny access to a bunch of keys, but otherwise
-> allow access to all so you didn't have to change any other parts of the app.
->
-> Should we instead just recommend to userspace that they lock down access
-> to keys by default in all threads as a best practice?
+Hello Mike...
 
-Is that really better than doing it in-kernel?  My concern is that
-we'll find library code that creates a thread, and that code could run
-before the pkey-aware part of the program even starts running.  So how
-is user code supposed lock down all of its threads?
+On 2016-07-11 15:30, Mike Snitzer wrote:
 
-seccomp has TSYNC for this, but I don't think that PKRU allows
-something like that.
+> But that is expected given you're doing an unbounded buffered write to
+> the device.  What isn't expected, to me anyway, is that the mm 
+> subsystem
+> (or the default knobs for buffered writeback) would be so aggressive
+> about delaying writeback.
+
+Ok. But, and please correct me if I am wrong, I was under the impression
+that only the file caches/buffers were affected, iow, if I use free to
+monitor the memory usage, the used memory increases to the point where 
+it
+consumes all memory, not the buffers/file caches... that is what I am
+seeing here.
+
+Also, if I use dd directly on the device w/o dm-crypt in-between, there
+is no problem. Sure, buffers increase hugely also... but only those.
+
+> Why are you doing this test anyway?  Such a large buffered write 
+> doesn't
+> seem to accurately model any application I'm aware of (but obviously it
+> should still "work").
+
+It is not a test per se. I simply wanted to fill the partition with 
+noise.
+And doing it this way is faster than using urandom or anything. ;-) That 
+is
+why I stumbled over this issue in the first place.
+
+> Now that is weird.  Are you (or the distro you're using) setting any mm
+> subsystem tunables to really broken values?
+
+You can see those in my initial mail. I attached the kernel warnings, 
+all
+sysctl tunables and more. Maybe that helps.
+
+> What is your raid10's full stripesize?
+
+4 disks in RAID10, with a stripe size of 64k.
+
+> Is your dd IO size of 512K somehow triggering excess R-M-W cycles which
+> is exacerbating the problem?
+
+The partitions are properly aligned. And as you can see, with that 
+stripe
+size, there is no issue.
+
+In the meantime I did some further tests: I created an ext2 on the
+partition as well as a 60GiB container image on it. I used that image
+with dm-crypt, same parameters as before. No matter what I do here, I
+cannot trigger the same behavior.
+
+Maybe it is an interaction issue between dm-crypt and the s/w RAID. But
+at this point, I have no idea how to further diagnose/test it. If you
+can point me in any direction that would be great...
+
+With Kind Regards from Germany
+Matthias
+
+-- 
+Dipl.-Inf. (FH) Matthias Dahl | Software Engineer | binary-island.eu
+  services: custom software [desktop, mobile, web], server administration
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
