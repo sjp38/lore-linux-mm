@@ -1,61 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C0906B025E
-	for <linux-mm@kvack.org>; Mon, 11 Jul 2016 09:27:44 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id f126so56417738wma.3
-        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 06:27:44 -0700 (PDT)
-Received: from mail.ud19.udmedia.de (ud19.udmedia.de. [194.117.254.59])
-        by mx.google.com with ESMTPS id g202si4093845wmg.75.2016.07.11.06.27.43
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 06CF76B0005
+	for <linux-mm@kvack.org>; Mon, 11 Jul 2016 09:30:20 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id p41so16945823lfi.0
+        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 06:30:19 -0700 (PDT)
+Received: from mail-lf0-x231.google.com (mail-lf0-x231.google.com. [2a00:1450:4010:c07::231])
+        by mx.google.com with ESMTPS id l16si1927892lfi.366.2016.07.11.06.30.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jul 2016 06:27:43 -0700 (PDT)
+        Mon, 11 Jul 2016 06:30:18 -0700 (PDT)
+Received: by mail-lf0-x231.google.com with SMTP id q132so73402132lfe.3
+        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 06:30:18 -0700 (PDT)
+Date: Mon, 11 Jul 2016 16:30:15 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: a question about protection_map[]
+Message-ID: <20160711133015.GA8028@node.shutemov.name>
+References: <5783710E.3070602@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII;
- format=flowed
-Content-Transfer-Encoding: 7bit
-Date: Mon, 11 Jul 2016 15:27:42 +0200
-From: Matthias Dahl <ml_linux-kernel@binary-island.eu>
-Subject: Re: [dm-devel] [4.7.0rc6] Page Allocation Failures with dm-crypt
-In-Reply-To: <20160711131818.GA28102@redhat.com>
-References: <28dc911645dce0b5741c369dd7650099@mail.ud19.udmedia.de>
- <e7af885e08e1ced4f75313bfdfda166d@mail.ud19.udmedia.de>
- <20160711131818.GA28102@redhat.com>
-Message-ID: <fe0eb105b21013453bc3375e7026925b@mail.ud19.udmedia.de>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5783710E.3070602@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Snitzer <snitzer@redhat.com>
-Cc: linux-mm@kvack.org, dm-devel@redhat.com, linux-kernel@vger.kernel.org
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: alan@lxorguk.ukuu.org.uk, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hello Mike...
+On Mon, Jul 11, 2016 at 06:12:30PM +0800, Xishi Qiu wrote:
+> Hi,
+> 
+> We can use mprotect to set read only or read/write.
+> 
+> mprotect_fixup()
+> 	vma_set_page_prot()
+> 		vm_pgprot_modify()
+> 			vm_get_page_prot()
+> 				protection_map[vm_flags & (VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)]
+> 
+> The following code shows that prots from __P001(PROT_READ) and __P010(PROT_WRITE)
+> are the same, so how does it distinguish read only or read/write from mprotect?
 
-On 2016-07-11 15:18, Mike Snitzer wrote:
+It doesn't.
 
-> Something must explain the execessive nature of your leak but
-> it isn't a known issue.
-
-Since I am currently setting up the new machine, all tests were
-performed w/ various live cd images (Fedora Rawhide, Gentoo, ...)
-and I saw the exact same behavior everywhere.
-
-> Have you tried running with kmemleak enabled?
-
-I would have to check if that is enabled on the live images but even if
-it is, how would that work? The default interval is 10min. If I fire up
-a dd, the memory is full within two seconds or so... and after that, the
-OOM killer kicks in and all hell breaks loose unfortunately.
-
-I don't think this is a particular unique issue on my side. You could,
-if I am right, easily try a Fedora Rawhide image and reproduce it there
-yourself. The only unique point here is my RAID10 which is a Intel Rapid
-Storage s/w RAID. I have no clue if this could indeed cause such a "bug"
-and how.
-
-Thanks,
-Matthias
+Write protection will be removed by fault handler on next write access to
+the page. Somewhat suboptiomal, but zero page implemenation relies on this
+to work properly.
 
 -- 
-Dipl.-Inf. (FH) Matthias Dahl | Software Engineer | binary-island.eu
-  services: custom software [desktop, mobile, web], server administration
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
