@@ -1,89 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EBDF56B0005
-	for <linux-mm@kvack.org>; Sun, 10 Jul 2016 20:48:02 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id qh10so153514362pac.2
-        for <linux-mm@kvack.org>; Sun, 10 Jul 2016 17:48:02 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id os6si619066pac.128.2016.07.10.17.48.00
-        for <linux-mm@kvack.org>;
-        Sun, 10 Jul 2016 17:48:01 -0700 (PDT)
-Date: Mon, 11 Jul 2016 10:47:57 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 00/31] Move LRU page reclaim from zones to nodes v8
-Message-ID: <20160711004757.GN12670@dastard>
-References: <1467387466-10022-1-git-send-email-mgorman@techsingularity.net>
- <20160707232713.GM27480@dastard>
- <20160708095203.GB11498@techsingularity.net>
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B41DC6B0005
+	for <linux-mm@kvack.org>; Mon, 11 Jul 2016 00:26:01 -0400 (EDT)
+Received: by mail-yw0-f197.google.com with SMTP id m62so218475914ywd.1
+        for <linux-mm@kvack.org>; Sun, 10 Jul 2016 21:26:01 -0700 (PDT)
+Received: from mail-vk0-x22c.google.com (mail-vk0-x22c.google.com. [2607:f8b0:400c:c05::22c])
+        by mx.google.com with ESMTPS id 18si221333uad.62.2016.07.10.21.26.00
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 10 Jul 2016 21:26:00 -0700 (PDT)
+Received: by mail-vk0-x22c.google.com with SMTP id b192so123049093vke.0
+        for <linux-mm@kvack.org>; Sun, 10 Jul 2016 21:26:00 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160708095203.GB11498@techsingularity.net>
+In-Reply-To: <20160709083715.GA29939@gmail.com>
+References: <20160707124719.3F04C882@viggo.jf.intel.com> <20160707124728.C1116BB1@viggo.jf.intel.com>
+ <20160707144508.GZ11498@techsingularity.net> <577E924C.6010406@sr71.net>
+ <20160708071810.GA27457@gmail.com> <577FD587.6050101@sr71.net> <20160709083715.GA29939@gmail.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Sun, 10 Jul 2016 21:25:40 -0700
+Message-ID: <CALCETrXJhVz6Za4=oidiM2Vfbb+XdggFBYiVyvOCcia+w064aQ@mail.gmail.com>
+Subject: Re: [PATCH 6/9] x86, pkeys: add pkey set/get syscalls
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: linux-arch <linux-arch@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux API <linux-api@vger.kernel.org>, Dave Hansen <dave@sr71.net>, Arnd Bergmann <arnd@arndb.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hughd@google.com>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>
 
-On Fri, Jul 08, 2016 at 10:52:03AM +0100, Mel Gorman wrote:
-> On Fri, Jul 08, 2016 at 09:27:13AM +1000, Dave Chinner wrote:
-> > .....
-> > > This series is not without its hazards. There are at least three areas
-> > > that I'm concerned with even though I could not reproduce any problems in
-> > > that area.
-> > > 
-> > > 1. Reclaim/compaction is going to be affected because the amount of reclaim is
-> > >    no longer targetted at a specific zone. Compaction works on a per-zone basis
-> > >    so there is no guarantee that reclaiming a few THP's worth page pages will
-> > >    have a positive impact on compaction success rates.
-> > > 
-> > > 2. The Slab/LRU reclaim ratio is affected because the frequency the shrinkers
-> > >    are called is now different. This may or may not be a problem but if it
-> > >    is, it'll be because shrinkers are not called enough and some balancing
-> > >    is required.
-> > 
-> > Given that XFS has a much more complex set of shrinkers and has a
-> > much more finely tuned balancing between LRU and shrinker reclaim,
-> > I'd be interested to see if you get the same results on XFS for the
-> > tests you ran on ext4. It might also be worth running some highly
-> > concurrent inode cache benchmarks (e.g. the 50-million inode, 16-way
-> > concurrent fsmark tests) to see what impact heavy slab cache
-> > pressure has on shrinker behaviour and system balance...
-> > 
-> 
-> I had tested XFS with earlier releases and noticed no major problems
-> so later releases tested only one filesystem.  Given the changes since,
-> a retest is desirable. I've posted the current version of the series but
-> I'll queue the tests to run over the weekend. They are quite time consuming
-> to run unfortunately.
+On Jul 9, 2016 1:37 AM, "Ingo Molnar" <mingo@kernel.org> wrote:
+>
+>
+> * Dave Hansen <dave@sr71.net> wrote:
+>
+> > On 07/08/2016 12:18 AM, Ingo Molnar wrote:
+> >
+> > > So the question is, what is user-space going to do? Do any glibc patches
+> > > exist? How are the user-space library side APIs going to look like?
+> >
+> > My goal at the moment is to get folks enabled to the point that they can start
+> > modifying apps to use pkeys without having to patch their kernels.
+> >  I don't have confidence that we can design good high-level userspace interfaces
+> > without seeing some real apps try to use the low-level ones and seeing how they
+> > struggle.
+> >
+> > I had some glibc code to do the pkey alloc/free operations, but those aren't
+> > necessary if we're doing it in the kernel.  Other than getting the syscall
+> > wrappers in place, I don't have any immediate plans to do anything in glibc.
+> >
+> > Was there something you were expecting to see?
+>
+> Yeah, so (as you probably guessed!) I'm starting to have second thoughts about the
+> complexity of the alloc/free/set/get interface I suggested, and Mel's review
+> certainly strengthened that feeling.
+>
+> I have two worries:
+>
+> 1)
+>
+> A technical worry I have is that the 'pkey allocation interface' does not seem to
+> be taking the per thread property of pkeys into account - while that property
+> would be useful for apps. That is a limitation that seems unjustified.
+>
+> The reason for this is that we are storing the key allocation bitmap in struct_mm,
+> in mm->context.pkey_allocation_map - while we should be storing it in task_struct
+> or thread_info.
 
-Understood. I'm not following the patchset all that closely, so I
-didn' know you'd already tested XFS.
+Huh?  Doesn't this have to be per mm?  Sure, PKRU is per thread, but
+the page tables are shared.
 
-> On the fsmark configuration, I configured the test to use 4K files
-> instead of 0-sized files that normally would be used to stress inode
-> creation/deletion. This is to have a mix of page cache and slab
-> allocations. Shout if this does not suit your expectations.
+> 2)
+>
+> My main worry is that it appears at this stage that we are still pretty far away
+> from completely shadowing the hardware pkey state in the kernel - and without that
+> we cannot really force user-space to use the 'proper' APIs. They can just use the
+> raw instructions, condition them on a CPUID and be done with it: everything can be
+> organized in user-space.
+>
 
-Sounds fine. I usually limit that test to 10 million inodes - that's
-my "10-4" test.
+My vote would be to keep the allocation mechanism but get rid of pkey_set.
 
-> Finally, not all the machines I'm using can store 50 million inodes
-> of this size. The benchmark has been configured to use as many inodes
-> as it estimates will fit in the disk. In all cases, it'll exert memory
-> pressure. Unfortunately, the storage is simple so there is no guarantee
-> it'll find all problems but that's standard unfortunately.
+Also, I think the debug poisoning feature is overcomplicated.  Let's
+just forbid mprotect_key with an unallocated key.
 
-Yup. But it's really the system balance that matters, and if the
-balance is maintained then XFS will optimise the IO patterns to get
-decent throughput regardless of the storage (i.e. the 10-4 test
-should still run at tens of MB/s on a single spinning disk).
+There are still two issues that I think we need to address, though:
 
-Cheers,
+1. Signal delivery shouldn't unconditionally clear PKRU.  That's what
+the current patches do, and it's unsafe.  I'd rather set PKRU to the
+maximally locked down state on signal delivery (except for the
+PROT_EXEC key), although that might cause its own set of problems.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+2. When thread A allocates a pkey, how does it lock down thread B?
+
+#2 could be addressed by using fully-locked-down as the initial state
+post-exec() and copying the state on clone().  Dave, are there any
+cases in practice where one thread would allocate a pkey and want
+other threads to immediately have access to the memory with that key?
+
+I find myself wondering whether we should stop using XSAVE for PKRU
+sooner rather than later.  If we do anything like the above, we
+completely lose the init optimization, and the code would be a good
+deal simpler if we switched PKRU directly in switch_to and could
+therefore treat it like a normal register everywhere else.
+
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
