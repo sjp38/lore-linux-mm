@@ -1,79 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A1A86B025E
-	for <linux-mm@kvack.org>; Mon, 11 Jul 2016 10:14:30 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id g18so71569822lfg.2
-        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 07:14:30 -0700 (PDT)
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com. [74.125.82.51])
-        by mx.google.com with ESMTPS id p10si38632wjp.50.2016.07.11.07.14.29
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B145E6B0005
+	for <linux-mm@kvack.org>; Mon, 11 Jul 2016 10:18:38 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id o80so27231725wme.1
+        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 07:18:38 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id bh4si52285wjb.42.2016.07.11.07.18.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jul 2016 07:14:29 -0700 (PDT)
-Received: by mail-wm0-f51.google.com with SMTP id o80so52747210wme.1
-        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 07:14:29 -0700 (PDT)
-Date: Mon, 11 Jul 2016 16:14:27 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 5/6] vhost, mm: make sure that oom_reaper doesn't
- reap memory read by vhost
-Message-ID: <20160711141427.GM1811@dhcp22.suse.cz>
-References: <1467365190-24640-6-git-send-email-mhocko@kernel.org>
- <20160703134719.GA28492@redhat.com>
- <20160703140904.GA26908@redhat.com>
- <20160703151829.GA28667@redhat.com>
- <20160703182254-mutt-send-email-mst@redhat.com>
- <20160703164723.GA30151@redhat.com>
- <20160703215250-mutt-send-email-mst@redhat.com>
- <20160707082811.GC5379@dhcp22.suse.cz>
- <20160707183848-mutt-send-email-mst@redhat.com>
- <20160708122948.GA4733@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 11 Jul 2016 07:18:37 -0700 (PDT)
+Subject: Re: [PATCH 3/3] Add name fields in shrinker tracepoint definitions
+References: <cover.1468051277.git.janani.rvchndrn@gmail.com>
+ <6114f72a15d5e52984ea546ba977737221351636.1468051282.git.janani.rvchndrn@gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <447d8214-3c3d-cc4a-2eff-a47923fbe45f@suse.cz>
+Date: Mon, 11 Jul 2016 16:18:35 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160708122948.GA4733@redhat.com>
+In-Reply-To: <6114f72a15d5e52984ea546ba977737221351636.1468051282.git.janani.rvchndrn@gmail.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>
+To: Janani Ravichandran <janani.rvchndrn@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: riel@surriel.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@virtuozzo.com, mhocko@suse.com, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, bywxiaobai@163.com
 
-On Fri 08-07-16 14:29:48, Oleg Nesterov wrote:
-> On 07/07, Michael S. Tsirkin wrote:
-> >
-> > On Thu, Jul 07, 2016 at 10:28:12AM +0200, Michal Hocko wrote:
-> > >
-> > > Just to make sure we are all at the same page. I guess the scenario is
-> > > as follows. The owner of the mm has ring and other statefull information
-> > > in the private memory but consumers living with their own mm consume
-> > > some data from a shared memory segments (e.g. files). The worker would
-> > > misinterpret statefull information (zeros rather than the original
-> > > content) and would copy invalid/corrupted data to the consumer. Am I
-> > > correct?
-> >
-> > Exactly.
-> 
-> Michael, let me ask again.
-> 
-> But what if we simply kill the owner of this mm?
+On 07/09/2016 11:05 AM, Janani Ravichandran wrote:
+> Currently, the mm_shrink_slab_start and mm_shrink_slab_end
+> tracepoints tell us how much time was spent in a shrinker, the number of
+> objects scanned, etc. But there is no information about the identity of
+> the shrinker. This patch enables the trace output to display names of
+> shrinkers.
+>
+> ---
+>  include/trace/events/vmscan.h | 10 ++++++++--
+>  1 file changed, 8 insertions(+), 2 deletions(-)
+>
+> diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+> index 0101ef3..be4c5b0 100644
+> --- a/include/trace/events/vmscan.h
+> +++ b/include/trace/events/vmscan.h
+> @@ -189,6 +189,7 @@ TRACE_EVENT(mm_shrink_slab_start,
+>  		cache_items, delta, total_scan),
+>
+>  	TP_STRUCT__entry(
+> +		__field(char *, name)
+>  		__field(struct shrinker *, shr)
+>  		__field(void *, shrink)
+>  		__field(int, nid)
+> @@ -202,6 +203,7 @@ TRACE_EVENT(mm_shrink_slab_start,
+>  	),
+>
+>  	TP_fast_assign(
+> +		__entry->name = shr->name;
+>  		__entry->shr = shr;
+>  		__entry->shrink = shr->scan_objects;
+>  		__entry->nid = sc->nid;
+> @@ -214,7 +216,8 @@ TRACE_EVENT(mm_shrink_slab_start,
+>  		__entry->total_scan = total_scan;
+>  	),
+>
+> -	TP_printk("%pF %p: nid: %d objects to shrink %ld gfp_flags %s pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld total_scan %ld",
+> +	TP_printk("name: %s %pF %p: nid: %d objects to shrink %ld gfp_flags %s pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld total_scan %ld",
+> +		__entry->name,
 
-I might be wrong here but the mm owner doesn't really matter AFAIU. It
-is the holder of the file descriptor for the "device" who control all
-the actions, no? The fact that it hijacked the mm along the way is hiden
-from users. If you kill the owner but pass the fd somewhere else then
-the mm will live as long as the fd.
+Is this legal to do when printing is not done via the /sys ... file 
+itself, but raw data is collected and then printed by e.g. trace-cmd? 
+How can it possibly interpret the "char *" kernel pointer?
 
-[...]
-
-> If yes, note that this means that any process which can do VHOST_SET_OWNER becomes
-> "oom-unkillable" to some degree, and this doesn't look right. It can spawn another
-> CLONE_FILES process and this will block fops->release() which (iiuc) should stop
-> the kernel thread which pins the memory hog's memory.
-
-I believe this is indeed possible. It can even pass the fd to a
-different process and keep it alive, hidden from the oom killer causing
-other processes to be killed.
-
--- 
-Michal Hocko
-SUSE Labs
+>  		__entry->shrink,
+>  		__entry->shr,
+>  		__entry->nid,
+> @@ -235,6 +238,7 @@ TRACE_EVENT(mm_shrink_slab_end,
+>  		total_scan),
+>
+>  	TP_STRUCT__entry(
+> +		__field(char *, name)
+>  		__field(struct shrinker *, shr)
+>  		__field(int, nid)
+>  		__field(void *, shrink)
+> @@ -245,6 +249,7 @@ TRACE_EVENT(mm_shrink_slab_end,
+>  	),
+>
+>  	TP_fast_assign(
+> +		__entry->name = shr->name;
+>  		__entry->shr = shr;
+>  		__entry->nid = nid;
+>  		__entry->shrink = shr->scan_objects;
+> @@ -254,7 +259,8 @@ TRACE_EVENT(mm_shrink_slab_end,
+>  		__entry->total_scan = total_scan;
+>  	),
+>
+> -	TP_printk("%pF %p: nid: %d unused scan count %ld new scan count %ld total_scan %ld last shrinker return val %d",
+> +	TP_printk("name: %s %pF %p: nid: %d unused scan count %ld new scan count %ld total_scan %ld last shrinker return val %d",
+> +		__entry->name,
+>  		__entry->shrink,
+>  		__entry->shr,
+>  		__entry->nid,
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
