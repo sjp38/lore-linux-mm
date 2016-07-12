@@ -1,62 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E28F6B0005
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 12:57:11 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id m101so45840555ioi.0
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 09:57:11 -0700 (PDT)
-Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
-        by mx.google.com with ESMTP id n188si12587480ite.54.2016.07.12.09.57.08
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id F1B5A6B0005
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 13:12:01 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id q2so38188674pap.1
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 10:12:01 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id x190si1453983pfd.105.2016.07.12.10.12.01
         for <linux-mm@kvack.org>;
-        Tue, 12 Jul 2016 09:57:09 -0700 (PDT)
-Message-ID: <578522CE.9060905@emindsoft.com.cn>
-Date: Wed, 13 Jul 2016 01:03:10 +0800
-From: Chen Gang <chengang@emindsoft.com.cn>
+        Tue, 12 Jul 2016 10:12:01 -0700 (PDT)
+Subject: Re: [PATCH 6/9] x86, pkeys: add pkey set/get syscalls
+References: <20160707124719.3F04C882@viggo.jf.intel.com>
+ <20160707124728.C1116BB1@viggo.jf.intel.com>
+ <20160707144508.GZ11498@techsingularity.net> <577E924C.6010406@sr71.net>
+ <20160708071810.GA27457@gmail.com> <577FD587.6050101@sr71.net>
+ <20160709083715.GA29939@gmail.com>
+ <CALCETrXJhVz6Za4=oidiM2Vfbb+XdggFBYiVyvOCcia+w064aQ@mail.gmail.com>
+ <5783AE8F.3@sr71.net>
+ <CALCETrW1qLZE_cq1CvmLkdnFyKRWVZuah29xERTC7o0eZ8DbwQ@mail.gmail.com>
+ <5783BFB0.70203@intel.com>
+ <CALCETrUZeZ00sFrTEqWSB-OxkCzGQxknmPTvFe4bv5mKc3hE+Q@mail.gmail.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <578524E0.6080401@intel.com>
+Date: Tue, 12 Jul 2016 10:12:00 -0700
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: gup: Re-define follow_page_mask output parameter
- page_mask usage
-References: <1468084625-26999-1-git-send-email-chengang@emindsoft.com.cn> <20160711141702.fb1879707aa2bcb290133a43@linux-foundation.org>
-In-Reply-To: <20160711141702.fb1879707aa2bcb290133a43@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <CALCETrUZeZ00sFrTEqWSB-OxkCzGQxknmPTvFe4bv5mKc3hE+Q@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: vbabka@suse.cz, mhocko@suse.com, kirill.shutemov@linux.intel.com, mingo@kernel.org, dave.hansen@linux.intel.com, dan.j.williams@intel.com, hannes@cmpxchg.org, jack@suse.cz, iamjoonsoo.kim@lge.com, jmarchan@redhat.com, dingel@linux.vnet.ibm.com, oleg@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Gang <gang.chen.5i5j@gmail.com>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave.hansen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, X86 ML <x86@kernel.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux API <linux-api@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Linus Torvalds <torvalds@linux-foundation.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Arnd Bergmann <arnd@arndb.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>
 
-On 7/12/16 05:17, Andrew Morton wrote:
-> On Sun, 10 Jul 2016 01:17:05 +0800 chengang@emindsoft.com.cn wrote:
+On 07/12/2016 09:32 AM, Andy Lutomirski wrote:
+> I think it's more or less impossible to get sensible behavior passing
+> pkey != 0 data to legacy functions.  If you call:
 > 
->> For a pure output parameter:
+> void frob(struct foo *p);
+> 
+> If frob in turn passes p to a thread, what PKRU is it supposed to use?
+
+The thread inheritance of PKRU can be nice.  It actually gives things a
+good chance of working if you can control PKRU before clone().  I'd
+describe the semantics like this:
+
+	PKRU values are inherited at the time of a clone() system
+	call.  Threads unaware of protection keys may work on
+	protection-key-protected data as long as PKRU is set up in
+	advance of the clone() and never needs to be changed inside the
+	thread.
+
+	If a thread is created before PKRU is set appropriately, the
+	thread may not be able to act on protection-key-protected data.
+
+Otherwise, the semantics are simpler, but they basically give threads no
+chance of ever working:
+
+	Threads unaware of protection keys and which can not manage
+	PKRU may not operate on data where a non-zero key has been
+	passed to pkey_mprotect().
+
+It isn't clear to me that one of these is substantially better than the
+other.  It's fairly easy in either case for an app that cares to get the
+behavior of the other.
+
+But, one is clearly easier to implement in the kernel. :)
+
+>>> So how is user code supposed lock down all of its threads?
+>>>
+>>> seccomp has TSYNC for this, but I don't think that PKRU allows
+>>> something like that.
 >>
->>  - When callee fails, the caller should not assume the output parameter
->>    is still valid.
+>> I'm not sure this is possible for PKRU.  Think of a simple PKRU
+>> manipulation in userspace:
 >>
->>  - And callee should not assume the pure output parameter must be
->>    provided by caller -- caller has right to pass NULL when caller does
->>    not care about it.
+>>         pkru = rdpkru();
+>>         pkru |= PKEY_DENY_ACCESS<<key*2;
+>>         wrpkru(pkru);
+>>
+>> If we push a PKRU value into a thread between the rdpkru() and wrpkru(),
+>> we'll lose the content of that "push".  I'm not sure there's any way to
+>> guarantee this with a user-controlled register.
 > 
-> Sorry, I don't think this one is worth merging really.
-> 
+> We could try to insist that user code uses some vsyscall helper that
+> tracks which bits are as-yet-unassigned.  That's quite messy, though.
 
-OK, thanks, I can understand.
+Yeah, doable, but not without some new data going out to userspace, plus
+the vsyscall code itself.
 
-It will be better if provide more details: e.g.
+> We could also arbitrarily partition the key space into
+> initially-wide-open, initially-read-only, and initially-no-access and
+> let pkey_alloc say which kind it wants.
 
- - This patch is incorrect, or the comments is not correct.
-
- - The patch is worthless, at present.
-
- - ...
-
-By the way, this patch let the callee keep the output parameter no touch
-if callee no additional outputs, callee assumes caller has initialized
-the output parameter (for me, it is OK, there are many cases like this).
-
-Thanks.
--- 
-Chen Gang (e??a??)
-
-Managing Natural Environments is the Duty of Human Beings.
+The point is still that wrpkru destroyed the 'push' operation.  You
+always end up with a PKRU that (at least temporarily) ignored the 'push'.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
