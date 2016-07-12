@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BB096B025F
-	for <linux-mm@kvack.org>; Mon, 11 Jul 2016 23:00:36 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id u25so11237877ioi.1
-        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 20:00:36 -0700 (PDT)
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E5B2A6B0260
+	for <linux-mm@kvack.org>; Mon, 11 Jul 2016 23:05:04 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id q83so11402235iod.2
+        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 20:05:04 -0700 (PDT)
 Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id h124si590685itb.114.2016.07.11.20.00.35
+        by mx.google.com with ESMTPS id 126si635290itu.32.2016.07.11.20.05.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jul 2016 20:00:35 -0700 (PDT)
+        Mon, 11 Jul 2016 20:05:04 -0700 (PDT)
 From: Sasha Levin <sasha.levin@oracle.com>
-Subject: [added to the 4.1 stable tree] x86/mm/kmmio: Fix mmiotrace for hugepages
-Date: Mon, 11 Jul 2016 22:54:38 -0400
-Message-Id: <1468292170-22812-177-git-send-email-sasha.levin@oracle.com>
-In-Reply-To: <1468292170-22812-1-git-send-email-sasha.levin@oracle.com>
-References: <1468292170-22812-1-git-send-email-sasha.levin@oracle.com>
+Subject: [added to the 3.18 stable tree] x86/mm/kmmio: Fix mmiotrace for hugepages
+Date: Mon, 11 Jul 2016 23:00:01 -0400
+Message-Id: <1468292479-23684-149-git-send-email-sasha.levin@oracle.com>
+In-Reply-To: <1468292479-23684-1-git-send-email-sasha.levin@oracle.com>
+References: <1468292479-23684-1-git-send-email-sasha.levin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: stable@vger.kernel.org, stable-commits@vger.kernel.org
@@ -22,7 +22,7 @@ Cc: Karol Herbst <nouveau@karolherbst.de>, Andrew Morton <akpm@linux-foundation.
 
 From: Karol Herbst <nouveau@karolherbst.de>
 
-This patch has been added to the 4.1 stable tree. If you have any
+This patch has been added to the 3.18 stable tree. If you have any
 objections, please let us know.
 
 ===============
