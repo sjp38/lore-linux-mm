@@ -1,99 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BDD486B0005
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 10:19:14 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id r190so14659125wmr.0
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 07:19:14 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r123si20829805wmb.115.2016.07.12.07.19.13
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E9B566B0005
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 10:23:04 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id r190so14732536wmr.0
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 07:23:04 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id 11si3743809wmi.28.2016.07.12.07.23.03
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 12 Jul 2016 07:19:13 -0700 (PDT)
-Date: Tue, 12 Jul 2016 16:19:12 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 2/8] mm,oom_reaper: Do not attempt to reap a task twice.
-Message-ID: <20160712141912.GM14586@dhcp22.suse.cz>
-References: <1468330163-4405-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <1468330163-4405-3-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Jul 2016 07:23:03 -0700 (PDT)
+Date: Tue, 12 Jul 2016 10:22:56 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 11/34] mm, vmscan: remove duplicate logic clearing node
+ congestion and dirty state
+Message-ID: <20160712142256.GE5881@cmpxchg.org>
+References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
+ <1467970510-21195-12-git-send-email-mgorman@techsingularity.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1468330163-4405-3-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+In-Reply-To: <1467970510-21195-12-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, oleg@redhat.com, rientjes@google.com, vdavydov@parallels.com, mst@redhat.com
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 12-07-16 22:29:17, Tetsuo Handa wrote:
-> "mm, oom_reaper: do not attempt to reap a task twice" tried to give the
-> OOM reaper one more chance to retry using MMF_OOM_NOT_REAPABLE flag. But
-> the usefulness of the flag is rather limited and actually never shown
-> in practice. If the flag is set, it means that the holder of mm->mmap_sem
-> cannot call up_write() due to presumably being blocked at unkillable wait
-> waiting for other thread's memory allocation. But since one of threads
-> sharing that mm will queue that mm immediately via task_will_free_mem()
-> shortcut (otherwise, oom_badness() will select the same mm again due to
-> oom_score_adj value unchanged), retrying MMF_OOM_NOT_REAPABLE mm is
-> unlikely helpful.
-> 
-> Let's always set MMF_OOM_REAPED.
-> 
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  include/linux/sched.h |  1 -
->  mm/oom_kill.c         | 15 +++------------
->  2 files changed, 3 insertions(+), 13 deletions(-)
-> 
-> diff --git a/include/linux/sched.h b/include/linux/sched.h
-> index 553af29..c0efd80 100644
-> --- a/include/linux/sched.h
-> +++ b/include/linux/sched.h
-> @@ -523,7 +523,6 @@ static inline int get_dumpable(struct mm_struct *mm)
->  #define MMF_HAS_UPROBES		19	/* has uprobes */
->  #define MMF_RECALC_UPROBES	20	/* MMF_HAS_UPROBES can be wrong */
->  #define MMF_OOM_REAPED		21	/* mm has been already reaped */
-> -#define MMF_OOM_NOT_REAPABLE	22	/* mm couldn't be reaped */
+On Fri, Jul 08, 2016 at 10:34:47AM +0100, Mel Gorman wrote:
+> @@ -3008,7 +3008,17 @@ static bool zone_balanced(struct zone *zone, int order, int classzone_idx)
+>  {
+>  	unsigned long mark = high_wmark_pages(zone);
 >  
->  #define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK)
->  
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 951eb1b..9f0022e 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -567,20 +567,11 @@ static void oom_reap_task(struct task_struct *tsk)
->  	if (attempts <= MAX_OOM_REAP_RETRIES)
->  		goto done;
->  
-> +	/* Ignore this mm because somebody can't call up_write(mmap_sem). */
-> +	set_bit(MMF_OOM_REAPED, &mm->flags);
+> -	return zone_watermark_ok_safe(zone, order, mark, classzone_idx);
+> +	if (!zone_watermark_ok_safe(zone, order, mark, classzone_idx))
+> +		return false;
 > +
->  	pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
->  		task_pid_nr(tsk), tsk->comm);
-> -
-> -	/*
-> -	 * If we've already tried to reap this task in the past and
-> -	 * failed it probably doesn't make much sense to try yet again
-> -	 * so hide the mm from the oom killer so that it can move on
-> -	 * to another task with a different mm struct.
-> -	 */
-> -	if (test_and_set_bit(MMF_OOM_NOT_REAPABLE, &mm->flags)) {
-> -		pr_info("oom_reaper: giving up pid:%d (%s)\n",
-> -			task_pid_nr(tsk), tsk->comm);
-> -		set_bit(MMF_OOM_REAPED, &mm->flags);
-> -	}
->  	debug_show_all_locks();
->  
->  done:
-> -- 
-> 1.8.3.1
-> 
+> +	/*
+> +	 * If any eligible zone is balanced then the node is not considered
+> +	 * to be congested or dirty
+> +	 */
+> +	clear_bit(PGDAT_CONGESTED, &zone->zone_pgdat->flags);
+> +	clear_bit(PGDAT_DIRTY, &zone->zone_pgdat->flags);
 
--- 
-Michal Hocko
-SUSE Labs
+Predicate functions that secretly modify internal state give me the
+willies... The diffstat is flat, too. Is this really an improvement?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
