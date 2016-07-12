@@ -1,66 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F4336B0253
-	for <linux-mm@kvack.org>; Mon, 11 Jul 2016 19:08:43 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id v6so278299472vkb.2
-        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 16:08:43 -0700 (PDT)
-Received: from out5-smtp.messagingengine.com (out5-smtp.messagingengine.com. [66.111.4.29])
-        by mx.google.com with ESMTPS id d185si1030273qke.286.2016.07.11.16.08.42
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 17B416B0253
+	for <linux-mm@kvack.org>; Mon, 11 Jul 2016 20:58:27 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id q2so2166840pap.1
+        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 17:58:27 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id cr4si802385pad.76.2016.07.11.17.58.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jul 2016 16:08:42 -0700 (PDT)
-Date: Mon, 11 Jul 2016 15:33:53 -0700
-From: Greg KH <greg@kroah.com>
-Subject: Re: divide error: 0000 [#1] SMP in task_numa_migrate -
- handle_mm_fault vanilla 4.4.6
-Message-ID: <20160711223353.GA8959@kroah.com>
-References: <56EF15BB.3080509@profihost.ag>
- <20160320214130.GB23920@kroah.com>
- <56EFD267.9070609@profihost.ag>
- <20160321133815.GA14188@kroah.com>
- <573AB3BF.3030604@profihost.ag>
- <CAPerZE_OCJGp2v8dXM=dY8oP1ydX_oB29UbzaXMHKZcrsL_iJg@mail.gmail.com>
- <CAPerZE_WLYzrALa3YOzC2+NWr--1GL9na8WLssFBNbRsXcYMiA@mail.gmail.com>
- <20160622061356.GW30154@twins.programming.kicks-ass.net>
- <CAPerZE99rBx6YCZrudJPTh7L-LCWitk7n7g41pt7JLej_2KR1g@mail.gmail.com>
- <20160707074232.GS30921@twins.programming.kicks-ass.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160707074232.GS30921@twins.programming.kicks-ass.net>
+        Mon, 11 Jul 2016 17:58:26 -0700 (PDT)
+From: Christoph Hellwig <hch@lst.de>
+Subject: [PATCH] memblock: include <asm/sections.h> instead of <asm-generic/sections.h>
+Date: Tue, 12 Jul 2016 09:58:23 +0900
+Message-Id: <1468285103-7470-1-git-send-email-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Campbell Steven <casteven@gmail.com>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-mm@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Rik van Riel <riel@redhat.com>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Jul 07, 2016 at 09:42:32AM +0200, Peter Zijlstra wrote:
-> On Thu, Jul 07, 2016 at 11:20:36AM +1200, Campbell Steven wrote:
-> 
-> > > commit 8974189222159154c55f24ddad33e3613960521a
-> > > Author: Peter Zijlstra <peterz@infradead.org>
-> > > Date:   Thu Jun 16 10:50:40 2016 +0200
-> 
-> > Since these early reports from Stefan and I it looks like it's been
-> > hit but alot more folks now so I'd like to ask what the process is for
-> > getting this backported into 4.6, 4.5 and 4.4 as in our testing all
-> > those versions for their latest point release seem to have the same
-> > problem.
-> 
-> I think this should do; Greg is on Cc and will mark the commit
-> somewhere. It is already in Linus' tree and should indeed be sufficient.
-> 
-> It has a Fixes tag referring the commit that introduced it, which IIRC
-> is somewhere around v4.2.
-> 
-> Greg, anything else required?
+asm-generic headers are generic implementations for architecture specific
+code and should not be included by common code.  Thus use the asm/ version
+of sections.h to get at the linker sections.
 
-Oops, this commit does not apply cleanly to 4.6 or 4.4-stable trees.
-Can someone send me the backported verision that they have tested to
-work properly so I can queue it up?
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ mm/memblock.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-thanks,
-
-greg k-h
+diff --git a/mm/memblock.c b/mm/memblock.c
+index ac12489..5d700e4 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -20,7 +20,7 @@
+ #include <linux/seq_file.h>
+ #include <linux/memblock.h>
+ 
+-#include <asm-generic/sections.h>
++#include <asm/sections.h>
+ #include <linux/io.h>
+ 
+ #include "internal.h"
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
