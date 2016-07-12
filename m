@@ -1,45 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BECED6B0005
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 14:10:53 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id 33so16097822lfw.1
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 11:10:53 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id t123si4822945wmt.136.2016.07.12.11.10.52
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 47FF76B0005
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 14:12:57 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id o80so18871128wme.1
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 11:12:57 -0700 (PDT)
+Received: from mail-wm0-x231.google.com (mail-wm0-x231.google.com. [2a00:1450:400c:c09::231])
+        by mx.google.com with ESMTPS id 20si22118330wmi.94.2016.07.12.11.12.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Jul 2016 11:10:52 -0700 (PDT)
-Date: Tue, 12 Jul 2016 14:10:48 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 27/34] mm, vmscan: Have kswapd reclaim from all zones if
- reclaiming and buffer_heads_over_limit
-Message-ID: <20160712181048.GC7821@cmpxchg.org>
-References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
- <1467970510-21195-28-git-send-email-mgorman@techsingularity.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1467970510-21195-28-git-send-email-mgorman@techsingularity.net>
+        Tue, 12 Jul 2016 11:12:56 -0700 (PDT)
+Received: by mail-wm0-x231.google.com with SMTP id r190so5097466wmr.0
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 11:12:56 -0700 (PDT)
+From: Alexander Potapenko <glider@google.com>
+Subject: [PATCH v7 0/2] mm, kasan: stackdepot and quarantine for SLUB
+Date: Tue, 12 Jul 2016 20:12:43 +0200
+Message-Id: <1468347165-41906-1-git-send-email-glider@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
+To: adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, akpm@linux-foundation.org, rostedt@goodmis.org, iamjoonsoo.kim@lge.com, js1304@gmail.com, kcc@google.com, aryabinin@virtuozzo.com, kuthonuzo.luruo@hpe.com
+Cc: kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jul 08, 2016 at 10:35:03AM +0100, Mel Gorman wrote:
-> The buffer_heads_over_limit limit in kswapd is inconsistent with direct
-> reclaim behaviour. It may force an an attempt to reclaim from all zones and
-> then not reclaim at all because higher zones were balanced than required
-> by the original request.
-> 
-> This patch will causes kswapd to consider reclaiming from all zones if
-> buffer_heads_over_limit.  However, if there are eligible zones for the
-> allocation request that woke kswapd then no reclaim will occur even if
-> buffer_heads_over_limit. This avoids kswapd over-reclaiming just because
-> buffer_heads_over_limit.
-> 
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+This patch set enables stackdepot and quarantine for SLUB allocator and
+fixes a problem with incorrect calculating the offset of the nearest
+object in the presence of SLUB red zones.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Alexander Potapenko (2):
+  mm, kasan: account for object redzone in SLUB's nearest_obj()
+  mm, kasan: switch SLUB to stackdepot, enable memory quarantine for
+    SLUB
+
+ include/linux/kasan.h    |  2 ++
+ include/linux/slab_def.h |  3 ++-
+ include/linux/slub_def.h | 14 ++++++++---
+ lib/Kconfig.kasan        |  4 +--
+ mm/kasan/Makefile        |  3 +--
+ mm/kasan/kasan.c         | 64 +++++++++++++++++++++++++++---------------------
+ mm/kasan/kasan.h         |  3 +--
+ mm/kasan/report.c        |  8 +++---
+ mm/slab.h                |  2 ++
+ mm/slub.c                | 59 +++++++++++++++++++++++++++++++++-----------
+ 10 files changed, 104 insertions(+), 58 deletions(-)
+
+-- 
+2.8.0.rc3.226.g39d4020
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
