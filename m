@@ -1,65 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D956B6B025F
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 11:35:08 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id f126so16296228wma.3
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 08:35:08 -0700 (PDT)
-Received: from mail-lf0-x233.google.com (mail-lf0-x233.google.com. [2a00:1450:4010:c07::233])
-        by mx.google.com with ESMTPS id h127si3170639lfd.308.2016.07.12.08.35.07
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Jul 2016 08:35:07 -0700 (PDT)
-Received: by mail-lf0-x233.google.com with SMTP id f93so17166244lfi.2
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 08:35:07 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 45A326B025F
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 11:39:11 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id p64so38602933pfb.0
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 08:39:11 -0700 (PDT)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id w69si4527353pfd.81.2016.07.12.08.39.09
+        for <linux-mm@kvack.org>;
+        Tue, 12 Jul 2016 08:39:09 -0700 (PDT)
+Subject: Re: [PATCH 6/9] x86, pkeys: add pkey set/get syscalls
+References: <20160707124719.3F04C882@viggo.jf.intel.com>
+ <20160707124728.C1116BB1@viggo.jf.intel.com>
+ <20160707144508.GZ11498@techsingularity.net> <577E924C.6010406@sr71.net>
+ <20160708071810.GA27457@gmail.com> <577FD587.6050101@sr71.net>
+ <20160709083715.GA29939@gmail.com>
+ <CALCETrXJhVz6Za4=oidiM2Vfbb+XdggFBYiVyvOCcia+w064aQ@mail.gmail.com>
+ <20160711073534.GA19615@gmail.com> <5783AD25.8020303@sr71.net>
+ <20160712071305.GA13444@gmail.com>
+From: Dave Hansen <dave@sr71.net>
+Message-ID: <57850F1B.4080306@sr71.net>
+Date: Tue, 12 Jul 2016 08:39:07 -0700
 MIME-Version: 1.0
-In-Reply-To: <20160712071927.GD14586@dhcp22.suse.cz>
-References: <CABAubThf6gbi243BqYgoCjqRW36sXJuJ6e_8zAqzkYRiu0GVtQ@mail.gmail.com>
- <20160711064150.GB5284@dhcp22.suse.cz> <CABAubThHfngHTQW_AEuW71VCvLyD_9b5Z05tSud5bf8JKjuA9Q@mail.gmail.com>
- <CABAubTjGhUXMeAnFgW8LGck1tgvtu12Zb9fx5BRhDWNjZ7SYLQ@mail.gmail.com> <20160712071927.GD14586@dhcp22.suse.cz>
-From: Shayan Pooya <shayan@liveve.org>
-Date: Tue, 12 Jul 2016 08:35:06 -0700
-Message-ID: <CABAubTg91qrUd4DO7T2SiJQBK9ypuhP0+F-091ZxtmonjaaYWg@mail.gmail.com>
-Subject: Re: bug in memcg oom-killer results in a hung syscall in another
- process in the same cgroup
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20160712071305.GA13444@gmail.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, koct9i@gmail.com
-Cc: cgroups mailinglist <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Andy Lutomirski <luto@amacapital.net>, linux-arch <linux-arch@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux API <linux-api@vger.kernel.org>, Arnd Bergmann <arnd@arndb.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Hugh Dickins <hughd@google.com>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>
 
->> With strace, when running 500 concurrent mem-hog tasks on the same
->> kernel, 33 of them failed with:
->>
->> strace: ../sysdeps/nptl/fork.c:136: __libc_fork: Assertion
->> `THREAD_GETMEM (self, tid) != ppid' failed.
->>
->> Which is: https://sourceware.org/bugzilla/show_bug.cgi?id=15392
->> And discussed before at: https://lkml.org/lkml/2015/2/6/470 but that
->> patch was not accepted.
->
-> OK, so the problem is that the oom killed task doesn't report the futex
-> release properly? If yes then I fail to see how that is memcg specific.
-> Could you try to clarify what you consider a bug again, please? I am not
-> really sure I understand this report.
+On 07/12/2016 12:13 AM, Ingo Molnar wrote:
+>> > Remember, PKRU is just a *bitmap*.  The only place keys are stored is in the 
+>> > page tables.
+> A pkey is an index *and* a protection mask. So by representing it as a bitmask we 
+> lose per thread information. This is what I meant by 'incomplete shadowing' - for 
+> example the debug code couldn't work: if we cleared a pkey in a task we wouldn't 
+> know what to restore it to with the current data structures, right?
 
-It looks like it is just a very easy way to reproduce the problem that
-Konstantin described in that lkml thread. That patch was not accepted
-and I see no other fixes for that issue upstream. Here is a copy of
-his root-cause analysis from said thread:
+Right.  I actually have some code to do the shadowing that I wrote to
+explore how to do different PKRU values in signal handlers.  The code
+only shadowed the keys that were currently allocated, and used the
+(mm-wide) allocation map to figure that out.  It did not have a separate
+per-thread concept of which parts of PKRU need to be shadowed.
 
-Whole sequence looks like: task calls fork, glibc calls syscall clone with
-CLONE_CHILD_SETTID and passes pointer to TLS THREAD_SELF->tid as argument.
-Child task gets read-only copy of VM including TLS. Child calls put_user()
-to handle CLONE_CHILD_SETTID from schedule_tail(). put_user() trigger page
-fault and it fails because do_wp_page()  hits memcg limit without invoking
-OOM-killer because this is page-fault from kernel-space.  Put_user returns
--EFAULT, which is ignored.  Child returns into user-space and catches here
-assert (THREAD_GETMEM (self, tid) != ppid), glibc tries to print something
-but hangs on deadlock on internal locks. Halt and catch fire.
-
-
-
-Regards
+It essentially populated the shadow value on all pkru_set() calls.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
