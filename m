@@ -1,108 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B4E26B025F
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 11:58:58 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id qh10so34401733pac.2
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 08:58:58 -0700 (PDT)
-Received: from out03.mta.xmission.com (out03.mta.xmission.com. [166.70.13.233])
-        by mx.google.com with ESMTPS id e88si4021631pfj.182.2016.07.12.08.58.57
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CB7DF6B0005
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 12:32:32 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id f7so42541998vkb.3
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 09:32:32 -0700 (PDT)
+Received: from mail-vk0-x230.google.com (mail-vk0-x230.google.com. [2607:f8b0:400c:c05::230])
+        by mx.google.com with ESMTPS id r36si466887uar.141.2016.07.12.09.32.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Jul 2016 08:58:57 -0700 (PDT)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <1468299403-27954-1-git-send-email-zhongjiang@huawei.com>
-	<1468299403-27954-2-git-send-email-zhongjiang@huawei.com>
-Date: Tue, 12 Jul 2016 10:46:17 -0500
-In-Reply-To: <1468299403-27954-2-git-send-email-zhongjiang@huawei.com>
-	(zhongjiang@huawei.com's message of "Tue, 12 Jul 2016 12:56:43 +0800")
-Message-ID: <87a8hm3lme.fsf@x220.int.ebiederm.org>
+        Tue, 12 Jul 2016 09:32:31 -0700 (PDT)
+Received: by mail-vk0-x230.google.com with SMTP id o63so29501285vkg.1
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 09:32:31 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
-Subject: Re: [PATCH 2/2] kexec: add a pmd huge entry condition during the page table
+In-Reply-To: <5783BFB0.70203@intel.com>
+References: <20160707124719.3F04C882@viggo.jf.intel.com> <20160707124728.C1116BB1@viggo.jf.intel.com>
+ <20160707144508.GZ11498@techsingularity.net> <577E924C.6010406@sr71.net>
+ <20160708071810.GA27457@gmail.com> <577FD587.6050101@sr71.net>
+ <20160709083715.GA29939@gmail.com> <CALCETrXJhVz6Za4=oidiM2Vfbb+XdggFBYiVyvOCcia+w064aQ@mail.gmail.com>
+ <5783AE8F.3@sr71.net> <CALCETrW1qLZE_cq1CvmLkdnFyKRWVZuah29xERTC7o0eZ8DbwQ@mail.gmail.com>
+ <5783BFB0.70203@intel.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Tue, 12 Jul 2016 09:32:11 -0700
+Message-ID: <CALCETrUZeZ00sFrTEqWSB-OxkCzGQxknmPTvFe4bv5mKc3hE+Q@mail.gmail.com>
+Subject: Re: [PATCH 6/9] x86, pkeys: add pkey set/get syscalls
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhongjiang <zhongjiang@huawei.com>
-Cc: dyoung@redhat.com, horms@verge.net.au, vgoyal@redhat.com, yinghai@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, kexec@lists.infradead.org
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave.hansen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, X86 ML <x86@kernel.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux API <linux-api@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Linus Torvalds <torvalds@linux-foundation.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Arnd Bergmann <arnd@arndb.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>
 
-zhongjiang <zhongjiang@huawei.com> writes:
-
-> From: zhong jiang <zhongjiang@huawei.com>
+On Jul 11, 2016 8:48 AM, "Dave Hansen" <dave.hansen@intel.com> wrote:
 >
-> when image is loaded into kernel, we need set up page table for it. and 
-> all valid pfn also set up new mapping. it will tend to establish a pmd 
-> page table in the form of a large page if pud_present is true. relocate_kernel 
-> points to code segment can locate in the pmd huge entry in init_transtion_pgtable. 
-> therefore, we need to take the situation into account.
-
-I can see how in theory this might be necessary but when is a kernel virtual
-address on x86_64 that is above 0x8000000000000000 in conflict with an
-identity mapped physicall address that are all below 0x8000000000000000?
-
-If anything the code could be simplified to always assume those mappings
-are unoccupied.
-
-Did you run into an actual failure somewhere?
-
-Eric
-
-
-> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
-> ---
->  arch/x86/kernel/machine_kexec_64.c | 20 ++++++++++++++++++--
->  1 file changed, 18 insertions(+), 2 deletions(-)
+> On 07/11/2016 07:45 AM, Andy Lutomirski wrote:
+> > On Mon, Jul 11, 2016 at 7:34 AM, Dave Hansen <dave@sr71.net> wrote:
+> >> Should we instead just recommend to userspace that they lock down access
+> >> to keys by default in all threads as a best practice?
+> >
+> > Is that really better than doing it in-kernel?  My concern is that
+> > we'll find library code that creates a thread, and that code could run
+> > before the pkey-aware part of the program even starts running.
 >
-> diff --git a/arch/x86/kernel/machine_kexec_64.c b/arch/x86/kernel/machine_kexec_64.c
-> index 5a294e4..c33e344 100644
-> --- a/arch/x86/kernel/machine_kexec_64.c
-> +++ b/arch/x86/kernel/machine_kexec_64.c
-> @@ -14,6 +14,7 @@
->  #include <linux/gfp.h>
->  #include <linux/reboot.h>
->  #include <linux/numa.h>
-> +#include <linux/hugetlb.h>
->  #include <linux/ftrace.h>
->  #include <linux/io.h>
->  #include <linux/suspend.h>
-> @@ -34,6 +35,17 @@ static struct kexec_file_ops *kexec_file_loaders[] = {
->  };
->  #endif
->  
-> +static void split_pmd(pmd_t *pmd, pte_t *pte)
-> +{
-> +	unsigned long pfn = pmd_pfn(*pmd);
-> +	int i = 0;
-> +
-> +	do {
-> +		set_pte(pte, pfn_pte(pfn, PAGE_KERNEL_EXEC));
-> +		pfn++;
-> +	} while (pte++, i++, i < PTRS_PER_PTE);
-> +}
-> +
->  static void free_transition_pgtable(struct kimage *image)
->  {
->  	free_page((unsigned long)image->arch.pud);
-> @@ -68,15 +80,19 @@ static int init_transition_pgtable(struct kimage *image, pgd_t *pgd)
->  		set_pud(pud, __pud(__pa(pmd) | _KERNPG_TABLE));
->  	}
->  	pmd = pmd_offset(pud, vaddr);
-> -	if (!pmd_present(*pmd)) {
-> +	if (!pmd_present(*pmd) || pmd_huge(*pmd)) {
->  		pte = (pte_t *)get_zeroed_page(GFP_KERNEL);
->  		if (!pte)
->  			goto err;
->  		image->arch.pte = pte;
-> -		set_pmd(pmd, __pmd(__pa(pte) | _KERNPG_TABLE));
-> +		if (pmd_huge(*pmd))
-> +			split_pmd(pmd, pte);
-> +		else
-> +			set_pmd(pmd, __pmd(__pa(pte) | _KERNPG_TABLE));
->  	}
->  	pte = pte_offset_kernel(pmd, vaddr);
->  	set_pte(pte, pfn_pte(paddr >> PAGE_SHIFT, PAGE_KERNEL_EXEC));
-> +
->  	return 0;
->  err:
->  	free_transition_pgtable(image);
+> Yeah, so let's assume we have some pkey-unaware thread.  The upside of a
+> scheme where the kernel preemptively (and transparently to the thread)
+> locks down PKRU is that the thread can't go corrupting any non-zero-pkey
+> structures that came from other threads.
+>
+> But, the downside is that the thread can not access any non-zero-pkey
+> structures without taking some kind of action with PKRU.  That obviously
+> won't happen since the thread is pkeys-unaware to begin with.  Would
+> that break these libraries unless everything using pkeys knows to only
+> share pkey=0 data with those threads?
+>
+
+Yes, but at least for the cases I can think of, that's probably a good
+thing.  OTOH, I can see cases where you want everyone to be able to
+read but only specific code paths to be able to write.
+
+I think it's more or less impossible to get sensible behavior passing
+pkey != 0 data to legacy functions.  If you call:
+
+void frob(struct foo *p);
+
+If frob in turn passes p to a thread, what PKRU is it supposed to use?
+
+> > So how is user code supposed lock down all of its threads?
+> >
+> > seccomp has TSYNC for this, but I don't think that PKRU allows
+> > something like that.
+>
+> I'm not sure this is possible for PKRU.  Think of a simple PKRU
+> manipulation in userspace:
+>
+>         pkru = rdpkru();
+>         pkru |= PKEY_DENY_ACCESS<<key*2;
+>         wrpkru(pkru);
+>
+> If we push a PKRU value into a thread between the rdpkru() and wrpkru(),
+> we'll lose the content of that "push".  I'm not sure there's any way to
+> guarantee this with a user-controlled register.
+
+We could try to insist that user code uses some vsyscall helper that
+tracks which bits are as-yet-unassigned.  That's quite messy, though.
+
+We could also arbitrarily partition the key space into
+initially-wide-open, initially-read-only, and initially-no-access and
+let pkey_alloc say which kind it wants.
+
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
