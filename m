@@ -1,86 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CDBF86B025F
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 11:52:06 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id l89so14548112lfi.3
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 08:52:06 -0700 (PDT)
-Received: from forwardcorp1h.cmail.yandex.net (forwardcorp1h.cmail.yandex.net. [2a02:6b8:0:f35::e5])
-        by mx.google.com with ESMTPS id p15si4473991lfp.301.2016.07.12.08.52.05
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B4E26B025F
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 11:58:58 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id qh10so34401733pac.2
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 08:58:58 -0700 (PDT)
+Received: from out03.mta.xmission.com (out03.mta.xmission.com. [166.70.13.233])
+        by mx.google.com with ESMTPS id e88si4021631pfj.182.2016.07.12.08.58.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Jul 2016 08:52:05 -0700 (PDT)
-Subject: Re: bug in memcg oom-killer results in a hung syscall in another
- process in the same cgroup
-References: <CABAubThf6gbi243BqYgoCjqRW36sXJuJ6e_8zAqzkYRiu0GVtQ@mail.gmail.com>
- <20160711064150.GB5284@dhcp22.suse.cz>
- <CABAubThHfngHTQW_AEuW71VCvLyD_9b5Z05tSud5bf8JKjuA9Q@mail.gmail.com>
- <CABAubTjGhUXMeAnFgW8LGck1tgvtu12Zb9fx5BRhDWNjZ7SYLQ@mail.gmail.com>
- <20160712071927.GD14586@dhcp22.suse.cz>
- <CABAubTg91qrUd4DO7T2SiJQBK9ypuhP0+F-091ZxtmonjaaYWg@mail.gmail.com>
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Message-ID: <57851224.2020902@yandex-team.ru>
-Date: Tue, 12 Jul 2016 18:52:04 +0300
+        Tue, 12 Jul 2016 08:58:57 -0700 (PDT)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <1468299403-27954-1-git-send-email-zhongjiang@huawei.com>
+	<1468299403-27954-2-git-send-email-zhongjiang@huawei.com>
+Date: Tue, 12 Jul 2016 10:46:17 -0500
+In-Reply-To: <1468299403-27954-2-git-send-email-zhongjiang@huawei.com>
+	(zhongjiang@huawei.com's message of "Tue, 12 Jul 2016 12:56:43 +0800")
+Message-ID: <87a8hm3lme.fsf@x220.int.ebiederm.org>
 MIME-Version: 1.0
-In-Reply-To: <CABAubTg91qrUd4DO7T2SiJQBK9ypuhP0+F-091ZxtmonjaaYWg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
+Subject: Re: [PATCH 2/2] kexec: add a pmd huge entry condition during the page table
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shayan Pooya <shayan@liveve.org>, Michal Hocko <mhocko@kernel.org>, koct9i@gmail.com
-Cc: cgroups mailinglist <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Oleg Nesterov <oleg@redhat.com>
+To: zhongjiang <zhongjiang@huawei.com>
+Cc: dyoung@redhat.com, horms@verge.net.au, vgoyal@redhat.com, yinghai@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, kexec@lists.infradead.org
 
-On 12.07.2016 18:35, Shayan Pooya wrote:
->>> With strace, when running 500 concurrent mem-hog tasks on the same
->>> kernel, 33 of them failed with:
->>>
->>> strace: ../sysdeps/nptl/fork.c:136: __libc_fork: Assertion
->>> `THREAD_GETMEM (self, tid) != ppid' failed.
->>>
->>> Which is: https://sourceware.org/bugzilla/show_bug.cgi?id=15392
->>> And discussed before at: https://lkml.org/lkml/2015/2/6/470 but that
->>> patch was not accepted.
->>
->> OK, so the problem is that the oom killed task doesn't report the futex
->> release properly? If yes then I fail to see how that is memcg specific.
->> Could you try to clarify what you consider a bug again, please? I am not
->> really sure I understand this report.
+zhongjiang <zhongjiang@huawei.com> writes:
+
+> From: zhong jiang <zhongjiang@huawei.com>
 >
-> It looks like it is just a very easy way to reproduce the problem that
-> Konstantin described in that lkml thread. That patch was not accepted
-> and I see no other fixes for that issue upstream. Here is a copy of
-> his root-cause analysis from said thread:
+> when image is loaded into kernel, we need set up page table for it. and 
+> all valid pfn also set up new mapping. it will tend to establish a pmd 
+> page table in the form of a large page if pud_present is true. relocate_kernel 
+> points to code segment can locate in the pmd huge entry in init_transtion_pgtable. 
+> therefore, we need to take the situation into account.
+
+I can see how in theory this might be necessary but when is a kernel virtual
+address on x86_64 that is above 0x8000000000000000 in conflict with an
+identity mapped physicall address that are all below 0x8000000000000000?
+
+If anything the code could be simplified to always assume those mappings
+are unoccupied.
+
+Did you run into an actual failure somewhere?
+
+Eric
+
+
+> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+> ---
+>  arch/x86/kernel/machine_kexec_64.c | 20 ++++++++++++++++++--
+>  1 file changed, 18 insertions(+), 2 deletions(-)
 >
-> Whole sequence looks like: task calls fork, glibc calls syscall clone with
-> CLONE_CHILD_SETTID and passes pointer to TLS THREAD_SELF->tid as argument.
-> Child task gets read-only copy of VM including TLS. Child calls put_user()
-> to handle CLONE_CHILD_SETTID from schedule_tail(). put_user() trigger page
-> fault and it fails because do_wp_page()  hits memcg limit without invoking
-> OOM-killer because this is page-fault from kernel-space.  Put_user returns
-> -EFAULT, which is ignored.  Child returns into user-space and catches here
-> assert (THREAD_GETMEM (self, tid) != ppid), glibc tries to print something
-> but hangs on deadlock on internal locks. Halt and catch fire.
->
->
-
-Yep. Bug still not fixed in upstream. In our kernel I've plugged it with this:
-
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -2808,8 +2808,9 @@ asmlinkage __visible void schedule_tail(struct task_struct *prev)
-         balance_callback(rq);
-         preempt_enable();
-
--       if (current->set_child_tid)
--               put_user(task_pid_vnr(current), current->set_child_tid);
-+       if (current->set_child_tid &&
-+           put_user(task_pid_vnr(current), current->set_child_tid))
-+               force_sig(SIGSEGV, current);
-  }
-
-Add Oleg into CC. IIRR he had some ideas how to fix this. =)
-
--- 
-Konstantin
+> diff --git a/arch/x86/kernel/machine_kexec_64.c b/arch/x86/kernel/machine_kexec_64.c
+> index 5a294e4..c33e344 100644
+> --- a/arch/x86/kernel/machine_kexec_64.c
+> +++ b/arch/x86/kernel/machine_kexec_64.c
+> @@ -14,6 +14,7 @@
+>  #include <linux/gfp.h>
+>  #include <linux/reboot.h>
+>  #include <linux/numa.h>
+> +#include <linux/hugetlb.h>
+>  #include <linux/ftrace.h>
+>  #include <linux/io.h>
+>  #include <linux/suspend.h>
+> @@ -34,6 +35,17 @@ static struct kexec_file_ops *kexec_file_loaders[] = {
+>  };
+>  #endif
+>  
+> +static void split_pmd(pmd_t *pmd, pte_t *pte)
+> +{
+> +	unsigned long pfn = pmd_pfn(*pmd);
+> +	int i = 0;
+> +
+> +	do {
+> +		set_pte(pte, pfn_pte(pfn, PAGE_KERNEL_EXEC));
+> +		pfn++;
+> +	} while (pte++, i++, i < PTRS_PER_PTE);
+> +}
+> +
+>  static void free_transition_pgtable(struct kimage *image)
+>  {
+>  	free_page((unsigned long)image->arch.pud);
+> @@ -68,15 +80,19 @@ static int init_transition_pgtable(struct kimage *image, pgd_t *pgd)
+>  		set_pud(pud, __pud(__pa(pmd) | _KERNPG_TABLE));
+>  	}
+>  	pmd = pmd_offset(pud, vaddr);
+> -	if (!pmd_present(*pmd)) {
+> +	if (!pmd_present(*pmd) || pmd_huge(*pmd)) {
+>  		pte = (pte_t *)get_zeroed_page(GFP_KERNEL);
+>  		if (!pte)
+>  			goto err;
+>  		image->arch.pte = pte;
+> -		set_pmd(pmd, __pmd(__pa(pte) | _KERNPG_TABLE));
+> +		if (pmd_huge(*pmd))
+> +			split_pmd(pmd, pte);
+> +		else
+> +			set_pmd(pmd, __pmd(__pa(pte) | _KERNPG_TABLE));
+>  	}
+>  	pte = pte_offset_kernel(pmd, vaddr);
+>  	set_pte(pte, pfn_pte(paddr >> PAGE_SHIFT, PAGE_KERNEL_EXEC));
+> +
+>  	return 0;
+>  err:
+>  	free_transition_pgtable(image);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
