@@ -1,86 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EECF26B0261
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 07:18:08 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id p41so9160836lfi.0
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 04:18:08 -0700 (PDT)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id f9si3926936wmg.96.2016.07.12.04.18.07
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FC236B025E
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 07:28:14 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id f126so11242547wma.3
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 04:28:14 -0700 (PDT)
+Received: from mail.ud19.udmedia.de (ud19.udmedia.de. [194.117.254.59])
+        by mx.google.com with ESMTPS id b131si19931682wmh.145.2016.07.12.04.28.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 12 Jul 2016 04:18:07 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id E352898CFB
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 11:18:06 +0000 (UTC)
-Date: Tue, 12 Jul 2016 12:18:05 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 02/34] mm, vmscan: move lru_lock to the node
-Message-ID: <20160712111805.GD9806@techsingularity.net>
-References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
- <1467970510-21195-3-git-send-email-mgorman@techsingularity.net>
- <20160712110604.GA5981@350D>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Jul 2016 04:28:12 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20160712110604.GA5981@350D>
+Content-Type: text/plain; charset=US-ASCII;
+ format=flowed
+Content-Transfer-Encoding: 7bit
+Date: Tue, 12 Jul 2016 13:28:12 +0200
+From: Matthias Dahl <ml_linux-kernel@binary-island.eu>
+Subject: Re: Page Allocation Failures/OOM with dm-crypt on software RAID10
+ (Intel Rapid Storage)
+In-Reply-To: <20160712095013.GA14591@dhcp22.suse.cz>
+References: <02580b0a303da26b669b4a9892624b13@mail.ud19.udmedia.de>
+ <20160712095013.GA14591@dhcp22.suse.cz>
+Message-ID: <d9dbe0328e938eb7544fdb2aa8b5a9c7@mail.ud19.udmedia.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-raid@vger.kernel.org, linux-mm@kvack.org, dm-devel@redhat.com, linux-kernel@vger.kernel.org
 
-On Tue, Jul 12, 2016 at 09:06:04PM +1000, Balbir Singh wrote:
-> > diff --git a/Documentation/cgroup-v1/memory.txt b/Documentation/cgroup-v1/memory.txt
-> > index b14abf217239..946e69103cdd 100644
-> > --- a/Documentation/cgroup-v1/memory.txt
-> > +++ b/Documentation/cgroup-v1/memory.txt
-> > @@ -267,11 +267,11 @@ When oom event notifier is registered, event will be delivered.
-> >     Other lock order is following:
-> >     PG_locked.
-> >     mm->page_table_lock
-> > -       zone->lru_lock
-> > +       zone_lru_lock
-> 
-> zone_lru_lock is a little confusing, can't we just call it
-> node_lru_lock?
-> 
+Hello Michal...
 
-It's a matter of perspective. People familiar with the VM already expect
-a zone lock so will be looking for it. I can do a rename if you insist
-but it may not actually help.
+On 2016-07-12 11:50, Michal Hocko wrote:
 
-> > @@ -496,7 +496,6 @@ struct zone {
-> >  	/* Write-intensive fields used by page reclaim */
-> >  
-> >  	/* Fields commonly accessed by the page reclaim scanner */
-> > -	spinlock_t		lru_lock;
-> >  	struct lruvec		lruvec;
-> >  
-> >  	/*
-> > @@ -690,6 +689,9 @@ typedef struct pglist_data {
-> >  	/* Number of pages migrated during the rate limiting time interval */
-> >  	unsigned long numabalancing_migrate_nr_pages;
-> >  #endif
-> > +	/* Write-intensive fields used by page reclaim */
-> > +	ZONE_PADDING(_pad1_)a
-> 
-> I thought this was to have zone->lock and zone->lru_lock in different
-> cachelines, do we still need the padding here?
-> 
+> This smells like file pages are stuck in the writeback somewhere and 
+> the
+> anon memory is not reclaimable because you do not have any swap device.
 
-The zone padding current keeps the page lock wait tables, page allocator
-lists, compaction and vmstats on separate cache lines. They're still
-fine.
+Not having a swap device shouldn't be a problem -- and in this case, it
+would cause even more trouble as in disk i/o.
 
-The node padding may not be necessary. It currently ensures that zonelists
-and numa balancing are separate from the LRU lock but there is no guarantee
-the current arrangement is optimal. It would depend on both the kernel
-config and the workload but it may be necessary in the future to split
-node into read-mostly sections and then different write-intensive sections
-similar to what has happened to struct zone in the past.
+What could cause the file pages to get stuck or stopped from being 
+written
+to the disk? And more importantly, what is so unique/special about the
+Intel Rapid Storage that it happens (seemingly) exclusively with that
+and not the the normal Linux s/w raid support?
+
+Also, if the pages are not written to disk, shouldn't something error
+out or slow dd down? Obviously dd is capable of copying zeros a lot
+faster than they could ever be written to disk -- and still, it works
+just fine without dm-crypt in-between. It is only when dm-crypt /is/
+involved, that the memory gets filled up and things get out of control.
+
+Thanks,
+Matthias
 
 -- 
-Mel Gorman
-SUSE Labs
+Dipl.-Inf. (FH) Matthias Dahl | Software Engineer | binary-island.eu
+  services: custom software [desktop, mobile, web], server administration
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
