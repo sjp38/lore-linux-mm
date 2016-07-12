@@ -1,66 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 414096B0261
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 02:49:08 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id o80so6234436wme.1
-        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 23:49:08 -0700 (PDT)
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com. [74.125.82.41])
-        by mx.google.com with ESMTPS id i196si3204910wmg.24.2016.07.11.23.49.06
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E9686B0262
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 03:09:07 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id 33so4090254lfw.1
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 00:09:07 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 19si1652412wmv.99.2016.07.12.00.09.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jul 2016 23:49:06 -0700 (PDT)
-Received: by mail-wm0-f41.google.com with SMTP id i5so11370019wmg.0
-        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 23:49:06 -0700 (PDT)
-Date: Tue, 12 Jul 2016 08:49:05 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: System freezes after OOM
-Message-ID: <20160712064905.GA14586@dhcp22.suse.cz>
-References: <57837CEE.1010609@redhat.com>
- <f80dc690-7e71-26b2-59a2-5a1557d26713@redhat.com>
- <9be09452-de7f-d8be-fd5d-4a80d1cd1ba3@redhat.com>
- <alpine.LRH.2.02.1607111027080.14327@file01.intranet.prod.int.rdu2.redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 12 Jul 2016 00:09:05 -0700 (PDT)
+Date: Tue, 12 Jul 2016 09:09:04 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 3/6] mm,oom: Use list of mm_struct used by OOM victims.
+Message-ID: <20160712070903.GB14586@dhcp22.suse.cz>
+References: <201607080058.BFI87504.JtFOOFQFVHSLOM@I-love.SAKURA.ne.jp>
+ <201607080103.CDH12401.LFOHStQFOOFVJM@I-love.SAKURA.ne.jp>
+ <20160711125051.GF1811@dhcp22.suse.cz>
+ <201607121500.AGE04699.FFQOFHVSOtOLMJ@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1607111027080.14327@file01.intranet.prod.int.rdu2.redhat.com>
+In-Reply-To: <201607121500.AGE04699.FFQOFHVSOtOLMJ@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Ondrej Kozina <okozina@redhat.com>, Jerome Marchand <jmarchan@redhat.com>, Stanislav Kozina <skozina@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, oleg@redhat.com, rientjes@google.com, vdavydov@parallels.com, mst@redhat.com
 
-On Mon 11-07-16 11:43:02, Mikulas Patocka wrote:
-[...]
-> The general problem is that the memory allocator does 16 retries to 
-> allocate a page and then triggers the OOM killer (and it doesn't take into 
-> account how much swap space is free or how many dirty pages were really 
-> swapped out while it waited).
-
-Well, that is not how it works exactly. We retry as long as there is a
-reclaim progress (at least one page freed) back off only if the
-reclaimable memory can exceed watermks which is scaled down in 16
-retries. The overal size of free swap is not really that important if we
-cannot swap out like here due to complete memory reserves depletion:
-https://okozina.fedorapeople.org/bugs/swap_on_dmcrypt/vmlog-1462458369-00000/sample-00011/dmesg:
-[   90.491276] Node 0 DMA free:0kB min:60kB low:72kB high:84kB active_anon:4096kB inactive_anon:4636kB active_file:212kB inactive_file:280kB unevictable:488kB isolated(anon):0kB isolated(file):0kB present:15992kB managed:15908kB mlocked:488kB dirty:276kB writeback:4636kB mapped:476kB shmem:12kB slab_reclaimable:204kB slab_unreclaimable:4700kB kernel_stack:48kB pagetables:120kB unstable:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:61132 all_unreclaimable? yes
-[   90.491283] lowmem_reserve[]: 0 977 977 977
-[   90.491286] Node 0 DMA32 free:0kB min:3828kB low:4824kB high:5820kB active_anon:423820kB inactive_anon:424916kB active_file:17996kB inactive_file:21800kB unevictable:20724kB isolated(anon):384kB isolated(file):0kB present:1032184kB managed:1001260kB mlocked:20724kB dirty:25236kB writeback:49972kB mapped:23076kB shmem:1364kB slab_reclaimable:13796kB slab_unreclaimable:43008kB kernel_stack:2816kB pagetables:7320kB unstable:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:5635400 all_unreclaimable? yes
-
-Look at the amount of free memory. It is completely depleted. So it
-smells like a process which has access to memory reserves has consumed
-all of it. I suspect a __GFP_MEMALLOC resp. PF_MEMALLOC from softirq
-context user which went off the leash.
-
-> So, it could prematurely trigger OOM killer on any slow swapping device 
-> (including dm-crypt). Michal Hocko reworked the OOM killer in the patch 
-> 0a0337e0d1d134465778a16f5cbea95086e8e9e0, but it still has the flaw that 
-> it triggers OOM if there is plenty of free swap space free.
+On Tue 12-07-16 15:00:41, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > > diff --git a/kernel/fork.c b/kernel/fork.c
+> > > index 7926993..8e469e0 100644
+> > > --- a/kernel/fork.c
+> > > +++ b/kernel/fork.c
+> > > @@ -722,6 +722,10 @@ static inline void __mmput(struct mm_struct *mm)
+> > >  	}
+> > >  	if (mm->binfmt)
+> > >  		module_put(mm->binfmt->module);
+> > > +#ifndef CONFIG_MMU
+> > > +	if (mm->oom_mm.victim)
+> > > +		exit_oom_mm(mm);
+> > > +#endif
+> > 
+> > This ifdef is not really needed. There is no reason we should wait for
+> > the oom_reaper to unlink the mm.
 > 
-> Michal, would you accept a change to the OOM killer, to prevent it from 
-> triggerring when there is free swap space?
+> Oleg wanted to avoid adding OOM related hooks if possible
+> ( http://lkml.kernel.org/r/20160705205231.GA25340@redhat.com ),
+> but I thought that calling exit_oom_mm() from here is better for CONFIG_MMU=n case
+> ( http://lkml.kernel.org/r/201607062043.FEC86485.JFFVLtFOQOSHMO@I-love.SAKURA.ne.jp ).
 
-No this doesn't sound like a proper solution. The current decision
-logic, as explained above relies on the feedback from the reclaim. A
-free swap space doesn't really mean we can make a forward progress.
+__mmput is a MM part of the exit path so I think sticking oom related
+things there is not harmful. Yes we do take a global lock (btw. the lock
+contention could be reduced if you preserve the existing spinlock and
+use it for enqueing. Besides that the ifdef is really ugly.
+
+> I think that not calling exit_oom_mm() from here is better for CONFIG_MMU=y case.
+> Calling exit_oom_mm() from here will require !list_empty() check after holding
+> oom_lock at oom_reaper(). Instead, we can do
+> 
+> +#ifdef CONFIG_MMU
+> +	if (mm->oom_mm.victim)
+> +		set_bit(MMF_OOM_REAPED, &mm->flags);
+> +#else
+> +	if (mm->oom_mm.victim)
+> +		exit_oom_mm(mm);
+> +#endif
+> 
+> here and let oom_has_pending_mm() check for MMF_OOM_REAPED.
+
+Yes that would be possible but why should we make this more complicated
+than necessary. It is natural that exit_oom_mm is called after the
+address space has been torn down. This would be the most common path.
+We have oom_reaper as a backup if this doesn't happen in time. It really
+doesn't make much sense to keep mm on the list artificially if the
+oom_reaper should just skip over it because it is already empty.
+So please let's make it as simple as possible.
+
+[...]
+> > > @@ -653,6 +657,9 @@ subsys_initcall(oom_init)
+> > >   */
+> > >  void mark_oom_victim(struct task_struct *tsk)
+> > >  {
+> > > +	struct mm_struct *mm = tsk->mm;
+> > > +	struct task_struct *old_tsk = mm->oom_mm.victim;
+> > > +
+> > >  	WARN_ON(oom_killer_disabled);
+> > >  	/* OOM killer might race with memcg OOM */
+> > >  	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
+> > > @@ -666,6 +673,18 @@ void mark_oom_victim(struct task_struct *tsk)
+> > >  	 */
+> > >  	__thaw_task(tsk);
+> > >  	atomic_inc(&oom_victims);
+> > > +	/*
+> > > +	 * Since mark_oom_victim() is called from multiple threads,
+> > > +	 * connect this mm to oom_mm_list only if not yet connected.
+> > > +	 */
+> > > +	get_task_struct(tsk);
+> > > +	mm->oom_mm.victim = tsk;
+> > > +	if (!old_tsk) {
+> > > +		atomic_inc(&mm->mm_count);
+> > > +		list_add_tail(&mm->oom_mm.list, &oom_mm_list);
+> > > +	} else {
+> > > +		put_task_struct(old_tsk);
+> > > +	}
+> > 
+> > Isn't this overcomplicated? Why do we need to replace the old task by
+> > the current one?
+> 
+> I'm not sure whether task_in_oom_domain(mm->oom_mm.victim, memcg, nodemask) in
+> oom_has_pending_mm() will work as expected, especially when all threads in
+> one thread group (which mm->oom_mm.victim belongs to) reached TASK_DEAD state.
+> ( http://lkml.kernel.org/r/201607042150.CIB00512.FSOtMHLOOVFFQJ@I-love.SAKURA.ne.jp )
+> 
+> I guess that task_in_oom_domain() will return false, and that mm will be selected
+> by another thread group (which mm->oom_mm.victim does not belongs to). Therefore,
+> I think we need to replace the old task with the new task (at least when
+> task_in_oom_domain() returned false) at mark_oom_victim().
+
+Can we do that in a separate patch then. It would make this patch easier
+to review and we can discuss about this corner case without distracting
+from the main point of this patch series.
+
+> If task_in_oom_domain(mm->oom_mm.victim, memcg, nodemask) in oom_has_pending_mm()
+> does not work as expected even if we replace the old task with the new task at
+> mark_oom_victim(), I think we after all need to use something like
+> 
+> struct task_struct {
+> (...snipped...)
+> +	struct mm_struct *oom_mm; /* current->mm as of getting TIF_MEMDIE */
+> +	struct task_struct *oom_mm_list; /* Connected to oom_mm_list global list. */
+> -#ifdef CONFIG_MMU
+> -	struct task_struct *oom_reaper_list;
+> -#endif
+> (...snipped...)
+> };
+> 
+> or your signal_struct->oom_mm approach.
+
 -- 
 Michal Hocko
 SUSE Labs
