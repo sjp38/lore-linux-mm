@@ -1,70 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 877A56B025F
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 11:11:49 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id o80so15886410wme.1
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 08:11:49 -0700 (PDT)
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FC916B0005
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 11:15:42 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id 33so13204476lfw.1
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 08:15:42 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id o82si3969270wmd.89.2016.07.12.08.11.47
+        by mx.google.com with ESMTPS id h25si21162907wmi.28.2016.07.12.08.15.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Jul 2016 08:11:47 -0700 (PDT)
-Date: Tue, 12 Jul 2016 11:11:39 -0400
+        Tue, 12 Jul 2016 08:15:41 -0700 (PDT)
+Date: Tue, 12 Jul 2016 11:15:37 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 19/34] mm: move most file-based accounting to the node
-Message-ID: <20160712151139.GK5881@cmpxchg.org>
+Subject: Re: [PATCH 20/34] mm: move vmscan writes and file write accounting
+ to the node
+Message-ID: <20160712151537.GL5881@cmpxchg.org>
 References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
- <1467970510-21195-20-git-send-email-mgorman@techsingularity.net>
+ <1467970510-21195-21-git-send-email-mgorman@techsingularity.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1467970510-21195-20-git-send-email-mgorman@techsingularity.net>
+In-Reply-To: <1467970510-21195-21-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@techsingularity.net>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Jul 08, 2016 at 10:34:55AM +0100, Mel Gorman wrote:
-> There are now a number of accounting oddities such as mapped file pages
-> being accounted for on the node while the total number of file pages are
-> accounted on the zone. This can be coped with to some extent but it's
-> confusing so this patch moves the relevant file-based accounted. Due to
-> throttling logic in the page allocator for reliable OOM detection, it is
-> still necessary to track dirty and writeback pages on a per-zone basis.
+On Fri, Jul 08, 2016 at 10:34:56AM +0100, Mel Gorman wrote:
+> As reclaim is now node-based, it follows that page write activity due to
+> page reclaim should also be accounted for on the node.  For consistency,
+> also account page writes and page dirtying on a per-node basis.
+> 
+> After this patch, there are a few remaining zone counters that may appear
+> strange but are fine.  NUMA stats are still per-zone as this is a
+> user-space interface that tools consume.  NR_MLOCK, NR_SLAB_*,
+> NR_PAGETABLE, NR_KERNEL_STACK and NR_BOUNCE are all allocations that
+> potentially pin low memory and cannot trivially be reclaimed on demand.
+> This information is still useful for debugging a page allocation failure
+> warning.
 > 
 > Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 > Acked-by: Vlastimil Babka <vbabka@suse.cz>
 > Acked-by: Michal Hocko <mhocko@suse.com>
 
-The straight conversion bits are mind-numbing to review, so I focussed
-mostly on the NR_ZONE_WRITE_PENDING sites. They look good to me except
-for the migration one:
+More conversion... ;) FWIW, I didn't spot anything problematic. And
+agreed with leaving unmovable stuff counters on a per-zone basis.
 
-> @@ -505,15 +505,17 @@ int migrate_page_move_mapping(struct address_space *mapping,
->  	 * are mapped to swap space.
->  	 */
->  	if (newzone != oldzone) {
-> -		__dec_zone_state(oldzone, NR_FILE_PAGES);
-> -		__inc_zone_state(newzone, NR_FILE_PAGES);
-> +		__dec_node_state(oldzone->zone_pgdat, NR_FILE_PAGES);
-> +		__inc_node_state(newzone->zone_pgdat, NR_FILE_PAGES);
->  		if (PageSwapBacked(page) && !PageSwapCache(page)) {
-> -			__dec_zone_state(oldzone, NR_SHMEM);
-> -			__inc_zone_state(newzone, NR_SHMEM);
-> +			__dec_node_state(oldzone->zone_pgdat, NR_SHMEM);
-> +			__inc_node_state(newzone->zone_pgdat, NR_SHMEM);
->  		}
->  		if (dirty && mapping_cap_account_dirty(mapping)) {
-> -			__dec_zone_state(oldzone, NR_FILE_DIRTY);
-> -			__inc_zone_state(newzone, NR_FILE_DIRTY);
-> +			__dec_node_state(oldzone->zone_pgdat, NR_FILE_DIRTY);
-> +			__dec_zone_state(oldzone, NR_ZONE_WRITE_PENDING);
-> +			__inc_node_state(newzone->zone_pgdat, NR_FILE_DIRTY);
-> +			__dec_zone_state(newzone, NR_ZONE_WRITE_PENDING);
-
-That double dec of NR_ZONE_WRITE_PENDING should be dec(old) -> inc(new).
-
-Otherwise, the patch looks good to me.
 Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
