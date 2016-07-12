@@ -1,98 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F1B5A6B0005
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 13:12:01 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id q2so38188674pap.1
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 10:12:01 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id x190si1453983pfd.105.2016.07.12.10.12.01
-        for <linux-mm@kvack.org>;
-        Tue, 12 Jul 2016 10:12:01 -0700 (PDT)
-Subject: Re: [PATCH 6/9] x86, pkeys: add pkey set/get syscalls
-References: <20160707124719.3F04C882@viggo.jf.intel.com>
- <20160707124728.C1116BB1@viggo.jf.intel.com>
- <20160707144508.GZ11498@techsingularity.net> <577E924C.6010406@sr71.net>
- <20160708071810.GA27457@gmail.com> <577FD587.6050101@sr71.net>
- <20160709083715.GA29939@gmail.com>
- <CALCETrXJhVz6Za4=oidiM2Vfbb+XdggFBYiVyvOCcia+w064aQ@mail.gmail.com>
- <5783AE8F.3@sr71.net>
- <CALCETrW1qLZE_cq1CvmLkdnFyKRWVZuah29xERTC7o0eZ8DbwQ@mail.gmail.com>
- <5783BFB0.70203@intel.com>
- <CALCETrUZeZ00sFrTEqWSB-OxkCzGQxknmPTvFe4bv5mKc3hE+Q@mail.gmail.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <578524E0.6080401@intel.com>
-Date: Tue, 12 Jul 2016 10:12:00 -0700
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 32BEE6B0005
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 13:15:17 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id g18so15990467lfg.2
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 10:15:17 -0700 (PDT)
+Received: from mail-wm0-x235.google.com (mail-wm0-x235.google.com. [2a00:1450:400c:c09::235])
+        by mx.google.com with ESMTPS id r22si21818014wme.34.2016.07.12.10.15.15
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Jul 2016 10:15:15 -0700 (PDT)
+Received: by mail-wm0-x235.google.com with SMTP id i5so34030615wmg.0
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 10:15:15 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CALCETrUZeZ00sFrTEqWSB-OxkCzGQxknmPTvFe4bv5mKc3hE+Q@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20160712133942.GA28837@redhat.com>
+References: <1468014494-25291-1-git-send-email-keescook@chromium.org>
+ <1468014494-25291-3-git-send-email-keescook@chromium.org> <20160711122826.GA969@redhat.com>
+ <CAGXu5j+efUrhOTikpuYK0V8Eqv58f5rQBMOYDqiVM-JWrqRbLA@mail.gmail.com> <20160712133942.GA28837@redhat.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Tue, 12 Jul 2016 13:15:14 -0400
+Message-ID: <CAGXu5j+oZ49K0omm-7yMsR_kFYD-DQcYG8f+urS+TumzFYXR_w@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm: refuse wrapped vm_brk requests
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave.hansen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, X86 ML <x86@kernel.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux API <linux-api@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Linus Torvalds <torvalds@linux-foundation.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Arnd Bergmann <arnd@arndb.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hector Marco-Gisbert <hecmargi@upv.es>, Ismael Ripoll Ripoll <iripoll@upv.es>, Alexander Viro <viro@zeniv.linux.org.uk>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Chen Gang <gang.chen.5i5j@gmail.com>, Michal Hocko <mhocko@suse.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 07/12/2016 09:32 AM, Andy Lutomirski wrote:
-> I think it's more or less impossible to get sensible behavior passing
-> pkey != 0 data to legacy functions.  If you call:
-> 
-> void frob(struct foo *p);
-> 
-> If frob in turn passes p to a thread, what PKRU is it supposed to use?
-
-The thread inheritance of PKRU can be nice.  It actually gives things a
-good chance of working if you can control PKRU before clone().  I'd
-describe the semantics like this:
-
-	PKRU values are inherited at the time of a clone() system
-	call.  Threads unaware of protection keys may work on
-	protection-key-protected data as long as PKRU is set up in
-	advance of the clone() and never needs to be changed inside the
-	thread.
-
-	If a thread is created before PKRU is set appropriately, the
-	thread may not be able to act on protection-key-protected data.
-
-Otherwise, the semantics are simpler, but they basically give threads no
-chance of ever working:
-
-	Threads unaware of protection keys and which can not manage
-	PKRU may not operate on data where a non-zero key has been
-	passed to pkey_mprotect().
-
-It isn't clear to me that one of these is substantially better than the
-other.  It's fairly easy in either case for an app that cares to get the
-behavior of the other.
-
-But, one is clearly easier to implement in the kernel. :)
-
->>> So how is user code supposed lock down all of its threads?
->>>
->>> seccomp has TSYNC for this, but I don't think that PKRU allows
->>> something like that.
+On Tue, Jul 12, 2016 at 9:39 AM, Oleg Nesterov <oleg@redhat.com> wrote:
+> On 07/11, Kees Cook wrote:
 >>
->> I'm not sure this is possible for PKRU.  Think of a simple PKRU
->> manipulation in userspace:
+>> On Mon, Jul 11, 2016 at 8:28 AM, Oleg Nesterov <oleg@redhat.com> wrote:
+>> >
+>> > and thus this patch fixes the error code returned by do_brk() in case
+>> > of overflow, now it returns -ENOMEM rather than zero. Perhaps
+>> >
+>> >         if (!len)
+>> >                 return 0;
+>> >         len = PAGE_ALIGN(len);
+>> >         if (!len)
+>> >                 return -ENOMEM;
+>> >
+>> > would be more clear but this is subjective.
 >>
->>         pkru = rdpkru();
->>         pkru |= PKEY_DENY_ACCESS<<key*2;
->>         wrpkru(pkru);
+>> I'm fine either way.
+>
+> Me too, so feel free to ignore,
+>
+>> > I am wondering if we should shift this overflow check to the caller(s).
+>> > Say, sys_brk() does find_vma_intersection(mm, oldbrk, newbrk+PAGE_SIZE)
+>> > before do_brk(), and in case of overflow find_vma_intersection() can
+>> > wrongly return NULL.
+>> >
+>> > Then do_brk() will be called with len = -oldbrk, this can overflow or
+>> > not but in any case this doesn't look right too.
+>> >
+>> > Or I am totally confused?
 >>
->> If we push a PKRU value into a thread between the rdpkru() and wrpkru(),
->> we'll lose the content of that "push".  I'm not sure there's any way to
->> guarantee this with a user-controlled register.
-> 
-> We could try to insist that user code uses some vsyscall helper that
-> tracks which bits are as-yet-unassigned.  That's quite messy, though.
+>> I think the callers shouldn't request a negative value, sure, but
+>> vm_brk should notice and refuse it.
+>
+> Not sure I understand...
+>
+> I tried to say that, with or without this change, sys_brk() should check
+> for overflow too, otherwise it looks buggy.
 
-Yeah, doable, but not without some new data going out to userspace, plus
-the vsyscall code itself.
+Hmm, it's not clear to me the right way to fix sys_brk(), but it looks
+like my change to do_brk() would catch the problem?
 
-> We could also arbitrarily partition the key space into
-> initially-wide-open, initially-read-only, and initially-no-access and
-> let pkey_alloc say which kind it wants.
+-Kees
 
-The point is still that wrpkru destroyed the 'push' operation.  You
-always end up with a PKRU that (at least temporarily) ignored the 'push'.
+-- 
+Kees Cook
+Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
