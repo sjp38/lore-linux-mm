@@ -1,309 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E5B2A6B0260
-	for <linux-mm@kvack.org>; Mon, 11 Jul 2016 23:05:04 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id q83so11402235iod.2
-        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 20:05:04 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id 126si635290itu.32.2016.07.11.20.05.04
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AD7926B0253
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 01:02:02 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id g8so14984084itb.2
+        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 22:02:02 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id z136si1025437itc.1.2016.07.11.22.02.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Jul 2016 20:05:04 -0700 (PDT)
-From: Sasha Levin <sasha.levin@oracle.com>
-Subject: [added to the 3.18 stable tree] x86/mm/kmmio: Fix mmiotrace for hugepages
-Date: Mon, 11 Jul 2016 23:00:01 -0400
-Message-Id: <1468292479-23684-149-git-send-email-sasha.levin@oracle.com>
-In-Reply-To: <1468292479-23684-1-git-send-email-sasha.levin@oracle.com>
-References: <1468292479-23684-1-git-send-email-sasha.levin@oracle.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 11 Jul 2016 22:02:01 -0700 (PDT)
+From: zhongjiang <zhongjiang@huawei.com>
+Subject: [PATCH 2/2] kexec: add a pmd huge entry condition during the page table
+Date: Tue, 12 Jul 2016 12:56:43 +0800
+Message-ID: <1468299403-27954-2-git-send-email-zhongjiang@huawei.com>
+In-Reply-To: <1468299403-27954-1-git-send-email-zhongjiang@huawei.com>
+References: <1468299403-27954-1-git-send-email-zhongjiang@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: stable@vger.kernel.org, stable-commits@vger.kernel.org
-Cc: Karol Herbst <nouveau@karolherbst.de>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, "Luis R. Rodriguez" <mcgrof@suse.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Toshi Kani <toshi.kani@hp.com>, linux-mm@kvack.org, linux-x86_64@vger.kernel.org, nouveau@lists.freedesktop.org, pq@iki.fi, rostedt@goodmis.org, Ingo Molnar <mingo@kernel.org>, Sasha Levin <sasha.levin@oracle.com>
+To: ebiederm@xmission.com, dyoung@redhat.com, horms@verge.net.au, vgoyal@redhat.com, yinghai@kernel.org, akpm@linux-foundation.org
+Cc: kexec@lists.infradead.org, linux-mm@kvack.org
 
-From: Karol Herbst <nouveau@karolherbst.de>
+From: zhong jiang <zhongjiang@huawei.com>
 
-This patch has been added to the 3.18 stable tree. If you have any
-objections, please let us know.
+when image is loaded into kernel, we need set up page table for it. and 
+all valid pfn also set up new mapping. it will tend to establish a pmd 
+page table in the form of a large page if pud_present is true. relocate_kernel 
+points to code segment can locate in the pmd huge entry in init_transtion_pgtable. 
+therefore, we need to take the situation into account.
 
-===============
-
-[ Upstream commit cfa52c0cfa4d727aa3e457bf29aeff296c528a08 ]
-
-Because Linux might use bigger pages than the 4K pages to handle those mmio
-ioremaps, the kmmio code shouldn't rely on the pade id as it currently does.
-
-Using the memory address instead of the page id lets us look up how big the
-page is and what its base address is, so that we won't get a page fault
-within the same page twice anymore.
-
-Tested-by: Pierre Moreau <pierre.morrow@free.fr>
-Signed-off-by: Karol Herbst <nouveau@karolherbst.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Luis R. Rodriguez <mcgrof@suse.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Toshi Kani <toshi.kani@hp.com>
-Cc: linux-mm@kvack.org
-Cc: linux-x86_64@vger.kernel.org
-Cc: nouveau@lists.freedesktop.org
-Cc: pq@iki.fi
-Cc: rostedt@goodmis.org
-Link: http://lkml.kernel.org/r/1456966991-6861-1-git-send-email-nouveau@karolherbst.de
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
+Signed-off-by: zhong jiang <zhongjiang@huawei.com>
 ---
- arch/x86/mm/kmmio.c | 88 +++++++++++++++++++++++++++++++++++------------------
- 1 file changed, 59 insertions(+), 29 deletions(-)
+ arch/x86/kernel/machine_kexec_64.c | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)
 
-diff --git a/arch/x86/mm/kmmio.c b/arch/x86/mm/kmmio.c
-index 637ab34..ddb2244 100644
---- a/arch/x86/mm/kmmio.c
-+++ b/arch/x86/mm/kmmio.c
-@@ -33,7 +33,7 @@
- struct kmmio_fault_page {
- 	struct list_head list;
- 	struct kmmio_fault_page *release_next;
--	unsigned long page; /* location of the fault page */
-+	unsigned long addr; /* the requested address */
- 	pteval_t old_presence; /* page presence prior to arming */
- 	bool armed;
+diff --git a/arch/x86/kernel/machine_kexec_64.c b/arch/x86/kernel/machine_kexec_64.c
+index 5a294e4..c33e344 100644
+--- a/arch/x86/kernel/machine_kexec_64.c
++++ b/arch/x86/kernel/machine_kexec_64.c
+@@ -14,6 +14,7 @@
+ #include <linux/gfp.h>
+ #include <linux/reboot.h>
+ #include <linux/numa.h>
++#include <linux/hugetlb.h>
+ #include <linux/ftrace.h>
+ #include <linux/io.h>
+ #include <linux/suspend.h>
+@@ -34,6 +35,17 @@ static struct kexec_file_ops *kexec_file_loaders[] = {
+ };
+ #endif
  
-@@ -70,9 +70,16 @@ unsigned int kmmio_count;
- static struct list_head kmmio_page_table[KMMIO_PAGE_TABLE_SIZE];
- static LIST_HEAD(kmmio_probes);
- 
--static struct list_head *kmmio_page_list(unsigned long page)
-+static struct list_head *kmmio_page_list(unsigned long addr)
- {
--	return &kmmio_page_table[hash_long(page, KMMIO_PAGE_HASH_BITS)];
-+	unsigned int l;
-+	pte_t *pte = lookup_address(addr, &l);
++static void split_pmd(pmd_t *pmd, pte_t *pte)
++{
++	unsigned long pfn = pmd_pfn(*pmd);
++	int i = 0;
 +
-+	if (!pte)
-+		return NULL;
-+	addr &= page_level_mask(l);
++	do {
++		set_pte(pte, pfn_pte(pfn, PAGE_KERNEL_EXEC));
++		pfn++;
++	} while (pte++, i++, i < PTRS_PER_PTE);
++}
 +
-+	return &kmmio_page_table[hash_long(addr, KMMIO_PAGE_HASH_BITS)];
- }
- 
- /* Accessed per-cpu */
-@@ -98,15 +105,19 @@ static struct kmmio_probe *get_kmmio_probe(unsigned long addr)
- }
- 
- /* You must be holding RCU read lock. */
--static struct kmmio_fault_page *get_kmmio_fault_page(unsigned long page)
-+static struct kmmio_fault_page *get_kmmio_fault_page(unsigned long addr)
+ static void free_transition_pgtable(struct kimage *image)
  {
- 	struct list_head *head;
- 	struct kmmio_fault_page *f;
-+	unsigned int l;
-+	pte_t *pte = lookup_address(addr, &l);
- 
--	page &= PAGE_MASK;
--	head = kmmio_page_list(page);
-+	if (!pte)
-+		return NULL;
-+	addr &= page_level_mask(l);
-+	head = kmmio_page_list(addr);
- 	list_for_each_entry_rcu(f, head, list) {
--		if (f->page == page)
-+		if (f->addr == addr)
- 			return f;
+ 	free_page((unsigned long)image->arch.pud);
+@@ -68,15 +80,19 @@ static int init_transition_pgtable(struct kimage *image, pgd_t *pgd)
+ 		set_pud(pud, __pud(__pa(pmd) | _KERNPG_TABLE));
  	}
- 	return NULL;
-@@ -137,10 +148,10 @@ static void clear_pte_presence(pte_t *pte, bool clear, pteval_t *old)
- static int clear_page_presence(struct kmmio_fault_page *f, bool clear)
- {
- 	unsigned int level;
--	pte_t *pte = lookup_address(f->page, &level);
-+	pte_t *pte = lookup_address(f->addr, &level);
- 
- 	if (!pte) {
--		pr_err("no pte for page 0x%08lx\n", f->page);
-+		pr_err("no pte for addr 0x%08lx\n", f->addr);
- 		return -1;
+ 	pmd = pmd_offset(pud, vaddr);
+-	if (!pmd_present(*pmd)) {
++	if (!pmd_present(*pmd) || pmd_huge(*pmd)) {
+ 		pte = (pte_t *)get_zeroed_page(GFP_KERNEL);
+ 		if (!pte)
+ 			goto err;
+ 		image->arch.pte = pte;
+-		set_pmd(pmd, __pmd(__pa(pte) | _KERNPG_TABLE));
++		if (pmd_huge(*pmd))
++			split_pmd(pmd, pte);
++		else
++			set_pmd(pmd, __pmd(__pa(pte) | _KERNPG_TABLE));
  	}
- 
-@@ -156,7 +167,7 @@ static int clear_page_presence(struct kmmio_fault_page *f, bool clear)
- 		return -1;
- 	}
- 
--	__flush_tlb_one(f->page);
-+	__flush_tlb_one(f->addr);
+ 	pte = pte_offset_kernel(pmd, vaddr);
+ 	set_pte(pte, pfn_pte(paddr >> PAGE_SHIFT, PAGE_KERNEL_EXEC));
++
  	return 0;
- }
- 
-@@ -176,12 +187,12 @@ static int arm_kmmio_fault_page(struct kmmio_fault_page *f)
- 	int ret;
- 	WARN_ONCE(f->armed, KERN_ERR pr_fmt("kmmio page already armed.\n"));
- 	if (f->armed) {
--		pr_warning("double-arm: page 0x%08lx, ref %d, old %d\n",
--			   f->page, f->count, !!f->old_presence);
-+		pr_warning("double-arm: addr 0x%08lx, ref %d, old %d\n",
-+			   f->addr, f->count, !!f->old_presence);
- 	}
- 	ret = clear_page_presence(f, true);
--	WARN_ONCE(ret < 0, KERN_ERR pr_fmt("arming 0x%08lx failed.\n"),
--		  f->page);
-+	WARN_ONCE(ret < 0, KERN_ERR pr_fmt("arming at 0x%08lx failed.\n"),
-+		  f->addr);
- 	f->armed = true;
- 	return ret;
- }
-@@ -191,7 +202,7 @@ static void disarm_kmmio_fault_page(struct kmmio_fault_page *f)
- {
- 	int ret = clear_page_presence(f, false);
- 	WARN_ONCE(ret < 0,
--			KERN_ERR "kmmio disarming 0x%08lx failed.\n", f->page);
-+			KERN_ERR "kmmio disarming at 0x%08lx failed.\n", f->addr);
- 	f->armed = false;
- }
- 
-@@ -215,6 +226,12 @@ int kmmio_handler(struct pt_regs *regs, unsigned long addr)
- 	struct kmmio_context *ctx;
- 	struct kmmio_fault_page *faultpage;
- 	int ret = 0; /* default to fault not handled */
-+	unsigned long page_base = addr;
-+	unsigned int l;
-+	pte_t *pte = lookup_address(addr, &l);
-+	if (!pte)
-+		return -EINVAL;
-+	page_base &= page_level_mask(l);
- 
- 	/*
- 	 * Preemption is now disabled to prevent process switch during
-@@ -227,7 +244,7 @@ int kmmio_handler(struct pt_regs *regs, unsigned long addr)
- 	preempt_disable();
- 	rcu_read_lock();
- 
--	faultpage = get_kmmio_fault_page(addr);
-+	faultpage = get_kmmio_fault_page(page_base);
- 	if (!faultpage) {
- 		/*
- 		 * Either this page fault is not caused by kmmio, or
-@@ -239,7 +256,7 @@ int kmmio_handler(struct pt_regs *regs, unsigned long addr)
- 
- 	ctx = &get_cpu_var(kmmio_ctx);
- 	if (ctx->active) {
--		if (addr == ctx->addr) {
-+		if (page_base == ctx->addr) {
- 			/*
- 			 * A second fault on the same page means some other
- 			 * condition needs handling by do_page_fault(), the
-@@ -267,9 +284,9 @@ int kmmio_handler(struct pt_regs *regs, unsigned long addr)
- 	ctx->active++;
- 
- 	ctx->fpage = faultpage;
--	ctx->probe = get_kmmio_probe(addr);
-+	ctx->probe = get_kmmio_probe(page_base);
- 	ctx->saved_flags = (regs->flags & (X86_EFLAGS_TF | X86_EFLAGS_IF));
--	ctx->addr = addr;
-+	ctx->addr = page_base;
- 
- 	if (ctx->probe && ctx->probe->pre_handler)
- 		ctx->probe->pre_handler(ctx->probe, regs, addr);
-@@ -354,12 +371,11 @@ out:
- }
- 
- /* You must be holding kmmio_lock. */
--static int add_kmmio_fault_page(unsigned long page)
-+static int add_kmmio_fault_page(unsigned long addr)
- {
- 	struct kmmio_fault_page *f;
- 
--	page &= PAGE_MASK;
--	f = get_kmmio_fault_page(page);
-+	f = get_kmmio_fault_page(addr);
- 	if (f) {
- 		if (!f->count)
- 			arm_kmmio_fault_page(f);
-@@ -372,26 +388,25 @@ static int add_kmmio_fault_page(unsigned long page)
- 		return -1;
- 
- 	f->count = 1;
--	f->page = page;
-+	f->addr = addr;
- 
- 	if (arm_kmmio_fault_page(f)) {
- 		kfree(f);
- 		return -1;
- 	}
- 
--	list_add_rcu(&f->list, kmmio_page_list(f->page));
-+	list_add_rcu(&f->list, kmmio_page_list(f->addr));
- 
- 	return 0;
- }
- 
- /* You must be holding kmmio_lock. */
--static void release_kmmio_fault_page(unsigned long page,
-+static void release_kmmio_fault_page(unsigned long addr,
- 				struct kmmio_fault_page **release_list)
- {
- 	struct kmmio_fault_page *f;
- 
--	page &= PAGE_MASK;
--	f = get_kmmio_fault_page(page);
-+	f = get_kmmio_fault_page(addr);
- 	if (!f)
- 		return;
- 
-@@ -420,18 +435,27 @@ int register_kmmio_probe(struct kmmio_probe *p)
- 	int ret = 0;
- 	unsigned long size = 0;
- 	const unsigned long size_lim = p->len + (p->addr & ~PAGE_MASK);
-+	unsigned int l;
-+	pte_t *pte;
- 
- 	spin_lock_irqsave(&kmmio_lock, flags);
- 	if (get_kmmio_probe(p->addr)) {
- 		ret = -EEXIST;
- 		goto out;
- 	}
-+
-+	pte = lookup_address(p->addr, &l);
-+	if (!pte) {
-+		ret = -EINVAL;
-+		goto out;
-+	}
-+
- 	kmmio_count++;
- 	list_add_rcu(&p->list, &kmmio_probes);
- 	while (size < size_lim) {
- 		if (add_kmmio_fault_page(p->addr + size))
- 			pr_err("Unable to set page fault.\n");
--		size += PAGE_SIZE;
-+		size += page_level_size(l);
- 	}
- out:
- 	spin_unlock_irqrestore(&kmmio_lock, flags);
-@@ -506,11 +530,17 @@ void unregister_kmmio_probe(struct kmmio_probe *p)
- 	const unsigned long size_lim = p->len + (p->addr & ~PAGE_MASK);
- 	struct kmmio_fault_page *release_list = NULL;
- 	struct kmmio_delayed_release *drelease;
-+	unsigned int l;
-+	pte_t *pte;
-+
-+	pte = lookup_address(p->addr, &l);
-+	if (!pte)
-+		return;
- 
- 	spin_lock_irqsave(&kmmio_lock, flags);
- 	while (size < size_lim) {
- 		release_kmmio_fault_page(p->addr + size, &release_list);
--		size += PAGE_SIZE;
-+		size += page_level_size(l);
- 	}
- 	list_del_rcu(&p->list);
- 	kmmio_count--;
+ err:
+ 	free_transition_pgtable(image);
 -- 
-2.5.0
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
