@@ -1,90 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0503F6B025E
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 01:02:11 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id e139so8516381oib.3
-        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 22:02:11 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id n9si9803150itn.14.2016.07.11.22.02.08
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A8FA6B0253
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 02:00:52 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id ib6so11884465pad.0
+        for <linux-mm@kvack.org>; Mon, 11 Jul 2016 23:00:52 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id fu3si2140543pad.147.2016.07.11.23.00.50
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Jul 2016 22:02:10 -0700 (PDT)
-From: zhongjiang <zhongjiang@huawei.com>
-Subject: [PATCH 1/2] kexec: remove unnecessary unusable_pages
-Date: Tue, 12 Jul 2016 12:56:42 +0800
-Message-ID: <1468299403-27954-1-git-send-email-zhongjiang@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        Mon, 11 Jul 2016 23:00:51 -0700 (PDT)
+Subject: Re: [PATCH 3/6] mm,oom: Use list of mm_struct used by OOM victims.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201607080058.BFI87504.JtFOOFQFVHSLOM@I-love.SAKURA.ne.jp>
+	<201607080103.CDH12401.LFOHStQFOOFVJM@I-love.SAKURA.ne.jp>
+	<20160711125051.GF1811@dhcp22.suse.cz>
+In-Reply-To: <20160711125051.GF1811@dhcp22.suse.cz>
+Message-Id: <201607121500.AGE04699.FFQOFHVSOtOLMJ@I-love.SAKURA.ne.jp>
+Date: Tue, 12 Jul 2016 15:00:41 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: ebiederm@xmission.com, dyoung@redhat.com, horms@verge.net.au, vgoyal@redhat.com, yinghai@kernel.org, akpm@linux-foundation.org
-Cc: kexec@lists.infradead.org, linux-mm@kvack.org
+To: mhocko@suse.cz
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, oleg@redhat.com, rientjes@google.com, vdavydov@parallels.com, mst@redhat.com
 
-From: zhong jiang <zhongjiang@huawei.com>
+Michal Hocko wrote:
+> > diff --git a/kernel/fork.c b/kernel/fork.c
+> > index 7926993..8e469e0 100644
+> > --- a/kernel/fork.c
+> > +++ b/kernel/fork.c
+> > @@ -722,6 +722,10 @@ static inline void __mmput(struct mm_struct *mm)
+> >  	}
+> >  	if (mm->binfmt)
+> >  		module_put(mm->binfmt->module);
+> > +#ifndef CONFIG_MMU
+> > +	if (mm->oom_mm.victim)
+> > +		exit_oom_mm(mm);
+> > +#endif
+> 
+> This ifdef is not really needed. There is no reason we should wait for
+> the oom_reaper to unlink the mm.
 
-In general, kexec alloc pages from buddy system, it cannot exceed
-the physical address in the system.
+Oleg wanted to avoid adding OOM related hooks if possible
+( http://lkml.kernel.org/r/20160705205231.GA25340@redhat.com ),
+but I thought that calling exit_oom_mm() from here is better for CONFIG_MMU=n case
+( http://lkml.kernel.org/r/201607062043.FEC86485.JFFVLtFOQOSHMO@I-love.SAKURA.ne.jp ).
 
-The patch just remove this unnecessary code, no functional change.
+I think that not calling exit_oom_mm() from here is better for CONFIG_MMU=y case.
+Calling exit_oom_mm() from here will require !list_empty() check after holding
+oom_lock at oom_reaper(). Instead, we can do
 
-Signed-off-by: zhong jiang <zhongjiang@huawei.com>
----
- include/linux/kexec.h |  1 -
- kernel/kexec_core.c   | 13 -------------
- 2 files changed, 14 deletions(-)
++#ifdef CONFIG_MMU
++	if (mm->oom_mm.victim)
++		set_bit(MMF_OOM_REAPED, &mm->flags);
++#else
++	if (mm->oom_mm.victim)
++		exit_oom_mm(mm);
++#endif
 
-diff --git a/include/linux/kexec.h b/include/linux/kexec.h
-index e8acb2b..26e4917 100644
---- a/include/linux/kexec.h
-+++ b/include/linux/kexec.h
-@@ -162,7 +162,6 @@ struct kimage {
- 
- 	struct list_head control_pages;
- 	struct list_head dest_pages;
--	struct list_head unusable_pages;
- 
- 	/* Address of next control page to allocate for crash kernels. */
- 	unsigned long control_page;
-diff --git a/kernel/kexec_core.c b/kernel/kexec_core.c
-index 56b3ed0..448127d 100644
---- a/kernel/kexec_core.c
-+++ b/kernel/kexec_core.c
-@@ -257,9 +257,6 @@ struct kimage *do_kimage_alloc_init(void)
- 	/* Initialize the list of destination pages */
- 	INIT_LIST_HEAD(&image->dest_pages);
- 
--	/* Initialize the list of unusable pages */
--	INIT_LIST_HEAD(&image->unusable_pages);
--
- 	return image;
- }
- 
-@@ -517,10 +514,6 @@ static void kimage_free_extra_pages(struct kimage *image)
- {
- 	/* Walk through and free any extra destination pages I may have */
- 	kimage_free_page_list(&image->dest_pages);
--
--	/* Walk through and free any unusable pages I have cached */
--	kimage_free_page_list(&image->unusable_pages);
--
- }
- void kimage_terminate(struct kimage *image)
- {
-@@ -647,12 +640,6 @@ static struct page *kimage_alloc_page(struct kimage *image,
- 		page = kimage_alloc_pages(gfp_mask, 0);
- 		if (!page)
- 			return NULL;
--		/* If the page cannot be used file it away */
--		if (page_to_pfn(page) >
--				(KEXEC_SOURCE_MEMORY_LIMIT >> PAGE_SHIFT)) {
--			list_add(&page->lru, &image->unusable_pages);
--			continue;
--		}
- 		addr = page_to_pfn(page) << PAGE_SHIFT;
- 
- 		/* If it is the destination page we want use it */
--- 
-1.8.3.1
+here and let oom_has_pending_mm() check for MMF_OOM_REAPED.
+
+> > +bool oom_has_pending_mm(struct mem_cgroup *memcg, const nodemask_t *nodemask)
+> > +{
+> > +	struct mm_struct *mm;
+> > +
+> > +	list_for_each_entry(mm, &oom_mm_list, oom_mm.list)
+> > +		if (!oom_unkillable_task(mm->oom_mm.victim, memcg, nodemask))
+> > +			return true;
+> 
+> The condition is quite hard to read. Moreover 2 of 4 conditions are
+> never true. Wouldn't it be better to do something like the following?
+> 
+
+No problem.
+
+> > @@ -653,6 +657,9 @@ subsys_initcall(oom_init)
+> >   */
+> >  void mark_oom_victim(struct task_struct *tsk)
+> >  {
+> > +	struct mm_struct *mm = tsk->mm;
+> > +	struct task_struct *old_tsk = mm->oom_mm.victim;
+> > +
+> >  	WARN_ON(oom_killer_disabled);
+> >  	/* OOM killer might race with memcg OOM */
+> >  	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
+> > @@ -666,6 +673,18 @@ void mark_oom_victim(struct task_struct *tsk)
+> >  	 */
+> >  	__thaw_task(tsk);
+> >  	atomic_inc(&oom_victims);
+> > +	/*
+> > +	 * Since mark_oom_victim() is called from multiple threads,
+> > +	 * connect this mm to oom_mm_list only if not yet connected.
+> > +	 */
+> > +	get_task_struct(tsk);
+> > +	mm->oom_mm.victim = tsk;
+> > +	if (!old_tsk) {
+> > +		atomic_inc(&mm->mm_count);
+> > +		list_add_tail(&mm->oom_mm.list, &oom_mm_list);
+> > +	} else {
+> > +		put_task_struct(old_tsk);
+> > +	}
+> 
+> Isn't this overcomplicated? Why do we need to replace the old task by
+> the current one?
+
+I'm not sure whether task_in_oom_domain(mm->oom_mm.victim, memcg, nodemask) in
+oom_has_pending_mm() will work as expected, especially when all threads in
+one thread group (which mm->oom_mm.victim belongs to) reached TASK_DEAD state.
+( http://lkml.kernel.org/r/201607042150.CIB00512.FSOtMHLOOVFFQJ@I-love.SAKURA.ne.jp )
+
+I guess that task_in_oom_domain() will return false, and that mm will be selected
+by another thread group (which mm->oom_mm.victim does not belongs to). Therefore,
+I think we need to replace the old task with the new task (at least when
+task_in_oom_domain() returned false) at mark_oom_victim().
+
+If task_in_oom_domain(mm->oom_mm.victim, memcg, nodemask) in oom_has_pending_mm()
+does not work as expected even if we replace the old task with the new task at
+mark_oom_victim(), I think we after all need to use something like
+
+struct task_struct {
+(...snipped...)
++	struct mm_struct *oom_mm; /* current->mm as of getting TIF_MEMDIE */
++	struct task_struct *oom_mm_list; /* Connected to oom_mm_list global list. */
+-#ifdef CONFIG_MMU
+-	struct task_struct *oom_reaper_list;
+-#endif
+(...snipped...)
+};
+
+or your signal_struct->oom_mm approach.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
