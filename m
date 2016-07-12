@@ -1,75 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 900F46B0005
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 09:38:51 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id u186so34775639ita.0
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 06:38:51 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id j123si2185219ioe.157.2016.07.12.06.38.50
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 606196B025E
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 09:39:23 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id q11so30256223qtb.1
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 06:39:23 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id l2si2376656qke.304.2016.07.12.06.39.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 12 Jul 2016 06:38:50 -0700 (PDT)
-Subject: Re: [PATCH 4/6] mm,oom_reaper: Make OOM reaper use list of mm_struct.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201607080058.BFI87504.JtFOOFQFVHSLOM@I-love.SAKURA.ne.jp>
-	<201607080104.JDA41505.OtOFMSLOQVJFHF@I-love.SAKURA.ne.jp>
-	<20160711131618.GG1811@dhcp22.suse.cz>
-In-Reply-To: <20160711131618.GG1811@dhcp22.suse.cz>
-Message-Id: <201607122238.HJI78681.QOHVSMFtFJOOFL@I-love.SAKURA.ne.jp>
-Date: Tue, 12 Jul 2016 22:38:42 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Jul 2016 06:39:22 -0700 (PDT)
+Date: Tue, 12 Jul 2016 15:39:42 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 2/2] mm: refuse wrapped vm_brk requests
+Message-ID: <20160712133942.GA28837@redhat.com>
+References: <1468014494-25291-1-git-send-email-keescook@chromium.org> <1468014494-25291-3-git-send-email-keescook@chromium.org> <20160711122826.GA969@redhat.com> <CAGXu5j+efUrhOTikpuYK0V8Eqv58f5rQBMOYDqiVM-JWrqRbLA@mail.gmail.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAGXu5j+efUrhOTikpuYK0V8Eqv58f5rQBMOYDqiVM-JWrqRbLA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.cz
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, oleg@redhat.com, rientjes@google.com, vdavydov@parallels.com, mst@redhat.com
+To: Kees Cook <keescook@chromium.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hector Marco-Gisbert <hecmargi@upv.es>, Ismael Ripoll Ripoll <iripoll@upv.es>, Alexander Viro <viro@zeniv.linux.org.uk>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Chen Gang <gang.chen.5i5j@gmail.com>, Michal Hocko <mhocko@suse.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Michal Hocko wrote:
-> >  #define MAX_OOM_REAP_RETRIES 10
-> > -static void oom_reap_task(struct task_struct *tsk)
-> > +static void oom_reap_task(struct task_struct *tsk, struct mm_struct *mm)
-> >  {
-> >  	int attempts = 0;
-> > -	struct mm_struct *mm = NULL;
-> > -	struct task_struct *p = find_lock_task_mm(tsk);
-> >  
-> >  	/*
-> > -	 * Make sure we find the associated mm_struct even when the particular
-> > -	 * thread has already terminated and cleared its mm.
-> > -	 * We might have race with exit path so consider our work done if there
-> > -	 * is no mm.
-> > +	 * Check MMF_OOM_REAPED in case oom_kill_process() found this mm
-> > +	 * pinned.
-> >  	 */
-> > -	if (!p)
-> > -		goto done;
-> > -	mm = p->mm;
-> > -	atomic_inc(&mm->mm_count);
-> > -	task_unlock(p);
-> > +	if (test_bit(MMF_OOM_REAPED, &mm->flags))
-> > +		return;
-> >  
-> >  	/* Retry the down_read_trylock(mmap_sem) a few times */
-> >  	while (attempts++ < MAX_OOM_REAP_RETRIES && !__oom_reap_task(tsk, mm))
-> >  		schedule_timeout_idle(HZ/10);
-> >  
-> >  	if (attempts <= MAX_OOM_REAP_RETRIES)
-> > -		goto done;
-> > +		return;
-> >  
-> >  	/* Ignore this mm because somebody can't call up_write(mmap_sem). */
-> >  	set_bit(MMF_OOM_REAPED, &mm->flags);
-> 
-> This seems unnecessary when oom_reaper always calls exit_oom_mm. The
-> same applies to __oom_reap_task. Which then means that the flag is
-> turning into a misnomer. MMF_SKIP_OOM would fit better its current
-> meaning.
+On 07/11, Kees Cook wrote:
+>
+> On Mon, Jul 11, 2016 at 8:28 AM, Oleg Nesterov <oleg@redhat.com> wrote:
+> >
+> > and thus this patch fixes the error code returned by do_brk() in case
+> > of overflow, now it returns -ENOMEM rather than zero. Perhaps
+> >
+> >         if (!len)
+> >                 return 0;
+> >         len = PAGE_ALIGN(len);
+> >         if (!len)
+> >                 return -ENOMEM;
+> >
+> > would be more clear but this is subjective.
+>
+> I'm fine either way.
 
-Large oom_score_adj value or being a child process of highest OOM score
-might cause the same mm being selected again. I think these set_bit() are
-necessary in order to avoid the same mm being selected again.
+Me too, so feel free to ignore,
 
-Other than that, I sent v3 patchset.
+> > I am wondering if we should shift this overflow check to the caller(s).
+> > Say, sys_brk() does find_vma_intersection(mm, oldbrk, newbrk+PAGE_SIZE)
+> > before do_brk(), and in case of overflow find_vma_intersection() can
+> > wrongly return NULL.
+> >
+> > Then do_brk() will be called with len = -oldbrk, this can overflow or
+> > not but in any case this doesn't look right too.
+> >
+> > Or I am totally confused?
+>
+> I think the callers shouldn't request a negative value, sure, but
+> vm_brk should notice and refuse it.
+
+Not sure I understand...
+
+I tried to say that, with or without this change, sys_brk() should check
+for overflow too, otherwise it looks buggy.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
