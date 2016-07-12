@@ -1,103 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 714CA6B0005
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 11:32:16 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 63so37951846pfx.3
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 08:32:16 -0700 (PDT)
-Received: from out01.mta.xmission.com (out01.mta.xmission.com. [166.70.13.231])
-        by mx.google.com with ESMTPS id b3si4227571pac.181.2016.07.12.08.32.15
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D956B6B025F
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 11:35:08 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id f126so16296228wma.3
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 08:35:08 -0700 (PDT)
+Received: from mail-lf0-x233.google.com (mail-lf0-x233.google.com. [2a00:1450:4010:c07::233])
+        by mx.google.com with ESMTPS id h127si3170639lfd.308.2016.07.12.08.35.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 12 Jul 2016 08:32:15 -0700 (PDT)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <1468299403-27954-1-git-send-email-zhongjiang@huawei.com>
-Date: Tue, 12 Jul 2016 10:19:43 -0500
-In-Reply-To: <1468299403-27954-1-git-send-email-zhongjiang@huawei.com>
-	(zhongjiang@huawei.com's message of "Tue, 12 Jul 2016 12:56:42 +0800")
-Message-ID: <87poqi3muo.fsf@x220.int.ebiederm.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Jul 2016 08:35:07 -0700 (PDT)
+Received: by mail-lf0-x233.google.com with SMTP id f93so17166244lfi.2
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 08:35:07 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
-Subject: Re: [PATCH 1/2] kexec: remove unnecessary unusable_pages
+In-Reply-To: <20160712071927.GD14586@dhcp22.suse.cz>
+References: <CABAubThf6gbi243BqYgoCjqRW36sXJuJ6e_8zAqzkYRiu0GVtQ@mail.gmail.com>
+ <20160711064150.GB5284@dhcp22.suse.cz> <CABAubThHfngHTQW_AEuW71VCvLyD_9b5Z05tSud5bf8JKjuA9Q@mail.gmail.com>
+ <CABAubTjGhUXMeAnFgW8LGck1tgvtu12Zb9fx5BRhDWNjZ7SYLQ@mail.gmail.com> <20160712071927.GD14586@dhcp22.suse.cz>
+From: Shayan Pooya <shayan@liveve.org>
+Date: Tue, 12 Jul 2016 08:35:06 -0700
+Message-ID: <CABAubTg91qrUd4DO7T2SiJQBK9ypuhP0+F-091ZxtmonjaaYWg@mail.gmail.com>
+Subject: Re: bug in memcg oom-killer results in a hung syscall in another
+ process in the same cgroup
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhongjiang <zhongjiang@huawei.com>
-Cc: dyoung@redhat.com, horms@verge.net.au, vgoyal@redhat.com, yinghai@kernel.org, akpm@linux-foundation.org, kexec@lists.infradead.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, koct9i@gmail.com
+Cc: cgroups mailinglist <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-zhongjiang <zhongjiang@huawei.com> writes:
-
-> From: zhong jiang <zhongjiang@huawei.com>
+>> With strace, when running 500 concurrent mem-hog tasks on the same
+>> kernel, 33 of them failed with:
+>>
+>> strace: ../sysdeps/nptl/fork.c:136: __libc_fork: Assertion
+>> `THREAD_GETMEM (self, tid) != ppid' failed.
+>>
+>> Which is: https://sourceware.org/bugzilla/show_bug.cgi?id=15392
+>> And discussed before at: https://lkml.org/lkml/2015/2/6/470 but that
+>> patch was not accepted.
 >
-> In general, kexec alloc pages from buddy system, it cannot exceed
-> the physical address in the system.
->
-> The patch just remove this unnecessary code, no functional change.
+> OK, so the problem is that the oom killed task doesn't report the futex
+> release properly? If yes then I fail to see how that is memcg specific.
+> Could you try to clarify what you consider a bug again, please? I am not
+> really sure I understand this report.
 
-On 32bit systems with highmem support kexec can very easily receive a
-page from the buddy allocator that can exceed 4GiB.  This doesn't show
-up on 64bit systems as typically the memory limits are less than the
-address space.  But this code is very necessary on some systems and
-removing it is not ok.
+It looks like it is just a very easy way to reproduce the problem that
+Konstantin described in that lkml thread. That patch was not accepted
+and I see no other fixes for that issue upstream. Here is a copy of
+his root-cause analysis from said thread:
 
-Nacked-by: "Eric W. Biederman" <ebiederm@xmission.com>
+Whole sequence looks like: task calls fork, glibc calls syscall clone with
+CLONE_CHILD_SETTID and passes pointer to TLS THREAD_SELF->tid as argument.
+Child task gets read-only copy of VM including TLS. Child calls put_user()
+to handle CLONE_CHILD_SETTID from schedule_tail(). put_user() trigger page
+fault and it fails because do_wp_page()  hits memcg limit without invoking
+OOM-killer because this is page-fault from kernel-space.  Put_user returns
+-EFAULT, which is ignored.  Child returns into user-space and catches here
+assert (THREAD_GETMEM (self, tid) != ppid), glibc tries to print something
+but hangs on deadlock on internal locks. Halt and catch fire.
 
 
->
-> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
-> ---
->  include/linux/kexec.h |  1 -
->  kernel/kexec_core.c   | 13 -------------
->  2 files changed, 14 deletions(-)
->
-> diff --git a/include/linux/kexec.h b/include/linux/kexec.h
-> index e8acb2b..26e4917 100644
-> --- a/include/linux/kexec.h
-> +++ b/include/linux/kexec.h
-> @@ -162,7 +162,6 @@ struct kimage {
->  
->  	struct list_head control_pages;
->  	struct list_head dest_pages;
-> -	struct list_head unusable_pages;
->  
->  	/* Address of next control page to allocate for crash kernels. */
->  	unsigned long control_page;
-> diff --git a/kernel/kexec_core.c b/kernel/kexec_core.c
-> index 56b3ed0..448127d 100644
-> --- a/kernel/kexec_core.c
-> +++ b/kernel/kexec_core.c
-> @@ -257,9 +257,6 @@ struct kimage *do_kimage_alloc_init(void)
->  	/* Initialize the list of destination pages */
->  	INIT_LIST_HEAD(&image->dest_pages);
->  
-> -	/* Initialize the list of unusable pages */
-> -	INIT_LIST_HEAD(&image->unusable_pages);
-> -
->  	return image;
->  }
->  
-> @@ -517,10 +514,6 @@ static void kimage_free_extra_pages(struct kimage *image)
->  {
->  	/* Walk through and free any extra destination pages I may have */
->  	kimage_free_page_list(&image->dest_pages);
-> -
-> -	/* Walk through and free any unusable pages I have cached */
-> -	kimage_free_page_list(&image->unusable_pages);
-> -
->  }
->  void kimage_terminate(struct kimage *image)
->  {
-> @@ -647,12 +640,6 @@ static struct page *kimage_alloc_page(struct kimage *image,
->  		page = kimage_alloc_pages(gfp_mask, 0);
->  		if (!page)
->  			return NULL;
-> -		/* If the page cannot be used file it away */
-> -		if (page_to_pfn(page) >
-> -				(KEXEC_SOURCE_MEMORY_LIMIT >> PAGE_SHIFT)) {
-> -			list_add(&page->lru, &image->unusable_pages);
-> -			continue;
-> -		}
->  		addr = page_to_pfn(page) << PAGE_SHIFT;
->  
->  		/* If it is the destination page we want use it */
+
+Regards
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
