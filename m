@@ -1,37 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 093EE6B0253
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 15:10:34 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id r190so19594614wmr.0
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 12:10:33 -0700 (PDT)
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 782D96B0260
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 15:18:10 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id 33so17006131lfw.1
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 12:18:10 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id e191si5198062wmd.81.2016.07.12.12.10.32
+        by mx.google.com with ESMTPS id q126si11249947wme.10.2016.07.12.12.18.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Jul 2016 12:10:33 -0700 (PDT)
-Date: Tue, 12 Jul 2016 15:10:29 -0400
+        Tue, 12 Jul 2016 12:18:09 -0700 (PDT)
+Date: Tue, 12 Jul 2016 15:18:02 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 31/34] mm: vmstat: replace __count_zone_vm_events with a
- zone id equivalent
-Message-ID: <20160712191029.GC8629@cmpxchg.org>
+Subject: Re: [PATCH 33/34] mm, vmstat: print node-based stats in zoneinfo file
+Message-ID: <20160712191802.GD8629@cmpxchg.org>
 References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
- <1467970510-21195-32-git-send-email-mgorman@techsingularity.net>
+ <1467970510-21195-34-git-send-email-mgorman@techsingularity.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1467970510-21195-32-git-send-email-mgorman@techsingularity.net>
+In-Reply-To: <1467970510-21195-34-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@techsingularity.net>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Jul 08, 2016 at 10:35:07AM +0100, Mel Gorman wrote:
-> This is partially a preparation patch for more vmstat work but it also has
-> the slight advantage that __count_zid_vm_events is cheaper to calculate
-> than __count_zone_vm_events().
+On Fri, Jul 08, 2016 at 10:35:09AM +0100, Mel Gorman wrote:
+> There are a number of stats that were previously accessible via zoneinfo
+> that are now invisible. While it is possible to create a new file for the
+> node stats, this may be missed by users. Instead this patch prints the
+> stats under the first populated zone in /proc/zoneinfo.
 > 
 > Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+
+I had no idea we could make /proc/zoneinfo any worse!
+
+But it'll work, I guess.
 
 Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
