@@ -1,43 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 782D96B0260
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 15:18:10 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id 33so17006131lfw.1
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 12:18:10 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id q126si11249947wme.10.2016.07.12.12.18.09
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DF666B0005
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 16:02:04 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id a69so51526603pfa.1
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 13:02:04 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id gm2si5678629pac.159.2016.07.12.13.02.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Jul 2016 12:18:09 -0700 (PDT)
-Date: Tue, 12 Jul 2016 15:18:02 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 33/34] mm, vmstat: print node-based stats in zoneinfo file
-Message-ID: <20160712191802.GD8629@cmpxchg.org>
-References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
- <1467970510-21195-34-git-send-email-mgorman@techsingularity.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1467970510-21195-34-git-send-email-mgorman@techsingularity.net>
+        Tue, 12 Jul 2016 13:02:03 -0700 (PDT)
+Date: Tue, 12 Jul 2016 13:02:01 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v7 1/2] mm, kasan: account for object redzone in SLUB's
+ nearest_obj()
+Message-Id: <20160712130201.9339f7dbc9575d2c0cb31aeb@linux-foundation.org>
+In-Reply-To: <1468347165-41906-2-git-send-email-glider@google.com>
+References: <1468347165-41906-1-git-send-email-glider@google.com>
+	<1468347165-41906-2-git-send-email-glider@google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
+To: Alexander Potapenko <glider@google.com>
+Cc: adech.fo@gmail.com, cl@linux.com, dvyukov@google.com, rostedt@goodmis.org, iamjoonsoo.kim@lge.com, js1304@gmail.com, kcc@google.com, aryabinin@virtuozzo.com, kuthonuzo.luruo@hpe.com, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jul 08, 2016 at 10:35:09AM +0100, Mel Gorman wrote:
-> There are a number of stats that were previously accessible via zoneinfo
-> that are now invisible. While it is possible to create a new file for the
-> node stats, this may be missed by users. Instead this patch prints the
-> stats under the first populated zone in /proc/zoneinfo.
-> 
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+On Tue, 12 Jul 2016 20:12:44 +0200 Alexander Potapenko <glider@google.com> wrote:
 
-I had no idea we could make /proc/zoneinfo any worse!
+> When looking up the nearest SLUB object for a given address, correctly
+> calculate its offset if SLAB_RED_ZONE is enabled for that cache.
 
-But it'll work, I guess.
-
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+What are the runtime effects of this fix?  Please always include this
+info when fixing bugs so that others can decide which kernel(s) need
+patching.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
