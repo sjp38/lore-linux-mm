@@ -1,338 +1,266 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DC456B025E
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 09:12:38 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id hh10so27211879pac.3
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 06:12:38 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id e8si4519944pfg.248.2016.07.12.06.12.37
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F6076B025E
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 09:30:13 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id e139so26352140oib.3
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 06:30:13 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id s185si990158oia.133.2016.07.12.06.30.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Jul 2016 06:12:37 -0700 (PDT)
-Date: Tue, 12 Jul 2016 15:12:35 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: divide error: 0000 [#1] SMP in task_numa_migrate -
- handle_mm_fault vanilla 4.4.6
-Message-ID: <20160712131235.GO30154@twins.programming.kicks-ass.net>
-References: <20160320214130.GB23920@kroah.com>
- <56EFD267.9070609@profihost.ag>
- <20160321133815.GA14188@kroah.com>
- <573AB3BF.3030604@profihost.ag>
- <CAPerZE_OCJGp2v8dXM=dY8oP1ydX_oB29UbzaXMHKZcrsL_iJg@mail.gmail.com>
- <CAPerZE_WLYzrALa3YOzC2+NWr--1GL9na8WLssFBNbRsXcYMiA@mail.gmail.com>
- <20160622061356.GW30154@twins.programming.kicks-ass.net>
- <CAPerZE99rBx6YCZrudJPTh7L-LCWitk7n7g41pt7JLej_2KR1g@mail.gmail.com>
- <20160707074232.GS30921@twins.programming.kicks-ass.net>
- <20160711223353.GA8959@kroah.com>
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="vtzGhvizbBRQ85DL"
-Content-Disposition: inline
-In-Reply-To: <20160711223353.GA8959@kroah.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 12 Jul 2016 06:30:11 -0700 (PDT)
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH v3 0/8] Change OOM killer to use list of mm_struct.
+Date: Tue, 12 Jul 2016 22:29:15 +0900
+Message-Id: <1468330163-4405-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <greg@kroah.com>
-Cc: Campbell Steven <casteven@gmail.com>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-mm@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Rik van Riel <riel@redhat.com>
+To: mhocko@suse.com, mhocko@kernel.org
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, oleg@redhat.com, rientjes@google.com, vdavydov@parallels.com, mst@redhat.com
 
+This series is an update of
+http://lkml.kernel.org/r/201607080058.BFI87504.JtFOOFQFVHSLOM@I-love.SAKURA.ne.jp .
 
---vtzGhvizbBRQ85DL
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+This series is based on top of linux-next-20160712 +
+http://lkml.kernel.org/r/1467201562-6709-1-git-send-email-mhocko@kernel.org .
 
-On Mon, Jul 11, 2016 at 03:33:53PM -0700, Greg KH wrote:
+ include/linux/mm_types.h |    7
+ include/linux/oom.h      |   14 -
+ include/linux/sched.h    |    2
+ kernel/exit.c            |    2
+ kernel/fork.c            |    2
+ mm/memcontrol.c          |   14 -
+ mm/oom_kill.c            |  362 ++++++++++++++++++++++-------------------------
+ 7 files changed, 190 insertions(+), 213 deletions(-)
 
-> Oops, this commit does not apply cleanly to 4.6 or 4.4-stable trees.
-> Can someone send me the backported verision that they have tested to
-> work properly so I can queue it up?
+[PATCH 1/8] mm,oom_reaper: Reduce find_lock_task_mm() usage.
+[PATCH 2/8] mm,oom_reaper: Do not attempt to reap a task twice.
+[PATCH 3/8] mm,oom: Use list of mm_struct used by OOM victims.
+[PATCH 4/8] mm,oom: Close oom_has_pending_mm race.
+[PATCH 5/8] mm,oom_reaper: Make OOM reaper use list of mm_struct.
+[PATCH 6/8] mm,oom: Remove OOM_SCAN_ABORT case and signal_struct->oom_victims.
+[PATCH 7/8] mm,oom: Stop clearing TIF_MEMDIE on remote thread.
+[PATCH 8/8] oom_reaper: Revert "oom_reaper: close race with exiting task".
 
-I've never actually been able to reproduce, but the attached patches
-apply, the reject was trivial.
+At a first glance, the diff lines have increased compared to v2. But v3 is rather
+patch description update. Actual change (shown below) is almost same with v2.
 
-They seem to compile and boot on my main test rig, but nothing else was
-done but build the next kernel with it.
+ kernel/fork.c |    2
+ mm/oom_kill.c |  117 ++++++++++++++++++++++++++++++++++++++--------------------
+ 2 files changed, 78 insertions(+), 41 deletions(-)
 
-
-
---vtzGhvizbBRQ85DL
-Content-Type: text/x-diff; charset=us-ascii
-Content-Disposition: attachment; filename="sched-stable-4.4.patch"
-
-commit 8974189222159154c55f24ddad33e3613960521a
-Author: Peter Zijlstra <peterz@infradead.org>
-Date:   Thu Jun 16 10:50:40 2016 +0200
-
-    sched/fair: Fix cfs_rq avg tracking underflow
-    
-    As per commit:
-    
-      b7fa30c9cc48 ("sched/fair: Fix post_init_entity_util_avg() serialization")
-    
-    > the code generated from update_cfs_rq_load_avg():
-    >
-    > 	if (atomic_long_read(&cfs_rq->removed_load_avg)) {
-    > 		s64 r = atomic_long_xchg(&cfs_rq->removed_load_avg, 0);
-    > 		sa->load_avg = max_t(long, sa->load_avg - r, 0);
-    > 		sa->load_sum = max_t(s64, sa->load_sum - r * LOAD_AVG_MAX, 0);
-    > 		removed_load = 1;
-    > 	}
-    >
-    > turns into:
-    >
-    > ffffffff81087064:       49 8b 85 98 00 00 00    mov    0x98(%r13),%rax
-    > ffffffff8108706b:       48 85 c0                test   %rax,%rax
-    > ffffffff8108706e:       74 40                   je     ffffffff810870b0 <update_blocked_averages+0xc0>
-    > ffffffff81087070:       4c 89 f8                mov    %r15,%rax
-    > ffffffff81087073:       49 87 85 98 00 00 00    xchg   %rax,0x98(%r13)
-    > ffffffff8108707a:       49 29 45 70             sub    %rax,0x70(%r13)
-    > ffffffff8108707e:       4c 89 f9                mov    %r15,%rcx
-    > ffffffff81087081:       bb 01 00 00 00          mov    $0x1,%ebx
-    > ffffffff81087086:       49 83 7d 70 00          cmpq   $0x0,0x70(%r13)
-    > ffffffff8108708b:       49 0f 49 4d 70          cmovns 0x70(%r13),%rcx
-    >
-    > Which you'll note ends up with sa->load_avg -= r in memory at
-    > ffffffff8108707a.
-    
-    So I _should_ have looked at other unserialized users of ->load_avg,
-    but alas. Luckily nikbor reported a similar /0 from task_h_load() which
-    instantly triggered recollection of this here problem.
-    
-    Aside from the intermediate value hitting memory and causing problems,
-    there's another problem: the underflow detection relies on the signed
-    bit. This reduces the effective width of the variables, IOW its
-    effectively the same as having these variables be of signed type.
-    
-    This patch changes to a different means of unsigned underflow
-    detection to not rely on the signed bit. This allows the variables to
-    use the 'full' unsigned range. And it does so with explicit LOAD -
-    STORE to ensure any intermediate value will never be visible in
-    memory, allowing these unserialized loads.
-    
-    Note: GCC generates crap code for this, might warrant a look later.
-    
-    Note2: I say 'full' above, if we end up at U*_MAX we'll still explode;
-           maybe we should do clamping on add too.
-    
-    Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-    Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
-    Cc: Chris Wilson <chris@chris-wilson.co.uk>
-    Cc: Linus Torvalds <torvalds@linux-foundation.org>
-    Cc: Mike Galbraith <efault@gmx.de>
-    Cc: Peter Zijlstra <peterz@infradead.org>
-    Cc: Thomas Gleixner <tglx@linutronix.de>
-    Cc: Yuyang Du <yuyang.du@intel.com>
-    Cc: bsegall@google.com
-    Cc: kernel@kyup.com
-    Cc: morten.rasmussen@arm.com
-    Cc: pjt@google.com
-    Cc: steve.muckle@linaro.org
-    Fixes: 9d89c257dfb9 ("sched/fair: Rewrite runnable load and utilization average tracking")
-    Link: http://lkml.kernel.org/r/20160617091948.GJ30927@twins.programming.kicks-ass.net
-    Signed-off-by: Ingo Molnar <mingo@kernel.org>
-
----
- kernel/sched/fair.c |   33 +++++++++++++++++++++++++--------
- 1 file changed, 25 insertions(+), 8 deletions(-)
-
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -2682,6 +2682,23 @@ static inline void update_tg_load_avg(st
- 
- static inline u64 cfs_rq_clock_task(struct cfs_rq *cfs_rq);
- 
-+/*
-+ * Unsigned subtract and clamp on underflow.
-+ *
-+ * Explicitly do a load-store to ensure the intermediate value never hits
-+ * memory. This allows lockless observations without ever seeing the negative
-+ * values.
-+ */
-+#define sub_positive(_ptr, _val) do {				\
-+	typeof(_ptr) ptr = (_ptr);				\
-+	typeof(*ptr) val = (_val);				\
-+	typeof(*ptr) res, var = READ_ONCE(*ptr);		\
-+	res = var - val;					\
-+	if (res > var)						\
-+		res = 0;					\
-+	WRITE_ONCE(*ptr, res);					\
-+} while (0)
-+
- /* Group cfs_rq's load_avg is used for task_h_load and update_cfs_share */
- static inline int update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq)
- {
-@@ -2690,15 +2707,15 @@ static inline int update_cfs_rq_load_avg
- 
- 	if (atomic_long_read(&cfs_rq->removed_load_avg)) {
- 		s64 r = atomic_long_xchg(&cfs_rq->removed_load_avg, 0);
--		sa->load_avg = max_t(long, sa->load_avg - r, 0);
--		sa->load_sum = max_t(s64, sa->load_sum - r * LOAD_AVG_MAX, 0);
-+		sub_positive(&sa->load_avg, r);
-+		sub_positive(&sa->load_sum, r * LOAD_AVG_MAX);
- 		removed = 1;
+diff -ur v2/kernel/fork.c v3/kernel/fork.c
+--- v2/kernel/fork.c
++++ v3/kernel/fork.c
+@@ -722,10 +722,8 @@
  	}
- 
- 	if (atomic_long_read(&cfs_rq->removed_util_avg)) {
- 		long r = atomic_long_xchg(&cfs_rq->removed_util_avg, 0);
--		sa->util_avg = max_t(long, sa->util_avg - r, 0);
--		sa->util_sum = max_t(s32, sa->util_sum - r * LOAD_AVG_MAX, 0);
-+		sub_positive(&sa->util_avg, r);
-+		sub_positive(&sa->util_sum, r * LOAD_AVG_MAX);
- 	}
- 
- 	decayed = __update_load_avg(now, cpu_of(rq_of(cfs_rq)), sa,
-@@ -2764,10 +2781,10 @@ static void detach_entity_load_avg(struc
- 			  &se->avg, se->on_rq * scale_load_down(se->load.weight),
- 			  cfs_rq->curr == se, NULL);
- 
--	cfs_rq->avg.load_avg = max_t(long, cfs_rq->avg.load_avg - se->avg.load_avg, 0);
--	cfs_rq->avg.load_sum = max_t(s64,  cfs_rq->avg.load_sum - se->avg.load_sum, 0);
--	cfs_rq->avg.util_avg = max_t(long, cfs_rq->avg.util_avg - se->avg.util_avg, 0);
--	cfs_rq->avg.util_sum = max_t(s32,  cfs_rq->avg.util_sum - se->avg.util_sum, 0);
-+	sub_positive(&cfs_rq->avg.load_avg, se->avg.load_avg);
-+	sub_positive(&cfs_rq->avg.load_sum, se->avg.load_sum);
-+	sub_positive(&cfs_rq->avg.util_avg, se->avg.util_avg);
-+	sub_positive(&cfs_rq->avg.util_sum, se->avg.util_sum);
+ 	if (mm->binfmt)
+ 		module_put(mm->binfmt->module);
+-#ifndef CONFIG_MMU
+ 	if (mm->oom_mm.victim)
+ 		exit_oom_mm(mm);
+-#endif
+ 	mmdrop(mm);
  }
  
- /* Add the load generated by se into cfs_rq's load average */
-
---vtzGhvizbBRQ85DL
-Content-Type: text/x-diff; charset=us-ascii
-Content-Disposition: attachment; filename="sched-stable-4.6.patch"
-
-commit 8974189222159154c55f24ddad33e3613960521a
-Author: Peter Zijlstra <peterz@infradead.org>
-Date:   Thu Jun 16 10:50:40 2016 +0200
-
-    sched/fair: Fix cfs_rq avg tracking underflow
-
-    As per commit:
-
-      b7fa30c9cc48 ("sched/fair: Fix post_init_entity_util_avg() serialization")
-
-    > the code generated from update_cfs_rq_load_avg():
-    >
-    > 	if (atomic_long_read(&cfs_rq->removed_load_avg)) {
-    > 		s64 r = atomic_long_xchg(&cfs_rq->removed_load_avg, 0);
-    > 		sa->load_avg = max_t(long, sa->load_avg - r, 0);
-    > 		sa->load_sum = max_t(s64, sa->load_sum - r * LOAD_AVG_MAX, 0);
-    > 		removed_load = 1;
-    > 	}
-    >
-    > turns into:
-    >
-    > ffffffff81087064:       49 8b 85 98 00 00 00    mov    0x98(%r13),%rax
-    > ffffffff8108706b:       48 85 c0                test   %rax,%rax
-    > ffffffff8108706e:       74 40                   je     ffffffff810870b0 <update_blocked_averages+0xc0>
-    > ffffffff81087070:       4c 89 f8                mov    %r15,%rax
-    > ffffffff81087073:       49 87 85 98 00 00 00    xchg   %rax,0x98(%r13)
-    > ffffffff8108707a:       49 29 45 70             sub    %rax,0x70(%r13)
-    > ffffffff8108707e:       4c 89 f9                mov    %r15,%rcx
-    > ffffffff81087081:       bb 01 00 00 00          mov    $0x1,%ebx
-    > ffffffff81087086:       49 83 7d 70 00          cmpq   $0x0,0x70(%r13)
-    > ffffffff8108708b:       49 0f 49 4d 70          cmovns 0x70(%r13),%rcx
-    >
-    > Which you'll note ends up with sa->load_avg -= r in memory at
-    > ffffffff8108707a.
-
-    So I _should_ have looked at other unserialized users of ->load_avg,
-    but alas. Luckily nikbor reported a similar /0 from task_h_load() which
-    instantly triggered recollection of this here problem.
-
-    Aside from the intermediate value hitting memory and causing problems,
-    there's another problem: the underflow detection relies on the signed
-    bit. This reduces the effective width of the variables, IOW its
-    effectively the same as having these variables be of signed type.
-
-    This patch changes to a different means of unsigned underflow
-    detection to not rely on the signed bit. This allows the variables to
-    use the 'full' unsigned range. And it does so with explicit LOAD -
-    STORE to ensure any intermediate value will never be visible in
-    memory, allowing these unserialized loads.
-
-    Note: GCC generates crap code for this, might warrant a look later.
-
-    Note2: I say 'full' above, if we end up at U*_MAX we'll still explode;
-           maybe we should do clamping on add too.
-
-    Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-    Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
-    Cc: Chris Wilson <chris@chris-wilson.co.uk>
-    Cc: Linus Torvalds <torvalds@linux-foundation.org>
-    Cc: Mike Galbraith <efault@gmx.de>
-    Cc: Peter Zijlstra <peterz@infradead.org>
-    Cc: Thomas Gleixner <tglx@linutronix.de>
-    Cc: Yuyang Du <yuyang.du@intel.com>
-    Cc: bsegall@google.com
-    Cc: kernel@kyup.com
-    Cc: morten.rasmussen@arm.com
-    Cc: pjt@google.com
-    Cc: steve.muckle@linaro.org
-    Fixes: 9d89c257dfb9 ("sched/fair: Rewrite runnable load and utilization average tracking")
-    Link: http://lkml.kernel.org/r/20160617091948.GJ30927@twins.programming.kicks-ass.net
-    Signed-off-by: Ingo Molnar <mingo@kernel.org>
-
---- a/kernel/sched/fair.c
-+++ b/kernel/sched/fair.c
-@@ -2821,6 +2821,23 @@ static inline void update_tg_load_avg(st
- 
- static inline u64 cfs_rq_clock_task(struct cfs_rq *cfs_rq);
- 
-+/*
-+ * Unsigned subtract and clamp on underflow.
-+ *
-+ * Explicitly do a load-store to ensure the intermediate value never hits
-+ * memory. This allows lockless observations without ever seeing the negative
-+ * values.
-+ */
-+#define sub_positive(_ptr, _val) do {				\
-+	typeof(_ptr) ptr = (_ptr);				\
-+	typeof(*ptr) val = (_val);				\
-+	typeof(*ptr) res, var = READ_ONCE(*ptr);		\
-+	res = var - val;					\
-+	if (res > var)						\
-+		res = 0;					\
-+	WRITE_ONCE(*ptr, res);					\
-+} while (0)
-+
- /* Group cfs_rq's load_avg is used for task_h_load and update_cfs_share */
- static inline int update_cfs_rq_load_avg(u64 now, struct cfs_rq *cfs_rq)
- {
-@@ -2829,15 +2846,15 @@ static inline int update_cfs_rq_load_avg
- 
- 	if (atomic_long_read(&cfs_rq->removed_load_avg)) {
- 		s64 r = atomic_long_xchg(&cfs_rq->removed_load_avg, 0);
--		sa->load_avg = max_t(long, sa->load_avg - r, 0);
--		sa->load_sum = max_t(s64, sa->load_sum - r * LOAD_AVG_MAX, 0);
-+		sub_positive(&sa->load_avg, r);
-+		sub_positive(&sa->load_sum, r * LOAD_AVG_MAX);
- 		removed = 1;
- 	}
- 
- 	if (atomic_long_read(&cfs_rq->removed_util_avg)) {
- 		long r = atomic_long_xchg(&cfs_rq->removed_util_avg, 0);
--		sa->util_avg = max_t(long, sa->util_avg - r, 0);
--		sa->util_sum = max_t(s32, sa->util_sum - r * LOAD_AVG_MAX, 0);
-+		sub_positive(&sa->util_avg, r);
-+		sub_positive(&sa->util_sum, r * LOAD_AVG_MAX);
- 	}
- 
- 	decayed = __update_load_avg(now, cpu_of(rq_of(cfs_rq)), sa,
-@@ -2927,10 +2944,10 @@ static void detach_entity_load_avg(struc
- 			  &se->avg, se->on_rq * scale_load_down(se->load.weight),
- 			  cfs_rq->curr == se, NULL);
- 
--	cfs_rq->avg.load_avg = max_t(long, cfs_rq->avg.load_avg - se->avg.load_avg, 0);
--	cfs_rq->avg.load_sum = max_t(s64,  cfs_rq->avg.load_sum - se->avg.load_sum, 0);
--	cfs_rq->avg.util_avg = max_t(long, cfs_rq->avg.util_avg - se->avg.util_avg, 0);
--	cfs_rq->avg.util_sum = max_t(s32,  cfs_rq->avg.util_sum - se->avg.util_sum, 0);
-+	sub_positive(&cfs_rq->avg.load_avg, se->avg.load_avg);
-+	sub_positive(&cfs_rq->avg.load_sum, se->avg.load_sum);
-+	sub_positive(&cfs_rq->avg.util_avg, se->avg.util_avg);
-+	sub_positive(&cfs_rq->avg.util_sum, se->avg.util_sum);
+diff -ur v2/mm/oom_kill.c v3/mm/oom_kill.c
+--- v2/mm/oom_kill.c
++++ v3/mm/oom_kill.c
+@@ -132,6 +132,20 @@
+ 	return oc->order == -1;
  }
  
- /* Add the load generated by se into cfs_rq's load average */
++static bool task_in_oom_domain(struct task_struct *p, struct mem_cgroup *memcg,
++			       const nodemask_t *nodemask)
++{
++	/* When mem_cgroup_out_of_memory() and p is not member of the group */
++	if (memcg && !task_in_mem_cgroup(p, memcg))
++		return false;
++
++	/* p may not have freeable memory in nodemask */
++	if (!has_intersects_mems_allowed(p, nodemask))
++		return false;
++
++	return true;
++}
++
+ /* return true if the task is not adequate as candidate victim task. */
+ static bool oom_unkillable_task(struct task_struct *p,
+ 		struct mem_cgroup *memcg, const nodemask_t *nodemask)
+@@ -141,15 +155,7 @@
+ 	if (p->flags & PF_KTHREAD)
+ 		return true;
+ 
+-	/* When mem_cgroup_out_of_memory() and p is not member of the group */
+-	if (memcg && !task_in_mem_cgroup(p, memcg))
+-		return true;
+-
+-	/* p may not have freeable memory in nodemask */
+-	if (!has_intersects_mems_allowed(p, nodemask))
+-		return true;
+-
+-	return false;
++	return !task_in_oom_domain(p, memcg, nodemask);
+ }
+ 
+ /**
+@@ -276,25 +282,39 @@
+ #endif
+ 
+ static LIST_HEAD(oom_mm_list);
++static DEFINE_SPINLOCK(oom_mm_lock);
+ 
+ void exit_oom_mm(struct mm_struct *mm)
+ {
+-	mutex_lock(&oom_lock);
+-	list_del(&mm->oom_mm.list);
+-	put_task_struct(mm->oom_mm.victim);
++	struct task_struct *victim;
++
++	/* __mmput() and oom_reaper() could race. */
++	spin_lock(&oom_mm_lock);
++	victim = mm->oom_mm.victim;
+ 	mm->oom_mm.victim = NULL;
+-	mmdrop(mm);
+-	mutex_unlock(&oom_lock);
++	if (victim)
++		list_del(&mm->oom_mm.list);
++	spin_unlock(&oom_mm_lock);
++	if (victim) {
++		put_task_struct(victim);
++		mmdrop(mm);
++	}
+ }
+ 
+ bool oom_has_pending_mm(struct mem_cgroup *memcg, const nodemask_t *nodemask)
+ {
+ 	struct mm_struct *mm;
++	bool ret = false;
+ 
+-	list_for_each_entry(mm, &oom_mm_list, oom_mm.list)
+-		if (!oom_unkillable_task(mm->oom_mm.victim, memcg, nodemask))
+-			return true;
+-	return false;
++	spin_lock(&oom_mm_lock);
++	list_for_each_entry(mm, &oom_mm_list, oom_mm.list) {
++		if (task_in_oom_domain(mm->oom_mm.victim, memcg, nodemask)) {
++			ret = true;
++			break;
++		}
++	}
++	spin_unlock(&oom_mm_lock);
++	return ret;
+ }
+ 
+ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
+@@ -522,12 +542,16 @@
+ static void oom_reap_task(struct task_struct *tsk, struct mm_struct *mm)
+ {
+ 	int attempts = 0;
++	bool ret;
+ 
+ 	/*
+-	 * Check MMF_OOM_REAPED in case oom_kill_process() found this mm
+-	 * pinned.
++	 * Check MMF_OOM_REAPED after holding oom_lock in case
++	 * oom_kill_process() found this mm pinned.
+ 	 */
+-	if (test_bit(MMF_OOM_REAPED, &mm->flags))
++	mutex_lock(&oom_lock);
++	ret = test_bit(MMF_OOM_REAPED, &mm->flags);
++	mutex_unlock(&oom_lock);
++	if (ret)
+ 		return;
+ 
+ 	/* Retry the down_read_trylock(mmap_sem) a few times */
+@@ -550,22 +574,26 @@
+ 	set_freezable();
+ 
+ 	while (true) {
+-		struct mm_struct *mm;
+-		struct task_struct *victim;
++		struct mm_struct *mm = NULL;
++		struct task_struct *victim = NULL;
+ 
+ 		wait_event_freezable(oom_reaper_wait,
+ 				     !list_empty(&oom_mm_list));
+-		mutex_lock(&oom_lock);
+-		mm = list_first_entry(&oom_mm_list, struct mm_struct,
+-				      oom_mm.list);
+-		victim = mm->oom_mm.victim;
+-		/*
+-		 * Take a reference on current victim thread in case
+-		 * oom_reap_task() raced with mark_oom_victim() by
+-		 * other threads sharing this mm.
+-		 */
+-		get_task_struct(victim);
+-		mutex_unlock(&oom_lock);
++		spin_lock(&oom_mm_lock);
++		if (!list_empty(&oom_mm_list)) {
++			mm = list_first_entry(&oom_mm_list, struct mm_struct,
++					      oom_mm.list);
++			victim = mm->oom_mm.victim;
++			/*
++			 * Take a reference on current victim thread in case
++			 * oom_reap_task() raced with mark_oom_victim() by
++			 * other threads sharing this mm.
++			 */
++			get_task_struct(victim);
++		}
++		spin_unlock(&oom_mm_lock);
++		if (!mm)
++			continue;
+ 		oom_reap_task(victim, mm);
+ 		put_task_struct(victim);
+ 		/* Drop references taken by mark_oom_victim() */
+@@ -598,7 +626,7 @@
+ void mark_oom_victim(struct task_struct *tsk)
+ {
+ 	struct mm_struct *mm = tsk->mm;
+-	struct task_struct *old_tsk = mm->oom_mm.victim;
++	struct task_struct *old_tsk;
+ 
+ 	WARN_ON(oom_killer_disabled);
+ 	/* OOM killer might race with memcg OOM */
+@@ -615,18 +643,29 @@
+ 	/*
+ 	 * Since mark_oom_victim() is called from multiple threads,
+ 	 * connect this mm to oom_mm_list only if not yet connected.
++	 *
++	 * But task_in_oom_domain(mm->oom_mm.victim, memcg, nodemask) in
++	 * oom_has_pending_mm() might return false after all threads in one
++	 * thread group (which mm->oom_mm.victim belongs to) reached TASK_DEAD
++	 * state. In that case, the same mm will be selected by another thread
++	 * group (which mm->oom_mm.victim does not belongs to). Therefore,
++	 * we need to replace the old task with the new task (at least when
++	 * task_in_oom_domain() returned false).
+ 	 */
+ 	get_task_struct(tsk);
++	spin_lock(&oom_mm_lock);
++	old_tsk = mm->oom_mm.victim;
+ 	mm->oom_mm.victim = tsk;
+ 	if (!old_tsk) {
+ 		atomic_inc(&mm->mm_count);
+ 		list_add_tail(&mm->oom_mm.list, &oom_mm_list);
++	}
++	spin_unlock(&oom_mm_lock);
++	if (old_tsk)
++		put_task_struct(old_tsk);
+ #ifdef CONFIG_MMU
+-		wake_up(&oom_reaper_wait);
++	wake_up(&oom_reaper_wait);
+ #endif
+-	} else {
+-		put_task_struct(old_tsk);
+-	}
+ }
+ 
+ /**
 
---vtzGhvizbBRQ85DL--
+This series does not include patches for use_mm() users and wait_event()
+in oom_killer_disable(). We can apply
+http://lkml.kernel.org/r/1467365190-24640-3-git-send-email-mhocko@kernel.org
+on top of this series.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
