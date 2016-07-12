@@ -1,37 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 42A046B0263
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 14:13:17 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id o80so18876146wme.1
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 11:13:17 -0700 (PDT)
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 48F556B0005
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 14:18:49 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id l89so16869570lfi.3
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 11:18:49 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id y193si22108602wmy.53.2016.07.12.11.13.16
+        by mx.google.com with ESMTPS id s130si2001703wmf.18.2016.07.12.11.18.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Jul 2016 11:13:16 -0700 (PDT)
-Date: Tue, 12 Jul 2016 14:13:10 -0400
+        Tue, 12 Jul 2016 11:18:48 -0700 (PDT)
+Date: Tue, 12 Jul 2016 14:18:43 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 28/34] mm, vmscan: add classzone information to
- tracepoints
-Message-ID: <20160712181310.GD7821@cmpxchg.org>
+Subject: Re: [PATCH 29/34] mm, page_alloc: remove fair zone allocation policy
+Message-ID: <20160712181843.GE7821@cmpxchg.org>
 References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
- <1467970510-21195-29-git-send-email-mgorman@techsingularity.net>
+ <1467970510-21195-30-git-send-email-mgorman@techsingularity.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1467970510-21195-29-git-send-email-mgorman@techsingularity.net>
+In-Reply-To: <1467970510-21195-30-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@techsingularity.net>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Jul 08, 2016 at 10:35:04AM +0100, Mel Gorman wrote:
-> This is convenient when tracking down why the skip count is high because
-> it'll show what classzone kswapd woke up at and what zones are being
-> isolated.
+On Fri, Jul 08, 2016 at 10:35:05AM +0100, Mel Gorman wrote:
+> The fair zone allocation policy interleaves allocation requests between
+> zones to avoid an age inversion problem whereby new pages are reclaimed to
+> balance a zone.  Reclaim is now node-based so this should no longer be an
+> issue and the fair zone allocation policy is not free.  This patch removes
+> it.
 > 
 > Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 > Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+It's indeed no longer needed with a single set of LRUs on each NUMA
+node. I'm glad this wart is finally going. Thanks Mel.
 
 Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
