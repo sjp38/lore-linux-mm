@@ -1,74 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F0566B0253
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 08:05:56 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id r190so11928256wmr.0
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 05:05:56 -0700 (PDT)
-Received: from mail-lf0-x235.google.com (mail-lf0-x235.google.com. [2a00:1450:4010:c07::235])
-        by mx.google.com with ESMTPS id e88si1871797lfi.291.2016.07.12.05.05.54
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 46E866B0005
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 08:42:14 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id r190so12563771wmr.0
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 05:42:14 -0700 (PDT)
+Received: from mail.ud19.udmedia.de (ud19.udmedia.de. [194.117.254.59])
+        by mx.google.com with ESMTPS id 8si3169710wmu.80.2016.07.12.05.42.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Jul 2016 05:05:54 -0700 (PDT)
-Received: by mail-lf0-x235.google.com with SMTP id f93so11293797lfi.2
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 05:05:54 -0700 (PDT)
-Date: Tue, 12 Jul 2016 15:05:51 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm: thp: refix false positive BUG in
- page_move_anon_rmap()
-Message-ID: <20160712120551.GB18041@node>
-References: <alpine.LSU.2.11.1607120444540.12528@eggly.anvils>
+        Tue, 12 Jul 2016 05:42:12 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1607120444540.12528@eggly.anvils>
+Content-Type: text/plain; charset=US-ASCII;
+ format=flowed
+Content-Transfer-Encoding: 7bit
+Date: Tue, 12 Jul 2016 14:42:12 +0200
+From: Matthias Dahl <ml_linux-kernel@binary-island.eu>
+Subject: Re: Page Allocation Failures/OOM with dm-crypt on software RAID10
+ (Intel Rapid Storage)
+In-Reply-To: <20160712114920.GF14586@dhcp22.suse.cz>
+References: <02580b0a303da26b669b4a9892624b13@mail.ud19.udmedia.de>
+ <20160712095013.GA14591@dhcp22.suse.cz>
+ <d9dbe0328e938eb7544fdb2aa8b5a9c7@mail.ud19.udmedia.de>
+ <20160712114920.GF14586@dhcp22.suse.cz>
+Message-ID: <e6c2087730e530e77c2b12d50495bdc9@mail.ud19.udmedia.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Mika Westerberg <mika.westerberg@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-raid@vger.kernel.org, linux-mm@kvack.org, dm-devel@redhat.com, linux-kernel@vger.kernel.org
 
-On Tue, Jul 12, 2016 at 04:51:20AM -0700, Hugh Dickins wrote:
-> The VM_BUG_ON_PAGE in page_move_anon_rmap() is more trouble than it's
-> worth: the syzkaller fuzzer hit it again.  It's still wrong for some
-> THP cases, because linear_page_index() was never intended to apply to
-> addresses before the start of a vma.
-> 
-> That's easily fixed with a signed long cast inside linear_page_index();
-> and Dmitry has tested such a patch, to verify the false positive.  But
-> why extend linear_page_index() just for this case? when the avoidance
-> in page_move_anon_rmap() has already grown ugly, and there's no reason
-> for the check at all (nothing else there is using address or index).
-> 
-> Remove address arg from page_move_anon_rmap(), remove VM_BUG_ON_PAGE,
-> remove CONFIG_DEBUG_VM PageTransHuge adjustment.
-> 
-> And one more thing: should the compound_head(page) be done inside or
-> outside page_move_anon_rmap()?  It's usually pushed down to the lowest
-> level nowadays (and mm/memory.c shows no other explicit use of it),
-> so I think it's better done in page_move_anon_rmap() than by caller.
+Hello Michal...
 
-I agree, that's reasonable.
+On 2016-07-12 13:49, Michal Hocko wrote:
 
-> Fixes: 0798d3c022dc ("mm: thp: avoid false positive VM_BUG_ON_PAGE in page_move_anon_rmap()")
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> Reported-by: Dmitry Vyukov <dvyukov@google.com>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Mika Westerberg <mika.westerberg@linux.intel.com>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: stable@vger.kernel.org # 4.5+
+> I am not a storage expert (not even mention dm-crypt). But what those
+> counters say is that the IO completion doesn't trigger so the
+> PageWriteback flag is still set. Such a page is not reclaimable
+> obviously. So I would check the IO delivery path and focus on the
+> potential dm-crypt involvement if you suspect this is a contributing
+> factor.
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Sounds reasonable... except that I have no clue how to trace that with
+the limited means I have at my disposal right now and with the limited
+knowledge I have of the kernel internals. ;-)
 
-> ---
-> Of course, we could just do a patch that deletes the VM_BUG_ON_PAGE
-> (and CONFIG_DEBUG_VM PageTransHuge adjustment) for now, and the cleanup
-> afterwards - but this doesn't affect a widely used interface, or go back
-> many stable releases, so personally I prefer to do it all in one go.
+> Who is consuming those objects? Where is the rest 70% of memory hiding?
 
-+1.
+Is there any way to get a more detailed listing of where the memory is
+spent while dd is running? Something I could pipe every 500ms or so for
+later analysis or so?
+
+> Writer will get throttled but the concurrent memory consumer will not
+> normally. So you can end up in this situation.
+
+Hm, okay. I am still confused though: If I, for example, let dd do the
+exact same thing on a raw partition on the RAID10, nothing like that
+happens. Wouldn't we have the same race and problem then too...? It is
+only with dm-crypt in-between that all of this shows itself. But I do
+somehow suspect the RAID10 Intel Rapid Storage to be the cause or at
+least partially.
+
+Like I said, if you have any pointers how I could further trace this
+or figure out who is exactly consuming what memory, that would be very
+helpful... Thanks.
+
+So long,
+Matthias
 
 -- 
- Kirill A. Shutemov
+Dipl.-Inf. (FH) Matthias Dahl | Software Engineer | binary-island.eu
+  services: custom software [desktop, mobile, web], server administration
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
