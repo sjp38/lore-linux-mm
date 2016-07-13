@@ -1,84 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D3F016B0253
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 11:21:44 -0400 (EDT)
-Received: by mail-yw0-f197.google.com with SMTP id y188so97579484ywf.3
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 08:21:44 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f6si2741639qka.311.2016.07.13.08.21.43
+	by kanga.kvack.org (Postfix) with ESMTP id B83AB6B0260
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 11:21:48 -0400 (EDT)
+Received: by mail-yw0-f197.google.com with SMTP id i12so88845353ywa.0
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 08:21:48 -0700 (PDT)
+Received: from mail-wm0-f44.google.com (mail-wm0-f44.google.com. [74.125.82.44])
+        by mx.google.com with ESMTPS id g134si30317887wme.1.2016.07.13.08.21.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jul 2016 08:21:44 -0700 (PDT)
-Date: Wed, 13 Jul 2016 11:21:41 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: System freezes after OOM
-In-Reply-To: <97c60afe-d922-ce4c-3a5c-5b15bf0fe2da@gmail.com>
-Message-ID: <alpine.LRH.2.02.1607131114390.31769@file01.intranet.prod.int.rdu2.redhat.com>
-References: <57837CEE.1010609@redhat.com> <f80dc690-7e71-26b2-59a2-5a1557d26713@redhat.com> <9be09452-de7f-d8be-fd5d-4a80d1cd1ba3@redhat.com> <alpine.LRH.2.02.1607111027080.14327@file01.intranet.prod.int.rdu2.redhat.com> <20160712064905.GA14586@dhcp22.suse.cz>
- <alpine.LRH.2.02.1607121907160.24806@file01.intranet.prod.int.rdu2.redhat.com> <20160713111006.GF28723@dhcp22.suse.cz> <20160713125050.GJ28723@dhcp22.suse.cz> <97c60afe-d922-ce4c-3a5c-5b15bf0fe2da@gmail.com>
+        Wed, 13 Jul 2016 08:21:47 -0700 (PDT)
+Received: by mail-wm0-f44.google.com with SMTP id f126so33688827wma.1
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 08:21:47 -0700 (PDT)
+Date: Wed, 13 Jul 2016 17:21:45 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/4] x86, pagetable: ignore A/D bits in pte/pmd/pud_none()
+Message-ID: <20160713152145.GC20693@dhcp22.suse.cz>
+References: <20160708001909.FB2443E2@viggo.jf.intel.com>
+ <20160708001912.5216F89C@viggo.jf.intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160708001912.5216F89C@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Milan Broz <gmazyland@gmail.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Ondrej Kozina <okozina@redhat.com>, Jerome Marchand <jmarchan@redhat.com>, Stanislav Kozina <skozina@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, device-mapper development <dm-devel@redhat.com>
+To: Dave Hansen <dave@sr71.net>
+Cc: linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, bp@alien8.de, ak@linux.intel.com, dave.hansen@intel.com, dave.hansen@linux.intel.com
 
-
-
-On Wed, 13 Jul 2016, Milan Broz wrote:
-
-> On 07/13/2016 02:50 PM, Michal Hocko wrote:
-> > On Wed 13-07-16 13:10:06, Michal Hocko wrote:
-> >> On Tue 12-07-16 19:44:11, Mikulas Patocka wrote:
-> > [...]
-> >>> As long as swapping is in progress, the free memory is below the limit 
-> >>> (because the swapping activity itself consumes any memory over the limit). 
-> >>> And that triggered the OOM killer prematurely.
-> >>
-> >> I am not sure I understand the last part. Are you saing that we trigger
-> >> OOM because the initiated swapout will not be able to finish the IO thus
-> >> release the page in time?
-> >>
-> >> The oom detection checks waits for an ongoing writeout if there is no
-> >> reclaim progress and at least half of the reclaimable memory is either
-> >> dirty or under writeback. Pages under swaout are marked as under
-> >> writeback AFAIR. The writeout path (dm-crypt worker in this case) should
-> >> be able to allocate a memory from the mempool, hand over to the crypt
-> >> layer and finish the IO. Is it possible this might take a lot of time?
-> > 
-> > I am not familiar with the crypto API but from what I understood from
-> > crypt_convert the encryption is done asynchronously. Then I got lost in
-> > the indirection. Who is completing the request and from what kind of
-> > context? Is it possible it wouldn't be runable for a long time?
+On Thu 07-07-16 17:19:12, Dave Hansen wrote:
 > 
-> If you mean crypt_convert in dm-crypt, then it can do asynchronous completion
-> but usually (with AES-NI ans sw implementations) it run the operation completely
-> synchronously.
-> Asynchronous processing is quite rare, usually only on some specific hardware
-> crypto accelerators.
+> From: Dave Hansen <dave.hansen@linux.intel.com>
 > 
-> Once the encryption is finished, the cloned bio is sent to the block
-> layer for processing.
-> (There is also some magic with sorting writes but Mikulas knows this better.)
-
-dm-crypt receives requests in crypt_map, then it distributes write 
-requests to multiple encryption threads. Encryption is done usually 
-synchronously; asynchronous completion is used only when using some PCI 
-cards that accelerate encryption. When encryption finishes, the encrypted 
-pages are submitted to a thread dmcrypt_write that sorts the requests 
-using rbtree and submits them.
-
-The block layer has a deficiency that it cannot merge adjacent requests 
-submitted by the different threads.
-
-If we submitted requests directly from encryption threads, lack of merging 
-degraded performance seriously.
-
-Mikulas
-
-> Milan
-> p.s. I added cc to dm-devel, some dmcrypt people reads only this list.
+> The erratum we are fixing here can lead to stray setting of the
+> A and D bits.  That means that a pte that we cleared might
+> suddenly have A/D set.  So, stop considering those bits when
+> determining if a pte is pte_none().  The same goes for the
+> other pmd_none() and pud_none().  pgd_none() can be skipped
+> because it is not affected; we do not use PGD entries for
+> anything other than pagetables on affected configurations.
 > 
+> This adds a tiny amount of overhead to all pte_none() checks.
+> I doubt we'll be able to measure it anywhere.
+
+It would be better to introduce the overhead only for the affected
+cpu models but I guess this is also acceptable. Would it be too
+complicated to use alternatives for that?
+
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+
+Anyway
+Acked-by: Michal Hocko <mhocko@suse.com>
+> ---
+> 
+>  b/arch/x86/include/asm/pgtable.h       |   13 ++++++++++---
+>  b/arch/x86/include/asm/pgtable_types.h |    6 ++++++
+>  2 files changed, 16 insertions(+), 3 deletions(-)
+> 
+> diff -puN arch/x86/include/asm/pgtable.h~knl-strays-20-mod-pte-none arch/x86/include/asm/pgtable.h
+> --- a/arch/x86/include/asm/pgtable.h~knl-strays-20-mod-pte-none	2016-07-07 17:17:43.974764976 -0700
+> +++ b/arch/x86/include/asm/pgtable.h	2016-07-07 17:17:43.980765246 -0700
+> @@ -480,7 +480,7 @@ pte_t *populate_extra_pte(unsigned long
+>  
+>  static inline int pte_none(pte_t pte)
+>  {
+> -	return !pte.pte;
+> +	return !(pte.pte & ~(_PAGE_KNL_ERRATUM_MASK));
+>  }
+>  
+>  #define __HAVE_ARCH_PTE_SAME
+> @@ -552,7 +552,8 @@ static inline int pmd_none(pmd_t pmd)
+>  {
+>  	/* Only check low word on 32-bit platforms, since it might be
+>  	   out of sync with upper half. */
+> -	return (unsigned long)native_pmd_val(pmd) == 0;
+> +	unsigned long val = native_pmd_val(pmd);
+> +	return (val & ~_PAGE_KNL_ERRATUM_MASK) == 0;
+>  }
+>  
+>  static inline unsigned long pmd_page_vaddr(pmd_t pmd)
+> @@ -616,7 +617,7 @@ static inline unsigned long pages_to_mb(
+>  #if CONFIG_PGTABLE_LEVELS > 2
+>  static inline int pud_none(pud_t pud)
+>  {
+> -	return native_pud_val(pud) == 0;
+> +	return (native_pud_val(pud) & ~(_PAGE_KNL_ERRATUM_MASK)) == 0;
+>  }
+>  
+>  static inline int pud_present(pud_t pud)
+> @@ -694,6 +695,12 @@ static inline int pgd_bad(pgd_t pgd)
+>  
+>  static inline int pgd_none(pgd_t pgd)
+>  {
+> +	/*
+> +	 * There is no need to do a workaround for the KNL stray
+> +	 * A/D bit erratum here.  PGDs only point to page tables
+> +	 * except on 32-bit non-PAE which is not supported on
+> +	 * KNL.
+> +	 */
+>  	return !native_pgd_val(pgd);
+>  }
+>  #endif	/* CONFIG_PGTABLE_LEVELS > 3 */
+> diff -puN arch/x86/include/asm/pgtable_types.h~knl-strays-20-mod-pte-none arch/x86/include/asm/pgtable_types.h
+> --- a/arch/x86/include/asm/pgtable_types.h~knl-strays-20-mod-pte-none	2016-07-07 17:17:43.976765066 -0700
+> +++ b/arch/x86/include/asm/pgtable_types.h	2016-07-07 17:17:43.980765246 -0700
+> @@ -70,6 +70,12 @@
+>  			 _PAGE_PKEY_BIT2 | \
+>  			 _PAGE_PKEY_BIT3)
+>  
+> +#if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
+> +#define _PAGE_KNL_ERRATUM_MASK (_PAGE_DIRTY | _PAGE_ACCESSED)
+> +#else
+> +#define _PAGE_KNL_ERRATUM_MASK 0
+> +#endif
+> +
+>  #ifdef CONFIG_KMEMCHECK
+>  #define _PAGE_HIDDEN	(_AT(pteval_t, 1) << _PAGE_BIT_HIDDEN)
+>  #else
+> _
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
