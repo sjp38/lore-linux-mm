@@ -1,167 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E119C6B0005
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 02:17:04 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id l89so25284851lfi.3
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 23:17:04 -0700 (PDT)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id r123si25975927wmb.115.2016.07.12.23.17.03
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B78116B0005
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 03:08:13 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id r190so28267119wmr.0
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 00:08:13 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id l64si1413780wml.10.2016.07.13.00.08.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Jul 2016 23:17:03 -0700 (PDT)
-Received: by mail-wm0-x241.google.com with SMTP id q128so71335wma.1
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 23:17:03 -0700 (PDT)
-Content-Type: text/plain; charset=windows-1252
-Mime-Version: 1.0 (Mac OS X Mail 8.2 \(2104\))
-Subject: Re: [PATCH 3/3] Add name fields in shrinker tracepoint definitions
-From: Janani Ravichandran <janani.rvchndrn@gmail.com>
-In-Reply-To: <ed4c8fa0-d727-c014-58c5-efe3a191f2ec@suse.de>
-Date: Wed, 13 Jul 2016 11:46:51 +0530
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <010E7991-C436-414A-8F5A-602705E5A47B@gmail.com>
-References: <cover.1468051277.git.janani.rvchndrn@gmail.com> <6114f72a15d5e52984ea546ba977737221351636.1468051282.git.janani.rvchndrn@gmail.com> <447d8214-3c3d-cc4a-2eff-a47923fbe45f@suse.cz> <ed4c8fa0-d727-c014-58c5-efe3a191f2ec@suse.de>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 13 Jul 2016 00:08:12 -0700 (PDT)
+Message-ID: <5785E764.8050304@huawei.com>
+Date: Wed, 13 Jul 2016 15:01:56 +0800
+From: zhong jiang <zhongjiang@huawei.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/2] kexec: add a pmd huge entry condition during the
+ page table
+References: <1468299403-27954-1-git-send-email-zhongjiang@huawei.com> <1468299403-27954-2-git-send-email-zhongjiang@huawei.com> <87a8hm3lme.fsf@x220.int.ebiederm.org>
+In-Reply-To: <87a8hm3lme.fsf@x220.int.ebiederm.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Jones <tonyj@suse.de>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@surriel.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@virtuozzo.com, mhocko@suse.com, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, bywxiaobai@163.com
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: dyoung@redhat.com, horms@verge.net.au, vgoyal@redhat.com, yinghai@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, kexec@lists.infradead.org
 
+On 2016/7/12 23:46, Eric W. Biederman wrote:
+> zhongjiang <zhongjiang@huawei.com> writes:
+>
+>> From: zhong jiang <zhongjiang@huawei.com>
+>>
+>> when image is loaded into kernel, we need set up page table for it. and 
+>> all valid pfn also set up new mapping. it will tend to establish a pmd 
+>> page table in the form of a large page if pud_present is true. relocate_kernel 
+>> points to code segment can locate in the pmd huge entry in init_transtion_pgtable. 
+>> therefore, we need to take the situation into account.
+> I can see how in theory this might be necessary but when is a kernel virtual
+> address on x86_64 that is above 0x8000000000000000 in conflict with an
+> identity mapped physicall address that are all below 0x8000000000000000?
+>
+> If anything the code could be simplified to always assume those mappings
+> are unoccupied.
+>
+> Did you run into an actual failure somewhere?
+>
+> Eric
+>
+   I  do not understand what you trying to say,  Maybe I miss your point.
+  
+  The key is how to ensure that relocate_kernel points to the pmd entry is not huge page.
+ 
+  Thanks
+  zhongjiang
+ 
+>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+>> ---
+>>  arch/x86/kernel/machine_kexec_64.c | 20 ++++++++++++++++++--
+>>  1 file changed, 18 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/arch/x86/kernel/machine_kexec_64.c b/arch/x86/kernel/machine_kexec_64.c
+>> index 5a294e4..c33e344 100644
+>> --- a/arch/x86/kernel/machine_kexec_64.c
+>> +++ b/arch/x86/kernel/machine_kexec_64.c
+>> @@ -14,6 +14,7 @@
+>>  #include <linux/gfp.h>
+>>  #include <linux/reboot.h>
+>>  #include <linux/numa.h>
+>> +#include <linux/hugetlb.h>
+>>  #include <linux/ftrace.h>
+>>  #include <linux/io.h>
+>>  #include <linux/suspend.h>
+>> @@ -34,6 +35,17 @@ static struct kexec_file_ops *kexec_file_loaders[] = {
+>>  };
+>>  #endif
+>>  
+>> +static void split_pmd(pmd_t *pmd, pte_t *pte)
+>> +{
+>> +	unsigned long pfn = pmd_pfn(*pmd);
+>> +	int i = 0;
+>> +
+>> +	do {
+>> +		set_pte(pte, pfn_pte(pfn, PAGE_KERNEL_EXEC));
+>> +		pfn++;
+>> +	} while (pte++, i++, i < PTRS_PER_PTE);
+>> +}
+>> +
+>>  static void free_transition_pgtable(struct kimage *image)
+>>  {
+>>  	free_page((unsigned long)image->arch.pud);
+>> @@ -68,15 +80,19 @@ static int init_transition_pgtable(struct kimage *image, pgd_t *pgd)
+>>  		set_pud(pud, __pud(__pa(pmd) | _KERNPG_TABLE));
+>>  	}
+>>  	pmd = pmd_offset(pud, vaddr);
+>> -	if (!pmd_present(*pmd)) {
+>> +	if (!pmd_present(*pmd) || pmd_huge(*pmd)) {
+>>  		pte = (pte_t *)get_zeroed_page(GFP_KERNEL);
+>>  		if (!pte)
+>>  			goto err;
+>>  		image->arch.pte = pte;
+>> -		set_pmd(pmd, __pmd(__pa(pte) | _KERNPG_TABLE));
+>> +		if (pmd_huge(*pmd))
+>> +			split_pmd(pmd, pte);
+>> +		else
+>> +			set_pmd(pmd, __pmd(__pa(pte) | _KERNPG_TABLE));
+>>  	}
+>>  	pte = pte_offset_kernel(pmd, vaddr);
+>>  	set_pte(pte, pfn_pte(paddr >> PAGE_SHIFT, PAGE_KERNEL_EXEC));
+>> +
+>>  	return 0;
+>>  err:
+>>  	free_transition_pgtable(image);
+> .
+>
 
-> On Jul 13, 2016, at 6:05 AM, Tony Jones <tonyj@suse.de> wrote:
->=20
-> On 07/11/2016 07:18 AM, Vlastimil Babka wrote:
->> On 07/09/2016 11:05 AM, Janani Ravichandran wrote:
->>>=20
->>> 	TP_fast_assign(
->>> +		__entry->name =3D shr->name;
->>> 		__entry->shr =3D shr;
->>> 		__entry->shrink =3D shr->scan_objects;
->>> 		__entry->nid =3D sc->nid;
->>> @@ -214,7 +216,8 @@ TRACE_EVENT(mm_shrink_slab_start,
->>> 		__entry->total_scan =3D total_scan;
->>> 	),
->>>=20
->>> -	TP_printk("%pF %p: nid: %d objects to shrink %ld gfp_flags %s =
-pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld total_scan %ld",
->>> +	TP_printk("name: %s %pF %p: nid: %d objects to shrink %ld =
-gfp_flags %s pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld =
-total_scan %ld",
->>> +		__entry->name,
->>=20
->> Is this legal to do when printing is not done via the /sys ... file=20=
-
->> itself, but raw data is collected and then printed by e.g. trace-cmd?=20=
-
->> How can it possibly interpret the "char *" kernel pointer?
->=20
-> I actually had a similar patch set to this,  I was going to post it =
-but Janani beat me to it ;-)
->=20
-> Vlastimil is correct,  I'll attach my patch below so you can see the =
-difference.  Otherwise you won't get correct behavior passing through =
-perf.
-
-Thanks for that! I will have a look at it.
->  =20
->=20
-> I also have a patch which adds a similar latency script (python) but =
-interfaces it into the perf script setup.
-
-I=92m looking for pointers for writing latency scripts using tracepoints =
-as I=92m new to it. Can I have a look at yours, please?
-
-Thanks :)
-
-Janani.
->=20
-> Tony
->=20
-> ---
->=20
-> Pass shrinker name in shrink slab tracepoints
->=20
-> Signed-off-by: Tony Jones <tonyj@suse.de>
-> ---
-> include/trace/events/vmscan.h | 12 ++++++++++--
-> 1 file changed, 10 insertions(+), 2 deletions(-)
->=20
-> diff --git a/include/trace/events/vmscan.h =
-b/include/trace/events/vmscan.h
-> index 0101ef3..0a15948 100644
-> --- a/include/trace/events/vmscan.h
-> +++ b/include/trace/events/vmscan.h
-> @@ -16,6 +16,8 @@
-> #define RECLAIM_WB_SYNC		0x0004u /* Unused, all reclaim =
-async */
-> #define RECLAIM_WB_ASYNC	0x0008u
->=20
-> +#define SHRINKER_NAME_LEN 	(size_t)32
-> +
-> #define show_reclaim_flags(flags)				\
-> 	(flags) ? __print_flags(flags, "|",			\
-> 		{RECLAIM_WB_ANON,	"RECLAIM_WB_ANON"},	\
-> @@ -190,6 +192,7 @@ TRACE_EVENT(mm_shrink_slab_start,
->=20
-> 	TP_STRUCT__entry(
-> 		__field(struct shrinker *, shr)
-> +		__array(char, name, SHRINKER_NAME_LEN)
-> 		__field(void *, shrink)
-> 		__field(int, nid)
-> 		__field(long, nr_objects_to_shrink)
-> @@ -203,6 +206,7 @@ TRACE_EVENT(mm_shrink_slab_start,
->=20
-> 	TP_fast_assign(
-> 		__entry->shr =3D shr;
-> +		strlcpy(__entry->name, shr->name, SHRINKER_NAME_LEN);
-> 		__entry->shrink =3D shr->scan_objects;
-> 		__entry->nid =3D sc->nid;
-> 		__entry->nr_objects_to_shrink =3D nr_objects_to_shrink;
-> @@ -214,9 +218,10 @@ TRACE_EVENT(mm_shrink_slab_start,
-> 		__entry->total_scan =3D total_scan;
-> 	),
->=20
-> -	TP_printk("%pF %p: nid: %d objects to shrink %ld gfp_flags %s =
-pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld total_scan %ld",
-> +	TP_printk("%pF %p(%s): nid: %d objects to shrink %ld gfp_flags =
-%s pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld total_scan =
-%ld",
-> 		__entry->shrink,
-> 		__entry->shr,
-> +		__entry->name,
-> 		__entry->nid,
-> 		__entry->nr_objects_to_shrink,
-> 		show_gfp_flags(__entry->gfp_flags),
-> @@ -236,6 +241,7 @@ TRACE_EVENT(mm_shrink_slab_end,
->=20
-> 	TP_STRUCT__entry(
-> 		__field(struct shrinker *, shr)
-> +		__array(char, name, SHRINKER_NAME_LEN)
-> 		__field(int, nid)
-> 		__field(void *, shrink)
-> 		__field(long, unused_scan)
-> @@ -246,6 +252,7 @@ TRACE_EVENT(mm_shrink_slab_end,
->=20
-> 	TP_fast_assign(
-> 		__entry->shr =3D shr;
-> +		strlcpy(__entry->name, shr->name, SHRINKER_NAME_LEN);
-> 		__entry->nid =3D nid;
-> 		__entry->shrink =3D shr->scan_objects;
-> 		__entry->unused_scan =3D unused_scan_cnt;
-> @@ -254,9 +261,10 @@ TRACE_EVENT(mm_shrink_slab_end,
-> 		__entry->total_scan =3D total_scan;
-> 	),
->=20
-> -	TP_printk("%pF %p: nid: %d unused scan count %ld new scan count =
-%ld total_scan %ld last shrinker return val %d",
-> +	TP_printk("%pF %p(%s): nid: %d unused scan count %ld new scan =
-count %ld total_scan %ld last shrinker return val %d",
-> 		__entry->shrink,
-> 		__entry->shr,
-> +		__entry->name,
-> 		__entry->nid,
-> 		__entry->unused_scan,
-> 		__entry->new_scan,
->=20
->=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
