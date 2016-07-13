@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DCC836B0253
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 06:00:08 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id o80so31951243wme.1
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 03:00:08 -0700 (PDT)
-Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.16])
-        by mx.google.com with ESMTPS id y200si9809337wme.141.2016.07.13.03.00.06
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2113C6B025F
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 06:00:11 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id x83so31396531wma.2
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 03:00:11 -0700 (PDT)
+Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
+        by mx.google.com with ESMTPS id lu3si24997wjb.159.2016.07.13.03.00.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jul 2016 03:00:06 -0700 (PDT)
+        Wed, 13 Jul 2016 03:00:07 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id 694FC1C1A97
+	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id 9840D1C1FE1
 	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 11:00:06 +0100 (IST)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 1/4] mm, vmscan: Have kswapd reclaim from all zones if reclaiming and buffer_heads_over_limit -fix
-Date: Wed, 13 Jul 2016 11:00:01 +0100
-Message-Id: <1468404004-5085-2-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 2/4] mm: vmstat: account per-zone stalls and pages skipped during reclaim -fix
+Date: Wed, 13 Jul 2016 11:00:02 +0100
+Message-Id: <1468404004-5085-3-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1468404004-5085-1-git-send-email-mgorman@techsingularity.net>
 References: <1468404004-5085-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,43 +23,59 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-Johannes reported that the comment about buffer_heads_over_limit in
-balance_pgdat only made sense in the context of the patch. This patch
-clarifies the reasoning and how it applies to 32 and 64 bit systems.
+As pointed out by Johannes -- the PG prefix seems to stand for page, and
+all stat names that contain it represent some per-page event. PGSTALL is
+not a page event. This patch renames it.
 
-This is a fix to the mmotm patch
-mm-vmscan-have-kswapd-reclaim-from-all-zones-if-reclaiming-and-buffer_heads_over_limit.patch
+This is a fix for the mmotm patch
+mm-vmstat-account-per-zone-stalls-and-pages-skipped-during-reclaim.patch
 
-Suggested-by: Johannes Weiner <hannes@cmpxchg.org>
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- mm/vmscan.c | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ include/linux/vm_event_item.h | 2 +-
+ mm/vmscan.c                   | 2 +-
+ mm/vmstat.c                   | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
 
+diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+index 6d47f66f0e9c..4d6ec58a8d45 100644
+--- a/include/linux/vm_event_item.h
++++ b/include/linux/vm_event_item.h
+@@ -23,7 +23,7 @@
+ 
+ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		FOR_ALL_ZONES(PGALLOC),
+-		FOR_ALL_ZONES(PGSTALL),
++		FOR_ALL_ZONES(ALLOCSTALL),
+ 		FOR_ALL_ZONES(PGSCAN_SKIP),
+ 		PGFREE, PGACTIVATE, PGDEACTIVATE,
+ 		PGFAULT, PGMAJFAULT,
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index d079210d46ee..21eae17ee730 100644
+index 21eae17ee730..429bf3a9c06c 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -3131,12 +3131,13 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+@@ -2674,7 +2674,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
+ 	delayacct_freepages_start();
  
- 		/*
- 		 * If the number of buffer_heads exceeds the maximum allowed
--		 * then consider reclaiming from all zones. This is not
--		 * specific to highmem which may not exist but it is it is
--		 * expected that buffer_heads are stripped in writeback.
--		 * Reclaim may still not go ahead if all eligible zones
--		 * for the original allocation request are balanced to
--		 * avoid excessive reclaim from kswapd.
-+		 * then consider reclaiming from all zones. This has a dual
-+		 * purpose -- on 64-bit systems it is expected that
-+		 * buffer_heads are stripped during active rotation. On 32-bit
-+		 * systems, highmem pages can pin lowmem memory and shrinking
-+		 * buffers can relieve lowmem pressure. Reclaim may still not
-+		 * go ahead if all eligible zones for the original allocation
-+		 * request are balanced to avoid excessive reclaim from kswapd.
- 		 */
- 		if (buffer_heads_over_limit) {
- 			for (i = MAX_NR_ZONES - 1; i >= 0; i--) {
+ 	if (global_reclaim(sc))
+-		__count_zid_vm_events(PGSTALL, sc->reclaim_idx, 1);
++		__count_zid_vm_events(ALLOCSTALL, sc->reclaim_idx, 1);
+ 
+ 	do {
+ 		vmpressure_prio(sc->gfp_mask, sc->target_mem_cgroup,
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 7415775faf08..91ecca96dcae 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -980,7 +980,7 @@ const char * const vmstat_text[] = {
+ 	"pswpout",
+ 
+ 	TEXTS_FOR_ZONES("pgalloc")
+-	TEXTS_FOR_ZONES("pgstall")
++	TEXTS_FOR_ZONES("allocstall")
+ 	TEXTS_FOR_ZONES("pgskip")
+ 
+ 	"pgfree",
 -- 
 2.6.4
 
