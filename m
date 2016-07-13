@@ -1,68 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 302546B0005
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 08:18:32 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id p41so31946948lfi.0
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 05:18:32 -0700 (PDT)
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com. [74.125.82.42])
-        by mx.google.com with ESMTPS id 76si2837029wmr.124.2016.07.13.05.18.30
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BA2B66B0005
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 08:29:01 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id l89so32049366lfi.3
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 05:29:01 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id p125si1159535wmp.76.2016.07.13.05.29.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jul 2016 05:18:31 -0700 (PDT)
-Received: by mail-wm0-f42.google.com with SMTP id f65so26375067wmi.0
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 05:18:30 -0700 (PDT)
-Date: Wed, 13 Jul 2016 14:18:28 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Page Allocation Failures/OOM with dm-crypt on software RAID10
- (Intel Rapid Storage)
-Message-ID: <20160713121828.GI28723@dhcp22.suse.cz>
-References: <02580b0a303da26b669b4a9892624b13@mail.ud19.udmedia.de>
- <20160712095013.GA14591@dhcp22.suse.cz>
- <d9dbe0328e938eb7544fdb2aa8b5a9c7@mail.ud19.udmedia.de>
- <20160712114920.GF14586@dhcp22.suse.cz>
- <e6c2087730e530e77c2b12d50495bdc9@mail.ud19.udmedia.de>
- <20160712140715.GL14586@dhcp22.suse.cz>
- <459d501038de4d25db6d140ac5ea5f8d@mail.ud19.udmedia.de>
- <20160713112126.GH28723@dhcp22.suse.cz>
+        Wed, 13 Jul 2016 05:29:00 -0700 (PDT)
+Date: Wed, 13 Jul 2016 08:28:48 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 12/34] mm: vmscan: do not reclaim from kswapd if there is
+ any eligible zone
+Message-ID: <20160713122848.GA9905@cmpxchg.org>
+References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
+ <1467970510-21195-13-git-send-email-mgorman@techsingularity.net>
+ <20160712142909.GF5881@cmpxchg.org>
+ <20160713084742.GG9806@techsingularity.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160713112126.GH28723@dhcp22.suse.cz>
+In-Reply-To: <20160713084742.GG9806@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthias Dahl <ml_linux-kernel@binary-island.eu>
-Cc: linux-raid@vger.kernel.org, linux-mm@kvack.org, dm-devel@redhat.com, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 13-07-16 13:21:26, Michal Hocko wrote:
-> On Tue 12-07-16 16:56:32, Matthias Dahl wrote:
-[...]
-> > If that support is baked into the Fedora provided kernel that is. If
-> > you could give me a few hints or pointers, how to properly do a allocator
-> > trace point and get some decent data out of it, that would be nice.
+On Wed, Jul 13, 2016 at 09:47:42AM +0100, Mel Gorman wrote:
+> On Tue, Jul 12, 2016 at 10:29:09AM -0400, Johannes Weiner wrote:
+> > > +		/*
+> > > +		 * If the number of buffer_heads in the machine exceeds the
+> > > +		 * maximum allowed level then reclaim from all zones. This is
+> > > +		 * not specific to highmem as highmem may not exist but it is
+> > > +		 * it is expected that buffer_heads are stripped in writeback.
+> > 
+> > The mention of highmem in this comment make only sense within the
+> > context of this diff; it'll be pretty confusing in the standalone
+> > code.
+> > 
+> > Also, double "it is" :)
 > 
-> You need to have a kernel with CONFIG_TRACEPOINTS and then enable them
-> via debugfs. You are interested in kmalloc tracepoint and specify a size
-> as a filter to only see those that are really interesting. I haven't
-> checked your slabinfo yet - hope to get to it later today.
+> Is this any better?
 
-The largest contributors seem to be
-$ zcat slabinfo.txt.gz | awk '{printf "%s %d\n" , $1, $6*$15}' | head_and_tail.sh 133 | paste-with-diff.sh | sort -n -k3
-			initial	diff [#pages]
-radix_tree_node 	3444    2592
-debug_objects_cache     388     46159
-file_lock_ctx   	114     138570
-buffer_head     	5616    238704
-kmalloc-256     	328     573164
-bio-3   		24      1118984
+Yes, this is great! Thank you.
 
-So it seems we are accumulating bios and 256B objects. Buffer heads as
-well but so much. Having over 4G worth of bios sounds really suspicious.
-Note that they pin pages to be written so this might be consuming the
-rest of the unaccounted memory! So the main question is why those bios
-do not get dispatched or finished.
--- 
-Michal Hocko
-SUSE Labs
+> Note that it's marked as a fix to a later patch to reduce collisions in
+> mmotm. It's not a bisection risk so I saw little need to cause
+> unnecessary conflicts for Andrew.
+
+That seems completely reasonable to me.
+
+> ---8<---
+> mm, vmscan: Have kswapd reclaim from all zones if reclaiming and buffer_heads_over_limit -fix
+> 
+> Johannes reported that the comment about buffer_heads_over_limit in
+> balance_pgdat only made sense in the context of the patch. This
+> patch clarifies the reasoning and how it applies to 32 and 64 bit
+> systems.
+> 
+> This is a fix to the mmotm patch
+> mm-vmscan-have-kswapd-reclaim-from-all-zones-if-reclaiming-and-buffer_heads_over_limit.patch
+> 
+> Suggested-by: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
