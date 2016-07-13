@@ -1,95 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D7A7A6B025F
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 11:11:39 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id u25so91512333qtb.3
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 08:11:39 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n185si2394953qkd.242.2016.07.13.08.11.37
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FBB36B0253
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 11:18:24 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id l89so35327508lfi.3
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 08:18:24 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id j11si1563128wjn.60.2016.07.13.08.18.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jul 2016 08:11:38 -0700 (PDT)
-Date: Wed, 13 Jul 2016 11:11:32 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: System freezes after OOM
-In-Reply-To: <20160713145638.GM28723@dhcp22.suse.cz>
-Message-ID: <alpine.LRH.2.02.1607131105080.31769@file01.intranet.prod.int.rdu2.redhat.com>
-References: <57837CEE.1010609@redhat.com> <f80dc690-7e71-26b2-59a2-5a1557d26713@redhat.com> <9be09452-de7f-d8be-fd5d-4a80d1cd1ba3@redhat.com> <alpine.LRH.2.02.1607111027080.14327@file01.intranet.prod.int.rdu2.redhat.com> <20160712064905.GA14586@dhcp22.suse.cz>
- <alpine.LRH.2.02.1607121907160.24806@file01.intranet.prod.int.rdu2.redhat.com> <2d5e1f84-e886-7b98-cb11-170d7104fd13@I-love.SAKURA.ne.jp> <20160713133955.GK28723@dhcp22.suse.cz> <alpine.LRH.2.02.1607131004340.31769@file01.intranet.prod.int.rdu2.redhat.com>
- <20160713145638.GM28723@dhcp22.suse.cz>
+        Wed, 13 Jul 2016 08:18:23 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id o80so6249678wme.0
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 08:18:22 -0700 (PDT)
+Date: Wed, 13 Jul 2016 17:18:20 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 4/4] x86: use pte_none() to test for empty PTE
+Message-ID: <20160713151820.GA20693@dhcp22.suse.cz>
+References: <20160708001909.FB2443E2@viggo.jf.intel.com>
+ <20160708001915.813703D9@viggo.jf.intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160708001915.813703D9@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Ondrej Kozina <okozina@redhat.com>, Jerome Marchand <jmarchan@redhat.com>, Stanislav Kozina <skozina@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave@sr71.net>
+Cc: linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, bp@alien8.de, ak@linux.intel.com, dave.hansen@intel.com, dave.hansen@linux.intel.com, Julia Lawall <Julia.Lawall@lip6.fr>
 
+[CCing Julia]
 
-
-On Wed, 13 Jul 2016, Michal Hocko wrote:
-
-> On Wed 13-07-16 10:18:35, Mikulas Patocka wrote:
-> > 
-> > 
-> > On Wed, 13 Jul 2016, Michal Hocko wrote:
-> > 
-> > > [CC David]
-> > > 
-> > > > > It is caused by the commit f9054c70d28bc214b2857cf8db8269f4f45a5e23. 
-> > > > > Prior to this commit, mempool allocations set __GFP_NOMEMALLOC, so 
-> > > > > they never exhausted reserved memory. With this commit, mempool 
-> > > > > allocations drop __GFP_NOMEMALLOC, so they can dig deeper (if the 
-> > > > > process has PF_MEMALLOC, they can bypass all limits).
-> > > > 
-> > > > I wonder whether commit f9054c70d28bc214 ("mm, mempool: only set 
-> > > > __GFP_NOMEMALLOC if there are free elements") is doing correct thing. 
-> > > > It says
-> > > > 
-> > > >     If an oom killed thread calls mempool_alloc(), it is possible that 
-> > > > it'll
-> > > >     loop forever if there are no elements on the freelist since
-> > > >     __GFP_NOMEMALLOC prevents it from accessing needed memory reserves in
-> > > >     oom conditions.
-> > > 
-> > > I haven't studied the patch very deeply so I might be missing something
-> > > but from a quick look the patch does exactly what the above says.
-> > > 
-> > > mempool_alloc used to inhibit ALLOC_NO_WATERMARKS by default. David has
-> > > only changed that to allow ALLOC_NO_WATERMARKS if there are no objects
-> > > in the pool and so we have no fallback for the default __GFP_NORETRY
-> > > request.
-> > 
-> > The swapper core sets the flag PF_MEMALLOC and calls generic_make_request 
-> > to submit the swapping bio to the block driver. The device mapper driver 
-> > uses mempools for all its I/O processing.
+On Thu 07-07-16 17:19:15, Dave Hansen wrote:
 > 
-> OK, this is the part I have missed. I didn't realize that the swapout
-> path, which is indeed PF_MEMALLOC, can get down to blk code which uses
-> mempools. A quick code travers shows that at least
-> 	make_request_fn = blk_queue_bio
-> 	blk_queue_bio
-> 	  get_request
-> 	    __get_request
+> From: Dave Hansen <dave.hansen@linux.intel.com>
 > 
-> might do that. And in that case I agree that the above mentioned patch
-> has unintentional side effects and should be re-evaluated. David, what
-> do you think? An obvious fixup would be considering TIF_MEMDIE in
-> mempool_alloc explicitly.
+> The page table manipulation code seems to have grown a couple of
+> sites that are looking for empty PTEs.  Just in case one of these
+> entries got a stray bit set, use pte_none() instead of checking
+> for a zero pte_val().
 
-What are the real problems that f9054c70d28bc214b2857cf8db8269f4f45a5e23 
-tries to fix?
+This looks like something that coccinelle could help with and automate.
+Especially when the patch seems interesting for applying to older kernel
+code streams.
 
-Do you have a stacktrace where it deadlocked, or was just a theoretical 
-consideration?
+Julia would it be hard to generate a metapatch which would check the
+{pte,pmd}_val() usage in conditions and replace them with {pte,pmd}_none
+equivalents?
 
-Mempool users generally (except for some flawed cases like fs_bio_set) do 
-not require memory to proceed. So if you just loop in mempool_alloc, the 
-processes that exhasted the mempool reserve will eventually return objects 
-to the mempool and you should proceed.
+> The use pte_same() makes me a bit nervous.  If we were doing a
+> pte_same() check against two cleared entries and one of them had
+> a stray bit set, it might fail the pte_same() check.  But, I
+> don't think we ever _do_ pte_same() for cleared entries.  It is
+> almost entirely used for checking for races in fault-in paths.
+> 
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 
-If you can't proceed, it is a bug in the code that uses the mempool.
+Other than that looks good to me. Feel free to add
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-Mikulas
+> ---
+> 
+>  b/arch/x86/mm/init_64.c    |   12 ++++++------
+>  b/arch/x86/mm/pageattr.c   |    2 +-
+>  b/arch/x86/mm/pgtable_32.c |    2 +-
+>  3 files changed, 8 insertions(+), 8 deletions(-)
+> 
+> diff -puN arch/x86/mm/init_64.c~knl-strays-50-pte_val-cleanups arch/x86/mm/init_64.c
+> --- a/arch/x86/mm/init_64.c~knl-strays-50-pte_val-cleanups	2016-07-07 17:17:44.942808493 -0700
+> +++ b/arch/x86/mm/init_64.c	2016-07-07 17:17:44.949808807 -0700
+> @@ -354,7 +354,7 @@ phys_pte_init(pte_t *pte_page, unsigned
+>  		 * pagetable pages as RO. So assume someone who pre-setup
+>  		 * these mappings are more intelligent.
+>  		 */
+> -		if (pte_val(*pte)) {
+> +		if (!pte_none(*pte)) {
+>  			if (!after_bootmem)
+>  				pages++;
+>  			continue;
+> @@ -396,7 +396,7 @@ phys_pmd_init(pmd_t *pmd_page, unsigned
+>  			continue;
+>  		}
+>  
+> -		if (pmd_val(*pmd)) {
+> +		if (!pmd_none(*pmd)) {
+>  			if (!pmd_large(*pmd)) {
+>  				spin_lock(&init_mm.page_table_lock);
+>  				pte = (pte_t *)pmd_page_vaddr(*pmd);
+> @@ -470,7 +470,7 @@ phys_pud_init(pud_t *pud_page, unsigned
+>  			continue;
+>  		}
+>  
+> -		if (pud_val(*pud)) {
+> +		if (!pud_none(*pud)) {
+>  			if (!pud_large(*pud)) {
+>  				pmd = pmd_offset(pud, 0);
+>  				last_map_addr = phys_pmd_init(pmd, addr, end,
+> @@ -673,7 +673,7 @@ static void __meminit free_pte_table(pte
+>  
+>  	for (i = 0; i < PTRS_PER_PTE; i++) {
+>  		pte = pte_start + i;
+> -		if (pte_val(*pte))
+> +		if (!pte_none(*pte))
+>  			return;
+>  	}
+>  
+> @@ -691,7 +691,7 @@ static void __meminit free_pmd_table(pmd
+>  
+>  	for (i = 0; i < PTRS_PER_PMD; i++) {
+>  		pmd = pmd_start + i;
+> -		if (pmd_val(*pmd))
+> +		if (!pmd_none(*pmd))
+>  			return;
+>  	}
+>  
+> @@ -710,7 +710,7 @@ static bool __meminit free_pud_table(pud
+>  
+>  	for (i = 0; i < PTRS_PER_PUD; i++) {
+>  		pud = pud_start + i;
+> -		if (pud_val(*pud))
+> +		if (!pud_none(*pud))
+>  			return false;
+>  	}
+>  
+> diff -puN arch/x86/mm/pageattr.c~knl-strays-50-pte_val-cleanups arch/x86/mm/pageattr.c
+> --- a/arch/x86/mm/pageattr.c~knl-strays-50-pte_val-cleanups	2016-07-07 17:17:44.944808582 -0700
+> +++ b/arch/x86/mm/pageattr.c	2016-07-07 17:17:44.950808852 -0700
+> @@ -1185,7 +1185,7 @@ repeat:
+>  		return __cpa_process_fault(cpa, address, primary);
+>  
+>  	old_pte = *kpte;
+> -	if (!pte_val(old_pte))
+> +	if (pte_none(old_pte))
+>  		return __cpa_process_fault(cpa, address, primary);
+>  
+>  	if (level == PG_LEVEL_4K) {
+> diff -puN arch/x86/mm/pgtable_32.c~knl-strays-50-pte_val-cleanups arch/x86/mm/pgtable_32.c
+> --- a/arch/x86/mm/pgtable_32.c~knl-strays-50-pte_val-cleanups	2016-07-07 17:17:44.946808672 -0700
+> +++ b/arch/x86/mm/pgtable_32.c	2016-07-07 17:17:44.950808852 -0700
+> @@ -47,7 +47,7 @@ void set_pte_vaddr(unsigned long vaddr,
+>  		return;
+>  	}
+>  	pte = pte_offset_kernel(pmd, vaddr);
+> -	if (pte_val(pteval))
+> +	if (!pte_none(pteval))
+>  		set_pte_at(&init_mm, vaddr, pte, pteval);
+>  	else
+>  		pte_clear(&init_mm, vaddr, pte);
+> _
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
