@@ -1,72 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CC8D6B025F
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 09:18:13 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id p41so33032274lfi.0
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 06:18:13 -0700 (PDT)
-Received: from mail.ud19.udmedia.de (ud19.udmedia.de. [194.117.254.59])
-        by mx.google.com with ESMTPS id ff4si923744wjb.191.2016.07.13.06.18.12
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DFAC6B0260
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 09:19:07 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id x83so34890763wma.2
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 06:19:07 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t83si11856284wmg.97.2016.07.13.06.19.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jul 2016 06:18:12 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 13 Jul 2016 06:19:06 -0700 (PDT)
+Date: Wed, 13 Jul 2016 15:19:05 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Unexpected growth of the LRU inactive list
+Message-ID: <20160713131905.GA28731@dhcp22.suse.cz>
+References: <d8e2130c-5a1c-bd6c-0f79-6b17bb6da645@polymtl.ca>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII;
- format=flowed
-Content-Transfer-Encoding: 7bit
-Date: Wed, 13 Jul 2016 15:18:11 +0200
-From: Matthias Dahl <ml_linux-kernel@binary-island.eu>
-Subject: Re: Page Allocation Failures/OOM with dm-crypt on software RAID10
- (Intel Rapid Storage)
-In-Reply-To: <20160713121828.GI28723@dhcp22.suse.cz>
-References: <02580b0a303da26b669b4a9892624b13@mail.ud19.udmedia.de>
- <20160712095013.GA14591@dhcp22.suse.cz>
- <d9dbe0328e938eb7544fdb2aa8b5a9c7@mail.ud19.udmedia.de>
- <20160712114920.GF14586@dhcp22.suse.cz>
- <e6c2087730e530e77c2b12d50495bdc9@mail.ud19.udmedia.de>
- <20160712140715.GL14586@dhcp22.suse.cz>
- <459d501038de4d25db6d140ac5ea5f8d@mail.ud19.udmedia.de>
- <20160713112126.GH28723@dhcp22.suse.cz>
- <20160713121828.GI28723@dhcp22.suse.cz>
-Message-ID: <74b9325c37948cf2b460bd759cff23dd@mail.ud19.udmedia.de>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <d8e2130c-5a1c-bd6c-0f79-6b17bb6da645@polymtl.ca>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-raid@vger.kernel.org, linux-mm@kvack.org, dm-devel@redhat.com, linux-kernel@vger.kernel.org, Mike Snitzer <snitzer@redhat.com>
+To: Houssem Daoud <houssem.daoud@polymtl.ca>
+Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Theodore Ts'o <tytso@mit.edu>
 
-Hello Michal,
+[CC ext/jbd experts]
 
-many thanks for all your time and help on this issue. It is very much
-appreciated and I hope we can track this down somehow.
-
-On 2016-07-13 14:18, Michal Hocko wrote:
-
-> So it seems we are accumulating bios and 256B objects. Buffer heads as
-> well but so much. Having over 4G worth of bios sounds really 
-> suspicious.
-> Note that they pin pages to be written so this might be consuming the
-> rest of the unaccounted memory! So the main question is why those bios
-> do not get dispatched or finished.
-
-Ok. It is the Block IOs that do not get completed. I do get it right
-that those bio-3 are already the encrypted data that should be written
-out but do not for some reason? I tried to figure this out myself but
-couldn't find anything -- what does the number "-3" state? It is the
-position in some chain or has it a different meaning?
-
-Do you think a trace like you mentioned would help shed some more light
-on this? Or would you recommend something else?
-
-I have also cc' Mike Snitzer who commented on this issue before, maybe
-he can see some pattern here as well. Pity that Neil Brown is no longer
-available as I think this is also somehow related to it being a Intel
-Rapid Storage RAID10... since it is the only way I can reproduce it. :(
-
-Thanks,
-Matthias
+On Wed 13-07-16 01:48:57, Houssem Daoud wrote:
+> Hi,
+> 
+> I was testing the filesystem performance of my system using the following
+> script:
+> 
+> #!/bin/bash
+> while true;
+> do
+> dd if=/dev/zero of=output.dat  bs=100M count=1
+> done
+> 
+> I noticed that after some time, all the physical memory is consumed by the
+> LRU inactive list and only 120 MB are left to the system.
+> /proc/meminfo shows the following information:
+> MemTotal: 4021820 Kb
+> MemFree: 121912 Kb
+> Active: 1304396 Kb
+> Inactive: 2377124 Kb
+> 
+> The evolution of memory utilization over time is available in this link:
+> http://secretaire.dorsal.polymtl.ca/~hdaoud/ext4_journal_meminfo.png
+> 
+> With the help of a kernel tracer, I found that most of the pages in the
+> inactive list are created by the ext4 journal during a truncate operation.
+> The call stack of the allocation is:
+> [
+> __alloc_pages_nodemask
+> alloc_pages_current
+> __page_cache_alloc
+> find_or_create_page
+> __getblk
+> jbd2_journal_get_descriptor_buffer
+> jbd2_journal_commit_transaction
+> kjournald2
+> kthread
+> ]
+> 
+> I can't find an explanation why the LRU is growing while we are just writing
+> to the same file again and again. I know that the philosophy of memory
+> management in Linux is to use the available memory as much as possible, but
+> what is the need of keeping truncated pages in the LRU if we know that they
+> are not even accessible ?
+> 
+> Thanks !
+> 
+> ps: My system is running kernel 4.3 with ext4 filesystem (journal mode)
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
-Dipl.-Inf. (FH) Matthias Dahl | Software Engineer | binary-island.eu
-  services: custom software [desktop, mobile, web], server administration
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
