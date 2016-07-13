@@ -1,160 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BBB7A6B0253
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 11:23:31 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id f126so38050694wma.3
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 08:23:31 -0700 (PDT)
-Received: from mail2-relais-roc.national.inria.fr (mail2-relais-roc.national.inria.fr. [192.134.164.83])
-        by mx.google.com with ESMTPS id dc8si1586812wjb.44.2016.07.13.08.23.30
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A2846B0253
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 11:32:14 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id p41so35615219lfi.0
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 08:32:14 -0700 (PDT)
+Received: from mail.ud19.udmedia.de (ud19.udmedia.de. [194.117.254.59])
+        by mx.google.com with ESMTPS id b6si1631271wjq.171.2016.07.13.08.32.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jul 2016 08:23:30 -0700 (PDT)
-Date: Wed, 13 Jul 2016 17:23:27 +0200 (CEST)
-From: Julia Lawall <julia.lawall@lip6.fr>
-Subject: Re: [PATCH 4/4] x86: use pte_none() to test for empty PTE
-In-Reply-To: <20160713151820.GA20693@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1607131722440.2959@hadrien>
-References: <20160708001909.FB2443E2@viggo.jf.intel.com> <20160708001915.813703D9@viggo.jf.intel.com> <20160713151820.GA20693@dhcp22.suse.cz>
+        Wed, 13 Jul 2016 08:32:12 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=US-ASCII;
+ format=flowed
+Content-Transfer-Encoding: 7bit
+Date: Wed, 13 Jul 2016 17:32:12 +0200
+From: Matthias Dahl <ml_linux-kernel@binary-island.eu>
+Subject: Re: Page Allocation Failures/OOM with dm-crypt on software RAID10
+ (Intel Rapid Storage)
+In-Reply-To: <20160713134717.GL28723@dhcp22.suse.cz>
+References: <02580b0a303da26b669b4a9892624b13@mail.ud19.udmedia.de>
+ <20160712095013.GA14591@dhcp22.suse.cz>
+ <d9dbe0328e938eb7544fdb2aa8b5a9c7@mail.ud19.udmedia.de>
+ <20160712114920.GF14586@dhcp22.suse.cz>
+ <e6c2087730e530e77c2b12d50495bdc9@mail.ud19.udmedia.de>
+ <20160712140715.GL14586@dhcp22.suse.cz>
+ <459d501038de4d25db6d140ac5ea5f8d@mail.ud19.udmedia.de>
+ <20160713112126.GH28723@dhcp22.suse.cz>
+ <20160713121828.GI28723@dhcp22.suse.cz>
+ <74b9325c37948cf2b460bd759cff23dd@mail.ud19.udmedia.de>
+ <20160713134717.GL28723@dhcp22.suse.cz>
+Message-ID: <a6e48e37cce530f286e6669fdfc0b3f8@mail.ud19.udmedia.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Dave Hansen <dave@sr71.net>, linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, bp@alien8.de, ak@linux.intel.com, dave.hansen@intel.com, dave.hansen@linux.intel.com
+Cc: linux-raid@vger.kernel.org, linux-mm@kvack.org, dm-devel@redhat.com, linux-kernel@vger.kernel.org, Mike Snitzer <snitzer@redhat.com>
 
+Hello...
 
+On 2016-07-13 15:47, Michal Hocko wrote:
 
-On Wed, 13 Jul 2016, Michal Hocko wrote:
+> This is getting out of my area of expertise so I am not sure I can help
+> you much more, I am afraid.
 
-> [CCing Julia]
->
-> On Thu 07-07-16 17:19:15, Dave Hansen wrote:
-> >
-> > From: Dave Hansen <dave.hansen@linux.intel.com>
-> >
-> > The page table manipulation code seems to have grown a couple of
-> > sites that are looking for empty PTEs.  Just in case one of these
-> > entries got a stray bit set, use pte_none() instead of checking
-> > for a zero pte_val().
->
-> This looks like something that coccinelle could help with and automate.
-> Especially when the patch seems interesting for applying to older kernel
-> code streams.
->
-> Julia would it be hard to generate a metapatch which would check the
-> {pte,pmd}_val() usage in conditions and replace them with {pte,pmd}_none
-> equivalents?
+That's okay. Thank you so much for investing the time.
 
-Thanks for forwarding.  A priori, it looks quite trivial.  I will do the
-obvious thing and send the results for verification.
+For what it is worth, I did some further tests and here is what I came
+up with:
 
-julia
+If I create the plain dm-crypt device with 
+--perf-submit_from_crypt_cpus,
+I can run the tests for as long as I want but the memory problem never
+occurs, meaning buffer/cache increase accordingly and thus free memory
+decreases but used mem stays pretty constant low. Yet the problem here
+is, the system becomes sluggish and throughput is severely impacted.
+ksoftirqd is hovering at 100% the whole time.
 
-> > The use pte_same() makes me a bit nervous.  If we were doing a
-> > pte_same() check against two cleared entries and one of them had
-> > a stray bit set, it might fail the pte_same() check.  But, I
-> > don't think we ever _do_ pte_same() for cleared entries.  It is
-> > almost entirely used for checking for races in fault-in paths.
-> >
-> > Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
->
-> Other than that looks good to me. Feel free to add
-> Acked-by: Michal Hocko <mhocko@suse.com>
->
-> > ---
-> >
-> >  b/arch/x86/mm/init_64.c    |   12 ++++++------
-> >  b/arch/x86/mm/pageattr.c   |    2 +-
-> >  b/arch/x86/mm/pgtable_32.c |    2 +-
-> >  3 files changed, 8 insertions(+), 8 deletions(-)
-> >
-> > diff -puN arch/x86/mm/init_64.c~knl-strays-50-pte_val-cleanups arch/x86/mm/init_64.c
-> > --- a/arch/x86/mm/init_64.c~knl-strays-50-pte_val-cleanups	2016-07-07 17:17:44.942808493 -0700
-> > +++ b/arch/x86/mm/init_64.c	2016-07-07 17:17:44.949808807 -0700
-> > @@ -354,7 +354,7 @@ phys_pte_init(pte_t *pte_page, unsigned
-> >  		 * pagetable pages as RO. So assume someone who pre-setup
-> >  		 * these mappings are more intelligent.
-> >  		 */
-> > -		if (pte_val(*pte)) {
-> > +		if (!pte_none(*pte)) {
-> >  			if (!after_bootmem)
-> >  				pages++;
-> >  			continue;
-> > @@ -396,7 +396,7 @@ phys_pmd_init(pmd_t *pmd_page, unsigned
-> >  			continue;
-> >  		}
-> >
-> > -		if (pmd_val(*pmd)) {
-> > +		if (!pmd_none(*pmd)) {
-> >  			if (!pmd_large(*pmd)) {
-> >  				spin_lock(&init_mm.page_table_lock);
-> >  				pte = (pte_t *)pmd_page_vaddr(*pmd);
-> > @@ -470,7 +470,7 @@ phys_pud_init(pud_t *pud_page, unsigned
-> >  			continue;
-> >  		}
-> >
-> > -		if (pud_val(*pud)) {
-> > +		if (!pud_none(*pud)) {
-> >  			if (!pud_large(*pud)) {
-> >  				pmd = pmd_offset(pud, 0);
-> >  				last_map_addr = phys_pmd_init(pmd, addr, end,
-> > @@ -673,7 +673,7 @@ static void __meminit free_pte_table(pte
-> >
-> >  	for (i = 0; i < PTRS_PER_PTE; i++) {
-> >  		pte = pte_start + i;
-> > -		if (pte_val(*pte))
-> > +		if (!pte_none(*pte))
-> >  			return;
-> >  	}
-> >
-> > @@ -691,7 +691,7 @@ static void __meminit free_pmd_table(pmd
-> >
-> >  	for (i = 0; i < PTRS_PER_PMD; i++) {
-> >  		pmd = pmd_start + i;
-> > -		if (pmd_val(*pmd))
-> > +		if (!pmd_none(*pmd))
-> >  			return;
-> >  	}
-> >
-> > @@ -710,7 +710,7 @@ static bool __meminit free_pud_table(pud
-> >
-> >  	for (i = 0; i < PTRS_PER_PUD; i++) {
-> >  		pud = pud_start + i;
-> > -		if (pud_val(*pud))
-> > +		if (!pud_none(*pud))
-> >  			return false;
-> >  	}
-> >
-> > diff -puN arch/x86/mm/pageattr.c~knl-strays-50-pte_val-cleanups arch/x86/mm/pageattr.c
-> > --- a/arch/x86/mm/pageattr.c~knl-strays-50-pte_val-cleanups	2016-07-07 17:17:44.944808582 -0700
-> > +++ b/arch/x86/mm/pageattr.c	2016-07-07 17:17:44.950808852 -0700
-> > @@ -1185,7 +1185,7 @@ repeat:
-> >  		return __cpa_process_fault(cpa, address, primary);
-> >
-> >  	old_pte = *kpte;
-> > -	if (!pte_val(old_pte))
-> > +	if (pte_none(old_pte))
-> >  		return __cpa_process_fault(cpa, address, primary);
-> >
-> >  	if (level == PG_LEVEL_4K) {
-> > diff -puN arch/x86/mm/pgtable_32.c~knl-strays-50-pte_val-cleanups arch/x86/mm/pgtable_32.c
-> > --- a/arch/x86/mm/pgtable_32.c~knl-strays-50-pte_val-cleanups	2016-07-07 17:17:44.946808672 -0700
-> > +++ b/arch/x86/mm/pgtable_32.c	2016-07-07 17:17:44.950808852 -0700
-> > @@ -47,7 +47,7 @@ void set_pte_vaddr(unsigned long vaddr,
-> >  		return;
-> >  	}
-> >  	pte = pte_offset_kernel(pmd, vaddr);
-> > -	if (pte_val(pteval))
-> > +	if (!pte_none(pteval))
-> >  		set_pte_at(&init_mm, vaddr, pte, pteval);
-> >  	else
-> >  		pte_clear(&init_mm, vaddr, pte);
-> > _
->
-> --
-> Michal Hocko
-> SUSE Labs
->
+Somehow my guess is that normally dm-crypt simply takes every request,
+encrypts it and queues it internally by itself. And that queue is then
+slowly emptied to the underlying device kernel queue. That is why I am
+seeing the exploding increase in used memory (rather than in 
+buffer/cache)
+which in the end causes a OOM situation. But that is just my guess. And
+IMHO that is not the right thing to do (tm), as can be seen in this 
+case.
+
+No matter what, I have no clue how to further diagnose this issue. And
+given that I already had unsolvable issues with dm-crypt a couple of
+months ago with my old machine where the system simply hang itself or
+went OOM when the swap was encrypted and just a few kilobytes needed to
+be swapped out, I am not so sure anymore I can trust dm-crypt with a
+full disk encryption to the point where I feel "safe"... as-in, nothing
+bad will happen or the system won't suddenly hang itself due to it. Or
+if a bug is introduced, that it will actually be possible to diagnose it
+and help fix it or that it will even be eventually fixed. Which is 
+really
+a pity, since I would really have liked to help solve this. With the
+swap issue, I did git bisects, tests, narrowed it down to kernel 
+versions
+when said bug was introduced... but in the end, the bug is still present
+as far as I know. :(
+
+I will probably look again into ext4 fs encryption. My whole point is
+just that in case any of disks go faulty and needs to be replaced or
+sent in for warranty, I don't have to worry about mails, personal or
+business data still being left on the device (e.g. if it is no longer
+accessible or has reallocated sectors or whatever) in a readable form.
+
+Oh well. Pity, really.
+
+Thanks again,
+Matthias
+
+-- 
+Dipl.-Inf. (FH) Matthias Dahl | Software Engineer | binary-island.eu
+  services: custom software [desktop, mobile, web], server administration
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
