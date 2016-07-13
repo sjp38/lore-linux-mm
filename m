@@ -1,55 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E4DC16B0263
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 11:47:53 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id y134so47188481pfg.1
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 08:47:53 -0700 (PDT)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id dz9si4719317pab.5.2016.07.13.08.47.53
-        for <linux-mm@kvack.org>;
-        Wed, 13 Jul 2016 08:47:53 -0700 (PDT)
-Subject: Re: [PATCH 2/4] x86, pagetable: ignore A/D bits in pte/pmd/pud_none()
-References: <20160708001909.FB2443E2@viggo.jf.intel.com>
- <20160708001912.5216F89C@viggo.jf.intel.com>
- <20160713152145.GC20693@dhcp22.suse.cz>
-From: Dave Hansen <dave@sr71.net>
-Message-ID: <578662A7.3040409@sr71.net>
-Date: Wed, 13 Jul 2016 08:47:51 -0700
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B9F76B0263
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 11:49:34 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id p41so35897564lfi.0
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 08:49:34 -0700 (PDT)
+Received: from mail2-relais-roc.national.inria.fr (mail2-relais-roc.national.inria.fr. [192.134.164.83])
+        by mx.google.com with ESMTPS id wh9si1727297wjb.121.2016.07.13.08.49.32
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Jul 2016 08:49:33 -0700 (PDT)
+Date: Wed, 13 Jul 2016 17:49:16 +0200 (CEST)
+From: Julia Lawall <julia.lawall@lip6.fr>
+Subject: Re: [PATCH 4/4] x86: use pte_none() to test for empty PTE
+In-Reply-To: <20160713151820.GA20693@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1607131746570.2959@hadrien>
+References: <20160708001909.FB2443E2@viggo.jf.intel.com> <20160708001915.813703D9@viggo.jf.intel.com> <20160713151820.GA20693@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20160713152145.GC20693@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, bp@alien8.de, ak@linux.intel.com, dave.hansen@intel.com, dave.hansen@linux.intel.com
+Cc: Dave Hansen <dave@sr71.net>, linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, bp@alien8.de, ak@linux.intel.com, dave.hansen@intel.com, dave.hansen@linux.intel.com, Julia Lawall <Julia.Lawall@lip6.fr>
 
-On 07/13/2016 08:21 AM, Michal Hocko wrote:
->> > This adds a tiny amount of overhead to all pte_none() checks.
->> > I doubt we'll be able to measure it anywhere.
-> It would be better to introduce the overhead only for the affected
-> cpu models but I guess this is also acceptable. Would it be too
-> complicated to use alternatives for that?
+My results are below.  There are a couple of cases in arch/mn10300/mm that
+were not in the original patch.
 
-The patch as it stands ends up doing a one-instruction change in
-pte_none().  It goes from
+julia
 
-    64c8:       48 85 ff                test   %rdi,%rdi
+diff -u -p a/arch/x86/mm/pageattr.c b/arch/x86/mm/pageattr.c
+--- a/arch/x86/mm/pageattr.c
++++ b/arch/x86/mm/pageattr.c
+@@ -1185,7 +1185,7 @@ repeat:
+ 		return __cpa_process_fault(cpa, address, primary);
 
-to
+ 	old_pte = *kpte;
+-	if (!pte_val(old_pte))
++	if (pte_none(old_pte))
+ 		return __cpa_process_fault(cpa, address, primary);
 
-    64a8:       48 f7 c7 9f ff ff ff    test   $0xffffffffffffff9f,%rdi
+ 	if (level == PG_LEVEL_4K) {
+diff -u -p a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -354,7 +354,7 @@ phys_pte_init(pte_t *pte_page, unsigned
+ 		 * pagetable pages as RO. So assume someone who pre-setup
+ 		 * these mappings are more intelligent.
+ 		 */
+-		if (pte_val(*pte)) {
++		if (!pte_none(*pte)) {
+ 			if (!after_bootmem)
+ 				pages++;
+ 			continue;
+@@ -396,7 +396,7 @@ phys_pmd_init(pmd_t *pmd_page, unsigned
+ 			continue;
+ 		}
 
-So it essentially eats 4 bytes of icache more than it did before.  But,
-it's the same number of instructions, and I can't imagine that the CPU
-will have any more trouble with a test against an immediate than a test
-against 0.
+-		if (pmd_val(*pmd)) {
++		if (!pmd_none(*pmd)) {
+ 			if (!pmd_large(*pmd)) {
+ 				spin_lock(&init_mm.page_table_lock);
+ 				pte = (pte_t *)pmd_page_vaddr(*pmd);
+@@ -470,7 +470,7 @@ phys_pud_init(pud_t *pud_page, unsigned
+ 			continue;
+ 		}
 
-We could theoretically do alternatives for this, but we would at *best*
-end up with 4 bytes of noops.  So, unless the processor likes decoding 4
-noops better than 4 bytes of immediate as part of an instruction, we'll
-not win anything.  *Plus* the ugliness of the assembly that we'll need
-to have the compiler guarantee that the PTE ends up in %rdi.
+-		if (pud_val(*pud)) {
++		if (!pud_none(*pud)) {
+ 			if (!pud_large(*pud)) {
+ 				pmd = pmd_offset(pud, 0);
+ 				last_map_addr = phys_pmd_init(pmd, addr, end,
+@@ -673,7 +673,7 @@ static void __meminit free_pte_table(pte
+
+ 	for (i = 0; i < PTRS_PER_PTE; i++) {
+ 		pte = pte_start + i;
+-		if (pte_val(*pte))
++		if (!pte_none(*pte))
+ 			return;
+ 	}
+
+@@ -691,7 +691,7 @@ static void __meminit free_pmd_table(pmd
+
+ 	for (i = 0; i < PTRS_PER_PMD; i++) {
+ 		pmd = pmd_start + i;
+-		if (pmd_val(*pmd))
++		if (!pmd_none(*pmd))
+ 			return;
+ 	}
+
+@@ -710,7 +710,7 @@ static bool __meminit free_pud_table(pud
+
+ 	for (i = 0; i < PTRS_PER_PUD; i++) {
+ 		pud = pud_start + i;
+-		if (pud_val(*pud))
++		if (!pud_none(*pud))
+ 			return false;
+ 	}
+
+diff -u -p a/arch/x86/mm/pgtable_32.c b/arch/x86/mm/pgtable_32.c
+--- a/arch/x86/mm/pgtable_32.c
++++ b/arch/x86/mm/pgtable_32.c
+@@ -47,7 +47,7 @@ void set_pte_vaddr(unsigned long vaddr,
+ 		return;
+ 	}
+ 	pte = pte_offset_kernel(pmd, vaddr);
+-	if (pte_val(pteval))
++	if (!pte_none(pteval))
+ 		set_pte_at(&init_mm, vaddr, pte, pteval);
+ 	else
+ 		pte_clear(&init_mm, vaddr, pte);
+diff -u -p a/arch/mn10300/mm/cache-flush-icache.c b/arch/mn10300/mm/cache-flush-icache.c
+--- a/arch/mn10300/mm/cache-flush-icache.c
++++ b/arch/mn10300/mm/cache-flush-icache.c
+@@ -67,11 +67,11 @@ static void flush_icache_page_range(unsi
+ 		return;
+
+ 	pud = pud_offset(pgd, start);
+-	if (!pud || !pud_val(*pud))
++	if (!pud || pud_none(*pud))
+ 		return;
+
+ 	pmd = pmd_offset(pud, start);
+-	if (!pmd || !pmd_val(*pmd))
++	if (!pmd || pmd_none(*pmd))
+ 		return;
+
+ 	ppte = pte_offset_map(pmd, start);
+diff -u -p a/arch/mn10300/mm/cache-inv-icache.c b/arch/mn10300/mm/cache-inv-icache.c
+--- a/arch/mn10300/mm/cache-inv-icache.c
++++ b/arch/mn10300/mm/cache-inv-icache.c
+@@ -45,11 +45,11 @@ static void flush_icache_page_range(unsi
+ 		return;
+
+ 	pud = pud_offset(pgd, start);
+-	if (!pud || !pud_val(*pud))
++	if (!pud || pud_none(*pud))
+ 		return;
+
+ 	pmd = pmd_offset(pud, start);
+-	if (!pmd || !pmd_val(*pmd))
++	if (!pmd || pmd_none(*pmd))
+ 		return;
+
+ 	ppte = pte_offset_map(pmd, start);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
