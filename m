@@ -1,117 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B78116B0005
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 03:08:13 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id r190so28267119wmr.0
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 00:08:13 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id l64si1413780wml.10.2016.07.13.00.08.10
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 13 Jul 2016 00:08:12 -0700 (PDT)
-Message-ID: <5785E764.8050304@huawei.com>
-Date: Wed, 13 Jul 2016 15:01:56 +0800
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1082D6B0005
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 03:15:05 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id r71so79523360ioi.3
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 00:15:05 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTP id 35si1559834otj.179.2016.07.13.00.15.02
+        for <linux-mm@kvack.org>;
+        Wed, 13 Jul 2016 00:15:04 -0700 (PDT)
+Message-ID: <5785E8A3.7060109@huawei.com>
+Date: Wed, 13 Jul 2016 15:07:15 +0800
 From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] kexec: add a pmd huge entry condition during the
- page table
-References: <1468299403-27954-1-git-send-email-zhongjiang@huawei.com> <1468299403-27954-2-git-send-email-zhongjiang@huawei.com> <87a8hm3lme.fsf@x220.int.ebiederm.org>
-In-Reply-To: <87a8hm3lme.fsf@x220.int.ebiederm.org>
+Subject: Re: [PATCH 1/2] kexec: remove unnecessary unusable_pages
+References: <1468299403-27954-1-git-send-email-zhongjiang@huawei.com> <87poqi3muo.fsf@x220.int.ebiederm.org> <5785BEA6.2060404@huawei.com> <87lh16unw9.fsf@x220.int.ebiederm.org>
+In-Reply-To: <87lh16unw9.fsf@x220.int.ebiederm.org>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: dyoung@redhat.com, horms@verge.net.au, vgoyal@redhat.com, yinghai@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, kexec@lists.infradead.org
+Cc: dyoung@redhat.com, horms@verge.net.au, vgoyal@redhat.com, yinghai@kernel.org, akpm@linux-foundation.org, kexec@lists.infradead.org, linux-mm@kvack.org
 
-On 2016/7/12 23:46, Eric W. Biederman wrote:
-> zhongjiang <zhongjiang@huawei.com> writes:
+On 2016/7/13 13:07, Eric W. Biederman wrote:
+> zhong jiang <zhongjiang@huawei.com> writes:
 >
->> From: zhong jiang <zhongjiang@huawei.com>
->>
->> when image is loaded into kernel, we need set up page table for it. and 
->> all valid pfn also set up new mapping. it will tend to establish a pmd 
->> page table in the form of a large page if pud_present is true. relocate_kernel 
->> points to code segment can locate in the pmd huge entry in init_transtion_pgtable. 
->> therefore, we need to take the situation into account.
-> I can see how in theory this might be necessary but when is a kernel virtual
-> address on x86_64 that is above 0x8000000000000000 in conflict with an
-> identity mapped physicall address that are all below 0x8000000000000000?
+>> On 2016/7/12 23:19, Eric W. Biederman wrote:
+>>> zhongjiang <zhongjiang@huawei.com> writes:
+>>>
+>>>> From: zhong jiang <zhongjiang@huawei.com>
+>>>>
+>>>> In general, kexec alloc pages from buddy system, it cannot exceed
+>>>> the physical address in the system.
+>>>>
+>>>> The patch just remove this unnecessary code, no functional change.
+>>> On 32bit systems with highmem support kexec can very easily receive a
+>>> page from the buddy allocator that can exceed 4GiB.  This doesn't show
+>>> up on 64bit systems as typically the memory limits are less than the
+>>> address space.  But this code is very necessary on some systems and
+>>> removing it is not ok.
+>>>
+>>> Nacked-by: "Eric W. Biederman" <ebiederm@xmission.com>
+>>>
+>>   This viewpoint is as opposed to me,  32bit systems architectural decide it can not
+>>   access exceed 4GiB whether the highmem or not.   but there is one exception, 
+>>   when PAE enable, its physical address should be extended to 36,  new paging  mechanism
+>>   established for it.  therefore, the  page from the buddy allocator
+>>   can exceed 4GiB.
+> Exactly.  And I was dealing with PAE systems in 2001 or so with > 4GiB
+> of RAM.  Which is where the unusable_pages work comes from.
 >
-> If anything the code could be simplified to always assume those mappings
-> are unoccupied.
+> Other architectures such as ARM also followed a similar path, so
+> it isn't just x86 that has 32bit systems with > 32 address lines.
 >
-> Did you run into an actual failure somewhere?
+>>   moreover,  on 32bit systems I can not understand why KEXEC_SOURCE_MEMORY_LIMIT
+>>   is defined to -1UL. therefore, kimge_aloc_page allocate page will always add to unusable_pages.
+> -1UL is a short way of writing 0xffffffffUL  Which is as close as you
+> can get to writing 0x100000000UL in 32bits.
+>
+> kimage_alloc_page won't always add to unusable_pages as there is memory
+> below 4GiB but it isn't easily found so there may temporarily be a
+> memory shortage, as it allocates it's way there.  Unfortunately whenever
+> I have looked there are memory zones that line up with the memory the
+> kexec is looking for.  So it does a little bit of a weird dance to get
+> the memory it needs and to discard the memory it can't use.
 >
 > Eric
 >
-   I  do not understand what you trying to say,  Maybe I miss your point.
-  
-  The key is how to ensure that relocate_kernel points to the pmd entry is not huge page.
- 
-  Thanks
-  zhongjiang
- 
->> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
->> ---
->>  arch/x86/kernel/machine_kexec_64.c | 20 ++++++++++++++++++--
->>  1 file changed, 18 insertions(+), 2 deletions(-)
->>
->> diff --git a/arch/x86/kernel/machine_kexec_64.c b/arch/x86/kernel/machine_kexec_64.c
->> index 5a294e4..c33e344 100644
->> --- a/arch/x86/kernel/machine_kexec_64.c
->> +++ b/arch/x86/kernel/machine_kexec_64.c
->> @@ -14,6 +14,7 @@
->>  #include <linux/gfp.h>
->>  #include <linux/reboot.h>
->>  #include <linux/numa.h>
->> +#include <linux/hugetlb.h>
->>  #include <linux/ftrace.h>
->>  #include <linux/io.h>
->>  #include <linux/suspend.h>
->> @@ -34,6 +35,17 @@ static struct kexec_file_ops *kexec_file_loaders[] = {
->>  };
->>  #endif
->>  
->> +static void split_pmd(pmd_t *pmd, pte_t *pte)
->> +{
->> +	unsigned long pfn = pmd_pfn(*pmd);
->> +	int i = 0;
->> +
->> +	do {
->> +		set_pte(pte, pfn_pte(pfn, PAGE_KERNEL_EXEC));
->> +		pfn++;
->> +	} while (pte++, i++, i < PTRS_PER_PTE);
->> +}
->> +
->>  static void free_transition_pgtable(struct kimage *image)
->>  {
->>  	free_page((unsigned long)image->arch.pud);
->> @@ -68,15 +80,19 @@ static int init_transition_pgtable(struct kimage *image, pgd_t *pgd)
->>  		set_pud(pud, __pud(__pa(pmd) | _KERNPG_TABLE));
->>  	}
->>  	pmd = pmd_offset(pud, vaddr);
->> -	if (!pmd_present(*pmd)) {
->> +	if (!pmd_present(*pmd) || pmd_huge(*pmd)) {
->>  		pte = (pte_t *)get_zeroed_page(GFP_KERNEL);
->>  		if (!pte)
->>  			goto err;
->>  		image->arch.pte = pte;
->> -		set_pmd(pmd, __pmd(__pa(pte) | _KERNPG_TABLE));
->> +		if (pmd_huge(*pmd))
->> +			split_pmd(pmd, pte);
->> +		else
->> +			set_pmd(pmd, __pmd(__pa(pte) | _KERNPG_TABLE));
->>  	}
->>  	pte = pte_offset_kernel(pmd, vaddr);
->>  	set_pte(pte, pfn_pte(paddr >> PAGE_SHIFT, PAGE_KERNEL_EXEC));
->> +
->>  	return 0;
->>  err:
->>  	free_transition_pgtable(image);
-> .
->
-
+  Thanks , I get it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
