@@ -1,114 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 851CF6B0005
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 00:10:54 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id u142so53323280oia.2
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 21:10:54 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id a125si884410oii.140.2016.07.12.21.10.52
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C2E346B0005
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 01:19:51 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id q2so64484556pap.1
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 22:19:51 -0700 (PDT)
+Received: from out01.mta.xmission.com (out01.mta.xmission.com. [166.70.13.231])
+        by mx.google.com with ESMTPS id ot9si2192844pac.91.2016.07.12.22.19.50
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 12 Jul 2016 21:10:53 -0700 (PDT)
-Message-ID: <5785BEA6.2060404@huawei.com>
-Date: Wed, 13 Jul 2016 12:08:06 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 12 Jul 2016 22:19:50 -0700 (PDT)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <1468299403-27954-1-git-send-email-zhongjiang@huawei.com>
+	<87poqi3muo.fsf@x220.int.ebiederm.org> <5785BEA6.2060404@huawei.com>
+Date: Wed, 13 Jul 2016 00:07:18 -0500
+In-Reply-To: <5785BEA6.2060404@huawei.com> (zhong jiang's message of "Wed, 13
+	Jul 2016 12:08:06 +0800")
+Message-ID: <87lh16unw9.fsf@x220.int.ebiederm.org>
 MIME-Version: 1.0
+Content-Type: text/plain
 Subject: Re: [PATCH 1/2] kexec: remove unnecessary unusable_pages
-References: <1468299403-27954-1-git-send-email-zhongjiang@huawei.com> <87poqi3muo.fsf@x220.int.ebiederm.org>
-In-Reply-To: <87poqi3muo.fsf@x220.int.ebiederm.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
+To: zhong jiang <zhongjiang@huawei.com>
 Cc: dyoung@redhat.com, horms@verge.net.au, vgoyal@redhat.com, yinghai@kernel.org, akpm@linux-foundation.org, kexec@lists.infradead.org, linux-mm@kvack.org
 
-On 2016/7/12 23:19, Eric W. Biederman wrote:
-> zhongjiang <zhongjiang@huawei.com> writes:
->
->> From: zhong jiang <zhongjiang@huawei.com>
->>
->> In general, kexec alloc pages from buddy system, it cannot exceed
->> the physical address in the system.
->>
->> The patch just remove this unnecessary code, no functional change.
-> On 32bit systems with highmem support kexec can very easily receive a
-> page from the buddy allocator that can exceed 4GiB.  This doesn't show
-> up on 64bit systems as typically the memory limits are less than the
-> address space.  But this code is very necessary on some systems and
-> removing it is not ok.
->
-> Nacked-by: "Eric W. Biederman" <ebiederm@xmission.com>
->
-  This viewpoint is as opposed to me,  32bit systems architectural decide it can not
-  access exceed 4GiB whether the highmem or not.   but there is one exception, 
-  when PAE enable, its physical address should be extended to 36,  new paging  mechanism
-  established for it.  therefore, the  page from the buddy allocator can exceed 4GiB.
+zhong jiang <zhongjiang@huawei.com> writes:
 
-  moreover,  on 32bit systems I can not understand why KEXEC_SOURCE_MEMORY_LIMIT
-  is defined to -1UL. therefore, kimge_aloc_page allocate page will always add to unusable_pages.
-
-  Thanks
-  zhongjiang
->> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
->> ---
->>  include/linux/kexec.h |  1 -
->>  kernel/kexec_core.c   | 13 -------------
->>  2 files changed, 14 deletions(-)
+> On 2016/7/12 23:19, Eric W. Biederman wrote:
+>> zhongjiang <zhongjiang@huawei.com> writes:
 >>
->> diff --git a/include/linux/kexec.h b/include/linux/kexec.h
->> index e8acb2b..26e4917 100644
->> --- a/include/linux/kexec.h
->> +++ b/include/linux/kexec.h
->> @@ -162,7 +162,6 @@ struct kimage {
->>  
->>  	struct list_head control_pages;
->>  	struct list_head dest_pages;
->> -	struct list_head unusable_pages;
->>  
->>  	/* Address of next control page to allocate for crash kernels. */
->>  	unsigned long control_page;
->> diff --git a/kernel/kexec_core.c b/kernel/kexec_core.c
->> index 56b3ed0..448127d 100644
->> --- a/kernel/kexec_core.c
->> +++ b/kernel/kexec_core.c
->> @@ -257,9 +257,6 @@ struct kimage *do_kimage_alloc_init(void)
->>  	/* Initialize the list of destination pages */
->>  	INIT_LIST_HEAD(&image->dest_pages);
->>  
->> -	/* Initialize the list of unusable pages */
->> -	INIT_LIST_HEAD(&image->unusable_pages);
->> -
->>  	return image;
->>  }
->>  
->> @@ -517,10 +514,6 @@ static void kimage_free_extra_pages(struct kimage *image)
->>  {
->>  	/* Walk through and free any extra destination pages I may have */
->>  	kimage_free_page_list(&image->dest_pages);
->> -
->> -	/* Walk through and free any unusable pages I have cached */
->> -	kimage_free_page_list(&image->unusable_pages);
->> -
->>  }
->>  void kimage_terminate(struct kimage *image)
->>  {
->> @@ -647,12 +640,6 @@ static struct page *kimage_alloc_page(struct kimage *image,
->>  		page = kimage_alloc_pages(gfp_mask, 0);
->>  		if (!page)
->>  			return NULL;
->> -		/* If the page cannot be used file it away */
->> -		if (page_to_pfn(page) >
->> -				(KEXEC_SOURCE_MEMORY_LIMIT >> PAGE_SHIFT)) {
->> -			list_add(&page->lru, &image->unusable_pages);
->> -			continue;
->> -		}
->>  		addr = page_to_pfn(page) << PAGE_SHIFT;
->>  
->>  		/* If it is the destination page we want use it */
-> .
->
+>>> From: zhong jiang <zhongjiang@huawei.com>
+>>>
+>>> In general, kexec alloc pages from buddy system, it cannot exceed
+>>> the physical address in the system.
+>>>
+>>> The patch just remove this unnecessary code, no functional change.
+>> On 32bit systems with highmem support kexec can very easily receive a
+>> page from the buddy allocator that can exceed 4GiB.  This doesn't show
+>> up on 64bit systems as typically the memory limits are less than the
+>> address space.  But this code is very necessary on some systems and
+>> removing it is not ok.
+>>
+>> Nacked-by: "Eric W. Biederman" <ebiederm@xmission.com>
+>>
+>   This viewpoint is as opposed to me,  32bit systems architectural decide it can not
+>   access exceed 4GiB whether the highmem or not.   but there is one exception, 
+>   when PAE enable, its physical address should be extended to 36,  new paging  mechanism
+>   established for it.  therefore, the  page from the buddy allocator
+>   can exceed 4GiB.
 
+Exactly.  And I was dealing with PAE systems in 2001 or so with > 4GiB
+of RAM.  Which is where the unusable_pages work comes from.
+
+Other architectures such as ARM also followed a similar path, so
+it isn't just x86 that has 32bit systems with > 32 address lines.
+
+>   moreover,  on 32bit systems I can not understand why KEXEC_SOURCE_MEMORY_LIMIT
+>   is defined to -1UL. therefore, kimge_aloc_page allocate page will always add to unusable_pages.
+
+-1UL is a short way of writing 0xffffffffUL  Which is as close as you
+can get to writing 0x100000000UL in 32bits.
+
+kimage_alloc_page won't always add to unusable_pages as there is memory
+below 4GiB but it isn't easily found so there may temporarily be a
+memory shortage, as it allocates it's way there.  Unfortunately whenever
+I have looked there are memory zones that line up with the memory the
+kexec is looking for.  So it does a little bit of a weird dance to get
+the memory it needs and to discard the memory it can't use.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
