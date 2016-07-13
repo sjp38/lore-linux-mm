@@ -1,54 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D25B6B025E
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 20:28:44 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id u25so60731043qtb.3
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 17:28:44 -0700 (PDT)
-Received: from out5-smtp.messagingengine.com (out5-smtp.messagingengine.com. [66.111.4.29])
-        by mx.google.com with ESMTPS id n46si3515304qtn.12.2016.07.12.17.28.43
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A49B6B025E
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 20:30:36 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id f7so66127630vkb.3
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 17:30:36 -0700 (PDT)
+Received: from mail-qk0-x234.google.com (mail-qk0-x234.google.com. [2607:f8b0:400d:c09::234])
+        by mx.google.com with ESMTPS id e2si1455950qkd.256.2016.07.12.17.30.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Jul 2016 17:28:43 -0700 (PDT)
-Date: Wed, 13 Jul 2016 09:26:41 +0900
-From: Greg KH <greg@kroah.com>
-Subject: Re: divide error: 0000 [#1] SMP in task_numa_migrate -
- handle_mm_fault vanilla 4.4.6
-Message-ID: <20160713002641.GB17021@kroah.com>
-References: <56EFD267.9070609@profihost.ag>
- <20160321133815.GA14188@kroah.com>
- <573AB3BF.3030604@profihost.ag>
- <CAPerZE_OCJGp2v8dXM=dY8oP1ydX_oB29UbzaXMHKZcrsL_iJg@mail.gmail.com>
- <CAPerZE_WLYzrALa3YOzC2+NWr--1GL9na8WLssFBNbRsXcYMiA@mail.gmail.com>
- <20160622061356.GW30154@twins.programming.kicks-ass.net>
- <CAPerZE99rBx6YCZrudJPTh7L-LCWitk7n7g41pt7JLej_2KR1g@mail.gmail.com>
- <20160707074232.GS30921@twins.programming.kicks-ass.net>
- <20160711223353.GA8959@kroah.com>
- <20160712131235.GO30154@twins.programming.kicks-ass.net>
+        Tue, 12 Jul 2016 17:30:35 -0700 (PDT)
+Received: by mail-qk0-x234.google.com with SMTP id o67so30008538qke.1
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 17:30:35 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160712131235.GO30154@twins.programming.kicks-ass.net>
+From: Zhan Chen <zhanc1@andrew.cmu.edu>
+Date: Tue, 12 Jul 2016 17:30:34 -0700
+Message-ID: <CAAs6xrw+UDeBJE1WKG9FK-YFN6xLDbA_c=_-y857fsRcO9K=Zw@mail.gmail.com>
+Subject: 3.10 kernel issue: dequeue_hwpoisoned_huge_page fails in soft offline
+Content-Type: multipart/alternative; boundary=001a114fda9c6ef6380537797e5d
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Campbell Steven <casteven@gmail.com>, Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-mm@vger.kernel.org, Ingo Molnar <mingo@redhat.com>, Rik van Riel <riel@redhat.com>
+To: andi@firstfloor.org
+Cc: linux-mm@kvack.org
 
-On Tue, Jul 12, 2016 at 03:12:35PM +0200, Peter Zijlstra wrote:
-> On Mon, Jul 11, 2016 at 03:33:53PM -0700, Greg KH wrote:
-> 
-> > Oops, this commit does not apply cleanly to 4.6 or 4.4-stable trees.
-> > Can someone send me the backported verision that they have tested to
-> > work properly so I can queue it up?
-> 
-> I've never actually been able to reproduce, but the attached patches
-> apply, the reject was trivial.
-> 
-> They seem to compile and boot on my main test rig, but nothing else was
-> done but build the next kernel with it.
+--001a114fda9c6ef6380537797e5d
+Content-Type: text/plain; charset=UTF-8
 
-Thanks for these, now applied.
+Hi Andi,
 
-greg k-h
+I encounter an issue with 3.10 kernel where soft offlined huge page can not
+be dequeued. Specifically, in function soft_offline_huge_page,
+ dequeue_hwpoisoned_huge_page returns negative. It turns out that right
+after the page is put_page, it's grabbed by some thread again.
+
+Is there a fix that can prevent offlined pages being put back in use?
+Plus, from the comment, dequeue_hwpoisoned_huge_page assumes caller holding
+the page lock, which is not the case in this context, would this be a
+problem in this case ?
+Thank you.
+-Zhan
+
+--001a114fda9c6ef6380537797e5d
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div>Hi Andi,</div><div><br></div><div>I encounter an issu=
+e with 3.10 kernel where soft offlined huge page can not be dequeued. Speci=
+fically, in function soft_offline_huge_page, =C2=A0dequeue_hwpoisoned_huge_=
+page returns negative. It turns out that right after the page is put_page, =
+it&#39;s grabbed by some thread again.</div><div><br></div><div>Is there a =
+fix that can prevent offlined pages being put back in use?</div><div>Plus, =
+from the comment, dequeue_hwpoisoned_huge_page assumes caller holding the p=
+age lock, which is not the case in this context, would this be a problem in=
+ this case ?</div><div>Thank you.</div><div>-Zhan=C2=A0</div></div>
+
+--001a114fda9c6ef6380537797e5d--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
