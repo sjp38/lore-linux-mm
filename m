@@ -1,59 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 452826B0005
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 05:17:17 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id p41so28877944lfi.0
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 02:17:17 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 70E026B0005
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 05:25:08 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id 33so28280561lfw.1
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 02:25:08 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 12si5149603ljj.6.2016.07.13.02.17.15
+        by mx.google.com with ESMTPS id t185si844941wmf.133.2016.07.13.02.25.07
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 13 Jul 2016 02:17:15 -0700 (PDT)
-Date: Wed, 13 Jul 2016 10:17:11 +0100
+        Wed, 13 Jul 2016 02:25:07 -0700 (PDT)
+Date: Wed, 13 Jul 2016 10:25:04 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: fix calculation accounting dirtyable highmem
-Message-ID: <20160713091711.GI11400@suse.de>
-References: <1468376593-26444-1-git-send-email-minchan@kernel.org>
+Subject: Re: [PATCH] mm: fix pgalloc_stall on unpopulated zone
+Message-ID: <20160713092504.GJ11400@suse.de>
+References: <1468376653-26561-1-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1468376593-26444-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <1468376653-26561-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Jul 13, 2016 at 11:23:13AM +0900, Minchan Kim wrote:
-> When I tested vmscale in mmtest in 32bit, I found the benchmark
-> was slow down 0.5 times.
+On Wed, Jul 13, 2016 at 11:24:13AM +0900, Minchan Kim wrote:
+> If we use sc->reclaim_idx for accounting pgstall, it can increase
+> the count on unpopulated zone, for example, movable zone(but
+> my system doesn't have movable zone) if allocation request were
+> GFP_HIGHUSER_MOVABLE. It doesn't make no sense.
 > 
->                 base        node
->                    1    global-1
-> User           12.98       16.04
-> System        147.61      166.42
-> Elapsed        26.48       38.08
-> 
-> With vmstat, I found IO wait avg is much increased compared to
-> base.
-> 
-> The reason was highmem_dirtyable_memory accumulates free pages
-> and highmem_file_pages from HIGHMEM to MOVABLE zones which was
-> wrong. With that, dirth_thresh in throtlle_vm_write is always
-> 0 so that it calls congestion_wait frequently if writeback
-> starts.
-> 
-> With this patch, it is much recovered.
-> 
->                 base        node          fi
->                    1    global-1         fix
-> User           12.98       16.04       13.78
-> System        147.61      166.42      143.92
-> Elapsed        26.48       38.08       29.64
-> 
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
 
-Thanks. I'll pick this up and send a follow-on series to Andrew with
-this included.
+I wanted to track the highest zone allowed by each allocation regardless
+of what the zone population state was. Otherwise, consider the following
+on a NUMA system
+
+1. An allocation request arrives for GFP_HIGHUSER_MOVABLE that stalls
+2. System has two nodes, node 0 with ZONE_NORMAL, node 1 with ZONE_HIGHMEM
+3. If the allocating process is on node 0, the stall is accounted on ZONE_NORMAL
+4. If the allocatinn process is on node 1, the stall is accounted on ZONE_HIGHMEM
+
+Multiple runs of the same workload on the same machine will see stall
+statistics on different zones and renders the stat useless. This is
+difficult to analyse because stalls accounted for on ZONE_NORMAL may or
+may not be zone-constrained allocations.
+
+The patch means that the vmstat accounting and tracepoint data is also
+out of sync. One thing I wanted to be able to do was
+
+1. Observe that there are alloc stalls on DMA32 or some other low zone
+2. Activate mm_vmscan_direct_reclaim_begin, filter on classzone_idx ==
+   DMA32 and identify the source of the lowmem allocations
+
+If your patch is applied, I cannot depend on the stall stats any more
+and the tracepoint is required to determine if there really any
+zone-contrained allocations. It can be *inferred* from the skip stats
+but only if such skips occurred and that is not guaranteed.
 
 -- 
 Mel Gorman
