@@ -1,79 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 19BC06B0005
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 10:04:34 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id q2so82841356pap.1
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 07:04:34 -0700 (PDT)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id k4si3167018pfj.91.2016.07.13.07.04.32
-        for <linux-mm@kvack.org>;
-        Wed, 13 Jul 2016 07:04:32 -0700 (PDT)
-Subject: Re: [PATCH 0/4] [RFC][v4] Workaround for Xeon Phi PTE A/D bits
- erratum
-References: <20160701174658.6ED27E64@viggo.jf.intel.com>
- <1467412092.7422.56.camel@kernel.crashing.org>
- <9c09c63c-5c2a-20a4-d68b-a6dc2f88ecaa@suse.cz>
-From: Dave Hansen <dave@sr71.net>
-Message-ID: <57864A6F.6070202@sr71.net>
-Date: Wed, 13 Jul 2016 07:04:31 -0700
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CFA966B0005
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 10:18:41 -0400 (EDT)
+Received: by mail-yw0-f199.google.com with SMTP id l125so89014303ywb.2
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 07:18:41 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a33si2263572qkh.91.2016.07.13.07.18.40
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Jul 2016 07:18:41 -0700 (PDT)
+Date: Wed, 13 Jul 2016 10:18:35 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: System freezes after OOM
+In-Reply-To: <20160713133955.GK28723@dhcp22.suse.cz>
+Message-ID: <alpine.LRH.2.02.1607131004340.31769@file01.intranet.prod.int.rdu2.redhat.com>
+References: <57837CEE.1010609@redhat.com> <f80dc690-7e71-26b2-59a2-5a1557d26713@redhat.com> <9be09452-de7f-d8be-fd5d-4a80d1cd1ba3@redhat.com> <alpine.LRH.2.02.1607111027080.14327@file01.intranet.prod.int.rdu2.redhat.com> <20160712064905.GA14586@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1607121907160.24806@file01.intranet.prod.int.rdu2.redhat.com> <2d5e1f84-e886-7b98-cb11-170d7104fd13@I-love.SAKURA.ne.jp> <20160713133955.GK28723@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <9c09c63c-5c2a-20a4-d68b-a6dc2f88ecaa@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-kernel@vger.kernel.org
-Cc: x86@kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, bp@alien8.de, ak@linux.intel.com, mhocko@suse.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Ondrej Kozina <okozina@redhat.com>, Jerome Marchand <jmarchan@redhat.com>, Stanislav Kozina <skozina@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>
 
-On 07/13/2016 04:37 AM, Vlastimil Babka wrote:
-> On 07/02/2016 12:28 AM, Benjamin Herrenschmidt wrote:
->> With the errata, don't you have a situation where a processor in
->> the second category will write and set D despite P having been
->> cleared (due to the race) and thus causing us to miss the transfer
->> of that D to the struct
->> page and essentially completely miss that the physical page is dirty ?
+
+
+On Wed, 13 Jul 2016, Michal Hocko wrote:
+
+> [CC David]
 > 
-> Seems to me like this is indeed possible, but...
-
-No, this isn't possible with the erratum.
-
-I had some off-list follow up with Ben, and included this description in
-the later post of the patch:
-> These bits are truly "stray".  In the case of the Dirty bit, the
-> thread associated with the stray set was *not* allowed to write to
-> the page.  This means that we do not have to launder the bit(s); we
-> can simply ignore them.
-
-
->> (Leading to memory corruption).
+> > > It is caused by the commit f9054c70d28bc214b2857cf8db8269f4f45a5e23. 
+> > > Prior to this commit, mempool allocations set __GFP_NOMEMALLOC, so 
+> > > they never exhausted reserved memory. With this commit, mempool 
+> > > allocations drop __GFP_NOMEMALLOC, so they can dig deeper (if the 
+> > > process has PF_MEMALLOC, they can bypass all limits).
+> > 
+> > I wonder whether commit f9054c70d28bc214 ("mm, mempool: only set 
+> > __GFP_NOMEMALLOC if there are free elements") is doing correct thing. 
+> > It says
+> > 
+> >     If an oom killed thread calls mempool_alloc(), it is possible that 
+> > it'll
+> >     loop forever if there are no elements on the freelist since
+> >     __GFP_NOMEMALLOC prevents it from accessing needed memory reserves in
+> >     oom conditions.
 > 
-> ... what memory corruption, exactly?
+> I haven't studied the patch very deeply so I might be missing something
+> but from a quick look the patch does exactly what the above says.
+> 
+> mempool_alloc used to inhibit ALLOC_NO_WATERMARKS by default. David has
+> only changed that to allow ALLOC_NO_WATERMARKS if there are no objects
+> in the pool and so we have no fallback for the default __GFP_NORETRY
+> request.
 
-In this (non-existent) scenario, we would lose writes to mmap()'d files
-because we did not see the dirty bit during the "get" part of
-ptep_get_and_clear().
+The swapper core sets the flag PF_MEMALLOC and calls generic_make_request 
+to submit the swapping bio to the block driver. The device mapper driver 
+uses mempools for all its I/O processing.
 
-> If a process is writing to its
-> memory from one thread and unmapping it from other thread at the same
-> time, there are no guarantees anyway?
+Prior to the patch f9054c70d28bc214b2857cf8db8269f4f45a5e23, mempool_alloc 
+never exhausted the reserved memory - it tried to allocace first with 
+__GFP_NOMEMALLOC (thus preventing the allocator from allocating below the 
+limits), then it tried to allocate from the mempool reserve and if the 
+mempool is exhausted, it waits until some structures are returned to the 
+mempool.
 
-It's not just unmapping, it's also swap, NUMA migration, etc...  We
-clear the PTE, flush, then re-populate it.
+After the patch f9054c70d28bc214b2857cf8db8269f4f45a5e23, __GFP_NOMEMALLOC 
+is not used if the mempool is exhausted - and so repeated use of 
+mempool_alloc (tohether with PF_MEMALLOC that is implicitly set) can 
+exhaust all available memory.
 
-> Would anything sensible rely on
-> the guarantee that if the write in such racy scenario didn't end up as a
-> segfault (i.e. unmapping was faster), then it must hit the disk? Or are
-> there any other scenarios where zap_pte_range() is called? Hmm, but how
-> does this affect the page migration scenario, can we lose the D bit there?
+The patch f9054c70d28bc214b2857cf8db8269f4f45a5e23 allows more paralellism 
+(mempool_alloc waits less and proceeds more often), but the downside is 
+that it exhausts all the memory. Bisection showed that those dm-crypt 
+swapping failures were caused by that patch.
 
-Yeah, it's not just zap_pte_range(), it's everywhere that we change a
-present PTE.
+I think f9054c70d28bc214b2857cf8db8269f4f45a5e23 should be reverted - but 
+first, we need to find out why does swapping fail if all the memory is 
+exhausted - that is a separate bug that should be addressed first.
 
-> And maybe related thing that just occured to me, what if page is made
-> non-writable during fork() to catch COW? Any race in that one, or just
-> the P bit? But maybe the argument would be the same as above...
+> > but we can allow mempool_alloc(__GFP_NOMEMALLOC) requests to access
+> > memory reserves via below change, can't we?
 
-Yeah, the argument is the same.
+There are no mempool_alloc(__GFP_NOMEMALLOC) requsts - mempool users don't 
+use this flag.
+
+Mikulas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
