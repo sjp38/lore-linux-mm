@@ -1,43 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DDE6C6B0260
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 09:16:37 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id x83so34850321wma.2
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 06:16:37 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id p125si1401978wmp.76.2016.07.13.06.16.36
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CC8D6B025F
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 09:18:13 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id p41so33032274lfi.0
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 06:18:13 -0700 (PDT)
+Received: from mail.ud19.udmedia.de (ud19.udmedia.de. [194.117.254.59])
+        by mx.google.com with ESMTPS id ff4si923744wjb.191.2016.07.13.06.18.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jul 2016 06:16:36 -0700 (PDT)
-Date: Wed, 13 Jul 2016 09:16:33 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 4/4] mm: move most file-based accounting to the node -fix
-Message-ID: <20160713131633.GF9905@cmpxchg.org>
-References: <1468404004-5085-1-git-send-email-mgorman@techsingularity.net>
- <1468404004-5085-5-git-send-email-mgorman@techsingularity.net>
+        Wed, 13 Jul 2016 06:18:12 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1468404004-5085-5-git-send-email-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=US-ASCII;
+ format=flowed
+Content-Transfer-Encoding: 7bit
+Date: Wed, 13 Jul 2016 15:18:11 +0200
+From: Matthias Dahl <ml_linux-kernel@binary-island.eu>
+Subject: Re: Page Allocation Failures/OOM with dm-crypt on software RAID10
+ (Intel Rapid Storage)
+In-Reply-To: <20160713121828.GI28723@dhcp22.suse.cz>
+References: <02580b0a303da26b669b4a9892624b13@mail.ud19.udmedia.de>
+ <20160712095013.GA14591@dhcp22.suse.cz>
+ <d9dbe0328e938eb7544fdb2aa8b5a9c7@mail.ud19.udmedia.de>
+ <20160712114920.GF14586@dhcp22.suse.cz>
+ <e6c2087730e530e77c2b12d50495bdc9@mail.ud19.udmedia.de>
+ <20160712140715.GL14586@dhcp22.suse.cz>
+ <459d501038de4d25db6d140ac5ea5f8d@mail.ud19.udmedia.de>
+ <20160713112126.GH28723@dhcp22.suse.cz>
+ <20160713121828.GI28723@dhcp22.suse.cz>
+Message-ID: <74b9325c37948cf2b460bd759cff23dd@mail.ud19.udmedia.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Minchan Kim <minchan@kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-raid@vger.kernel.org, linux-mm@kvack.org, dm-devel@redhat.com, linux-kernel@vger.kernel.org, Mike Snitzer <snitzer@redhat.com>
 
-On Wed, Jul 13, 2016 at 11:00:04AM +0100, Mel Gorman wrote:
-> As noted by Johannes Weiner, NR_ZONE_WRITE_PENDING gets decremented twice
-> during migration instead of a dec(old) -> inc(new) cycle as intended.
-> 
-> This is a fix to mmotm patch
-> mm-move-most-file-based-accounting-to-the-node.patch
-> 
-> Note that it'll cause a conflict with
-> mm-vmstat-remove-zone-and-node-double-accounting-by-approximating-retries.patch
-> but that the resolution is trivial.
-> 
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+Hello Michal,
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+many thanks for all your time and help on this issue. It is very much
+appreciated and I hope we can track this down somehow.
+
+On 2016-07-13 14:18, Michal Hocko wrote:
+
+> So it seems we are accumulating bios and 256B objects. Buffer heads as
+> well but so much. Having over 4G worth of bios sounds really 
+> suspicious.
+> Note that they pin pages to be written so this might be consuming the
+> rest of the unaccounted memory! So the main question is why those bios
+> do not get dispatched or finished.
+
+Ok. It is the Block IOs that do not get completed. I do get it right
+that those bio-3 are already the encrypted data that should be written
+out but do not for some reason? I tried to figure this out myself but
+couldn't find anything -- what does the number "-3" state? It is the
+position in some chain or has it a different meaning?
+
+Do you think a trace like you mentioned would help shed some more light
+on this? Or would you recommend something else?
+
+I have also cc' Mike Snitzer who commented on this issue before, maybe
+he can see some pattern here as well. Pity that Neil Brown is no longer
+available as I think this is also somehow related to it being a Intel
+Rapid Storage RAID10... since it is the only way I can reproduce it. :(
+
+Thanks,
+Matthias
+
+-- 
+Dipl.-Inf. (FH) Matthias Dahl | Software Engineer | binary-island.eu
+  services: custom software [desktop, mobile, web], server administration
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
