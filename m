@@ -1,118 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D8F2F6B0253
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 11:19:07 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id x83so37259912wma.2
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 08:19:07 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id a2si1564375wjk.265.2016.07.13.08.19.06
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D3F016B0253
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 11:21:44 -0400 (EDT)
+Received: by mail-yw0-f197.google.com with SMTP id y188so97579484ywf.3
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 08:21:44 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f6si2741639qka.311.2016.07.13.08.21.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jul 2016 08:19:06 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id o80so6252190wme.0
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 08:19:06 -0700 (PDT)
-Date: Wed, 13 Jul 2016 17:19:05 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/4] x86, swap: move swap offset/type up in PTE to work
- around erratum
-Message-ID: <20160713151905.GB20693@dhcp22.suse.cz>
-References: <20160708001909.FB2443E2@viggo.jf.intel.com>
- <20160708001911.9A3FD2B6@viggo.jf.intel.com>
+        Wed, 13 Jul 2016 08:21:44 -0700 (PDT)
+Date: Wed, 13 Jul 2016 11:21:41 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: System freezes after OOM
+In-Reply-To: <97c60afe-d922-ce4c-3a5c-5b15bf0fe2da@gmail.com>
+Message-ID: <alpine.LRH.2.02.1607131114390.31769@file01.intranet.prod.int.rdu2.redhat.com>
+References: <57837CEE.1010609@redhat.com> <f80dc690-7e71-26b2-59a2-5a1557d26713@redhat.com> <9be09452-de7f-d8be-fd5d-4a80d1cd1ba3@redhat.com> <alpine.LRH.2.02.1607111027080.14327@file01.intranet.prod.int.rdu2.redhat.com> <20160712064905.GA14586@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1607121907160.24806@file01.intranet.prod.int.rdu2.redhat.com> <20160713111006.GF28723@dhcp22.suse.cz> <20160713125050.GJ28723@dhcp22.suse.cz> <97c60afe-d922-ce4c-3a5c-5b15bf0fe2da@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160708001911.9A3FD2B6@viggo.jf.intel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, bp@alien8.de, ak@linux.intel.com, dave.hansen@intel.com, dave.hansen@linux.intel.com
+To: Milan Broz <gmazyland@gmail.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Ondrej Kozina <okozina@redhat.com>, Jerome Marchand <jmarchan@redhat.com>, Stanislav Kozina <skozina@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, device-mapper development <dm-devel@redhat.com>
 
-On Thu 07-07-16 17:19:11, Dave Hansen wrote:
-> 
-> From: Dave Hansen <dave.hansen@linux.intel.com>
-> 
-> This erratum can result in Accessed/Dirty getting set by the hardware
-> when we do not expect them to be (on !Present PTEs).
-> 
-> Instead of trying to fix them up after this happens, we just
-> allow the bits to get set and try to ignore them.  We do this by
-> shifting the layout of the bits we use for swap offset/type in
-> our 64-bit PTEs.
-> 
-> It looks like this:
-> 
-> bitnrs: |     ...            | 11| 10|  9|8|7|6|5| 4| 3|2|1|0|
-> names:  |     ...            |SW3|SW2|SW1|G|L|D|A|CD|WT|U|W|P|
-> before: |         OFFSET (9-63)          |0|X|X| TYPE(1-5) |0|
->  after: | OFFSET (14-63)  |  TYPE (9-13) |0|X|X|X| X| X|X|X|0|
-> 
-> Note that D was already a don't care (X) even before.  We just
-> move TYPE up and turn its old spot (which could be hit by the
-> A bit) into all don't cares.
-> 
-> We take 5 bits away from the offset, but that still leaves us
-> with 50 bits which lets us index into a 62-bit swapfile (4 EiB).
-> I think that's probably fine for the moment.  We could
-> theoretically reclaim 5 of the bits (1, 2, 3, 4, 7) but it
-> doesn't gain us anything.
-> 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 
-Yes, this seems like a safest option. Feel free to add
-Acked-by: Michal Hocko <mhocko@suse.com>
 
-> ---
-> 
->  b/arch/x86/include/asm/pgtable_64.h |   26 ++++++++++++++++++++------
->  1 file changed, 20 insertions(+), 6 deletions(-)
-> 
-> diff -puN arch/x86/include/asm/pgtable_64.h~knl-strays-10-move-swp-pte-bits arch/x86/include/asm/pgtable_64.h
-> --- a/arch/x86/include/asm/pgtable_64.h~knl-strays-10-move-swp-pte-bits	2016-07-07 17:17:43.556746185 -0700
-> +++ b/arch/x86/include/asm/pgtable_64.h	2016-07-07 17:17:43.559746319 -0700
-> @@ -140,18 +140,32 @@ static inline int pgd_large(pgd_t pgd) {
->  #define pte_offset_map(dir, address) pte_offset_kernel((dir), (address))
->  #define pte_unmap(pte) ((void)(pte))/* NOP */
->  
-> -/* Encode and de-code a swap entry */
-> +/*
-> + * Encode and de-code a swap entry
-> + *
-> + * |     ...            | 11| 10|  9|8|7|6|5| 4| 3|2|1|0| <- bit number
-> + * |     ...            |SW3|SW2|SW1|G|L|D|A|CD|WT|U|W|P| <- bit names
-> + * | OFFSET (14->63) | TYPE (10-13) |0|X|X|X| X| X|X|X|0| <- swp entry
-> + *
-> + * G (8) is aliased and used as a PROT_NONE indicator for
-> + * !present ptes.  We need to start storing swap entries above
-> + * there.  We also need to avoid using A and D because of an
-> + * erratum where they can be incorrectly set by hardware on
-> + * non-present PTEs.
-> + */
-> +#define SWP_TYPE_FIRST_BIT (_PAGE_BIT_PROTNONE + 1)
->  #define SWP_TYPE_BITS 5
-> -#define SWP_OFFSET_SHIFT (_PAGE_BIT_PROTNONE + 1)
-> +/* Place the offset above the type: */
-> +#define SWP_OFFSET_FIRST_BIT (SWP_TYPE_FIRST_BIT + SWP_TYPE_BITS + 1)
->  
->  #define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > SWP_TYPE_BITS)
->  
-> -#define __swp_type(x)			(((x).val >> (_PAGE_BIT_PRESENT + 1)) \
-> +#define __swp_type(x)			(((x).val >> (SWP_TYPE_FIRST_BIT)) \
->  					 & ((1U << SWP_TYPE_BITS) - 1))
-> -#define __swp_offset(x)			((x).val >> SWP_OFFSET_SHIFT)
-> +#define __swp_offset(x)			((x).val >> SWP_OFFSET_FIRST_BIT)
->  #define __swp_entry(type, offset)	((swp_entry_t) { \
-> -					 ((type) << (_PAGE_BIT_PRESENT + 1)) \
-> -					 | ((offset) << SWP_OFFSET_SHIFT) })
-> +					 ((type) << (SWP_TYPE_FIRST_BIT)) \
-> +					 | ((offset) << SWP_OFFSET_FIRST_BIT) })
->  #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val((pte)) })
->  #define __swp_entry_to_pte(x)		((pte_t) { .pte = (x).val })
->  
-> _
+On Wed, 13 Jul 2016, Milan Broz wrote:
 
--- 
-Michal Hocko
-SUSE Labs
+> On 07/13/2016 02:50 PM, Michal Hocko wrote:
+> > On Wed 13-07-16 13:10:06, Michal Hocko wrote:
+> >> On Tue 12-07-16 19:44:11, Mikulas Patocka wrote:
+> > [...]
+> >>> As long as swapping is in progress, the free memory is below the limit 
+> >>> (because the swapping activity itself consumes any memory over the limit). 
+> >>> And that triggered the OOM killer prematurely.
+> >>
+> >> I am not sure I understand the last part. Are you saing that we trigger
+> >> OOM because the initiated swapout will not be able to finish the IO thus
+> >> release the page in time?
+> >>
+> >> The oom detection checks waits for an ongoing writeout if there is no
+> >> reclaim progress and at least half of the reclaimable memory is either
+> >> dirty or under writeback. Pages under swaout are marked as under
+> >> writeback AFAIR. The writeout path (dm-crypt worker in this case) should
+> >> be able to allocate a memory from the mempool, hand over to the crypt
+> >> layer and finish the IO. Is it possible this might take a lot of time?
+> > 
+> > I am not familiar with the crypto API but from what I understood from
+> > crypt_convert the encryption is done asynchronously. Then I got lost in
+> > the indirection. Who is completing the request and from what kind of
+> > context? Is it possible it wouldn't be runable for a long time?
+> 
+> If you mean crypt_convert in dm-crypt, then it can do asynchronous completion
+> but usually (with AES-NI ans sw implementations) it run the operation completely
+> synchronously.
+> Asynchronous processing is quite rare, usually only on some specific hardware
+> crypto accelerators.
+> 
+> Once the encryption is finished, the cloned bio is sent to the block
+> layer for processing.
+> (There is also some magic with sorting writes but Mikulas knows this better.)
+
+dm-crypt receives requests in crypt_map, then it distributes write 
+requests to multiple encryption threads. Encryption is done usually 
+synchronously; asynchronous completion is used only when using some PCI 
+cards that accelerate encryption. When encryption finishes, the encrypted 
+pages are submitted to a thread dmcrypt_write that sorts the requests 
+using rbtree and submits them.
+
+The block layer has a deficiency that it cannot merge adjacent requests 
+submitted by the different threads.
+
+If we submitted requests directly from encryption threads, lack of merging 
+degraded performance seriously.
+
+Mikulas
+
+> Milan
+> p.s. I added cc to dm-devel, some dmcrypt people reads only this list.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
