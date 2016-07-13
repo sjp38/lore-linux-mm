@@ -1,44 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 396606B0005
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 08:10:12 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id f126so34285808wma.3
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 05:10:12 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a203si850236wme.4.2016.07.13.05.10.10
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 905BD6B0005
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 08:14:21 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id p41so31877153lfi.0
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 05:14:21 -0700 (PDT)
+Received: from mail-lf0-x230.google.com (mail-lf0-x230.google.com. [2a00:1450:4010:c07::230])
+        by mx.google.com with ESMTPS id u80si362500lfd.91.2016.07.13.05.14.20
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 13 Jul 2016 05:10:10 -0700 (PDT)
-Subject: Re: [PATCH 0/4] [RFC][v4] Workaround for Xeon Phi PTE A/D bits
- erratum
-References: <20160701174658.6ED27E64@viggo.jf.intel.com>
- <1467412092.7422.56.camel@kernel.crashing.org>
- <9c09c63c-5c2a-20a4-d68b-a6dc2f88ecaa@suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <829f2f03-8492-841d-869f-7fd7add9cb27@suse.cz>
-Date: Wed, 13 Jul 2016 14:10:07 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Jul 2016 05:14:20 -0700 (PDT)
+Received: by mail-lf0-x230.google.com with SMTP id b199so38003777lfe.0
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 05:14:20 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <9c09c63c-5c2a-20a4-d68b-a6dc2f88ecaa@suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20160712130201.9339f7dbc9575d2c0cb31aeb@linux-foundation.org>
+References: <1468347165-41906-1-git-send-email-glider@google.com>
+ <1468347165-41906-2-git-send-email-glider@google.com> <20160712130201.9339f7dbc9575d2c0cb31aeb@linux-foundation.org>
+From: Alexander Potapenko <glider@google.com>
+Date: Wed, 13 Jul 2016 14:14:19 +0200
+Message-ID: <CAG_fn=V4B4g=ZEdwR7SDiRsjqhOsKiLys_YQ+nFKYJup7ZRGpQ@mail.gmail.com>
+Subject: Re: [PATCH v7 1/2] mm, kasan: account for object redzone in SLUB's nearest_obj()
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, linux-kernel@vger.kernel.org
-Cc: x86@kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, bp@alien8.de, ak@linux.intel.com, mhocko@suse.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitriy Vyukov <dvyukov@google.com>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Joonsoo Kim <js1304@gmail.com>, Kostya Serebryany <kcc@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Kuthonuzo Luruo <kuthonuzo.luruo@hpe.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 07/13/2016 01:37 PM, Vlastimil Babka wrote:
->> > With the errata, don't you have a situation where a processor in the second
->> > category will write and set D despite P having been cleared (due to the
->> > race) and thus causing us to miss the transfer of that D to the struct
->> > page and essentially completely miss that the physical page is dirty ?
-> Seems to me like this is indeed possible, but...
+Changed the description as follows:
 
-Nevermind, I have read the v3 thread now, where Dave says [1] that 
-setting the D bit due to the erratum doesn't mean that the page is 
-really actually written to (it's not). So there shouldn't be any true 
-dirty bit to leave behind.
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D
+    mm, kasan: account for object redzone in SLUB's nearest_obj()
 
-[1] http://marc.info/?l=linux-mm&m=146738965614826&w=2
+    When looking up the nearest SLUB object for a given address, correctly
+    calculate its offset if SLAB_RED_ZONE is enabled for that cache.
+
+    Previously, when KASAN had detected an error on an object from a cache
+    with SLAB_RED_ZONE set, the actual start address of the object was
+    miscalculated, which led to random stacks having been reported.
+
+    Fixes: 7ed2f9e663854db ("mm, kasan: SLAB support")
+    Signed-off-by: Alexander Potapenko <glider@google.com>
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D
+
+To avoid sending both patches and the cover page again, I'm going to
+wait for other comments.
+
+On Tue, Jul 12, 2016 at 10:02 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Tue, 12 Jul 2016 20:12:44 +0200 Alexander Potapenko <glider@google.com=
+> wrote:
+>
+>> When looking up the nearest SLUB object for a given address, correctly
+>> calculate its offset if SLAB_RED_ZONE is enabled for that cache.
+>
+> What are the runtime effects of this fix?  Please always include this
+> info when fixing bugs so that others can decide which kernel(s) need
+> patching.
+>
+
+
+
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
