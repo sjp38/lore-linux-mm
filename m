@@ -1,67 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E3496B025E
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 04:40:40 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id g18so27763267lfg.2
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 01:40:40 -0700 (PDT)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id v18si26726052wmv.32.2016.07.13.01.40.38
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A53066B0005
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 04:47:45 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id o80so30415741wme.1
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 01:47:45 -0700 (PDT)
+Received: from outbound-smtp06.blacknight.com (outbound-smtp06.blacknight.com. [81.17.249.39])
+        by mx.google.com with ESMTPS id x17si355032wmd.115.2016.07.13.01.47.44
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 13 Jul 2016 01:40:39 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id A69BA99288
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 08:40:38 +0000 (UTC)
-Date: Wed, 13 Jul 2016 09:40:37 +0100
+        Wed, 13 Jul 2016 01:47:44 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp06.blacknight.com (Postfix) with ESMTPS id 0BCB3C171
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 08:47:44 +0000 (UTC)
+Date: Wed, 13 Jul 2016 09:47:42 +0100
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 11/34] mm, vmscan: remove duplicate logic clearing node
- congestion and dirty state
-Message-ID: <20160713084037.GF9806@techsingularity.net>
+Subject: Re: [PATCH 12/34] mm: vmscan: do not reclaim from kswapd if there is
+ any eligible zone
+Message-ID: <20160713084742.GG9806@techsingularity.net>
 References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
- <1467970510-21195-12-git-send-email-mgorman@techsingularity.net>
- <20160712142256.GE5881@cmpxchg.org>
+ <1467970510-21195-13-git-send-email-mgorman@techsingularity.net>
+ <20160712142909.GF5881@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20160712142256.GE5881@cmpxchg.org>
+In-Reply-To: <20160712142909.GF5881@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Jul 12, 2016 at 10:22:56AM -0400, Johannes Weiner wrote:
-> On Fri, Jul 08, 2016 at 10:34:47AM +0100, Mel Gorman wrote:
-> > @@ -3008,7 +3008,17 @@ static bool zone_balanced(struct zone *zone, int order, int classzone_idx)
-> >  {
-> >  	unsigned long mark = high_wmark_pages(zone);
-> >  
-> > -	return zone_watermark_ok_safe(zone, order, mark, classzone_idx);
-> > +	if (!zone_watermark_ok_safe(zone, order, mark, classzone_idx))
-> > +		return false;
-> > +
-> > +	/*
-> > +	 * If any eligible zone is balanced then the node is not considered
-> > +	 * to be congested or dirty
-> > +	 */
-> > +	clear_bit(PGDAT_CONGESTED, &zone->zone_pgdat->flags);
-> > +	clear_bit(PGDAT_DIRTY, &zone->zone_pgdat->flags);
+On Tue, Jul 12, 2016 at 10:29:09AM -0400, Johannes Weiner wrote:
+> > +		/*
+> > +		 * If the number of buffer_heads in the machine exceeds the
+> > +		 * maximum allowed level then reclaim from all zones. This is
+> > +		 * not specific to highmem as highmem may not exist but it is
+> > +		 * it is expected that buffer_heads are stripped in writeback.
 > 
-> Predicate functions that secretly modify internal state give me the
-> willies... The diffstat is flat, too. Is this really an improvement?
+> The mention of highmem in this comment make only sense within the
+> context of this diff; it'll be pretty confusing in the standalone
+> code.
+> 
+> Also, double "it is" :)
 
-Primarily, it's about less duplicated code and maintenance overhead.
-Overall I was both trying to remove side-effects and make the kswapd flow
-easier to follow.
+Is this any better?
 
-I'm open to renaming suggestions that make it clear the function
-has side-effects. Best I came up with after the first coffee is
-try_reset_zone_balanced() which returns true with congestion/dirty state
-cleared if the zone is balanced. The name is not great because it's also
-a little misleading. It doesn't try to reset anything, that's reclaim's job.
+Note that it's marked as a fix to a later patch to reduce collisions in
+mmotm. It's not a bisection risk so I saw little need to cause
+unnecessary conflicts for Andrew.
 
--- 
-Mel Gorman
-SUSE Labs
+---8<---
+mm, vmscan: Have kswapd reclaim from all zones if reclaiming and buffer_heads_over_limit -fix
+
+Johannes reported that the comment about buffer_heads_over_limit in
+balance_pgdat only made sense in the context of the patch. This
+patch clarifies the reasoning and how it applies to 32 and 64 bit
+systems.
+
+This is a fix to the mmotm patch
+mm-vmscan-have-kswapd-reclaim-from-all-zones-if-reclaiming-and-buffer_heads_over_limit.patch
+
+Suggested-by: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index d079210d46ee..21eae17ee730 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -3131,12 +3131,13 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+ 
+ 		/*
+ 		 * If the number of buffer_heads exceeds the maximum allowed
+-		 * then consider reclaiming from all zones. This is not
+-		 * specific to highmem which may not exist but it is it is
+-		 * expected that buffer_heads are stripped in writeback.
+-		 * Reclaim may still not go ahead if all eligible zones
+-		 * for the original allocation request are balanced to
+-		 * avoid excessive reclaim from kswapd.
++		 * then consider reclaiming from all zones. This has a dual
++		 * purpose -- on 64-bit systems it is expected that
++		 * buffer_heads are stripped during active rotation. On 32-bit
++		 * systems, highmem pages can pin lowmem memory and shrinking
++		 * buffers can relieve lowmem pressure. Reclaim may still not
++		 * go ahead if all eligible zones for the original allocation
++		 * request are balanced to avoid excessive reclaim from kswapd.
+ 		 */
+ 		if (buffer_heads_over_limit) {
+ 			for (i = MAX_NR_ZONES - 1; i >= 0; i--) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
