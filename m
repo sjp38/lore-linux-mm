@@ -1,64 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6975F6B0005
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 04:39:16 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id m101so82516440ioi.0
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 01:39:16 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f134si13240100wmf.3.2016.07.13.01.39.15
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E3496B025E
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 04:40:40 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id g18so27763267lfg.2
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 01:40:40 -0700 (PDT)
+Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
+        by mx.google.com with ESMTPS id v18si26726052wmv.32.2016.07.13.01.40.38
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 13 Jul 2016 01:39:15 -0700 (PDT)
-Subject: Re: [PATCH 02/34] mm, vmscan: move lru_lock to the node
+        Wed, 13 Jul 2016 01:40:39 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id A69BA99288
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 08:40:38 +0000 (UTC)
+Date: Wed, 13 Jul 2016 09:40:37 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 11/34] mm, vmscan: remove duplicate logic clearing node
+ congestion and dirty state
+Message-ID: <20160713084037.GF9806@techsingularity.net>
 References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
- <1467970510-21195-3-git-send-email-mgorman@techsingularity.net>
- <20160712110604.GA5981@350D> <20160712111805.GD9806@techsingularity.net>
- <20160713055039.GA23860@350D>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <59b2b5d5-cec6-2128-307c-92c2085afd30@suse.cz>
-Date: Wed, 13 Jul 2016 10:39:12 +0200
+ <1467970510-21195-12-git-send-email-mgorman@techsingularity.net>
+ <20160712142256.GE5881@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <20160713055039.GA23860@350D>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20160712142256.GE5881@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: bsingharora@gmail.com, Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
 
-On 07/13/2016 07:50 AM, Balbir Singh wrote:
-> On Tue, Jul 12, 2016 at 12:18:05PM +0100, Mel Gorman wrote:
->> On Tue, Jul 12, 2016 at 09:06:04PM +1000, Balbir Singh wrote:
->>>> diff --git a/Documentation/cgroup-v1/memory.txt b/Documentation/cgroup-v1/memory.txt
->>>> index b14abf217239..946e69103cdd 100644
->>>> --- a/Documentation/cgroup-v1/memory.txt
->>>> +++ b/Documentation/cgroup-v1/memory.txt
->>>> @@ -267,11 +267,11 @@ When oom event notifier is registered, event will be delivered.
->>>>     Other lock order is following:
->>>>     PG_locked.
->>>>     mm->page_table_lock
->>>> -       zone->lru_lock
->>>> +       zone_lru_lock
->>>
->>> zone_lru_lock is a little confusing, can't we just call it
->>> node_lru_lock?
->>>
->>
->> It's a matter of perspective. People familiar with the VM already expect
->> a zone lock so will be looking for it. I can do a rename if you insist
->> but it may not actually help.
->
-> I don't want to insist, but zone_ in the name can be confusing, as to
-> leading us to think that the lru_lock is still in the zone
+On Tue, Jul 12, 2016 at 10:22:56AM -0400, Johannes Weiner wrote:
+> On Fri, Jul 08, 2016 at 10:34:47AM +0100, Mel Gorman wrote:
+> > @@ -3008,7 +3008,17 @@ static bool zone_balanced(struct zone *zone, int order, int classzone_idx)
+> >  {
+> >  	unsigned long mark = high_wmark_pages(zone);
+> >  
+> > -	return zone_watermark_ok_safe(zone, order, mark, classzone_idx);
+> > +	if (!zone_watermark_ok_safe(zone, order, mark, classzone_idx))
+> > +		return false;
+> > +
+> > +	/*
+> > +	 * If any eligible zone is balanced then the node is not considered
+> > +	 * to be congested or dirty
+> > +	 */
+> > +	clear_bit(PGDAT_CONGESTED, &zone->zone_pgdat->flags);
+> > +	clear_bit(PGDAT_DIRTY, &zone->zone_pgdat->flags);
+> 
+> Predicate functions that secretly modify internal state give me the
+> willies... The diffstat is flat, too. Is this really an improvement?
 
-On the other hand, it suggests that the argument of the function is a 
-zone. Passing a zone to something called "node_lru_lock()" would be more 
-confusing to me. Also it's mostly a convenience wrapper to ease the 
-transition, whose usage will likely diminish over time.
+Primarily, it's about less duplicated code and maintenance overhead.
+Overall I was both trying to remove side-effects and make the kswapd flow
+easier to follow.
 
-> If the rest of the reviewers are fine with, we don't need to rename
+I'm open to renaming suggestions that make it clear the function
+has side-effects. Best I came up with after the first coffee is
+try_reset_zone_balanced() which returns true with congestion/dirty state
+cleared if the zone is balanced. The name is not great because it's also
+a little misleading. It doesn't try to reset anything, that's reclaim's job.
 
-Yes, it's not worth the trouble.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
