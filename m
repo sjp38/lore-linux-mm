@@ -1,95 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C423B6B025E
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 01:50:15 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e189so73987894pfa.2
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 22:50:15 -0700 (PDT)
-Received: from mail-pa0-x242.google.com (mail-pa0-x242.google.com. [2607:f8b0:400e:c03::242])
-        by mx.google.com with ESMTPS id z62si2181548pfb.179.2016.07.12.22.50.14
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E119C6B0005
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 02:17:04 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id l89so25284851lfi.3
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 23:17:04 -0700 (PDT)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id r123si25975927wmb.115.2016.07.12.23.17.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Jul 2016 22:50:14 -0700 (PDT)
-Received: by mail-pa0-x242.google.com with SMTP id ib6so2381551pad.3
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 22:50:14 -0700 (PDT)
-Date: Wed, 13 Jul 2016 15:50:39 +1000
-From: Balbir Singh <bsingharora@gmail.com>
-Subject: Re: [PATCH 02/34] mm, vmscan: move lru_lock to the node
-Message-ID: <20160713055039.GA23860@350D>
-Reply-To: bsingharora@gmail.com
-References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
- <1467970510-21195-3-git-send-email-mgorman@techsingularity.net>
- <20160712110604.GA5981@350D>
- <20160712111805.GD9806@techsingularity.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160712111805.GD9806@techsingularity.net>
+        Tue, 12 Jul 2016 23:17:03 -0700 (PDT)
+Received: by mail-wm0-x241.google.com with SMTP id q128so71335wma.1
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 23:17:03 -0700 (PDT)
+Content-Type: text/plain; charset=windows-1252
+Mime-Version: 1.0 (Mac OS X Mail 8.2 \(2104\))
+Subject: Re: [PATCH 3/3] Add name fields in shrinker tracepoint definitions
+From: Janani Ravichandran <janani.rvchndrn@gmail.com>
+In-Reply-To: <ed4c8fa0-d727-c014-58c5-efe3a191f2ec@suse.de>
+Date: Wed, 13 Jul 2016 11:46:51 +0530
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <010E7991-C436-414A-8F5A-602705E5A47B@gmail.com>
+References: <cover.1468051277.git.janani.rvchndrn@gmail.com> <6114f72a15d5e52984ea546ba977737221351636.1468051282.git.janani.rvchndrn@gmail.com> <447d8214-3c3d-cc4a-2eff-a47923fbe45f@suse.cz> <ed4c8fa0-d727-c014-58c5-efe3a191f2ec@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Balbir Singh <bsingharora@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
+To: Tony Jones <tonyj@suse.de>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@surriel.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@virtuozzo.com, mhocko@suse.com, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, bywxiaobai@163.com
 
-On Tue, Jul 12, 2016 at 12:18:05PM +0100, Mel Gorman wrote:
-> On Tue, Jul 12, 2016 at 09:06:04PM +1000, Balbir Singh wrote:
-> > > diff --git a/Documentation/cgroup-v1/memory.txt b/Documentation/cgroup-v1/memory.txt
-> > > index b14abf217239..946e69103cdd 100644
-> > > --- a/Documentation/cgroup-v1/memory.txt
-> > > +++ b/Documentation/cgroup-v1/memory.txt
-> > > @@ -267,11 +267,11 @@ When oom event notifier is registered, event will be delivered.
-> > >     Other lock order is following:
-> > >     PG_locked.
-> > >     mm->page_table_lock
-> > > -       zone->lru_lock
-> > > +       zone_lru_lock
-> > 
-> > zone_lru_lock is a little confusing, can't we just call it
-> > node_lru_lock?
-> > 
-> 
-> It's a matter of perspective. People familiar with the VM already expect
-> a zone lock so will be looking for it. I can do a rename if you insist
-> but it may not actually help.
 
-I don't want to insist, but zone_ in the name can be confusing, as to
-leading us to think that the lru_lock is still in the zone
+> On Jul 13, 2016, at 6:05 AM, Tony Jones <tonyj@suse.de> wrote:
+>=20
+> On 07/11/2016 07:18 AM, Vlastimil Babka wrote:
+>> On 07/09/2016 11:05 AM, Janani Ravichandran wrote:
+>>>=20
+>>> 	TP_fast_assign(
+>>> +		__entry->name =3D shr->name;
+>>> 		__entry->shr =3D shr;
+>>> 		__entry->shrink =3D shr->scan_objects;
+>>> 		__entry->nid =3D sc->nid;
+>>> @@ -214,7 +216,8 @@ TRACE_EVENT(mm_shrink_slab_start,
+>>> 		__entry->total_scan =3D total_scan;
+>>> 	),
+>>>=20
+>>> -	TP_printk("%pF %p: nid: %d objects to shrink %ld gfp_flags %s =
+pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld total_scan %ld",
+>>> +	TP_printk("name: %s %pF %p: nid: %d objects to shrink %ld =
+gfp_flags %s pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld =
+total_scan %ld",
+>>> +		__entry->name,
+>>=20
+>> Is this legal to do when printing is not done via the /sys ... file=20=
 
-If the rest of the reviewers are fine with, we don't need to rename
+>> itself, but raw data is collected and then printed by e.g. trace-cmd?=20=
 
-> 
-> > > @@ -496,7 +496,6 @@ struct zone {
-> > >  	/* Write-intensive fields used by page reclaim */
-> > >  
-> > >  	/* Fields commonly accessed by the page reclaim scanner */
-> > > -	spinlock_t		lru_lock;
-> > >  	struct lruvec		lruvec;
-> > >  
-> > >  	/*
-> > > @@ -690,6 +689,9 @@ typedef struct pglist_data {
-> > >  	/* Number of pages migrated during the rate limiting time interval */
-> > >  	unsigned long numabalancing_migrate_nr_pages;
-> > >  #endif
-> > > +	/* Write-intensive fields used by page reclaim */
-> > > +	ZONE_PADDING(_pad1_)a
-> > 
-> > I thought this was to have zone->lock and zone->lru_lock in different
-> > cachelines, do we still need the padding here?
-> > 
-> 
-> The zone padding current keeps the page lock wait tables, page allocator
-> lists, compaction and vmstats on separate cache lines. They're still
-> fine.
-> 
-> The node padding may not be necessary. It currently ensures that zonelists
-> and numa balancing are separate from the LRU lock but there is no guarantee
-> the current arrangement is optimal. It would depend on both the kernel
-> config and the workload but it may be necessary in the future to split
-> node into read-mostly sections and then different write-intensive sections
-> similar to what has happened to struct zone in the past.
->
+>> How can it possibly interpret the "char *" kernel pointer?
+>=20
+> I actually had a similar patch set to this,  I was going to post it =
+but Janani beat me to it ;-)
+>=20
+> Vlastimil is correct,  I'll attach my patch below so you can see the =
+difference.  Otherwise you won't get correct behavior passing through =
+perf.
 
-Fair enough
+Thanks for that! I will have a look at it.
+>  =20
+>=20
+> I also have a patch which adds a similar latency script (python) but =
+interfaces it into the perf script setup.
 
-Balbir Singh. 
+I=92m looking for pointers for writing latency scripts using tracepoints =
+as I=92m new to it. Can I have a look at yours, please?
+
+Thanks :)
+
+Janani.
+>=20
+> Tony
+>=20
+> ---
+>=20
+> Pass shrinker name in shrink slab tracepoints
+>=20
+> Signed-off-by: Tony Jones <tonyj@suse.de>
+> ---
+> include/trace/events/vmscan.h | 12 ++++++++++--
+> 1 file changed, 10 insertions(+), 2 deletions(-)
+>=20
+> diff --git a/include/trace/events/vmscan.h =
+b/include/trace/events/vmscan.h
+> index 0101ef3..0a15948 100644
+> --- a/include/trace/events/vmscan.h
+> +++ b/include/trace/events/vmscan.h
+> @@ -16,6 +16,8 @@
+> #define RECLAIM_WB_SYNC		0x0004u /* Unused, all reclaim =
+async */
+> #define RECLAIM_WB_ASYNC	0x0008u
+>=20
+> +#define SHRINKER_NAME_LEN 	(size_t)32
+> +
+> #define show_reclaim_flags(flags)				\
+> 	(flags) ? __print_flags(flags, "|",			\
+> 		{RECLAIM_WB_ANON,	"RECLAIM_WB_ANON"},	\
+> @@ -190,6 +192,7 @@ TRACE_EVENT(mm_shrink_slab_start,
+>=20
+> 	TP_STRUCT__entry(
+> 		__field(struct shrinker *, shr)
+> +		__array(char, name, SHRINKER_NAME_LEN)
+> 		__field(void *, shrink)
+> 		__field(int, nid)
+> 		__field(long, nr_objects_to_shrink)
+> @@ -203,6 +206,7 @@ TRACE_EVENT(mm_shrink_slab_start,
+>=20
+> 	TP_fast_assign(
+> 		__entry->shr =3D shr;
+> +		strlcpy(__entry->name, shr->name, SHRINKER_NAME_LEN);
+> 		__entry->shrink =3D shr->scan_objects;
+> 		__entry->nid =3D sc->nid;
+> 		__entry->nr_objects_to_shrink =3D nr_objects_to_shrink;
+> @@ -214,9 +218,10 @@ TRACE_EVENT(mm_shrink_slab_start,
+> 		__entry->total_scan =3D total_scan;
+> 	),
+>=20
+> -	TP_printk("%pF %p: nid: %d objects to shrink %ld gfp_flags %s =
+pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld total_scan %ld",
+> +	TP_printk("%pF %p(%s): nid: %d objects to shrink %ld gfp_flags =
+%s pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld total_scan =
+%ld",
+> 		__entry->shrink,
+> 		__entry->shr,
+> +		__entry->name,
+> 		__entry->nid,
+> 		__entry->nr_objects_to_shrink,
+> 		show_gfp_flags(__entry->gfp_flags),
+> @@ -236,6 +241,7 @@ TRACE_EVENT(mm_shrink_slab_end,
+>=20
+> 	TP_STRUCT__entry(
+> 		__field(struct shrinker *, shr)
+> +		__array(char, name, SHRINKER_NAME_LEN)
+> 		__field(int, nid)
+> 		__field(void *, shrink)
+> 		__field(long, unused_scan)
+> @@ -246,6 +252,7 @@ TRACE_EVENT(mm_shrink_slab_end,
+>=20
+> 	TP_fast_assign(
+> 		__entry->shr =3D shr;
+> +		strlcpy(__entry->name, shr->name, SHRINKER_NAME_LEN);
+> 		__entry->nid =3D nid;
+> 		__entry->shrink =3D shr->scan_objects;
+> 		__entry->unused_scan =3D unused_scan_cnt;
+> @@ -254,9 +261,10 @@ TRACE_EVENT(mm_shrink_slab_end,
+> 		__entry->total_scan =3D total_scan;
+> 	),
+>=20
+> -	TP_printk("%pF %p: nid: %d unused scan count %ld new scan count =
+%ld total_scan %ld last shrinker return val %d",
+> +	TP_printk("%pF %p(%s): nid: %d unused scan count %ld new scan =
+count %ld total_scan %ld last shrinker return val %d",
+> 		__entry->shrink,
+> 		__entry->shr,
+> +		__entry->name,
+> 		__entry->nid,
+> 		__entry->unused_scan,
+> 		__entry->new_scan,
+>=20
+>=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
