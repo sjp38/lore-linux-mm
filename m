@@ -1,90 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AE1B6B0005
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 07:21:29 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id 33so30297121lfw.1
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 04:21:28 -0700 (PDT)
-Received: from mail-wm0-f54.google.com (mail-wm0-f54.google.com. [74.125.82.54])
-        by mx.google.com with ESMTPS id d7si356215wjq.72.2016.07.13.04.21.27
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F0CB6B0005
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 07:37:26 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id o80so33660868wme.1
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 04:37:26 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ek7si427453wjb.197.2016.07.13.04.37.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jul 2016 04:21:27 -0700 (PDT)
-Received: by mail-wm0-f54.google.com with SMTP id f65so24393679wmi.0
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 04:21:27 -0700 (PDT)
-Date: Wed, 13 Jul 2016 13:21:26 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Page Allocation Failures/OOM with dm-crypt on software RAID10
- (Intel Rapid Storage)
-Message-ID: <20160713112126.GH28723@dhcp22.suse.cz>
-References: <02580b0a303da26b669b4a9892624b13@mail.ud19.udmedia.de>
- <20160712095013.GA14591@dhcp22.suse.cz>
- <d9dbe0328e938eb7544fdb2aa8b5a9c7@mail.ud19.udmedia.de>
- <20160712114920.GF14586@dhcp22.suse.cz>
- <e6c2087730e530e77c2b12d50495bdc9@mail.ud19.udmedia.de>
- <20160712140715.GL14586@dhcp22.suse.cz>
- <459d501038de4d25db6d140ac5ea5f8d@mail.ud19.udmedia.de>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 13 Jul 2016 04:37:24 -0700 (PDT)
+Subject: Re: [PATCH 0/4] [RFC][v4] Workaround for Xeon Phi PTE A/D bits
+ erratum
+References: <20160701174658.6ED27E64@viggo.jf.intel.com>
+ <1467412092.7422.56.camel@kernel.crashing.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <9c09c63c-5c2a-20a4-d68b-a6dc2f88ecaa@suse.cz>
+Date: Wed, 13 Jul 2016 13:37:21 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <459d501038de4d25db6d140ac5ea5f8d@mail.ud19.udmedia.de>
+In-Reply-To: <1467412092.7422.56.camel@kernel.crashing.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthias Dahl <ml_linux-kernel@binary-island.eu>
-Cc: linux-raid@vger.kernel.org, linux-mm@kvack.org, dm-devel@redhat.com, linux-kernel@vger.kernel.org
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave@sr71.net>, linux-kernel@vger.kernel.org
+Cc: x86@kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, bp@alien8.de, ak@linux.intel.com, mhocko@suse.com
 
-On Tue 12-07-16 16:56:32, Matthias Dahl wrote:
-> Hello Michal...
-> 
-> On 2016-07-12 16:07, Michal Hocko wrote:
-> 
-> > /proc/slabinfo could at least point on who is eating that memory.
-> 
-> Thanks. I have made another test (and thus again put the RAID10 out of
-> sync for the 100th time, sigh) and made regular snapshots of slabinfo
-> which I have attached to this mail.
-> 
-> > Direct IO doesn't get throttled like buffered IO.
-> 
-> Is buffered i/o not used in both cases if I don't explicitly request
-> direct i/o?
-> 
->     dd if=/dev/zero /dev/md126p5 bs=512K
-> and dd if=/dev/zero /dev/mapper/test-device bs=512K
+On 07/02/2016 12:28 AM, Benjamin Herrenschmidt wrote:
+> On Fri, 2016-07-01 at 10:46 -0700, Dave Hansen wrote:
+>> The Intel(R) Xeon Phi(TM) Processor x200 Family (codename: Knights
+>> Landing) has an erratum where a processor thread setting the Accessed
+>> or Dirty bits may not do so atomically against its checks for the
+>> Present bit.  This may cause a thread (which is about to page fault)
+>> to set A and/or D, even though the Present bit had already been
+>> atomically cleared.
+>
+> Interesting.... I always wondered where in the Intel docs did it specify
+> that present was tested atomically with setting of A and D ... I couldn't
+> find it.
+>
+> Isn't there a more fundamental issue however that you may actually lose
+> those bits ? For example if we do an munmap, in zap_pte_range()
+>
+> We first exchange all the PTEs with 0 with ptep_get_and_clear_full()
+> and we then transfer D that we just read into the struct page.
+>
+> We rely on the fact that D will never be set again, what we go it a
+> "final" D bit. IE. We rely on the fact that a processor either:
+>
+>    - Has a cached PTE in its TLB with D set, in which case it can still
+> write to the page until we flush the TLB or
+>
+>    - Doesn't have a cached PTE in its TLB with D set and so will fail
+> to do so due to the atomic P check, thus never writing.
+>
+> With the errata, don't you have a situation where a processor in the second
+> category will write and set D despite P having been cleared (due to the
+> race) and thus causing us to miss the transfer of that D to the struct
+> page and essentially completely miss that the physical page is dirty ?
 
-OK, I misunderstood your question though. You were mentioning the direct
-IO earlier so I thought you were referring to it here as well.
- 
-> Given that the test-device is dm-crypt on md125p5. Aren't both using
-> buffered i/o?
+Seems to me like this is indeed possible, but...
 
-Yes they are.
+> (Leading to memory corruption).
 
-> > the number of pages under writeback was more or less same throughout
-> > the time but there are some local fluctuations when some pages do get
-> > completed.
-> 
-> The pages under writeback are those directly destined for the disk, so
-> after dm-crypt had done its encryption?
+... what memory corruption, exactly? If a process is writing to its 
+memory from one thread and unmapping it from other thread at the same 
+time, there are no guarantees anyway? Would anything sensible rely on 
+the guarantee that if the write in such racy scenario didn't end up as a 
+segfault (i.e. unmapping was faster), then it must hit the disk? Or are 
+there any other scenarios where zap_pte_range() is called? Hmm, but how 
+does this affect the page migration scenario, can we lose the D bit there?
 
-Those are submitted for the IO. dm-crypt will allocate a "shadow" page
-for each of them to perform the encryption and only then submit the IO
-to the storage underneath see
-http://lkml.kernel.org/r/alpine.LRH.2.02.1607121907160.24806@file01.intranet.prod.int.rdu2.redhat.com
-
-> > If not you can enable allocator trace point for a particular object
-> > size (or range of sizes) and see who is requesting them.
-> 
-> If that support is baked into the Fedora provided kernel that is. If
-> you could give me a few hints or pointers, how to properly do a allocator
-> trace point and get some decent data out of it, that would be nice.
-
-You need to have a kernel with CONFIG_TRACEPOINTS and then enable them
-via debugfs. You are interested in kmalloc tracepoint and specify a size
-as a filter to only see those that are really interesting. I haven't
-checked your slabinfo yet - hope to get to it later today.
--- 
-Michal Hocko
-SUSE Labs
+And maybe related thing that just occured to me, what if page is made 
+non-writable during fork() to catch COW? Any race in that one, or just 
+the P bit? But maybe the argument would be the same as above...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
