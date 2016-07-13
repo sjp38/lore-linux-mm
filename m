@@ -1,64 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C68D16B0005
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 08:50:54 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id 33so31788093lfw.1
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 05:50:54 -0700 (PDT)
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com. [74.125.82.52])
-        by mx.google.com with ESMTPS id fk9si785233wjb.30.2016.07.13.05.50.53
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AC9B96B0005
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 09:04:24 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id x83so34631002wma.2
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 06:04:24 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id d78si7331288wmi.121.2016.07.13.06.04.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jul 2016 05:50:53 -0700 (PDT)
-Received: by mail-wm0-f52.google.com with SMTP id i5so67620522wmg.0
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 05:50:53 -0700 (PDT)
-Date: Wed, 13 Jul 2016 14:50:51 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: System freezes after OOM
-Message-ID: <20160713125050.GJ28723@dhcp22.suse.cz>
-References: <57837CEE.1010609@redhat.com>
- <f80dc690-7e71-26b2-59a2-5a1557d26713@redhat.com>
- <9be09452-de7f-d8be-fd5d-4a80d1cd1ba3@redhat.com>
- <alpine.LRH.2.02.1607111027080.14327@file01.intranet.prod.int.rdu2.redhat.com>
- <20160712064905.GA14586@dhcp22.suse.cz>
- <alpine.LRH.2.02.1607121907160.24806@file01.intranet.prod.int.rdu2.redhat.com>
- <20160713111006.GF28723@dhcp22.suse.cz>
+        Wed, 13 Jul 2016 06:04:23 -0700 (PDT)
+Date: Wed, 13 Jul 2016 09:04:15 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 18/34] mm: rename NR_ANON_PAGES to NR_ANON_MAPPED
+Message-ID: <20160713130415.GB9905@cmpxchg.org>
+References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
+ <1467970510-21195-19-git-send-email-mgorman@techsingularity.net>
+ <20160712145801.GJ5881@cmpxchg.org>
+ <20160713085516.GI9806@techsingularity.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160713111006.GF28723@dhcp22.suse.cz>
+In-Reply-To: <20160713085516.GI9806@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Ondrej Kozina <okozina@redhat.com>, Jerome Marchand <jmarchan@redhat.com>, Stanislav Kozina <skozina@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 13-07-16 13:10:06, Michal Hocko wrote:
-> On Tue 12-07-16 19:44:11, Mikulas Patocka wrote:
-[...]
-> > As long as swapping is in progress, the free memory is below the limit 
-> > (because the swapping activity itself consumes any memory over the limit). 
-> > And that triggered the OOM killer prematurely.
+On Wed, Jul 13, 2016 at 09:55:16AM +0100, Mel Gorman wrote:
+> On Tue, Jul 12, 2016 at 10:58:01AM -0400, Johannes Weiner wrote:
+> > On Fri, Jul 08, 2016 at 10:34:54AM +0100, Mel Gorman wrote:
+> > > NR_FILE_PAGES  is the number of        file pages.
+> > > NR_FILE_MAPPED is the number of mapped file pages.
+> > > NR_ANON_PAGES  is the number of mapped anon pages.
+> > > 
+> > > This is unhelpful naming as it's easy to confuse NR_FILE_MAPPED and
+> > > NR_ANON_PAGES for mapped pages.  This patch renames NR_ANON_PAGES so we
+> > > have
+> > > 
+> > > NR_FILE_PAGES  is the number of        file pages.
+> > > NR_FILE_MAPPED is the number of mapped file pages.
+> > > NR_ANON_MAPPED is the number of mapped anon pages.
+> > 
+> > That looks wrong to me. The symmetry is between NR_FILE_PAGES and
+> > NR_ANON_PAGES. NR_FILE_MAPPED is merely elaborating on the mapped
+> > subset of NR_FILE_PAGES, something which isn't necessary for anon
+> > pages as they're always mapped.
 > 
-> I am not sure I understand the last part. Are you saing that we trigger
-> OOM because the initiated swapout will not be able to finish the IO thus
-> release the page in time?
+> How strongly do you feel about reverting it as later patches would cause
+> lots of conflicts.
 > 
-> The oom detection checks waits for an ongoing writeout if there is no
-> reclaim progress and at least half of the reclaimable memory is either
-> dirty or under writeback. Pages under swaout are marked as under
-> writeback AFAIR. The writeout path (dm-crypt worker in this case) should
-> be able to allocate a memory from the mempool, hand over to the crypt
-> layer and finish the IO. Is it possible this might take a lot of time?
+> Obviously I found the new names clearer but I was thinking a lot at the
+> time about mapped vs unmapped due to looking closely at both reclaim and
+> [f|m]advise functions at the time. I found it mildly irksome to switch
+> between the semantics of file/anon when looking at the vmstat updates.
 
-I am not familiar with the crypto API but from what I understood from
-crypt_convert the encryption is done asynchronously. Then I got lost in
-the indirection. Who is completing the request and from what kind of
-context? Is it possible it wouldn't be runable for a long time?
--- 
-Michal Hocko
-SUSE Labs
+I can see that. It all depends on whether you consider mapping state
+or page type the more fundamental attribute, and coming from the
+mapping perspective those new names make sense as well.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+However, that leaves the disconnect between the enum name and what we
+print to userspace. I find myself having to associate those quite a
+lot to find all the sites that modify a given /proc/vmstat item, and
+that's a bit of a pain if the names don't match.
+
+I don't care strongly enough to cause a respin of half the series, and
+it's not your problem that I waited until the last revision went into
+mmots to review and comment. But if you agreed to a revert, would you
+consider tacking on a revert patch at the end of the series?
+
+Something like this?
