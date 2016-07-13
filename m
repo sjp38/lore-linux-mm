@@ -1,71 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BA2B66B0005
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 08:29:01 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id l89so32049366lfi.3
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 05:29:01 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id p125si1159535wmp.76.2016.07.13.05.29.00
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C68D16B0005
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 08:50:54 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id 33so31788093lfw.1
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 05:50:54 -0700 (PDT)
+Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com. [74.125.82.52])
+        by mx.google.com with ESMTPS id fk9si785233wjb.30.2016.07.13.05.50.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jul 2016 05:29:00 -0700 (PDT)
-Date: Wed, 13 Jul 2016 08:28:48 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 12/34] mm: vmscan: do not reclaim from kswapd if there is
- any eligible zone
-Message-ID: <20160713122848.GA9905@cmpxchg.org>
-References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
- <1467970510-21195-13-git-send-email-mgorman@techsingularity.net>
- <20160712142909.GF5881@cmpxchg.org>
- <20160713084742.GG9806@techsingularity.net>
+        Wed, 13 Jul 2016 05:50:53 -0700 (PDT)
+Received: by mail-wm0-f52.google.com with SMTP id i5so67620522wmg.0
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 05:50:53 -0700 (PDT)
+Date: Wed, 13 Jul 2016 14:50:51 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: System freezes after OOM
+Message-ID: <20160713125050.GJ28723@dhcp22.suse.cz>
+References: <57837CEE.1010609@redhat.com>
+ <f80dc690-7e71-26b2-59a2-5a1557d26713@redhat.com>
+ <9be09452-de7f-d8be-fd5d-4a80d1cd1ba3@redhat.com>
+ <alpine.LRH.2.02.1607111027080.14327@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160712064905.GA14586@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1607121907160.24806@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160713111006.GF28723@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160713084742.GG9806@techsingularity.net>
+In-Reply-To: <20160713111006.GF28723@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Ondrej Kozina <okozina@redhat.com>, Jerome Marchand <jmarchan@redhat.com>, Stanislav Kozina <skozina@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Jul 13, 2016 at 09:47:42AM +0100, Mel Gorman wrote:
-> On Tue, Jul 12, 2016 at 10:29:09AM -0400, Johannes Weiner wrote:
-> > > +		/*
-> > > +		 * If the number of buffer_heads in the machine exceeds the
-> > > +		 * maximum allowed level then reclaim from all zones. This is
-> > > +		 * not specific to highmem as highmem may not exist but it is
-> > > +		 * it is expected that buffer_heads are stripped in writeback.
-> > 
-> > The mention of highmem in this comment make only sense within the
-> > context of this diff; it'll be pretty confusing in the standalone
-> > code.
-> > 
-> > Also, double "it is" :)
+On Wed 13-07-16 13:10:06, Michal Hocko wrote:
+> On Tue 12-07-16 19:44:11, Mikulas Patocka wrote:
+[...]
+> > As long as swapping is in progress, the free memory is below the limit 
+> > (because the swapping activity itself consumes any memory over the limit). 
+> > And that triggered the OOM killer prematurely.
 > 
-> Is this any better?
-
-Yes, this is great! Thank you.
-
-> Note that it's marked as a fix to a later patch to reduce collisions in
-> mmotm. It's not a bisection risk so I saw little need to cause
-> unnecessary conflicts for Andrew.
-
-That seems completely reasonable to me.
-
-> ---8<---
-> mm, vmscan: Have kswapd reclaim from all zones if reclaiming and buffer_heads_over_limit -fix
+> I am not sure I understand the last part. Are you saing that we trigger
+> OOM because the initiated swapout will not be able to finish the IO thus
+> release the page in time?
 > 
-> Johannes reported that the comment about buffer_heads_over_limit in
-> balance_pgdat only made sense in the context of the patch. This
-> patch clarifies the reasoning and how it applies to 32 and 64 bit
-> systems.
-> 
-> This is a fix to the mmotm patch
-> mm-vmscan-have-kswapd-reclaim-from-all-zones-if-reclaiming-and-buffer_heads_over_limit.patch
-> 
-> Suggested-by: Johannes Weiner <hannes@cmpxchg.org>
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> The oom detection checks waits for an ongoing writeout if there is no
+> reclaim progress and at least half of the reclaimable memory is either
+> dirty or under writeback. Pages under swaout are marked as under
+> writeback AFAIR. The writeout path (dm-crypt worker in this case) should
+> be able to allocate a memory from the mempool, hand over to the crypt
+> layer and finish the IO. Is it possible this might take a lot of time?
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+I am not familiar with the crypto API but from what I understood from
+crypt_convert the encryption is done asynchronously. Then I got lost in
+the indirection. Who is completing the request and from what kind of
+context? Is it possible it wouldn't be runable for a long time?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
