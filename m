@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D3BE86B0005
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 17:56:15 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id y134so64831652pfg.1
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 14:56:15 -0700 (PDT)
-Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
-        by mx.google.com with ESMTPS id l3si5392889paz.233.2016.07.13.14.56.15
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C86BF6B025E
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 17:56:16 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id y134so64832181pfg.1
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 14:56:16 -0700 (PDT)
+Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
+        by mx.google.com with ESMTPS id n1si5886270pax.163.2016.07.13.14.56.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 13 Jul 2016 14:56:15 -0700 (PDT)
-Received: by mail-pa0-x235.google.com with SMTP id dx3so21506794pab.2
+Received: by mail-pa0-x231.google.com with SMTP id dx3so21506865pab.2
         for <linux-mm@kvack.org>; Wed, 13 Jul 2016 14:56:15 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH v2 01/11] mm: Implement stack frame object validation
-Date: Wed, 13 Jul 2016 14:55:54 -0700
-Message-Id: <1468446964-22213-2-git-send-email-keescook@chromium.org>
+Subject: [PATCH v2 02/11] mm: Hardened usercopy
+Date: Wed, 13 Jul 2016 14:55:55 -0700
+Message-Id: <1468446964-22213-3-git-send-email-keescook@chromium.org>
 In-Reply-To: <1468446964-22213-1-git-send-email-keescook@chromium.org>
 References: <1468446964-22213-1-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,127 +22,386 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Kees Cook <keescook@chromium.org>, Rik van Riel <riel@redhat.com>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, x86@kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
-This creates per-architecture function arch_within_stack_frames() that
-should validate if a given object is contained by a kernel stack frame.
-Initial implementation is on x86.
+This is the start of porting PAX_USERCOPY into the mainline kernel. This
+is the first set of features, controlled by CONFIG_HARDENED_USERCOPY. The
+work is based on code by PaX Team and Brad Spengler, and an earlier port
+from Casey Schaufler. Additional non-slab page tests are from Rik van Riel.
 
-This is based on code from PaX.
+This patch contains the logic for validating several conditions when
+performing copy_to_user() and copy_from_user() on the kernel object
+being copied to/from:
+- address range doesn't wrap around
+- address range isn't NULL or zero-allocated (with a non-zero copy size)
+- if on the slab allocator:
+  - object size must be less than or equal to copy size (when check is
+    implemented in the allocator, which appear in subsequent patches)
+- otherwise, object must not span page allocations
+- if on the stack
+  - object must not extend before/after the current process task
+  - object must be contained by the current stack frame (when there is
+    arch/build support for identifying stack frames)
+- object must not overlap with kernel text
 
 Signed-off-by: Kees Cook <keescook@chromium.org>
 ---
- arch/Kconfig                       |  9 ++++++++
- arch/x86/Kconfig                   |  1 +
- arch/x86/include/asm/thread_info.h | 44 ++++++++++++++++++++++++++++++++++++++
- include/linux/thread_info.h        |  9 ++++++++
- 4 files changed, 63 insertions(+)
+ arch/Kconfig                |   7 ++
+ include/linux/slab.h        |  12 +++
+ include/linux/thread_info.h |  15 +++
+ mm/Makefile                 |   4 +
+ mm/usercopy.c               | 219 ++++++++++++++++++++++++++++++++++++++++++++
+ security/Kconfig            |  27 ++++++
+ 6 files changed, 284 insertions(+)
+ create mode 100644 mm/usercopy.c
 
 diff --git a/arch/Kconfig b/arch/Kconfig
-index d794384a0404..5e2776562035 100644
+index 5e2776562035..195ee4cc939a 100644
 --- a/arch/Kconfig
 +++ b/arch/Kconfig
-@@ -424,6 +424,15 @@ config CC_STACKPROTECTOR_STRONG
+@@ -433,6 +433,13 @@ config HAVE_ARCH_WITHIN_STACK_FRAMES
+ 	  and similar) by implementing an inline arch_within_stack_frames(),
+ 	  which is used by CONFIG_HARDENED_USERCOPY.
  
- endchoice
- 
-+config HAVE_ARCH_WITHIN_STACK_FRAMES
++config HAVE_ARCH_LINEAR_KERNEL_MAPPING
 +	bool
 +	help
-+	  An architecture should select this if it can walk the kernel stack
-+	  frames to determine if an object is part of either the arguments
-+	  or local variables (i.e. that it excludes saved return addresses,
-+	  and similar) by implementing an inline arch_within_stack_frames(),
-+	  which is used by CONFIG_HARDENED_USERCOPY.
++	  An architecture should select this if it has a secondary linear
++	  mapping of the kernel text. This is used to verify that kernel
++	  text exposures are not visible under CONFIG_HARDENED_USERCOPY.
 +
  config HAVE_CONTEXT_TRACKING
  	bool
  	help
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 0a7b885964ba..4407f596b72c 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -91,6 +91,7 @@ config X86
- 	select HAVE_ARCH_SOFT_DIRTY		if X86_64
- 	select HAVE_ARCH_TRACEHOOK
- 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
-+	select HAVE_ARCH_WITHIN_STACK_FRAMES
- 	select HAVE_EBPF_JIT			if X86_64
- 	select HAVE_CC_STACKPROTECTOR
- 	select HAVE_CMPXCHG_DOUBLE
-diff --git a/arch/x86/include/asm/thread_info.h b/arch/x86/include/asm/thread_info.h
-index 30c133ac05cd..ab386f1336f2 100644
---- a/arch/x86/include/asm/thread_info.h
-+++ b/arch/x86/include/asm/thread_info.h
-@@ -180,6 +180,50 @@ static inline unsigned long current_stack_pointer(void)
- 	return sp;
- }
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index aeb3e6d00a66..96a16a3fb7cb 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -155,6 +155,18 @@ void kfree(const void *);
+ void kzfree(const void *);
+ size_t ksize(const void *);
  
-+/*
-+ * Walks up the stack frames to make sure that the specified object is
-+ * entirely contained by a single stack frame.
-+ *
-+ * Returns:
-+ *		 1 if within a frame
-+ *		-1 if placed across a frame boundary (or outside stack)
-+ *		 0 unable to determine (no frame pointers, etc)
-+ */
-+static inline int arch_within_stack_frames(const void * const stack,
-+					   const void * const stackend,
-+					   const void *obj, unsigned long len)
-+{
-+#if defined(CONFIG_FRAME_POINTER)
-+	const void *frame = NULL;
-+	const void *oldframe;
-+
-+	oldframe = __builtin_frame_address(1);
-+	if (oldframe)
-+		frame = __builtin_frame_address(2);
-+	/*
-+	 * low ----------------------------------------------> high
-+	 * [saved bp][saved ip][args][local vars][saved bp][saved ip]
-+	 *                     ^----------------^
-+	 *               allow copies only within here
-+	 */
-+	while (stack <= frame && frame < stackend) {
-+		/*
-+		 * If obj + len extends past the last frame, this
-+		 * check won't pass and the next frame will be 0,
-+		 * causing us to bail out and correctly report
-+		 * the copy as invalid.
-+		 */
-+		if (obj + len <= frame)
-+			return obj >= oldframe + 2 * sizeof(void *) ? 1 : -1;
-+		oldframe = frame;
-+		frame = *(const void * const *)frame;
-+	}
-+	return -1;
++#ifdef CONFIG_HAVE_HARDENED_USERCOPY_ALLOCATOR
++const char *__check_heap_object(const void *ptr, unsigned long n,
++				struct page *page);
 +#else
-+	return 0;
-+#endif
++static inline const char *__check_heap_object(const void *ptr,
++					      unsigned long n,
++					      struct page *page)
++{
++	return NULL;
 +}
++#endif
 +
- #else /* !__ASSEMBLY__ */
- 
- #ifdef CONFIG_X86_64
+ /*
+  * Some archs want to perform DMA into kmalloc caches and need a guaranteed
+  * alignment larger than the alignment of a 64-bit integer.
 diff --git a/include/linux/thread_info.h b/include/linux/thread_info.h
-index b4c2a485b28a..3d5c80b4391d 100644
+index 3d5c80b4391d..f24b99eac969 100644
 --- a/include/linux/thread_info.h
 +++ b/include/linux/thread_info.h
-@@ -146,6 +146,15 @@ static inline bool test_and_clear_restore_sigmask(void)
- #error "no set_restore_sigmask() provided and default one won't work"
+@@ -155,6 +155,21 @@ static inline int arch_within_stack_frames(const void * const stack,
+ }
  #endif
  
-+#ifndef CONFIG_HAVE_ARCH_WITHIN_STACK_FRAMES
-+static inline int arch_within_stack_frames(const void * const stack,
-+					   const void * const stackend,
-+					   const void *obj, unsigned long len)
++#ifdef CONFIG_HARDENED_USERCOPY
++extern void __check_object_size(const void *ptr, unsigned long n,
++					bool to_user);
++
++static inline void check_object_size(const void *ptr, unsigned long n,
++				     bool to_user)
 +{
-+	return 0;
++	__check_object_size(ptr, n, to_user);
 +}
-+#endif
++#else
++static inline void check_object_size(const void *ptr, unsigned long n,
++				     bool to_user)
++{ }
++#endif /* CONFIG_HARDENED_USERCOPY */
 +
  #endif	/* __KERNEL__ */
  
  #endif /* _LINUX_THREAD_INFO_H */
+diff --git a/mm/Makefile b/mm/Makefile
+index 78c6f7dedb83..32d37247c7e5 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -21,6 +21,9 @@ KCOV_INSTRUMENT_memcontrol.o := n
+ KCOV_INSTRUMENT_mmzone.o := n
+ KCOV_INSTRUMENT_vmstat.o := n
+ 
++# Since __builtin_frame_address does work as used, disable the warning.
++CFLAGS_usercopy.o += $(call cc-disable-warning, frame-address)
++
+ mmu-y			:= nommu.o
+ mmu-$(CONFIG_MMU)	:= gup.o highmem.o memory.o mincore.o \
+ 			   mlock.o mmap.o mprotect.o mremap.o msync.o rmap.o \
+@@ -99,3 +102,4 @@ obj-$(CONFIG_USERFAULTFD) += userfaultfd.o
+ obj-$(CONFIG_IDLE_PAGE_TRACKING) += page_idle.o
+ obj-$(CONFIG_FRAME_VECTOR) += frame_vector.o
+ obj-$(CONFIG_DEBUG_PAGE_REF) += debug_page_ref.o
++obj-$(CONFIG_HARDENED_USERCOPY) += usercopy.o
+diff --git a/mm/usercopy.c b/mm/usercopy.c
+new file mode 100644
+index 000000000000..4161a1fb1909
+--- /dev/null
++++ b/mm/usercopy.c
+@@ -0,0 +1,219 @@
++/*
++ * This implements the various checks for CONFIG_HARDENED_USERCOPY*,
++ * which are designed to protect kernel memory from needless exposure
++ * and overwrite under many unintended conditions. This code is based
++ * on PAX_USERCOPY, which is:
++ *
++ * Copyright (C) 2001-2016 PaX Team, Bradley Spengler, Open Source
++ * Security Inc.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License version 2 as
++ * published by the Free Software Foundation.
++ *
++ */
++#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
++
++#include <linux/mm.h>
++#include <linux/slab.h>
++#include <asm/sections.h>
++
++/*
++ * Checks if a given pointer and length is contained by the current
++ * stack frame (if possible).
++ *
++ *	0: not at all on the stack
++ *	1: fully within a valid stack frame
++ *	2: fully on the stack (when can't do frame-checking)
++ *	-1: error condition (invalid stack position or bad stack frame)
++ */
++static noinline int check_stack_object(const void *obj, unsigned long len)
++{
++	const void * const stack = task_stack_page(current);
++	const void * const stackend = stack + THREAD_SIZE;
++	int ret;
++
++	/* Object is not on the stack at all. */
++	if (obj + len <= stack || stackend <= obj)
++		return 0;
++
++	/*
++	 * Reject: object partially overlaps the stack (passing the
++	 * the check above means at least one end is within the stack,
++	 * so if this check fails, the other end is outside the stack).
++	 */
++	if (obj < stack || stackend < obj + len)
++		return -1;
++
++	/* Check if object is safely within a valid frame. */
++	ret = arch_within_stack_frames(stack, stackend, obj, len);
++	if (ret)
++		return ret;
++
++	return 2;
++}
++
++static void report_usercopy(const void *ptr, unsigned long len,
++			    bool to_user, const char *type)
++{
++	pr_emerg("kernel memory %s attempt detected %s %p (%s) (%lu bytes)\n",
++		to_user ? "exposure" : "overwrite",
++		to_user ? "from" : "to", ptr, type ? : "unknown", len);
++	dump_stack();
++	do_group_exit(SIGKILL);
++}
++
++/* Returns true if any portion of [ptr,ptr+n) over laps with [low,high). */
++static bool overlaps(const void *ptr, unsigned long n, unsigned long low,
++		     unsigned long high)
++{
++	unsigned long check_low = (uintptr_t)ptr;
++	unsigned long check_high = check_low + n;
++
++	/* Does not overlap if entirely above or entirely below. */
++	if (check_low >= high || check_high < low)
++		return false;
++
++	return true;
++}
++
++/* Is this address range in the kernel text area? */
++static inline const char *check_kernel_text_object(const void *ptr,
++						   unsigned long n)
++{
++	unsigned long textlow = (unsigned long)_stext;
++	unsigned long texthigh = (unsigned long)_etext;
++
++	if (overlaps(ptr, n, textlow, texthigh))
++		return "<kernel text>";
++
++#ifdef HAVE_ARCH_LINEAR_KERNEL_MAPPING
++	/* Check against linear mapping as well. */
++	if (overlaps(ptr, n, (unsigned long)__va(__pa(textlow)),
++		     (unsigned long)__va(__pa(texthigh))))
++		return "<linear kernel text>";
++#endif
++
++	return NULL;
++}
++
++static inline const char *check_bogus_address(const void *ptr, unsigned long n)
++{
++	/* Reject if object wraps past end of memory. */
++	if (ptr + n < ptr)
++		return "<wrapped address>";
++
++	/* Reject if NULL or ZERO-allocation. */
++	if (ZERO_OR_NULL_PTR(ptr))
++		return "<null>";
++
++	return NULL;
++}
++
++static inline const char *check_heap_object(const void *ptr, unsigned long n,
++					    bool to_user)
++{
++	struct page *page, *endpage;
++	const void *end = ptr + n - 1;
++
++	if (!virt_addr_valid(ptr))
++		return NULL;
++
++	page = virt_to_head_page(ptr);
++
++	/* Check slab allocator for flags and size. */
++	if (PageSlab(page))
++		return __check_heap_object(ptr, n, page);
++
++	/*
++	 * Sometimes the kernel data regions are not marked Reserved (see
++	 * check below). And sometimes [_sdata,_edata) does not cover
++	 * rodata and/or bss, so check each range explicitly.
++	 */
++
++	/* Allow reads of kernel rodata region (if not marked as Reserved). */
++	if (ptr >= (const void *)__start_rodata &&
++	    end <= (const void *)__end_rodata) {
++		if (!to_user)
++			return "<rodata>";
++		return NULL;
++	}
++
++	/* Allow kernel data region (if not marked as Reserved). */
++	if (ptr >= (const void *)_sdata && end <= (const void *)_edata)
++		return NULL;
++
++	/* Allow kernel bss region (if not marked as Reserved). */
++	if (ptr >= (const void *)__bss_start &&
++	    end <= (const void *)__bss_stop)
++		return NULL;
++
++	/* Is the object wholly within one base page? */
++	if (likely(((unsigned long)ptr & (unsigned long)PAGE_MASK) ==
++		   ((unsigned long)end & (unsigned long)PAGE_MASK)))
++		return NULL;
++
++	/* Allow if start and end are inside the same compound page. */
++	endpage = virt_to_head_page(end);
++	if (likely(endpage == page))
++		return NULL;
++
++	/* Allow special areas, device memory, and sometimes kernel data. */
++	if (PageReserved(page) && PageReserved(endpage))
++		return NULL;
++
++	/* Uh oh. The "object" spans several independently allocated pages. */
++	return "<spans multiple pages>";
++}
++
++/*
++ * Validates that the given object is one of:
++ * - known safe heap object
++ * - known safe stack object
++ * - not in kernel text
++ */
++void __check_object_size(const void *ptr, unsigned long n, bool to_user)
++{
++	const char *err;
++
++	/* Skip all tests if size is zero. */
++	if (!n)
++		return;
++
++	/* Check for invalid addresses. */
++	err = check_bogus_address(ptr, n);
++	if (err)
++		goto report;
++
++	/* Check for bad heap object. */
++	err = check_heap_object(ptr, n, to_user);
++	if (err)
++		goto report;
++
++	/* Check for bad stack object. */
++	switch (check_stack_object(ptr, n)) {
++	case 0:
++		/* Object is not touching the current process stack. */
++		break;
++	case 1:
++	case 2:
++		/*
++		 * Object is either in the correct frame (when it
++		 * is possible to check) or just generally on the
++		 * process stack (when frame checking not available).
++		 */
++		return;
++	default:
++		err = "<process stack>";
++		goto report;
++	}
++
++	/* Check for object in kernel to avoid text exposure. */
++	err = check_kernel_text_object(ptr, n);
++	if (!err)
++		return;
++
++report:
++	report_usercopy(ptr, n, to_user, err);
++}
++EXPORT_SYMBOL(__check_object_size);
+diff --git a/security/Kconfig b/security/Kconfig
+index 176758cdfa57..63340ad0b9f9 100644
+--- a/security/Kconfig
++++ b/security/Kconfig
+@@ -118,6 +118,33 @@ config LSM_MMAP_MIN_ADDR
+ 	  this low address space will need the permission specific to the
+ 	  systems running LSM.
+ 
++config HAVE_HARDENED_USERCOPY_ALLOCATOR
++	bool
++	help
++	  The heap allocator implements __check_heap_object() for
++	  validating memory ranges against heap object sizes in
++	  support of CONFIG_HARDENED_USERCOPY.
++
++config HAVE_ARCH_HARDENED_USERCOPY
++	bool
++	help
++	  The architecture supports CONFIG_HARDENED_USERCOPY by
++	  calling check_object_size() just before performing the
++	  userspace copies in the low level implementation of
++	  copy_to_user() and copy_from_user().
++
++config HARDENED_USERCOPY
++	bool "Harden memory copies between kernel and userspace"
++	depends on HAVE_ARCH_HARDENED_USERCOPY
++	help
++	  This option checks for obviously wrong memory regions when
++	  copying memory to/from the kernel (via copy_to_user() and
++	  copy_from_user() functions) by rejecting memory ranges that
++	  are larger than the specified heap object, span multiple
++	  separately allocates pages, are not on the process stack,
++	  or are part of the kernel text. This kills entire classes
++	  of heap overflow exploits and similar kernel memory exposures.
++
+ source security/selinux/Kconfig
+ source security/smack/Kconfig
+ source security/tomoyo/Kconfig
 -- 
 2.7.4
 
