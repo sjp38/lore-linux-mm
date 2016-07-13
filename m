@@ -1,72 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B93B6B0005
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 14:24:47 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id f126so40954796wma.3
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 11:24:47 -0700 (PDT)
-Received: from mail.ud19.udmedia.de (ud19.udmedia.de. [194.117.254.59])
-        by mx.google.com with ESMTPS id rf19si2353958wjb.127.2016.07.13.11.24.45
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 217136B0005
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 14:43:45 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id w127so32776935vkh.3
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 11:43:45 -0700 (PDT)
+Received: from mail-vk0-x230.google.com (mail-vk0-x230.google.com. [2607:f8b0:400c:c05::230])
+        by mx.google.com with ESMTPS id 8si635359uar.128.2016.07.13.11.43.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jul 2016 11:24:45 -0700 (PDT)
+        Wed, 13 Jul 2016 11:43:44 -0700 (PDT)
+Received: by mail-vk0-x230.google.com with SMTP id w127so19752352vkh.2
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 11:43:44 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII;
- format=flowed
-Content-Transfer-Encoding: 7bit
-Date: Wed, 13 Jul 2016 20:24:45 +0200
-From: Matthias Dahl <ml_linux-kernel@binary-island.eu>
-Subject: Re: [dm-devel] Page Allocation Failures/OOM with dm-crypt on software
- RAID10 (Intel Rapid Storage)
-In-Reply-To: <2704a8dd-48c5-82b8-890e-72bf5e1ed1e1@redhat.com>
-References: <02580b0a303da26b669b4a9892624b13@mail.ud19.udmedia.de>
- <20160712095013.GA14591@dhcp22.suse.cz>
- <d9dbe0328e938eb7544fdb2aa8b5a9c7@mail.ud19.udmedia.de>
- <20160712114920.GF14586@dhcp22.suse.cz>
- <e6c2087730e530e77c2b12d50495bdc9@mail.ud19.udmedia.de>
- <20160712140715.GL14586@dhcp22.suse.cz>
- <459d501038de4d25db6d140ac5ea5f8d@mail.ud19.udmedia.de>
- <20160713112126.GH28723@dhcp22.suse.cz>
- <20160713121828.GI28723@dhcp22.suse.cz>
- <74b9325c37948cf2b460bd759cff23dd@mail.ud19.udmedia.de>
- <20160713134717.GL28723@dhcp22.suse.cz>
- <a6e48e37cce530f286e6669fdfc0b3f8@mail.ud19.udmedia.de>
- <2704a8dd-48c5-82b8-890e-72bf5e1ed1e1@redhat.com>
-Message-ID: <ea16d5fff75b76b4eae2d1b1726c0ea2@mail.ud19.udmedia.de>
+In-Reply-To: <20160713075550.GA515@gmail.com>
+References: <20160707144508.GZ11498@techsingularity.net> <577E924C.6010406@sr71.net>
+ <20160708071810.GA27457@gmail.com> <577FD587.6050101@sr71.net>
+ <20160709083715.GA29939@gmail.com> <CALCETrXJhVz6Za4=oidiM2Vfbb+XdggFBYiVyvOCcia+w064aQ@mail.gmail.com>
+ <5783AE8F.3@sr71.net> <CALCETrW1qLZE_cq1CvmLkdnFyKRWVZuah29xERTC7o0eZ8DbwQ@mail.gmail.com>
+ <5783BFB0.70203@intel.com> <CALCETrUZeZ00sFrTEqWSB-OxkCzGQxknmPTvFe4bv5mKc3hE+Q@mail.gmail.com>
+ <20160713075550.GA515@gmail.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Wed, 13 Jul 2016 11:43:24 -0700
+Message-ID: <CALCETrUxL2ZAn8-GDtpwQPhLeNRXXp7RM1EVX2JExE+gkWGj3g@mail.gmail.com>
+Subject: Re: [PATCH 6/9] x86, pkeys: add pkey set/get syscalls
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ondrej Kozina <okozina@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-raid@vger.kernel.org, linux-mm@kvack.org, dm-devel@redhat.com, linux-kernel@vger.kernel.org, Mike Snitzer <snitzer@redhat.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave.hansen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, X86 ML <x86@kernel.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux API <linux-api@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Linus Torvalds <torvalds@linux-foundation.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Arnd Bergmann <arnd@arndb.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>
 
-Hello Ondrej...
+On Wed, Jul 13, 2016 at 12:56 AM, Ingo Molnar <mingo@kernel.org> wrote:
+>
+> * Andy Lutomirski <luto@amacapital.net> wrote:
+>
+>> > If we push a PKRU value into a thread between the rdpkru() and wrpkru(), we'll
+>> > lose the content of that "push".  I'm not sure there's any way to guarantee
+>> > this with a user-controlled register.
+>>
+>> We could try to insist that user code uses some vsyscall helper that tracks
+>> which bits are as-yet-unassigned.  That's quite messy, though.
+>
+> Actually, if we turned the vDSO into something more like a minimal user-space
+> library with the ability to run at process startup as well to prepare stuff then
+> it's painful to get right only *once*, and there will be tons of other areas where
+> a proper per thread data storage on the user-space side would be immensely useful!
 
-On 2016-07-13 18:24, Ondrej Kozina wrote:
-
-> One step after another.
-
-Sorry, it was not meant to be rude or anything... more frustration
-since I cannot be of more help and I really would like to jump in
-head-first and help fixing it... but lack the necessary insight into
-the kernel internals. But who knows, I started reading Robert Love's
-book... so, in a good decade or so. ;-))
-
-> https://marc.info/?l=linux-mm&m=146825178722612&w=2
-
-Thanks for that link. I have to read those more closely tomorrow, since
-there are some nice insights into dm-crypt there. :)
-
-Still, you have to admit, it is also rather frustrating/scary if such
-a crucial subsystem can have bugs over several major versions that do
-result in complete hangs (and can thus cause corruption) and are quite
-easily triggerable. It does not instill too much confidence that said
-subsystem is so intensively used/tested after all. That's at least how
-I feel about it...
-
-So long,
-Matthias
-
--- 
-Dipl.-Inf. (FH) Matthias Dahl | Software Engineer | binary-island.eu
-  services: custom software [desktop, mobile, web], server administration
+Doing this could be tricky: how exactly is the vDSO supposed to find
+per-thread data without breaking existing glibc?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
