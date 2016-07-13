@@ -1,59 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DCF526B0253
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 12:29:25 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id y134so49407763pfg.1
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 09:29:25 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id tz3si5260456pab.81.2016.07.13.09.29.25
-        for <linux-mm@kvack.org>;
-        Wed, 13 Jul 2016 09:29:25 -0700 (PDT)
-Subject: Re: [PATCH 4/4] x86: use pte_none() to test for empty PTE
-References: <20160708001909.FB2443E2@viggo.jf.intel.com>
- <20160708001915.813703D9@viggo.jf.intel.com>
- <20160713151820.GA20693@dhcp22.suse.cz>
- <alpine.DEB.2.10.1607131746570.2959@hadrien>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <57866C22.4040402@intel.com>
-Date: Wed, 13 Jul 2016 09:28:18 -0700
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 56E946B0253
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 13:00:35 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id w127so27107123vkh.3
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 10:00:35 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o13si2836369qko.135.2016.07.13.10.00.33
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Jul 2016 10:00:34 -0700 (PDT)
+Date: Wed, 13 Jul 2016 19:00:49 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 2/2] mm: refuse wrapped vm_brk requests
+Message-ID: <20160713170048.GA24553@redhat.com>
+References: <1468014494-25291-1-git-send-email-keescook@chromium.org> <1468014494-25291-3-git-send-email-keescook@chromium.org> <20160711122826.GA969@redhat.com> <CAGXu5j+efUrhOTikpuYK0V8Eqv58f5rQBMOYDqiVM-JWrqRbLA@mail.gmail.com> <20160712133942.GA28837@redhat.com> <CAGXu5j+oZ49K0omm-7yMsR_kFYD-DQcYG8f+urS+TumzFYXR_w@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1607131746570.2959@hadrien>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAGXu5j+oZ49K0omm-7yMsR_kFYD-DQcYG8f+urS+TumzFYXR_w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Julia Lawall <julia.lawall@lip6.fr>, Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, x86@kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, bp@alien8.de, ak@linux.intel.com, dave.hansen@intel.com, David Howells <dhowells@redhat.com>
+To: Kees Cook <keescook@chromium.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hector Marco-Gisbert <hecmargi@upv.es>, Ismael Ripoll Ripoll <iripoll@upv.es>, Alexander Viro <viro@zeniv.linux.org.uk>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Chen Gang <gang.chen.5i5j@gmail.com>, Michal Hocko <mhocko@suse.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 07/13/2016 08:49 AM, Julia Lawall wrote:
-> My results are below.  There are a couple of cases in arch/mn10300/mm that
-> were not in the original patch.
+On 07/12, Kees Cook wrote:
+>
+> On Tue, Jul 12, 2016 at 9:39 AM, Oleg Nesterov <oleg@redhat.com> wrote:
+> >
+> > I tried to say that, with or without this change, sys_brk() should check
+> > for overflow too, otherwise it looks buggy.
+>
+> Hmm, it's not clear to me the right way to fix sys_brk(), but it looks
+> like my change to do_brk() would catch the problem?
 
-Yeah, so mn10300 is obviously unaffected by the erratum in question, and
-I didn't look for non-x86 architectures for this patch.
+How?
 
-But, this code definitely _looks_ like it should be using pte_none(),
-especially since mn10300 defines it the same way as x86 (well, as x86
-_did_ before this series).
+Once again, afaics nothing bad can happen, sys_brk() will silently fail,
+just the code looks wrong anyway.
 
-	#define pte_none(x)		(!pte_val(x))
+Suppose that newbrk == 0 due to overflow, then both
 
-> diff -u -p a/arch/mn10300/mm/cache-inv-icache.c b/arch/mn10300/mm/cache-inv-icache.c
-> --- a/arch/mn10300/mm/cache-inv-icache.c
-> +++ b/arch/mn10300/mm/cache-inv-icache.c
-> @@ -45,11 +45,11 @@ static void flush_icache_page_range(unsi
->  		return;
-> 
->  	pud = pud_offset(pgd, start);
-> -	if (!pud || !pud_val(*pud))
-> +	if (!pud || pud_none(*pud))
->  		return;
-> 
->  	pmd = pmd_offset(pud, start);
-> -	if (!pmd || !pmd_val(*pmd))
-> +	if (!pmd || pmd_none(*pmd))
->  		return;
+	if (find_vma_intersection(mm, oldbrk, newbrk+PAGE_SIZE))
+		goto out;
 
+and
+	if (do_brk(oldbrk, newbrk-oldbrk) < 0)
+		goto out;
+
+look buggy.
+
+find_vma_intersection(start_addr, end_addr) expects that start_addr < end_addr.
+Again, we do not really care if it returns NULL or not, and newbrk == 0 just
+means it will certainly return NULL if there is something above oldbrk. Just
+looks buggy/confusing.
+
+do_brk(0 - oldbrk) will fail and this is what we want. But not because
+your change will catch the problem, PAGE_ALIGNE(-oldbrk) won't necessarily
+overflow. However, -oldbrk > TASK_SIZE so get_unmapped_area() should fail.
+
+Nevermind, this is almost off-topic, so let me repeat just in case that
+both patches look good to me.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
