@@ -1,43 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 752826B025E
-	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 20:43:24 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id p41so21647911lfi.0
-        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 17:43:24 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 8si7032558wmu.80.2016.07.12.17.43.23
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 12 Jul 2016 17:43:23 -0700 (PDT)
-Subject: Re: [PATCH 2/3] Update name field for all shrinker instances
-References: <cover.1468051277.git.janani.rvchndrn@gmail.com>
- <68821d516aed9e248829d512eab88e381fd8ec60.1468051281.git.janani.rvchndrn@gmail.com>
-From: Tony Jones <tonyj@suse.de>
-Message-ID: <c4b7c9e8-ff21-0d58-98c9-54b064ca958a@suse.de>
-Date: Tue, 12 Jul 2016 17:43:17 -0700
-MIME-Version: 1.0
-In-Reply-To: <68821d516aed9e248829d512eab88e381fd8ec60.1468051281.git.janani.rvchndrn@gmail.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B3F3D6B025E
+	for <linux-mm@kvack.org>; Tue, 12 Jul 2016 22:22:01 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id j8so69500051itb.1
+        for <linux-mm@kvack.org>; Tue, 12 Jul 2016 19:22:01 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id t1si839529itb.59.2016.07.12.19.22.00
+        for <linux-mm@kvack.org>;
+        Tue, 12 Jul 2016 19:22:01 -0700 (PDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH] mm: fix calculation accounting dirtyable highmem
+Date: Wed, 13 Jul 2016 11:23:13 +0900
+Message-Id: <1468376593-26444-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Janani Ravichandran <janani.rvchndrn@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: riel@surriel.com, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@virtuozzo.com, mhocko@suse.com, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, bywxiaobai@163.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>
 
-On 07/09/2016 01:52 AM, Janani Ravichandran wrote:
+When I tested vmscale in mmtest in 32bit, I found the benchmark
+was slow down 0.5 times.
 
-> diff --git a/fs/super.c b/fs/super.c
-> index d78b984..051073c 100644
-> --- a/fs/super.c
-> +++ b/fs/super.c
-> @@ -241,6 +241,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
->  	s->s_time_gran = 1000000000;
->  	s->cleancache_poolid = CLEANCACHE_NO_POOL;
->  
-> +	s->s_shrink.name = "super_cache_shrinker";
+                base        node
+                   1    global-1
+User           12.98       16.04
+System        147.61      166.42
+Elapsed        26.48       38.08
 
-my patchset made this a little more granular wrt superblock types by including type->name
+With vmstat, I found IO wait avg is much increased compared to
+base.
 
+The reason was highmem_dirtyable_memory accumulates free pages
+and highmem_file_pages from HIGHMEM to MOVABLE zones which was
+wrong. With that, dirth_thresh in throtlle_vm_write is always
+0 so that it calls congestion_wait frequently if writeback
+starts.
+
+With this patch, it is much recovered.
+
+                base        node          fi
+                   1    global-1         fix
+User           12.98       16.04       13.78
+System        147.61      166.42      143.92
+Elapsed        26.48       38.08       29.64
+
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ mm/page-writeback.c | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 8db1db2..bf27594 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -307,27 +307,31 @@ static unsigned long highmem_dirtyable_memory(unsigned long total)
+ {
+ #ifdef CONFIG_HIGHMEM
+ 	int node;
+-	unsigned long x = 0;
++	unsigned long x;
+ 	int i;
+-	unsigned long dirtyable = highmem_file_pages;
++	unsigned long dirtyable = 0;
+ 
+ 	for_each_node_state(node, N_HIGH_MEMORY) {
+ 		for (i = ZONE_NORMAL + 1; i < MAX_NR_ZONES; i++) {
+ 			struct zone *z;
++			unsigned long nr_pages;
+ 
+ 			if (!is_highmem_idx(i))
+ 				continue;
+ 
+ 			z = &NODE_DATA(node)->node_zones[i];
+-			dirtyable += zone_page_state(z, NR_FREE_PAGES);
++			if (!populated_zone(z))
++				continue;
+ 
++			nr_pages = zone_page_state(z, NR_FREE_PAGES);
+ 			/* watch for underflows */
+-			dirtyable -= min(dirtyable, high_wmark_pages(z));
+-
+-			x += dirtyable;
++			nr_pages -= min(nr_pages, high_wmark_pages(z));
++			dirtyable += nr_pages;
+ 		}
+ 	}
+ 
++	x = dirtyable + highmem_file_pages;
++
+ 	/*
+ 	 * Unreclaimable memory (kernel memory or anonymous memory
+ 	 * without swap) can bring down the dirtyable pages below
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
