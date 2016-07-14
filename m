@@ -1,79 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BCFF6B026B
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 16:53:12 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id q2so151996448pap.1
-        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 13:53:12 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id hb9si4733054pac.193.2016.07.14.13.53.11
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 33C196B026D
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 17:38:36 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id l89so60679166lfi.3
+        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 14:38:36 -0700 (PDT)
+Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
+        by mx.google.com with ESMTPS id g76si460794wmg.106.2016.07.14.14.38.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Jul 2016 13:53:11 -0700 (PDT)
-Date: Thu, 14 Jul 2016 13:53:10 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/4] mm: Fix memcg stack accounting for sub-page stacks
-Message-Id: <20160714135310.ba2b7dcca48184538260ec21@linux-foundation.org>
-In-Reply-To: <9b5314e3ee5eda61b0317ec1563768602c1ef438.1468523549.git.luto@kernel.org>
-References: <cover.1468523549.git.luto@kernel.org>
-	<9b5314e3ee5eda61b0317ec1563768602c1ef438.1468523549.git.luto@kernel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 14 Jul 2016 14:38:34 -0700 (PDT)
+Received: by mail-wm0-x232.google.com with SMTP id f126so4413938wma.1
+        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 14:38:34 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20160714192351.567fmaz2h4drrxrc@treble>
+References: <1468446964-22213-1-git-send-email-keescook@chromium.org>
+ <1468446964-22213-2-git-send-email-keescook@chromium.org> <CALCETrVDJDjdoh7yvOPd=_5twQnzQRhe8G2KLaRw-NnA1Uf__g@mail.gmail.com>
+ <CAGXu5jLPZiRJx8n3_7GW2bufiuUgE9=c6dQcNxDRPHMU72sD9g@mail.gmail.com>
+ <20160714054842.6zal5rqawpgew26r@treble> <CAGXu5jLv_pMRqdaM72D_FTQzxoGxgcEqxpvUzqwgjOmZ8D-zSw@mail.gmail.com>
+ <20160714192351.567fmaz2h4drrxrc@treble>
+From: Kees Cook <keescook@chromium.org>
+Date: Thu, 14 Jul 2016 14:38:33 -0700
+Message-ID: <CAGXu5jJuYDTZX7+tXCxvxdB0k4foO4z1yvejF8fjSWQMFVjksQ@mail.gmail.com>
+Subject: Re: [PATCH v2 01/11] mm: Implement stack frame object validation
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, Brian Gerst <brgerst@gmail.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+To: Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: Andy Lutomirski <luto@amacapital.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, X86 ML <x86@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, sparclinux <sparclinux@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-On Thu, 14 Jul 2016 12:14:11 -0700 Andy Lutomirski <luto@kernel.org> wrote:
+On Thu, Jul 14, 2016 at 12:23 PM, Josh Poimboeuf <jpoimboe@redhat.com> wrote:
+> On Thu, Jul 14, 2016 at 11:10:18AM -0700, Kees Cook wrote:
+>> On Wed, Jul 13, 2016 at 10:48 PM, Josh Poimboeuf <jpoimboe@redhat.com> wrote:
+>> > On Wed, Jul 13, 2016 at 03:04:26PM -0700, Kees Cook wrote:
+>> >> On Wed, Jul 13, 2016 at 3:01 PM, Andy Lutomirski <luto@amacapital.net> wrote:
+>> >> > On Wed, Jul 13, 2016 at 2:55 PM, Kees Cook <keescook@chromium.org> wrote:
+>> >> >> This creates per-architecture function arch_within_stack_frames() that
+>> >> >> should validate if a given object is contained by a kernel stack frame.
+>> >> >> Initial implementation is on x86.
+>> >> >>
+>> >> >> This is based on code from PaX.
+>> >> >>
+>> >> >
+>> >> > This, along with Josh's livepatch work, are two examples of unwinders
+>> >> > that matter for correctness instead of just debugging.  ISTM this
+>> >> > should just use Josh's code directly once it's been written.
+>> >>
+>> >> Do you have URL for Josh's code? I'd love to see what happening there.
+>> >
+>> > The code is actually going to be 100% different next time around, but
+>> > FWIW, here's the last attempt:
+>> >
+>> >   https://lkml.kernel.org/r/4d34d452bf8f85c7d6d5f93db1d3eeb4cba335c7.1461875890.git.jpoimboe@redhat.com
+>> >
+>> > In the meantime I've realized the need to rewrite the x86 core stack
+>> > walking code to something much more manageable so we don't need all
+>> > these unwinders everywhere.  I'll probably post the patches in the next
+>> > week or so.  I'll add you to the CC list.
+>>
+>> Awesome!
+>>
+>> > With the new interface I think you'll be able to do something like:
+>> >
+>> >         struct unwind_state;
+>> >
+>> >         unwind_start(&state, current, NULL, NULL);
+>> >         unwind_next_frame(&state);
+>> >         oldframe = unwind_get_stack_pointer(&state);
+>> >
+>> >         unwind_next_frame(&state);
+>> >         frame = unwind_get_stack_pointer(&state);
+>> >
+>> >         do {
+>> >                 if (obj + len <= frame)
+>> >                         return blah;
+>> >                 oldframe = frame;
+>> >                 frame = unwind_get_stack_pointer(&state);
+>> >
+>> >         } while (unwind_next_frame(&state);
+>> >
+>> > And then at the end there'll be some (still TBD) way to query whether it
+>> > reached the last syscall pt_regs frame, or if it instead encountered a
+>> > bogus frame pointer along the way and had to bail early.
+>>
+>> Sounds good to me. Will there be any frame size information available?
+>> Right now, the unwinder from PaX just drops 2 pointers (saved frame,
+>> saved ip) from the delta of frame address to find the size of the
+>> actual stack area used by the function. If I could shave things like
+>> padding and possible stack canaries off the size too, that would be
+>> great.
+>
+> For x86, stacks are aligned at long word boundaries, so there's no real
+> stack padding.
 
-> We should account for stacks regardless of stack size, and we need
-> to account in sub-page units if THREAD_SIZE < PAGE_SIZE.  Change the
-> units to kilobytes and Move it into account_kernel_stack().
+Well, I guess I meant the possible padding between variables and the
+aligned pointers, but that's a really minor concern in my mind (as far
+as being a potential kernel memory exposure on a bad usercopy).
 
-I queued this patch after
-http://ozlabs.org/~akpm/mmotm/broken-out/mm-charge-uncharge-kmemcg-from-generic-page-allocator-paths.patch
-so some changes are needed.  (patching mainline when we're at -rc7 was
-optimistic!)
+> Also the CC_STACKPROTECTOR stack canaries are created by a gcc feature
+> which only affects certain functions (and thus certain frames) and I
+> don't know of any reliable way to find them.
 
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -165,20 +165,12 @@ static unsigned long *alloc_thread_stack_node(struct task_struct *tsk,
->  	struct page *page = alloc_kmem_pages_node(node, THREADINFO_GFP,
->  						  THREAD_SIZE_ORDER);
->  
-> -	if (page)
-> -		memcg_kmem_update_page_stat(page, MEMCG_KERNEL_STACK,
-> -					    1 << THREAD_SIZE_ORDER);
-> -
->  	return page ? page_address(page) : NULL;
->  }
->  
->  static inline void free_thread_stack(unsigned long *stack)
->  {
-> -	struct page *page = virt_to_page(stack);
-> -
-> -	memcg_kmem_update_page_stat(page, MEMCG_KERNEL_STACK,
-> -				    -(1 << THREAD_SIZE_ORDER));
-> -	__free_kmem_pages(page, THREAD_SIZE_ORDER);
-> +	free_kmem_pages((unsigned long)stack, THREAD_SIZE_ORDER);
->  }
+Okay, that's fine. I had a horrible idea to just have the unwinder
+look at the value stored in front of the saved ip, and if it matches
+the known canary (for current anyway), then reduce the frame size by
+another long word. ;)
 
-Here's what I ended up with:
+> So with frame pointers, I think the best you can do is just assume that
+> the frame data area is always two words smaller than the total frame
+> size.
 
-static unsigned long *alloc_thread_stack_node(struct task_struct *tsk,
-						  int node)
-{
-	struct page *page = alloc_pages_node(node, THREADINFO_GFP,
-					     THREAD_SIZE_ORDER);
+Yeah, that's what's happening here currently. Cool.
 
-	return page ? page_address(page) : NULL;
-}
+>> Since I'm aiming the hardened usercopy series for 4.8, I figure I'll
+>> just leave this unwinder in for now, and once yours lands, I can rip
+>> it out again.
+>
+> Sure, sounds fine to me.  If your code lands before I post mine, I can
+> convert it myself.
 
-static inline void free_thread_stack(unsigned long *stack)
-{
-	__free_pages(virt_to_page(stack), THREAD_SIZE_ORDER);
-}
+Awesome, I'll keep you posted. Thanks!
 
+-Kees
+
+-- 
+Kees Cook
+Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
