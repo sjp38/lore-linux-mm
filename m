@@ -1,69 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f200.google.com (mail-ob0-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 09B916B0260
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 21:20:47 -0400 (EDT)
-Received: by mail-ob0-f200.google.com with SMTP id wu1so121072827obb.0
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 18:20:47 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id n9si19627243itn.14.2016.07.13.18.20.45
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A29F6B0005
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 21:26:36 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id j8so126093486itb.1
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 18:26:36 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id e74si268233iof.228.2016.07.13.18.26.35
         for <linux-mm@kvack.org>;
-        Wed, 13 Jul 2016 18:20:46 -0700 (PDT)
-Date: Thu, 14 Jul 2016 10:22:04 +0900
+        Wed, 13 Jul 2016 18:26:35 -0700 (PDT)
+Date: Thu, 14 Jul 2016 10:27:52 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 1/4] mm, vmscan: Have kswapd reclaim from all zones if
- reclaiming and buffer_heads_over_limit -fix
-Message-ID: <20160714012204.GB23512@bbox>
-References: <1468404004-5085-1-git-send-email-mgorman@techsingularity.net>
- <1468404004-5085-2-git-send-email-mgorman@techsingularity.net>
+Subject: Re: [PATCH 18/34] mm: rename NR_ANON_PAGES to NR_ANON_MAPPED
+Message-ID: <20160714012752.GC23512@bbox>
+References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
+ <1467970510-21195-19-git-send-email-mgorman@techsingularity.net>
+ <20160712145801.GJ5881@cmpxchg.org>
+ <20160713085516.GI9806@techsingularity.net>
+ <20160713130415.GB9905@cmpxchg.org>
+ <20160713133701.GK9806@techsingularity.net>
 MIME-Version: 1.0
-In-Reply-To: <1468404004-5085-2-git-send-email-mgorman@techsingularity.net>
+In-Reply-To: <20160713133701.GK9806@techsingularity.net>
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Jul 13, 2016 at 11:00:01AM +0100, Mel Gorman wrote:
-> Johannes reported that the comment about buffer_heads_over_limit in
-> balance_pgdat only made sense in the context of the patch. This patch
-> clarifies the reasoning and how it applies to 32 and 64 bit systems.
+On Wed, Jul 13, 2016 at 02:37:01PM +0100, Mel Gorman wrote:
+> On Wed, Jul 13, 2016 at 09:04:15AM -0400, Johannes Weiner wrote:
+> > > Obviously I found the new names clearer but I was thinking a lot at the
+> > > time about mapped vs unmapped due to looking closely at both reclaim and
+> > > [f|m]advise functions at the time. I found it mildly irksome to switch
+> > > between the semantics of file/anon when looking at the vmstat updates.
+> > 
+> > I can see that. It all depends on whether you consider mapping state
+> > or page type the more fundamental attribute, and coming from the
+> > mapping perspective those new names make sense as well.
+> > 
 > 
-> This is a fix to the mmotm patch
-> mm-vmscan-have-kswapd-reclaim-from-all-zones-if-reclaiming-and-buffer_heads_over_limit.patch
+> From a reclaim perspective, I consider the mapped state to be more
+> important. This is particularly true when the advise calls are taken
+> into account. For example, madvise unmaps the pages without affecting
+> memory residency (distinct from RSS) without aging. fadvise ignores mapped
+> pages so the mapped state is very important for advise hints.  Similarly,
+> the mapped state can affect how the pages are aged as mapped pages affect
+> slab scan rates and incur TLB flushes on unmap. I guess I've been thinking
+> about mapped/unmapped a lot recently which pushed me towards distinct naming.
 > 
-> Suggested-by: Johannes Weiner <hannes@cmpxchg.org>
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> ---
->  mm/vmscan.c | 13 +++++++------
->  1 file changed, 7 insertions(+), 6 deletions(-)
+> > However, that leaves the disconnect between the enum name and what we
+> > print to userspace. I find myself having to associate those quite a
+> > lot to find all the sites that modify a given /proc/vmstat item, and
+> > that's a bit of a pain if the names don't match.
+> > 
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index d079210d46ee..21eae17ee730 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -3131,12 +3131,13 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
->  
->  		/*
->  		 * If the number of buffer_heads exceeds the maximum allowed
-> -		 * then consider reclaiming from all zones. This is not
-> -		 * specific to highmem which may not exist but it is it is
-> -		 * expected that buffer_heads are stripped in writeback.
-> -		 * Reclaim may still not go ahead if all eligible zones
-> -		 * for the original allocation request are balanced to
-> -		 * avoid excessive reclaim from kswapd.
-> +		 * then consider reclaiming from all zones. This has a dual
-> +		 * purpose -- on 64-bit systems it is expected that
-> +		 * buffer_heads are stripped during active rotation. On 32-bit
-> +		 * systems, highmem pages can pin lowmem memory and shrinking
-> +		 * buffers can relieve lowmem pressure. Reclaim may still not
+> I was tempted to rename userspace what is printed to vmstat as well but
+> worried about breaking tools that parse it.
+> 
+> > I don't care strongly enough to cause a respin of half the series, and
+> > it's not your problem that I waited until the last revision went into
+> > mmots to review and comment. But if you agreed to a revert, would you
+> > consider tacking on a revert patch at the end of the series?
+> > 
+> 
+> In this case, I'm going to ask the other people on the cc for a
+> tie-breaker. If someone else prefers the old names then I'm happy for
+> your patch to be applied on top with my ack instead of respinning the
+> whole series.
+> 
+> Anyone for a tie breaker?
 
-It's good but I hope we can make it more clear.
-
-On 32-bit systems, highmem pages can pin lowmem pages storing buffer_heads
-so shrinking highmem pages can relieve lowmem pressure.
-
-If you don't think it's much readable compared to yours, feel free to drop.
+I have thought it from reclaim perspective for a long time so I tempted to
+change the naming like new one but there is no big justification for that.
+In this chance, I vote new name.
 
 Thanks.
 
