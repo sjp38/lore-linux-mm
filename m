@@ -1,89 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FB176B025F
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 09:23:04 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id a123so160993514qkd.2
-        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 06:23:04 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i139si1099703yba.223.2016.07.14.06.23.03
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 39A7D6B025F
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 09:32:16 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id q2so133364380pap.1
+        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 06:32:16 -0700 (PDT)
+Received: from out01.mta.xmission.com (out01.mta.xmission.com. [166.70.13.231])
+        by mx.google.com with ESMTPS id r5si4478776pfr.51.2016.07.14.06.32.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Jul 2016 06:23:03 -0700 (PDT)
-Date: Thu, 14 Jul 2016 15:22:59 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: bug in memcg oom-killer results in a hung syscall in another
- process in the same cgroup
-Message-ID: <20160714132258.GA1333@redhat.com>
-References: <CABAubThf6gbi243BqYgoCjqRW36sXJuJ6e_8zAqzkYRiu0GVtQ@mail.gmail.com>
- <20160711064150.GB5284@dhcp22.suse.cz>
- <CABAubThHfngHTQW_AEuW71VCvLyD_9b5Z05tSud5bf8JKjuA9Q@mail.gmail.com>
- <CABAubTjGhUXMeAnFgW8LGck1tgvtu12Zb9fx5BRhDWNjZ7SYLQ@mail.gmail.com>
- <20160712071927.GD14586@dhcp22.suse.cz>
- <CABAubTg91qrUd4DO7T2SiJQBK9ypuhP0+F-091ZxtmonjaaYWg@mail.gmail.com>
- <57851224.2020902@yandex-team.ru>
- <CABAubTiVb8j8wEbcr16FAJnBxxS7QzghpPiJUcmV+=Ji=QgL=A@mail.gmail.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 14 Jul 2016 06:32:15 -0700 (PDT)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <1468299403-27954-1-git-send-email-zhongjiang@huawei.com>
+	<1468299403-27954-2-git-send-email-zhongjiang@huawei.com>
+	<87a8hm3lme.fsf@x220.int.ebiederm.org> <5785E764.8050304@huawei.com>
+Date: Thu, 14 Jul 2016 08:19:21 -0500
+In-Reply-To: <5785E764.8050304@huawei.com> (zhong jiang's message of "Wed, 13
+	Jul 2016 15:01:56 +0800")
+Message-ID: <87vb08ich2.fsf@x220.int.ebiederm.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CABAubTiVb8j8wEbcr16FAJnBxxS7QzghpPiJUcmV+=Ji=QgL=A@mail.gmail.com>
+Content-Type: text/plain
+Subject: Re: [PATCH 2/2] kexec: add a pmd huge entry condition during the page table
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shayan Pooya <shayan@liveve.org>
-Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Michal Hocko <mhocko@kernel.org>, koct9i@gmail.com, cgroups mailinglist <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: zhong jiang <zhongjiang@huawei.com>
+Cc: dyoung@redhat.com, horms@verge.net.au, vgoyal@redhat.com, yinghai@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, kexec@lists.infradead.org
 
-On 07/12, Shayan Pooya wrote:
->
-> > Yep. Bug still not fixed in upstream. In our kernel I've plugged it with
-> > this:
-> >
-> > --- a/kernel/sched/core.c
-> > +++ b/kernel/sched/core.c
-> > @@ -2808,8 +2808,9 @@ asmlinkage __visible void schedule_tail(struct
-> > task_struct *prev)
-> >         balance_callback(rq);
-> >         preempt_enable();
-> >
-> > -       if (current->set_child_tid)
-> > -               put_user(task_pid_vnr(current), current->set_child_tid);
-> > +       if (current->set_child_tid &&
-> > +           put_user(task_pid_vnr(current), current->set_child_tid))
-> > +               force_sig(SIGSEGV, current);
-> >  }
->
-> I just verified that with your patch there is no hung processes and I
-> see processes getting SIGSEGV as expected.
+zhong jiang <zhongjiang@huawei.com> writes:
 
-Well, but we can't do this. And "as expected" is actually just wrong. I still
-think that the whole FAULT_FLAG_USER logic is not right. This needs another email.
+> On 2016/7/12 23:46, Eric W. Biederman wrote:
+>> zhongjiang <zhongjiang@huawei.com> writes:
+>>
+>>> From: zhong jiang <zhongjiang@huawei.com>
+>>>
+>>> when image is loaded into kernel, we need set up page table for it. and 
+>>> all valid pfn also set up new mapping. it will tend to establish a pmd 
+>>> page table in the form of a large page if pud_present is true. relocate_kernel 
+>>> points to code segment can locate in the pmd huge entry in init_transtion_pgtable. 
+>>> therefore, we need to take the situation into account.
+>> I can see how in theory this might be necessary but when is a kernel virtual
+>> address on x86_64 that is above 0x8000000000000000 in conflict with an
+>> identity mapped physicall address that are all below 0x8000000000000000?
+>>
+>> If anything the code could be simplified to always assume those mappings
+>> are unoccupied.
+>>
+>> Did you run into an actual failure somewhere?
+>>
+>> Eric
+>>
+>    I  do not understand what you trying to say,  Maybe I miss your point.
+>   
+>   The key is how to ensure that relocate_kernel points to the pmd
+>   entry is not huge page.
 
-fork() should not fail because there is a memory hog in the same memcg. Worse,
-pthread_create() can kill the caller by the same reason. And we have the same
-or even worse problem with ->clear_child_tid, pthread_join() can hang forever.
-Unlikely we want to kill the application in this case ;)
+Kernel virtual addresses are in the negative half of the address space.
+Identity mapped physical addresses are in the positive half of the
+address space.
 
-And in fact I think that the problem has nothing to do with set/claer_child_tid
-in particular.
+As the entire negative half of the address space at the time that page
+table entry is being created the are no huge pages present.
 
-I am just curious... can you reproduce the problem reliably? If yes, can you try
-the patch below ? Just in case, this is not the real fix in any case...
+Even testing pmd_present is a redundant, and that is probably the bug.
 
-Oleg.
-
---- x/kernel/sched/core.c
-+++ x/kernel/sched/core.c
-@@ -2793,8 +2793,11 @@ asmlinkage __visible void schedule_tail(struct task_struct *prev)
- 	balance_callback(rq);
- 	preempt_enable();
- 
--	if (current->set_child_tid)
-+	if (current->set_child_tid) {
-+		mem_cgroup_oom_enable();
- 		put_user(task_pid_vnr(current), current->set_child_tid);
-+		mem_cgroup_oom_disable();
-+	}
- }
- 
- /*
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
