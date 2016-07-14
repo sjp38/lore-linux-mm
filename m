@@ -1,146 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CAFA6B0005
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 10:00:20 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id a123so162810949qkd.2
-        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 07:00:20 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w145si1229311yww.121.2016.07.14.07.00.19
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Jul 2016 07:00:19 -0700 (PDT)
-Date: Thu, 14 Jul 2016 10:00:16 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: System freezes after OOM
-In-Reply-To: <20160714125129.GA12289@dhcp22.suse.cz>
-Message-ID: <alpine.LRH.2.02.1607140952550.1102@file01.intranet.prod.int.rdu2.redhat.com>
-References: <57837CEE.1010609@redhat.com> <f80dc690-7e71-26b2-59a2-5a1557d26713@redhat.com> <9be09452-de7f-d8be-fd5d-4a80d1cd1ba3@redhat.com> <alpine.LRH.2.02.1607111027080.14327@file01.intranet.prod.int.rdu2.redhat.com> <20160712064905.GA14586@dhcp22.suse.cz>
- <alpine.LRH.2.02.1607121907160.24806@file01.intranet.prod.int.rdu2.redhat.com> <20160713111006.GF28723@dhcp22.suse.cz> <alpine.LRH.2.02.1607131021410.31769@file01.intranet.prod.int.rdu2.redhat.com> <20160714125129.GA12289@dhcp22.suse.cz>
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 86E216B025E
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 10:24:40 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id qh10so135379965pac.2
+        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 07:24:40 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id bg2si3263070pab.103.2016.07.14.07.24.39
+        for <linux-mm@kvack.org>;
+        Thu, 14 Jul 2016 07:24:39 -0700 (PDT)
+Subject: Re: [PATCH 4/4] x86: use pte_none() to test for empty PTE
+References: <20160708001909.FB2443E2@viggo.jf.intel.com>
+ <20160708001915.813703D9@viggo.jf.intel.com>
+ <71d7b63a-45dd-c72d-a277-03124b0053ae@suse.cz>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <5787A0A2.4070406@intel.com>
+Date: Thu, 14 Jul 2016 07:24:34 -0700
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <71d7b63a-45dd-c72d-a277-03124b0053ae@suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Ondrej Kozina <okozina@redhat.com>, Jerome Marchand <jmarchan@redhat.com>, Stanislav Kozina <skozina@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dm-devel@redhat.com
+To: Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave@sr71.net>, linux-kernel@vger.kernel.org
+Cc: x86@kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, bp@alien8.de, ak@linux.intel.com, mhocko@suse.com, dave.hansen@linux.intel.com, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Vrabel <david.vrabel@citrix.com>, Juergen Gross <jgross@suse.com>
 
-
-
-On Thu, 14 Jul 2016, Michal Hocko wrote:
-
-> On Wed 13-07-16 11:02:15, Mikulas Patocka wrote:
-
-> > > diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
-> > > index 4f3cb3554944..0b806810efab 100644
-> > > --- a/drivers/md/dm-crypt.c
-> > > +++ b/drivers/md/dm-crypt.c
-> > > @@ -1392,11 +1392,14 @@ static void kcryptd_async_done(struct crypto_async_request *async_req,
-> > >  static void kcryptd_crypt(struct work_struct *work)
-> > >  {
-> > >  	struct dm_crypt_io *io = container_of(work, struct dm_crypt_io, work);
-> > > +	unsigned int pflags = current->flags;
-> > >  
-> > > +	current->flags |= PF_LESS_THROTTLE;
-> > >  	if (bio_data_dir(io->base_bio) == READ)
-> > >  		kcryptd_crypt_read_convert(io);
-> > >  	else
-> > >  		kcryptd_crypt_write_convert(io);
-> > > +	tsk_restore_flags(current, pflags, PF_LESS_THROTTLE);
-> > >  }
-> > >  
-> > >  static void kcryptd_queue_crypt(struct dm_crypt_io *io)
-> > 
-> > ^^^ That fixes just one specific case - but there may be other threads 
-> > doing mempool allocations in the device mapper subsystem - and you would 
-> > need to mark all of them.
+On 07/14/2016 06:47 AM, Vlastimil Babka wrote:
+> So, this might be just because I know next to nothing about (para)virt,
+> but...
 > 
-> Now that I am thinking about it some more. Are there any mempool users
-> which would actually want to be throttled? I would expect mempool users
-> are necessary to push IO through and throttle them sounds like a bad
-> decision in the first place but there might be other mempool users which
-> could cause issues. Anyway how about setting PF_LESS_THROTTLE
-> unconditionally inside mempool_alloc? Something like the following:
->
-> diff --git a/mm/mempool.c b/mm/mempool.c
-> index 8f65464da5de..e21fb632983f 100644
-> --- a/mm/mempool.c
-> +++ b/mm/mempool.c
-> @@ -310,7 +310,8 @@ EXPORT_SYMBOL(mempool_resize);
->   */
->  void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
->  {
-> -	void *element;
-> +	unsigned int pflags = current->flags;
-> +	void *element = NULL;
->  	unsigned long flags;
->  	wait_queue_t wait;
->  	gfp_t gfp_temp;
-> @@ -327,6 +328,12 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
->  
->  	gfp_temp = gfp_mask & ~(__GFP_DIRECT_RECLAIM|__GFP_IO);
->  
-> +	/*
-> +	 * Make sure that the allocation doesn't get throttled during the
-> +	 * reclaim
-> +	 */
-> +	if (gfpflags_allow_blocking(gfp_mask))
-> +		current->flags |= PF_LESS_THROTTLE;
->  repeat_alloc:
->  	if (likely(pool->curr_nr)) {
->  		/*
-> @@ -339,7 +346,7 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
->  
->  	element = pool->alloc(gfp_temp, pool->pool_data);
->  	if (likely(element != NULL))
-> -		return element;
-> +		goto out;
->  
->  	spin_lock_irqsave(&pool->lock, flags);
->  	if (likely(pool->curr_nr)) {
-> @@ -352,7 +359,7 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
->  		 * for debugging.
->  		 */
->  		kmemleak_update_trace(element);
-> -		return element;
-> +		goto out;
->  	}
->  
->  	/*
-> @@ -369,7 +376,7 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
->  	/* We must not sleep if !__GFP_DIRECT_RECLAIM */
->  	if (!(gfp_mask & __GFP_DIRECT_RECLAIM)) {
->  		spin_unlock_irqrestore(&pool->lock, flags);
-> -		return NULL;
-> +		goto out;
->  	}
->  
->  	/* Let's wait for someone else to return an element to @pool */
-> @@ -386,6 +393,10 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
->  
->  	finish_wait(&pool->wait, &wait);
->  	goto repeat_alloc;
-> +out:
-> +	if (gfpflags_allow_blocking(gfp_mask))
-> +		tsk_restore_flags(current, pflags, PF_LESS_THROTTLE);
-> +	return element;
->  }
->  EXPORT_SYMBOL(mempool_alloc);
->  
+> in arch/x86/include/asm/paravirt.h, pte_val is implemented via some
+> pvops, which suggests that obtaining a pte value is different than just
+> reading it from memory. But I don't see pte_none() defined to be using
+> this on paravirt, and it shares (before patch 2/4) the "return !pte.pte"
+> implementation, AFAICS?
+> 
+> So that itself is suspicious to me. And now that this patches does
+> things like this:
+> 
+> -              if (pte_val(*pte)) {
+> +              if (!pte_none(*pte)) {
+> 
+> So previously on paravirt these tests would read pte via the pvops, and
+> now they won't. Is that OK?
 
-But it needs other changes to honor the PF_LESS_THROTTLE flag:
+I've cc'd a few Xen guys.  I think they're the only ones that would care.
 
-static int current_may_throttle(void)
-{
-        return !(current->flags & PF_LESS_THROTTLE) ||
-                current->backing_dev_info == NULL ||
-                bdi_write_congested(current->backing_dev_info);
-}
---- if you set PF_LESS_THROTTLE, current_may_throttle may still return 
-true if one of the other conditions is met.
+But, as far as I can tell, the Xen pte_val() will take a _PAGE_PRESENT
+PTE and muck with it.  But its answer will never differ for an all 0 PTE
+from !pte_none() because that PTE does not have _PAGE_PRESENT set.
 
-shrink_zone_memcg calls throttle_vm_writeout without checking 
-PF_LESS_THROTTLE at all.
-
-Mikulas
+It does seem fragile that Xen is doing it this way, but I guess it works.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
