@@ -1,80 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A29F6B0005
-	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 21:26:36 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id j8so126093486itb.1
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 18:26:36 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id e74si268233iof.228.2016.07.13.18.26.35
-        for <linux-mm@kvack.org>;
-        Wed, 13 Jul 2016 18:26:35 -0700 (PDT)
-Date: Thu, 14 Jul 2016 10:27:52 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 18/34] mm: rename NR_ANON_PAGES to NR_ANON_MAPPED
-Message-ID: <20160714012752.GC23512@bbox>
-References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
- <1467970510-21195-19-git-send-email-mgorman@techsingularity.net>
- <20160712145801.GJ5881@cmpxchg.org>
- <20160713085516.GI9806@techsingularity.net>
- <20160713130415.GB9905@cmpxchg.org>
- <20160713133701.GK9806@techsingularity.net>
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 52D086B0005
+	for <linux-mm@kvack.org>; Wed, 13 Jul 2016 22:43:34 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id j8so128532482itb.1
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 19:43:34 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id q5si60669oig.39.2016.07.13.19.43.32
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 13 Jul 2016 19:43:33 -0700 (PDT)
+Message-ID: <5786F81B.1070502@huawei.com>
+Date: Thu, 14 Jul 2016 10:25:31 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <20160713133701.GK9806@techsingularity.net>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Subject: [PATCH] mem-hotplug: use GFP_HIGHUSER_MOVABLE and alloc from next
+ node in alloc_migrate_target()
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Jul 13, 2016 at 02:37:01PM +0100, Mel Gorman wrote:
-> On Wed, Jul 13, 2016 at 09:04:15AM -0400, Johannes Weiner wrote:
-> > > Obviously I found the new names clearer but I was thinking a lot at the
-> > > time about mapped vs unmapped due to looking closely at both reclaim and
-> > > [f|m]advise functions at the time. I found it mildly irksome to switch
-> > > between the semantics of file/anon when looking at the vmstat updates.
-> > 
-> > I can see that. It all depends on whether you consider mapping state
-> > or page type the more fundamental attribute, and coming from the
-> > mapping perspective those new names make sense as well.
-> > 
-> 
-> From a reclaim perspective, I consider the mapped state to be more
-> important. This is particularly true when the advise calls are taken
-> into account. For example, madvise unmaps the pages without affecting
-> memory residency (distinct from RSS) without aging. fadvise ignores mapped
-> pages so the mapped state is very important for advise hints.  Similarly,
-> the mapped state can affect how the pages are aged as mapped pages affect
-> slab scan rates and incur TLB flushes on unmap. I guess I've been thinking
-> about mapped/unmapped a lot recently which pushed me towards distinct naming.
-> 
-> > However, that leaves the disconnect between the enum name and what we
-> > print to userspace. I find myself having to associate those quite a
-> > lot to find all the sites that modify a given /proc/vmstat item, and
-> > that's a bit of a pain if the names don't match.
-> > 
-> 
-> I was tempted to rename userspace what is printed to vmstat as well but
-> worried about breaking tools that parse it.
-> 
-> > I don't care strongly enough to cause a respin of half the series, and
-> > it's not your problem that I waited until the last revision went into
-> > mmots to review and comment. But if you agreed to a revert, would you
-> > consider tacking on a revert patch at the end of the series?
-> > 
-> 
-> In this case, I'm going to ask the other people on the cc for a
-> tie-breaker. If someone else prefers the old names then I'm happy for
-> your patch to be applied on top with my ack instead of respinning the
-> whole series.
-> 
-> Anyone for a tie breaker?
+alloc_migrate_target() is called from migrate_pages(), and the page
+is always from user space, so we can add __GFP_HIGHMEM directly.
 
-I have thought it from reclaim perspective for a long time so I tempted to
-change the naming like new one but there is no big justification for that.
-In this chance, I vote new name.
+Second, when we offline a node, the new page should alloced from other
+nodes instead of the current node, because re-migrate is a waste of
+time.
 
-Thanks.
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+---
+ mm/page_isolation.c | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)
+
+diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+index 612122b..83848dc 100644
+--- a/mm/page_isolation.c
++++ b/mm/page_isolation.c
+@@ -282,20 +282,16 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
+ struct page *alloc_migrate_target(struct page *page, unsigned long private,
+ 				  int **resultp)
+ {
+-	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
+-
+ 	/*
+-	 * TODO: allocate a destination hugepage from a nearest neighbor node,
++	 * TODO: allocate a destination page from a nearest neighbor node,
+ 	 * accordance with memory policy of the user process if possible. For
+ 	 * now as a simple work-around, we use the next node for destination.
+ 	 */
++	int nid = next_node_in(page_to_nid(page), node_online_map);
++
+ 	if (PageHuge(page))
+ 		return alloc_huge_page_node(page_hstate(compound_head(page)),
+-					    next_node_in(page_to_nid(page),
+-							 node_online_map));
+-
+-	if (PageHighMem(page))
+-		gfp_mask |= __GFP_HIGHMEM;
+-
+-	return alloc_page(gfp_mask);
++						 nid);
++	else
++		return __alloc_pages_node(nid, GFP_HIGHUSER_MOVABLE, 0);
+ }
+-- 
+1.8.3.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
