@@ -1,85 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C3BE6B025E
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 02:52:31 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 63so137546095pfx.3
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 23:52:31 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id a2si5052515pfc.204.2016.07.13.23.52.28
-        for <linux-mm@kvack.org>;
-        Wed, 13 Jul 2016 23:52:30 -0700 (PDT)
-Date: Thu, 14 Jul 2016 15:56:21 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v6] mm, kasan: switch SLUB to stackdepot, enable memory
- quarantine for SLUB
-Message-ID: <20160714065621.GC29676@js1304-P5Q-DELUXE>
-References: <1467974210-117852-1-git-send-email-glider@google.com>
- <20160711060243.GA14107@js1304-P5Q-DELUXE>
- <CAG_fn=VM=nMFgKCGEHdD+A4TP9-8XoXKbXDyeXCc6ntkB16q0Q@mail.gmail.com>
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BA076B025E
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 03:19:18 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id g18so47206179lfg.2
+        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 00:19:18 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a2si1007132wjk.265.2016.07.14.00.19.16
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 14 Jul 2016 00:19:16 -0700 (PDT)
+Date: Thu, 14 Jul 2016 09:19:14 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [memcg:since-4.6 827/827]
+ arch/s390/include/asm/jump_label.h:17:32: error: expected ':' before
+ '__stringify'
+Message-ID: <20160714071914.GA27689@dhcp22.suse.cz>
+References: <201607140156.2OxakZPq%fengguang.wu@intel.com>
+ <57867DD0.9080801@akamai.com>
+ <20160713110542.b58b2bcc7ca484a56cb903f3@linux-foundation.org>
+ <5786856B.6030600@akamai.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAG_fn=VM=nMFgKCGEHdD+A4TP9-8XoXKbXDyeXCc6ntkB16q0Q@mail.gmail.com>
+In-Reply-To: <5786856B.6030600@akamai.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Dmitriy Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Kostya Serebryany <kcc@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Kuthonuzo Luruo <kuthonuzo.luruo@hpe.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Jason Baron <jbaron@akamai.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, linux-mm@kvack.org
 
-On Tue, Jul 12, 2016 at 03:02:19PM +0200, Alexander Potapenko wrote:
-> >> +
-> >>       /* Add alloc meta. */
-> >>       cache->kasan_info.alloc_meta_offset = *size;
-> >>       *size += sizeof(struct kasan_alloc_meta);
-> >> @@ -392,17 +385,36 @@ void kasan_cache_create(struct kmem_cache *cache, size_t *size,
-> >>           cache->object_size < sizeof(struct kasan_free_meta)) {
-> >>               cache->kasan_info.free_meta_offset = *size;
-> >>               *size += sizeof(struct kasan_free_meta);
-> >> +     } else {
-> >> +             cache->kasan_info.free_meta_offset = 0;
-> >>       }
-> >>       redzone_adjust = optimal_redzone(cache->object_size) -
-> >>               (*size - cache->object_size);
-> >> +
-> >>       if (redzone_adjust > 0)
-> >>               *size += redzone_adjust;
-> >> -     *size = min(KMALLOC_MAX_CACHE_SIZE,
-> >> +
-> >> +#ifdef CONFIG_SLAB
-> >> +     *size = min(KMALLOC_MAX_SIZE,
-> >>                   max(*size,
-> >>                       cache->object_size +
-> >>                       optimal_redzone(cache->object_size)));
-> >> -}
-> >> +     /*
-> >> +      * If the metadata doesn't fit, don't enable KASAN at all.
-> >> +      */
-> >> +     if (*size <= cache->kasan_info.alloc_meta_offset ||
-> >> +                     *size <= cache->kasan_info.free_meta_offset) {
-> >> +             *size = orig_size;
-> >> +             return;
-> >> +     }
-> >> +#else
-> >> +     *size = max(*size,
-> >> +                     cache->object_size +
-> >> +                     optimal_redzone(cache->object_size));
-> >> +
-> >>  #endif
-> >
-> > Hmm... could you explain why SLAB needs min(KMALLOC_MAX_SIZE, XX) but
-> > not SLUB?
+On Wed 13-07-16 14:16:11, Jason Baron wrote:
+> On 07/13/2016 02:05 PM, Andrew Morton wrote:
+> > On Wed, 13 Jul 2016 13:43:44 -0400 Jason Baron <jbaron@akamai.com> wrote:
+> > 
+> >> This is likely due to the fact that the s390 bits
+> >> bits were not pulled into -mm here:
+> >>
+> >> http://lkml.iu.edu/hypermail/linux/kernel/1607.0/03114.html
+> >>
+> >> However, I do see them in linux-next, I think from
+> >> the s390 tree. So perhaps, that patch can be pulled
+> >> in here as well?
+> > 
+> > Yup, I have
+> > jump_label-remove-bugh-atomich-dependencies-for-have_jump_label.patch
+> > staged after linux-next and it has that dependency on linux-next.
+> > 
 > 
-> Because if the size is bigger than KMALLOC_MAX_SIZE then
-> __kmem_cache_create() returns -E2BIG for SLAB. This happens right at
-> startup in create_boot_cache().
-> As far as I understand, SLUB doesn't have the upper limit (or is it
-> that we just aren't hitting it?)
+> ok, you have the dependency correct, thanks.
+> 
+> That dependency though is not being honored in the referenced
+> mm tree branch 'since-4.6', since the relevant s390 patch
+> is not present. So, if we want to fix it here, we need
+> that patch...
 
-Perhaps, SLUB also has the upper limit although it wasn't triggered
-easily since there is no such kmem_cache. Unlikely, SLAB has a such
-sized kmem_cache in default (kmalloc-XXXXX). I haven't look at
-calculate_order() in detail but it would give you some insight.
+My fault. I haven't noticed this patch. I usually apply everything that
+is in appropriate sections of series file and then fix up compilation
+issues. I didn't do my allarch build test the last time due to lack of
+time so I haven't noticed this. Sorry about that!
 
-Thanks.
+That being said, I have cherry-picked the s390 part.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
