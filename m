@@ -1,99 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B28C06B0005
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 14:10:21 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id f126so61374336wma.3
-        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 11:10:21 -0700 (PDT)
-Received: from mail-wm0-x22d.google.com (mail-wm0-x22d.google.com. [2a00:1450:400c:c09::22d])
-        by mx.google.com with ESMTPS id v129si4729641wme.91.2016.07.14.11.10.19
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F5476B0005
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 15:14:19 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 63so172314330pfx.3
+        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 12:14:19 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTPS id u125si5676874pfb.245.2016.07.14.12.14.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Jul 2016 11:10:19 -0700 (PDT)
-Received: by mail-wm0-x22d.google.com with SMTP id o80so123410451wme.1
-        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 11:10:19 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20160714054842.6zal5rqawpgew26r@treble>
-References: <1468446964-22213-1-git-send-email-keescook@chromium.org>
- <1468446964-22213-2-git-send-email-keescook@chromium.org> <CALCETrVDJDjdoh7yvOPd=_5twQnzQRhe8G2KLaRw-NnA1Uf__g@mail.gmail.com>
- <CAGXu5jLPZiRJx8n3_7GW2bufiuUgE9=c6dQcNxDRPHMU72sD9g@mail.gmail.com> <20160714054842.6zal5rqawpgew26r@treble>
-From: Kees Cook <keescook@chromium.org>
-Date: Thu, 14 Jul 2016 11:10:18 -0700
-Message-ID: <CAGXu5jLv_pMRqdaM72D_FTQzxoGxgcEqxpvUzqwgjOmZ8D-zSw@mail.gmail.com>
-Subject: Re: [PATCH v2 01/11] mm: Implement stack frame object validation
-Content-Type: text/plain; charset=UTF-8
+        Thu, 14 Jul 2016 12:14:17 -0700 (PDT)
+From: Andy Lutomirski <luto@kernel.org>
+Subject: [PATCH 1/4] mm: Track NR_KERNEL_STACK in KiB instead of number of stacks
+Date: Thu, 14 Jul 2016 12:14:10 -0700
+Message-Id: <083c71e642c5fa5f1b6898902e1b2db7b48940d4.1468523549.git.luto@kernel.org>
+In-Reply-To: <cover.1468523549.git.luto@kernel.org>
+References: <cover.1468523549.git.luto@kernel.org>
+In-Reply-To: <cover.1468523549.git.luto@kernel.org>
+References: <cover.1468523549.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Andy Lutomirski <luto@amacapital.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, X86 ML <x86@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, sparclinux <sparclinux@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, Brian Gerst <brgerst@gmail.com>, Andy Lutomirski <luto@kernel.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
 
-On Wed, Jul 13, 2016 at 10:48 PM, Josh Poimboeuf <jpoimboe@redhat.com> wrote:
-> On Wed, Jul 13, 2016 at 03:04:26PM -0700, Kees Cook wrote:
->> On Wed, Jul 13, 2016 at 3:01 PM, Andy Lutomirski <luto@amacapital.net> wrote:
->> > On Wed, Jul 13, 2016 at 2:55 PM, Kees Cook <keescook@chromium.org> wrote:
->> >> This creates per-architecture function arch_within_stack_frames() that
->> >> should validate if a given object is contained by a kernel stack frame.
->> >> Initial implementation is on x86.
->> >>
->> >> This is based on code from PaX.
->> >>
->> >
->> > This, along with Josh's livepatch work, are two examples of unwinders
->> > that matter for correctness instead of just debugging.  ISTM this
->> > should just use Josh's code directly once it's been written.
->>
->> Do you have URL for Josh's code? I'd love to see what happening there.
->
-> The code is actually going to be 100% different next time around, but
-> FWIW, here's the last attempt:
->
->   https://lkml.kernel.org/r/4d34d452bf8f85c7d6d5f93db1d3eeb4cba335c7.1461875890.git.jpoimboe@redhat.com
->
-> In the meantime I've realized the need to rewrite the x86 core stack
-> walking code to something much more manageable so we don't need all
-> these unwinders everywhere.  I'll probably post the patches in the next
-> week or so.  I'll add you to the CC list.
+Currently, NR_KERNEL_STACK tracks the number of kernel stacks in a
+zone.  This only makes sense if each kernel stack exists entirely in
+one zone, and allowing vmapped stacks could break this assumption.
 
-Awesome!
+Since frv has THREAD_SIZE < PAGE_SIZE, we need to track kernel stack
+allocations in a unit that divides both THREAD_SIZE and PAGE_SIZE on
+all architectures.  Keep it simple and use KiB.
 
-> With the new interface I think you'll be able to do something like:
->
->         struct unwind_state;
->
->         unwind_start(&state, current, NULL, NULL);
->         unwind_next_frame(&state);
->         oldframe = unwind_get_stack_pointer(&state);
->
->         unwind_next_frame(&state);
->         frame = unwind_get_stack_pointer(&state);
->
->         do {
->                 if (obj + len <= frame)
->                         return blah;
->                 oldframe = frame;
->                 frame = unwind_get_stack_pointer(&state);
->
->         } while (unwind_next_frame(&state);
->
-> And then at the end there'll be some (still TBD) way to query whether it
-> reached the last syscall pt_regs frame, or if it instead encountered a
-> bogus frame pointer along the way and had to bail early.
+Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org
+Reviewed-by: Josh Poimboeuf <jpoimboe@redhat.com>
+Reviewed-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Signed-off-by: Andy Lutomirski <luto@kernel.org>
+---
+ drivers/base/node.c    | 3 +--
+ fs/proc/meminfo.c      | 2 +-
+ include/linux/mmzone.h | 2 +-
+ kernel/fork.c          | 3 ++-
+ mm/page_alloc.c        | 3 +--
+ 5 files changed, 6 insertions(+), 7 deletions(-)
 
-Sounds good to me. Will there be any frame size information available?
-Right now, the unwinder from PaX just drops 2 pointers (saved frame,
-saved ip) from the delta of frame address to find the size of the
-actual stack area used by the function. If I could shave things like
-padding and possible stack canaries off the size too, that would be
-great.
-
-Since I'm aiming the hardened usercopy series for 4.8, I figure I'll
-just leave this unwinder in for now, and once yours lands, I can rip
-it out again.
-
--Kees
-
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index 560751bad294..27dc68a0ed2d 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -121,8 +121,7 @@ static ssize_t node_read_meminfo(struct device *dev,
+ 		       nid, K(node_page_state(nid, NR_FILE_MAPPED)),
+ 		       nid, K(node_page_state(nid, NR_ANON_PAGES)),
+ 		       nid, K(i.sharedram),
+-		       nid, node_page_state(nid, NR_KERNEL_STACK) *
+-				THREAD_SIZE / 1024,
++		       nid, node_page_state(nid, NR_KERNEL_STACK_KB),
+ 		       nid, K(node_page_state(nid, NR_PAGETABLE)),
+ 		       nid, K(node_page_state(nid, NR_UNSTABLE_NFS)),
+ 		       nid, K(node_page_state(nid, NR_BOUNCE)),
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+index 83720460c5bc..239b5a06cee0 100644
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -145,7 +145,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ 				global_page_state(NR_SLAB_UNRECLAIMABLE)),
+ 		K(global_page_state(NR_SLAB_RECLAIMABLE)),
+ 		K(global_page_state(NR_SLAB_UNRECLAIMABLE)),
+-		global_page_state(NR_KERNEL_STACK) * THREAD_SIZE / 1024,
++		global_page_state(NR_KERNEL_STACK_KB),
+ 		K(global_page_state(NR_PAGETABLE)),
+ #ifdef CONFIG_QUICKLIST
+ 		K(quicklist_total_size()),
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 02069c23486d..63f05a7efb54 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -127,7 +127,7 @@ enum zone_stat_item {
+ 	NR_SLAB_RECLAIMABLE,
+ 	NR_SLAB_UNRECLAIMABLE,
+ 	NR_PAGETABLE,		/* used for pagetables */
+-	NR_KERNEL_STACK,
++	NR_KERNEL_STACK_KB,	/* measured in KiB */
+ 	/* Second 128 byte cacheline */
+ 	NR_UNSTABLE_NFS,	/* NFS unstable pages */
+ 	NR_BOUNCE,
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 4a7ec0c6c88c..466ba8febe3b 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -225,7 +225,8 @@ static void account_kernel_stack(unsigned long *stack, int account)
+ {
+ 	struct zone *zone = page_zone(virt_to_page(stack));
+ 
+-	mod_zone_page_state(zone, NR_KERNEL_STACK, account);
++	mod_zone_page_state(zone, NR_KERNEL_STACK_KB,
++			    THREAD_SIZE / 1024 * account);
+ }
+ 
+ void free_task(struct task_struct *tsk)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 6903b695ebae..a277dea926c9 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4457,8 +4457,7 @@ void show_free_areas(unsigned int filter)
+ 			K(zone_page_state(zone, NR_SHMEM)),
+ 			K(zone_page_state(zone, NR_SLAB_RECLAIMABLE)),
+ 			K(zone_page_state(zone, NR_SLAB_UNRECLAIMABLE)),
+-			zone_page_state(zone, NR_KERNEL_STACK) *
+-				THREAD_SIZE / 1024,
++			zone_page_state(zone, NR_KERNEL_STACK_KB),
+ 			K(zone_page_state(zone, NR_PAGETABLE)),
+ 			K(zone_page_state(zone, NR_UNSTABLE_NFS)),
+ 			K(zone_page_state(zone, NR_BOUNCE)),
 -- 
-Kees Cook
-Chrome OS & Brillo Security
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
