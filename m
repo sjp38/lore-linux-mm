@@ -1,100 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F349A6B025E
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 05:46:32 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id o80so52775507wme.1
-        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 02:46:32 -0700 (PDT)
-Received: from mail-wm0-x22d.google.com (mail-wm0-x22d.google.com. [2a00:1450:400c:c09::22d])
-        by mx.google.com with ESMTPS id d62si7118967wmd.27.2016.07.14.02.46.31
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 563126B0005
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 06:05:58 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id o80so53137597wme.1
+        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 03:05:58 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 15si1019593ljf.24.2016.07.14.03.05.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Jul 2016 02:46:31 -0700 (PDT)
-Received: by mail-wm0-x22d.google.com with SMTP id f65so60386094wmi.0
-        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 02:46:31 -0700 (PDT)
-Subject: Re: System freezes after OOM
-References: <57837CEE.1010609@redhat.com>
- <f80dc690-7e71-26b2-59a2-5a1557d26713@redhat.com>
- <9be09452-de7f-d8be-fd5d-4a80d1cd1ba3@redhat.com>
- <alpine.LRH.2.02.1607111027080.14327@file01.intranet.prod.int.rdu2.redhat.com>
- <20160712064905.GA14586@dhcp22.suse.cz>
- <alpine.LRH.2.02.1607121907160.24806@file01.intranet.prod.int.rdu2.redhat.com>
- <20160713111006.GF28723@dhcp22.suse.cz>
- <20160713125050.GJ28723@dhcp22.suse.cz>
- <97c60afe-d922-ce4c-3a5c-5b15bf0fe2da@gmail.com>
- <alpine.LRH.2.02.1607131114390.31769@file01.intranet.prod.int.rdu2.redhat.com>
- <20160714090934.GB4079@dhcp22.suse.cz>
-From: Milan Broz <gmazyland@gmail.com>
-Message-ID: <061337a8-68bf-38c0-e3df-af0f901e9ee5@gmail.com>
-Date: Thu, 14 Jul 2016 11:46:29 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 14 Jul 2016 03:05:56 -0700 (PDT)
+Subject: Re: [PATCH 22/34] mm, page_alloc: wake kswapd based on the highest
+ eligible zone
+References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
+ <1467970510-21195-23-git-send-email-mgorman@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <39dcc1fe-d6a6-a9f8-3872-b1d53b491fa3@suse.cz>
+Date: Thu, 14 Jul 2016 12:05:51 +0200
 MIME-Version: 1.0
-In-Reply-To: <20160714090934.GB4079@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <1467970510-21195-23-git-send-email-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Mikulas Patocka <mpatocka@redhat.com>
-Cc: Milan Broz <gmazyland@gmail.com>, Ondrej Kozina <okozina@redhat.com>, Jerome Marchand <jmarchan@redhat.com>, Stanislav Kozina <skozina@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, device-mapper development <dm-devel@redhat.com>
+To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
+Cc: Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
 
-On 07/14/2016 11:09 AM, Michal Hocko wrote:
-> On Wed 13-07-16 11:21:41, Mikulas Patocka wrote:
->>
->>
->> On Wed, 13 Jul 2016, Milan Broz wrote:
->>
->>> On 07/13/2016 02:50 PM, Michal Hocko wrote:
->>>> On Wed 13-07-16 13:10:06, Michal Hocko wrote:
->>>>> On Tue 12-07-16 19:44:11, Mikulas Patocka wrote:
->>>> [...]
->>>>>> As long as swapping is in progress, the free memory is below the limit 
->>>>>> (because the swapping activity itself consumes any memory over the limit). 
->>>>>> And that triggered the OOM killer prematurely.
->>>>>
->>>>> I am not sure I understand the last part. Are you saing that we trigger
->>>>> OOM because the initiated swapout will not be able to finish the IO thus
->>>>> release the page in time?
->>>>>
->>>>> The oom detection checks waits for an ongoing writeout if there is no
->>>>> reclaim progress and at least half of the reclaimable memory is either
->>>>> dirty or under writeback. Pages under swaout are marked as under
->>>>> writeback AFAIR. The writeout path (dm-crypt worker in this case) should
->>>>> be able to allocate a memory from the mempool, hand over to the crypt
->>>>> layer and finish the IO. Is it possible this might take a lot of time?
->>>>
->>>> I am not familiar with the crypto API but from what I understood from
->>>> crypt_convert the encryption is done asynchronously. Then I got lost in
->>>> the indirection. Who is completing the request and from what kind of
->>>> context? Is it possible it wouldn't be runable for a long time?
->>>
->>> If you mean crypt_convert in dm-crypt, then it can do asynchronous completion
->>> but usually (with AES-NI ans sw implementations) it run the operation completely
->>> synchronously.
->>> Asynchronous processing is quite rare, usually only on some specific hardware
->>> crypto accelerators.
->>>
->>> Once the encryption is finished, the cloned bio is sent to the block
->>> layer for processing.
->>> (There is also some magic with sorting writes but Mikulas knows this better.)
->>
->> dm-crypt receives requests in crypt_map, then it distributes write 
->> requests to multiple encryption threads. Encryption is done usually 
->> synchronously; asynchronous completion is used only when using some PCI 
->> cards that accelerate encryption. When encryption finishes, the encrypted 
->> pages are submitted to a thread dmcrypt_write that sorts the requests 
->> using rbtree and submits them.
-> 
-> OK. I was worried that the async context would depend on WQ and a lack
-> of workers could lead to long stalls. Dedicated kernel threads seem
-> sufficient.
+On 07/08/2016 11:34 AM, Mel Gorman wrote:
+> The ac_classzone_idx is used as the basis for waking kswapd and that is based
+> on the preferred zoneref. If the preferred zoneref's first zone is lower
+> than what is available on other nodes, it's possible that kswapd is woken
+> on a zone with only higher, but still eligible, zones. As classzone_idx
+> is strictly adhered to now, it causes a problem because eligible pages
+> are skipped.
+>
+> For example, node 0 has only DMA32 and node 1 has only NORMAL. An allocating
+> context running on node 0 may wake kswapd on node 1 telling it to skip
+> all NORMAL pages.
+>
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 
-Just for the record - if there is a suspicion that some crypto operation
-causes problem, dmcrypt can use null cipher. This degrades encryption/decryption
-to just plain memcpy inside crypto API but leaves all workqueues and
-tooling around the same.
-(I added it to cryptsetup to easily configure it and it was intended to test dmcrypt
-non-crypto overherad in fact.)
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-Anyway, thanks for looking into this!
-Milan
+> ---
+>  mm/page_alloc.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index bb261885c121..e6ee52f1c15f 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3415,7 +3415,7 @@ static void wake_all_kswapds(unsigned int order, const struct alloc_context *ac)
+>  	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist,
+>  					ac->high_zoneidx, ac->nodemask) {
+>  		if (last_pgdat != zone->zone_pgdat)
+> -			wakeup_kswapd(zone, order, ac_classzone_idx(ac));
+> +			wakeup_kswapd(zone, order, ac->high_zoneidx);
+>  		last_pgdat = zone->zone_pgdat;
+>  	}
+>  }
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
