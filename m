@@ -1,118 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 09E806B025E
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 15:14:20 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id y134so119373702pfg.1
-        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 12:14:20 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTPS id r194si5719708pfr.68.2016.07.14.12.14.19
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 119596B0005
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 15:24:03 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id j65so94180206vkb.2
+        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 12:24:03 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w20si1658173ybg.85.2016.07.14.12.24.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Jul 2016 12:14:19 -0700 (PDT)
-From: Andy Lutomirski <luto@kernel.org>
-Subject: [PATCH 2/4] mm: Fix memcg stack accounting for sub-page stacks
-Date: Thu, 14 Jul 2016 12:14:11 -0700
-Message-Id: <9b5314e3ee5eda61b0317ec1563768602c1ef438.1468523549.git.luto@kernel.org>
-In-Reply-To: <cover.1468523549.git.luto@kernel.org>
-References: <cover.1468523549.git.luto@kernel.org>
-In-Reply-To: <cover.1468523549.git.luto@kernel.org>
-References: <cover.1468523549.git.luto@kernel.org>
+        Thu, 14 Jul 2016 12:24:02 -0700 (PDT)
+Date: Thu, 14 Jul 2016 14:23:51 -0500
+From: Josh Poimboeuf <jpoimboe@redhat.com>
+Subject: Re: [PATCH v2 01/11] mm: Implement stack frame object validation
+Message-ID: <20160714192351.567fmaz2h4drrxrc@treble>
+References: <1468446964-22213-1-git-send-email-keescook@chromium.org>
+ <1468446964-22213-2-git-send-email-keescook@chromium.org>
+ <CALCETrVDJDjdoh7yvOPd=_5twQnzQRhe8G2KLaRw-NnA1Uf__g@mail.gmail.com>
+ <CAGXu5jLPZiRJx8n3_7GW2bufiuUgE9=c6dQcNxDRPHMU72sD9g@mail.gmail.com>
+ <20160714054842.6zal5rqawpgew26r@treble>
+ <CAGXu5jLv_pMRqdaM72D_FTQzxoGxgcEqxpvUzqwgjOmZ8D-zSw@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <CAGXu5jLv_pMRqdaM72D_FTQzxoGxgcEqxpvUzqwgjOmZ8D-zSw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, Brian Gerst <brgerst@gmail.com>, Andy Lutomirski <luto@kernel.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+To: Kees Cook <keescook@chromium.org>
+Cc: Andy Lutomirski <luto@amacapital.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, X86 ML <x86@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, sparclinux <sparclinux@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-We should account for stacks regardless of stack size, and we need
-to account in sub-page units if THREAD_SIZE < PAGE_SIZE.  Change the
-units to kilobytes and Move it into account_kernel_stack().
+On Thu, Jul 14, 2016 at 11:10:18AM -0700, Kees Cook wrote:
+> On Wed, Jul 13, 2016 at 10:48 PM, Josh Poimboeuf <jpoimboe@redhat.com> wrote:
+> > On Wed, Jul 13, 2016 at 03:04:26PM -0700, Kees Cook wrote:
+> >> On Wed, Jul 13, 2016 at 3:01 PM, Andy Lutomirski <luto@amacapital.net> wrote:
+> >> > On Wed, Jul 13, 2016 at 2:55 PM, Kees Cook <keescook@chromium.org> wrote:
+> >> >> This creates per-architecture function arch_within_stack_frames() that
+> >> >> should validate if a given object is contained by a kernel stack frame.
+> >> >> Initial implementation is on x86.
+> >> >>
+> >> >> This is based on code from PaX.
+> >> >>
+> >> >
+> >> > This, along with Josh's livepatch work, are two examples of unwinders
+> >> > that matter for correctness instead of just debugging.  ISTM this
+> >> > should just use Josh's code directly once it's been written.
+> >>
+> >> Do you have URL for Josh's code? I'd love to see what happening there.
+> >
+> > The code is actually going to be 100% different next time around, but
+> > FWIW, here's the last attempt:
+> >
+> >   https://lkml.kernel.org/r/4d34d452bf8f85c7d6d5f93db1d3eeb4cba335c7.1461875890.git.jpoimboe@redhat.com
+> >
+> > In the meantime I've realized the need to rewrite the x86 core stack
+> > walking code to something much more manageable so we don't need all
+> > these unwinders everywhere.  I'll probably post the patches in the next
+> > week or so.  I'll add you to the CC list.
+> 
+> Awesome!
+> 
+> > With the new interface I think you'll be able to do something like:
+> >
+> >         struct unwind_state;
+> >
+> >         unwind_start(&state, current, NULL, NULL);
+> >         unwind_next_frame(&state);
+> >         oldframe = unwind_get_stack_pointer(&state);
+> >
+> >         unwind_next_frame(&state);
+> >         frame = unwind_get_stack_pointer(&state);
+> >
+> >         do {
+> >                 if (obj + len <= frame)
+> >                         return blah;
+> >                 oldframe = frame;
+> >                 frame = unwind_get_stack_pointer(&state);
+> >
+> >         } while (unwind_next_frame(&state);
+> >
+> > And then at the end there'll be some (still TBD) way to query whether it
+> > reached the last syscall pt_regs frame, or if it instead encountered a
+> > bogus frame pointer along the way and had to bail early.
+> 
+> Sounds good to me. Will there be any frame size information available?
+> Right now, the unwinder from PaX just drops 2 pointers (saved frame,
+> saved ip) from the delta of frame address to find the size of the
+> actual stack area used by the function. If I could shave things like
+> padding and possible stack canaries off the size too, that would be
+> great.
 
-Fixes: 12580e4b54ba8 ("mm: memcontrol: report kernel stack usage in cgroup2 memory.stat")
-Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org
-Reviewed-by: Josh Poimboeuf <jpoimboe@redhat.com>
-Reviewed-by: Vladimir Davydov <vdavydov@virtuozzo.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Signed-off-by: Andy Lutomirski <luto@kernel.org>
----
- include/linux/memcontrol.h |  2 +-
- kernel/fork.c              | 19 ++++++++-----------
- mm/memcontrol.c            |  2 +-
- 3 files changed, 10 insertions(+), 13 deletions(-)
+For x86, stacks are aligned at long word boundaries, so there's no real
+stack padding.
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index a805474df4ab..3b653b86bb8f 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -52,7 +52,7 @@ enum mem_cgroup_stat_index {
- 	MEM_CGROUP_STAT_SWAP,		/* # of pages, swapped out */
- 	MEM_CGROUP_STAT_NSTATS,
- 	/* default hierarchy stats */
--	MEMCG_KERNEL_STACK = MEM_CGROUP_STAT_NSTATS,
-+	MEMCG_KERNEL_STACK_KB = MEM_CGROUP_STAT_NSTATS,
- 	MEMCG_SLAB_RECLAIMABLE,
- 	MEMCG_SLAB_UNRECLAIMABLE,
- 	MEMCG_SOCK,
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 466ba8febe3b..146c9840c079 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -165,20 +165,12 @@ static unsigned long *alloc_thread_stack_node(struct task_struct *tsk,
- 	struct page *page = alloc_kmem_pages_node(node, THREADINFO_GFP,
- 						  THREAD_SIZE_ORDER);
- 
--	if (page)
--		memcg_kmem_update_page_stat(page, MEMCG_KERNEL_STACK,
--					    1 << THREAD_SIZE_ORDER);
--
- 	return page ? page_address(page) : NULL;
- }
- 
- static inline void free_thread_stack(unsigned long *stack)
- {
--	struct page *page = virt_to_page(stack);
--
--	memcg_kmem_update_page_stat(page, MEMCG_KERNEL_STACK,
--				    -(1 << THREAD_SIZE_ORDER));
--	__free_kmem_pages(page, THREAD_SIZE_ORDER);
-+	free_kmem_pages((unsigned long)stack, THREAD_SIZE_ORDER);
- }
- # else
- static struct kmem_cache *thread_stack_cache;
-@@ -223,10 +215,15 @@ static struct kmem_cache *mm_cachep;
- 
- static void account_kernel_stack(unsigned long *stack, int account)
- {
--	struct zone *zone = page_zone(virt_to_page(stack));
-+	/* All stack pages are in the same zone and belong to the same memcg. */
-+	struct page *first_page = virt_to_page(stack);
- 
--	mod_zone_page_state(zone, NR_KERNEL_STACK_KB,
-+	mod_zone_page_state(page_zone(first_page), NR_KERNEL_STACK_KB,
- 			    THREAD_SIZE / 1024 * account);
-+
-+	memcg_kmem_update_page_stat(
-+		first_page, MEMCG_KERNEL_STACK_KB,
-+		account * (THREAD_SIZE / 1024));
- }
- 
- void free_task(struct task_struct *tsk)
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index ac8664db3823..ee44afc1f2d0 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -5133,7 +5133,7 @@ static int memory_stat_show(struct seq_file *m, void *v)
- 	seq_printf(m, "file %llu\n",
- 		   (u64)stat[MEM_CGROUP_STAT_CACHE] * PAGE_SIZE);
- 	seq_printf(m, "kernel_stack %llu\n",
--		   (u64)stat[MEMCG_KERNEL_STACK] * PAGE_SIZE);
-+		   (u64)stat[MEMCG_KERNEL_STACK_KB] * 1024);
- 	seq_printf(m, "slab %llu\n",
- 		   (u64)(stat[MEMCG_SLAB_RECLAIMABLE] +
- 			 stat[MEMCG_SLAB_UNRECLAIMABLE]) * PAGE_SIZE);
+Also the CC_STACKPROTECTOR stack canaries are created by a gcc feature
+which only affects certain functions (and thus certain frames) and I
+don't know of any reliable way to find them.
+
+So with frame pointers, I think the best you can do is just assume that
+the frame data area is always two words smaller than the total frame
+size.
+
+> Since I'm aiming the hardened usercopy series for 4.8, I figure I'll
+> just leave this unwinder in for now, and once yours lands, I can rip
+> it out again.
+
+Sure, sounds fine to me.  If your code lands before I post mine, I can
+convert it myself.
+
 -- 
-2.7.4
+Josh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
