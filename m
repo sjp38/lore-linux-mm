@@ -1,44 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AFC5C6B026E
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 18:04:34 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id p64so180134874pfb.0
-        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 15:04:34 -0700 (PDT)
-Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
-        by mx.google.com with ESMTPS id f8si233737pff.71.2016.07.14.15.04.33
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 99159828E2
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 18:17:21 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 63so180714190pfx.3
+        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 15:17:21 -0700 (PDT)
+Received: from mail-pf0-x234.google.com (mail-pf0-x234.google.com. [2607:f8b0:400e:c00::234])
+        by mx.google.com with ESMTPS id g63si3738945pfb.36.2016.07.14.15.17.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Jul 2016 15:04:33 -0700 (PDT)
-Received: by mail-pa0-x234.google.com with SMTP id dx3so32534367pab.2
-        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 15:04:33 -0700 (PDT)
-Date: Thu, 14 Jul 2016 15:04:25 -0700 (PDT)
+        Thu, 14 Jul 2016 15:17:20 -0700 (PDT)
+Received: by mail-pf0-x234.google.com with SMTP id c2so34294655pfa.2
+        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 15:17:20 -0700 (PDT)
+Date: Thu, 14 Jul 2016 15:17:13 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: System freezes after OOM
-In-Reply-To: <201607150640.GEB78167.VOFSFHOLMtJOFQ@I-love.SAKURA.ne.jp>
-Message-ID: <alpine.DEB.2.10.1607141504110.72383@chino.kir.corp.google.com>
-References: <20160713145638.GM28723@dhcp22.suse.cz> <alpine.LRH.2.02.1607131105080.31769@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.10.1607131644590.92037@chino.kir.corp.google.com> <201607142001.BJD07258.SMOHFOJVtLFOQF@I-love.SAKURA.ne.jp>
- <alpine.DEB.2.10.1607141324290.68666@chino.kir.corp.google.com> <201607150640.GEB78167.VOFSFHOLMtJOFQ@I-love.SAKURA.ne.jp>
+Subject: Re: [PATCH] mem-hotplug: use GFP_HIGHUSER_MOVABLE and alloc from
+ next node in alloc_migrate_target()
+In-Reply-To: <5786F81B.1070502@huawei.com>
+Message-ID: <alpine.DEB.2.10.1607141513320.72383@chino.kir.corp.google.com>
+References: <5786F81B.1070502@huawei.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: mpatocka@redhat.com, mhocko@kernel.org, okozina@redhat.com, jmarchan@redhat.com, skozina@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 15 Jul 2016, Tetsuo Handa wrote:
+On Thu, 14 Jul 2016, Xishi Qiu wrote:
 
-> Whether the OOM reaper will free some memory no longer matters. Instead,
-> whether the OOM reaper will let the OOM killer select next OOM victim matters.
+> alloc_migrate_target() is called from migrate_pages(), and the page
+> is always from user space, so we can add __GFP_HIGHMEM directly.
 > 
-> Are you aware that the OOM reaper will let the OOM killer select next OOM
-> victim (currently by clearing TIF_MEMDIE)? Clearing TIF_MEMDIE in 4.6 occurred
-> only when OOM reaping succeeded. But we are going to change the OOM reaper
-> always clear TIF_MEMDIE in 4.8 (or presumably change the OOM killer not to
-> depend on TIF_MEMDIE) so that the OOM reaper guarantees that the OOM killer
-> always selects next OOM victim.
+> Second, when we offline a node, the new page should alloced from other
+> nodes instead of the current node, because re-migrate is a waste of
+> time.
 > 
 
-That's cute, I'll have to look into those patches.
+alloc_migrate_target() is not only used from memory hotplug, it is also 
+used for CMA: we won't be isolating PageHuge() pages in 
+isolate_migratepages_range(), so this would cause a regression where we'd 
+be migrating memory to a remote NUMA node rather than preferring to 
+allocate locally.
+
+You may find it useful to use the 'private' field of the migrate_pages() 
+callback to specify the node the page should preferably be migrated to.
+
+> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+> ---
+>  mm/page_isolation.c | 16 ++++++----------
+>  1 file changed, 6 insertions(+), 10 deletions(-)
+> 
+> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+> index 612122b..83848dc 100644
+> --- a/mm/page_isolation.c
+> +++ b/mm/page_isolation.c
+> @@ -282,20 +282,16 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
+>  struct page *alloc_migrate_target(struct page *page, unsigned long private,
+>  				  int **resultp)
+>  {
+> -	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
+> -
+>  	/*
+> -	 * TODO: allocate a destination hugepage from a nearest neighbor node,
+> +	 * TODO: allocate a destination page from a nearest neighbor node,
+>  	 * accordance with memory policy of the user process if possible. For
+>  	 * now as a simple work-around, we use the next node for destination.
+>  	 */
+> +	int nid = next_node_in(page_to_nid(page), node_online_map);
+> +
+>  	if (PageHuge(page))
+>  		return alloc_huge_page_node(page_hstate(compound_head(page)),
+> -					    next_node_in(page_to_nid(page),
+> -							 node_online_map));
+> -
+> -	if (PageHighMem(page))
+> -		gfp_mask |= __GFP_HIGHMEM;
+> -
+> -	return alloc_page(gfp_mask);
+> +						 nid);
+> +	else
+> +		return __alloc_pages_node(nid, GFP_HIGHUSER_MOVABLE, 0);
+
+I don't think this __alloc_pages_node() does what you think it does, it 
+only prefers nid here and will readily fallback to other nodes if 
+necessary.  That is different than alloc_huge_page_node() which does no 
+fallback.  So there's two issues with this change: (1) inconsistency 
+between PageHuge() and !PageHuge() behavior, and (2) the use of 
+__alloc_pages_node() does not match the commit description which states 
+"re-migrate is a waste of time."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
