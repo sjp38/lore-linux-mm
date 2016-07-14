@@ -1,145 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 516916B0262
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 01:45:21 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id o80so48701678wme.1
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 22:45:21 -0700 (PDT)
-Received: from eu-smtp-delivery-143.mimecast.com (eu-smtp-delivery-143.mimecast.com. [146.101.78.143])
-        by mx.google.com with ESMTPS id r2si737417wjm.15.2016.07.13.22.45.20
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BC3C06B0262
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 01:48:52 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id r135so142810576vkf.0
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 22:48:52 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id h4si311242ybb.17.2016.07.13.22.48.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 13 Jul 2016 22:45:20 -0700 (PDT)
-From: Dennis Chen <dennis.chen@arm.com>
-Subject: [PATCH v6 2/2] arm64:acpi Fix the acpi alignment exception when 'mem=' specified
-Date: Thu, 14 Jul 2016 13:43:56 +0800
-Message-ID: <1468475036-5852-3-git-send-email-dennis.chen@arm.com>
-In-Reply-To: <1468475036-5852-1-git-send-email-dennis.chen@arm.com>
-References: <1468475036-5852-1-git-send-email-dennis.chen@arm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Jul 2016 22:48:52 -0700 (PDT)
+Date: Thu, 14 Jul 2016 00:48:42 -0500
+From: Josh Poimboeuf <jpoimboe@redhat.com>
+Subject: Re: [PATCH v2 01/11] mm: Implement stack frame object validation
+Message-ID: <20160714054842.6zal5rqawpgew26r@treble>
+References: <1468446964-22213-1-git-send-email-keescook@chromium.org>
+ <1468446964-22213-2-git-send-email-keescook@chromium.org>
+ <CALCETrVDJDjdoh7yvOPd=_5twQnzQRhe8G2KLaRw-NnA1Uf__g@mail.gmail.com>
+ <CAGXu5jLPZiRJx8n3_7GW2bufiuUgE9=c6dQcNxDRPHMU72sD9g@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=WINDOWS-1252
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <CAGXu5jLPZiRJx8n3_7GW2bufiuUgE9=c6dQcNxDRPHMU72sD9g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org
-Cc: nd@arm.com, steve.capper@arm.com, dennis.chen@arm.com, catalin.marinas@arm.com, ard.biesheuvel@linaro.org, akpm@linux-foundation.org, penberg@kernel.org, mgorman@techsingularity.net, tangchen@cn.fujitsu.com, tony.luck@intel.com, mingo@kernel.org, rafael@kernel.org, will.deacon@arm.com, mark.rutland@arm.com, matt@codeblueprint.co.uk, kaly.xin@arm.com, linux-mm@kvack.org, linux-acpi@vger.kernel.org, linux-efi@vger.kernel.org
+To: Kees Cook <keescook@chromium.org>
+Cc: Andy Lutomirski <luto@amacapital.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, X86 ML <x86@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, sparclinux <sparclinux@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-When booting an ACPI enabled kernel with 'mem=3Dx', there is the possibilit=
-y
-that ACPI data regions from the firmware will lie above the memory limit.
-Ordinarily these will be removed by memblock_enforce_memory_limit(.).
+On Wed, Jul 13, 2016 at 03:04:26PM -0700, Kees Cook wrote:
+> On Wed, Jul 13, 2016 at 3:01 PM, Andy Lutomirski <luto@amacapital.net> wrote:
+> > On Wed, Jul 13, 2016 at 2:55 PM, Kees Cook <keescook@chromium.org> wrote:
+> >> This creates per-architecture function arch_within_stack_frames() that
+> >> should validate if a given object is contained by a kernel stack frame.
+> >> Initial implementation is on x86.
+> >>
+> >> This is based on code from PaX.
+> >>
+> >
+> > This, along with Josh's livepatch work, are two examples of unwinders
+> > that matter for correctness instead of just debugging.  ISTM this
+> > should just use Josh's code directly once it's been written.
+> 
+> Do you have URL for Josh's code? I'd love to see what happening there.
 
-Unfortunately, this means that these regions will then be mapped by
-acpi_os_ioremap(.) as device memory (instead of normal) thus un-aligned
-accessess will then provoke alignment faults.=20
+The code is actually going to be 100% different next time around, but
+FWIW, here's the last attempt:
 
-In this patch we adopt memblock_mem_limit_remove_map instead, and this
-preserves these ACPI data regions (marked NOMAP) thus ensuring that these
-regions are not mapped as device memory.
+  https://lkml.kernel.org/r/4d34d452bf8f85c7d6d5f93db1d3eeb4cba335c7.1461875890.git.jpoimboe@redhat.com
 
-For example, below is an alignment exception observed on ARM platform
-when booting the kernel with 'acpi=3Don mem=3D8G':
-...
-[    0.542475] Unable to handle kernel paging request at virtual address ff=
-ff0000080521e7
-[    0.550457] pgd =3D ffff000008aa0000
-[    0.553880] [ffff0000080521e7] *pgd=3D000000801fffe003, *pud=3D000000801=
-fffd003, *pmd=3D000000801fffc003, *pte=3D00e80083ff1c1707
-[    0.564939] Internal error: Oops: 96000021 [#1] PREEMPT SMP
-[    0.570553] Modules linked in:
-[    0.573626] CPU: 1 PID: 1 Comm: swapper/0 Not tainted 4.7.0-rc3-next-201=
-60616+ #172
-[    0.581344] Hardware name: AMD Overdrive/Supercharger/Default string, BI=
-OS ROD1001A 02/09/2016
-[    0.590025] task: ffff800001ef0000 ti: ffff800001ef8000 task.ti: ffff800=
-001ef8000
-[    0.597571] PC is at acpi_ns_lookup+0x520/0x734
-[    0.602134] LR is at acpi_ns_lookup+0x4a4/0x734
-[    0.606693] pc : [<ffff0000083b8b10>] lr : [<ffff0000083b8a94>] pstate: =
-60000045
-[    0.614145] sp : ffff800001efb8b0
-[    0.617478] x29: ffff800001efb8c0 x28: 000000000000001b
-[    0.622829] x27: 0000000000000001 x26: 0000000000000000
-[    0.628181] x25: ffff800001efb9e8 x24: ffff000008a10000
-[    0.633531] x23: 0000000000000001 x22: 0000000000000001
-[    0.638881] x21: ffff000008724000 x20: 000000000000001b
-[    0.644230] x19: ffff0000080521e7 x18: 000000000000000d
-[    0.649580] x17: 00000000000038ff x16: 0000000000000002
-[    0.654929] x15: 0000000000000007 x14: 0000000000007fff
-[    0.660278] x13: ffffff0000000000 x12: 0000000000000018
-[    0.665627] x11: 000000001fffd200 x10: 00000000ffffff76
-[    0.670978] x9 : 000000000000005f x8 : ffff000008725fa8
-[    0.676328] x7 : ffff000008a8df70 x6 : ffff000008a8df70
-[    0.681679] x5 : ffff000008a8d000 x4 : 0000000000000010
-[    0.687027] x3 : 0000000000000010 x2 : 000000000000000c
-[    0.692378] x1 : 0000000000000006 x0 : 0000000000000000
-...
-[    1.262235] [<ffff0000083b8b10>] acpi_ns_lookup+0x520/0x734
-[    1.267845] [<ffff0000083a7160>] acpi_ds_load1_begin_op+0x174/0x4fc
-[    1.274156] [<ffff0000083c1f4c>] acpi_ps_build_named_op+0xf8/0x220
-[    1.280380] [<ffff0000083c227c>] acpi_ps_create_op+0x208/0x33c
-[    1.286254] [<ffff0000083c1820>] acpi_ps_parse_loop+0x204/0x838
-[    1.292215] [<ffff0000083c2fd4>] acpi_ps_parse_aml+0x1bc/0x42c
-[    1.298090] [<ffff0000083bc6e8>] acpi_ns_one_complete_parse+0x1e8/0x22c
-[    1.304753] [<ffff0000083bc7b8>] acpi_ns_parse_table+0x8c/0x128
-[    1.310716] [<ffff0000083bb8fc>] acpi_ns_load_table+0xc0/0x1e8
-[    1.316591] [<ffff0000083c9068>] acpi_tb_load_namespace+0xf8/0x2e8
-[    1.322818] [<ffff000008984128>] acpi_load_tables+0x7c/0x110
-[    1.328516] [<ffff000008982ea4>] acpi_init+0x90/0x2c0
-[    1.333603] [<ffff0000080819fc>] do_one_initcall+0x38/0x12c
-[    1.339215] [<ffff000008960cd4>] kernel_init_freeable+0x148/0x1ec
-[    1.345353] [<ffff0000086b7d30>] kernel_init+0x10/0xec
-[    1.350529] [<ffff000008084e10>] ret_from_fork+0x10/0x40
-[    1.355878] Code: b9009fbc 2a00037b 36380057 3219037b (b9400260)
-[    1.362035] ---[ end trace 03381e5eb0a24de4 ]---
-[    1.366691] Kernel panic - not syncing: Attempted to kill init! exitcode=
-=3D0x0000000b
+In the meantime I've realized the need to rewrite the x86 core stack
+walking code to something much more manageable so we don't need all
+these unwinders everywhere.  I'll probably post the patches in the next
+week or so.  I'll add you to the CC list.
 
-With 'efi=3Ddebug', we can see those ACPI regions loaded by firmware on
-that board as:
-[    0.000000] efi:   0x0083ff185000-0x0083ff1b4fff [Reserved           |  =
- |  |  |  |  |  |  |   |WB|WT|WC|UC]*
-[    0.000000] efi:   0x0083ff1b5000-0x0083ff1c2fff [ACPI Reclaim Memory|  =
- |  |  |  |  |  |  |   |WB|WT|WC|UC]*
-[    0.000000] efi:   0x0083ff223000-0x0083ff224fff [ACPI Memory NVS    |  =
- |  |  |  |  |  |  |   |WB|WT|WC|UC]*
+With the new interface I think you'll be able to do something like:
 
-Acked-by: Steve Capper <steve.capper@arm.com>
-Signed-off-by: Dennis Chen <dennis.chen@arm.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Pekka Enberg <penberg@kernel.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: Tony Luck <tony.luck@intel.com>
-Cc: Ingo Molnar <mingo@kernel.org>
-Cc: Rafael J. Wysocki <rafael@kernel.org>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: Mark Rutland <mark.rutland@arm.com>
-Cc: Matt Fleming <matt@codeblueprint.co.uk>
-Cc: Kaly Xin <kaly.xin@arm.com>
-Cc: linux-mm@kvack.org
-Cc: linux-acpi@vger.kernel.org
-Cc: linux-efi@vger.kernel.org
----
- arch/arm64/mm/init.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+	struct unwind_state;
 
-diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-index 7d25b4d..9482b45 100644
---- a/arch/arm64/mm/init.c
-+++ b/arch/arm64/mm/init.c
-@@ -226,7 +226,7 @@ void __init arm64_memblock_init(void)
- =09 * via the linear mapping.
- =09 */
- =09if (memory_limit !=3D (phys_addr_t)ULLONG_MAX) {
--=09=09memblock_enforce_memory_limit(memory_limit);
-+=09=09memblock_mem_limit_remove_map(memory_limit);
- =09=09memblock_add(__pa(_text), (u64)(_end - _text));
- =09}
-=20
---=20
-2.7.4
+	unwind_start(&state, current, NULL, NULL);
+	unwind_next_frame(&state);
+	oldframe = unwind_get_stack_pointer(&state);
+
+	unwind_next_frame(&state);
+	frame = unwind_get_stack_pointer(&state);
+
+	do {
+		if (obj + len <= frame)
+			return blah;
+		oldframe = frame;
+		frame = unwind_get_stack_pointer(&state);
+
+	} while (unwind_next_frame(&state);
+
+And then at the end there'll be some (still TBD) way to query whether it
+reached the last syscall pt_regs frame, or if it instead encountered a
+bogus frame pointer along the way and had to bail early.
+
+-- 
+Josh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
