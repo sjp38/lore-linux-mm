@@ -1,122 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 71AB56B0005
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 11:22:27 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id o80so58722681wme.1
-        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 08:22:27 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o64si34413421wmb.29.2016.07.14.08.22.26
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 974C66B025E
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 11:23:05 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id r65so169583559qkd.1
+        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 08:23:05 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u4si1436076ywa.451.2016.07.14.08.23.04
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 14 Jul 2016 08:22:26 -0700 (PDT)
-Subject: Re: [PATCH 3/4] mm, page_alloc: fix dirtyable highmem calculation
-References: <1468404004-5085-1-git-send-email-mgorman@techsingularity.net>
- <1468404004-5085-4-git-send-email-mgorman@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <1e5938cd-0e03-6cb9-4d5f-fee94fc1479e@suse.cz>
-Date: Thu, 14 Jul 2016 17:22:25 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 14 Jul 2016 08:23:04 -0700 (PDT)
+Subject: Re: System freezes after OOM
+References: <57837CEE.1010609@redhat.com>
+ <f80dc690-7e71-26b2-59a2-5a1557d26713@redhat.com>
+ <9be09452-de7f-d8be-fd5d-4a80d1cd1ba3@redhat.com>
+ <alpine.LRH.2.02.1607111027080.14327@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160712064905.GA14586@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1607121907160.24806@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160713111006.GF28723@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1607131021410.31769@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160714125129.GA12289@dhcp22.suse.cz>
+From: Ondrej Kozina <okozina@redhat.com>
+Message-ID: <740b17f0-e1bb-b021-e9e1-ad6dcf5f033a@redhat.com>
+Date: Thu, 14 Jul 2016 16:08:28 +0200
 MIME-Version: 1.0
-In-Reply-To: <1468404004-5085-4-git-send-email-mgorman@techsingularity.net>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <20160714125129.GA12289@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>, Mikulas Patocka <mpatocka@redhat.com>
+Cc: Jerome Marchand <jmarchan@redhat.com>, Stanislav Kozina <skozina@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dm-devel@redhat.com
 
-On 07/13/2016 12:00 PM, Mel Gorman wrote:
-> From: Minchan Kim <minchan@kernel.org>
+On 07/14/2016 02:51 PM, Michal Hocko wrote:
+> On Wed 13-07-16 11:02:15, Mikulas Patocka wrote:
+>> On Wed, 13 Jul 2016, Michal Hocko wrote:
+> [...]
 >
-> Note from Mel: This may optionally be considered a fix to the mmotm patch
-> 	mm-page_alloc-consider-dirtyable-memory-in-terms-of-nodes.patch
-> 	but if so, please preserve credit for Minchan.
+> We are discussing several topics together so let's focus on this
+> particlar thing for now
 >
-> When I tested vmscale in mmtest in 32bit, I found the benchmark was slow
-> down 0.5 times.
+>>>> The kernel 4.7-rc almost deadlocks in another way. The machine got stuck
+>>>> and the following stacktrace was obtained when swapping to dm-crypt.
+>>>>
+>>>> We can see that dm-crypt does a mempool allocation. But the mempool
+>>>> allocation somehow falls into throttle_vm_writeout. There, it waits for
+>>>> 0.1 seconds. So, as a result, the dm-crypt worker thread ends up
+>>>> processing requests at an unusually slow rate of 10 requests per second
+>>>> and it results in the machine being stuck (it would proabably recover if
+>>>> we waited for extreme amount of time).
+>>>
+>>> Hmm, that throttling is there since ever basically. I do not see what
+>>> would have changed that recently, but I haven't looked too close to be
+>>> honest.
+>>>
+>>> I agree that throttling a flusher (which this worker definitely is)
+>>> doesn't look like a correct thing to do. We have PF_LESS_THROTTLE for
+>>> this kind of things. So maybe the right thing to do is to use this flag
+>>> for the dm_crypt worker:
+>>>
+>>> diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
+>>> index 4f3cb3554944..0b806810efab 100644
+>>> --- a/drivers/md/dm-crypt.c
+>>> +++ b/drivers/md/dm-crypt.c
+>>> @@ -1392,11 +1392,14 @@ static void kcryptd_async_done(struct crypto_async_request *async_req,
+>>>  static void kcryptd_crypt(struct work_struct *work)
+>>>  {
+>>>  	struct dm_crypt_io *io = container_of(work, struct dm_crypt_io, work);
+>>> +	unsigned int pflags = current->flags;
+>>>
+>>> +	current->flags |= PF_LESS_THROTTLE;
+>>>  	if (bio_data_dir(io->base_bio) == READ)
+>>>  		kcryptd_crypt_read_convert(io);
+>>>  	else
+>>>  		kcryptd_crypt_write_convert(io);
+>>> +	tsk_restore_flags(current, pflags, PF_LESS_THROTTLE);
+>>>  }
+>>>
+>>>  static void kcryptd_queue_crypt(struct dm_crypt_io *io)
+>>
+>> ^^^ That fixes just one specific case - but there may be other threads
+>> doing mempool allocations in the device mapper subsystem - and you would
+>> need to mark all of them.
 >
->                 base        node
->                    1    global-1
-> User           12.98       16.04
-> System        147.61      166.42
-> Elapsed        26.48       38.08
+> Now that I am thinking about it some more. Are there any mempool users
+> which would actually want to be throttled? I would expect mempool users
+> are necessary to push IO through and throttle them sounds like a bad
+> decision in the first place but there might be other mempool users which
+> could cause issues. Anyway how about setting PF_LESS_THROTTLE
+> unconditionally inside mempool_alloc? Something like the following:
 >
-> With vmstat, I found IO wait avg is much increased compared to base.
->
-> The reason was highmem_dirtyable_memory accumulates free pages and
-> highmem_file_pages from HIGHMEM to MOVABLE zones which was wrong. With
-> that, dirth_thresh in throtlle_vm_write is always 0 so that it calls
-> congestion_wait frequently if writeback starts.
->
-> With this patch, it is much recovered.
->
->                 base        node          fi
->                    1    global-1         fix
-> User           12.98       16.04       13.78
-> System        147.61      166.42      143.92
-> Elapsed        26.48       38.08       29.64
->
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-Just some nitpicks:
-
-> ---
->  mm/page-writeback.c | 16 ++++++++++------
->  1 file changed, 10 insertions(+), 6 deletions(-)
->
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index 0bca2376bd42..7b41d1290783 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -307,27 +307,31 @@ static unsigned long highmem_dirtyable_memory(unsigned long total)
+> diff --git a/mm/mempool.c b/mm/mempool.c
+> index 8f65464da5de..e21fb632983f 100644
+> --- a/mm/mempool.c
+> +++ b/mm/mempool.c
+> @@ -310,7 +310,8 @@ EXPORT_SYMBOL(mempool_resize);
+>   */
+>  void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
 >  {
->  #ifdef CONFIG_HIGHMEM
->  	int node;
-> -	unsigned long x = 0;
-> +	unsigned long x;
->  	int i;
-> -	unsigned long dirtyable = atomic_read(&highmem_file_pages);
-> +	unsigned long dirtyable = 0;
-
-This wasn't necessary?
-
+> -	void *element;
+> +	unsigned int pflags = current->flags;
+> +	void *element = NULL;
+>  	unsigned long flags;
+>  	wait_queue_t wait;
+>  	gfp_t gfp_temp;
+> @@ -327,6 +328,12 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
 >
->  	for_each_node_state(node, N_HIGH_MEMORY) {
->  		for (i = ZONE_NORMAL + 1; i < MAX_NR_ZONES; i++) {
->  			struct zone *z;
-> +			unsigned long nr_pages;
+>  	gfp_temp = gfp_mask & ~(__GFP_DIRECT_RECLAIM|__GFP_IO);
 >
->  			if (!is_highmem_idx(i))
->  				continue;
+> +	/*
+> +	 * Make sure that the allocation doesn't get throttled during the
+> +	 * reclaim
+> +	 */
+> +	if (gfpflags_allow_blocking(gfp_mask))
+> +		current->flags |= PF_LESS_THROTTLE;
+>  repeat_alloc:
+>  	if (likely(pool->curr_nr)) {
+>  		/*
+> @@ -339,7 +346,7 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
 >
->  			z = &NODE_DATA(node)->node_zones[i];
-> -			dirtyable += zone_page_state(z, NR_FREE_PAGES);
-> +			if (!populated_zone(z))
-> +				continue;
+>  	element = pool->alloc(gfp_temp, pool->pool_data);
+>  	if (likely(element != NULL))
+> -		return element;
+> +		goto out;
 >
-> +			nr_pages = zone_page_state(z, NR_FREE_PAGES);
->  			/* watch for underflows */
-> -			dirtyable -= min(dirtyable, high_wmark_pages(z));
-> -
-> -			x += dirtyable;
-> +			nr_pages -= min(nr_pages, high_wmark_pages(z));
-> +			dirtyable += nr_pages;
->  		}
+>  	spin_lock_irqsave(&pool->lock, flags);
+>  	if (likely(pool->curr_nr)) {
+> @@ -352,7 +359,7 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
+>  		 * for debugging.
+>  		 */
+>  		kmemleak_update_trace(element);
+> -		return element;
+> +		goto out;
 >  	}
 >
-> +	x = dirtyable + atomic_read(&highmem_file_pages);
-
-And then this addition wouldn't be necessary. BTW I think we could also 
-ditch the "x" variable and just use the "dirtyable" for the rest of the 
-function.
-
-> +
 >  	/*
->  	 * Unreclaimable memory (kernel memory or anonymous memory
->  	 * without swap) can bring down the dirtyable pages below
+> @@ -369,7 +376,7 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
+>  	/* We must not sleep if !__GFP_DIRECT_RECLAIM */
+>  	if (!(gfp_mask & __GFP_DIRECT_RECLAIM)) {
+>  		spin_unlock_irqrestore(&pool->lock, flags);
+> -		return NULL;
+> +		goto out;
+>  	}
 >
+>  	/* Let's wait for someone else to return an element to @pool */
+> @@ -386,6 +393,10 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
+>
+>  	finish_wait(&pool->wait, &wait);
+>  	goto repeat_alloc;
+> +out:
+> +	if (gfpflags_allow_blocking(gfp_mask))
+> +		tsk_restore_flags(current, pflags, PF_LESS_THROTTLE);
+> +	return element;
+>  }
+>  EXPORT_SYMBOL(mempool_alloc);
+>
+>
+
+As Mikulas pointed out, this doesn't work. The system froze as well with 
+the patch above. Will try to tweak the patch with Mikulas's suggestion...
+
+O.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
