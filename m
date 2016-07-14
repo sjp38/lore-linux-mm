@@ -1,89 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 12ECD6B0005
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 11:08:28 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id f126so58552640wma.3
-        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 08:08:28 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 71AB56B0005
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 11:22:27 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id o80so58722681wme.1
+        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 08:22:27 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i130si2621450lfg.324.2016.07.14.08.08.26
+        by mx.google.com with ESMTPS id o64si34413421wmb.29.2016.07.14.08.22.26
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 14 Jul 2016 08:08:26 -0700 (PDT)
-Date: Thu, 14 Jul 2016 17:08:24 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: Unexpected growth of the LRU inactive list
-Message-ID: <20160714150824.GI13151@quack2.suse.cz>
-References: <d8e2130c-5a1c-bd6c-0f79-6b17bb6da645@polymtl.ca>
- <20160713131905.GA28731@dhcp22.suse.cz>
+        Thu, 14 Jul 2016 08:22:26 -0700 (PDT)
+Subject: Re: [PATCH 3/4] mm, page_alloc: fix dirtyable highmem calculation
+References: <1468404004-5085-1-git-send-email-mgorman@techsingularity.net>
+ <1468404004-5085-4-git-send-email-mgorman@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <1e5938cd-0e03-6cb9-4d5f-fee94fc1479e@suse.cz>
+Date: Thu, 14 Jul 2016 17:22:25 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160713131905.GA28731@dhcp22.suse.cz>
+In-Reply-To: <1468404004-5085-4-git-send-email-mgorman@techsingularity.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Houssem Daoud <houssem.daoud@polymtl.ca>, linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Theodore Ts'o <tytso@mit.edu>
+To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 13-07-16 15:19:05, Michal Hocko wrote:
-> [CC ext/jbd experts]
+On 07/13/2016 12:00 PM, Mel Gorman wrote:
+> From: Minchan Kim <minchan@kernel.org>
+>
+> Note from Mel: This may optionally be considered a fix to the mmotm patch
+> 	mm-page_alloc-consider-dirtyable-memory-in-terms-of-nodes.patch
+> 	but if so, please preserve credit for Minchan.
+>
+> When I tested vmscale in mmtest in 32bit, I found the benchmark was slow
+> down 0.5 times.
+>
+>                 base        node
+>                    1    global-1
+> User           12.98       16.04
+> System        147.61      166.42
+> Elapsed        26.48       38.08
+>
+> With vmstat, I found IO wait avg is much increased compared to base.
+>
+> The reason was highmem_dirtyable_memory accumulates free pages and
+> highmem_file_pages from HIGHMEM to MOVABLE zones which was wrong. With
+> that, dirth_thresh in throtlle_vm_write is always 0 so that it calls
+> congestion_wait frequently if writeback starts.
+>
+> With this patch, it is much recovered.
+>
+>                 base        node          fi
+>                    1    global-1         fix
+> User           12.98       16.04       13.78
+> System        147.61      166.42      143.92
+> Elapsed        26.48       38.08       29.64
+>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 
-Thanks.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-> On Wed 13-07-16 01:48:57, Houssem Daoud wrote:
-> > Hi,
-> > 
-> > I was testing the filesystem performance of my system using the following
-> > script:
-> > 
-> > #!/bin/bash
-> > while true;
-> > do
-> > dd if=/dev/zero of=output.dat  bs=100M count=1
-> > done
-> > 
-> > I noticed that after some time, all the physical memory is consumed by the
-> > LRU inactive list and only 120 MB are left to the system.
-> > /proc/meminfo shows the following information:
-> > MemTotal: 4021820 Kb
-> > MemFree: 121912 Kb
-> > Active: 1304396 Kb
-> > Inactive: 2377124 Kb
-> > 
-> > The evolution of memory utilization over time is available in this link:
-> > http://secretaire.dorsal.polymtl.ca/~hdaoud/ext4_journal_meminfo.png
-> > 
-> > With the help of a kernel tracer, I found that most of the pages in the
-> > inactive list are created by the ext4 journal during a truncate operation.
-> > The call stack of the allocation is:
-> > [
-> > __alloc_pages_nodemask
-> > alloc_pages_current
-> > __page_cache_alloc
-> > find_or_create_page
-> > __getblk
-> > jbd2_journal_get_descriptor_buffer
-> > jbd2_journal_commit_transaction
-> > kjournald2
-> > kthread
-> > ]
-> > 
-> > I can't find an explanation why the LRU is growing while we are just writing
-> > to the same file again and again. I know that the philosophy of memory
-> > management in Linux is to use the available memory as much as possible, but
-> > what is the need of keeping truncated pages in the LRU if we know that they
-> > are not even accessible ?
-> > 
-> > Thanks !
-> > 
-> > ps: My system is running kernel 4.3 with ext4 filesystem (journal mode)
+Just some nitpicks:
 
-This problem should be fixed by commit bc23f0c8d7cc "jbd2: Fix unreclaimed
-pages after truncate in data=journal mode" which was merged into 4.4.
+> ---
+>  mm/page-writeback.c | 16 ++++++++++------
+>  1 file changed, 10 insertions(+), 6 deletions(-)
+>
+> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> index 0bca2376bd42..7b41d1290783 100644
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -307,27 +307,31 @@ static unsigned long highmem_dirtyable_memory(unsigned long total)
+>  {
+>  #ifdef CONFIG_HIGHMEM
+>  	int node;
+> -	unsigned long x = 0;
+> +	unsigned long x;
+>  	int i;
+> -	unsigned long dirtyable = atomic_read(&highmem_file_pages);
+> +	unsigned long dirtyable = 0;
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+This wasn't necessary?
+
+>
+>  	for_each_node_state(node, N_HIGH_MEMORY) {
+>  		for (i = ZONE_NORMAL + 1; i < MAX_NR_ZONES; i++) {
+>  			struct zone *z;
+> +			unsigned long nr_pages;
+>
+>  			if (!is_highmem_idx(i))
+>  				continue;
+>
+>  			z = &NODE_DATA(node)->node_zones[i];
+> -			dirtyable += zone_page_state(z, NR_FREE_PAGES);
+> +			if (!populated_zone(z))
+> +				continue;
+>
+> +			nr_pages = zone_page_state(z, NR_FREE_PAGES);
+>  			/* watch for underflows */
+> -			dirtyable -= min(dirtyable, high_wmark_pages(z));
+> -
+> -			x += dirtyable;
+> +			nr_pages -= min(nr_pages, high_wmark_pages(z));
+> +			dirtyable += nr_pages;
+>  		}
+>  	}
+>
+> +	x = dirtyable + atomic_read(&highmem_file_pages);
+
+And then this addition wouldn't be necessary. BTW I think we could also 
+ditch the "x" variable and just use the "dirtyable" for the rest of the 
+function.
+
+> +
+>  	/*
+>  	 * Unreclaimable memory (kernel memory or anonymous memory
+>  	 * without swap) can bring down the dirtyable pages below
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
