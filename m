@@ -1,130 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 33C196B026D
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 17:38:36 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id l89so60679166lfi.3
-        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 14:38:36 -0700 (PDT)
-Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
-        by mx.google.com with ESMTPS id g76si460794wmg.106.2016.07.14.14.38.34
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A16446B026E
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 17:40:11 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e189so178856677pfa.2
+        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 14:40:11 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id k20si1784362pfg.177.2016.07.14.14.40.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Jul 2016 14:38:34 -0700 (PDT)
-Received: by mail-wm0-x232.google.com with SMTP id f126so4413938wma.1
-        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 14:38:34 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20160714192351.567fmaz2h4drrxrc@treble>
-References: <1468446964-22213-1-git-send-email-keescook@chromium.org>
- <1468446964-22213-2-git-send-email-keescook@chromium.org> <CALCETrVDJDjdoh7yvOPd=_5twQnzQRhe8G2KLaRw-NnA1Uf__g@mail.gmail.com>
- <CAGXu5jLPZiRJx8n3_7GW2bufiuUgE9=c6dQcNxDRPHMU72sD9g@mail.gmail.com>
- <20160714054842.6zal5rqawpgew26r@treble> <CAGXu5jLv_pMRqdaM72D_FTQzxoGxgcEqxpvUzqwgjOmZ8D-zSw@mail.gmail.com>
- <20160714192351.567fmaz2h4drrxrc@treble>
-From: Kees Cook <keescook@chromium.org>
-Date: Thu, 14 Jul 2016 14:38:33 -0700
-Message-ID: <CAGXu5jJuYDTZX7+tXCxvxdB0k4foO4z1yvejF8fjSWQMFVjksQ@mail.gmail.com>
-Subject: Re: [PATCH v2 01/11] mm: Implement stack frame object validation
-Content-Type: text/plain; charset=UTF-8
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 14 Jul 2016 14:40:10 -0700 (PDT)
+Subject: Re: System freezes after OOM
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20160713145638.GM28723@dhcp22.suse.cz>
+	<alpine.LRH.2.02.1607131105080.31769@file01.intranet.prod.int.rdu2.redhat.com>
+	<alpine.DEB.2.10.1607131644590.92037@chino.kir.corp.google.com>
+	<201607142001.BJD07258.SMOHFOJVtLFOQF@I-love.SAKURA.ne.jp>
+	<alpine.DEB.2.10.1607141324290.68666@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1607141324290.68666@chino.kir.corp.google.com>
+Message-Id: <201607150640.GEB78167.VOFSFHOLMtJOFQ@I-love.SAKURA.ne.jp>
+Date: Fri, 15 Jul 2016 06:40:04 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Andy Lutomirski <luto@amacapital.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, X86 ML <x86@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, sparclinux <sparclinux@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: rientjes@google.com
+Cc: mpatocka@redhat.com, mhocko@kernel.org, okozina@redhat.com, jmarchan@redhat.com, skozina@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Jul 14, 2016 at 12:23 PM, Josh Poimboeuf <jpoimboe@redhat.com> wrote:
-> On Thu, Jul 14, 2016 at 11:10:18AM -0700, Kees Cook wrote:
->> On Wed, Jul 13, 2016 at 10:48 PM, Josh Poimboeuf <jpoimboe@redhat.com> wrote:
->> > On Wed, Jul 13, 2016 at 03:04:26PM -0700, Kees Cook wrote:
->> >> On Wed, Jul 13, 2016 at 3:01 PM, Andy Lutomirski <luto@amacapital.net> wrote:
->> >> > On Wed, Jul 13, 2016 at 2:55 PM, Kees Cook <keescook@chromium.org> wrote:
->> >> >> This creates per-architecture function arch_within_stack_frames() that
->> >> >> should validate if a given object is contained by a kernel stack frame.
->> >> >> Initial implementation is on x86.
->> >> >>
->> >> >> This is based on code from PaX.
->> >> >>
->> >> >
->> >> > This, along with Josh's livepatch work, are two examples of unwinders
->> >> > that matter for correctness instead of just debugging.  ISTM this
->> >> > should just use Josh's code directly once it's been written.
->> >>
->> >> Do you have URL for Josh's code? I'd love to see what happening there.
->> >
->> > The code is actually going to be 100% different next time around, but
->> > FWIW, here's the last attempt:
->> >
->> >   https://lkml.kernel.org/r/4d34d452bf8f85c7d6d5f93db1d3eeb4cba335c7.1461875890.git.jpoimboe@redhat.com
->> >
->> > In the meantime I've realized the need to rewrite the x86 core stack
->> > walking code to something much more manageable so we don't need all
->> > these unwinders everywhere.  I'll probably post the patches in the next
->> > week or so.  I'll add you to the CC list.
->>
->> Awesome!
->>
->> > With the new interface I think you'll be able to do something like:
->> >
->> >         struct unwind_state;
->> >
->> >         unwind_start(&state, current, NULL, NULL);
->> >         unwind_next_frame(&state);
->> >         oldframe = unwind_get_stack_pointer(&state);
->> >
->> >         unwind_next_frame(&state);
->> >         frame = unwind_get_stack_pointer(&state);
->> >
->> >         do {
->> >                 if (obj + len <= frame)
->> >                         return blah;
->> >                 oldframe = frame;
->> >                 frame = unwind_get_stack_pointer(&state);
->> >
->> >         } while (unwind_next_frame(&state);
->> >
->> > And then at the end there'll be some (still TBD) way to query whether it
->> > reached the last syscall pt_regs frame, or if it instead encountered a
->> > bogus frame pointer along the way and had to bail early.
->>
->> Sounds good to me. Will there be any frame size information available?
->> Right now, the unwinder from PaX just drops 2 pointers (saved frame,
->> saved ip) from the delta of frame address to find the size of the
->> actual stack area used by the function. If I could shave things like
->> padding and possible stack canaries off the size too, that would be
->> great.
->
-> For x86, stacks are aligned at long word boundaries, so there's no real
-> stack padding.
+David Rientjes wrote:
+> On Thu, 14 Jul 2016, Tetsuo Handa wrote:
+> 
+> > David Rientjes wrote:
+> > > On Wed, 13 Jul 2016, Mikulas Patocka wrote:
+> > > 
+> > > > What are the real problems that f9054c70d28bc214b2857cf8db8269f4f45a5e23 
+> > > > tries to fix?
+> > > > 
+> > > 
+> > > It prevents the whole system from livelocking due to an oom killed process 
+> > > stalling forever waiting for mempool_alloc() to return.  No other threads 
+> > > may be oom killed while waiting for it to exit.
+> > 
+> > Is that concern still valid? We have the OOM reaper for CONFIG_MMU=y case.
+> > 
+> 
+> Umm, show me an explicit guarantee where the oom reaper will free memory 
+> such that other threads may return memory to this process's mempool so it 
+> can make forward progress in mempool_alloc() without the need of utilizing 
+> memory reserves.  First, it might be helpful to show that the oom reaper 
+> is ever guaranteed to free any memory for a selected oom victim.
+> 
 
-Well, I guess I meant the possible padding between variables and the
-aligned pointers, but that's a really minor concern in my mind (as far
-as being a potential kernel memory exposure on a bad usercopy).
+Whether the OOM reaper will free some memory no longer matters. Instead,
+whether the OOM reaper will let the OOM killer select next OOM victim matters.
 
-> Also the CC_STACKPROTECTOR stack canaries are created by a gcc feature
-> which only affects certain functions (and thus certain frames) and I
-> don't know of any reliable way to find them.
-
-Okay, that's fine. I had a horrible idea to just have the unwinder
-look at the value stored in front of the saved ip, and if it matches
-the known canary (for current anyway), then reduce the frame size by
-another long word. ;)
-
-> So with frame pointers, I think the best you can do is just assume that
-> the frame data area is always two words smaller than the total frame
-> size.
-
-Yeah, that's what's happening here currently. Cool.
-
->> Since I'm aiming the hardened usercopy series for 4.8, I figure I'll
->> just leave this unwinder in for now, and once yours lands, I can rip
->> it out again.
->
-> Sure, sounds fine to me.  If your code lands before I post mine, I can
-> convert it myself.
-
-Awesome, I'll keep you posted. Thanks!
-
--Kees
-
--- 
-Kees Cook
-Chrome OS & Brillo Security
+Are you aware that the OOM reaper will let the OOM killer select next OOM
+victim (currently by clearing TIF_MEMDIE)? Clearing TIF_MEMDIE in 4.6 occurred
+only when OOM reaping succeeded. But we are going to change the OOM reaper
+always clear TIF_MEMDIE in 4.8 (or presumably change the OOM killer not to
+depend on TIF_MEMDIE) so that the OOM reaper guarantees that the OOM killer
+always selects next OOM victim.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
