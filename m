@@ -1,45 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9329A6B025F
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 15:27:32 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id g18so59172390lfg.2
-        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 12:27:32 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id b193si33761181wmb.13.2016.07.14.12.27.31
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C5C96B0005
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 16:02:03 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 63so174538320pfx.3
+        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 13:02:03 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id cz10si4516279pad.214.2016.07.14.13.02.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Jul 2016 12:27:31 -0700 (PDT)
-Date: Thu, 14 Jul 2016 15:24:45 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 2/4] mm: Fix memcg stack accounting for sub-page stacks
-Message-ID: <20160714192445.GB13522@cmpxchg.org>
-References: <cover.1468523549.git.luto@kernel.org>
- <9b5314e3ee5eda61b0317ec1563768602c1ef438.1468523549.git.luto@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <9b5314e3ee5eda61b0317ec1563768602c1ef438.1468523549.git.luto@kernel.org>
+        Thu, 14 Jul 2016 13:02:02 -0700 (PDT)
+Date: Thu, 14 Jul 2016 13:02:01 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [linux-next:master 9661/9894] arch/x86/xen/enlighten.c:1328:2:
+ note: in expansion of macro 'if'
+Message-Id: <20160714130201.672b5735eff170758756d60a@linux-foundation.org>
+In-Reply-To: <201607141941.aof4pvNe%fengguang.wu@intel.com>
+References: <201607141941.aof4pvNe%fengguang.wu@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, linux-kernel@vger.kernel.org, Brian Gerst <brgerst@gmail.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: kbuild-all@01.org, Petr Tesarik <ptesarik@suse.com>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Thu, Jul 14, 2016 at 12:14:11PM -0700, Andy Lutomirski wrote:
-> We should account for stacks regardless of stack size, and we need
-> to account in sub-page units if THREAD_SIZE < PAGE_SIZE.  Change the
-> units to kilobytes and Move it into account_kernel_stack().
+On Thu, 14 Jul 2016 19:39:43 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+
+> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+> head:   fd8d43a58dacbbde8beaaecbeaed7bd8bdbe6859
+> commit: 01eff0378a46a33a1252f9a3a4817263e16f52c0 [9661/9894] kexec: allow kdump with crash_kexec_post_notifiers
+> config: x86_64-randconfig-i0-201628 (attached as .config)
+> compiler: gcc-6 (Debian 6.1.1-1) 6.1.1 20160430
+> reproduce:
+>         git checkout 01eff0378a46a33a1252f9a3a4817263e16f52c0
+>         # save the attached .config to linux build tree
+>         make ARCH=x86_64 
 > 
-> Fixes: 12580e4b54ba8 ("mm: memcontrol: report kernel stack usage in cgroup2 memory.stat")
-> Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: linux-mm@kvack.org
-> Reviewed-by: Josh Poimboeuf <jpoimboe@redhat.com>
-> Reviewed-by: Vladimir Davydov <vdavydov@virtuozzo.com>
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> Signed-off-by: Andy Lutomirski <luto@kernel.org>
+> All warnings (new ones prefixed by >>):
+> 
+>    In file included from include/linux/ioport.h:12:0,
+>                     from include/linux/device.h:16,
+>                     from include/linux/node.h:17,
+>                     from include/linux/cpu.h:16,
+>                     from arch/x86/xen/enlighten.c:14:
+>    arch/x86/xen/enlighten.c: In function 'xen_panic_event':
+>    arch/x86/xen/enlighten.c:1328:7: error: implicit declaration of function 'kexec_crash_loaded' [-Werror=implicit-function-declaration]
+>      if (!kexec_crash_loaded())
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+--- a/arch/x86/xen/enlighten.c~allow-kdump-with-crash_kexec_post_notifiers-fix
++++ a/arch/x86/xen/enlighten.c
+@@ -34,9 +34,7 @@
+ #include <linux/edd.h>
+ #include <linux/frame.h>
+ 
+-#ifdef CONFIG_KEXEC_CORE
+ #include <linux/kexec.h>
+-#endif
+ 
+ #include <xen/xen.h>
+ #include <xen/events.h>
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
