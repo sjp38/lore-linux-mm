@@ -1,73 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B0226B025F
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 04:32:14 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id p41so48437088lfi.0
-        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 01:32:14 -0700 (PDT)
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 163296B025F
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 04:51:58 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id g18so48708201lfg.2
+        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 01:51:58 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fw9si1283368wjb.14.2016.07.14.01.32.12
+        by mx.google.com with ESMTPS id p12si1850253wma.2.2016.07.14.01.51.56
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 14 Jul 2016 01:32:12 -0700 (PDT)
-Subject: Re: [PATCH 08/31] mm, vmscan: simplify the logic deciding whether
- kswapd sleeps
-References: <1467403299-25786-1-git-send-email-mgorman@techsingularity.net>
- <1467403299-25786-9-git-send-email-mgorman@techsingularity.net>
- <20160707012038.GB27987@js1304-P5Q-DELUXE>
- <20160707101701.GR11498@techsingularity.net>
- <20160708024447.GB2370@js1304-P5Q-DELUXE>
- <20160708101147.GD11498@techsingularity.net>
- <20160714052332.GA29676@js1304-P5Q-DELUXE>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <5b6b1490-1dbc-74fc-e129-947141a1bee3@suse.cz>
-Date: Thu, 14 Jul 2016 10:32:09 +0200
+        Thu, 14 Jul 2016 01:51:56 -0700 (PDT)
+Date: Thu, 14 Jul 2016 09:51:53 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: fix pgalloc_stall on unpopulated zone
+Message-ID: <20160714085153.GL11400@suse.de>
+References: <1468376653-26561-1-git-send-email-minchan@kernel.org>
+ <20160713092504.GJ11400@suse.de>
+ <20160714011119.GA23512@bbox>
 MIME-Version: 1.0
-In-Reply-To: <20160714052332.GA29676@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20160714011119.GA23512@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 07/14/2016 07:23 AM, Joonsoo Kim wrote:
-> On Fri, Jul 08, 2016 at 11:11:47AM +0100, Mel Gorman wrote:
->> On Fri, Jul 08, 2016 at 11:44:47AM +0900, Joonsoo Kim wrote:
->>
->> It doesn't stop reclaiming for the lower zones. It's reclaiming the LRU
->> for the whole node that may or may not have lower zone pages at the end
->> of the LRU. If it does, then the allocation request will be satisfied.
->> If it does not, then kswapd will think the node is balanced and get
->> rewoken to do a zone-constrained reclaim pass.
->
-> If zone-constrained request could go direct reclaim pass, there would
-> be no problem. But, please assume that request is zone-constrained
-> without __GFP_DIRECT_RECLAIM which is common for some device driver
-> implementation. And, please assume one more thing that this request
-> always comes with zone-unconstrained allocation request. In this case,
-> your max() logic will set kswapd_classzone_idx to highest zone index
-> and re-worken kswapd would not balance for low zone again. In the end,
-> zone-constrained allocation request without __GFP_DIRECT_RECLAIM could
-> fail.
+On Thu, Jul 14, 2016 at 10:11:19AM +0900, Minchan Kim wrote:
+> > The patch means that the vmstat accounting and tracepoint data is also
+> > out of sync. One thing I wanted to be able to do was
+> > 
+> > 1. Observe that there are alloc stalls on DMA32 or some other low zone
+> > 2. Activate mm_vmscan_direct_reclaim_begin, filter on classzone_idx ==
+> >    DMA32 and identify the source of the lowmem allocations
+> > 
+> > If your patch is applied, I cannot depend on the stall stats any more
+> > and the tracepoint is required to determine if there really any
+> > zone-contrained allocations. It can be *inferred* from the skip stats
+> > but only if such skips occurred and that is not guaranteed.
+> 
+> Just a nit:
+> 
+> Hmm, can't we omit classzone_idx in mm_vm_scan_direct_begin_template?
+> Because every functions already have gfp_flags so that we can classzone_idx
+> via gfp_zone(gfp_flags) without passing it.
+> 
 
-I don't think there's a problem in the scenario? Kswapd will keep being 
-woken up and reclaim from the node lru. It will hit and free any low 
-zone pages that are on the lru, even though it doesn't "balance for low 
-zone". Eventually it will either satisfy the constrained allocation by 
-reclaiming those low-zone pages during the repeated wakeups, or the 
-low-zone wakeups will stop coming together with higher-zone wakeups and 
-then it will reclaim the low-zone pages in a single low-zone wakeup. If 
-the zone-constrained request is not allowed to fail, then it will just 
-keep waking up kswapd and waiting for the progress. If it's allowed to 
-fail (i.e. not __GFP_NOFAIL), but not allowed to direct reclaim, it goes 
-"goto nopage" rather quickly in __alloc_pages_slowpath(), without any 
-waiting for kswapd's progress, so there's not really much difference 
-whether the kswapd wakeup picked up a low classzone or not. Note the 
-__GFP_NOFAIL but ~__GFP_DIRECT_RECLAIM is a WARN_ON_ONCE() scenario, so 
-definitely not common...
+We could but it's potentially wrong. classzone_idx *should* be derived
+from the gfp_flags but it's possible a bug would lead it to be another
+value. The saving from passing it in is marginal at best.
 
-> Thanks.
->
+If it's omitted from the tracepoint itself, there is a small amount of
+disk saving which is potentially significant if there is a lot of direct
+reclaim. Unfortunately, it also makes it harder to filter that
+tracepoint because the filter rules must be an implementation of
+gfp_zone.
+
+Right now I believe the saving is marginal and the cost of potentially
+using the wrong information or making the filtering harder offsets that
+marginal saving.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
