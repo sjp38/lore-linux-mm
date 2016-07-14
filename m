@@ -1,113 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 119596B0005
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 15:24:03 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id j65so94180206vkb.2
-        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 12:24:03 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w20si1658173ybg.85.2016.07.14.12.24.01
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D4126B025F
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 15:25:27 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id l89so59115383lfi.3
+        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 12:25:27 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id h11si3364894wmd.58.2016.07.14.12.25.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Jul 2016 12:24:02 -0700 (PDT)
-Date: Thu, 14 Jul 2016 14:23:51 -0500
-From: Josh Poimboeuf <jpoimboe@redhat.com>
-Subject: Re: [PATCH v2 01/11] mm: Implement stack frame object validation
-Message-ID: <20160714192351.567fmaz2h4drrxrc@treble>
-References: <1468446964-22213-1-git-send-email-keescook@chromium.org>
- <1468446964-22213-2-git-send-email-keescook@chromium.org>
- <CALCETrVDJDjdoh7yvOPd=_5twQnzQRhe8G2KLaRw-NnA1Uf__g@mail.gmail.com>
- <CAGXu5jLPZiRJx8n3_7GW2bufiuUgE9=c6dQcNxDRPHMU72sD9g@mail.gmail.com>
- <20160714054842.6zal5rqawpgew26r@treble>
- <CAGXu5jLv_pMRqdaM72D_FTQzxoGxgcEqxpvUzqwgjOmZ8D-zSw@mail.gmail.com>
+        Thu, 14 Jul 2016 12:25:26 -0700 (PDT)
+Date: Thu, 14 Jul 2016 15:22:37 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/4] mm: Track NR_KERNEL_STACK in KiB instead of number
+ of stacks
+Message-ID: <20160714192237.GA13522@cmpxchg.org>
+References: <cover.1468523549.git.luto@kernel.org>
+ <083c71e642c5fa5f1b6898902e1b2db7b48940d4.1468523549.git.luto@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAGXu5jLv_pMRqdaM72D_FTQzxoGxgcEqxpvUzqwgjOmZ8D-zSw@mail.gmail.com>
+In-Reply-To: <083c71e642c5fa5f1b6898902e1b2db7b48940d4.1468523549.git.luto@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Andy Lutomirski <luto@amacapital.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, X86 ML <x86@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, sparclinux <sparclinux@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org, linux-kernel@vger.kernel.org, Brian Gerst <brgerst@gmail.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
 
-On Thu, Jul 14, 2016 at 11:10:18AM -0700, Kees Cook wrote:
-> On Wed, Jul 13, 2016 at 10:48 PM, Josh Poimboeuf <jpoimboe@redhat.com> wrote:
-> > On Wed, Jul 13, 2016 at 03:04:26PM -0700, Kees Cook wrote:
-> >> On Wed, Jul 13, 2016 at 3:01 PM, Andy Lutomirski <luto@amacapital.net> wrote:
-> >> > On Wed, Jul 13, 2016 at 2:55 PM, Kees Cook <keescook@chromium.org> wrote:
-> >> >> This creates per-architecture function arch_within_stack_frames() that
-> >> >> should validate if a given object is contained by a kernel stack frame.
-> >> >> Initial implementation is on x86.
-> >> >>
-> >> >> This is based on code from PaX.
-> >> >>
-> >> >
-> >> > This, along with Josh's livepatch work, are two examples of unwinders
-> >> > that matter for correctness instead of just debugging.  ISTM this
-> >> > should just use Josh's code directly once it's been written.
-> >>
-> >> Do you have URL for Josh's code? I'd love to see what happening there.
-> >
-> > The code is actually going to be 100% different next time around, but
-> > FWIW, here's the last attempt:
-> >
-> >   https://lkml.kernel.org/r/4d34d452bf8f85c7d6d5f93db1d3eeb4cba335c7.1461875890.git.jpoimboe@redhat.com
-> >
-> > In the meantime I've realized the need to rewrite the x86 core stack
-> > walking code to something much more manageable so we don't need all
-> > these unwinders everywhere.  I'll probably post the patches in the next
-> > week or so.  I'll add you to the CC list.
+On Thu, Jul 14, 2016 at 12:14:10PM -0700, Andy Lutomirski wrote:
+> Currently, NR_KERNEL_STACK tracks the number of kernel stacks in a
+> zone.  This only makes sense if each kernel stack exists entirely in
+> one zone, and allowing vmapped stacks could break this assumption.
 > 
-> Awesome!
+> Since frv has THREAD_SIZE < PAGE_SIZE, we need to track kernel stack
+> allocations in a unit that divides both THREAD_SIZE and PAGE_SIZE on
+> all architectures.  Keep it simple and use KiB.
 > 
-> > With the new interface I think you'll be able to do something like:
-> >
-> >         struct unwind_state;
-> >
-> >         unwind_start(&state, current, NULL, NULL);
-> >         unwind_next_frame(&state);
-> >         oldframe = unwind_get_stack_pointer(&state);
-> >
-> >         unwind_next_frame(&state);
-> >         frame = unwind_get_stack_pointer(&state);
-> >
-> >         do {
-> >                 if (obj + len <= frame)
-> >                         return blah;
-> >                 oldframe = frame;
-> >                 frame = unwind_get_stack_pointer(&state);
-> >
-> >         } while (unwind_next_frame(&state);
-> >
-> > And then at the end there'll be some (still TBD) way to query whether it
-> > reached the last syscall pt_regs frame, or if it instead encountered a
-> > bogus frame pointer along the way and had to bail early.
-> 
-> Sounds good to me. Will there be any frame size information available?
-> Right now, the unwinder from PaX just drops 2 pointers (saved frame,
-> saved ip) from the delta of frame address to find the size of the
-> actual stack area used by the function. If I could shave things like
-> padding and possible stack canaries off the size too, that would be
-> great.
+> Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: linux-mm@kvack.org
+> Reviewed-by: Josh Poimboeuf <jpoimboe@redhat.com>
+> Reviewed-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> Signed-off-by: Andy Lutomirski <luto@kernel.org>
 
-For x86, stacks are aligned at long word boundaries, so there's no real
-stack padding.
-
-Also the CC_STACKPROTECTOR stack canaries are created by a gcc feature
-which only affects certain functions (and thus certain frames) and I
-don't know of any reliable way to find them.
-
-So with frame pointers, I think the best you can do is just assume that
-the frame data area is always two words smaller than the total frame
-size.
-
-> Since I'm aiming the hardened usercopy series for 4.8, I figure I'll
-> just leave this unwinder in for now, and once yours lands, I can rip
-> it out again.
-
-Sure, sounds fine to me.  If your code lands before I post mine, I can
-convert it myself.
-
--- 
-Josh
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
