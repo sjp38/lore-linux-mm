@@ -1,191 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id ABC106B0005
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 00:25:48 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id e189so132376915pfa.2
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 21:25:48 -0700 (PDT)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id v9si557856paz.272.2016.07.13.21.25.47
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Jul 2016 21:25:47 -0700 (PDT)
-Received: by mail-pf0-x242.google.com with SMTP id i6so3847560pfe.0
-        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 21:25:47 -0700 (PDT)
-Date: Thu, 14 Jul 2016 14:25:36 +1000
-From: Balbir Singh <bsingharora@gmail.com>
-Subject: [RESEND][v2][PATCH] KVM: PPC: Book3S HV: Migrate pinned pages out of
- CMA
-Message-ID: <20160714042536.GG18277@balbir.ozlabs.ibm.com>
-Reply-To: bsingharora@gmail.com
+Received: from mail-ob0-f200.google.com (mail-ob0-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 148436B0005
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 01:19:42 -0400 (EDT)
+Received: by mail-ob0-f200.google.com with SMTP id lm2so128651393obb.3
+        for <linux-mm@kvack.org>; Wed, 13 Jul 2016 22:19:42 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id g13si772673ote.291.2016.07.13.22.19.40
+        for <linux-mm@kvack.org>;
+        Wed, 13 Jul 2016 22:19:41 -0700 (PDT)
+Date: Thu, 14 Jul 2016 14:23:32 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 08/31] mm, vmscan: simplify the logic deciding whether
+ kswapd sleeps
+Message-ID: <20160714052332.GA29676@js1304-P5Q-DELUXE>
+References: <1467403299-25786-1-git-send-email-mgorman@techsingularity.net>
+ <1467403299-25786-9-git-send-email-mgorman@techsingularity.net>
+ <20160707012038.GB27987@js1304-P5Q-DELUXE>
+ <20160707101701.GR11498@techsingularity.net>
+ <20160708024447.GB2370@js1304-P5Q-DELUXE>
+ <20160708101147.GD11498@techsingularity.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20160708101147.GD11498@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, kvm@vger.kernel.org
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Alexey Kardashevskiy <aik@ozlabs.ru>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
+On Fri, Jul 08, 2016 at 11:11:47AM +0100, Mel Gorman wrote:
+> On Fri, Jul 08, 2016 at 11:44:47AM +0900, Joonsoo Kim wrote:
+> > > > > @@ -3390,12 +3386,24 @@ static int kswapd(void *p)
+> > > > >  		 * We can speed up thawing tasks if we don't call balance_pgdat
+> > > > >  		 * after returning from the refrigerator
+> > > > >  		 */
+> > > > > -		if (!ret) {
+> > > > > -			trace_mm_vmscan_kswapd_wake(pgdat->node_id, order);
+> > > > > +		if (ret)
+> > > > > +			continue;
+> > > > >  
+> > > > > -			/* return value ignored until next patch */
+> > > > > -			balance_pgdat(pgdat, order, classzone_idx);
+> > > > > -		}
+> > > > > +		/*
+> > > > > +		 * Reclaim begins at the requested order but if a high-order
+> > > > > +		 * reclaim fails then kswapd falls back to reclaiming for
+> > > > > +		 * order-0. If that happens, kswapd will consider sleeping
+> > > > > +		 * for the order it finished reclaiming at (reclaim_order)
+> > > > > +		 * but kcompactd is woken to compact for the original
+> > > > > +		 * request (alloc_order).
+> > > > > +		 */
+> > > > > +		trace_mm_vmscan_kswapd_wake(pgdat->node_id, alloc_order);
+> > > > > +		reclaim_order = balance_pgdat(pgdat, alloc_order, classzone_idx);
+> > > > > +		if (reclaim_order < alloc_order)
+> > > > > +			goto kswapd_try_sleep;
+> > > > 
+> > > > This 'goto' would cause kswapd to sleep prematurely. We need to check
+> > > > *new* pgdat->kswapd_order and classzone_idx even in this case.
+> > > > 
+> > > 
+> > > It only matters if the next request coming is also high-order requests but
+> > > one thing that needs to be avoided is kswapd staying awake periods of time
+> > > constantly reclaiming for high-order pages. This is why the check means
+> > > "If we reclaimed for high-order and failed, then consider sleeping now".
+> > > If allocations still require it, they direct reclaim instead.
+> > 
+> > But, assume that next request is zone-constrained allocation. We need
+> > to balance memory for it but kswapd would skip it.
+> > 
+> 
+> Then it'll also be woken up again in the very near future as the
+> zone-constrained allocation. If the zone is at the min watermark, then
+> it'll have direct reclaimed but between min and low, it'll be a simple
+> wakeup.
+> 
+> The premature sleep, wakeup with new requests logic was a complete mess.
+> However, what I did do is remove the -1 handling of kswapd_classzone_idx
+> handling and the goto full-sleep. In the event of a premature wakeup,
+> it'll recheck for wakeups and if none has occured, it'll use the old
+> classzone information.
+> 
+> Note that it will *not* use the original allocation order if it's a
+> premature sleep. This is because it's known that high-order reclaim
+> failed in the near past and restarting it has a high risk of
+> overreclaiming.
+> 
+> > > > And, I'd like to know why max() is used for classzone_idx rather than
+> > > > min()? I think that kswapd should balance the lowest zone requested.
+> > > > 
+> > > 
+> > > If there are two allocation requests -- one zone-constraned and the other
+> > > zone-unconstrained, it does not make sense to have kswapd skip the pages
+> > > usable for the zone-unconstrained and waste a load of CPU. You could
+> > 
+> > I agree that, in this case, it's not good to skip the pages usable
+> > for the zone-unconstrained request. But, what I am concerned is that
+> > kswapd stop reclaim prematurely in the view of zone-constrained
+> > requestor.
+> 
+> It doesn't stop reclaiming for the lower zones. It's reclaiming the LRU
+> for the whole node that may or may not have lower zone pages at the end
+> of the LRU. If it does, then the allocation request will be satisfied.
+> If it does not, then kswapd will think the node is balanced and get
+> rewoken to do a zone-constrained reclaim pass.
 
-From: Balbir Singh <bsingharora@gmail.com>
-Subject: [RESEND][v2][PATCH] KVM: PPC: Book3S HV: Migrate pinned pages out of CMA
+If zone-constrained request could go direct reclaim pass, there would
+be no problem. But, please assume that request is zone-constrained
+without __GFP_DIRECT_RECLAIM which is common for some device driver
+implementation. And, please assume one more thing that this request
+always comes with zone-unconstrained allocation request. In this case,
+your max() logic will set kswapd_classzone_idx to highest zone index
+and re-worken kswapd would not balance for low zone again. In the end,
+zone-constrained allocation request without __GFP_DIRECT_RECLAIM could
+fail.
 
-When PCI Device pass-through is enabled via VFIO, KVM-PPC will
-pin pages using get_user_pages_fast(). One of the downsides of
-the pinning is that the page could be in CMA region. The CMA
-region is used for other allocations like the hash page table.
-Ideally we want the pinned pages to be from non CMA region.
-
-This patch (currently only for KVM PPC with VFIO) forcefully
-migrates the pages out (huge pages are omitted for the moment).
-There are more efficient ways of doing this, but that might
-be elaborate and might impact a larger audience beyond just
-the kvm ppc implementation.
-
-The magic is in new_iommu_non_cma_page() which allocates the
-new page from a non CMA region.
-
-I've tested the patches lightly at my end, but there might be bugs
-For example if after lru_add_drain(), the page is not isolated
-is this a BUG?
-
-Previous discussion was at
-http://permalink.gmane.org/gmane.linux.kernel.mm/136738
-
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Paul Mackerras <paulus@ozlabs.org>
-Cc: Alexey Kardashevskiy <aik@ozlabs.ru>
-
-Signed-off-by: Balbir Singh <bsingharora@gmail.com>
----
- arch/powerpc/include/asm/mmu_context.h |  1 +
- arch/powerpc/mm/mmu_context_iommu.c    | 80 ++++++++++++++++++++++++++++++++--
- 2 files changed, 77 insertions(+), 4 deletions(-)
-
-diff --git a/arch/powerpc/include/asm/mmu_context.h b/arch/powerpc/include/asm/mmu_context.h
-index 9d2cd0c..475d1be 100644
---- a/arch/powerpc/include/asm/mmu_context.h
-+++ b/arch/powerpc/include/asm/mmu_context.h
-@@ -18,6 +18,7 @@ extern void destroy_context(struct mm_struct *mm);
- #ifdef CONFIG_SPAPR_TCE_IOMMU
- struct mm_iommu_table_group_mem_t;
- 
-+extern int isolate_lru_page(struct page *page);	/* from internal.h */
- extern bool mm_iommu_preregistered(void);
- extern long mm_iommu_get(unsigned long ua, unsigned long entries,
- 		struct mm_iommu_table_group_mem_t **pmem);
-diff --git a/arch/powerpc/mm/mmu_context_iommu.c b/arch/powerpc/mm/mmu_context_iommu.c
-index da6a216..c18f742 100644
---- a/arch/powerpc/mm/mmu_context_iommu.c
-+++ b/arch/powerpc/mm/mmu_context_iommu.c
-@@ -15,6 +15,9 @@
- #include <linux/rculist.h>
- #include <linux/vmalloc.h>
- #include <linux/mutex.h>
-+#include <linux/migrate.h>
-+#include <linux/hugetlb.h>
-+#include <linux/swap.h>
- #include <asm/mmu_context.h>
- 
- static DEFINE_MUTEX(mem_list_mutex);
-@@ -72,6 +75,54 @@ bool mm_iommu_preregistered(void)
- }
- EXPORT_SYMBOL_GPL(mm_iommu_preregistered);
- 
-+/*
-+ * Taken from alloc_migrate_target with changes to remove CMA allocations
-+ */
-+struct page *new_iommu_non_cma_page(struct page *page, unsigned long private,
-+					int **resultp)
-+{
-+	gfp_t gfp_mask = GFP_USER;
-+	struct page *new_page;
-+
-+	if (PageHuge(page) || PageTransHuge(page) || PageCompound(page))
-+		return NULL;
-+
-+	if (PageHighMem(page))
-+		gfp_mask |= __GFP_HIGHMEM;
-+
-+	/*
-+	 * We don't want the allocation to force an OOM if possibe
-+	 */
-+	new_page = alloc_page(gfp_mask | __GFP_NORETRY | __GFP_NOWARN);
-+	return new_page;
-+}
-+
-+static int mm_iommu_move_page_from_cma(struct page *page)
-+{
-+	int ret;
-+	LIST_HEAD(cma_migrate_pages);
-+
-+	/* Ignore huge pages for now */
-+	if (PageHuge(page) || PageTransHuge(page) || PageCompound(page))
-+		return -EBUSY;
-+
-+	lru_add_drain();
-+	ret = isolate_lru_page(page);
-+	if (ret)
-+		get_page(page); /* Potential BUG? */
-+
-+	list_add(&page->lru, &cma_migrate_pages);
-+	put_page(page); /* Drop the gup reference */
-+
-+	ret = migrate_pages(&cma_migrate_pages, new_iommu_non_cma_page,
-+				NULL, 0, MIGRATE_SYNC, MR_CMA);
-+	if (ret) {
-+		if (!list_empty(&cma_migrate_pages))
-+			putback_movable_pages(&cma_migrate_pages);
-+	}
-+	return 0;
-+}
-+
- long mm_iommu_get(unsigned long ua, unsigned long entries,
- 		struct mm_iommu_table_group_mem_t **pmem)
- {
-@@ -124,15 +175,36 @@ long mm_iommu_get(unsigned long ua, unsigned long entries,
- 	for (i = 0; i < entries; ++i) {
- 		if (1 != get_user_pages_fast(ua + (i << PAGE_SHIFT),
- 					1/* pages */, 1/* iswrite */, &page)) {
-+			ret = -EFAULT;
- 			for (j = 0; j < i; ++j)
--				put_page(pfn_to_page(
--						mem->hpas[j] >> PAGE_SHIFT));
-+				put_page(pfn_to_page(mem->hpas[j] >>
-+						PAGE_SHIFT));
- 			vfree(mem->hpas);
- 			kfree(mem);
--			ret = -EFAULT;
- 			goto unlock_exit;
- 		}
--
-+		/*
-+		 * If we get a page from the CMA zone, since we are going to
-+		 * be pinning these entries, we might as well move them out
-+		 * of the CMA zone if possible. NOTE: faulting in + migration
-+		 * can be expensive. Batching can be considered later
-+		 */
-+		if (get_pageblock_migratetype(page) == MIGRATE_CMA) {
-+			if (mm_iommu_move_page_from_cma(page))
-+				goto populate;
-+			if (1 != get_user_pages_fast(ua + (i << PAGE_SHIFT),
-+						1/* pages */, 1/* iswrite */,
-+						&page)) {
-+				ret = -EFAULT;
-+				for (j = 0; j < i; ++j)
-+					put_page(pfn_to_page(mem->hpas[j] >>
-+								PAGE_SHIFT));
-+				vfree(mem->hpas);
-+				kfree(mem);
-+				goto unlock_exit;
-+			}
-+		}
-+populate:
- 		mem->hpas[i] = page_to_pfn(page) << PAGE_SHIFT;
- 	}
- 
--- 
-2.5.5
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
