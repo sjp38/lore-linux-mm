@@ -1,65 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C8AA6B0261
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 09:47:03 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id p41so53652123lfi.0
-        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 06:47:03 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 78si9688206wms.98.2016.07.14.06.47.02
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CAFA6B0005
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 10:00:20 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id a123so162810949qkd.2
+        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 07:00:20 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w145si1229311yww.121.2016.07.14.07.00.19
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 14 Jul 2016 06:47:02 -0700 (PDT)
-Subject: Re: [PATCH 4/4] x86: use pte_none() to test for empty PTE
-References: <20160708001909.FB2443E2@viggo.jf.intel.com>
- <20160708001915.813703D9@viggo.jf.intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <71d7b63a-45dd-c72d-a277-03124b0053ae@suse.cz>
-Date: Thu, 14 Jul 2016 15:47:00 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 14 Jul 2016 07:00:19 -0700 (PDT)
+Date: Thu, 14 Jul 2016 10:00:16 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: System freezes after OOM
+In-Reply-To: <20160714125129.GA12289@dhcp22.suse.cz>
+Message-ID: <alpine.LRH.2.02.1607140952550.1102@file01.intranet.prod.int.rdu2.redhat.com>
+References: <57837CEE.1010609@redhat.com> <f80dc690-7e71-26b2-59a2-5a1557d26713@redhat.com> <9be09452-de7f-d8be-fd5d-4a80d1cd1ba3@redhat.com> <alpine.LRH.2.02.1607111027080.14327@file01.intranet.prod.int.rdu2.redhat.com> <20160712064905.GA14586@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1607121907160.24806@file01.intranet.prod.int.rdu2.redhat.com> <20160713111006.GF28723@dhcp22.suse.cz> <alpine.LRH.2.02.1607131021410.31769@file01.intranet.prod.int.rdu2.redhat.com> <20160714125129.GA12289@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20160708001915.813703D9@viggo.jf.intel.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>, linux-kernel@vger.kernel.org
-Cc: x86@kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, bp@alien8.de, ak@linux.intel.com, mhocko@suse.com, dave.hansen@intel.com, dave.hansen@linux.intel.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Ondrej Kozina <okozina@redhat.com>, Jerome Marchand <jmarchan@redhat.com>, Stanislav Kozina <skozina@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dm-devel@redhat.com
 
-On 07/08/2016 02:19 AM, Dave Hansen wrote:
-> From: Dave Hansen <dave.hansen@linux.intel.com>
+
+
+On Thu, 14 Jul 2016, Michal Hocko wrote:
+
+> On Wed 13-07-16 11:02:15, Mikulas Patocka wrote:
+
+> > > diff --git a/drivers/md/dm-crypt.c b/drivers/md/dm-crypt.c
+> > > index 4f3cb3554944..0b806810efab 100644
+> > > --- a/drivers/md/dm-crypt.c
+> > > +++ b/drivers/md/dm-crypt.c
+> > > @@ -1392,11 +1392,14 @@ static void kcryptd_async_done(struct crypto_async_request *async_req,
+> > >  static void kcryptd_crypt(struct work_struct *work)
+> > >  {
+> > >  	struct dm_crypt_io *io = container_of(work, struct dm_crypt_io, work);
+> > > +	unsigned int pflags = current->flags;
+> > >  
+> > > +	current->flags |= PF_LESS_THROTTLE;
+> > >  	if (bio_data_dir(io->base_bio) == READ)
+> > >  		kcryptd_crypt_read_convert(io);
+> > >  	else
+> > >  		kcryptd_crypt_write_convert(io);
+> > > +	tsk_restore_flags(current, pflags, PF_LESS_THROTTLE);
+> > >  }
+> > >  
+> > >  static void kcryptd_queue_crypt(struct dm_crypt_io *io)
+> > 
+> > ^^^ That fixes just one specific case - but there may be other threads 
+> > doing mempool allocations in the device mapper subsystem - and you would 
+> > need to mark all of them.
+> 
+> Now that I am thinking about it some more. Are there any mempool users
+> which would actually want to be throttled? I would expect mempool users
+> are necessary to push IO through and throttle them sounds like a bad
+> decision in the first place but there might be other mempool users which
+> could cause issues. Anyway how about setting PF_LESS_THROTTLE
+> unconditionally inside mempool_alloc? Something like the following:
 >
-> The page table manipulation code seems to have grown a couple of
-> sites that are looking for empty PTEs.  Just in case one of these
-> entries got a stray bit set, use pte_none() instead of checking
-> for a zero pte_val().
->
-> The use pte_same() makes me a bit nervous.  If we were doing a
-> pte_same() check against two cleared entries and one of them had
-> a stray bit set, it might fail the pte_same() check.  But, I
-> don't think we ever _do_ pte_same() for cleared entries.  It is
-> almost entirely used for checking for races in fault-in paths.
->
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> diff --git a/mm/mempool.c b/mm/mempool.c
+> index 8f65464da5de..e21fb632983f 100644
+> --- a/mm/mempool.c
+> +++ b/mm/mempool.c
+> @@ -310,7 +310,8 @@ EXPORT_SYMBOL(mempool_resize);
+>   */
+>  void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
+>  {
+> -	void *element;
+> +	unsigned int pflags = current->flags;
+> +	void *element = NULL;
+>  	unsigned long flags;
+>  	wait_queue_t wait;
+>  	gfp_t gfp_temp;
+> @@ -327,6 +328,12 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
+>  
+>  	gfp_temp = gfp_mask & ~(__GFP_DIRECT_RECLAIM|__GFP_IO);
+>  
+> +	/*
+> +	 * Make sure that the allocation doesn't get throttled during the
+> +	 * reclaim
+> +	 */
+> +	if (gfpflags_allow_blocking(gfp_mask))
+> +		current->flags |= PF_LESS_THROTTLE;
+>  repeat_alloc:
+>  	if (likely(pool->curr_nr)) {
+>  		/*
+> @@ -339,7 +346,7 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
+>  
+>  	element = pool->alloc(gfp_temp, pool->pool_data);
+>  	if (likely(element != NULL))
+> -		return element;
+> +		goto out;
+>  
+>  	spin_lock_irqsave(&pool->lock, flags);
+>  	if (likely(pool->curr_nr)) {
+> @@ -352,7 +359,7 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
+>  		 * for debugging.
+>  		 */
+>  		kmemleak_update_trace(element);
+> -		return element;
+> +		goto out;
+>  	}
+>  
+>  	/*
+> @@ -369,7 +376,7 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
+>  	/* We must not sleep if !__GFP_DIRECT_RECLAIM */
+>  	if (!(gfp_mask & __GFP_DIRECT_RECLAIM)) {
+>  		spin_unlock_irqrestore(&pool->lock, flags);
+> -		return NULL;
+> +		goto out;
+>  	}
+>  
+>  	/* Let's wait for someone else to return an element to @pool */
+> @@ -386,6 +393,10 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
+>  
+>  	finish_wait(&pool->wait, &wait);
+>  	goto repeat_alloc;
+> +out:
+> +	if (gfpflags_allow_blocking(gfp_mask))
+> +		tsk_restore_flags(current, pflags, PF_LESS_THROTTLE);
+> +	return element;
+>  }
+>  EXPORT_SYMBOL(mempool_alloc);
+>  
 
-So, this might be just because I know next to nothing about (para)virt, 
-but...
+But it needs other changes to honor the PF_LESS_THROTTLE flag:
 
-in arch/x86/include/asm/paravirt.h, pte_val is implemented via some 
-pvops, which suggests that obtaining a pte value is different than just 
-reading it from memory. But I don't see pte_none() defined to be using 
-this on paravirt, and it shares (before patch 2/4) the "return !pte.pte" 
-implementation, AFAICS?
+static int current_may_throttle(void)
+{
+        return !(current->flags & PF_LESS_THROTTLE) ||
+                current->backing_dev_info == NULL ||
+                bdi_write_congested(current->backing_dev_info);
+}
+--- if you set PF_LESS_THROTTLE, current_may_throttle may still return 
+true if one of the other conditions is met.
 
-So that itself is suspicious to me. And now that this patches does 
-things like this:
+shrink_zone_memcg calls throttle_vm_writeout without checking 
+PF_LESS_THROTTLE at all.
 
--              if (pte_val(*pte)) {
-+              if (!pte_none(*pte)) {
-
-So previously on paravirt these tests would read pte via the pvops, and 
-now they won't. Is that OK?
-
-Thanks,
-Vlastimil
+Mikulas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
