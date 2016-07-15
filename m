@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C4226828E4
-	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 17:44:43 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id p64so241570106pfb.0
-        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 14:44:43 -0700 (PDT)
-Received: from mail-pf0-x22e.google.com (mail-pf0-x22e.google.com. [2607:f8b0:400e:c00::22e])
-        by mx.google.com with ESMTPS id h2si11070824pax.194.2016.07.15.14.44.35
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C80C4828E4
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 17:44:45 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 63so241845408pfx.3
+        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 14:44:45 -0700 (PDT)
+Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com. [2607:f8b0:400e:c03::234])
+        by mx.google.com with ESMTPS id u3si11107035pay.67.2016.07.15.14.44.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 15 Jul 2016 14:44:35 -0700 (PDT)
-Received: by mail-pf0-x22e.google.com with SMTP id y134so18758285pfg.0
+Received: by mail-pa0-x234.google.com with SMTP id ks6so42721589pab.0
         for <linux-mm@kvack.org>; Fri, 15 Jul 2016 14:44:35 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH v3 03/11] x86/uaccess: Enable hardened usercopy
-Date: Fri, 15 Jul 2016 14:44:17 -0700
-Message-Id: <1468619065-3222-4-git-send-email-keescook@chromium.org>
+Subject: [PATCH v3 06/11] ia64/uaccess: Enable hardened usercopy
+Date: Fri, 15 Jul 2016 14:44:20 -0700
+Message-Id: <1468619065-3222-7-git-send-email-keescook@chromium.org>
 In-Reply-To: <1468619065-3222-1-git-send-email-keescook@chromium.org>
 References: <1468619065-3222-1-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,109 +22,78 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Kees Cook <keescook@chromium.org>, Balbir Singh <bsingharora@gmail.com>, Daniel Micay <danielmicay@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Rik van Riel <riel@redhat.com>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, x86@kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
-Enables CONFIG_HARDENED_USERCOPY checks on x86. This is done both in
-copy_*_user() and __copy_*_user() because copy_*_user() actually calls
-down to _copy_*_user() and not __copy_*_user().
+Enables CONFIG_HARDENED_USERCOPY checks on ia64.
 
 Based on code from PaX and grsecurity.
 
 Signed-off-by: Kees Cook <keescook@chromium.org>
-Tested-By: Valdis Kletnieks <valdis.kletnieks@vt.edu>
 ---
- arch/x86/Kconfig                  |  2 ++
- arch/x86/include/asm/uaccess.h    | 10 ++++++----
- arch/x86/include/asm/uaccess_32.h |  2 ++
- arch/x86/include/asm/uaccess_64.h |  2 ++
- 4 files changed, 12 insertions(+), 4 deletions(-)
+ arch/ia64/Kconfig               |  1 +
+ arch/ia64/include/asm/uaccess.h | 18 +++++++++++++++---
+ 2 files changed, 16 insertions(+), 3 deletions(-)
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 4407f596b72c..39d89e058249 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -80,11 +80,13 @@ config X86
- 	select HAVE_ALIGNED_STRUCT_PAGE		if SLUB
- 	select HAVE_AOUT			if X86_32
+diff --git a/arch/ia64/Kconfig b/arch/ia64/Kconfig
+index f80758cb7157..32a87ef516a0 100644
+--- a/arch/ia64/Kconfig
++++ b/arch/ia64/Kconfig
+@@ -53,6 +53,7 @@ config IA64
+ 	select MODULES_USE_ELF_RELA
+ 	select ARCH_USE_CMPXCHG_LOCKREF
  	select HAVE_ARCH_AUDITSYSCALL
 +	select HAVE_ARCH_HARDENED_USERCOPY
- 	select HAVE_ARCH_HUGE_VMAP		if X86_64 || X86_PAE
- 	select HAVE_ARCH_JUMP_LABEL
- 	select HAVE_ARCH_KASAN			if X86_64 && SPARSEMEM_VMEMMAP
- 	select HAVE_ARCH_KGDB
- 	select HAVE_ARCH_KMEMCHECK
-+	select HAVE_ARCH_LINEAR_KERNEL_MAPPING	if X86_64
- 	select HAVE_ARCH_MMAP_RND_BITS		if MMU
- 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS	if MMU && COMPAT
- 	select HAVE_ARCH_SECCOMP_FILTER
-diff --git a/arch/x86/include/asm/uaccess.h b/arch/x86/include/asm/uaccess.h
-index 2982387ba817..d3312f0fcdfc 100644
---- a/arch/x86/include/asm/uaccess.h
-+++ b/arch/x86/include/asm/uaccess.h
-@@ -742,9 +742,10 @@ copy_from_user(void *to, const void __user *from, unsigned long n)
- 	 * case, and do only runtime checking for non-constant sizes.
- 	 */
- 
--	if (likely(sz < 0 || sz >= n))
-+	if (likely(sz < 0 || sz >= n)) {
-+		check_object_size(to, n, false);
- 		n = _copy_from_user(to, from, n);
--	else if(__builtin_constant_p(n))
-+	} else if (__builtin_constant_p(n))
- 		copy_from_user_overflow();
- 	else
- 		__copy_from_user_overflow(sz, n);
-@@ -762,9 +763,10 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
- 	might_fault();
- 
- 	/* See the comment in copy_from_user() above. */
--	if (likely(sz < 0 || sz >= n))
-+	if (likely(sz < 0 || sz >= n)) {
-+		check_object_size(from, n, true);
- 		n = _copy_to_user(to, from, n);
--	else if(__builtin_constant_p(n))
-+	} else if (__builtin_constant_p(n))
- 		copy_to_user_overflow();
- 	else
- 		__copy_to_user_overflow(sz, n);
-diff --git a/arch/x86/include/asm/uaccess_32.h b/arch/x86/include/asm/uaccess_32.h
-index 4b32da24faaf..7d3bdd1ed697 100644
---- a/arch/x86/include/asm/uaccess_32.h
-+++ b/arch/x86/include/asm/uaccess_32.h
-@@ -37,6 +37,7 @@ unsigned long __must_check __copy_from_user_ll_nocache_nozero
- static __always_inline unsigned long __must_check
- __copy_to_user_inatomic(void __user *to, const void *from, unsigned long n)
+ 	default y
+ 	help
+ 	  The Itanium Processor Family is Intel's 64-bit successor to
+diff --git a/arch/ia64/include/asm/uaccess.h b/arch/ia64/include/asm/uaccess.h
+index 2189d5ddc1ee..465c70982f40 100644
+--- a/arch/ia64/include/asm/uaccess.h
++++ b/arch/ia64/include/asm/uaccess.h
+@@ -241,12 +241,18 @@ extern unsigned long __must_check __copy_user (void __user *to, const void __use
+ static inline unsigned long
+ __copy_to_user (void __user *to, const void *from, unsigned long count)
  {
-+	check_object_size(from, n, true);
- 	return __copy_to_user_ll(to, from, n);
++	if (!__builtin_constant_p(count))
++		check_object_size(from, count, true);
++
+ 	return __copy_user(to, (__force void __user *) from, count);
  }
  
-@@ -95,6 +96,7 @@ static __always_inline unsigned long
- __copy_from_user(void *to, const void __user *from, unsigned long n)
+ static inline unsigned long
+ __copy_from_user (void *to, const void __user *from, unsigned long count)
  {
- 	might_fault();
-+	check_object_size(to, n, false);
- 	if (__builtin_constant_p(n)) {
- 		unsigned long ret;
++	if (!__builtin_constant_p(count))
++		check_object_size(to, count, false);
++
+ 	return __copy_user((__force void __user *) to, from, count);
+ }
  
-diff --git a/arch/x86/include/asm/uaccess_64.h b/arch/x86/include/asm/uaccess_64.h
-index 2eac2aa3e37f..673059a109fe 100644
---- a/arch/x86/include/asm/uaccess_64.h
-+++ b/arch/x86/include/asm/uaccess_64.h
-@@ -54,6 +54,7 @@ int __copy_from_user_nocheck(void *dst, const void __user *src, unsigned size)
- {
- 	int ret = 0;
+@@ -258,8 +264,11 @@ __copy_from_user (void *to, const void __user *from, unsigned long count)
+ 	const void *__cu_from = (from);							\
+ 	long __cu_len = (n);								\
+ 											\
+-	if (__access_ok(__cu_to, __cu_len, get_fs()))					\
+-		__cu_len = __copy_user(__cu_to, (__force void __user *) __cu_from, __cu_len);	\
++	if (__access_ok(__cu_to, __cu_len, get_fs())) {					\
++		if (!__builtin_constant_p(n))						\
++			check_object_size(__cu_from, __cu_len, true);			\
++		__cu_len = __copy_user(__cu_to, (__force void __user *)  __cu_from, __cu_len);	\
++	}										\
+ 	__cu_len;									\
+ })
  
-+	check_object_size(dst, size, false);
- 	if (!__builtin_constant_p(size))
- 		return copy_user_generic(dst, (__force void *)src, size);
- 	switch (size) {
-@@ -119,6 +120,7 @@ int __copy_to_user_nocheck(void __user *dst, const void *src, unsigned size)
- {
- 	int ret = 0;
+@@ -270,8 +279,11 @@ __copy_from_user (void *to, const void __user *from, unsigned long count)
+ 	long __cu_len = (n);								\
+ 											\
+ 	__chk_user_ptr(__cu_from);							\
+-	if (__access_ok(__cu_from, __cu_len, get_fs()))					\
++	if (__access_ok(__cu_from, __cu_len, get_fs())) {				\
++		if (!__builtin_constant_p(n))						\
++			check_object_size(__cu_to, __cu_len, false);			\
+ 		__cu_len = __copy_user((__force void __user *) __cu_to, __cu_from, __cu_len);	\
++	}										\
+ 	__cu_len;									\
+ })
  
-+	check_object_size(src, size, true);
- 	if (!__builtin_constant_p(size))
- 		return copy_user_generic((__force void *)dst, src, size);
- 	switch (size) {
 -- 
 2.7.4
 
