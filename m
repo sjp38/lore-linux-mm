@@ -1,59 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AF9416B0005
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 22:06:10 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id ez1so67603080pab.0
-        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 19:06:10 -0700 (PDT)
-Received: from mail-pa0-x244.google.com (mail-pa0-x244.google.com. [2607:f8b0:400e:c03::244])
-        by mx.google.com with ESMTPS id 80si5903547pfv.7.2016.07.14.19.06.09
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 92CEE6B0005
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 22:48:44 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id u186so20203121ita.0
+        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 19:48:44 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id o39si5035581oik.149.2016.07.14.19.48.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Jul 2016 19:06:09 -0700 (PDT)
-Received: by mail-pa0-x244.google.com with SMTP id hh10so5384813pac.1
-        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 19:06:09 -0700 (PDT)
-Date: Fri, 15 Jul 2016 12:05:50 +1000
-From: Balbir Singh <bsingharora@gmail.com>
-Subject: Re: [PATCH v2 11/11] mm: SLUB hardened usercopy support
-Message-ID: <20160715020550.GB13944@balbir.ozlabs.ibm.com>
-Reply-To: bsingharora@gmail.com
-References: <1468446964-22213-1-git-send-email-keescook@chromium.org>
- <1468446964-22213-12-git-send-email-keescook@chromium.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 14 Jul 2016 19:48:43 -0700 (PDT)
+Message-ID: <57884EAA.9030603@huawei.com>
+Date: Fri, 15 Jul 2016 10:47:06 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1468446964-22213-12-git-send-email-keescook@chromium.org>
+Subject: [PATCH 1/2] mem-hotplug: use GFP_HIGHUSER_MOVABLE in, alloc_migrate_target()
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, x86@kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
+To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Jul 13, 2016 at 02:56:04PM -0700, Kees Cook wrote:
-> Under CONFIG_HARDENED_USERCOPY, this adds object size checking to the
-> SLUB allocator to catch any copies that may span objects. Includes a
-> redzone handling fix from Michael Ellerman.
-> 
-> Based on code from PaX and grsecurity.
-> 
-> Signed-off-by: Kees Cook <keescook@chromium.org>
-> ---
->  init/Kconfig |  1 +
->  mm/slub.c    | 36 ++++++++++++++++++++++++++++++++++++
->  2 files changed, 37 insertions(+)
-> 
-> diff --git a/init/Kconfig b/init/Kconfig
-> index 798c2020ee7c..1c4711819dfd 100644
-> --- a/init/Kconfig
-> +++ b/init/Kconfig
-> @@ -1765,6 +1765,7 @@ config SLAB
->  
->  config SLUB
->  	bool "SLUB (Unqueued Allocator)"
-> +	select HAVE_HARDENED_USERCOPY_ALLOCATOR
+alloc_migrate_target() is called from migrate_pages(), and the page
+is always from user space, so we can add __GFP_HIGHMEM directly.
 
-Should this patch come in earlier from a build perspective? I think
-patch 1 introduces and uses __check_heap_object.
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+---
+ mm/page_isolation.c | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)
 
-Balbir Singh.
+diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+index 612122b..4f32c9f 100644
+--- a/mm/page_isolation.c
++++ b/mm/page_isolation.c
+@@ -282,8 +282,6 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
+ struct page *alloc_migrate_target(struct page *page, unsigned long private,
+ 				  int **resultp)
+ {
+-	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
+-
+ 	/*
+ 	 * TODO: allocate a destination hugepage from a nearest neighbor node,
+ 	 * accordance with memory policy of the user process if possible. For
+@@ -293,9 +291,6 @@ struct page *alloc_migrate_target(struct page *page, unsigned long private,
+ 		return alloc_huge_page_node(page_hstate(compound_head(page)),
+ 					    next_node_in(page_to_nid(page),
+ 							 node_online_map));
+-
+-	if (PageHighMem(page))
+-		gfp_mask |= __GFP_HIGHMEM;
+-
+-	return alloc_page(gfp_mask);
++	else
++		return alloc_page(GFP_HIGHUSER_MOVABLE);
+ }
+-- 
+1.8.3.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
