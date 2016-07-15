@@ -1,181 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BB7FD6B025F
-	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 14:28:24 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id f126so21136866wma.3
-        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 11:28:24 -0700 (PDT)
-Received: from mx0b-000f0801.pphosted.com (mx0b-000f0801.pphosted.com. [2620:100:9005:71::1])
-        by mx.google.com with ESMTPS id o131si6583404wma.118.2016.07.15.11.28.23
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B7F66B025F
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 14:43:48 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e189so232889966pfa.2
+        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 11:43:48 -0700 (PDT)
+Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
+        by mx.google.com with ESMTPS id s25si3130406pfj.297.2016.07.15.11.43.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Jul 2016 11:28:23 -0700 (PDT)
-From: "Charles (Chas) Williams" <ciwillia@brocade.com>
-Subject: [PATCH 3.10.y 04/12] x86/mm: Add barriers and document switch_mm()-vs-flush synchronization
-Date: Fri, 15 Jul 2016 14:26:26 -0400
-Message-ID: <1468607194-3879-4-git-send-email-ciwillia@brocade.com>
-In-Reply-To: <1468607194-3879-1-git-send-email-ciwillia@brocade.com>
-References: <1468607194-3879-1-git-send-email-ciwillia@brocade.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        Fri, 15 Jul 2016 11:43:47 -0700 (PDT)
+Received: by mail-pf0-x243.google.com with SMTP id t190so6761586pfb.2
+        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 11:43:47 -0700 (PDT)
+Content-Type: text/plain; charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 9.3 \(3124\))
+Subject: Re: [PATCH] x86/mm: Change barriers before TLB flushes to smp_mb__after_atomic
+From: Nadav Amit <nadav.amit@gmail.com>
+In-Reply-To: <CALCETrUVmuXNpmFwe54iHjKsYmJEn4WSJ0RDO44V=mFMBwyuow@mail.gmail.com>
+Date: Fri, 15 Jul 2016 11:43:45 -0700
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <EE4EBF32-0C5C-4112-B158-FDA6B8801421@gmail.com>
+References: <1464405413-7209-1-git-send-email-namit@vmware.com> <CALCETrUVmuXNpmFwe54iHjKsYmJEn4WSJ0RDO44V=mFMBwyuow@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: stable@vger.kernel.org
-Cc: Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H.
- Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Luis Henriques <luis.henriques@canonical.com>, "Charles
- (Chas) Williams" <ciwillia@brocade.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Nadav Amit <namit@vmware.com>, X86 ML <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andy Lutomirski <luto@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Jerome Marchand <jmarchan@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, Andy Lutomirski <luto@amacapital.net>
 
-From: Andy Lutomirski <luto@kernel.org>
+Andy Lutomirski <luto@amacapital.net> wrote:
 
-commit 71b3c126e61177eb693423f2e18a1914205b165e upstream.
+> On Fri, May 27, 2016 at 8:16 PM, Nadav Amit <namit@vmware.com> wrote:
+>> When (current->active_mm !=3D mm), flush_tlb_page() does not perform =
+a
+>> memory barrier. In practice, this memory barrier is not needed since =
+in
+>> the existing call-sites the PTE is modified using atomic-operations.
+>> This patch therefore modifies the existing smp_mb in flush_tlb_page =
+to
+>> smp_mb__after_atomic and adds the missing one, while documenting the =
+new
+>> assumption of flush_tlb_page.
+>>=20
+>> In addition smp_mb__after_atomic is also added to
+>> set_tlb_ubc_flush_pending, since it makes a similar implicit =
+assumption
+>> and omits the memory barrier.
+>>=20
+>> Signed-off-by: Nadav Amit <namit@vmware.com>
+>> ---
+>> arch/x86/mm/tlb.c | 9 ++++++++-
+>> mm/rmap.c         | 3 +++
+>> 2 files changed, 11 insertions(+), 1 deletion(-)
+>>=20
+>> diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+>> index fe9b9f7..2534333 100644
+>> --- a/arch/x86/mm/tlb.c
+>> +++ b/arch/x86/mm/tlb.c
+>> @@ -242,6 +242,10 @@ out:
+>>        preempt_enable();
+>> }
+>>=20
+>> +/*
+>> + * Calls to flush_tlb_page must be preceded by atomic PTE change or
+>> + * explicit memory-barrier.
+>> + */
+>> void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)
+>> {
+>>        struct mm_struct *mm =3D vma->vm_mm;
+>> @@ -259,8 +263,11 @@ void flush_tlb_page(struct vm_area_struct *vma, =
+unsigned long start)
+>>                        leave_mm(smp_processor_id());
+>>=20
+>>                        /* Synchronize with switch_mm. */
+>> -                       smp_mb();
+>> +                       smp_mb__after_atomic();
+>>                }
+>> +       } else {
+>> +               /* Synchronize with switch_mm. */
+>> +               smp_mb__after_atomic();
+>>        }
+>>=20
+>>        if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < =
+nr_cpu_ids)
+>> diff --git a/mm/rmap.c b/mm/rmap.c
+>> index 307b555..60ab0fe 100644
+>> --- a/mm/rmap.c
+>> +++ b/mm/rmap.c
+>> @@ -613,6 +613,9 @@ static void set_tlb_ubc_flush_pending(struct =
+mm_struct *mm,
+>> {
+>>        struct tlbflush_unmap_batch *tlb_ubc =3D &current->tlb_ubc;
+>>=20
+>> +       /* Synchronize with switch_mm. */
+>> +       smp_mb__after_atomic();
+>> +
+>>        cpumask_or(&tlb_ubc->cpumask, &tlb_ubc->cpumask, =
+mm_cpumask(mm));
+>>        tlb_ubc->flush_required =3D true;
+>>=20
+>> --
+>> 2.7.4
+>=20
+> This looks fine for x86, but I have no idea whether other
+> architectures are okay with it.  akpm?  mm folks?
 
-When switch_mm() activates a new PGD, it also sets a bit that
-tells other CPUs that the PGD is in use so that TLB flush IPIs
-will be sent.  In order for that to work correctly, the bit
-needs to be visible prior to loading the PGD and therefore
-starting to fill the local TLB.
+Ping?
 
-Document all the barriers that make this work correctly and add
-a couple that were missing.
+Note that this patch adds two missing barriers.
 
-CVE-2016-2069
+Thanks,
+Nadav
 
-Signed-off-by: Andy Lutomirski <luto@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-mm@kvack.org
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-[ luis: backported to 3.16:
-  - dropped N/A comment in flush_tlb_mm_range()
-  - adjusted context ]
-Signed-off-by: Luis Henriques <luis.henriques@canonical.com>
-[ciwillia@brocade.com: backported to 3.10: adjusted context]
-Signed-off-by: Charles (Chas) Williams <ciwillia@brocade.com>
----
- arch/x86/include/asm/mmu_context.h | 32 +++++++++++++++++++++++++++++++-
- arch/x86/mm/tlb.c                  | 24 +++++++++++++++++++++---
- 2 files changed, 52 insertions(+), 4 deletions(-)
 
-diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-index be12c53..c0d2f6b 100644
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -42,7 +42,32 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
- #endif
- 		cpumask_set_cpu(cpu, mm_cpumask(next));
- 
--		/* Re-load page tables */
-+		/*
-+		 * Re-load page tables.
-+		 *
-+		 * This logic has an ordering constraint:
-+		 *
-+		 *  CPU 0: Write to a PTE for 'next'
-+		 *  CPU 0: load bit 1 in mm_cpumask.  if nonzero, send IPI.
-+		 *  CPU 1: set bit 1 in next's mm_cpumask
-+		 *  CPU 1: load from the PTE that CPU 0 writes (implicit)
-+		 *
-+		 * We need to prevent an outcome in which CPU 1 observes
-+		 * the new PTE value and CPU 0 observes bit 1 clear in
-+		 * mm_cpumask.  (If that occurs, then the IPI will never
-+		 * be sent, and CPU 0's TLB will contain a stale entry.)
-+		 *
-+		 * The bad outcome can occur if either CPU's load is
-+		 * reordered before that CPU's store, so both CPUs much
-+		 * execute full barriers to prevent this from happening.
-+		 *
-+		 * Thus, switch_mm needs a full barrier between the
-+		 * store to mm_cpumask and any operation that could load
-+		 * from next->pgd.  This barrier synchronizes with
-+		 * remote TLB flushers.  Fortunately, load_cr3 is
-+		 * serializing and thus acts as a full barrier.
-+		 *
-+		 */
- 		load_cr3(next->pgd);
- 
- 		/* Stop flush ipis for the previous mm */
-@@ -65,10 +90,15 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
- 			 * schedule, protecting us from simultaneous changes.
- 			 */
- 			cpumask_set_cpu(cpu, mm_cpumask(next));
-+
- 			/*
- 			 * We were in lazy tlb mode and leave_mm disabled
- 			 * tlb flush IPI delivery. We must reload CR3
- 			 * to make sure to use no freed page tables.
-+			 *
-+			 * As above, this is a barrier that forces
-+			 * TLB repopulation to be ordered after the
-+			 * store to mm_cpumask.
- 			 */
- 			load_cr3(next->pgd);
- 			load_LDT_nolock(&next->context);
-diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index 282375f..c26b610 100644
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -149,7 +149,9 @@ void flush_tlb_current_task(void)
- 
- 	preempt_disable();
- 
-+	/* This is an implicit full barrier that synchronizes with switch_mm. */
- 	local_flush_tlb();
-+
- 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
- 		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
- 	preempt_enable();
-@@ -188,11 +190,19 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
- 	unsigned act_entries, tlb_entries = 0;
- 
- 	preempt_disable();
--	if (current->active_mm != mm)
-+	if (current->active_mm != mm) {
-+		/* Synchronize with switch_mm. */
-+		smp_mb();
-+
- 		goto flush_all;
-+	}
- 
- 	if (!current->mm) {
- 		leave_mm(smp_processor_id());
-+
-+		/* Synchronize with switch_mm. */
-+		smp_mb();
-+
- 		goto flush_all;
- 	}
- 
-@@ -242,10 +252,18 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)
- 	preempt_disable();
- 
- 	if (current->active_mm == mm) {
--		if (current->mm)
-+		if (current->mm) {
-+			/*
-+			 * Implicit full barrier (INVLPG) that synchronizes
-+			 * with switch_mm.
-+			 */
- 			__flush_tlb_one(start);
--		else
-+		} else {
- 			leave_mm(smp_processor_id());
-+
-+			/* Synchronize with switch_mm. */
-+			smp_mb();
-+		}
- 	}
- 
- 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
--- 
-2.5.5
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
