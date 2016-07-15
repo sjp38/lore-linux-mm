@@ -1,131 +1,305 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EC4DC6B0005
-	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 04:52:02 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id d65so28274820ith.1
-        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 01:52:02 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0114.outbound.protection.outlook.com. [104.47.2.114])
-        by mx.google.com with ESMTPS id 190si5913932oib.247.2016.07.15.01.52.01
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 44AB96B0005
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 06:36:54 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id 33so69639004lfw.1
+        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 03:36:54 -0700 (PDT)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id b4si56007wjh.22.2016.07.15.03.36.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 15 Jul 2016 01:52:02 -0700 (PDT)
-Subject: Re: [PATCH] radix-tree: fix radix_tree_iter_retry() for tagged
- iterators.
-References: <CACT4Y+a99OW7TYeLsuEic19uY2j45DGXL=LowUMq3TywWS3f2Q@mail.gmail.com>
- <1468495196-10604-1-git-send-email-aryabinin@virtuozzo.com>
- <20160714222527.GA26136@linux.intel.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <5788A46A.70106@virtuozzo.com>
-Date: Fri, 15 Jul 2016 11:52:58 +0300
-MIME-Version: 1.0
-In-Reply-To: <20160714222527.GA26136@linux.intel.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Jul 2016 03:36:52 -0700 (PDT)
+Received: by mail-wm0-x241.google.com with SMTP id q128so1754629wma.1
+        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 03:36:52 -0700 (PDT)
+From: Topi Miettinen <toiwoton@gmail.com>
+Subject: [PATCH 00/14] Present useful limits to user (v2)
+Date: Fri, 15 Jul 2016 13:35:47 +0300
+Message-Id: <1468578983-28229-1-git-send-email-toiwoton@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, syzkaller@googlegroups.com, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, Konstantin Khlebnikov <koct9i@gmail.com>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hughd@google.com>, stable@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: Topi Miettinen <toiwoton@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Alexander Graf <agraf@suse.com>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, "maintainer:X86 ARCHITECTURE 32-BIT AND 64-BIT" <x86@kernel.org>, Doug Ledford <dledford@redhat.com>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Christian Benvenuti <benve@cisco.com>, Dave Goodell <dgoodell@cisco.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Alex Williamson <alex.williamson@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Alexei Starovoitov <ast@kernel.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Balbir Singh <bsingharora@gmail.com>, Markus Elfring <elfring@users.sourceforge.net>, "David S. Miller" <davem@davemloft.net>, Nicolas Dichtel <nicolas.dichtel@6wind.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Jiri Slaby <jslaby@suse.cz>, Cyrill Gorcunov <gorcunov@openvz.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dan Carpenter <dan.carpenter@oracle.com>, Michael Kerrisk <mtk.manpages@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Marcus Gelderie <redmnic@gmail.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Joe Perches <joe@perches.com>, Frederic Weisbecker <fweisbec@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Andi Kleen <ak@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, Stas Sergeev <stsp@list.ru>, Amanieu d'Antras <amanieu@gmail.com>, Richard Weinberger <richard@nod.at>, Wang Xiaoqiang <wangxq10@lzu.edu.cn>, Helge Deller <deller@gmx.de>, Mateusz Guzik <mguzik@redhat.com>, Alex Thorlton <athorlton@sgi.com>, Ben Segall <bsegall@google.com>, John Stultz <john.stultz@linaro.org>, Rik van Riel <riel@redhat.com>, Eric B Munson <emunson@akamai.com>, Alexey Klimov <klimov.linux@gmail.com>, Chen Gang <gang.chen.5i5j@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Alexander Kuleshov <kuleshovmail@gmail.com>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, "open list:IA64 Itanium PLATFORM" <linux-ia64@vger.kernel.org>, "open list:KERNEL VIRTUAL MACHINE KVM FOR POWERPC" <kvm-ppc@vger.kernel.org>, "open list:KERNEL VIRTUAL MACHINE KVM" <kvm@vger.kernel.org>, "open list:LINUX FOR POWERPC 32-BIT AND 64-BIT" <linuxppc-dev@lists.ozlabs.org>, "open list:INFINIBAND SUBSYSTEM" <linux-rdma@vger.kernel.org>, "open list:FILESYSTEMS VFS and infrastructure" <linux-fsdevel@vger.kernel.org>, "open list:CONTROL GROUP CGROUP" <cgroups@vger.kernel.org>, "open list:BPF Safe dynamic programs and tools" <netdev@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
+Hello,
 
+There are many basic ways to control processes, including capabilities,
+cgroups and resource limits. However, there are far fewer ways to find out
+useful values for the limits, except blind trial and error.
 
-On 07/15/2016 01:25 AM, Ross Zwisler wrote:
-> On Thu, Jul 14, 2016 at 02:19:56PM +0300, Andrey Ryabinin wrote:
->> radix_tree_iter_retry() resets slot to NULL, but it doesn't reset tags.
->> Then NULL slot and non-zero iter.tags passed to radix_tree_next_slot()
->> leading to crash:
->>
->> RIP: [<     inline     >] radix_tree_next_slot include/linux/radix-tree.h:473
->>   [<ffffffff816951a4>] find_get_pages_tag+0x334/0x930 mm/filemap.c:1452
->> ....
->> Call Trace:
->>  [<ffffffff816cd91a>] pagevec_lookup_tag+0x3a/0x80 mm/swap.c:960
->>  [<ffffffff81ab4231>] mpage_prepare_extent_to_map+0x321/0xa90 fs/ext4/inode.c:2516
->>  [<ffffffff81ac883e>] ext4_writepages+0x10be/0x2b20 fs/ext4/inode.c:2736
->>  [<ffffffff816c99c7>] do_writepages+0x97/0x100 mm/page-writeback.c:2364
->>  [<ffffffff8169bee8>] __filemap_fdatawrite_range+0x248/0x2e0 mm/filemap.c:300
->>  [<ffffffff8169c371>] filemap_write_and_wait_range+0x121/0x1b0 mm/filemap.c:490
->>  [<ffffffff81aa584d>] ext4_sync_file+0x34d/0xdb0 fs/ext4/fsync.c:115
->>  [<ffffffff818b667a>] vfs_fsync_range+0x10a/0x250 fs/sync.c:195
->>  [<     inline     >] vfs_fsync fs/sync.c:209
->>  [<ffffffff818b6832>] do_fsync+0x42/0x70 fs/sync.c:219
->>  [<     inline     >] SYSC_fdatasync fs/sync.c:232
->>  [<ffffffff818b6f89>] SyS_fdatasync+0x19/0x20 fs/sync.c:230
->>  [<ffffffff86a94e00>] entry_SYSCALL_64_fastpath+0x23/0xc1 arch/x86/entry/entry_64.S:207
->>
->> We must reset iterator's tags to bail out from radix_tree_next_slot() and
->> go to the slow-path in radix_tree_next_chunk().
-> 
-> This analysis doesn't make sense to me.  In find_get_pages_tag(), when we call
-> radix_tree_iter_retry(), this sets the local 'slot' variable to NULL, then
-> does a 'continue'.  This will hop to the next iteration of the
-> radix_tree_for_each_tagged() loop, which will very check the exit condition of
-> the for() loop:
-> 
-> #define radix_tree_for_each_tagged(slot, root, iter, start, tag)	\
-> 	for (slot = radix_tree_iter_init(iter, start) ;			\
-> 	     slot || (slot = radix_tree_next_chunk(root, iter,		\
-> 			      RADIX_TREE_ITER_TAGGED | tag)) ;		\
-> 	     slot = radix_tree_next_slot(slot, iter,			\
-> 				RADIX_TREE_ITER_TAGGED))
-> 
-> So, we'll run the 
-> 	     slot || (slot = radix_tree_next_chunk(root, iter,		\
-> 			      RADIX_TREE_ITER_TAGGED | tag)) ;		\
-> 
-> bit first.  
+This patch series attempts to fix that by giving at least a nice starting
+point from the highwater mark values of the resources in question.
+I looked where each limit is checked and added a call to update the mark
+nearby.
 
-This is not the way how the for() loop works. slot = radix_tree_next_slot() executed first
-and only after that goes the condition statement.
+Example run of program from Documentation/accounting/getdelauys.c:
 
+./getdelays -R -p `pidof smartd`
+printing resource accounting
+RLIMIT_CPU=0
+RLIMIT_FSIZE=0
+RLIMIT_DATA=18198528
+RLIMIT_STACK=135168
+RLIMIT_CORE=0
+RLIMIT_RSS=0
+RLIMIT_NPROC=1
+RLIMIT_NOFILE=55
+RLIMIT_MEMLOCK=0
+RLIMIT_AS=130879488
+RLIMIT_LOCKS=0
+RLIMIT_SIGPENDING=0
+RLIMIT_MSGQUEUE=0
+RLIMIT_NICE=0
+RLIMIT_RTPRIO=0
+RLIMIT_RTTIME=0
 
-> 'slot' is NULL, so we'll set it via radix_tree_next_chunk().  At
-> this point radix_tree_next_slot() hasn't been called.
-> 
-> radix_tree_next_chunk() will set up the iter->index, iter->next_index and
-> iter->tags before it returns.  The next iteration of the loop in
-> find_get_pages_tag() will use the non-NULL slot provided by
-> radix_tree_next_chunk(), and only after that iteration will we call
-> radix_tree_next_slot() again.  By then iter->tags should be up to date.
-> 
-> Do you have a test setup that reliably fails without this code but passes when
-> you zero out iter->tags?
-> 
+./getdelays -R -C /sys/fs/cgroup/systemd/system.slice/smartd.service/
+printing resource accounting
+sleeping 1, blocked 0, running 0, stopped 0, uninterruptible 0
+RLIMIT_CPU=0
+RLIMIT_FSIZE=0
+RLIMIT_DATA=18198528
+RLIMIT_STACK=135168
+RLIMIT_CORE=0
+RLIMIT_RSS=0
+RLIMIT_NPROC=1
+RLIMIT_NOFILE=55
+RLIMIT_MEMLOCK=0
+RLIMIT_AS=130879488
+RLIMIT_LOCKS=0
+RLIMIT_SIGPENDING=0
+RLIMIT_MSGQUEUE=0
+RLIMIT_NICE=0
+RLIMIT_RTPRIO=0
+RLIMIT_RTTIME=0
 
+In this example, smartd is running as a non-root user. The presented
+values can be used as a starting point for giving new limits to the
+service.
 
-Yup, I run Dmitry's reproducer in a parallel loop:
-	$ while true; do ./a.out & done
+There's one problem with the patch 07/13, kernel initialization calls
+create_worker() which seems to use different locking model or something:
 
-Usually it takes just couple minutes maximum.
+[    0.145410] =========================================================
+[    0.148000] [ INFO: possible irq lock inversion dependency detected ]
+[    0.148000] 4.7.0-rc7+ #155 Not tainted
+[    0.148000] ---------------------------------------------------------
+[    0.148000] swapper/0/1 just changed the state of lock:
+[    0.148000]  (&(&(&sig->stats_lock)->lock)->rlock){+.....}, at: [<ffffffff810bf769>] __sched_setscheduler+0x339/0xbd0
+[    0.148000] but this lock was taken by another, HARDIRQ-safe lock in the past:
+[    0.148000]  (&rq->lock){-.....}
 
-> I've been looking at this as well, but haven't been able to get a reliable
-> reproducer in my test setup.
-> 
->> Fixes: 46437f9a554f ("radix-tree: fix race in gang lookup")
->> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
->> Reported-by: Dmitry Vyukov <dvyukov@google.com>
->> Cc: Konstantin Khlebnikov <koct9i@gmail.com>
->> Cc: Matthew Wilcox <willy@linux.intel.com>
->> Cc: Hugh Dickins <hughd@google.com>
->> Cc: <stable@vger.kernel.org>
->> ---
->>  include/linux/radix-tree.h | 1 +
->>  1 file changed, 1 insertion(+)
->>
->> diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
->> index cb4b7e8..eca6f62 100644
->> --- a/include/linux/radix-tree.h
->> +++ b/include/linux/radix-tree.h
->> @@ -407,6 +407,7 @@ static inline __must_check
->>  void **radix_tree_iter_retry(struct radix_tree_iter *iter)
->>  {
->>  	iter->next_index = iter->index;
->> +	iter->tags = 0;
->>  	return NULL;
->>  }
->>  
->> -- 
->> 2.7.3
->>
+and interrupts could create inverse lock ordering between them.
+
+[    0.148000] 
+[    0.148000] other info that might help us debug this:
+[    0.148000]  Possible interrupt unsafe locking scenario:
+[    0.148000] 
+[    0.148000]        CPU0                    CPU1
+[    0.148000]        ----                    ----
+[    0.148000]   lock(&(&(&sig->stats_lock)->lock)->rlock);
+[    0.148000]                                local_irq_disable();
+[    0.148000]                                lock(&rq->lock);
+[    0.148000]                                lock(&(&(&sig->stats_lock)->lock)->rlock);
+[    0.148000]   <Interrupt>
+[    0.148000]     lock(&rq->lock);
+[    0.148000] 
+[    0.148000]  *** DEADLOCK ***
+[    0.148000] 
+[    0.148000] 2 locks held by swapper/0/1:
+[    0.148000]  #0:  (cpu_hotplug.lock){.+.+.+}, at: [<ffffffff81092824>] get_online_cpus+0x24/0x70
+[    0.148000]  #1:  (smpboot_threads_lock){+.+.+.}, at: [<ffffffff810ba517>] smpboot_register_percpu_thread_cpumask+0x37/0xf0
+[    0.148000] 
+[    0.148000] the shortest dependencies between 2nd lock and 1st lock:
+[    0.148000]  -> (&rq->lock){-.....} ops: 181 {
+[    0.148000]     IN-HARDIRQ-W at:
+[    0.148000]                       [<ffffffff810e8439>] __lock_acquire+0x6e9/0x1440
+[    0.148000]                       [<ffffffff810e95d3>] lock_acquire+0xe3/0x1c0
+[    0.148000]                       [<ffffffff818cf661>] _raw_spin_lock+0x31/0x40
+[    0.148000]                       [<ffffffff810c3a41>] scheduler_tick+0x41/0xd0
+[    0.148000]                       [<ffffffff81110471>] update_process_times+0x51/0x60
+[    0.148000]                       [<ffffffff8111fa4f>] tick_periodic+0x2f/0xc0
+[    0.148000]                       [<ffffffff8111fb05>] tick_handle_periodic+0x25/0x70
+[    0.148000]                       [<ffffffff8101ebf5>] timer_interrupt+0x15/0x20
+[    0.148000]                       [<ffffffff810fc731>] handle_irq_event_percpu+0x41/0x320
+[    0.148000]                       [<ffffffff810fca49>] handle_irq_event+0x39/0x60
+[    0.148000]                       [<ffffffff810ffe08>] handle_level_irq+0x88/0x110
+[    0.148000]                       [<ffffffff8101e58a>] handle_irq+0x1a/0x30
+[    0.148000]                       [<ffffffff818d2281>] do_IRQ+0x61/0x120
+[    0.148000]                       [<ffffffff818d0949>] ret_from_intr+0x0/0x19
+[    0.148000]                       [<ffffffff810fe969>] __setup_irq+0x3f9/0x5e0
+[    0.148000]                       [<ffffffff810feb96>] setup_irq+0x46/0xa0
+[    0.148000]                       [<ffffffff821878e2>] setup_default_timer_irq+0x1e/0x20
+[    0.148000]                       [<ffffffff821878fb>] hpet_time_init+0x17/0x19
+[    0.148000]                       [<ffffffff821878bd>] x86_late_time_init+0xa/0x11
+[    0.148000]                       [<ffffffff82181ef9>] start_kernel+0x39d/0x465
+[    0.148000]                       [<ffffffff82181294>] x86_64_start_reservations+0x2f/0x31
+[    0.148000]                       [<ffffffff8218140e>] x86_64_start_kernel+0x178/0x18b
+[    0.148000]     INITIAL USE at:
+[    0.148000]                      [<ffffffff810e7f90>] __lock_acquire+0x240/0x1440
+[    0.148000]                      [<ffffffff810e95d3>] lock_acquire+0xe3/0x1c0
+[    0.148000]                      [<ffffffff818cf82c>] _raw_spin_lock_irqsave+0x3c/0x50
+[    0.148000]                      [<ffffffff810bdc9d>] rq_attach_root+0x1d/0x100
+[    0.148000]                      [<ffffffff8219deab>] sched_init+0x2f5/0x44c
+[    0.148000]                      [<ffffffff82181d9d>] start_kernel+0x241/0x465
+[    0.148000]                      [<ffffffff82181294>] x86_64_start_reservations+0x2f/0x31
+[    0.148000]                      [<ffffffff8218140e>] x86_64_start_kernel+0x178/0x18b
+[    0.148000]   }
+[    0.148000]   ... key      at: [<ffffffff822f3ad0>] __key.60059+0x0/0x8
+[    0.148000]   ... acquired at:
+[    0.148000]    [<ffffffff810e95d3>] lock_acquire+0xe3/0x1c0
+[    0.148000]    [<ffffffff818cf661>] _raw_spin_lock+0x31/0x40
+[    0.148000]    [<ffffffff810c0514>] set_user_nice.part.92+0xf4/0x270
+[    0.148000]    [<ffffffff810c06b6>] set_user_nice+0x26/0x30
+[    0.148000]    [<ffffffff810aee10>] create_worker+0xf0/0x1a0
+[    0.148000]    [<ffffffff8219c195>] init_workqueues+0x317/0x51e
+[    0.148000]    [<ffffffff81000450>] do_one_initcall+0x50/0x180
+[    0.148000]    [<ffffffff821820d2>] kernel_init_freeable+0x111/0x25d
+[    0.148000]    [<ffffffff818c206e>] kernel_init+0xe/0x100
+[    0.148000]    [<ffffffff818d01ff>] ret_from_fork+0x1f/0x40
+[    0.148000] 
+[    0.148000] -> (&(&(&sig->stats_lock)->lock)->rlock){+.....} ops: 2 {
+[    0.148000]    HARDIRQ-ON-W at:
+[    0.148000]                     [<ffffffff810e82e0>] __lock_acquire+0x590/0x1440
+[    0.148000]                     [<ffffffff810e95d3>] lock_acquire+0xe3/0x1c0
+[    0.148000]                     [<ffffffff818cf661>] _raw_spin_lock+0x31/0x40
+[    0.148000]                     [<ffffffff810bf769>] __sched_setscheduler+0x339/0xbd0
+[    0.148000]                     [<ffffffff810c0076>] _sched_setscheduler+0x76/0x90
+[    0.148000]                     [<ffffffff810c1012>] sched_set_stop_task+0x62/0xb0
+[    0.148000]                     [<ffffffff81143983>] cpu_stop_create+0x23/0x30
+[    0.148000]                     [<ffffffff810ba48d>] __smpboot_create_thread.part.2+0xad/0x100
+[    0.148000]                     [<ffffffff810ba57f>] smpboot_register_percpu_thread_cpumask+0x9f/0xf0
+[    0.148000]                     [<ffffffff821a1708>] cpu_stop_init+0x7d/0xb8
+[    0.148000]                     [<ffffffff81000450>] do_one_initcall+0x50/0x180
+[    0.148000]                     [<ffffffff821820d2>] kernel_init_freeable+0x111/0x25d
+[    0.148000]                     [<ffffffff818c206e>] kernel_init+0xe/0x100
+[    0.148000]                     [<ffffffff818d01ff>] ret_from_fork+0x1f/0x40
+[    0.148000]    INITIAL USE at:
+[    0.148000]                    [<ffffffff810e7f90>] __lock_acquire+0x240/0x1440
+[    0.148000]                    [<ffffffff810e95d3>] lock_acquire+0xe3/0x1c0
+[    0.148000]                    [<ffffffff818cf661>] _raw_spin_lock+0x31/0x40
+[    0.148000]                    [<ffffffff810c0514>] set_user_nice.part.92+0xf4/0x270
+[    0.148000]                    [<ffffffff810c06b6>] set_user_nice+0x26/0x30
+[    0.148000]                    [<ffffffff810aee10>] create_worker+0xf0/0x1a0
+[    0.148000]                    [<ffffffff8219c195>] init_workqueues+0x317/0x51e
+[    0.148000]                    [<ffffffff81000450>] do_one_initcall+0x50/0x180
+[    0.148000]                    [<ffffffff821820d2>] kernel_init_freeable+0x111/0x25d
+[    0.148000]                    [<ffffffff818c206e>] kernel_init+0xe/0x100
+[    0.148000]                    [<ffffffff818d01ff>] ret_from_fork+0x1f/0x40
+[    0.148000]  }
+[    0.148000]  ... key      at: [<ffffffff822f2190>] __key.55894+0x0/0x8
+[    0.148000]  ... acquired at:
+[    0.148000]    [<ffffffff810e6885>] check_usage_backwards+0x155/0x160
+[    0.148000]    [<ffffffff810e7533>] mark_lock+0x333/0x610
+[    0.148000]    [<ffffffff810e82e0>] __lock_acquire+0x590/0x1440
+[    0.148000]    [<ffffffff810e95d3>] lock_acquire+0xe3/0x1c0
+[    0.148000]    [<ffffffff818cf661>] _raw_spin_lock+0x31/0x40
+[    0.148000]    [<ffffffff810bf769>] __sched_setscheduler+0x339/0xbd0
+[    0.148000]    [<ffffffff810c0076>] _sched_setscheduler+0x76/0x90
+[    0.148000]    [<ffffffff810c1012>] sched_set_stop_task+0x62/0xb0
+[    0.148000]    [<ffffffff81143983>] cpu_stop_create+0x23/0x30
+[    0.148000]    [<ffffffff810ba48d>] __smpboot_create_thread.part.2+0xad/0x100
+[    0.148000]    [<ffffffff810ba57f>] smpboot_register_percpu_thread_cpumask+0x9f/0xf0
+[    0.148000]    [<ffffffff821a1708>] cpu_stop_init+0x7d/0xb8
+[    0.148000]    [<ffffffff81000450>] do_one_initcall+0x50/0x180
+[    0.148000]    [<ffffffff821820d2>] kernel_init_freeable+0x111/0x25d
+[    0.148000]    [<ffffffff818c206e>] kernel_init+0xe/0x100
+[    0.148000]    [<ffffffff818d01ff>] ret_from_fork+0x1f/0x40
+[    0.148000] 
+[    0.148000] 
+[    0.148000] stack backtrace:
+[    0.148000] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 4.7.0-rc7+ #155
+[    0.148000] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Debian-1.8.2-1 04/01/2014
+[    0.148000]  0000000000000086 00000000aea03eae ffff88003de6ba60 ffffffff813cb2d5
+[    0.148000]  ffffffff82d48e60 ffff88003de6bac0 ffff88003de6baa0 ffffffff811a6b05
+[    0.148000]  ffff88003de647d8 ffff88003de647d8 ffff88003de64040 ffffffff81d531a7
+[    0.148000] Call Trace:
+[    0.148000]  [<ffffffff813cb2d5>] dump_stack+0x67/0x92
+[    0.148000]  [<ffffffff811a6b05>] print_irq_inversion_bug.part.38+0x1a4/0x1b0
+[    0.148000]  [<ffffffff810e6885>] check_usage_backwards+0x155/0x160
+[    0.148000]  [<ffffffff810e7533>] mark_lock+0x333/0x610
+[    0.148000]  [<ffffffff810e6730>] ? check_usage_forwards+0x160/0x160
+[    0.148000]  [<ffffffff810e82e0>] __lock_acquire+0x590/0x1440
+[    0.148000]  [<ffffffff810e7a6d>] ? trace_hardirqs_on+0xd/0x10
+[    0.148000]  [<ffffffff81104aad>] ? debug_lockdep_rcu_enabled+0x1d/0x20
+[    0.148000]  [<ffffffff810e95d3>] lock_acquire+0xe3/0x1c0
+[    0.148000]  [<ffffffff810bf769>] ? __sched_setscheduler+0x339/0xbd0
+[    0.148000]  [<ffffffff818cf661>] _raw_spin_lock+0x31/0x40
+[    0.148000]  [<ffffffff810bf769>] ? __sched_setscheduler+0x339/0xbd0
+[    0.148000]  [<ffffffff810bf769>] __sched_setscheduler+0x339/0xbd0
+[    0.148000]  [<ffffffff810c0076>] _sched_setscheduler+0x76/0x90
+[    0.148000]  [<ffffffff810c1012>] sched_set_stop_task+0x62/0xb0
+[    0.148000]  [<ffffffff81143983>] cpu_stop_create+0x23/0x30
+[    0.148000]  [<ffffffff810ba48d>] __smpboot_create_thread.part.2+0xad/0x100
+[    0.148000]  [<ffffffff810ba57f>] smpboot_register_percpu_thread_cpumask+0x9f/0xf0
+[    0.148000]  [<ffffffff821a1708>] cpu_stop_init+0x7d/0xb8
+[    0.148000]  [<ffffffff821a168b>] ? pid_namespaces_init+0x40/0x40
+[    0.148000]  [<ffffffff81000450>] do_one_initcall+0x50/0x180
+[    0.148000]  [<ffffffff8102c24d>] ? print_cpu_info+0x7d/0xe0
+[    0.148000]  [<ffffffff821820d2>] kernel_init_freeable+0x111/0x25d
+[    0.148000]  [<ffffffff818c206e>] kernel_init+0xe/0x100
+[    0.148000]  [<ffffffff818d01ff>] ret_from_fork+0x1f/0x40
+[    0.148000]  [<ffffffff818c2060>] ? rest_init+0x130/0x130
+
+In this v2, I tried to address all comments, thanks for reviews.
+
+-Topi
+
+Topi Miettinen (14):
+  resource limits: foundation for resource highwater tracking
+  resource limits: aggregate task highwater marks to cgroup level
+  resource limits: track highwater mark of file sizes
+  resource limits: track highwater mark of VM data segment
+  resource limits: track highwater mark of stack size
+  resource limits: track highwater mark of cores dumped
+  resource limits: track highwater mark of user processes
+  resource limits: track highwater mark of number of files
+  resource limits: track highwater mark of locked memory
+  resource limits: track highwater mark of address space size
+  resource limits: track highwater mark of number of pending signals
+  resource limits: track highwater mark of size of message queues
+  resource limits: track highwater mark of niceness
+  resource limits: track highwater mark of RT priority
+
+ Documentation/accounting/getdelays.c       | 62 ++++++++++++++++++++++--
+ arch/ia64/kernel/perfmon.c                 |  1 +
+ arch/powerpc/kvm/book3s_64_vio.c           |  2 +
+ arch/powerpc/mm/mmu_context_iommu.c        |  2 +
+ arch/x86/ia32/ia32_aout.c                  |  2 +
+ drivers/infiniband/core/umem.c             |  1 +
+ drivers/infiniband/hw/hfi1/user_pages.c    |  2 +
+ drivers/infiniband/hw/qib/qib_user_pages.c |  2 +
+ drivers/infiniband/hw/usnic/usnic_uiom.c   |  2 +
+ drivers/misc/mic/scif/scif_rma.c           |  1 +
+ drivers/vfio/vfio_iommu_spapr_tce.c        |  2 +
+ drivers/vfio/vfio_iommu_type1.c            |  5 ++
+ fs/attr.c                                  |  2 +
+ fs/binfmt_aout.c                           |  2 +
+ fs/binfmt_flat.c                           |  2 +
+ fs/coredump.c                              | 11 +++--
+ fs/file.c                                  |  4 ++
+ include/linux/cgroup-defs.h                |  5 ++
+ include/linux/sched.h                      | 61 +++++++++++++++++++++++
+ include/linux/tsacct_kern.h                |  3 ++
+ include/uapi/linux/cgroupstats.h           |  3 ++
+ include/uapi/linux/taskstats.h             | 10 +++-
+ ipc/mqueue.c                               |  1 +
+ kernel/bpf/syscall.c                       |  8 +++
+ kernel/cgroup.c                            | 78 ++++++++++++++++++++++++++++++
+ kernel/cred.c                              |  1 +
+ kernel/events/core.c                       |  1 +
+ kernel/fork.c                              |  2 +
+ kernel/sched/core.c                        |  6 +++
+ kernel/signal.c                            |  2 +
+ kernel/sys.c                               |  5 ++
+ kernel/taskstats.c                         |  4 ++
+ kernel/tsacct.c                            | 47 ++++++++++++++++++
+ mm/mlock.c                                 |  8 +++
+ mm/mmap.c                                  | 17 ++++++-
+ mm/mremap.c                                |  7 +++
+ 36 files changed, 365 insertions(+), 9 deletions(-)
+
+-- 
+2.8.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
