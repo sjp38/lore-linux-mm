@@ -1,181 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 20BB26B0005
-	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 15:10:11 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id f126so21678382wma.3
-        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 12:10:11 -0700 (PDT)
-Received: from mx0b-000f0801.pphosted.com (mx0b-000f0801.pphosted.com. [2620:100:9005:71::1])
-        by mx.google.com with ESMTPS id lh8si2219348wjc.139.2016.07.15.12.10.09
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D57D36B025E
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 15:14:26 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id f126so21727555wma.3
+        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 12:14:26 -0700 (PDT)
+Received: from mail-wm0-x236.google.com (mail-wm0-x236.google.com. [2a00:1450:400c:c09::236])
+        by mx.google.com with ESMTPS id yk9si2236999wjc.280.2016.07.15.12.14.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Jul 2016 12:10:10 -0700 (PDT)
-From: "Charles (Chas) Williams" <ciwillia@brocade.com>
-Subject: [PATCH 3.10.y 04/12] x86/mm: Add barriers and document switch_mm()-vs-flush synchronization
-Date: Fri, 15 Jul 2016 15:08:13 -0400
-Message-ID: <1468609701-4255-4-git-send-email-ciwillia@brocade.com>
-In-Reply-To: <1468607194-3879-1-git-send-email-ciwillia@brocade.com>
-References: <1468607194-3879-1-git-send-email-ciwillia@brocade.com>
+        Fri, 15 Jul 2016 12:14:24 -0700 (PDT)
+Received: by mail-wm0-x236.google.com with SMTP id o80so42133391wme.1
+        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 12:14:24 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <1468609254.32683.34.camel@gmail.com>
+References: <1468446964-22213-1-git-send-email-keescook@chromium.org>
+ <1468446964-22213-3-git-send-email-keescook@chromium.org> <20160714232019.GA28254@350D>
+ <CAGXu5jKzD_rCMNJQU1bB5KDfKTsb+AaidZwe=FAfGMqt_FkfqQ@mail.gmail.com> <1468609254.32683.34.camel@gmail.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Fri, 15 Jul 2016 12:14:23 -0700
+Message-ID: <CAGXu5jLiD1xEb=dDuf+_2JVzmkH_6O5-m=p=AVvi7qgQ+SV4UA@mail.gmail.com>
+Subject: Re: [kernel-hardening] Re: [PATCH v2 02/11] mm: Hardened usercopy
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: stable@vger.kernel.org
-Cc: Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H.
- Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Luis Henriques <luis.henriques@canonical.com>, "Charles
- (Chas) Williams" <ciwillia@brocade.com>
+To: "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+Cc: Balbir Singh <bsingharora@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, "x86@kernel.org" <x86@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, linux-ia64@vger.kernel.org, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, sparclinux <sparclinux@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-From: Andy Lutomirski <luto@kernel.org>
+On Fri, Jul 15, 2016 at 12:00 PM, Daniel Micay <danielmicay@gmail.com> wrote:
+>> This could be a BUG, but I'd rather not panic the entire kernel.
+>
+> It seems unlikely that it will panic without panic_on_oops and that's
+> an explicit opt-in to taking down the system on kernel logic errors
+> exactly like this. In grsecurity, it calls the kernel exploit handling
+> logic (panic if root, otherwise kill all process of that user and ban
+> them until reboot) but that same logic is also called for BUG via oops
+> handling so there's only really a distinction with panic_on_oops=1.
+>
+> Does it make sense to be less fatal for a fatal assertion that's more
+> likely to be security-related? Maybe you're worried about having some
+> false positives for the whitelisting portion, but I don't think those
+> will lurk around very long with the way this works.
 
-commit 71b3c126e61177eb693423f2e18a1914205b165e upstream.
+I'd like it to dump stack and be fatal to the process involved, but
+yeah, I guess BUG() would work. Creating an infrastructure for
+handling security-related Oopses can be done separately from this (and
+I'd like to see that added, since it's a nice bit of configurable
+reactivity to possible attacks).
 
-When switch_mm() activates a new PGD, it also sets a bit that
-tells other CPUs that the PGD is in use so that TLB flush IPIs
-will be sent.  In order for that to work correctly, the bit
-needs to be visible prior to loading the PGD and therefore
-starting to fill the local TLB.
+-Kees
 
-Document all the barriers that make this work correctly and add
-a couple that were missing.
-
-CVE-2016-2069
-
-Signed-off-by: Andy Lutomirski <luto@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-mm@kvack.org
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-[ luis: backported to 3.16:
-  - dropped N/A comment in flush_tlb_mm_range()
-  - adjusted context ]
-Signed-off-by: Luis Henriques <luis.henriques@canonical.com>
-[ciwillia@brocade.com: backported to 3.10: adjusted context]
-Signed-off-by: Charles (Chas) Williams <ciwillia@brocade.com>
----
- arch/x86/include/asm/mmu_context.h | 32 +++++++++++++++++++++++++++++++-
- arch/x86/mm/tlb.c                  | 24 +++++++++++++++++++++---
- 2 files changed, 52 insertions(+), 4 deletions(-)
-
-diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-index be12c53..c0d2f6b 100644
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -42,7 +42,32 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
- #endif
- 		cpumask_set_cpu(cpu, mm_cpumask(next));
- 
--		/* Re-load page tables */
-+		/*
-+		 * Re-load page tables.
-+		 *
-+		 * This logic has an ordering constraint:
-+		 *
-+		 *  CPU 0: Write to a PTE for 'next'
-+		 *  CPU 0: load bit 1 in mm_cpumask.  if nonzero, send IPI.
-+		 *  CPU 1: set bit 1 in next's mm_cpumask
-+		 *  CPU 1: load from the PTE that CPU 0 writes (implicit)
-+		 *
-+		 * We need to prevent an outcome in which CPU 1 observes
-+		 * the new PTE value and CPU 0 observes bit 1 clear in
-+		 * mm_cpumask.  (If that occurs, then the IPI will never
-+		 * be sent, and CPU 0's TLB will contain a stale entry.)
-+		 *
-+		 * The bad outcome can occur if either CPU's load is
-+		 * reordered before that CPU's store, so both CPUs much
-+		 * execute full barriers to prevent this from happening.
-+		 *
-+		 * Thus, switch_mm needs a full barrier between the
-+		 * store to mm_cpumask and any operation that could load
-+		 * from next->pgd.  This barrier synchronizes with
-+		 * remote TLB flushers.  Fortunately, load_cr3 is
-+		 * serializing and thus acts as a full barrier.
-+		 *
-+		 */
- 		load_cr3(next->pgd);
- 
- 		/* Stop flush ipis for the previous mm */
-@@ -65,10 +90,15 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
- 			 * schedule, protecting us from simultaneous changes.
- 			 */
- 			cpumask_set_cpu(cpu, mm_cpumask(next));
-+
- 			/*
- 			 * We were in lazy tlb mode and leave_mm disabled
- 			 * tlb flush IPI delivery. We must reload CR3
- 			 * to make sure to use no freed page tables.
-+			 *
-+			 * As above, this is a barrier that forces
-+			 * TLB repopulation to be ordered after the
-+			 * store to mm_cpumask.
- 			 */
- 			load_cr3(next->pgd);
- 			load_LDT_nolock(&next->context);
-diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index 282375f..c26b610 100644
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -149,7 +149,9 @@ void flush_tlb_current_task(void)
- 
- 	preempt_disable();
- 
-+	/* This is an implicit full barrier that synchronizes with switch_mm. */
- 	local_flush_tlb();
-+
- 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
- 		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
- 	preempt_enable();
-@@ -188,11 +190,19 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
- 	unsigned act_entries, tlb_entries = 0;
- 
- 	preempt_disable();
--	if (current->active_mm != mm)
-+	if (current->active_mm != mm) {
-+		/* Synchronize with switch_mm. */
-+		smp_mb();
-+
- 		goto flush_all;
-+	}
- 
- 	if (!current->mm) {
- 		leave_mm(smp_processor_id());
-+
-+		/* Synchronize with switch_mm. */
-+		smp_mb();
-+
- 		goto flush_all;
- 	}
- 
-@@ -242,10 +252,18 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)
- 	preempt_disable();
- 
- 	if (current->active_mm == mm) {
--		if (current->mm)
-+		if (current->mm) {
-+			/*
-+			 * Implicit full barrier (INVLPG) that synchronizes
-+			 * with switch_mm.
-+			 */
- 			__flush_tlb_one(start);
--		else
-+		} else {
- 			leave_mm(smp_processor_id());
-+
-+			/* Synchronize with switch_mm. */
-+			smp_mb();
-+		}
- 	}
- 
- 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
 -- 
-2.5.5
+Kees Cook
+Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
