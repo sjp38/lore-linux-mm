@@ -1,110 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C0BFD6B025F
-	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 21:21:02 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e189so187801014pfa.2
-        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 18:21:02 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id 123si4050952pfg.205.2016.07.14.18.21.00
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 541866B0005
+	for <linux-mm@kvack.org>; Thu, 14 Jul 2016 21:42:13 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id p64so188816663pfb.0
+        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 18:42:13 -0700 (PDT)
+Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
+        by mx.google.com with ESMTPS id ai2si6077395pad.98.2016.07.14.18.42.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 14 Jul 2016 18:21:02 -0700 (PDT)
-Message-ID: <57883A1F.8070600@huawei.com>
-Date: Fri, 15 Jul 2016 09:19:27 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 14 Jul 2016 18:42:12 -0700 (PDT)
+Received: by mail-pf0-x243.google.com with SMTP id t190so5560060pfb.2
+        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 18:42:12 -0700 (PDT)
+Date: Fri, 15 Jul 2016 11:41:51 +1000
+From: Balbir Singh <bsingharora@gmail.com>
+Subject: Re: [PATCH v2 02/11] mm: Hardened usercopy
+Message-ID: <20160715014151.GA13944@balbir.ozlabs.ibm.com>
+Reply-To: bsingharora@gmail.com
+References: <1468446964-22213-1-git-send-email-keescook@chromium.org>
+ <1468446964-22213-3-git-send-email-keescook@chromium.org>
+ <20160714232019.GA28254@350D>
+ <1468544658.30053.26.camel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mem-hotplug: use GFP_HIGHUSER_MOVABLE and alloc from
- next node in alloc_migrate_target()
-References: <5786F81B.1070502@huawei.com> <alpine.DEB.2.10.1607141513320.72383@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.10.1607141513320.72383@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1468544658.30053.26.camel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: bsingharora@gmail.com, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, x86@kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
-On 2016/7/15 6:17, David Rientjes wrote:
-
-> On Thu, 14 Jul 2016, Xishi Qiu wrote:
+On Thu, Jul 14, 2016 at 09:04:18PM -0400, Rik van Riel wrote:
+> On Fri, 2016-07-15 at 09:20 +1000, Balbir Singh wrote:
 > 
->> alloc_migrate_target() is called from migrate_pages(), and the page
->> is always from user space, so we can add __GFP_HIGHMEM directly.
->>
->> Second, when we offline a node, the new page should alloced from other
->> nodes instead of the current node, because re-migrate is a waste of
->> time.
->>
+> > > ==
+> > > +		   ((unsigned long)end & (unsigned
+> > > long)PAGE_MASK)))
+> > > +		return NULL;
+> > > +
+> > > +	/* Allow if start and end are inside the same compound
+> > > page. */
+> > > +	endpage = virt_to_head_page(end);
+> > > +	if (likely(endpage == page))
+> > > +		return NULL;
+> > > +
+> > > +	/* Allow special areas, device memory, and sometimes
+> > > kernel data. */
+> > > +	if (PageReserved(page) && PageReserved(endpage))
+> > > +		return NULL;
+> > 
+> > If we came here, it's likely that endpage > page, do we need to check
+> > that only the first and last pages are reserved? What about the ones
+> > in
+> > the middle?
 > 
-> alloc_migrate_target() is not only used from memory hotplug, it is also 
-> used for CMA: we won't be isolating PageHuge() pages in 
-> isolate_migratepages_range(), so this would cause a regression where we'd 
-> be migrating memory to a remote NUMA node rather than preferring to 
-> allocate locally.
-> 
-
-> You may find it useful to use the 'private' field of the migrate_pages() 
-> callback to specify the node the page should preferably be migrated to.
-> 
-
-OK, I know, I'll rewrite v2.
-
->> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
->> ---
->>  mm/page_isolation.c | 16 ++++++----------
->>  1 file changed, 6 insertions(+), 10 deletions(-)
->>
->> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
->> index 612122b..83848dc 100644
->> --- a/mm/page_isolation.c
->> +++ b/mm/page_isolation.c
->> @@ -282,20 +282,16 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
->>  struct page *alloc_migrate_target(struct page *page, unsigned long private,
->>  				  int **resultp)
->>  {
->> -	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
->> -
->>  	/*
->> -	 * TODO: allocate a destination hugepage from a nearest neighbor node,
->> +	 * TODO: allocate a destination page from a nearest neighbor node,
->>  	 * accordance with memory policy of the user process if possible. For
->>  	 * now as a simple work-around, we use the next node for destination.
->>  	 */
->> +	int nid = next_node_in(page_to_nid(page), node_online_map);
->> +
->>  	if (PageHuge(page))
->>  		return alloc_huge_page_node(page_hstate(compound_head(page)),
->> -					    next_node_in(page_to_nid(page),
->> -							 node_online_map));
->> -
->> -	if (PageHighMem(page))
->> -		gfp_mask |= __GFP_HIGHMEM;
->> -
->> -	return alloc_page(gfp_mask);
->> +						 nid);
->> +	else
->> +		return __alloc_pages_node(nid, GFP_HIGHUSER_MOVABLE, 0);
-> 
-> I don't think this __alloc_pages_node() does what you think it does, it 
-> only prefers nid here and will readily fallback to other nodes if 
-> necessary.  That is different than alloc_huge_page_node() which does no 
-> fallback.  So there's two issues with this change: (1) inconsistency 
-> between PageHuge() and !PageHuge() behavior, and (2) the use of 
-> __alloc_pages_node() does not match the commit description which states 
-> "re-migrate is a waste of time."
+> I think this will be so rare, we can get away with just
+> checking the beginning and the end.
 >
 
-Yes, you are right, how about change the changelog, one is membind, the
-other is prefer?
+But do we want to leave a hole where an aware user space
+can try a longer copy_* to avoid this check? If it is unlikely
+should we just bite the bullet and do the check for the entire
+range?
 
- 
-
-Thanks,
-Xishi Qiu
-
-> .
-> 
-
+Balbir Singh. 
 
 
 --
