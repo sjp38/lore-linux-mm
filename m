@@ -1,103 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 60E496B0005
-	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 03:49:04 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id 33so66557710lfw.1
-        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 00:49:04 -0700 (PDT)
-Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
-        by mx.google.com with ESMTPS id i11si3800497wmh.67.2016.07.15.00.49.02
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B7746B0005
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 04:23:50 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id f126so9474684wma.3
+        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 01:23:50 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id m22si3955232wmc.79.2016.07.15.01.23.48
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 15 Jul 2016 00:49:02 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 250BC98D83
-	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 07:49:01 +0000 (UTC)
-Date: Fri, 15 Jul 2016 08:48:59 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 34/34] mm, vmstat: remove zone and node double accounting
- by approximating retries
-Message-ID: <20160715074859.GM9806@techsingularity.net>
-References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
- <1467970510-21195-35-git-send-email-mgorman@techsingularity.net>
- <bd515668-2d1f-e70e-f419-7a55189757f7@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Jul 2016 01:23:48 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id o80so1292032wme.0
+        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 01:23:48 -0700 (PDT)
+Date: Fri, 15 Jul 2016 10:23:47 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: System freezes after OOM
+Message-ID: <20160715082347.GC11811@dhcp22.suse.cz>
+References: <alpine.LRH.2.02.1607121907160.24806@file01.intranet.prod.int.rdu2.redhat.com>
+ <2d5e1f84-e886-7b98-cb11-170d7104fd13@I-love.SAKURA.ne.jp>
+ <20160713133955.GK28723@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1607131004340.31769@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160713145638.GM28723@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1607131105080.31769@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.10.1607131644590.92037@chino.kir.corp.google.com>
+ <20160714152913.GC12289@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1607141326500.68666@chino.kir.corp.google.com>
+ <20160715072242.GB11811@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <bd515668-2d1f-e70e-f419-7a55189757f7@suse.cz>
+In-Reply-To: <20160715072242.GB11811@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Mikulas Patocka <mpatocka@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Ondrej Kozina <okozina@redhat.com>, Jerome Marchand <jmarchan@redhat.com>, Stanislav Kozina <skozina@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Jul 14, 2016 at 03:40:11PM +0200, Vlastimil Babka wrote:
-> >@@ -4,6 +4,26 @@
-> > #include <linux/huge_mm.h>
-> > #include <linux/swap.h>
-> >
-> >+#ifdef CONFIG_HIGHMEM
-> >+extern atomic_t highmem_file_pages;
-> >+
-> >+static inline void acct_highmem_file_pages(int zid, enum lru_list lru,
-> >+							int nr_pages)
-> >+{
-> >+	if (is_highmem_idx(zid) && is_file_lru(lru)) {
-> >+		if (nr_pages > 0)
-> 
-> This seems like a unnecessary branch, atomic_add should handle negative
-> nr_pages just fine?
-> 
-
-On x86 it would but the interface makes no guarantees it'll handle
-signed types properly on all architectures.
-
-> >@@ -1456,14 +1461,27 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
-> > 		unsigned long available;
-> > 		enum compact_result compact_result;
-> >
-> >+		if (last_pgdat == zone->zone_pgdat)
-> >+			continue;
-> >+
-> >+		/*
-> >+		 * This over-estimates the number of pages available for
-> >+		 * reclaim/compaction but walking the LRU would take too
-> >+		 * long. The consequences are that compaction may retry
-> >+		 * longer than it should for a zone-constrained allocation
-> >+		 * request.
-> 
-> The comment above says that we don't retry zone-constrained at all. Is this
-> an obsolete comment, or does it refer to the ZONE_NORMAL constraint? (as
-> opposed to HIGHMEM, MOVABLE etc?).
-> 
-
-It can still over-estimate the amount of memory available if
-ZONE_MOVABLE exists even if the request is not zone-constrained.
-
-> >@@ -3454,6 +3455,15 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
-> > 		return false;
-> >
-> > 	/*
-> >+	 * Blindly retry lowmem allocation requests that are often ignored by
-> >+	 * the OOM killer up to MAX_RECLAIM_RETRIES as we not have a reliable
-> >+	 * and fast means of calculating reclaimable, dirty and writeback pages
-> >+	 * in eligible zones.
-> >+	 */
-> >+	if (ac->high_zoneidx < ZONE_NORMAL)
-> >+		goto out;
-> 
-> A goto inside two nested for cycles? Is there no hope for sanity? :(
-> 
-
-None, hand it in at the door.
-
-It can be pulled out and put past the "return false" at the end. It's
-just not necessarily any better.
-
--- 
-Mel Gorman
-SUSE Labs
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Let me paste the patch with the full changelog and the explanation so
+that we can reason about it more easily. If I am making some false
+assumptions then please point them out.
+--- 
