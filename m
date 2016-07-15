@@ -1,75 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F0A96B0264
-	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 06:37:49 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id l89so70263731lfi.3
-        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 03:37:49 -0700 (PDT)
-Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
-        by mx.google.com with ESMTPS id cx1si59703wjb.182.2016.07.15.03.37.48
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 127896B0263
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 06:46:09 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id o80so12373687wme.1
+        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 03:46:09 -0700 (PDT)
+Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
+        by mx.google.com with ESMTPS id xq13si95113wjb.276.2016.07.15.03.46.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Jul 2016 03:37:48 -0700 (PDT)
-Received: by mail-wm0-x242.google.com with SMTP id i5so1745188wmg.2
-        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 03:37:48 -0700 (PDT)
-From: Topi Miettinen <toiwoton@gmail.com>
-Subject: [PATCH 10/14] resource limits: track highwater mark of address space size
-Date: Fri, 15 Jul 2016 13:35:57 +0300
-Message-Id: <1468578983-28229-11-git-send-email-toiwoton@gmail.com>
-In-Reply-To: <1468578983-28229-1-git-send-email-toiwoton@gmail.com>
-References: <1468578983-28229-1-git-send-email-toiwoton@gmail.com>
+        Fri, 15 Jul 2016 03:46:07 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id 5BB9F1C1A41
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 11:46:07 +0100 (IST)
+Date: Fri, 15 Jul 2016 11:46:05 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 18/34] mm: rename NR_ANON_PAGES to NR_ANON_MAPPED
+Message-ID: <20160715104605.GO9806@techsingularity.net>
+References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
+ <1467970510-21195-19-git-send-email-mgorman@techsingularity.net>
+ <20160712145801.GJ5881@cmpxchg.org>
+ <20160713085516.GI9806@techsingularity.net>
+ <20160713130415.GB9905@cmpxchg.org>
+ <20160713133701.GK9806@techsingularity.net>
+ <20160713141343.244c108e48086055f57b1d79@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20160713141343.244c108e48086055f57b1d79@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Topi Miettinen <toiwoton@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Chen Gang <gang.chen.5i5j@gmail.com>, Michal Hocko <mhocko@suse.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>, Alexander Kuleshov <kuleshovmail@gmail.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
 
-Track maximum size of address space, to be able to configure
-RLIMIT_AS resource limits. The information is available
-with taskstats and cgroupstats netlink socket.
+On Wed, Jul 13, 2016 at 02:13:43PM -0700, Andrew Morton wrote:
+> On Wed, 13 Jul 2016 14:37:01 +0100 Mel Gorman <mgorman@techsingularity.net> wrote:
+> 
+> > > I don't care strongly enough to cause a respin of half the series, and
+> > > it's not your problem that I waited until the last revision went into
+> > > mmots to review and comment. But if you agreed to a revert, would you
+> > > consider tacking on a revert patch at the end of the series?
+> > > 
+> > 
+> > In this case, I'm going to ask the other people on the cc for a
+> > tie-breaker. If someone else prefers the old names then I'm happy for
+> > your patch to be applied on top with my ack instead of respinning the
+> > whole series.
+> > 
+> > Anyone for a tie breaker?
+> 
+> I am aggressively undecided.  I guess as it's a bit of a 51/49
+> situation, the "stay with what people are familiar with" benefit tips the
+> balance toward the legacy names?
+> 
 
-Signed-off-by: Topi Miettinen <toiwoton@gmail.com>
----
- mm/mmap.c   | 4 ++++
- mm/mremap.c | 3 +++
- 2 files changed, 7 insertions(+)
+I still can't decide. It's currently still a draw in terms of naming. If
+you're worried, use the old naming. It wouldn't be the first time I
+thought a name was odd.
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index c37f599..ded2f8d 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2707,6 +2707,9 @@ static int do_brk(unsigned long addr, unsigned long len)
- out:
- 	perf_event_mmap(vma);
- 	mm->total_vm += len >> PAGE_SHIFT;
-+
-+	update_resource_highwatermark(RLIMIT_AS, mm->total_vm << PAGE_SHIFT);
-+
- 	mm->data_vm += len >> PAGE_SHIFT;
- 	if (flags & VM_LOCKED)
- 		mm->locked_vm += (len >> PAGE_SHIFT);
-@@ -2927,6 +2930,7 @@ bool may_expand_vm(struct mm_struct *mm, vm_flags_t flags, unsigned long npages)
- void vm_stat_account(struct mm_struct *mm, vm_flags_t flags, long npages)
- {
- 	mm->total_vm += npages;
-+	update_resource_highwatermark(RLIMIT_AS, mm->total_vm << PAGE_SHIFT);
- 
- 	if (is_exec_mapping(flags))
- 		mm->exec_vm += npages;
-diff --git a/mm/mremap.c b/mm/mremap.c
-index f1821335..aa717d0 100644
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -398,6 +398,9 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
- 		update_resource_highwatermark(RLIMIT_MEMLOCK,
- 					      (mm->locked_vm << PAGE_SHIFT) +
- 					      new_len - old_len);
-+	update_resource_highwatermark(RLIMIT_AS, (mm->total_vm << PAGE_SHIFT) +
-+				      new_len - old_len);
-+
- 	return vma;
- }
- 
 -- 
-2.8.1
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
