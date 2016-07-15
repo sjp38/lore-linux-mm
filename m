@@ -1,69 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6652B6B0005
-	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 00:29:27 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id x83so6268899wma.2
-        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 21:29:27 -0700 (PDT)
-Received: from mail-wm0-x233.google.com (mail-wm0-x233.google.com. [2a00:1450:400c:c09::233])
-        by mx.google.com with ESMTPS id f66si2807776wme.56.2016.07.14.21.29.26
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Jul 2016 21:29:26 -0700 (PDT)
-Received: by mail-wm0-x233.google.com with SMTP id o80so12607724wme.1
-        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 21:29:26 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20160715020550.GB13944@balbir.ozlabs.ibm.com>
-References: <1468446964-22213-1-git-send-email-keescook@chromium.org>
- <1468446964-22213-12-git-send-email-keescook@chromium.org> <20160715020550.GB13944@balbir.ozlabs.ibm.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Thu, 14 Jul 2016 21:29:25 -0700
-Message-ID: <CAGXu5j+Ub2-jmTa-XmF90Gd+ze1os+eqk_yijouCSQoLvU1hNQ@mail.gmail.com>
-Subject: Re: [PATCH v2 11/11] mm: SLUB hardened usercopy support
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DABC6B0005
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 00:52:20 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id q62so166938949oih.0
+        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 21:52:20 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id p75si7110272ioo.101.2016.07.14.21.52.18
+        for <linux-mm@kvack.org>;
+        Thu, 14 Jul 2016 21:52:19 -0700 (PDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH] mm: show node_pages_scanned per node, not zone
+Date: Fri, 15 Jul 2016 13:52:16 +0900
+Message-Id: <1468558336-14379-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, "x86@kernel.org" <x86@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, linux-ia64@vger.kernel.org, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, sparclinux <sparclinux@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>
 
-On Thu, Jul 14, 2016 at 7:05 PM, Balbir Singh <bsingharora@gmail.com> wrote:
-> On Wed, Jul 13, 2016 at 02:56:04PM -0700, Kees Cook wrote:
->> Under CONFIG_HARDENED_USERCOPY, this adds object size checking to the
->> SLUB allocator to catch any copies that may span objects. Includes a
->> redzone handling fix from Michael Ellerman.
->>
->> Based on code from PaX and grsecurity.
->>
->> Signed-off-by: Kees Cook <keescook@chromium.org>
->> ---
->>  init/Kconfig |  1 +
->>  mm/slub.c    | 36 ++++++++++++++++++++++++++++++++++++
->>  2 files changed, 37 insertions(+)
->>
->> diff --git a/init/Kconfig b/init/Kconfig
->> index 798c2020ee7c..1c4711819dfd 100644
->> --- a/init/Kconfig
->> +++ b/init/Kconfig
->> @@ -1765,6 +1765,7 @@ config SLAB
->>
->>  config SLUB
->>       bool "SLUB (Unqueued Allocator)"
->> +     select HAVE_HARDENED_USERCOPY_ALLOCATOR
->
-> Should this patch come in earlier from a build perspective? I think
-> patch 1 introduces and uses __check_heap_object.
+The node_pages_scanned represents the number of scanned pages
+of node for reclaim so it's pointless to show it as kilobytes.
 
-__check_heap_object in patch 1 is protected by a check for
-CONFIG_HAVE_HARDENED_USERCOPY_ALLOCATOR.
+As well, node_pages_scanned is per-node value, not per-zone.
 
-It seemed better to be to do arch enablement first, and then add the
-per-allocator heap object size check since it was a distinct piece.
-I'm happy to rearrange things, though, if there's a good reason.
+This patch changes node_pages_scannerd per-zone-killobytes
+with per-node-count.
 
--Kees
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ mm/page_alloc.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index f80a0e5..7edd311 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4345,6 +4345,7 @@ void show_free_areas(unsigned int filter)
+ #endif
+ 			" writeback_tmp:%lukB"
+ 			" unstable:%lukB"
++			" pages_scanned:%lu"
+ 			" all_unreclaimable? %s"
+ 			"\n",
+ 			pgdat->node_id,
+@@ -4367,6 +4368,7 @@ void show_free_areas(unsigned int filter)
+ 			K(node_page_state(pgdat, NR_SHMEM)),
+ 			K(node_page_state(pgdat, NR_WRITEBACK_TEMP)),
+ 			K(node_page_state(pgdat, NR_UNSTABLE_NFS)),
++			node_page_state(zone->zone_pgdat, NR_PAGES_SCANNED),
+ 			!pgdat_reclaimable(pgdat) ? "yes" : "no");
+ 	}
+ 
+@@ -4397,7 +4399,6 @@ void show_free_areas(unsigned int filter)
+ 			" free_pcp:%lukB"
+ 			" local_pcp:%ukB"
+ 			" free_cma:%lukB"
+-			" node_pages_scanned:%lu"
+ 			"\n",
+ 			zone->name,
+ 			K(zone_page_state(zone, NR_FREE_PAGES)),
+@@ -4415,8 +4416,7 @@ void show_free_areas(unsigned int filter)
+ 			K(zone_page_state(zone, NR_BOUNCE)),
+ 			K(free_pcp),
+ 			K(this_cpu_read(zone->pageset->pcp.count)),
+-			K(zone_page_state(zone, NR_FREE_CMA_PAGES)),
+-			K(node_page_state(zone->zone_pgdat, NR_PAGES_SCANNED)));
++			K(zone_page_state(zone, NR_FREE_CMA_PAGES)));
+ 		printk("lowmem_reserve[]:");
+ 		for (i = 0; i < MAX_NR_ZONES; i++)
+ 			printk(" %ld", zone->lowmem_reserve[i]);
 -- 
-Kees Cook
-Chrome OS & Brillo Security
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
