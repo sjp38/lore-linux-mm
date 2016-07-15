@@ -1,94 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9553E6B026F
-	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 10:19:36 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id o80so17154267wme.1
-        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 07:19:36 -0700 (PDT)
-Received: from radon.swed.at (b.ns.miles-group.at. [95.130.255.144])
-        by mx.google.com with ESMTPS id h8si966890wjs.43.2016.07.15.07.19.33
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 15 Jul 2016 07:19:34 -0700 (PDT)
-Subject: Re: [PATCH 00/14] Present useful limits to user (v2)
-References: <1468578983-28229-1-git-send-email-toiwoton@gmail.com>
-From: Richard Weinberger <richard@nod.at>
-Message-ID: <5788F0E1.8090203@nod.at>
-Date: Fri, 15 Jul 2016 16:19:13 +0200
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B25156B0264
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 10:45:34 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id u25so215432922ioi.1
+        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 07:45:34 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id 53si1051529otg.167.2016.07.15.07.45.33
+        for <linux-mm@kvack.org>;
+        Fri, 15 Jul 2016 07:45:33 -0700 (PDT)
+Date: Fri, 15 Jul 2016 23:45:34 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 5/5] mm, vmscan: Update all zone LRU sizes before
+ updating memcg
+Message-ID: <20160715144534.GA8644@bbox>
+References: <1468588165-12461-1-git-send-email-mgorman@techsingularity.net>
+ <1468588165-12461-6-git-send-email-mgorman@techsingularity.net>
 MIME-Version: 1.0
-In-Reply-To: <1468578983-28229-1-git-send-email-toiwoton@gmail.com>
-Content-Type: text/plain; charset=iso-8859-15
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1468588165-12461-6-git-send-email-mgorman@techsingularity.net>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Topi Miettinen <toiwoton@gmail.com>, linux-kernel@vger.kernel.org
-Cc: Jonathan Corbet <corbet@lwn.net>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Alexander Graf <agraf@suse.com>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, Doug Ledford <dledford@redhat.com>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Christian Benvenuti <benve@cisco.com>, Dave Goodell <dgoodell@cisco.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Alex Williamson <alex.williamson@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Alexei Starovoitov <ast@kernel.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Balbir Singh <bsingharora@gmail.com>, Markus Elfring <elfring@users.sourceforge.net>, "David S. Miller" <davem@davemloft.net>, Nicolas Dichtel <nicolas.dichtel@6wind.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Jiri Slaby <jslaby@suse.cz>, Cyrill Gorcunov <gorcunov@openvz.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dan Carpenter <dan.carpenter@oracle.com>, Michael Kerrisk <mtk.manpages@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Marcus Gelderie <redmnic@gmail.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Joe Perches <joe@perches.com>, Frederic Weisbecker <fweisbec@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Andi Kleen <ak@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, Stas Sergeev <stsp@list.ru>, Amanieu d'Antras <amanieu@gmail.com>, Wang Xiaoqiang <wangxq10@lzu.edu.cn>, Helge Deller <deller@gmx.de>, Mateusz Guzik <mguzik@redhat.com>, Alex Thorlton <athorlton@sgi.com>, Ben Segall <bsegall@google.com>, John Stultz <john.stultz@linaro.org>, Rik van Riel <riel@redhat.com>, Eric B Munson <emunson@akamai.com>, Alexey Klimov <klimov.linux@gmail.com>, Chen Gang <gang.chen.5i5j@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Alexander Kuleshov <kuleshovmail@gmail.com>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, "open list:IA64 (Itanium) PLATFORM" <linux-ia64@vger.kernel.org>, "open list:KERNEL VIRTUAL MACHINE (KVM) FOR POWERPC" <kvm-ppc@vger.kernel.org>, "open list:KERNEL VIRTUAL MACHINE (KVM)" <kvm@vger.kernel.org>, "open list:LINUX FOR POWERPC (32-BIT AND 64-BIT)" <linuxppc-dev@lists.ozlabs.org>, "open list:INFINIBAND SUBSYSTEM" <linux-rdma@vger.kernel.org>, "open list:FILESYSTEMS (VFS and infrastructure)" <linux-fsdevel@vger.kernel.org>, "open list:CONTROL GROUP (CGROUP)" <cgroups@vger.kernel.org>, "open list:BPF (Safe dynamic programs and tools)" <netdev@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi!
+On Fri, Jul 15, 2016 at 02:09:25PM +0100, Mel Gorman wrote:
+> Minchan Kim reported setting the following warning on a 32-bit system
+> although it can affect 64-bit systems.
+> 
+>   WARNING: CPU: 4 PID: 1322 at mm/memcontrol.c:998 mem_cgroup_update_lru_size+0x103/0x110
+>   mem_cgroup_update_lru_size(f44b4000, 1, -7): zid 1 lru_size 1 but empty
+>   Modules linked in:
+>   CPU: 4 PID: 1322 Comm: cp Not tainted 4.7.0-rc4-mm1+ #143
+>   Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+>    00000086 00000086 c2bc5a10 db3e4a97 c2bc5a54 db9d4025 c2bc5a40 db07b82a
+>    db9d0594 c2bc5a70 0000052a db9d4025 000003e6 db208463 000003e6 00000001
+>    f44b4000 00000001 c2bc5a5c db07b88b 00000009 00000000 c2bc5a54 db9d0594
+>   Call Trace:
+>    [<db3e4a97>] dump_stack+0x76/0xaf
+>    [<db07b82a>] __warn+0xea/0x110
+>    [<db208463>] ? mem_cgroup_update_lru_size+0x103/0x110
+>    [<db07b88b>] warn_slowpath_fmt+0x3b/0x40
+>    [<db208463>] mem_cgroup_update_lru_size+0x103/0x110
+>    [<db1b52a2>] isolate_lru_pages.isra.61+0x2e2/0x360
+>    [<db1b6ffc>] shrink_active_list+0xac/0x2a0
+>    [<db3f136e>] ? __delay+0xe/0x10
+>    [<db1b772c>] shrink_node_memcg+0x53c/0x7a0
+>    [<db1b7a3b>] shrink_node+0xab/0x2a0
+>    [<db1b7cf6>] do_try_to_free_pages+0xc6/0x390
+>    [<db1b8205>] try_to_free_pages+0x245/0x590
+> 
+> LRU list contents and counts are updated separately. Counts are updated
+> before pages are added to the LRU and updated after pages are removed.
+> The warning above is from a check in mem_cgroup_update_lru_size that
+> ensures that list sizes of zero are empty.
+> 
+> The problem is that node-lru needs to account for highmem pages if
+> CONFIG_HIGHMEM is set. One impact of the implementation is that the
+> sizes are updated in multiple passes when pages from multiple zones were
+> isolated. This happens whether HIGHMEM is set or not. When multiple zones
+> are isolated, it's possible for a debugging check in memcg to be tripped.
+> 
+> This patch forces all the zone counts to be updated before the memcg
+> function is called.
+> 
+> Reported-and-tested-by: Minchan Kim <minchan@kernel.org>
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> ---
 
-Am 15.07.2016 um 12:35 schrieb Topi Miettinen:
-> Hello,
-> 
-> There are many basic ways to control processes, including capabilities,
-> cgroups and resource limits. However, there are far fewer ways to find out
-> useful values for the limits, except blind trial and error.
-> 
-> This patch series attempts to fix that by giving at least a nice starting
-> point from the highwater mark values of the resources in question.
-> I looked where each limit is checked and added a call to update the mark
-> nearby.
-> 
-> Example run of program from Documentation/accounting/getdelauys.c:
-> 
-> ./getdelays -R -p `pidof smartd`
-> printing resource accounting
-> RLIMIT_CPU=0
-> RLIMIT_FSIZE=0
-> RLIMIT_DATA=18198528
-> RLIMIT_STACK=135168
-> RLIMIT_CORE=0
-> RLIMIT_RSS=0
-> RLIMIT_NPROC=1
-> RLIMIT_NOFILE=55
-> RLIMIT_MEMLOCK=0
-> RLIMIT_AS=130879488
-> RLIMIT_LOCKS=0
-> RLIMIT_SIGPENDING=0
-> RLIMIT_MSGQUEUE=0
-> RLIMIT_NICE=0
-> RLIMIT_RTPRIO=0
-> RLIMIT_RTTIME=0
-> 
-> ./getdelays -R -C /sys/fs/cgroup/systemd/system.slice/smartd.service/
-> printing resource accounting
-> sleeping 1, blocked 0, running 0, stopped 0, uninterruptible 0
-> RLIMIT_CPU=0
-> RLIMIT_FSIZE=0
-> RLIMIT_DATA=18198528
-> RLIMIT_STACK=135168
-> RLIMIT_CORE=0
-> RLIMIT_RSS=0
-> RLIMIT_NPROC=1
-> RLIMIT_NOFILE=55
-> RLIMIT_MEMLOCK=0
-> RLIMIT_AS=130879488
-> RLIMIT_LOCKS=0
-> RLIMIT_SIGPENDING=0
-> RLIMIT_MSGQUEUE=0
-> RLIMIT_NICE=0
-> RLIMIT_RTPRIO=0
-> RLIMIT_RTTIME=0
-> 
-> In this example, smartd is running as a non-root user. The presented
-> values can be used as a starting point for giving new limits to the
-> service.
+< snip >
 
-I don't think it is worth sprinkling the kernel with update_resource_highwatermark()
-calls just to get these metrics.
+> +/*
+> + * Update LRU sizes after isolating pages. The LRU size updates must
+> + * be complete before mem_cgroup_update_lru_size due to a santity check.
+> + */
 
-Can't we teach the existing perf infrastructure to collect these highwatermarks for us?
+Looks better.
 
-Thanks,
-//richard
+> +static __always_inline void update_lru_sizes(struct lruvec *lruvec,
+> +			enum lru_list lru, unsigned long *nr_zone_taken,
+> +			unsigned long nr_taken)
+> +{
+> +#ifdef CONFIG_HIGHMEM
+
+If you think it's really worth to optimize it for non-highmem system,
+we don't need to account nr_zone_taken in *isolate_lru_pages*
+from the beginning for non-highmem system, either.
+
+> +	int zid;
+> +
+> +	/*
+> +	 * Highmem has separate accounting for highmem pages so each zone
+
+                                               highmem file pages
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
