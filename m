@@ -1,152 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 02B2E6B0005
-	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 15:03:19 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id ez1so104334518pab.0
-        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 12:03:18 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id kc6si10428070pab.189.2016.07.15.12.03.18
-        for <linux-mm@kvack.org>;
-        Fri, 15 Jul 2016 12:03:18 -0700 (PDT)
-Date: Fri, 15 Jul 2016 13:03:16 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: mm: GPF in find_get_pages_tag
-Message-ID: <20160715190316.GB7195@linux.intel.com>
-References: <CACT4Y+a99OW7TYeLsuEic19uY2j45DGXL=LowUMq3TywWS3f2Q@mail.gmail.com>
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DFC86B0005
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 15:08:10 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id l89so79013269lfi.3
+        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 12:08:10 -0700 (PDT)
+Received: from mail-lf0-x22a.google.com (mail-lf0-x22a.google.com. [2a00:1450:4010:c07::22a])
+        by mx.google.com with ESMTPS id 89si7450226lja.71.2016.07.15.12.08.08
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Jul 2016 12:08:08 -0700 (PDT)
+Received: by mail-lf0-x22a.google.com with SMTP id l69so37694516lfg.1
+        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 12:08:08 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CACT4Y+a99OW7TYeLsuEic19uY2j45DGXL=LowUMq3TywWS3f2Q@mail.gmail.com>
+In-Reply-To: <20160715190316.GB7195@linux.intel.com>
+References: <CACT4Y+a99OW7TYeLsuEic19uY2j45DGXL=LowUMq3TywWS3f2Q@mail.gmail.com>
+ <20160715190316.GB7195@linux.intel.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Fri, 15 Jul 2016 21:07:48 +0200
+Message-ID: <CACT4Y+Y7YU8GTzrehV-LiuJfpV8AvTyGdd-AOwdfWJAh_+JM4A@mail.gmail.com>
+Subject: Re: mm: GPF in find_get_pages_tag
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, ross.zwisler@linux.intel.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>
+To: syzkaller <syzkaller@googlegroups.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, ross.zwisler@linux.intel.com, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>
 
-On Tue, Jul 05, 2016 at 01:39:23PM +0200, Dmitry Vyukov wrote:
-> Hello,
-> 
-> The following program triggers GPF in find_get_pages_tag if run in
-> parallel loop for minutes:
-> 
-> kasan: CONFIG_KASAN_INLINE enabled
-> kasan: GPF could be caused by NULL-ptr deref or user memory access
-> general protection fault: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN
-> Modules linked in:
-> CPU: 2 PID: 301 Comm: a.out Tainted: G        W       4.7.0-rc5+ #28
-> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-> task: ffff880063d12440 ti: ffff880067350000 task.ti: ffff880067350000
-> RIP: 0010:[<ffffffff816951a4>]
->   [<     inline     >] radix_tree_next_slot include/linux/radix-tree.h:473
->   [<ffffffff816951a4>] find_get_pages_tag+0x334/0x930 mm/filemap.c:1452
-> RSP: 0018:ffff880067357840  EFLAGS: 00010202
-> RAX: 0000000000000001 RBX: 0000000000000001 RCX: ffff880063d12c80
-> RDX: 0000000000000000 RSI: dffffc0000000000 RDI: 0000000000000008
-> RBP: ffff880067357910 R08: 0000000000000002 R09: 0000000000000000
-> R10: 0000000000000000 R11: ffffffff89f06360 R12: 0000000000000001
-> R13: 0000000000000000 R14: 0000000000000000 R15: ffffed0007058ee5
-> FS:  00007f56e017c700(0000) GS:ffff88006d400000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 00007f56df97ae78 CR3: 0000000063d9e000 CR4: 00000000000006e0
-> Stack:
->  ffffffff81694efc ffff8800673578a8 0000010267357860 ffff880067357a50
->  ffff880065986aa0 1ffff1000ce6af11 0000000e00000000 ffff880067357a00
->  0000000000000003 0000000041b58ab3 ffffffff87e2a722 ffffffff81694e70
-> Call Trace:
->  [<ffffffff816cd91a>] pagevec_lookup_tag+0x3a/0x80 mm/swap.c:960
->  [<ffffffff81ab4231>] mpage_prepare_extent_to_map+0x321/0xa90
-> fs/ext4/inode.c:2516
->  [<ffffffff81ac883e>] ext4_writepages+0x10be/0x2b20 fs/ext4/inode.c:2736
->  [<ffffffff816c99c7>] do_writepages+0x97/0x100 mm/page-writeback.c:2364
->  [<ffffffff8169bee8>] __filemap_fdatawrite_range+0x248/0x2e0 mm/filemap.c:300
->  [<ffffffff8169c371>] filemap_write_and_wait_range+0x121/0x1b0 mm/filemap.c:490
->  [<ffffffff81aa584d>] ext4_sync_file+0x34d/0xdb0 fs/ext4/fsync.c:115
->  [<ffffffff818b667a>] vfs_fsync_range+0x10a/0x250 fs/sync.c:195
->  [<     inline     >] vfs_fsync fs/sync.c:209
->  [<ffffffff818b6832>] do_fsync+0x42/0x70 fs/sync.c:219
->  [<     inline     >] SYSC_fdatasync fs/sync.c:232
->  [<ffffffff818b6f89>] SyS_fdatasync+0x19/0x20 fs/sync.c:230
->  [<ffffffff86a94e00>] entry_SYSCALL_64_fastpath+0x23/0xc1
-> arch/x86/entry/entry_64.S:207
-> Code: 85 70 ff ff ff 49 d1 ec 4d 85 e4 4c 89 65 a8 74 65 e8 51 06 f0
-> ff 49 8d 7e 08 48 be 00 00 00 00 00 fc ff df 48 89 f8 48 c1 e8 03 <80>
-> 3c 30 00 0f 85 9c 05 00 00 4d 8b 6e 08 4c 89 eb 83 e3 03 48
-> RIP  [<     inline     >] radix_tree_next_slot include/linux/radix-tree.h:473
-> RIP  [<ffffffff816951a4>] find_get_pages_tag+0x334/0x930 mm/filemap.c:1452
->  RSP <ffff880067357840>
-> ---[ end trace 33a0cc4dd9a49a67 ]---
-> 
-> 
-> 
-> // autogenerated by syzkaller (http://github.com/google/syzkaller)
-> #include <pthread.h>
-> #include <stdint.h>
-> #include <string.h>
-> #include <stdio.h>
-> #include <sys/syscall.h>
-> #include <unistd.h>
-> 
-> int fd;
-> char buf[8192];
-> char filename[256];
-> 
-> void* thr(void* arg)
-> {
->   switch ((long)arg) {
->   case 0:
->     write(fd, buf, 0x1001ul);
->     break;
->   case 1:
->     fdatasync(fd);
->     break;
->   case 2:
->     ftruncate(fd, 2);
->     break;
->   case 3:
->     write(fd, buf, 0x20ul);
->     break;
->   case 5:
->     fd = open(filename, 0x50042ul, 0x41ul);
->     break;
+On Fri, Jul 15, 2016 at 9:03 PM, Ross Zwisler
+<ross.zwisler@linux.intel.com> wrote:
+> On Tue, Jul 05, 2016 at 01:39:23PM +0200, Dmitry Vyukov wrote:
+>> Hello,
+>>
+>> The following program triggers GPF in find_get_pages_tag if run in
+>> parallel loop for minutes:
+>>
+>> kasan: CONFIG_KASAN_INLINE enabled
+>> kasan: GPF could be caused by NULL-ptr deref or user memory access
+>> general protection fault: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN
+>> Modules linked in:
+>> CPU: 2 PID: 301 Comm: a.out Tainted: G        W       4.7.0-rc5+ #28
+>> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+>> task: ffff880063d12440 ti: ffff880067350000 task.ti: ffff880067350000
+>> RIP: 0010:[<ffffffff816951a4>]
+>>   [<     inline     >] radix_tree_next_slot include/linux/radix-tree.h:473
+>>   [<ffffffff816951a4>] find_get_pages_tag+0x334/0x930 mm/filemap.c:1452
+>> RSP: 0018:ffff880067357840  EFLAGS: 00010202
+>> RAX: 0000000000000001 RBX: 0000000000000001 RCX: ffff880063d12c80
+>> RDX: 0000000000000000 RSI: dffffc0000000000 RDI: 0000000000000008
+>> RBP: ffff880067357910 R08: 0000000000000002 R09: 0000000000000000
+>> R10: 0000000000000000 R11: ffffffff89f06360 R12: 0000000000000001
+>> R13: 0000000000000000 R14: 0000000000000000 R15: ffffed0007058ee5
+>> FS:  00007f56e017c700(0000) GS:ffff88006d400000(0000) knlGS:0000000000000000
+>> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+>> CR2: 00007f56df97ae78 CR3: 0000000063d9e000 CR4: 00000000000006e0
+>> Stack:
+>>  ffffffff81694efc ffff8800673578a8 0000010267357860 ffff880067357a50
+>>  ffff880065986aa0 1ffff1000ce6af11 0000000e00000000 ffff880067357a00
+>>  0000000000000003 0000000041b58ab3 ffffffff87e2a722 ffffffff81694e70
+>> Call Trace:
+>>  [<ffffffff816cd91a>] pagevec_lookup_tag+0x3a/0x80 mm/swap.c:960
+>>  [<ffffffff81ab4231>] mpage_prepare_extent_to_map+0x321/0xa90
+>> fs/ext4/inode.c:2516
+>>  [<ffffffff81ac883e>] ext4_writepages+0x10be/0x2b20 fs/ext4/inode.c:2736
+>>  [<ffffffff816c99c7>] do_writepages+0x97/0x100 mm/page-writeback.c:2364
+>>  [<ffffffff8169bee8>] __filemap_fdatawrite_range+0x248/0x2e0 mm/filemap.c:300
+>>  [<ffffffff8169c371>] filemap_write_and_wait_range+0x121/0x1b0 mm/filemap.c:490
+>>  [<ffffffff81aa584d>] ext4_sync_file+0x34d/0xdb0 fs/ext4/fsync.c:115
+>>  [<ffffffff818b667a>] vfs_fsync_range+0x10a/0x250 fs/sync.c:195
+>>  [<     inline     >] vfs_fsync fs/sync.c:209
+>>  [<ffffffff818b6832>] do_fsync+0x42/0x70 fs/sync.c:219
+>>  [<     inline     >] SYSC_fdatasync fs/sync.c:232
+>>  [<ffffffff818b6f89>] SyS_fdatasync+0x19/0x20 fs/sync.c:230
+>>  [<ffffffff86a94e00>] entry_SYSCALL_64_fastpath+0x23/0xc1
+>> arch/x86/entry/entry_64.S:207
+>> Code: 85 70 ff ff ff 49 d1 ec 4d 85 e4 4c 89 65 a8 74 65 e8 51 06 f0
+>> ff 49 8d 7e 08 48 be 00 00 00 00 00 fc ff df 48 89 f8 48 c1 e8 03 <80>
+>> 3c 30 00 0f 85 9c 05 00 00 4d 8b 6e 08 4c 89 eb 83 e3 03 48
+>> RIP  [<     inline     >] radix_tree_next_slot include/linux/radix-tree.h:473
+>> RIP  [<ffffffff816951a4>] find_get_pages_tag+0x334/0x930 mm/filemap.c:1452
+>>  RSP <ffff880067357840>
+>> ---[ end trace 33a0cc4dd9a49a67 ]---
+>>
+>>
+>>
+>> // autogenerated by syzkaller (http://github.com/google/syzkaller)
+>> #include <pthread.h>
+>> #include <stdint.h>
+>> #include <string.h>
+>> #include <stdio.h>
+>> #include <sys/syscall.h>
+>> #include <unistd.h>
+>>
+>> int fd;
+>> char buf[8192];
+>> char filename[256];
+>>
+>> void* thr(void* arg)
+>> {
+>>   switch ((long)arg) {
+>>   case 0:
+>>     write(fd, buf, 0x1001ul);
+>>     break;
+>>   case 1:
+>>     fdatasync(fd);
+>>     break;
+>>   case 2:
+>>     ftruncate(fd, 2);
+>>     break;
+>>   case 3:
+>>     write(fd, buf, 0x20ul);
+>>     break;
+>>   case 5:
+>>     fd = open(filename, 0x50042ul, 0x41ul);
+>>     break;
+>
+> This open() code is unreachable because the thread argument will only be 0-4,
+> right?  Should this be "case 4"?
 
-This open() code is unreachable because the thread argument will only be 0-4,
-right?  Should this be "case 4"?
 
->   }
->   return 0;
-> }
-> 
-> int main()
-> {
->   long i;
->   pthread_t th[10];
-> 
->   srand(getpid());
->   sprintf(filename, "./file%d", getpid());
->   fd = open(filename, 0x50042ul, 0x41ul);
->   for (i = 0; i < 10; i++) {
->     pthread_create(&th[i], 0, thr, (void*)(i % 5));
->     usleep(rand() % 10);
->   }
->   for (i = 0; i < 10; i++)
->     pthread_join(th[i], 0);
->   unlink(filename);
->   return 0;
-> }
-> 
-> The faulting instruction is:
-> ffffffff816951a4:       80 3c 30 00             cmpb   $0x0,(%rax,%rsi,1)
-> So this is KASAN shadow check for NULL address.
-> 
-> 
-> The previous taint is not relevant, it is:
-> 
-> [   74.786477] ------------[ cut here ]------------
-> [   74.786885] WARNING: CPU: 2 PID: 717 at lib/stackdepot.c:119
-> depot_save_stack+0x34f/0x5b0
-> [   74.787196] Stack depot reached limit capacity
-> 
-> 
-> On commit 1a0a02d1efa066001fd315c1b4df583d939fa2c4 (Jun 30).
+I am not sure. I think it I just copy-pasted the program that
+triggered the crash for me. Andrey should have a valid reproducer, in
+the other thread he said that he can reproduce it. Andrey, did you
+change 5 to 4?
+
+
+
+>>   }
+>>   return 0;
+>> }
+>>
+>> int main()
+>> {
+>>   long i;
+>>   pthread_t th[10];
+>>
+>>   srand(getpid());
+>>   sprintf(filename, "./file%d", getpid());
+>>   fd = open(filename, 0x50042ul, 0x41ul);
+>>   for (i = 0; i < 10; i++) {
+>>     pthread_create(&th[i], 0, thr, (void*)(i % 5));
+>>     usleep(rand() % 10);
+>>   }
+>>   for (i = 0; i < 10; i++)
+>>     pthread_join(th[i], 0);
+>>   unlink(filename);
+>>   return 0;
+>> }
+>>
+>> The faulting instruction is:
+>> ffffffff816951a4:       80 3c 30 00             cmpb   $0x0,(%rax,%rsi,1)
+>> So this is KASAN shadow check for NULL address.
+>>
+>>
+>> The previous taint is not relevant, it is:
+>>
+>> [   74.786477] ------------[ cut here ]------------
+>> [   74.786885] WARNING: CPU: 2 PID: 717 at lib/stackdepot.c:119
+>> depot_save_stack+0x34f/0x5b0
+>> [   74.787196] Stack depot reached limit capacity
+>>
+>>
+>> On commit 1a0a02d1efa066001fd315c1b4df583d939fa2c4 (Jun 30).
+>
+> --
+> You received this message because you are subscribed to the Google Groups "syzkaller" group.
+> To unsubscribe from this group and stop receiving emails from it, send an email to syzkaller+unsubscribe@googlegroups.com.
+> For more options, visit https://groups.google.com/d/optout.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
