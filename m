@@ -1,64 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C5A5B6B0262
-	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 12:59:00 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id l89so77365086lfi.3
-        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 09:59:00 -0700 (PDT)
-Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
-        by mx.google.com with ESMTPS id u123si7173629lja.31.2016.07.15.09.58.59
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 22E2B6B0262
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 13:02:21 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id p126so57043917qke.0
+        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 10:02:21 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d75si5885596qka.11.2016.07.15.10.02.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Jul 2016 09:58:59 -0700 (PDT)
-Received: by mail-lf0-x244.google.com with SMTP id l69so2847386lfg.1
-        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 09:58:59 -0700 (PDT)
+        Fri, 15 Jul 2016 10:02:20 -0700 (PDT)
+Date: Fri, 15 Jul 2016 13:02:17 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: System freezes after OOM
+In-Reply-To: <20160715122210.GG11811@dhcp22.suse.cz>
+Message-ID: <alpine.LRH.2.02.1607151256260.7011@file01.intranet.prod.int.rdu2.redhat.com>
+References: <20160712064905.GA14586@dhcp22.suse.cz> <alpine.LRH.2.02.1607121907160.24806@file01.intranet.prod.int.rdu2.redhat.com> <20160713111006.GF28723@dhcp22.suse.cz> <alpine.LRH.2.02.1607131021410.31769@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160714125129.GA12289@dhcp22.suse.cz> <alpine.LRH.2.02.1607140952550.1102@file01.intranet.prod.int.rdu2.redhat.com> <20160714145937.GB12289@dhcp22.suse.cz> <alpine.LRH.2.02.1607141315130.17819@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160715083510.GD11811@dhcp22.suse.cz> <alpine.LRH.2.02.1607150802380.5034@file01.intranet.prod.int.rdu2.redhat.com> <20160715122210.GG11811@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CABAubTh_5aLxaEYYyFivoatJLN35K8Gy1fHKG=8FL8XFrv61Sw@mail.gmail.com>
-References: <CABAubThf6gbi243BqYgoCjqRW36sXJuJ6e_8zAqzkYRiu0GVtQ@mail.gmail.com>
- <20160711064150.GB5284@dhcp22.suse.cz> <CABAubThHfngHTQW_AEuW71VCvLyD_9b5Z05tSud5bf8JKjuA9Q@mail.gmail.com>
- <CABAubTjGhUXMeAnFgW8LGck1tgvtu12Zb9fx5BRhDWNjZ7SYLQ@mail.gmail.com>
- <20160712071927.GD14586@dhcp22.suse.cz> <CABAubTg91qrUd4DO7T2SiJQBK9ypuhP0+F-091ZxtmonjaaYWg@mail.gmail.com>
- <57851224.2020902@yandex-team.ru> <CABAubTiVb8j8wEbcr16FAJnBxxS7QzghpPiJUcmV+=Ji=QgL=A@mail.gmail.com>
- <20160714132258.GA1333@redhat.com> <CABAubTh_5aLxaEYYyFivoatJLN35K8Gy1fHKG=8FL8XFrv61Sw@mail.gmail.com>
-From: Shayan Pooya <shayan@liveve.org>
-Date: Fri, 15 Jul 2016 09:58:58 -0700
-Message-ID: <CABAubTjjD6nmAtMNze5O6-bE-ivMmb24Jd4u2mMpBZFBFR1CnA@mail.gmail.com>
-Subject: Re: bug in memcg oom-killer results in a hung syscall in another
- process in the same cgroup
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Michal Hocko <mhocko@kernel.org>, Konstantin Khlebnikov <koct9i@gmail.com>, cgroups mailinglist <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Ondrej Kozina <okozina@redhat.com>, Jerome Marchand <jmarchan@redhat.com>, Stanislav Kozina <skozina@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dm-devel@redhat.com
 
->> I am just curious... can you reproduce the problem reliably? If yes, can you try
->> the patch below ? Just in case, this is not the real fix in any case...
->
-> Yes. It deterministically results in hung processes in vanilla kernel.
-> I'll try this patch.
 
-I'll have to correct this. I can reproduce this issue easily on
-high-end servers and normal laptops. But for some reason it does not
-happen very often in vmware guests (maybe related to lower
-parallelism).
 
->> --- x/kernel/sched/core.c
->> +++ x/kernel/sched/core.c
->> @@ -2793,8 +2793,11 @@ asmlinkage __visible void schedule_tail(struct task_struct *prev)
->>         balance_callback(rq);
->>         preempt_enable();
->>
->> -       if (current->set_child_tid)
->> +       if (current->set_child_tid) {
->> +               mem_cgroup_oom_enable();
->>                 put_user(task_pid_vnr(current), current->set_child_tid);
->> +               mem_cgroup_oom_disable();
->> +       }
->>  }
->>
->>  /*
+On Fri, 15 Jul 2016, Michal Hocko wrote:
 
-I tried this patch and I still see the same stuck processes (assuming
-that's what you were curious about).
+> On Fri 15-07-16 08:11:22, Mikulas Patocka wrote:
+> > 
+> > The stacktraces showed that the kcryptd process was throttled when it 
+> > tried to do mempool allocation. Mempool adds the __GFP_NORETRY flag to the 
+> > allocation, but unfortunatelly, this flag doesn't prevent the allocator 
+> > from throttling.
+> 
+> Yes and in fact it shouldn't prevent any throttling. The flag merely
+> says that the allocation should give up rather than retry
+> reclaim/compaction again and again.
+> 
+> > I say that the process doing mempool allocation shouldn't ever be 
+> > throttled. Maybe add __GFP_NOTHROTTLE?
+> 
+> A specific gfp flag would be an option but we are slowly running out of
+> bit space there and I am not yet convinced PF_LESS_THROTTLE is
+> unsuitable.
+
+PF_LESS_THROTTLE will make it throttle less, but it doesn't eliminate 
+throttling entirely. So, maybe add PF_NO_THROTTLE? But PF_* flags are also 
+almost exhausted.
+
+> I might be missing something but exactly this is what happens in
+> wait_iff_congested no? If the bdi doesn't see the congestion it wakes up
+> the reclaim context even before the timeout. Or are we talking past each
+> other?
+
+OK, I see that there is wait queue in congestion_wait. I didn't notice it 
+before.
+
+Mikulas
+
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
