@@ -1,99 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1047D6B025F
-	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 08:11:25 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id a123so221518857qkd.2
-        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 05:11:25 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q43si5086561qta.58.2016.07.15.05.11.24
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E45F26B0261
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 08:20:15 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id f126so13882598wma.3
+        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 05:20:15 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m5si478387wjw.285.2016.07.15.05.20.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Jul 2016 05:11:24 -0700 (PDT)
-Date: Fri, 15 Jul 2016 08:11:22 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: System freezes after OOM
-In-Reply-To: <20160715083510.GD11811@dhcp22.suse.cz>
-Message-ID: <alpine.LRH.2.02.1607150802380.5034@file01.intranet.prod.int.rdu2.redhat.com>
-References: <9be09452-de7f-d8be-fd5d-4a80d1cd1ba3@redhat.com> <alpine.LRH.2.02.1607111027080.14327@file01.intranet.prod.int.rdu2.redhat.com> <20160712064905.GA14586@dhcp22.suse.cz> <alpine.LRH.2.02.1607121907160.24806@file01.intranet.prod.int.rdu2.redhat.com>
- <20160713111006.GF28723@dhcp22.suse.cz> <alpine.LRH.2.02.1607131021410.31769@file01.intranet.prod.int.rdu2.redhat.com> <20160714125129.GA12289@dhcp22.suse.cz> <alpine.LRH.2.02.1607140952550.1102@file01.intranet.prod.int.rdu2.redhat.com>
- <20160714145937.GB12289@dhcp22.suse.cz> <alpine.LRH.2.02.1607141315130.17819@file01.intranet.prod.int.rdu2.redhat.com> <20160715083510.GD11811@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 15 Jul 2016 05:20:14 -0700 (PDT)
+Subject: Re: [PATCH 34/34] mm, vmstat: remove zone and node double accounting
+ by approximating retries
+References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
+ <1467970510-21195-35-git-send-email-mgorman@techsingularity.net>
+ <bd515668-2d1f-e70e-f419-7a55189757f7@suse.cz>
+ <20160715074859.GM9806@techsingularity.net>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <31d7909c-d99e-3fee-e17c-3f160e7620c0@suse.cz>
+Date: Fri, 15 Jul 2016 14:20:10 +0200
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20160715074859.GM9806@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Ondrej Kozina <okozina@redhat.com>, Jerome Marchand <jmarchan@redhat.com>, Stanislav Kozina <skozina@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dm-devel@redhat.com
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
 
-
-
-On Fri, 15 Jul 2016, Michal Hocko wrote:
-
-> On Thu 14-07-16 13:35:35, Mikulas Patocka wrote:
-> > On Thu, 14 Jul 2016, Michal Hocko wrote:
-> > > On Thu 14-07-16 10:00:16, Mikulas Patocka wrote:
-> > > > But it needs other changes to honor the PF_LESS_THROTTLE flag:
-> > > > 
-> > > > static int current_may_throttle(void)
-> > > > {
-> > > >         return !(current->flags & PF_LESS_THROTTLE) ||
-> > > >                 current->backing_dev_info == NULL ||
-> > > >                 bdi_write_congested(current->backing_dev_info);
-> > > > }
-> > > > --- if you set PF_LESS_THROTTLE, current_may_throttle may still return 
-> > > > true if one of the other conditions is met.
-> > > 
-> > > That is true but doesn't that mean that the device is congested and
-> > > waiting a bit is the right thing to do?
-> > 
-> > You shouldn't really throttle mempool allocations at all. It's better to 
-> > fail the allocation quickly and allocate from a mempool reserve than to 
-> > wait 0.1 seconds in the reclaim path.
+On 07/15/2016 09:48 AM, Mel Gorman wrote:
+> On Thu, Jul 14, 2016 at 03:40:11PM +0200, Vlastimil Babka wrote:
+>>> @@ -4,6 +4,26 @@
+>>> #include <linux/huge_mm.h>
+>>> #include <linux/swap.h>
+>>>
+>>> +#ifdef CONFIG_HIGHMEM
+>>> +extern atomic_t highmem_file_pages;
+>>> +
+>>> +static inline void acct_highmem_file_pages(int zid, enum lru_list lru,
+>>> +							int nr_pages)
+>>> +{
+>>> +	if (is_highmem_idx(zid) && is_file_lru(lru)) {
+>>> +		if (nr_pages > 0)
+>>
+>> This seems like a unnecessary branch, atomic_add should handle negative
+>> nr_pages just fine?
+>>
 > 
-> Well, but we do that already, no? The first allocation request is NOWAIT
+> On x86 it would but the interface makes no guarantees it'll handle
+> signed types properly on all architectures.
 
-The stacktraces showed that the kcryptd process was throttled when it 
-tried to do mempool allocation. Mempool adds the __GFP_NORETRY flag to the 
-allocation, but unfortunatelly, this flag doesn't prevent the allocator 
-from throttling.
+Hmm really? At least some drivers do that in an easily grepable way:
 
-I say that the process doing mempool allocation shouldn't ever be 
-throttled. Maybe add __GFP_NOTHROTTLE?
+drivers/tty/serial/dz.c:                        atomic_add(-1, &mux->map_guard);
+drivers/tty/serial/sb1250-duart.c:                      atomic_add(-1, &duart->map_guard);
+drivers/tty/serial/zs.c:                        atomic_add(-1, &scc->irq_guard);
 
-> and then we try to consume an object from the pool. We are re-adding
-> __GFP_DIRECT_RECLAIM in case both fail. The point of throttling is to
-> prevent from scanning through LRUs too quickly while we know that the
-> bdi is congested.
+And our own __mod_zone_page_state() can get both negative and positive
+vales and boils down to atomic_long_add() (I assume the long variant wouldn't
+be different in this aspect).
 
-> > dm-crypt can do approximatelly 100MB/s. That means that it processes 25k 
-> > swap pages per second. If you wait in mempool_alloc, the allocation would 
-> > be satisfied in 0.00004s. If you wait in the allocator's throttle 
-> > function, you waste 0.1s.
-> > 
-> > 
-> > It is also questionable if those 0.1 second sleeps are reasonable at all. 
-> > SSDs with 100k IOPS are common - they can drain the request queue in much 
-> > less time than 0.1 second. I think those hardcoded 0.1 second sleeps 
-> > should be replaced with sleeps until the device stops being congested.
+>>> @@ -1456,14 +1461,27 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
+>>> 		unsigned long available;
+>>> 		enum compact_result compact_result;
+>>>
+>>> +		if (last_pgdat == zone->zone_pgdat)
+>>> +			continue;
+>>> +
+>>> +		/*
+>>> +		 * This over-estimates the number of pages available for
+>>> +		 * reclaim/compaction but walking the LRU would take too
+>>> +		 * long. The consequences are that compaction may retry
+>>> +		 * longer than it should for a zone-constrained allocation
+>>> +		 * request.
+>>
+>> The comment above says that we don't retry zone-constrained at all. Is this
+>> an obsolete comment, or does it refer to the ZONE_NORMAL constraint? (as
+>> opposed to HIGHMEM, MOVABLE etc?).
+>>
 > 
-> Well if we do not do throttle_vm_writeout then the only remaining
-> writeout throttling for PF_LESS_THROTTLE is wait_iff_congested for
-> the direct reclaim and that should wake up if the device stops being
-> congested AFAIU.
+> It can still over-estimate the amount of memory available if
+> ZONE_MOVABLE exists even if the request is not zone-constrained.
 
-I mean - a proper thing is to use active wakeup for the throttling, rather 
-than retrying every 0.1 second. Polling for some condition is generally 
-bad idea.
+OK.
 
-If there are too many pages under writeback, you should sleep on a wait 
-queue. When the number of pages under writeback drops, wake up the wait 
-queue.
-
-Mikulas
-
-> -- 
-> Michal Hocko
-> SUSE Labs
+>>> @@ -3454,6 +3455,15 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
+>>> 		return false;
+>>>
+>>> 	/*
+>>> +	 * Blindly retry lowmem allocation requests that are often ignored by
+>>> +	 * the OOM killer up to MAX_RECLAIM_RETRIES as we not have a reliable
+>>> +	 * and fast means of calculating reclaimable, dirty and writeback pages
+>>> +	 * in eligible zones.
+>>> +	 */
+>>> +	if (ac->high_zoneidx < ZONE_NORMAL)
+>>> +		goto out;
+>>
+>> A goto inside two nested for cycles? Is there no hope for sanity? :(
+>>
 > 
+> None, hand it in at the door.
+
+Mine's long gone, was thinking for the future newbies :)
+ 
+> It can be pulled out and put past the "return false" at the end. It's
+> just not necessarily any better.
+
+I see...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
