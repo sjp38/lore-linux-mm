@@ -1,94 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B4906B0005
-	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 03:11:05 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id f126so8344675wma.3
-        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 00:11:05 -0700 (PDT)
-Received: from mail.ud19.udmedia.de (ud19.udmedia.de. [194.117.254.59])
-        by mx.google.com with ESMTPS id z9si3655942wmz.5.2016.07.15.00.11.03
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id F2F1B6B0005
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 03:22:45 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id r190so8583639wmr.0
+        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 00:22:45 -0700 (PDT)
+Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com. [74.125.82.43])
+        by mx.google.com with ESMTPS id b190si3628662wmf.127.2016.07.15.00.22.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Jul 2016 00:11:03 -0700 (PDT)
+        Fri, 15 Jul 2016 00:22:44 -0700 (PDT)
+Received: by mail-wm0-f43.google.com with SMTP id f126so14505187wma.1
+        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 00:22:44 -0700 (PDT)
+Date: Fri, 15 Jul 2016 09:22:42 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: System freezes after OOM
+Message-ID: <20160715072242.GB11811@dhcp22.suse.cz>
+References: <20160712064905.GA14586@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1607121907160.24806@file01.intranet.prod.int.rdu2.redhat.com>
+ <2d5e1f84-e886-7b98-cb11-170d7104fd13@I-love.SAKURA.ne.jp>
+ <20160713133955.GK28723@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1607131004340.31769@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160713145638.GM28723@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1607131105080.31769@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.10.1607131644590.92037@chino.kir.corp.google.com>
+ <20160714152913.GC12289@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1607141326500.68666@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII;
- format=flowed
-Content-Transfer-Encoding: 7bit
-Date: Fri, 15 Jul 2016 09:11:02 +0200
-From: Matthias Dahl <ml_linux-kernel@binary-island.eu>
-Subject: Re: Page Allocation Failures/OOM with dm-crypt on software RAID10
- (Intel Rapid Storage) with check/repair/sync
-In-Reply-To: <9074e82f-bf52-011e-8bd7-5731d2b0dcaa@I-love.SAKURA.ne.jp>
-References: <02580b0a303da26b669b4a9892624b13@mail.ud19.udmedia.de>
- <20160712095013.GA14591@dhcp22.suse.cz>
- <d9dbe0328e938eb7544fdb2aa8b5a9c7@mail.ud19.udmedia.de>
- <20160712114920.GF14586@dhcp22.suse.cz>
- <e6c2087730e530e77c2b12d50495bdc9@mail.ud19.udmedia.de>
- <20160712140715.GL14586@dhcp22.suse.cz>
- <459d501038de4d25db6d140ac5ea5f8d@mail.ud19.udmedia.de>
- <20160713112126.GH28723@dhcp22.suse.cz>
- <20160713121828.GI28723@dhcp22.suse.cz>
- <74b9325c37948cf2b460bd759cff23dd@mail.ud19.udmedia.de>
- <20160713134717.GL28723@dhcp22.suse.cz>
- <9074e82f-bf52-011e-8bd7-5731d2b0dcaa@I-love.SAKURA.ne.jp>
-Message-ID: <005574d77d3f5dbc2643044a1e2468dc@mail.ud19.udmedia.de>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1607141326500.68666@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-raid@vger.kernel.org, linux-mm@kvack.org, dm-devel@redhat.com, linux-kernel@vger.kernel.org, Mike Snitzer <snitzer@redhat.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Mikulas Patocka <mpatocka@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Ondrej Kozina <okozina@redhat.com>, Jerome Marchand <jmarchan@redhat.com>, Stanislav Kozina <skozina@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello...
+On Thu 14-07-16 13:38:42, David Rientjes wrote:
+> On Thu, 14 Jul 2016, Michal Hocko wrote:
+> 
+> > > It prevents the whole system from livelocking due to an oom killed process 
+> > > stalling forever waiting for mempool_alloc() to return.  No other threads 
+> > > may be oom killed while waiting for it to exit.
+> > 
+> > But it is true that the patch has unintended side effect for any mempool
+> > allocation from the reclaim path (aka PF_MEMALLOC context).
+> 
+> If PF_MEMALLOC context is allocating too much memory reserves, then I'd 
+> argue that is a problem independent of using mempool_alloc() since 
+> mempool_alloc() can evolve directly into a call to the page allocator.  
+> How does such a process guarantee that it cannot deplete memory reserves 
+> with a simple call to the page allocator?  Since nothing in the page 
+> allocator is preventing complete depletion of reserves (it simply uses 
+> ALLOC_NO_WATERMARKS), the caller in a PF_MEMALLOC context must be 
+> responsible.
 
-I am rather persistent (stubborn?) when it comes to tracking down bugs,
-if somehow possible... and it seems it paid off... somewhat. ;-)
+Well, the reclaim throttles the allocation request if there are too many
+pages under writeback and that should slow down the allocation rate and
+give the writeback some time to complete. But yes you are right there is
+nothing to prevent from memory depletion and it is really hard to come
+up with something with no fail semantic.
 
-So I did quite a lot more further tests and came up with something very
-interesting: As long as the RAID is in sync (as-in: sync_action=idle),
-I can not for the life of me trigger this issue -- the used memory
-still explodes to most of the RAM but it oscillates back and forth.
+Or do you have an idea how to throttle withou knowing how much memory
+will be actually consumed on the writeout path?
 
-I did very stupid things to stress the machine while dd was running as
-usual on the dm-crypt device. I opened a second dd instance with the
-same parameters on the dm-crypt device. I wrote a simple program that
-allocated random amounts of memory (up to 10 GiB), memset them and after
-a random amount of time released it again -- in a continuous loop. I
-put heavy network stress on the machine... whatever I could think of.
+> > So do you
+> > think we should rework your additional patch to be explicit about
+> > TIF_MEMDIE?
+> 
+> Not sure which additional patch you're referring to, the only patch that I 
+> proposed was commit f9054c70d28b which solved hundreds of machines from 
+> timing out.
 
-No matter what, the issue did not trigger. And I repeated said tests
-quite a few times over extended time periods (usually an hour or so).
-Everything worked beautifully with nice speeds and no noticeable system
-slow-downs/lag.
+I would like separate TIF_MEMDIE as an access to memory reserves from
+oom selection selection semantic. And let me repeat your proposed patch
+has a undesirable side effects so we should think about a way to deal
+with those cases. It might work for your setups but it shouldn't break
+others at the same time. OOM situation is quite unlikely compared to
+simple memory depletion by writing to a swap...
+ 
+> > Something like the following (not even compile tested for
+> > illustration). Tetsuo has properly pointed out that this doesn't work
+> > for multithreaded processes reliable but put that aside for now as that
+> > needs a fix on a different layer. I believe we can fix that quite
+> > easily after recent/planned changes.
+> > ---
+> > diff --git a/mm/mempool.c b/mm/mempool.c
+> > index 8f65464da5de..ea26d75c8adf 100644
+> > --- a/mm/mempool.c
+> > +++ b/mm/mempool.c
+> > @@ -322,20 +322,20 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
+> >  
+> >  	might_sleep_if(gfp_mask & __GFP_DIRECT_RECLAIM);
+> >  
+> > +	gfp_mask |= __GFP_NOMEMALLOC;   /* don't allocate emergency reserves */
+> >  	gfp_mask |= __GFP_NORETRY;	/* don't loop in __alloc_pages */
+> >  	gfp_mask |= __GFP_NOWARN;	/* failures are OK */
+> >  
+> >  	gfp_temp = gfp_mask & ~(__GFP_DIRECT_RECLAIM|__GFP_IO);
+> >  
+> >  repeat_alloc:
+> > -	if (likely(pool->curr_nr)) {
+> > -		/*
+> > -		 * Don't allocate from emergency reserves if there are
+> > -		 * elements available.  This check is racy, but it will
+> > -		 * be rechecked each loop.
+> > -		 */
+> > -		gfp_temp |= __GFP_NOMEMALLOC;
+> > -	}
+> > +	/*
+> > +	 * Make sure that the OOM victim will get access to memory reserves
+> > +	 * properly if there are no objects in the pool to prevent from
+> > +	 * livelocks.
+> > +	 */
+> > +	if (!likely(pool->curr_nr) && test_thread_flag(TIF_MEMDIE))
+> > +		gfp_temp &= ~__GFP_NOMEMALLOC;
+> >  
+> >  	element = pool->alloc(gfp_temp, pool->pool_data);
+> >  	if (likely(element != NULL))
+> > @@ -359,7 +359,7 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
+> >  	 * We use gfp mask w/o direct reclaim or IO for the first round.  If
+> >  	 * alloc failed with that and @pool was empty, retry immediately.
+> >  	 */
+> > -	if ((gfp_temp & ~__GFP_NOMEMALLOC) != gfp_mask) {
+> > +	if ((gfp_temp & __GFP_DIRECT_RECLAIM) != (gfp_mask & __GFP_DIRECT_RECLAIM)) {
+> >  		spin_unlock_irqrestore(&pool->lock, flags);
+> >  		gfp_temp = gfp_mask;
+> >  		goto repeat_alloc;
+> 
+> This is bogus and quite obviously leads to oom livelock: if a process is 
+> holding a mutex and does mempool_alloc(), since __GFP_WAIT is allowed in 
+> process context for mempool allocation, it can stall here in an oom 
+> condition if there are no elements available on the mempool freelist.  If 
+> the oom victim contends the same mutex, the system livelocks and the same 
+> bug arises because the holder of the mutex loops forever.  This is the 
+> exact behavior that f9054c70d28b also fixes.
 
-As soon as I issued a "check" to sync_action of the RAID device, it was
-just a matter of a second until the OOM killer kicked in and all hell
-broke loose again. And basically all of my tests where done while the
-RAID device was syncing -- due to a very unfortunate series of events.
+Just to make sure I understand properly:
+Task A				Task B			Task C
+current->flags = PF_MEMALLOC
+mutex_lock(&foo)		mutex_lock(&foo)	out_of_memory
+mempool_alloc()						  select_bad__process = Task B
+  alloc_pages(__GFP_NOMEMALLOC)
 
-I tried to repeat that same test with an external (USB3) connected disk
-with a Linux s/w RAID10 over two partitions... but unfortunately that
-behaves rather differently. I assume it is because it is connected
-through USB and not SATA. While doing those tests on my RAID10 with the
-4 internal SATA3 disks, you can see w/ free that the "used memory" does
-explode to most of the RAM and then oscillates back and forth. With the
-same test on the external disk through, that does not happen at all. The
-used memory stays pretty much constant and only the buffers vary... but
-most of the memory is still free in that case.
 
-I hope my persistence on the matter is not annoying and finally leads us
-somewhere where the real issue hides.
+That would be really unfortunate but it doesn't really differ much from
+other oom deadlocks when the victim is stuck behind an allocating task.
+This is a generic problem and our answer for that is the oom reaper
+which will tear down the address space of the victim asynchronously.
+Sure there is no guarantee it will free enough to get us unstuck because
+we are freeing only private unlocked memory but we rather fallback to
+another oom victim if the situation prevails even after the unmapping
+pass. So we shouldn't be stuck for ever.
 
-Any suggestions, opinions and ideas are greatly appreciated as I have
-pretty much exhausted mine at this time.
+That being said should we rely for the mempool allocations the same as
+any other oom deadlock due to locks?
 
-Last but not least: I switched my testing to a OpenSuSE Tumbleweed Live
-system (x86_64 w/ kernel 4.6.3) as Rawhide w/ 4.7.0rcX behaves rather
-strangely and unstable at times.
+> These aren't hypothetical situations, the patch fixed hundreds of machines 
+> from regularly timing out.  The fundamental reason is that mempool_alloc() 
+> must not loop forever in process context: that is needed when the 
+> allocator is either an oom victim itself or the oom victim is blocked by 
+> an allocator.  mempool_alloc() must guarantee forward progress in such a 
+> context.
+> 
+> The end result is that when in PF_MEMALLOC context, allocators must be 
+> responsible and not deplete all memory reserves.
 
-Thanks,
-Matthias
+How do you propose to guarantee that? You might have really complex IO
+setup and mempools have been the answer for guaranteeing forward progress
+for ages.
 
 -- 
-Dipl.-Inf. (FH) Matthias Dahl | Software Engineer | binary-island.eu
-  services: custom software [desktop, mobile, web], server administration
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
