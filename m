@@ -1,66 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 67CFB828E4
-	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 18:35:56 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id p64so243781035pfb.0
-        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 15:35:56 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id oy8si2083687pac.126.2016.07.15.15.35.55
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CF2EA6B026C
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 19:53:52 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id x130so74124564vkc.3
+        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 16:53:52 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 79si7255317qkz.161.2016.07.15.16.53.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Jul 2016 15:35:55 -0700 (PDT)
-Date: Fri, 15 Jul 2016 15:35:54 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 18/34] mm: rename NR_ANON_PAGES to NR_ANON_MAPPED
-Message-Id: <20160715153554.f9d12360e31441b720d6a6b1@linux-foundation.org>
-In-Reply-To: <20160715104605.GO9806@techsingularity.net>
-References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
-	<1467970510-21195-19-git-send-email-mgorman@techsingularity.net>
-	<20160712145801.GJ5881@cmpxchg.org>
-	<20160713085516.GI9806@techsingularity.net>
-	<20160713130415.GB9905@cmpxchg.org>
-	<20160713133701.GK9806@techsingularity.net>
-	<20160713141343.244c108e48086055f57b1d79@linux-foundation.org>
-	<20160715104605.GO9806@techsingularity.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Fri, 15 Jul 2016 16:53:51 -0700 (PDT)
+Date: Fri, 15 Jul 2016 19:53:49 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: System freezes after OOM
+In-Reply-To: <alpine.DEB.2.10.1607151447490.121215@chino.kir.corp.google.com>
+Message-ID: <alpine.LRH.2.02.1607151943510.13011@file01.intranet.prod.int.rdu2.redhat.com>
+References: <57837CEE.1010609@redhat.com> <20160712064905.GA14586@dhcp22.suse.cz> <alpine.LRH.2.02.1607121907160.24806@file01.intranet.prod.int.rdu2.redhat.com> <2d5e1f84-e886-7b98-cb11-170d7104fd13@I-love.SAKURA.ne.jp> <20160713133955.GK28723@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1607131004340.31769@file01.intranet.prod.int.rdu2.redhat.com> <20160713145638.GM28723@dhcp22.suse.cz> <alpine.LRH.2.02.1607131105080.31769@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.10.1607131644590.92037@chino.kir.corp.google.com>
+ <alpine.LRH.2.02.1607140818250.15554@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.10.1607141316240.68666@chino.kir.corp.google.com> <alpine.LRH.2.02.1607150711270.5034@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.10.1607151422140.121215@chino.kir.corp.google.com>
+ <alpine.LRH.2.02.1607151730430.21114@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.10.1607151447490.121215@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Ondrej Kozina <okozina@redhat.com>, Jerome Marchand <jmarchan@redhat.com>, Stanislav Kozina <skozina@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dm-devel@redhat.com
 
-On Fri, 15 Jul 2016 11:46:05 +0100 Mel Gorman <mgorman@techsingularity.net> wrote:
 
-> On Wed, Jul 13, 2016 at 02:13:43PM -0700, Andrew Morton wrote:
-> > On Wed, 13 Jul 2016 14:37:01 +0100 Mel Gorman <mgorman@techsingularity.net> wrote:
+
+On Fri, 15 Jul 2016, David Rientjes wrote:
+
+> Kworkers are processing writeback, ext4_writepages() relies on kmem that 
+
+ext4_writepages is above device mapper, not below, so how it could block 
+device mapper progress?
+
+Do you use device mapper on the top of block loop device? Writing to loop 
+is prone to deadlock anyway, you should avoid that in production code.
+
+> is reclaiming memory itself through kmem_getpages() and they are waiting 
+> on the oom victim to exit so they endlessly loop in the page allocator 
+> themselves.  Same situation with __alloc_skb() so we can intermittently 
+> lose access to hundreds of the machines over the network.  There are no 
+> custom drivers required for this to happen, the stack trace has already 
+> been posted of the livelock victim and this can happen for anything in 
+> filemap_fault() that has TIF_MEMDIE set.
+
+Again - filemap_failt() is above device mapper, not below (unless you use 
+loop).
+
+> > > frankly don't care about your patch reviewing of dm mempool usage when 
+> > > dm_request() livelocked our kernel.
 > > 
-> > > > I don't care strongly enough to cause a respin of half the series, and
-> > > > it's not your problem that I waited until the last revision went into
-> > > > mmots to review and comment. But if you agreed to a revert, would you
-> > > > consider tacking on a revert patch at the end of the series?
-> > > > 
-> > > 
-> > > In this case, I'm going to ask the other people on the cc for a
-> > > tie-breaker. If someone else prefers the old names then I'm happy for
-> > > your patch to be applied on top with my ack instead of respinning the
-> > > whole series.
-> > > 
-> > > Anyone for a tie breaker?
-> > 
-> > I am aggressively undecided.  I guess as it's a bit of a 51/49
-> > situation, the "stay with what people are familiar with" benefit tips the
-> > balance toward the legacy names?
+> > If it livelocked, it is a bug in some underlying block driver, not a bug 
+> > in mempool_alloc.
 > > 
 > 
-> I still can't decide. It's currently still a draw in terms of naming. If
-> you're worried, use the old naming. It wouldn't be the first time I
-> thought a name was odd.
+> Lol, the interface is quite clear and can be modified to allow mempool 
+> users to set __GFP_NOMEMALLOC on their mempool_alloc() request if they can 
+> guarantee elements will be returned to the freelist in all situations, 
 
-Well I dunno.  We can leave the series as-is for now and we can merge
-the rename-it-back patch sometime during the next -rc cycle if we find
-that people are running around in confusion and tumbling out of high
-windows.
+You still didn't post configuration of your block stack, so I have no clue 
+why entries are not returned to the mempool.
+
+> including system oom situations.  We may revert that ourselves if our 
+> machines time out once we use a post-4.7 kernel and report that as 
+> necessary.
+
+Mikulas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
