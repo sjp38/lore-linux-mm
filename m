@@ -1,100 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E60EB6B025E
-	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 00:53:33 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id r190so6658206wmr.0
-        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 21:53:33 -0700 (PDT)
-Received: from mail-wm0-x234.google.com (mail-wm0-x234.google.com. [2a00:1450:400c:c09::234])
-        by mx.google.com with ESMTPS id s7si2893987wme.118.2016.07.14.21.53.32
+	by kanga.kvack.org (Postfix) with ESMTP id 4B4906B0005
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 03:11:05 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id f126so8344675wma.3
+        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 00:11:05 -0700 (PDT)
+Received: from mail.ud19.udmedia.de (ud19.udmedia.de. [194.117.254.59])
+        by mx.google.com with ESMTPS id z9si3655942wmz.5.2016.07.15.00.11.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Jul 2016 21:53:32 -0700 (PDT)
-Received: by mail-wm0-x234.google.com with SMTP id f65so11403901wmi.0
-        for <linux-mm@kvack.org>; Thu, 14 Jul 2016 21:53:32 -0700 (PDT)
+        Fri, 15 Jul 2016 00:11:03 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAGXu5jJy4O4tV2sB=MSkYh2DEfxUYkH4Q3ghmrHEGc6s-k285A@mail.gmail.com>
-References: <1468446964-22213-1-git-send-email-keescook@chromium.org>
- <1468446964-22213-3-git-send-email-keescook@chromium.org> <20160714232019.GA28254@350D>
- <1468544658.30053.26.camel@redhat.com> <20160715014151.GA13944@balbir.ozlabs.ibm.com>
- <CAGXu5jJy4O4tV2sB=MSkYh2DEfxUYkH4Q3ghmrHEGc6s-k285A@mail.gmail.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Thu, 14 Jul 2016 21:53:31 -0700
-Message-ID: <CAGXu5jLuQPdBH4a0BF9AgH7qQubfoz+fFW2sTi2rRxsU8u_8QQ@mail.gmail.com>
-Subject: Re: [PATCH v2 02/11] mm: Hardened usercopy
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=US-ASCII;
+ format=flowed
+Content-Transfer-Encoding: 7bit
+Date: Fri, 15 Jul 2016 09:11:02 +0200
+From: Matthias Dahl <ml_linux-kernel@binary-island.eu>
+Subject: Re: Page Allocation Failures/OOM with dm-crypt on software RAID10
+ (Intel Rapid Storage) with check/repair/sync
+In-Reply-To: <9074e82f-bf52-011e-8bd7-5731d2b0dcaa@I-love.SAKURA.ne.jp>
+References: <02580b0a303da26b669b4a9892624b13@mail.ud19.udmedia.de>
+ <20160712095013.GA14591@dhcp22.suse.cz>
+ <d9dbe0328e938eb7544fdb2aa8b5a9c7@mail.ud19.udmedia.de>
+ <20160712114920.GF14586@dhcp22.suse.cz>
+ <e6c2087730e530e77c2b12d50495bdc9@mail.ud19.udmedia.de>
+ <20160712140715.GL14586@dhcp22.suse.cz>
+ <459d501038de4d25db6d140ac5ea5f8d@mail.ud19.udmedia.de>
+ <20160713112126.GH28723@dhcp22.suse.cz>
+ <20160713121828.GI28723@dhcp22.suse.cz>
+ <74b9325c37948cf2b460bd759cff23dd@mail.ud19.udmedia.de>
+ <20160713134717.GL28723@dhcp22.suse.cz>
+ <9074e82f-bf52-011e-8bd7-5731d2b0dcaa@I-love.SAKURA.ne.jp>
+Message-ID: <005574d77d3f5dbc2643044a1e2468dc@mail.ud19.udmedia.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, "x86@kernel.org" <x86@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, linux-ia64@vger.kernel.org, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, sparclinux <sparclinux@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, linux-raid@vger.kernel.org, linux-mm@kvack.org, dm-devel@redhat.com, linux-kernel@vger.kernel.org, Mike Snitzer <snitzer@redhat.com>
 
-On Thu, Jul 14, 2016 at 9:05 PM, Kees Cook <keescook@chromium.org> wrote:
-> On Thu, Jul 14, 2016 at 6:41 PM, Balbir Singh <bsingharora@gmail.com> wrote:
->> On Thu, Jul 14, 2016 at 09:04:18PM -0400, Rik van Riel wrote:
->>> On Fri, 2016-07-15 at 09:20 +1000, Balbir Singh wrote:
->>>
->>> > > ==
->>> > > +            ((unsigned long)end & (unsigned
->>> > > long)PAGE_MASK)))
->>> > > +         return NULL;
->>> > > +
->>> > > + /* Allow if start and end are inside the same compound
->>> > > page. */
->>> > > + endpage = virt_to_head_page(end);
->>> > > + if (likely(endpage == page))
->>> > > +         return NULL;
->>> > > +
->>> > > + /* Allow special areas, device memory, and sometimes
->>> > > kernel data. */
->>> > > + if (PageReserved(page) && PageReserved(endpage))
->>> > > +         return NULL;
->>> >
->>> > If we came here, it's likely that endpage > page, do we need to check
->>> > that only the first and last pages are reserved? What about the ones
->>> > in
->>> > the middle?
->>>
->>> I think this will be so rare, we can get away with just
->>> checking the beginning and the end.
->>>
->>
->> But do we want to leave a hole where an aware user space
->> can try a longer copy_* to avoid this check? If it is unlikely
->> should we just bite the bullet and do the check for the entire
->> range?
->
-> I'd be okay with expanding the test -- it should be an extremely rare
-> situation already since the common Reserved areas (kernel data) will
-> have already been explicitly tested.
->
-> What's the best way to do "next page"? Should it just be:
->
-> for ( ; page <= endpage ; ptr += PAGE_SIZE, page = virt_to_head_page(ptr) ) {
->     if (!PageReserved(page))
->         return "<spans multiple pages>";
-> }
->
-> return NULL;
->
-> ?
+Hello...
 
-Er, I was testing the wrong thing. How about:
+I am rather persistent (stubborn?) when it comes to tracking down bugs,
+if somehow possible... and it seems it paid off... somewhat. ;-)
 
-        /*
-         * Reject if range is not Reserved (i.e. special or device memory),
-         * since then the object spans several independently allocated pages.
-         */
-        for (; ptr <= end ; ptr += PAGE_SIZE, page = virt_to_head_page(ptr)) {
-                if (!PageReserved(page))
-                        return "<spans multiple pages>";
-        }
+So I did quite a lot more further tests and came up with something very
+interesting: As long as the RAID is in sync (as-in: sync_action=idle),
+I can not for the life of me trigger this issue -- the used memory
+still explodes to most of the RAM but it oscillates back and forth.
 
-        return NULL;
+I did very stupid things to stress the machine while dd was running as
+usual on the dm-crypt device. I opened a second dd instance with the
+same parameters on the dm-crypt device. I wrote a simple program that
+allocated random amounts of memory (up to 10 GiB), memset them and after
+a random amount of time released it again -- in a continuous loop. I
+put heavy network stress on the machine... whatever I could think of.
 
+No matter what, the issue did not trigger. And I repeated said tests
+quite a few times over extended time periods (usually an hour or so).
+Everything worked beautifully with nice speeds and no noticeable system
+slow-downs/lag.
 
+As soon as I issued a "check" to sync_action of the RAID device, it was
+just a matter of a second until the OOM killer kicked in and all hell
+broke loose again. And basically all of my tests where done while the
+RAID device was syncing -- due to a very unfortunate series of events.
+
+I tried to repeat that same test with an external (USB3) connected disk
+with a Linux s/w RAID10 over two partitions... but unfortunately that
+behaves rather differently. I assume it is because it is connected
+through USB and not SATA. While doing those tests on my RAID10 with the
+4 internal SATA3 disks, you can see w/ free that the "used memory" does
+explode to most of the RAM and then oscillates back and forth. With the
+same test on the external disk through, that does not happen at all. The
+used memory stays pretty much constant and only the buffers vary... but
+most of the memory is still free in that case.
+
+I hope my persistence on the matter is not annoying and finally leads us
+somewhere where the real issue hides.
+
+Any suggestions, opinions and ideas are greatly appreciated as I have
+pretty much exhausted mine at this time.
+
+Last but not least: I switched my testing to a OpenSuSE Tumbleweed Live
+system (x86_64 w/ kernel 4.6.3) as Rawhide w/ 4.7.0rcX behaves rather
+strangely and unstable at times.
+
+Thanks,
+Matthias
 
 -- 
-Kees Cook
-Chrome OS & Brillo Security
+Dipl.-Inf. (FH) Matthias Dahl | Software Engineer | binary-island.eu
+  services: custom software [desktop, mobile, web], server administration
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
