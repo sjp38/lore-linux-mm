@@ -1,38 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 57DFD6B0260
-	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 09:09:29 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id p41so73364287lfi.0
-        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 06:09:29 -0700 (PDT)
-Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.16])
-        by mx.google.com with ESMTPS id m194si633076wmb.2.2016.07.15.06.09.26
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A33E76B0261
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 09:09:30 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id x83so15117993wma.2
+        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 06:09:30 -0700 (PDT)
+Received: from outbound-smtp06.blacknight.com (outbound-smtp06.blacknight.com. [81.17.249.39])
+        by mx.google.com with ESMTPS id pp7si669585wjb.32.2016.07.15.06.09.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Jul 2016 06:09:26 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 15 Jul 2016 06:09:27 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id 4CFEB1C26B1
-	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 14:09:26 +0100 (IST)
+	by outbound-smtp06.blacknight.com (Postfix) with ESMTPS id AF106992D0
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 13:09:26 +0000 (UTC)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 0/5] Follow-up fixes to node-lru series v2
-Date: Fri, 15 Jul 2016 14:09:20 +0100
-Message-Id: <1468588165-12461-1-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 2/5] mm, vmscan: avoid passing in classzone_idx unnecessarily to compaction_ready -fix
+Date: Fri, 15 Jul 2016 14:09:22 +0100
+Message-Id: <1468588165-12461-3-git-send-email-mgorman@techsingularity.net>
+In-Reply-To: <1468588165-12461-1-git-send-email-mgorman@techsingularity.net>
+References: <1468588165-12461-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-This is another round of fixups to the node-lru series. The most
-important patch is the last one which prevents a warning in memcg
-from being triggered.
+As pointed out by Vlastimil, there is a redundant check in shrink_zones
+since commit "mm, vmscan: avoid passing in classzone_idx unnecessarily to
+compaction_ready".  The zonelist iterator only returns zones that already
+meet the requirements of the allocation request.
 
- include/linux/memcontrol.h |  2 +-
- include/linux/mm_inline.h  |  5 ++---
- mm/memcontrol.c            |  5 +----
- mm/page_alloc.c            |  6 +++---
- mm/swap.c                  | 20 ++++++++++----------
- mm/vmscan.c                | 43 +++++++++++++++++++++++++++++++++++--------
- 6 files changed, 52 insertions(+), 29 deletions(-)
+This is a fix to the mmotm patch
+mm-vmscan-avoid-passing-in-classzone_idx-unnecessarily-to-compaction_ready.patch
 
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+---
+ mm/vmscan.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 4fdb9e419588..c2ad4263f965 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2606,7 +2606,6 @@ static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+ 			 */
+ 			if (IS_ENABLED(CONFIG_COMPACTION) &&
+ 			    sc->order > PAGE_ALLOC_COSTLY_ORDER &&
+-			    zonelist_zone_idx(z) <= sc->reclaim_idx &&
+ 			    compaction_ready(zone, sc)) {
+ 				sc->compaction_ready = true;
+ 				continue;
 -- 
 2.6.4
 
