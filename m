@@ -1,65 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 127896B0263
-	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 06:46:09 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id o80so12373687wme.1
-        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 03:46:09 -0700 (PDT)
-Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
-        by mx.google.com with ESMTPS id xq13si95113wjb.276.2016.07.15.03.46.07
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CAAAC6B025F
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 07:22:03 -0400 (EDT)
+Received: by mail-yw0-f199.google.com with SMTP id i12so187177629ywa.0
+        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 04:22:03 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r12si4940997qtr.135.2016.07.15.04.22.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Jul 2016 03:46:07 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id 5BB9F1C1A41
-	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 11:46:07 +0100 (IST)
-Date: Fri, 15 Jul 2016 11:46:05 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 18/34] mm: rename NR_ANON_PAGES to NR_ANON_MAPPED
-Message-ID: <20160715104605.GO9806@techsingularity.net>
-References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
- <1467970510-21195-19-git-send-email-mgorman@techsingularity.net>
- <20160712145801.GJ5881@cmpxchg.org>
- <20160713085516.GI9806@techsingularity.net>
- <20160713130415.GB9905@cmpxchg.org>
- <20160713133701.GK9806@techsingularity.net>
- <20160713141343.244c108e48086055f57b1d79@linux-foundation.org>
+        Fri, 15 Jul 2016 04:22:03 -0700 (PDT)
+Date: Fri, 15 Jul 2016 07:21:59 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: System freezes after OOM
+In-Reply-To: <alpine.DEB.2.10.1607141316240.68666@chino.kir.corp.google.com>
+Message-ID: <alpine.LRH.2.02.1607150711270.5034@file01.intranet.prod.int.rdu2.redhat.com>
+References: <57837CEE.1010609@redhat.com> <f80dc690-7e71-26b2-59a2-5a1557d26713@redhat.com> <9be09452-de7f-d8be-fd5d-4a80d1cd1ba3@redhat.com> <alpine.LRH.2.02.1607111027080.14327@file01.intranet.prod.int.rdu2.redhat.com> <20160712064905.GA14586@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1607121907160.24806@file01.intranet.prod.int.rdu2.redhat.com> <2d5e1f84-e886-7b98-cb11-170d7104fd13@I-love.SAKURA.ne.jp> <20160713133955.GK28723@dhcp22.suse.cz> <alpine.LRH.2.02.1607131004340.31769@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160713145638.GM28723@dhcp22.suse.cz> <alpine.LRH.2.02.1607131105080.31769@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.10.1607131644590.92037@chino.kir.corp.google.com> <alpine.LRH.2.02.1607140818250.15554@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.10.1607141316240.68666@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20160713141343.244c108e48086055f57b1d79@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Ondrej Kozina <okozina@redhat.com>, Jerome Marchand <jmarchan@redhat.com>, Stanislav Kozina <skozina@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dm-devel@redhat.com
 
-On Wed, Jul 13, 2016 at 02:13:43PM -0700, Andrew Morton wrote:
-> On Wed, 13 Jul 2016 14:37:01 +0100 Mel Gorman <mgorman@techsingularity.net> wrote:
-> 
-> > > I don't care strongly enough to cause a respin of half the series, and
-> > > it's not your problem that I waited until the last revision went into
-> > > mmots to review and comment. But if you agreed to a revert, would you
-> > > consider tacking on a revert patch at the end of the series?
-> > > 
-> > 
-> > In this case, I'm going to ask the other people on the cc for a
-> > tie-breaker. If someone else prefers the old names then I'm happy for
-> > your patch to be applied on top with my ack instead of respinning the
-> > whole series.
-> > 
-> > Anyone for a tie breaker?
-> 
-> I am aggressively undecided.  I guess as it's a bit of a 51/49
-> situation, the "stay with what people are familiar with" benefit tips the
-> balance toward the legacy names?
-> 
 
-I still can't decide. It's currently still a draw in terms of naming. If
-you're worried, use the old naming. It wouldn't be the first time I
-thought a name was odd.
 
--- 
-Mel Gorman
-SUSE Labs
+On Thu, 14 Jul 2016, David Rientjes wrote:
+
+> There is no guarantee that _anything_ can return memory to the mempool,
+
+You misunderstand mempools if you make such claims.
+
+There is in fact guarantee that objects will be returned to mempool. In 
+the past I reviewed device mapper thoroughly to make sure that it can make 
+forward progress even if there is no available memory.
+
+I don't know what should I tell you if you keep on repeating the same 
+false claim over and over again. Should I explain mempool oprerations to 
+you in detail? Or will you find it on your own?
+
+Mikulas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
