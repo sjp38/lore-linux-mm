@@ -1,120 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C244F6B0261
-	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 08:22:13 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id f126so13911205wma.3
-        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 05:22:13 -0700 (PDT)
-Received: from mail-wm0-f41.google.com (mail-wm0-f41.google.com. [74.125.82.41])
-        by mx.google.com with ESMTPS id i83si5050840wma.27.2016.07.15.05.22.12
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 070246B0005
+	for <linux-mm@kvack.org>; Fri, 15 Jul 2016 08:43:55 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id p64so214102896pfb.0
+        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 05:43:54 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id 4si9053897pav.105.2016.07.15.05.43.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Jul 2016 05:22:12 -0700 (PDT)
-Received: by mail-wm0-f41.google.com with SMTP id o80so27586553wme.1
-        for <linux-mm@kvack.org>; Fri, 15 Jul 2016 05:22:12 -0700 (PDT)
-Date: Fri, 15 Jul 2016 14:22:11 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: System freezes after OOM
-Message-ID: <20160715122210.GG11811@dhcp22.suse.cz>
-References: <20160712064905.GA14586@dhcp22.suse.cz>
- <alpine.LRH.2.02.1607121907160.24806@file01.intranet.prod.int.rdu2.redhat.com>
- <20160713111006.GF28723@dhcp22.suse.cz>
- <alpine.LRH.2.02.1607131021410.31769@file01.intranet.prod.int.rdu2.redhat.com>
- <20160714125129.GA12289@dhcp22.suse.cz>
- <alpine.LRH.2.02.1607140952550.1102@file01.intranet.prod.int.rdu2.redhat.com>
- <20160714145937.GB12289@dhcp22.suse.cz>
- <alpine.LRH.2.02.1607141315130.17819@file01.intranet.prod.int.rdu2.redhat.com>
- <20160715083510.GD11811@dhcp22.suse.cz>
- <alpine.LRH.2.02.1607150802380.5034@file01.intranet.prod.int.rdu2.redhat.com>
+        Fri, 15 Jul 2016 05:43:53 -0700 (PDT)
+Date: Fri, 15 Jul 2016 14:43:30 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 00/14] Present useful limits to user (v2)
+Message-ID: <20160715124330.GR30154@twins.programming.kicks-ass.net>
+References: <1468578983-28229-1-git-send-email-toiwoton@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1607150802380.5034@file01.intranet.prod.int.rdu2.redhat.com>
+In-Reply-To: <1468578983-28229-1-git-send-email-toiwoton@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Ondrej Kozina <okozina@redhat.com>, Jerome Marchand <jmarchan@redhat.com>, Stanislav Kozina <skozina@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dm-devel@redhat.com
+To: Topi Miettinen <toiwoton@gmail.com>
+Cc: linux-kernel@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Alexander Graf <agraf@suse.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, Doug Ledford <dledford@redhat.com>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Christian Benvenuti <benve@cisco.com>, Dave Goodell <dgoodell@cisco.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Alex Williamson <alex.williamson@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Alexei Starovoitov <ast@kernel.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Balbir Singh <bsingharora@gmail.com>, Markus Elfring <elfring@users.sourceforge.net>, "David S. Miller" <davem@davemloft.net>, Nicolas Dichtel <nicolas.dichtel@6wind.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Jiri Slaby <jslaby@suse.cz>, Cyrill Gorcunov <gorcunov@openvz.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dan Carpenter <dan.carpenter@oracle.com>, Michael Kerrisk <mtk.manpages@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Marcus Gelderie <redmnic@gmail.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Joe Perches <joe@perches.com>, Frederic Weisbecker <fweisbec@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Andi Kleen <ak@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, Stas Sergeev <stsp@list.ru>, Amanieu d'Antras <amanieu@gmail.com>, Richard Weinberger <richard@nod.at>, Wang Xiaoqiang <wangxq10@lzu.edu.cn>, Helge Deller <deller@gmx.de>, Mateusz Guzik <mguzik@redhat.com>, Alex Thorlton <athorlton@sgi.com>, Ben Segall <bsegall@google.com>, John Stultz <john.stultz@linaro.org>, Rik van Riel <riel@redhat.com>, Eric B Munson <emunson@akamai.com>, Alexey Klimov <klimov.linux@gmail.com>, Chen Gang <gang.chen.5i5j@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Alexander Kuleshov <kuleshovmail@gmail.com>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, "open list:IA64 (Itanium) PLATFORM" <linux-ia64@vger.kernel.org>, "open list:KERNEL VIRTUAL MACHINE (KVM) FOR POWERPC" <kvm-ppc@vger.kernel.org>, "open list:KERNEL VIRTUAL MACHINE (KVM)" <kvm@vger.kernel.org>, "open list:LINUX FOR POWERPC (32-BIT AND 64-BIT)" <linuxppc-dev@lists.ozlabs.org>, "open list:INFINIBAND SUBSYSTEM" <linux-rdma@vger.kernel.org>, "open list:FILESYSTEMS (VFS and infrastructure)" <linux-fsdevel@vger.kernel.org>, "open list:CONTROL GROUP (CGROUP)" <cgroups@vger.kernel.org>, "open list:BPF (Safe dynamic programs and tools)" <netdev@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-On Fri 15-07-16 08:11:22, Mikulas Patocka wrote:
+On Fri, Jul 15, 2016 at 01:35:47PM +0300, Topi Miettinen wrote:
+> Hello,
 > 
+> There are many basic ways to control processes, including capabilities,
+> cgroups and resource limits. However, there are far fewer ways to find out
+> useful values for the limits, except blind trial and error.
 > 
-> On Fri, 15 Jul 2016, Michal Hocko wrote:
-> 
-> > On Thu 14-07-16 13:35:35, Mikulas Patocka wrote:
-> > > On Thu, 14 Jul 2016, Michal Hocko wrote:
-> > > > On Thu 14-07-16 10:00:16, Mikulas Patocka wrote:
-> > > > > But it needs other changes to honor the PF_LESS_THROTTLE flag:
-> > > > > 
-> > > > > static int current_may_throttle(void)
-> > > > > {
-> > > > >         return !(current->flags & PF_LESS_THROTTLE) ||
-> > > > >                 current->backing_dev_info == NULL ||
-> > > > >                 bdi_write_congested(current->backing_dev_info);
-> > > > > }
-> > > > > --- if you set PF_LESS_THROTTLE, current_may_throttle may still return 
-> > > > > true if one of the other conditions is met.
-> > > > 
-> > > > That is true but doesn't that mean that the device is congested and
-> > > > waiting a bit is the right thing to do?
-> > > 
-> > > You shouldn't really throttle mempool allocations at all. It's better to 
-> > > fail the allocation quickly and allocate from a mempool reserve than to 
-> > > wait 0.1 seconds in the reclaim path.
-> > 
-> > Well, but we do that already, no? The first allocation request is NOWAIT
-> 
-> The stacktraces showed that the kcryptd process was throttled when it 
-> tried to do mempool allocation. Mempool adds the __GFP_NORETRY flag to the 
-> allocation, but unfortunatelly, this flag doesn't prevent the allocator 
-> from throttling.
+> This patch series attempts to fix that by giving at least a nice starting
+> point from the highwater mark values of the resources in question.
+> I looked where each limit is checked and added a call to update the mark
+> nearby.
 
-Yes and in fact it shouldn't prevent any throttling. The flag merely
-says that the allocation should give up rather than retry
-reclaim/compaction again and again.
+And how is that useful? Setting things to the high watermark is
+basically the same as not setting the limit at all.
 
-> I say that the process doing mempool allocation shouldn't ever be 
-> throttled. Maybe add __GFP_NOTHROTTLE?
-
-A specific gfp flag would be an option but we are slowly running out of
-bit space there and I am not yet convinced PF_LESS_THROTTLE is
-unsuitable.
-
-> > and then we try to consume an object from the pool. We are re-adding
-> > __GFP_DIRECT_RECLAIM in case both fail. The point of throttling is to
-> > prevent from scanning through LRUs too quickly while we know that the
-> > bdi is congested.
-> 
-> > > dm-crypt can do approximatelly 100MB/s. That means that it processes 25k 
-> > > swap pages per second. If you wait in mempool_alloc, the allocation would 
-> > > be satisfied in 0.00004s. If you wait in the allocator's throttle 
-> > > function, you waste 0.1s.
-> > > 
-> > > 
-> > > It is also questionable if those 0.1 second sleeps are reasonable at all. 
-> > > SSDs with 100k IOPS are common - they can drain the request queue in much 
-> > > less time than 0.1 second. I think those hardcoded 0.1 second sleeps 
-> > > should be replaced with sleeps until the device stops being congested.
-> > 
-> > Well if we do not do throttle_vm_writeout then the only remaining
-> > writeout throttling for PF_LESS_THROTTLE is wait_iff_congested for
-> > the direct reclaim and that should wake up if the device stops being
-> > congested AFAIU.
-> 
-> I mean - a proper thing is to use active wakeup for the throttling, rather 
-> than retrying every 0.1 second. Polling for some condition is generally 
-> bad idea.
-> 
-> If there are too many pages under writeback, you should sleep on a wait 
-> queue. When the number of pages under writeback drops, wake up the wait 
-> queue.
-
-I might be missing something but exactly this is what happens in
-wait_iff_congested no? If the bdi doesn't see the congestion it wakes up
-the reclaim context even before the timeout. Or are we talking past each
-other?
-
--- 
-Michal Hocko
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
