@@ -1,61 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7152D6B0253
-	for <linux-mm@kvack.org>; Sat, 16 Jul 2016 05:16:48 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id p41so86903298lfi.0
-        for <linux-mm@kvack.org>; Sat, 16 Jul 2016 02:16:48 -0700 (PDT)
-Received: from 1wt.eu (wtarreau.pck.nerim.net. [62.212.114.60])
-        by mx.google.com with ESMTP id i83si2439436wma.27.2016.07.16.02.16.46
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B4896B0253
+	for <linux-mm@kvack.org>; Sat, 16 Jul 2016 06:14:30 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id q2so228228191pap.1
+        for <linux-mm@kvack.org>; Sat, 16 Jul 2016 03:14:30 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id h3si1500540pfg.65.2016.07.16.03.14.28
         for <linux-mm@kvack.org>;
-        Sat, 16 Jul 2016 02:16:46 -0700 (PDT)
-Date: Sat, 16 Jul 2016 11:15:43 +0200
-From: Willy Tarreau <w@1wt.eu>
-Subject: Re: [PATCH 3.10.y 04/12] x86/mm: Add barriers and document
- switch_mm()-vs-flush synchronization
-Message-ID: <20160716091543.GA22375@1wt.eu>
-References: <1468607194-3879-1-git-send-email-ciwillia@brocade.com>
- <1468607194-3879-4-git-send-email-ciwillia@brocade.com>
+        Sat, 16 Jul 2016 03:14:29 -0700 (PDT)
+Date: Sat, 16 Jul 2016 19:14:31 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 4/5] mm: show node_pages_scanned per node, not zone
+Message-ID: <20160716101431.GA10305@bbox>
+References: <1468588165-12461-1-git-send-email-mgorman@techsingularity.net>
+ <1468588165-12461-5-git-send-email-mgorman@techsingularity.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1468607194-3879-4-git-send-email-ciwillia@brocade.com>
+In-Reply-To: <1468588165-12461-5-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Charles (Chas) Williams" <ciwillia@brocade.com>
-Cc: stable@vger.kernel.org, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Luis Henriques <luis.henriques@canonical.com>
+To: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi Chas,
-
-On Fri, Jul 15, 2016 at 02:26:26PM -0400, Charles (Chas) Williams wrote:
-> From: Andy Lutomirski <luto@kernel.org>
+On Fri, Jul 15, 2016 at 02:09:24PM +0100, Mel Gorman wrote:
+> From: Minchan Kim <minchan@kernel.org>
 > 
-> commit 71b3c126e61177eb693423f2e18a1914205b165e upstream.
+> The node_pages_scanned represents the number of scanned pages
+> of node for reclaim so it's pointless to show it as kilobytes.
 > 
-> When switch_mm() activates a new PGD, it also sets a bit that
-> tells other CPUs that the PGD is in use so that TLB flush IPIs
-> will be sent.  In order for that to work correctly, the bit
-> needs to be visible prior to loading the PGD and therefore
-> starting to fill the local TLB.
+> As well, node_pages_scanned is per-node value, not per-zone.
 > 
-> Document all the barriers that make this work correctly and add
-> a couple that were missing.
+> This patch changes node_pages_scanned per-zone-killobytes
+> with per-node-count.
 > 
-> CVE-2016-2069
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> ---
+>  mm/page_alloc.c | 6 +++---
+>  1 file changed, 3 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index f80a0e57dcc8..7edd311a63f1 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -4345,6 +4345,7 @@ void show_free_areas(unsigned int filter)
+>  #endif
+>  			" writeback_tmp:%lukB"
+>  			" unstable:%lukB"
+> +			" pages_scanned:%lu"
+>  			" all_unreclaimable? %s"
+>  			"\n",
+>  			pgdat->node_id,
+> @@ -4367,6 +4368,7 @@ void show_free_areas(unsigned int filter)
+>  			K(node_page_state(pgdat, NR_SHMEM)),
+>  			K(node_page_state(pgdat, NR_WRITEBACK_TEMP)),
+>  			K(node_page_state(pgdat, NR_UNSTABLE_NFS)),
+> +			node_page_state(zone->zone_pgdat, NR_PAGES_SCANNED),
 
-I'm fine with queuing these patches for 3.10, but patches 4, 9 and 12
-of your series are not in 3.14, and I only apply patches to 3.10 if
-they are already present in 3.14 (or if there's a good reason of course).
-Please could you check that you already submitted them ? If so I'll just
-wait for them to pop up there. It's important for us to ensure that users
-upgrading from extended LTS kernels to normal LTS kernels are never hit
-by a bug that was previously fixed in the older one and not yet in the
-newer one.
-
-Thanks,
-Willy
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Oops, It should be pgdat, not zone->zone_pgdat.
+Andrew, please fold it.
