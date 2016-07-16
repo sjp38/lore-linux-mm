@@ -1,44 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AD386B025E
-	for <linux-mm@kvack.org>; Sat, 16 Jul 2016 10:51:45 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id p64so277226195pfb.0
-        for <linux-mm@kvack.org>; Sat, 16 Jul 2016 07:51:45 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id h5si4753996pfj.2.2016.07.16.07.51.43
-        for <linux-mm@kvack.org>;
-        Sat, 16 Jul 2016 07:51:44 -0700 (PDT)
-Date: Sat, 16 Jul 2016 23:51:42 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: 4.1.28 is broken due to "mm/swap.c: flush lru pvecs on compound
- page arrival"
-Message-ID: <20160716145142.GA29738@bbox>
-References: <alpine.LRH.2.02.1607161037180.18821@file01.intranet.prod.int.rdu2.redhat.com>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EB5576B0253
+	for <linux-mm@kvack.org>; Sat, 16 Jul 2016 13:06:19 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id e189so282630226pfa.2
+        for <linux-mm@kvack.org>; Sat, 16 Jul 2016 10:06:19 -0700 (PDT)
+Received: from mx0a-000f0801.pphosted.com (mx0a-000f0801.pphosted.com. [2620:100:9001:7a::1])
+        by mx.google.com with ESMTPS id ss9si16242062pab.185.2016.07.16.10.06.18
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 16 Jul 2016 10:06:18 -0700 (PDT)
+Subject: Re: [PATCH 3.10.y 04/12] x86/mm: Add barriers and document
+ switch_mm()-vs-flush synchronization
+References: <1468607194-3879-1-git-send-email-ciwillia@brocade.com>
+ <1468607194-3879-4-git-send-email-ciwillia@brocade.com>
+ <20160716091543.GA22375@1wt.eu>
+From: "Charles (Chas) Williams" <ciwillia@brocade.com>
+Message-ID: <55076269-f859-8c77-3074-54f359119a7f@brocade.com>
+Date: Sat, 16 Jul 2016 13:04:45 -0400
 MIME-Version: 1.0
-In-Reply-To: <alpine.LRH.2.02.1607161037180.18821@file01.intranet.prod.int.rdu2.redhat.com>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+In-Reply-To: <20160716091543.GA22375@1wt.eu>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Lukasz Odzioba <lukasz.odzioba@intel.com>, Sasha Levin <sasha.levin@oracle.com>, Michal Hocko <mhocko@suse.com>, Kirill Shutemov <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Ming Li <mingli199x@qq.com>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Willy Tarreau <w@1wt.eu>
+Cc: stable@vger.kernel.org, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H.
+ Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Luis Henriques <luis.henriques@canonical.com>
 
-On Sat, Jul 16, 2016 at 10:46:17AM -0400, Mikulas Patocka wrote:
-> Hi
-> 
-> The patch c5ad33184354260be6d05de57e46a5498692f6d6 on the kernel v4.1.28 
-> breaks the kernel. The kernel crashes when executing the boot scripts with 
-> "kernel panic: Out of memory and no killable processes...". The machine 
-> has 512MB ram and 1 core.
-> 
-> Note that the upstream kernel 4.7-rc4 with this patch works, but when the 
-> patch is backported to the 4.1 branch, it makes the system unbootable.
+I didn't submit for 3.14 --  I will do so Monday.
 
-It seems a bug was introduced at backport time, I think.
-Please, look at http://marc.info/?l=linux-mm&m=146868046305014&w=2
-
-> 
-> Mikulas
+On 07/16/2016 05:15 AM, Willy Tarreau wrote:
+> Hi Chas,
+>
+> On Fri, Jul 15, 2016 at 02:26:26PM -0400, Charles (Chas) Williams wrote:
+>> From: Andy Lutomirski <luto@kernel.org>
+>>
+>> commit 71b3c126e61177eb693423f2e18a1914205b165e upstream.
+>>
+>> When switch_mm() activates a new PGD, it also sets a bit that
+>> tells other CPUs that the PGD is in use so that TLB flush IPIs
+>> will be sent.  In order for that to work correctly, the bit
+>> needs to be visible prior to loading the PGD and therefore
+>> starting to fill the local TLB.
+>>
+>> Document all the barriers that make this work correctly and add
+>> a couple that were missing.
+>>
+>> CVE-2016-2069
+>
+> I'm fine with queuing these patches for 3.10, but patches 4, 9 and 12
+> of your series are not in 3.14, and I only apply patches to 3.10 if
+> they are already present in 3.14 (or if there's a good reason of course).
+> Please could you check that you already submitted them ? If so I'll just
+> wait for them to pop up there. It's important for us to ensure that users
+> upgrading from extended LTS kernels to normal LTS kernels are never hit
+> by a bug that was previously fixed in the older one and not yet in the
+> newer one.
+>
+> Thanks,
+> Willy
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
