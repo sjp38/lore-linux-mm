@@ -1,63 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E4DD6B0253
-	for <linux-mm@kvack.org>; Sat, 16 Jul 2016 20:07:13 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 63so297725574pfx.3
-        for <linux-mm@kvack.org>; Sat, 16 Jul 2016 17:07:13 -0700 (PDT)
-Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
-        by mx.google.com with ESMTP id ro7si17772955pab.251.2016.07.16.17.07.10
+	by kanga.kvack.org (Postfix) with ESMTP id BBF3C6B0253
+	for <linux-mm@kvack.org>; Sat, 16 Jul 2016 20:45:06 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 63so298766642pfx.3
+        for <linux-mm@kvack.org>; Sat, 16 Jul 2016 17:45:06 -0700 (PDT)
+Received: from out4435.biz.mail.alibaba.com (out4435.biz.mail.alibaba.com. [47.88.44.35])
+        by mx.google.com with ESMTP id 77si983818pft.11.2016.07.16.17.45.04
         for <linux-mm@kvack.org>;
-        Sat, 16 Jul 2016 17:07:12 -0700 (PDT)
-Message-ID: <578ACD99.2070807@emindsoft.com.cn>
-Date: Sun, 17 Jul 2016 08:13:13 +0800
+        Sat, 16 Jul 2016 17:45:05 -0700 (PDT)
+Message-ID: <578AD67F.9030905@emindsoft.com.cn>
+Date: Sun, 17 Jul 2016 08:51:11 +0800
 From: Chen Gang <chengang@emindsoft.com.cn>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: gup: Re-define follow_page_mask output parameter
- page_mask usage
-References: <1468084625-26999-1-git-send-email-chengang@emindsoft.com.cn> <20160711141702.fb1879707aa2bcb290133a43@linux-foundation.org> <578522CE.9060905@emindsoft.com.cn> <20160713075024.GB28723@dhcp22.suse.cz>
-In-Reply-To: <20160713075024.GB28723@dhcp22.suse.cz>
+Subject: Re: [PATCH] mm: migrate: Use bool instead of int for the return value
+ of PageMovable
+References: <1468079704-5477-1-git-send-email-chengang@emindsoft.com.cn> <20160711002605.GD31817@bbox> <5783F7DE.9020203@emindsoft.com.cn> <20160712074841.GE14586@dhcp22.suse.cz> <57851FC4.4000000@emindsoft.com.cn> <20160713075346.GC28723@dhcp22.suse.cz>
+In-Reply-To: <20160713075346.GC28723@dhcp22.suse.cz>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, vbabka@suse.cz, kirill.shutemov@linux.intel.com, mingo@kernel.org, dave.hansen@linux.intel.com, dan.j.williams@intel.com, hannes@cmpxchg.org, jack@suse.cz, iamjoonsoo.kim@lge.com, jmarchan@redhat.com, dingel@linux.vnet.ibm.com, oleg@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Gang <gang.chen.5i5j@gmail.com>
+Cc: Minchan Kim <minchan@kernel.org>, akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, gi-oh.kim@profitbricks.com, iamjoonsoo.kim@lge.com, hillf.zj@alibaba-inc.com, rientjes@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Gang <gang.chen.5i5j@gmail.com>
 
 
-On 7/13/16 15:50, Michal Hocko wrote:
-> On Wed 13-07-16 01:03:10, Chen Gang wrote:
->> On 7/12/16 05:17, Andrew Morton wrote:
->>> On Sun, 10 Jul 2016 01:17:05 +0800 chengang@emindsoft.com.cn wrote:
+On 7/13/16 15:53, Michal Hocko wrote:
+> On Wed 13-07-16 00:50:12, Chen Gang wrote:
+>>
+>>
+>> On 7/12/16 15:48, Michal Hocko wrote:
+>>> On Tue 12-07-16 03:47:42, Chen Gang wrote:
+>>> [...]
+>>>> In our case, the 2 output size are same, but under x86_64, the insns are
+>>>> different. After uses bool, it uses push/pop instead of branch, for me,
+>>>> it should be a little better for catching.
 >>>
->>>> For a pure output parameter:
->>>>
->>>>  - When callee fails, the caller should not assume the output parameter
->>>>    is still valid.
->>>>
->>>>  - And callee should not assume the pure output parameter must be
->>>>    provided by caller -- caller has right to pass NULL when caller does
->>>>    not care about it.
+>>> The code generated for bool version looks much worse. Look at the fast
+>>> path. Gcc tries to reuse the retq from the fast path in the bool case
+>>> and so it has to push rbp and rbx on the stack.
 >>>
->>> Sorry, I don't think this one is worth merging really.
+>>> That being said, gcc doesn't seem to generate a better code for bool so
+>>> I do not think this is really worth it.
 >>>
 >>
->> OK, thanks, I can understand.
+>> The code below also merge 3 statements into 1 return statement, although
+>> for me, it is a little more readable, it will generate a little bad code.
+>> That is the reason why the output looks a little bad.
 >>
->> It will be better if provide more details: e.g.
->>
->>  - This patch is incorrect, or the comments is not correct.
->>
->>  - The patch is worthless, at present.
+>> In our case, for gcc 6.0, using bool instead of int for bool function
+>> will get the same output under x86_64.
 > 
-> I would say the patch is not really needed. The code you are touching
-> works just fine and there is no reason to touch it unless this is a part
-> of a larger change where future changes would be easier to
-> review/implement.
+> If the output is same then there is no reason to change it.
+>
+
+For the new version gcc, the output is same. But bool is a little more
+readable than int for the pure bool function.
+
+But for the current widely used gcc version (I guess, gcc-4.8 is still
+widely used), bool will get a little better output than int for the pure
+bool function.
+ 
+>> In our case, for gcc 4.8, using bool instead of int for bool function
+>> will get a little better output under x86_64.
+> 
+> I had a different impression and the fast path code had more
+> instructions. But anyway, is there really a strong reason to change
+> those return values in the first place? Isn't that just a pointless code
+> churn?
 > 
 
-OK, thanks. I shall try to find other kinds of patches in linux/include,
-next.  :-)
+Excuse me, maybe, I do not quite understand your meanings, but I shall
+try to explain as far as I can understand (welcome additional detail
+explanation, e.g. "return values" means c code or assembly output code).
 
+In the previous reply, I did not mention 3 things directly and clearly
+(about my 2 mistakes, and the comparation between gcc 6.0 and 4.8):
+
+ - Mistake 1: "Use one return statement instead of several statements"
+   is not good, the modification may be a little more readable, but it
+   may get a little bad output code by compiler.
+
+ - Mistake 2: I only notice there is more branches, but did not notice
+   the real execution path (I guess, your "fast path" is about it).
+
+ - The optimization of upstream gcc 6.0 is better than redhat gcc 4.8:
+   in this case, gcc 6.0 will:
+
+     generate the same better code for both bool and int for the pure
+     bool function.
+
+     optimize the first checking branch (no prologue) -- gcc 4.8 need
+     mark 'likely' for it.
+
+     skip the 'likely' optimization when "use 1 return statement instead
+     of several statements" -- generation a little bad code too.
+
+All together, for me:
+
+ - Only use bool instead of int for pure bool functions' return value
+   will get a little better code
+
+ - I shall send patch v2, only change bool to int for all Page_XXX, and
+   keep all the other things no touch.
+
+
+Thanks.
 -- 
 Chen Gang (e??a??)
 
