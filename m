@@ -1,184 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 293696B0253
-	for <linux-mm@kvack.org>; Sat, 16 Jul 2016 18:56:24 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id ez1so156340274pab.0
-        for <linux-mm@kvack.org>; Sat, 16 Jul 2016 15:56:24 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id ye8si17520163pab.169.2016.07.16.15.56.13
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E4DD6B0253
+	for <linux-mm@kvack.org>; Sat, 16 Jul 2016 20:07:13 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 63so297725574pfx.3
+        for <linux-mm@kvack.org>; Sat, 16 Jul 2016 17:07:13 -0700 (PDT)
+Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
+        by mx.google.com with ESMTP id ro7si17772955pab.251.2016.07.16.17.07.10
         for <linux-mm@kvack.org>;
-        Sat, 16 Jul 2016 15:56:17 -0700 (PDT)
-Date: Sun, 17 Jul 2016 06:55:05 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: {standard input}:122: Error: number (0x9000000080000000) larger than
- 32 bits
-Message-ID: <201607170600.042Oune3%fengguang.wu@intel.com>
+        Sat, 16 Jul 2016 17:07:12 -0700 (PDT)
+Message-ID: <578ACD99.2070807@emindsoft.com.cn>
+Date: Sun, 17 Jul 2016 08:13:13 +0800
+From: Chen Gang <chengang@emindsoft.com.cn>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="45Z9DzgjV8m4Oswq"
-Content-Disposition: inline
+Subject: Re: [PATCH] mm: gup: Re-define follow_page_mask output parameter
+ page_mask usage
+References: <1468084625-26999-1-git-send-email-chengang@emindsoft.com.cn> <20160711141702.fb1879707aa2bcb290133a43@linux-foundation.org> <578522CE.9060905@emindsoft.com.cn> <20160713075024.GB28723@dhcp22.suse.cz>
+In-Reply-To: <20160713075024.GB28723@dhcp22.suse.cz>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, vbabka@suse.cz, kirill.shutemov@linux.intel.com, mingo@kernel.org, dave.hansen@linux.intel.com, dan.j.williams@intel.com, hannes@cmpxchg.org, jack@suse.cz, iamjoonsoo.kim@lge.com, jmarchan@redhat.com, dingel@linux.vnet.ibm.com, oleg@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Gang <gang.chen.5i5j@gmail.com>
 
 
---45Z9DzgjV8m4Oswq
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+On 7/13/16 15:50, Michal Hocko wrote:
+> On Wed 13-07-16 01:03:10, Chen Gang wrote:
+>> On 7/12/16 05:17, Andrew Morton wrote:
+>>> On Sun, 10 Jul 2016 01:17:05 +0800 chengang@emindsoft.com.cn wrote:
+>>>
+>>>> For a pure output parameter:
+>>>>
+>>>>  - When callee fails, the caller should not assume the output parameter
+>>>>    is still valid.
+>>>>
+>>>>  - And callee should not assume the pure output parameter must be
+>>>>    provided by caller -- caller has right to pass NULL when caller does
+>>>>    not care about it.
+>>>
+>>> Sorry, I don't think this one is worth merging really.
+>>>
+>>
+>> OK, thanks, I can understand.
+>>
+>> It will be better if provide more details: e.g.
+>>
+>>  - This patch is incorrect, or the comments is not correct.
+>>
+>>  - The patch is worthless, at present.
+> 
+> I would say the patch is not really needed. The code you are touching
+> works just fine and there is no reason to touch it unless this is a part
+> of a larger change where future changes would be easier to
+> review/implement.
+> 
 
-Hi,
+OK, thanks. I shall try to find other kinds of patches in linux/include,
+next.  :-)
 
-FYI, the error/warning still remains.
+-- 
+Chen Gang (e??a??)
 
-tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
-head:   47ef4ad2684d380dd6d596140fb79395115c3950
-commit: 71458cfc782eafe4b27656e078d379a34e472adf kernel: add support for gcc 5
-date:   1 year, 9 months ago
-config: mips-sb1250_swarm_defconfig (attached as .config)
-compiler: mips-linux-gnu-gcc (Debian 5.3.1-8) 5.3.1 20160205
-reproduce:
-        wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
-        chmod +x ~/bin/make.cross
-        git checkout 71458cfc782eafe4b27656e078d379a34e472adf
-        # save the attached .config to linux build tree
-        make.cross ARCH=mips 
-
-All errors (new ones prefixed by >>):
-
-   {standard input}: Assembler messages:
->> {standard input}:122: Error: number (0x9000000080000000) larger than 32 bits
-   {standard input}:156: Error: number (0x9000000080000000) larger than 32 bits
-   {standard input}:178: Error: number (0x9000000080000000) larger than 32 bits
-
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
-
---45Z9DzgjV8m4Oswq
-Content-Type: application/octet-stream
-Content-Disposition: attachment; filename=".config.gz"
-Content-Transfer-Encoding: base64
-
-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
-
---45Z9DzgjV8m4Oswq--
+Managing Natural Environments is the Duty of Human Beings.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
