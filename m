@@ -1,182 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 78CC86B0005
-	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 17:00:43 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id ez1so223794255pab.0
-        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 14:00:43 -0700 (PDT)
-Received: from mx0a-000f0801.pphosted.com (mx0a-000f0801.pphosted.com. [2620:100:9001:7a::1])
-        by mx.google.com with ESMTPS id ut1si28676216pac.88.2016.07.18.14.00.42
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C2D86B0005
+	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 17:04:06 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id h186so15162271pfg.3
+        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 14:04:06 -0700 (PDT)
+Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
+        by mx.google.com with ESMTPS id o18si28607550pag.285.2016.07.18.14.04.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jul 2016 14:00:42 -0700 (PDT)
-From: "Charles (Chas) Williams" <ciwillia@brocade.com>
-Subject: [PATCH 3.14.y 9/9] x86/mm: Add barriers and document switch_mm()-vs-flush synchronization
-Date: Mon, 18 Jul 2016 16:59:02 -0400
-Message-ID: <1468875542-10978-9-git-send-email-ciwillia@brocade.com>
-In-Reply-To: <1468875203-10816-1-git-send-email-ciwillia@brocade.com>
-References: <1468875203-10816-1-git-send-email-ciwillia@brocade.com>
+        Mon, 18 Jul 2016 14:04:04 -0700 (PDT)
+Received: by mail-pa0-x233.google.com with SMTP id fi15so60837346pac.1
+        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 14:04:04 -0700 (PDT)
+Date: Mon, 18 Jul 2016 14:03:56 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: System freezes after OOM
+In-Reply-To: <20160718073914.GD22671@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1607181401240.132608@chino.kir.corp.google.com>
+References: <2d5e1f84-e886-7b98-cb11-170d7104fd13@I-love.SAKURA.ne.jp> <20160713133955.GK28723@dhcp22.suse.cz> <alpine.LRH.2.02.1607131004340.31769@file01.intranet.prod.int.rdu2.redhat.com> <20160713145638.GM28723@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1607131105080.31769@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.10.1607131644590.92037@chino.kir.corp.google.com> <20160714152913.GC12289@dhcp22.suse.cz> <alpine.DEB.2.10.1607141326500.68666@chino.kir.corp.google.com>
+ <20160715072242.GB11811@dhcp22.suse.cz> <alpine.DEB.2.10.1607151426420.121215@chino.kir.corp.google.com> <20160718073914.GD22671@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: stable@vger.kernel.org
-Cc: Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H.
- Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Luis Henriques <luis.henriques@canonical.com>, "Charles
- (Chas) Williams" <ciwillia@brocade.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mikulas Patocka <mpatocka@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Ondrej Kozina <okozina@redhat.com>, Jerome Marchand <jmarchan@redhat.com>, Stanislav Kozina <skozina@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Andy Lutomirski <luto@kernel.org>
+On Mon, 18 Jul 2016, Michal Hocko wrote:
 
-commit 71b3c126e61177eb693423f2e18a1914205b165e upstream.
+> > There's 
+> > two fundamental ways to go about it: (1) ensure mempool_alloc() can make 
+> > forward progress (whether that's by way of gfp flags or access to memory 
+> > reserves, which may depend on the process context such as PF_MEMALLOC) or 
+> > (2) rely on an implementation detail of mempools to never access memory 
+> > reserves, although it is shown to not livelock systems on 4.7 and earlier 
+> > kernels, and instead rely on users of the same mempool to return elements 
+> > to the freelist in all contexts, including oom contexts.  The mempool 
+> > implementation itself shouldn't need any oom awareness, that should be a 
+> > page allocator issue.
+> 
+> OK, I agree that we have a certain layer violation here. __GFP_NOMEMALLOC at
+> the mempool level is kind of hack (like the whole existence of the
+> flag TBH). So if you believe that the OOM part should be handled at the
+> page allocator level then that has already been proposed
+> http://lkml.kernel.org/r/2d5e1f84-e886-7b98-cb11-170d7104fd13@I-love.SAKURA.ne.jp
+> and not welcome because it might have other side effects as _all_
+> __GFP_NOMEMALLOC users would be affected.
+> 
 
-When switch_mm() activates a new PGD, it also sets a bit that
-tells other CPUs that the PGD is in use so that TLB flush IPIs
-will be sent.  In order for that to work correctly, the bit
-needs to be visible prior to loading the PGD and therefore
-starting to fill the local TLB.
-
-Document all the barriers that make this work correctly and add
-a couple that were missing.
-
-CVE-2016-2069
-
-Signed-off-by: Andy Lutomirski <luto@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-mm@kvack.org
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-[ luis: backported to 3.16:
-  - dropped N/A comment in flush_tlb_mm_range()
-  - adjusted context ]
-Signed-off-by: Luis Henriques <luis.henriques@canonical.com>
-[ciwillia@brocade.com: backported to 3.14: adjusted context]
-Signed-off-by: Charles (Chas) Williams <ciwillia@brocade.com>
----
- arch/x86/include/asm/mmu_context.h | 32 +++++++++++++++++++++++++++++++-
- arch/x86/mm/tlb.c                  | 25 ++++++++++++++++++++++---
- 2 files changed, 53 insertions(+), 4 deletions(-)
-
-diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-index be12c53..c0d2f6b 100644
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -42,7 +42,32 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
- #endif
- 		cpumask_set_cpu(cpu, mm_cpumask(next));
- 
--		/* Re-load page tables */
-+		/*
-+		 * Re-load page tables.
-+		 *
-+		 * This logic has an ordering constraint:
-+		 *
-+		 *  CPU 0: Write to a PTE for 'next'
-+		 *  CPU 0: load bit 1 in mm_cpumask.  if nonzero, send IPI.
-+		 *  CPU 1: set bit 1 in next's mm_cpumask
-+		 *  CPU 1: load from the PTE that CPU 0 writes (implicit)
-+		 *
-+		 * We need to prevent an outcome in which CPU 1 observes
-+		 * the new PTE value and CPU 0 observes bit 1 clear in
-+		 * mm_cpumask.  (If that occurs, then the IPI will never
-+		 * be sent, and CPU 0's TLB will contain a stale entry.)
-+		 *
-+		 * The bad outcome can occur if either CPU's load is
-+		 * reordered before that CPU's store, so both CPUs much
-+		 * execute full barriers to prevent this from happening.
-+		 *
-+		 * Thus, switch_mm needs a full barrier between the
-+		 * store to mm_cpumask and any operation that could load
-+		 * from next->pgd.  This barrier synchronizes with
-+		 * remote TLB flushers.  Fortunately, load_cr3 is
-+		 * serializing and thus acts as a full barrier.
-+		 *
-+		 */
- 		load_cr3(next->pgd);
- 
- 		/* Stop flush ipis for the previous mm */
-@@ -65,10 +90,15 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
- 			 * schedule, protecting us from simultaneous changes.
- 			 */
- 			cpumask_set_cpu(cpu, mm_cpumask(next));
-+
- 			/*
- 			 * We were in lazy tlb mode and leave_mm disabled
- 			 * tlb flush IPI delivery. We must reload CR3
- 			 * to make sure to use no freed page tables.
-+			 *
-+			 * As above, this is a barrier that forces
-+			 * TLB repopulation to be ordered after the
-+			 * store to mm_cpumask.
- 			 */
- 			load_cr3(next->pgd);
- 			load_LDT_nolock(&next->context);
-diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index dd8dda1..46e82e7 100644
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -152,7 +152,10 @@ void flush_tlb_current_task(void)
- 	preempt_disable();
- 
- 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
-+
-+	/* This is an implicit full barrier that synchronizes with switch_mm. */
- 	local_flush_tlb();
-+
- 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
- 		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
- 	preempt_enable();
-@@ -166,11 +169,19 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
- 	unsigned long nr_base_pages;
- 
- 	preempt_disable();
--	if (current->active_mm != mm)
-+	if (current->active_mm != mm) {
-+		/* Synchronize with switch_mm. */
-+		smp_mb();
-+
- 		goto flush_all;
-+	}
- 
- 	if (!current->mm) {
- 		leave_mm(smp_processor_id());
-+
-+		/* Synchronize with switch_mm. */
-+		smp_mb();
-+
- 		goto flush_all;
- 	}
- 
-@@ -222,10 +233,18 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)
- 	preempt_disable();
- 
- 	if (current->active_mm == mm) {
--		if (current->mm)
-+		if (current->mm) {
-+			/*
-+			 * Implicit full barrier (INVLPG) that synchronizes
-+			 * with switch_mm.
-+			 */
- 			__flush_tlb_one(start);
--		else
-+		} else {
- 			leave_mm(smp_processor_id());
-+
-+			/* Synchronize with switch_mm. */
-+			smp_mb();
-+		}
- 	}
- 
- 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
--- 
-2.5.5
+__GFP_NOMEMALLOC is opt-in and is a workaround for PF_MEMALLOC in this 
+context to prevent a depletion of reserves, so it seems trivial to allow 
+mempool_alloc(__GFP_NOMEMALLOC) in contexts where it's needed and leave it 
+to the user.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
