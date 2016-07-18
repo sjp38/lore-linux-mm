@@ -1,78 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AB15E6B0261
-	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 03:20:50 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id u186so181381157ita.0
-        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 00:20:50 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id w188si7790629itf.4.2016.07.18.00.20.49
-        for <linux-mm@kvack.org>;
-        Mon, 18 Jul 2016 00:20:50 -0700 (PDT)
-Date: Mon, 18 Jul 2016 16:24:56 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 08/31] mm, vmscan: simplify the logic deciding whether
- kswapd sleeps
-Message-ID: <20160718072455.GG9460@js1304-P5Q-DELUXE>
-References: <1467403299-25786-1-git-send-email-mgorman@techsingularity.net>
- <1467403299-25786-9-git-send-email-mgorman@techsingularity.net>
- <20160707012038.GB27987@js1304-P5Q-DELUXE>
- <20160707101701.GR11498@techsingularity.net>
- <20160708024447.GB2370@js1304-P5Q-DELUXE>
- <20160708101147.GD11498@techsingularity.net>
- <20160714052332.GA29676@js1304-P5Q-DELUXE>
- <5b6b1490-1dbc-74fc-e129-947141a1bee3@suse.cz>
- <20160718050756.GD9460@js1304-P5Q-DELUXE>
- <ddb22709-5536-b147-e0e4-cd9f6b11820a@suse.cz>
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0292F6B0262
+	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 03:22:06 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id f126so51561783wma.3
+        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 00:22:05 -0700 (PDT)
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com. [74.125.82.42])
+        by mx.google.com with ESMTPS id v207si7689541wmv.86.2016.07.18.00.22.04
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 18 Jul 2016 00:22:04 -0700 (PDT)
+Received: by mail-wm0-f42.google.com with SMTP id o80so102119671wme.1
+        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 00:22:04 -0700 (PDT)
+Date: Mon, 18 Jul 2016 09:22:02 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: System freezes after OOM
+Message-ID: <20160718072201.GC22671@dhcp22.suse.cz>
+References: <20160713111006.GF28723@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1607131021410.31769@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160714125129.GA12289@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1607140952550.1102@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160714145937.GB12289@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1607141315130.17819@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160715083510.GD11811@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1607150802380.5034@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160715122210.GG11811@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1607151256260.7011@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <ddb22709-5536-b147-e0e4-cd9f6b11820a@suse.cz>
+In-Reply-To: <alpine.LRH.2.02.1607151256260.7011@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Ondrej Kozina <okozina@redhat.com>, Jerome Marchand <jmarchan@redhat.com>, Stanislav Kozina <skozina@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dm-devel@redhat.com
 
-On Mon, Jul 18, 2016 at 08:51:16AM +0200, Vlastimil Babka wrote:
-> On 07/18/2016 07:07 AM, Joonsoo Kim wrote:
-> >On Thu, Jul 14, 2016 at 10:32:09AM +0200, Vlastimil Babka wrote:
-> >>On 07/14/2016 07:23 AM, Joonsoo Kim wrote:
-> >>
-> >>I don't think there's a problem in the scenario? Kswapd will keep
-> >>being woken up and reclaim from the node lru. It will hit and free
-> >>any low zone pages that are on the lru, even though it doesn't
-> >>"balance for low zone". Eventually it will either satisfy the
-> >>constrained allocation by reclaiming those low-zone pages during the
-> >>repeated wakeups, or the low-zone wakeups will stop coming together
-> >>with higher-zone wakeups and then it will reclaim the low-zone pages
-> >>in a single low-zone wakeup. If the zone-constrained request is not
-> >
-> >Yes, probability of this would be low.
-> >
-> >>allowed to fail, then it will just keep waking up kswapd and waiting
-> >>for the progress. If it's allowed to fail (i.e. not __GFP_NOFAIL),
-> >>but not allowed to direct reclaim, it goes "goto nopage" rather
-> >>quickly in __alloc_pages_slowpath(), without any waiting for
-> >>kswapd's progress, so there's not really much difference whether the
-> >>kswapd wakeup picked up a low classzone or not. Note the
-> >
-> >Hmm... Even if allocation could fail, we should do our best to prevent
-> >failure. Relying on luck isn't good idea to me.
+On Fri 15-07-16 13:02:17, Mikulas Patocka wrote:
 > 
-> But "Doing our best" has to have some sane limits. Allocation, that
+> 
+> On Fri, 15 Jul 2016, Michal Hocko wrote:
+> 
+> > On Fri 15-07-16 08:11:22, Mikulas Patocka wrote:
+> > > 
+> > > The stacktraces showed that the kcryptd process was throttled when it 
+> > > tried to do mempool allocation. Mempool adds the __GFP_NORETRY flag to the 
+> > > allocation, but unfortunatelly, this flag doesn't prevent the allocator 
+> > > from throttling.
+> > 
+> > Yes and in fact it shouldn't prevent any throttling. The flag merely
+> > says that the allocation should give up rather than retry
+> > reclaim/compaction again and again.
+> > 
+> > > I say that the process doing mempool allocation shouldn't ever be 
+> > > throttled. Maybe add __GFP_NOTHROTTLE?
+> > 
+> > A specific gfp flag would be an option but we are slowly running out of
+> > bit space there and I am not yet convinced PF_LESS_THROTTLE is
+> > unsuitable.
+> 
+> PF_LESS_THROTTLE will make it throttle less, but it doesn't eliminate 
+> throttling entirely. So, maybe add PF_NO_THROTTLE? But PF_* flags are also 
+> almost exhausted.
 
-Ensuring to do something for the requested zone at least once isn't insane.
-
-> cannot direct reclaim, already relies on luck. And we are not really
-> changing this. The allocation will "goto nopage" before kswapd can
-> even wake up and start doing something, regardless of classzone_idx
-> used.
-
-But, this patch makes things worse. Even if next allocation comes
-after kswapd is waking up and doing something, low zone would not be
-balanced due to max classzone_idx and allocation could fail. It is
-what this patch changes and I worry.
-
-Thanks.
+I am not really sure we can make anybody so special to not throttle at all.
+Seeing a congested backig device sounds like a reasonable compromise.
+Besides that it seems that we do not really need to eliminate
+wait_iff_congested for dm to work properly again AFAIU. I plan to repost
+both patch today after some more internal review. If we need to do more
+changes I would suggest making them in separet patches.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
