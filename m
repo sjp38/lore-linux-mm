@@ -1,73 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C72316B0005
-	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 16:12:21 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id q2so318247224pap.1
-        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 13:12:21 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id m88si5113681pfi.190.2016.07.18.13.12.20
-        for <linux-mm@kvack.org>;
-        Mon, 18 Jul 2016 13:12:20 -0700 (PDT)
-Subject: Re: [PATCH 6/9] x86, pkeys: add pkey set/get syscalls
-References: <20160707124719.3F04C882@viggo.jf.intel.com>
- <20160707124728.C1116BB1@viggo.jf.intel.com>
- <20160707144508.GZ11498@techsingularity.net> <577E924C.6010406@sr71.net>
- <20160708071810.GA27457@gmail.com> <577FD587.6050101@sr71.net>
- <20160709083715.GA29939@gmail.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <578D3821.4050705@intel.com>
-Date: Mon, 18 Jul 2016 13:12:17 -0700
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 78CC86B0005
+	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 17:00:43 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id ez1so223794255pab.0
+        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 14:00:43 -0700 (PDT)
+Received: from mx0a-000f0801.pphosted.com (mx0a-000f0801.pphosted.com. [2620:100:9001:7a::1])
+        by mx.google.com with ESMTPS id ut1si28676216pac.88.2016.07.18.14.00.42
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 18 Jul 2016 14:00:42 -0700 (PDT)
+From: "Charles (Chas) Williams" <ciwillia@brocade.com>
+Subject: [PATCH 3.14.y 9/9] x86/mm: Add barriers and document switch_mm()-vs-flush synchronization
+Date: Mon, 18 Jul 2016 16:59:02 -0400
+Message-ID: <1468875542-10978-9-git-send-email-ciwillia@brocade.com>
+In-Reply-To: <1468875203-10816-1-git-send-email-ciwillia@brocade.com>
+References: <1468875203-10816-1-git-send-email-ciwillia@brocade.com>
 MIME-Version: 1.0
-In-Reply-To: <20160709083715.GA29939@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, x86@kernel.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, dave.hansen@linux.intel.com, arnd@arndb.de, hughd@google.com, viro@zeniv.linux.org.uk, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: stable@vger.kernel.org
+Cc: Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H.
+ Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Luis Henriques <luis.henriques@canonical.com>, "Charles
+ (Chas) Williams" <ciwillia@brocade.com>
 
-On 07/09/2016 01:37 AM, Ingo Molnar wrote:
->  - There are 16 pkey indices on x86 currently. We already use index 15 for the 
->    true PROT_EXEC implementation. Let's set aside another pkey index for the 
->    kernel's potential future use (index 14), and clear it explicitly in the 
->    FPU context on every context switch if CONFIG_X86_DEBUG_FPU is enabled to make 
->    sure it remains unallocated.
+From: Andy Lutomirski <luto@kernel.org>
 
-After mulling over this for a week: I really don't think we want to
-pre-reserve any keys.
+commit 71b3c126e61177eb693423f2e18a1914205b165e upstream.
 
-The one bit of consistent feedback I've heard from the folks that are
-going to use this is that they want more keys.  The current code does
-not reserve any keys (except 0 of course).
+When switch_mm() activates a new PGD, it also sets a bit that
+tells other CPUs that the PGD is in use so that TLB flush IPIs
+will be sent.  In order for that to work correctly, the bit
+needs to be visible prior to loading the PGD and therefore
+starting to fill the local TLB.
 
-Virtually every feature that we've talked about adding on top of this
-_requires_ having this allocation mechanism and kernel knowledge of
-which keys are in use.  Even having kernel-reserved keys requires
-telling userspace about allocation, whether we use pkey_mprotect() for
-it or not.
+Document all the barriers that make this work correctly and add
+a couple that were missing.
 
-I'd like to resubmit this set with pkey_get/set() removed, but with
-pkey_alloc/free() still in place.
+CVE-2016-2069
 
-Why are folks so sensitive to the number of keys?  There are a few modes
-this will get used in when folks want more pkeys that hardware provides.
- Both of them are harmed in a meaningful way if we take some of their
-keys away.  Here's how they will use pkeys:
-1. As an accelerator for existing mprotect()-provided guarantees.
-   Let's say you want 100 pieces of data, but you only get 15 pkeys in
-   hardware.  The app picks the 15 most-frequently accessed pieces, and
-   uses pkeys to control access to them, and uses mprotect() for the
-   other 85.  Each pkey you remove means a smaller "working set"
-   covered by pkeys, more mprotect()s and lower performance.
-2. To provide stronger access guarantees.  Let's say you have 100
-   pieces of data.  To access a given piece of data, you hash its key
-   in to a pkey: hash(92)%NR_PKEYS.  Accessing a random bit of data,
-   you have a 1/NR_PKEYS chance of a hash collision and access to data
-   you should not have access to.  Fewer keys means more data
-   corruption.  Losing 2/16 keys means a 15% greater chance of a
-   collision on a given access.
+Signed-off-by: Andy Lutomirski <luto@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andy Lutomirski <luto@amacapital.net>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-mm@kvack.org
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+[ luis: backported to 3.16:
+  - dropped N/A comment in flush_tlb_mm_range()
+  - adjusted context ]
+Signed-off-by: Luis Henriques <luis.henriques@canonical.com>
+[ciwillia@brocade.com: backported to 3.14: adjusted context]
+Signed-off-by: Charles (Chas) Williams <ciwillia@brocade.com>
+---
+ arch/x86/include/asm/mmu_context.h | 32 +++++++++++++++++++++++++++++++-
+ arch/x86/mm/tlb.c                  | 25 ++++++++++++++++++++++---
+ 2 files changed, 53 insertions(+), 4 deletions(-)
 
-
+diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
+index be12c53..c0d2f6b 100644
+--- a/arch/x86/include/asm/mmu_context.h
++++ b/arch/x86/include/asm/mmu_context.h
+@@ -42,7 +42,32 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+ #endif
+ 		cpumask_set_cpu(cpu, mm_cpumask(next));
+ 
+-		/* Re-load page tables */
++		/*
++		 * Re-load page tables.
++		 *
++		 * This logic has an ordering constraint:
++		 *
++		 *  CPU 0: Write to a PTE for 'next'
++		 *  CPU 0: load bit 1 in mm_cpumask.  if nonzero, send IPI.
++		 *  CPU 1: set bit 1 in next's mm_cpumask
++		 *  CPU 1: load from the PTE that CPU 0 writes (implicit)
++		 *
++		 * We need to prevent an outcome in which CPU 1 observes
++		 * the new PTE value and CPU 0 observes bit 1 clear in
++		 * mm_cpumask.  (If that occurs, then the IPI will never
++		 * be sent, and CPU 0's TLB will contain a stale entry.)
++		 *
++		 * The bad outcome can occur if either CPU's load is
++		 * reordered before that CPU's store, so both CPUs much
++		 * execute full barriers to prevent this from happening.
++		 *
++		 * Thus, switch_mm needs a full barrier between the
++		 * store to mm_cpumask and any operation that could load
++		 * from next->pgd.  This barrier synchronizes with
++		 * remote TLB flushers.  Fortunately, load_cr3 is
++		 * serializing and thus acts as a full barrier.
++		 *
++		 */
+ 		load_cr3(next->pgd);
+ 
+ 		/* Stop flush ipis for the previous mm */
+@@ -65,10 +90,15 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+ 			 * schedule, protecting us from simultaneous changes.
+ 			 */
+ 			cpumask_set_cpu(cpu, mm_cpumask(next));
++
+ 			/*
+ 			 * We were in lazy tlb mode and leave_mm disabled
+ 			 * tlb flush IPI delivery. We must reload CR3
+ 			 * to make sure to use no freed page tables.
++			 *
++			 * As above, this is a barrier that forces
++			 * TLB repopulation to be ordered after the
++			 * store to mm_cpumask.
+ 			 */
+ 			load_cr3(next->pgd);
+ 			load_LDT_nolock(&next->context);
+diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+index dd8dda1..46e82e7 100644
+--- a/arch/x86/mm/tlb.c
++++ b/arch/x86/mm/tlb.c
+@@ -152,7 +152,10 @@ void flush_tlb_current_task(void)
+ 	preempt_disable();
+ 
+ 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
++
++	/* This is an implicit full barrier that synchronizes with switch_mm. */
+ 	local_flush_tlb();
++
+ 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
+ 		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
+ 	preempt_enable();
+@@ -166,11 +169,19 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+ 	unsigned long nr_base_pages;
+ 
+ 	preempt_disable();
+-	if (current->active_mm != mm)
++	if (current->active_mm != mm) {
++		/* Synchronize with switch_mm. */
++		smp_mb();
++
+ 		goto flush_all;
++	}
+ 
+ 	if (!current->mm) {
+ 		leave_mm(smp_processor_id());
++
++		/* Synchronize with switch_mm. */
++		smp_mb();
++
+ 		goto flush_all;
+ 	}
+ 
+@@ -222,10 +233,18 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)
+ 	preempt_disable();
+ 
+ 	if (current->active_mm == mm) {
+-		if (current->mm)
++		if (current->mm) {
++			/*
++			 * Implicit full barrier (INVLPG) that synchronizes
++			 * with switch_mm.
++			 */
+ 			__flush_tlb_one(start);
+-		else
++		} else {
+ 			leave_mm(smp_processor_id());
++
++			/* Synchronize with switch_mm. */
++			smp_mb();
++		}
+ 	}
+ 
+ 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
+-- 
+2.5.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
