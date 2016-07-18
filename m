@@ -1,55 +1,220 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CB7C56B0253
-	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 07:23:11 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id r190so55998196wmr.0
-        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 04:23:11 -0700 (PDT)
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CC6CD6B025E
+	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 07:23:12 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id r97so6607729lfi.2
+        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 04:23:12 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 201si14240703wms.49.2016.07.18.04.23.10
+        by mx.google.com with ESMTPS id r187si14201957wmb.134.2016.07.18.04.23.10
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Mon, 18 Jul 2016 04:23:10 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH 1/8] mm, compaction: don't isolate PageWriteback pages in MIGRATE_SYNC_LIGHT mode
-Date: Mon, 18 Jul 2016 13:22:55 +0200
-Message-Id: <20160718112302.27381-2-vbabka@suse.cz>
+Subject: [PATCH 6/8] mm, thp: remove __GFP_NORETRY from khugepaged and madvised allocations
+Date: Mon, 18 Jul 2016 13:23:00 +0200
+Message-Id: <20160718112302.27381-7-vbabka@suse.cz>
 In-Reply-To: <20160718112302.27381-1-vbabka@suse.cz>
 References: <20160718112302.27381-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
-From: Hugh Dickins <hughd@google.com>
+After the previous patch, we can distinguish costly allocations that should be
+really lightweight, such as THP page faults, with __GFP_NORETRY. This means we
+don't need to recognize khugepaged allocations via PF_KTHREAD anymore. We can
+also change THP page faults in areas where madvise(MADV_HUGEPAGE) was used to
+try as hard as khugepaged, as the process has indicated that it benefits from
+THP's and is willing to pay some initial latency costs.
 
-At present MIGRATE_SYNC_LIGHT is allowing __isolate_lru_page() to
-isolate a PageWriteback page, which __unmap_and_move() then rejects
-with -EBUSY: of course the writeback might complete in between, but
-that's not what we usually expect, so probably better not to isolate it.
+We can also make the flags handling less cryptic by distinguishing
+GFP_TRANSHUGE_LIGHT (no reclaim at all, default mode in page fault) from
+GFP_TRANSHUGE (only direct reclaim, khugepaged default). Adding __GFP_NORETRY
+or __GFP_KSWAPD_RECLAIM is done where needed.
 
-When tested by stress-highalloc from mmtests, this has reduced the number of
-page migrate failures by 60-70%.
+The patch effectively changes the current GFP_TRANSHUGE users as follows:
 
-Signed-off-by: Hugh Dickins <hughd@google.com>
+* get_huge_zero_page() - the zero page lifetime should be relatively long and
+  it's shared by multiple users, so it's worth spending some effort on it.
+  We use GFP_TRANSHUGE, and __GFP_NORETRY is not added. This also restores
+  direct reclaim to this allocation, which was unintentionally removed by
+  commit e4a49efe4e7e ("mm: thp: set THP defrag by default to madvise and add
+  a stall-free defrag option")
+
+* alloc_hugepage_khugepaged_gfpmask() - this is khugepaged, so latency is not
+  an issue. So if khugepaged "defrag" is enabled (the default), do reclaim
+  via GFP_TRANSHUGE without __GFP_NORETRY. We can remove the PF_KTHREAD check
+  from page alloc.
+  As a side-effect, khugepaged will now no longer check if the initial
+  compaction was deferred or contended. This is OK, as khugepaged sleep times
+  between collapsion attempts are long enough to prevent noticeable disruption,
+  so we should allow it to spend some effort.
+
+* migrate_misplaced_transhuge_page() - already was masking out __GFP_RECLAIM,
+  so just convert to GFP_TRANSHUGE_LIGHT which is equivalent.
+
+* alloc_hugepage_direct_gfpmask() - vma's with VM_HUGEPAGE (via madvise) are
+  now allocating without __GFP_NORETRY. Other vma's keep using __GFP_NORETRY
+  if direct reclaim/compaction is at all allowed (by default it's allowed only
+  for madvised vma's). The rest is conversion to GFP_TRANSHUGE(_LIGHT).
+
+[mhocko@suse.com: suggested GFP_TRANSHUGE_LIGHT]
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/compaction.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ include/linux/gfp.h            | 14 ++++++++------
+ include/trace/events/mmflags.h |  1 +
+ mm/huge_memory.c               | 29 ++++++++++++++++-------------
+ mm/khugepaged.c                |  2 +-
+ mm/migrate.c                   |  2 +-
+ mm/page_alloc.c                |  6 ++----
+ tools/perf/builtin-kmem.c      |  1 +
+ 7 files changed, 30 insertions(+), 25 deletions(-)
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index cd93ea24c565..892e397655dc 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1200,7 +1200,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 	struct page *page;
- 	const isolate_mode_t isolate_mode =
- 		(sysctl_compact_unevictable_allowed ? ISOLATE_UNEVICTABLE : 0) |
--		(cc->mode == MIGRATE_ASYNC ? ISOLATE_ASYNC_MIGRATE : 0);
-+		(cc->mode != MIGRATE_SYNC ? ISOLATE_ASYNC_MIGRATE : 0);
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index c29e9d347bc6..f8041f9de31e 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -237,9 +237,11 @@ struct vm_area_struct;
+  *   are expected to be movable via page reclaim or page migration. Typically,
+  *   pages on the LRU would also be allocated with GFP_HIGHUSER_MOVABLE.
+  *
+- * GFP_TRANSHUGE is used for THP allocations. They are compound allocations
+- *   that will fail quickly if memory is not available and will not wake
+- *   kswapd on failure.
++ * GFP_TRANSHUGE and GFP_TRANSHUGE_LIGHT are used for THP allocations. They are
++ *   compound allocations that will generally fail quickly if memory is not
++ *   available and will not wake kswapd/kcompactd on failure. The _LIGHT
++ *   version does not attempt reclaim/compaction at all and is by default used
++ *   in page fault path, while the non-light is used by khugepaged.
+  */
+ #define GFP_ATOMIC	(__GFP_HIGH|__GFP_ATOMIC|__GFP_KSWAPD_RECLAIM)
+ #define GFP_KERNEL	(__GFP_RECLAIM | __GFP_IO | __GFP_FS)
+@@ -254,9 +256,9 @@ struct vm_area_struct;
+ #define GFP_DMA32	__GFP_DMA32
+ #define GFP_HIGHUSER	(GFP_USER | __GFP_HIGHMEM)
+ #define GFP_HIGHUSER_MOVABLE	(GFP_HIGHUSER | __GFP_MOVABLE)
+-#define GFP_TRANSHUGE	((GFP_HIGHUSER_MOVABLE | __GFP_COMP | \
+-			 __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN) & \
+-			 ~__GFP_RECLAIM)
++#define GFP_TRANSHUGE_LIGHT	((GFP_HIGHUSER_MOVABLE | __GFP_COMP | \
++			 __GFP_NOMEMALLOC | __GFP_NOWARN) & ~__GFP_RECLAIM)
++#define GFP_TRANSHUGE	(GFP_TRANSHUGE_LIGHT | __GFP_DIRECT_RECLAIM)
  
- 	/*
- 	 * Start at where we last stopped, or beginning of the zone as
+ /* Convert GFP flags to their corresponding migrate type */
+ #define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE|__GFP_MOVABLE)
+diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
+index 43cedbf0c759..5a81ab48a2fb 100644
+--- a/include/trace/events/mmflags.h
++++ b/include/trace/events/mmflags.h
+@@ -11,6 +11,7 @@
+ 
+ #define __def_gfpflag_names						\
+ 	{(unsigned long)GFP_TRANSHUGE,		"GFP_TRANSHUGE"},	\
++	{(unsigned long)GFP_TRANSHUGE_LIGHT,	"GFP_TRANSHUGE_LIGHT"}, \
+ 	{(unsigned long)GFP_HIGHUSER_MOVABLE,	"GFP_HIGHUSER_MOVABLE"},\
+ 	{(unsigned long)GFP_HIGHUSER,		"GFP_HIGHUSER"},	\
+ 	{(unsigned long)GFP_USER,		"GFP_USER"},		\
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 4b8d4e588930..83b88f97cd54 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -539,23 +539,26 @@ static int __do_huge_pmd_anonymous_page(struct fault_env *fe, struct page *page,
+ }
+ 
+ /*
+- * If THP is set to always then directly reclaim/compact as necessary
+- * If set to defer then do no reclaim and defer to khugepaged
++ * If THP defrag is set to always then directly reclaim/compact as necessary
++ * If set to defer then do only background reclaim/compact and defer to khugepaged
+  * If set to madvise and the VMA is flagged then directly reclaim/compact
++ * When direct reclaim/compact is allowed, don't retry except for flagged VMA's
+  */
+ static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
+ {
+-	gfp_t reclaim_flags = 0;
+-
+-	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags) &&
+-	    (vma->vm_flags & VM_HUGEPAGE))
+-		reclaim_flags = __GFP_DIRECT_RECLAIM;
+-	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags))
+-		reclaim_flags = __GFP_KSWAPD_RECLAIM;
+-	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
+-		reclaim_flags = __GFP_DIRECT_RECLAIM;
+-
+-	return GFP_TRANSHUGE | reclaim_flags;
++	bool vma_madvised = !!(vma->vm_flags & VM_HUGEPAGE);
++
++	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG,
++				&transparent_hugepage_flags) && vma_madvised)
++		return GFP_TRANSHUGE;
++	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG,
++						&transparent_hugepage_flags))
++		return GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM;
++	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG,
++						&transparent_hugepage_flags))
++		return GFP_TRANSHUGE | (vma_madvised ? 0 : __GFP_NORETRY);
++
++	return GFP_TRANSHUGE_LIGHT;
+ }
+ 
+ /* Caller must hold page table lock. */
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+index bb49bd1d2d9f..54ec5f8032a3 100644
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -694,7 +694,7 @@ static bool khugepaged_scan_abort(int nid)
+ /* Defrag for khugepaged will enter direct reclaim/compaction if necessary */
+ static inline gfp_t alloc_hugepage_khugepaged_gfpmask(void)
+ {
+-	return GFP_TRANSHUGE | (khugepaged_defrag() ? __GFP_DIRECT_RECLAIM : 0);
++	return khugepaged_defrag() ? GFP_TRANSHUGE : GFP_TRANSHUGE_LIGHT;
+ }
+ 
+ #ifdef CONFIG_NUMA
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 365153c14cd0..622c7e473464 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1930,7 +1930,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+ 		goto out_dropref;
+ 
+ 	new_page = alloc_pages_node(node,
+-		(GFP_TRANSHUGE | __GFP_THISNODE) & ~__GFP_RECLAIM,
++		(GFP_TRANSHUGE_LIGHT | __GFP_THISNODE),
+ 		HPAGE_PMD_ORDER);
+ 	if (!new_page)
+ 		goto out_fail;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index cfefcb98ac59..b631f1d94553 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3584,11 +3584,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 			/*
+ 			 * Looks like reclaim/compaction is worth trying, but
+ 			 * sync compaction could be very expensive, so keep
+-			 * using async compaction, unless it's khugepaged
+-			 * trying to collapse.
++			 * using async compaction.
+ 			 */
+-			if (!(current->flags & PF_KTHREAD))
+-				migration_mode = MIGRATE_ASYNC;
++			migration_mode = MIGRATE_ASYNC;
+ 		}
+ 	}
+ 
+diff --git a/tools/perf/builtin-kmem.c b/tools/perf/builtin-kmem.c
+index c9cb3be47cff..0d98182dc159 100644
+--- a/tools/perf/builtin-kmem.c
++++ b/tools/perf/builtin-kmem.c
+@@ -608,6 +608,7 @@ static const struct {
+ 	const char *compact;
+ } gfp_compact_table[] = {
+ 	{ "GFP_TRANSHUGE",		"THP" },
++	{ "GFP_TRANSHUGE_LIGHT",	"THL" },
+ 	{ "GFP_HIGHUSER_MOVABLE",	"HUM" },
+ 	{ "GFP_HIGHUSER",		"HU" },
+ 	{ "GFP_USER",			"U" },
 -- 
 2.9.0
 
