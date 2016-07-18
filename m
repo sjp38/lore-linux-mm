@@ -1,52 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 031236B0005
-	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 11:41:22 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id 33so117414541lfw.1
-        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 08:41:21 -0700 (PDT)
-Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
-        by mx.google.com with ESMTPS id t84si15380133wmf.138.2016.07.18.08.41.20
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F3D46B0005
+	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 12:11:40 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id o80so61917027wme.1
+        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 09:11:40 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id c66si15594722wmi.58.2016.07.18.09.11.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jul 2016 08:41:20 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 4486F1C12E0
-	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 16:41:20 +0100 (IST)
-Date: Mon, 18 Jul 2016 16:41:18 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 0/8] compaction-related cleanups v4
-Message-ID: <20160718154118.GB10438@techsingularity.net>
-References: <20160718112302.27381-1-vbabka@suse.cz>
+        Mon, 18 Jul 2016 09:11:39 -0700 (PDT)
+Date: Mon, 18 Jul 2016 12:11:28 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/3] mm, vmscan: Remove redundant check in shrink_zones()
+Message-ID: <20160718161128.GA16465@cmpxchg.org>
+References: <1468853426-12858-1-git-send-email-mgorman@techsingularity.net>
+ <1468853426-12858-2-git-send-email-mgorman@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160718112302.27381-1-vbabka@suse.cz>
+In-Reply-To: <1468853426-12858-2-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Jul 18, 2016 at 01:22:54PM +0200, Vlastimil Babka wrote:
-> Hi,
+On Mon, Jul 18, 2016 at 03:50:24PM +0100, Mel Gorman wrote:
+> As pointed out by Minchan Kim, shrink_zones() checks for populated
+> zones in a zonelist but a zonelist can never contain unpopulated
+> zones. While it's not related to the node-lru series, it can be
+> cleaned up now.
 > 
-> this is the splitted-off first part of my "make direct compaction more
-> deterministic" series [1], rebased on mmotm-2016-07-13-16-09-18. For the whole
-> series it's probably too late for 4.8 given some unresolved feedback, but I
-> hope this part could go in as it was stable for quite some time.
-> 
-> At the very least, the first patch really shouldn't wait any longer.
-> 
+> Suggested-by: Minchan Kim <minchan@kernel.org>
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 
-I read through the patches but did not have a substantial or useful
-comment to make. The compaction priority stuff is interesting and while
-it'll take a little getting used to, I think it's a better way of
-viewing compaction in general. For the series
+Ha, I didn't know that. But yeah, the zonelist building code excludes
+unpopulated zones from the start. Neat.
 
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
-
--- 
-Mel Gorman
-SUSE Labs
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
