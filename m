@@ -1,115 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 935DB6B0266
-	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 04:41:34 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id l89so109919606lfi.3
-        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 01:41:34 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id w128si13632703wmw.47.2016.07.18.01.41.32
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F01546B0267
+	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 04:42:08 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id y134so307275678pfg.1
+        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 01:42:08 -0700 (PDT)
+Received: from szxga01-in.huawei.com ([58.251.152.64])
+        by mx.google.com with ESMTPS id l189si2367460pfl.125.2016.07.18.01.42.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jul 2016 01:41:32 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id i5so11572903wmg.2
-        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 01:41:32 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH 1/2] mempool: do not consume memory reserves from the reclaim path
-Date: Mon, 18 Jul 2016 10:41:24 +0200
-Message-Id: <1468831285-27242-1-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1468831164-26621-1-git-send-email-mhocko@kernel.org>
-References: <1468831164-26621-1-git-send-email-mhocko@kernel.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 18 Jul 2016 01:42:08 -0700 (PDT)
+Message-ID: <578C93CF.50509@huawei.com>
+Date: Mon, 18 Jul 2016 16:31:11 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/2] mem-hotplug: use GFP_HIGHUSER_MOVABLE in, alloc_migrate_target()
+References: <57884EAA.9030603@huawei.com> <20160718055150.GF9460@js1304-P5Q-DELUXE> <578C8C8A.8000007@huawei.com> <7ce4a7ac-07aa-6a81-48c2-91c4a9355778@suse.cz>
+In-Reply-To: <7ce4a7ac-07aa-6a81-48c2-91c4a9355778@suse.cz>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Mikulas Patocka <mpatocka@redhat.com>, Ondrej Kozina <okozina@redhat.com>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Mel Gorman <mgorman@suse.de>, Neil Brown <neilb@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, dm-devel@redhat.com, Michal Hocko <mhocko@suse.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya
+ Horiguchi <n-horiguchi@ah.jp.nec.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-From: Michal Hocko <mhocko@suse.com>
+On 2016/7/18 16:05, Vlastimil Babka wrote:
 
-There has been a report about OOM killer invoked when swapping out to
-a dm-crypt device. The primary reason seems to be that the swapout
-out IO managed to completely deplete memory reserves. Mikulas was
-able to bisect and explained the issue by pointing to f9054c70d28b
-("mm, mempool: only set __GFP_NOMEMALLOC if there are free elements").
+> On 07/18/2016 10:00 AM, Xishi Qiu wrote:
+>> On 2016/7/18 13:51, Joonsoo Kim wrote:
+>>
+>>> On Fri, Jul 15, 2016 at 10:47:06AM +0800, Xishi Qiu wrote:
+>>>> alloc_migrate_target() is called from migrate_pages(), and the page
+>>>> is always from user space, so we can add __GFP_HIGHMEM directly.
+>>>
+>>> No, all migratable pages are not from user space. For example,
+>>> blockdev file cache has __GFP_MOVABLE and migratable but it has no
+>>> __GFP_HIGHMEM and __GFP_USER.
+>>>
+>>
+>> Hi Joonsoo,
+>>
+>> So the original code "gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;"
+>> is not correct?
+> 
+> It's not incorrect. GFP_USER just specifies some reclaim flags, and may perhaps restrict allocation through __GFP_HARDWALL, where the original
+> page could have been allocated without the restriction. But it doesn't put the place in an unexpected address range, as placing a non-highmem page into highmem could. __GFP_MOVABLE then just controls a heuristic for placement within a zone.
+> 
+>>> And, zram's memory isn't GFP_HIGHUSER_MOVABLE but has __GFP_MOVABLE.
+>>>
+>>
+>> Can we distinguish __GFP_MOVABLE or GFP_HIGHUSER_MOVABLE when doing
+>> mem-hotplug?
+> 
+> I don't understand the question here, can you rephrase with more detail? Thanks.
+> 
 
-The reason is that the swapout path is not throttled properly because
-the md-raid layer needs to allocate from the generic_make_request path
-which means it allocates from the PF_MEMALLOC context. dm layer uses
-mempool_alloc in order to guarantee a forward progress which used to
-inhibit access to memory reserves when using page allocator. This has
-changed by f9054c70d28b ("mm, mempool: only set __GFP_NOMEMALLOC if
-there are free elements") which has dropped the __GFP_NOMEMALLOC
-protection when the memory pool is depleted.
+Hi Joonsoo,
 
-If we are running out of memory and the only way forward to free memory
-is to perform swapout we just keep consuming memory reserves rather than
-throttling the mempool allocations and allowing the pending IO to
-complete up to a moment when the memory is depleted completely and there
-is no way forward but invoking the OOM killer. This is less than
-optimal.
+When we do memory offline, and the zone is movable zone,
+can we use "alloc_pages_node(nid, GFP_HIGHUSER_MOVABLE, 0);" to alloc a
+new page? the nid is the next node.
 
-The original intention of f9054c70d28b was to help with the OOM
-situations where the oom victim depends on mempool allocation to make a
-forward progress. We can handle that case in a different way, though. We
-can check whether the current task has access to memory reserves ad an
-OOM victim (TIF_MEMDIE) and drop __GFP_NOMEMALLOC protection if the pool
-is empty.
+Thanks,
+Xishi Qiu
 
-David Rientjes was objecting that such an approach wouldn't help if the
-oom victim was blocked on a lock held by process doing mempool_alloc. This
-is very similar to other oom deadlock situations and we have oom_reaper
-to deal with them so it is reasonable to rely on the same mechanism
-rather inventing a different one which has negative side effects.
+>> Thanks,
+>> Xishi Qiu
+>>
+>>> Thanks.
+>>>
+>>>
+>>> .
+>>>
+>>
+>>
+>>
+> 
+> 
+> .
+> 
 
-Fixes: f9054c70d28b ("mm, mempool: only set __GFP_NOMEMALLOC if there are free elements")
-Bisected-by: Mikulas Patocka <mpatocka@redhat.com>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/mempool.c | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
 
-diff --git a/mm/mempool.c b/mm/mempool.c
-index 8f65464da5de..ea26d75c8adf 100644
---- a/mm/mempool.c
-+++ b/mm/mempool.c
-@@ -322,20 +322,20 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
- 
- 	might_sleep_if(gfp_mask & __GFP_DIRECT_RECLAIM);
- 
-+	gfp_mask |= __GFP_NOMEMALLOC;   /* don't allocate emergency reserves */
- 	gfp_mask |= __GFP_NORETRY;	/* don't loop in __alloc_pages */
- 	gfp_mask |= __GFP_NOWARN;	/* failures are OK */
- 
- 	gfp_temp = gfp_mask & ~(__GFP_DIRECT_RECLAIM|__GFP_IO);
- 
- repeat_alloc:
--	if (likely(pool->curr_nr)) {
--		/*
--		 * Don't allocate from emergency reserves if there are
--		 * elements available.  This check is racy, but it will
--		 * be rechecked each loop.
--		 */
--		gfp_temp |= __GFP_NOMEMALLOC;
--	}
-+	/*
-+	 * Make sure that the OOM victim will get access to memory reserves
-+	 * properly if there are no objects in the pool to prevent from
-+	 * livelocks.
-+	 */
-+	if (!likely(pool->curr_nr) && test_thread_flag(TIF_MEMDIE))
-+		gfp_temp &= ~__GFP_NOMEMALLOC;
- 
- 	element = pool->alloc(gfp_temp, pool->pool_data);
- 	if (likely(element != NULL))
-@@ -359,7 +359,7 @@ void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
- 	 * We use gfp mask w/o direct reclaim or IO for the first round.  If
- 	 * alloc failed with that and @pool was empty, retry immediately.
- 	 */
--	if ((gfp_temp & ~__GFP_NOMEMALLOC) != gfp_mask) {
-+	if ((gfp_temp & __GFP_DIRECT_RECLAIM) != (gfp_mask & __GFP_DIRECT_RECLAIM)) {
- 		spin_unlock_irqrestore(&pool->lock, flags);
- 		gfp_temp = gfp_mask;
- 		goto repeat_alloc;
--- 
-2.8.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
