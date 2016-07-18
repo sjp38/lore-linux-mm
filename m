@@ -1,45 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D544B6B0005
-	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 12:20:37 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id o80so62055257wme.1
-        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 09:20:37 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id u84si15664089wmg.19.2016.07.18.09.20.36
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jul 2016 09:20:36 -0700 (PDT)
-Date: Mon, 18 Jul 2016 12:20:31 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 3/5] mm, pagevec: Release/reacquire lru_lock on pgdat
- change
-Message-ID: <20160718162031.GF16465@cmpxchg.org>
-References: <1468588165-12461-1-git-send-email-mgorman@techsingularity.net>
- <1468588165-12461-4-git-send-email-mgorman@techsingularity.net>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3737E6B0005
+	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 14:02:27 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id y134so344477399pfg.1
+        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 11:02:27 -0700 (PDT)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id f16si4623219pfa.157.2016.07.18.11.02.25
+        for <linux-mm@kvack.org>;
+        Mon, 18 Jul 2016 11:02:26 -0700 (PDT)
+Subject: Re: [PATCH 6/9] x86, pkeys: add pkey set/get syscalls
+References: <20160707124719.3F04C882@viggo.jf.intel.com>
+ <20160707124728.C1116BB1@viggo.jf.intel.com>
+ <20160707144508.GZ11498@techsingularity.net> <577E924C.6010406@sr71.net>
+ <20160708071810.GA27457@gmail.com> <577FD587.6050101@sr71.net>
+ <20160709083715.GA29939@gmail.com>
+From: Dave Hansen <dave@sr71.net>
+Message-ID: <578D19AF.3020204@sr71.net>
+Date: Mon, 18 Jul 2016 11:02:23 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1468588165-12461-4-git-send-email-mgorman@techsingularity.net>
+In-Reply-To: <20160709083715.GA29939@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, x86@kernel.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, dave.hansen@linux.intel.com, arnd@arndb.de, hughd@google.com, viro@zeniv.linux.org.uk, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On Fri, Jul 15, 2016 at 02:09:23PM +0100, Mel Gorman wrote:
-> With node-lru, the locking is based on the pgdat. Previously it was
-> required that a pagevec drain released one zone lru_lock and acquired
-> another zone lru_lock on every zone change. Now, it's only necessary if
-> the node changes. The end-result is fewer lock release/acquires if the
-> pages are all on the same node but in different zones.
+On 07/09/2016 01:37 AM, Ingo Molnar wrote:
+>    I.e. this pattern:
 > 
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+>      ret = pkey_mprotect(NULL, PAGE_SIZE, real_prot, pkey);
+> 
+>    ... would validate the pkey and we'd return -EOPNOTSUPP for pkey that is not 
+>    available? This would allow maximum future flexibility as it would not define 
+>    kernel allocated pkeys as a 'range'.
 
-This could make quite a difference on some workloads, from a whole
-series perspective, when considering that we had the round robin fair
-zone allocator on top of this. Page batches that span multiple nodes
-on the other hand are much less likely.
+Isn't this  multiplexing an otherwise straightforward system call?  In
+addition to providing pkey assignment to memory, it would also being
+used to pass pkey allocation information independently from any use for
+memory assignment.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+The complexity of the ABI comes from its behavior, not from the raw
+number of system calls that are needed to implement it.  IOW, this makes
+the ABI *more* complicated.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
