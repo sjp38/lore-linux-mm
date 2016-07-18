@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F3C96B0260
-	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 07:23:17 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id l89so112461496lfi.3
-        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 04:23:17 -0700 (PDT)
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D12F26B0261
+	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 07:23:19 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id 33so112050051lfw.1
+        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 04:23:19 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 7si596788wjv.63.2016.07.18.04.23.10
+        by mx.google.com with ESMTPS id iu6si596245wjb.259.2016.07.18.04.23.10
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Mon, 18 Jul 2016 04:23:10 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH 4/8] mm, page_alloc: restructure direct compaction handling in slowpath
-Date: Mon, 18 Jul 2016 13:22:58 +0200
-Message-Id: <20160718112302.27381-5-vbabka@suse.cz>
+Subject: [PATCH 7/8] mm, compaction: introduce direct compaction priority
+Date: Mon, 18 Jul 2016 13:23:01 +0200
+Message-Id: <20160718112302.27381-8-vbabka@suse.cz>
 In-Reply-To: <20160718112302.27381-1-vbabka@suse.cz>
 References: <20160718112302.27381-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,214 +20,286 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
-The retry loop in __alloc_pages_slowpath is supposed to keep trying reclaim
-and compaction (and OOM), until either the allocation succeeds, or returns
-with failure. Success here is more probable when reclaim precedes compaction,
-as certain watermarks have to be met for compaction to even try, and more free
-pages increase the probability of compaction success. On the other hand,
-starting with light async compaction (if the watermarks allow it), can be
-more efficient, especially for smaller orders, if there's enough free memory
-which is just fragmented.
+In the context of direct compaction, for some types of allocations we would
+like the compaction to either succeed or definitely fail while trying as hard
+as possible. Current async/sync_light migration mode is insufficient, as there
+are heuristics such as caching scanner positions, marking pageblocks as
+unsuitable or deferring compaction for a zone. At least the final compaction
+attempt should be able to override these heuristics.
 
-Thus, the current code starts with compaction before reclaim, and to make sure
-that the last reclaim is always followed by a final compaction, there's another
-direct compaction call at the end of the loop. This makes the code hard to
-follow and adds some duplicated handling of migration_mode decisions. It's also
-somewhat inefficient that even if reclaim or compaction decides not to retry,
-the final compaction is still attempted. Some gfp flags combination also
-shortcut these retry decisions by "goto noretry;", making it even harder to
-follow.
+To communicate how hard compaction should try, we replace migration mode with
+a new enum compact_priority and change the relevant function signatures. In
+compact_zone_order() where struct compact_control is constructed, the priority
+is mapped to suitable control flags. This patch itself has no functional
+change, as the current priority levels are mapped back to the same migration
+modes as before. Expanding them will be done next.
 
-This patch attempts to restructure the code with only minimal functional
-changes. The call to the first compaction and THP-specific checks are now
-placed above the retry loop, and the "noretry" direct compaction is removed.
-
-The initial compaction is additionally restricted only to costly orders, as we
-can expect smaller orders to be held back by watermarks, and only larger orders
-to suffer primarily from fragmentation. This better matches the checks in
-reclaim's shrink_zones().
-
-There are two other smaller functional changes. One is that the upgrade from
-async migration to light sync migration will always occur after the initial
-compaction. This is how it has been until recent patch "mm, oom: protect
-!costly allocations some more", which introduced upgrading the mode based on
-COMPACT_COMPLETE result, but kept the final compaction always upgraded, which
-made it even more special. It's better to return to the simpler handling for
-now, as migration modes will be further modified later in the series.
-
-The second change is that once both reclaim and compaction declare it's not
-worth to retry the reclaim/compact loop, there is no final compaction attempt.
-As argued above, this is intentional. If that final compaction were to succeed,
-it would be due to a wrong retry decision, or simply a race with somebody else
-freeing memory for us.
-
-The main outcome of this patch should be simpler code. Logically, the initial
-compaction without reclaim is the exceptional case to the reclaim/compaction
-scheme, but prior to the patch, it was the last loop iteration that was
-exceptional. Now the code matches the logic better. The change also enable the
-following patches.
+Note that !CONFIG_COMPACTION variant of try_to_compact_pages() is removed, as
+the only caller exists under CONFIG_COMPACTION.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/page_alloc.c | 106 +++++++++++++++++++++++++++++---------------------------
- 1 file changed, 54 insertions(+), 52 deletions(-)
+ include/linux/compaction.h        | 22 +++++++++++++---------
+ include/trace/events/compaction.h | 12 ++++++------
+ mm/compaction.c                   | 13 +++++++------
+ mm/page_alloc.c                   | 28 ++++++++++++++--------------
+ 4 files changed, 40 insertions(+), 35 deletions(-)
 
+diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+index 1a02dab16646..0980a6ce4436 100644
+--- a/include/linux/compaction.h
++++ b/include/linux/compaction.h
+@@ -1,6 +1,18 @@
+ #ifndef _LINUX_COMPACTION_H
+ #define _LINUX_COMPACTION_H
+ 
++/*
++ * Determines how hard direct compaction should try to succeed.
++ * Lower value means higher priority, analogically to reclaim priority.
++ */
++enum compact_priority {
++	COMPACT_PRIO_SYNC_LIGHT,
++	MIN_COMPACT_PRIORITY = COMPACT_PRIO_SYNC_LIGHT,
++	DEF_COMPACT_PRIORITY = COMPACT_PRIO_SYNC_LIGHT,
++	COMPACT_PRIO_ASYNC,
++	INIT_COMPACT_PRIORITY = COMPACT_PRIO_ASYNC
++};
++
+ /* Return values for compact_zone() and try_to_compact_pages() */
+ /* When adding new states, please adjust include/trace/events/compaction.h */
+ enum compact_result {
+@@ -66,7 +78,7 @@ extern int fragmentation_index(struct zone *zone, unsigned int order);
+ extern enum compact_result try_to_compact_pages(gfp_t gfp_mask,
+ 			unsigned int order,
+ 		unsigned int alloc_flags, const struct alloc_context *ac,
+-		enum migrate_mode mode, int *contended);
++		enum compact_priority prio, int *contended);
+ extern void compact_pgdat(pg_data_t *pgdat, int order);
+ extern void reset_isolation_suitable(pg_data_t *pgdat);
+ extern enum compact_result compaction_suitable(struct zone *zone, int order,
+@@ -151,14 +163,6 @@ extern void kcompactd_stop(int nid);
+ extern void wakeup_kcompactd(pg_data_t *pgdat, int order, int classzone_idx);
+ 
+ #else
+-static inline enum compact_result try_to_compact_pages(gfp_t gfp_mask,
+-			unsigned int order, int alloc_flags,
+-			const struct alloc_context *ac,
+-			enum migrate_mode mode, int *contended)
+-{
+-	return COMPACT_CONTINUE;
+-}
+-
+ static inline void compact_pgdat(pg_data_t *pgdat, int order)
+ {
+ }
+diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
+index 36e2d6fb1360..c2ba402ab256 100644
+--- a/include/trace/events/compaction.h
++++ b/include/trace/events/compaction.h
+@@ -226,26 +226,26 @@ TRACE_EVENT(mm_compaction_try_to_compact_pages,
+ 	TP_PROTO(
+ 		int order,
+ 		gfp_t gfp_mask,
+-		enum migrate_mode mode),
++		int prio),
+ 
+-	TP_ARGS(order, gfp_mask, mode),
++	TP_ARGS(order, gfp_mask, prio),
+ 
+ 	TP_STRUCT__entry(
+ 		__field(int, order)
+ 		__field(gfp_t, gfp_mask)
+-		__field(enum migrate_mode, mode)
++		__field(int, prio)
+ 	),
+ 
+ 	TP_fast_assign(
+ 		__entry->order = order;
+ 		__entry->gfp_mask = gfp_mask;
+-		__entry->mode = mode;
++		__entry->prio = prio;
+ 	),
+ 
+-	TP_printk("order=%d gfp_mask=0x%x mode=%d",
++	TP_printk("order=%d gfp_mask=0x%x priority=%d",
+ 		__entry->order,
+ 		__entry->gfp_mask,
+-		(int)__entry->mode)
++		__entry->prio)
+ );
+ 
+ DECLARE_EVENT_CLASS(mm_compaction_suitable_template,
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 892e397655dc..bb969711d979 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1644,7 +1644,7 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
+ }
+ 
+ static enum compact_result compact_zone_order(struct zone *zone, int order,
+-		gfp_t gfp_mask, enum migrate_mode mode, int *contended,
++		gfp_t gfp_mask, enum compact_priority prio, int *contended,
+ 		unsigned int alloc_flags, int classzone_idx)
+ {
+ 	enum compact_result ret;
+@@ -1654,7 +1654,8 @@ static enum compact_result compact_zone_order(struct zone *zone, int order,
+ 		.order = order,
+ 		.gfp_mask = gfp_mask,
+ 		.zone = zone,
+-		.mode = mode,
++		.mode = (prio == COMPACT_PRIO_ASYNC) ?
++					MIGRATE_ASYNC :	MIGRATE_SYNC_LIGHT,
+ 		.alloc_flags = alloc_flags,
+ 		.classzone_idx = classzone_idx,
+ 		.direct_compaction = true,
+@@ -1687,7 +1688,7 @@ int sysctl_extfrag_threshold = 500;
+  */
+ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+ 		unsigned int alloc_flags, const struct alloc_context *ac,
+-		enum migrate_mode mode, int *contended)
++		enum compact_priority prio, int *contended)
+ {
+ 	int may_enter_fs = gfp_mask & __GFP_FS;
+ 	int may_perform_io = gfp_mask & __GFP_IO;
+@@ -1702,7 +1703,7 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+ 	if (!may_enter_fs || !may_perform_io)
+ 		return COMPACT_SKIPPED;
+ 
+-	trace_mm_compaction_try_to_compact_pages(order, gfp_mask, mode);
++	trace_mm_compaction_try_to_compact_pages(order, gfp_mask, prio);
+ 
+ 	/* Compact each zone in the list */
+ 	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->high_zoneidx,
+@@ -1715,7 +1716,7 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+ 			continue;
+ 		}
+ 
+-		status = compact_zone_order(zone, order, gfp_mask, mode,
++		status = compact_zone_order(zone, order, gfp_mask, prio,
+ 				&zone_contended, alloc_flags,
+ 				ac_classzone_idx(ac));
+ 		rc = max(status, rc);
+@@ -1749,7 +1750,7 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+ 			goto break_loop;
+ 		}
+ 
+-		if (mode != MIGRATE_ASYNC && (status == COMPACT_COMPLETE ||
++		if (prio != COMPACT_PRIO_ASYNC && (status == COMPACT_COMPLETE ||
+ 					status == COMPACT_PARTIAL_SKIPPED)) {
+ 			/*
+ 			 * We think that allocation won't succeed in this zone
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 30443804f156..a04a67745927 100644
+index b631f1d94553..04cab9d92e30 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -3510,7 +3510,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+@@ -3096,7 +3096,7 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+ static struct page *
+ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 		unsigned int alloc_flags, const struct alloc_context *ac,
+-		enum migrate_mode mode, enum compact_result *compact_result)
++		enum compact_priority prio, enum compact_result *compact_result)
+ {
+ 	struct page *page;
+ 	int contended_compaction;
+@@ -3106,7 +3106,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 
+ 	current->flags |= PF_MEMALLOC;
+ 	*compact_result = try_to_compact_pages(gfp_mask, order, alloc_flags, ac,
+-						mode, &contended_compaction);
++						prio, &contended_compaction);
+ 	current->flags &= ~PF_MEMALLOC;
+ 
+ 	if (*compact_result <= COMPACT_INACTIVE)
+@@ -3160,7 +3160,8 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 
+ static inline bool
+ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
+-		     enum compact_result compact_result, enum migrate_mode *migrate_mode,
++		     enum compact_result compact_result,
++		     enum compact_priority *compact_priority,
+ 		     int compaction_retries)
+ {
+ 	int max_retries = MAX_COMPACT_RETRIES;
+@@ -3171,11 +3172,11 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
+ 	/*
+ 	 * compaction considers all the zone as desperately out of memory
+ 	 * so it doesn't really make much sense to retry except when the
+-	 * failure could be caused by weak migration mode.
++	 * failure could be caused by insufficient priority
+ 	 */
+ 	if (compaction_failed(compact_result)) {
+-		if (*migrate_mode == MIGRATE_ASYNC) {
+-			*migrate_mode = MIGRATE_SYNC_LIGHT;
++		if (*compact_priority > MIN_COMPACT_PRIORITY) {
++			(*compact_priority)--;
+ 			return true;
+ 		}
+ 		return false;
+@@ -3209,7 +3210,7 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
+ static inline struct page *
+ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 		unsigned int alloc_flags, const struct alloc_context *ac,
+-		enum migrate_mode mode, enum compact_result *compact_result)
++		enum compact_priority prio, enum compact_result *compact_result)
+ {
+ 	*compact_result = COMPACT_SKIPPED;
+ 	return NULL;
+@@ -3218,7 +3219,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ static inline bool
+ should_compact_retry(struct alloc_context *ac, unsigned int order, int alloc_flags,
+ 		     enum compact_result compact_result,
+-		     enum migrate_mode *migrate_mode,
++		     enum compact_priority *compact_priority,
+ 		     int compaction_retries)
+ {
+ 	struct zone *zone;
+@@ -3504,7 +3505,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
  	struct page *page = NULL;
  	unsigned int alloc_flags;
  	unsigned long did_some_progress;
--	enum migrate_mode migration_mode = MIGRATE_ASYNC;
-+	enum migrate_mode migration_mode = MIGRATE_SYNC_LIGHT;
+-	enum migrate_mode migration_mode = MIGRATE_SYNC_LIGHT;
++	enum compact_priority compact_priority = DEF_COMPACT_PRIORITY;
  	enum compact_result compact_result;
  	int compaction_retries = 0;
  	int no_progress_loops = 0;
-@@ -3552,6 +3552,49 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	if (page)
- 		goto got_pg;
- 
-+	/*
-+	 * For costly allocations, try direct compaction first, as it's likely
-+	 * that we have enough base pages and don't need to reclaim.
-+	 */
-+	if (can_direct_reclaim && order > PAGE_ALLOC_COSTLY_ORDER) {
-+		page = __alloc_pages_direct_compact(gfp_mask, order,
-+						alloc_flags, ac,
-+						MIGRATE_ASYNC,
-+						&compact_result);
-+		if (page)
-+			goto got_pg;
-+
-+		/* Checks for THP-specific high-order allocations */
-+		if (is_thp_gfp_mask(gfp_mask)) {
-+			/*
-+			 * If compaction is deferred for high-order allocations,
-+			 * it is because sync compaction recently failed. If
-+			 * this is the case and the caller requested a THP
-+			 * allocation, we do not want to heavily disrupt the
-+			 * system, so we fail the allocation instead of entering
-+			 * direct reclaim.
-+			 */
-+			if (compact_result == COMPACT_DEFERRED)
-+				goto nopage;
-+
-+			/*
-+			 * Compaction is contended so rather back off than cause
-+			 * excessive stalls.
-+			 */
-+			if (compact_result == COMPACT_CONTENDED)
-+				goto nopage;
-+
-+			/*
-+			 * It can become very expensive to allocate transparent
-+			 * hugepages at fault, so use asynchronous memory
-+			 * compaction for THP unless it is khugepaged trying to
-+			 * collapse. All other requests should tolerate at
-+			 * least light sync migration.
-+			 */
-+			if (!(current->flags & PF_KTHREAD))
-+				migration_mode = MIGRATE_ASYNC;
-+		}
-+	}
- 
- retry:
- 	/* Ensure kswapd doesn't accidentally go to sleep as long as we loop */
-@@ -3606,55 +3649,33 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
- 		goto nopage;
- 
--	/*
--	 * Try direct compaction. The first pass is asynchronous. Subsequent
--	 * attempts after direct reclaim are synchronous
--	 */
-+
-+	/* Try direct reclaim and then allocating */
-+	page = __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags, ac,
-+							&did_some_progress);
-+	if (page)
-+		goto got_pg;
-+
-+	/* Try direct compaction and then allocating */
- 	page = __alloc_pages_direct_compact(gfp_mask, order, alloc_flags, ac,
- 					migration_mode,
- 					&compact_result);
- 	if (page)
- 		goto got_pg;
- 
--	/* Checks for THP-specific high-order allocations */
--	if (is_thp_gfp_mask(gfp_mask)) {
--		/*
--		 * If compaction is deferred for high-order allocations, it is
--		 * because sync compaction recently failed. If this is the case
--		 * and the caller requested a THP allocation, we do not want
--		 * to heavily disrupt the system, so we fail the allocation
--		 * instead of entering direct reclaim.
--		 */
--		if (compact_result == COMPACT_DEFERRED)
--			goto nopage;
--
--		/*
--		 * Compaction is contended so rather back off than cause
--		 * excessive stalls.
--		 */
--		if(compact_result == COMPACT_CONTENDED)
--			goto nopage;
--	}
--
- 	if (order && compaction_made_progress(compact_result))
- 		compaction_retries++;
- 
--	/* Try direct reclaim and then allocating */
--	page = __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags, ac,
--							&did_some_progress);
--	if (page)
--		goto got_pg;
--
- 	/* Do not loop if specifically requested */
- 	if (gfp_mask & __GFP_NORETRY)
--		goto noretry;
-+		goto nopage;
- 
- 	/*
- 	 * Do not retry costly high order allocations unless they are
- 	 * __GFP_REPEAT
- 	 */
- 	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
--		goto noretry;
-+		goto nopage;
- 
- 	/*
- 	 * Costly allocations might have made a progress but this doesn't mean
-@@ -3693,25 +3714,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 		goto retry;
+@@ -3553,7 +3554,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	if (can_direct_reclaim && order > PAGE_ALLOC_COSTLY_ORDER) {
+ 		page = __alloc_pages_direct_compact(gfp_mask, order,
+ 						alloc_flags, ac,
+-						MIGRATE_ASYNC,
++						INIT_COMPACT_PRIORITY,
+ 						&compact_result);
+ 		if (page)
+ 			goto got_pg;
+@@ -3586,7 +3587,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 			 * sync compaction could be very expensive, so keep
+ 			 * using async compaction.
+ 			 */
+-			migration_mode = MIGRATE_ASYNC;
++			compact_priority = INIT_COMPACT_PRIORITY;
+ 		}
  	}
  
--noretry:
--	/*
--	 * High-order allocations do not necessarily loop after direct reclaim
--	 * and reclaim/compaction depends on compaction being called after
--	 * reclaim so call directly if necessary.
--	 * It can become very expensive to allocate transparent hugepages at
--	 * fault, so use asynchronous memory compaction for THP unless it is
--	 * khugepaged trying to collapse. All other requests should tolerate
--	 * at least light sync migration.
--	 */
--	if (is_thp_gfp_mask(gfp_mask) && !(current->flags & PF_KTHREAD))
--		migration_mode = MIGRATE_ASYNC;
--	else
--		migration_mode = MIGRATE_SYNC_LIGHT;
--	page = __alloc_pages_direct_compact(gfp_mask, order, alloc_flags,
--					    ac, migration_mode,
--					    &compact_result);
--	if (page)
--		goto got_pg;
- nopage:
- 	warn_alloc_failed(gfp_mask, order, NULL);
- got_pg:
+@@ -3652,8 +3653,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 
+ 	/* Try direct compaction and then allocating */
+ 	page = __alloc_pages_direct_compact(gfp_mask, order, alloc_flags, ac,
+-					migration_mode,
+-					&compact_result);
++					compact_priority, &compact_result);
+ 	if (page)
+ 		goto got_pg;
+ 
+@@ -3693,7 +3693,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	 */
+ 	if (did_some_progress > 0 &&
+ 			should_compact_retry(ac, order, alloc_flags,
+-				compact_result, &migration_mode,
++				compact_result, &compact_priority,
+ 				compaction_retries))
+ 		goto retry;
+ 
 -- 
 2.9.0
 
