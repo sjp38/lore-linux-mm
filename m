@@ -1,61 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B764E6B0261
-	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 10:50:34 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id r97so10709320lfi.2
-        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 07:50:34 -0700 (PDT)
-Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
-        by mx.google.com with ESMTPS id mf18si1534960wjb.189.2016.07.18.07.50.27
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 76C716B0253
+	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 11:15:03 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id l89so117262086lfi.3
+        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 08:15:03 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id e132si15311312wme.59.2016.07.18.08.15.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 18 Jul 2016 07:50:27 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id 80AA698EF9
-	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 14:50:27 +0000 (UTC)
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 3/3] mm, vmstat: remove zone and node double accounting by approximating retries -fix
-Date: Mon, 18 Jul 2016 15:50:26 +0100
-Message-Id: <1468853426-12858-4-git-send-email-mgorman@techsingularity.net>
-In-Reply-To: <1468853426-12858-1-git-send-email-mgorman@techsingularity.net>
-References: <1468853426-12858-1-git-send-email-mgorman@techsingularity.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 18 Jul 2016 08:15:00 -0700 (PDT)
+Date: Mon, 18 Jul 2016 11:14:45 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: System freezes after OOM
+Message-ID: <20160718151445.GB14604@cmpxchg.org>
+References: <alpine.LRH.2.02.1607121907160.24806@file01.intranet.prod.int.rdu2.redhat.com>
+ <2d5e1f84-e886-7b98-cb11-170d7104fd13@I-love.SAKURA.ne.jp>
+ <20160713133955.GK28723@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1607131004340.31769@file01.intranet.prod.int.rdu2.redhat.com>
+ <20160713145638.GM28723@dhcp22.suse.cz>
+ <alpine.LRH.2.02.1607131105080.31769@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.10.1607131644590.92037@chino.kir.corp.google.com>
+ <alpine.LRH.2.02.1607140818250.15554@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.DEB.2.10.1607141316240.68666@chino.kir.corp.google.com>
+ <alpine.LRH.2.02.1607150711270.5034@file01.intranet.prod.int.rdu2.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LRH.2.02.1607150711270.5034@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Ondrej Kozina <okozina@redhat.com>, Jerome Marchand <jmarchan@redhat.com>, Stanislav Kozina <skozina@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dm-devel@redhat.com, Dave Chinner <david@fromorbit.com>
 
-As pointed out by Vlastimil, the atomic_add() functions are already assumed
-to be able to handle negative numbers. The atomic_sub handling was wrong
-anyway but this patch fixes it unconditionally.
+CC Dave Chinner, who I recall had strong opinions on the mempool model
 
-This is a fix to the mmotm patch
-mm-vmstat-remove-zone-and-node-double-accounting-by-approximating-retries.patch
+The context is commit f9054c7 ("mm, mempool: only set __GFP_NOMEMALLOC
+if there are free elements"), which gives MEMALLOC/TIF_MEMDIE mempool
+allocations access to the system emergency reserves when there is no
+reserved object currently residing in the mempool.
 
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- include/linux/mm_inline.h | 8 ++------
- 1 file changed, 2 insertions(+), 6 deletions(-)
+On Fri, Jul 15, 2016 at 07:21:59AM -0400, Mikulas Patocka wrote:
+> On Thu, 14 Jul 2016, David Rientjes wrote:
+> 
+> > There is no guarantee that _anything_ can return memory to the mempool,
+> 
+> You misunderstand mempools if you make such claims.
 
-diff --git a/include/linux/mm_inline.h b/include/linux/mm_inline.h
-index d29237428199..bcc4ed07fa90 100644
---- a/include/linux/mm_inline.h
-+++ b/include/linux/mm_inline.h
-@@ -10,12 +10,8 @@ extern atomic_t highmem_file_pages;
- static inline void acct_highmem_file_pages(int zid, enum lru_list lru,
- 							int nr_pages)
- {
--	if (is_highmem_idx(zid) && is_file_lru(lru)) {
--		if (nr_pages > 0)
--			atomic_add(nr_pages, &highmem_file_pages);
--		else
--			atomic_sub(nr_pages, &highmem_file_pages);
--	}
-+	if (is_highmem_idx(zid) && is_file_lru(lru))
-+		atomic_add(nr_pages, &highmem_file_pages);
- }
- #else
- static inline void acct_highmem_file_pages(int zid, enum lru_list lru,
--- 
-2.6.4
+Uhm, fully agreed.
+
+The point of mempools is that they have their own reserves, separate
+from the system reserves, to make forward progress in OOM situations.
+
+All mempool object holders promise to make forward progress, and when
+memory is depleted, the mempool allocations serialize against each
+other. In this case, every allocation has to wait for in-flight IO to
+finish to pass the reserved object on to the next IO. That's how the
+mempool model is designed. The commit in question breaks this by not
+waiting for outstanding object holders and instead quickly depletes
+the system reserves. That's a mempool causing a memory deadlock...
+
+David observed systems hanging 2+h inside mempool allocations. But
+where would an object holders get stuck? It can't be taking a lock
+that the waiting mempool_alloc() is holding, obviously. It also can't
+be waiting for another allocation, it makes no sense to use mempools
+to guarantee forward progress, but then have the whole sequence rely
+on an unguaranteed allocation to succeed after the mempool ones. So
+how could a system-wide OOM situation cause a mempool holder to hang?
+
+These hangs are fishy, but it seems reasonable to assume that somebody
+is breaking the mempool contract somewhere. The solution can not to be
+to abandon the mempool model. f9054c7 should be reverted.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
