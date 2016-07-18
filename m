@@ -1,78 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C7DD86B0253
-	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 05:57:03 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id r97so5248672lfi.2
-        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 02:57:03 -0700 (PDT)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id wh10si263118wjb.15.2016.07.18.02.57.02
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CB7C56B0253
+	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 07:23:11 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id r190so55998196wmr.0
+        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 04:23:11 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 201si14240703wms.49.2016.07.18.04.23.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jul 2016 02:57:02 -0700 (PDT)
-Received: by mail-wm0-x241.google.com with SMTP id x83so11815571wma.3
-        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 02:57:02 -0700 (PDT)
-Date: Mon, 18 Jul 2016 11:56:57 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 6/9] x86, pkeys: add pkey set/get syscalls
-Message-ID: <20160718095657.GA5374@gmail.com>
-References: <20160709083715.GA29939@gmail.com>
- <CALCETrXJhVz6Za4=oidiM2Vfbb+XdggFBYiVyvOCcia+w064aQ@mail.gmail.com>
- <5783AE8F.3@sr71.net>
- <CALCETrW1qLZE_cq1CvmLkdnFyKRWVZuah29xERTC7o0eZ8DbwQ@mail.gmail.com>
- <5783BFB0.70203@intel.com>
- <CALCETrUZeZ00sFrTEqWSB-OxkCzGQxknmPTvFe4bv5mKc3hE+Q@mail.gmail.com>
- <20160713075550.GA515@gmail.com>
- <CALCETrUxL2ZAn8-GDtpwQPhLeNRXXp7RM1EVX2JExE+gkWGj3g@mail.gmail.com>
- <20160714080701.GA14613@gmail.com>
- <CALCETrWPM_jrF6saHPxoUL4vkjhhGBfizATXrFOW=+z5xycToQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALCETrWPM_jrF6saHPxoUL4vkjhhGBfizATXrFOW=+z5xycToQ@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 18 Jul 2016 04:23:10 -0700 (PDT)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH 1/8] mm, compaction: don't isolate PageWriteback pages in MIGRATE_SYNC_LIGHT mode
+Date: Mon, 18 Jul 2016 13:22:55 +0200
+Message-Id: <20160718112302.27381-2-vbabka@suse.cz>
+In-Reply-To: <20160718112302.27381-1-vbabka@suse.cz>
+References: <20160718112302.27381-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Dave Hansen <dave.hansen@intel.com>, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave.hansen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, X86 ML <x86@kernel.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux API <linux-api@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Linus Torvalds <torvalds@linux-foundation.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Arnd Bergmann <arnd@arndb.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Vlastimil Babka <vbabka@suse.cz>
 
+From: Hugh Dickins <hughd@google.com>
 
-* Andy Lutomirski <luto@amacapital.net> wrote:
+At present MIGRATE_SYNC_LIGHT is allowing __isolate_lru_page() to
+isolate a PageWriteback page, which __unmap_and_move() then rejects
+with -EBUSY: of course the writeback might complete in between, but
+that's not what we usually expect, so probably better not to isolate it.
 
-> On Thu, Jul 14, 2016 at 1:07 AM, Ingo Molnar <mingo@kernel.org> wrote:
-> >
-> > * Andy Lutomirski <luto@amacapital.net> wrote:
-> >
-> >> On Wed, Jul 13, 2016 at 12:56 AM, Ingo Molnar <mingo@kernel.org> wrote:
-> >> >
-> >> > * Andy Lutomirski <luto@amacapital.net> wrote:
-> >> >
-> >> >> > If we push a PKRU value into a thread between the rdpkru() and wrpkru(), we'll
-> >> >> > lose the content of that "push".  I'm not sure there's any way to guarantee
-> >> >> > this with a user-controlled register.
-> >> >>
-> >> >> We could try to insist that user code uses some vsyscall helper that tracks
-> >> >> which bits are as-yet-unassigned.  That's quite messy, though.
-> >> >
-> >> > Actually, if we turned the vDSO into something more like a minimal user-space
-> >> > library with the ability to run at process startup as well to prepare stuff
-> >> > then it's painful to get right only *once*, and there will be tons of other
-> >> > areas where a proper per thread data storage on the user-space side would be
-> >> > immensely useful!
-> >>
-> >> Doing this could be tricky: how exactly is the vDSO supposed to find per-thread
-> >> data without breaking existing glibc?
-> >
-> > So I think the way this could be done is by allocating it itself. The vDSO vma
-> > itself is 'external' to glibc as well to begin with - this would be a small
-> > extension to that concept.
-> 
-> But how does the vdso code find it?  FS and GS are both spoken for by existing 
-> userspace.
+When tested by stress-highalloc from mmtests, this has reduced the number of
+page migrate failures by 60-70%.
 
-Minimally relinking itself on a per mm basis?
+Signed-off-by: Hugh Dickins <hughd@google.com>
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Acked-by: Michal Hocko <mhocko@suse.com>
+---
+ mm/compaction.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Thanks,
-
-	Ingo
+diff --git a/mm/compaction.c b/mm/compaction.c
+index cd93ea24c565..892e397655dc 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1200,7 +1200,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+ 	struct page *page;
+ 	const isolate_mode_t isolate_mode =
+ 		(sysctl_compact_unevictable_allowed ? ISOLATE_UNEVICTABLE : 0) |
+-		(cc->mode == MIGRATE_ASYNC ? ISOLATE_ASYNC_MIGRATE : 0);
++		(cc->mode != MIGRATE_SYNC ? ISOLATE_ASYNC_MIGRATE : 0);
+ 
+ 	/*
+ 	 * Start at where we last stopped, or beginning of the zone as
+-- 
+2.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
