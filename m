@@ -1,119 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F0BC6B0253
-	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 00:37:08 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id 63so352242997pfx.3
-        for <linux-mm@kvack.org>; Sun, 17 Jul 2016 21:37:08 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id i8si1270074pfk.43.2016.07.17.21.37.06
-        for <linux-mm@kvack.org>;
-        Sun, 17 Jul 2016 21:37:07 -0700 (PDT)
-Date: Mon, 18 Jul 2016 13:41:13 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v3 12/17] mm, compaction: more reliably increase direct
- compaction priority
-Message-ID: <20160718044112.GA9460@js1304-P5Q-DELUXE>
-References: <20160624095437.16385-1-vbabka@suse.cz>
- <20160624095437.16385-13-vbabka@suse.cz>
- <20160706053954.GE23627@js1304-P5Q-DELUXE>
- <78b8fc60-ddd8-ae74-4f1a-f4bcb9933016@suse.cz>
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D1CBA6B0253
+	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 00:43:51 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id k16so185958935qke.3
+        for <linux-mm@kvack.org>; Sun, 17 Jul 2016 21:43:51 -0700 (PDT)
+Received: from mail-vk0-x234.google.com (mail-vk0-x234.google.com. [2607:f8b0:400c:c05::234])
+        by mx.google.com with ESMTPS id 21si1236205vkm.114.2016.07.17.21.43.51
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 17 Jul 2016 21:43:51 -0700 (PDT)
+Received: by mail-vk0-x234.google.com with SMTP id x130so224173586vkc.0
+        for <linux-mm@kvack.org>; Sun, 17 Jul 2016 21:43:51 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <78b8fc60-ddd8-ae74-4f1a-f4bcb9933016@suse.cz>
+In-Reply-To: <20160714080701.GA14613@gmail.com>
+References: <20160708071810.GA27457@gmail.com> <577FD587.6050101@sr71.net>
+ <20160709083715.GA29939@gmail.com> <CALCETrXJhVz6Za4=oidiM2Vfbb+XdggFBYiVyvOCcia+w064aQ@mail.gmail.com>
+ <5783AE8F.3@sr71.net> <CALCETrW1qLZE_cq1CvmLkdnFyKRWVZuah29xERTC7o0eZ8DbwQ@mail.gmail.com>
+ <5783BFB0.70203@intel.com> <CALCETrUZeZ00sFrTEqWSB-OxkCzGQxknmPTvFe4bv5mKc3hE+Q@mail.gmail.com>
+ <20160713075550.GA515@gmail.com> <CALCETrUxL2ZAn8-GDtpwQPhLeNRXXp7RM1EVX2JExE+gkWGj3g@mail.gmail.com>
+ <20160714080701.GA14613@gmail.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Sun, 17 Jul 2016 21:43:31 -0700
+Message-ID: <CALCETrWPM_jrF6saHPxoUL4vkjhhGBfizATXrFOW=+z5xycToQ@mail.gmail.com>
+Subject: Re: [PATCH 6/9] x86, pkeys: add pkey set/get syscalls
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave.hansen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, X86 ML <x86@kernel.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux API <linux-api@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Linus Torvalds <torvalds@linux-foundation.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Arnd Bergmann <arnd@arndb.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "H. Peter Anvin" <hpa@zytor.com>
 
-On Fri, Jul 15, 2016 at 03:37:52PM +0200, Vlastimil Babka wrote:
-> On 07/06/2016 07:39 AM, Joonsoo Kim wrote:
-> > On Fri, Jun 24, 2016 at 11:54:32AM +0200, Vlastimil Babka wrote:
-> >> During reclaim/compaction loop, compaction priority can be increased by the
-> >> should_compact_retry() function, but the current code is not optimal. Priority
-> >> is only increased when compaction_failed() is true, which means that compaction
-> >> has scanned the whole zone. This may not happen even after multiple attempts
-> >> with the lower priority due to parallel activity, so we might needlessly
-> >> struggle on the lower priority and possibly run out of compaction retry
-> >> attempts in the process.
-> >>
-> >> We can remove these corner cases by increasing compaction priority regardless
-> >> of compaction_failed(). Examining further the compaction result can be
-> >> postponed only after reaching the highest priority. This is a simple solution
-> >> and we don't need to worry about reaching the highest priority "too soon" here,
-> >> because hen should_compact_retry() is called it means that the system is
-> >> already struggling and the allocation is supposed to either try as hard as
-> >> possible, or it cannot fail at all. There's not much point staying at lower
-> >> priorities with heuristics that may result in only partial compaction.
-> >> Also we now count compaction retries only after reaching the highest priority.
-> > 
-> > I'm not sure that this patch is safe. Deferring and skip-bit in
-> > compaction is highly related to reclaim/compaction. Just ignoring them and (almost)
-> > unconditionally increasing compaction priority will result in less
-> > reclaim and less success rate on compaction.
-> 
-> I don't see why less reclaim? Reclaim is always attempted before
-> compaction and compaction priority doesn't affect it. And as long as
-> reclaim wants to retry, should_compact_retry() isn't even called, so the
-> priority stays. I wanted to change that in v1, but Michal suggested I
-> shouldn't.
+On Thu, Jul 14, 2016 at 1:07 AM, Ingo Molnar <mingo@kernel.org> wrote:
+>
+> * Andy Lutomirski <luto@amacapital.net> wrote:
+>
+>> On Wed, Jul 13, 2016 at 12:56 AM, Ingo Molnar <mingo@kernel.org> wrote:
+>> >
+>> > * Andy Lutomirski <luto@amacapital.net> wrote:
+>> >
+>> >> > If we push a PKRU value into a thread between the rdpkru() and wrpkru(), we'll
+>> >> > lose the content of that "push".  I'm not sure there's any way to guarantee
+>> >> > this with a user-controlled register.
+>> >>
+>> >> We could try to insist that user code uses some vsyscall helper that tracks
+>> >> which bits are as-yet-unassigned.  That's quite messy, though.
+>> >
+>> > Actually, if we turned the vDSO into something more like a minimal user-space
+>> > library with the ability to run at process startup as well to prepare stuff
+>> > then it's painful to get right only *once*, and there will be tons of other
+>> > areas where a proper per thread data storage on the user-space side would be
+>> > immensely useful!
+>>
+>> Doing this could be tricky: how exactly is the vDSO supposed to find per-thread
+>> data without breaking existing glibc?
+>
+> So I think the way this could be done is by allocating it itself. The vDSO vma
+> itself is 'external' to glibc as well to begin with - this would be a small
+> extension to that concept.
 
-I assume the situation that there is no !costly highorder freepage
-because of fragmentation. In this case, should_reclaim_retry() would
-return false since watermark cannot be met due to absence of high
-order freepage. Now, please see should_compact_retry() with assumption
-that there are enough order-0 free pages. Reclaim/compaction is only
-retried two times (SYNC_LIGHT and SYNC_FULL) with your patchset since
-compaction_withdrawn() return false with enough freepages and
-!COMPACT_SKIPPED.
+But how does the vdso code find it?  FS and GS are both spoken for by
+existing userspace.
 
-But, before your patchset, COMPACT_PARTIAL_SKIPPED and
-COMPACT_DEFERRED is considered as withdrawn so will retry
-reclaim/compaction more times.
-
-As I said before, more reclaim (more freepage) increase migration
-scanner's scan range and then increase compaction success probability.
-Therefore, your patchset which makes reclaim/compaction retry less times
-deterministically would not be safe.
-
-> 
-> > And, as a necessarily, it
-> > would trigger OOM more frequently.
-> 
-> OOM is only allowed for costly orders. If reclaim itself doesn't want to
-> retry for non-costly orders anymore, and we finally start calling
-> should_compact_retry(), then I guess the system is really struggling
-> already and eventual OOM wouldn't be premature?
-
-Premature is really subjective so I don't know. Anyway, I tested
-your patchset with simple test case and it causes a regression.
-
-My test setup is:
-
-Mem: 512 MB
-vm.compact_unevictable_allowed = 0
-Mlocked Mem: 225 MB by using mlock(). With some tricks, mlocked pages are
-spread so memory is highly fragmented.
-
-fork 500
-
-This test causes OOM with your patchset but not without your patchset.
-
-Thanks.
-
-> > It would not be your fault. This patch is reasonable in current
-> > situation. It just makes current things more deterministic
-> > although I dislike that current things and this patch would amplify
-> > those problem.
-> > 
-> > Thanks.
-> > 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
