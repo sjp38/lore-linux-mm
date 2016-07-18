@@ -1,129 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 23A4B6B025E
-	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 07:29:42 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id x83so55156119wma.2
-        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 04:29:42 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 932406B0253
+	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 07:30:56 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id r190so56115946wmr.0
+        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 04:30:56 -0700 (PDT)
 Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id a18si622038wja.5.2016.07.18.04.29.41
+        by mx.google.com with ESMTPS id k2si626646wjs.201.2016.07.18.04.30.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jul 2016 04:29:41 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id o80so12225340wme.0
-        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 04:29:41 -0700 (PDT)
-Date: Mon, 18 Jul 2016 13:29:39 +0200
+        Mon, 18 Jul 2016 04:30:55 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id o80so12230541wme.0
+        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 04:30:55 -0700 (PDT)
+Date: Mon, 18 Jul 2016 13:30:54 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 3/8] mm, page_alloc: don't retry initial attempt in
- slowpath
-Message-ID: <20160718112939.GH22671@dhcp22.suse.cz>
+Subject: Re: [PATCH 0/8] compaction-related cleanups v4
+Message-ID: <20160718113054.GI22671@dhcp22.suse.cz>
 References: <20160718112302.27381-1-vbabka@suse.cz>
- <20160718112302.27381-4-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160718112302.27381-4-vbabka@suse.cz>
+In-Reply-To: <20160718112302.27381-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
 
-On Mon 18-07-16 13:22:57, Vlastimil Babka wrote:
-> After __alloc_pages_slowpath() sets up new alloc_flags and wakes up kswapd, it
-> first tries get_page_from_freelist() with the new alloc_flags, as it may
-> succeed e.g. due to using min watermark instead of low watermark. It makes
-> sense to to do this attempt before adjusting zonelist based on
-> alloc_flags/gfp_mask, as it's still relatively a fast path if we just wake up
-> kswapd and successfully allocate.
+On Mon 18-07-16 13:22:54, Vlastimil Babka wrote:
+> Hi,
 > 
-> This patch therefore moves the initial attempt above the retry label and
-> reorganizes a bit the part below the retry label. We still have to attempt
-> get_page_from_freelist() on each retry, as some allocations cannot do that
-> as part of direct reclaim or compaction, and yet are not allowed to fail
-> (even though they do a WARN_ON_ONCE() and thus should not exist). We can reuse
-> the call meant for ALLOC_NO_WATERMARKS attempt and just set alloc_flags to
-> ALLOC_NO_WATERMARKS if the context allows it. As a side-effect, the attempts
-> from direct reclaim/compaction will also no longer obey watermarks once this
-> is set, but there's little harm in that.
+> this is the splitted-off first part of my "make direct compaction more
+> deterministic" series [1], rebased on mmotm-2016-07-13-16-09-18. For the whole
+> series it's probably too late for 4.8 given some unresolved feedback, but I
+> hope this part could go in as it was stable for quite some time.
 > 
-> Kswapd wakeups are also done on each retry to be safe from potential races
-> resulting in kswapd going to sleep while a process (that may not be able to
-> reclaim by itself) is still looping.
-> 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> At the very least, the first patch really shouldn't wait any longer.
 
-Same here, my ack still holds
-Acked-by: Michal Hocko <mhocko@suse.com>
+I think the rest looks also good to go. It makes the code more readable,
+removes some hacks and...
 
-> ---
->  mm/page_alloc.c | 29 ++++++++++++++++++-----------
->  1 file changed, 18 insertions(+), 11 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index eb1968a1041e..30443804f156 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3541,35 +3541,42 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	 */
->  	alloc_flags = gfp_to_alloc_flags(gfp_mask);
->  
-> +	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
-> +		wake_all_kswapds(order, ac);
-> +
-> +	/*
-> +	 * The adjusted alloc_flags might result in immediate success, so try
-> +	 * that first
-> +	 */
-> +	page = get_page_from_freelist(gfp_mask, order, alloc_flags, ac);
-> +	if (page)
-> +		goto got_pg;
-> +
-> +
->  retry:
-> +	/* Ensure kswapd doesn't accidentally go to sleep as long as we loop */
->  	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
->  		wake_all_kswapds(order, ac);
->  
-> +	if (gfp_pfmemalloc_allowed(gfp_mask))
-> +		alloc_flags = ALLOC_NO_WATERMARKS;
-> +
->  	/*
->  	 * Reset the zonelist iterators if memory policies can be ignored.
->  	 * These allocations are high priority and system rather than user
->  	 * orientated.
->  	 */
-> -	if (!(alloc_flags & ALLOC_CPUSET) || gfp_pfmemalloc_allowed(gfp_mask)) {
-> +	if (!(alloc_flags & ALLOC_CPUSET) || (alloc_flags & ALLOC_NO_WATERMARKS)) {
->  		ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
->  		ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
->  					ac->high_zoneidx, ac->nodemask);
->  	}
->  
-> -	/* This is the last chance, in general, before the goto nopage. */
-> +	/* Attempt with potentially adjusted zonelist and alloc_flags */
->  	page = get_page_from_freelist(gfp_mask, order, alloc_flags, ac);
->  	if (page)
->  		goto got_pg;
->  
-> -	/* Allocate without watermarks if the context allows */
-> -	if (gfp_pfmemalloc_allowed(gfp_mask)) {
-> -
-> -		page = get_page_from_freelist(gfp_mask, order,
-> -						ALLOC_NO_WATERMARKS, ac);
-> -		if (page)
-> -			goto got_pg;
-> -	}
-> -
->  	/* Caller is not willing to reclaim, we can't balance anything */
->  	if (!can_direct_reclaim) {
->  		/*
-> -- 
-> 2.9.0
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>  11 files changed, 164 insertions(+), 233 deletions(-)
+
+looks promissing as well.
 
 -- 
 Michal Hocko
