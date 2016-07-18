@@ -1,43 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 47F826B0253
-	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 09:34:25 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id r97so8976224lfi.2
-        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 06:34:25 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id qw18si1165661wjb.158.2016.07.18.06.34.23
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E38F96B0253
+	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 09:52:55 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id i12so335638079ywa.0
+        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 06:52:55 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id z185si16282894qkc.32.2016.07.18.06.52.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jul 2016 06:34:23 -0700 (PDT)
-Date: Mon, 18 Jul 2016 09:34:12 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 18/34] mm: rename NR_ANON_PAGES to NR_ANON_MAPPED
-Message-ID: <20160718133412.GA14604@cmpxchg.org>
-References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
- <1467970510-21195-19-git-send-email-mgorman@techsingularity.net>
- <20160712145801.GJ5881@cmpxchg.org>
- <20160713085516.GI9806@techsingularity.net>
- <20160713130415.GB9905@cmpxchg.org>
- <20160713133701.GK9806@techsingularity.net>
- <20160713141343.244c108e48086055f57b1d79@linux-foundation.org>
- <20160715104605.GO9806@techsingularity.net>
- <20160715153554.f9d12360e31441b720d6a6b1@linux-foundation.org>
+        Mon, 18 Jul 2016 06:52:55 -0700 (PDT)
+Date: Mon, 18 Jul 2016 15:53:10 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: bug in memcg oom-killer results in a hung syscall in another
+	process in the same cgroup
+Message-ID: <20160718135309.GC25380@redhat.com>
+References: <20160711064150.GB5284@dhcp22.suse.cz> <CABAubThHfngHTQW_AEuW71VCvLyD_9b5Z05tSud5bf8JKjuA9Q@mail.gmail.com> <CABAubTjGhUXMeAnFgW8LGck1tgvtu12Zb9fx5BRhDWNjZ7SYLQ@mail.gmail.com> <20160712071927.GD14586@dhcp22.suse.cz> <CABAubTg91qrUd4DO7T2SiJQBK9ypuhP0+F-091ZxtmonjaaYWg@mail.gmail.com> <57851224.2020902@yandex-team.ru> <CABAubTiVb8j8wEbcr16FAJnBxxS7QzghpPiJUcmV+=Ji=QgL=A@mail.gmail.com> <20160714132258.GA1333@redhat.com> <CABAubTh_5aLxaEYYyFivoatJLN35K8Gy1fHKG=8FL8XFrv61Sw@mail.gmail.com> <CABAubTjjD6nmAtMNze5O6-bE-ivMmb24Jd4u2mMpBZFBFR1CnA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160715153554.f9d12360e31441b720d6a6b1@linux-foundation.org>
+In-Reply-To: <CABAubTjjD6nmAtMNze5O6-bE-ivMmb24Jd4u2mMpBZFBFR1CnA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
+To: Shayan Pooya <shayan@liveve.org>
+Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Michal Hocko <mhocko@kernel.org>, Konstantin Khlebnikov <koct9i@gmail.com>, cgroups mailinglist <cgroups@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Fri, Jul 15, 2016 at 03:35:54PM -0700, Andrew Morton wrote:
-> Well I dunno.  We can leave the series as-is for now and we can merge
-> the rename-it-back patch sometime during the next -rc cycle if we find
-> that people are running around in confusion and tumbling out of high
-> windows.
+On 07/15, Shayan Pooya wrote:
+>
+> >> --- x/kernel/sched/core.c
+> >> +++ x/kernel/sched/core.c
+> >> @@ -2793,8 +2793,11 @@ asmlinkage __visible void schedule_tail(struct task_struct *prev)
+> >>         balance_callback(rq);
+> >>         preempt_enable();
+> >>
+> >> -       if (current->set_child_tid)
+> >> +       if (current->set_child_tid) {
+> >> +               mem_cgroup_oom_enable();
+> >>                 put_user(task_pid_vnr(current), current->set_child_tid);
+> >> +               mem_cgroup_oom_disable();
+> >> +       }
+> >>  }
+> >>
+> >>  /*
+>
+> I tried this patch and I still see the same stuck processes (assuming
+> that's what you were curious about).
 
-Sounds good to me.
+Of course. Because I am stupid. Firtsly, I forgot to include another
+change in fault.c. And now I see that change was wrong anyway.
+
+I'll try to make another debugging patch today later, but let me repeat
+that it won't fix the real problem anyway.
+
+Thanks, and sorry for wasting your time.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
