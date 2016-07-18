@@ -1,117 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 163316B0260
-	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 18:23:22 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id p41so339420lfi.0
-        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 15:23:22 -0700 (PDT)
-Received: from rp02.intra2net.com (rp02.intra2net.com. [62.75.181.28])
-        by mx.google.com with ESMTPS id v7si3193127wjj.274.2016.07.18.15.23.20
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Jul 2016 15:23:20 -0700 (PDT)
-Subject: Re: [Bug 64121] New: [BISECTED] "mm" performance regression updating
- from 3.2 to 3.3
-References: <bug-64121-27@https.bugzilla.kernel.org/>
- <20131031134610.30d4c0e98e58fb0484e988c1@linux-foundation.org>
- <20131101184332.GF707@cmpxchg.org>
-From: Thomas Jarosch <thomas.jarosch@intra2net.com>
-Message-ID: <b4aff3a2-cc22-c68c-cafc-96db332f86c3@intra2net.com>
-Date: Tue, 19 Jul 2016 00:23:16 +0200
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3761A6B025E
+	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 19:09:43 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id h186so3153716pfg.3
+        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 16:09:43 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id e62si5793998pfe.193.2016.07.18.16.09.42
+        for <linux-mm@kvack.org>;
+        Mon, 18 Jul 2016 16:09:42 -0700 (PDT)
+Date: Mon, 18 Jul 2016 17:09:39 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH] radix-tree: fix radix_tree_iter_retry() for tagged
+ iterators.
+Message-ID: <20160718230939.GA2076@linux.intel.com>
+References: <CACT4Y+a99OW7TYeLsuEic19uY2j45DGXL=LowUMq3TywWS3f2Q@mail.gmail.com>
+ <1468495196-10604-1-git-send-email-aryabinin@virtuozzo.com>
+ <20160714222527.GA26136@linux.intel.com>
+ <5788A46A.70106@virtuozzo.com>
+ <20160715190040.GA7195@linux.intel.com>
+ <20160715135733.0a33f8f2bc3ee3fadb62b109@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20131101184332.GF707@cmpxchg.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160715135733.0a33f8f2bc3ee3fadb62b109@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, syzkaller@googlegroups.com, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>, linux-kernel@vger.kernel.org, Konstantin Khlebnikov <koct9i@gmail.com>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hughd@google.com>, stable@vger.kernel.org
 
-Hi Johannes,
-
-referring to an old kernel bugzilla issue:
-https://bugzilla.kernel.org/show_bug.cgi?id=64121
-
-Am 01.11.2013 um 19:43 wrote Johannes Weiner:
-> It is a combination of two separate things on these setups.
+On Fri, Jul 15, 2016 at 01:57:33PM -0700, Andrew Morton wrote:
+> On Fri, 15 Jul 2016 13:00:40 -0600 Ross Zwisler <ross.zwisler@linux.intel.com> wrote:
 > 
-> Traditionally, only lowmem is considered dirtyable so that dirty pages
-> don't scale with highmem and the kernel doesn't overburden itself with
-> lowmem pressure from buffers etc.  This is purely about accounting.
+> > 
+> > ...
+> >
+> > In looking at this more, I agree that your patch fixes this particular bug,
+> > but I think that ultimately we might want something more general.
+> > 
+> > ...
+> >
+> > --- a/include/linux/radix-tree.h
+> > +++ b/include/linux/radix-tree.h
+> > @@ -463,6 +463,9 @@ static inline struct radix_tree_node *entry_to_node(void *ptr)
+> >  static __always_inline void **
+> >  radix_tree_next_slot(void **slot, struct radix_tree_iter *iter, unsigned flags)
+> >  {
+> > +	if (unlikely(!slot))
+> > +		return NULL;
+> > +
+> >  	if (flags & RADIX_TREE_ITER_TAGGED) {
+> >  		void *canon = slot;
 > 
-> My patches on the other hand were about dirty page placement and
-> avoiding writeback from page reclaim: by subtracting the watermark and
-> the lowmem reserve (memory not available for user memory / cache) from
-> each zone's dirtyable memory, we make sure that the zone can always be
-> rebalanced without writeback.
-> 
-> The problem now is that the lowmem reserves scale with highmem and
-> there is a point where they entirely overshadow the Normal zone.  This
-> means that no page cache at all is allowed in lowmem.  Combine this
-> with how dirtyable memory excludes highmem, and the sum of all
-> dirtyable memory is nil.  This effectively disables the writeback
-> cache.
-> 
-> I figure if anything should be fixed it should be the full exclusion
-> of highmem from dirtyable memory and find a better way to calculate a
-> minimum.
+> I'll hang onto Andrey's
+> radix-tree-fix-radix_tree_iter_retry-for-tagged-iterators.patch for
+> now, plan to send it in to Linus Wednesdayish.  If we can get the above
+> settled down prior to that then I shall swap over.
 
-recently we've updated our production mail server from 3.14.69
-to 3.14.73 and it worked fine for a few days. When the box is really
-busy (=incoming malware via email), the I/O speed drops to crawl,
-write speed is about 5 MB/s on Intel SSDs. Yikes.
-
-The box has 16GB RAM, so it should be a safe HIGHMEM configuration.
-
-Downgrading to 3.14.69 or booting with "mem=15000M" works. I've tested
-both approaches and the box was stable. Booting 3.14.73 again triggered
-the problem within minutes.
-
-Clearly something with the automatic calculation of the lowmem reserve
-crossed a tipping point again, even with the previously considered safe
-amount of 16GB RAM for HIGHMEM configs. I don't see anything obvious in
-the changelogs from 3.14.69 to 3.14.73, but I might have missed it.
-
-> HOWEVER,
-> 
-> the lowmem reserve is highmem/32 per default.  With a Normal zone of
-> around 900M, this requires 28G+ worth of HighMem to eclipse lowmem
-> entirely.  This is almost double of what you consider still okay...
-
-is there a way to read out the calculated lowmem reserve via /proc?
-
-It might be interesting the see the lowmem reserve
-when booted with mem=15000M or kernel 3.14.69 for comparison.
-
-Do you think it might be worth tinkering with "lowmem_reserve_ratio"?
-
-
-/proc/meminfo from the box using "mem=15000M" + kernel 3.14.73:
-
-MemTotal:       15001512 kB
-HighTotal:      14219160 kB
-HighFree:        9468936 kB
-LowTotal:         782352 kB
-LowFree:          117696 kB
-Slab:             430612 kB
-SReclaimable:     416752 kB
-SUnreclaim:        13860 kB
-
-
-/proc/meminfo from a similar machine with 16GB RAM + kernel 3.14.73:
-(though that machine is just a firewall, so no real disk I/O)
-
-MemTotal:       16407652 kB
-HighTotal:      15636376 kB
-HighFree:       14415472 kB
-LowTotal:         771276 kB
-LowFree:          562852 kB
-Slab:              34712 kB
-SReclaimable:      20888 kB
-SUnreclaim:        13824 kB
-
-
-Any help is appreciated,
-Thomas
+Sure, that works for me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
