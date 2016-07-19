@@ -1,72 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DF116B0005
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 02:39:58 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id q2so16772521pap.1
-        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 23:39:58 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id 66si7778186pfe.135.2016.07.18.23.39.56
-        for <linux-mm@kvack.org>;
-        Mon, 18 Jul 2016 23:39:57 -0700 (PDT)
-Date: Tue, 19 Jul 2016 15:44:06 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v3 09/17] mm, compaction: make whole_zone flag ignore
- cached scanner positions
-Message-ID: <20160719064406.GB17479@js1304-P5Q-DELUXE>
-References: <20160624095437.16385-1-vbabka@suse.cz>
- <20160624095437.16385-10-vbabka@suse.cz>
- <20160706050939.GD23627@js1304-P5Q-DELUXE>
- <1c0e2da2-115e-d676-cfec-e572270789ca@suse.cz>
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 880106B0253
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 02:40:52 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id o80so7125522wme.1
+        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 23:40:52 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w127si18317693wma.80.2016.07.18.23.40.51
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 18 Jul 2016 23:40:51 -0700 (PDT)
+Date: Tue, 19 Jul 2016 08:40:49 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm, oom: fix for hiding mm which is shared with
+ kthreador global init
+Message-ID: <20160719064048.GA9486@dhcp22.suse.cz>
+References: <1468647004-5721-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20160718071825.GB22671@dhcp22.suse.cz>
+ <201607190630.DIH34854.HFOOQFLOJMVFSt@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1c0e2da2-115e-d676-cfec-e572270789ca@suse.cz>
+In-Reply-To: <201607190630.DIH34854.HFOOQFLOJMVFSt@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, oleg@redhat.com, vdavydov@virtuozzo.com, rientjes@google.com
 
-On Mon, Jul 18, 2016 at 11:12:51AM +0200, Vlastimil Babka wrote:
-> On 07/06/2016 07:09 AM, Joonsoo Kim wrote:
-> >On Fri, Jun 24, 2016 at 11:54:29AM +0200, Vlastimil Babka wrote:
-> >>A recent patch has added whole_zone flag that compaction sets when scanning
-> >>starts from the zone boundary, in order to report that zone has been fully
-> >>scanned in one attempt. For allocations that want to try really hard or cannot
-> >>fail, we will want to introduce a mode where scanning whole zone is guaranteed
-> >>regardless of the cached positions.
-> >>
-> >>This patch reuses the whole_zone flag in a way that if it's already passed true
-> >>to compaction, the cached scanner positions are ignored. Employing this flag
-> >
-> >Okay. But, please don't reset cached scanner position even if whole_zone
-> >flag is set. Just set cc->migrate_pfn and free_pfn, appropriately. With
+On Tue 19-07-16 06:30:42, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > I really do not think that this unlikely case really has to be handled
+> > now. We are very likely going to move to a different model of oom victim
+> > detection soon. So let's do not add new hacks. exit_oom_victim from
+> > oom_kill_process just looks like sand in eyes.
 > 
-> Won't that result in confusion on cached position updates during
-> compaction where it checks the previous cached position? I wonder
-> what kinds of corner cases it can bring...
+> Then, please revert "mm, oom: hide mm which is shared with kthread or global init"
+> ( http://lkml.kernel.org/r/1466426628-15074-11-git-send-email-mhocko@kernel.org ).
+> I don't like that patch because it is doing pointless find_lock_task_mm() test
+> and is telling a lie because it does not guarantee that we won't hit OOM livelock.
 
-whole_zone would come along with ignore_skip_hint so I think that
-there is no problem on cached position updating.
+The above patch doesn't make the situation worse wrt livelock. I
+consider it an improvement. It adds find_lock_task_mm into
+oom_scan_process_thread but that can hardly be worse than just the
+task->signal->oom_victims check because we can catch MMF_OOM_REAPED. If
+we are mm loss, which is a less likely case, then we behave the same as
+with the previous implementation.
 
-> 
-> >your following patches, whole_zone could be set without any compaction
-> >try
-> 
-> I don't understand what you mean here? Even after whole series,
-> whole_zone is only checked, and positions thus reset, after passing
-> the compaction_suitable() call from compact_zone(). So at that point
-> we can say that compaction is being actually tried and it's not a
-> drive-by reset?
+So I do not really see a reason to revert that patch for now.
 
-My point is that we should not initialize zone's cached pfn in case of
-the whole_zone because what compaction with COMPACT_PRIO_SYNC_FULL
-want is just to scan whole range. zone's cached pfn exists for
-efficiency and there is no reason to initialize it by compaction with
-COMPACT_PRIO_SYNC_FULL. If there are some parallel compaction users,
-they could be benefit from un-initialized zone's cached pfn so I'd
-like to leave them.
-
-Thanks.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
