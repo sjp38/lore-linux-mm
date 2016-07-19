@@ -1,87 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CBD1F6B0005
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 05:21:43 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id x83so9657480wma.2
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 02:21:43 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id w6si1785735wmw.38.2016.07.19.02.21.42
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 570E96B0005
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 05:37:43 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id p129so8313304wmp.3
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 02:37:43 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q190si19000843wmd.73.2016.07.19.02.37.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Jul 2016 02:21:42 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u6J9JZ86130977
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 05:21:41 -0400
-Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2496ebj0y9-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 05:21:40 -0400
-Received: from localhost
-	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Tue, 19 Jul 2016 10:21:39 +0100
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id D91561B0805F
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 10:23:00 +0100 (BST)
-Received: from d06av04.portsmouth.uk.ibm.com (d06av04.portsmouth.uk.ibm.com [9.149.37.216])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u6J9Lb3Z9109926
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 09:21:37 GMT
-Received: from d06av04.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av04.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u6J9LG6i011617
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 03:21:36 -0600
-Subject: Re: [PATCH v3 02/11] mm: Hardened usercopy
-References: <1468619065-3222-1-git-send-email-keescook@chromium.org>
- <1468619065-3222-3-git-send-email-keescook@chromium.org>
-From: Christian Borntraeger <borntraeger@de.ibm.com>
-Date: Tue, 19 Jul 2016 11:21:13 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 19 Jul 2016 02:37:42 -0700 (PDT)
+Date: Tue, 19 Jul 2016 11:37:39 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm, oom: fix for hiding mm which is shared with
+ kthreador global init
+Message-ID: <20160719093739.GE9486@dhcp22.suse.cz>
+References: <1468647004-5721-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20160718071825.GB22671@dhcp22.suse.cz>
+ <201607190630.DIH34854.HFOOQFLOJMVFSt@I-love.SAKURA.ne.jp>
+ <20160719064048.GA9486@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1468619065-3222-3-git-send-email-keescook@chromium.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <578DF109.5030704@de.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160719064048.GA9486@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org
-Cc: Balbir Singh <bsingharora@gmail.com>, Daniel Micay <danielmicay@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Rik van Riel <riel@redhat.com>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, x86@kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, oleg@redhat.com, vdavydov@virtuozzo.com, rientjes@google.com
 
-On 07/15/2016 11:44 PM, Kees Cook wrote:
-> +config HAVE_ARCH_LINEAR_KERNEL_MAPPING
-> +	bool
-> +	help
-> +	  An architecture should select this if it has a secondary linear
-> +	  mapping of the kernel text. This is used to verify that kernel
-> +	  text exposures are not visible under CONFIG_HARDENED_USERCOPY.
+On Tue 19-07-16 08:40:48, Michal Hocko wrote:
+> On Tue 19-07-16 06:30:42, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > I really do not think that this unlikely case really has to be handled
+> > > now. We are very likely going to move to a different model of oom victim
+> > > detection soon. So let's do not add new hacks. exit_oom_victim from
+> > > oom_kill_process just looks like sand in eyes.
+> > 
+> > Then, please revert "mm, oom: hide mm which is shared with kthread or global init"
+> > ( http://lkml.kernel.org/r/1466426628-15074-11-git-send-email-mhocko@kernel.org ).
+> > I don't like that patch because it is doing pointless find_lock_task_mm() test
+> > and is telling a lie because it does not guarantee that we won't hit OOM livelock.
+> 
+> The above patch doesn't make the situation worse wrt livelock. I
+> consider it an improvement. It adds find_lock_task_mm into
+> oom_scan_process_thread but that can hardly be worse than just the
+> task->signal->oom_victims check because we can catch MMF_OOM_REAPED. If
+> we are mm loss, which is a less likely case, then we behave the same as
+> with the previous implementation.
+> 
+> So I do not really see a reason to revert that patch for now.
 
-I have trouble parsing this. (What does secondary linear mapping mean?)
-So let me give an example below
-
-> +
-[...]
-> +/* Is this address range in the kernel text area? */
-> +static inline const char *check_kernel_text_object(const void *ptr,
-> +						   unsigned long n)
-> +{
-> +	unsigned long textlow = (unsigned long)_stext;
-> +	unsigned long texthigh = (unsigned long)_etext;
-> +
-> +	if (overlaps(ptr, n, textlow, texthigh))
-> +		return "<kernel text>";
-> +
-> +#ifdef HAVE_ARCH_LINEAR_KERNEL_MAPPING
-> +	/* Check against linear mapping as well. */
-> +	if (overlaps(ptr, n, (unsigned long)__va(__pa(textlow)),
-> +		     (unsigned long)__va(__pa(texthigh))))
-> +		return "<linear kernel text>";
-> +#endif
-> +
-> +	return NULL;
-> +}
-
-s390 has an address space for user (primary address space from 0..4TB/8PB) and a separate 
-address space (home space from 0..4TB/8PB) for the kernel. In this home space the kernel
-mapping is virtual containing the physical memory as well as vmalloc memory (creating aliases
-into the physical one). The kernel text is mapped from _stext to _etext in this mapping.
-So I assume this would qualify for HAVE_ARCH_LINEAR_KERNEL_MAPPING ?
+And that being said. If you strongly disagree with the wording then what
+about the following:
+"
+    In order to help a forward progress for the OOM killer, make sure that
+    this really rare cases will not get into the way and hide the mm from the
+    oom killer by setting MMF_OOM_REAPED flag for it.  oom_scan_process_thread
+    will ignore any TIF_MEMDIE task if it has MMF_OOM_REAPED flag set to catch
+    these oom victims.
+    
+    After this patch we should guarantee a forward progress for the OOM killer
+    even when the selected victim is sharing memory with a kernel thread or
+    global init as long as the victims mm is still alive.
+"
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
