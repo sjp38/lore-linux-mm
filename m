@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F7186B0005
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 07:37:07 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e189so31936778pfa.2
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 04:37:07 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id 19si9091194pft.165.2016.07.19.04.37.05
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 854F86B0005
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 07:51:55 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id m101so35698883ioi.0
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 04:51:55 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id h132si5044922ita.44.2016.07.19.04.51.53
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 19 Jul 2016 04:37:06 -0700 (PDT)
-Message-ID: <578E0F8E.4030002@huawei.com>
-Date: Tue, 19 Jul 2016 19:31:26 +0800
+        Tue, 19 Jul 2016 04:51:54 -0700 (PDT)
+Message-ID: <578E126A.7080001@huawei.com>
+Date: Tue, 19 Jul 2016 19:43:38 +0800
 From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH] mm/hugetlb: fix race when migrate pages.
@@ -41,8 +41,42 @@ On 2016/7/19 19:10, Michal Hocko wrote:
 > OK, I see. But is the proposed fix correct? AFAIU you are retrying the
 > VMA walk and nothing really prevents huge_pte_offset returning the same
 > spte, right?
-   Yes, I guess  it may be exist other pmd share entry , The entry may be used .  therefore,
-   I decide to access the others.
+>  
+   oh, I mistaked.  we should not repeat, it should directly  skip to end. 
+  diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 6384dfd..baba196 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -4213,7 +4213,7 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+        struct vm_area_struct *svma;
+        unsigned long saddr;
+        pte_t *spte = NULL;
+-       pte_t *pte;
++       pte_t *pte, entry;
+        spinlock_t *ptl;
+
+        if (!vma_shareable(vma, addr))
+@@ -4240,6 +4240,11 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+
+        ptl = huge_pte_lockptr(hstate_vma(vma), mm, spte);
+        spin_lock(ptl);
++       entry = huge_ptep_get(spte);
++       if (is_hugetlb_entry_migration(entry) ||
++                       is_hugetlb_entry_hwpoisoned(entry)) {
++               goto end;
++       }
+        if (pud_none(*pud)) {
+                pud_populate(mm, pud,
+                                (pmd_t *)((unsigned long)spte & PAGE_MASK));
+@@ -4247,6 +4252,7 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+                put_page(virt_to_page(spte));
+                mm_dec_nr_pmds(mm);
+        }
++end:
+        spin_unlock(ptl);
+ out:
+        pte = (pte_t *)pmd_alloc(mm, pud, addr);
+
 >>  Thanks
 >>  zhong jiang
 >>>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
