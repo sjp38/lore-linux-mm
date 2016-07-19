@@ -1,78 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DB486B0005
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 08:17:50 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id i64so39367088ith.2
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 05:17:50 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id l2si16755230otb.180.2016.07.19.05.17.48
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 19 Jul 2016 05:17:49 -0700 (PDT)
-Subject: Re: [PATCH] mm, oom: fix for hiding mm which is shared with kthread or global init
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201607190630.DIH34854.HFOOQFLOJMVFSt@I-love.SAKURA.ne.jp>
-	<20160719064048.GA9486@dhcp22.suse.cz>
-	<20160719093739.GE9486@dhcp22.suse.cz>
-	<201607191936.BEJ82340.OHFOtOFFSQMJVL@I-love.SAKURA.ne.jp>
-	<20160719105440.GF9486@dhcp22.suse.cz>
-In-Reply-To: <20160719105440.GF9486@dhcp22.suse.cz>
-Message-Id: <201607192043.CEI28519.VtQOMFFSFLOJOH@I-love.SAKURA.ne.jp>
-Date: Tue, 19 Jul 2016 20:43:32 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B7086B0005
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 08:45:12 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id p41so11576095lfi.0
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 05:45:12 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTP id k10si19888175wmk.53.2016.07.19.05.45.08
+        for <linux-mm@kvack.org>;
+        Tue, 19 Jul 2016 05:45:11 -0700 (PDT)
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Subject: [Question]page allocation failure: order:2, mode:0x2000d1
+Message-ID: <b3127e70-4fca-9e11-62e5-7a8f3da9d044@huawei.com>
+Date: Tue, 19 Jul 2016 20:43:07 +0800
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.cz
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, oleg@redhat.com, vdavydov@virtuozzo.com, rientjes@google.com
+To: vbabka@suse.cz, minchan@kernel.org, mgorman@suse.de, iamjoonsoo.kim@lge.com, mina86@mina86.com, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, cl@linux.com, David Rientjes <rientjes@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hanjun Guo <guohanjun@huawei.com>, qiuxishi@huawei.com
 
-Michal Hocko wrote:
-> On Tue 19-07-16 19:36:40, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > On Tue 19-07-16 08:40:48, Michal Hocko wrote:
-> > > > On Tue 19-07-16 06:30:42, Tetsuo Handa wrote:
-> > > > > Michal Hocko wrote:
-> > > > > > I really do not think that this unlikely case really has to be handled
-> > > > > > now. We are very likely going to move to a different model of oom victim
-> > > > > > detection soon. So let's do not add new hacks. exit_oom_victim from
-> > > > > > oom_kill_process just looks like sand in eyes.
-> > > > > 
-> > > > > Then, please revert "mm, oom: hide mm which is shared with kthread or global init"
-> > > > > ( http://lkml.kernel.org/r/1466426628-15074-11-git-send-email-mhocko@kernel.org ).
-> > > > > I don't like that patch because it is doing pointless find_lock_task_mm() test
-> > > > > and is telling a lie because it does not guarantee that we won't hit OOM livelock.
-> > > > 
-> > > > The above patch doesn't make the situation worse wrt livelock. I
-> > > > consider it an improvement. It adds find_lock_task_mm into
-> > > > oom_scan_process_thread but that can hardly be worse than just the
-> > > > task->signal->oom_victims check because we can catch MMF_OOM_REAPED. If
-> > > > we are mm loss, which is a less likely case, then we behave the same as
-> > > > with the previous implementation.
-> > > > 
-> > > > So I do not really see a reason to revert that patch for now.
-> > > 
-> > > And that being said. If you strongly disagree with the wording then what
-> > > about the following:
-> > > "
-> > >     In order to help a forward progress for the OOM killer, make sure that
-> > >     this really rare cases will not get into the way and hide the mm from the
-> > >     oom killer by setting MMF_OOM_REAPED flag for it.  oom_scan_process_thread
-> > >     will ignore any TIF_MEMDIE task if it has MMF_OOM_REAPED flag set to catch
-> > >     these oom victims.
-> > >     
-> > >     After this patch we should guarantee a forward progress for the OOM killer
-> > >     even when the selected victim is sharing memory with a kernel thread or
-> > >     global init as long as the victims mm is still alive.
-> > > "
-> > 
-> > No, I don't like "as long as the victims mm is still alive" exception.
-> 
-> Why? Because of the wording or in principle?
+hi all,
+I'm getting a 2-order page allocation failure problem on 4.1.18.
+>From the Mem-info, it seems the system have much zero order free pages which can be used for memory compaction.
+Is it possible that the memory compacted by current process used by other process soon, which cause page allocation failure of current process ?
 
-Making a _guarantee without exceptions now_ can allow other OOM livelock handlings
-(e.g. http://lkml.kernel.org/r/20160719074935.GC9486@dhcp22.suse.cz ) to rely on
-the OOM reaper. We can improve OOM reaper after we made a guarantee without
-exceptions now.
+--- dmesg messages ---
+07-13 08:41:51.341 <4>[309805.658142s][pid:1361,cpu5,sManagerService]sManagerService: page allocation failure: order:2, mode:0x2000d1
+07-13 08:41:51.346 <4>[309805.658142s][pid:1361,cpu5,sManagerService]CPU: 5 PID: 1361 Comm: sManagerService Tainted: G        W       4.1.18-g09f547b #1
+07-13 08:41:51.347 <4>[309805.658142s][pid:1361,cpu5,sManagerService]TGID: 981 Comm: system_server
+07-13 08:41:51.347 <4>[309805.658172s][pid:1361,cpu5,sManagerService]Hardware name: hi3650 (DT)
+07-13 08:41:51.347 <0>[309805.658172s][pid:1361,cpu5,sManagerService]Call trace:
+07-13 08:41:51.347 <4>[309805.658203s][pid:1361,cpu5,sManagerService][<ffffffc00008a0a4>] dump_backtrace+0x0/0x150
+07-13 08:41:51.347 <4>[309805.658203s][pid:1361,cpu5,sManagerService][<ffffffc00008a214>] show_stack+0x20/0x28
+07-13 08:41:51.347 <4>[309805.658203s][pid:1361,cpu5,sManagerService][<ffffffc000fc4034>] dump_stack+0x84/0xa8
+07-13 08:41:51.347 <4>[309805.658203s][pid:1361,cpu5,sManagerService][<ffffffc00018af54>] warn_alloc_failed+0x10c/0x164
+07-13 08:41:51.347 <4>[309805.658233s][pid:1361,cpu5,sManagerService][<ffffffc00018e778>] __alloc_pages_nodemask+0x5b4/0x888
+07-13 08:41:51.347 <4>[309805.658233s][pid:1361,cpu5,sManagerService][<ffffffc00018eb84>] alloc_kmem_pages_node+0x44/0x50
+07-13 08:41:51.347 <4>[309805.658233s][pid:1361,cpu5,sManagerService][<ffffffc00009fa78>] copy_process.part.46+0x140/0x15ac
+07-13 08:41:51.347 <4>[309805.658233s][pid:1361,cpu5,sManagerService][<ffffffc0000a10a0>] do_fork+0xe8/0x444
+07-13 08:41:51.347 <4>[309805.658264s][pid:1361,cpu5,sManagerService][<ffffffc0000a14e8>] SyS_clone+0x3c/0x48
+07-13 08:41:51.347 <4>[309805.658264s][pid:1361,cpu5,sManagerService]Mem-Info:
+07-13 08:41:51.347 <4>[309805.658264s][pid:1361,cpu5,sManagerService]active_anon:491074 inactive_anon:118072 isolated_anon:0
+07-13 08:41:51.347 <4>[309805.658264s] active_file:19087 inactive_file:9843 isolated_file:0
+07-13 08:41:51.347 <4>[309805.658264s] unevictable:322 dirty:20 writeback:0 unstable:0
+07-13 08:41:51.347 <4>[309805.658264s] slab_reclaimable:11788 slab_unreclaimable:28068
+07-13 08:41:51.347 <4>[309805.658264s] mapped:20633 shmem:4038 pagetables:10865 bounce:72
+07-13 08:41:51.347 <4>[309805.658264s] free:118678 free_pcp:58 free_cma:0
+07-13 08:41:51.347 <4>[309805.658294s][pid:1361,cpu5,sManagerService]DMA free:470628kB min:6800kB low:29116kB high:30816kB active_anon:1868540kB inactive_anon:376100kB active_file:292kB inactive_file:240kB unevictable:1080kB isolated(anon):0kB isolated(file):0kB present:3446780kB managed:3307056kB mlocked:1080kB dirty:80kB writeback:0kB mapped:7604kB shmem:14380kB slab_reclaimable:47152kB slab_unreclaimable:112268kB kernel_stack:28224kB pagetables:43460kB unstable:0kB bounce:288kB free_pcp:204kB local_pcp:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+07-13 08:41:51.347 <4>[309805.658294s][pid:1361,cpu5,sManagerService]lowmem_reserve[]: 0 415 415
+07-13 08:41:51.347 <4>[309805.658294s][pid:1361,cpu5,sManagerService]Normal free:4084kB min:872kB low:3740kB high:3960kB active_anon:95756kB inactive_anon:96188kB active_file:76056kB inactive_file:39132kB unevictable:208kB isolated(anon):0kB isolated(file):0kB present:524288kB managed:425480kB mlocked:208kB dirty:0kB writeback:0kB mapped:74928kB shmem:1772kB slab_reclaimable:0kB slab_unreclaimable:4kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:0kB free_pcp:28kB local_pcp:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+07-13 08:41:51.347 <4>[309805.658294s][pid:1361,cpu5,sManagerService]lowmem_reserve[]: 0 0 0
+07-13 08:41:51.347 <4>[309805.658325s][pid:1361,cpu5,sManagerService]DMA: 68324*4kB (UEM) 24706*8kB (UER) 2*16kB (U) 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 470976kB
+07-13 08:41:51.347 <4>[309805.658355s][pid:1361,cpu5,sManagerService]Normal: 270*4kB (UMR) 82*8kB (UMR) 48*16kB (MR) 25*32kB (R) 12*64kB (R) 2*128kB (R) 1*256kB (R) 0*512kB 0*1024kB 0*2048kB 0*4096kB = 4584kB
+07-13 08:41:51.347 <4>[309805.658386s][pid:1361,cpu5,sManagerService]38319 total pagecache pages
+07-13 08:41:51.347 <4>[309805.658386s][pid:1361,cpu5,sManagerService]5384 pages in swap cache
+07-13 08:41:51.347 <4>[309805.658386s][pid:1361,cpu5,sManagerService]Swap cache stats: add 628084, delete 622700, find 2187699/2264909
+07-13 08:41:51.347 <4>[309805.658386s][pid:1361,cpu5,sManagerService]Free swap  = 0kB
+07-13 08:41:51.348 <4>[309805.658416s][pid:1361,cpu5,sManagerService]Total swap = 524284kB
+07-13 08:41:51.348 <4>[309805.658416s][pid:1361,cpu5,sManagerService]992767 pages RAM
+07-13 08:41:51.348 <4>[309805.658416s][pid:1361,cpu5,sManagerService]0 pages HighMem/MovableOnly
+07-13 08:41:51.348 <4>[309805.658416s][pid:1361,cpu5,sManagerService]51441 pages reserved
+07-13 08:41:51.348 <4>[309805.658416s][pid:1361,cpu5,sManagerService]8192 pages cma reserved
+07-13 08:41:51.767 <6>[309806.068298s][pid:2247,cpu6,notification-sq][I/sensorhub] shb_release ok
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
