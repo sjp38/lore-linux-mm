@@ -1,57 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 982AC6B0005
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 18:00:15 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id a123so67455324qkd.2
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 15:00:15 -0700 (PDT)
-Received: from mail-yw0-f175.google.com (mail-yw0-f175.google.com. [209.85.161.175])
-        by mx.google.com with ESMTPS id f67si20920217qkb.65.2016.07.19.15.00.14
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D0B36B0005
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 18:01:09 -0400 (EDT)
+Received: by mail-vk0-f70.google.com with SMTP id w127so64114509vkh.1
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 15:01:09 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a73si20961167qkb.55.2016.07.19.15.01.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Jul 2016 15:00:14 -0700 (PDT)
-Received: by mail-yw0-f175.google.com with SMTP id j12so21982081ywb.2
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 15:00:14 -0700 (PDT)
-From: Laura Abbott <labbott@redhat.com>
-Subject: [PATCH] mm: Add is_migrate_cma_page
-Date: Tue, 19 Jul 2016 15:00:04 -0700
-Message-Id: <1468965604-25023-1-git-send-email-labbott@redhat.com>
-In-Reply-To: <CAGXu5j+nHpHcYT8FyHNe6AFQCdakoSMW=UWDatyxhRK7CB7_=g@mail.gmail.com>
+        Tue, 19 Jul 2016 15:01:07 -0700 (PDT)
+Date: Tue, 19 Jul 2016 18:01:05 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [RFC PATCH 1/2] mempool: do not consume memory reserves from
+ the reclaim path
+In-Reply-To: <20160719141956.GJ9486@dhcp22.suse.cz>
+Message-ID: <alpine.LRH.2.02.1607191751300.1437@file01.intranet.prod.int.rdu2.redhat.com>
+References: <1468831164-26621-1-git-send-email-mhocko@kernel.org> <1468831285-27242-1-git-send-email-mhocko@kernel.org> <20160719135426.GA31229@cmpxchg.org> <20160719141956.GJ9486@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Laura Abbott <labbott@redhat.com>, Kees Cook <keescook@chromium.org>, Rik van Riel <riel@redhat.com>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, x86@kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, Ondrej Kozina <okozina@redhat.com>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Mel Gorman <mgorman@suse.de>, Neil Brown <neilb@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, dm-devel@redhat.com
 
-Code such as hardened user copy[1] needs a way to tell if a
-page is CMA or not. Add is_migrate_cma_page in a similar way
-to is_migrate_isolate_page.
 
-[1]http://article.gmane.org/gmane.linux.kernel.mm/155238
 
-Signed-off-by: Laura Abbott <labbott@redhat.com>
----
-Here's an explicit patch, slightly different than what I posted before. It can
-be kept separate or folded in as needed.
----
- include/linux/mmzone.h | 2 ++
- 1 file changed, 2 insertions(+)
+On Tue, 19 Jul 2016, Michal Hocko wrote:
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 02069c2..c8478b2 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -68,8 +68,10 @@ extern char * const migratetype_names[MIGRATE_TYPES];
- 
- #ifdef CONFIG_CMA
- #  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)
-+#  define is_migrate_cma_page(_page) (get_pageblock_migratetype(_page) == MIGRATE_CMA)
- #else
- #  define is_migrate_cma(migratetype) false
-+#  define is_migrate_cma_page(_page) false
- #endif
- 
- #define for_each_migratetype_order(order, type) \
--- 
-2.7.4
+> On Tue 19-07-16 09:54:26, Johannes Weiner wrote:
+> > On Mon, Jul 18, 2016 at 10:41:24AM +0200, Michal Hocko wrote:
+> > > The original intention of f9054c70d28b was to help with the OOM
+> > > situations where the oom victim depends on mempool allocation to make a
+> > > forward progress. We can handle that case in a different way, though. We
+> > > can check whether the current task has access to memory reserves ad an
+> > > OOM victim (TIF_MEMDIE) and drop __GFP_NOMEMALLOC protection if the pool
+> > > is empty.
+> > > 
+> > > David Rientjes was objecting that such an approach wouldn't help if the
+> > > oom victim was blocked on a lock held by process doing mempool_alloc. This
+> > > is very similar to other oom deadlock situations and we have oom_reaper
+> > > to deal with them so it is reasonable to rely on the same mechanism
+> > > rather inventing a different one which has negative side effects.
+> > 
+> > I don't understand how this scenario wouldn't be a flat-out bug.
+> > 
+> > Mempool guarantees forward progress by having all necessary memory
+> > objects for the guaranteed operation in reserve. Think about it this
+> > way: you should be able to delete the pool->alloc() call entirely and
+> > still make reliable forward progress. It would kill concurrency and be
+> > super slow, but how could it be affected by a system OOM situation?
+> 
+> Yes this is my understanding of the mempool usage as well. It is much
+
+Yes, that's correct.
+
+> harder to check whether mempool users are really behaving and they do
+> not request more than the pre allocated pool allows them, though. That
+> would be a bug in the consumer not the mempool as such of course.
+> 
+> My original understanding of f9054c70d28b was that it acts as
+> a prevention for issues where the OOM victim loops inside the
+> mempool_alloc not doing reasonable progress because those who should
+> refill the pool are stuck for some reason (aka assume that not all
+> mempool users are behaving or they have unexpected dependencies like WQ
+> without WQ_MEM_RECLAIM and similar).
+
+David Rientjes didn't tell us what is the configuration of his servers, we 
+don't know what dm targets and block device drivers is he using, we don't 
+know how they are connected - so it not really possible to know what 
+happened for him.
+
+Mikulas
+
+> My thinking was that the victim has access to memory reserves by default
+> so it sounds reasonable to preserve this access also when it is in the
+> mempool_alloc. Therefore I wanted to preserve that particular logic and
+> came up with this patch which should be safer than f9054c70d28b. But the
+> more I am thinking about it the more it sounds like papering over a bug
+> somewhere else.
+> 
+> So I guess we should just go and revert f9054c70d28b and get back to
+> David's lockup and investigate what exactly went wrong and why. The
+> current form of f9054c70d28b is simply too dangerous.
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
