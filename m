@@ -1,73 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BE086B0005
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 19:10:39 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id ez1so54990080pab.0
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 16:10:39 -0700 (PDT)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id jj1si34980464pac.71.2016.07.19.16.10.38
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 89F5D6B0005
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 19:28:01 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e189so65986386pfa.2
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 16:28:01 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id s4si9591775paw.284.2016.07.19.16.28.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Jul 2016 16:10:38 -0700 (PDT)
-Received: by mail-pa0-x229.google.com with SMTP id fi15so11418013pac.1
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 16:10:38 -0700 (PDT)
-Date: Tue, 19 Jul 2016 16:10:31 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 5/8] mm, page_alloc: make THP-specific decisions more
- generic
-In-Reply-To: <20160718112302.27381-6-vbabka@suse.cz>
-Message-ID: <alpine.DEB.2.10.1607191608550.19940@chino.kir.corp.google.com>
-References: <20160718112302.27381-1-vbabka@suse.cz> <20160718112302.27381-6-vbabka@suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Tue, 19 Jul 2016 16:28:00 -0700 (PDT)
+Date: Tue, 19 Jul 2016 16:27:59 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 10/10] mm, oom: hide mm which is shared with kthread or
+ global init
+Message-Id: <20160719162759.e391c685db7a8de30b79320c@linux-foundation.org>
+In-Reply-To: <20160719120538.GE9490@dhcp22.suse.cz>
+References: <1466426628-15074-1-git-send-email-mhocko@kernel.org>
+	<1466426628-15074-11-git-send-email-mhocko@kernel.org>
+	<20160719120538.GE9490@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, 18 Jul 2016, Vlastimil Babka wrote:
+On Tue, 19 Jul 2016 14:05:39 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 
-> Since THP allocations during page faults can be costly, extra decisions are
-> employed for them to avoid excessive reclaim and compaction, if the initial
-> compaction doesn't look promising. The detection has never been perfect as
-> there is no gfp flag specific to THP allocations. At this moment it checks the
-> whole combination of flags that makes up GFP_TRANSHUGE, and hopes that no other
-> users of such combination exist, or would mind being treated the same way.
-> Extra care is also taken to separate allocations from khugepaged, where latency
-> doesn't matter that much.
+> > After this patch we should guarantee a forward progress for the OOM
+> > killer even when the selected victim is sharing memory with a kernel
+> > thread or global init.
 > 
-> It is however possible to distinguish these allocations in a simpler and more
-> reliable way. The key observation is that after the initial compaction followed
-> by the first iteration of "standard" reclaim/compaction, both __GFP_NORETRY
-> allocations and costly allocations without __GFP_REPEAT are declared as
-> failures:
+> Could you replace the last two paragraphs with the following. Tetsuo
+> didn't like the guarantee mentioned there because that is a too strong
+> statement as find_lock_task_mm might not find any mm and so we still
+> could end up looping on the oom victim if it gets stuck somewhere in
+> __mmput. This particular patch didn't aim at closing that case. Plugging
+> that hole is planned later after the next upcoming merge window closes.
 > 
->         /* Do not loop if specifically requested */
->         if (gfp_mask & __GFP_NORETRY)
->                 goto nopage;
-> 
->         /*
->          * Do not retry costly high order allocations unless they are
->          * __GFP_REPEAT
->          */
->         if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
->                 goto nopage;
-> 
-> This means we can further distinguish allocations that are costly order *and*
-> additionally include the __GFP_NORETRY flag. As it happens, GFP_TRANSHUGE
-> allocations do already fall into this category. This will also allow other
-> costly allocations with similar high-order benefit vs latency considerations to
-> use this semantic. Furthermore, we can distinguish THP allocations that should
-> try a bit harder (such as from khugepageed) by removing __GFP_NORETRY, as will
-> be done in the next patch.
-> 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Acked-by: Michal Hocko <mhocko@suse.com>
+> "
+> In order to help a forward progress for the OOM killer, make sure
+> that this really rare cases will not get into the way and hide
+> the mm from the oom killer by setting MMF_OOM_REAPED flag for it.
+> oom_scan_process_thread will ignore any TIF_MEMDIE task if it has
+> MMF_OOM_REAPED flag set to catch these oom victims.
+> 		        
+> After this patch we should guarantee a forward progress for the OOM
+> killer even when the selected victim is sharing memory with a kernel
+> thread or global init as long as the victims mm is still alive.
+> "
 
-I think this is fine, but I would hope that we could check 
-gfp_pfmemalloc_allowed() before compacting and failing even for costly 
-orders when otherwise the first get_page_from_freelist() in the slowpath 
-may have succeeded due to watermarks.
+I tweaked it a bit:
+
+: In order to help forward progress for the OOM killer, make sure that
+: this really rare case will not get in the way - we do this by hiding
+: the mm from the oom killer by setting MMF_OOM_REAPED flag for it. 
+: oom_scan_process_thread will ignore any TIF_MEMDIE task if it has
+: MMF_OOM_REAPED flag set to catch these oom victims.
+: 
+: After this patch we should guarantee forward progress for the OOM
+: killer even when the selected victim is sharing memory with a kernel
+: thread or global init as long as the victims mm is still alive.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
