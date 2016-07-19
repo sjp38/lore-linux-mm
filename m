@@ -1,77 +1,191 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AAC866B0253
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 18:40:49 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id p129so19735560wmp.3
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 15:40:49 -0700 (PDT)
-Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
-        by mx.google.com with ESMTPS id u186si23021579wmg.3.2016.07.19.15.40.48
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 498456B0253
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 18:50:32 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id h186so64007658pfg.3
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 15:50:32 -0700 (PDT)
+Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
+        by mx.google.com with ESMTPS id m125si11607679pfm.117.2016.07.19.15.50.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Jul 2016 15:40:48 -0700 (PDT)
-Received: by mail-wm0-x22f.google.com with SMTP id o80so43934882wme.1
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 15:40:48 -0700 (PDT)
+        Tue, 19 Jul 2016 15:50:30 -0700 (PDT)
+Received: by mail-pf0-x22d.google.com with SMTP id p64so11773165pfb.1
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 15:50:30 -0700 (PDT)
+Date: Tue, 19 Jul 2016 15:50:24 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 4/8] mm, page_alloc: restructure direct compaction handling
+ in slowpath
+In-Reply-To: <20160718112302.27381-5-vbabka@suse.cz>
+Message-ID: <alpine.DEB.2.10.1607191548370.19940@chino.kir.corp.google.com>
+References: <20160718112302.27381-1-vbabka@suse.cz> <20160718112302.27381-5-vbabka@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1468965604-25023-1-git-send-email-labbott@redhat.com>
-References: <CAGXu5j+nHpHcYT8FyHNe6AFQCdakoSMW=UWDatyxhRK7CB7_=g@mail.gmail.com>
- <1468965604-25023-1-git-send-email-labbott@redhat.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Tue, 19 Jul 2016 15:40:46 -0700
-Message-ID: <CAGXu5jLRkRMutEauAg7dWV9CeDP3nzE4d71Fqt6H2d7OHTy71w@mail.gmail.com>
-Subject: Re: [PATCH] mm: Add is_migrate_cma_page
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, "x86@kernel.org" <x86@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, linux-ia64@vger.kernel.org, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, sparclinux <sparclinux@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>
 
-On Tue, Jul 19, 2016 at 3:00 PM, Laura Abbott <labbott@redhat.com> wrote:
-> Code such as hardened user copy[1] needs a way to tell if a
-> page is CMA or not. Add is_migrate_cma_page in a similar way
-> to is_migrate_isolate_page.
->
-> [1]http://article.gmane.org/gmane.linux.kernel.mm/155238
->
-> Signed-off-by: Laura Abbott <labbott@redhat.com>
+On Mon, 18 Jul 2016, Vlastimil Babka wrote:
 
-Great, thanks!
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 30443804f156..a04a67745927 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3510,7 +3510,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  	struct page *page = NULL;
+>  	unsigned int alloc_flags;
+>  	unsigned long did_some_progress;
+> -	enum migrate_mode migration_mode = MIGRATE_ASYNC;
+> +	enum migrate_mode migration_mode = MIGRATE_SYNC_LIGHT;
+>  	enum compact_result compact_result;
+>  	int compaction_retries = 0;
+>  	int no_progress_loops = 0;
+> @@ -3552,6 +3552,49 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  	if (page)
+>  		goto got_pg;
+>  
+> +	/*
+> +	 * For costly allocations, try direct compaction first, as it's likely
+> +	 * that we have enough base pages and don't need to reclaim.
+> +	 */
+> +	if (can_direct_reclaim && order > PAGE_ALLOC_COSTLY_ORDER) {
+> +		page = __alloc_pages_direct_compact(gfp_mask, order,
+> +						alloc_flags, ac,
+> +						MIGRATE_ASYNC,
+> +						&compact_result);
+> +		if (page)
+> +			goto got_pg;
+> +
+> +		/* Checks for THP-specific high-order allocations */
+> +		if (is_thp_gfp_mask(gfp_mask)) {
+> +			/*
+> +			 * If compaction is deferred for high-order allocations,
+> +			 * it is because sync compaction recently failed. If
+> +			 * this is the case and the caller requested a THP
+> +			 * allocation, we do not want to heavily disrupt the
+> +			 * system, so we fail the allocation instead of entering
+> +			 * direct reclaim.
+> +			 */
+> +			if (compact_result == COMPACT_DEFERRED)
+> +				goto nopage;
+> +
+> +			/*
+> +			 * Compaction is contended so rather back off than cause
+> +			 * excessive stalls.
+> +			 */
+> +			if (compact_result == COMPACT_CONTENDED)
+> +				goto nopage;
+> +
+> +			/*
+> +			 * It can become very expensive to allocate transparent
+> +			 * hugepages at fault, so use asynchronous memory
+> +			 * compaction for THP unless it is khugepaged trying to
+> +			 * collapse. All other requests should tolerate at
+> +			 * least light sync migration.
+> +			 */
+> +			if (!(current->flags & PF_KTHREAD))
+> +				migration_mode = MIGRATE_ASYNC;
+> +		}
+> +	}
+>  
 
-> ---
-> Here's an explicit patch, slightly different than what I posted before. It can
-> be kept separate or folded in as needed.
+If gfp_pfmemalloc_allowed() == true, does this try to do compaction when 
+get_page_from_freelist() would have succeeded with no watermarks?
 
-Assuming there's no objection, I'll add it to my tree and use the new macro.
-
--Kees
-
-> ---
->  include/linux/mmzone.h | 2 ++
->  1 file changed, 2 insertions(+)
->
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 02069c2..c8478b2 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -68,8 +68,10 @@ extern char * const migratetype_names[MIGRATE_TYPES];
->
->  #ifdef CONFIG_CMA
->  #  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)
-> +#  define is_migrate_cma_page(_page) (get_pageblock_migratetype(_page) == MIGRATE_CMA)
->  #else
->  #  define is_migrate_cma(migratetype) false
-> +#  define is_migrate_cma_page(_page) false
->  #endif
->
->  #define for_each_migratetype_order(order, type) \
-> --
-> 2.7.4
->
-
-
-
--- 
-Kees Cook
-Chrome OS & Brillo Security
+>  retry:
+>  	/* Ensure kswapd doesn't accidentally go to sleep as long as we loop */
+> @@ -3606,55 +3649,33 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
+>  		goto nopage;
+>  
+> -	/*
+> -	 * Try direct compaction. The first pass is asynchronous. Subsequent
+> -	 * attempts after direct reclaim are synchronous
+> -	 */
+> +
+> +	/* Try direct reclaim and then allocating */
+> +	page = __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags, ac,
+> +							&did_some_progress);
+> +	if (page)
+> +		goto got_pg;
+> +
+> +	/* Try direct compaction and then allocating */
+>  	page = __alloc_pages_direct_compact(gfp_mask, order, alloc_flags, ac,
+>  					migration_mode,
+>  					&compact_result);
+>  	if (page)
+>  		goto got_pg;
+>  
+> -	/* Checks for THP-specific high-order allocations */
+> -	if (is_thp_gfp_mask(gfp_mask)) {
+> -		/*
+> -		 * If compaction is deferred for high-order allocations, it is
+> -		 * because sync compaction recently failed. If this is the case
+> -		 * and the caller requested a THP allocation, we do not want
+> -		 * to heavily disrupt the system, so we fail the allocation
+> -		 * instead of entering direct reclaim.
+> -		 */
+> -		if (compact_result == COMPACT_DEFERRED)
+> -			goto nopage;
+> -
+> -		/*
+> -		 * Compaction is contended so rather back off than cause
+> -		 * excessive stalls.
+> -		 */
+> -		if(compact_result == COMPACT_CONTENDED)
+> -			goto nopage;
+> -	}
+> -
+>  	if (order && compaction_made_progress(compact_result))
+>  		compaction_retries++;
+>  
+> -	/* Try direct reclaim and then allocating */
+> -	page = __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags, ac,
+> -							&did_some_progress);
+> -	if (page)
+> -		goto got_pg;
+> -
+>  	/* Do not loop if specifically requested */
+>  	if (gfp_mask & __GFP_NORETRY)
+> -		goto noretry;
+> +		goto nopage;
+>  
+>  	/*
+>  	 * Do not retry costly high order allocations unless they are
+>  	 * __GFP_REPEAT
+>  	 */
+>  	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
+> -		goto noretry;
+> +		goto nopage;
+>  
+>  	/*
+>  	 * Costly allocations might have made a progress but this doesn't mean
+> @@ -3693,25 +3714,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  		goto retry;
+>  	}
+>  
+> -noretry:
+> -	/*
+> -	 * High-order allocations do not necessarily loop after direct reclaim
+> -	 * and reclaim/compaction depends on compaction being called after
+> -	 * reclaim so call directly if necessary.
+> -	 * It can become very expensive to allocate transparent hugepages at
+> -	 * fault, so use asynchronous memory compaction for THP unless it is
+> -	 * khugepaged trying to collapse. All other requests should tolerate
+> -	 * at least light sync migration.
+> -	 */
+> -	if (is_thp_gfp_mask(gfp_mask) && !(current->flags & PF_KTHREAD))
+> -		migration_mode = MIGRATE_ASYNC;
+> -	else
+> -		migration_mode = MIGRATE_SYNC_LIGHT;
+> -	page = __alloc_pages_direct_compact(gfp_mask, order, alloc_flags,
+> -					    ac, migration_mode,
+> -					    &compact_result);
+> -	if (page)
+> -		goto got_pg;
+>  nopage:
+>  	warn_alloc_failed(gfp_mask, order, NULL);
+>  got_pg:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
