@@ -1,229 +1,433 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BC78A6B0005
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 12:54:14 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id l89so15935148lfi.3
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 09:54:14 -0700 (PDT)
-Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
-        by mx.google.com with ESMTPS id g63si17624399ljg.35.2016.07.19.09.54.12
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C03A06B0005
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 14:48:09 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id x83so18615553wma.2
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 11:48:09 -0700 (PDT)
+Received: from mail-wm0-x229.google.com (mail-wm0-x229.google.com. [2a00:1450:400c:c09::229])
+        by mx.google.com with ESMTPS id p141si17480084wmg.141.2016.07.19.11.48.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Jul 2016 09:54:12 -0700 (PDT)
-Received: by mail-lf0-x241.google.com with SMTP id l89so1803138lfi.2
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 09:54:12 -0700 (PDT)
-Subject: Re: [PATCH 00/14] Present useful limits to user (v2)
-References: <1468578983-28229-1-git-send-email-toiwoton@gmail.com>
- <20160715130458.GB21685@350D>
- <41b6ca51-1358-0fd7-b45a-dc29a1344865@gmail.com>
- <dc74346d-141b-d22c-72ac-de8f3ce5f766@redhat.com>
-From: Topi Miettinen <toiwoton@gmail.com>
-Message-ID: <be9195cf-85f8-b761-17f2-e0ed5c4a64bc@gmail.com>
-Date: Tue, 19 Jul 2016 16:53:50 +0000
+        Tue, 19 Jul 2016 11:48:07 -0700 (PDT)
+Received: by mail-wm0-x229.google.com with SMTP id i5so37512728wmg.0
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 11:48:07 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <dc74346d-141b-d22c-72ac-de8f3ce5f766@redhat.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <fc3c7f68-bd2e-cb06-c47c-d97c520fc08b@redhat.com>
+References: <1468619065-3222-1-git-send-email-keescook@chromium.org>
+ <1468619065-3222-3-git-send-email-keescook@chromium.org> <fc3c7f68-bd2e-cb06-c47c-d97c520fc08b@redhat.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Tue, 19 Jul 2016 11:48:05 -0700
+Message-ID: <CAGXu5j+nHpHcYT8FyHNe6AFQCdakoSMW=UWDatyxhRK7CB7_=g@mail.gmail.com>
+Subject: Re: [PATCH v3 02/11] mm: Hardened usercopy
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Doug Ledford <dledford@redhat.com>, bsingharora@gmail.com
-Cc: linux-kernel@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Alexander Graf <agraf@suse.com>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, "maintainer:X86 ARCHITECTURE (32-BIT AND 64-BIT)" <x86@kernel.org>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Dennis Dalessandro <dennis.dalessandro@intel.com>, Christian Benvenuti <benve@cisco.com>, Dave Goodell <dgoodell@cisco.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Alex Williamson <alex.williamson@redhat.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, Johannes Weiner <hannes@cmpxchg.org>, Peter Zijlstra <peterz@infradead.org>, Alexei Starovoitov <ast@kernel.org>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Markus Elfring <elfring@users.sourceforge.net>, "David S. Miller" <davem@davemloft.net>, Nicolas Dichtel <nicolas.dichtel@6wind.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Jiri Slaby <jslaby@suse.cz>, Cyrill Gorcunov <gorcunov@openvz.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Dan Carpenter <dan.carpenter@oracle.com>, Michael Kerrisk <mtk.manpages@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Marcus Gelderie <redmnic@gmail.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Joe Perches <joe@perches.com>, Frederic Weisbecker <fweisbec@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Andi Kleen <ak@linux.intel.com>, Oleg Nesterov <oleg@redhat.com>, Stas Sergeev <stsp@list.ru>, Amanieu d'Antras <amanieu@gmail.com>, Richard Weinberger <richard@nod.at>, Wang Xiaoqiang <wangxq10@lzu.edu.cn>, Helge Deller <deller@gmx.de>, Mateusz Guzik <mguzik@redhat.com>, Alex Thorlton <athorlton@sgi.com>, Ben Segall <bsegall@google.com>, John Stultz <john.stultz@linaro.org>, Rik van Riel <riel@redhat.com>, Eric B Munson <emunson@akamai.com>, Alexey Klimov <klimov.linux@gmail.com>, Chen Gang <gang.chen.5i5j@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Alexander Kuleshov <kuleshovmail@gmail.com>, "open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, "open list:IA64 (Itanium) PLATFORM" <linux-ia64@vger.kernel.org>, "open list:KERNEL VIRTUAL MACHINE (KVM) FOR POWERPC" <kvm-ppc@vger.kernel.org>, "open list:KERNEL VIRTUAL MACHINE (KVM)" <kvm@vger.kernel.org>, "open list:LINUX FOR POWERPC (32-BIT AND 64-BIT)" <linuxppc-dev@lists.ozlabs.org>, "open list:INFINIBAND SUBSYSTEM" <linux-rdma@vger.kernel.org>, "open list:FILESYSTEMS (VFS and infrastructure)" <linux-fsdevel@vger.kernel.org>, "open list:CONTROL GROUP (CGROUP)" <cgroups@vger.kernel.org>, "open list:BPF (Safe dynamic programs and tools)" <netdev@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
+To: Laura Abbott <labbott@redhat.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Balbir Singh <bsingharora@gmail.com>, Daniel Micay <danielmicay@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Rik van Riel <riel@redhat.com>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, "x86@kernel.org" <x86@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, linux-ia64@vger.kernel.org, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, sparclinux <sparclinux@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-On 07/18/16 22:05, Doug Ledford wrote:
-> On 7/15/2016 12:35 PM, Topi Miettinen wrote:
->> On 07/15/16 13:04, Balbir Singh wrote:
->>> On Fri, Jul 15, 2016 at 01:35:47PM +0300, Topi Miettinen wrote:
->>>> Hello,
->>>>
->>>> There are many basic ways to control processes, including capabilities,
->>>> cgroups and resource limits. However, there are far fewer ways to find out
->>>> useful values for the limits, except blind trial and error.
->>>>
->>>> This patch series attempts to fix that by giving at least a nice starting
->>>> point from the highwater mark values of the resources in question.
->>>> I looked where each limit is checked and added a call to update the mark
->>>> nearby.
->>>>
->>>> Example run of program from Documentation/accounting/getdelauys.c:
->>>>
->>>> ./getdelays -R -p `pidof smartd`
->>>> printing resource accounting
->>>> RLIMIT_CPU=0
->>>> RLIMIT_FSIZE=0
->>>> RLIMIT_DATA=18198528
->>>> RLIMIT_STACK=135168
->>>> RLIMIT_CORE=0
->>>> RLIMIT_RSS=0
->>>> RLIMIT_NPROC=1
->>>> RLIMIT_NOFILE=55
->>>> RLIMIT_MEMLOCK=0
->>>> RLIMIT_AS=130879488
->>>> RLIMIT_LOCKS=0
->>>> RLIMIT_SIGPENDING=0
->>>> RLIMIT_MSGQUEUE=0
->>>> RLIMIT_NICE=0
->>>> RLIMIT_RTPRIO=0
->>>> RLIMIT_RTTIME=0
->>>>
->>>> ./getdelays -R -C /sys/fs/cgroup/systemd/system.slice/smartd.service/
->>>> printing resource accounting
->>>> sleeping 1, blocked 0, running 0, stopped 0, uninterruptible 0
->>>> RLIMIT_CPU=0
->>>> RLIMIT_FSIZE=0
->>>> RLIMIT_DATA=18198528
->>>> RLIMIT_STACK=135168
->>>> RLIMIT_CORE=0
->>>> RLIMIT_RSS=0
->>>> RLIMIT_NPROC=1
->>>> RLIMIT_NOFILE=55
->>>> RLIMIT_MEMLOCK=0
->>>> RLIMIT_AS=130879488
->>>> RLIMIT_LOCKS=0
->>>> RLIMIT_SIGPENDING=0
->>>> RLIMIT_MSGQUEUE=0
->>>> RLIMIT_NICE=0
->>>> RLIMIT_RTPRIO=0
->>>> RLIMIT_RTTIME=0
->>>
->>> Does this mean that rlimit_data and rlimit_stack should be set to the
->>> values as specified by the data above?
+On Mon, Jul 18, 2016 at 6:06 PM, Laura Abbott <labbott@redhat.com> wrote:
+> On 07/15/2016 02:44 PM, Kees Cook wrote:
 >>
->> My plan is that either system administrator, distro maintainer or even
->> upstream developer can get reasonable values for the limits. They may
->> still be wrong, but things would be better than without any help to
->> configure the system.
-> 
-> This is not necessarily true.  It seems like there is a disconnect
-> between what these various values are for and what you are positioning
-> them as.  Most of these limits are meant to protect the system from
-> resource starvation crashes.  They aren't meant to be any sort of double
-> check on a specific application.  The vast majority of applications can
-> have bugs, leak resources, and do all sorts of other bad things and
-> still not hit these limits.  A program that leaks a file handle an hour
-> but only normally has 50 handles in use would take 950 hours of constant
-> leaking before these limits would kick in to bring the program under
-> control.  That's over a month.  What's more though, the kernel couldn't
-> really care less that a single application leaked files until it got to
-> 1000 open.  The real point of the limit on file handles (since they are
-> cheap) is just not to let the system get brought down.  Someone could
-> maliciously fire up 1000 processes, and they could all attempt to open
-> up as many files as possible in order to drown the system in open
-> inodes.  The combination of the limit on maximum user processes and
-> maximum files per process are intended to prevent this.  They are not
-> intended to prevent a single, properly running application from
-> operating.  In fact, there are very few applications that are likely to
-> break the 1000 file per process limit.  It is outrageously high for most
-> applications.  They will leak files and do all sorts of bad things
-> without this ever stopping them.  But it does stop malicious programs.
-> And the process limit stops malicious users too.  The max locked memory
-> is used by almost no processes, and for the very few that use it, the
-> default is more than enough.  The major exception is the RDMA stack,
-> which uses it so much that we just disable it on large systems because
-> it's impossible to predict how much we'll need and we don't want a job
-> to get killed because it couldn't get the memory it needs for buffers.
-> The limit on POSIX message queues is another one where it's more than
-> enough for most applications which don't use this feature at all, and
-> the few systems that use this feature adjust the limit to something sane
-> on their system (we can't make the default sane for these special
-> systems or else it becomes an avenue for Denial of Service attack, so
-> the default must stay low and servers that make extensive use of this
-> feature must up their limit on a case by case basis).
-> 
->>>
->>> Do we expect a smart user space daemon to then tweak the RLIMIT values?
+>> This is the start of porting PAX_USERCOPY into the mainline kernel. This
+>> is the first set of features, controlled by CONFIG_HARDENED_USERCOPY. The
+>> work is based on code by PaX Team and Brad Spengler, and an earlier port
+>> from Casey Schaufler. Additional non-slab page tests are from Rik van
+>> Riel.
 >>
->> Someone could write an autotuning daemon that checks if the system has
->> changed (for example due to upgrade) and then run some tests to
->> reconfigure the system. But the limits are a bit too fragile, or rather,
->> applications can't handle failure, so I don't know if that would really
->> work.
-> 
-> This misses the point of most of these limits.  They aren't there to
-> keep normal processes and normal users in check.  They are there to stop
-> runaway use.  This runaway situation might be accidental, or it might be
-> a nefarious users.  They are generally set exceedingly high for those
-> things every application uses, and fairly low for those things that
-> almost no application uses but which could be abused by the nefarious
-> user crowd.
-> 
-> Moreover, for a large percentage of applications, the highwatermark is a
-> source of great trickery.  For instance, if you have a web server that
-> is hosting web pages written in python, and therefore are using
-> mod_python in the httpd server (assuming apache here), then your
-> highwatermark will never be a reliable, stable thing.  If you get 1000
-> web requests in a minute, all utilizing the mod_python resource in the
-> web server, and you don't have your httpd configured to restart after
-> every few hundred requests handled, then mod_python in your httpd
-> process will grow seemingly without limit.  It will consume tons of
-> memory.  And the only limit on how much memory it will consume is
-> determined by how many web requests it handles in between its garbage
-> collection intervals * how much memory it allocates per request.  If you
-> don't happen to catch the absolute highest amount while you are
-> gathering your watermarks, then when you actually switch the system to
-> enforcing the limits you learned from all your highwatermarks (you are
-> planning on doing that aren't you?....I didn't see a copy of the patch
-> 1/14, so I don't know if this infrastructure ever goes back to enforcing
-> the limits or not, but I would assume so, what point is there in
-> learning what the limits should be if you then never turn around and
-> enforce them?), load spikes will cause random program failures.
-> 
-> Really, this looks like a solution in search of a problem.  Right now,
-> the limits are set where they are because they do two things:
-> 
-> 1) Stay out of the way of the vast majority of applications.  Those
-> applications that get tripped up by the defaults (like RDMA applications
-> getting stopped by memlock settings) have setup guides that spell out
-> which limits need changed and hints on what to change them too.
-> 
-> 2) Stop nefarious users or errant applications from a total runaway
-> situation on a machine.
-> 
-> If your applications run without fail unless they have already failed,
-> and the whole machine doesn't go down with your failed application, then
-> the limits are working as designed.  If your typical machine
-> configuration includes 256GB of RAM, then you could probably stand to
-> increase some of the limits safely if you wanted to.  But unless you
-> have applications getting killed because of these limits, why would you?
+>> This patch contains the logic for validating several conditions when
+>> performing copy_to_user() and copy_from_user() on the kernel object
+>> being copied to/from:
+>> - address range doesn't wrap around
+>> - address range isn't NULL or zero-allocated (with a non-zero copy size)
+>> - if on the slab allocator:
+>>   - object size must be less than or equal to copy size (when check is
+>>     implemented in the allocator, which appear in subsequent patches)
+>> - otherwise, object must not span page allocations
+>> - if on the stack
+>>   - object must not extend before/after the current process task
+>>   - object must be contained by the current stack frame (when there is
+>>     arch/build support for identifying stack frames)
+>> - object must not overlap with kernel text
+>>
+>> Signed-off-by: Kees Cook <keescook@chromium.org>
+>> Tested-By: Valdis Kletnieks <valdis.kletnieks@vt.edu>
+>> Tested-by: Michael Ellerman <mpe@ellerman.id.au>
+>> ---
+>>  arch/Kconfig                |   7 ++
+>>  include/linux/slab.h        |  12 +++
+>>  include/linux/thread_info.h |  15 +++
+>>  mm/Makefile                 |   4 +
+>>  mm/usercopy.c               | 234
+>> ++++++++++++++++++++++++++++++++++++++++++++
+>>  security/Kconfig            |  28 ++++++
+>>  6 files changed, 300 insertions(+)
+>>  create mode 100644 mm/usercopy.c
+>>
+>> diff --git a/arch/Kconfig b/arch/Kconfig
+>> index 5e2776562035..195ee4cc939a 100644
+>> --- a/arch/Kconfig
+>> +++ b/arch/Kconfig
+>> @@ -433,6 +433,13 @@ config HAVE_ARCH_WITHIN_STACK_FRAMES
+>>           and similar) by implementing an inline
+>> arch_within_stack_frames(),
+>>           which is used by CONFIG_HARDENED_USERCOPY.
+>>
+>> +config HAVE_ARCH_LINEAR_KERNEL_MAPPING
+>> +       bool
+>> +       help
+>> +         An architecture should select this if it has a secondary linear
+>> +         mapping of the kernel text. This is used to verify that kernel
+>> +         text exposures are not visible under CONFIG_HARDENED_USERCOPY.
+>> +
+>>  config HAVE_CONTEXT_TRACKING
+>>         bool
+>>         help
+>> diff --git a/include/linux/slab.h b/include/linux/slab.h
+>> index aeb3e6d00a66..96a16a3fb7cb 100644
+>> --- a/include/linux/slab.h
+>> +++ b/include/linux/slab.h
+>> @@ -155,6 +155,18 @@ void kfree(const void *);
+>>  void kzfree(const void *);
+>>  size_t ksize(const void *);
+>>
+>> +#ifdef CONFIG_HAVE_HARDENED_USERCOPY_ALLOCATOR
+>> +const char *__check_heap_object(const void *ptr, unsigned long n,
+>> +                               struct page *page);
+>> +#else
+>> +static inline const char *__check_heap_object(const void *ptr,
+>> +                                             unsigned long n,
+>> +                                             struct page *page)
+>> +{
+>> +       return NULL;
+>> +}
+>> +#endif
+>> +
+>>  /*
+>>   * Some archs want to perform DMA into kmalloc caches and need a
+>> guaranteed
+>>   * alignment larger than the alignment of a 64-bit integer.
+>> diff --git a/include/linux/thread_info.h b/include/linux/thread_info.h
+>> index 3d5c80b4391d..f24b99eac969 100644
+>> --- a/include/linux/thread_info.h
+>> +++ b/include/linux/thread_info.h
+>> @@ -155,6 +155,21 @@ static inline int arch_within_stack_frames(const void
+>> * const stack,
+>>  }
+>>  #endif
+>>
+>> +#ifdef CONFIG_HARDENED_USERCOPY
+>> +extern void __check_object_size(const void *ptr, unsigned long n,
+>> +                                       bool to_user);
+>> +
+>> +static inline void check_object_size(const void *ptr, unsigned long n,
+>> +                                    bool to_user)
+>> +{
+>> +       __check_object_size(ptr, n, to_user);
+>> +}
+>> +#else
+>> +static inline void check_object_size(const void *ptr, unsigned long n,
+>> +                                    bool to_user)
+>> +{ }
+>> +#endif /* CONFIG_HARDENED_USERCOPY */
+>> +
+>>  #endif /* __KERNEL__ */
+>>
+>>  #endif /* _LINUX_THREAD_INFO_H */
+>> diff --git a/mm/Makefile b/mm/Makefile
+>> index 78c6f7dedb83..32d37247c7e5 100644
+>> --- a/mm/Makefile
+>> +++ b/mm/Makefile
+>> @@ -21,6 +21,9 @@ KCOV_INSTRUMENT_memcontrol.o := n
+>>  KCOV_INSTRUMENT_mmzone.o := n
+>>  KCOV_INSTRUMENT_vmstat.o := n
+>>
+>> +# Since __builtin_frame_address does work as used, disable the warning.
+>> +CFLAGS_usercopy.o += $(call cc-disable-warning, frame-address)
+>> +
+>>  mmu-y                  := nommu.o
+>>  mmu-$(CONFIG_MMU)      := gup.o highmem.o memory.o mincore.o \
+>>                            mlock.o mmap.o mprotect.o mremap.o msync.o
+>> rmap.o \
+>> @@ -99,3 +102,4 @@ obj-$(CONFIG_USERFAULTFD) += userfaultfd.o
+>>  obj-$(CONFIG_IDLE_PAGE_TRACKING) += page_idle.o
+>>  obj-$(CONFIG_FRAME_VECTOR) += frame_vector.o
+>>  obj-$(CONFIG_DEBUG_PAGE_REF) += debug_page_ref.o
+>> +obj-$(CONFIG_HARDENED_USERCOPY) += usercopy.o
+>> diff --git a/mm/usercopy.c b/mm/usercopy.c
+>> new file mode 100644
+>> index 000000000000..e4bf4e7ccdf6
+>> --- /dev/null
+>> +++ b/mm/usercopy.c
+>> @@ -0,0 +1,234 @@
+>> +/*
+>> + * This implements the various checks for CONFIG_HARDENED_USERCOPY*,
+>> + * which are designed to protect kernel memory from needless exposure
+>> + * and overwrite under many unintended conditions. This code is based
+>> + * on PAX_USERCOPY, which is:
+>> + *
+>> + * Copyright (C) 2001-2016 PaX Team, Bradley Spengler, Open Source
+>> + * Security Inc.
+>> + *
+>> + * This program is free software; you can redistribute it and/or modify
+>> + * it under the terms of the GNU General Public License version 2 as
+>> + * published by the Free Software Foundation.
+>> + *
+>> + */
+>> +#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+>> +
+>> +#include <linux/mm.h>
+>> +#include <linux/slab.h>
+>> +#include <asm/sections.h>
+>> +
+>> +enum {
+>> +       BAD_STACK = -1,
+>> +       NOT_STACK = 0,
+>> +       GOOD_FRAME,
+>> +       GOOD_STACK,
+>> +};
+>> +
+>> +/*
+>> + * Checks if a given pointer and length is contained by the current
+>> + * stack frame (if possible).
+>> + *
+>> + *     0: not at all on the stack
+>> + *     1: fully within a valid stack frame
+>> + *     2: fully on the stack (when can't do frame-checking)
+>> + *     -1: error condition (invalid stack position or bad stack frame)
+>> + */
+>
+>
+> Nit: update comments to match enum (BAD_STACK instead of -1 etc.)
 
-Thanks for the long explanation. I'd suppose loose limits are also used
-because it's hard to know good tighter values. I was thinking of using
-tighter settings to make things less easy for exploit writers. With
-tight limits for RLIMIT_AS, RLIMIT_DATA and RLIMIT_STACK (also
-RLIMIT_FSIZE in case a daemon is not supposed to create new files) it
-would not so easy for the initial exploit to mmap() a large next stage
-payload.
+Ah, yes, thanks. I will fix this.
 
-But there could be more direct ways to prevent that. For example, if
-there was a way for seccomp filters to access a share state, they could
-implement a state machine that could switch to a stricter mode after the
-application has entered the event loop. Most of the limits or the denial
-of service case are not interesting to me anyway.
+>> +static noinline int check_stack_object(const void *obj, unsigned long
+>> len)
+>> +{
+>> +       const void * const stack = task_stack_page(current);
+>> +       const void * const stackend = stack + THREAD_SIZE;
+>> +       int ret;
+>> +
+>> +       /* Object is not on the stack at all. */
+>> +       if (obj + len <= stack || stackend <= obj)
+>> +               return NOT_STACK;
+>> +
+>> +       /*
+>> +        * Reject: object partially overlaps the stack (passing the
+>> +        * the check above means at least one end is within the stack,
+>> +        * so if this check fails, the other end is outside the stack).
+>> +        */
+>> +       if (obj < stack || stackend < obj + len)
+>> +               return BAD_STACK;
+>> +
+>> +       /* Check if object is safely within a valid frame. */
+>> +       ret = arch_within_stack_frames(stack, stackend, obj, len);
+>> +       if (ret)
+>> +               return ret;
+>> +
+>> +       return GOOD_STACK;
+>> +}
+>> +
+>> +static void report_usercopy(const void *ptr, unsigned long len,
+>> +                           bool to_user, const char *type)
+>> +{
+>> +       pr_emerg("kernel memory %s attempt detected %s %p (%s) (%lu
+>> bytes)\n",
+>> +               to_user ? "exposure" : "overwrite",
+>> +               to_user ? "from" : "to", ptr, type ? : "unknown", len);
+>> +       /*
+>> +        * For greater effect, it would be nice to do do_group_exit(),
+>> +        * but BUG() actually hooks all the lock-breaking and per-arch
+>> +        * Oops code, so that is used here instead.
+>> +        */
+>> +       BUG();
+>> +}
+>> +
+>> +/* Returns true if any portion of [ptr,ptr+n) over laps with [low,high).
+>> */
+>> +static bool overlaps(const void *ptr, unsigned long n, unsigned long low,
+>> +                    unsigned long high)
+>> +{
+>> +       unsigned long check_low = (uintptr_t)ptr;
+>> +       unsigned long check_high = check_low + n;
+>> +
+>> +       /* Does not overlap if entirely above or entirely below. */
+>> +       if (check_low >= high || check_high < low)
+>> +               return false;
+>> +
+>> +       return true;
+>> +}
+>> +
+>> +/* Is this address range in the kernel text area? */
+>> +static inline const char *check_kernel_text_object(const void *ptr,
+>> +                                                  unsigned long n)
+>> +{
+>> +       unsigned long textlow = (unsigned long)_stext;
+>> +       unsigned long texthigh = (unsigned long)_etext;
+>> +
+>> +       if (overlaps(ptr, n, textlow, texthigh))
+>> +               return "<kernel text>";
+>> +
+>> +#ifdef HAVE_ARCH_LINEAR_KERNEL_MAPPING
+>> +       /* Check against linear mapping as well. */
+>> +       if (overlaps(ptr, n, (unsigned long)__va(__pa(textlow)),
+>> +                    (unsigned long)__va(__pa(texthigh))))
+>> +               return "<linear kernel text>";
+>> +#endif
+>> +
+>> +       return NULL;
+>> +}
+>> +
+>> +static inline const char *check_bogus_address(const void *ptr, unsigned
+>> long n)
+>> +{
+>> +       /* Reject if object wraps past end of memory. */
+>> +       if (ptr + n < ptr)
+>> +               return "<wrapped address>";
+>> +
+>> +       /* Reject if NULL or ZERO-allocation. */
+>> +       if (ZERO_OR_NULL_PTR(ptr))
+>> +               return "<null>";
+>> +
+>> +       return NULL;
+>> +}
+>> +
+>> +static inline const char *check_heap_object(const void *ptr, unsigned
+>> long n,
+>> +                                           bool to_user)
+>> +{
+>> +       struct page *page, *endpage;
+>> +       const void *end = ptr + n - 1;
+>> +
+>> +       if (!virt_addr_valid(ptr))
+>> +               return NULL;
+>> +
+>> +       page = virt_to_head_page(ptr);
+>> +
+>> +       /* Check slab allocator for flags and size. */
+>> +       if (PageSlab(page))
+>> +               return __check_heap_object(ptr, n, page);
+>> +
+>> +       /*
+>> +        * Sometimes the kernel data regions are not marked Reserved (see
+>> +        * check below). And sometimes [_sdata,_edata) does not cover
+>> +        * rodata and/or bss, so check each range explicitly.
+>> +        */
+>> +
+>> +       /* Allow reads of kernel rodata region (if not marked as
+>> Reserved). */
+>> +       if (ptr >= (const void *)__start_rodata &&
+>> +           end <= (const void *)__end_rodata) {
+>> +               if (!to_user)
+>> +                       return "<rodata>";
+>> +               return NULL;
+>> +       }
+>> +
+>> +       /* Allow kernel data region (if not marked as Reserved). */
+>> +       if (ptr >= (const void *)_sdata && end <= (const void *)_edata)
+>> +               return NULL;
+>> +
+>> +       /* Allow kernel bss region (if not marked as Reserved). */
+>> +       if (ptr >= (const void *)__bss_start &&
+>> +           end <= (const void *)__bss_stop)
+>> +               return NULL;
+>> +
+>> +       /* Is the object wholly within one base page? */
+>> +       if (likely(((unsigned long)ptr & (unsigned long)PAGE_MASK) ==
+>> +                  ((unsigned long)end & (unsigned long)PAGE_MASK)))
+>> +               return NULL;
+>> +
+>> +       /* Allow if start and end are inside the same compound page. */
+>> +       endpage = virt_to_head_page(end);
+>> +       if (likely(endpage == page))
+>> +               return NULL;
+>> +
+>> +       /*
+>> +        * Reject if range is not Reserved (i.e. special or device
+>> memory),
+>> +        * since then the object spans several independently allocated
+>> pages.
+>> +        */
+>> +       for (; ptr <= end ; ptr += PAGE_SIZE, page =
+>> virt_to_head_page(ptr)) {
+>> +               if (!PageReserved(page))
+>> +                       return "<spans multiple pages>";
+>> +       }
+>> +
+>
+>
+> This doesn't work when copying CMA allocated memory since CMA purposely
+> allocates larger than a page block size without setting head pages.
+> Given CMA may be used with drivers doing zero copy buffers, I think it
+> should be permitted.
+>
+> Something like the following lets it pass (I can clean up and submit
+> the is_migrate_cma_page APIs as a separate patch for review)
 
-> Right now, I'm inclined to NAK the patch set.  I've only seen patch 9/14
-> since you didn't Cc: everyone on the patch 1/14 that added the
-> infrastructure.  But, as I mentioned in another email, I think this can
-> be accomplished via a systemtap script instead so we keep the clutter
-> out of the kernel.  And more importantly, these patches seem to be
-> thinking about these limits as though they are supposed to be some sort
-> of tight fitting container around applications that catch an errant
-> application as soon as it steps out of bounds.  Nothing could be further
-> from the truth, and if we actually implemented something of that sort,
-> programs susceptible to high resource usage during load spikes would
-> suddenly start failing on a frequent basis.  The proof that these limits
-> are working is given by the fact that we rarely hear from users about
-> their programs being killed for resource consumption, and yet we also
-> don't hear from users about their systems going down due to runaway
-> applications.  From what I can tell from these patches, I would suspect
-> complaints from one of those two issues to increase once these patches
-> are in place and put in use, and that doesn't seem like a good thing.
-> 
+Yeah, this would be great. I'd rather use an accessor to check this
+than a direct check for MIGRATE_CMA.
 
-Those complaints could increase either way if the users want to use
-tight limits, with kernel assistance or with systemtap. Again, the cause
-of lack of complaints could also be that users are unaware of how to get
-tight limits, so the users have no option but to either ignore the
-limits or to use loose settings.
+>
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 02069c2..e9b0661 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -18,6 +18,7 @@
+>  #include <linux/page-flags-layout.h>
+>  #include <linux/atomic.h>
+>  #include <asm/page.h>
+> +#include <asm/pgtable.h>
+>   /* Free memory management - zoned buddy allocator.  */
+>  #ifndef CONFIG_FORCE_MAX_ZONEORDER
+> @@ -85,6 +86,18 @@ extern int page_group_by_mobility_disabled;
+>         get_pfnblock_flags_mask(page, page_to_pfn(page),                \
+>                         PB_migrate_end, MIGRATETYPE_MASK)
+>  +#ifdef CONFIG_CMA
+> +static inline bool is_migrate_cma_page(struct page *page)
+> +{
+> +        return get_pageblock_migratetype(page) == MIGRATE_CMA;
+> +}
+> +#else
+> +static inline bool is_migrate_cma_page(struct page *page)
+> +{
+> +        return false;
+> +}
+> +#endif
+> +
+>  struct free_area {
+>         struct list_head        free_list[MIGRATE_TYPES];
+>         unsigned long           nr_free;
+> diff --git a/mm/usercopy.c b/mm/usercopy.c
+> index e4bf4e7..15275ab 100644
+> --- a/mm/usercopy.c
+> +++ b/mm/usercopy.c
+> @@ -16,6 +16,7 @@
+>   #include <linux/mm.h>
+>  #include <linux/slab.h>
+> +#include <linux/mmzone.h>
+>  #include <asm/sections.h>
+>   enum {
+> @@ -174,7 +175,7 @@ static inline const char *check_heap_object(const void
+> *ptr, unsigned long n,
+>          * since then the object spans several independently allocated
+> pages.
+>          */
+>         for (; ptr <= end ; ptr += PAGE_SIZE, page = virt_to_head_page(ptr))
+> {
+> -               if (!PageReserved(page))
+> +               if (!PageReserved(page) && !is_migrate_cma_page(page))
+>                         return "<spans multiple pages>";
+>         }
 
--Topi
+Yeah, I'll modify this a bit so that which type it starts as is
+maintained for all pages (rather than allowing to flip back and forth
+-- even though that is likely impossible).
+
+-Kees
+
+-- 
+Kees Cook
+Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
