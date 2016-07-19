@@ -1,95 +1,216 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4077D6B0005
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 03:20:18 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id k16so21581876qke.3
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 00:20:18 -0700 (PDT)
-Received: from szxga03-in.huawei.com ([119.145.14.66])
-        by mx.google.com with ESMTPS id d12si18867487qkg.156.2016.07.19.00.20.16
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 19 Jul 2016 00:20:17 -0700 (PDT)
-Message-ID: <578DD44F.3040507@huawei.com>
-Date: Tue, 19 Jul 2016 15:18:39 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B2E86B0005
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 03:31:24 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id q83so25599498iod.2
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 00:31:24 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id s142si12003529ita.68.2016.07.19.00.31.22
+        for <linux-mm@kvack.org>;
+        Tue, 19 Jul 2016 00:31:23 -0700 (PDT)
+From: Dou Liyang <douly.fnst@cn.fujitsu.com>
+Subject: [PATCH v8 0/7] Make cpuid <-> nodeid mapping persistent
+Date: Tue, 19 Jul 2016 15:28:01 +0800
+Message-ID: <1468913288-16605-1-git-send-email-douly.fnst@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] mem-hotplug: use GFP_HIGHUSER_MOVABLE in, alloc_migrate_target()
-References: <57884EAA.9030603@huawei.com> <20160718055150.GF9460@js1304-P5Q-DELUXE> <578C8C8A.8000007@huawei.com> <7ce4a7ac-07aa-6a81-48c2-91c4a9355778@suse.cz> <578C93CF.50509@huawei.com> <20160719065042.GC17479@js1304-P5Q-DELUXE>
-In-Reply-To: <20160719065042.GC17479@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: cl@linux.com, tj@kernel.org, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, len.brown@intel.com, lenb@kernel.org, tglx@linutronix.de, chen.tang@easystack.cn, rafael@kernel.org
+Cc: x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dou Liyang <douly.fnst@cn.fujitsu.com>
 
-On 2016/7/19 14:50, Joonsoo Kim wrote:
+[Problem]
 
-> On Mon, Jul 18, 2016 at 04:31:11PM +0800, Xishi Qiu wrote:
->> On 2016/7/18 16:05, Vlastimil Babka wrote:
->>
->>> On 07/18/2016 10:00 AM, Xishi Qiu wrote:
->>>> On 2016/7/18 13:51, Joonsoo Kim wrote:
->>>>
->>>>> On Fri, Jul 15, 2016 at 10:47:06AM +0800, Xishi Qiu wrote:
->>>>>> alloc_migrate_target() is called from migrate_pages(), and the page
->>>>>> is always from user space, so we can add __GFP_HIGHMEM directly.
->>>>>
->>>>> No, all migratable pages are not from user space. For example,
->>>>> blockdev file cache has __GFP_MOVABLE and migratable but it has no
->>>>> __GFP_HIGHMEM and __GFP_USER.
->>>>>
->>>>
->>>> Hi Joonsoo,
->>>>
->>>> So the original code "gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;"
->>>> is not correct?
->>>
->>> It's not incorrect. GFP_USER just specifies some reclaim flags, and may perhaps restrict allocation through __GFP_HARDWALL, where the original
->>> page could have been allocated without the restriction. But it doesn't put the place in an unexpected address range, as placing a non-highmem page into highmem could. __GFP_MOVABLE then just controls a heuristic for placement within a zone.
->>>
->>>>> And, zram's memory isn't GFP_HIGHUSER_MOVABLE but has __GFP_MOVABLE.
->>>>>
->>>>
->>>> Can we distinguish __GFP_MOVABLE or GFP_HIGHUSER_MOVABLE when doing
->>>> mem-hotplug?
->>>
->>> I don't understand the question here, can you rephrase with more detail? Thanks.
->>>
->>
->> Hi Joonsoo,
-> 
-> Above is answered by Vlastimil. :)
-> 
->> When we do memory offline, and the zone is movable zone,
->> can we use "alloc_pages_node(nid, GFP_HIGHUSER_MOVABLE, 0);" to alloc a
->> new page? the nid is the next node.
-> 
-> I don't know much about memory offline, but, AFAIK, memory offline
-> could happen on non-movable zone like as ZONE_NORMAL. Perhaps, you can add
-> "if zone of the page is movable zone then alloc with GFP_HIGHUSER_MOVABLE".
-> 
-> Thanks.
-> 
+cpuid <-> nodeid mapping is firstly established at boot time. And workqueue caches
+the mapping in wq_numa_possible_cpumask in wq_numa_init() at boot time.
 
-Hi Joonsoo and Vlastimil,
+When doing node online/offline, cpuid <-> nodeid mapping is established/destroyed,
+which means, cpuid <-> nodeid mapping will change if node hotplug happens. But
+workqueue does not update wq_numa_possible_cpumask.
 
-Memory offline could happen on both movable zone and non-movable zone, and we
-can offline the whole node if the zone is movable_zone(the node only has one
-movable_zone), and if the zone is normal_zone, we cannot offline the whole node,
-because some kernel memory can't be migrated.
+So here is the problem:
 
-So how about change alloc_migrate_target() to alloc memory from the next node
-with GFP_HIGHUSER_MOVABLE, if the offline zone is movable_zone.
+Assume we have the following cpuid <-> nodeid in the beginning:
 
-And if the offline zone is normal_zone, we don't change anything, that means
-the new page may be from the same node.
+  Node | CPU
+------------------------
+node 0 |  0-14, 60-74
+node 1 | 15-29, 75-89
+node 2 | 30-44, 90-104
+node 3 | 45-59, 105-119
 
-Thanks,
-Xishi Qiu
+and we hot-remove node2 and node3, it becomes:
 
-> .
-> 
+  Node | CPU
+------------------------
+node 0 |  0-14, 60-74
+node 1 | 15-29, 75-89
+
+and we hot-add node4 and node5, it becomes:
+
+  Node | CPU
+------------------------
+node 0 |  0-14, 60-74
+node 1 | 15-29, 75-89
+node 4 | 30-59
+node 5 | 90-119
+
+But in wq_numa_possible_cpumask, cpu30 is still mapped to node2, and the like.
+
+When a pool workqueue is initialized, if its cpumask belongs to a node, its
+pool->node will be mapped to that node. And memory used by this workqueue will
+also be allocated on that node.
+
+static struct worker_pool *get_unbound_pool(const struct workqueue_attrs *attrs){
+...
+        /* if cpumask is contained inside a NUMA node, we belong to that node */
+        if (wq_numa_enabled) {
+                for_each_node(node) {
+                        if (cpumask_subset(pool->attrs->cpumask,
+                                           wq_numa_possible_cpumask[node])) {
+                                pool->node = node;
+                                break;
+                        }
+                }
+        }
+
+Since wq_numa_possible_cpumask is not updated, it could be mapped to an offline node,
+which will lead to memory allocation failure:
+
+ SLUB: Unable to allocate memory on node 2 (gfp=0x80d0)
+  cache: kmalloc-192, object size: 192, buffer size: 192, default order: 1, min order: 0
+  node 0: slabs: 6172, objs: 259224, free: 245741
+  node 1: slabs: 3261, objs: 136962, free: 127656
+
+It happens here:
+
+create_worker(struct worker_pool *pool)
+ |--> worker = alloc_worker(pool->node);
+
+static struct worker *alloc_worker(int node)
+{
+        struct worker *worker;
+
+        worker = kzalloc_node(sizeof(*worker), GFP_KERNEL, node); --> Here, useing the wrong node.
+
+        ......
+
+        return worker;
+}
+
+
+[Solution]
+
+There are four mappings in the kernel:
+1. nodeid (logical node id)   <->   pxm
+2. apicid (physical cpu id)   <->   nodeid
+3. cpuid (logical cpu id)     <->   apicid
+4. cpuid (logical cpu id)     <->   nodeid
+
+1. pxm (proximity domain) is provided by ACPI firmware in SRAT, and nodeid <-> pxm
+   mapping is setup at boot time. This mapping is persistent, won't change.
+
+2. apicid <-> nodeid mapping is setup using info in 1. The mapping is setup at boot
+   time and CPU hotadd time, and cleared at CPU hotremove time. This mapping is also
+   persistent.
+
+3. cpuid <-> apicid mapping is setup at boot time and CPU hotadd time. cpuid is
+   allocated, lower ids first, and released at CPU hotremove time, reused for other
+   hotadded CPUs. So this mapping is not persistent.
+
+4. cpuid <-> nodeid mapping is also setup at boot time and CPU hotadd time, and
+   cleared at CPU hotremove time. As a result of 3, this mapping is not persistent.
+
+To fix this problem, we establish cpuid <-> nodeid mapping for all the possible
+cpus at boot time, and make it persistent. And according to init_cpu_to_node(),
+cpuid <-> nodeid mapping is based on apicid <-> nodeid mapping and cpuid <-> apicid
+mapping. So the key point is obtaining all cpus' apicid.
+
+apicid can be obtained by _MAT (Multiple APIC Table Entry) method or found in
+MADT (Multiple APIC Description Table). So we finish the job in the following steps:
+
+1. Enable apic registeration flow to handle both enabled and disabled cpus.
+   This is done by introducing an extra parameter to generic_processor_info to let the
+   caller control if disabled cpus are ignored.
+
+2. Introduce a new array storing all possible cpuid <-> apicid mapping. And also modify
+   the way cpuid is calculated. Establish all possible cpuid <-> apicid mapping when
+   registering local apic. Store the mapping in this array.
+
+3. Enable _MAT and MADT relative apis to return non-presnet or disabled cpus' apicid.
+   This is also done by introducing an extra parameter to these apis to let the caller
+   control if disabled cpus are ignored.
+
+4. Establish all possible cpuid <-> nodeid mapping.
+   This is done via an additional acpi namespace walk for processors.
+
+
+For previous discussion, please refer to:
+https://lkml.org/lkml/2015/2/27/145
+https://lkml.org/lkml/2015/3/25/989
+https://lkml.org/lkml/2015/5/14/244
+https://lkml.org/lkml/2015/7/7/200
+https://lkml.org/lkml/2015/9/27/209
+https://lkml.org/lkml/2016/5/19/212
+
+Change log v7 -> v8:
+1. Provide the mechanism to validate processors in the ACPI tables.
+2. Provide the interface to validate the proc_id when setting the mapping. 
+
+Change log v6 -> v7:
+1. Fix arm64 build failure.
+
+Change log v5 -> v6:
+1. Define func acpi_map_cpu2node() for x86 and ia64 respectively.
+
+Change log v4 -> v5:
+1. Remove useless code in patch 1.
+2. Small improvement of commit message.
+
+Change log v3 -> v4:
+1. Fix the kernel panic at boot time. The cause is that I tried to build zonelists
+   before per cpu areas were initialized.
+
+Change log v2 -> v3:
+1. Online memory-less nodes at boot time to map cpus of memory-less nodes.
+2. Build zonelists for memory-less nodes so that memory allocator will fall 
+   back to proper nodes automatically.
+
+Change log v1 -> v2:
+1. Split code movement and actual changes. Add patch 1.
+2. Synchronize best near online node record when node hotplug happens. In patch 2.
+3. Fix some comment.
+
+Dou Liyang (2):
+  Provide the mechanism to validate processors in the ACPI tables
+  Provide the interface to validate the proc_id which they give
+
+Gu Zheng (4):
+  x86, acpi, cpu-hotplug: Enable acpi to register all possible cpus at
+    boot time.
+  x86, acpi, cpu-hotplug: Introduce cpuid_to_apicid[] array to store
+    persistent cpuid <-> apicid mapping.
+  x86, acpi, cpu-hotplug: Enable MADT APIs to return disabled apicid.
+  x86, acpi, cpu-hotplug: Set persistent cpuid <-> nodeid mapping when
+    booting.
+
+Tang Chen (1):
+  x86, memhp, numa: Online memory-less nodes at boot time.
+
+ arch/ia64/kernel/acpi.c       |   3 +-
+ arch/x86/include/asm/mpspec.h |   1 +
+ arch/x86/kernel/acpi/boot.c   |  10 ++--
+ arch/x86/kernel/apic/apic.c   |  85 +++++++++++++++++++++++++---
+ arch/x86/mm/numa.c            |  27 +++++----
+ drivers/acpi/acpi_processor.c | 105 ++++++++++++++++++++++++++++++++++-
+ drivers/acpi/bus.c            |   3 +
+ drivers/acpi/processor_core.c | 126 +++++++++++++++++++++++++++++++++++-------
+ include/linux/acpi.h          |   5 ++
+ 9 files changed, 314 insertions(+), 51 deletions(-)
+
+-- 
+2.5.5
 
 
 
