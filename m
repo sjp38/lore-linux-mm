@@ -1,239 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f197.google.com (mail-ob0-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 815AE6B0261
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 03:31:37 -0400 (EDT)
-Received: by mail-ob0-f197.google.com with SMTP id fg3so18291897obb.2
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 00:31:37 -0700 (PDT)
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 40EA16B0264
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 03:31:42 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id q62so17143883oih.0
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 00:31:42 -0700 (PDT)
 Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id b72si20938348iob.246.2016.07.19.00.31.36
+        by mx.google.com with ESMTP id k6si12005942ith.33.2016.07.19.00.31.40
         for <linux-mm@kvack.org>;
-        Tue, 19 Jul 2016 00:31:36 -0700 (PDT)
+        Tue, 19 Jul 2016 00:31:41 -0700 (PDT)
 From: Dou Liyang <douly.fnst@cn.fujitsu.com>
-Subject: [PATCH v8 4/7] x86, acpi, cpu-hotplug: Enable MADT APIs to return disabled apicid.
-Date: Tue, 19 Jul 2016 15:28:05 +0800
-Message-ID: <1468913288-16605-5-git-send-email-douly.fnst@cn.fujitsu.com>
+Subject: [PATCH v8 6/7] Provide the mechanism to validate processors in the ACPI tables
+Date: Tue, 19 Jul 2016 15:28:07 +0800
+Message-ID: <1468913288-16605-7-git-send-email-douly.fnst@cn.fujitsu.com>
 In-Reply-To: <1468913288-16605-1-git-send-email-douly.fnst@cn.fujitsu.com>
 References: <1468913288-16605-1-git-send-email-douly.fnst@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: cl@linux.com, tj@kernel.org, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, len.brown@intel.com, lenb@kernel.org, tglx@linutronix.de, chen.tang@easystack.cn, rafael@kernel.org
-Cc: x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gu Zheng <guz.fnst@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Zhu Guihua <zhugh.fnst@cn.fujitsu.com>, Dou Liyang <douly.fnst@cn.fujitsu.com>
+Cc: x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dou Liyang <douly.fnst@cn.fujitsu.com>
 
-From: Gu Zheng <guz.fnst@cn.fujitsu.com>
+[Problem]
 
-The whole patch-set aims at making cpuid <-> nodeid mapping persistent. So that,
-when node online/offline happens, cache based on cpuid <-> nodeid mapping such as
-wq_numa_possible_cpumask will not cause any problem.
-It contains 4 steps:
-1. Enable apic registeration flow to handle both enabled and disabled cpus.
-2. Introduce a new array storing all possible cpuid <-> apicid mapping.
-3. Enable _MAT and MADT relative apis to return non-presnet or disabled cpus' apicid.
-4. Establish all possible cpuid <-> nodeid mapping.
+When we set cpuid <-> nodeid mapping to be persistent, it will use the DSDT
+As we know, the ACPI tables are just like user's input in that respect, and
+we don't crash if user's input is unreasonable.
 
-This patch finishes step 3.
+Such as, the mapping of the proc_id and pxm in some machine's ACPI table is
+like this: 
 
-There are four mappings in the kernel:
-1. nodeid (logical node id)   <->   pxm        (persistent)
-2. apicid (physical cpu id)   <->   nodeid     (persistent)
-3. cpuid (logical cpu id)     <->   apicid     (not persistent, now persistent by step 2)
-4. cpuid (logical cpu id)     <->   nodeid     (not persistent)
+proc_id   |    pxm
+--------------------
+0      <->      0
+1      <->      0
+2       <->     1
+3      <->      1
+89      <->     0
+89      <->     0
+89      <->     0
+89      <->     1
+89      <->     1
+89      <->     2
+89      <->     3
+.....
 
-So, in order to setup persistent cpuid <-> nodeid mapping for all possible CPUs,
-we should:
-1. Setup cpuid <-> apicid mapping for all possible CPUs, which has been done in step 1, 2.
-2. Setup cpuid <-> nodeid mapping for all possible CPUs. But before that, we should
-   obtain all apicids from MADT.
+We can't be sure which one is correct to the proc_id 89. We may map a wrong
+node to a cpu. When pages are allocated, this may cause a kernal panic.
 
-All processors' apicids can be obtained by _MAT method or from MADT in ACPI.
-The current code ignores disabled processors and returns -ENODEV.
+So, we should provide mechanisms to validate the ACPI tables, just like we
+do validation to check user's input in web project.
 
-After this patch, a new parameter will be added to MADT APIs so that caller
-is able to control if disabled processors are ignored.
+The mechanism is that the processor objects which have the duplicate IDs
+are not valid.
 
-Signed-off-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-Signed-off-by: Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
+[Solution]
+
+We add a validation function, like this:
+ 
+ foreach Processor in DSDT
+  proc_id= get_ACPI_Processor_number(Processor)
+   if(the proc_id has alreadly existed )
+     mark both of them as being unreasonable;
+				    
+The function will record the unique or duplicate processor IDs.
+
+The duplicate processor IDs such as 89 are regarded as the unreasonable IDS
+which mean that the processor objects in question are not valid. 
+
 Signed-off-by: Dou Liyang <douly.fnst@cn.fujitsu.com>
 ---
- drivers/acpi/acpi_processor.c |  5 +++-
- drivers/acpi/processor_core.c | 57 +++++++++++++++++++++++++++----------------
- 2 files changed, 40 insertions(+), 22 deletions(-)
+ drivers/acpi/acpi_processor.c | 79 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 79 insertions(+)
 
 diff --git a/drivers/acpi/acpi_processor.c b/drivers/acpi/acpi_processor.c
-index c7ba948..e85b19a 100644
+index 0c15828..346fbfc 100644
 --- a/drivers/acpi/acpi_processor.c
 +++ b/drivers/acpi/acpi_processor.c
-@@ -300,8 +300,11 @@ static int acpi_processor_get_info(struct acpi_device *device)
- 	 *  Extra Processor objects may be enumerated on MP systems with
- 	 *  less than the max # of CPUs. They should be ignored _iff
- 	 *  they are physically not present.
-+	 *
-+	 *  NOTE: Even if the processor has a cpuid, it may not present because
-+	 *  cpuid <-> apicid mapping is persistent now.
- 	 */
--	if (invalid_logical_cpuid(pr->id)) {
-+	if (invalid_logical_cpuid(pr->id) || !cpu_present(pr->id)) {
- 		int ret = acpi_processor_hotadd_init(pr);
- 		if (ret)
- 			return ret;
-diff --git a/drivers/acpi/processor_core.c b/drivers/acpi/processor_core.c
-index 33a38d6..824b98b 100644
---- a/drivers/acpi/processor_core.c
-+++ b/drivers/acpi/processor_core.c
-@@ -32,12 +32,12 @@ static struct acpi_table_madt *get_madt_table(void)
- }
+@@ -581,8 +581,87 @@ static struct acpi_scan_handler processor_container_handler = {
+ 	.attach = acpi_processor_container_attach,
+ };
  
- static int map_lapic_id(struct acpi_subtable_header *entry,
--		 u32 acpi_id, phys_cpuid_t *apic_id)
-+		 u32 acpi_id, phys_cpuid_t *apic_id, bool ignore_disabled)
- {
- 	struct acpi_madt_local_apic *lapic =
- 		container_of(entry, struct acpi_madt_local_apic, header);
- 
--	if (!(lapic->lapic_flags & ACPI_MADT_ENABLED))
-+	if (ignore_disabled && !(lapic->lapic_flags & ACPI_MADT_ENABLED))
- 		return -ENODEV;
- 
- 	if (lapic->processor_id != acpi_id)
-@@ -48,12 +48,13 @@ static int map_lapic_id(struct acpi_subtable_header *entry,
- }
- 
- static int map_x2apic_id(struct acpi_subtable_header *entry,
--		int device_declaration, u32 acpi_id, phys_cpuid_t *apic_id)
-+		int device_declaration, u32 acpi_id, phys_cpuid_t *apic_id,
-+		bool ignore_disabled)
- {
- 	struct acpi_madt_local_x2apic *apic =
- 		container_of(entry, struct acpi_madt_local_x2apic, header);
- 
--	if (!(apic->lapic_flags & ACPI_MADT_ENABLED))
-+	if (ignore_disabled && !(apic->lapic_flags & ACPI_MADT_ENABLED))
- 		return -ENODEV;
- 
- 	if (device_declaration && (apic->uid == acpi_id)) {
-@@ -65,12 +66,13 @@ static int map_x2apic_id(struct acpi_subtable_header *entry,
- }
- 
- static int map_lsapic_id(struct acpi_subtable_header *entry,
--		int device_declaration, u32 acpi_id, phys_cpuid_t *apic_id)
-+		int device_declaration, u32 acpi_id, phys_cpuid_t *apic_id,
-+		bool ignore_disabled)
- {
- 	struct acpi_madt_local_sapic *lsapic =
- 		container_of(entry, struct acpi_madt_local_sapic, header);
- 
--	if (!(lsapic->lapic_flags & ACPI_MADT_ENABLED))
-+	if (ignore_disabled && !(lsapic->lapic_flags & ACPI_MADT_ENABLED))
- 		return -ENODEV;
- 
- 	if (device_declaration) {
-@@ -87,12 +89,13 @@ static int map_lsapic_id(struct acpi_subtable_header *entry,
-  * Retrieve the ARM CPU physical identifier (MPIDR)
-  */
- static int map_gicc_mpidr(struct acpi_subtable_header *entry,
--		int device_declaration, u32 acpi_id, phys_cpuid_t *mpidr)
-+		int device_declaration, u32 acpi_id, phys_cpuid_t *mpidr,
-+		bool ignore_disabled)
- {
- 	struct acpi_madt_generic_interrupt *gicc =
- 	    container_of(entry, struct acpi_madt_generic_interrupt, header);
- 
--	if (!(gicc->flags & ACPI_MADT_ENABLED))
-+	if (ignore_disabled && !(gicc->flags & ACPI_MADT_ENABLED))
- 		return -ENODEV;
- 
- 	/* device_declaration means Device object in DSDT, in the
-@@ -108,7 +111,7 @@ static int map_gicc_mpidr(struct acpi_subtable_header *entry,
- 	return -EINVAL;
- }
- 
--static phys_cpuid_t map_madt_entry(int type, u32 acpi_id)
-+static phys_cpuid_t map_madt_entry(int type, u32 acpi_id, bool ignore_disabled)
- {
- 	unsigned long madt_end, entry;
- 	phys_cpuid_t phys_id = PHYS_CPUID_INVALID;	/* CPU hardware ID */
-@@ -128,16 +131,20 @@ static phys_cpuid_t map_madt_entry(int type, u32 acpi_id)
- 		struct acpi_subtable_header *header =
- 			(struct acpi_subtable_header *)entry;
- 		if (header->type == ACPI_MADT_TYPE_LOCAL_APIC) {
--			if (!map_lapic_id(header, acpi_id, &phys_id))
-+			if (!map_lapic_id(header, acpi_id, &phys_id,
-+					  ignore_disabled))
- 				break;
- 		} else if (header->type == ACPI_MADT_TYPE_LOCAL_X2APIC) {
--			if (!map_x2apic_id(header, type, acpi_id, &phys_id))
-+			if (!map_x2apic_id(header, type, acpi_id, &phys_id,
-+					   ignore_disabled))
- 				break;
- 		} else if (header->type == ACPI_MADT_TYPE_LOCAL_SAPIC) {
--			if (!map_lsapic_id(header, type, acpi_id, &phys_id))
-+			if (!map_lsapic_id(header, type, acpi_id, &phys_id,
-+					   ignore_disabled))
- 				break;
- 		} else if (header->type == ACPI_MADT_TYPE_GENERIC_INTERRUPT) {
--			if (!map_gicc_mpidr(header, type, acpi_id, &phys_id))
-+			if (!map_gicc_mpidr(header, type, acpi_id, &phys_id,
-+					    ignore_disabled))
- 				break;
- 		}
- 		entry += header->length;
-@@ -145,7 +152,8 @@ static phys_cpuid_t map_madt_entry(int type, u32 acpi_id)
- 	return phys_id;
- }
- 
--static phys_cpuid_t map_mat_entry(acpi_handle handle, int type, u32 acpi_id)
-+static phys_cpuid_t map_mat_entry(acpi_handle handle, int type, u32 acpi_id,
-+				  bool ignore_disabled)
- {
- 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
- 	union acpi_object *obj;
-@@ -166,30 +174,37 @@ static phys_cpuid_t map_mat_entry(acpi_handle handle, int type, u32 acpi_id)
- 
- 	header = (struct acpi_subtable_header *)obj->buffer.pointer;
- 	if (header->type == ACPI_MADT_TYPE_LOCAL_APIC)
--		map_lapic_id(header, acpi_id, &phys_id);
-+		map_lapic_id(header, acpi_id, &phys_id, ignore_disabled);
- 	else if (header->type == ACPI_MADT_TYPE_LOCAL_SAPIC)
--		map_lsapic_id(header, type, acpi_id, &phys_id);
-+		map_lsapic_id(header, type, acpi_id, &phys_id, ignore_disabled);
- 	else if (header->type == ACPI_MADT_TYPE_LOCAL_X2APIC)
--		map_x2apic_id(header, type, acpi_id, &phys_id);
-+		map_x2apic_id(header, type, acpi_id, &phys_id, ignore_disabled);
- 	else if (header->type == ACPI_MADT_TYPE_GENERIC_INTERRUPT)
--		map_gicc_mpidr(header, type, acpi_id, &phys_id);
-+		map_gicc_mpidr(header, type, acpi_id, &phys_id,
-+			       ignore_disabled);
- 
- exit:
- 	kfree(buffer.pointer);
- 	return phys_id;
- }
- 
--phys_cpuid_t acpi_get_phys_id(acpi_handle handle, int type, u32 acpi_id)
-+static phys_cpuid_t __acpi_get_phys_id(acpi_handle handle, int type,
-+				       u32 acpi_id, bool ignore_disabled)
- {
- 	phys_cpuid_t phys_id;
- 
--	phys_id = map_mat_entry(handle, type, acpi_id);
-+	phys_id = map_mat_entry(handle, type, acpi_id, ignore_disabled);
- 	if (invalid_phys_cpuid(phys_id))
--		phys_id = map_madt_entry(type, acpi_id);
-+		phys_id = map_madt_entry(type, acpi_id, ignore_disabled);
- 
- 	return phys_id;
- }
- 
-+phys_cpuid_t acpi_get_phys_id(acpi_handle handle, int type, u32 acpi_id)
++/* The number of the unique processor IDs */
++static int nr_unique_ids;
++
++/* The number of the duplicate processor IDs */
++static int nr_duplicate_ids;
++
++/* Used to store the unique processor IDs */
++static int unique_processor_ids[] = {
++	[0 ... NR_CPUS - 1] = -1,
++};
++
++/* Used to store the duplicate processor IDs */
++static int duplicate_processor_ids[] = {
++	[0 ... NR_CPUS - 1] = -1,
++};
++
++static void processor_validated_ids_update(int proc_id)
 +{
-+	return __acpi_get_phys_id(handle, type, acpi_id, true);
++	int i;
++
++	if (nr_unique_ids == NR_CPUS||nr_duplicate_ids == NR_CPUS)
++		return;
++
++	/*
++	 * Firstly, compare the proc_id with duplicate IDs, if the proc_id is
++	 * already in the IDs, do nothing.
++	 */
++	for (i = 0; i < nr_duplicate_ids; i++) {
++		if (duplicate_processor_ids[i] == proc_id)
++			return;
++	}
++
++	/*
++	 * Secondly, compare the proc_id with unique IDs, if the proc_id is in
++	 * the IDs, put it in the duplicate IDs.
++	 */
++	for (i = 0; i < nr_unique_ids; i++) {
++		if (unique_processor_ids[i] == proc_id) {
++			duplicate_processor_ids[nr_duplicate_ids] = proc_id;
++			nr_duplicate_ids++;
++			return;
++		}
++	}
++
++	/*
++	 * Lastly, the proc_id is a unique ID, put it in the unique IDs.
++	 */
++	unique_processor_ids[nr_unique_ids] = proc_id;
++	nr_unique_ids++;
 +}
 +
- int acpi_map_cpuid(phys_cpuid_t phys_id, u32 acpi_id)
++static acpi_status acpi_processor_ids_walk(acpi_handle handle,
++						u32 lvl,
++						void *context,
++						void **rv)
++{
++	acpi_status status;
++	union acpi_object object = { 0 };
++	struct acpi_buffer buffer = { sizeof(union acpi_object), &object };
++
++	status = acpi_evaluate_object(handle, NULL, NULL, &buffer);
++	if (ACPI_FAILURE(status))
++		acpi_handle_info(handle, "Not get the processor object\n");
++	else
++		processor_validated_ids_update(object.processor.proc_id);
++
++	return AE_OK;
++}
++
++static void acpi_processor_duplication_valiate(void)
++{
++	/* Search all processor nodes in ACPI namespace */
++	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT,
++						ACPI_UINT32_MAX,
++						acpi_processor_ids_walk,
++						NULL, NULL, NULL);
++}
++
+ void __init acpi_processor_init(void)
  {
- #ifdef CONFIG_SMP
++	acpi_processor_duplication_valiate();
+ 	acpi_scan_add_handler_with_hotplug(&processor_handler, "processor");
+ 	acpi_scan_add_handler(&processor_container_handler);
+ }
 -- 
 2.5.5
 
