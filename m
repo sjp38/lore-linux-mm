@@ -1,126 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A02D66B0005
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 18:36:44 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id p64so63783627pfb.0
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 15:36:44 -0700 (PDT)
-Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
-        by mx.google.com with ESMTPS id t90si11568943pfa.50.2016.07.19.15.36.43
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AAC866B0253
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 18:40:49 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id p129so19735560wmp.3
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 15:40:49 -0700 (PDT)
+Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
+        by mx.google.com with ESMTPS id u186si23021579wmg.3.2016.07.19.15.40.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Jul 2016 15:36:43 -0700 (PDT)
-Received: by mail-pa0-x22e.google.com with SMTP id ks6so11194929pab.0
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 15:36:43 -0700 (PDT)
-Date: Tue, 19 Jul 2016 15:36:37 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 3/8] mm, page_alloc: don't retry initial attempt in
- slowpath
-In-Reply-To: <20160718112302.27381-4-vbabka@suse.cz>
-Message-ID: <alpine.DEB.2.10.1607191532520.19940@chino.kir.corp.google.com>
-References: <20160718112302.27381-1-vbabka@suse.cz> <20160718112302.27381-4-vbabka@suse.cz>
+        Tue, 19 Jul 2016 15:40:48 -0700 (PDT)
+Received: by mail-wm0-x22f.google.com with SMTP id o80so43934882wme.1
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 15:40:48 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <1468965604-25023-1-git-send-email-labbott@redhat.com>
+References: <CAGXu5j+nHpHcYT8FyHNe6AFQCdakoSMW=UWDatyxhRK7CB7_=g@mail.gmail.com>
+ <1468965604-25023-1-git-send-email-labbott@redhat.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Tue, 19 Jul 2016 15:40:46 -0700
+Message-ID: <CAGXu5jLRkRMutEauAg7dWV9CeDP3nzE4d71Fqt6H2d7OHTy71w@mail.gmail.com>
+Subject: Re: [PATCH] mm: Add is_migrate_cma_page
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>
+To: Laura Abbott <labbott@redhat.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, "x86@kernel.org" <x86@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, linux-ia64@vger.kernel.org, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, sparclinux <sparclinux@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-On Mon, 18 Jul 2016, Vlastimil Babka wrote:
+On Tue, Jul 19, 2016 at 3:00 PM, Laura Abbott <labbott@redhat.com> wrote:
+> Code such as hardened user copy[1] needs a way to tell if a
+> page is CMA or not. Add is_migrate_cma_page in a similar way
+> to is_migrate_isolate_page.
+>
+> [1]http://article.gmane.org/gmane.linux.kernel.mm/155238
+>
+> Signed-off-by: Laura Abbott <labbott@redhat.com>
 
-> After __alloc_pages_slowpath() sets up new alloc_flags and wakes up kswapd, it
-> first tries get_page_from_freelist() with the new alloc_flags, as it may
-> succeed e.g. due to using min watermark instead of low watermark. It makes
-> sense to to do this attempt before adjusting zonelist based on
-> alloc_flags/gfp_mask, as it's still relatively a fast path if we just wake up
-> kswapd and successfully allocate.
-> 
-> This patch therefore moves the initial attempt above the retry label and
-> reorganizes a bit the part below the retry label. We still have to attempt
-> get_page_from_freelist() on each retry, as some allocations cannot do that
-> as part of direct reclaim or compaction, and yet are not allowed to fail
-> (even though they do a WARN_ON_ONCE() and thus should not exist). We can reuse
-> the call meant for ALLOC_NO_WATERMARKS attempt and just set alloc_flags to
-> ALLOC_NO_WATERMARKS if the context allows it. As a side-effect, the attempts
-> from direct reclaim/compaction will also no longer obey watermarks once this
-> is set, but there's little harm in that.
-> 
-> Kswapd wakeups are also done on each retry to be safe from potential races
-> resulting in kswapd going to sleep while a process (that may not be able to
-> reclaim by itself) is still looping.
-> 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Great, thanks!
+
 > ---
->  mm/page_alloc.c | 29 ++++++++++++++++++-----------
->  1 file changed, 18 insertions(+), 11 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index eb1968a1041e..30443804f156 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3541,35 +3541,42 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	 */
->  	alloc_flags = gfp_to_alloc_flags(gfp_mask);
->  
-> +	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
-> +		wake_all_kswapds(order, ac);
-> +
-> +	/*
-> +	 * The adjusted alloc_flags might result in immediate success, so try
-> +	 * that first
-> +	 */
-> +	page = get_page_from_freelist(gfp_mask, order, alloc_flags, ac);
-> +	if (page)
-> +		goto got_pg;
+> Here's an explicit patch, slightly different than what I posted before. It can
+> be kept separate or folded in as needed.
 
-Any reason to not test gfp_pfmemalloc_allowed() here?  For contexts where 
-it returns true, it seems like the above would be an unneeded failure if 
-ALLOC_WMARK_MIN would have failed.  No strong opinion.
+Assuming there's no objection, I'll add it to my tree and use the new macro.
 
-> +
-> +
->  retry:
-> +	/* Ensure kswapd doesn't accidentally go to sleep as long as we loop */
->  	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
->  		wake_all_kswapds(order, ac);
->  
-> +	if (gfp_pfmemalloc_allowed(gfp_mask))
-> +		alloc_flags = ALLOC_NO_WATERMARKS;
-> +
->  	/*
->  	 * Reset the zonelist iterators if memory policies can be ignored.
->  	 * These allocations are high priority and system rather than user
->  	 * orientated.
->  	 */
-> -	if (!(alloc_flags & ALLOC_CPUSET) || gfp_pfmemalloc_allowed(gfp_mask)) {
-> +	if (!(alloc_flags & ALLOC_CPUSET) || (alloc_flags & ALLOC_NO_WATERMARKS)) {
+-Kees
 
-Do we need to test ALLOC_NO_WATERMARKS here, or is it just for clarity?
+> ---
+>  include/linux/mmzone.h | 2 ++
+>  1 file changed, 2 insertions(+)
+>
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 02069c2..c8478b2 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -68,8 +68,10 @@ extern char * const migratetype_names[MIGRATE_TYPES];
+>
+>  #ifdef CONFIG_CMA
+>  #  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)
+> +#  define is_migrate_cma_page(_page) (get_pageblock_migratetype(_page) == MIGRATE_CMA)
+>  #else
+>  #  define is_migrate_cma(migratetype) false
+> +#  define is_migrate_cma_page(_page) false
+>  #endif
+>
+>  #define for_each_migratetype_order(order, type) \
+> --
+> 2.7.4
+>
 
-Otherwise looks good!
 
->  		ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
->  		ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
->  					ac->high_zoneidx, ac->nodemask);
->  	}
->  
-> -	/* This is the last chance, in general, before the goto nopage. */
-> +	/* Attempt with potentially adjusted zonelist and alloc_flags */
->  	page = get_page_from_freelist(gfp_mask, order, alloc_flags, ac);
->  	if (page)
->  		goto got_pg;
->  
-> -	/* Allocate without watermarks if the context allows */
-> -	if (gfp_pfmemalloc_allowed(gfp_mask)) {
-> -
-> -		page = get_page_from_freelist(gfp_mask, order,
-> -						ALLOC_NO_WATERMARKS, ac);
-> -		if (page)
-> -			goto got_pg;
-> -	}
-> -
->  	/* Caller is not willing to reclaim, we can't balance anything */
->  	if (!can_direct_reclaim) {
->  		/*
+
+-- 
+Kees Cook
+Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
