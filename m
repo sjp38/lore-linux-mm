@@ -1,76 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id F14D36B025E
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 09:54:37 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id r190so14402902wmr.0
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 06:54:37 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id 62si20249132wmv.71.2016.07.19.06.54.36
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Jul 2016 06:54:36 -0700 (PDT)
-Date: Tue, 19 Jul 2016 09:54:26 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC PATCH 1/2] mempool: do not consume memory reserves from the
- reclaim path
-Message-ID: <20160719135426.GA31229@cmpxchg.org>
-References: <1468831164-26621-1-git-send-email-mhocko@kernel.org>
- <1468831285-27242-1-git-send-email-mhocko@kernel.org>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 59B686B025E
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 09:57:50 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e189so38675274pfa.2
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 06:57:50 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTP id f16si9630378pfa.157.2016.07.19.06.57.47
+        for <linux-mm@kvack.org>;
+        Tue, 19 Jul 2016 06:57:49 -0700 (PDT)
+From: zhongjiang <zhongjiang@huawei.com>
+Subject: [PATCH v2] mm/hugetlb: fix race when migrate pages
+Date: Tue, 19 Jul 2016 21:45:58 +0800
+Message-ID: <1468935958-21810-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1468831285-27242-1-git-send-email-mhocko@kernel.org>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Mikulas Patocka <mpatocka@redhat.com>, Ondrej Kozina <okozina@redhat.com>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Mel Gorman <mgorman@suse.de>, Neil Brown <neilb@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, dm-devel@redhat.com, Michal Hocko <mhocko@suse.com>
+To: mhocko@suse.cz, vbabka@suse.cz, qiuxishi@huawei.com, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org
 
-On Mon, Jul 18, 2016 at 10:41:24AM +0200, Michal Hocko wrote:
-> The original intention of f9054c70d28b was to help with the OOM
-> situations where the oom victim depends on mempool allocation to make a
-> forward progress. We can handle that case in a different way, though. We
-> can check whether the current task has access to memory reserves ad an
-> OOM victim (TIF_MEMDIE) and drop __GFP_NOMEMALLOC protection if the pool
-> is empty.
-> 
-> David Rientjes was objecting that such an approach wouldn't help if the
-> oom victim was blocked on a lock held by process doing mempool_alloc. This
-> is very similar to other oom deadlock situations and we have oom_reaper
-> to deal with them so it is reasonable to rely on the same mechanism
-> rather inventing a different one which has negative side effects.
+From: zhong jiang <zhongjiang@huawei.com>
 
-I don't understand how this scenario wouldn't be a flat-out bug.
+I hit the following code in huge_pte_alloc when run the database and
+online-offline memory in the system.
 
-Mempool guarantees forward progress by having all necessary memory
-objects for the guaranteed operation in reserve. Think about it this
-way: you should be able to delete the pool->alloc() call entirely and
-still make reliable forward progress. It would kill concurrency and be
-super slow, but how could it be affected by a system OOM situation?
+BUG_ON(pte && !pte_none(*pte) && !pte_huge(*pte));
 
-If our mempool_alloc() is waiting for an object that an OOM victim is
-holding, where could that OOM victim get stuck before giving it back?
-As I asked in the previous thread, surely you wouldn't do a mempool
-allocation first and then rely on an unguarded page allocation to make
-forward progress, right? It would defeat the purpose of using mempools
-in the first place. And surely the OOM victim wouldn't be waiting for
-a lock that somebody doing mempool_alloc() *against the same mempool*
-is holding. That'd be an obvious ABBA deadlock.
+when pmd share function enable, we may be obtain a shared pmd entry.
+due to ongoing offline memory , the pmd entry points to the page will
+turn into migrate condition. therefore, the bug will come up.
 
-So maybe I'm just dense, but could somebody please outline the exact
-deadlock diagram? Who is doing what, and how are they getting stuck?
+The patch fix it by checking the pmd entry when we obtain the lock.
+if the shared pmd entry points to page is under migration. we should
+allocate a new pmd entry.
 
-cpu0:                     cpu1:
-                          mempool_alloc(pool0)
-mempool_alloc(pool0)
-  wait for cpu1
-                          not allocating memory - would defeat mempool
-                          not taking locks held by cpu0* - would ABBA
-                          ???
-                          mempool_free(pool0)
+Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+---
+ mm/hugetlb.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
 
-Thanks
-
-* or any other task that does mempool_alloc(pool0) before unlock
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 6384dfd..797db55 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -4213,7 +4213,7 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+ 	struct vm_area_struct *svma;
+ 	unsigned long saddr;
+ 	pte_t *spte = NULL;
+-	pte_t *pte;
++	pte_t *pte, entry;
+ 	spinlock_t *ptl;
+ 
+ 	if (!vma_shareable(vma, addr))
+@@ -4240,6 +4240,11 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+ 
+ 	ptl = huge_pte_lockptr(hstate_vma(vma), mm, spte);
+ 	spin_lock(ptl);
++	entry = huge_ptep_get(spte);
++	if (is_hugetlb_entry_migration(entry) ||
++			is_hugetlb_entry_hwpoisoned(entry)) {
++		goto out_unlock;
++	}
+ 	if (pud_none(*pud)) {
+ 		pud_populate(mm, pud,
+ 				(pmd_t *)((unsigned long)spte & PAGE_MASK));
+@@ -4247,6 +4252,8 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+ 		put_page(virt_to_page(spte));
+ 		mm_dec_nr_pmds(mm);
+ 	}
++
++out_unlock:
+ 	spin_unlock(ptl);
+ out:
+ 	pte = (pte_t *)pmd_alloc(mm, pud, addr);
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
