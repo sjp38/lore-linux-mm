@@ -1,119 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C5F936B026A
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 03:34:31 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id r190so8004025wmr.0
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 00:34:31 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id y135si18497208wmd.74.2016.07.19.00.34.30
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D9C4C6B0261
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 03:42:44 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id r190so8140227wmr.0
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 00:42:44 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o9si18478472wmi.136.2016.07.19.00.42.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Jul 2016 00:34:30 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id i5so1804726wmg.2
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 00:34:30 -0700 (PDT)
-Date: Tue, 19 Jul 2016 09:34:29 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/vmscan: remove pglist_data->inactive_ratio
-Message-ID: <20160719073428.GB9486@dhcp22.suse.cz>
-References: <1468894049-786-1-git-send-email-opensource.ganesh@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 19 Jul 2016 00:42:43 -0700 (PDT)
+Subject: Re: [PATCH v3 12/17] mm, compaction: more reliably increase direct
+ compaction priority
+References: <20160624095437.16385-1-vbabka@suse.cz>
+ <20160624095437.16385-13-vbabka@suse.cz>
+ <20160706053954.GE23627@js1304-P5Q-DELUXE>
+ <78b8fc60-ddd8-ae74-4f1a-f4bcb9933016@suse.cz>
+ <20160718044112.GA9460@js1304-P5Q-DELUXE>
+ <f5e07f1d-df29-24fb-a49d-9d436ad9b928@suse.cz>
+ <20160719045330.GA17479@js1304-P5Q-DELUXE>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <b69264a4-030b-d7e4-7ae4-00092a012129@suse.cz>
+Date: Tue, 19 Jul 2016 09:42:39 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1468894049-786-1-git-send-email-opensource.ganesh@gmail.com>
+In-Reply-To: <20160719045330.GA17479@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ganesh Mahendran <opensource.ganesh@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, mgorman@techsingularity.net, minchan@kernel.org, hannes@cmpxchg.org, riel@redhat.com, dan.j.williams@intel.com, vdavydov@virtuozzo.com, kirill.shutemov@linux.intel.com, cl@linux.com, hughd@google.com
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
 
-On Tue 19-07-16 10:07:29, Ganesh Mahendran wrote:
-> In patch [1], the inactive_ratio is now automatically calculated
-
-It is better to give the direct reference to the patch 59dc76b0d4df
-("mm: vmscan: reduce size of inactive file list")
-
-> in inactive_list_is_low(). So there is no need to keep inactive_ratio
-> in pglist_data,
-
-OK
-
-> and shown in zoneinfo.
-
-I am not so sure about this. To be honest I have never really used this
-value but maybe there is somebody outher who relies on it. It would be
-safer if the ratio calculation in inactive_list_is_low would be
-extracted and used to display the information rather than dropping that
-on the floor.
-
-The patch should also state that the above patch has broken the zoneinfo
-information.
-
-> [1] mm: vmscan: reduce size of inactive file list
+On 07/19/2016 06:53 AM, Joonsoo Kim wrote:
+> On Mon, Jul 18, 2016 at 02:21:02PM +0200, Vlastimil Babka wrote:
+>> On 07/18/2016 06:41 AM, Joonsoo Kim wrote:
+>>> On Fri, Jul 15, 2016 at 03:37:52PM +0200, Vlastimil Babka wrote:
+>>>> On 07/06/2016 07:39 AM, Joonsoo Kim wrote:
+>>>>> On Fri, Jun 24, 2016 at 11:54:32AM +0200, Vlastimil Babka
+>>>>> wrote:
+>>>>>> During reclaim/compaction loop, compaction priority can be
+>>>>>> increased by the should_compact_retry() function, but the
+>>>>>> current code is not optimal. Priority is only increased
+>>>>>> when compaction_failed() is true, which means that
+>>>>>> compaction has scanned the whole zone. This may not happen
+>>>>>> even after multiple attempts with the lower priority due to
+>>>>>> parallel activity, so we might needlessly struggle on the
+>>>>>> lower priority and possibly run out of compaction retry 
+>>>>>> attempts in the process.
+>>>>>> 
+>>>>>> We can remove these corner cases by increasing compaction
+>>>>>> priority regardless of compaction_failed(). Examining
+>>>>>> further the compaction result can be postponed only after
+>>>>>> reaching the highest priority. This is a simple solution 
+>>>>>> and we don't need to worry about reaching the highest
+>>>>>> priority "too soon" here, because hen
+>>>>>> should_compact_retry() is called it means that the system
+>>>>>> is already struggling and the allocation is supposed to
+>>>>>> either try as hard as possible, or it cannot fail at all.
+>>>>>> There's not much point staying at lower priorities with
+>>>>>> heuristics that may result in only partial compaction. Also
+>>>>>> we now count compaction retries only after reaching the
+>>>>>> highest priority.
+>>>>> 
+>>>>> I'm not sure that this patch is safe. Deferring and skip-bit
+>>>>> in compaction is highly related to reclaim/compaction. Just
+>>>>> ignoring them and (almost) unconditionally increasing
+>>>>> compaction priority will result in less reclaim and less
+>>>>> success rate on compaction.
+>>>> 
+>>>> I don't see why less reclaim? Reclaim is always attempted
+>>>> before compaction and compaction priority doesn't affect it.
+>>>> And as long as reclaim wants to retry, should_compact_retry()
+>>>> isn't even called, so the priority stays. I wanted to change
+>>>> that in v1, but Michal suggested I shouldn't.
+>>> 
+>>> I assume the situation that there is no !costly highorder
+>>> freepage because of fragmentation. In this case,
+>>> should_reclaim_retry() would return false since watermark cannot
+>>> be met due to absence of high order freepage. Now, please see
+>>> should_compact_retry() with assumption that there are enough
+>>> order-0 free pages. Reclaim/compaction is only retried two times
+>>> (SYNC_LIGHT and SYNC_FULL) with your patchset since 
+>>> compaction_withdrawn() return false with enough freepages and 
+>>> !COMPACT_SKIPPED.
+>>> 
+>>> But, before your patchset, COMPACT_PARTIAL_SKIPPED and 
+>>> COMPACT_DEFERRED is considered as withdrawn so will retry 
+>>> reclaim/compaction more times.
+>> 
+>> Perhaps, but it wouldn't guarantee to reach the highest priority.
 > 
-> Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
-> ---
->  include/linux/mmzone.h | 6 ------
->  mm/vmscan.c            | 2 +-
->  mm/vmstat.c            | 6 ++----
->  3 files changed, 3 insertions(+), 11 deletions(-)
-> 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index a3b7f45..b3ade54 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -700,12 +700,6 @@ typedef struct pglist_data {
->  	/* Fields commonly accessed by the page reclaim scanner */
->  	struct lruvec		lruvec;
->  
-> -	/*
-> -	 * The target ratio of ACTIVE_ANON to INACTIVE_ANON pages on
-> -	 * this node's LRU.  Maintained by the pageout code.
-> -	 */
-> -	unsigned int inactive_ratio;
-> -
->  	unsigned long		flags;
->  
->  	ZONE_PADDING(_pad2_)
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 429bf3a..3c1de58 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1915,7 +1915,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
->   * page has a chance to be referenced again before it is reclaimed.
->   *
->   * The inactive_ratio is the target ratio of ACTIVE to INACTIVE pages
-> - * on this LRU, maintained by the pageout code. A zone->inactive_ratio
-> + * on this LRU, maintained by the pageout code. A inactive_ratio
->   * of 3 means 3:1 or 25% of the pages are kept on the inactive list.
->   *
->   * total     target    max
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 91ecca9..74a0eca 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -1491,11 +1491,9 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
->  	}
->  	seq_printf(m,
->  		   "\n  node_unreclaimable:  %u"
-> -		   "\n  start_pfn:           %lu"
-> -		   "\n  node_inactive_ratio: %u",
-> +		   "\n  start_pfn:           %lu",
->  		   !pgdat_reclaimable(zone->zone_pgdat),
-> -		   zone->zone_start_pfn,
-> -		   zone->zone_pgdat->inactive_ratio);
-> +		   zone->zone_start_pfn);
->  	seq_putc(m, '\n');
->  }
->  
-> -- 
-> 1.9.1
-> 
+> Yes.
 
--- 
-Michal Hocko
-SUSE Labs
+Since this is my greatest concern here, would the alternative patch at
+the end of the mail work for you? Trying your test would be nice too,
+but can also wait until I repost whole series (the missed watermark
+checks you spotted in patch 13 could also play a role there).
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+>> order-3 allocation just to avoid OOM, ignoring that the system
+>> might be thrashing heavily? Previously it also wasn't guaranteed
+>> to reclaim everything, but what is the optimal number of retries?
+> 
+> So, you say the similar logic in other thread we talked yesterday. 
+> The fact that it wasn't guaranteed to reclaim every thing before 
+> doesn't mean that we could relax guarantee more.
+> 
+> I'm not sure below is relevant to this series but just note.
+> 
+> I don't know the optimal number of retries. We are in a way to find 
+> it and I hope this discussion would help. I don't think that we can 
+> judge the point properly with simple checking on stat information at
+> some moment. It only has too limited knowledge about the system so it
+> would wrongly advise us to invoke OOM prematurely.
+> 
+> I think that using compaction result isn't a good way to determine
+> if further reclaim/compaction is useless or not because compaction
+> result can vary with further reclaim/compaction itself.
+
+If we scan whole zone ignoring all the heuristics, and still fail, I
+think it's pretty reliable (ignoring parallel activity, because then we
+can indeed never be sure).
+
+> If we want to check more accurately if compaction is really
+> impossible, scanning whole range and checking arrangement of freepage
+> and lru(movable) pages would more help.
+
+But the whole zone compaction just did exactly this and failed? Sure, we
+might have missed something due to the way compaction scanners meet
+around the middle of zone, but that's a reason to improve the algorithm,
+not to attempt more reclaim based on checks that duplicate the scanning
+work.
+
+> Although there is some possibility to fail the compaction even if 
+> this check is passed, it would give us more information about the 
+> system state and we would invoke OOM less prematurely. In this case 
+> that theoretically compaction success is possible, we could keep 
+> reclaim/compaction more times even if full compaction fails because 
+> we have a hope that more freepages would give us more compaction 
+> success probability.
+
+They can only give us more probability because of a) more resilience
+against parallel memory allocations getting us below low order-0
+watermark during our compaction and b) we increase chances of migrate
+scanner reaching higher pfn in the zone, if there are unmovable
+fragmentations in the lower pfns. Both are problems to potentially
+solve, and I think further tuning the decisions for reclaim/compaction
+retry is just a bad workaround, and definitely not something I would
+like to do in this series. So I'll try to avoid decreasing number of
+retries in the patch below, but not more:
+
+-----8<-----
