@@ -1,107 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D60B6B0005
-	for <linux-mm@kvack.org>; Mon, 18 Jul 2016 23:04:36 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id u25so17260355ioi.1
-        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 20:04:36 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id u25si12216981otd.212.2016.07.18.20.04.34
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 18 Jul 2016 20:04:35 -0700 (PDT)
-From: zhongjiang <zhongjiang@huawei.com>
-Subject: [PATCH] mm/hugetlb: fix race when migrate pages.
-Date: Tue, 19 Jul 2016 10:59:00 +0800
-Message-ID: <1468897140-43471-1-git-send-email-zhongjiang@huawei.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8729E6B0005
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 00:24:10 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e189so14804671pfa.2
+        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 21:24:10 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id er10si8148548pac.38.2016.07.18.21.24.08
+        for <linux-mm@kvack.org>;
+        Mon, 18 Jul 2016 21:24:09 -0700 (PDT)
+Date: Mon, 18 Jul 2016 22:11:23 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH] radix-tree: fix radix_tree_iter_retry() for tagged
+ iterators.
+Message-ID: <20160719041123.GB2779@linux.intel.com>
+References: <CACT4Y+a99OW7TYeLsuEic19uY2j45DGXL=LowUMq3TywWS3f2Q@mail.gmail.com>
+ <1468495196-10604-1-git-send-email-aryabinin@virtuozzo.com>
+ <20160714222527.GA26136@linux.intel.com>
+ <5788A46A.70106@virtuozzo.com>
+ <20160715190040.GA7195@linux.intel.com>
+ <CALYGNiOAKHtU0U6YSg39ByGsBYxrtuWEx270zC3=dtEijDHBaA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALYGNiOAKHtU0U6YSg39ByGsBYxrtuWEx270zC3=dtEijDHBaA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, qiuxishi@huawei.com
-Cc: linux-mm@kvack.org
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hughd@google.com>, Stable <stable@vger.kernel.org>
 
-From: zhong jiang <zhongjiang@huawei.com>
+On Sat, Jul 16, 2016 at 04:45:31PM +0300, Konstantin Khlebnikov wrote:
+> On Fri, Jul 15, 2016 at 10:00 PM, Ross Zwisler
+> <ross.zwisler@linux.intel.com> wrote:
+<>
+> > 3) radix_tree_iter_next() via via a non-tagged iteration like
+> > radix_tree_for_each_slot().  This currently happens in shmem_tag_pins()
+> > and shmem_partial_swap_usage().
+> >
+> > I think that this case is currently unhandled.  Unlike with
+> > radix_tree_iter_retry() case (#1 above) we can't rely on 'count' in the else
+> > case of radix_tree_next_slot() to be zero, so I think it's possible we'll end
+> > up executing code in the while() loop in radix_tree_next_slot() that assumes
+> > 'slot' is valid.
+> >
+> > I haven't actually seen this crash on a test setup, but I don't think the
+> > current code is safe.
+> 
+> This is becase distance between ->index and ->next_index now could be
+> more that one?
+>
+> We could fix that by adding "iter->index = iter->next_index - 1;" into
+> radix_tree_iter_next()
+> right after updating next_index and tweak multi-order itreration logic
+> if it depends on that.
+> 
+> I'd like to keep radix_tree_next_slot() as small as possible because
+> this is supposed to be a fast-path.
 
-I hit the following problem when run the database and online-offline memory
-in the system.
-The kernel version is 3.10. but I think the mainline have some question to
-be solved.
+I think it'll be exactly one?
 
- kernel BUG at arch/x86/mm/hugetlbpage.c:161!
-[154364.730387] invalid opcode: 0000 [#1] SMP
-[154364.734795] Modules linked in: nls_utf8 isofs loop signo_catch(OV) iTCO_wdt iTCO_vendor_support coretemp vfat intel_rapl fat kvm_intel kvm crct10dif_pclmul crc32_pclmul crc32c_intel ghash_clmulni_intel aesni_intel lrw gf128mul       glue_helper ablk_helper cryptd pcspkr sb_edac edac_core i2c_i801 lpc_ich ses i2c_core mfd_core enclosure mei_me mei shpchp wmi ipmi_devintf ipmi_si ipmi_msghandler binfmt_misc xfs libcrc32c sd_mod crc_t10dif crct10dif_common ahci l      ibahci tg3 ptp libata pps_core megaraid_sas dm_mirror dm_region_hash dm_log dm_mod
-[154364.786831] CPU: 171 PID: 700733 Comm: oracle Tainted: G           O   ----V-------   3.10.0-229.30.1.44.hulk.x86_64 #1 SMP Fri Jun 24 13:02:35 CST 2016
-[154364.809927] task: ffff8826bb0cae00 ti: ffff8826a36c4000 task.ti: ffff8826a36c4000
-[154364.817541] RIP: 0010:[<ffffffff81061382>]  [<ffffffff81061382>] huge_pte_alloc+0x452/0x4d0
-[154364.826135] RSP: 0018:ffff8826a36c7c58  EFLAGS: 00010246
-[154364.831583] RAX: ffff882609e16350 RBX: ffff88180845d000 RCX: ffff880000000000
-[154364.838848] RDX: 0000014538fc0000 RSI: 0000005d0d400000 RDI: 0000002609e16067
-[154364.846111] RBP: ffff8826a36c7c98 R08: ffff880000000000 R09: ffff88265b2f83e0
-[154364.853378] R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000200000
-[154364.860641] R13: ffff88190475dba0 R14: ffff880000000350 R15: 0000005d0d400000
-[154364.867908] FS:  00007ff87a54a740(0000) GS:ffff88001dc60000(0000) knlGS:0000000000000000
-[154364.876123] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[154364.882004] CR2: 00007f61b8ebee14 CR3: 00000025f3a16000 CR4: 00000000001407e0
-[154364.889270] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-[154364.896533] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-[154364.903797] Stack:
-[154364.905960]  ffff88265b2f83f8 ffff882609e16000 ffff880a8fc88c80 ffff882609e16350
-[154364.914096]  ffff882609e16348 ffffffff81e41060 ffff880a8fc88c80 0000005d0d400000
-[154364.922224]  ffff8826a36c7d18 ffffffff8119c322 0000005e20000000 00000000e0000000
-[154364.930357] Call Trace:
-[154364.933045]  [<ffffffff8119c322>] copy_hugetlb_page_range+0x152/0x2f0
-[154364.939702]  [<ffffffff81180ef9>] copy_page_range+0x3d9/0x480
-[154364.945654]  [<ffffffff8118543e>] ? vma_gap_callbacks_rotate+0x1e/0x30
-[154364.952402]  [<ffffffff812d903f>] ? __rb_insert_augmented+0x8f/0x1f0
-[154364.958957]  [<ffffffff81186118>] ? __vma_link_rb+0xb8/0xe0
-[154364.964743]  [<ffffffff8106c787>] dup_mm+0x357/0x660
-[154364.969915]  [<ffffffff8106d4fb>] copy_process.part.25+0xa3b/0x14b0
-[154364.976384]  [<ffffffff8106e12c>] do_fork+0xbc/0x350
-[154364.981569]  [<ffffffff811e3960>] ? get_unused_fd_flags+0x30/0x40
-[154364.987864]  [<ffffffff8106e446>] SyS_clone+0x16/0x20
-[154364.993140]  [<ffffffff81610059>] stub_clone+0x69/0x90
-[154364.998483]  [<ffffffff8160fd09>] ? system_call_fastpath+0x16/0x1b
+	iter->next_index = __radix_tree_iter_add(iter, 1);
 
-Signed-off-by: zhong jiang <zhongjiang@huawei.com>
----
- mm/hugetlb.c | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+So iter->index will be X, iter->next_index will be X+1, accounting for the
+iterator's shift.  So, basically, whatever your height is, you'll be set up to
+process one more entry, I think.
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 6384dfd..1b54d7a 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -4213,13 +4213,14 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
- 	struct vm_area_struct *svma;
- 	unsigned long saddr;
- 	pte_t *spte = NULL;
--	pte_t *pte;
-+	pte_t *pte, entry;
- 	spinlock_t *ptl;
- 
- 	if (!vma_shareable(vma, addr))
- 		return (pte_t *)pmd_alloc(mm, pud, addr);
- 
- 	i_mmap_lock_write(mapping);
-+retry:
- 	vma_interval_tree_foreach(svma, &mapping->i_mmap, idx, idx) {
- 		if (svma == vma)
- 			continue;
-@@ -4240,6 +4241,12 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
- 
- 	ptl = huge_pte_lockptr(hstate_vma(vma), mm, spte);
- 	spin_lock(ptl);
-+	entry = huge_ptep_get(spte);
-+ 	if (is_hugetlb_entry_migration(entry) || 
-+			is_hugetlb_entry_hwpoisoned(entry)) {
-+		spin_unlock(ptl);
-+		goto retry;
-+	}	
- 	if (pud_none(*pud)) {
- 		pud_populate(mm, pud,
- 				(pmd_t *)((unsigned long)spte & PAGE_MASK));
--- 
-1.8.3.1
+This means that radix_tree_chunk_size() will return 1.  I guess with the
+current logic this is safe:
+
+static __always_inline void **
+radix_tree_next_slot(void **slot, struct radix_tree_iter *iter, unsigned flags)
+{
+...
+	} else {
+		long count = radix_tree_chunk_size(iter);
+		void *canon = slot;
+
+		while (--count > 0) {
+			/* code that assumes 'slot' is non-NULL */
+
+So 'count' will be 1, the prefix decrement will make it 0, so we won't execute
+the code in the while() loop.  So maybe all the cases are covered after all.
+
+It seems like we need some unit tests in tools/testing/radix-tree around this
+- I'll try and find time to add them this week.
+
+I just feel like this isn't very organized.  We have a lot of code in
+radix_tree_next_slot() that assumes that 'slot' is non-NULL, but we don't
+check it anywhere.  We know it *can* be NULL, but we just happen to have
+things set up so that none of the code that uses 'slot' is executed.
+
+I personally feel like a quick check for slot==NULL at the beginning of the
+function is the simplest way to keep ourselves safe, and it doesn't seem like
+we'd be adding that much overhead.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
