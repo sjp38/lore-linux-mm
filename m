@@ -1,106 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D85046B0005
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 05:07:39 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id l89so7921969lfi.3
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 02:07:39 -0700 (PDT)
-Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
-        by mx.google.com with ESMTPS id v66si18867646wmf.69.2016.07.19.02.07.38
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F1906B0253
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 05:09:03 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id h186so25661178pfg.3
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 02:09:03 -0700 (PDT)
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com. [209.85.220.49])
+        by mx.google.com with ESMTPS id f26si8491659pfj.15.2016.07.19.02.09.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Jul 2016 02:07:38 -0700 (PDT)
-Received: by mail-wm0-x22f.google.com with SMTP id o80so18451810wme.1
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 02:07:38 -0700 (PDT)
+        Tue, 19 Jul 2016 02:09:02 -0700 (PDT)
+Received: by mail-pa0-f49.google.com with SMTP id ks6so5340816pab.0
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 02:09:02 -0700 (PDT)
+Date: Tue, 19 Jul 2016 11:08:58 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: oom-reaper choosing wrong processes.
+Message-ID: <20160719090857.GB9490@dhcp22.suse.cz>
+References: <20160718231850.GA23178@codemonkey.org.uk>
 MIME-Version: 1.0
-In-Reply-To: <20160719041123.GB2779@linux.intel.com>
-References: <CACT4Y+a99OW7TYeLsuEic19uY2j45DGXL=LowUMq3TywWS3f2Q@mail.gmail.com>
- <1468495196-10604-1-git-send-email-aryabinin@virtuozzo.com>
- <20160714222527.GA26136@linux.intel.com> <5788A46A.70106@virtuozzo.com>
- <20160715190040.GA7195@linux.intel.com> <CALYGNiOAKHtU0U6YSg39ByGsBYxrtuWEx270zC3=dtEijDHBaA@mail.gmail.com>
- <20160719041123.GB2779@linux.intel.com>
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Date: Tue, 19 Jul 2016 12:07:37 +0300
-Message-ID: <CALYGNiPGYOJnnp3DcXdNJCLQ2=oW0=gxJ6CyZooa+i5rtNhJ+g@mail.gmail.com>
-Subject: Re: [PATCH] radix-tree: fix radix_tree_iter_retry() for tagged iterators.
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160718231850.GA23178@codemonkey.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>, Sasha Levin <sasha.levin@oracle.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hughd@google.com>, Stable <stable@vger.kernel.org>
+To: Dave Jones <davej@codemonkey.org.uk>
+Cc: linux-mm@kvack.org
 
-On Tue, Jul 19, 2016 at 7:11 AM, Ross Zwisler
-<ross.zwisler@linux.intel.com> wrote:
-> On Sat, Jul 16, 2016 at 04:45:31PM +0300, Konstantin Khlebnikov wrote:
->> On Fri, Jul 15, 2016 at 10:00 PM, Ross Zwisler
->> <ross.zwisler@linux.intel.com> wrote:
-> <>
->> > 3) radix_tree_iter_next() via via a non-tagged iteration like
->> > radix_tree_for_each_slot().  This currently happens in shmem_tag_pins()
->> > and shmem_partial_swap_usage().
->> >
->> > I think that this case is currently unhandled.  Unlike with
->> > radix_tree_iter_retry() case (#1 above) we can't rely on 'count' in the else
->> > case of radix_tree_next_slot() to be zero, so I think it's possible we'll end
->> > up executing code in the while() loop in radix_tree_next_slot() that assumes
->> > 'slot' is valid.
->> >
->> > I haven't actually seen this crash on a test setup, but I don't think the
->> > current code is safe.
->>
->> This is becase distance between ->index and ->next_index now could be
->> more that one?
->>
->> We could fix that by adding "iter->index = iter->next_index - 1;" into
->> radix_tree_iter_next()
->> right after updating next_index and tweak multi-order itreration logic
->> if it depends on that.
->>
->> I'd like to keep radix_tree_next_slot() as small as possible because
->> this is supposed to be a fast-path.
->
-> I think it'll be exactly one?
->
->         iter->next_index = __radix_tree_iter_add(iter, 1);
->
-> So iter->index will be X, iter->next_index will be X+1, accounting for the
-> iterator's shift.  So, basically, whatever your height is, you'll be set up to
-> process one more entry, I think.
->
-> This means that radix_tree_chunk_size() will return 1.  I guess with the
-> current logic this is safe:
->
-> static __always_inline void **
-> radix_tree_next_slot(void **slot, struct radix_tree_iter *iter, unsigned flags)
-> {
-> ...
->         } else {
->                 long count = radix_tree_chunk_size(iter);
->                 void *canon = slot;
->
->                 while (--count > 0) {
->                         /* code that assumes 'slot' is non-NULL */
->
-> So 'count' will be 1, the prefix decrement will make it 0, so we won't execute
-> the code in the while() loop.  So maybe all the cases are covered after all.
->
-> It seems like we need some unit tests in tools/testing/radix-tree around this
-> - I'll try and find time to add them this week.
->
-> I just feel like this isn't very organized.  We have a lot of code in
-> radix_tree_next_slot() that assumes that 'slot' is non-NULL, but we don't
-> check it anywhere.  We know it *can* be NULL, but we just happen to have
-> things set up so that none of the code that uses 'slot' is executed.
->
-> I personally feel like a quick check for slot==NULL at the beginning of the
-> function is the simplest way to keep ourselves safe, and it doesn't seem like
-> we'd be adding that much overhead.
+On Mon 18-07-16 19:18:50, Dave Jones wrote:
+[...]
+> [ 4607.765352] sendmail-mta invoked oom-killer: gfp_mask=0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD), order=0, oom_score_adj=0
+> [ 4607.765359] sendmail-mta cpuset=/ mems_allowed=0
+[...]
+> [ 4607.765619] [ pid ]   uid  tgid total_vm      rss nr_ptes nr_pmds swapents oom_score_adj name
+> [ 4607.765637] [  749]     0   749    13116      782      29       3      385             0 systemd-journal
+> [ 4607.765641] [  793]     0   793    10640       10      23       3      285         -1000 systemd-udevd
+> [ 4607.765647] [ 1647]     0  1647    11928       16      27       3      111             0 rpcbind
+> [ 4607.765651] [ 1653]     0  1653     5841        0      15       3       54             0 rpc.idmapd
+> [ 4607.765656] [ 1655]     0  1655    11052       24      26       3      114             0 systemd-logind
+> [ 4607.765687] [ 1657]     0  1657    64579      181      28       3      161             0 rsyslogd
+> [ 4607.765691] [ 1660]     0  1660     1058        0       8       3       38             0 acpid
+> [ 4607.765696] [ 1661]     0  1661     7414       22      18       3       52             0 cron
+> [ 4607.765700] [ 1662]     0  1662     6993        0      19       3       54             0 atd
+> [ 4607.765704] [ 1664]   105  1664    10744       40      26       3       79          -900 dbus-daemon
+> [ 4607.765708] [ 1671]     0  1671     6264       29      17       3      157             0 smartd
+> [ 4607.765712] [ 1738]     0  1738    16948        0      37       3      204         -1000 sshd
+> [ 4607.765716] [ 1742]     0  1742     9461        0      22       3      195             0 rpc.mountd
+> [ 4607.765721] [ 1776]     0  1776     3624        0      12       3       39             0 agetty
+> [ 4607.765725] [ 1797]     0  1797     3319        0      10       3       48             0 mcelog
+> [ 4607.765729] [ 1799]     0  1799     4824       21      15       3       39             0 irqbalance
+> [ 4607.765733] [ 1803]   108  1803    25492       42      24       3      124             0 ntpd
+> [ 4607.765737] [ 1842]     0  1842    19793       48      39       3      410             0 sendmail-mta
+> [ 4607.765746] [ 1878]     0  1878     5121        0      13       3      262             0 dhclient
+> [ 4607.765752] [ 2145]  1000  2145    15627        0      33       3      213             0 systemd
+> [ 4607.765756] [ 2148]  1000  2148    19584        4      40       3      438             0 (sd-pam)
+> [ 4607.765760] [ 2643]  1000  2643     7465      433      19       3      152             0 tmux
+> [ 4607.765764] [ 2644]  1000  2644     5864        0      16       3      508             0 bash
+> [ 4607.765768] [ 2678]  1000  2678     3328       89      11       3       19             0 test-multi.sh
+> [ 4607.765774] [ 2693]  1000  2693     5864        1      16       3      507             0 bash
+> [ 4607.765782] [ 6456]  1000  6456     3091       21      11       3       24             0 dmesg
+> [ 4607.765787] [18624]  1000 18624   750863    43368     520       6        0           500 trinity-c10
+> [ 4607.765792] [21525]  1000 21525   797320    20517     493       7        0           500 trinity-c15
+> [ 4607.765796] [22023]  1000 22023   797349     1985     319       7        0           500 trinity-c2
+> [ 4607.765814] [22658]  1000 22658   797382        1     458       7        0           500 trinity-c0
+> [ 4607.765818] [26334]  1000 26334   797217    34960     412       7        0           500 trinity-c4
+> [ 4607.765823] [26388]  1000 26388   797383     9401     118       7        0           500 trinity-c11
+> [ 4607.765826] oom_kill_process: would have killed process 749 (systemd-journal), but continuing instead...
+> [ 4608.147644] oom_reaper: reaped process 26334 (trinity-c4), now anon-rss:0kB, file-rss:0kB, shmem-rss:136724kB
+> [ 4608.148218] oom_reaper: reaped process 18624 (trinity-c10), now anon-rss:0kB, file-rss:0kB, shmem-rss:174356kB
+> [ 4608.149795] oom_reaper: reaped process 21525 (trinity-c15), now anon-rss:0kB, file-rss:0kB, shmem-rss:86288kB
+> [ 4608.150734] oom_reaper: reaped process 18624 (trinity-c10), now anon-rss:0kB, file-rss:0kB, shmem-rss:174348kB
+> [ 4608.152489] oom_reaper: reaped process 21525 (trinity-c15), now anon-rss:0kB, file-rss:0kB, shmem-rss:86288kB
+> [ 4608.156127] oom_reaper: reaped process 18624 (trinity-c10), now anon-rss:0kB, file-rss:0kB, shmem-rss:174336kB
+> [ 4608.158798] oom_reaper: reaped process 26334 (trinity-c4), now anon-rss:0kB, file-rss:0kB, shmem-rss:136652kB
+> [ 4608.161336] oom_reaper: reaped process 26334 (trinity-c4), now anon-rss:0kB, file-rss:0kB, shmem-rss:136652kB
+> [ 4608.163836] oom_reaper: reaped process 26334 (trinity-c4), now anon-rss:0kB, file-rss:0kB, shmem-rss:136652kB
+> 
+> 
+> Whoa. Why did it pick systemd-journal ?
 
-Either fix is fine now. I working on better design for multiorder iterator which
-moves all that logic from radix_tree_next_slot() into radix_tree_next_chunk().
+Who has picked that? select_bad process?
 
-Most likely I'll change tree structure a little. For example I think sibling
-entries chould hold offset to head entry and order rather than a pointer to it.
-Or maybe size: support of non-power-of-2 entries is interesting feature too.
+> My 'skip over !trinity processes' code kicks in, and it then kills the
+> right processes, and the box lives on, but if I hadn't have had that
+> diff, the wrong process would have been killed.
+
+Could you post your diff please? oom_reaper will reap not only the oom
+victims but also tasks which hit the oom path and they are exiting.
+
+see out_of_memory:
+	/*
+	 * If current has a pending SIGKILL or is exiting, then automatically
+	 * select it.  The goal is to allow it to allocate so that it may
+	 * quickly exit and free its memory.
+	 */
+	if (task_will_free_mem(current)) {
+		mark_oom_victim(current);
+		wake_oom_reaper(current);
+		return true;
+	}
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
