@@ -1,139 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AC2A6B0005
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 16:01:46 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id r190so19888718wmr.0
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 13:01:46 -0700 (PDT)
-Received: from cloudserver094114.home.net.pl (cloudserver094114.home.net.pl. [79.96.170.134])
-        by mx.google.com with SMTP id 4si18492569lfi.385.2016.07.19.13.01.44
-        for <linux-mm@kvack.org>;
-        Tue, 19 Jul 2016 13:01:44 -0700 (PDT)
-From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Subject: Re: [PATCH v8 5/7] x86, acpi, cpu-hotplug: Set persistent cpuid <-> nodeid mapping when booting.
-Date: Tue, 19 Jul 2016 22:06:38 +0200
-Message-ID: <1699870.UOpnC170VZ@vostro.rjw.lan>
-In-Reply-To: <1468913288-16605-6-git-send-email-douly.fnst@cn.fujitsu.com>
-References: <1468913288-16605-1-git-send-email-douly.fnst@cn.fujitsu.com> <1468913288-16605-6-git-send-email-douly.fnst@cn.fujitsu.com>
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D2C46B0005
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 16:14:37 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id 33so18708640lfw.1
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 13:14:37 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id c13si13006413lfc.51.2016.07.19.13.14.35
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 19 Jul 2016 13:14:35 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u6JKE9V6111231
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 16:14:33 -0400
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 249qaj7jw2-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 16:14:33 -0400
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
+	Tue, 19 Jul 2016 21:14:31 +0100
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
+	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id A2D5417D805A
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 21:15:59 +0100 (BST)
+Received: from d06av05.portsmouth.uk.ibm.com (d06av05.portsmouth.uk.ibm.com [9.149.37.229])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u6JKEUT112321198
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 20:14:30 GMT
+Received: from d06av05.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av05.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u6JKERwD029795
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 14:14:29 -0600
+Subject: Re: [PATCH v3 02/11] mm: Hardened usercopy
+References: <1468619065-3222-1-git-send-email-keescook@chromium.org>
+ <1468619065-3222-3-git-send-email-keescook@chromium.org>
+ <578DF109.5030704@de.ibm.com>
+ <CAGXu5jKRDuELqGY1F-D4+MD+dMXSbiPGzf1hXb7Kp8ACBjpw9g@mail.gmail.com>
+From: Christian Borntraeger <borntraeger@de.ibm.com>
+Date: Tue, 19 Jul 2016 22:14:26 +0200
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <CAGXu5jKRDuELqGY1F-D4+MD+dMXSbiPGzf1hXb7Kp8ACBjpw9g@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Message-Id: <578E8A22.5080807@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dou Liyang <douly.fnst@cn.fujitsu.com>
-Cc: cl@linux.com, tj@kernel.org, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, len.brown@intel.com, lenb@kernel.org, tglx@linutronix.de, chen.tang@easystack.cn, rafael@kernel.org, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gu Zheng <guz.fnst@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
+To: Kees Cook <keescook@chromium.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Balbir Singh <bsingharora@gmail.com>, Daniel Micay <danielmicay@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Rik van Riel <riel@redhat.com>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, "x86@kernel.org" <x86@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, linux-ia64@vger.kernel.org, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, sparclinux <sparclinux@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-On Tuesday, July 19, 2016 03:28:06 PM Dou Liyang wrote:
-> From: Gu Zheng <guz.fnst@cn.fujitsu.com>
+On 07/19/2016 09:31 PM, Kees Cook wrote:
+> On Tue, Jul 19, 2016 at 2:21 AM, Christian Borntraeger
+> <borntraeger@de.ibm.com> wrote:
+>> On 07/15/2016 11:44 PM, Kees Cook wrote:
+>>> +config HAVE_ARCH_LINEAR_KERNEL_MAPPING
+>>> +     bool
+>>> +     help
+>>> +       An architecture should select this if it has a secondary linear
+>>> +       mapping of the kernel text. This is used to verify that kernel
+>>> +       text exposures are not visible under CONFIG_HARDENED_USERCOPY.
+>>
+>> I have trouble parsing this. (What does secondary linear mapping mean?)
 > 
-> The whole patch-set aims at making cpuid <-> nodeid mapping persistent. So that,
-> when node online/offline happens, cache based on cpuid <-> nodeid mapping such as
-> wq_numa_possible_cpumask will not cause any problem.
-> It contains 4 steps:
-> 1. Enable apic registeration flow to handle both enabled and disabled cpus.
-> 2. Introduce a new array storing all possible cpuid <-> apicid mapping.
-> 3. Enable _MAT and MADT relative apis to return non-presnet or disabled cpus' apicid.
-> 4. Establish all possible cpuid <-> nodeid mapping.
+> I likely need help clarifying this language...
 > 
-> This patch finishes step 4.
+>> So let me give an example below
+>>
+>>> +
+>> [...]
+>>> +/* Is this address range in the kernel text area? */
+>>> +static inline const char *check_kernel_text_object(const void *ptr,
+>>> +                                                unsigned long n)
+>>> +{
+>>> +     unsigned long textlow = (unsigned long)_stext;
+>>> +     unsigned long texthigh = (unsigned long)_etext;
+>>> +
+>>> +     if (overlaps(ptr, n, textlow, texthigh))
+>>> +             return "<kernel text>";
+>>> +
+>>> +#ifdef HAVE_ARCH_LINEAR_KERNEL_MAPPING
+>>> +     /* Check against linear mapping as well. */
+>>> +     if (overlaps(ptr, n, (unsigned long)__va(__pa(textlow)),
+>>> +                  (unsigned long)__va(__pa(texthigh))))
+>>> +             return "<linear kernel text>";
+>>> +#endif
+>>> +
+>>> +     return NULL;
+>>> +}
+>>
+>> s390 has an address space for user (primary address space from 0..4TB/8PB) and a separate
+>> address space (home space from 0..4TB/8PB) for the kernel. In this home space the kernel
+>> mapping is virtual containing the physical memory as well as vmalloc memory (creating aliases
+>> into the physical one). The kernel text is mapped from _stext to _etext in this mapping.
+>> So I assume this would qualify for HAVE_ARCH_LINEAR_KERNEL_MAPPING ?
 > 
-> This patch set the persistent cpuid <-> nodeid mapping for all enabled/disabled
-> processors at boot time via an additional acpi namespace walk for processors.
-> 
-> Signed-off-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
-> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
-> Signed-off-by: Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
-> Signed-off-by: Dou Liyang <douly.fnst@cn.fujitsu.com>
-> ---
->  arch/ia64/kernel/acpi.c       |  3 +-
->  arch/x86/kernel/acpi/boot.c   |  4 ++-
->  drivers/acpi/acpi_processor.c |  5 ++++
->  drivers/acpi/bus.c            |  3 ++
->  drivers/acpi/processor_core.c | 65 +++++++++++++++++++++++++++++++++++++++++++
->  include/linux/acpi.h          |  2 ++
->  6 files changed, 80 insertions(+), 2 deletions(-)
-> 
-> diff --git a/arch/ia64/kernel/acpi.c b/arch/ia64/kernel/acpi.c
-> index b1698bc..bb36515 100644
-> --- a/arch/ia64/kernel/acpi.c
-> +++ b/arch/ia64/kernel/acpi.c
-> @@ -796,7 +796,7 @@ int acpi_isa_irq_to_gsi(unsigned isa_irq, u32 *gsi)
->   *  ACPI based hotplug CPU support
->   */
->  #ifdef CONFIG_ACPI_HOTPLUG_CPU
-> -static int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
-> +int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
->  {
->  #ifdef CONFIG_ACPI_NUMA
->  	/*
-> @@ -811,6 +811,7 @@ static int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
->  #endif
->  	return 0;
->  }
-> +EXPORT_SYMBOL(acpi_map_cpu2node);
->  
->  int additional_cpus __initdata = -1;
->  
-> diff --git a/arch/x86/kernel/acpi/boot.c b/arch/x86/kernel/acpi/boot.c
-> index 37248c3..0900264f 100644
-> --- a/arch/x86/kernel/acpi/boot.c
-> +++ b/arch/x86/kernel/acpi/boot.c
-> @@ -695,7 +695,7 @@ static void __init acpi_set_irq_model_ioapic(void)
->  #ifdef CONFIG_ACPI_HOTPLUG_CPU
->  #include <acpi/processor.h>
->  
-> -static void acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
-> +int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
->  {
->  #ifdef CONFIG_ACPI_NUMA
->  	int nid;
-> @@ -706,7 +706,9 @@ static void acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
->  		numa_set_node(cpu, nid);
->  	}
->  #endif
-> +	return 0;
->  }
-> +EXPORT_SYMBOL(acpi_map_cpu2node);
->  
->  int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, int *pcpu)
->  {
-> diff --git a/drivers/acpi/acpi_processor.c b/drivers/acpi/acpi_processor.c
-> index e85b19a..0c15828 100644
-> --- a/drivers/acpi/acpi_processor.c
-> +++ b/drivers/acpi/acpi_processor.c
-> @@ -182,6 +182,11 @@ int __weak arch_register_cpu(int cpu)
->  
->  void __weak arch_unregister_cpu(int cpu) {}
->  
-> +int __weak acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
-> +{
-> +	return -ENODEV;
-> +}
-> +
->  static int acpi_processor_hotadd_init(struct acpi_processor *pr)
->  {
->  	unsigned long long sta;
-> diff --git a/drivers/acpi/bus.c b/drivers/acpi/bus.c
-> index 262ca31..d8b7272 100644
-> --- a/drivers/acpi/bus.c
-> +++ b/drivers/acpi/bus.c
-> @@ -1124,6 +1124,9 @@ static int __init acpi_init(void)
->  	acpi_sleep_proc_init();
->  	acpi_wakeup_device_init();
->  	acpi_debugger_init();
-> +#ifdef CONFIG_ACPI_HOTPLUG_CPU
-> +	acpi_set_processor_mapping();
-> +#endif
+> If I understand your example, yes. In the home space you have two
+> addresses that reference the kernel image?
 
-This doesn't look nice.
+No, there is only one address that points to the kernel.
+As we have no kernel ASLR yet, and the kernel mapping is 
+a 1:1 mapping from 0 to memory end and the kernel is only
+from _stext to _etext. The vmalloc area contains modules
+and vmalloc but not a 2nd kernel mapping.
 
-What about providing an empty definition of acpi_set_processor_mapping()
-for CONFIG_ACPI_HOTPLUG_CPU unset?
+But thanks for your example, now I understood. If we have only
+one address 
+>>> +     if (overlaps(ptr, n, textlow, texthigh))
+>>> +             return "<kernel text>";
 
->  	return 0;
->  }
+This is just enough.
 
-Thanks,
-Rafael
+So what about for the CONFIG text:
+
+       An architecture should select this if the kernel mapping has a secondary
+       linear mapping of the kernel text - in other words more than one virtual
+       kernel address that points to the kernel image. This is used to verify 
+       that kernel text exposures are not visible under CONFIG_HARDENED_USERCOPY.
+
+
+> I wonder if I can avoid the CONFIG entirely if I just did a
+> __va(__pa(_stext)) != _stext test... would that break anyone?
+
+Can this be resolved on all platforms at compile time?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
