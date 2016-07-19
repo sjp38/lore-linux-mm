@@ -1,102 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F1906B0253
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 05:09:03 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id h186so25661178pfg.3
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 02:09:03 -0700 (PDT)
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com. [209.85.220.49])
-        by mx.google.com with ESMTPS id f26si8491659pfj.15.2016.07.19.02.09.02
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CB1E6B0005
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 05:10:57 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id h186so25738759pfg.3
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 02:10:57 -0700 (PDT)
+Received: from mail-pa0-f65.google.com (mail-pa0-f65.google.com. [209.85.220.65])
+        by mx.google.com with ESMTPS id w10si31793712pag.138.2016.07.19.02.10.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Jul 2016 02:09:02 -0700 (PDT)
-Received: by mail-pa0-f49.google.com with SMTP id ks6so5340816pab.0
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 02:09:02 -0700 (PDT)
-Date: Tue, 19 Jul 2016 11:08:58 +0200
+        Tue, 19 Jul 2016 02:10:56 -0700 (PDT)
+Received: by mail-pa0-f65.google.com with SMTP id cf3so980473pad.2
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 02:10:56 -0700 (PDT)
+Date: Tue, 19 Jul 2016 11:10:53 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: oom-reaper choosing wrong processes.
-Message-ID: <20160719090857.GB9490@dhcp22.suse.cz>
-References: <20160718231850.GA23178@codemonkey.org.uk>
+Subject: Re: [PATCH v1] mm: hugetlb: remove incorrect comment
+Message-ID: <20160719091052.GC9490@dhcp22.suse.cz>
+References: <1468894098-12099-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160718231850.GA23178@codemonkey.org.uk>
+In-Reply-To: <1468894098-12099-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@codemonkey.org.uk>
-Cc: linux-mm@kvack.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Zhan Chen <zhanc1@andrew.cmu.edu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Mon 18-07-16 19:18:50, Dave Jones wrote:
-[...]
-> [ 4607.765352] sendmail-mta invoked oom-killer: gfp_mask=0x24201ca(GFP_HIGHUSER_MOVABLE|__GFP_COLD), order=0, oom_score_adj=0
-> [ 4607.765359] sendmail-mta cpuset=/ mems_allowed=0
-[...]
-> [ 4607.765619] [ pid ]   uid  tgid total_vm      rss nr_ptes nr_pmds swapents oom_score_adj name
-> [ 4607.765637] [  749]     0   749    13116      782      29       3      385             0 systemd-journal
-> [ 4607.765641] [  793]     0   793    10640       10      23       3      285         -1000 systemd-udevd
-> [ 4607.765647] [ 1647]     0  1647    11928       16      27       3      111             0 rpcbind
-> [ 4607.765651] [ 1653]     0  1653     5841        0      15       3       54             0 rpc.idmapd
-> [ 4607.765656] [ 1655]     0  1655    11052       24      26       3      114             0 systemd-logind
-> [ 4607.765687] [ 1657]     0  1657    64579      181      28       3      161             0 rsyslogd
-> [ 4607.765691] [ 1660]     0  1660     1058        0       8       3       38             0 acpid
-> [ 4607.765696] [ 1661]     0  1661     7414       22      18       3       52             0 cron
-> [ 4607.765700] [ 1662]     0  1662     6993        0      19       3       54             0 atd
-> [ 4607.765704] [ 1664]   105  1664    10744       40      26       3       79          -900 dbus-daemon
-> [ 4607.765708] [ 1671]     0  1671     6264       29      17       3      157             0 smartd
-> [ 4607.765712] [ 1738]     0  1738    16948        0      37       3      204         -1000 sshd
-> [ 4607.765716] [ 1742]     0  1742     9461        0      22       3      195             0 rpc.mountd
-> [ 4607.765721] [ 1776]     0  1776     3624        0      12       3       39             0 agetty
-> [ 4607.765725] [ 1797]     0  1797     3319        0      10       3       48             0 mcelog
-> [ 4607.765729] [ 1799]     0  1799     4824       21      15       3       39             0 irqbalance
-> [ 4607.765733] [ 1803]   108  1803    25492       42      24       3      124             0 ntpd
-> [ 4607.765737] [ 1842]     0  1842    19793       48      39       3      410             0 sendmail-mta
-> [ 4607.765746] [ 1878]     0  1878     5121        0      13       3      262             0 dhclient
-> [ 4607.765752] [ 2145]  1000  2145    15627        0      33       3      213             0 systemd
-> [ 4607.765756] [ 2148]  1000  2148    19584        4      40       3      438             0 (sd-pam)
-> [ 4607.765760] [ 2643]  1000  2643     7465      433      19       3      152             0 tmux
-> [ 4607.765764] [ 2644]  1000  2644     5864        0      16       3      508             0 bash
-> [ 4607.765768] [ 2678]  1000  2678     3328       89      11       3       19             0 test-multi.sh
-> [ 4607.765774] [ 2693]  1000  2693     5864        1      16       3      507             0 bash
-> [ 4607.765782] [ 6456]  1000  6456     3091       21      11       3       24             0 dmesg
-> [ 4607.765787] [18624]  1000 18624   750863    43368     520       6        0           500 trinity-c10
-> [ 4607.765792] [21525]  1000 21525   797320    20517     493       7        0           500 trinity-c15
-> [ 4607.765796] [22023]  1000 22023   797349     1985     319       7        0           500 trinity-c2
-> [ 4607.765814] [22658]  1000 22658   797382        1     458       7        0           500 trinity-c0
-> [ 4607.765818] [26334]  1000 26334   797217    34960     412       7        0           500 trinity-c4
-> [ 4607.765823] [26388]  1000 26388   797383     9401     118       7        0           500 trinity-c11
-> [ 4607.765826] oom_kill_process: would have killed process 749 (systemd-journal), but continuing instead...
-> [ 4608.147644] oom_reaper: reaped process 26334 (trinity-c4), now anon-rss:0kB, file-rss:0kB, shmem-rss:136724kB
-> [ 4608.148218] oom_reaper: reaped process 18624 (trinity-c10), now anon-rss:0kB, file-rss:0kB, shmem-rss:174356kB
-> [ 4608.149795] oom_reaper: reaped process 21525 (trinity-c15), now anon-rss:0kB, file-rss:0kB, shmem-rss:86288kB
-> [ 4608.150734] oom_reaper: reaped process 18624 (trinity-c10), now anon-rss:0kB, file-rss:0kB, shmem-rss:174348kB
-> [ 4608.152489] oom_reaper: reaped process 21525 (trinity-c15), now anon-rss:0kB, file-rss:0kB, shmem-rss:86288kB
-> [ 4608.156127] oom_reaper: reaped process 18624 (trinity-c10), now anon-rss:0kB, file-rss:0kB, shmem-rss:174336kB
-> [ 4608.158798] oom_reaper: reaped process 26334 (trinity-c4), now anon-rss:0kB, file-rss:0kB, shmem-rss:136652kB
-> [ 4608.161336] oom_reaper: reaped process 26334 (trinity-c4), now anon-rss:0kB, file-rss:0kB, shmem-rss:136652kB
-> [ 4608.163836] oom_reaper: reaped process 26334 (trinity-c4), now anon-rss:0kB, file-rss:0kB, shmem-rss:136652kB
+On Tue 19-07-16 11:08:18, Naoya Horiguchi wrote:
+> dequeue_hwpoisoned_huge_page() can be called without page lock hold,
+> so let's remove incorrect comment.
+
+Could you explain why the page lock is not really needed, please? Or
+what has changed that it is not needed anymore?
+
+Thanks!
+
 > 
+> Reported-by: Zhan Chen <zhanc1@andrew.cmu.edu>
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> ---
+>  mm/hugetlb.c | 1 -
+>  1 file changed, 1 deletion(-)
 > 
-> Whoa. Why did it pick systemd-journal ?
+> diff --git v4.7-rc7/mm/hugetlb.c v4.7-rc7_patched/mm/hugetlb.c
+> index c1f3c0b..26f735c 100644
+> --- v4.7-rc7/mm/hugetlb.c
+> +++ v4.7-rc7_patched/mm/hugetlb.c
+> @@ -4401,7 +4401,6 @@ follow_huge_pud(struct mm_struct *mm, unsigned long address,
+>  
+>  /*
+>   * This function is called from memory failure code.
+> - * Assume the caller holds page lock of the head page.
+>   */
+>  int dequeue_hwpoisoned_huge_page(struct page *hpage)
+>  {
+> -- 
+> 2.7.0
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Who has picked that? select_bad process?
-
-> My 'skip over !trinity processes' code kicks in, and it then kills the
-> right processes, and the box lives on, but if I hadn't have had that
-> diff, the wrong process would have been killed.
-
-Could you post your diff please? oom_reaper will reap not only the oom
-victims but also tasks which hit the oom path and they are exiting.
-
-see out_of_memory:
-	/*
-	 * If current has a pending SIGKILL or is exiting, then automatically
-	 * select it.  The goal is to allow it to allocate so that it may
-	 * quickly exit and free its memory.
-	 */
-	if (task_will_free_mem(current)) {
-		mark_oom_victim(current);
-		wake_oom_reaper(current);
-		return true;
-	}
 -- 
 Michal Hocko
 SUSE Labs
