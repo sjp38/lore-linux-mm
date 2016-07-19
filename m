@@ -1,55 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 880106B0253
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 02:40:52 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id o80so7125522wme.1
-        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 23:40:52 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w127si18317693wma.80.2016.07.18.23.40.51
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 18 Jul 2016 23:40:51 -0700 (PDT)
-Date: Tue, 19 Jul 2016 08:40:49 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm, oom: fix for hiding mm which is shared with
- kthreador global init
-Message-ID: <20160719064048.GA9486@dhcp22.suse.cz>
-References: <1468647004-5721-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20160718071825.GB22671@dhcp22.suse.cz>
- <201607190630.DIH34854.HFOOQFLOJMVFSt@I-love.SAKURA.ne.jp>
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B2ABF6B0005
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 02:46:33 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id q2so16961723pap.1
+        for <linux-mm@kvack.org>; Mon, 18 Jul 2016 23:46:33 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id r27si7822847pfi.37.2016.07.18.23.46.32
+        for <linux-mm@kvack.org>;
+        Mon, 18 Jul 2016 23:46:33 -0700 (PDT)
+Date: Tue, 19 Jul 2016 15:50:42 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 1/2] mem-hotplug: use GFP_HIGHUSER_MOVABLE in,
+ alloc_migrate_target()
+Message-ID: <20160719065042.GC17479@js1304-P5Q-DELUXE>
+References: <57884EAA.9030603@huawei.com>
+ <20160718055150.GF9460@js1304-P5Q-DELUXE>
+ <578C8C8A.8000007@huawei.com>
+ <7ce4a7ac-07aa-6a81-48c2-91c4a9355778@suse.cz>
+ <578C93CF.50509@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201607190630.DIH34854.HFOOQFLOJMVFSt@I-love.SAKURA.ne.jp>
+In-Reply-To: <578C93CF.50509@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, oleg@redhat.com, vdavydov@virtuozzo.com, rientjes@google.com
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 19-07-16 06:30:42, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > I really do not think that this unlikely case really has to be handled
-> > now. We are very likely going to move to a different model of oom victim
-> > detection soon. So let's do not add new hacks. exit_oom_victim from
-> > oom_kill_process just looks like sand in eyes.
+On Mon, Jul 18, 2016 at 04:31:11PM +0800, Xishi Qiu wrote:
+> On 2016/7/18 16:05, Vlastimil Babka wrote:
 > 
-> Then, please revert "mm, oom: hide mm which is shared with kthread or global init"
-> ( http://lkml.kernel.org/r/1466426628-15074-11-git-send-email-mhocko@kernel.org ).
-> I don't like that patch because it is doing pointless find_lock_task_mm() test
-> and is telling a lie because it does not guarantee that we won't hit OOM livelock.
+> > On 07/18/2016 10:00 AM, Xishi Qiu wrote:
+> >> On 2016/7/18 13:51, Joonsoo Kim wrote:
+> >>
+> >>> On Fri, Jul 15, 2016 at 10:47:06AM +0800, Xishi Qiu wrote:
+> >>>> alloc_migrate_target() is called from migrate_pages(), and the page
+> >>>> is always from user space, so we can add __GFP_HIGHMEM directly.
+> >>>
+> >>> No, all migratable pages are not from user space. For example,
+> >>> blockdev file cache has __GFP_MOVABLE and migratable but it has no
+> >>> __GFP_HIGHMEM and __GFP_USER.
+> >>>
+> >>
+> >> Hi Joonsoo,
+> >>
+> >> So the original code "gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;"
+> >> is not correct?
+> > 
+> > It's not incorrect. GFP_USER just specifies some reclaim flags, and may perhaps restrict allocation through __GFP_HARDWALL, where the original
+> > page could have been allocated without the restriction. But it doesn't put the place in an unexpected address range, as placing a non-highmem page into highmem could. __GFP_MOVABLE then just controls a heuristic for placement within a zone.
+> > 
+> >>> And, zram's memory isn't GFP_HIGHUSER_MOVABLE but has __GFP_MOVABLE.
+> >>>
+> >>
+> >> Can we distinguish __GFP_MOVABLE or GFP_HIGHUSER_MOVABLE when doing
+> >> mem-hotplug?
+> > 
+> > I don't understand the question here, can you rephrase with more detail? Thanks.
+> > 
+> 
+> Hi Joonsoo,
 
-The above patch doesn't make the situation worse wrt livelock. I
-consider it an improvement. It adds find_lock_task_mm into
-oom_scan_process_thread but that can hardly be worse than just the
-task->signal->oom_victims check because we can catch MMF_OOM_REAPED. If
-we are mm loss, which is a less likely case, then we behave the same as
-with the previous implementation.
+Above is answered by Vlastimil. :)
 
-So I do not really see a reason to revert that patch for now.
+> When we do memory offline, and the zone is movable zone,
+> can we use "alloc_pages_node(nid, GFP_HIGHUSER_MOVABLE, 0);" to alloc a
+> new page? the nid is the next node.
 
--- 
-Michal Hocko
-SUSE Labs
+I don't know much about memory offline, but, AFAIK, memory offline
+could happen on non-movable zone like as ZONE_NORMAL. Perhaps, you can add
+"if zone of the page is movable zone then alloc with GFP_HIGHUSER_MOVABLE".
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
