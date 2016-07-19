@@ -1,80 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id ECFB26B025E
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 10:19:59 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id x83so14669552wma.2
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 07:19:59 -0700 (PDT)
-Received: from mail-wm0-f43.google.com (mail-wm0-f43.google.com. [74.125.82.43])
-        by mx.google.com with ESMTPS id n125si20366860wme.125.2016.07.19.07.19.58
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7885F6B0253
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 10:25:38 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id 33so13519162lfw.1
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 07:25:38 -0700 (PDT)
+Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
+        by mx.google.com with ESMTPS id k201si16292679lfe.369.2016.07.19.07.25.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Jul 2016 07:19:58 -0700 (PDT)
-Received: by mail-wm0-f43.google.com with SMTP id q128so21091433wma.1
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 07:19:58 -0700 (PDT)
-Date: Tue, 19 Jul 2016 16:19:56 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 1/2] mempool: do not consume memory reserves from the
- reclaim path
-Message-ID: <20160719141956.GJ9486@dhcp22.suse.cz>
-References: <1468831164-26621-1-git-send-email-mhocko@kernel.org>
- <1468831285-27242-1-git-send-email-mhocko@kernel.org>
- <20160719135426.GA31229@cmpxchg.org>
+        Tue, 19 Jul 2016 07:25:36 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 2841F1C1D78
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 15:25:36 +0100 (IST)
+Date: Tue, 19 Jul 2016 15:25:34 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 04/31] mm, vmscan: begin reclaiming pages on a per-node
+ basis
+Message-ID: <20160719142534.GD10438@techsingularity.net>
+References: <1467403299-25786-1-git-send-email-mgorman@techsingularity.net>
+ <1467403299-25786-5-git-send-email-mgorman@techsingularity.net>
+ <20160707011211.GA27987@js1304-P5Q-DELUXE>
+ <20160707094808.GP11498@techsingularity.net>
+ <20160708022852.GA2370@js1304-P5Q-DELUXE>
+ <20160708100532.GC11498@techsingularity.net>
+ <20160714062836.GB29676@js1304-P5Q-DELUXE>
+ <20160718121122.GQ9806@techsingularity.net>
+ <20160718142714.GA10438@techsingularity.net>
+ <20160719083031.GD17479@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20160719135426.GA31229@cmpxchg.org>
+In-Reply-To: <20160719083031.GD17479@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: linux-mm@kvack.org, Mikulas Patocka <mpatocka@redhat.com>, Ondrej Kozina <okozina@redhat.com>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Mel Gorman <mgorman@suse.de>, Neil Brown <neilb@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, dm-devel@redhat.com
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 19-07-16 09:54:26, Johannes Weiner wrote:
-> On Mon, Jul 18, 2016 at 10:41:24AM +0200, Michal Hocko wrote:
-> > The original intention of f9054c70d28b was to help with the OOM
-> > situations where the oom victim depends on mempool allocation to make a
-> > forward progress. We can handle that case in a different way, though. We
-> > can check whether the current task has access to memory reserves ad an
-> > OOM victim (TIF_MEMDIE) and drop __GFP_NOMEMALLOC protection if the pool
-> > is empty.
+On Tue, Jul 19, 2016 at 05:30:31PM +0900, Joonsoo Kim wrote:
+> On Mon, Jul 18, 2016 at 03:27:14PM +0100, Mel Gorman wrote:
+> > On Mon, Jul 18, 2016 at 01:11:22PM +0100, Mel Gorman wrote:
+> > > The all_unreclaimable logic is related to the number of pages scanned
+> > > but currently pages skipped contributes to pages scanned. That is one
+> > > possibility. The other is that if all pages scanned are skipped then the
+> > > OOM killer can believe there is zero progress.
+> > > 
+> > > Try this to start with;
+> > > 
 > > 
-> > David Rientjes was objecting that such an approach wouldn't help if the
-> > oom victim was blocked on a lock held by process doing mempool_alloc. This
-> > is very similar to other oom deadlock situations and we have oom_reaper
-> > to deal with them so it is reasonable to rely on the same mechanism
-> > rather inventing a different one which has negative side effects.
+> > And if that fails, try this heavier handed version that will scan the full
+> > LRU potentially to isolate at least a single page if it's available for
+> > zone-constrained allocations. It's compile-tested only
 > 
-> I don't understand how this scenario wouldn't be a flat-out bug.
+> I tested both patches but they don't work for me. Notable difference
+> is that all_unreclaimable is now "no".
 > 
-> Mempool guarantees forward progress by having all necessary memory
-> objects for the guaranteed operation in reserve. Think about it this
-> way: you should be able to delete the pool->alloc() call entirely and
-> still make reliable forward progress. It would kill concurrency and be
-> super slow, but how could it be affected by a system OOM situation?
 
-Yes this is my understanding of the mempool usage as well. It is much
-harder to check whether mempool users are really behaving and they do
-not request more than the pre allocated pool allows them, though. That
-would be a bug in the consumer not the mempool as such of course.
+Ok, that's good to know at least. It at least indicates that skips
+accounted as scans are a contributory factor.
 
-My original understanding of f9054c70d28b was that it acts as
-a prevention for issues where the OOM victim loops inside the
-mempool_alloc not doing reasonable progress because those who should
-refill the pool are stuck for some reason (aka assume that not all
-mempool users are behaving or they have unexpected dependencies like WQ
-without WQ_MEM_RECLAIM and similar).
+> Just attach the oops log from heavier version.
+> 
 
-My thinking was that the victim has access to memory reserves by default
-so it sounds reasonable to preserve this access also when it is in the
-mempool_alloc. Therefore I wanted to preserve that particular logic and
-came up with this patch which should be safer than f9054c70d28b. But the
-more I am thinking about it the more it sounds like papering over a bug
-somewhere else.
+Apparently, isolating at least one page is not enough. Please try the
+following. If it fails, please post the test script you're using. I can
+simulate what you describe (mapped reads combined with lots of forks)
+but no guarantee I'll get it exactly right. I think it's ok to not
+account skips as scans because the skips are already accounted for.
 
-So I guess we should just go and revert f9054c70d28b and get back to
-David's lockup and investigate what exactly went wrong and why. The
-current form of f9054c70d28b is simply too dangerous.
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index a6f31617a08c..0dc443b52228 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1415,7 +1415,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+ 	LIST_HEAD(pages_skipped);
+ 
+ 	for (scan = 0; scan < nr_to_scan && nr_taken < nr_to_scan &&
+-					!list_empty(src); scan++) {
++					!list_empty(src);) {
+ 		struct page *page;
+ 
+ 		page = lru_to_page(src);
+@@ -1428,6 +1428,9 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+ 			nr_skipped[page_zonenum(page)]++;
+ 			continue;
+ 		}
++`
++		/* Pages skipped do not contribute to scan */
++		scan++;
+ 
+ 		switch (__isolate_lru_page(page, mode)) {
+ 		case 0:
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
