@@ -1,74 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A6C26B0005
-	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 02:29:16 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id 33so25099759lfw.1
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 23:29:16 -0700 (PDT)
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com. [74.125.82.42])
-        by mx.google.com with ESMTPS id 196si25229689wme.130.2016.07.19.23.29.14
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6131E6B0005
+	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 02:44:33 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id x83so26065375wma.2
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 23:44:33 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id m68si2590359wma.37.2016.07.19.23.44.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Jul 2016 23:29:14 -0700 (PDT)
-Received: by mail-wm0-f42.google.com with SMTP id q128so42096184wma.1
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 23:29:14 -0700 (PDT)
-Date: Wed, 20 Jul 2016 08:29:12 +0200
+        Tue, 19 Jul 2016 23:44:32 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id x83so5348338wma.3
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 23:44:32 -0700 (PDT)
+Date: Wed, 20 Jul 2016 08:44:29 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 10/10] mm, oom: hide mm which is shared with kthread or
- global init
-Message-ID: <20160720062912.GA11249@dhcp22.suse.cz>
-References: <1466426628-15074-1-git-send-email-mhocko@kernel.org>
- <1466426628-15074-11-git-send-email-mhocko@kernel.org>
- <20160719120538.GE9490@dhcp22.suse.cz>
- <20160719162759.e391c685db7a8de30b79320c@linux-foundation.org>
+Subject: Re: [RFC PATCH 1/2] mempool: do not consume memory reserves from the
+ reclaim path
+Message-ID: <20160720064429.GB11249@dhcp22.suse.cz>
+References: <1468831164-26621-1-git-send-email-mhocko@kernel.org>
+ <1468831285-27242-1-git-send-email-mhocko@kernel.org>
+ <alpine.LRH.2.02.1607191749330.1437@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160719162759.e391c685db7a8de30b79320c@linux-foundation.org>
+In-Reply-To: <alpine.LRH.2.02.1607191749330.1437@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, LKML <linux-kernel@vger.kernel.org>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: linux-mm@kvack.org, Ondrej Kozina <okozina@redhat.com>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Mel Gorman <mgorman@suse.de>, Neil Brown <neilb@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, dm-devel@redhat.com
 
-On Tue 19-07-16 16:27:59, Andrew Morton wrote:
-> On Tue, 19 Jul 2016 14:05:39 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+On Tue 19-07-16 17:50:29, Mikulas Patocka wrote:
 > 
-> > > After this patch we should guarantee a forward progress for the OOM
-> > > killer even when the selected victim is sharing memory with a kernel
-> > > thread or global init.
+> 
+> On Mon, 18 Jul 2016, Michal Hocko wrote:
+> 
+> > From: Michal Hocko <mhocko@suse.com>
 > > 
-> > Could you replace the last two paragraphs with the following. Tetsuo
-> > didn't like the guarantee mentioned there because that is a too strong
-> > statement as find_lock_task_mm might not find any mm and so we still
-> > could end up looping on the oom victim if it gets stuck somewhere in
-> > __mmput. This particular patch didn't aim at closing that case. Plugging
-> > that hole is planned later after the next upcoming merge window closes.
+> > There has been a report about OOM killer invoked when swapping out to
+> > a dm-crypt device. The primary reason seems to be that the swapout
+> > out IO managed to completely deplete memory reserves. Mikulas was
+> > able to bisect and explained the issue by pointing to f9054c70d28b
+> > ("mm, mempool: only set __GFP_NOMEMALLOC if there are free elements").
 > > 
-> > "
-> > In order to help a forward progress for the OOM killer, make sure
-> > that this really rare cases will not get into the way and hide
-> > the mm from the oom killer by setting MMF_OOM_REAPED flag for it.
-> > oom_scan_process_thread will ignore any TIF_MEMDIE task if it has
-> > MMF_OOM_REAPED flag set to catch these oom victims.
-> > 		        
-> > After this patch we should guarantee a forward progress for the OOM
-> > killer even when the selected victim is sharing memory with a kernel
-> > thread or global init as long as the victims mm is still alive.
-> > "
+> > The reason is that the swapout path is not throttled properly because
+> > the md-raid layer needs to allocate from the generic_make_request path
+> > which means it allocates from the PF_MEMALLOC context. dm layer uses
+> > mempool_alloc in order to guarantee a forward progress which used to
+> > inhibit access to memory reserves when using page allocator. This has
+> > changed by f9054c70d28b ("mm, mempool: only set __GFP_NOMEMALLOC if
+> > there are free elements") which has dropped the __GFP_NOMEMALLOC
+> > protection when the memory pool is depleted.
+> > 
+> > If we are running out of memory and the only way forward to free memory
+> > is to perform swapout we just keep consuming memory reserves rather than
+> > throttling the mempool allocations and allowing the pending IO to
+> > complete up to a moment when the memory is depleted completely and there
+> > is no way forward but invoking the OOM killer. This is less than
+> > optimal.
+> > 
+> > The original intention of f9054c70d28b was to help with the OOM
+> > situations where the oom victim depends on mempool allocation to make a
+> > forward progress. We can handle that case in a different way, though. We
+> > can check whether the current task has access to memory reserves ad an
+> > OOM victim (TIF_MEMDIE) and drop __GFP_NOMEMALLOC protection if the pool
+> > is empty.
+> > 
+> > David Rientjes was objecting that such an approach wouldn't help if the
+> > oom victim was blocked on a lock held by process doing mempool_alloc. This
+> > is very similar to other oom deadlock situations and we have oom_reaper
+> > to deal with them so it is reasonable to rely on the same mechanism
+> > rather inventing a different one which has negative side effects.
+> > 
+> > Fixes: f9054c70d28b ("mm, mempool: only set __GFP_NOMEMALLOC if there are free elements")
+> > Bisected-by: Mikulas Patocka <mpatocka@redhat.com>
 > 
-> I tweaked it a bit:
+> Bisect was done by Ondrej Kozina.
+
+OK, fixed
+
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
 > 
-> : In order to help forward progress for the OOM killer, make sure that
-> : this really rare case will not get in the way - we do this by hiding
-> : the mm from the oom killer by setting MMF_OOM_REAPED flag for it. 
-> : oom_scan_process_thread will ignore any TIF_MEMDIE task if it has
-> : MMF_OOM_REAPED flag set to catch these oom victims.
-> : 
-> : After this patch we should guarantee forward progress for the OOM
-> : killer even when the selected victim is sharing memory with a kernel
-> : thread or global init as long as the victims mm is still alive.
+> Reviewed-by: Mikulas Patocka <mpatocka@redhat.com>
+> Tested-by: Mikulas Patocka <mpatocka@redhat.com>
 
-Sounds good to me. Thanks!
+Let's see whether we decide to go with this patch or a plain revert. In
+any case I will mark the patch for stable so it will end up in both 4.6
+and 4.7
 
+Anyway thanks for your and Ondrejs help here!
 -- 
 Michal Hocko
 SUSE Labs
