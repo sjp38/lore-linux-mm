@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B4E9F6B0005
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 23:11:23 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id w207so60544435oiw.1
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 20:11:23 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id o68si575694ioo.208.2016.07.19.20.11.21
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E79F6B0005
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 23:44:00 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id y134so75627929pfg.1
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 20:44:00 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id h80si865498pfh.280.2016.07.19.20.43.58
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 19 Jul 2016 20:11:22 -0700 (PDT)
-Message-ID: <578EEB24.5090402@huawei.com>
-Date: Wed, 20 Jul 2016 11:08:20 +0800
+        Tue, 19 Jul 2016 20:43:59 -0700 (PDT)
+Message-ID: <578EF21A.80509@huawei.com>
+Date: Wed, 20 Jul 2016 11:38:02 +0800
 From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH] kexec: add resriction on the kexec_load
@@ -48,9 +48,9 @@ On 2016/7/20 10:07, Eric W. Biederman wrote:
 > A limit that reflected that reality above would be interesting.
 > Anything else will likely cause someone trouble in the futrue.
 >
-> Eric  
-   en, limit the total segment size to 50% of memory.  I agree that.
-     can you accept the change when I resend it ?
+> Eric
+  In addition, I had tested when set max segment size to 1G when system memory have 32G,
+  the rlock probabilistic come up when trinity run.
 >> ck time:20160628120131-243c5
 >> rlock reason:SOFT-WATCHDOG detected! on cpu 5.
 >> CPU 5 Pid: 9485, comm: trinity-c5
