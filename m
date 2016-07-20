@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FFA56B0264
-	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 16:27:34 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id ez1so101880623pab.0
-        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 13:27:34 -0700 (PDT)
-Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
-        by mx.google.com with ESMTPS id o2si5145039pfg.243.2016.07.20.13.27.21
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CD996B0264
+	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 16:27:36 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id h186so120804591pfg.3
+        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 13:27:36 -0700 (PDT)
+Received: from mail-pf0-x22a.google.com (mail-pf0-x22a.google.com. [2607:f8b0:400e:c00::22a])
+        by mx.google.com with ESMTPS id hy2si5170752pac.50.2016.07.20.13.27.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Jul 2016 13:27:21 -0700 (PDT)
-Received: by mail-pa0-x22e.google.com with SMTP id fi15so21426877pac.1
-        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 13:27:21 -0700 (PDT)
+        Wed, 20 Jul 2016 13:27:22 -0700 (PDT)
+Received: by mail-pf0-x22a.google.com with SMTP id h186so22309876pfg.3
+        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 13:27:22 -0700 (PDT)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH v4 03/12] mm: Hardened usercopy
-Date: Wed, 20 Jul 2016 13:26:58 -0700
-Message-Id: <1469046427-12696-4-git-send-email-keescook@chromium.org>
+Subject: [PATCH v4 08/12] powerpc/uaccess: Enable hardened usercopy
+Date: Wed, 20 Jul 2016 13:27:03 -0700
+Message-Id: <1469046427-12696-9-git-send-email-keescook@chromium.org>
 In-Reply-To: <1469046427-12696-1-git-send-email-keescook@chromium.org>
 References: <1469046427-12696-1-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,420 +22,88 @@ List-ID: <linux-mm.kvack.org>
 To: kernel-hardening@lists.openwall.com
 Cc: Kees Cook <keescook@chromium.org>, Laura Abbott <labbott@fedoraproject.org>, Balbir Singh <bsingharora@gmail.com>, Daniel Micay <danielmicay@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Rik van Riel <riel@redhat.com>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, x86@kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This is the start of porting PAX_USERCOPY into the mainline kernel. This
-is the first set of features, controlled by CONFIG_HARDENED_USERCOPY. The
-work is based on code by PaX Team and Brad Spengler, and an earlier port
-from Casey Schaufler. Additional non-slab page tests are from Rik van Riel.
+Enables CONFIG_HARDENED_USERCOPY checks on powerpc.
 
-This patch contains the logic for validating several conditions when
-performing copy_to_user() and copy_from_user() on the kernel object
-being copied to/from:
-- address range doesn't wrap around
-- address range isn't NULL or zero-allocated (with a non-zero copy size)
-- if on the slab allocator:
-  - object size must be less than or equal to copy size (when check is
-    implemented in the allocator, which appear in subsequent patches)
-- otherwise, object must not span page allocations (excepting Reserved
-  and CMA ranges)
-- if on the stack
-  - object must not extend before/after the current process stack
-  - object must be contained by a valid stack frame (when there is
-    arch/build support for identifying stack frames)
-- object must not overlap with kernel text
+Based on code from PaX and grsecurity.
 
 Signed-off-by: Kees Cook <keescook@chromium.org>
-Tested-by: Valdis Kletnieks <valdis.kletnieks@vt.edu>
 Tested-by: Michael Ellerman <mpe@ellerman.id.au>
 ---
- include/linux/slab.h        |  12 ++
- include/linux/thread_info.h |  15 +++
- mm/Makefile                 |   4 +
- mm/usercopy.c               | 268 ++++++++++++++++++++++++++++++++++++++++++++
- security/Kconfig            |  28 +++++
- 5 files changed, 327 insertions(+)
- create mode 100644 mm/usercopy.c
+ arch/powerpc/Kconfig               |  1 +
+ arch/powerpc/include/asm/uaccess.h | 21 +++++++++++++++++++--
+ 2 files changed, 20 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index aeb3e6d00a66..96a16a3fb7cb 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -155,6 +155,18 @@ void kfree(const void *);
- void kzfree(const void *);
- size_t ksize(const void *);
+diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
+index 01f7464d9fea..b7a18b2604be 100644
+--- a/arch/powerpc/Kconfig
++++ b/arch/powerpc/Kconfig
+@@ -164,6 +164,7 @@ config PPC
+ 	select ARCH_HAS_UBSAN_SANITIZE_ALL
+ 	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
+ 	select HAVE_LIVEPATCH if HAVE_DYNAMIC_FTRACE_WITH_REGS
++	select HAVE_ARCH_HARDENED_USERCOPY
  
-+#ifdef CONFIG_HAVE_HARDENED_USERCOPY_ALLOCATOR
-+const char *__check_heap_object(const void *ptr, unsigned long n,
-+				struct page *page);
-+#else
-+static inline const char *__check_heap_object(const void *ptr,
-+					      unsigned long n,
-+					      struct page *page)
-+{
-+	return NULL;
-+}
-+#endif
+ config GENERIC_CSUM
+ 	def_bool CPU_LITTLE_ENDIAN
+diff --git a/arch/powerpc/include/asm/uaccess.h b/arch/powerpc/include/asm/uaccess.h
+index b7c20f0b8fbe..c1dc6c14deb8 100644
+--- a/arch/powerpc/include/asm/uaccess.h
++++ b/arch/powerpc/include/asm/uaccess.h
+@@ -310,10 +310,15 @@ static inline unsigned long copy_from_user(void *to,
+ {
+ 	unsigned long over;
+ 
+-	if (access_ok(VERIFY_READ, from, n))
++	if (access_ok(VERIFY_READ, from, n)) {
++		if (!__builtin_constant_p(n))
++			check_object_size(to, n, false);
+ 		return __copy_tofrom_user((__force void __user *)to, from, n);
++	}
+ 	if ((unsigned long)from < TASK_SIZE) {
+ 		over = (unsigned long)from + n - TASK_SIZE;
++		if (!__builtin_constant_p(n - over))
++			check_object_size(to, n - over, false);
+ 		return __copy_tofrom_user((__force void __user *)to, from,
+ 				n - over) + over;
+ 	}
+@@ -325,10 +330,15 @@ static inline unsigned long copy_to_user(void __user *to,
+ {
+ 	unsigned long over;
+ 
+-	if (access_ok(VERIFY_WRITE, to, n))
++	if (access_ok(VERIFY_WRITE, to, n)) {
++		if (!__builtin_constant_p(n))
++			check_object_size(from, n, true);
+ 		return __copy_tofrom_user(to, (__force void __user *)from, n);
++	}
+ 	if ((unsigned long)to < TASK_SIZE) {
+ 		over = (unsigned long)to + n - TASK_SIZE;
++		if (!__builtin_constant_p(n))
++			check_object_size(from, n - over, true);
+ 		return __copy_tofrom_user(to, (__force void __user *)from,
+ 				n - over) + over;
+ 	}
+@@ -372,6 +382,10 @@ static inline unsigned long __copy_from_user_inatomic(void *to,
+ 		if (ret == 0)
+ 			return 0;
+ 	}
 +
- /*
-  * Some archs want to perform DMA into kmalloc caches and need a guaranteed
-  * alignment larger than the alignment of a 64-bit integer.
-diff --git a/include/linux/thread_info.h b/include/linux/thread_info.h
-index 3d5c80b4391d..f24b99eac969 100644
---- a/include/linux/thread_info.h
-+++ b/include/linux/thread_info.h
-@@ -155,6 +155,21 @@ static inline int arch_within_stack_frames(const void * const stack,
++	if (!__builtin_constant_p(n))
++		check_object_size(to, n, false);
++
+ 	return __copy_tofrom_user((__force void __user *)to, from, n);
  }
- #endif
  
-+#ifdef CONFIG_HARDENED_USERCOPY
-+extern void __check_object_size(const void *ptr, unsigned long n,
-+					bool to_user);
+@@ -398,6 +412,9 @@ static inline unsigned long __copy_to_user_inatomic(void __user *to,
+ 		if (ret == 0)
+ 			return 0;
+ 	}
++	if (!__builtin_constant_p(n))
++		check_object_size(from, n, true);
 +
-+static inline void check_object_size(const void *ptr, unsigned long n,
-+				     bool to_user)
-+{
-+	__check_object_size(ptr, n, to_user);
-+}
-+#else
-+static inline void check_object_size(const void *ptr, unsigned long n,
-+				     bool to_user)
-+{ }
-+#endif /* CONFIG_HARDENED_USERCOPY */
-+
- #endif	/* __KERNEL__ */
+ 	return __copy_tofrom_user(to, (__force const void __user *)from, n);
+ }
  
- #endif /* _LINUX_THREAD_INFO_H */
-diff --git a/mm/Makefile b/mm/Makefile
-index 78c6f7dedb83..32d37247c7e5 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -21,6 +21,9 @@ KCOV_INSTRUMENT_memcontrol.o := n
- KCOV_INSTRUMENT_mmzone.o := n
- KCOV_INSTRUMENT_vmstat.o := n
- 
-+# Since __builtin_frame_address does work as used, disable the warning.
-+CFLAGS_usercopy.o += $(call cc-disable-warning, frame-address)
-+
- mmu-y			:= nommu.o
- mmu-$(CONFIG_MMU)	:= gup.o highmem.o memory.o mincore.o \
- 			   mlock.o mmap.o mprotect.o mremap.o msync.o rmap.o \
-@@ -99,3 +102,4 @@ obj-$(CONFIG_USERFAULTFD) += userfaultfd.o
- obj-$(CONFIG_IDLE_PAGE_TRACKING) += page_idle.o
- obj-$(CONFIG_FRAME_VECTOR) += frame_vector.o
- obj-$(CONFIG_DEBUG_PAGE_REF) += debug_page_ref.o
-+obj-$(CONFIG_HARDENED_USERCOPY) += usercopy.o
-diff --git a/mm/usercopy.c b/mm/usercopy.c
-new file mode 100644
-index 000000000000..8ebae91a6b55
---- /dev/null
-+++ b/mm/usercopy.c
-@@ -0,0 +1,268 @@
-+/*
-+ * This implements the various checks for CONFIG_HARDENED_USERCOPY*,
-+ * which are designed to protect kernel memory from needless exposure
-+ * and overwrite under many unintended conditions. This code is based
-+ * on PAX_USERCOPY, which is:
-+ *
-+ * Copyright (C) 2001-2016 PaX Team, Bradley Spengler, Open Source
-+ * Security Inc.
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License version 2 as
-+ * published by the Free Software Foundation.
-+ *
-+ */
-+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-+
-+#include <linux/mm.h>
-+#include <linux/slab.h>
-+#include <asm/sections.h>
-+
-+enum {
-+	BAD_STACK = -1,
-+	NOT_STACK = 0,
-+	GOOD_FRAME,
-+	GOOD_STACK,
-+};
-+
-+/*
-+ * Checks if a given pointer and length is contained by the current
-+ * stack frame (if possible).
-+ *
-+ * Returns:
-+ *	NOT_STACK: not at all on the stack
-+ *	GOOD_FRAME: fully within a valid stack frame
-+ *	GOOD_STACK: fully on the stack (when can't do frame-checking)
-+ *	BAD_STACK: error condition (invalid stack position or bad stack frame)
-+ */
-+static noinline int check_stack_object(const void *obj, unsigned long len)
-+{
-+	const void * const stack = task_stack_page(current);
-+	const void * const stackend = stack + THREAD_SIZE;
-+	int ret;
-+
-+	/* Object is not on the stack at all. */
-+	if (obj + len <= stack || stackend <= obj)
-+		return NOT_STACK;
-+
-+	/*
-+	 * Reject: object partially overlaps the stack (passing the
-+	 * the check above means at least one end is within the stack,
-+	 * so if this check fails, the other end is outside the stack).
-+	 */
-+	if (obj < stack || stackend < obj + len)
-+		return BAD_STACK;
-+
-+	/* Check if object is safely within a valid frame. */
-+	ret = arch_within_stack_frames(stack, stackend, obj, len);
-+	if (ret)
-+		return ret;
-+
-+	return GOOD_STACK;
-+}
-+
-+static void report_usercopy(const void *ptr, unsigned long len,
-+			    bool to_user, const char *type)
-+{
-+	pr_emerg("kernel memory %s attempt detected %s %p (%s) (%lu bytes)\n",
-+		to_user ? "exposure" : "overwrite",
-+		to_user ? "from" : "to", ptr, type ? : "unknown", len);
-+	/*
-+	 * For greater effect, it would be nice to do do_group_exit(),
-+	 * but BUG() actually hooks all the lock-breaking and per-arch
-+	 * Oops code, so that is used here instead.
-+	 */
-+	BUG();
-+}
-+
-+/* Returns true if any portion of [ptr,ptr+n) over laps with [low,high). */
-+static bool overlaps(const void *ptr, unsigned long n, unsigned long low,
-+		     unsigned long high)
-+{
-+	unsigned long check_low = (uintptr_t)ptr;
-+	unsigned long check_high = check_low + n;
-+
-+	/* Does not overlap if entirely above or entirely below. */
-+	if (check_low >= high || check_high < low)
-+		return false;
-+
-+	return true;
-+}
-+
-+/* Is this address range in the kernel text area? */
-+static inline const char *check_kernel_text_object(const void *ptr,
-+						   unsigned long n)
-+{
-+	unsigned long textlow = (unsigned long)_stext;
-+	unsigned long texthigh = (unsigned long)_etext;
-+	unsigned long textlow_linear, texthigh_linear;
-+
-+	if (overlaps(ptr, n, textlow, texthigh))
-+		return "<kernel text>";
-+
-+	/*
-+	 * Some architectures have virtual memory mappings with a secondary
-+	 * mapping of the kernel text, i.e. there is more than one virtual
-+	 * kernel address that points to the kernel image. It is usually
-+	 * when there is a separate linear physical memory mapping, in that
-+	 * __pa() is not just the reverse of __va(). This can be detected
-+	 * and checked:
-+	 */
-+	textlow_linear = (unsigned long)__va(__pa(textlow));
-+	/* No different mapping: we're done. */
-+	if (textlow_linear == textlow)
-+		return NULL;
-+
-+	/* Check the secondary mapping... */
-+	texthigh_linear = (unsigned long)__va(__pa(texthigh));
-+	if (overlaps(ptr, n, textlow_linear, texthigh_linear))
-+		return "<linear kernel text>";
-+
-+	return NULL;
-+}
-+
-+static inline const char *check_bogus_address(const void *ptr, unsigned long n)
-+{
-+	/* Reject if object wraps past end of memory. */
-+	if (ptr + n < ptr)
-+		return "<wrapped address>";
-+
-+	/* Reject if NULL or ZERO-allocation. */
-+	if (ZERO_OR_NULL_PTR(ptr))
-+		return "<null>";
-+
-+	return NULL;
-+}
-+
-+static inline const char *check_heap_object(const void *ptr, unsigned long n,
-+					    bool to_user)
-+{
-+	struct page *page, *endpage;
-+	const void *end = ptr + n - 1;
-+	bool is_reserved, is_cma;
-+
-+	/*
-+	 * Some architectures (arm64) return true for virt_addr_valid() on
-+	 * vmalloced addresses. Work around this by checking for vmalloc
-+	 * first.
-+	 */
-+	if (is_vmalloc_addr(ptr))
-+		return NULL;
-+
-+	if (!virt_addr_valid(ptr))
-+		return NULL;
-+
-+	page = virt_to_head_page(ptr);
-+
-+	/* Check slab allocator for flags and size. */
-+	if (PageSlab(page))
-+		return __check_heap_object(ptr, n, page);
-+
-+	/*
-+	 * Sometimes the kernel data regions are not marked Reserved (see
-+	 * check below). And sometimes [_sdata,_edata) does not cover
-+	 * rodata and/or bss, so check each range explicitly.
-+	 */
-+
-+	/* Allow reads of kernel rodata region (if not marked as Reserved). */
-+	if (ptr >= (const void *)__start_rodata &&
-+	    end <= (const void *)__end_rodata) {
-+		if (!to_user)
-+			return "<rodata>";
-+		return NULL;
-+	}
-+
-+	/* Allow kernel data region (if not marked as Reserved). */
-+	if (ptr >= (const void *)_sdata && end <= (const void *)_edata)
-+		return NULL;
-+
-+	/* Allow kernel bss region (if not marked as Reserved). */
-+	if (ptr >= (const void *)__bss_start &&
-+	    end <= (const void *)__bss_stop)
-+		return NULL;
-+
-+	/* Is the object wholly within one base page? */
-+	if (likely(((unsigned long)ptr & (unsigned long)PAGE_MASK) ==
-+		   ((unsigned long)end & (unsigned long)PAGE_MASK)))
-+		return NULL;
-+
-+	/* Allow if start and end are inside the same compound page. */
-+	endpage = virt_to_head_page(end);
-+	if (likely(endpage == page))
-+		return NULL;
-+
-+	/*
-+	 * Reject if range is entirely either Reserved (i.e. special or
-+	 * device memory), or CMA. Otherwise, reject since the object spans
-+	 * several independently allocated pages.
-+	 */
-+	is_reserved = PageReserved(page);
-+	is_cma = is_migrate_cma_page(page);
-+	if (!is_reserved && !is_cma)
-+		goto reject;
-+
-+	for (ptr += PAGE_SIZE; ptr <= end; ptr += PAGE_SIZE) {
-+		page = virt_to_head_page(ptr);
-+		if (is_reserved && !PageReserved(page))
-+			goto reject;
-+		if (is_cma && !is_migrate_cma_page(page))
-+			goto reject;
-+	}
-+
-+	return NULL;
-+
-+reject:
-+	return "<spans multiple pages>";
-+}
-+
-+/*
-+ * Validates that the given object is:
-+ * - not bogus address
-+ * - known-safe heap or stack object
-+ * - not in kernel text
-+ */
-+void __check_object_size(const void *ptr, unsigned long n, bool to_user)
-+{
-+	const char *err;
-+
-+	/* Skip all tests if size is zero. */
-+	if (!n)
-+		return;
-+
-+	/* Check for invalid addresses. */
-+	err = check_bogus_address(ptr, n);
-+	if (err)
-+		goto report;
-+
-+	/* Check for bad heap object. */
-+	err = check_heap_object(ptr, n, to_user);
-+	if (err)
-+		goto report;
-+
-+	/* Check for bad stack object. */
-+	switch (check_stack_object(ptr, n)) {
-+	case NOT_STACK:
-+		/* Object is not touching the current process stack. */
-+		break;
-+	case GOOD_FRAME:
-+	case GOOD_STACK:
-+		/*
-+		 * Object is either in the correct frame (when it
-+		 * is possible to check) or just generally on the
-+		 * process stack (when frame checking not available).
-+		 */
-+		return;
-+	default:
-+		err = "<process stack>";
-+		goto report;
-+	}
-+
-+	/* Check for object in kernel to avoid text exposure. */
-+	err = check_kernel_text_object(ptr, n);
-+	if (!err)
-+		return;
-+
-+report:
-+	report_usercopy(ptr, n, to_user, err);
-+}
-+EXPORT_SYMBOL(__check_object_size);
-diff --git a/security/Kconfig b/security/Kconfig
-index 176758cdfa57..df28f2b6f3e1 100644
---- a/security/Kconfig
-+++ b/security/Kconfig
-@@ -118,6 +118,34 @@ config LSM_MMAP_MIN_ADDR
- 	  this low address space will need the permission specific to the
- 	  systems running LSM.
- 
-+config HAVE_HARDENED_USERCOPY_ALLOCATOR
-+	bool
-+	help
-+	  The heap allocator implements __check_heap_object() for
-+	  validating memory ranges against heap object sizes in
-+	  support of CONFIG_HARDENED_USERCOPY.
-+
-+config HAVE_ARCH_HARDENED_USERCOPY
-+	bool
-+	help
-+	  The architecture supports CONFIG_HARDENED_USERCOPY by
-+	  calling check_object_size() just before performing the
-+	  userspace copies in the low level implementation of
-+	  copy_to_user() and copy_from_user().
-+
-+config HARDENED_USERCOPY
-+	bool "Harden memory copies between kernel and userspace"
-+	depends on HAVE_ARCH_HARDENED_USERCOPY
-+	select BUG
-+	help
-+	  This option checks for obviously wrong memory regions when
-+	  copying memory to/from the kernel (via copy_to_user() and
-+	  copy_from_user() functions) by rejecting memory ranges that
-+	  are larger than the specified heap object, span multiple
-+	  separately allocates pages, are not on the process stack,
-+	  or are part of the kernel text. This kills entire classes
-+	  of heap overflow exploits and similar kernel memory exposures.
-+
- source security/selinux/Kconfig
- source security/smack/Kconfig
- source security/tomoyo/Kconfig
 -- 
 2.7.4
 
