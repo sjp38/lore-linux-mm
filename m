@@ -1,102 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EBE886B0005
-	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 12:02:48 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id p41so35626768lfi.0
-        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 09:02:48 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id et19si1496099wjc.128.2016.07.20.09.02.47
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F2C746B0005
+	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 12:04:36 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id p129so35476203wmp.3
+        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 09:04:36 -0700 (PDT)
+Received: from smtp-out4.electric.net (smtp-out4.electric.net. [192.162.216.195])
+        by mx.google.com with ESMTPS id h200si1593618lfg.7.2016.07.20.09.04.35
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 20 Jul 2016 09:02:47 -0700 (PDT)
-Subject: Re: [PATCH 4/8] mm, page_alloc: restructure direct compaction
- handling in slowpath
-References: <20160718112302.27381-1-vbabka@suse.cz>
- <20160718112302.27381-5-vbabka@suse.cz>
- <alpine.DEB.2.10.1607191548370.19940@chino.kir.corp.google.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <0a0a9812-2c51-dbb2-4f67-677d750e16ec@suse.cz>
-Date: Wed, 20 Jul 2016 18:02:42 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Jul 2016 09:04:35 -0700 (PDT)
+From: David Laight <David.Laight@ACULAB.COM>
+Subject: RE: [PATCH v3 00/11] mm: Hardened usercopy
+Date: Wed, 20 Jul 2016 16:02:39 +0000
+Message-ID: <063D6719AE5E284EB5DD2968C1650D6D5F4FEA62@AcuExch.aculab.com>
+References: <1468619065-3222-1-git-send-email-keescook@chromium.org>
+ <063D6719AE5E284EB5DD2968C1650D6D5F4FD6A3@AcuExch.aculab.com>
+ <CAGXu5j+QH8Fdk7p6bZV_yMv1puHRxZRu5z45+tKrmLyGBTymFw@mail.gmail.com>
+In-Reply-To: <CAGXu5j+QH8Fdk7p6bZV_yMv1puHRxZRu5z45+tKrmLyGBTymFw@mail.gmail.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1607191548370.19940@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>
+To: 'Kees Cook' <keescook@chromium.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Will Deacon <will.deacon@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Andrea
+ Arcangeli <aarcange@redhat.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, Russell King <linux@armlinux.org.uk>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, PaX Team <pageexec@freemail.hu>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Fenghua Yu <fenghua.yu@intel.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Tony Luck <tony.luck@intel.com>, Andy Lutomirski <luto@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, Brad Spengler <spender@grsecurity.net>, Ard
+ Biesheuvel <ard.biesheuvel@linaro.org>, Pekka Enberg <penberg@kernel.org>, Daniel Micay <danielmicay@gmail.com>, Casey Schaufler <casey@schaufler-ca.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "David S.
+ Miller" <davem@davemloft.net>
 
-On 07/20/2016 12:50 AM, David Rientjes wrote:
-> On Mon, 18 Jul 2016, Vlastimil Babka wrote:
-> 
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index 30443804f156..a04a67745927 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -3510,7 +3510,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->>  	struct page *page = NULL;
->>  	unsigned int alloc_flags;
->>  	unsigned long did_some_progress;
->> -	enum migrate_mode migration_mode = MIGRATE_ASYNC;
->> +	enum migrate_mode migration_mode = MIGRATE_SYNC_LIGHT;
->>  	enum compact_result compact_result;
->>  	int compaction_retries = 0;
->>  	int no_progress_loops = 0;
->> @@ -3552,6 +3552,49 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->>  	if (page)
->>  		goto got_pg;
->>  
->> +	/*
->> +	 * For costly allocations, try direct compaction first, as it's likely
->> +	 * that we have enough base pages and don't need to reclaim.
->> +	 */
->> +	if (can_direct_reclaim && order > PAGE_ALLOC_COSTLY_ORDER) {
->> +		page = __alloc_pages_direct_compact(gfp_mask, order,
->> +						alloc_flags, ac,
->> +						MIGRATE_ASYNC,
->> +						&compact_result);
->> +		if (page)
->> +			goto got_pg;
->> +
->> +		/* Checks for THP-specific high-order allocations */
->> +		if (is_thp_gfp_mask(gfp_mask)) {
->> +			/*
->> +			 * If compaction is deferred for high-order allocations,
->> +			 * it is because sync compaction recently failed. If
->> +			 * this is the case and the caller requested a THP
->> +			 * allocation, we do not want to heavily disrupt the
->> +			 * system, so we fail the allocation instead of entering
->> +			 * direct reclaim.
->> +			 */
->> +			if (compact_result == COMPACT_DEFERRED)
->> +				goto nopage;
->> +
->> +			/*
->> +			 * Compaction is contended so rather back off than cause
->> +			 * excessive stalls.
->> +			 */
->> +			if (compact_result == COMPACT_CONTENDED)
->> +				goto nopage;
->> +
->> +			/*
->> +			 * It can become very expensive to allocate transparent
->> +			 * hugepages at fault, so use asynchronous memory
->> +			 * compaction for THP unless it is khugepaged trying to
->> +			 * collapse. All other requests should tolerate at
->> +			 * least light sync migration.
->> +			 */
->> +			if (!(current->flags & PF_KTHREAD))
->> +				migration_mode = MIGRATE_ASYNC;
->> +		}
->> +	}
->>  
-> 
-> If gfp_pfmemalloc_allowed() == true, does this try to do compaction when 
-> get_page_from_freelist() would have succeeded with no watermarks?
-
-Yes, but the compaction will return immediately with COMPACT_SKIPPED, if
-we are below min watermarks. So I don't think it's worth complicating
-the code to avoid this?
+RnJvbTogS2VlcyBDb29rDQo+IFNlbnQ6IDIwIEp1bHkgMjAxNiAxNjozMg0KLi4uDQo+IFl1cDog
+dGhhdCdzIGV4YWN0bHkgd2hhdCBpdCdzIGRvaW5nOiB3YWxraW5nIHVwIHRoZSBzdGFjay4gOikN
+Cg0KUmVtaW5kIG1lIHRvIG1ha2Ugc3VyZSBhbGwgb3VyIGN1c3RvbWVycyBydW4ga2VybmVscyB3
+aXRoIGl0IGRpc2FibGVkLg0KDQoJRGF2aWQNCg0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
