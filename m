@@ -1,99 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 849BC6B0253
-	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 03:39:02 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id p129so26097897wmp.3
-        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 00:39:02 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a203si2878059wme.4.2016.07.20.00.39.01
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 578436B0005
+	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 03:47:27 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id r97so26688325lfi.2
+        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 00:47:27 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id j6si2851089wmj.88.2016.07.20.00.47.25
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 20 Jul 2016 00:39:01 -0700 (PDT)
-Date: Wed, 20 Jul 2016 09:38:59 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2] mm/hugetlb: fix race when migrate pages
-Message-ID: <20160720073859.GE11249@dhcp22.suse.cz>
-References: <1468935958-21810-1-git-send-email-zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Jul 2016 00:47:26 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id i5so5744509wmg.2
+        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 00:47:25 -0700 (PDT)
+Date: Wed, 20 Jul 2016 09:47:23 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [Question]page allocation failure: order:2, mode:0x2000d1
+Message-ID: <20160720074723.GA11256@dhcp22.suse.cz>
+References: <b3127e70-4fca-9e11-62e5-7a8f3da9d044@huawei.com>
+ <5d0d3274-a893-8453-fb3d-87981dd38cfa@suse.cz>
+ <578E2FBF.2080405@huawei.com>
+ <2c8255c9-e449-d245-8554-0ed258d594ed@suse.cz>
+ <7d9da183-38bf-96ef-a30c-db8b7dc9aafb@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1468935958-21810-1-git-send-email-zhongjiang@huawei.com>
+In-Reply-To: <7d9da183-38bf-96ef-a30c-db8b7dc9aafb@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhongjiang <zhongjiang@huawei.com>
-Cc: vbabka@suse.cz, qiuxishi@huawei.com, akpm@linux-foundation.org, linux-mm@kvack.org, Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Yisheng Xie <xieyisheng1@huawei.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Xishi Qiu <qiuxishi@huawei.com>, minchan@kernel.org, mgorman@suse.de, iamjoonsoo.kim@lge.com, mina86@mina86.com, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, cl@linux.com, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hanjun Guo <guohanjun@huawei.com>
 
-[CC Mike and Naoya]
-On Tue 19-07-16 21:45:58, zhongjiang wrote:
-> From: zhong jiang <zhongjiang@huawei.com>
+On Wed 20-07-16 09:33:30, Yisheng Xie wrote:
 > 
-> I hit the following code in huge_pte_alloc when run the database and
-> online-offline memory in the system.
 > 
-> BUG_ON(pte && !pte_none(*pte) && !pte_huge(*pte));
+> On 2016/7/19 22:14, Vlastimil Babka wrote:
+> > On 07/19/2016 03:48 PM, Xishi Qiu wrote:
+[...]
+> >> mode:0x2000d1 means it expects to alloc from zone_dma, (on arm64 zone_dma is 0-4G)
+> > 
+> > Yes, but I don't see where the __GFP_DMA comes from. The backtrace
+> > suggests it's alloc_thread_info_node() which uses THREADINFO_GFP
+> > which is GFP_KERNEL | __GFP_NOTRACK. There shouldn't be __GFP_DMA,
+> > even on arm64. Are there some local modifications to the kernel
+> > source?
+> > 
+> >> The page cache is very small(active_file:292kB inactive_file:240kB),
+> >> so did_some_progress may be zero, and will not retry, right?
+> > 
+> > Could be, and then __alloc_pages_may_oom() has this:
+> > 
+> >         /* The OOM killer does not needlessly kill tasks for lowmem */
+> >         if (ac->high_zoneidx < ZONE_NORMAL)
+> >                 goto out;
+> > 
+> > So no oom and no faking progress for non-costly order that would
+> > result in retry, because of that mysterious __GFP_DMA...
 > 
-> when pmd share function enable, we may be obtain a shared pmd entry.
-> due to ongoing offline memory , the pmd entry points to the page will
-> turn into migrate condition. therefore, the bug will come up.
-> 
-> The patch fix it by checking the pmd entry when we obtain the lock.
-> if the shared pmd entry points to page is under migration. we should
-> allocate a new pmd entry.
+> hi Vlastimil,
+> We do make change and add __GFP_DMA flag here for our platform driver's problem.
 
-I am still not 100% sure this is correct. Does huge_pte_lockptr work
-properly for the migration swapentry? If yes and we populate the pud
-with a migration entry then is it really bad/harmful (other than hitting
-the BUG_ON which might be update to handle that case)? This might be a
-stupid question, sorry about that, but I have really problem to grasp
-the whole issue properly and the changelog didn't help me much. I would
-really appreciate some clarification here. The pmd sharing code is clear
-as mud and adding new tweaks there doesn't sound like it would make it
-more clear.
+Why would you want to force thread_info to the DMA zone?
 
-Also is the hwpoison check really needed?
-
-> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
-> ---
->  mm/hugetlb.c | 9 ++++++++-
->  1 file changed, 8 insertions(+), 1 deletion(-)
+> Another question is why it will do retry here, for it will goto out
+> with did_some_progress=0 ?
 > 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 6384dfd..797db55 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -4213,7 +4213,7 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
->  	struct vm_area_struct *svma;
->  	unsigned long saddr;
->  	pte_t *spte = NULL;
-> -	pte_t *pte;
-> +	pte_t *pte, entry;
->  	spinlock_t *ptl;
->  
->  	if (!vma_shareable(vma, addr))
-> @@ -4240,6 +4240,11 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
->  
->  	ptl = huge_pte_lockptr(hstate_vma(vma), mm, spte);
->  	spin_lock(ptl);
-> +	entry = huge_ptep_get(spte);
-> +	if (is_hugetlb_entry_migration(entry) ||
-> +			is_hugetlb_entry_hwpoisoned(entry)) {
-> +		goto out_unlock;
-> +	}
->  	if (pud_none(*pud)) {
->  		pud_populate(mm, pud,
->  				(pmd_t *)((unsigned long)spte & PAGE_MASK));
-> @@ -4247,6 +4252,8 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
->  		put_page(virt_to_page(spte));
->  		mm_dec_nr_pmds(mm);
->  	}
-> +
-> +out_unlock:
->  	spin_unlock(ptl);
->  out:
->  	pte = (pte_t *)pmd_alloc(mm, pud, addr);
-> -- 
-> 1.8.3.1
+>              if (!did_some_progress)
+>                  goto nopage;
 
+Do you mean:
+                /*
+                 * If we fail to make progress by freeing individual
+                 * pages, but the allocation wants us to keep going,
+                 * start OOM killing tasks.
+                 */
+                if (!did_some_progress) {
+                        page = __alloc_pages_may_oom(gfp_mask, order, ac,
+                                                        &did_some_progress);
+                        if (page)
+                                goto got_pg;
+                        if (!did_some_progress)
+                                goto nopage;
+                }
+
+If yes then this code simply tells that if even oom path didn't make any
+progress then we should fail. As DMA request doesn't invoke OOM killer
+because it is effectively a lowmem request (see above check pointed
+by Vlastimil) then the OOM path couldn't make any progress and we are
+failing. If invoked the OOM killer then we would consider this as a
+forward progress and retry the allocation request.
 -- 
 Michal Hocko
 SUSE Labs
