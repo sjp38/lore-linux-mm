@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C8306B0260
-	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 11:22:01 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id p41so34857898lfi.0
-        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 08:22:01 -0700 (PDT)
-Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
-        by mx.google.com with ESMTPS id i14si1356342wjq.245.2016.07.20.08.21.52
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BF61F6B0261
+	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 11:22:03 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id l89so34675389lfi.3
+        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 08:22:03 -0700 (PDT)
+Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
+        by mx.google.com with ESMTPS id fa2si1357028wjb.152.2016.07.20.08.21.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 20 Jul 2016 08:21:52 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Jul 2016 08:21:53 -0700 (PDT)
 Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id 7728999031
-	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 15:21:52 +0000 (UTC)
+	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id AE3291C14FB
+	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 16:21:52 +0100 (IST)
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 4/5] mm: Remove reclaim and compaction retry approximations
-Date: Wed, 20 Jul 2016 16:21:50 +0100
-Message-Id: <1469028111-1622-5-git-send-email-mgorman@techsingularity.net>
+Subject: [PATCH 5/5] mm: consider per-zone inactive ratio to deactivate
+Date: Wed, 20 Jul 2016 16:21:51 +0100
+Message-Id: <1469028111-1622-6-git-send-email-mgorman@techsingularity.net>
 In-Reply-To: <1469028111-1622-1-git-send-email-mgorman@techsingularity.net>
 References: <1469028111-1622-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
@@ -23,302 +23,172 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@techsingularity.net>
 
-If per-zone LRU accounting is available then there is no point
-approximating whether reclaim and compaction should retry based on pgdat
-statistics. This is effectively a revert of "mm, vmstat: remove zone and
-node double accounting by approximating retries" with the difference that
-inactive/active stats are still available. This preserves the history of
-why the approximation was retried and why it had to be reverted to handle
-OOM kills on 32-bit systems.
+From: Minchan Kim <minchan@kernel.org>
 
+Minchan Kim reported that with per-zone lru state it was possible to
+identify that a normal zone with 8^M anonymous pages could trigger
+OOM with non-atomic order-0 allocations as all pages in the zone
+were in the active list.
+
+   gfp_mask=0x26004c0(GFP_KERNEL|__GFP_REPEAT|__GFP_NOTRACK), order=0
+   Call Trace:
+    [<c51a76e2>] __alloc_pages_nodemask+0xe52/0xe60
+    [<c51f31dc>] ? new_slab+0x39c/0x3b0
+    [<c51f31dc>] new_slab+0x39c/0x3b0
+    [<c51f4eca>] ___slab_alloc.constprop.87+0x6da/0x840
+    [<c563e6fc>] ? __alloc_skb+0x3c/0x260
+    [<c50b8e93>] ? enqueue_task_fair+0x73/0xbf0
+    [<c5219ee0>] ? poll_select_copy_remaining+0x140/0x140
+    [<c5201645>] __slab_alloc.isra.81.constprop.86+0x40/0x6d
+    [<c563e6fc>] ? __alloc_skb+0x3c/0x260
+    [<c51f525c>] kmem_cache_alloc+0x22c/0x260
+    [<c563e6fc>] ? __alloc_skb+0x3c/0x260
+    [<c563e6fc>] __alloc_skb+0x3c/0x260
+    [<c563eece>] alloc_skb_with_frags+0x4e/0x1a0
+    [<c5638d6a>] sock_alloc_send_pskb+0x16a/0x1b0
+    [<c570b581>] ? wait_for_unix_gc+0x31/0x90
+    [<c57084dd>] unix_stream_sendmsg+0x28d/0x340
+    [<c5634dad>] sock_sendmsg+0x2d/0x40
+    [<c5634e2c>] sock_write_iter+0x6c/0xc0
+    [<c5204a90>] __vfs_write+0xc0/0x120
+    [<c52053ab>] vfs_write+0x9b/0x1a0
+    [<c51cc4a9>] ? __might_fault+0x49/0xa0
+    [<c52062c4>] SyS_write+0x44/0x90
+    [<c50036c6>] do_fast_syscall_32+0xa6/0x1e0
+
+   Mem-Info:
+   active_anon:101103 inactive_anon:102219 isolated_anon:0
+    active_file:503 inactive_file:544 isolated_file:0
+    unevictable:0 dirty:0 writeback:34 unstable:0
+    slab_reclaimable:6298 slab_unreclaimable:74669
+    mapped:863 shmem:0 pagetables:100998 bounce:0
+    free:23573 free_pcp:1861 free_cma:0
+   Node 0 active_anon:404412kB inactive_anon:409040kB active_file:2012kB inactive_file:2176kB unevictable:0kB isolated(anon):0kB isolated(file):0kB mapped:3452kB dirty:0kB writeback:136kB shmem:0kB writeback_tmp:0kB unstable:0kB pages_scanned:1320845 all_unreclaimable? yes
+   DMA free:3296kB min:68kB low:84kB high:100kB active_anon:5540kB inactive_anon:0kB active_file:0kB inactive_file:0kB present:15992kB managed:15916kB mlocked:0kB slab_reclaimable:248kB slab_unreclaimable:2628kB kernel_stack:792kB pagetables:2316kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+   lowmem_reserve[]: 0 809 1965 1965
+   Normal free:3600kB min:3604kB low:4504kB high:5404kB active_anon:86304kB inactive_anon:0kB active_file:160kB inactive_file:376kB present:897016kB managed:858524kB mlocked:0kB slab_reclaimable:24944kB slab_unreclaimable:296048kB kernel_stack:163832kB pagetables:35892kB bounce:0kB free_pcp:3076kB local_pcp:656kB free_cma:0kB
+   lowmem_reserve[]: 0 0 9247 9247
+   HighMem free:86156kB min:512kB low:1796kB high:3080kB active_anon:312852kB inactive_anon:410024kB active_file:1924kB inactive_file:2012kB present:1183736kB managed:1183736kB mlocked:0kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:365784kB bounce:0kB free_pcp:3868kB local_pcp:720kB free_cma:0kB
+   lowmem_reserve[]: 0 0 0 0
+   DMA: 8*4kB (UM) 8*8kB (UM) 4*16kB (M) 2*32kB (UM) 2*64kB (UM) 1*128kB (M) 3*256kB (UME) 2*512kB (UE) 1*1024kB (E) 0*2048kB 0*4096kB = 3296kB
+   Normal: 240*4kB (UME) 160*8kB (UME) 23*16kB (ME) 3*32kB (UE) 3*64kB (UME) 2*128kB (ME) 1*256kB (U) 0*512kB 0*1024kB 0*2048kB 0*4096kB = 3408kB
+   HighMem: 10942*4kB (UM) 3102*8kB (UM) 866*16kB (UM) 76*32kB (UM) 11*64kB (UM) 4*128kB (UM) 1*256kB (M) 0*512kB 0*1024kB 0*2048kB 0*4096kB = 86344kB
+   Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=2048kB
+   54409 total pagecache pages
+   53215 pages in swap cache
+   Swap cache stats: add 300982, delete 247765, find 157978/226539
+   Free swap  = 3803244kB
+   Total swap = 4192252kB
+   524186 pages RAM
+   295934 pages HighMem/MovableOnly
+   9642 pages reserved
+   0 pages cma reserved
+
+The problem is due to the active deactivation logic in inactive_list_is_low.
+
+	Node 0 active_anon:404412kB inactive_anon:409040kB
+
+IOW, (inactive_anon of node * inactive_ratio > active_anon of node) due to
+highmem anonymous stat so VM never deactivates normal zone's anonymous pages.
+
+This patch is a modified version of Minchan's original solution but based
+upon it. The problem with Minchan's patch is that it didn't take memcg
+into account and any low zone with an imbalanced list could force a rotation.
+
+In this page, a zone-constrained global reclaim will rotate the list if
+the inactive/active ratio of all eligible zones needs to be corrected. It
+is possible that higher zone pages will be initially rotated prematurely
+but this is the safer choice to maintain overall LRU age.
+
+Signed-off-by: Minchan Kim <minchan@kernel.org>
 Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- include/linux/mmzone.h |  1 +
- include/linux/swap.h   |  1 +
- mm/compaction.c        | 20 +-------------------
- mm/migrate.c           |  2 ++
- mm/page-writeback.c    |  5 +++++
- mm/page_alloc.c        | 49 ++++++++++---------------------------------------
- mm/vmscan.c            | 18 ++++++++++++++++++
- mm/vmstat.c            |  1 +
- 8 files changed, 39 insertions(+), 58 deletions(-)
+ mm/vmscan.c | 37 ++++++++++++++++++++++++++++++++-----
+ 1 file changed, 32 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 72625b04e9ba..f2e4e90621ec 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -116,6 +116,7 @@ enum zone_stat_item {
- 	NR_ZONE_INACTIVE_FILE,
- 	NR_ZONE_ACTIVE_FILE,
- 	NR_ZONE_UNEVICTABLE,
-+	NR_ZONE_WRITE_PENDING,	/* Count of dirty, writeback and unstable pages */
- 	NR_MLOCK,		/* mlock()ed pages found and moved off LRU */
- 	NR_SLAB_RECLAIMABLE,
- 	NR_SLAB_UNRECLAIMABLE,
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index cc753c639e3d..b17cc4830fa6 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -307,6 +307,7 @@ extern void lru_cache_add_active_or_unevictable(struct page *page,
- 						struct vm_area_struct *vma);
- 
- /* linux/mm/vmscan.c */
-+extern unsigned long zone_reclaimable_pages(struct zone *zone);
- extern unsigned long pgdat_reclaimable_pages(struct pglist_data *pgdat);
- extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
- 					gfp_t gfp_mask, nodemask_t *mask);
-diff --git a/mm/compaction.c b/mm/compaction.c
-index cd93ea24c565..e5995f38d677 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1438,11 +1438,6 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
- {
- 	struct zone *zone;
- 	struct zoneref *z;
--	pg_data_t *last_pgdat = NULL;
--
--	/* Do not retry compaction for zone-constrained allocations */
--	if (ac->high_zoneidx < ZONE_NORMAL)
--		return false;
- 
- 	/*
- 	 * Make sure at least one zone would pass __compaction_suitable if we continue
-@@ -1453,27 +1448,14 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
- 		unsigned long available;
- 		enum compact_result compact_result;
- 
--		if (last_pgdat == zone->zone_pgdat)
--			continue;
--
--		/*
--		 * This over-estimates the number of pages available for
--		 * reclaim/compaction but walking the LRU would take too
--		 * long. The consequences are that compaction may retry
--		 * longer than it should for a zone-constrained allocation
--		 * request.
--		 */
--		last_pgdat = zone->zone_pgdat;
--		available = pgdat_reclaimable_pages(zone->zone_pgdat) / order;
--
- 		/*
- 		 * Do not consider all the reclaimable memory because we do not
- 		 * want to trash just for a single high order allocation which
- 		 * is even not guaranteed to appear even if __compaction_suitable
- 		 * is happy about the watermark check.
- 		 */
-+		available = zone_reclaimable_pages(zone) / order;
- 		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
--		available = min(zone->managed_pages, available);
- 		compact_result = __compaction_suitable(zone, order, alloc_flags,
- 				ac_classzone_idx(ac), available);
- 		if (compact_result != COMPACT_SKIPPED &&
-diff --git a/mm/migrate.c b/mm/migrate.c
-index ed2f85e61de1..ed0268268e93 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -513,7 +513,9 @@ int migrate_page_move_mapping(struct address_space *mapping,
- 		}
- 		if (dirty && mapping_cap_account_dirty(mapping)) {
- 			__dec_node_state(oldzone->zone_pgdat, NR_FILE_DIRTY);
-+			__dec_zone_state(oldzone, NR_ZONE_WRITE_PENDING);
- 			__inc_node_state(newzone->zone_pgdat, NR_FILE_DIRTY);
-+			__inc_zone_state(newzone, NR_ZONE_WRITE_PENDING);
- 		}
- 	}
- 	local_irq_enable();
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index cfa78124c3c2..7e9061ec040b 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -2462,6 +2462,7 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
- 
- 		mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_DIRTY);
- 		__inc_node_page_state(page, NR_FILE_DIRTY);
-+		__inc_zone_page_state(page, NR_ZONE_WRITE_PENDING);
- 		__inc_node_page_state(page, NR_DIRTIED);
- 		__inc_wb_stat(wb, WB_RECLAIMABLE);
- 		__inc_wb_stat(wb, WB_DIRTIED);
-@@ -2483,6 +2484,7 @@ void account_page_cleaned(struct page *page, struct address_space *mapping,
- 	if (mapping_cap_account_dirty(mapping)) {
- 		mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_DIRTY);
- 		dec_node_page_state(page, NR_FILE_DIRTY);
-+		dec_zone_page_state(page, NR_ZONE_WRITE_PENDING);
- 		dec_wb_stat(wb, WB_RECLAIMABLE);
- 		task_io_account_cancelled_write(PAGE_SIZE);
- 	}
-@@ -2739,6 +2741,7 @@ int clear_page_dirty_for_io(struct page *page)
- 		if (TestClearPageDirty(page)) {
- 			mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_DIRTY);
- 			dec_node_page_state(page, NR_FILE_DIRTY);
-+			dec_zone_page_state(page, NR_ZONE_WRITE_PENDING);
- 			dec_wb_stat(wb, WB_RECLAIMABLE);
- 			ret = 1;
- 		}
-@@ -2785,6 +2788,7 @@ int test_clear_page_writeback(struct page *page)
- 	if (ret) {
- 		mem_cgroup_dec_page_stat(page, MEM_CGROUP_STAT_WRITEBACK);
- 		dec_node_page_state(page, NR_WRITEBACK);
-+		dec_zone_page_state(page, NR_ZONE_WRITE_PENDING);
- 		inc_node_page_state(page, NR_WRITTEN);
- 	}
- 	unlock_page_memcg(page);
-@@ -2839,6 +2843,7 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
- 	if (!ret) {
- 		mem_cgroup_inc_page_stat(page, MEM_CGROUP_STAT_WRITEBACK);
- 		inc_node_page_state(page, NR_WRITEBACK);
-+		inc_zone_page_state(page, NR_ZONE_WRITE_PENDING);
- 	}
- 	unlock_page_memcg(page);
- 	return ret;
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index b44c9a8d879a..afb254e22235 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3434,7 +3434,6 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
- {
- 	struct zone *zone;
- 	struct zoneref *z;
--	pg_data_t *current_pgdat = NULL;
- 
- 	/*
- 	 * Make sure we converge to OOM if we cannot make any progress
-@@ -3444,15 +3443,6 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
- 		return false;
- 
- 	/*
--	 * Blindly retry lowmem allocation requests that are often ignored by
--	 * the OOM killer up to MAX_RECLAIM_RETRIES as we not have a reliable
--	 * and fast means of calculating reclaimable, dirty and writeback pages
--	 * in eligible zones.
--	 */
--	if (ac->high_zoneidx < ZONE_NORMAL)
--		goto out;
--
--	/*
- 	 * Keep reclaiming pages while there is a chance this will lead somewhere.
- 	 * If none of the target zones can satisfy our allocation request even
- 	 * if all reclaimable pages are considered then we are screwed and have
-@@ -3462,38 +3452,18 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
- 					ac->nodemask) {
- 		unsigned long available;
- 		unsigned long reclaimable;
--		int zid;
- 
--		if (current_pgdat == zone->zone_pgdat)
--			continue;
--
--		current_pgdat = zone->zone_pgdat;
--		available = reclaimable = pgdat_reclaimable_pages(current_pgdat);
-+		available = reclaimable = zone_reclaimable_pages(zone);
- 		available -= DIV_ROUND_UP(no_progress_loops * available,
- 					  MAX_RECLAIM_RETRIES);
--
--		/* Account for all free pages on eligible zones */
--		for (zid = 0; zid <= zone_idx(zone); zid++) {
--			struct zone *acct_zone = &current_pgdat->node_zones[zid];
--
--			available += zone_page_state_snapshot(acct_zone, NR_FREE_PAGES);
--		}
-+		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
- 
- 		/*
- 		 * Would the allocation succeed if we reclaimed the whole
--		 * available? This is approximate because there is no
--		 * accurate count of reclaimable pages per zone.
-+		 * available?
- 		 */
--		for (zid = 0; zid <= zone_idx(zone); zid++) {
--			struct zone *check_zone = &current_pgdat->node_zones[zid];
--			unsigned long estimate;
--
--			estimate = min(check_zone->managed_pages, available);
--			if (!__zone_watermark_ok(check_zone, order,
--					min_wmark_pages(check_zone), ac_classzone_idx(ac),
--					alloc_flags, estimate))
--				continue;
--
-+		if (__zone_watermark_ok(zone, order, min_wmark_pages(zone),
-+				ac_classzone_idx(ac), alloc_flags, available)) {
- 			/*
- 			 * If we didn't make any progress and have a lot of
- 			 * dirty + writeback pages then we should wait for
-@@ -3503,16 +3473,15 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
- 			if (!did_some_progress) {
- 				unsigned long write_pending;
- 
--				write_pending =
--					node_page_state(current_pgdat, NR_WRITEBACK) +
--					node_page_state(current_pgdat, NR_FILE_DIRTY);
-+				write_pending = zone_page_state_snapshot(zone,
-+							NR_ZONE_WRITE_PENDING);
- 
- 				if (2 * write_pending > reclaimable) {
- 					congestion_wait(BLK_RW_ASYNC, HZ/10);
- 					return true;
- 				}
- 			}
--out:
-+
- 			/*
- 			 * Memory allocation/reclaim might be called from a WQ
- 			 * context and the current implementation of the WQ
-@@ -4393,6 +4362,7 @@ void show_free_areas(unsigned int filter)
- 			" active_file:%lukB"
- 			" inactive_file:%lukB"
- 			" unevictable:%lukB"
-+			" writepending:%lukB"
- 			" present:%lukB"
- 			" managed:%lukB"
- 			" mlocked:%lukB"
-@@ -4415,6 +4385,7 @@ void show_free_areas(unsigned int filter)
- 			K(zone_page_state(zone, NR_ZONE_ACTIVE_FILE)),
- 			K(zone_page_state(zone, NR_ZONE_INACTIVE_FILE)),
- 			K(zone_page_state(zone, NR_ZONE_UNEVICTABLE)),
-+			K(zone_page_state(zone, NR_ZONE_WRITE_PENDING)),
- 			K(zone->present_pages),
- 			K(zone->managed_pages),
- 			K(zone_page_state(zone, NR_MLOCK)),
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index b16d578ce556..8f5959469079 100644
+index 8f5959469079..dddf73f4293c 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -194,6 +194,24 @@ static bool sane_reclaim(struct scan_control *sc)
- }
- #endif
- 
-+/*
-+ * This misses isolated pages which are not accounted for to save counters.
-+ * As the data only determines if reclaim or compaction continues, it is
-+ * not expected that isolated pages will be a dominating factor.
-+ */
-+unsigned long zone_reclaimable_pages(struct zone *zone)
-+{
-+	unsigned long nr;
-+
-+	nr = zone_page_state_snapshot(zone, NR_ZONE_INACTIVE_FILE) +
-+		zone_page_state_snapshot(zone, NR_ZONE_ACTIVE_FILE);
-+	if (get_nr_swap_pages() > 0)
-+		nr += zone_page_state_snapshot(zone, NR_ZONE_INACTIVE_ANON) +
-+			zone_page_state_snapshot(zone, NR_ZONE_ACTIVE_ANON);
-+
-+	return nr;
-+}
-+
- unsigned long pgdat_reclaimable_pages(struct pglist_data *pgdat)
+@@ -1976,7 +1976,8 @@ static void shrink_active_list(unsigned long nr_to_scan,
+  *    1TB     101        10GB
+  *   10TB     320        32GB
+  */
+-static bool inactive_list_is_low(struct lruvec *lruvec, bool file)
++static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
++						struct scan_control *sc)
  {
- 	unsigned long nr;
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index f10aad81a9a3..e1a46906c61b 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -926,6 +926,7 @@ const char * const vmstat_text[] = {
- 	"nr_inactive_file",
- 	"nr_active_file",
- 	"nr_unevictable",
-+	"nr_zone_write_pending",
- 	"nr_mlock",
- 	"nr_slab_reclaimable",
- 	"nr_slab_unreclaimable",
+ 	unsigned long inactive_ratio;
+ 	unsigned long inactive;
+@@ -1993,6 +1994,32 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file)
+ 	inactive = lruvec_lru_size(lruvec, file * LRU_FILE);
+ 	active = lruvec_lru_size(lruvec, file * LRU_FILE + LRU_ACTIVE);
+ 
++	/*
++	 * For global reclaim on zone-constrained allocations, it is necessary
++	 * to check if rotations are required for lowmem to be reclaimed. This
++	 * calculates the inactive/active pages available in eligible zones.
++	 */
++	if (global_reclaim(sc)) {
++		struct pglist_data *pgdat = lruvec_pgdat(lruvec);
++		int zid;
++
++		for (zid = sc->reclaim_idx; zid < MAX_NR_ZONES; zid++) {
++			struct zone *zone = &pgdat->node_zones[zid];
++			unsigned long inactive_zone, active_zone;
++
++			if (!populated_zone(zone))
++				continue;
++
++			inactive_zone = zone_page_state(zone,
++					NR_ZONE_LRU_BASE + (file * LRU_FILE));
++			active_zone = zone_page_state(zone,
++					NR_ZONE_LRU_BASE + (file * LRU_FILE) + LRU_ACTIVE);
++
++			inactive -= min(inactive, inactive_zone);
++			active -= min(active, active_zone);
++		}
++	}
++
+ 	gb = (inactive + active) >> (30 - PAGE_SHIFT);
+ 	if (gb)
+ 		inactive_ratio = int_sqrt(10 * gb);
+@@ -2006,7 +2033,7 @@ static unsigned long shrink_list(enum lru_list lru, unsigned long nr_to_scan,
+ 				 struct lruvec *lruvec, struct scan_control *sc)
+ {
+ 	if (is_active_lru(lru)) {
+-		if (inactive_list_is_low(lruvec, is_file_lru(lru)))
++		if (inactive_list_is_low(lruvec, is_file_lru(lru), sc))
+ 			shrink_active_list(nr_to_scan, lruvec, sc, lru);
+ 		return 0;
+ 	}
+@@ -2137,7 +2164,7 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
+ 	 * lruvec even if it has plenty of old anonymous pages unless the
+ 	 * system is under heavy pressure.
+ 	 */
+-	if (!inactive_list_is_low(lruvec, true) &&
++	if (!inactive_list_is_low(lruvec, true, sc) &&
+ 	    lruvec_lru_size(lruvec, LRU_INACTIVE_FILE) >> sc->priority) {
+ 		scan_balance = SCAN_FILE;
+ 		goto out;
+@@ -2379,7 +2406,7 @@ static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memc
+ 	 * Even if we did not try to evict anon pages at all, we want to
+ 	 * rebalance the anon lru active/inactive ratio.
+ 	 */
+-	if (inactive_list_is_low(lruvec, false))
++	if (inactive_list_is_low(lruvec, false, sc))
+ 		shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
+ 				   sc, LRU_ACTIVE_ANON);
+ 
+@@ -3032,7 +3059,7 @@ static void age_active_anon(struct pglist_data *pgdat,
+ 	do {
+ 		struct lruvec *lruvec = mem_cgroup_lruvec(pgdat, memcg);
+ 
+-		if (inactive_list_is_low(lruvec, false))
++		if (inactive_list_is_low(lruvec, false, sc))
+ 			shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
+ 					   sc, LRU_ACTIVE_ANON);
+ 
 -- 
 2.6.4
 
