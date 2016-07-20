@@ -1,65 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F7626B0005
-	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 00:21:03 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id qh10so65027176pac.2
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 21:21:03 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id e88si1058983pfj.182.2016.07.19.21.21.01
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A6C26B0005
+	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 02:29:16 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id 33so25099759lfw.1
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 23:29:16 -0700 (PDT)
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com. [74.125.82.42])
+        by mx.google.com with ESMTPS id 196si25229689wme.130.2016.07.19.23.29.14
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 19 Jul 2016 21:21:02 -0700 (PDT)
-From: Zhou Chengming <zhouchengming1@huawei.com>
-Subject: [PATCH] make __section_nr more efficient
-Date: Wed, 20 Jul 2016 12:18:30 +0800
-Message-ID: <1468988310-11560-1-git-send-email-zhouchengming1@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 19 Jul 2016 23:29:14 -0700 (PDT)
+Received: by mail-wm0-f42.google.com with SMTP id q128so42096184wma.1
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 23:29:14 -0700 (PDT)
+Date: Wed, 20 Jul 2016 08:29:12 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 10/10] mm, oom: hide mm which is shared with kthread or
+ global init
+Message-ID: <20160720062912.GA11249@dhcp22.suse.cz>
+References: <1466426628-15074-1-git-send-email-mhocko@kernel.org>
+ <1466426628-15074-11-git-send-email-mhocko@kernel.org>
+ <20160719120538.GE9490@dhcp22.suse.cz>
+ <20160719162759.e391c685db7a8de30b79320c@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160719162759.e391c685db7a8de30b79320c@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, tj@kernel.org, guohanjun@huawei.com, huawei.libin@huawei.com, zhouchengming1@huawei.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, LKML <linux-kernel@vger.kernel.org>
 
-When CONFIG_SPARSEMEM_EXTREME is disabled, __section_nr can get
-the section number with a subtraction directly.
+On Tue 19-07-16 16:27:59, Andrew Morton wrote:
+> On Tue, 19 Jul 2016 14:05:39 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+> 
+> > > After this patch we should guarantee a forward progress for the OOM
+> > > killer even when the selected victim is sharing memory with a kernel
+> > > thread or global init.
+> > 
+> > Could you replace the last two paragraphs with the following. Tetsuo
+> > didn't like the guarantee mentioned there because that is a too strong
+> > statement as find_lock_task_mm might not find any mm and so we still
+> > could end up looping on the oom victim if it gets stuck somewhere in
+> > __mmput. This particular patch didn't aim at closing that case. Plugging
+> > that hole is planned later after the next upcoming merge window closes.
+> > 
+> > "
+> > In order to help a forward progress for the OOM killer, make sure
+> > that this really rare cases will not get into the way and hide
+> > the mm from the oom killer by setting MMF_OOM_REAPED flag for it.
+> > oom_scan_process_thread will ignore any TIF_MEMDIE task if it has
+> > MMF_OOM_REAPED flag set to catch these oom victims.
+> > 		        
+> > After this patch we should guarantee a forward progress for the OOM
+> > killer even when the selected victim is sharing memory with a kernel
+> > thread or global init as long as the victims mm is still alive.
+> > "
+> 
+> I tweaked it a bit:
+> 
+> : In order to help forward progress for the OOM killer, make sure that
+> : this really rare case will not get in the way - we do this by hiding
+> : the mm from the oom killer by setting MMF_OOM_REAPED flag for it. 
+> : oom_scan_process_thread will ignore any TIF_MEMDIE task if it has
+> : MMF_OOM_REAPED flag set to catch these oom victims.
+> : 
+> : After this patch we should guarantee forward progress for the OOM
+> : killer even when the selected victim is sharing memory with a kernel
+> : thread or global init as long as the victims mm is still alive.
 
-Signed-off-by: Zhou Chengming <zhouchengming1@huawei.com>
----
- mm/sparse.c |   12 +++++++-----
- 1 files changed, 7 insertions(+), 5 deletions(-)
+Sounds good to me. Thanks!
 
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 5d0cf45..36d7bbb 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -100,11 +100,7 @@ static inline int sparse_index_init(unsigned long section_nr, int nid)
- }
- #endif
- 
--/*
-- * Although written for the SPARSEMEM_EXTREME case, this happens
-- * to also work for the flat array case because
-- * NR_SECTION_ROOTS==NR_MEM_SECTIONS.
-- */
-+#ifdef CONFIG_SPARSEMEM_EXTREME
- int __section_nr(struct mem_section* ms)
- {
- 	unsigned long root_nr;
-@@ -123,6 +119,12 @@ int __section_nr(struct mem_section* ms)
- 
- 	return (root_nr * SECTIONS_PER_ROOT) + (ms - root);
- }
-+#else
-+int __section_nr(struct mem_section* ms)
-+{
-+	return (int)(ms - mem_section[0]);
-+}
-+#endif
- 
- /*
-  * During early boot, before section_mem_map is used for an actual
 -- 
-1.7.7
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
