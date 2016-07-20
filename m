@@ -1,141 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E3DA16B0005
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 21:34:00 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id q2so59912576pap.1
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 18:34:00 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id u87si328643pfa.1.2016.07.19.18.33.59
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 19 Jul 2016 18:34:00 -0700 (PDT)
-Subject: Re: [Question]page allocation failure: order:2, mode:0x2000d1
-References: <b3127e70-4fca-9e11-62e5-7a8f3da9d044@huawei.com>
- <5d0d3274-a893-8453-fb3d-87981dd38cfa@suse.cz> <578E2FBF.2080405@huawei.com>
- <2c8255c9-e449-d245-8554-0ed258d594ed@suse.cz>
-From: Yisheng Xie <xieyisheng1@huawei.com>
-Message-ID: <7d9da183-38bf-96ef-a30c-db8b7dc9aafb@huawei.com>
-Date: Wed, 20 Jul 2016 09:33:30 +0800
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 097AC6B0005
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 21:54:35 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id hh10so60734550pac.3
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 18:54:35 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id ye8si380249pab.169.2016.07.19.18.54.33
+        for <linux-mm@kvack.org>;
+        Tue, 19 Jul 2016 18:54:34 -0700 (PDT)
+Subject: Re: [PATCH v8 1/7] x86, memhp, numa: Online memory-less nodes at boot
+ time.
+References: <1468913288-16605-1-git-send-email-douly.fnst@cn.fujitsu.com>
+ <1468913288-16605-2-git-send-email-douly.fnst@cn.fujitsu.com>
+ <20160719185017.GM3078@mtj.duckdns.org>
+From: Dou Liyang <douly.fnst@cn.fujitsu.com>
+Message-ID: <dcce26e9-bd9f-e9db-b1c7-6a18271395f2@cn.fujitsu.com>
+Date: Wed, 20 Jul 2016 09:52:56 +0800
 MIME-Version: 1.0
-In-Reply-To: <2c8255c9-e449-d245-8554-0ed258d594ed@suse.cz>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20160719185017.GM3078@mtj.duckdns.org>
+Content-Type: multipart/alternative;
+	boundary="------------E4C35AA4269377E76DF27B3E"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Xishi Qiu <qiuxishi@huawei.com>
-Cc: minchan@kernel.org, mgorman@suse.de, iamjoonsoo.kim@lge.com, mina86@mina86.com, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, cl@linux.com, David Rientjes <rientjes@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hanjun Guo <guohanjun@huawei.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: cl@linux.com, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, len.brown@intel.com, lenb@kernel.org, tglx@linutronix.de, chen.tang@easystack.cn, rafael@kernel.org, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Tang Chen <tangchen@cn.fujitsu.com>, Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
+
+--------------E4C35AA4269377E76DF27B3E
+Content-Type: text/plain; charset="UTF-8"; format=flowed
+Content-Transfer-Encoding: 8bit
 
 
 
-On 2016/7/19 22:14, Vlastimil Babka wrote:
-> On 07/19/2016 03:48 PM, Xishi Qiu wrote:
->> On 2016/7/19 21:17, Vlastimil Babka wrote:
->>
->>> On 07/19/2016 02:43 PM, Yisheng Xie wrote:
->>>> hi all,
->>>> I'm getting a 2-order page allocation failure problem on 4.1.18.
->>>> From the Mem-info, it seems the system have much zero order free pages which can be used for memory compaction.
->>>> Is it possible that the memory compacted by current process used by other process soon, which cause page allocation failure of current process ?
->>>
->>> It's possible, but an order-2 allocation should retry compaction in such case.
->>>
->>
->> Hi Vlastimil,
->>
->> mode:0x2000d1 means it expects to alloc from zone_dma, (on arm64 zone_dma is 0-4G)
-> 
-> Yes, but I don't see where the __GFP_DMA comes from. The backtrace suggests it's alloc_thread_info_node() which uses THREADINFO_GFP which is GFP_KERNEL | __GFP_NOTRACK. There shouldn't be __GFP_DMA, even on arm64. Are there some local modifications to the kernel source?
-> 
->> The page cache is very small(active_file:292kB inactive_file:240kB),
->> so did_some_progress may be zero, and will not retry, right?
-> 
-> Could be, and then __alloc_pages_may_oom() has this:
-> 
->         /* The OOM killer does not needlessly kill tasks for lowmem */
->         if (ac->high_zoneidx < ZONE_NORMAL)
->                 goto out;
-> 
-> So no oom and no faking progress for non-costly order that would result in retry, because of that mysterious __GFP_DMA...
+a?? 2016a1'07ae??20ae?JPY 02:50, Tejun Heo a??e??:
+> Hello,
+>
+> On Tue, Jul 19, 2016 at 03:28:02PM +0800, Dou Liyang wrote:
+>> In this series of patches, we are going to construct cpu <-> node mapping
+>> for all possible cpus at boot time, which is a 1-1 mapping. It means the
+> 1-1 mapping means that each cpu is mapped to its own private node
+> which isn't the case.  Just call it a persistent mapping?
 
-hi Vlastimil,
-We do make change and add __GFP_DMA flag here for our platform driver's problem. Another question is  why it will do retry here, for it will goto out with did_some_progress=0 ?
+Yes, each cpu is just in a persistent node.
+However, the opposite is not true.
 
-             if (!did_some_progress)
-                 goto nopage;
+I will modify it.
 
-> 
->> Thanks,
->> Xishi Qiu
+
+>
+>> cpu will be mapped to the node it belongs to, and will never be changed.
+>> If a node has only cpus but no memory, the cpus on it will be mapped to
+>> a memory-less node. And the memory-less node should be onlined.
 >>
->>>>
->>>> --- dmesg messages ---
->>>> 07-13 08:41:51.341 <4>[309805.658142s][pid:1361,cpu5,sManagerService]sManagerService: page allocation failure: order:2, mode:0x2000d1
->>>
->>> Geez, these old kernels that can't print the mode human-readably...
->>> #define ___GFP_DMA              0x01
->>> #define ___GFP_WAIT             0x10
->>> #define ___GFP_IO               0x40
->>> #define ___GFP_FS               0x80
->>> #define ___GFP_NOTRACK          0x200000
->>>
->>> Compaction indeed should be possible. And it's a non-costly allocation. It shouldn't even be allowed to fail, unless the process was killed?
->>>
->>>> 07-13 08:41:51.346 <4>[309805.658142s][pid:1361,cpu5,sManagerService]CPU: 5 PID: 1361 Comm: sManagerService Tainted: G        W       4.1.18-g09f547b #1
->>>
->>> There's a W taint flag so there should have been a WARN message/backtrace preceding it. What is it? It could be related.
-this only warning info about "sManagerService" is a secpolicy denied, seems not related to this problem.
-07-13 08:40:11.925 <36>[309706.248809s][pid:349,cpu0,logd.auditd]type=1400 audit(1468370411.909:1628880): avc: denied { getattr } for pid=1361 comm="sManagerService" path="/proc/uid_iostats/show_uid_iostats" dev="proc" ino=4026531864 scontext=u:r:system_server:s0 tcontext=u:object_r:proc_uid_iomonitor_showstat:s0 tclass=file permissive=0
->>>
->>>> 07-13 08:41:51.347 <4>[309805.658142s][pid:1361,cpu5,sManagerService]TGID: 981 Comm: system_server
->>>> 07-13 08:41:51.347 <4>[309805.658172s][pid:1361,cpu5,sManagerService]Hardware name: hi3650 (DT)
->>>> 07-13 08:41:51.347 <0>[309805.658172s][pid:1361,cpu5,sManagerService]Call trace:
->>>> 07-13 08:41:51.347 <4>[309805.658203s][pid:1361,cpu5,sManagerService][<ffffffc00008a0a4>] dump_backtrace+0x0/0x150
->>>> 07-13 08:41:51.347 <4>[309805.658203s][pid:1361,cpu5,sManagerService][<ffffffc00008a214>] show_stack+0x20/0x28
->>>> 07-13 08:41:51.347 <4>[309805.658203s][pid:1361,cpu5,sManagerService][<ffffffc000fc4034>] dump_stack+0x84/0xa8
->>>> 07-13 08:41:51.347 <4>[309805.658203s][pid:1361,cpu5,sManagerService][<ffffffc00018af54>] warn_alloc_failed+0x10c/0x164
->>>> 07-13 08:41:51.347 <4>[309805.658233s][pid:1361,cpu5,sManagerService][<ffffffc00018e778>] __alloc_pages_nodemask+0x5b4/0x888
->>>> 07-13 08:41:51.347 <4>[309805.658233s][pid:1361,cpu5,sManagerService][<ffffffc00018eb84>] alloc_kmem_pages_node+0x44/0x50
->>>> 07-13 08:41:51.347 <4>[309805.658233s][pid:1361,cpu5,sManagerService][<ffffffc00009fa78>] copy_process.part.46+0x140/0x15ac
->>>> 07-13 08:41:51.347 <4>[309805.658233s][pid:1361,cpu5,sManagerService][<ffffffc0000a10a0>] do_fork+0xe8/0x444
->>>> 07-13 08:41:51.347 <4>[309805.658264s][pid:1361,cpu5,sManagerService][<ffffffc0000a14e8>] SyS_clone+0x3c/0x48
->>>> 07-13 08:41:51.347 <4>[309805.658264s][pid:1361,cpu5,sManagerService]Mem-Info:
->>>> 07-13 08:41:51.347 <4>[309805.658264s][pid:1361,cpu5,sManagerService]active_anon:491074 inactive_anon:118072 isolated_anon:0
->>>> 07-13 08:41:51.347 <4>[309805.658264s] active_file:19087 inactive_file:9843 isolated_file:0
->>>> 07-13 08:41:51.347 <4>[309805.658264s] unevictable:322 dirty:20 writeback:0 unstable:0
->>>> 07-13 08:41:51.347 <4>[309805.658264s] slab_reclaimable:11788 slab_unreclaimable:28068
->>>> 07-13 08:41:51.347 <4>[309805.658264s] mapped:20633 shmem:4038 pagetables:10865 bounce:72
->>>> 07-13 08:41:51.347 <4>[309805.658264s] free:118678 free_pcp:58 free_cma:0
->>>> 07-13 08:41:51.347 <4>[309805.658294s][pid:1361,cpu5,sManagerService]DMA free:470628kB min:6800kB low:29116kB high:30816kB active_anon:1868540kB inactive_anon:376100kB active_file:292kB inactive_file:240kB unevictable:1080kB isolated(anon):0kB isolated(file):0kB present:3446780kB managed:3307056kB mlocked:1080kB dirty:80kB writeback:0kB mapped:7604kB shmem:14380kB slab_reclaimable:47152kB slab_unreclaimable:112268kB kernel_stack:28224kB pagetables:43460kB unstable:0kB bounce:288kB free_pcp:204kB local_pcp:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
->>>> 07-13 08:41:51.347 <4>[309805.658294s][pid:1361,cpu5,sManagerService]lowmem_reserve[]: 0 415 415
->>>> 07-13 08:41:51.347 <4>[309805.658294s][pid:1361,cpu5,sManagerService]Normal free:4084kB min:872kB low:3740kB high:3960kB active_anon:95756kB inactive_anon:96188kB active_file:76056kB inactive_file:39132kB unevictable:208kB isolated(anon):0kB isolated(file):0kB present:524288kB managed:425480kB mlocked:208kB dirty:0kB writeback:0kB mapped:74928kB shmem:1772kB slab_reclaimable:0kB slab_unreclaimable:4kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:0kB free_pcp:28kB local_pcp:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
->>>> 07-13 08:41:51.347 <4>[309805.658294s][pid:1361,cpu5,sManagerService]lowmem_reserve[]: 0 0 0
->>>> 07-13 08:41:51.347 <4>[309805.658325s][pid:1361,cpu5,sManagerService]DMA: 68324*4kB (UEM) 24706*8kB (UER) 2*16kB (U) 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 470976kB
->>>
->>> Indeed compaction should be doing something with this...
->>>
->>>> 07-13 08:41:51.347 <4>[309805.658355s][pid:1361,cpu5,sManagerService]Normal: 270*4kB (UMR) 82*8kB (UMR) 48*16kB (MR) 25*32kB (R) 12*64kB (R) 2*128kB (R) 1*256kB (R) 0*512kB 0*1024kB 0*2048kB 0*4096kB = 4584kB
->>>> 07-13 08:41:51.347 <4>[309805.658386s][pid:1361,cpu5,sManagerService]38319 total pagecache pages
->>>> 07-13 08:41:51.347 <4>[309805.658386s][pid:1361,cpu5,sManagerService]5384 pages in swap cache
->>>> 07-13 08:41:51.347 <4>[309805.658386s][pid:1361,cpu5,sManagerService]Swap cache stats: add 628084, delete 622700, find 2187699/2264909
->>>> 07-13 08:41:51.347 <4>[309805.658386s][pid:1361,cpu5,sManagerService]Free swap  = 0kB
->>>> 07-13 08:41:51.348 <4>[309805.658416s][pid:1361,cpu5,sManagerService]Total swap = 524284kB
->>>> 07-13 08:41:51.348 <4>[309805.658416s][pid:1361,cpu5,sManagerService]992767 pages RAM
->>>> 07-13 08:41:51.348 <4>[309805.658416s][pid:1361,cpu5,sManagerService]0 pages HighMem/MovableOnly
->>>> 07-13 08:41:51.348 <4>[309805.658416s][pid:1361,cpu5,sManagerService]51441 pages reserved
->>>> 07-13 08:41:51.348 <4>[309805.658416s][pid:1361,cpu5,sManagerService]8192 pages cma reserved
->>>> 07-13 08:41:51.767 <6>[309806.068298s][pid:2247,cpu6,notification-sq][I/sensorhub] shb_release ok
->>>>
->>>
->>>
->>> .
->>>
->>
->>
->>
-> 
-> 
-> .
-> 
+>> This patch allocate pgdats for all memory-less nodes and online them at
+>> boot time. Then build zonelists for these nodes. As a result, when cpus
+>> on these memory-less nodes try to allocate memory from local node, it
+>> will automatically fall back to the proper zones in the zonelists.
+> Yeah, I think this is an a lot better approach for memory-less nodes.
+>
+>> Signed-off-by: Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
+
+Thanks,
+
+Dou
+
+
+
+
+
+--------------E4C35AA4269377E76DF27B3E
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+
+<html>
+  <head>
+    <meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
+  </head>
+  <body bgcolor="#FFFFFF" text="#000000">
+    <p><br>
+    </p>
+    <br>
+    <div class="moz-cite-prefix">a?? 2016a1'07ae??20ae?JPY 02:50, Tejun Heo a??e??:<br>
+    </div>
+    <blockquote cite="mid:20160719185017.GM3078@mtj.duckdns.org"
+      type="cite">
+      <pre wrap="">Hello,
+
+On Tue, Jul 19, 2016 at 03:28:02PM +0800, Dou Liyang wrote:
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">In this series of patches, we are going to construct cpu &lt;-&gt; node mapping
+for all possible cpus at boot time, which is a 1-1 mapping. It means the
+</pre>
+      </blockquote>
+      <pre wrap="">
+1-1 mapping means that each cpu is mapped to its own private node
+which isn't the case.  Just call it a persistent mapping?</pre>
+    </blockquote>
+    <pre>
+Yes, each cpu is just in a persistent node.
+<span class="" id="w_11" high-light-id="w_0,w_11">However</span><span class="" id="w_12" high-light-id="w_1,w_12">, </span><span id="w_13" high-light-id="">the </span><span id="w_14" high-light-id="w_2,w_14" class="high-light">opposite </span><span class="" id="w_15" high-light-id="w_3,w_15">is </span><span class="" id="w_16" high-light-id="w_4,w_16">not </span><span id="w_17" high-light-id="w_7,w_17" class="high-light">true</span><span class="" id="w_20" high-light-id="w_9,w_20"></span><span class="" id="w_21" high-light-id="w_10,w_21">. </span>
+
+I will modify it.</pre>
+    <br>
+    <blockquote cite="mid:20160719185017.GM3078@mtj.duckdns.org"
+      type="cite">
+      <pre wrap="">
+
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">cpu will be mapped to the node it belongs to, and will never be changed.
+If a node has only cpus but no memory, the cpus on it will be mapped to
+a memory-less node. And the memory-less node should be onlined.
+
+This patch allocate pgdats for all memory-less nodes and online them at
+boot time. Then build zonelists for these nodes. As a result, when cpus
+on these memory-less nodes try to allocate memory from local node, it
+will automatically fall back to the proper zones in the zonelists.
+</pre>
+      </blockquote>
+      <pre wrap="">
+Yeah, I think this is an a lot better approach for memory-less nodes.
+
+</pre>
+      <blockquote type="cite">
+        <pre wrap="">Signed-off-by: Zhu Guihua <a class="moz-txt-link-rfc2396E" href="mailto:zhugh.fnst@cn.fujitsu.com">&lt;zhugh.fnst@cn.fujitsu.com&gt;</a>
+</pre>
+      </blockquote>
+    </blockquote>
+    <pre>
+Thanks,
+
+Dou
+</pre>
+    <br>
+  </body>
+</html>
+
+--------------E4C35AA4269377E76DF27B3E--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
