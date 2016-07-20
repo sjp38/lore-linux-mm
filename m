@@ -1,117 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E7BC06B0005
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 21:03:31 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id e189so69619450pfa.2
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 18:03:31 -0700 (PDT)
-Received: from mail-pf0-x234.google.com (mail-pf0-x234.google.com. [2607:f8b0:400e:c00::234])
-        by mx.google.com with ESMTPS id z3si143053pfz.255.2016.07.19.18.03.31
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Jul 2016 18:03:31 -0700 (PDT)
-Received: by mail-pf0-x234.google.com with SMTP id h186so12760866pfg.3
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 18:03:31 -0700 (PDT)
-Date: Tue, 19 Jul 2016 18:03:23 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH v2] more mapcount page as kpage could reduce total
- replacement times than fewer mapcount one in probability.
-In-Reply-To: <alpine.LSU.2.11.1606211807330.6589@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1607191746001.5855@eggly.anvils>
-References: <1465955818-101898-1-git-send-email-zhouxianrong@huawei.com> <2460b794-92f0-d115-c729-bcfe33663e48@huawei.com> <alpine.LSU.2.11.1606211807330.6589@eggly.anvils>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EBBDA6B0005
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 21:26:52 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id y134so70573931pfg.1
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 18:26:52 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id u125si241078pfb.245.2016.07.19.18.26.51
+        for <linux-mm@kvack.org>;
+        Tue, 19 Jul 2016 18:26:52 -0700 (PDT)
+Subject: Re: [PATCH v8 5/7] x86, acpi, cpu-hotplug: Set persistent cpuid <->
+ nodeid mapping when booting.
+References: <1468913288-16605-1-git-send-email-douly.fnst@cn.fujitsu.com>
+ <1468913288-16605-6-git-send-email-douly.fnst@cn.fujitsu.com>
+ <1699870.UOpnC170VZ@vostro.rjw.lan>
+From: Dou Liyang <douly.fnst@cn.fujitsu.com>
+Message-ID: <703372c8-82fc-7d2e-75ad-e43cb1fb8c5e@cn.fujitsu.com>
+Date: Wed, 20 Jul 2016 09:25:13 +0800
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <1699870.UOpnC170VZ@vostro.rjw.lan>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhouxianrong@huawei.com
-Cc: akpm@linux-foundation.org, hughd@google.com, aarcange@redhat.com, kirill.shutemov@linux.intel.com, dave.hansen@linux.intel.com, zhouchengming1@huawei.com, geliangtang@163.com, zhouxiyu@huawei.com, wanghaijun5@huawei.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Cc: cl@linux.com, tj@kernel.org, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, len.brown@intel.com, lenb@kernel.org, tglx@linutronix.de, chen.tang@easystack.cn, rafael@kernel.org, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gu Zheng <guz.fnst@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
 
-On Tue, 21 Jun 2016, Hugh Dickins wrote:
-> On Tue, 21 Jun 2016, zhouxianrong wrote:
-> 
-> > hey hugh:
-> >     could you please give me some suggestion about this ?
-> 
-> I must ask you to be more patient: everyone would like me to be
-> quicker, but I cannot; and this does not appear to be urgent.
-> 
-> Your idea makes sense to me; but if your patch seems obvious to you,
-> sorry, it isn't obvious to me.  The two pages are not symmetrical,
-> the caller of try_to_merge_two_pages() thinks it knows which is which,
-> swapping them around underneath it like this is not obviously correct.
-> 
-> Your patch may be fine, but I've not had time to think it through:
-> will do, but not immediately.
-> 
-> Your idea may not make so much sense to Andrea: he has been troubled
-> by the difficulty in unmapping a KSM page with a very high mapcount.
-> 
-> And you would be maximizing a buggy case, if we think of that page
-> being mapped also into non-VM_MERGEABLE areas; but I think we can
-> ignore that aspect, it's buggy already, and I don't think anyone
-> really cares deeply about madvise(,,MADV_UNMERGEABLE) correctness
-> on forked areas.  KSM was not originally written with fork in mind.
-> 
-> I have never seen such a long title for a patch: maybe
-> "[PATCH] ksm: choose the more mapped for the KSM page".
-> 
-> > 
-> > On 2016/6/15 9:56, zhouxianrong@huawei.com wrote:
-> > > From: z00281421 <z00281421@notesmail.huawei.com>
-> > > 
-> > > more mapcount page as kpage could reduce total replacement times
-> > > than fewer mapcount one when ksmd scan and replace among
-> > > forked pages later.
-> > > 
-> > > Signed-off-by: z00281421 <z00281421@notesmail.huawei.com>
-> 
-> And I doubt that z00281421 is your real name:
-> see Documentation/SubmittingPatches.
-> 
-> Hugh
-> 
-> > > ---
-> > >  mm/ksm.c |    8 ++++++++
-> > >  1 file changed, 8 insertions(+)
-> > > 
-> > > diff --git a/mm/ksm.c b/mm/ksm.c
-> > > index 4786b41..4d530af 100644
-> > > --- a/mm/ksm.c
-> > > +++ b/mm/ksm.c
-> > > @@ -1094,6 +1094,14 @@ static struct page *try_to_merge_two_pages(struct
-> > > rmap_item *rmap_item,
-> > >  {
-> > >  	int err;
-> > > 
-> > > +	/*
-> > > +	 * select more mapcount page as kpage
-> > > +	 */
-> > > +	if (page_mapcount(page) < page_mapcount(tree_page)) {
-> > > +		swap(page, tree_page);
-> > > +		swap(rmap_item, tree_rmap_item);
-> > > +	}
-> > > +
 
-I gave this a try, but commenting out the condition to make it exchange
-the pages every time, to make it more likely to generate problems if any.
 
-It very soon gave me lots of "BUG: Bad page" messages: presumably because
-of the point I already made, that cmp_and_merge_page() knows which page
-is which, but you've done nothing to tell it of the exchange.
+a?? 2016a1'07ae??20ae?JPY 04:06, Rafael J. Wysocki a??e??:
+> On Tuesday, July 19, 2016 03:28:06 PM Dou Liyang wrote:
+>> From: Gu Zheng <guz.fnst@cn.fujitsu.com>
+>>
+>> The whole patch-set aims at making cpuid <-> nodeid mapping persistent. So that,
+>> when node online/offline happens, cache based on cpuid <-> nodeid mapping such as
+>> wq_numa_possible_cpumask will not cause any problem.
+>> It contains 4 steps:
+>> 1. Enable apic registeration flow to handle both enabled and disabled cpus.
+>> 2. Introduce a new array storing all possible cpuid <-> apicid mapping.
+>> 3. Enable _MAT and MADT relative apis to return non-presnet or disabled cpus' apicid.
+>> 4. Establish all possible cpuid <-> nodeid mapping.
+>>
+>> This patch finishes step 4.
+>>
+>> This patch set the persistent cpuid <-> nodeid mapping for all enabled/disabled
+>> processors at boot time via an additional acpi namespace walk for processors.
+>>
+>> Signed-off-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
+>> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
+>> Signed-off-by: Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
+>> Signed-off-by: Dou Liyang <douly.fnst@cn.fujitsu.com>
+>> ---
+>>   arch/ia64/kernel/acpi.c       |  3 +-
+>>   arch/x86/kernel/acpi/boot.c   |  4 ++-
+>>   drivers/acpi/acpi_processor.c |  5 ++++
+>>   drivers/acpi/bus.c            |  3 ++
+>>   drivers/acpi/processor_core.c | 65 +++++++++++++++++++++++++++++++++++++++++++
+>>   include/linux/acpi.h          |  2 ++
+>>   6 files changed, 80 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/arch/ia64/kernel/acpi.c b/arch/ia64/kernel/acpi.c
+>> index b1698bc..bb36515 100644
+>> --- a/arch/ia64/kernel/acpi.c
+>> +++ b/arch/ia64/kernel/acpi.c
+>> @@ -796,7 +796,7 @@ int acpi_isa_irq_to_gsi(unsigned isa_irq, u32 *gsi)
+>>    *  ACPI based hotplug CPU support
+>>    */
+>>   #ifdef CONFIG_ACPI_HOTPLUG_CPU
+>> -static int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
+>> +int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
+>>   {
+>>   #ifdef CONFIG_ACPI_NUMA
+>>   	/*
+>> @@ -811,6 +811,7 @@ static int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
+>>   #endif
+>>   	return 0;
+>>   }
+>> +EXPORT_SYMBOL(acpi_map_cpu2node);
+>>   
+>>   int additional_cpus __initdata = -1;
+>>   
+>> diff --git a/arch/x86/kernel/acpi/boot.c b/arch/x86/kernel/acpi/boot.c
+>> index 37248c3..0900264f 100644
+>> --- a/arch/x86/kernel/acpi/boot.c
+>> +++ b/arch/x86/kernel/acpi/boot.c
+>> @@ -695,7 +695,7 @@ static void __init acpi_set_irq_model_ioapic(void)
+>>   #ifdef CONFIG_ACPI_HOTPLUG_CPU
+>>   #include <acpi/processor.h>
+>>   
+>> -static void acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
+>> +int acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
+>>   {
+>>   #ifdef CONFIG_ACPI_NUMA
+>>   	int nid;
+>> @@ -706,7 +706,9 @@ static void acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
+>>   		numa_set_node(cpu, nid);
+>>   	}
+>>   #endif
+>> +	return 0;
+>>   }
+>> +EXPORT_SYMBOL(acpi_map_cpu2node);
+>>   
+>>   int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, int *pcpu)
+>>   {
+>> diff --git a/drivers/acpi/acpi_processor.c b/drivers/acpi/acpi_processor.c
+>> index e85b19a..0c15828 100644
+>> --- a/drivers/acpi/acpi_processor.c
+>> +++ b/drivers/acpi/acpi_processor.c
+>> @@ -182,6 +182,11 @@ int __weak arch_register_cpu(int cpu)
+>>   
+>>   void __weak arch_unregister_cpu(int cpu) {}
+>>   
+>> +int __weak acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
+>> +{
+>> +	return -ENODEV;
+>> +}
+>> +
+>>   static int acpi_processor_hotadd_init(struct acpi_processor *pr)
+>>   {
+>>   	unsigned long long sta;
+>> diff --git a/drivers/acpi/bus.c b/drivers/acpi/bus.c
+>> index 262ca31..d8b7272 100644
+>> --- a/drivers/acpi/bus.c
+>> +++ b/drivers/acpi/bus.c
+>> @@ -1124,6 +1124,9 @@ static int __init acpi_init(void)
+>>   	acpi_sleep_proc_init();
+>>   	acpi_wakeup_device_init();
+>>   	acpi_debugger_init();
+>> +#ifdef CONFIG_ACPI_HOTPLUG_CPU
+>> +	acpi_set_processor_mapping();
+>> +#endif
+> This doesn't look nice.
+>
+> What about providing an empty definition of acpi_set_processor_mapping()
+> for CONFIG_ACPI_HOTPLUG_CPU unset?
 
-So NAK to this patch as it stands.  No doubt easily corrected, but I
-think this can only ever be a minor optimization - the very next page
-to be merged with these two may turn out to have a much higher mapcount
-than either of the first two.
+Good,  I  will do it.
 
-I think it's better to drop this patch for now: as our other mail thread
-indicates, there are more important things for us to worry about in KSM,
-and their fixes may change around what's required here anyway.
+Thanks,
+Dou
 
-Hugh
+>
+>>   	return 0;
+>>   }
+> Thanks,
+> Rafael
+>
+>
+>
 
-> > >  	err = try_to_merge_with_ksm_page(rmap_item, page, NULL);
-> > >  	if (!err) {
-> > >  		err = try_to_merge_with_ksm_page(tree_rmap_item,
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
