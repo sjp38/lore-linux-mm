@@ -1,49 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 193866B0005
-	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 05:54:17 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id p129so28525204wmp.3
-        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 02:54:17 -0700 (PDT)
-Received: from smtp-out6.electric.net (smtp-out6.electric.net. [192.162.217.186])
-        by mx.google.com with ESMTPS id g193si1079003lfb.86.2016.07.20.02.54.15
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C7286B0005
+	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 06:11:43 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id u134so61849270ywg.2
+        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 03:11:43 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id i52si1293180qti.20.2016.07.20.03.11.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Jul 2016 02:54:15 -0700 (PDT)
-From: David Laight <David.Laight@ACULAB.COM>
-Subject: RE: [PATCH v3 00/11] mm: Hardened usercopy
-Date: Wed, 20 Jul 2016 09:52:25 +0000
-Message-ID: <063D6719AE5E284EB5DD2968C1650D6D5F4FD6A3@AcuExch.aculab.com>
-References: <1468619065-3222-1-git-send-email-keescook@chromium.org>
-In-Reply-To: <1468619065-3222-1-git-send-email-keescook@chromium.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 20 Jul 2016 03:11:42 -0700 (PDT)
+Message-ID: <578F4C7C.6000706@huawei.com>
+Date: Wed, 20 Jul 2016 18:03:40 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH v2] mm/hugetlb: fix race when migrate pages
+References: <1468935958-21810-1-git-send-email-zhongjiang@huawei.com> <20160720073859.GE11249@dhcp22.suse.cz>
+In-Reply-To: <20160720073859.GE11249@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Kees Cook' <keescook@chromium.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Cc: Jan Kara <jack@suse.cz>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Will Deacon <will.deacon@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Andrea
- Arcangeli <aarcange@redhat.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, Russell King <linux@armlinux.org.uk>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, PaX Team <pageexec@freemail.hu>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Fenghua Yu <fenghua.yu@intel.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Tony Luck <tony.luck@intel.com>, Andy Lutomirski <luto@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, Brad Spengler <spender@grsecurity.net>, Ard
- Biesheuvel <ard.biesheuvel@linaro.org>, Pekka Enberg <penberg@kernel.org>, Daniel Micay <danielmicay@gmail.com>, Casey Schaufler <casey@schaufler-ca.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "David S.
- Miller" <davem@davemloft.net>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: vbabka@suse.cz, qiuxishi@huawei.com, akpm@linux-foundation.org, linux-mm@kvack.org, Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-RnJvbTogS2VlcyBDb29rDQo+IFNlbnQ6IDE1IEp1bHkgMjAxNiAyMjo0NA0KPiBUaGlzIGlzIGEg
-c3RhcnQgb2YgdGhlIG1haW5saW5lIHBvcnQgb2YgUEFYX1VTRVJDT1BZWzFdLiANCi4uLg0KPiAt
-IGlmIGFkZHJlc3MgcmFuZ2UgaXMgaW4gdGhlIGN1cnJlbnQgcHJvY2VzcyBzdGFjaywgaXQgbXVz
-dCBiZSB3aXRoaW4gdGhlDQo+ICAgY3VycmVudCBzdGFjayBmcmFtZSAoaWYgc3VjaCBjaGVja2lu
-ZyBpcyBwb3NzaWJsZSkgb3IgYXQgbGVhc3QgZW50aXJlbHkNCj4gICB3aXRoaW4gdGhlIGN1cnJl
-bnQgcHJvY2VzcydzIHN0YWNrLg0KLi4uDQoNClRoYXQgZGVzY3JpcHRpb24gZG9lc24ndCBzZWVt
-IHF1aXRlIHJpZ2h0IHRvIG1lLg0KSSBwcmVzdW1lIHRoZSBjaGVjayBpczoNCiAgV2l0aGluIHRo
-ZSBjdXJyZW50IHByb2Nlc3MncyBzdGFjayBhbmQgbm90IGNyb3NzaW5nIHRoZSBlbmRzIG9mIHRo
-ZQ0KICBjdXJyZW50IHN0YWNrIGZyYW1lLg0KDQpUaGUgJ2N1cnJlbnQnIHN0YWNrIGZyYW1lIGlz
-IGxpa2VseSB0byBiZSB0aGF0IG9mIGNvcHlfdG8vZnJvbV91c2VyKCkuDQpFdmVuIGlmIHlvdSB1
-c2UgdGhlIHN0YWNrIG9mIHRoZSBjYWxsZXIsIGFueSBwcm9ibGVtYXRpYyBidWZmZXJzDQphcmUg
-bGlrZWx5IHRvIGhhdmUgYmVlbiBwYXNzZWQgaW4gZnJvbSBhIGNhbGxpbmcgZnVuY3Rpb24uDQpT
-byB1bmxlc3MgeW91IGFyZSBnb2luZyB0byB3YWxrIHRoZSBzdGFjayAoZ29vZCBsdWNrIG9uIHRo
-YXQpDQpJJ20gbm90IHN1cmUgY2hlY2tpbmcgdGhlIHN0YWNrIGZyYW1lcyBpcyB3b3J0aCBpdC4N
-Cg0KSSdkIGFsc28gZ3Vlc3MgdGhhdCBhIGxvdCBvZiBjb3BpZXMgYXJlIGZyb20gdGhlIG1pZGRs
-ZSBvZiBzdHJ1Y3R1cmVzDQpzbyBjYW5ub3QgZmFpbCB0aGUgdGVzdHMgeW91IGFyZSBhZGRpbmcu
-DQoNCglEYXZpZA0KDQo=
+On 2016/7/20 15:38, Michal Hocko wrote:
+> [CC Mike and Naoya]
+> On Tue 19-07-16 21:45:58, zhongjiang wrote:
+>> From: zhong jiang <zhongjiang@huawei.com>
+>>
+>> I hit the following code in huge_pte_alloc when run the database and
+>> online-offline memory in the system.
+>>
+>> BUG_ON(pte && !pte_none(*pte) && !pte_huge(*pte));
+>>
+>> when pmd share function enable, we may be obtain a shared pmd entry.
+>> due to ongoing offline memory , the pmd entry points to the page will
+>> turn into migrate condition. therefore, the bug will come up.
+>>
+>> The patch fix it by checking the pmd entry when we obtain the lock.
+>> if the shared pmd entry points to page is under migration. we should
+>> allocate a new pmd entry.
+> I am still not 100% sure this is correct. Does huge_pte_lockptr work
+> properly for the migration swapentry? If yes and we populate the pud
+> with a migration entry then is it really bad/harmful (other than hitting
+> the BUG_ON which might be update to handle that case)? This might be a
+> stupid question, sorry about that, but I have really problem to grasp
+> the whole issue properly and the changelog didn't help me much. I would
+> really appreciate some clarification here. The pmd sharing code is clear
+> as mud and adding new tweaks there doesn't sound like it would make it
+> more clear.
+    ok, Maybe the following explain will better.
+    cpu0                                                                      cpu1
+    try_to_unmap_one                                 huge_pmd_share                             
+        page_check_address                                 huge_pte_lockptr
+                      spin_lock                                                        
+       (page entry can be set to migrate or
+       Posion )      
+ 
+         pte_unmap_unlock
+                                                                            spin_lock
+                                                                            (page entry have changed)                                                                  
+> Also is the hwpoison check really needed?
+  Yes,  page can be posion before spin_lock in try_to_unmap_one, so we can see that
+   it will also set page entry to hwpoison entry if PageHWPoison(page) is true.
+>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+>> ---
+>>  mm/hugetlb.c | 9 ++++++++-
+>>  1 file changed, 8 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+>> index 6384dfd..797db55 100644
+>> --- a/mm/hugetlb.c
+>> +++ b/mm/hugetlb.c
+>> @@ -4213,7 +4213,7 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+>>  	struct vm_area_struct *svma;
+>>  	unsigned long saddr;
+>>  	pte_t *spte = NULL;
+>> -	pte_t *pte;
+>> +	pte_t *pte, entry;
+>>  	spinlock_t *ptl;
+>>  
+>>  	if (!vma_shareable(vma, addr))
+>> @@ -4240,6 +4240,11 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+>>  
+>>  	ptl = huge_pte_lockptr(hstate_vma(vma), mm, spte);
+>>  	spin_lock(ptl);
+>> +	entry = huge_ptep_get(spte);
+>> +	if (is_hugetlb_entry_migration(entry) ||
+>> +			is_hugetlb_entry_hwpoisoned(entry)) {
+>> +		goto out_unlock;
+>> +	}
+>>  	if (pud_none(*pud)) {
+>>  		pud_populate(mm, pud,
+>>  				(pmd_t *)((unsigned long)spte & PAGE_MASK));
+>> @@ -4247,6 +4252,8 @@ pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
+>>  		put_page(virt_to_page(spte));
+>>  		mm_dec_nr_pmds(mm);
+>>  	}
+>> +
+>> +out_unlock:
+>>  	spin_unlock(ptl);
+>>  out:
+>>  	pte = (pte_t *)pmd_alloc(mm, pud, addr);
+>> -- 
+>> 1.8.3.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
