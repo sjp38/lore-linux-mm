@@ -1,66 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1711B6B0005
-	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 18:00:17 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id hh10so106716761pac.3
-        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 15:00:17 -0700 (PDT)
-Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com. [2607:f8b0:400e:c03::230])
-        by mx.google.com with ESMTPS id u9si5520860pfi.142.2016.07.20.15.00.15
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A4196B025F
+	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 18:34:32 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id p129so764953wmp.3
+        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 15:34:32 -0700 (PDT)
+Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
+        by mx.google.com with ESMTPS id d142si2252891lfb.59.2016.07.20.15.34.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Jul 2016 15:00:16 -0700 (PDT)
-Received: by mail-pa0-x230.google.com with SMTP id iw10so21956776pac.2
-        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 15:00:15 -0700 (PDT)
-Date: Wed, 20 Jul 2016 15:00:08 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 3/8] mm, page_alloc: don't retry initial attempt in
- slowpath
-In-Reply-To: <7f97c5e0-731c-0431-e9f6-b53cd8f87f61@suse.cz>
-Message-ID: <alpine.DEB.2.10.1607201459170.29381@chino.kir.corp.google.com>
-References: <20160718112302.27381-1-vbabka@suse.cz> <20160718112302.27381-4-vbabka@suse.cz> <alpine.DEB.2.10.1607191532520.19940@chino.kir.corp.google.com> <7f97c5e0-731c-0431-e9f6-b53cd8f87f61@suse.cz>
+        Wed, 20 Jul 2016 15:34:30 -0700 (PDT)
+Received: by mail-lf0-x243.google.com with SMTP id l89so4365352lfi.2
+        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 15:34:30 -0700 (PDT)
+Date: Thu, 21 Jul 2016 01:34:27 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [mmotm-2016-07-18-16-40] page allocation failure: order:2,
+ mode:0x2000000(GFP_NOWAIT)
+Message-ID: <20160720223427.GA22911@node.shutemov.name>
+References: <20160720114417.GA19146@node.shutemov.name>
+ <20160720115323.GI11249@dhcp22.suse.cz>
+ <9c2c9249-af41-56c2-7169-1465e0c07edc@suse.cz>
+ <20160720151905.GB19146@node.shutemov.name>
+ <e9ffdc50-b085-c96c-5da7-7358967f421c@suse.cz>
+ <CAG_fn=UP0169b+cTxVBhqPUfOurQNxAKne0pYSPy3a1uFvTp-g@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAG_fn=UP0169b+cTxVBhqPUfOurQNxAKne0pYSPy3a1uFvTp-g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>
+To: Alexander Potapenko <glider@google.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.cz>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, David Rientjes <rientjes@google.com>, mgorman@techsingularity.net
 
-On Wed, 20 Jul 2016, Vlastimil Babka wrote:
+On Wed, Jul 20, 2016 at 08:12:13PM +0200, Alexander Potapenko wrote:
+> >>>>> It's easy to reproduce in my setup: virtual machine with some amount of
+> >>>>> swap space and try allocate about the size of RAM in userspace (I used
+> >>>>> usemem[1] for that).
+>
+> Am I understanding right that you're seeing allocation failures from
+> the stack depot? How often do they happen? Are they reported under
+> heavy load, or just when you boot the kernel?
 
-> >> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> >> index eb1968a1041e..30443804f156 100644
-> >> --- a/mm/page_alloc.c
-> >> +++ b/mm/page_alloc.c
-> >> @@ -3541,35 +3541,42 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
-> >>  	 */
-> >>  	alloc_flags = gfp_to_alloc_flags(gfp_mask);
-> >>  
-> >> +	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
-> >> +		wake_all_kswapds(order, ac);
-> >> +
-> >> +	/*
-> >> +	 * The adjusted alloc_flags might result in immediate success, so try
-> >> +	 * that first
-> >> +	 */
-> >> +	page = get_page_from_freelist(gfp_mask, order, alloc_flags, ac);
-> >> +	if (page)
-> >> +		goto got_pg;
-> > 
-> > Any reason to not test gfp_pfmemalloc_allowed() here?  For contexts where 
-> > it returns true, it seems like the above would be an unneeded failure if 
-> > ALLOC_WMARK_MIN would have failed.  No strong opinion.
-> 
-> Yeah, two reasons:
-> 1 - less overhead (for the test) if we went to slowpath just to wake up
-> kswapd and then succeed on min watermark
-> 2 - try all zones with min watermark before resorting to no watermark
-> (if allowed), so we don't needlessly put below min watermark the first
-> zone in zonelist, while some later zone would still be above watermark
-> 
+As I described, it happens under memory pressure.
 
-The second point makes sense, thanks!
+> Allocating with __GFP_NOWARN will help here, but I think we'd better
+> figure out what's gone wrong.
+> I've sent https://lkml.org/lkml/2016/7/14/566, which should reduce the
+> stack depot's memory consumption, for review - can you see if the bug
+> is still reproducible with that?
 
-Acked-by: David Rientjes <rientjes@google.com>
+I was not able to trigger the failure with the same test case.
+Tested with v2 of the patch.
+
+(Links to http://lkml.kernel.org/ or other archive with message-id in url
+is prefered. lkml.org is garbage)
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
