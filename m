@@ -1,67 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EC0A86B025E
-	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 06:40:51 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id y134so91945158pfg.1
-        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 03:40:51 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id 10si2797576pab.31.2016.07.20.03.40.50
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D38636B025E
+	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 06:55:55 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id p41so30053132lfi.0
+        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 03:55:55 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q185si26252469wmg.57.2016.07.20.03.55.54
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 20 Jul 2016 03:40:51 -0700 (PDT)
-Subject: Re: oom-reaper choosing wrong processes.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20160718231850.GA23178@codemonkey.org.uk>
-	<20160719090857.GB9490@dhcp22.suse.cz>
-	<c77149ec-960c-d10a-0410-d09fe47bb14f@I-love.SAKURA.ne.jp>
-	<20160719153637.GB11863@codemonkey.org.uk>
-In-Reply-To: <20160719153637.GB11863@codemonkey.org.uk>
-Message-Id: <201607201940.JEJ30214.OOtFLJHMSQFOFV@I-love.SAKURA.ne.jp>
-Date: Wed, 20 Jul 2016 19:40:37 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        Wed, 20 Jul 2016 03:55:54 -0700 (PDT)
+Date: Wed, 20 Jul 2016 11:55:49 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 1/2] mm: add per-zone lru list stat
+Message-ID: <20160720105549.GU11400@suse.de>
+References: <1468943433-24805-1-git-send-email-minchan@kernel.org>
+ <20160719164857.GT11400@suse.de>
+ <20160720001624.GA25472@bbox>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20160720001624.GA25472@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: davej@codemonkey.org.uk
-Cc: mhocko@kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Dave Jones wrote:
-> On Tue, Jul 19, 2016 at 07:52:28PM +0900, Tetsuo Handa wrote:
->  > On 2016/07/19 8:18, Dave Jones wrote:
->  > > Whoa. Why did it pick systemd-journal ?
->  > 
->  > I guess that it is because all trinity processes' mm already had MMF_OOM_REAPED set.
->  > 
->  > The OOM reaper sets MMF_OOM_REAPED when OOM reap operation succeeded. But
->  > "[ pid ]   uid  tgid total_vm      rss nr_ptes nr_pmds swapents oom_score_adj name" listing
->  > includes processes whose mm already has MMF_OOM_REAPED set. As a result, trinity-c15 and
->  > trinity-c4 are shown again in the listing. While I can't confirm that trinity-c10, trinity-c2,
->  > trinity-c0 and trinity-c11 are already OOM killed, I guess they are already OOM killed and
->  > their mm already had MMF_OOM_REAPED set.
+On Wed, Jul 20, 2016 at 09:16:24AM +0900, Minchan Kim wrote:
+> On Tue, Jul 19, 2016 at 05:48:57PM +0100, Mel Gorman wrote:
+> > On Wed, Jul 20, 2016 at 12:50:32AM +0900, Minchan Kim wrote:
+> > > While I did stress test with hackbench, I got OOM message frequently
+> > > which didn't ever happen in zone-lru.
+> > > 
+> > 
+> > This one also showed pgdat going unreclaimable early. Have you tried any
+> > of the three oom-related patches I sent to Joonsoo to see what impact,
+> > if any, it had?
 > 
-> That still doesn't explain why it picked the journal process, instead of waiting until
-> the previous reaping operation had actually killed those Trinity tasks.
+> Before the result, I want to say goal of this patch, again.
+> Without per-zone lru stat, it's really hard to debug OOM problem in
+> multiple zones system so regardless of solving the problem, we should add
+> per-zone lru stat for debuggability of OOM which has been never perfect
+> solution, ever.
+> 
 
-I thought your patch did
+That's not in dispute, I simply wanted to know the impact.
 
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -169,6 +169,8 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
- 
- 	if (oom_unkillable_task(p, memcg, nodemask))
- 		return 0;
-+	if (!strncmp(p->comm, "trinity-", 8))
-+		return 0;
- 
- 	p = find_lock_task_mm(p);
- 	if (!p)
+> The result is not OOM but hackbench stalls forever.
 
-to OOM-kill only Trinity tasks. But your patch did not touch OOM victim selection logic.
-Then, it is completely normal and expected result that systemd-journald was selected
-because systemd-journald got highest score among all OOM-killable !MMF_OOM_REAPED mm
-users. Nothing is wrong.
+Ok, that points to both the premature marking pgdats as unreclaimable
+and the inactive rotation are both problems.
 
-By the way, your patch needs to call put_task_struct(p) before return.
+I have a series prepared that may or may not address the problem. I'm
+trying to reproduce the OOM killer on a 32-bit KVM but so far so luck.
+If I fail to reproduce it then I cannot tell if the series has an impact
+and may have to post it and hope you and Joonsoo can test it.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
