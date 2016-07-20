@@ -1,135 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D5BBD6B0005
-	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 22:20:20 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id q2so61313616pap.1
-        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 19:20:20 -0700 (PDT)
-Received: from out03.mta.xmission.com (out03.mta.xmission.com. [166.70.13.233])
-        by mx.google.com with ESMTPS id t18si534099pfa.44.2016.07.19.19.20.19
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Jul 2016 19:20:19 -0700 (PDT)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <1468980049-1753-1-git-send-email-zhongjiang@huawei.com>
-Date: Tue, 19 Jul 2016 21:07:21 -0500
-In-Reply-To: <1468980049-1753-1-git-send-email-zhongjiang@huawei.com>
-	(zhongjiang@huawei.com's message of "Wed, 20 Jul 2016 10:00:49 +0800")
-Message-ID: <878twxcbae.fsf@x220.int.ebiederm.org>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EBBC6B0005
+	for <linux-mm@kvack.org>; Tue, 19 Jul 2016 22:30:09 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e189so72795772pfa.2
+        for <linux-mm@kvack.org>; Tue, 19 Jul 2016 19:30:09 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id i3si563089pfg.113.2016.07.19.19.30.07
+        for <linux-mm@kvack.org>;
+        Tue, 19 Jul 2016 19:30:08 -0700 (PDT)
+Subject: Re: [PATCH v8 1/7] x86, memhp, numa: Online memory-less nodes at boot
+ time.
+References: <1468913288-16605-1-git-send-email-douly.fnst@cn.fujitsu.com>
+ <1468913288-16605-2-git-send-email-douly.fnst@cn.fujitsu.com>
+ <20160719185017.GM3078@mtj.duckdns.org>
+From: Dou Liyang <douly.fnst@cn.fujitsu.com>
+Message-ID: <bd359a28-7187-cec7-e83b-f7444f1b09a6@cn.fujitsu.com>
+Date: Wed, 20 Jul 2016 10:28:29 +0800
 MIME-Version: 1.0
-Content-Type: text/plain
-Subject: Re: [PATCH] kexec: add resriction on the kexec_load
+In-Reply-To: <20160719185017.GM3078@mtj.duckdns.org>
+Content-Type: text/plain; charset="UTF-8"; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhongjiang <zhongjiang@huawei.com>
-Cc: yinghai@kernel.org, horms@verge.net.au, akpm@linux-foundation.org, kexec@lists.infradead.org, linux-mm@kvack.org
+To: Tejun Heo <tj@kernel.org>
+Cc: cl@linux.com, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, len.brown@intel.com, lenb@kernel.org, tglx@linutronix.de, chen.tang@easystack.cn, rafael@kernel.org, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-zhongjiang <zhongjiang@huawei.com> writes:
+a?? 2016a1'07ae??20ae?JPY 02:50, Tejun Heo a??e??:
 
-> From: zhong jiang <zhongjiang@huawei.com>
+> Hello,
 >
-> I hit the following question when run trinity in my system. The
-> kernel is 3.4 version. but the mainline have same question to be
-> solved. The root cause is the segment size is too large, it can
-> expand the most of the area or the whole memory, therefore, it
-> may waste an amount of time to abtain a useable page. and other
-> cases will block until the test case quit. at the some time,
-> OOM will come up.
+> On Tue, Jul 19, 2016 at 03:28:02PM +0800, Dou Liyang wrote:
+>> In this series of patches, we are going to construct cpu <-> node mapping
+>> for all possible cpus at boot time, which is a 1-1 mapping. It means the
+> 1-1 mapping means that each cpu is mapped to its own private node
+> which isn't the case.  Just call it a persistent mapping?
 
-5MiB is way too small.  I have seen vmlinux images not to mention
-ramdisks that get larger than that.  Depending on the system
-1GiB might not be an unreasonable ramdisk size.  AKA run an entire live
-system out of a ramfs.  It works well if you have enough memory.
+Yes, for cpus, each cpu is in a persistent node.
+However, the opposite is not that.
 
-I think there is a practical limit at about 50% of memory (because we
-need two copies in memory the source and the destination pages), but
-anything else is pretty much reasonable and should have a fair chance of
-working.
+I will modify it.
 
-A limit that reflected that reality above would be interesting.
-Anything else will likely cause someone trouble in the futrue.
+Thanks.
+Dou
 
-Eric
-
-> ck time:20160628120131-243c5
-> rlock reason:SOFT-WATCHDOG detected! on cpu 5.
-> CPU 5 Pid: 9485, comm: trinity-c5
-> RIP: 0010:[<ffffffff8111a4cf>]  [<ffffffff8111a4cf>] next_zones_zonelist+0x3f/0x60
-> RSP: 0018:ffff88088783bc38  EFLAGS: 00000283
-> RAX: ffff8808bffd9b08 RBX: ffff88088783bbb8 RCX: ffff88088783bd30
-> RDX: ffff88088f15a248 RSI: 0000000000000002 RDI: 0000000000000000
-> RBP: ffff88088783bc38 R08: ffff8808bffd8d80 R09: 0000000412c4d000
-> R10: 0000000412c4e000 R11: 0000000000000000 R12: 0000000000000002
-> R13: 0000000000000000 R14: ffff8808bffd9b00 R15: 0000000000000000
-> FS:  00007f91137ee700(0000) GS:ffff88089f2a0000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 000000000016161a CR3: 0000000887820000 CR4: 00000000000407e0
-> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000400
-> Process trinity-c5 (pid: 9485, threadinfo ffff88088783a000, task ffff88088f159980)
-> Stack:
->  ffff88088783bd88 ffffffff81106eac ffff8808bffd8d80 0000000000000000
->  0000000000000000 ffffffff8124c2be 0000000000000001 000000000000001e
->  0000000000000000 ffffffff8124c2be 0000000000000002 ffffffff8124c2be
-> Call Trace:
->  [<ffffffff81106eac>] __alloc_pages_nodemask+0x14c/0x8f0
->  [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
->  [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
->  [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
->  [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
->  [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
->  [<ffffffff8113e5ef>] alloc_pages_current+0xaf/0x120
->  [<ffffffff810a0da0>] kimage_alloc_pages+0x10/0x60
->  [<ffffffff810a15ad>] kimage_alloc_control_pages+0x5d/0x270
->  [<ffffffff81027e85>] machine_kexec_prepare+0xe5/0x6c0
->  [<ffffffff810a0d52>] ? kimage_free_page_list+0x52/0x70
->  [<ffffffff810a1921>] sys_kexec_load+0x141/0x600
->  [<ffffffff8115e6b0>] ? vfs_write+0x100/0x180
->  [<ffffffff8145fbd9>] system_call_fastpath+0x16/0x1b
->
-> The patch just add condition on sanity_check_segment_list to
-> restriction the segment size.
->
-> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
-> ---
->  arch/x86/include/asm/kexec.h |  1 +
->  kernel/kexec_core.c          | 12 ++++++++++++
->  2 files changed, 13 insertions(+)
->
-> diff --git a/arch/x86/include/asm/kexec.h b/arch/x86/include/asm/kexec.h
-> index d2434c1..b31a723 100644
-> --- a/arch/x86/include/asm/kexec.h
-> +++ b/arch/x86/include/asm/kexec.h
-> @@ -67,6 +67,7 @@ struct kimage;
->  /* Memory to backup during crash kdump */
->  #define KEXEC_BACKUP_SRC_START	(0UL)
->  #define KEXEC_BACKUP_SRC_END	(640 * 1024UL)	/* 640K */
-> +#define KEXEC_MAX_SEGMENT_SIZE	(5 * 1024 * 1024UL)	/* 5M */
->  
->  /*
->   * CPU does not save ss and sp on stack if execution is already
-> diff --git a/kernel/kexec_core.c b/kernel/kexec_core.c
-> index 448127d..35c5159 100644
-> --- a/kernel/kexec_core.c
-> +++ b/kernel/kexec_core.c
-> @@ -209,6 +209,18 @@ int sanity_check_segment_list(struct kimage *image)
->  			return result;
->  	}
->  
-> +
-> +	/* Verity all segment size donnot exceed the specified size.
-> + 	 * if segment size from user space is too large,  a large 
-> + 	 * amount of time will be wasted when allocating page. so,
-> + 	 * softlockup may be come up.
-> + 	 */
-> +	for (i = 0; i< nr_segments; i++) {
-> +		if (image->segment[i].memsz > KEXEC_MAX_SEGMENT_SIZE)
-> +			return result;
-> +	}
-> +
-> +
->  	/*
->  	 * Verify we have good destination addresses.  Normally
->  	 * the caller is responsible for making certain we don't
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
