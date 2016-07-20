@@ -1,96 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C661E6B0005
-	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 05:41:16 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id x83so29445228wma.2
-        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 02:41:16 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id 128si26053648wmq.81.2016.07.20.02.41.15
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 193866B0005
+	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 05:54:17 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id p129so28525204wmp.3
+        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 02:54:17 -0700 (PDT)
+Received: from smtp-out6.electric.net (smtp-out6.electric.net. [192.162.217.186])
+        by mx.google.com with ESMTPS id g193si1079003lfb.86.2016.07.20.02.54.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Jul 2016 02:41:15 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id o80so6164149wme.0
-        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 02:41:15 -0700 (PDT)
-Date: Wed, 20 Jul 2016 11:41:13 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v1] mm: hugetlb: remove incorrect comment
-Message-ID: <20160720094113.GG11249@dhcp22.suse.cz>
-References: <1468894098-12099-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20160719091052.GC9490@dhcp22.suse.cz>
- <20160720092901.GA15995@www9186uo.sakura.ne.jp>
+        Wed, 20 Jul 2016 02:54:15 -0700 (PDT)
+From: David Laight <David.Laight@ACULAB.COM>
+Subject: RE: [PATCH v3 00/11] mm: Hardened usercopy
+Date: Wed, 20 Jul 2016 09:52:25 +0000
+Message-ID: <063D6719AE5E284EB5DD2968C1650D6D5F4FD6A3@AcuExch.aculab.com>
+References: <1468619065-3222-1-git-send-email-keescook@chromium.org>
+In-Reply-To: <1468619065-3222-1-git-send-email-keescook@chromium.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160720092901.GA15995@www9186uo.sakura.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <nao.horiguchi@gmail.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Zhan Chen <zhanc1@andrew.cmu.edu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: 'Kees Cook' <keescook@chromium.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: Jan Kara <jack@suse.cz>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Will Deacon <will.deacon@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Andrea
+ Arcangeli <aarcange@redhat.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, Russell King <linux@armlinux.org.uk>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, PaX Team <pageexec@freemail.hu>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Fenghua Yu <fenghua.yu@intel.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Tony Luck <tony.luck@intel.com>, Andy Lutomirski <luto@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, Brad Spengler <spender@grsecurity.net>, Ard
+ Biesheuvel <ard.biesheuvel@linaro.org>, Pekka Enberg <penberg@kernel.org>, Daniel Micay <danielmicay@gmail.com>, Casey Schaufler <casey@schaufler-ca.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "David S.
+ Miller" <davem@davemloft.net>
 
-On Wed 20-07-16 18:29:02, Naoya Horiguchi wrote:
-[...]
-> >From 7da52ca6920dcd84e3da2df619bd5242f9c3ccec Mon Sep 17 00:00:00 2001
-> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Date: Wed, 20 Jul 2016 18:21:33 +0900
-> Subject: [PATCH v2] mm: hwpoison: remove incorrect comment
-> 
-> dequeue_hwpoisoned_huge_page() can be called without page lock hold,
-> so let's remove incorrect comment.
-> 
-> The reason why the page lock is not really needed is that
-> dequeue_hwpoisoned_huge_page() checks page_huge_active() inside hugetlb_lock,
-> which allows us to avoid trying to dequeue a hugepage that are just allocated
-> but not linked to active list yet, even without taking page lock.
-
-Thank you for the clarification!
-
-> Reported-by: Zhan Chen <zhanc1@andrew.cmu.edu>
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/hugetlb.c        | 1 -
->  mm/memory-failure.c | 2 --
->  2 files changed, 3 deletions(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index c1f3c0be150a..26f735cc7478 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -4401,7 +4401,6 @@ follow_huge_pud(struct mm_struct *mm, unsigned long address,
->  
->  /*
->   * This function is called from memory failure code.
-> - * Assume the caller holds page lock of the head page.
->   */
->  int dequeue_hwpoisoned_huge_page(struct page *hpage)
->  {
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index 2fcca6b0e005..7532c3a8a39c 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -741,8 +741,6 @@ static int me_huge_page(struct page *p, unsigned long pfn)
->  	 * page->lru because it can be used in other hugepage operations,
->  	 * such as __unmap_hugepage_range() and gather_surplus_pages().
->  	 * So instead we use page_mapping() and PageAnon().
-> -	 * We assume that this function is called with page lock held,
-> -	 * so there is no race between isolation and mapping/unmapping.
->  	 */
->  	if (!(page_mapping(hpage) || PageAnon(hpage))) {
->  		res = dequeue_hwpoisoned_huge_page(hpage);
-> -- 
-> 2.7.4
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Michal Hocko
-SUSE Labs
+RnJvbTogS2VlcyBDb29rDQo+IFNlbnQ6IDE1IEp1bHkgMjAxNiAyMjo0NA0KPiBUaGlzIGlzIGEg
+c3RhcnQgb2YgdGhlIG1haW5saW5lIHBvcnQgb2YgUEFYX1VTRVJDT1BZWzFdLiANCi4uLg0KPiAt
+IGlmIGFkZHJlc3MgcmFuZ2UgaXMgaW4gdGhlIGN1cnJlbnQgcHJvY2VzcyBzdGFjaywgaXQgbXVz
+dCBiZSB3aXRoaW4gdGhlDQo+ICAgY3VycmVudCBzdGFjayBmcmFtZSAoaWYgc3VjaCBjaGVja2lu
+ZyBpcyBwb3NzaWJsZSkgb3IgYXQgbGVhc3QgZW50aXJlbHkNCj4gICB3aXRoaW4gdGhlIGN1cnJl
+bnQgcHJvY2VzcydzIHN0YWNrLg0KLi4uDQoNClRoYXQgZGVzY3JpcHRpb24gZG9lc24ndCBzZWVt
+IHF1aXRlIHJpZ2h0IHRvIG1lLg0KSSBwcmVzdW1lIHRoZSBjaGVjayBpczoNCiAgV2l0aGluIHRo
+ZSBjdXJyZW50IHByb2Nlc3MncyBzdGFjayBhbmQgbm90IGNyb3NzaW5nIHRoZSBlbmRzIG9mIHRo
+ZQ0KICBjdXJyZW50IHN0YWNrIGZyYW1lLg0KDQpUaGUgJ2N1cnJlbnQnIHN0YWNrIGZyYW1lIGlz
+IGxpa2VseSB0byBiZSB0aGF0IG9mIGNvcHlfdG8vZnJvbV91c2VyKCkuDQpFdmVuIGlmIHlvdSB1
+c2UgdGhlIHN0YWNrIG9mIHRoZSBjYWxsZXIsIGFueSBwcm9ibGVtYXRpYyBidWZmZXJzDQphcmUg
+bGlrZWx5IHRvIGhhdmUgYmVlbiBwYXNzZWQgaW4gZnJvbSBhIGNhbGxpbmcgZnVuY3Rpb24uDQpT
+byB1bmxlc3MgeW91IGFyZSBnb2luZyB0byB3YWxrIHRoZSBzdGFjayAoZ29vZCBsdWNrIG9uIHRo
+YXQpDQpJJ20gbm90IHN1cmUgY2hlY2tpbmcgdGhlIHN0YWNrIGZyYW1lcyBpcyB3b3J0aCBpdC4N
+Cg0KSSdkIGFsc28gZ3Vlc3MgdGhhdCBhIGxvdCBvZiBjb3BpZXMgYXJlIGZyb20gdGhlIG1pZGRs
+ZSBvZiBzdHJ1Y3R1cmVzDQpzbyBjYW5ub3QgZmFpbCB0aGUgdGVzdHMgeW91IGFyZSBhZGRpbmcu
+DQoNCglEYXZpZA0KDQo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
