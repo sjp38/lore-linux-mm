@@ -1,142 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F0D06B0005
-	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 11:25:13 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id l89so34722529lfi.3
-        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 08:25:13 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ue1si1369800wjc.178.2016.07.20.08.25.11
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BA5366B0005
+	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 11:31:40 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id x83so35867140wma.2
+        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 08:31:40 -0700 (PDT)
+Received: from mail-wm0-x22b.google.com (mail-wm0-x22b.google.com. [2a00:1450:400c:c09::22b])
+        by mx.google.com with ESMTPS id m194si180587wmb.2.2016.07.20.08.31.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 20 Jul 2016 08:25:11 -0700 (PDT)
-Subject: Re: [PATCH 3/8] mm, page_alloc: don't retry initial attempt in
- slowpath
-References: <20160718112302.27381-1-vbabka@suse.cz>
- <20160718112302.27381-4-vbabka@suse.cz>
- <alpine.DEB.2.10.1607191532520.19940@chino.kir.corp.google.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <7f97c5e0-731c-0431-e9f6-b53cd8f87f61@suse.cz>
-Date: Wed, 20 Jul 2016 17:25:07 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Jul 2016 08:31:39 -0700 (PDT)
+Received: by mail-wm0-x22b.google.com with SMTP id o80so74640447wme.1
+        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 08:31:39 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1607191532520.19940@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <063D6719AE5E284EB5DD2968C1650D6D5F4FD6A3@AcuExch.aculab.com>
+References: <1468619065-3222-1-git-send-email-keescook@chromium.org> <063D6719AE5E284EB5DD2968C1650D6D5F4FD6A3@AcuExch.aculab.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Wed, 20 Jul 2016 08:31:37 -0700
+Message-ID: <CAGXu5j+QH8Fdk7p6bZV_yMv1puHRxZRu5z45+tKrmLyGBTymFw@mail.gmail.com>
+Subject: Re: [PATCH v3 00/11] mm: Hardened usercopy
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>
+To: David Laight <David.Laight@aculab.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Will Deacon <will.deacon@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, Russell King <linux@armlinux.org.uk>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, PaX Team <pageexec@freemail.hu>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Fenghua Yu <fenghua.yu@intel.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Tony Luck <tony.luck@intel.com>, Andy Lutomirski <luto@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, Brad Spengler <spender@grsecurity.net>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Pekka Enberg <penberg@kernel.org>, Daniel Micay <danielmicay@gmail.com>, Casey Schaufler <casey@schaufler-ca.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "David S. Miller" <davem@davemloft.net>
 
-On 07/20/2016 12:36 AM, David Rientjes wrote:
-> On Mon, 18 Jul 2016, Vlastimil Babka wrote:
-> 
->> After __alloc_pages_slowpath() sets up new alloc_flags and wakes up kswapd, it
->> first tries get_page_from_freelist() with the new alloc_flags, as it may
->> succeed e.g. due to using min watermark instead of low watermark. It makes
->> sense to to do this attempt before adjusting zonelist based on
->> alloc_flags/gfp_mask, as it's still relatively a fast path if we just wake up
->> kswapd and successfully allocate.
->>
->> This patch therefore moves the initial attempt above the retry label and
->> reorganizes a bit the part below the retry label. We still have to attempt
->> get_page_from_freelist() on each retry, as some allocations cannot do that
->> as part of direct reclaim or compaction, and yet are not allowed to fail
->> (even though they do a WARN_ON_ONCE() and thus should not exist). We can reuse
->> the call meant for ALLOC_NO_WATERMARKS attempt and just set alloc_flags to
->> ALLOC_NO_WATERMARKS if the context allows it. As a side-effect, the attempts
->> from direct reclaim/compaction will also no longer obey watermarks once this
->> is set, but there's little harm in that.
->>
->> Kswapd wakeups are also done on each retry to be safe from potential races
->> resulting in kswapd going to sleep while a process (that may not be able to
->> reclaim by itself) is still looping.
->>
->> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
->> ---
->>  mm/page_alloc.c | 29 ++++++++++++++++++-----------
->>  1 file changed, 18 insertions(+), 11 deletions(-)
->>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index eb1968a1041e..30443804f156 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -3541,35 +3541,42 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->>  	 */
->>  	alloc_flags = gfp_to_alloc_flags(gfp_mask);
->>  
->> +	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
->> +		wake_all_kswapds(order, ac);
->> +
->> +	/*
->> +	 * The adjusted alloc_flags might result in immediate success, so try
->> +	 * that first
->> +	 */
->> +	page = get_page_from_freelist(gfp_mask, order, alloc_flags, ac);
->> +	if (page)
->> +		goto got_pg;
-> 
-> Any reason to not test gfp_pfmemalloc_allowed() here?  For contexts where 
-> it returns true, it seems like the above would be an unneeded failure if 
-> ALLOC_WMARK_MIN would have failed.  No strong opinion.
+On Wed, Jul 20, 2016 at 2:52 AM, David Laight <David.Laight@aculab.com> wrote:
+> From: Kees Cook
+>> Sent: 15 July 2016 22:44
+>> This is a start of the mainline port of PAX_USERCOPY[1].
+> ...
+>> - if address range is in the current process stack, it must be within the
+>>   current stack frame (if such checking is possible) or at least entirely
+>>   within the current process's stack.
+> ...
+>
+> That description doesn't seem quite right to me.
+> I presume the check is:
+>   Within the current process's stack and not crossing the ends of the
+>   current stack frame.
 
-Yeah, two reasons:
-1 - less overhead (for the test) if we went to slowpath just to wake up
-kswapd and then succeed on min watermark
-2 - try all zones with min watermark before resorting to no watermark
-(if allowed), so we don't needlessly put below min watermark the first
-zone in zonelist, while some later zone would still be above watermark
+Actually, it's a bad description all around. :) The check is that the
+range is within a valid stack frame (current or any prior caller's
+frame). i.e. it does not cross a frame or touch the saved frame
+pointer nor instruction pointer.
 
-> 
->> +
->> +
->>  retry:
->> +	/* Ensure kswapd doesn't accidentally go to sleep as long as we loop */
->>  	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
->>  		wake_all_kswapds(order, ac);
->>  
->> +	if (gfp_pfmemalloc_allowed(gfp_mask))
->> +		alloc_flags = ALLOC_NO_WATERMARKS;
->> +
->>  	/*
->>  	 * Reset the zonelist iterators if memory policies can be ignored.
->>  	 * These allocations are high priority and system rather than user
->>  	 * orientated.
->>  	 */
->> -	if (!(alloc_flags & ALLOC_CPUSET) || gfp_pfmemalloc_allowed(gfp_mask)) {
->> +	if (!(alloc_flags & ALLOC_CPUSET) || (alloc_flags & ALLOC_NO_WATERMARKS)) {
-> 
-> Do we need to test ALLOC_NO_WATERMARKS here, or is it just for clarity?
+> The 'current' stack frame is likely to be that of copy_to/from_user().
+> Even if you use the stack of the caller, any problematic buffers
+> are likely to have been passed in from a calling function.
+> So unless you are going to walk the stack (good luck on that)
+> I'm not sure checking the stack frames is worth it.
 
-I didn't realize it's redundant, but would keep for clarity and
-robustness anyway.
+Yup: that's exactly what it's doing: walking up the stack. :)
 
-> 
-> Otherwise looks good!
+-Kees
 
-Thanks!
-
->>  		ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
->>  		ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
->>  					ac->high_zoneidx, ac->nodemask);
->>  	}
->>  
->> -	/* This is the last chance, in general, before the goto nopage. */
->> +	/* Attempt with potentially adjusted zonelist and alloc_flags */
->>  	page = get_page_from_freelist(gfp_mask, order, alloc_flags, ac);
->>  	if (page)
->>  		goto got_pg;
->>  
->> -	/* Allocate without watermarks if the context allows */
->> -	if (gfp_pfmemalloc_allowed(gfp_mask)) {
->> -
->> -		page = get_page_from_freelist(gfp_mask, order,
->> -						ALLOC_NO_WATERMARKS, ac);
->> -		if (page)
->> -			goto got_pg;
->> -	}
->> -
->>  	/* Caller is not willing to reclaim, we can't balance anything */
->>  	if (!can_direct_reclaim) {
->>  		/*
+-- 
+Kees Cook
+Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
