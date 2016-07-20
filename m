@@ -1,46 +1,359 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 33BB76B0005
-	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 13:44:47 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id r97so37095367lfi.2
-        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 10:44:47 -0700 (PDT)
-Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
-        by mx.google.com with ESMTPS id kp5si1842232wjb.171.2016.07.20.10.44.45
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BAC126B0005
+	for <linux-mm@kvack.org>; Wed, 20 Jul 2016 14:12:16 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id r97so37454726lfi.2
+        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 11:12:16 -0700 (PDT)
+Received: from mail-lf0-x236.google.com (mail-lf0-x236.google.com. [2a00:1450:4010:c07::236])
+        by mx.google.com with ESMTPS id o187si1765361lfo.274.2016.07.20.11.12.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Jul 2016 10:44:45 -0700 (PDT)
-Received: by mail-wm0-x232.google.com with SMTP id q128so23501626wma.1
-        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 10:44:45 -0700 (PDT)
+        Wed, 20 Jul 2016 11:12:14 -0700 (PDT)
+Received: by mail-lf0-x236.google.com with SMTP id b199so44052783lfe.0
+        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 11:12:14 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <063D6719AE5E284EB5DD2968C1650D6D5F4FEA62@AcuExch.aculab.com>
-References: <1468619065-3222-1-git-send-email-keescook@chromium.org>
- <063D6719AE5E284EB5DD2968C1650D6D5F4FD6A3@AcuExch.aculab.com>
- <CAGXu5j+QH8Fdk7p6bZV_yMv1puHRxZRu5z45+tKrmLyGBTymFw@mail.gmail.com> <063D6719AE5E284EB5DD2968C1650D6D5F4FEA62@AcuExch.aculab.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Wed, 20 Jul 2016 10:44:43 -0700
-Message-ID: <CAGXu5jKk=1QzO8op-3aaPJ9HtceFsSNWwof--eb+wSi1UPnMUQ@mail.gmail.com>
-Subject: Re: [PATCH v3 00/11] mm: Hardened usercopy
+In-Reply-To: <e9ffdc50-b085-c96c-5da7-7358967f421c@suse.cz>
+References: <20160720114417.GA19146@node.shutemov.name> <20160720115323.GI11249@dhcp22.suse.cz>
+ <9c2c9249-af41-56c2-7169-1465e0c07edc@suse.cz> <20160720151905.GB19146@node.shutemov.name>
+ <e9ffdc50-b085-c96c-5da7-7358967f421c@suse.cz>
+From: Alexander Potapenko <glider@google.com>
+Date: Wed, 20 Jul 2016 20:12:13 +0200
+Message-ID: <CAG_fn=UP0169b+cTxVBhqPUfOurQNxAKne0pYSPy3a1uFvTp-g@mail.gmail.com>
+Subject: Re: [mmotm-2016-07-18-16-40] page allocation failure: order:2, mode:0x2000000(GFP_NOWAIT)
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Laight <David.Laight@aculab.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jan Kara <jack@suse.cz>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Will Deacon <will.deacon@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, Russell King <linux@armlinux.org.uk>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, PaX Team <pageexec@freemail.hu>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Fenghua Yu <fenghua.yu@intel.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Tony Luck <tony.luck@intel.com>, Andy Lutomirski <luto@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, Brad Spengler <spender@grsecurity.net>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Pekka Enberg <penberg@kernel.org>, Daniel Micay <danielmicay@gmail.com>, Casey Schaufler <casey@schaufler-ca.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "David S. Miller" <davem@davemloft.net>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Michal Hocko <mhocko@suse.cz>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, David Rientjes <rientjes@google.com>, mgorman@techsingularity.net
 
-On Wed, Jul 20, 2016 at 9:02 AM, David Laight <David.Laight@aculab.com> wrote:
-> From: Kees Cook
->> Sent: 20 July 2016 16:32
-> ...
->> Yup: that's exactly what it's doing: walking up the stack. :)
+On Wed, Jul 20, 2016 at 5:33 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
+> On 07/20/2016 05:19 PM, Kirill A. Shutemov wrote:
+>> On Wed, Jul 20, 2016 at 03:39:24PM +0200, Vlastimil Babka wrote:
+>>> On 07/20/2016 01:53 PM, Michal Hocko wrote:
+>>>> On Wed 20-07-16 14:44:17, Kirill A. Shutemov wrote:
+>>>>> Hello,
+>>>>>
+>>>>> Looks like current mmotm is broken. See trace below.
+>>>>
+>>>> Why do you think it is broken? This is order-2 NOWAIT allocation. So w=
+e
+>>>> are relying on atomic highorder reserve and kcompactd to make sufficie=
+nt
+>>>> progress. It is hard to find out more without the full log including t=
+he
+>>>> meminfo.
+>>>
+>>> Also it seems to come from kasan allocating stackdepot space to record
+>>> who freed a slab object, or something.
+>>>
+>>>>> It's easy to reproduce in my setup: virtual machine with some amount =
+of
+>>>>> swap space and try allocate about the size of RAM in userspace (I use=
+d
+>>>>> usemem[1] for that).
+>>>>
+>>>> Have you tried to bisect it?
+>>
+>> Bisected to a590d2628f08 ("mm, kasan: switch SLUB to stackdepot, enable
+>> memory quarantine for SLUB").
+>>
+>> I guess it's candidate for __GFP_WARN. Not sure if there's a better
+>> solution.
 >
-> Remind me to make sure all our customers run kernels with it disabled.
+> An order-0 fallback maybe?
+> Agree with NOWARN, if stackdepot (or its users) are able to tell that a
+> trace is missing because allocation has failed - the precise allocation
+> trace isn't that useful I guess. Order-2 allocation that's potentially
+> atomic and frequent just can fail.
+>
+>> This helps:
+>>
+>> diff --git a/lib/stackdepot.c b/lib/stackdepot.c
+>> index 53ad6c0831ae..60f77f1d470a 100644
+>> --- a/lib/stackdepot.c
+>> +++ b/lib/stackdepot.c
+>> @@ -242,6 +242,7 @@ depot_stack_handle_t depot_save_stack(struct stack_t=
+race *trace,
+>>                  */
+>>                 alloc_flags &=3D ~GFP_ZONEMASK;
+>>                 alloc_flags &=3D (GFP_ATOMIC | GFP_KERNEL);
+>> +               alloc_flags |=3D __GFP_NOWARN;
+>>                 page =3D alloc_pages(alloc_flags, STACK_ALLOC_ORDER);
+>>                 if (page)
+>>                         prealloc =3D page_address(page);
+>>
+>>>> Some of the recent compaction changes might have made a difference.
+>>>
+>>> AFAIK recent compaction changes are not in mmotm yet. The node-based lr=
+u
+>>> reclaim might have shifted some balances perhaps.
+>>>
+>>>>> Any clues?
+>>>>>
+>>>>> [1] http://www.spinics.net/lists/linux-mm/attachments/gtarazbJaHPaAT.=
+gtar
+>>>>>
+>>>>> [   39.413099] kswapd2: page allocation failure: order:2, mode:0x2000=
+000(GFP_NOWAIT)
+>>>>> [   39.414122] CPU: 2 PID: 64 Comm: kswapd2 Not tainted 4.7.0-rc7-mm1=
+-00428-gc3e13e4dab1b-dirty #2878
+>>>>> [   39.416018] Hardware name: QEMU Standard PC (Q35 + ICH9, 2009), BI=
+OS rel-1.9.1-0-gb3ef39f-prebuilt.qemu-project.org 04/01/2014
+>>>>> [   39.416018]  0000000000000002 ffff88002f807690 ffffffff81c8fb0d 1f=
+fff10005f00ed6
+>>>>> [   39.416018]  0000000000000000 0000000000000002 ffff88002f807750 ff=
+ff88002f8077a8
+>>>>> [   39.416018]  ffffffff813e728b ffff88002f8077a8 0200000000000000 00=
+00000041b58ab3
+>>>>> [   39.416018] Call Trace:
+>>>>> [   39.416018]  <IRQ>  [<ffffffff81c8fb0d>] dump_stack+0x95/0xe8
+>>>>> [   39.416018]  [<ffffffff813e728b>] warn_alloc_failed+0x1cb/0x250
+>>>>> [   39.416018]  [<ffffffff813e70c0>] ? zone_watermark_ok_safe+0x250/0=
+x250
+>>>>> [   39.416018]  [<ffffffff81153788>] ? __kernel_text_address+0x78/0xa=
+0
+>>>>> [   39.416018]  [<ffffffff813e7f4c>] __alloc_pages_nodemask+0x92c/0x1=
+fe0
+>>>>> [   39.416018]  [<ffffffff8119047c>] ? sched_clock_cpu+0x12c/0x1e0
+>>>>> [   39.416018]  [<ffffffff81d24a17>] ? depot_save_stack+0x1b7/0x5b0
+>>>>> [   39.416018]  [<ffffffff813d5ac2>] ? mempool_free_slab+0x22/0x30
+>>>>> [   39.416018]  [<ffffffff81313595>] ? is_ftrace_trampoline+0xe5/0x12=
+0
+>>>>> [   39.416018]  [<ffffffff813e7620>] ? __free_pages+0x90/0x90
+>>>>> [   39.416018]  [<ffffffff811f9870>] ? debug_show_all_locks+0x290/0x2=
+90
+>>>>> [   39.416018]  [<ffffffff81190023>] ? sched_clock_local+0x43/0x120
+>>>>> [   39.416018]  [<ffffffff81cef815>] ? check_preemption_disabled+0x35=
+/0x190
+>>>>> [   39.416018]  [<ffffffff81cef815>] ? check_preemption_disabled+0x35=
+/0x190
+>>>>> [   39.416018]  [<ffffffff81cef98c>] ? debug_smp_processor_id+0x1c/0x=
+20
+>>>>> [   39.416018]  [<ffffffff811ee78d>] ? get_lock_stats+0x1d/0x90
+>>>>> [   39.416018]  [<ffffffff81245617>] ? debug_lockdep_rcu_enabled+0x77=
+/0x90
+>>>>> [   39.416018]  [<ffffffff81153788>] ? __kernel_text_address+0x78/0xa=
+0
+>>>>> [   39.416018]  [<ffffffff8105d05b>] ? print_context_stack+0x7b/0x100
+>>>>> [   39.416018]  [<ffffffff814d42dc>] alloc_pages_current+0xbc/0x1f0
+>>>>> [   39.416018]  [<ffffffff81d24d5f>] depot_save_stack+0x4ff/0x5b0
+>>>>> [   39.416018]  [<ffffffff813d5ac2>] ? mempool_free_slab+0x22/0x30
+>>>>> [   39.416018]  [<ffffffff814eb4c7>] kasan_slab_free+0x157/0x180
+>>>>> [   39.416018]  [<ffffffff8107c58b>] ? save_stack_trace+0x2b/0x50
+>>>>> [   39.416018]  [<ffffffff814eb453>] ? kasan_slab_free+0xe3/0x180
+>>>>> [   39.416018]  [<ffffffff814e73e5>] ? kmem_cache_free+0x95/0x300
+>>>>> [   39.416018]  [<ffffffff813d5ac2>] ? mempool_free_slab+0x22/0x30
+>>>>> [   39.416018]  [<ffffffff813d59a9>] ? mempool_free+0xd9/0x1d0
+>>>>> [   39.416018]  [<ffffffff81be96e5>] ? bio_free+0x145/0x220
+>>>>> [   39.416018]  [<ffffffff81bea8bf>] ? bio_put+0x8f/0xb0
+>>>>> [   39.416018]  [<ffffffff814a7bfe>] ? end_swap_bio_write+0x22e/0x310
+>>>>> [   39.416018]  [<ffffffff81bf1687>] ? bio_endio+0x187/0x1f0
+>>>>> [   39.416018]  [<ffffffff81c0e89b>] ? blk_update_request+0x1bb/0xc30
+>>>>> [   39.416018]  [<ffffffff81c3238c>] ? blk_mq_end_request+0x4c/0x130
+>>>>> [   39.416018]  [<ffffffff8208a330>] ? virtblk_request_done+0xb0/0x2a=
+0
+>>>>> [   39.416018]  [<ffffffff81c2d17d>] ? __blk_mq_complete_request_remo=
+te+0x5d/0x70
+>>>>> [   39.416018]  [<ffffffff8129fe3c>] ? flush_smp_call_function_queue+=
+0xdc/0x3a0
+>>>>> [   39.416018]  [<ffffffff812a0548>] ? generic_smp_call_function_sing=
+le_interrupt+0x18/0x20
+>>>>> [   39.416018]  [<ffffffff8109c654>] ? smp_call_function_single_inter=
+rupt+0x64/0x90
+>>>>> [   39.416018]  [<ffffffff829584a9>] ? call_function_single_interrupt=
++0x89/0x90
+>>>>> [   39.416018]  [<ffffffff81c350f6>] ? blk_mq_map_request+0xe6/0xc00
+>>>>> [   39.416018]  [<ffffffff81c36f6f>] ? blk_sq_make_request+0x9af/0xca=
+0
+>>>>> [   39.416018]  [<ffffffff81c0b05e>] ? generic_make_request+0x30e/0x6=
+60
+>>>>> [   39.416018]  [<ffffffff81c0b540>] ? submit_bio+0x190/0x470
+>>>>> [   39.416018]  [<ffffffff814a8fd8>] ? __swap_writepage+0x6e8/0x940
+>>>>> [   39.416018]  [<ffffffff814a926a>] ? swap_writepage+0x3a/0x70
+>>>>> [   39.416018]  [<ffffffff8141376b>] ? shrink_page_list+0x1bdb/0x2f00
+>>>>> [   39.416018]  [<ffffffff81416038>] ? shrink_inactive_list+0x538/0xc=
+70
+>>>>> [   39.416018]  [<ffffffff81417a1b>] ? shrink_node_memcg+0xa1b/0x1160
+>>>>> [   39.416018]  [<ffffffff81418436>] ? shrink_node+0x2d6/0xc60
+>>>>> [   39.416018]  [<ffffffff8141bf1e>] ? kswapd+0x82e/0x1460
+>>>>> [   39.416018]  [<ffffffff81156d4a>] ? kthread+0x24a/0x2e0
+>>>>> [   39.416018]  [<ffffffff8295773f>] ? ret_from_fork+0x1f/0x40
+>>>>> [   39.416018]  [<ffffffff81190023>] ? sched_clock_local+0x43/0x120
+>>>>> [   39.416018]  [<ffffffff81cef815>] ? check_preemption_disabled+0x35=
+/0x190
+>>>>> [   39.416018]  [<ffffffff81cef815>] ? check_preemption_disabled+0x35=
+/0x190
+>>>>> [   39.416018]  [<ffffffff81cef815>] ? check_preemption_disabled+0x35=
+/0x190
+>>>>> [   39.416018]  [<ffffffff81353e65>] ? time_hardirqs_off+0x45/0x2f0
+>>>>> [   39.416018]  [<ffffffff814e73c5>] ? kmem_cache_free+0x75/0x300
+>>>>> [   39.416018]  [<ffffffff81353e65>] ? time_hardirqs_off+0x45/0x2f0
+>>>>> [   39.416018]  [<ffffffff814e747f>] ? kmem_cache_free+0x12f/0x300
+>>>>> [   39.416018]  [<ffffffff813d5ac2>] ? mempool_free_slab+0x22/0x30
+>>>>> [   39.416018]  [<ffffffff814e73e5>] kmem_cache_free+0x95/0x300
+>>>>> [   39.416018]  [<ffffffff813d5aa0>] ? mempool_free+0x1d0/0x1d0
+>>>>> [   39.416018]  [<ffffffff813d5ac2>] mempool_free_slab+0x22/0x30
+>>>>> [   39.416018]  [<ffffffff813d59a9>] mempool_free+0xd9/0x1d0
+>>>>> [   39.416018]  [<ffffffff81be96e5>] bio_free+0x145/0x220
+>>>>> [   39.416018]  [<ffffffff814a79d0>] ? SyS_madvise+0x13c0/0x13c0
+>>>>> [   39.416018]  [<ffffffff81bea8bf>] bio_put+0x8f/0xb0
+>>>>> [   39.416018]  [<ffffffff814a7bfe>] end_swap_bio_write+0x22e/0x310
+>>>>> [   39.416018]  [<ffffffff814a79d0>] ? SyS_madvise+0x13c0/0x13c0
+>>>>> [   39.416018]  [<ffffffff81bf1687>] bio_endio+0x187/0x1f0
+>>>>> [   39.416018]  [<ffffffff81c0e89b>] blk_update_request+0x1bb/0xc30
+>>>>> [   39.416018]  [<ffffffff81c2d120>] ? blkdev_issue_zeroout+0x3f0/0x3=
+f0
+>>>>> [   39.416018]  [<ffffffff81c3238c>] blk_mq_end_request+0x4c/0x130
+>>>>> [   39.416018]  [<ffffffff8208a330>] virtblk_request_done+0xb0/0x2a0
+>>>>> [   39.416018]  [<ffffffff81c2d17d>] __blk_mq_complete_request_remote=
++0x5d/0x70
+>>>>> [   39.416018]  [<ffffffff8129fe3c>] flush_smp_call_function_queue+0x=
+dc/0x3a0
+>>>>> [   39.416018]  [<ffffffff812a0548>] generic_smp_call_function_single=
+_interrupt+0x18/0x20
+>>>>> [   39.416018]  [<ffffffff8109c654>] smp_call_function_single_interru=
+pt+0x64/0x90
+>>>>> [   39.416018]  [<ffffffff829584a9>] call_function_single_interrupt+0=
+x89/0x90
+>>>>> [   39.416018]  <EOI>  [<ffffffff8120138b>] ? lock_acquire+0x15b/0x34=
+0
+>>>>> [   39.416018]  [<ffffffff81c350a9>] ? blk_mq_map_request+0x99/0xc00
+>>>>> [   39.416018]  [<ffffffff81c350f6>] blk_mq_map_request+0xe6/0xc00
+>>>>> [   39.416018]  [<ffffffff81c350a9>] ? blk_mq_map_request+0x99/0xc00
+>>>>> [   39.416018]  [<ffffffff81c8d434>] ? blk_integrity_merge_bio+0xb4/0=
+x3b0
+>>>>> [   39.416018]  [<ffffffff81c35010>] ? blk_mq_alloc_request+0x490/0x4=
+90
+>>>>> [   39.416018]  [<ffffffff81c0dd66>] ? blk_attempt_plug_merge+0x226/0=
+x2c0
+>>>>> [   39.416018]  [<ffffffff81c36f6f>] blk_sq_make_request+0x9af/0xca0
+>>>>> [   39.416018]  [<ffffffff81c365c0>] ? blk_mq_insert_requests+0x940/0=
+x940
+>>>>> [   39.416018]  [<ffffffff81c07d20>] ? blk_exit_rl+0x60/0x60
+>>>>> [   39.416018]  [<ffffffff81c027b0>] ? handle_bad_sector+0x1e0/0x1e0
+>>>>> [   39.416018]  [<ffffffff81190023>] ? sched_clock_local+0x43/0x120
+>>>>> [   39.416018]  [<ffffffff81cef815>] ? check_preemption_disabled+0x35=
+/0x190
+>>>>> [   39.416018]  [<ffffffff81cef815>] ? check_preemption_disabled+0x35=
+/0x190
+>>>>> [   39.416018]  [<ffffffff81cef815>] ? check_preemption_disabled+0x35=
+/0x190
+>>>>> [   39.416018]  [<ffffffff81c0b05e>] generic_make_request+0x30e/0x660
+>>>>> [   39.416018]  [<ffffffff81c0ad50>] ? blk_plug_queued_count+0x160/0x=
+160
+>>>>> [   39.416018]  [<ffffffff81cef98c>] ? debug_smp_processor_id+0x1c/0x=
+20
+>>>>> [   39.416018]  [<ffffffff81353ba2>] ? time_hardirqs_on+0xb2/0x330
+>>>>> [   39.416018]  [<ffffffff8152890b>] ? unlock_page_memcg+0x7b/0x130
+>>>>> [   39.416018]  [<ffffffff81c0b540>] submit_bio+0x190/0x470
+>>>>> [   39.416018]  [<ffffffff811dff60>] ? woken_wake_function+0x60/0x60
+>>>>> [   39.416018]  [<ffffffff81c0b3b0>] ? generic_make_request+0x660/0x6=
+60
+>>>>> [   39.416018]  [<ffffffff813f769d>] ? __test_set_page_writeback+0x36=
+d/0x8c0
+>>>>> [   39.416018]  [<ffffffff814a8fd8>] __swap_writepage+0x6e8/0x940
+>>>>> [   39.416018]  [<ffffffff814a79d0>] ? SyS_madvise+0x13c0/0x13c0
+>>>>> [   39.416018]  [<ffffffff814a88f0>] ? generic_swapfile_activate+0x49=
+0/0x490
+>>>>> [   39.416018]  [<ffffffff814abd45>] ? swap_info_get+0x165/0x240
+>>>>> [   39.416018]  [<ffffffff814affda>] ? page_swapcount+0xba/0xf0
+>>>>> [   39.416018]  [<ffffffff82956ba1>] ? _raw_spin_unlock+0x31/0x50
+>>>>> [   39.416018]  [<ffffffff814affdf>] ? page_swapcount+0xbf/0xf0
+>>>>> [   39.416018]  [<ffffffff814a926a>] swap_writepage+0x3a/0x70
+>>>>> [   39.416018]  [<ffffffff8141376b>] shrink_page_list+0x1bdb/0x2f00
+>>>>> [   39.416018]  [<ffffffff81411b90>] ? putback_lru_page+0x3b0/0x3b0
+>>>>> [   39.416018]  [<ffffffff81cef9ac>] ? __this_cpu_preempt_check+0x1c/=
+0x20
+>>>>> [   39.416018]  [<ffffffff81438ed4>] ? __mod_node_page_state+0x94/0xe=
+0
+>>>>> [   39.416018]  [<ffffffff81190023>] ? sched_clock_local+0x43/0x120
+>>>>> [   39.416018]  [<ffffffff81cef815>] ? check_preemption_disabled+0x35=
+/0x190
+>>>>> [   39.416018]  [<ffffffff81cef815>] ? check_preemption_disabled+0x35=
+/0x190
+>>>>> [   39.416018]  [<ffffffff811ee78d>] ? get_lock_stats+0x1d/0x90
+>>>>> [   39.416018]  [<ffffffff8140fcb0>] ? __isolate_lru_page+0x3b0/0x3b0
+>>>>> [   39.416018]  [<ffffffff81cef98c>] ? debug_smp_processor_id+0x1c/0x=
+20
+>>>>> [   39.416018]  [<ffffffff81353ba2>] ? time_hardirqs_on+0xb2/0x330
+>>>>> [   39.416018]  [<ffffffff811f6535>] ? trace_hardirqs_on_caller+0x405=
+/0x590
+>>>>> [   39.416018]  [<ffffffff81416038>] shrink_inactive_list+0x538/0xc70
+>>>>> [   39.416018]  [<ffffffff81415b00>] ? putback_inactive_pages+0xaa0/0=
+xaa0
+>>>>> [   39.416018]  [<ffffffff81416770>] ? shrink_inactive_list+0xc70/0xc=
+70
+>>>>> [   39.416018]  [<ffffffff81190023>] ? sched_clock_local+0x43/0x120
+>>>>> [   39.416018]  [<ffffffff81cef815>] ? check_preemption_disabled+0x35=
+/0x190
+>>>>> [   39.416018]  [<ffffffff81cef815>] ? check_preemption_disabled+0x35=
+/0x190
+>>>>> [   39.416018]  [<ffffffff81cd5780>] ? _find_next_bit.part.0+0xe0/0x1=
+20
+>>>>> [   39.416018]  [<ffffffff8140e654>] ? pgdat_reclaimable_pages+0x764/=
+0x9d0
+>>>>> [   39.416018]  [<ffffffff8140f2ec>] ? pgdat_reclaimable+0x13c/0x1d0
+>>>>> [   39.416018]  [<ffffffff8140f3cc>] ? lruvec_lru_size+0x4c/0xa0
+>>>>> [   39.416018]  [<ffffffff81417a1b>] shrink_node_memcg+0xa1b/0x1160
+>>>>> [   39.416018]  [<ffffffff81417000>] ? shrink_active_list+0x890/0x890
+>>>>> [   39.416018]  [<ffffffff81cef815>] ? check_preemption_disabled+0x35=
+/0x190
+>>>>> [   39.416018]  [<ffffffff81cef98c>] ? debug_smp_processor_id+0x1c/0x=
+20
+>>>>> [   39.416018]  [<ffffffff8151f208>] ? mem_cgroup_iter+0x1b8/0xd10
+>>>>> [   39.416018]  [<ffffffff82956c2c>] ? _raw_spin_unlock_irq+0x2c/0x50
+>>>>> [   39.416018]  [<ffffffff81418436>] shrink_node+0x2d6/0xc60
+>>>>> [   39.416018]  [<ffffffff81418160>] ? shrink_node_memcg+0x1160/0x116=
+0
+>>>>> [   39.416018]  [<ffffffff8140f3cc>] ? lruvec_lru_size+0x4c/0xa0
+>>>>> [   39.416018]  [<ffffffff8141bf1e>] kswapd+0x82e/0x1460
+>>>>> [   39.416018]  [<ffffffff8141b6f0>] ? mem_cgroup_shrink_node+0x600/0=
+x600
+>>>>> [   39.416018]  [<ffffffff81171cc8>] ? finish_task_switch+0x178/0x5b0
+>>>>> [   39.416018]  [<ffffffff82956c2c>] ? _raw_spin_unlock_irq+0x2c/0x50
+>>>>> [   39.416018]  [<ffffffff811f6535>] ? trace_hardirqs_on_caller+0x405=
+/0x590
+>>>>> [   39.416018]  [<ffffffff82956c37>] ? _raw_spin_unlock_irq+0x37/0x50
+>>>>> [   39.416018]  [<ffffffff81171cc8>] ? finish_task_switch+0x178/0x5b0
+>>>>> [   39.416018]  [<ffffffff811de8f0>] ? __wake_up_common+0x150/0x150
+>>>>> [   39.416018]  [<ffffffff82948c3e>] ? __schedule+0x55e/0x1b60
+>>>>> [   39.416018]  [<ffffffff81156a32>] ? __kthread_parkme+0x172/0x240
+>>>>> [   39.416018]  [<ffffffff81156d4a>] kthread+0x24a/0x2e0
+>>>>> [   39.416018]  [<ffffffff8141b6f0>] ? mem_cgroup_shrink_node+0x600/0=
+x600
+>>>>> [   39.416018]  [<ffffffff81156b00>] ? __kthread_parkme+0x240/0x240
+>>>>> [   39.416018]  [<ffffffff81171c9c>] ? finish_task_switch+0x14c/0x5b0
+>>>>> [   39.416018]  [<ffffffff8295773f>] ret_from_fork+0x1f/0x40
+>>>>> [   39.416018]  [<ffffffff81156b00>] ? __kthread_parkme+0x240/0x240
+>>>>>
+>>>>> --
+>>>>>  Kirill A. Shutemov
+>>>>
+>>>
+>>
+>
+Am I understanding right that you're seeing allocation failures from
+the stack depot? How often do they happen? Are they reported under
+heavy load, or just when you boot the kernel?
+Allocating with __GFP_NOWARN will help here, but I think we'd better
+figure out what's gone wrong.
+I've sent https://lkml.org/lkml/2016/7/14/566, which should reduce the
+stack depot's memory consumption, for review - can you see if the bug
+is still reproducible with that?
 
-What's your concern with stack walking?
 
--Kees
+--=20
+Alexander Potapenko
+Software Engineer
 
--- 
-Kees Cook
-Chrome OS & Brillo Security
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
