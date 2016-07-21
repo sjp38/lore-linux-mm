@@ -1,66 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BA826B0253
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 10:40:04 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id z8so139509639ywa.1
-        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 07:40:04 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTP id w78si4075223ota.169.2016.07.21.07.40.02
-        for <linux-mm@kvack.org>;
-        Thu, 21 Jul 2016 07:40:03 -0700 (PDT)
-Message-ID: <5790DD4B.2060000@huawei.com>
-Date: Thu, 21 Jul 2016 22:33:47 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A6F646B0005
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 10:53:13 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id o80so15069053wme.1
+        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 07:53:13 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id i196si3931677wmg.24.2016.07.21.07.53.12
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 Jul 2016 07:53:12 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id i5so2716660wmg.2
+        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 07:53:12 -0700 (PDT)
+Date: Thu, 21 Jul 2016 16:53:10 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 1/2] mempool: do not consume memory reserves from the
+ reclaim path
+Message-ID: <20160721145309.GR26379@dhcp22.suse.cz>
+References: <1468831164-26621-1-git-send-email-mhocko@kernel.org>
+ <1468831285-27242-1-git-send-email-mhocko@kernel.org>
+ <20160719135426.GA31229@cmpxchg.org>
+ <alpine.DEB.2.10.1607191315400.58064@chino.kir.corp.google.com>
+ <20160720081541.GF11249@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1607201353230.22427@chino.kir.corp.google.com>
+ <20160721085202.GC26379@dhcp22.suse.cz>
+ <20160721121300.GA21806@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: + mm-hugetlb-fix-race-when-migrate-pages.patch added to -mm tree
-References: <20160721112754.GH26379@dhcp22.suse.cz> <5790BCB1.4020800@huawei.com> <20160721123001.GI26379@dhcp22.suse.cz> <5790C3DB.8000505@huawei.com> <20160721125555.GJ26379@dhcp22.suse.cz> <5790CD52.6050200@huawei.com> <20160721134044.GL26379@dhcp22.suse.cz> <5790D4FF.8070907@huawei.com> <20160721140124.GN26379@dhcp22.suse.cz> <5790D8A3.3090808@huawei.com> <20160721142722.GP26379@dhcp22.suse.cz>
-In-Reply-To: <20160721142722.GP26379@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160721121300.GA21806@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, akpm@linux-foundation.org, qiuxishi@huawei.com, vbabka@suse.cz, mm-commits@vger.kernel.org, Mike
- Kravetz <mike.kravetz@oracle.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Mikulas Patocka <mpatocka@redhat.com>, Ondrej Kozina <okozina@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Mel Gorman <mgorman@suse.de>, Neil Brown <neilb@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, dm-devel@redhat.com
 
-On 2016/7/21 22:27, Michal Hocko wrote:
-> On Thu 21-07-16 22:13:55, zhong jiang wrote:
->> On 2016/7/21 22:01, Michal Hocko wrote:
->>> On Thu 21-07-16 21:58:23, zhong jiang wrote:
->>>> On 2016/7/21 21:40, Michal Hocko wrote:
->>>>> On Thu 21-07-16 21:25:38, zhong jiang wrote:
->>>>>> On 2016/7/21 20:55, Michal Hocko wrote:
->>>>> [...]
->>>>>>> OK, now I understand what you mean. So you mean that a different process
->>>>>>> initiates the migration while this path copies to pte. That is certainly
->>>>>>> possible but I still fail to see what is the problem about that.
->>>>>>> huge_pte_alloc will return the identical pte whether it is regular or
->>>>>>> migration one. So what exactly is the problem?
->>>>>>>
->>>>>> copy_hugetlb_page_range obtain the shared dst_pte, it may be not equal
->>>>>> to the src_pte.  The dst_pte can come from other process sharing the
->>>>>> mapping.
->>>>> So you mean that the parent doesn't have the shared pte while the child
->>>>> would get one?
->>>>>  
->>>>  no, parent must have the shared pte because the the child copy the
->>>> parent. but parent is not the only source pte we can get. when we
->>>> scan the maping->i_mmap, firstly ,it can obtain a shared pte from
->>>> other process. but I am not sure.
->>> But then all the shared ptes should be identical, no? Or am I missing
->>> something?
->>  all the shared ptes should be identical, but  there is  a possibility that new process
->>  want to share the pte from other process ,  other than the parent,  For the first time
->>  the process is about to share pte with it.   is it possiblity?
-> I do not see how. They are opperating on the same mapping so I really do
-> not see how different process makes any difference.
->
-   ok , In a words . the new process get the shared pte, The shared pte not come from the parent process.
-  so , src_pte is not equal to dst_pte.  because src_pte come from the parent, while dst_pte come from
-  other process.    obviously, it is not same. 
+On Thu 21-07-16 08:13:00, Johannes Weiner wrote:
+> On Thu, Jul 21, 2016 at 10:52:03AM +0200, Michal Hocko wrote:
+> > Look, there are
+> > $ git grep mempool_alloc | wc -l
+> > 304
+> > 
+> > many users of this API and we do not want to flip the default behavior
+> > which is there for more than 10 years. So far you have been arguing
+> > about potential deadlocks and haven't shown any particular path which
+> > would have a direct or indirect dependency between mempool and normal
+> > allocator and it wouldn't be a bug. As the matter of fact the change
+> > we are discussing here causes a regression. If you want to change the
+> > semantic of mempool allocator then you are absolutely free to do so. In
+> > a separate patch which would be discussed with IO people and other
+> > users, though. But we _absolutely_ want to fix the regression first
+> > and have a simple fix for 4.6 and 4.7 backports. At this moment there
+> > are revert and patch 1 on the table.  The later one should make your
+> > backtrace happy and should be only as a temporal fix until we find out
+> > what is actually misbehaving on your systems. If you are not interested
+> > to pursue that way I will simply go with the revert.
+> 
+> +1
+> 
+> It's very unlikely that decade-old mempool semantics are suddenly a
+> fundamental livelock problem, when all the evidence we have is one
+> hang and vague speculation. Given that the patch causes regressions,
+> and that the bug is most likely elsewhere anyway, a full revert rather
+> than merely-less-invasive mempool changes makes the most sense to me.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+OK, fair enough. What do you think about the following then? Mikulas, I
+have dropped your Tested-by and Reviewed-by because the patch is
+different but unless you have hit the OOM killer then the testing
+results should be same.
+---
