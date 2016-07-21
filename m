@@ -1,62 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 22F8682963
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 08:13:12 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id o80so12003978wme.1
-        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 05:13:12 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id e73si4070970lji.68.2016.07.21.05.13.10
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B02B82963
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 08:19:56 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id i64so38238349ith.2
+        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 05:19:56 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id b82si1388213oif.143.2016.07.21.05.19.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Jul 2016 05:13:10 -0700 (PDT)
-Date: Thu, 21 Jul 2016 08:13:00 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC PATCH 1/2] mempool: do not consume memory reserves from the
- reclaim path
-Message-ID: <20160721121300.GA21806@cmpxchg.org>
-References: <1468831164-26621-1-git-send-email-mhocko@kernel.org>
- <1468831285-27242-1-git-send-email-mhocko@kernel.org>
- <20160719135426.GA31229@cmpxchg.org>
- <alpine.DEB.2.10.1607191315400.58064@chino.kir.corp.google.com>
- <20160720081541.GF11249@dhcp22.suse.cz>
- <alpine.DEB.2.10.1607201353230.22427@chino.kir.corp.google.com>
- <20160721085202.GC26379@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 21 Jul 2016 05:19:55 -0700 (PDT)
+Message-ID: <5790BCB1.4020800@huawei.com>
+Date: Thu, 21 Jul 2016 20:14:41 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160721085202.GC26379@dhcp22.suse.cz>
+Subject: Re: + mm-hugetlb-fix-race-when-migrate-pages.patch added to -mm tree
+References: <578eb28b.YbRUDGz5RloTVlrE%akpm@linux-foundation.org> <20160721074340.GA26398@dhcp22.suse.cz> <5790A9D1.6060304@huawei.com> <20160721112754.GH26379@dhcp22.suse.cz>
+In-Reply-To: <20160721112754.GH26379@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Mikulas Patocka <mpatocka@redhat.com>, Ondrej Kozina <okozina@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Mel Gorman <mgorman@suse.de>, Neil Brown <neilb@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, dm-devel@redhat.com
+Cc: akpm@linux-foundation.org, qiuxishi@huawei.com, vbabka@suse.cz, mm-commits@vger.kernel.org, Mike Kravetz <mike.kravetz@oracle.com>, Naoya
+ Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
 
-On Thu, Jul 21, 2016 at 10:52:03AM +0200, Michal Hocko wrote:
-> Look, there are
-> $ git grep mempool_alloc | wc -l
-> 304
-> 
-> many users of this API and we do not want to flip the default behavior
-> which is there for more than 10 years. So far you have been arguing
-> about potential deadlocks and haven't shown any particular path which
-> would have a direct or indirect dependency between mempool and normal
-> allocator and it wouldn't be a bug. As the matter of fact the change
-> we are discussing here causes a regression. If you want to change the
-> semantic of mempool allocator then you are absolutely free to do so. In
-> a separate patch which would be discussed with IO people and other
-> users, though. But we _absolutely_ want to fix the regression first
-> and have a simple fix for 4.6 and 4.7 backports. At this moment there
-> are revert and patch 1 on the table.  The later one should make your
-> backtrace happy and should be only as a temporal fix until we find out
-> what is actually misbehaving on your systems. If you are not interested
-> to pursue that way I will simply go with the revert.
+On 2016/7/21 19:27, Michal Hocko wrote:
+> On Thu 21-07-16 18:54:09, zhong jiang wrote:
+>> On 2016/7/21 15:43, Michal Hocko wrote:
+>>> We have further discussed the patch and I believe it is not correct. See [1].
+>>> I am proposing the following alternative.
+>>>
+>>> [1] http://lkml.kernel.org/r/20160720132431.GM11249@dhcp22.suse.cz
+>>> ---
+>>> >From b1e9b3214f1859fdf7d134cdcb56f5871933539c Mon Sep 17 00:00:00 2001
+>>> From: Michal Hocko <mhocko@suse.com>
+>>> Date: Thu, 21 Jul 2016 09:28:13 +0200
+>>> Subject: [PATCH] mm, hugetlb: fix huge_pte_alloc BUG_ON
+>>>
+>>> Zhong Jiang has reported a BUG_ON from huge_pte_alloc hitting when he
+>>> runs his database load with memory online and offline running in
+>>> parallel. The reason is that huge_pmd_share might detect a shared pmd
+>>> which is currently migrated and so it has migration pte which is
+>>> !pte_huge.
+>>>
+>>> There doesn't seem to be any easy way to prevent from the race and in
+>>> fact seeing the migration swap entry is not harmful. Both callers of
+>>> huge_pte_alloc are prepared to handle them. copy_hugetlb_page_range
+>>> will copy the swap entry and make it COW if needed. hugetlb_fault will
+>>> back off and so the page fault is retries if the page is still under
+>>> migration and waits for its completion in hugetlb_fault.
+>>>
+>>> That means that the BUG_ON is wrong and we should update it. Let's
+>>> simply check that all present ptes are pte_huge instead.
+>>>
+>>> Reported-by: zhongjiang <zhongjiang@huawei.com>
+>>> Signed-off-by: Michal Hocko <mhocko@suse.com>
+>>> ---
+>>>  mm/hugetlb.c | 2 +-
+>>>  1 file changed, 1 insertion(+), 1 deletion(-)
+>>>
+>>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+>>> index 34379d653aa3..31dd2b8b86b3 100644
+>>> --- a/mm/hugetlb.c
+>>> +++ b/mm/hugetlb.c
+>>> @@ -4303,7 +4303,7 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
+>>>  				pte = (pte_t *)pmd_alloc(mm, pud, addr);
+>>>  		}
+>>>  	}
+>>> -	BUG_ON(pte && !pte_none(*pte) && !pte_huge(*pte));
+>>> +	BUG_ON(pte && pte_present(*pte) && !pte_huge(*pte));
+>>>  
+>>>  	return pte;
+>>>  }
+>>   I don't think that the patch can fix the question.   The explain is as follow.
+>>
+>>                cpu0                                                                                      cpu1
+>> copy_hugetlb_page_range                                                       try_to_unmap_one
+>>              huge_pte_alloc  #pmd may be shared                           
+>>              lock dst_pte     #dst_pte may be migrate                    
+>>             lock src_pte     #src_pte may be normal pt1       
+>>            set_huge_pte_at    #dst_pte points to normal
+>>            spin_unlock (src_pt1)
+>>                                                                                                           lock src_pte
+>>            spin_unlock(dst_pt1)                                                          set src_pte migrate entry
+>>                                                                                                          spin_unlock(src_pte)
+>>    *       dst_pte is a normal pte, but corresponding to the
+>>             pfn is under migrate.  it is dangerous.
+>>
+>> The race may occur. is right ?  if the scenario exist.  we should think about more.
+> Can this happen at all? copy_hugetlb_page_range does the following to
+> rule out shared page table entries. At least that is my understanding of
+> c5c99429fa57 ("fix hugepages leak due to pagetable page sharing")
+>
+> 		/* If the pagetables are shared don't copy or take references */
+> 		if (dst_pte == src_pte)
+> 			continue;
+  vm_file points to mapping should be shared,  I am not sure, if it is so,  the  possibility is exist.
+  of course, src_pte is the same as the dst_pte.
 
-+1
-
-It's very unlikely that decade-old mempool semantics are suddenly a
-fundamental livelock problem, when all the evidence we have is one
-hang and vague speculation. Given that the patch causes regressions,
-and that the bug is most likely elsewhere anyway, a full revert rather
-than merely-less-invasive mempool changes makes the most sense to me.
+  when dst_pte is migrate entry and src pte is normal entry,  if  try_to_unmap_one is successful,
+   then exec copy_hugetlb_page_range,   it will lead to the dst_pte is under dangerous. 
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
