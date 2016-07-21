@@ -1,159 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 70F2E82963
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 06:40:22 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id 33so49610792lfw.1
-        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 03:40:22 -0700 (PDT)
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com. [74.125.82.52])
-        by mx.google.com with ESMTPS id d65si3611776lfg.399.2016.07.21.03.40.20
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BDFF82963
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 06:56:37 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id q83so151185113iod.2
+        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 03:56:37 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id v19si2828119otf.19.2016.07.21.03.56.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Jul 2016 03:40:21 -0700 (PDT)
-Received: by mail-wm0-f52.google.com with SMTP id f65so17329341wmi.0
-        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 03:40:20 -0700 (PDT)
-From: Miklos Szeredi <mszeredi@redhat.com>
-Subject: [PATCH] mm: export filemap_check_errors() to modules
-Date: Thu, 21 Jul 2016 12:40:18 +0200
-Message-Id: <1469097618-3238-1-git-send-email-mszeredi@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 21 Jul 2016 03:56:37 -0700 (PDT)
+Message-ID: <5790A9D1.6060304@huawei.com>
+Date: Thu, 21 Jul 2016 18:54:09 +0800
+From: zhong jiang <zhongjiang@huawei.com>
+MIME-Version: 1.0
+Subject: Re: + mm-hugetlb-fix-race-when-migrate-pages.patch added to -mm tree
+References: <578eb28b.YbRUDGz5RloTVlrE%akpm@linux-foundation.org> <20160721074340.GA26398@dhcp22.suse.cz>
+In-Reply-To: <20160721074340.GA26398@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Chris Mason <clm@fb.com>, Jaegeuk Kim <jaegeuk@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, qiuxishi@huawei.com, vbabka@suse.cz, mm-commits@vger.kernel.org, Mike Kravetz <mike.kravetz@oracle.com>, Naoya
+ Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
 
-And use it instead of opencoding in btrfs, f2fs and in fuse (coming up).
+On 2016/7/21 15:43, Michal Hocko wrote:
+> We have further discussed the patch and I believe it is not correct. See [1].
+> I am proposing the following alternative.
+>
+> [1] http://lkml.kernel.org/r/20160720132431.GM11249@dhcp22.suse.cz
+> ---
+> >From b1e9b3214f1859fdf7d134cdcb56f5871933539c Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Thu, 21 Jul 2016 09:28:13 +0200
+> Subject: [PATCH] mm, hugetlb: fix huge_pte_alloc BUG_ON
+>
+> Zhong Jiang has reported a BUG_ON from huge_pte_alloc hitting when he
+> runs his database load with memory online and offline running in
+> parallel. The reason is that huge_pmd_share might detect a shared pmd
+> which is currently migrated and so it has migration pte which is
+> !pte_huge.
+>
+> There doesn't seem to be any easy way to prevent from the race and in
+> fact seeing the migration swap entry is not harmful. Both callers of
+> huge_pte_alloc are prepared to handle them. copy_hugetlb_page_range
+> will copy the swap entry and make it COW if needed. hugetlb_fault will
+> back off and so the page fault is retries if the page is still under
+> migration and waits for its completion in hugetlb_fault.
+>
+> That means that the BUG_ON is wrong and we should update it. Let's
+> simply check that all present ptes are pte_huge instead.
+>
+> Reported-by: zhongjiang <zhongjiang@huawei.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  mm/hugetlb.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+>
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 34379d653aa3..31dd2b8b86b3 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -4303,7 +4303,7 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
+>  				pte = (pte_t *)pmd_alloc(mm, pud, addr);
+>  		}
+>  	}
+> -	BUG_ON(pte && !pte_none(*pte) && !pte_huge(*pte));
+> +	BUG_ON(pte && pte_present(*pte) && !pte_huge(*pte));
+>  
+>  	return pte;
+>  }
+  I don't think that the patch can fix the question.   The explain is as follow.
 
-Signed-off-by: Miklos Szeredi <mszeredi@redhat.com>
-Cc: Chris Mason <clm@fb.com>
-Cc: Jaegeuk Kim <jaegeuk@kernel.org>
----
- fs/btrfs/ctree.h    |  1 -
- fs/btrfs/inode.c    | 15 ---------------
- fs/btrfs/tree-log.c |  4 ++--
- fs/f2fs/node.c      |  7 ++-----
- include/linux/fs.h  |  1 +
- mm/filemap.c        |  3 ++-
- 6 files changed, 7 insertions(+), 24 deletions(-)
+               cpu0                                                                                      cpu1
+  copy_hugetlb_page_range                                                       try_to_unmap_one
+             huge_pte_alloc  #pmd may be shared                           
+             lock dst_pte     #dst_pte may be migrate                    
+            lock src_pte     #src_pte may be normal pt1       
+           set_huge_pte_at    #dst_pte points to normal
+           spin_unlock (src_pt1)
+                                                                                                          lock src_pte
+           spin_unlock(dst_pt1)                                                          set src_pte migrate entry
+                                                                                                         spin_unlock(src_pte)
+   *       dst_pte is a normal pte, but corresponding to the
+            pfn is under migrate.  it is dangerous.
 
-diff --git a/fs/btrfs/ctree.h b/fs/btrfs/ctree.h
-index 4274a7bfdaed..425834193259 100644
---- a/fs/btrfs/ctree.h
-+++ b/fs/btrfs/ctree.h
-@@ -3129,7 +3129,6 @@ int btrfs_prealloc_file_range_trans(struct inode *inode,
- 				    struct btrfs_trans_handle *trans, int mode,
- 				    u64 start, u64 num_bytes, u64 min_size,
- 				    loff_t actual_len, u64 *alloc_hint);
--int btrfs_inode_check_errors(struct inode *inode);
- extern const struct dentry_operations btrfs_dentry_operations;
- #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
- void btrfs_test_inode_set_ops(struct inode *inode);
-diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
-index 4421954720b8..b22841625333 100644
---- a/fs/btrfs/inode.c
-+++ b/fs/btrfs/inode.c
-@@ -10489,21 +10489,6 @@ out_inode:
+The race may occur. is right ?  if the scenario exist.  we should think about more.
+
+Thanks
+zhongjiang
+
+
+       
+      
  
- }
+        
+          
  
--/* Inspired by filemap_check_errors() */
--int btrfs_inode_check_errors(struct inode *inode)
--{
--	int ret = 0;
--
--	if (test_bit(AS_ENOSPC, &inode->i_mapping->flags) &&
--	    test_and_clear_bit(AS_ENOSPC, &inode->i_mapping->flags))
--		ret = -ENOSPC;
--	if (test_bit(AS_EIO, &inode->i_mapping->flags) &&
--	    test_and_clear_bit(AS_EIO, &inode->i_mapping->flags))
--		ret = -EIO;
--
--	return ret;
--}
--
- static const struct inode_operations btrfs_dir_inode_operations = {
- 	.getattr	= btrfs_getattr,
- 	.lookup		= btrfs_lookup,
-diff --git a/fs/btrfs/tree-log.c b/fs/btrfs/tree-log.c
-index c05f69a8ec42..3c29b9357392 100644
---- a/fs/btrfs/tree-log.c
-+++ b/fs/btrfs/tree-log.c
-@@ -3944,7 +3944,7 @@ static int wait_ordered_extents(struct btrfs_trans_handle *trans,
- 			 * i_mapping flags, so that the next fsync won't get
- 			 * an outdated io error too.
- 			 */
--			btrfs_inode_check_errors(inode);
-+			filemap_check_errors(inode->i_mapping);
- 			*ordered_io_error = true;
- 			break;
- 		}
-@@ -4181,7 +4181,7 @@ static int btrfs_log_changed_extents(struct btrfs_trans_handle *trans,
- 	 * without writing to the log tree and the fsync must report the
- 	 * file data write error and not commit the current transaction.
- 	 */
--	ret = btrfs_inode_check_errors(inode);
-+	ret = filemap_check_errors(inode->i_mapping);
- 	if (ret)
- 		ctx->io_err = ret;
- process:
-diff --git a/fs/f2fs/node.c b/fs/f2fs/node.c
-index 1f21aae80c40..fde0e47fb119 100644
---- a/fs/f2fs/node.c
-+++ b/fs/f2fs/node.c
-@@ -1521,7 +1521,7 @@ int wait_on_node_pages_writeback(struct f2fs_sb_info *sbi, nid_t ino)
- {
- 	pgoff_t index = 0, end = ULONG_MAX;
- 	struct pagevec pvec;
--	int ret2 = 0, ret = 0;
-+	int ret2, ret = 0;
- 
- 	pagevec_init(&pvec, 0);
- 
-@@ -1550,10 +1550,7 @@ int wait_on_node_pages_writeback(struct f2fs_sb_info *sbi, nid_t ino)
- 		cond_resched();
- 	}
- 
--	if (unlikely(test_and_clear_bit(AS_ENOSPC, &NODE_MAPPING(sbi)->flags)))
--		ret2 = -ENOSPC;
--	if (unlikely(test_and_clear_bit(AS_EIO, &NODE_MAPPING(sbi)->flags)))
--		ret2 = -EIO;
-+	ret2 = filemap_check_errors(NODE_MAPPING(sbi));
- 	if (!ret)
- 		ret = ret2;
- 	return ret;
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index dd288148a6b1..6f2536a3a916 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -2507,6 +2507,7 @@ extern int __filemap_fdatawrite_range(struct address_space *mapping,
- 				loff_t start, loff_t end, int sync_mode);
- extern int filemap_fdatawrite_range(struct address_space *mapping,
- 				loff_t start, loff_t end);
-+extern int filemap_check_errors(struct address_space *mapping);
- 
- extern int vfs_fsync_range(struct file *file, loff_t start, loff_t end,
- 			   int datasync);
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 20f3b1f33f0e..6d92935dcf71 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -254,7 +254,7 @@ void delete_from_page_cache(struct page *page)
- }
- EXPORT_SYMBOL(delete_from_page_cache);
- 
--static int filemap_check_errors(struct address_space *mapping)
-+int filemap_check_errors(struct address_space *mapping)
- {
- 	int ret = 0;
- 	/* Check for outstanding write errors */
-@@ -266,6 +266,7 @@ static int filemap_check_errors(struct address_space *mapping)
- 		ret = -EIO;
- 	return ret;
- }
-+EXPORT_SYMBOL(filemap_check_errors);
- 
- /**
-  * __filemap_fdatawrite_range - start writeback on mapping dirty pages in range
--- 
-2.5.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
