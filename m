@@ -1,124 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D231A82963
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 08:41:57 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id r97so51578329lfi.2
-        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 05:41:57 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id t16si4215331lfd.323.2016.07.21.05.41.55
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8404C82963
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 08:47:13 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id f6so36609535ith.3
+        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 05:47:13 -0700 (PDT)
+Received: from szxga01-in.huawei.com ([58.251.152.64])
+        by mx.google.com with ESMTPS id i11si3415250oif.213.2016.07.21.05.47.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Jul 2016 05:41:56 -0700 (PDT)
-Date: Thu, 21 Jul 2016 08:41:44 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v2] mm: oom: deduplicate victim selection code for memcg
- and global oom
-Message-ID: <20160721124144.GB21806@cmpxchg.org>
-References: <1467045594-20990-1-git-send-email-vdavydov@virtuozzo.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 21 Jul 2016 05:47:12 -0700 (PDT)
+Message-ID: <5790C3DB.8000505@huawei.com>
+Date: Thu, 21 Jul 2016 20:45:15 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1467045594-20990-1-git-send-email-vdavydov@virtuozzo.com>
+Subject: Re: + mm-hugetlb-fix-race-when-migrate-pages.patch added to -mm tree
+References: <578eb28b.YbRUDGz5RloTVlrE%akpm@linux-foundation.org> <20160721074340.GA26398@dhcp22.suse.cz> <5790A9D1.6060304@huawei.com> <20160721112754.GH26379@dhcp22.suse.cz> <5790BCB1.4020800@huawei.com> <20160721123001.GI26379@dhcp22.suse.cz>
+In-Reply-To: <20160721123001.GI26379@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, qiuxishi@huawei.com, vbabka@suse.cz, mm-commits@vger.kernel.org, Mike Kravetz <mike.kravetz@oracle.com>, Naoya
+ Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
 
-Hi Vladimir,
-
-Sorry for getting to this only now.
-
-On Mon, Jun 27, 2016 at 07:39:54PM +0300, Vladimir Davydov wrote:
-> When selecting an oom victim, we use the same heuristic for both memory
-> cgroup and global oom. The only difference is the scope of tasks to
-> select the victim from. So we could just export an iterator over all
-> memcg tasks and keep all oom related logic in oom_kill.c, but instead we
-> duplicate pieces of it in memcontrol.c reusing some initially private
-> functions of oom_kill.c in order to not duplicate all of it. That looks
-> ugly and error prone, because any modification of select_bad_process
-> should also be propagated to mem_cgroup_out_of_memory.
-> 
-> Let's rework this as follows: keep all oom heuristic related code
-> private to oom_kill.c and make oom_kill.c use exported memcg functions
-> when it's really necessary (like in case of iterating over memcg tasks).
-
-This approach, with the control flow in the OOM code, makes a lot of
-sense to me. I think it's particularly useful in preparation for
-supporting cgroup-aware OOM killing, where not just individual tasks
-but entire cgroups are evaluated and killed as opaque memory units.
-
-I'm thinking about doing something like the following, which should be
-able to work regardless on what cgroup level - root, intermediate, or
-leaf node - the OOM killer is invoked, and this patch works toward it:
-
-struct oom_victim {
-        bool is_memcg;
-        union {
-                struct task_struct *task;
-                struct mem_cgroup *memcg;
-        } entity;
-        unsigned long badness;
-};
-
-oom_evaluate_memcg(oc, memcg, victim)
-{
-        if (memcg == root) {
-                for_each_memcg_process(p, memcg) {
-                        badness = oom_badness(oc, memcg, p);
-                        if (badness == some_special_value) {
-                                ...
-                        } else if (badness > victim->badness) {
-				victim->is_memcg = false;
-				victim->entity.task = p;
-				victim->badness = badness;
-			}
-                }
-        } else {
-                badness = 0;
-                for_each_memcg_process(p, memcg) {
-                        b = oom_badness(oc, memcg, p);
-                        if (b == some_special_value)
-                                ...
-                        else
-                                badness += b;
-                }
-                if (badness > victim.badness)
-                        victim->is_memcg = true;
-			victim->entity.memcg = memcg;
-			victim->badness = badness;
-		}
-        }
-}
-
-oom()
-{
-        struct oom_victim victim = {
-                .badness = 0,
-        };
-
-        for_each_mem_cgroup_tree(memcg, oc->memcg)
-                oom_evaluate_memcg(oc, memcg, &victim);
-
-        if (!victim.badness && !is_sysrq_oom(oc)) {
-                dump_header(oc, NULL);
-                panic("Out of memory and no killable processes...\n");
-        }
-
-        if (victim.badness != -1) {
-                oom_kill_victim(oc, &victim);
-                schedule_timeout_killable(1);
-        }
-
-        return true;
-}
-
-But even without that, with the unification of two identical control
-flows and the privatization of a good amount of oom killer internals,
-the patch speaks for itself.
-	
-> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
-
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+On 2016/7/21 20:30, Michal Hocko wrote:
+> On Thu 21-07-16 20:14:41, zhong jiang wrote:
+>> On 2016/7/21 19:27, Michal Hocko wrote:
+>>> On Thu 21-07-16 18:54:09, zhong jiang wrote:
+>>>> On 2016/7/21 15:43, Michal Hocko wrote:
+>>>>> We have further discussed the patch and I believe it is not correct. See [1].
+>>>>> I am proposing the following alternative.
+>>>>>
+>>>>> [1] http://lkml.kernel.org/r/20160720132431.GM11249@dhcp22.suse.cz
+>>>>> ---
+>>>>> >From b1e9b3214f1859fdf7d134cdcb56f5871933539c Mon Sep 17 00:00:00 2001
+>>>>> From: Michal Hocko <mhocko@suse.com>
+>>>>> Date: Thu, 21 Jul 2016 09:28:13 +0200
+>>>>> Subject: [PATCH] mm, hugetlb: fix huge_pte_alloc BUG_ON
+>>>>>
+>>>>> Zhong Jiang has reported a BUG_ON from huge_pte_alloc hitting when he
+>>>>> runs his database load with memory online and offline running in
+>>>>> parallel. The reason is that huge_pmd_share might detect a shared pmd
+>>>>> which is currently migrated and so it has migration pte which is
+>>>>> !pte_huge.
+>>>>>
+>>>>> There doesn't seem to be any easy way to prevent from the race and in
+>>>>> fact seeing the migration swap entry is not harmful. Both callers of
+>>>>> huge_pte_alloc are prepared to handle them. copy_hugetlb_page_range
+>>>>> will copy the swap entry and make it COW if needed. hugetlb_fault will
+>>>>> back off and so the page fault is retries if the page is still under
+>>>>> migration and waits for its completion in hugetlb_fault.
+>>>>>
+>>>>> That means that the BUG_ON is wrong and we should update it. Let's
+>>>>> simply check that all present ptes are pte_huge instead.
+>>>>>
+>>>>> Reported-by: zhongjiang <zhongjiang@huawei.com>
+>>>>> Signed-off-by: Michal Hocko <mhocko@suse.com>
+>>>>> ---
+>>>>>  mm/hugetlb.c | 2 +-
+>>>>>  1 file changed, 1 insertion(+), 1 deletion(-)
+>>>>>
+>>>>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+>>>>> index 34379d653aa3..31dd2b8b86b3 100644
+>>>>> --- a/mm/hugetlb.c
+>>>>> +++ b/mm/hugetlb.c
+>>>>> @@ -4303,7 +4303,7 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
+>>>>>  				pte = (pte_t *)pmd_alloc(mm, pud, addr);
+>>>>>  		}
+>>>>>  	}
+>>>>> -	BUG_ON(pte && !pte_none(*pte) && !pte_huge(*pte));
+>>>>> +	BUG_ON(pte && pte_present(*pte) && !pte_huge(*pte));
+>>>>>  
+>>>>>  	return pte;
+>>>>>  }
+>>>>   I don't think that the patch can fix the question.   The explain is as follow.
+>>>>
+>>>>                cpu0                                                                                      cpu1
+>>>> copy_hugetlb_page_range                                                       try_to_unmap_one
+>>>>              huge_pte_alloc  #pmd may be shared                           
+>>>>              lock dst_pte     #dst_pte may be migrate                    
+>>>>             lock src_pte     #src_pte may be normal pt1       
+>>>>            set_huge_pte_at    #dst_pte points to normal
+>>>>            spin_unlock (src_pt1)
+>>>>                                                                                                           lock src_pte
+>>>>            spin_unlock(dst_pt1)                                                          set src_pte migrate entry
+>>>>                                                                                                          spin_unlock(src_pte)
+>>>>    *       dst_pte is a normal pte, but corresponding to the
+>>>>             pfn is under migrate.  it is dangerous.
+>>>>
+>>>> The race may occur. is right ?  if the scenario exist.  we should think about more.
+>>> Can this happen at all? copy_hugetlb_page_range does the following to
+>>> rule out shared page table entries. At least that is my understanding of
+>>> c5c99429fa57 ("fix hugepages leak due to pagetable page sharing")
+>>>
+>>> 		/* If the pagetables are shared don't copy or take references */
+>>> 		if (dst_pte == src_pte)
+>>> 			continue;
+>> vm_file points to mapping should be shared, I am not sure, if it is
+>> so, the possibility is exist. of course, src_pte is the same as the
+>> dst_pte.
+> I am not sure I understand. This is a fork path where the ptes are
+> copied over from the parent to the child. So how would vm_file differ?
+  I think you can misunderstand my meaning.  A file refers to the mapping field can be shared by other process,
+  parent process have the mapping , but is not only.  This is only my viewpoint. is right ??
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
