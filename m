@@ -1,129 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DEEF828FF
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 04:52:06 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id p129so8325388wmp.3
-        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 01:52:06 -0700 (PDT)
-Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com. [74.125.82.42])
-        by mx.google.com with ESMTPS id e73si3256166lji.68.2016.07.21.01.52.04
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EC0A06B0270
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 05:15:14 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id p129so8793840wmp.3
+        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 02:15:14 -0700 (PDT)
+Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
+        by mx.google.com with ESMTPS id e76si3327628lji.72.2016.07.21.02.15.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Jul 2016 01:52:04 -0700 (PDT)
-Received: by mail-wm0-f42.google.com with SMTP id i5so16350682wmg.0
-        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 01:52:04 -0700 (PDT)
-Date: Thu, 21 Jul 2016 10:52:03 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 1/2] mempool: do not consume memory reserves from the
- reclaim path
-Message-ID: <20160721085202.GC26379@dhcp22.suse.cz>
-References: <1468831164-26621-1-git-send-email-mhocko@kernel.org>
- <1468831285-27242-1-git-send-email-mhocko@kernel.org>
- <20160719135426.GA31229@cmpxchg.org>
- <alpine.DEB.2.10.1607191315400.58064@chino.kir.corp.google.com>
- <20160720081541.GF11249@dhcp22.suse.cz>
- <alpine.DEB.2.10.1607201353230.22427@chino.kir.corp.google.com>
+        Thu, 21 Jul 2016 02:15:13 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id BD4211C1F5F
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 10:15:12 +0100 (IST)
+Date: Thu, 21 Jul 2016 10:15:10 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 0/5] Candidate fixes for premature OOM kills with
+ node-lru v1
+Message-ID: <20160721091510.GH10438@techsingularity.net>
+References: <1469028111-1622-1-git-send-email-mgorman@techsingularity.net>
+ <20160721070714.GC31865@bbox>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1607201353230.22427@chino.kir.corp.google.com>
+In-Reply-To: <20160721070714.GC31865@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, Mikulas Patocka <mpatocka@redhat.com>, Ondrej Kozina <okozina@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Mel Gorman <mgorman@suse.de>, Neil Brown <neilb@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, dm-devel@redhat.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 20-07-16 14:06:26, David Rientjes wrote:
-> On Wed, 20 Jul 2016, Michal Hocko wrote:
+On Thu, Jul 21, 2016 at 04:07:14PM +0900, Minchan Kim wrote:
+> Hi Mel,
 > 
-> > > Any mempool_alloc() user that then takes a contended mutex can do this.  
-> > > An example:
-> > > 
-> > > 	taskA		taskB		taskC
-> > > 	-----		-----		-----
-> > > 	mempool_alloc(a)
-> > > 			mutex_lock(b)
-> > > 	mutex_lock(b)
-> > > 					mempool_alloc(a)
-> > > 
-> > > Imagine the mempool_alloc() done by taskA depleting all free elements so 
-> > > we rely on it to do mempool_free() before any other mempool allocator can 
-> > > be guaranteed.
-> > > 
-> > > If taskC is oom killed, or has PF_MEMALLOC set, it cannot access memory 
-> > > reserves from the page allocator if __GFP_NOMEMALLOC is automatic in 
-> > > mempool_alloc().  This livelocks the page allocator for all processes.
-> > > 
-> > > taskB in this case need only stall after taking mutex_lock() successfully; 
-> > > that could be because of the oom livelock, it is contended on another 
-> > > mutex held by an allocator, etc.
+> On Wed, Jul 20, 2016 at 04:21:46PM +0100, Mel Gorman wrote:
+> > Both Joonsoo Kim and Minchan Kim have reported premature OOM kills on
+> > a 32-bit platform. The common element is a zone-constrained high-order
+> > allocation failing. Two factors appear to be at fault -- pgdat being
+> 
+> Strictly speaking, my case is order-0 allocation failing, not high-order.
+> ;)
+> 
+
+I'll update the leader mail.
+
+> > considered unreclaimable prematurely and insufficient rotation of the
+> > active list.
 > > 
-> > But that falls down to the deadlock described by Johannes above because
-> > then the mempool user would _depend_ on an "unguarded page allocation"
-> > via that particular lock and that is a bug.
-> >  
-> 
-> It becomes a deadlock because of mempool_alloc(a) forcing 
-> __GFP_NOMEMALLOC, I agree.
-> 
-> For that not to be the case, it must be required that between 
-> mempool_alloc() and mempool_free() that we take no mutex that may be held 
-> by any other thread on the system, in any context, that is allocating 
-> memory.  If that's a caller's bug as you describe it, and only enabled by 
-> mempool_alloc() forcing __GFP_NOMEMALLOC, then please add the relevant 
-> lockdep detection, which would be trivial to add, so we can determine if 
-> any users are unsafe and prevent this issue in the future.
-
-I am sorry but I am neither familiar with the lockdep internals nor I
-have a time to add this support.
-
-> The 
-> overwhelming goal here should be to prevent possible problems in the 
-> future especially if an API does not allow you to opt-out of the behavior.
-
-The __GFP_NOMEMALLOC enforcement is there since b84a35be0285 ("[PATCH]
-mempool: NOMEMALLOC and NORETRY") so more than 10 years ago. So I think
-it is quite reasonable to expect that users are familiar with this fact
-and handle it properly in the vast majority cases. In fact mempool
-deadlocks are really rare.
-
-[...]
-
-> > Or it would get stuck because even page allocator memory reserves got
-> > depleted. Without any way to throttle there is no guarantee to make
-> > further progress. In fact this is not a theoretical situation. It has
-> > been observed with the swap over dm-crypt and there shouldn't be any
-> > lock dependeces you are describing above there AFAIU.
+> > Unfortunately to date I have been unable to reproduce this with a variety
+> > of stress workloads on a 2G 32-bit KVM instance. It's not clear why as
+> > the steps are similar to what was described. It means I've been unable to
+> > determine if this series addresses the problem or not. I'm hoping they can
+> > test and report back before these are merged to mmotm. What I have checked
+> > is that a basic parallel DD workload completed successfully on the same
+> > machine I used for the node-lru performance tests. I'll leave the other
+> > tests running just in case anything interesting falls out.
+> > 
+> > The series is in three basic parts;
+> > 
+> > Patch 1 does not account for skipped pages as scanned. This avoids the pgdat
+> > 	being prematurely marked unreclaimable
+> > 
+> > Patches 2-4 add per-zone stats back in. The actual stats patch is different
+> > 	to Minchan's as the original patch did not account for unevictable
+> > 	LRU which would corrupt counters. The second two patches remove
+> > 	approximations based on pgdat statistics. It's effectively a
+> > 	revert of "mm, vmstat: remove zone and node double accounting by
+> > 	approximating retries" but different LRU stats are used. This
+> > 	is better than a full revert or a reworking of the series as
+> > 	it preserves history of why the zone stats are necessary.
+> > 
+> > 	If this work out, we may have to leave the double accounting in
+> > 	place for now until an alternative cheap solution presents itself.
+> > 
+> > Patch 5 rotates inactive/active lists for lowmem allocations. This is also
+> > 	quite different to Minchan's patch as the original patch did not
+> > 	account for memcg and would rotate if *any* eligible zone needed
+> > 	rotation which may rotate excessively. The new patch considers
+> > 	the ratio for all eligible zones which is more in line with
+> > 	node-lru in general.
 > > 
 > 
-> They should do mempool_alloc(__GFP_NOMEMALLOC), no argument.
+> Now I tested and confirmed it works for me at the OOM point of view.
+> IOW, I cannot see OOM kill any more. But note that I tested it
+> without [1/5] which has a problem I mentioned in that thread.
+> 
+> If you want to merge [1/5], please resend updated version but
+> I doubt we need it at this moment.
 
-How that would be any different from any other mempool user which can be
-invoked from the swap out path - aka any other IO path?
+Currently I'm looking at a version that scales skipped pages as a
+partial scan unless the LRU has no eligible pages. I'll put the
+patch at the end of the series so that it'll be easier to test
+in isolation. I'm currently looking to reproduce a case similar
+to Joonsoo's.
 
-> What is the objection to allowing __GFP_NOMEMALLOC from the caller with 
-> clear documentation on how to use it?  It can be described to not allow 
-> depletion of memory reserves with the caveat that the caller must ensure 
-> mempool_free() cannot be blocked in lowmem situations.
-
-Look, there are
-$ git grep mempool_alloc | wc -l
-304
-
-many users of this API and we do not want to flip the default behavior
-which is there for more than 10 years. So far you have been arguing
-about potential deadlocks and haven't shown any particular path which
-would have a direct or indirect dependency between mempool and normal
-allocator and it wouldn't be a bug. As the matter of fact the change
-we are discussing here causes a regression. If you want to change the
-semantic of mempool allocator then you are absolutely free to do so. In
-a separate patch which would be discussed with IO people and other
-users, though. But we _absolutely_ want to fix the regression first
-and have a simple fix for 4.6 and 4.7 backports. At this moment there
-are revert and patch 1 on the table.  The later one should make your
-backtrace happy and should be only as a temporal fix until we find out
-what is actually misbehaving on your systems. If you are not interested
-to pursue that way I will simply go with the revert.
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
