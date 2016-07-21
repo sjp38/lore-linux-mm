@@ -1,184 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D3B10828FF
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 04:37:50 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id o80so8129638wme.1
-        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 01:37:50 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t67si2126790wma.113.2016.07.21.01.37.49
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D3FE76B0253
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 04:39:31 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id o80so8160744wme.1
+        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 01:39:31 -0700 (PDT)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id wn1si4742938wjb.74.2016.07.21.01.39.30
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 21 Jul 2016 01:37:49 -0700 (PDT)
-From: Jiri Slaby <jslaby@suse.cz>
-Subject: [patch added to 3.12-stable] x86/mm: Add barriers and document switch_mm()-vs-flush synchronization
-Date: Thu, 21 Jul 2016 10:37:42 +0200
-Message-Id: <20160721083747.26506-1-jslaby@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 Jul 2016 01:39:30 -0700 (PDT)
+Received: by mail-wm0-x241.google.com with SMTP id x83so1708695wma.3
+        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 01:39:30 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20160719073428.GB9486@dhcp22.suse.cz>
+References: <1468894049-786-1-git-send-email-opensource.ganesh@gmail.com> <20160719073428.GB9486@dhcp22.suse.cz>
+From: Ganesh Mahendran <opensource.ganesh@gmail.com>
+Date: Thu, 21 Jul 2016 16:39:29 +0800
+Message-ID: <CADAEsF9UEH4rDohTEwjgX3kjy2gFXYz2WMvVon7FJ9nXxXttJA@mail.gmail.com>
+Subject: Re: [PATCH] mm/vmscan: remove pglist_data->inactive_ratio
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: stable@vger.kernel.org
-Cc: Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Charles Williams <ciwillia@brocade.com>, Jiri Slaby <jslaby@suse.cz>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, mgorman@techsingularity.net, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, riel@redhat.com, dan.j.williams@intel.com, vdavydov@virtuozzo.com, kirill.shutemov@linux.intel.com, cl@linux.com, Hugh Dickins <hughd@google.com>
 
-From: Andy Lutomirski <luto@kernel.org>
+Hi, Michal
 
-This patch has been added to the 3.12 stable tree. If you have any
-objections, please let us know.
+2016-07-19 15:34 GMT+08:00 Michal Hocko <mhocko@kernel.org>:
+> On Tue 19-07-16 10:07:29, Ganesh Mahendran wrote:
+>> In patch [1], the inactive_ratio is now automatically calculated
+>
+> It is better to give the direct reference to the patch 59dc76b0d4df
+> ("mm: vmscan: reduce size of inactive file list")
 
-===============
+Yes, I will change in next version.
 
-commit 71b3c126e61177eb693423f2e18a1914205b165e upstream.
+>
+>> in inactive_list_is_low(). So there is no need to keep inactive_ratio
+>> in pglist_data,
+>
+> OK
+>
+>> and shown in zoneinfo.
+>
+> I am not so sure about this. To be honest I have never really used this
+> value but maybe there is somebody outher who relies on it. It would be
+> safer if the ratio calculation in inactive_list_is_low would be
+> extracted and used to display the information rather than dropping that
+> on the floor.
 
-When switch_mm() activates a new PGD, it also sets a bit that
-tells other CPUs that the PGD is in use so that TLB flush IPIs
-will be sent.  In order for that to work correctly, the bit
-needs to be visible prior to loading the PGD and therefore
-starting to fill the local TLB.
+Yes, It is not good to remove the inactive_ratio from /proc/zoneinfo.
 
-Document all the barriers that make this work correctly and add
-a couple that were missing.
+I will send a V2 patch soon.
 
-Signed-off-by: Andy Lutomirski <luto@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-mm@kvack.org
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Cc: Charles (Chas) Williams <ciwillia@brocade.com>
-Signed-off-by: Jiri Slaby <jslaby@suse.cz>
----
- arch/x86/include/asm/mmu_context.h | 32 +++++++++++++++++++++++++++++++-
- arch/x86/mm/tlb.c                  | 28 +++++++++++++++++++++++++---
- 2 files changed, 56 insertions(+), 4 deletions(-)
+Thanks.
 
-diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-index 86fef96f4eca..20cf2c4e1872 100644
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -86,7 +86,32 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
- #endif
- 		cpumask_set_cpu(cpu, mm_cpumask(next));
- 
--		/* Re-load page tables */
-+		/*
-+		 * Re-load page tables.
-+		 *
-+		 * This logic has an ordering constraint:
-+		 *
-+		 *  CPU 0: Write to a PTE for 'next'
-+		 *  CPU 0: load bit 1 in mm_cpumask.  if nonzero, send IPI.
-+		 *  CPU 1: set bit 1 in next's mm_cpumask
-+		 *  CPU 1: load from the PTE that CPU 0 writes (implicit)
-+		 *
-+		 * We need to prevent an outcome in which CPU 1 observes
-+		 * the new PTE value and CPU 0 observes bit 1 clear in
-+		 * mm_cpumask.  (If that occurs, then the IPI will never
-+		 * be sent, and CPU 0's TLB will contain a stale entry.)
-+		 *
-+		 * The bad outcome can occur if either CPU's load is
-+		 * reordered before that CPU's store, so both CPUs much
-+		 * execute full barriers to prevent this from happening.
-+		 *
-+		 * Thus, switch_mm needs a full barrier between the
-+		 * store to mm_cpumask and any operation that could load
-+		 * from next->pgd.  This barrier synchronizes with
-+		 * remote TLB flushers.  Fortunately, load_cr3 is
-+		 * serializing and thus acts as a full barrier.
-+		 *
-+		 */
- 		load_cr3(next->pgd);
- 
- 		/* Stop flush ipis for the previous mm */
-@@ -109,10 +134,15 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
- 			 * schedule, protecting us from simultaneous changes.
- 			 */
- 			cpumask_set_cpu(cpu, mm_cpumask(next));
-+
- 			/*
- 			 * We were in lazy tlb mode and leave_mm disabled
- 			 * tlb flush IPI delivery. We must reload CR3
- 			 * to make sure to use no freed page tables.
-+			 *
-+			 * As above, this is a barrier that forces
-+			 * TLB repopulation to be ordered after the
-+			 * store to mm_cpumask.
- 			 */
- 			load_cr3(next->pgd);
- 			load_mm_ldt(next);
-diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-index dd8dda167a24..fc042eeb6e6c 100644
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -152,6 +152,8 @@ void flush_tlb_current_task(void)
- 	preempt_disable();
- 
- 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
-+
-+	/* This is an implicit full barrier that synchronizes with switch_mm. */
- 	local_flush_tlb();
- 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
- 		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
-@@ -166,11 +168,19 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
- 	unsigned long nr_base_pages;
- 
- 	preempt_disable();
--	if (current->active_mm != mm)
-+	if (current->active_mm != mm) {
-+		/* Synchronize with switch_mm. */
-+		smp_mb();
-+
- 		goto flush_all;
-+	}
- 
- 	if (!current->mm) {
- 		leave_mm(smp_processor_id());
-+
-+		/* Synchronize with switch_mm. */
-+		smp_mb();
-+
- 		goto flush_all;
- 	}
- 
-@@ -191,6 +201,10 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
- 	act_entries = mm->total_vm > act_entries ? act_entries : mm->total_vm;
- 	nr_base_pages = (end - start) >> PAGE_SHIFT;
- 
-+	/*
-+	 * Both branches below are implicit full barriers (MOV to CR or
-+	 * INVLPG) that synchronize with switch_mm.
-+	 */
- 	/* tlb_flushall_shift is on balance point, details in commit log */
- 	if (nr_base_pages > act_entries) {
- 		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
-@@ -222,10 +236,18 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)
- 	preempt_disable();
- 
- 	if (current->active_mm == mm) {
--		if (current->mm)
-+		if (current->mm) {
-+			/*
-+			 * Implicit full barrier (INVLPG) that synchronizes
-+			 * with switch_mm.
-+			 */
- 			__flush_tlb_one(start);
--		else
-+		} else {
- 			leave_mm(smp_processor_id());
-+
-+			/* Synchronize with switch_mm. */
-+			smp_mb();
-+		}
- 	}
- 
- 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
--- 
-2.9.2
+>
+> The patch should also state that the above patch has broken the zoneinfo
+> information.
+>
+>> [1] mm: vmscan: reduce size of inactive file list
+>>
+>> Signed-off-by: Ganesh Mahendran <opensource.ganesh@gmail.com>
+>> ---
+>>  include/linux/mmzone.h | 6 ------
+>>  mm/vmscan.c            | 2 +-
+>>  mm/vmstat.c            | 6 ++----
+>>  3 files changed, 3 insertions(+), 11 deletions(-)
+>>
+>> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+>> index a3b7f45..b3ade54 100644
+>> --- a/include/linux/mmzone.h
+>> +++ b/include/linux/mmzone.h
+>> @@ -700,12 +700,6 @@ typedef struct pglist_data {
+>>       /* Fields commonly accessed by the page reclaim scanner */
+>>       struct lruvec           lruvec;
+>>
+>> -     /*
+>> -      * The target ratio of ACTIVE_ANON to INACTIVE_ANON pages on
+>> -      * this node's LRU.  Maintained by the pageout code.
+>> -      */
+>> -     unsigned int inactive_ratio;
+>> -
+>>       unsigned long           flags;
+>>
+>>       ZONE_PADDING(_pad2_)
+>> diff --git a/mm/vmscan.c b/mm/vmscan.c
+>> index 429bf3a..3c1de58 100644
+>> --- a/mm/vmscan.c
+>> +++ b/mm/vmscan.c
+>> @@ -1915,7 +1915,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
+>>   * page has a chance to be referenced again before it is reclaimed.
+>>   *
+>>   * The inactive_ratio is the target ratio of ACTIVE to INACTIVE pages
+>> - * on this LRU, maintained by the pageout code. A zone->inactive_ratio
+>> + * on this LRU, maintained by the pageout code. A inactive_ratio
+>>   * of 3 means 3:1 or 25% of the pages are kept on the inactive list.
+>>   *
+>>   * total     target    max
+>> diff --git a/mm/vmstat.c b/mm/vmstat.c
+>> index 91ecca9..74a0eca 100644
+>> --- a/mm/vmstat.c
+>> +++ b/mm/vmstat.c
+>> @@ -1491,11 +1491,9 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
+>>       }
+>>       seq_printf(m,
+>>                  "\n  node_unreclaimable:  %u"
+>> -                "\n  start_pfn:           %lu"
+>> -                "\n  node_inactive_ratio: %u",
+>> +                "\n  start_pfn:           %lu",
+>>                  !pgdat_reclaimable(zone->zone_pgdat),
+>> -                zone->zone_start_pfn,
+>> -                zone->zone_pgdat->inactive_ratio);
+>> +                zone->zone_start_pfn);
+>>       seq_putc(m, '\n');
+>>  }
+>>
+>> --
+>> 1.9.1
+>>
+>
+> --
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
