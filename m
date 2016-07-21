@@ -1,100 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C6B0A6B0274
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 04:10:58 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id u142so121725005oia.2
-        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 01:10:58 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y66si1213320itc.57.2016.07.21.01.10.57
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 31D936B0276
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 04:15:10 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id r97so47025948lfi.2
+        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 01:15:10 -0700 (PDT)
+Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.16])
+        by mx.google.com with ESMTPS id ha4si4664862wjc.183.2016.07.21.01.15.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Jul 2016 01:10:58 -0700 (PDT)
-Date: Thu, 21 Jul 2016 16:10:49 +0800
-From: Dave Young <dyoung@redhat.com>
-Subject: Re: [PATCH] kexec: add resriction on the kexec_load
-Message-ID: <20160721081049.GA7544@dhcp-128-65.nay.redhat.com>
-References: <1468980049-1753-1-git-send-email-zhongjiang@huawei.com>
- <878twxcbae.fsf@x220.int.ebiederm.org>
+        Thu, 21 Jul 2016 01:15:08 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id 641111C1DC7
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 09:15:08 +0100 (IST)
+Date: Thu, 21 Jul 2016 09:15:06 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 1/5] mm, vmscan: Do not account skipped pages as scanned
+Message-ID: <20160721081506.GF10438@techsingularity.net>
+References: <1469028111-1622-1-git-send-email-mgorman@techsingularity.net>
+ <1469028111-1622-2-git-send-email-mgorman@techsingularity.net>
+ <20160721051648.GA31865@bbox>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <878twxcbae.fsf@x220.int.ebiederm.org>
+In-Reply-To: <20160721051648.GA31865@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: zhongjiang <zhongjiang@huawei.com>, kexec@lists.infradead.org, akpm@linux-foundation.org, horms@verge.net.au, yinghai@kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 07/19/16 at 09:07pm, Eric W. Biederman wrote:
-> zhongjiang <zhongjiang@huawei.com> writes:
+On Thu, Jul 21, 2016 at 02:16:48PM +0900, Minchan Kim wrote:
+> On Wed, Jul 20, 2016 at 04:21:47PM +0100, Mel Gorman wrote:
+> > Page reclaim determines whether a pgdat is unreclaimable by examining how
+> > many pages have been scanned since a page was freed and comparing that
+> > to the LRU sizes. Skipped pages are not considered reclaim candidates but
+> > contribute to scanned. This can prematurely mark a pgdat as unreclaimable
+> > and trigger an OOM kill.
+> > 
+> > While this does not fix an OOM kill message reported by Joonsoo Kim,
+> > it did stop pgdat being marked unreclaimable.
+> > 
+> > Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> > ---
+> >  mm/vmscan.c | 5 ++++-
+> >  1 file changed, 4 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 22aec2bcfeec..b16d578ce556 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -1415,7 +1415,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+> >  	LIST_HEAD(pages_skipped);
+> >  
+> >  	for (scan = 0; scan < nr_to_scan && nr_taken < nr_to_scan &&
+> > -					!list_empty(src); scan++) {
+> > +					!list_empty(src);) {
+> >  		struct page *page;
+> >  
+> >  		page = lru_to_page(src);
+> > @@ -1429,6 +1429,9 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+> >  			continue;
+> >  		}
+> >  
+> > +		/* Pages skipped do not contribute to scan */
 > 
-> > From: zhong jiang <zhongjiang@huawei.com>
-> >
-> > I hit the following question when run trinity in my system. The
-> > kernel is 3.4 version. but the mainline have same question to be
-> > solved. The root cause is the segment size is too large, it can
-> > expand the most of the area or the whole memory, therefore, it
-> > may waste an amount of time to abtain a useable page. and other
-> > cases will block until the test case quit. at the some time,
-> > OOM will come up.
+> The comment should explain why.
 > 
-> 5MiB is way too small.  I have seen vmlinux images not to mention
-> ramdisks that get larger than that.  Depending on the system
-> 1GiB might not be an unreasonable ramdisk size.  AKA run an entire live
-> system out of a ramfs.  It works well if you have enough memory.
+> /* Pages skipped do not contribute to scan to prevent premature OOM */
+> 
 
-There was a use case from Michael Holzheu about a 1.5G ramdisk, see below
-kexec-tools commit:
-
-commit 95741713e790fa6bde7780bbfb772ad88e81a744
-Author: Michael Holzheu <holzheu@linux.vnet.ibm.com>
-Date:   Fri Oct 30 16:02:04 2015 +0100
-
-    kexec/s390x: use mmap instead of read for slurp_file()
-    
-    The slurp_fd() function allocates memory and uses the read() system
-call.
-    This results in double memory consumption for image and initrd:
-    
-     1) Memory allocated in user space by the kexec tool
-     2) Memory allocated in kernel by the kexec() system call
-    
-    The following illustrates the use case that we have on s390x:
-    
-     1) Boot a 4 GB Linux system
-     2) Copy kernel and 1,5 GB ramdisk from external source into tmpfs
-(ram)
-     3) Use kexec to boot kernel with ramdisk
-    
-     Therefore for kexec runtime we need:
-    
-     1,5 GB (tmpfs) + 1,5 GB (kexec malloc) + 1,5 GB (kernel memory) =
-4,5 GB
-    
-    This patch introduces slurp_file_mmap() which for "normal" files
-uses
-    mmap() instead of malloc()/read(). This reduces the runtime memory
-    consumption of the kexec tool as follows:
-    
-     1,5 GB (tmpfs) + 1,5 GB (kernel memory) = 3 GB
-    
-    Signed-off-by: Michael Holzheu <holzheu@linux.vnet.ibm.com>
-    Reviewed-by: Dave Young <dyoung@redhat.com>
-    Signed-off-by: Simon Horman <horms@verge.net.au>
+Specifically, it's to prevent pgdat being considered unreclaimable
+prematurely. I'll update the comment.
 
 > 
-> I think there is a practical limit at about 50% of memory (because we
-> need two copies in memory the source and the destination pages), but
-> anything else is pretty much reasonable and should have a fair chance of
-> working.
+> > +		scan++;
+> > +
 > 
-> A limit that reflected that reality above would be interesting.
-> Anything else will likely cause someone trouble in the futrue.
+> 
+> The one of my concern about node-lru is to add more lru lock contetion
+> in multiple zone system so such unbounded skip scanning under the lock
+> should have a limit to prevent latency spike and serialization of
+> current reclaim work.
+> 
 
-Maybe one should test his ramdisk first to ensure it works first before
-really using it.
+The LRU lock already was quite a large lock, particularly on NUMA systems,
+with contention raising the more direct reclaimers that are active. It's
+worth remembering that the series also shows much lower system CPU time
+in some tests. This is the current CPU usage breakdown for a parallel dd test
 
-Thanks
-Dave
+           4.7.0-rc4   4.7.0-rc7   4.7.0-rc7
+        mmotm-20160623mm1-followup-v3r1mm1-oomfix-v4r2
+User         1548.01      927.23      777.74
+System       8609.71     5540.02     4445.56
+Elapsed      3587.10     3598.00     3498.54
+
+The LRU lock is held during skips but it's also doing no real work.
+
+> Another concern is big mismatch between the number of pages from list and
+> LRU stat count because lruvec_lru_size call sites don't take the stat
+> under the lock while isolate_lru_pages moves many pages from lru list
+> to temporal skipped list.
+> 
+
+It's already known that the reading of the LRU size can mismatch the
+actual size. It's why inactive_list_is_low() in the last patch has
+checks like
+
+inactive -= min(inactive, inactive_zone);
+
+It's watching for underflows
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
