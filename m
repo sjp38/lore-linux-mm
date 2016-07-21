@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DF5C6828E1
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 03:36:31 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id x83so6978651wma.2
-        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 00:36:31 -0700 (PDT)
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 65629828E1
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 03:36:34 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id 33so46428289lfw.1
+        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 00:36:34 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id jf7si4531094wjb.139.2016.07.21.00.36.23
+        by mx.google.com with ESMTPS id w128si1906682wmf.25.2016.07.21.00.36.23
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Thu, 21 Jul 2016 00:36:23 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v5 4/8] mm, page_alloc: restructure direct compaction handling in slowpath
-Date: Thu, 21 Jul 2016 09:36:10 +0200
-Message-Id: <20160721073614.24395-5-vbabka@suse.cz>
+Subject: [PATCH v5 6/8] mm, thp: remove __GFP_NORETRY from khugepaged and madvised allocations
+Date: Thu, 21 Jul 2016 09:36:12 +0200
+Message-Id: <20160721073614.24395-7-vbabka@suse.cz>
 In-Reply-To: <20160721073614.24395-1-vbabka@suse.cz>
 References: <20160721073614.24395-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,218 +20,202 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
-The retry loop in __alloc_pages_slowpath is supposed to keep trying reclaim
-and compaction (and OOM), until either the allocation succeeds, or returns
-with failure. Success here is more probable when reclaim precedes compaction,
-as certain watermarks have to be met for compaction to even try, and more free
-pages increase the probability of compaction success. On the other hand,
-starting with light async compaction (if the watermarks allow it), can be
-more efficient, especially for smaller orders, if there's enough free memory
-which is just fragmented.
+After the previous patch, we can distinguish costly allocations that should be
+really lightweight, such as THP page faults, with __GFP_NORETRY. This means we
+don't need to recognize khugepaged allocations via PF_KTHREAD anymore. We can
+also change THP page faults in areas where madvise(MADV_HUGEPAGE) was used to
+try as hard as khugepaged, as the process has indicated that it benefits from
+THP's and is willing to pay some initial latency costs.
 
-Thus, the current code starts with compaction before reclaim, and to make sure
-that the last reclaim is always followed by a final compaction, there's another
-direct compaction call at the end of the loop. This makes the code hard to
-follow and adds some duplicated handling of migration_mode decisions. It's also
-somewhat inefficient that even if reclaim or compaction decides not to retry,
-the final compaction is still attempted. Some gfp flags combination also
-shortcut these retry decisions by "goto noretry;", making it even harder to
-follow.
+We can also make the flags handling less cryptic by distinguishing
+GFP_TRANSHUGE_LIGHT (no reclaim at all, default mode in page fault) from
+GFP_TRANSHUGE (only direct reclaim, khugepaged default). Adding __GFP_NORETRY
+or __GFP_KSWAPD_RECLAIM is done where needed.
 
-This patch attempts to restructure the code with only minimal functional
-changes. The call to the first compaction and THP-specific checks are now
-placed above the retry loop, and the "noretry" direct compaction is removed.
+The patch effectively changes the current GFP_TRANSHUGE users as follows:
 
-The initial compaction is additionally restricted only to costly orders, as we
-can expect smaller orders to be held back by watermarks, and only larger orders
-to suffer primarily from fragmentation. This better matches the checks in
-reclaim's shrink_zones().
+* get_huge_zero_page() - the zero page lifetime should be relatively long and
+  it's shared by multiple users, so it's worth spending some effort on it.
+  We use GFP_TRANSHUGE, and __GFP_NORETRY is not added. This also restores
+  direct reclaim to this allocation, which was unintentionally removed by
+  commit e4a49efe4e7e ("mm: thp: set THP defrag by default to madvise and add
+  a stall-free defrag option")
 
-There are two other smaller functional changes. One is that the upgrade from
-async migration to light sync migration will always occur after the initial
-compaction. This is how it has been until recent patch "mm, oom: protect
-!costly allocations some more", which introduced upgrading the mode based on
-COMPACT_COMPLETE result, but kept the final compaction always upgraded, which
-made it even more special. It's better to return to the simpler handling for
-now, as migration modes will be further modified later in the series.
+* alloc_hugepage_khugepaged_gfpmask() - this is khugepaged, so latency is not
+  an issue. So if khugepaged "defrag" is enabled (the default), do reclaim
+  via GFP_TRANSHUGE without __GFP_NORETRY. We can remove the PF_KTHREAD check
+  from page alloc.
+  As a side-effect, khugepaged will now no longer check if the initial
+  compaction was deferred or contended. This is OK, as khugepaged sleep times
+  between collapsion attempts are long enough to prevent noticeable disruption,
+  so we should allow it to spend some effort.
 
-The second change is that once both reclaim and compaction declare it's not
-worth to retry the reclaim/compact loop, there is no final compaction attempt.
-As argued above, this is intentional. If that final compaction were to succeed,
-it would be due to a wrong retry decision, or simply a race with somebody else
-freeing memory for us.
+* migrate_misplaced_transhuge_page() - already was masking out __GFP_RECLAIM,
+  so just convert to GFP_TRANSHUGE_LIGHT which is equivalent.
 
-The main outcome of this patch should be simpler code. Logically, the initial
-compaction without reclaim is the exceptional case to the reclaim/compaction
-scheme, but prior to the patch, it was the last loop iteration that was
-exceptional. Now the code matches the logic better. The change also enable the
-following patches.
+* alloc_hugepage_direct_gfpmask() - vma's with VM_HUGEPAGE (via madvise) are
+  now allocating without __GFP_NORETRY. Other vma's keep using __GFP_NORETRY
+  if direct reclaim/compaction is at all allowed (by default it's allowed only
+  for madvised vma's). The rest is conversion to GFP_TRANSHUGE(_LIGHT).
 
+[mhocko@suse.com: suggested GFP_TRANSHUGE_LIGHT]
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 Acked-by: Michal Hocko <mhocko@suse.com>
 Acked-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- mm/page_alloc.c | 109 +++++++++++++++++++++++++++++---------------------------
- 1 file changed, 57 insertions(+), 52 deletions(-)
+ include/linux/gfp.h            | 14 ++++++++------
+ include/trace/events/mmflags.h |  1 +
+ mm/huge_memory.c               | 29 ++++++++++++++++-------------
+ mm/khugepaged.c                |  2 +-
+ mm/migrate.c                   |  2 +-
+ mm/page_alloc.c                |  6 ++----
+ tools/perf/builtin-kmem.c      |  1 +
+ 7 files changed, 30 insertions(+), 25 deletions(-)
 
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index c29e9d347bc6..f8041f9de31e 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -237,9 +237,11 @@ struct vm_area_struct;
+  *   are expected to be movable via page reclaim or page migration. Typically,
+  *   pages on the LRU would also be allocated with GFP_HIGHUSER_MOVABLE.
+  *
+- * GFP_TRANSHUGE is used for THP allocations. They are compound allocations
+- *   that will fail quickly if memory is not available and will not wake
+- *   kswapd on failure.
++ * GFP_TRANSHUGE and GFP_TRANSHUGE_LIGHT are used for THP allocations. They are
++ *   compound allocations that will generally fail quickly if memory is not
++ *   available and will not wake kswapd/kcompactd on failure. The _LIGHT
++ *   version does not attempt reclaim/compaction at all and is by default used
++ *   in page fault path, while the non-light is used by khugepaged.
+  */
+ #define GFP_ATOMIC	(__GFP_HIGH|__GFP_ATOMIC|__GFP_KSWAPD_RECLAIM)
+ #define GFP_KERNEL	(__GFP_RECLAIM | __GFP_IO | __GFP_FS)
+@@ -254,9 +256,9 @@ struct vm_area_struct;
+ #define GFP_DMA32	__GFP_DMA32
+ #define GFP_HIGHUSER	(GFP_USER | __GFP_HIGHMEM)
+ #define GFP_HIGHUSER_MOVABLE	(GFP_HIGHUSER | __GFP_MOVABLE)
+-#define GFP_TRANSHUGE	((GFP_HIGHUSER_MOVABLE | __GFP_COMP | \
+-			 __GFP_NOMEMALLOC | __GFP_NORETRY | __GFP_NOWARN) & \
+-			 ~__GFP_RECLAIM)
++#define GFP_TRANSHUGE_LIGHT	((GFP_HIGHUSER_MOVABLE | __GFP_COMP | \
++			 __GFP_NOMEMALLOC | __GFP_NOWARN) & ~__GFP_RECLAIM)
++#define GFP_TRANSHUGE	(GFP_TRANSHUGE_LIGHT | __GFP_DIRECT_RECLAIM)
+ 
+ /* Convert GFP flags to their corresponding migrate type */
+ #define GFP_MOVABLE_MASK (__GFP_RECLAIMABLE|__GFP_MOVABLE)
+diff --git a/include/trace/events/mmflags.h b/include/trace/events/mmflags.h
+index 43cedbf0c759..5a81ab48a2fb 100644
+--- a/include/trace/events/mmflags.h
++++ b/include/trace/events/mmflags.h
+@@ -11,6 +11,7 @@
+ 
+ #define __def_gfpflag_names						\
+ 	{(unsigned long)GFP_TRANSHUGE,		"GFP_TRANSHUGE"},	\
++	{(unsigned long)GFP_TRANSHUGE_LIGHT,	"GFP_TRANSHUGE_LIGHT"}, \
+ 	{(unsigned long)GFP_HIGHUSER_MOVABLE,	"GFP_HIGHUSER_MOVABLE"},\
+ 	{(unsigned long)GFP_HIGHUSER,		"GFP_HIGHUSER"},	\
+ 	{(unsigned long)GFP_USER,		"GFP_USER"},		\
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 4b8d4e588930..83b88f97cd54 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -539,23 +539,26 @@ static int __do_huge_pmd_anonymous_page(struct fault_env *fe, struct page *page,
+ }
+ 
+ /*
+- * If THP is set to always then directly reclaim/compact as necessary
+- * If set to defer then do no reclaim and defer to khugepaged
++ * If THP defrag is set to always then directly reclaim/compact as necessary
++ * If set to defer then do only background reclaim/compact and defer to khugepaged
+  * If set to madvise and the VMA is flagged then directly reclaim/compact
++ * When direct reclaim/compact is allowed, don't retry except for flagged VMA's
+  */
+ static inline gfp_t alloc_hugepage_direct_gfpmask(struct vm_area_struct *vma)
+ {
+-	gfp_t reclaim_flags = 0;
+-
+-	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG, &transparent_hugepage_flags) &&
+-	    (vma->vm_flags & VM_HUGEPAGE))
+-		reclaim_flags = __GFP_DIRECT_RECLAIM;
+-	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG, &transparent_hugepage_flags))
+-		reclaim_flags = __GFP_KSWAPD_RECLAIM;
+-	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG, &transparent_hugepage_flags))
+-		reclaim_flags = __GFP_DIRECT_RECLAIM;
+-
+-	return GFP_TRANSHUGE | reclaim_flags;
++	bool vma_madvised = !!(vma->vm_flags & VM_HUGEPAGE);
++
++	if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_REQ_MADV_FLAG,
++				&transparent_hugepage_flags) && vma_madvised)
++		return GFP_TRANSHUGE;
++	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_KSWAPD_FLAG,
++						&transparent_hugepage_flags))
++		return GFP_TRANSHUGE_LIGHT | __GFP_KSWAPD_RECLAIM;
++	else if (test_bit(TRANSPARENT_HUGEPAGE_DEFRAG_DIRECT_FLAG,
++						&transparent_hugepage_flags))
++		return GFP_TRANSHUGE | (vma_madvised ? 0 : __GFP_NORETRY);
++
++	return GFP_TRANSHUGE_LIGHT;
+ }
+ 
+ /* Caller must hold page table lock. */
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+index bb49bd1d2d9f..54ec5f8032a3 100644
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -694,7 +694,7 @@ static bool khugepaged_scan_abort(int nid)
+ /* Defrag for khugepaged will enter direct reclaim/compaction if necessary */
+ static inline gfp_t alloc_hugepage_khugepaged_gfpmask(void)
+ {
+-	return GFP_TRANSHUGE | (khugepaged_defrag() ? __GFP_DIRECT_RECLAIM : 0);
++	return khugepaged_defrag() ? GFP_TRANSHUGE : GFP_TRANSHUGE_LIGHT;
+ }
+ 
+ #ifdef CONFIG_NUMA
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 365153c14cd0..622c7e473464 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1930,7 +1930,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+ 		goto out_dropref;
+ 
+ 	new_page = alloc_pages_node(node,
+-		(GFP_TRANSHUGE | __GFP_THISNODE) & ~__GFP_RECLAIM,
++		(GFP_TRANSHUGE_LIGHT | __GFP_THISNODE),
+ 		HPAGE_PMD_ORDER);
+ 	if (!new_page)
+ 		goto out_fail;
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index ed31658214a8..548d94dde90f 100644
+index 989af3164126..b8035c7b50b4 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -3510,7 +3510,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	struct page *page = NULL;
- 	unsigned int alloc_flags;
- 	unsigned long did_some_progress;
--	enum migrate_mode migration_mode = MIGRATE_ASYNC;
-+	enum migrate_mode migration_mode = MIGRATE_SYNC_LIGHT;
- 	enum compact_result compact_result;
- 	int compaction_retries = 0;
- 	int no_progress_loops = 0;
-@@ -3552,6 +3552,52 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	if (page)
- 		goto got_pg;
- 
-+	/*
-+	 * For costly allocations, try direct compaction first, as it's likely
-+	 * that we have enough base pages and don't need to reclaim. Don't try
-+	 * that for allocations that are allowed to ignore watermarks, as the
-+	 * ALLOC_NO_WATERMARKS attempt didn't yet happen.
-+	 */
-+	if (can_direct_reclaim && order > PAGE_ALLOC_COSTLY_ORDER &&
-+		!gfp_pfmemalloc_allowed(gfp_mask)) {
-+		page = __alloc_pages_direct_compact(gfp_mask, order,
-+						alloc_flags, ac,
-+						MIGRATE_ASYNC,
-+						&compact_result);
-+		if (page)
-+			goto got_pg;
-+
-+		/* Checks for THP-specific high-order allocations */
-+		if (is_thp_gfp_mask(gfp_mask)) {
-+			/*
-+			 * If compaction is deferred for high-order allocations,
-+			 * it is because sync compaction recently failed. If
-+			 * this is the case and the caller requested a THP
-+			 * allocation, we do not want to heavily disrupt the
-+			 * system, so we fail the allocation instead of entering
-+			 * direct reclaim.
-+			 */
-+			if (compact_result == COMPACT_DEFERRED)
-+				goto nopage;
-+
-+			/*
-+			 * Compaction is contended so rather back off than cause
-+			 * excessive stalls.
-+			 */
-+			if (compact_result == COMPACT_CONTENDED)
-+				goto nopage;
-+
-+			/*
-+			 * It can become very expensive to allocate transparent
-+			 * hugepages at fault, so use asynchronous memory
-+			 * compaction for THP unless it is khugepaged trying to
-+			 * collapse. All other requests should tolerate at
-+			 * least light sync migration.
-+			 */
-+			if (!(current->flags & PF_KTHREAD))
-+				migration_mode = MIGRATE_ASYNC;
-+		}
-+	}
- 
- retry:
- 	/* Ensure kswapd doesn't accidentally go to sleep as long as we loop */
-@@ -3606,55 +3652,33 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
- 		goto nopage;
- 
--	/*
--	 * Try direct compaction. The first pass is asynchronous. Subsequent
--	 * attempts after direct reclaim are synchronous
--	 */
-+
-+	/* Try direct reclaim and then allocating */
-+	page = __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags, ac,
-+							&did_some_progress);
-+	if (page)
-+		goto got_pg;
-+
-+	/* Try direct compaction and then allocating */
- 	page = __alloc_pages_direct_compact(gfp_mask, order, alloc_flags, ac,
- 					migration_mode,
- 					&compact_result);
- 	if (page)
- 		goto got_pg;
- 
--	/* Checks for THP-specific high-order allocations */
--	if (is_thp_gfp_mask(gfp_mask)) {
--		/*
--		 * If compaction is deferred for high-order allocations, it is
--		 * because sync compaction recently failed. If this is the case
--		 * and the caller requested a THP allocation, we do not want
--		 * to heavily disrupt the system, so we fail the allocation
--		 * instead of entering direct reclaim.
--		 */
--		if (compact_result == COMPACT_DEFERRED)
--			goto nopage;
--
--		/*
--		 * Compaction is contended so rather back off than cause
--		 * excessive stalls.
--		 */
--		if(compact_result == COMPACT_CONTENDED)
--			goto nopage;
--	}
--
- 	if (order && compaction_made_progress(compact_result))
- 		compaction_retries++;
- 
--	/* Try direct reclaim and then allocating */
--	page = __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags, ac,
--							&did_some_progress);
--	if (page)
--		goto got_pg;
--
- 	/* Do not loop if specifically requested */
- 	if (gfp_mask & __GFP_NORETRY)
--		goto noretry;
-+		goto nopage;
- 
- 	/*
- 	 * Do not retry costly high order allocations unless they are
- 	 * __GFP_REPEAT
- 	 */
- 	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
--		goto noretry;
-+		goto nopage;
- 
- 	/*
- 	 * Costly allocations might have made a progress but this doesn't mean
-@@ -3693,25 +3717,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 		goto retry;
+@@ -3587,11 +3587,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 			/*
+ 			 * Looks like reclaim/compaction is worth trying, but
+ 			 * sync compaction could be very expensive, so keep
+-			 * using async compaction, unless it's khugepaged
+-			 * trying to collapse.
++			 * using async compaction.
+ 			 */
+-			if (!(current->flags & PF_KTHREAD))
+-				migration_mode = MIGRATE_ASYNC;
++			migration_mode = MIGRATE_ASYNC;
+ 		}
  	}
  
--noretry:
--	/*
--	 * High-order allocations do not necessarily loop after direct reclaim
--	 * and reclaim/compaction depends on compaction being called after
--	 * reclaim so call directly if necessary.
--	 * It can become very expensive to allocate transparent hugepages at
--	 * fault, so use asynchronous memory compaction for THP unless it is
--	 * khugepaged trying to collapse. All other requests should tolerate
--	 * at least light sync migration.
--	 */
--	if (is_thp_gfp_mask(gfp_mask) && !(current->flags & PF_KTHREAD))
--		migration_mode = MIGRATE_ASYNC;
--	else
--		migration_mode = MIGRATE_SYNC_LIGHT;
--	page = __alloc_pages_direct_compact(gfp_mask, order, alloc_flags,
--					    ac, migration_mode,
--					    &compact_result);
--	if (page)
--		goto got_pg;
- nopage:
- 	warn_alloc_failed(gfp_mask, order, NULL);
- got_pg:
+diff --git a/tools/perf/builtin-kmem.c b/tools/perf/builtin-kmem.c
+index c9cb3be47cff..0d98182dc159 100644
+--- a/tools/perf/builtin-kmem.c
++++ b/tools/perf/builtin-kmem.c
+@@ -608,6 +608,7 @@ static const struct {
+ 	const char *compact;
+ } gfp_compact_table[] = {
+ 	{ "GFP_TRANSHUGE",		"THP" },
++	{ "GFP_TRANSHUGE_LIGHT",	"THL" },
+ 	{ "GFP_HIGHUSER_MOVABLE",	"HUM" },
+ 	{ "GFP_HIGHUSER",		"HU" },
+ 	{ "GFP_USER",			"U" },
 -- 
 2.9.0
 
