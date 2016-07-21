@@ -1,57 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 62537828E1
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 03:36:27 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id 33so46426419lfw.1
-        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 00:36:27 -0700 (PDT)
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id ACD07828E1
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 03:36:29 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id p41so46495684lfi.0
+        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 00:36:29 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u4si1913376wmf.121.2016.07.21.00.36.23
+        by mx.google.com with ESMTPS id l193si1969735wma.4.2016.07.21.00.36.23
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Thu, 21 Jul 2016 00:36:23 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v5 1/8] mm, compaction: don't isolate PageWriteback pages in MIGRATE_SYNC_LIGHT mode
-Date: Thu, 21 Jul 2016 09:36:07 +0200
-Message-Id: <20160721073614.24395-2-vbabka@suse.cz>
+Subject: [PATCH v5 3/8] mm, page_alloc: don't retry initial attempt in slowpath
+Date: Thu, 21 Jul 2016 09:36:09 +0200
+Message-Id: <20160721073614.24395-4-vbabka@suse.cz>
 In-Reply-To: <20160721073614.24395-1-vbabka@suse.cz>
 References: <20160721073614.24395-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
-From: Hugh Dickins <hughd@google.com>
+After __alloc_pages_slowpath() sets up new alloc_flags and wakes up kswapd, it
+first tries get_page_from_freelist() with the new alloc_flags, as it may
+succeed e.g. due to using min watermark instead of low watermark. It makes
+sense to to do this attempt before adjusting zonelist based on
+alloc_flags/gfp_mask, as it's still relatively a fast path if we just wake up
+kswapd and successfully allocate.
 
-At present MIGRATE_SYNC_LIGHT is allowing __isolate_lru_page() to
-isolate a PageWriteback page, which __unmap_and_move() then rejects
-with -EBUSY: of course the writeback might complete in between, but
-that's not what we usually expect, so probably better not to isolate it.
+This patch therefore moves the initial attempt above the retry label and
+reorganizes a bit the part below the retry label. We still have to attempt
+get_page_from_freelist() on each retry, as some allocations cannot do that
+as part of direct reclaim or compaction, and yet are not allowed to fail
+(even though they do a WARN_ON_ONCE() and thus should not exist). We can reuse
+the call meant for ALLOC_NO_WATERMARKS attempt and just set alloc_flags to
+ALLOC_NO_WATERMARKS if the context allows it. As a side-effect, the attempts
+from direct reclaim/compaction will also no longer obey watermarks once this
+is set, but there's little harm in that.
 
-When tested by stress-highalloc from mmtests, this has reduced the number of
-page migrate failures by 60-70%.
+Kswapd wakeups are also done on each retry to be safe from potential races
+resulting in kswapd going to sleep while a process (that may not be able to
+reclaim by itself) is still looping.
 
-Signed-off-by: Hugh Dickins <hughd@google.com>
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 Acked-by: Michal Hocko <mhocko@suse.com>
 Acked-by: Mel Gorman <mgorman@techsingularity.net>
 Acked-by: David Rientjes <rientjes@google.com>
 ---
- mm/compaction.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/page_alloc.c | 29 ++++++++++++++++++-----------
+ 1 file changed, 18 insertions(+), 11 deletions(-)
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index cd93ea24c565..892e397655dc 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1200,7 +1200,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 	struct page *page;
- 	const isolate_mode_t isolate_mode =
- 		(sysctl_compact_unevictable_allowed ? ISOLATE_UNEVICTABLE : 0) |
--		(cc->mode == MIGRATE_ASYNC ? ISOLATE_ASYNC_MIGRATE : 0);
-+		(cc->mode != MIGRATE_SYNC ? ISOLATE_ASYNC_MIGRATE : 0);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 25e19d7f3ced..ed31658214a8 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3541,35 +3541,42 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	 */
+ 	alloc_flags = gfp_to_alloc_flags(gfp_mask);
  
++	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
++		wake_all_kswapds(order, ac);
++
++	/*
++	 * The adjusted alloc_flags might result in immediate success, so try
++	 * that first
++	 */
++	page = get_page_from_freelist(gfp_mask, order, alloc_flags, ac);
++	if (page)
++		goto got_pg;
++
++
+ retry:
++	/* Ensure kswapd doesn't accidentally go to sleep as long as we loop */
+ 	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
+ 		wake_all_kswapds(order, ac);
+ 
++	if (gfp_pfmemalloc_allowed(gfp_mask))
++		alloc_flags = ALLOC_NO_WATERMARKS;
++
  	/*
- 	 * Start at where we last stopped, or beginning of the zone as
+ 	 * Reset the zonelist iterators if memory policies can be ignored.
+ 	 * These allocations are high priority and system rather than user
+ 	 * orientated.
+ 	 */
+-	if (!(alloc_flags & ALLOC_CPUSET) || gfp_pfmemalloc_allowed(gfp_mask)) {
++	if (!(alloc_flags & ALLOC_CPUSET) || (alloc_flags & ALLOC_NO_WATERMARKS)) {
+ 		ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
+ 		ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
+ 					ac->high_zoneidx, ac->nodemask);
+ 	}
+ 
+-	/* This is the last chance, in general, before the goto nopage. */
++	/* Attempt with potentially adjusted zonelist and alloc_flags */
+ 	page = get_page_from_freelist(gfp_mask, order, alloc_flags, ac);
+ 	if (page)
+ 		goto got_pg;
+ 
+-	/* Allocate without watermarks if the context allows */
+-	if (gfp_pfmemalloc_allowed(gfp_mask)) {
+-
+-		page = get_page_from_freelist(gfp_mask, order,
+-						ALLOC_NO_WATERMARKS, ac);
+-		if (page)
+-			goto got_pg;
+-	}
+-
+ 	/* Caller is not willing to reclaim, we can't balance anything */
+ 	if (!can_direct_reclaim) {
+ 		/*
 -- 
 2.9.0
 
