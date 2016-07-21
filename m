@@ -1,71 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 14D7B82963
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 05:36:38 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id ez1so129292391pab.0
-        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 02:36:38 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id st9si8791836pab.84.2016.07.21.02.36.35
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 998D582963
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 06:29:15 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id b65so10165540wmg.0
+        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 03:29:15 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id y135si2627818wmc.71.2016.07.21.03.29.13
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 21 Jul 2016 02:36:36 -0700 (PDT)
-Message-ID: <579094FA.6070602@huawei.com>
-Date: Thu, 21 Jul 2016 17:25:14 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 Jul 2016 03:29:13 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id q128so2020695wma.1
+        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 03:29:13 -0700 (PDT)
+Date: Thu, 21 Jul 2016 12:29:11 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: + mm-hugetlb-fix-race-when-migrate-pages.patch added to -mm tree
+Message-ID: <20160721102911.GF26379@dhcp22.suse.cz>
+References: <578eb28b.YbRUDGz5RloTVlrE%akpm@linux-foundation.org>
+ <20160721074340.GA26398@dhcp22.suse.cz>
+ <20160721081355.GB25398@hori1.linux.bs1.fc.nec.co.jp>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm/hugetlb: fix race when migrate pages
-References: <1468935958-21810-1-git-send-email-zhongjiang@huawei.com> <20160720073859.GE11249@dhcp22.suse.cz> <578F4C7C.6000706@huawei.com> <20160720121645.GJ11249@dhcp22.suse.cz> <20160720124501.GK11249@dhcp22.suse.cz> <20160720130055.GL11249@dhcp22.suse.cz> <20160720132431.GM11249@dhcp22.suse.cz>
-In-Reply-To: <20160720132431.GM11249@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160721081355.GB25398@hori1.linux.bs1.fc.nec.co.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: vbabka@suse.cz, qiuxishi@huawei.com, akpm@linux-foundation.org, linux-mm@kvack.org, Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mgorman@suse.de>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "zhongjiang@huawei.com" <zhongjiang@huawei.com>, "qiuxishi@huawei.com" <qiuxishi@huawei.com>, "vbabka@suse.cz" <vbabka@suse.cz>, "mm-commits@vger.kernel.org" <mm-commits@vger.kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, Mel Gorman <mgorman@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 2016/7/20 21:24, Michal Hocko wrote:
-> [Sorry for spammin, I though my headache would force me to not stare
->  into the code more but I couldn't resist ]
-> On Wed 20-07-16 15:00:55, Michal Hocko wrote:
->> On Wed 20-07-16 14:45:01, Michal Hocko wrote:
->> [...]
->>> I was talking to Mel (CCed) and he has raised a good question. So if you
->>> encounter a page under migration and fail to share the pmd with it how
->>> can you have a proper content of the target page in the end?
->> Hmm, I was staring into the code some more and it seems this would be OK
->> because we should hit hugetlb_no_page with the newel instantiated pmd
->> and associate it with a page from the radix tree. So unless I am missing
->> something the corruption shouldn't be possible.
->>
->> I believe the post pmd_populate race is still there, though, so I
->> believe the approach should be rethought.
-> So I think the swap entry is OK in fact. huge_pte_alloc would return a
-> shared pmd which would just happen to be swap entry. hugetlb_fault would
-> then recognize that by:
-> 	/*
-> 	 * entry could be a migration/hwpoison entry at this point, so this
-> 	 * check prevents the kernel from going below assuming that we have
-> 	 * a active hugepage in pagecache. This goto expects the 2nd page fault,
-> 	 * and is_hugetlb_entry_(migration|hwpoisoned) check will properly
-> 	 * handle it.
-> 	 */
-> 	if (!pte_present(entry))
-> 		goto out_mutex;
->
-> We would get back from the page fault and if the page was still under
-> migration on the retry we would end up waiting for the migration entry
-> on the next fault.
->
-> 	ptep = huge_pte_offset(mm, address);
-> 	if (ptep) {
-> 		entry = huge_ptep_get(ptep);
-> 		if (unlikely(is_hugetlb_entry_migration(entry))) {
-> 			migration_entry_wait_huge(vma, mm, ptep);
-> 			return 0;
->
-> Or am I missing something? If not we should just reconsider the BUG_ON
-> but I still have to think wether it is useful/needed at all.
-  you are right. I agree.
+On Thu 21-07-16 08:13:55, Naoya Horiguchi wrote:
+> On Thu, Jul 21, 2016 at 09:43:40AM +0200, Michal Hocko wrote:
+> > We have further discussed the patch and I believe it is not correct. See [1].
+> > I am proposing the following alternative.
+> >
+> > [1] http://lkml.kernel.org/r/20160720132431.GM11249@dhcp22.suse.cz
+> > ---
+> > From b1e9b3214f1859fdf7d134cdcb56f5871933539c Mon Sep 17 00:00:00 2001
+> > From: Michal Hocko <mhocko@suse.com>
+> > Date: Thu, 21 Jul 2016 09:28:13 +0200
+> > Subject: [PATCH] mm, hugetlb: fix huge_pte_alloc BUG_ON
+> >
+> > Zhong Jiang has reported a BUG_ON from huge_pte_alloc hitting when he
+> > runs his database load with memory online and offline running in
+> > parallel. The reason is that huge_pmd_share might detect a shared pmd
+> > which is currently migrated and so it has migration pte which is
+> > !pte_huge.
+> >
+> > There doesn't seem to be any easy way to prevent from the race and in
+> > fact seeing the migration swap entry is not harmful. Both callers of
+> > huge_pte_alloc are prepared to handle them. copy_hugetlb_page_range
+> > will copy the swap entry and make it COW if needed. hugetlb_fault will
+> > back off and so the page fault is retries if the page is still under
+> > migration and waits for its completion in hugetlb_fault.
+> >
+> > That means that the BUG_ON is wrong and we should update it. Let's
+> > simply check that all present ptes are pte_huge instead.
+> >
+> > Reported-by: zhongjiang <zhongjiang@huawei.com>
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> 
+> In the early days of hugetlb, we had an assumption that !pte_none is
+> equivalent to pmd_present() because there was no valid non-present entry
+> on huge_pte. Situation has changed by hugepage migration and/or hwpoison,
+> so we have to care about the separation of these two, and make sure that
+> pte_present is true before checking pte_huge.
+> 
+> So I think this change is right. Thank you Zhong, Michal.
+> 
+> Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+
+Thank you for double checking Naoya!
+
+IIUC
+Fixes: 290408d4a250 ("hugetlb: hugepage migration core")
+
+should help. Maybe we should even tag that for stable?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
