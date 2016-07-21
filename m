@@ -1,59 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 59B806B0260
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 02:52:17 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id ag5so22000900pad.2
-        for <linux-mm@kvack.org>; Wed, 20 Jul 2016 23:52:17 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id q1si7985131pap.58.2016.07.20.23.52.15
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A57796B0262
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 03:00:50 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id x83so6344720wma.2
+        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 00:00:50 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z6si1128841wmg.146.2016.07.21.00.00.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Jul 2016 23:52:16 -0700 (PDT)
-Message-ID: <57907120.4137420a.5bfa2.2bacSMTPIN_ADDED_BROKEN@mx.google.com>
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH v3 02/11] mm: Hardened usercopy
-In-Reply-To: <1468619065-3222-3-git-send-email-keescook@chromium.org>
-References: <1468619065-3222-1-git-send-email-keescook@chromium.org> <1468619065-3222-3-git-send-email-keescook@chromium.org>
-Date: Thu, 21 Jul 2016 16:52:09 +1000
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 21 Jul 2016 00:00:49 -0700 (PDT)
+Subject: Re: [PATCH 2/8] mm, page_alloc: set alloc_flags only once in slowpath
+References: <20160718112302.27381-1-vbabka@suse.cz>
+ <20160718112302.27381-3-vbabka@suse.cz>
+ <alpine.DEB.2.10.1607191527400.19940@chino.kir.corp.google.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <49843a12-3b00-06f5-8645-098e875ec075@suse.cz>
+Date: Thu, 21 Jul 2016 09:00:46 +0200
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <alpine.DEB.2.10.1607191527400.19940@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org
-Cc: Balbir Singh <bsingharora@gmail.com>, Daniel Micay <danielmicay@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Rik van Riel <riel@redhat.com>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, x86@kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>
 
-Kees Cook <keescook@chromium.org> writes:
+On 07/20/2016 12:28 AM, David Rientjes wrote:
+> On Mon, 18 Jul 2016, Vlastimil Babka wrote:
+>
+>> In __alloc_pages_slowpath(), alloc_flags doesn't change after it's initialized,
+>> so move the initialization above the retry: label. Also make the comment above
+>> the initialization more descriptive.
+>>
+>> The only exception in the alloc_flags being constant is ALLOC_NO_WATERMARKS,
+>> which may change due to TIF_MEMDIE being set on the allocating thread. We can
+>> fix this, and make the code simpler and a bit more effective at the same time,
+>> by moving the part that determines ALLOC_NO_WATERMARKS from
+>> gfp_to_alloc_flags() to gfp_pfmemalloc_allowed(). This means we don't have to
+>> mask out ALLOC_NO_WATERMARKS in numerous places in __alloc_pages_slowpath()
+>> anymore. The only two tests for the flag can instead call
+>> gfp_pfmemalloc_allowed().
+>>
+>> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+>
+> Acked-by: David Rientjes <rientjes@google.com>
+>
+> Looks good, although maybe a new name for gfp_pfmemalloc_allowed() would
+> be in order.
 
-> diff --git a/mm/usercopy.c b/mm/usercopy.c
-> new file mode 100644
-> index 000000000000..e4bf4e7ccdf6
-> --- /dev/null
-> +++ b/mm/usercopy.c
-> @@ -0,0 +1,234 @@
-...
-> +
-> +/*
-> + * Checks if a given pointer and length is contained by the current
-> + * stack frame (if possible).
-> + *
-> + *	0: not at all on the stack
-> + *	1: fully within a valid stack frame
-> + *	2: fully on the stack (when can't do frame-checking)
-> + *	-1: error condition (invalid stack position or bad stack frame)
-> + */
-> +static noinline int check_stack_object(const void *obj, unsigned long len)
-> +{
-> +	const void * const stack = task_stack_page(current);
-> +	const void * const stackend = stack + THREAD_SIZE;
+I don't disagree... any good suggestions? :)
 
-That allows access to the entire stack, including the struct thread_info,
-is that what we want - it seems dangerous? Or did I miss a check
-somewhere else?
-
-We have end_of_stack() which computes the end of the stack taking
-thread_info into account (end being the opposite of your end above).
-
-cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
