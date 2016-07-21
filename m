@@ -1,129 +1,184 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E2686828FF
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 04:31:39 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id ez1so127031198pab.0
-        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 01:31:39 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id h12si8467914pag.125.2016.07.21.01.31.38
-        for <linux-mm@kvack.org>;
-        Thu, 21 Jul 2016 01:31:39 -0700 (PDT)
-Date: Thu, 21 Jul 2016 17:31:51 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 1/5] mm, vmscan: Do not account skipped pages as scanned
-Message-ID: <20160721083151.GA8356@bbox>
-References: <1469028111-1622-1-git-send-email-mgorman@techsingularity.net>
- <1469028111-1622-2-git-send-email-mgorman@techsingularity.net>
- <20160721051648.GA31865@bbox>
- <20160721081506.GF10438@techsingularity.net>
-MIME-Version: 1.0
-In-Reply-To: <20160721081506.GF10438@techsingularity.net>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D3B10828FF
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 04:37:50 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id o80so8129638wme.1
+        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 01:37:50 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t67si2126790wma.113.2016.07.21.01.37.49
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 21 Jul 2016 01:37:49 -0700 (PDT)
+From: Jiri Slaby <jslaby@suse.cz>
+Subject: [patch added to 3.12-stable] x86/mm: Add barriers and document switch_mm()-vs-flush synchronization
+Date: Thu, 21 Jul 2016 10:37:42 +0200
+Message-Id: <20160721083747.26506-1-jslaby@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: stable@vger.kernel.org
+Cc: Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Charles Williams <ciwillia@brocade.com>, Jiri Slaby <jslaby@suse.cz>
 
-On Thu, Jul 21, 2016 at 09:15:06AM +0100, Mel Gorman wrote:
-> On Thu, Jul 21, 2016 at 02:16:48PM +0900, Minchan Kim wrote:
-> > On Wed, Jul 20, 2016 at 04:21:47PM +0100, Mel Gorman wrote:
-> > > Page reclaim determines whether a pgdat is unreclaimable by examining how
-> > > many pages have been scanned since a page was freed and comparing that
-> > > to the LRU sizes. Skipped pages are not considered reclaim candidates but
-> > > contribute to scanned. This can prematurely mark a pgdat as unreclaimable
-> > > and trigger an OOM kill.
-> > > 
-> > > While this does not fix an OOM kill message reported by Joonsoo Kim,
-> > > it did stop pgdat being marked unreclaimable.
-> > > 
-> > > Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> > > ---
-> > >  mm/vmscan.c | 5 ++++-
-> > >  1 file changed, 4 insertions(+), 1 deletion(-)
-> > > 
-> > > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > > index 22aec2bcfeec..b16d578ce556 100644
-> > > --- a/mm/vmscan.c
-> > > +++ b/mm/vmscan.c
-> > > @@ -1415,7 +1415,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
-> > >  	LIST_HEAD(pages_skipped);
-> > >  
-> > >  	for (scan = 0; scan < nr_to_scan && nr_taken < nr_to_scan &&
-> > > -					!list_empty(src); scan++) {
-> > > +					!list_empty(src);) {
-> > >  		struct page *page;
-> > >  
-> > >  		page = lru_to_page(src);
-> > > @@ -1429,6 +1429,9 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
-> > >  			continue;
-> > >  		}
-> > >  
-> > > +		/* Pages skipped do not contribute to scan */
-> > 
-> > The comment should explain why.
-> > 
-> > /* Pages skipped do not contribute to scan to prevent premature OOM */
-> > 
-> 
-> Specifically, it's to prevent pgdat being considered unreclaimable
-> prematurely. I'll update the comment.
-> 
-> > 
-> > > +		scan++;
-> > > +
-> > 
-> > 
-> > The one of my concern about node-lru is to add more lru lock contetion
-> > in multiple zone system so such unbounded skip scanning under the lock
-> > should have a limit to prevent latency spike and serialization of
-> > current reclaim work.
-> > 
-> 
-> The LRU lock already was quite a large lock, particularly on NUMA systems,
-> with contention raising the more direct reclaimers that are active. It's
-> worth remembering that the series also shows much lower system CPU time
-> in some tests. This is the current CPU usage breakdown for a parallel dd test
-> 
->            4.7.0-rc4   4.7.0-rc7   4.7.0-rc7
->         mmotm-20160623mm1-followup-v3r1mm1-oomfix-v4r2
-> User         1548.01      927.23      777.74
-> System       8609.71     5540.02     4445.56
-> Elapsed      3587.10     3598.00     3498.54
-> 
-> The LRU lock is held during skips but it's also doing no real work.
+From: Andy Lutomirski <luto@kernel.org>
 
-If the inactive LRU list is almost full with higher zone pages,
-the unbounded scanning under lru_lock would be disaster because
-other reclaimer can be stucked with lru-lock.
+This patch has been added to the 3.12 stable tree. If you have any
+objections, please let us know.
 
-With [1/5], testing was slower 100 times(To be honest, I should give
-up seeing ending of test). That's why I tested this series without [1/5].
+===============
 
-> 
-> > Another concern is big mismatch between the number of pages from list and
-> > LRU stat count because lruvec_lru_size call sites don't take the stat
-> > under the lock while isolate_lru_pages moves many pages from lru list
-> > to temporal skipped list.
-> > 
-> 
-> It's already known that the reading of the LRU size can mismatch the
-> actual size. It's why inactive_list_is_low() in the last patch has
-> checks like
-> 
-> inactive -= min(inactive, inactive_zone);
-> 
-> It's watching for underflows
-> 
-> -- 
-> Mel Gorman
-> SUSE Labs
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+commit 71b3c126e61177eb693423f2e18a1914205b165e upstream.
+
+When switch_mm() activates a new PGD, it also sets a bit that
+tells other CPUs that the PGD is in use so that TLB flush IPIs
+will be sent.  In order for that to work correctly, the bit
+needs to be visible prior to loading the PGD and therefore
+starting to fill the local TLB.
+
+Document all the barriers that make this work correctly and add
+a couple that were missing.
+
+Signed-off-by: Andy Lutomirski <luto@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andy Lutomirski <luto@amacapital.net>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-mm@kvack.org
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Cc: Charles (Chas) Williams <ciwillia@brocade.com>
+Signed-off-by: Jiri Slaby <jslaby@suse.cz>
+---
+ arch/x86/include/asm/mmu_context.h | 32 +++++++++++++++++++++++++++++++-
+ arch/x86/mm/tlb.c                  | 28 +++++++++++++++++++++++++---
+ 2 files changed, 56 insertions(+), 4 deletions(-)
+
+diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
+index 86fef96f4eca..20cf2c4e1872 100644
+--- a/arch/x86/include/asm/mmu_context.h
++++ b/arch/x86/include/asm/mmu_context.h
+@@ -86,7 +86,32 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+ #endif
+ 		cpumask_set_cpu(cpu, mm_cpumask(next));
+ 
+-		/* Re-load page tables */
++		/*
++		 * Re-load page tables.
++		 *
++		 * This logic has an ordering constraint:
++		 *
++		 *  CPU 0: Write to a PTE for 'next'
++		 *  CPU 0: load bit 1 in mm_cpumask.  if nonzero, send IPI.
++		 *  CPU 1: set bit 1 in next's mm_cpumask
++		 *  CPU 1: load from the PTE that CPU 0 writes (implicit)
++		 *
++		 * We need to prevent an outcome in which CPU 1 observes
++		 * the new PTE value and CPU 0 observes bit 1 clear in
++		 * mm_cpumask.  (If that occurs, then the IPI will never
++		 * be sent, and CPU 0's TLB will contain a stale entry.)
++		 *
++		 * The bad outcome can occur if either CPU's load is
++		 * reordered before that CPU's store, so both CPUs much
++		 * execute full barriers to prevent this from happening.
++		 *
++		 * Thus, switch_mm needs a full barrier between the
++		 * store to mm_cpumask and any operation that could load
++		 * from next->pgd.  This barrier synchronizes with
++		 * remote TLB flushers.  Fortunately, load_cr3 is
++		 * serializing and thus acts as a full barrier.
++		 *
++		 */
+ 		load_cr3(next->pgd);
+ 
+ 		/* Stop flush ipis for the previous mm */
+@@ -109,10 +134,15 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+ 			 * schedule, protecting us from simultaneous changes.
+ 			 */
+ 			cpumask_set_cpu(cpu, mm_cpumask(next));
++
+ 			/*
+ 			 * We were in lazy tlb mode and leave_mm disabled
+ 			 * tlb flush IPI delivery. We must reload CR3
+ 			 * to make sure to use no freed page tables.
++			 *
++			 * As above, this is a barrier that forces
++			 * TLB repopulation to be ordered after the
++			 * store to mm_cpumask.
+ 			 */
+ 			load_cr3(next->pgd);
+ 			load_mm_ldt(next);
+diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+index dd8dda167a24..fc042eeb6e6c 100644
+--- a/arch/x86/mm/tlb.c
++++ b/arch/x86/mm/tlb.c
+@@ -152,6 +152,8 @@ void flush_tlb_current_task(void)
+ 	preempt_disable();
+ 
+ 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
++
++	/* This is an implicit full barrier that synchronizes with switch_mm. */
+ 	local_flush_tlb();
+ 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
+ 		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
+@@ -166,11 +168,19 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+ 	unsigned long nr_base_pages;
+ 
+ 	preempt_disable();
+-	if (current->active_mm != mm)
++	if (current->active_mm != mm) {
++		/* Synchronize with switch_mm. */
++		smp_mb();
++
+ 		goto flush_all;
++	}
+ 
+ 	if (!current->mm) {
+ 		leave_mm(smp_processor_id());
++
++		/* Synchronize with switch_mm. */
++		smp_mb();
++
+ 		goto flush_all;
+ 	}
+ 
+@@ -191,6 +201,10 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+ 	act_entries = mm->total_vm > act_entries ? act_entries : mm->total_vm;
+ 	nr_base_pages = (end - start) >> PAGE_SHIFT;
+ 
++	/*
++	 * Both branches below are implicit full barriers (MOV to CR or
++	 * INVLPG) that synchronize with switch_mm.
++	 */
+ 	/* tlb_flushall_shift is on balance point, details in commit log */
+ 	if (nr_base_pages > act_entries) {
+ 		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+@@ -222,10 +236,18 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)
+ 	preempt_disable();
+ 
+ 	if (current->active_mm == mm) {
+-		if (current->mm)
++		if (current->mm) {
++			/*
++			 * Implicit full barrier (INVLPG) that synchronizes
++			 * with switch_mm.
++			 */
+ 			__flush_tlb_one(start);
+-		else
++		} else {
+ 			leave_mm(smp_processor_id());
++
++			/* Synchronize with switch_mm. */
++			smp_mb();
++		}
+ 	}
+ 
+ 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
+-- 
+2.9.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
