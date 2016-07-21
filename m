@@ -1,81 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C5E85828E1
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 03:06:55 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e189so148054780pfa.2
-        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 00:06:55 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id c69si8037370pfj.224.2016.07.21.00.06.54
-        for <linux-mm@kvack.org>;
-        Thu, 21 Jul 2016 00:06:55 -0700 (PDT)
-Date: Thu, 21 Jul 2016 16:07:14 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 0/5] Candidate fixes for premature OOM kills with
- node-lru v1
-Message-ID: <20160721070714.GC31865@bbox>
-References: <1469028111-1622-1-git-send-email-mgorman@techsingularity.net>
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EC940828E1
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 03:13:42 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id 33so46075241lfw.1
+        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 00:13:42 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id yq2si4462155wjb.244.2016.07.21.00.13.41
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 21 Jul 2016 00:13:41 -0700 (PDT)
+Subject: Re: [PATCH 5/8] mm, page_alloc: make THP-specific decisions more
+ generic
+References: <20160718112302.27381-1-vbabka@suse.cz>
+ <20160718112302.27381-6-vbabka@suse.cz>
+ <alpine.DEB.2.10.1607191608550.19940@chino.kir.corp.google.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <59bfd68b-2333-d762-6bc1-5f156e83c3d3@suse.cz>
+Date: Thu, 21 Jul 2016 09:13:39 +0200
 MIME-Version: 1.0
-In-Reply-To: <1469028111-1622-1-git-send-email-mgorman@techsingularity.net>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1607191608550.19940@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>
 
-Hi Mel,
+On 07/20/2016 01:10 AM, David Rientjes wrote:
+> On Mon, 18 Jul 2016, Vlastimil Babka wrote:
+>
+>> This means we can further distinguish allocations that are costly order *and*
+>> additionally include the __GFP_NORETRY flag. As it happens, GFP_TRANSHUGE
+>> allocations do already fall into this category. This will also allow other
+>> costly allocations with similar high-order benefit vs latency considerations to
+>> use this semantic. Furthermore, we can distinguish THP allocations that should
+>> try a bit harder (such as from khugepageed) by removing __GFP_NORETRY, as will
+>> be done in the next patch.
+>>
+>> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+>> Acked-by: Michal Hocko <mhocko@suse.com>
+>
+> I think this is fine, but I would hope that we could check
+> gfp_pfmemalloc_allowed() before compacting and failing even for costly
+> orders when otherwise the first get_page_from_freelist() in the slowpath
+> may have succeeded due to watermarks.
 
-On Wed, Jul 20, 2016 at 04:21:46PM +0100, Mel Gorman wrote:
-> Both Joonsoo Kim and Minchan Kim have reported premature OOM kills on
-> a 32-bit platform. The common element is a zone-constrained high-order
-> allocation failing. Two factors appear to be at fault -- pgdat being
+Hm ok, I will add it for the sake of avoiding goto nopage where 
+previously it would have tried alloc without watermarks, as that would 
+be unintended side-effect of the series... although I have some doubts 
+about sanity of such scenarios (wants a costly order, can 
+reclaim/compact but only with __GFP_NORETRY, yet is allowed to avoid 
+watermarks?). Do you know about examples of such callers and think they 
+do the right thing?
 
-Strictly speaking, my case is order-0 allocation failing, not high-order.
-;)
-
-> considered unreclaimable prematurely and insufficient rotation of the
-> active list.
-> 
-> Unfortunately to date I have been unable to reproduce this with a variety
-> of stress workloads on a 2G 32-bit KVM instance. It's not clear why as
-> the steps are similar to what was described. It means I've been unable to
-> determine if this series addresses the problem or not. I'm hoping they can
-> test and report back before these are merged to mmotm. What I have checked
-> is that a basic parallel DD workload completed successfully on the same
-> machine I used for the node-lru performance tests. I'll leave the other
-> tests running just in case anything interesting falls out.
-> 
-> The series is in three basic parts;
-> 
-> Patch 1 does not account for skipped pages as scanned. This avoids the pgdat
-> 	being prematurely marked unreclaimable
-> 
-> Patches 2-4 add per-zone stats back in. The actual stats patch is different
-> 	to Minchan's as the original patch did not account for unevictable
-> 	LRU which would corrupt counters. The second two patches remove
-> 	approximations based on pgdat statistics. It's effectively a
-> 	revert of "mm, vmstat: remove zone and node double accounting by
-> 	approximating retries" but different LRU stats are used. This
-> 	is better than a full revert or a reworking of the series as
-> 	it preserves history of why the zone stats are necessary.
-> 
-> 	If this work out, we may have to leave the double accounting in
-> 	place for now until an alternative cheap solution presents itself.
-> 
-> Patch 5 rotates inactive/active lists for lowmem allocations. This is also
-> 	quite different to Minchan's patch as the original patch did not
-> 	account for memcg and would rotate if *any* eligible zone needed
-> 	rotation which may rotate excessively. The new patch considers
-> 	the ratio for all eligible zones which is more in line with
-> 	node-lru in general.
-> 
-
-Now I tested and confirmed it works for me at the OOM point of view.
-IOW, I cannot see OOM kill any more. But note that I tested it
-without [1/5] which has a problem I mentioned in that thread.
-
-If you want to merge [1/5], please resend updated version but
-I doubt we need it at this moment.
+Thanks,
+Vlastimil
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
