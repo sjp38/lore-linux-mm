@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id ACD07828E1
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 03:36:29 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id p41so46495684lfi.0
-        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 00:36:29 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DF5C6828E1
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 03:36:31 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id x83so6978651wma.2
+        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 00:36:31 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l193si1969735wma.4.2016.07.21.00.36.23
+        by mx.google.com with ESMTPS id jf7si4531094wjb.139.2016.07.21.00.36.23
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Thu, 21 Jul 2016 00:36:23 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v5 3/8] mm, page_alloc: don't retry initial attempt in slowpath
-Date: Thu, 21 Jul 2016 09:36:09 +0200
-Message-Id: <20160721073614.24395-4-vbabka@suse.cz>
+Subject: [PATCH v5 4/8] mm, page_alloc: restructure direct compaction handling in slowpath
+Date: Thu, 21 Jul 2016 09:36:10 +0200
+Message-Id: <20160721073614.24395-5-vbabka@suse.cz>
 In-Reply-To: <20160721073614.24395-1-vbabka@suse.cz>
 References: <20160721073614.24395-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,93 +20,218 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>
 
-After __alloc_pages_slowpath() sets up new alloc_flags and wakes up kswapd, it
-first tries get_page_from_freelist() with the new alloc_flags, as it may
-succeed e.g. due to using min watermark instead of low watermark. It makes
-sense to to do this attempt before adjusting zonelist based on
-alloc_flags/gfp_mask, as it's still relatively a fast path if we just wake up
-kswapd and successfully allocate.
+The retry loop in __alloc_pages_slowpath is supposed to keep trying reclaim
+and compaction (and OOM), until either the allocation succeeds, or returns
+with failure. Success here is more probable when reclaim precedes compaction,
+as certain watermarks have to be met for compaction to even try, and more free
+pages increase the probability of compaction success. On the other hand,
+starting with light async compaction (if the watermarks allow it), can be
+more efficient, especially for smaller orders, if there's enough free memory
+which is just fragmented.
 
-This patch therefore moves the initial attempt above the retry label and
-reorganizes a bit the part below the retry label. We still have to attempt
-get_page_from_freelist() on each retry, as some allocations cannot do that
-as part of direct reclaim or compaction, and yet are not allowed to fail
-(even though they do a WARN_ON_ONCE() and thus should not exist). We can reuse
-the call meant for ALLOC_NO_WATERMARKS attempt and just set alloc_flags to
-ALLOC_NO_WATERMARKS if the context allows it. As a side-effect, the attempts
-from direct reclaim/compaction will also no longer obey watermarks once this
-is set, but there's little harm in that.
+Thus, the current code starts with compaction before reclaim, and to make sure
+that the last reclaim is always followed by a final compaction, there's another
+direct compaction call at the end of the loop. This makes the code hard to
+follow and adds some duplicated handling of migration_mode decisions. It's also
+somewhat inefficient that even if reclaim or compaction decides not to retry,
+the final compaction is still attempted. Some gfp flags combination also
+shortcut these retry decisions by "goto noretry;", making it even harder to
+follow.
 
-Kswapd wakeups are also done on each retry to be safe from potential races
-resulting in kswapd going to sleep while a process (that may not be able to
-reclaim by itself) is still looping.
+This patch attempts to restructure the code with only minimal functional
+changes. The call to the first compaction and THP-specific checks are now
+placed above the retry loop, and the "noretry" direct compaction is removed.
+
+The initial compaction is additionally restricted only to costly orders, as we
+can expect smaller orders to be held back by watermarks, and only larger orders
+to suffer primarily from fragmentation. This better matches the checks in
+reclaim's shrink_zones().
+
+There are two other smaller functional changes. One is that the upgrade from
+async migration to light sync migration will always occur after the initial
+compaction. This is how it has been until recent patch "mm, oom: protect
+!costly allocations some more", which introduced upgrading the mode based on
+COMPACT_COMPLETE result, but kept the final compaction always upgraded, which
+made it even more special. It's better to return to the simpler handling for
+now, as migration modes will be further modified later in the series.
+
+The second change is that once both reclaim and compaction declare it's not
+worth to retry the reclaim/compact loop, there is no final compaction attempt.
+As argued above, this is intentional. If that final compaction were to succeed,
+it would be due to a wrong retry decision, or simply a race with somebody else
+freeing memory for us.
+
+The main outcome of this patch should be simpler code. Logically, the initial
+compaction without reclaim is the exceptional case to the reclaim/compaction
+scheme, but prior to the patch, it was the last loop iteration that was
+exceptional. Now the code matches the logic better. The change also enable the
+following patches.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 Acked-by: Michal Hocko <mhocko@suse.com>
 Acked-by: Mel Gorman <mgorman@techsingularity.net>
-Acked-by: David Rientjes <rientjes@google.com>
 ---
- mm/page_alloc.c | 29 ++++++++++++++++++-----------
- 1 file changed, 18 insertions(+), 11 deletions(-)
+ mm/page_alloc.c | 109 +++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 57 insertions(+), 52 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 25e19d7f3ced..ed31658214a8 100644
+index ed31658214a8..548d94dde90f 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -3541,35 +3541,42 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	 */
- 	alloc_flags = gfp_to_alloc_flags(gfp_mask);
- 
-+	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
-+		wake_all_kswapds(order, ac);
-+
-+	/*
-+	 * The adjusted alloc_flags might result in immediate success, so try
-+	 * that first
-+	 */
-+	page = get_page_from_freelist(gfp_mask, order, alloc_flags, ac);
-+	if (page)
-+		goto got_pg;
-+
-+
- retry:
-+	/* Ensure kswapd doesn't accidentally go to sleep as long as we loop */
- 	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
- 		wake_all_kswapds(order, ac);
- 
-+	if (gfp_pfmemalloc_allowed(gfp_mask))
-+		alloc_flags = ALLOC_NO_WATERMARKS;
-+
- 	/*
- 	 * Reset the zonelist iterators if memory policies can be ignored.
- 	 * These allocations are high priority and system rather than user
- 	 * orientated.
- 	 */
--	if (!(alloc_flags & ALLOC_CPUSET) || gfp_pfmemalloc_allowed(gfp_mask)) {
-+	if (!(alloc_flags & ALLOC_CPUSET) || (alloc_flags & ALLOC_NO_WATERMARKS)) {
- 		ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
- 		ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
- 					ac->high_zoneidx, ac->nodemask);
- 	}
- 
--	/* This is the last chance, in general, before the goto nopage. */
-+	/* Attempt with potentially adjusted zonelist and alloc_flags */
- 	page = get_page_from_freelist(gfp_mask, order, alloc_flags, ac);
+@@ -3510,7 +3510,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	struct page *page = NULL;
+ 	unsigned int alloc_flags;
+ 	unsigned long did_some_progress;
+-	enum migrate_mode migration_mode = MIGRATE_ASYNC;
++	enum migrate_mode migration_mode = MIGRATE_SYNC_LIGHT;
+ 	enum compact_result compact_result;
+ 	int compaction_retries = 0;
+ 	int no_progress_loops = 0;
+@@ -3552,6 +3552,52 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
  	if (page)
  		goto got_pg;
  
--	/* Allocate without watermarks if the context allows */
--	if (gfp_pfmemalloc_allowed(gfp_mask)) {
++	/*
++	 * For costly allocations, try direct compaction first, as it's likely
++	 * that we have enough base pages and don't need to reclaim. Don't try
++	 * that for allocations that are allowed to ignore watermarks, as the
++	 * ALLOC_NO_WATERMARKS attempt didn't yet happen.
++	 */
++	if (can_direct_reclaim && order > PAGE_ALLOC_COSTLY_ORDER &&
++		!gfp_pfmemalloc_allowed(gfp_mask)) {
++		page = __alloc_pages_direct_compact(gfp_mask, order,
++						alloc_flags, ac,
++						MIGRATE_ASYNC,
++						&compact_result);
++		if (page)
++			goto got_pg;
++
++		/* Checks for THP-specific high-order allocations */
++		if (is_thp_gfp_mask(gfp_mask)) {
++			/*
++			 * If compaction is deferred for high-order allocations,
++			 * it is because sync compaction recently failed. If
++			 * this is the case and the caller requested a THP
++			 * allocation, we do not want to heavily disrupt the
++			 * system, so we fail the allocation instead of entering
++			 * direct reclaim.
++			 */
++			if (compact_result == COMPACT_DEFERRED)
++				goto nopage;
++
++			/*
++			 * Compaction is contended so rather back off than cause
++			 * excessive stalls.
++			 */
++			if (compact_result == COMPACT_CONTENDED)
++				goto nopage;
++
++			/*
++			 * It can become very expensive to allocate transparent
++			 * hugepages at fault, so use asynchronous memory
++			 * compaction for THP unless it is khugepaged trying to
++			 * collapse. All other requests should tolerate at
++			 * least light sync migration.
++			 */
++			if (!(current->flags & PF_KTHREAD))
++				migration_mode = MIGRATE_ASYNC;
++		}
++	}
+ 
+ retry:
+ 	/* Ensure kswapd doesn't accidentally go to sleep as long as we loop */
+@@ -3606,55 +3652,33 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
+ 		goto nopage;
+ 
+-	/*
+-	 * Try direct compaction. The first pass is asynchronous. Subsequent
+-	 * attempts after direct reclaim are synchronous
+-	 */
++
++	/* Try direct reclaim and then allocating */
++	page = __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags, ac,
++							&did_some_progress);
++	if (page)
++		goto got_pg;
++
++	/* Try direct compaction and then allocating */
+ 	page = __alloc_pages_direct_compact(gfp_mask, order, alloc_flags, ac,
+ 					migration_mode,
+ 					&compact_result);
+ 	if (page)
+ 		goto got_pg;
+ 
+-	/* Checks for THP-specific high-order allocations */
+-	if (is_thp_gfp_mask(gfp_mask)) {
+-		/*
+-		 * If compaction is deferred for high-order allocations, it is
+-		 * because sync compaction recently failed. If this is the case
+-		 * and the caller requested a THP allocation, we do not want
+-		 * to heavily disrupt the system, so we fail the allocation
+-		 * instead of entering direct reclaim.
+-		 */
+-		if (compact_result == COMPACT_DEFERRED)
+-			goto nopage;
 -
--		page = get_page_from_freelist(gfp_mask, order,
--						ALLOC_NO_WATERMARKS, ac);
--		if (page)
--			goto got_pg;
+-		/*
+-		 * Compaction is contended so rather back off than cause
+-		 * excessive stalls.
+-		 */
+-		if(compact_result == COMPACT_CONTENDED)
+-			goto nopage;
 -	}
 -
- 	/* Caller is not willing to reclaim, we can't balance anything */
- 	if (!can_direct_reclaim) {
- 		/*
+ 	if (order && compaction_made_progress(compact_result))
+ 		compaction_retries++;
+ 
+-	/* Try direct reclaim and then allocating */
+-	page = __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags, ac,
+-							&did_some_progress);
+-	if (page)
+-		goto got_pg;
+-
+ 	/* Do not loop if specifically requested */
+ 	if (gfp_mask & __GFP_NORETRY)
+-		goto noretry;
++		goto nopage;
+ 
+ 	/*
+ 	 * Do not retry costly high order allocations unless they are
+ 	 * __GFP_REPEAT
+ 	 */
+ 	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
+-		goto noretry;
++		goto nopage;
+ 
+ 	/*
+ 	 * Costly allocations might have made a progress but this doesn't mean
+@@ -3693,25 +3717,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 		goto retry;
+ 	}
+ 
+-noretry:
+-	/*
+-	 * High-order allocations do not necessarily loop after direct reclaim
+-	 * and reclaim/compaction depends on compaction being called after
+-	 * reclaim so call directly if necessary.
+-	 * It can become very expensive to allocate transparent hugepages at
+-	 * fault, so use asynchronous memory compaction for THP unless it is
+-	 * khugepaged trying to collapse. All other requests should tolerate
+-	 * at least light sync migration.
+-	 */
+-	if (is_thp_gfp_mask(gfp_mask) && !(current->flags & PF_KTHREAD))
+-		migration_mode = MIGRATE_ASYNC;
+-	else
+-		migration_mode = MIGRATE_SYNC_LIGHT;
+-	page = __alloc_pages_direct_compact(gfp_mask, order, alloc_flags,
+-					    ac, migration_mode,
+-					    &compact_result);
+-	if (page)
+-		goto got_pg;
+ nopage:
+ 	warn_alloc_failed(gfp_mask, order, NULL);
+ got_pg:
 -- 
 2.9.0
 
