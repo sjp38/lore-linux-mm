@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AA7106B0005
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2016 01:39:44 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id m101so210357596ioi.0
-        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 22:39:44 -0700 (PDT)
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DB5DD6B025E
+	for <linux-mm@kvack.org>; Fri, 22 Jul 2016 01:49:30 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id p126so225628945qke.0
+        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 22:49:30 -0700 (PDT)
 Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id j13si5742159ote.59.2016.07.21.22.39.42
+        by mx.google.com with ESMTPS id u4si6744263qkf.228.2016.07.21.22.49.29
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 21 Jul 2016 22:39:43 -0700 (PDT)
+        Thu, 21 Jul 2016 22:49:30 -0700 (PDT)
 From: zhongjiang <zhongjiang@huawei.com>
 Subject: [PATCH v2] kexec: add resriction on the kexec_load
-Date: Fri, 22 Jul 2016 13:32:46 +0800
-Message-ID: <1469165566-12897-1-git-send-email-zhongjiang@huawei.com>
+Date: Fri, 22 Jul 2016 13:36:22 +0800
+Message-ID: <1469165782-13193-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -55,7 +55,7 @@ Signed-off-by: zhong jiang <zhongjiang@huawei.com>
  1 file changed, 16 insertions(+)
 
 diff --git a/kernel/kexec_core.c b/kernel/kexec_core.c
-index 56b3ed0..b8751c3 100644
+index 56b3ed0..1f58824 100644
 --- a/kernel/kexec_core.c
 +++ b/kernel/kexec_core.c
 @@ -148,6 +148,7 @@ static struct page *kimage_alloc_page(struct kimage *image,
@@ -79,10 +79,10 @@ index 56b3ed0..b8751c3 100644
 +		if (image->segment[i].memsz > (totalram_pages / 2))
 +			return result;
 +
-+		total += image->segment[i].memsz;
++		total_segments += image->segment[i].memsz;
 +	}
 +
-+	if (total > (totalram_pages / 2))
++	if (total_segments > (totalram_pages / 2))
 +		return result;
 +
  	/*
