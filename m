@@ -1,51 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 045AB6B0005
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2016 00:05:15 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id b62so55799791pfa.2
-        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 21:05:14 -0700 (PDT)
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AA7106B0005
+	for <linux-mm@kvack.org>; Fri, 22 Jul 2016 01:39:44 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id m101so210357596ioi.0
+        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 22:39:44 -0700 (PDT)
 Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTP id lv5si13536546pab.152.2016.07.21.21.04.50
-        for <linux-mm@kvack.org>;
-        Thu, 21 Jul 2016 21:05:14 -0700 (PDT)
-From: Zhou Chengming <zhouchengming1@huawei.com>
-Subject: [PATCH] update sc->nr_reclaimed after each shrink_slab
-Date: Fri, 22 Jul 2016 11:43:30 +0800
-Message-ID: <1469159010-5636-1-git-send-email-zhouchengming1@huawei.com>
+        by mx.google.com with ESMTPS id j13si5742159ote.59.2016.07.21.22.39.42
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 21 Jul 2016 22:39:43 -0700 (PDT)
+From: zhongjiang <zhongjiang@huawei.com>
+Subject: [PATCH v2] kexec: add resriction on the kexec_load
+Date: Fri, 22 Jul 2016 13:32:46 +0800
+Message-ID: <1469165566-12897-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, vdavydov@virtuozzo.com, riel@redhat.com, mhocko@suse.com, guohanjun@huawei.com, zhouchengming1@huawei.com
+To: ebiederm@xmission.com, akpm@linux-foundation.org
+Cc: kexec@lists.infradead.org, linux-mm@kvack.org
 
-In !global_reclaim(sc) case, we should update sc->nr_reclaimed after each
-shrink_slab in the loop. Because we need the correct sc->nr_reclaimed
-value to see if we can break out.
+From: zhong jiang <zhongjiang@huawei.com>
 
-Signed-off-by: Zhou Chengming <zhouchengming1@huawei.com>
+I hit the following question when run trinity in my system. The
+kernel is 3.4 version. but the mainline have same question to be
+solved. The root cause is the segment size is too large, it can
+expand the most of the area or the whole memory, therefore, it
+may waste an amount of time to abtain a useable page. and other
+cases will block until the test case quit. at the some time,
+OOM will come up.
+
+Call Trace:
+ [<ffffffff81106eac>] __alloc_pages_nodemask+0x14c/0x8f0
+ [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
+ [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
+ [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
+ [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
+ [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
+ [<ffffffff8113e5ef>] alloc_pages_current+0xaf/0x120
+ [<ffffffff810a0da0>] kimage_alloc_pages+0x10/0x60
+ [<ffffffff810a15ad>] kimage_alloc_control_pages+0x5d/0x270
+ [<ffffffff81027e85>] machine_kexec_prepare+0xe5/0x6c0
+ [<ffffffff810a0d52>] ? kimage_free_page_list+0x52/0x70
+ [<ffffffff810a1921>] sys_kexec_load+0x141/0x600
+ [<ffffffff8115e6b0>] ? vfs_write+0x100/0x180
+ [<ffffffff8145fbd9>] system_call_fastpath+0x16/0x1b
+
+The patch just add condition on sanity_check_segment_list to
+restriction the segment size.
+
+Signed-off-by: zhong jiang <zhongjiang@huawei.com>
 ---
- mm/vmscan.c |    5 +++++
- 1 files changed, 5 insertions(+), 0 deletions(-)
+ kernel/kexec_core.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index c4a2f45..47133c3 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2405,6 +2405,11 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
- 					    memcg, sc->nr_scanned - scanned,
- 					    lru_pages);
+diff --git a/kernel/kexec_core.c b/kernel/kexec_core.c
+index 56b3ed0..b8751c3 100644
+--- a/kernel/kexec_core.c
++++ b/kernel/kexec_core.c
+@@ -148,6 +148,7 @@ static struct page *kimage_alloc_page(struct kimage *image,
+ int sanity_check_segment_list(struct kimage *image)
+ {
+ 	int result, i;
++	unsigned long total_segments = 0;
+ 	unsigned long nr_segments = image->nr_segments;
  
-+			if (!global_reclaim(sc) && reclaim_state) {
-+				sc->nr_reclaimed += reclaim_state->reclaimed_slab;
-+				reclaim_state->reclaimed_slab = 0;
-+			}
+ 	/*
+@@ -209,6 +210,21 @@ int sanity_check_segment_list(struct kimage *image)
+ 			return result;
+ 	}
+ 
++	/* Verity all segment size donnot exceed the specified size.
++	 * if segment size from user space is too large,  a large
++	 * amount of time will be wasted when allocating page. so,
++	 * softlockup may be come up.
++	 */
++	for (i = 0; i < nr_segments; i++) {
++		if (image->segment[i].memsz > (totalram_pages / 2))
++			return result;
 +
- 			/* Record the group's reclaim efficiency */
- 			vmpressure(sc->gfp_mask, memcg, false,
- 				   sc->nr_scanned - scanned,
++		total += image->segment[i].memsz;
++	}
++
++	if (total > (totalram_pages / 2))
++		return result;
++
+ 	/*
+ 	 * Verify we have good destination addresses.  Normally
+ 	 * the caller is responsible for making certain we don't
 -- 
-1.7.7
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
