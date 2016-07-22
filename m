@@ -1,107 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F1C66B0005
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 22:59:27 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id u142so174947671oia.2
-        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 19:59:27 -0700 (PDT)
-Received: from szxga03-in.huawei.com ([119.145.14.66])
-        by mx.google.com with ESMTPS id m77si8285635iod.118.2016.07.21.19.59.25
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 05AC46B025E
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 23:31:57 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id q2so172269260pap.1
+        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 20:31:56 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id c10si13398877pan.75.2016.07.21.20.31.55
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 21 Jul 2016 19:59:26 -0700 (PDT)
-Message-ID: <57918BAC.8000008@huawei.com>
-Date: Fri, 22 Jul 2016 10:57:48 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        Thu, 21 Jul 2016 20:31:56 -0700 (PDT)
+Message-ID: <579191F1.1060407@huawei.com>
+Date: Fri, 22 Jul 2016 11:24:33 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-Subject: [PATCH v2] mem-hotplug: alloc new page from the next node if zone
- is MOVABLE_ZONE
+Subject: An question about too1/vm/page-types
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: fengguang.wu@intel.com, dyoung@redhat.com, Michal Hocko <mhocko@kernel.org>, mgorman@techsingularity.net, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>
+Cc: Linux Memory Management List <linux-mm@kvack.org>
 
-Memory offline could happen on both movable zone and non-movable zone.
-We can offline the whole node if the zone is movable zone, and if the
-zone is non-movable zone, we cannot offline the whole node, because
-some kernel memory can't be migrated.
+Hi, guys
 
-So if we offline a node with movable zone, use prefer mempolicy to alloc
-new page from the next node instead of the current node or other remote
-nodes, because re-migrate is a waste of time and the distance of the
-remote nodes is often very large.
+the page range from 160 to 192 corresponding to the physcial address from a0000  to bffff.
+That address space belongs to the PCI Bus we can get from the /proc/iomem.
+we konw that the region may exist valid page struct, but PG_RESERVED should be set.
+is right?  but  the actual is that page range is not any flag.  I don't understand.
 
-Also use GFP_HIGHUSER_MOVABLE to alloc new page if the zone is movable
-zone.
+[root@localhost vm]# ./page-types -a 160,192
+             flags      page-count       MB  symbolic-flags                     long-symbolic-flags
+0x0000000000000000              32        0  __________________________________________
+             total              32        0
 
-Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
----
- mm/memory_hotplug.c | 35 +++++++++++++++++++++++++++++------
- 1 file changed, 29 insertions(+), 6 deletions(-)
+[root@localhost vm]# cat /proc/iomem | head -n5
+00000000-00000fff : reserved
+00001000-0009a7ff : System RAM
+0009a800-0009ffff : reserved
+000a0000-000bffff : PCI Bus 0000:00
+000c0000-000c7fff : Video ROM
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index e3cbdca..930a5c6 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1501,6 +1501,16 @@ static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
- 	return 0;
- }
- 
-+static struct page *new_node_page(struct page *page, unsigned long node,
-+		int **result)
-+{
-+	if (PageHuge(page))
-+		return alloc_huge_page_node(page_hstate(compound_head(page)),
-+					node);
-+	else
-+		return __alloc_pages_node(node, GFP_HIGHUSER_MOVABLE, 0);
-+}
-+
- #define NR_OFFLINE_AT_ONCE_PAGES	(256)
- static int
- do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
-@@ -1510,6 +1520,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
- 	int move_pages = NR_OFFLINE_AT_ONCE_PAGES;
- 	int not_managed = 0;
- 	int ret = 0;
-+	int nid = NUMA_NO_NODE;
- 	LIST_HEAD(source);
- 
- 	for (pfn = start_pfn; pfn < end_pfn && move_pages > 0; pfn++) {
-@@ -1564,12 +1575,24 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
- 			goto out;
- 		}
- 
--		/*
--		 * alloc_migrate_target should be improooooved!!
--		 * migrate_pages returns # of failed pages.
--		 */
--		ret = migrate_pages(&source, alloc_migrate_target, NULL, 0,
--					MIGRATE_SYNC, MR_MEMORY_HOTPLUG);
-+		for (pfn = start_pfn; pfn < end_pfn; pfn++) {
-+			if (!pfn_valid(pfn))
-+				continue;
-+			page = pfn_to_page(pfn);
-+			if (zone_idx(page_zone(page)) == ZONE_MOVABLE)
-+				nid = next_node_in(page_to_nid(page),
-+						node_online_map);
-+			break;
-+		}
-+
-+		/* Alloc new page from the next node if possible */
-+		if (nid != NUMA_NO_NODE)
-+			ret = migrate_pages(&source, new_node_page, NULL,
-+					nid, MIGRATE_SYNC, MR_MEMORY_HOTPLUG);
-+		else
-+			ret = migrate_pages(&source, alloc_migrate_target, NULL,
-+					0, MIGRATE_SYNC, MR_MEMORY_HOTPLUG);
-+
- 		if (ret)
- 			putback_movable_pages(&source);
- 	}
--- 
-1.8.3.1
+Thanks
+zhongjiang
 
 
 --
