@@ -1,130 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C4C446B025E
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2016 08:26:05 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id x83so32992870wma.2
-        for <linux-mm@kvack.org>; Fri, 22 Jul 2016 05:26:05 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C55B46B025F
+	for <linux-mm@kvack.org>; Fri, 22 Jul 2016 08:26:22 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id p129so33378788wmp.3
+        for <linux-mm@kvack.org>; Fri, 22 Jul 2016 05:26:22 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n24si9841932wmi.20.2016.07.22.05.19.51
+        by mx.google.com with ESMTPS id y70si9847095wme.88.2016.07.22.05.26.21
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 22 Jul 2016 05:19:51 -0700 (PDT)
-From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 15/15] dax: Clear dirty entry tags on cache flush
-Date: Fri, 22 Jul 2016 14:19:41 +0200
-Message-Id: <1469189981-19000-16-git-send-email-jack@suse.cz>
-In-Reply-To: <1469189981-19000-1-git-send-email-jack@suse.cz>
-References: <1469189981-19000-1-git-send-email-jack@suse.cz>
+        Fri, 22 Jul 2016 05:26:21 -0700 (PDT)
+Subject: Re: [RFC PATCH 1/2] mempool: do not consume memory reserves from the
+ reclaim path
+References: <1468831164-26621-1-git-send-email-mhocko@kernel.org>
+ <1468831285-27242-1-git-send-email-mhocko@kernel.org>
+ <20160719135426.GA31229@cmpxchg.org>
+ <alpine.DEB.2.10.1607191315400.58064@chino.kir.corp.google.com>
+ <20160720081541.GF11249@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1607201353230.22427@chino.kir.corp.google.com>
+ <20160721085202.GC26379@dhcp22.suse.cz> <20160721121300.GA21806@cmpxchg.org>
+ <20160721145309.GR26379@dhcp22.suse.cz> <20160722063720.GB794@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <15177f2d-cd00-dade-fc25-12a0c241e8f5@suse.cz>
+Date: Fri, 22 Jul 2016 14:26:19 +0200
+MIME-Version: 1.0
+In-Reply-To: <20160722063720.GB794@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>
+To: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Mikulas Patocka <mpatocka@redhat.com>, Ondrej Kozina <okozina@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Mel Gorman <mgorman@suse.de>, Neil Brown <neilb@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, dm-devel@redhat.com
 
-Currently we never clear dirty tags in DAX mappings and thus address
-ranges to flush accumulate. Now that we have locking of radix tree
-entries, we have all the locking necessary to reliably clear the radix
-tree dirty tag when flushing caches for corresponding address range.
-Similarly to page_mkclean() we also have to write-protect pages to get a
-page fault when the page is next written to so that we can mark the
-entry dirty again.
+On 07/22/2016 08:37 AM, Michal Hocko wrote:
+> On Thu 21-07-16 16:53:09, Michal Hocko wrote:
+>> From d64815758c212643cc1750774e2751721685059a Mon Sep 17 00:00:00 2001
+>> From: Michal Hocko <mhocko@suse.com>
+>> Date: Thu, 21 Jul 2016 16:40:59 +0200
+>> Subject: [PATCH] Revert "mm, mempool: only set __GFP_NOMEMALLOC if there are
+>>  free elements"
+>>
+>> This reverts commit f9054c70d28bc214b2857cf8db8269f4f45a5e23.
+>
+> I've noticed that Andrew has already picked this one up. Is anybody
+> against marking it for stable?
 
-Signed-off-by: Jan Kara <jack@suse.cz>
----
- fs/dax.c | 64 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 64 insertions(+)
+It would be strange to have different behavior with known regression in 
+4.6 and 4.7 stables. Actually, there's still time for 4.7 proper?
 
-diff --git a/fs/dax.c b/fs/dax.c
-index e8d61ac3d148..65f9a225c18e 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -31,6 +31,7 @@
- #include <linux/vmstat.h>
- #include <linux/pfn_t.h>
- #include <linux/sizes.h>
-+#include <linux/mmu_notifier.h>
- 
- /*
-  * We use lowest available bit in exceptional entry for locking, other two
-@@ -670,6 +671,59 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
- 	return new_entry;
- }
- 
-+static inline unsigned long
-+pgoff_address(pgoff_t pgoff, struct vm_area_struct *vma)
-+{
-+	unsigned long address;
-+
-+	address = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
-+	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
-+	return address;
-+}
-+
-+/* Walk all mappings of a given index of a file and writeprotect them */
-+static void dax_mapping_entry_mkclean(struct address_space *mapping,
-+				      pgoff_t index, unsigned long pfn)
-+{
-+	struct vm_area_struct *vma;
-+	pte_t *ptep;
-+	pte_t pte;
-+	spinlock_t *ptl;
-+	bool changed;
-+
-+	i_mmap_lock_read(mapping);
-+	vma_interval_tree_foreach(vma, &mapping->i_mmap, index, index) {
-+		unsigned long address;
-+
-+		cond_resched();
-+
-+		if (!(vma->vm_flags & VM_SHARED))
-+			continue;
-+
-+		address = pgoff_address(index, vma);
-+		changed = false;
-+		if (follow_pte(vma->vm_mm, address, &ptep, &ptl))
-+			continue;
-+		if (pfn != pte_pfn(*ptep))
-+			goto unlock;
-+		if (!pte_dirty(*ptep) && !pte_write(*ptep))
-+			goto unlock;
-+
-+		flush_cache_page(vma, address, pfn);
-+		pte = ptep_clear_flush(vma, address, ptep);
-+		pte = pte_wrprotect(pte);
-+		pte = pte_mkclean(pte);
-+		set_pte_at(vma->vm_mm, address, ptep, pte);
-+		changed = true;
-+unlock:
-+		pte_unmap_unlock(ptep, ptl);
-+
-+		if (changed)
-+			mmu_notifier_invalidate_page(vma->vm_mm, address);
-+	}
-+	i_mmap_unlock_read(mapping);
-+}
-+
- static int dax_writeback_one(struct block_device *bdev,
- 		struct address_space *mapping, pgoff_t index, void *entry)
- {
-@@ -737,7 +791,17 @@ static int dax_writeback_one(struct block_device *bdev,
- 		goto unmap;
- 	}
- 
-+	dax_mapping_entry_mkclean(mapping, index, pfn_t_to_pfn(dax.pfn));
- 	wb_cache_pmem(dax.addr, dax.size);
-+	/*
-+	 * After we have flushed the cache, we can clear the dirty tag. There
-+	 * cannot be new dirty data in the pfn after the flush has completed as
-+	 * the pfn mappings are writeprotected and fault waits for mapping
-+	 * entry lock.
-+	 */
-+	spin_lock_irq(&mapping->tree_lock);
-+	radix_tree_tag_clear(page_tree, index, PAGECACHE_TAG_DIRTY);
-+	spin_unlock_irq(&mapping->tree_lock);
- unmap:
- 	dax_unmap_atomic(bdev, &dax);
- 	put_locked_mapping_entry(mapping, index, entry);
--- 
-2.6.6
+Vlastimil
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
