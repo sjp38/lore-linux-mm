@@ -1,48 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 05AC46B025E
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 23:31:57 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id q2so172269260pap.1
-        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 20:31:56 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 045AB6B0005
+	for <linux-mm@kvack.org>; Fri, 22 Jul 2016 00:05:15 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id b62so55799791pfa.2
+        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 21:05:14 -0700 (PDT)
 Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id c10si13398877pan.75.2016.07.21.20.31.55
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 21 Jul 2016 20:31:56 -0700 (PDT)
-Message-ID: <579191F1.1060407@huawei.com>
-Date: Fri, 22 Jul 2016 11:24:33 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        by mx.google.com with ESMTP id lv5si13536546pab.152.2016.07.21.21.04.50
+        for <linux-mm@kvack.org>;
+        Thu, 21 Jul 2016 21:05:14 -0700 (PDT)
+From: Zhou Chengming <zhouchengming1@huawei.com>
+Subject: [PATCH] update sc->nr_reclaimed after each shrink_slab
+Date: Fri, 22 Jul 2016 11:43:30 +0800
+Message-ID: <1469159010-5636-1-git-send-email-zhouchengming1@huawei.com>
 MIME-Version: 1.0
-Subject: An question about too1/vm/page-types
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: fengguang.wu@intel.com, dyoung@redhat.com, Michal Hocko <mhocko@kernel.org>, mgorman@techsingularity.net, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>
-Cc: Linux Memory Management List <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, vdavydov@virtuozzo.com, riel@redhat.com, mhocko@suse.com, guohanjun@huawei.com, zhouchengming1@huawei.com
 
-Hi, guys
+In !global_reclaim(sc) case, we should update sc->nr_reclaimed after each
+shrink_slab in the loop. Because we need the correct sc->nr_reclaimed
+value to see if we can break out.
 
-the page range from 160 to 192 corresponding to the physcial address from a0000  to bffff.
-That address space belongs to the PCI Bus we can get from the /proc/iomem.
-we konw that the region may exist valid page struct, but PG_RESERVED should be set.
-is right?  but  the actual is that page range is not any flag.  I don't understand.
+Signed-off-by: Zhou Chengming <zhouchengming1@huawei.com>
+---
+ mm/vmscan.c |    5 +++++
+ 1 files changed, 5 insertions(+), 0 deletions(-)
 
-[root@localhost vm]# ./page-types -a 160,192
-             flags      page-count       MB  symbolic-flags                     long-symbolic-flags
-0x0000000000000000              32        0  __________________________________________
-             total              32        0
-
-[root@localhost vm]# cat /proc/iomem | head -n5
-00000000-00000fff : reserved
-00001000-0009a7ff : System RAM
-0009a800-0009ffff : reserved
-000a0000-000bffff : PCI Bus 0000:00
-000c0000-000c7fff : Video ROM
-
-Thanks
-zhongjiang
-
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index c4a2f45..47133c3 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2405,6 +2405,11 @@ static bool shrink_zone(struct zone *zone, struct scan_control *sc,
+ 					    memcg, sc->nr_scanned - scanned,
+ 					    lru_pages);
+ 
++			if (!global_reclaim(sc) && reclaim_state) {
++				sc->nr_reclaimed += reclaim_state->reclaimed_slab;
++				reclaim_state->reclaimed_slab = 0;
++			}
++
+ 			/* Record the group's reclaim efficiency */
+ 			vmpressure(sc->gfp_mask, memcg, false,
+ 				   sc->nr_scanned - scanned,
+-- 
+1.7.7
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
