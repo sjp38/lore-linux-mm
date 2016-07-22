@@ -1,201 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FCD36B0005
-	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 21:41:46 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id b65so23454572wmg.0
-        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 18:41:46 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w140si6924814wmw.139.2016.07.21.18.41.44
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F1C66B0005
+	for <linux-mm@kvack.org>; Thu, 21 Jul 2016 22:59:27 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id u142so174947671oia.2
+        for <linux-mm@kvack.org>; Thu, 21 Jul 2016 19:59:27 -0700 (PDT)
+Received: from szxga03-in.huawei.com ([119.145.14.66])
+        by mx.google.com with ESMTPS id m77si8285635iod.118.2016.07.21.19.59.25
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 21 Jul 2016 18:41:44 -0700 (PDT)
-From: NeilBrown <neilb@suse.com>
-Date: Fri, 22 Jul 2016 11:41:34 +1000
-Subject: Re: [RFC PATCH 1/2] mempool: do not consume memory reserves from the reclaim path
-In-Reply-To: <20160721145309.GR26379@dhcp22.suse.cz>
-References: <1468831164-26621-1-git-send-email-mhocko@kernel.org> <1468831285-27242-1-git-send-email-mhocko@kernel.org> <20160719135426.GA31229@cmpxchg.org> <alpine.DEB.2.10.1607191315400.58064@chino.kir.corp.google.com> <20160720081541.GF11249@dhcp22.suse.cz> <alpine.DEB.2.10.1607201353230.22427@chino.kir.corp.google.com> <20160721085202.GC26379@dhcp22.suse.cz> <20160721121300.GA21806@cmpxchg.org> <20160721145309.GR26379@dhcp22.suse.cz>
-Message-ID: <87vazy78kx.fsf@notabene.neil.brown.name>
+        Thu, 21 Jul 2016 19:59:26 -0700 (PDT)
+Message-ID: <57918BAC.8000008@huawei.com>
+Date: Fri, 22 Jul 2016 10:57:48 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; boundary="=-=-=";
-	micalg=pgp-sha256; protocol="application/pgp-signature"
+Subject: [PATCH v2] mem-hotplug: alloc new page from the next node if zone
+ is MOVABLE_ZONE
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Mikulas Patocka <mpatocka@redhat.com>, Ondrej Kozina <okozina@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, dm-devel@redhat.com
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
---=-=-=
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+Memory offline could happen on both movable zone and non-movable zone.
+We can offline the whole node if the zone is movable zone, and if the
+zone is non-movable zone, we cannot offline the whole node, because
+some kernel memory can't be migrated.
 
-On Fri, Jul 22 2016, Michal Hocko wrote:
+So if we offline a node with movable zone, use prefer mempolicy to alloc
+new page from the next node instead of the current node or other remote
+nodes, because re-migrate is a waste of time and the distance of the
+remote nodes is often very large.
 
-> On Thu 21-07-16 08:13:00, Johannes Weiner wrote:
->> On Thu, Jul 21, 2016 at 10:52:03AM +0200, Michal Hocko wrote:
->> > Look, there are
->> > $ git grep mempool_alloc | wc -l
->> > 304
->> >=20
->> > many users of this API and we do not want to flip the default behavior
->> > which is there for more than 10 years. So far you have been arguing
->> > about potential deadlocks and haven't shown any particular path which
->> > would have a direct or indirect dependency between mempool and normal
->> > allocator and it wouldn't be a bug. As the matter of fact the change
->> > we are discussing here causes a regression. If you want to change the
->> > semantic of mempool allocator then you are absolutely free to do so. In
->> > a separate patch which would be discussed with IO people and other
->> > users, though. But we _absolutely_ want to fix the regression first
->> > and have a simple fix for 4.6 and 4.7 backports. At this moment there
->> > are revert and patch 1 on the table.  The later one should make your
->> > backtrace happy and should be only as a temporal fix until we find out
->> > what is actually misbehaving on your systems. If you are not interested
->> > to pursue that way I will simply go with the revert.
->>=20
->> +1
->>=20
->> It's very unlikely that decade-old mempool semantics are suddenly a
->> fundamental livelock problem, when all the evidence we have is one
->> hang and vague speculation. Given that the patch causes regressions,
->> and that the bug is most likely elsewhere anyway, a full revert rather
->> than merely-less-invasive mempool changes makes the most sense to me.
->
-> OK, fair enough. What do you think about the following then? Mikulas, I
-> have dropped your Tested-by and Reviewed-by because the patch is
-> different but unless you have hit the OOM killer then the testing
-> results should be same.
-> ---
-> From d64815758c212643cc1750774e2751721685059a Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.com>
-> Date: Thu, 21 Jul 2016 16:40:59 +0200
-> Subject: [PATCH] Revert "mm, mempool: only set __GFP_NOMEMALLOC if there =
-are
->  free elements"
->
-> This reverts commit f9054c70d28bc214b2857cf8db8269f4f45a5e23.
->
-> There has been a report about OOM killer invoked when swapping out to
-> a dm-crypt device. The primary reason seems to be that the swapout
-> out IO managed to completely deplete memory reserves. Ondrej was
-> able to bisect and explained the issue by pointing to f9054c70d28b
-> ("mm, mempool: only set __GFP_NOMEMALLOC if there are free elements").
->
-> The reason is that the swapout path is not throttled properly because
-> the md-raid layer needs to allocate from the generic_make_request path
-> which means it allocates from the PF_MEMALLOC context. dm layer uses
-> mempool_alloc in order to guarantee a forward progress which used to
-> inhibit access to memory reserves when using page allocator. This has
-> changed by f9054c70d28b ("mm, mempool: only set __GFP_NOMEMALLOC if
-> there are free elements") which has dropped the __GFP_NOMEMALLOC
-> protection when the memory pool is depleted.
->
-> If we are running out of memory and the only way forward to free memory
-> is to perform swapout we just keep consuming memory reserves rather than
-> throttling the mempool allocations and allowing the pending IO to
-> complete up to a moment when the memory is depleted completely and there
-> is no way forward but invoking the OOM killer. This is less than
-> optimal.
->
-> The original intention of f9054c70d28b was to help with the OOM
-> situations where the oom victim depends on mempool allocation to make a
-> forward progress. David has mentioned the following backtrace:
->
-> schedule
-> schedule_timeout
-> io_schedule_timeout
-> mempool_alloc
-> __split_and_process_bio
-> dm_request
-> generic_make_request
-> submit_bio
-> mpage_readpages
-> ext4_readpages
-> __do_page_cache_readahead
-> ra_submit
-> filemap_fault
-> handle_mm_fault
-> __do_page_fault
-> do_page_fault
-> page_fault
->
-> We do not know more about why the mempool is depleted without being
-> replenished in time, though. In any case the dm layer shouldn't depend
-> on any allocations outside of the dedicated pools so a forward progress
-> should be guaranteed. If this is not the case then the dm should be
-> fixed rather than papering over the problem and postponing it to later
-> by accessing more memory reserves.
->
-> mempools are a mechanism to maintain dedicated memory reserves to guaratee
-> forward progress. Allowing them an unbounded access to the page allocator
-> memory reserves is going against the whole purpose of this mechanism.
->
-> Bisected-by: Ondrej Kozina <okozina@redhat.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  mm/mempool.c | 20 ++++----------------
->  1 file changed, 4 insertions(+), 16 deletions(-)
->
-> diff --git a/mm/mempool.c b/mm/mempool.c
-> index 8f65464da5de..5ba6c8b3b814 100644
-> --- a/mm/mempool.c
-> +++ b/mm/mempool.c
-> @@ -306,36 +306,25 @@ EXPORT_SYMBOL(mempool_resize);
->   * returns NULL. Note that due to preallocation, this function
->   * *never* fails when called from process contexts. (it might
->   * fail if called from an IRQ context.)
-> - * Note: neither __GFP_NOMEMALLOC nor __GFP_ZERO are supported.
-> + * Note: using __GFP_ZERO is not supported.
->   */
-> -void *mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
-> +void * mempool_alloc(mempool_t *pool, gfp_t gfp_mask)
->  {
->  	void *element;
->  	unsigned long flags;
->  	wait_queue_t wait;
->  	gfp_t gfp_temp;
->=20=20
-> -	/* If oom killed, memory reserves are essential to prevent livelock */
-> -	VM_WARN_ON_ONCE(gfp_mask & __GFP_NOMEMALLOC);
-> -	/* No element size to zero on allocation */
->  	VM_WARN_ON_ONCE(gfp_mask & __GFP_ZERO);
-> -
->  	might_sleep_if(gfp_mask & __GFP_DIRECT_RECLAIM);
->=20=20
-> +	gfp_mask |=3D __GFP_NOMEMALLOC;	/* don't allocate emergency reserves */
->  	gfp_mask |=3D __GFP_NORETRY;	/* don't loop in __alloc_pages */
->  	gfp_mask |=3D __GFP_NOWARN;	/* failures are OK */
+Also use GFP_HIGHUSER_MOVABLE to alloc new page if the zone is movable
+zone.
 
-As I was reading through this thread I kept thinking "Surely
-mempool_alloc() should never ever allocate from emergency reserves.
-Ever."
-Then I saw this patch.  It made me happy.
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+---
+ mm/memory_hotplug.c | 35 +++++++++++++++++++++++++++++------
+ 1 file changed, 29 insertions(+), 6 deletions(-)
 
-Thanks.
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index e3cbdca..930a5c6 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1501,6 +1501,16 @@ static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
+ 	return 0;
+ }
+ 
++static struct page *new_node_page(struct page *page, unsigned long node,
++		int **result)
++{
++	if (PageHuge(page))
++		return alloc_huge_page_node(page_hstate(compound_head(page)),
++					node);
++	else
++		return __alloc_pages_node(node, GFP_HIGHUSER_MOVABLE, 0);
++}
++
+ #define NR_OFFLINE_AT_ONCE_PAGES	(256)
+ static int
+ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+@@ -1510,6 +1520,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+ 	int move_pages = NR_OFFLINE_AT_ONCE_PAGES;
+ 	int not_managed = 0;
+ 	int ret = 0;
++	int nid = NUMA_NO_NODE;
+ 	LIST_HEAD(source);
+ 
+ 	for (pfn = start_pfn; pfn < end_pfn && move_pages > 0; pfn++) {
+@@ -1564,12 +1575,24 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+ 			goto out;
+ 		}
+ 
+-		/*
+-		 * alloc_migrate_target should be improooooved!!
+-		 * migrate_pages returns # of failed pages.
+-		 */
+-		ret = migrate_pages(&source, alloc_migrate_target, NULL, 0,
+-					MIGRATE_SYNC, MR_MEMORY_HOTPLUG);
++		for (pfn = start_pfn; pfn < end_pfn; pfn++) {
++			if (!pfn_valid(pfn))
++				continue;
++			page = pfn_to_page(pfn);
++			if (zone_idx(page_zone(page)) == ZONE_MOVABLE)
++				nid = next_node_in(page_to_nid(page),
++						node_online_map);
++			break;
++		}
++
++		/* Alloc new page from the next node if possible */
++		if (nid != NUMA_NO_NODE)
++			ret = migrate_pages(&source, new_node_page, NULL,
++					nid, MIGRATE_SYNC, MR_MEMORY_HOTPLUG);
++		else
++			ret = migrate_pages(&source, alloc_migrate_target, NULL,
++					0, MIGRATE_SYNC, MR_MEMORY_HOTPLUG);
++
+ 		if (ret)
+ 			putback_movable_pages(&source);
+ 	}
+-- 
+1.8.3.1
 
-Acked-by: NeilBrown <neilb@suse.com>
-(if you want it)
-
-NeilBrown
-
---=-=-=
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQIcBAEBCAAGBQJXkXnOAAoJEDnsnt1WYoG5fnkP/0GxjTDVoHAcht/8o2WLlXpb
-lIcB20GYPsc/XujGOGSn/v5MbrGINEa6XTF1FHuorQFAAvbdVA6GBmffJY36HUDG
-1ZvdfN81ctUayVuqmj9YerYs5ITEqFzTHZNyuPdb10HndEzwDw44ER50aacYc9WU
-dBYl5NA7ms6JigsA1ust337CA73itBZceANWelyAfIa9REw3Candnkdk001Apwxj
-hvT0hQJnENauyQTUg82fRaC4//Np1iXHX6Sjnq77oDEfR5AaIx6ONPGZKxk8ctNi
-u5xvXV7b7btAxKSMy/fQekinKgGPFxCnlY6OgtM6HYxqLfRGNkV3fKgvtWx+8mAM
-boLMfsQu9gbmawlapTQuNezE4iBMI0uwD89Gx9pMspUtNJIcG9WgwO+vnB/7la0A
-L6fXejMf971xHKUXDfQNZ2lHSHG4Ul2cfamc3C78XAo6Y1/bnHJ1FRNJU48pUypN
-tzo3cNftS9tFnsEQGI92jmqX/6UaT1laHVFQ4Fefn7IOeK87FaEFWVG/fnpD4WnV
-TjflTfZjBEP+ieq8fwYODoD47yTvGOeZP33XAQRo043yEv0EK5FjKRzfmlGP0b57
-mr7pf4zI/sGDjS0CI6X0rV4TTFcgTC+iLySvg2TOSwJNIKxeETrNbTvlfy5o4aeE
-GRmUnA7NWP3ZZUWszWI8
-=dIDo
------END PGP SIGNATURE-----
---=-=-=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
