@@ -1,53 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C55B46B025F
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2016 08:26:22 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id p129so33378788wmp.3
-        for <linux-mm@kvack.org>; Fri, 22 Jul 2016 05:26:22 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E802F6B0260
+	for <linux-mm@kvack.org>; Fri, 22 Jul 2016 08:26:25 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id p129so33379655wmp.3
+        for <linux-mm@kvack.org>; Fri, 22 Jul 2016 05:26:25 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y70si9847095wme.88.2016.07.22.05.26.21
+        by mx.google.com with ESMTPS id t206si9797399wmb.142.2016.07.22.05.19.51
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 22 Jul 2016 05:26:21 -0700 (PDT)
-Subject: Re: [RFC PATCH 1/2] mempool: do not consume memory reserves from the
- reclaim path
-References: <1468831164-26621-1-git-send-email-mhocko@kernel.org>
- <1468831285-27242-1-git-send-email-mhocko@kernel.org>
- <20160719135426.GA31229@cmpxchg.org>
- <alpine.DEB.2.10.1607191315400.58064@chino.kir.corp.google.com>
- <20160720081541.GF11249@dhcp22.suse.cz>
- <alpine.DEB.2.10.1607201353230.22427@chino.kir.corp.google.com>
- <20160721085202.GC26379@dhcp22.suse.cz> <20160721121300.GA21806@cmpxchg.org>
- <20160721145309.GR26379@dhcp22.suse.cz> <20160722063720.GB794@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <15177f2d-cd00-dade-fc25-12a0c241e8f5@suse.cz>
-Date: Fri, 22 Jul 2016 14:26:19 +0200
-MIME-Version: 1.0
-In-Reply-To: <20160722063720.GB794@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+        Fri, 22 Jul 2016 05:19:51 -0700 (PDT)
+From: Jan Kara <jack@suse.cz>
+Subject: [PATCH 07/15] dax: Make cache flushing protected by entry lock
+Date: Fri, 22 Jul 2016 14:19:33 +0200
+Message-Id: <1469189981-19000-8-git-send-email-jack@suse.cz>
+In-Reply-To: <1469189981-19000-1-git-send-email-jack@suse.cz>
+References: <1469189981-19000-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Mikulas Patocka <mpatocka@redhat.com>, Ondrej Kozina <okozina@redhat.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Mel Gorman <mgorman@suse.de>, Neil Brown <neilb@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, dm-devel@redhat.com
+To: linux-mm@kvack.org
+Cc: linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>
 
-On 07/22/2016 08:37 AM, Michal Hocko wrote:
-> On Thu 21-07-16 16:53:09, Michal Hocko wrote:
->> From d64815758c212643cc1750774e2751721685059a Mon Sep 17 00:00:00 2001
->> From: Michal Hocko <mhocko@suse.com>
->> Date: Thu, 21 Jul 2016 16:40:59 +0200
->> Subject: [PATCH] Revert "mm, mempool: only set __GFP_NOMEMALLOC if there are
->>  free elements"
->>
->> This reverts commit f9054c70d28bc214b2857cf8db8269f4f45a5e23.
->
-> I've noticed that Andrew has already picked this one up. Is anybody
-> against marking it for stable?
+Currently, flushing of caches for DAX mappings was ignoring entry lock.
+So far this was ok (modulo a bug that a difference in entry lock could
+cause cache flushing to be mistakenly skipped) but in the following
+patches we will write-protect PTEs on cache flushing and clear dirty
+tags. For that we will need more exclusion. So do cache flushing under
+an entry lock. This allows us to remove one lock-unlock pair of
+mapping->tree_lock as a bonus.
 
-It would be strange to have different behavior with known regression in 
-4.6 and 4.7 stables. Actually, there's still time for 4.7 proper?
+Signed-off-by: Jan Kara <jack@suse.cz>
+---
+ fs/dax.c | 66 +++++++++++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 42 insertions(+), 24 deletions(-)
 
-Vlastimil
+diff --git a/fs/dax.c b/fs/dax.c
+index ec875683c17d..513881431be6 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -674,43 +674,63 @@ static int dax_writeback_one(struct block_device *bdev,
+ 		struct address_space *mapping, pgoff_t index, void *entry)
+ {
+ 	struct radix_tree_root *page_tree = &mapping->page_tree;
+-	int type = RADIX_DAX_TYPE(entry);
+-	struct radix_tree_node *node;
+ 	struct blk_dax_ctl dax;
+-	void **slot;
++	void *entry2, **slot;
+ 	int ret = 0;
++	int type;
+ 
+-	spin_lock_irq(&mapping->tree_lock);
+ 	/*
+-	 * Regular page slots are stabilized by the page lock even
+-	 * without the tree itself locked.  These unlocked entries
+-	 * need verification under the tree lock.
++	 * A page got tagged dirty in DAX mapping? Something is seriously
++	 * wrong.
+ 	 */
+-	if (!__radix_tree_lookup(page_tree, index, &node, &slot))
+-		goto unlock;
+-	if (*slot != entry)
+-		goto unlock;
+-
+-	/* another fsync thread may have already written back this entry */
+-	if (!radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE))
+-		goto unlock;
++	if (WARN_ON(!radix_tree_exceptional_entry(entry)))
++		return -EIO;
+ 
++	spin_lock_irq(&mapping->tree_lock);
++	entry2 = get_unlocked_mapping_entry(mapping, index, &slot);
++	/* Entry got punched out / reallocated? */
++	if (!entry2 || !radix_tree_exceptional_entry(entry2))
++		goto put_unlock;
++	/*
++	 * Entry got reallocated elsewhere? No need to writeback. We have to
++	 * compare sectors as we must not bail out due to difference in lockbit
++	 * or entry type.
++	 */
++	if (RADIX_DAX_SECTOR(entry2) != RADIX_DAX_SECTOR(entry))
++		goto put_unlock;
++	type = RADIX_DAX_TYPE(entry2);
+ 	if (WARN_ON_ONCE(type != RADIX_DAX_PTE && type != RADIX_DAX_PMD)) {
+ 		ret = -EIO;
+-		goto unlock;
++		goto put_unlock;
+ 	}
+ 
++	/* Another fsync thread may have already written back this entry */
++	if (!radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE))
++		goto put_unlock;
++	/* Lock the entry to serialize with page faults */
++	entry = lock_slot(mapping, slot);
++	/*
++	 * We can clear the tag now but we have to be careful so that concurrent
++	 * dax_writeback_one() calls for the same index cannot finish before we
++	 * actually flush the caches. This is achieved as the calls will look
++	 * at the entry only under tree_lock and once they do that they will
++	 * see the entry locked and wait for it to unlock.
++	 */
++	radix_tree_tag_clear(page_tree, index, PAGECACHE_TAG_TOWRITE);
++	spin_unlock_irq(&mapping->tree_lock);
++
+ 	dax.sector = RADIX_DAX_SECTOR(entry);
+ 	dax.size = (type == RADIX_DAX_PMD ? PMD_SIZE : PAGE_SIZE);
+-	spin_unlock_irq(&mapping->tree_lock);
+ 
+ 	/*
+ 	 * We cannot hold tree_lock while calling dax_map_atomic() because it
+ 	 * eventually calls cond_resched().
+ 	 */
+ 	ret = dax_map_atomic(bdev, &dax);
+-	if (ret < 0)
++	if (ret < 0) {
++		put_locked_mapping_entry(mapping, index, entry);
+ 		return ret;
++	}
+ 
+ 	if (WARN_ON_ONCE(ret < dax.size)) {
+ 		ret = -EIO;
+@@ -718,15 +738,13 @@ static int dax_writeback_one(struct block_device *bdev,
+ 	}
+ 
+ 	wb_cache_pmem(dax.addr, dax.size);
+-
+-	spin_lock_irq(&mapping->tree_lock);
+-	radix_tree_tag_clear(page_tree, index, PAGECACHE_TAG_TOWRITE);
+-	spin_unlock_irq(&mapping->tree_lock);
+- unmap:
++unmap:
+ 	dax_unmap_atomic(bdev, &dax);
++	put_locked_mapping_entry(mapping, index, entry);
+ 	return ret;
+ 
+- unlock:
++put_unlock:
++	put_unlocked_mapping_entry(mapping, index, entry2);
+ 	spin_unlock_irq(&mapping->tree_lock);
+ 	return ret;
+ }
+-- 
+2.6.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
