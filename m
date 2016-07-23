@@ -1,157 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 95B176B0253
-	for <linux-mm@kvack.org>; Fri, 22 Jul 2016 22:59:42 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id b62so119524304pfa.2
-        for <linux-mm@kvack.org>; Fri, 22 Jul 2016 19:59:42 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id b1si19280211pfk.262.2016.07.22.19.59.40
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AA646B0253
+	for <linux-mm@kvack.org>; Sat, 23 Jul 2016 00:05:40 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id x83so45672929wma.2
+        for <linux-mm@kvack.org>; Fri, 22 Jul 2016 21:05:40 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y11si7782422wmd.29.2016.07.22.21.05.38
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 22 Jul 2016 19:59:41 -0700 (PDT)
-Subject: Re: [PATCH v3 0/8] Change OOM killer to use list of mm_struct.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1468330163-4405-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20160721112140.GG26379@dhcp22.suse.cz>
-	<201607222009.DII64068.VHMSQJtOOFOLFF@I-love.SAKURA.ne.jp>
-	<20160722120519.GJ794@dhcp22.suse.cz>
-In-Reply-To: <20160722120519.GJ794@dhcp22.suse.cz>
-Message-Id: <201607231159.IFD26547.HVMOQtSJFOFFOL@I-love.SAKURA.ne.jp>
-Date: Sat, 23 Jul 2016 11:59:25 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        Fri, 22 Jul 2016 21:05:39 -0700 (PDT)
+Subject: Re: [PATCH 1/3] Add a new field to struct shrinker
+References: <cover.1468051277.git.janani.rvchndrn@gmail.com>
+ <85a9712f3853db5d9bc14810b287c23776235f01.1468051281.git.janani.rvchndrn@gmail.com>
+ <20160711063730.GA5284@dhcp22.suse.cz>
+ <1468246371.13253.63.camel@surriel.com>
+ <20160711143342.GN1811@dhcp22.suse.cz>
+ <F072D3E2-0514-4A25-868E-2104610EC14A@gmail.com>
+ <20160720145405.GP11249@dhcp22.suse.cz>
+ <9c67941f-05f0-0d3e-ecc8-dcea60254c8b@suse.de>
+From: Tony Jones <tonyj@suse.de>
+Message-ID: <8663a3c5-7b9b-c5b5-cddd-224e97171921@suse.de>
+Date: Fri, 22 Jul 2016 21:05:31 -0700
+MIME-Version: 1.0
+In-Reply-To: <9c67941f-05f0-0d3e-ecc8-dcea60254c8b@suse.de>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.cz
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, oleg@redhat.com, rientjes@google.com, vdavydov@parallels.com, mst@redhat.com
+To: Michal Hocko <mhocko@suse.cz>, Janani Ravichandran <janani.rvchndrn@gmail.com>
+Cc: Rik van Riel <riel@surriel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@virtuozzo.com, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, bywxiaobai@163.com
 
-Michal Hocko wrote:
-> > > Now what about future plans? I would like to get rid of TIF_MEMDIE
-> > > altogether and give access to memory reserves to oom victim when they
-> > > allocate the memory. Something like:
-> > 
-> > Before doing so, can we handle a silent hang up caused by lowmem livelock
-> > at http://lkml.kernel.org/r/20160211225929.GU14668@dastard ? It is a nearly
-> > 7 years old bug (since commit 35cd78156c499ef8 "vmscan: throttle direct
-> > reclaim when too many pages are isolated already") which got no progress
-> > so far.
+On 07/22/2016 06:27 PM, Tony Jones wrote:
+> On 07/20/2016 07:54 AM, Michal Hocko wrote:
 > 
-> I do not see any dependecy/relation on/to the OOM work. I am even not
-> sure why you are bringing that up here.
-
-This is a ABBA deadlock bug which disables the OOM killer caused by kswapd
-waiting for GFP_NOIO allocations whereas GFP_NOIO allocations waiting for
-kswapd. A flag like GFP_TRANSIENT suggested at
-http://lkml.kernel.org/r/878twt5i1j.fsf@notabene.neil.brown.name which
-prevents the allocating task from being throttled is expected if we want to
-avoid escaping from too_many_isolated() loop in shrink_inactive_list()
-using timeout.
-
-> [...]
-> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > index 788e4f22e0bb..34446f49c2e1 100644
-> > > --- a/mm/page_alloc.c
-> > > +++ b/mm/page_alloc.c
-> > > @@ -3358,7 +3358,7 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
-> > >  			alloc_flags |= ALLOC_NO_WATERMARKS;
-> > >  		else if (!in_interrupt() &&
-> > >  				((current->flags & PF_MEMALLOC) ||
-> > > -				 unlikely(test_thread_flag(TIF_MEMDIE))))
-> > > +				 tsk_is_oom_victim(current))
-> > >  			alloc_flags |= ALLOC_NO_WATERMARKS;
-> > >  	}
-> > >  #ifdef CONFIG_CMA
-> > > 
-> > > where tsk_is_oom_victim wouldn't require the given task to go via
-> > > out_of_memory. This would solve some of the problems we have right now
-> > > when a thread doesn't get access to memory reserves because it never
-> > > reaches out_of_memory (e.g. recently mentioned mempool_alloc doing
-> > > __GFP_NORETRY). It would also make the code easier to follow. If we want
-> > > to implement that we need an easy to implement tsk_is_oom_victim
-> > > obviously. With the signal_struct::oom_mm this is really trivial thing.
-> > > I am not sure we can do that with the mm list though because we are
-> > > loosing the task->mm at certain point in time.
-> > 
-> > bool tsk_is_oom_victim(void)
-> > {
-> > 	return current->mm && test_bit(MMF_OOM_KILLED, &current->mm->flags) &&
-> > 		 (fatal_signal_pending(current) || (current->flags & PF_EXITING));
-> > }
+>>> Michal, just to make sure I understand you correctly, do you mean that we
+>>> could infer the names of the shrinkers by looking at the names of their callbacks?
+>>
+>> Yes, %ps can then be used for the name of the shrinker structure
+>> (assuming it is available).
 > 
-> which doesn't work as soon as exit_mm clears the mm which is exactly
-> the concern I have raised above.
-
-Are you planning to change the scope where the OOM victims can access memory
-reserves?
-
-(1) If you plan to allow the OOM victims to access memory reserves until
-    TASK_DEAD, tsk_is_oom_victim() will be as trivial as
-
-bool tsk_is_oom_victim(struct task_struct *task)
-{
-	return task->signal->oom_mm;
-}
-
-    because you won't prevent the OOM victims to access memory reserves at
-    e.g. exit_task_work() from do_exit(). In that case, I will suggest
-
-bool tsk_is_oom_victim(struct task_struct *task)
-{
-	return (fatal_signal_pending(task) || (task->flags & PF_EXITING));
-}
-
-    like "[PATCH 2/3] mm,page_alloc: favor exiting tasks over normal tasks."
-    does.
-
-(2) If you plan to allow the OOM victims to access memory reserves until only
-    before calling mmput() from exit_mm() from do_exit(), tsk_is_oom_victim()
-    will be
-
-bool tsk_is_oom_victim(struct task_struct *task)
-{
-	return task->signal->oom_mm && task->mm;
-}
-
-    because you don't allow the OOM victims to access memory reserves at
-    __mmput() from mmput() from exit_mm() from do_exit(). In that case, I think
-
-bool tsk_is_oom_victim(void)
-{
-	return current->mm && test_bit(MMF_OOM_KILLED, &current->mm->flags) &&
-		(fatal_signal_pending(current) || (current->flags & PF_EXITING));
-}
-
-    should work. But as you think it does not work, you are not planning to
-    allow the OOM victims to access memory reserves until only before calling
-    mmput() from exit_mm() from do_exit(), are you?
-
-(3) If you are not planning to change the scope where the OOM victims can access
-    memory reserves (i.e. neither (1) nor (2) above), how can we control it
-    without using per task_struct flags like TIF_MEMDIE?
-
+> This is fine for emitting via the ftrace /sys interface,  but in order to have the data [name] get 
+> marshalled thru to perf (for example) you need to add it to the TP_fast_assign entry.
 > 
-> > 
-> > >                                                The only way I can see
-> > > this would fly would be preserving TIF_MEMDIE and setting it for all
-> > > threads but I am not sure this is very much better and puts the mm list
-> > > approach to a worse possition from my POV.
-> > > 
-> > 
-> > But do we still need ALLOC_NO_WATERMARKS for OOM victims?
-> 
-> Yes as a safety net for cases when the oom_reaper cannot reclaim enough
-> to get us out of OOM. Maybe one day we can make the oom_reaper
-> completely bullet proof and granting access to memory reserves would be
-> pointless. One reason I want to get rid of TIF_MEMDIE is that all would
-> need to do at that time would be a single line dropping
-> tsk_is_oom_victim from gfp_to_alloc_flags.
+> tony
 
-I didn't mean to forbid access to memory reserves completely. I meant that
-do we need to allow access to all of memory reserves (via ALLOC_NO_WATERMARKS)
-rather than portion of memory reserves (via ALLOC_HARDER like [PATCH 2/3] does).
-I'm thinking that we can treat "threads killed by the OOM killer" and "threads
-killed by SIGKILL" and "threads normally exiting via exit()" evenly by allowing
-them access to portion of memory reserves.
+Unfortunately, %ps/%pF doesn't do much (re:  Michal's comment "assuming it is available"):
+
+-       TP_printk("%pF %p: nid: %d objects to shrink %ld gfp_flags %s pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld total_scan %ld",
++       TP_printk("%pF %p(%ps): nid: %d objects to shrink %ld gfp_flags %s pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld total_scan %ld",
+                __entry->shrink,
+                __entry->shr,
++               __entry->shr,
+                __entry->nid,
+                __entry->nr_objects_to_shrink,
+
+# cat trace_pipe
+            bash-1917  [003] ...1  2925.941062: mm_shrink_slab_start: super_cache_scan+0x0/0x1a0 ffff88042bb60cc0(0xffff88042bb60cc0): nid: 0 objects to shrink 0 gfp_flags GFP_KERNEL pgs_scanned 1000 lru_pgs 1000 cache items 4 delta 7 total_scan 7
+
+
+Otherwise what I was suggesting was something like this to ensure it was correctly marshaled for perf/etc:
+
+diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+--- a/include/trace/events/vmscan.h
++++ b/include/trace/events/vmscan.h
+@@ -16,6 +16,8 @@
+ #define RECLAIM_WB_SYNC		0x0004u /* Unused, all reclaim async */
+ #define RECLAIM_WB_ASYNC	0x0008u
+ 
++#define SHRINKER_NAME_LEN 	(size_t)32
++
+ #define show_reclaim_flags(flags)				\
+ 	(flags) ? __print_flags(flags, "|",			\
+ 		{RECLAIM_WB_ANON,	"RECLAIM_WB_ANON"},	\
+@@ -191,6 +193,7 @@ TRACE_EVENT(mm_shrink_slab_start,
+ 	TP_STRUCT__entry(
+ 		__field(struct shrinker *, shr)
+ 		__field(void *, shrink)
++		__array(char, name, SHRINKER_NAME_LEN);
+ 		__field(int, nid)
+ 		__field(long, nr_objects_to_shrink)
+ 		__field(gfp_t, gfp_flags)
+@@ -202,6 +205,11 @@ TRACE_EVENT(mm_shrink_slab_start,
+ 	),
+ 
+ 	TP_fast_assign(
++		char sym[KSYM_SYMBOL_LEN];
++
++		sprint_symbol(sym, (unsigned long)shr);
++		strlcpy(__entry->name, sym, SHRINKER_NAME_LEN);
++
+ 		__entry->shr = shr;
+ 		__entry->shrink = shr->scan_objects;
+ 		__entry->nid = sc->nid;
+@@ -214,9 +222,10 @@ TRACE_EVENT(mm_shrink_slab_start,
+ 		__entry->total_scan = total_scan;
+ 	),
+ 
+-	TP_printk("%pF %p: nid: %d objects to shrink %ld gfp_flags %s pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld total_scan %ld",
++	TP_printk("%pF %p(%s): nid: %d objects to shrink %ld gfp_flags %s pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld total_scan %ld",
+ 		__entry->shrink,
+ 		__entry->shr,
++		__entry->name,
+ 		__entry->nid,
+ 		__entry->nr_objects_to_shrink,
+ 		show_gfp_flags(__entry->gfp_flags),
+@@ -236,6 +245,7 @@ TRACE_EVENT(mm_shrink_slab_end,
+ 
+ 	TP_STRUCT__entry(
+ 		__field(struct shrinker *, shr)
++		__array(char, name, SHRINKER_NAME_LEN);
+ 		__field(int, nid)
+ 		__field(void *, shrink)
+ 		__field(long, unused_scan)
+@@ -245,6 +255,11 @@ TRACE_EVENT(mm_shrink_slab_end,
+ 	),
+ 
+ 	TP_fast_assign(
++		char sym[KSYM_SYMBOL_LEN];
++
++		sprint_symbol(sym, (unsigned long)shr);
++		strlcpy(__entry->name, sym, SHRINKER_NAME_LEN);
++
+ 		__entry->shr = shr;
+ 		__entry->nid = nid;
+ 		__entry->shrink = shr->scan_objects;
+@@ -254,9 +269,10 @@ TRACE_EVENT(mm_shrink_slab_end,
+ 		__entry->total_scan = total_scan;
+ 	),
+ 
+-	TP_printk("%pF %p: nid: %d unused scan count %ld new scan count %ld total_scan %ld last shrinker return val %d",
++	TP_printk("%pF %p(%pF): nid: %d unused scan count %ld new scan count %ld total_scan %ld last shrinker return val %d",
+ 		__entry->shrink,
+ 		__entry->shr,
++		__entry->shr,
+ 		__entry->nid,
+ 		__entry->unused_scan,
+ 		__entry->new_scan,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
