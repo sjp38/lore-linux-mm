@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 63B6C6B0253
-	for <linux-mm@kvack.org>; Sat, 23 Jul 2016 03:32:46 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id p64so280176187pfb.0
-        for <linux-mm@kvack.org>; Sat, 23 Jul 2016 00:32:46 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id m63si19090886pfb.137.2016.07.23.00.32.44
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 21B886B0253
+	for <linux-mm@kvack.org>; Sat, 23 Jul 2016 07:29:38 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id j124so35980100ith.1
+        for <linux-mm@kvack.org>; Sat, 23 Jul 2016 04:29:38 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id h134si8298211oib.249.2016.07.23.04.29.30
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 23 Jul 2016 00:32:45 -0700 (PDT)
-Message-ID: <57931C48.4050002@huawei.com>
-Date: Sat, 23 Jul 2016 15:27:04 +0800
+        Sat, 23 Jul 2016 04:29:31 -0700 (PDT)
+Message-ID: <579353BE.9010600@huawei.com>
+Date: Sat, 23 Jul 2016 19:23:42 +0800
 From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH v2] kexec: add resriction on the kexec_load
@@ -183,11 +183,7 @@ On 2016/7/23 3:58, Andrew Morton wrote:
 > -	 * if segment size from user space is too large,  a large
 > -	 * amount of time will be wasted when allocating page. so,
 > -	 * softlockup may be come up.
-> +	/*
-> +	 * Verify that no segment is larger than half of memory.  If a segment
-> +	 * from userspace is too large,  a large amount of time will be wasted
-> +	 * allocating pages, which can cause a soft lockup.
->  	 */
+>
 >  	for (i = 0; i < nr_segments; i++) {
 >  		if (image->segment[i].memsz > (totalram_pages / 2))
 > _
@@ -197,13 +193,40 @@ On 2016/7/23 3:58, Andrew Morton wrote:
 >
 > .
 >
-Thanks,   the comment is  exact.
- v1->v2 :  the modification  was  suggested  by Eric.
- I guess that he is offline.  I have another patch about kexec is  still not conclusion.
-
-Thanks
-zhongjiang
+ Hi,  Andrew
+when I review the patch, I find the following question. please fix it by rebaseing.
  
+Subject: [PATCH] kexec: fix the add restriction on the kexec_load
+
+Because segments size is in bytes, while totalram_pages is in pages
+so we should fix it.
+
+Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+---
+ kernel/kexec_core.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/kernel/kexec_core.c b/kernel/kexec_core.c
+index 22e41a1..88cf3f9 100644
+--- a/kernel/kexec_core.c
++++ b/kernel/kexec_core.c
+@@ -216,13 +216,13 @@ int sanity_check_segment_list(struct kimage *image)
+         * allocating pages, which can cause a soft lockup.
+         */
+        for (i = 0; i < nr_segments; i++) {
+-               if (image->segment[i].memsz > (totalram_pages / 2))
++               if (image->segment[i].memsz > (totalram_pages << 12) / 2)
+                        return result;
+
+                total_segments += image->segment[i].memsz;
+        }
+
+-       if (total_segments > (totalram_pages / 2))
++       if (total_segments > (totalram_pages << 12) / 2)
+                return result;
+
+        /*
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
