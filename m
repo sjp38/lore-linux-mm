@@ -1,106 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CB3FA6B0253
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 14:36:25 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id q83so462887442iod.2
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 11:36:25 -0700 (PDT)
-Received: from dfwrgout.huawei.com (dfwrgout.huawei.com. [206.16.17.72])
-        by mx.google.com with ESMTPS id e66si11984758otb.286.2016.07.25.11.36.23
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1598C6B0253
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 14:52:21 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id q11so392323965qtb.1
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 11:52:21 -0700 (PDT)
+Received: from mail-qk0-x244.google.com (mail-qk0-x244.google.com. [2607:f8b0:400d:c09::244])
+        by mx.google.com with ESMTPS id n77si5402239ybg.150.2016.07.25.11.52.20
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 25 Jul 2016 11:36:25 -0700 (PDT)
-Message-ID: <5795E18B.5060302@huawei.com>
-Date: Mon, 25 Jul 2016 17:53:15 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Jul 2016 11:52:20 -0700 (PDT)
+Received: by mail-qk0-x244.google.com with SMTP id q8so15016241qke.3
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 11:52:20 -0700 (PDT)
+Date: Mon, 25 Jul 2016 14:52:18 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] mm/memblock.c: fix index adjustment error in
+ __next_mem_range_rev()
+Message-ID: <20160725185218.GG19588@mtj.duckdns.org>
+References: <42A378E55677204FAE257FE7EED241CB7E8EF004@CN-MBX01.HTC.COM.TW>
 MIME-Version: 1.0
-Subject: [PATCH v3] mem-hotplug: alloc new page from a nearest neighbor node
- when mem-offline
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <42A378E55677204FAE257FE7EED241CB7E8EF004@CN-MBX01.HTC.COM.TW>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: zijun_hu@htc.com
+Cc: akpm@linux-foundation.org, kuleshovmail@gmail.com, ard.biesheuvel@linaro.org, tangchen@cn.fujitsu.com, weiyang@linux.vnet.ibm.com, dev@g0hl1n.net, david@gibson.dropbear.id.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-If we offline a node, alloc the new page from a nearest neighbor
-node instead of the current node or other remote nodes, because
-re-migrate is a waste of time and the distance of the remote nodes
-is often very large.
+On Mon, Jul 25, 2016 at 07:34:12AM +0000, zijun_hu@htc.com wrote:
+> Hi All,
+>          There is a bug in mm/memblock.c
+>          Could you review and phase-in this patch?
+>          Thanks a lot
+> 
+> From 3abf1822d30f77f126bd7a3c09bb243d9c17a029 Mon Sep 17 00:00:00 2001
+> From: zijun_hu <zijun_hu@htc.com>
+> Date: Mon, 25 Jul 2016 15:06:57 +0800
+> Subject: [PATCH] mm/memblock.c: fix index adjustment error in
+> __next_mem_range_rev()
+> 
+> fix region index adjustment error when parameter type_b of
+> __next_mem_range_rev() == NULL
+> 
+> Signed-off-by: zijun_hu <zijun_hu@htc.com>
+> ---
+> mm/memblock.c | 2 +-
+> 1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/memblock.c b/mm/memblock.c
+> index ac12489..b14973e 100644
+> --- a/mm/memblock.c
+> +++ b/mm/memblock.c
+> @@ -1024,7 +1024,7 @@ void __init_memblock __next_mem_range_rev(u64 *idx, int nid, ulong flags,
+>                                  *out_end = m_end;
+>                         if (out_nid)
+>                                  *out_nid = m_nid;
+> -                         idx_a++;
+> +                        idx_a--;
 
-Also use GFP_HIGHUSER_MOVABLE to alloc new page if the zone is
-movable zone or highmem zone.
+Looks good to me.  Do you happen to have a test case for this bug?
 
-Changelog:
-V3:
-	-alloc new page from a nearest neighbor node for both
-	movable zone and non-movable zone
-V2:
-	-alloc new page from the next node for only movable zone
+Thanks.
 
-Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
----
- mm/memory_hotplug.c | 38 +++++++++++++++++++++++++++++++++-----
- 1 file changed, 33 insertions(+), 5 deletions(-)
-
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index e3cbdca..04dcf0e 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1501,6 +1501,37 @@ static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
- 	return 0;
- }
- 
-+static struct page *new_node_page(struct page *page, unsigned long private,
-+		int **result)
-+{
-+	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
-+	int nid = page_to_nid(page);
-+	nodemask_t nmask = node_online_map;
-+	struct page *new_page;
-+
-+	/*
-+	 * TODO: allocate a destination hugepage from a nearest neighbor node,
-+	 * accordance with memory policy of the user process if possible. For
-+	 * now as a simple work-around, we use the next node for destination.
-+	 */
-+	if (PageHuge(page))
-+		return alloc_huge_page_node(page_hstate(compound_head(page)),
-+					next_node_in(nid, nmask));
-+
-+	node_clear(nid, nmask);
-+	if (PageHighMem(page)
-+	    || (zone_idx(page_zone(page)) == ZONE_MOVABLE))
-+		gfp_mask |= __GFP_HIGHMEM;
-+
-+	new_page = __alloc_pages_nodemask(gfp_mask, 0,
-+					node_zonelist(nid, gfp_mask), &nmask);
-+	if (!new_page)
-+		new_page = __alloc_pages(gfp_mask, 0,
-+					node_zonelist(nid, gfp_mask));
-+
-+	return new_page;
-+}
-+
- #define NR_OFFLINE_AT_ONCE_PAGES	(256)
- static int
- do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
-@@ -1564,11 +1595,8 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
- 			goto out;
- 		}
- 
--		/*
--		 * alloc_migrate_target should be improooooved!!
--		 * migrate_pages returns # of failed pages.
--		 */
--		ret = migrate_pages(&source, alloc_migrate_target, NULL, 0,
-+		/* Allocate a new page from the nearest neighbor node */
-+		ret = migrate_pages(&source, new_node_page, NULL, 0,
- 					MIGRATE_SYNC, MR_MEMORY_HOTPLUG);
- 		if (ret)
- 			putback_movable_pages(&source);
 -- 
-1.8.3.1
-
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
