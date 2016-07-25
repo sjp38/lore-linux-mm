@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DBD566B0261
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 04:36:22 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id hh10so322935200pac.3
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 01:36:22 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 650186B0261
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 04:36:23 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id hh10so322935472pac.3
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 01:36:23 -0700 (PDT)
 Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id l78si32477252pfj.253.2016.07.25.01.36.20
+        by mx.google.com with ESMTP id 140si32538003pfx.153.2016.07.25.01.36.21
         for <linux-mm@kvack.org>;
         Mon, 25 Jul 2016 01:36:22 -0700 (PDT)
 From: Dou Liyang <douly.fnst@cn.fujitsu.com>
-Subject: [PATCH v9 6/7] acpi: Provide the mechanism to validate processors in the ACPI tables
-Date: Mon, 25 Jul 2016 16:35:48 +0800
-Message-ID: <1469435749-19582-7-git-send-email-douly.fnst@cn.fujitsu.com>
+Subject: [PATCH v9 7/7] acpi: Provide the interface to validate the proc_id
+Date: Mon, 25 Jul 2016 16:35:49 +0800
+Message-ID: <1469435749-19582-8-git-send-email-douly.fnst@cn.fujitsu.com>
 In-Reply-To: <1469435749-19582-1-git-send-email-douly.fnst@cn.fujitsu.com>
 References: <1469435749-19582-1-git-send-email-douly.fnst@cn.fujitsu.com>
 MIME-Version: 1.0
@@ -21,150 +21,80 @@ List-ID: <linux-mm.kvack.org>
 To: cl@linux.com, tj@kernel.org, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, len.brown@intel.com, lenb@kernel.org, tglx@linutronix.de, chen.tang@easystack.cn, rafael@kernel.org
 Cc: x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dou Liyang <douly.fnst@cn.fujitsu.com>
 
-[Problem]
+When we want to identify whether the proc_id is unreasonable or not, we
+can call the "acpi_processor_validate_proc_id" function. It will search
+in the duplicate IDs. If we find the proc_id in the IDs, we return true
+to the call function. Conversely, the false represents available.
 
-When we set cpuid <-> nodeid mapping to be persistent, it will use the DSDT
-As we know, the ACPI tables are just like user's input in that respect, and
-we don't crash if user's input is unreasonable.
+When we establish all possible cpuid <-> nodeid mapping to handle the
+cpu hotplugs, we will use the proc_id from ACPI table.
 
-Such as, the mapping of the proc_id and pxm in some machine's ACPI table is
-like this:
-
-proc_id   |    pxm
---------------------
-0       <->     0
-1       <->     0
-2       <->     1
-3       <->     1
-89      <->     0
-89      <->     0
-89      <->     0
-89      <->     1
-89      <->     1
-89      <->     2
-89      <->     3
-.....
-
-We can't be sure which one is correct to the proc_id 89. We may map a wrong
-node to a cpu. When pages are allocated, this may cause a kernal panic.
-
-So, we should provide mechanisms to validate the ACPI tables, just like we
-do validation to check user's input in web project.
-
-The mechanism is that the processor objects which have the duplicate IDs
-are not valid.
-
-[Solution]
-
-We add a validation function, like this:
-
-foreach Processor in DSDT
-	proc_id= get_ACPI_Processor_number(Processor)
-	if(the proc_id has alreadly existed )
-		mark both of them as being unreasonable;
-
-The function will record the unique or duplicate processor IDs.
-
-The duplicate processor IDs such as 89 are regarded as the unreasonable IDs
-which mean that the processor objects in question are not valid.
+We do validation when we get the proc_id. If the result is true, we
+will stop the mapping.
 
 Signed-off-by: Dou Liyang <douly.fnst@cn.fujitsu.com>
 ---
- drivers/acpi/acpi_processor.c | 79 +++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 79 insertions(+)
+ drivers/acpi/acpi_processor.c | 16 ++++++++++++++++
+ drivers/acpi/processor_core.c |  4 ++++
+ include/linux/acpi.h          |  3 +++
+ 3 files changed, 23 insertions(+)
 
 diff --git a/drivers/acpi/acpi_processor.c b/drivers/acpi/acpi_processor.c
-index 0c15828..346fbfc 100644
+index 346fbfc..ae6dae9 100644
 --- a/drivers/acpi/acpi_processor.c
 +++ b/drivers/acpi/acpi_processor.c
-@@ -581,8 +581,87 @@ static struct acpi_scan_handler processor_container_handler = {
- 	.attach = acpi_processor_container_attach,
- };
+@@ -659,6 +659,22 @@ static void acpi_processor_duplication_valiate(void)
+ 						NULL, NULL, NULL);
+ }
  
-+/* The number of the unique processor IDs */
-+static int nr_unique_ids;
-+
-+/* The number of the duplicate processor IDs */
-+static int nr_duplicate_ids;
-+
-+/* Used to store the unique processor IDs */
-+static int unique_processor_ids[] = {
-+	[0 ... NR_CPUS - 1] = -1,
-+};
-+
-+/* Used to store the duplicate processor IDs */
-+static int duplicate_processor_ids[] = {
-+	[0 ... NR_CPUS - 1] = -1,
-+};
-+
-+static void processor_validated_ids_update(int proc_id)
++bool acpi_processor_validate_proc_id(int proc_id)
 +{
 +	int i;
 +
-+	if (nr_unique_ids == NR_CPUS||nr_duplicate_ids == NR_CPUS)
-+		return;
-+
 +	/*
-+	 * Firstly, compare the proc_id with duplicate IDs, if the proc_id is
-+	 * already in the IDs, do nothing.
++	 * compare the proc_id with duplicate IDs, if the proc_id is already
++	 * in the duplicate IDs, return true, otherwise, return false.
 +	 */
 +	for (i = 0; i < nr_duplicate_ids; i++) {
 +		if (duplicate_processor_ids[i] == proc_id)
-+			return;
++			return true;
 +	}
 +
-+	/*
-+	 * Secondly, compare the proc_id with unique IDs, if the proc_id is in
-+	 * the IDs, put it in the duplicate IDs.
-+	 */
-+	for (i = 0; i < nr_unique_ids; i++) {
-+		if (unique_processor_ids[i] == proc_id) {
-+			duplicate_processor_ids[nr_duplicate_ids] = proc_id;
-+			nr_duplicate_ids++;
-+			return;
-+		}
-+	}
-+
-+	/*
-+	 * Lastly, the proc_id is a unique ID, put it in the unique IDs.
-+	 */
-+	unique_processor_ids[nr_unique_ids] = proc_id;
-+	nr_unique_ids++;
-+}
-+
-+static acpi_status acpi_processor_ids_walk(acpi_handle handle,
-+						u32 lvl,
-+						void *context,
-+						void **rv)
-+{
-+	acpi_status status;
-+	union acpi_object object = { 0 };
-+	struct acpi_buffer buffer = { sizeof(union acpi_object), &object };
-+
-+	status = acpi_evaluate_object(handle, NULL, NULL, &buffer);
-+	if (ACPI_FAILURE(status))
-+		acpi_handle_info(handle, "Not get the processor object\n");
-+	else
-+		processor_validated_ids_update(object.processor.proc_id);
-+
-+	return AE_OK;
-+}
-+
-+static void acpi_processor_duplication_valiate(void)
-+{
-+	/* Search all processor nodes in ACPI namespace */
-+	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT,
-+						ACPI_UINT32_MAX,
-+						acpi_processor_ids_walk,
-+						NULL, NULL, NULL);
++	return false;
 +}
 +
  void __init acpi_processor_init(void)
  {
-+	acpi_processor_duplication_valiate();
- 	acpi_scan_add_handler_with_hotplug(&processor_handler, "processor");
- 	acpi_scan_add_handler(&processor_container_handler);
+ 	acpi_processor_duplication_valiate();
+diff --git a/drivers/acpi/processor_core.c b/drivers/acpi/processor_core.c
+index b44675b..97adffb 100644
+--- a/drivers/acpi/processor_core.c
++++ b/drivers/acpi/processor_core.c
+@@ -282,6 +282,10 @@ static bool map_processor(acpi_handle handle, phys_cpuid_t *phys_id, int *cpuid)
+ 		if (ACPI_FAILURE(status))
+ 			return false;
+ 		acpi_id = object.processor.proc_id;
++
++		/* validate the acpi_id */
++		if(acpi_processor_validate_proc_id(acpi_id))
++			return false;
+ 		break;
+ 	case ACPI_TYPE_DEVICE:
+ 		status = acpi_evaluate_integer(handle, "_UID", NULL, &tmp);
+diff --git a/include/linux/acpi.h b/include/linux/acpi.h
+index 53b3014..94ceae1 100644
+--- a/include/linux/acpi.h
++++ b/include/linux/acpi.h
+@@ -254,6 +254,9 @@ static inline bool invalid_phys_cpuid(phys_cpuid_t phys_id)
+ 	return phys_id == PHYS_CPUID_INVALID;
  }
+ 
++/*validate the processor object's proc_id*/
++bool acpi_processor_validate_proc_id(int proc_id);
++
+ #ifdef CONFIG_ACPI_HOTPLUG_CPU
+ /* Arch dependent functions for cpu hotplug support */
+ int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, int *pcpu);
 -- 
 2.5.5
 
