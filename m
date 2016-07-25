@@ -1,132 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E8DF6B0005
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 10:17:53 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id p41so117847248lfi.0
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 07:17:53 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id bn5si15119319wjd.182.2016.07.25.07.17.51
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C55046B0005
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 10:39:43 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id w207so383449731oiw.1
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 07:39:43 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id g17si10723649ita.7.2016.07.25.07.39.42
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 25 Jul 2016 07:17:51 -0700 (PDT)
-Date: Mon, 25 Jul 2016 16:17:50 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v3 0/8] Change OOM killer to use list of mm_struct.
-Message-ID: <20160725141749.GI9401@dhcp22.suse.cz>
-References: <20160725084803.GE9401@dhcp22.suse.cz>
- <201607252007.BGI56224.SHVFLFOOFMJtOQ@I-love.SAKURA.ne.jp>
- <20160725112140.GF9401@dhcp22.suse.cz>
- <201607252047.CHG57343.JFSOHMFVOQFtLO@I-love.SAKURA.ne.jp>
- <20160725115900.GG9401@dhcp22.suse.cz>
- <201607252302.JFE86466.FOMFVFJOtSHQLO@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201607252302.JFE86466.FOMFVFJOtSHQLO@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Jul 2016 07:39:43 -0700 (PDT)
+From: Kyle Walker <kwalker@redhat.com>
+Subject: [PATCH] mm: Move readahead limit outside of readahead, and advisory syscalls
+Date: Mon, 25 Jul 2016 10:39:25 -0400
+Message-Id: <1469457565-22693-1-git-send-email-kwalker@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, oleg@redhat.com, rientjes@google.com, vdavydov@parallels.com, mst@redhat.com
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Kyle Walker <kwalker@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Geliang Tang <geliangtang@163.com>, Vlastimil Babka <vbabka@suse.cz>, Roman Gushchin <klamm@yandex-team.ru>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Mon 25-07-16 23:02:35, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Mon 25-07-16 20:47:03, Tetsuo Handa wrote:
-> > > Michal Hocko wrote:
-> > > > On Mon 25-07-16 20:07:11, Tetsuo Handa wrote:
-> > > > > Michal Hocko wrote:
-> > > > > > > Are you planning to change the scope where the OOM victims can access memory
-> > > > > > > reserves?
-> > > > > > 
-> > > > > > Yes. Because we know that there are some post exit_mm allocations and I
-> > > > > > do not want to get back to PF_EXITING and other tricks...
-> > > > > > 
-> > > > > > > (1) If you plan to allow the OOM victims to access memory reserves until
-> > > > > > >     TASK_DEAD, tsk_is_oom_victim() will be as trivial as
-> > > > > > > 
-> > > > > > > bool tsk_is_oom_victim(struct task_struct *task)
-> > > > > > > {
-> > > > > > > 	return task->signal->oom_mm;
-> > > > > > > }
-> > > > > > 
-> > > > > > yes, exactly. That's what I've tried to say above. with the oom_mm this
-> > > > > > is trivial to implement while mm lists will not help us much due to
-> > > > > > their life time. This also means that we know about the oom victim until
-> > > > > > it is unhashed and become invisible to the oom killer.
-> > > > > 
-> > > > > Then, what are advantages with allowing only OOM victims access to memory
-> > > > > reserves after they left exit_mm()?
-> > > > 
-> > > > Because they might need it in order to move on... Say you want to close
-> > > > all the files which might release considerable amount of memory or any
-> > > > other post exit_mm() resources.
-> > > 
-> > > OOM victims might need memory reserves in order to move on, but non OOM victims
-> > > might also need memory reserves in order to move on. And non OOM victims might
-> > > be blocking OOM victims via locks.
-> > 
-> > Yes that might be true but OOM situations are rare events and quite
-> > reduced in the scope. Considering all exiting tasks is more dangerous
-> > because they might deplete those memory reserves easily.
-> 
-> Why do you assume that we grant all of memory reserves?
+Java workloads using the MappedByteBuffer library result in the fadvise()
+and madvise() syscalls being used extensively. Following recent readahead
+limiting alterations, such as 600e19af ("mm: use only per-device readahead
+limit") and 6d2be915 ("mm/readahead.c: fix readahead failure for
+memoryless NUMA nodes and limit readahead pages"), application performance
+suffers in instances where small readahead is configured.
 
-I've said deplete "those memory reserves". It would be just too easy to
-exit many tasks at once and use up that memory.
+By moving this limit outside of the syscall codepaths, the syscalls are
+able to advise an inordinately large amount of readahead when desired.
+With a cap being imposed based on the half of NR_INACTIVE_FILE and
+NR_FREE_PAGES. In essence, allowing performance tuning efforts to define a
+small readahead limit, but then benefiting from large sequential readahead
+values selectively.
 
-> I'm suggesting that we grant portion of memory reserves.
+Signed-off-by: Kyle Walker <kwalker@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Geliang Tang <geliangtang@163.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Roman Gushchin <klamm@yandex-team.ru>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+---
+ mm/readahead.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
 
-Which doesn't solve anything because it will always be a finite resource
-which can get depleted. This is basically the same as the oom victim
-(ab)using reserves accept that OOM is much less likely and it is under
-control of the kernel which task gets killed.
-
-[...]
-> > > > If we know that the currently allocating task is an OOM victim then
-> > > > giving it access to memory reserves is preferable to selecting another
-> > > > oom victim.
-> > > 
-> > > If we know that the currently allocating task is killed/exiting then
-> > > giving it access to memory reserves is preferable to selecting another
-> > > OOM victim.
-> > 
-> > I believe this is getting getting off topic. Can we get back to mm list
-> > vs signal::oom_mm decision? I have expressed one aspect that would speak
-> > for oom_mm as it provides a persistent and easy to detect oom victim
-> > which would be tricky with the mm list approach. Could you name some
-> > arguments which would speak for the mm list and would be a problem with
-> > the other approach?
-> 
-> I thought we are talking about future plan. I didn't know you are asking for
-> some arguments which would speak for the mm list.
-
-I have brought the future plans just because one part of it might be
-much easier to implement if we go with the signal struct based approach.
-As there was no other tie breaker I felt like it could help us with the
-decision.
-
-> Since the mm list approach turned out that we after all need victim's
-> task_struct in order to test eligibility of victim's mm, the signal::oom_mm
-> approach will be easier to access both victim's task_struct and victim's mm
-> than the mm list approach. I'm fine with signal::oom_mm approach regarding
-> oom_scan_process_thread() part.
-
-OK
+diff --git a/mm/readahead.c b/mm/readahead.c
+index 65ec288..6f8bb44 100644
+--- a/mm/readahead.c
++++ b/mm/readahead.c
+@@ -211,7 +211,9 @@ int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
+ 	if (unlikely(!mapping->a_ops->readpage && !mapping->a_ops->readpages))
+ 		return -EINVAL;
  
-> But I don't like use of ALLOC_NO_WATERMARKS by signal::oom_mm != NULL tasks
-> after they passed exit_mm().
-
-I am not proposing that now and we can discuss it later when an actual
-patch exists. All I wanted to achieve now is to agree on the first step
-and direction. If you are ok with the oom_mm approach and do not see any
-strong reasons to prefer mm list based one then I will post my current
-pile later this week. Then I would like to handle kthread gracefully. I
-guess this would be more than enough for this cycle before actually
-meddling with TIF_MEMDIE.
-
-Thanks!
+-	nr_to_read = min(nr_to_read, inode_to_bdi(mapping->host)->ra_pages);
++	nr_to_read = min(nr_to_read, (global_page_state(NR_INACTIVE_FILE) +
++				     (global_page_state(NR_FREE_PAGES)) / 2));
++
+ 	while (nr_to_read) {
+ 		int err;
+ 
+@@ -484,6 +486,7 @@ void page_cache_sync_readahead(struct address_space *mapping,
+ 
+ 	/* be dumb */
+ 	if (filp && (filp->f_mode & FMODE_RANDOM)) {
++		req_size = min(req_size, inode_to_bdi(mapping->host)->ra_pages);
+ 		force_page_cache_readahead(mapping, filp, offset, req_size);
+ 		return;
+ 	}
 -- 
-Michal Hocko
-SUSE Labs
+2.5.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
