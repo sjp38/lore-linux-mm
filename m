@@ -1,105 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 391FA6B025E
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 03:51:38 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id b62so232782502pfa.2
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 00:51:38 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id t22si32290911pfi.209.2016.07.25.00.51.36
-        for <linux-mm@kvack.org>;
-        Mon, 25 Jul 2016 00:51:37 -0700 (PDT)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [RFC] mm: bail out in shrin_inactive_list
-Date: Mon, 25 Jul 2016 16:51:59 +0900
-Message-Id: <1469433119-1543-1-git-send-email-minchan@kernel.org>
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C2CC6B0261
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 03:52:27 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id p129so72278638wmp.3
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 00:52:27 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i11si22902829wmh.67.2016.07.25.00.52.26
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 25 Jul 2016 00:52:26 -0700 (PDT)
+Subject: Re: [PATCH v2] mem-hotplug: alloc new page from the next node if zone
+ is MOVABLE_ZONE
+References: <57918BAC.8000008@huawei.com>
+ <cd3707d7-fb97-ab90-24d6-6bee3113f515@suse.cz> <5795C2CA.7030707@huawei.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <1aa8186c-5672-013f-9e04-d950ed651a0b@suse.cz>
+Date: Mon, 25 Jul 2016 09:52:23 +0200
+MIME-Version: 1.0
+In-Reply-To: <5795C2CA.7030707@huawei.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-With node-lru, if there are enough reclaimable pages in highmem
-but nothing in lowmem, VM can try to shrink inactive list although
-the requested zone is lowmem.
+On 07/25/2016 09:42 AM, Xishi Qiu wrote:
+> On 2016/7/25 14:59, Vlastimil Babka wrote:
+>
+>> On 07/22/2016 04:57 AM, Xishi Qiu wrote:
+>>> Memory offline could happen on both movable zone and non-movable zone.
+>>> We can offline the whole node if the zone is movable zone, and if the
+>>> zone is non-movable zone, we cannot offline the whole node, because
+>>> some kernel memory can't be migrated.
+>>>
+>>> So if we offline a node with movable zone, use prefer mempolicy to alloc
+>>> new page from the next node instead of the current node or other remote
+>>> nodes, because re-migrate is a waste of time and the distance of the
+>>> remote nodes is often very large.
+>>>
+>>> Also use GFP_HIGHUSER_MOVABLE to alloc new page if the zone is movable
+>>> zone.
+>>>
+>>> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+>>
+>> I think this could be simpler, if you preferred the next node regardless of whether it's movable zone or not. What are use cases for trying to offline part of non-MOVABLE zone in a node? It's not guaranteed to succeed anyway. Also if the reasoning is that the non-MOVABLE offlining preference for migration target should be instead on the *same* node, then alloc_migrate_target() would anyway prefer the node of the current CPU that happens to execute the offlining, which is random wrt the node in question. So consistently choosing remote node is IMHO better than random even for non-MOVABLE zone.
+>>
+>
+> Hi Vlastimil,
+>
+> use next node for movable zone, use current node for non-movable zone, right?
 
-The problem is direct reclaimer scans inactive list is fulled with
-highmem pages to find a victim page at a reqested zone or lower zones
-but the result is that VM should skip all of pages. It just burns out
-CPU. Even, many direct reclaimers are stalled by too_many_isolated
-if lots of parallel reclaimer are going on although there are no
-reclaimable memory in inactive list.
+I was asking why not just next node for any zone, to make things 
+simpler. What's the use case for offlining in non-movable zone?
 
-I tried the experiment 4 times in 32bit 2G 8 CPU KVM machine
-to get elapsed time.
+>
+>>> ---
+>>>  mm/memory_hotplug.c | 35 +++++++++++++++++++++++++++++------
+>>>  1 file changed, 29 insertions(+), 6 deletions(-)
+>>>
+>>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>>> index e3cbdca..930a5c6 100644
+>>> --- a/mm/memory_hotplug.c
+>>> +++ b/mm/memory_hotplug.c
+>>> @@ -1501,6 +1501,16 @@ static unsigned long scan_movable_pages(unsigned long start, unsigned long end)
+>>>      return 0;
+>>>  }
+>>>
+>>> +static struct page *new_node_page(struct page *page, unsigned long node,
+>>> +        int **result)
+>>> +{
+>>> +    if (PageHuge(page))
+>>> +        return alloc_huge_page_node(page_hstate(compound_head(page)),
+>>> +                    node);
+>>> +    else
+>>> +        return __alloc_pages_node(node, GFP_HIGHUSER_MOVABLE, 0);
+>>
+>> You could just test for page in movable (or highmem?) zone here in the callback.
+>>
+>
+> is_highmem_idx() always return 0 if CONFIG_HIGHMEM closed.
 
-	hackbench 500 process 2
+Yeah, but then it doesn't matter if __GFP_HIGHMEM is given.
 
-= Old =
+> And GFP_HIGHUSER_MOVABLE will choose movable_zone first, then normal_zone.
+> So how about this check? if (PageHighMem() or zone == ZONE_MOVABLE) then use GFP_HIGHUSER_MOVABLE
 
-1st: 289s 2nd: 310s 3rd: 112s 4th: 272s
+zone == ZONE_MOVABLE -> GFP_HIGHUSER_MOVABLE
+PageHighMem() -> GFP_HIGHUSER
+else GFP_USER ?
 
-= Now =
+>>> +}
+>>> +
+>>>  #define NR_OFFLINE_AT_ONCE_PAGES    (256)
+>>>  static int
+>>>  do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+>>> @@ -1510,6 +1520,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+>>>      int move_pages = NR_OFFLINE_AT_ONCE_PAGES;
+>>>      int not_managed = 0;
+>>>      int ret = 0;
+>>> +    int nid = NUMA_NO_NODE;
+>>>      LIST_HEAD(source);
+>>>
+>>>      for (pfn = start_pfn; pfn < end_pfn && move_pages > 0; pfn++) {
+>>> @@ -1564,12 +1575,24 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+>>>              goto out;
+>>>          }
+>>>
+>>> -        /*
+>>> -         * alloc_migrate_target should be improooooved!!
+>>> -         * migrate_pages returns # of failed pages.
+>>> -         */
+>>> -        ret = migrate_pages(&source, alloc_migrate_target, NULL, 0,
+>>> -                    MIGRATE_SYNC, MR_MEMORY_HOTPLUG);
+>>> +        for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+>>> +            if (!pfn_valid(pfn))
+>>> +                continue;
+>>> +            page = pfn_to_page(pfn);
+>>> +            if (zone_idx(page_zone(page)) == ZONE_MOVABLE)
+>>> +                nid = next_node_in(page_to_nid(page),
+>>> +                        node_online_map);
+>>> +            break;
+>>> +        }
+>>
+>> Then you could remove the ZONE_MOVABLE check here. I'm not sure how much worth the precalculation of nid is, if it has to be a rather complicated code like this, hm.
+>>
+>> Also, since we know that "next node in node_online_map" is in fact not optimal, what about using the opportunity to really try the best possible way? Maybe it's as simple as allocating via __alloc_pages_nodemask() with current node's zonelist (where remote nodes should be already sorted according to NUMA distance), but with current node (which would be first in the zonelist) removed from the nodemask so that it's skipped over? But check if memory offlining process didn't kill the zonelist already at this point, or something.
+>>
+>
+> Do you mean that call __alloc_pages_nodemask(), the zonelist is from current page's node,
+> but it(the current page's node) is not include in the nodemask?
 
-1st: 31s  2nd: 132s 3rd: 162s 4th: 50s.
+Exactly.
+The question is if there should be a fallback to current page's node if 
+that fails. Only make sense if somebody wants to offline only part of 
+the node?
 
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
-I believe proper fix is to modify get_scan_count. IOW, I think
-we should introduce lruvec_reclaimable_lru_size with proper
-classzone_idx but I don't know how we can fix it with memcg
-which doesn't have zone stat now. should introduce zone stat
-back to memcg? Or, it's okay to ignore memcg?
-
- mm/vmscan.c | 28 ++++++++++++++++++++++++++++
- 1 file changed, 28 insertions(+)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index e5af357..3d285cc 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1652,6 +1652,31 @@ static int current_may_throttle(void)
- 		bdi_write_congested(current->backing_dev_info);
- }
- 
-+static inline bool inactive_reclaimable_pages(struct lruvec *lruvec,
-+				struct scan_control *sc,
-+				enum lru_list lru)
-+{
-+	int zid;
-+	struct zone *zone;
-+	bool file = is_file_lru(lru);
-+	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
-+
-+	if (!global_reclaim(sc))
-+		return true;
-+
-+	for (zid = sc->reclaim_idx; zid >= 0; zid--) {
-+		zone = &pgdat->node_zones[zid];
-+		if (!populated_zone(zone))
-+			continue;
-+
-+		if (zone_page_state_snapshot(zone, NR_ZONE_LRU_BASE +
-+				LRU_FILE * file) >= SWAP_CLUSTER_MAX)
-+			return true;
-+	}
-+
-+	return false;
-+}
-+
- /*
-  * shrink_inactive_list() is a helper for shrink_node().  It returns the number
-  * of reclaimed pages
-@@ -1674,6 +1699,9 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
- 	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
- 
-+	if (!inactive_reclaimable_pages(lruvec, sc, lru))
-+		return 0;
-+
- 	while (unlikely(too_many_isolated(pgdat, file, sc))) {
- 		congestion_wait(BLK_RW_ASYNC, HZ/10);
- 
--- 
-1.9.1
+>
+> Thanks,
+> Xishi Qiu
+>
+>>> +
+>>> +        /* Alloc new page from the next node if possible */
+>>> +        if (nid != NUMA_NO_NODE)
+>>> +            ret = migrate_pages(&source, new_node_page, NULL,
+>>> +                    nid, MIGRATE_SYNC, MR_MEMORY_HOTPLUG);
+>>> +        else
+>>> +            ret = migrate_pages(&source, alloc_migrate_target, NULL,
+>>> +                    0, MIGRATE_SYNC, MR_MEMORY_HOTPLUG);
+>>
+>> Please just use one new callback fully tailored for memory offline, instead of choosing between the two like this.
+>>
+>>>          if (ret)
+>>>              putback_movable_pages(&source);
+>>>      }
+>>>
+>>
+>>
+>> .
+>>
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
