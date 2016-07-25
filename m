@@ -1,107 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B3E16B0005
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 05:29:14 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id 33so111992708lfw.1
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 02:29:14 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fd4si13985781wjb.204.2016.07.25.02.29.12
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 589136B0253
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 05:29:45 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id x83so73328729wma.2
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 02:29:45 -0700 (PDT)
+Received: from smtp-out6.electric.net (smtp-out6.electric.net. [192.162.217.195])
+        by mx.google.com with ESMTPS id u15si14749770lff.104.2016.07.25.02.29.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 25 Jul 2016 02:29:13 -0700 (PDT)
-Date: Mon, 25 Jul 2016 10:29:09 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [RFC] mm: bail out in shrin_inactive_list
-Message-ID: <20160725092909.GV11400@suse.de>
-References: <1469433119-1543-1-git-send-email-minchan@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 25 Jul 2016 02:29:44 -0700 (PDT)
+From: David Laight <David.Laight@ACULAB.COM>
+Subject: RE: [PATCH v3 02/11] mm: Hardened usercopy
+Date: Mon, 25 Jul 2016 09:27:31 +0000
+Message-ID: <063D6719AE5E284EB5DD2968C1650D6D5F502102@AcuExch.aculab.com>
+References: <1468619065-3222-1-git-send-email-keescook@chromium.org>
+ <1468619065-3222-3-git-send-email-keescook@chromium.org>
+ <5790711f.2350420a.b4287.2cc0SMTPIN_ADDED_BROKEN@mx.google.com>
+ <CAGXu5jLCu1Vv0uugKZrsjSEsoABgXJSOJ8GkKmrHbvj9jkC2YA@mail.gmail.com>
+ <20160722174551.jddle6mf7zlq6xmb@treble>
+In-Reply-To: <20160722174551.jddle6mf7zlq6xmb@treble>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1469433119-1543-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: 'Josh Poimboeuf' <jpoimboe@redhat.com>, Kees Cook <keescook@chromium.org>
+Cc: Jan Kara <jack@suse.cz>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Will Deacon <will.deacon@arm.com>, Linux-MM <linux-mm@kvack.org>, sparclinux <sparclinux@vger.kernel.org>, "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-arch <linux-arch@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>, Russell King <linux@armlinux.org.uk>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, PaX Team <pageexec@freemail.hu>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Fenghua Yu <fenghua.yu@intel.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Tony Luck <tony.luck@intel.com>, Andy Lutomirski <luto@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dmitry Vyukov <dvyukov@google.com>, Laura Abbott <labbott@fedoraproject.org>, Brad Spengler <spender@grsecurity.net>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, LKML <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, Daniel
+ Micay <danielmicay@gmail.com>, Casey Schaufler <casey@schaufler-ca.com>, Andrew Morton <akpm@linux-foundation.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "David S. Miller" <davem@davemloft.net>
 
-There is a typo in the subject line.
-
-On Mon, Jul 25, 2016 at 04:51:59PM +0900, Minchan Kim wrote:
-> With node-lru, if there are enough reclaimable pages in highmem
-> but nothing in lowmem, VM can try to shrink inactive list although
-> the requested zone is lowmem.
-> 
-> The problem is direct reclaimer scans inactive list is fulled with
-
-
-> highmem pages to find a victim page at a reqested zone or lower zones
-> but the result is that VM should skip all of pages. 
-
-Rephease -- The problem is that if the inactive list is full of highmem
-pages then a direct reclaimer searching for a lowmem page waste CPU
-scanning uselessly.
-
-> CPU. Even, many direct reclaimers are stalled by too_many_isolated
-> if lots of parallel reclaimer are going on although there are no
-> reclaimable memory in inactive list.
-> 
-> I tried the experiment 4 times in 32bit 2G 8 CPU KVM machine
-> to get elapsed time.
-> 
-> 	hackbench 500 process 2
-> 
-> = Old =
-> 
-> 1st: 289s 2nd: 310s 3rd: 112s 4th: 272s
-> 
-> = Now =
-> 
-> 1st: 31s  2nd: 132s 3rd: 162s 4th: 50s.
-> 
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
-> I believe proper fix is to modify get_scan_count. IOW, I think
-> we should introduce lruvec_reclaimable_lru_size with proper
-> classzone_idx but I don't know how we can fix it with memcg
-> which doesn't have zone stat now. should introduce zone stat
-> back to memcg? Or, it's okay to ignore memcg?
-> 
-
-I think it's ok to ignore memcg in this case as a memcg shrink is often
-going to be for pages that can use highmem anyway.
-
->  mm/vmscan.c | 28 ++++++++++++++++++++++++++++
->  1 file changed, 28 insertions(+)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index e5af357..3d285cc 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1652,6 +1652,31 @@ static int current_may_throttle(void)
->  		bdi_write_congested(current->backing_dev_info);
->  }
->  
-> +static inline bool inactive_reclaimable_pages(struct lruvec *lruvec,
-> +				struct scan_control *sc,
-> +				enum lru_list lru)
-
-inline is unnecessary. The function is long but only has one caller so
-it'll be inlined automatically.
-
-> +{
-> +	int zid;
-> +	struct zone *zone;
-> +	bool file = is_file_lru(lru);
-
-It's more appropriate to use int for file in this case as it's used as a
-multiplier. It'll work either way.
-
-Otherwise;
-
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
-
--- 
-Mel Gorman
-SUSE Labs
+RnJvbTogSm9zaCBQb2ltYm9ldWYNCj4gU2VudDogMjIgSnVseSAyMDE2IDE4OjQ2DQouLg0KPiA+
+ID4+ICsvKg0KPiA+ID4+ICsgKiBDaGVja3MgaWYgYSBnaXZlbiBwb2ludGVyIGFuZCBsZW5ndGgg
+aXMgY29udGFpbmVkIGJ5IHRoZSBjdXJyZW50DQo+ID4gPj4gKyAqIHN0YWNrIGZyYW1lIChpZiBw
+b3NzaWJsZSkuDQo+ID4gPj4gKyAqDQo+ID4gPj4gKyAqICAgMDogbm90IGF0IGFsbCBvbiB0aGUg
+c3RhY2sNCj4gPiA+PiArICogICAxOiBmdWxseSB3aXRoaW4gYSB2YWxpZCBzdGFjayBmcmFtZQ0K
+PiA+ID4+ICsgKiAgIDI6IGZ1bGx5IG9uIHRoZSBzdGFjayAod2hlbiBjYW4ndCBkbyBmcmFtZS1j
+aGVja2luZykNCj4gPiA+PiArICogICAtMTogZXJyb3IgY29uZGl0aW9uIChpbnZhbGlkIHN0YWNr
+IHBvc2l0aW9uIG9yIGJhZCBzdGFjayBmcmFtZSkNCj4gPiA+PiArICovDQo+ID4gPj4gK3N0YXRp
+YyBub2lubGluZSBpbnQgY2hlY2tfc3RhY2tfb2JqZWN0KGNvbnN0IHZvaWQgKm9iaiwgdW5zaWdu
+ZWQgbG9uZyBsZW4pDQo+ID4gPj4gK3sNCj4gPiA+PiArICAgICBjb25zdCB2b2lkICogY29uc3Qg
+c3RhY2sgPSB0YXNrX3N0YWNrX3BhZ2UoY3VycmVudCk7DQo+ID4gPj4gKyAgICAgY29uc3Qgdm9p
+ZCAqIGNvbnN0IHN0YWNrZW5kID0gc3RhY2sgKyBUSFJFQURfU0laRTsNCj4gPiA+DQo+ID4gPiBU
+aGF0IGFsbG93cyBhY2Nlc3MgdG8gdGhlIGVudGlyZSBzdGFjaywgaW5jbHVkaW5nIHRoZSBzdHJ1
+Y3QgdGhyZWFkX2luZm8sDQo+ID4gPiBpcyB0aGF0IHdoYXQgd2Ugd2FudCAtIGl0IHNlZW1zIGRh
+bmdlcm91cz8gT3IgZGlkIEkgbWlzcyBhIGNoZWNrDQo+ID4gPiBzb21ld2hlcmUgZWxzZT8NCj4g
+Pg0KPiA+IFRoYXQgc2VlbXMgbGlrZSBhIG5pY2UgaW1wcm92ZW1lbnQgdG8gbWFrZSwgeWVhaC4N
+Cj4gPg0KPiA+ID4gV2UgaGF2ZSBlbmRfb2Zfc3RhY2soKSB3aGljaCBjb21wdXRlcyB0aGUgZW5k
+IG9mIHRoZSBzdGFjayB0YWtpbmcNCj4gPiA+IHRocmVhZF9pbmZvIGludG8gYWNjb3VudCAoZW5k
+IGJlaW5nIHRoZSBvcHBvc2l0ZSBvZiB5b3VyIGVuZCBhYm92ZSkuDQo+ID4NCj4gPiBBbXVzaW5n
+bHksIHRoZSBvYmplY3RfaXNfb25fc3RhY2soKSBjaGVjayBpbiBzY2hlZC5oIGRvZXNuJ3QgdGFr
+ZQ0KPiA+IHRocmVhZF9pbmZvIGludG8gYWNjb3VudCBlaXRoZXIuIDpQIFJlZ2FyZGxlc3MsIEkg
+dGhpbmsgdXNpbmcNCj4gPiBlbmRfb2Zfc3RhY2soKSBtYXkgbm90IGJlIGJlc3QuIFRvIHRpZ2h0
+ZW4gdGhlIGNoZWNrLCBJIHRoaW5rIHdlIGNvdWxkDQo+ID4gYWRkIHRoaXMgYWZ0ZXIgY2hlY2tp
+bmcgdGhhdCB0aGUgb2JqZWN0IGlzIG9uIHRoZSBzdGFjazoNCj4gPg0KPiA+ICNpZmRlZiBDT05G
+SUdfU1RBQ0tfR1JPV1NVUA0KPiA+ICAgICAgICAgc3RhY2tlbmQgLT0gc2l6ZW9mKHN0cnVjdCB0
+aHJlYWRfaW5mbyk7DQo+ID4gI2Vsc2UNCj4gPiAgICAgICAgIHN0YWNrICs9IHNpemVvZihzdHJ1
+Y3QgdGhyZWFkX2luZm8pOw0KPiA+ICNlbmRpZg0KPiA+DQo+ID4gZS5nLiB0aGVuIGlmIHRoZSBw
+b2ludGVyIHdhcyBpbiB0aGUgdGhyZWFkX2luZm8sIHRoZSBzZWNvbmQgdGVzdCB3b3VsZA0KPiA+
+IGZhaWwsIHRyaWdnZXJpbmcgdGhlIHByb3RlY3Rpb24uDQo+IA0KPiBGV0lXLCB0aGlzIHdvbid0
+IHdvcmsgcmlnaHQgb24geDg2IGFmdGVyIEFuZHkncw0KPiBDT05GSUdfVEhSRUFEX0lORk9fSU5f
+VEFTSyBwYXRjaGVzIGdldCBtZXJnZWQuDQoNCldoYXQgZW5kcyB1cCBpbiB0aGUgJ3RocmVhZF9p
+bmZvJyBhcmVhPw0KSWYgaXQgY29udGFpbnMgdGhlIGZwIHNhdmUgYXJlYSB0aGVuIHByb2dyYW1z
+IGxpa2UgZ2RiIG1heSBlbmQgdXAgcmVxdWVzdGluZw0KY29weV9pbi9vdXQgZGlyZWN0bHkgZnJv
+bSB0aGF0IGFyZWEuDQoNCkludGVyZXN0aW5nbHkgdGhlIGF2eCByZWdpc3RlcnMgZG9uJ3QgbmVl
+ZCBzYXZpbmcgb24gYSBub3JtYWwgc3lzdGVtIGNhbGwNCmVudHJ5ICh0aGV5IGFyZSBhbGwgY2Fs
+bGVyLXNhdmVkKSBzbyB0aGUga2VybmVsIHN0YWNrIGNhbiBzYWZlbHkgb3ZlcndyaXRlDQp0aGF0
+IGFyZWEuDQpTeXNjYWxsIGVudHJ5IHByb2JhYmx5IG91Z2h0IHRvIGV4ZWN1dGUgdGhlICd6ZXJv
+IGFsbCBhdnggcmVnaXN0ZXJzJyBpbnN0cnVjdGlvbi4NClRoZXkgZG8gbmVlZCBzYXZpbmcgb24g
+aW50ZXJydXB0IGVudHJ5IC0gYnV0IHRoZSBzdGFjayB1c2VkIHdpbGwgYmUgbGVzcy4NCg0KCURh
+dmlkDQoNCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
