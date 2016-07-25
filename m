@@ -1,232 +1,222 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 622A36B0005
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 04:32:51 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id 33so111027992lfw.1
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 01:32:51 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id t185si22936868wma.107.2016.07.25.01.32.49
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jul 2016 01:32:49 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id q128so15653123wma.1
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 01:32:49 -0700 (PDT)
-Date: Mon, 25 Jul 2016 10:32:47 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 2/2] mm, mempool: do not throttle PF_LESS_THROTTLE
- tasks
-Message-ID: <20160725083247.GD9401@dhcp22.suse.cz>
-References: <1468831164-26621-1-git-send-email-mhocko@kernel.org>
- <1468831285-27242-1-git-send-email-mhocko@kernel.org>
- <1468831285-27242-2-git-send-email-mhocko@kernel.org>
- <87oa5q5abi.fsf@notabene.neil.brown.name>
- <20160722091558.GF794@dhcp22.suse.cz>
- <878twt5i1j.fsf@notabene.neil.brown.name>
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EE5C6B0005
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 04:36:02 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id ez1so319587624pab.0
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 01:36:02 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id yt6si32512508pac.237.2016.07.25.01.36.00
+        for <linux-mm@kvack.org>;
+        Mon, 25 Jul 2016 01:36:01 -0700 (PDT)
+From: Dou Liyang <douly.fnst@cn.fujitsu.com>
+Subject: [PATCH v9 0/7] Make cpuid <-> nodeid mapping persistent
+Date: Mon, 25 Jul 2016 16:35:42 +0800
+Message-ID: <1469435749-19582-1-git-send-email-douly.fnst@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <878twt5i1j.fsf@notabene.neil.brown.name>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <neilb@suse.com>
-Cc: linux-mm@kvack.org, Mikulas Patocka <mpatocka@redhat.com>, Ondrej Kozina <okozina@redhat.com>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, dm-devel@redhat.com
+To: cl@linux.com, tj@kernel.org, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, len.brown@intel.com, lenb@kernel.org, tglx@linutronix.de, chen.tang@easystack.cn, rafael@kernel.org
+Cc: x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dou Liyang <douly.fnst@cn.fujitsu.com>
 
-On Sat 23-07-16 10:12:24, NeilBrown wrote:
-> On Fri, Jul 22 2016, Michal Hocko wrote:
-[...]
-> >                          If we just back off and rely on kswapd which
-> > might get stuck on the writeout then the IO throughput can be reduced
-> 
-> If I were king of MM, I would make a decree to be proclaimed throughout
-> the land
->     kswapd must never sleep except when it explicitly chooses to
-> 
-> Maybe that is impractical, but having firm rules like that would go a
-> long way to make it possible to actually understand and reason about how
-> MM works.  As it is, there seems to be a tendency to put bandaids over
-> bandaids.
+[Problem]
 
-Ohh, I would definitely wish for this to be more clear but as it turned
-out over time there are quite some interdependencies between MM/FS/IO
-layers which make the picture really blur. If there is a brave soul to
-make that more clear without breaking any of that it would be really
-cool ;)
+cpuid <-> nodeid mapping is firstly established at boot time. And workqueue caches
+the mapping in wq_numa_possible_cpumask in wq_numa_init() at boot time.
 
-> > I believe which would make the whole memory pressure just worse. So I am
-> > not sure this is a good idea in general. I completely agree with you
-> > that the mempool request shouldn't be throttled unless there is a strong
-> > reason for that. More on that below.
-> >
-> >> If I'm following the code properly, the stack trace below can only
-> >> happen if the first pool->alloc() attempt, with direct-reclaim disabled,
-> >> fails and the pool is empty, so mempool_alloc() calls prepare_to_wait()
-> >> and io_schedule_timeout().
-> >
-> > mempool_alloc retries immediatelly without any sleep after the first
-> > no-reclaim attempt.
-> 
-> I missed that ... I see it now... I wonder if anyone has contemplated
-> using some modern programming techniques like, maybe, a "while" loop in
-> there..
-> Something like the below...
+When doing node online/offline, cpuid <-> nodeid mapping is established/destroyed,
+which means, cpuid <-> nodeid mapping will change if node hotplug happens. But
+workqueue does not update wq_numa_possible_cpumask.
 
-Heh, why not, the code could definitely see some more love. Care to send
-a proper patch so that we are not mixing two different things here.
+So here is the problem:
 
-> >> I suspect the timeout *doesn't* fire (5 seconds is along time) so it
-> >> gets woken up when there is something in the pool.  It then loops around
-> >> and tries pool->alloc() again, even though there is something in the
-> >> pool.  This might be justified if that ->alloc would never block, but
-> >> obviously it does.
-> >> 
-> >> I would very strongly recommend just changing mempool_alloc() to
-> >> permanently mask out __GFP_DIRECT_RECLAIM.
-> >> 
-> >> Quite separately I don't think PF_LESS_THROTTLE is at all appropriate.
-> >> It is "LESS" throttle, not "NO" throttle, but you have made
-> >> throttle_vm_writeout never throttle PF_LESS_THROTTLE threads.
-> >
-> > Yes that is correct. But it still allows to throttle on congestion:
-> > shrink_inactive_list:
-> > 	/*
-> > 	 * Stall direct reclaim for IO completions if underlying BDIs or zone
-> > 	 * is congested. Allow kswapd to continue until it starts encountering
-> > 	 * unqueued dirty pages or cycling through the LRU too quickly.
-> > 	 */
-> > 	if (!sc->hibernation_mode && !current_is_kswapd() &&
-> > 	    current_may_throttle())
-> > 		wait_iff_congested(pgdat, BLK_RW_ASYNC, HZ/10);
-> >
-> > My thinking was that throttle_vm_writeout is there to prevent from
-> > dirtying too many pages from the reclaim the context.  PF_LESS_THROTTLE
-> > is part of the writeout so throttling it on too many dirty pages is
-> > questionable (well we get some bias but that is not really reliable). It
-> > still makes sense to throttle when the backing device is congested
-> > because the writeout path wouldn't make much progress anyway and we also
-> > do not want to cycle through LRU lists too quickly in that case.
-> 
-> "dirtying ... from the reclaim context" ??? What does that mean?
+Assume we have the following cpuid <-> nodeid in the beginning:
 
-Say you would cause a swapout from the reclaim context. You would
-effectively dirty that anon page until it gets written down to the
-storage.
+  Node | CPU
+------------------------
+node 0 |  0-14, 60-74
+node 1 | 15-29, 75-89
+node 2 | 30-44, 90-104
+node 3 | 45-59, 105-119
 
-> According to
->   Commit: 26eecbf3543b ("[PATCH] vm: pageout throttling")
-> From the history tree, the purpose of throttle_vm_writeout() is to
-> limit the amount of memory that is concurrently under I/O.
-> That seems strange to me because I thought it was the responsibility of
-> each backing device to impose a limit - a maximum queue size of some
-> sort.
+and we hot-remove node2 and node3, it becomes:
 
-We do throttle on the congestion during the reclaim so in some
-sense this is already implemented but I am not really sure that is
-sufficient. Maybe this is something to re-evaluate because
-wait_iff_congested came in much later after throttle_vm_writeout. Let me
-think about it some more.
+  Node | CPU
+------------------------
+node 0 |  0-14, 60-74
+node 1 | 15-29, 75-89
 
-> I remember when NFS didn't impose a limit and you could end up with lots
-> of memory in NFS write-back, and very long latencies could result.
-> 
-> So I wonder what throttle_vm_writeout() really achieves these days.  Is
-> it just a bandaid that no-one is brave enough to remove?
+and we hot-add node4 and node5, it becomes:
 
-Maybe yes. It is sitting there quietly and you do not know about it
-until it bites. Like in this particular case.
- 
-> I guess it could play a role in balancing the freeing of clean pages,
-> which can be done instantly, against dirty pages, which require
-> writeback.  Without some throttling, might all clean pages being cleaned
-> too quickly, just trashing our read caches?
+  Node | CPU
+------------------------
+node 0 |  0-14, 60-74
+node 1 | 15-29, 75-89
+node 4 | 30-59
+node 5 | 90-119
 
-I do not see how that would happen. kswapd has its reclaim targets
-depending on watermarks and direct reclaim has SWAP_CLUSTER_MAX. So none
-of them should go too wild and reclaim way too many clean pages.
+But in wq_numa_possible_cpumask, cpu30 is still mapped to node2, and the like.
 
-> > Or is this assumption wrong for nfsd_vfs_write? Can it cause unbounded
-> > dirtying of memory?
-> 
-> In most cases, nfsd it just like any other application and needs to be
-> throttled like any other application when it writes too much data.
-> The only time nfsd *needs* PF_LESS_THROTTLE when when a loop-back mount
-> is active.  When the same page cache is the source and destination of
-> writes.
-> So nfsd needs to be able to dirty a few more pages when nothing else
-> can due to high dirty count.  Otherwise it deadlocks.
-> The main use of PF_LESS_THROTTLE is in zone_dirty_limit() and
-> domain_dirty_limits() where an extra 25% is allowed to overcome this
-> deadlock.
-> 
-> The use of PF_LESS_THROTTLE in current_may_throttle() in vmscan.c is to
-> avoid a live-lock.  A key premise is that nfsd only allocates unbounded
-> memory when it is writing to the page cache.  So it only needs to be
-> throttled when the backing device it is writing to is congested.  It is
-> particularly important that it *doesn't* get throttled just because an
-> NFS backing device is congested, because nfsd might be trying to clear
-> that congestion.
+When a pool workqueue is initialized, if its cpumask belongs to a node, its
+pool->node will be mapped to that node. And memory used by this workqueue will
+also be allocated on that node.
 
-Thanks for the clarification. IIUC then removing throttle_vm_writeout
-for the nfsd writeout should be harmless as well, right?
+static struct worker_pool *get_unbound_pool(const struct workqueue_attrs *attrs){
+...
+        /* if cpumask is contained inside a NUMA node, we belong to that node */
+        if (wq_numa_enabled) {
+                for_each_node(node) {
+                        if (cpumask_subset(pool->attrs->cpumask,
+                                           wq_numa_possible_cpumask[node])) {
+                                pool->node = node;
+                                break;
+                        }
+                }
+        }
 
-> In general, callers of try_to_free_pages() might get throttled when any
-> backing device is congested.  This is a reasonable default when we don't
-> know what they are allocating memory for.  When we do know the purpose of
-> the allocation, we can be more cautious about throttling.
-> 
-> If a thread is allocating just to dirty pages for a given backing
-> device, we only need to throttle the allocation if the backing device is
-> congested.  Any further throttling needed happens in
-> balance_dirty_pages().
-> 
-> If a thread is only making transient allocations, ones which will be
-> freed shortly afterwards (not, for example, put in a cache), then I
-> don't think it needs to be throttled at all.  I think this universally
-> applies to mempools.
-> In the case of dm_crypt, if it is writing too fast it will eventually be
-> throttled in generic_make_request when the underlying device has a full
-> queue and so blocks waiting for requests to be completed, and thus parts
-> of them returned to the mempool.
+Since wq_numa_possible_cpumask is not updated, it could be mapped to an offline node,
+which will lead to memory allocation failure:
 
-Makes sense to me.
+ SLUB: Unable to allocate memory on node 2 (gfp=0x80d0)
+  cache: kmalloc-192, object size: 192, buffer size: 192, default order: 1, min order: 0
+  node 0: slabs: 6172, objs: 259224, free: 245741
+  node 1: slabs: 3261, objs: 136962, free: 127656
 
-> >> The purpose of that flag is to allow a thread to dirty a page-cache page
-> >> as part of cleaning another page-cache page.
-> >> So it makes sense for loop and sometimes for nfsd.  It would make sense
-> >> for dm-crypt if it was putting the encrypted version in the page cache.
-> >> But if dm-crypt is just allocating a transient page (which I think it
-> >> is), then a mempool should be sufficient (and we should make sure it is
-> >> sufficient) and access to an extra 10% (or whatever) of the page cache
-> >> isn't justified.
-> >
-> > If you think that PF_LESS_THROTTLE (ab)use in mempool_alloc is not
-> > appropriate then would a PF_MEMPOOL be any better?
-> 
-> Why a PF rather than a GFP flag?
+It happens here:
 
-Well, short answer is that gfp masks are almost depleted.
+create_worker(struct worker_pool *pool)
+ |--> worker = alloc_worker(pool->node);
 
-> NFSD uses a PF because there is no GFP interface for filesystem write.
-> But mempool can pass down a GFP flag, so I think it should.
-> The meaning of the flag is, in my opinion, that a 'transient' allocation
-> is being requested.  i.e. an allocation which will be used for a single
-> purpose for a short amount of time and will then be freed.  In
-> particularly it will never be placed in a cache, and if it is ever
-> placed on a queue, that is certain to be a queue with an upper bound on
-> the size and with guaranteed forward progress in the face of memory
-> pressure.
-> Any allocation request for a use case with those properties should be
-> allowed to set GFP_TRANSIENT (for example) with the effect that the
-> allocation will not be throttled.
-> A key point with the name is to identify the purpose of the flag, not a
-> specific use case (mempool) which we want it for.
+static struct worker *alloc_worker(int node)
+{
+        struct worker *worker;
 
-Agreed. But let's first explore throttle_vm_writeout and its potential
-removal.
+        worker = kzalloc_node(sizeof(*worker), GFP_KERNEL, node); --> Here, useing the wrong node.
 
-Thanks!
+        ......
+
+        return worker;
+}
+
+
+[Solution]
+
+There are four mappings in the kernel:
+1. nodeid (logical node id)   <->   pxm
+2. apicid (physical cpu id)   <->   nodeid
+3. cpuid (logical cpu id)     <->   apicid
+4. cpuid (logical cpu id)     <->   nodeid
+
+1. pxm (proximity domain) is provided by ACPI firmware in SRAT, and nodeid <-> pxm
+   mapping is setup at boot time. This mapping is persistent, won't change.
+
+2. apicid <-> nodeid mapping is setup using info in 1. The mapping is setup at boot
+   time and CPU hotadd time, and cleared at CPU hotremove time. This mapping is also
+   persistent.
+
+3. cpuid <-> apicid mapping is setup at boot time and CPU hotadd time. cpuid is
+   allocated, lower ids first, and released at CPU hotremove time, reused for other
+   hotadded CPUs. So this mapping is not persistent.
+
+4. cpuid <-> nodeid mapping is also setup at boot time and CPU hotadd time, and
+   cleared at CPU hotremove time. As a result of 3, this mapping is not persistent.
+
+To fix this problem, we establish cpuid <-> nodeid mapping for all the possible
+cpus at boot time, and make it persistent. And according to init_cpu_to_node(),
+cpuid <-> nodeid mapping is based on apicid <-> nodeid mapping and cpuid <-> apicid
+mapping. So the key point is obtaining all cpus' apicid.
+
+apicid can be obtained by _MAT (Multiple APIC Table Entry) method or found in
+MADT (Multiple APIC Description Table). So we finish the job in the following steps:
+
+1. Enable apic registeration flow to handle both enabled and disabled cpus.
+   This is done by introducing an extra parameter to generic_processor_info to let the
+   caller control if disabled cpus are ignored.
+
+2. Introduce a new array storing all possible cpuid <-> apicid mapping. And also modify
+   the way cpuid is calculated. Establish all possible cpuid <-> apicid mapping when
+   registering local apic. Store the mapping in this array.
+
+3. Enable _MAT and MADT relative apis to return non-presnet or disabled cpus' apicid.
+   This is also done by introducing an extra parameter to these apis to let the caller
+   control if disabled cpus are ignored.
+
+4. Establish all possible cpuid <-> nodeid mapping.
+   This is done via an additional acpi namespace walk for processors.
+
+
+For previous discussion, please refer to:
+https://lkml.org/lkml/2015/2/27/145
+https://lkml.org/lkml/2015/3/25/989
+https://lkml.org/lkml/2015/5/14/244
+https://lkml.org/lkml/2015/7/7/200
+https://lkml.org/lkml/2015/9/27/209
+https://lkml.org/lkml/2016/5/19/212
+https://lkml.org/lkml/2016/7/19/181
+
+Change log v8 -> v9:
+1. Providing an empty definition of acpi_set_processor_mapping() for 
+CONFIG_ACPI_HOTPLUG_CPU unset.
+
+Change log v7 -> v8:
+1. Provide the mechanism to validate processors in the ACPI tables.
+2. Provide the interface to validate the proc_id when setting the mapping. 
+
+Change log v6 -> v7:
+1. Fix arm64 build failure.
+
+Change log v5 -> v6:
+1. Define func acpi_map_cpu2node() for x86 and ia64 respectively.
+
+Change log v4 -> v5:
+1. Remove useless code in patch 1.
+2. Small improvement of commit message.
+
+Change log v3 -> v4:
+1. Fix the kernel panic at boot time. The cause is that I tried to build zonelists
+   before per cpu areas were initialized.
+
+Change log v2 -> v3:
+1. Online memory-less nodes at boot time to map cpus of memory-less nodes.
+2. Build zonelists for memory-less nodes so that memory allocator will fall 
+   back to proper nodes automatically.
+
+Change log v1 -> v2:
+1. Split code movement and actual changes. Add patch 1.
+2. Synchronize best near online node record when node hotplug happens. In patch 2.
+3. Fix some comment.
+
+Dou Liyang (2):
+  acpi: Provide the mechanism to validate processors in the ACPI tables
+  acpi: Provide the interface to validate the proc_id
+
+Gu Zheng (4):
+  x86, acpi, cpu-hotplug: Enable acpi to register all possible cpus at
+    boot time.
+  x86, acpi, cpu-hotplug: Introduce cpuid_to_apicid[] array to store
+    persistent cpuid <-> apicid mapping.
+  x86, acpi, cpu-hotplug: Enable MADT APIs to return disabled apicid.
+  x86, acpi, cpu-hotplug: Set persistent cpuid <-> nodeid mapping when
+    booting.
+
+Tang Chen (1):
+  x86, memhp, numa: Online memory-less nodes at boot time.
+
+ arch/ia64/kernel/acpi.c       |   3 +-
+ arch/x86/include/asm/mpspec.h |   1 +
+ arch/x86/kernel/acpi/boot.c   |  10 ++--
+ arch/x86/kernel/apic/apic.c   |  85 ++++++++++++++++++++++++---
+ arch/x86/mm/numa.c            |  27 +++++----
+ drivers/acpi/acpi_processor.c | 105 ++++++++++++++++++++++++++++++++-
+ drivers/acpi/bus.c            |   1 +
+ drivers/acpi/processor_core.c | 133 +++++++++++++++++++++++++++++++++++-------
+ include/linux/acpi.h          |   5 ++
+ 9 files changed, 319 insertions(+), 51 deletions(-)
+
 -- 
-Michal Hocko
-SUSE Labs
+2.5.5
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
