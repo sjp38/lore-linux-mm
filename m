@@ -1,60 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F4C06B0005
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 05:20:17 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id r97so111810397lfi.2
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 02:20:17 -0700 (PDT)
-Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
-        by mx.google.com with ESMTPS id n64si23185415wmd.41.2016.07.25.02.20.16
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AEA56B0005
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 05:23:27 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id x83so73225765wma.2
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 02:23:27 -0700 (PDT)
+Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
+        by mx.google.com with ESMTPS id f27si23131236wmi.79.2016.07.25.02.23.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jul 2016 02:20:16 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id A20921C1B63
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 10:20:15 +0100 (IST)
-Date: Mon, 25 Jul 2016 10:20:14 +0100
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 25 Jul 2016 02:23:26 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id EDA5A98DAA
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 09:23:25 +0000 (UTC)
+Date: Mon, 25 Jul 2016 10:23:24 +0100
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 1/5] mm, vmscan: Do not account skipped pages as scanned
-Message-ID: <20160725092014.GL10438@techsingularity.net>
-References: <1469028111-1622-1-git-send-email-mgorman@techsingularity.net>
- <1469028111-1622-2-git-send-email-mgorman@techsingularity.net>
- <20160725080456.GB1660@bbox>
+Subject: [PATCH] mm, vmscan: remove highmem_file_pages -fix
+Message-ID: <20160725092324.GM10438@techsingularity.net>
+References: <1469110261-7365-1-git-send-email-mgorman@techsingularity.net>
+ <1469110261-7365-3-git-send-email-mgorman@techsingularity.net>
+ <20160725080911.GC1660@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20160725080456.GB1660@bbox>
+In-Reply-To: <20160725080911.GC1660@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Jul 25, 2016 at 05:04:56PM +0900, Minchan Kim wrote:
-> > @@ -1429,6 +1429,9 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
-> >  			continue;
-> >  		}
-> >  
-> > +		/* Pages skipped do not contribute to scan */
-> > +		scan++;
-> > +
-> 
-> As I mentioned in previous version, under irq-disabled-spin-lock, such
-> unbounded operation would make the latency spike worse if there are
-> lot of pages we should skip.
-> 
-> Don't we take care it?
+The wrong stat is being accumulatedin highmem_dirtyable_memory, fix it.
 
-It's not unbounded, it's bound by the size of the LRU list and it's not
-going to be enough to trigger a warning. While the lock hold time may be
-undesirable, unlocking it every SWAP_CLUSTER_MAX pages may increase overall
-contention. There also is the question of whether skipped pages should be
-temporarily putback before unlocking the LRU to avoid isolated pages being
-unavailable for too long. It also cannot easily just return early without
-prematurely triggering OOM due to a lack of progress. I didn't feel the
-complexity was justified.
+This is a fix to the mmotm patch mm-vmscan-remove-highmem_file_pages.patch
 
--- 
-Mel Gorman
-SUSE Labs
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+---
+ mm/page-writeback.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 7e9061ec040b..f4cd7d8005c9 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -322,8 +322,8 @@ static unsigned long highmem_dirtyable_memory(unsigned long total)
+ 			nr_pages = zone_page_state(z, NR_FREE_PAGES);
+ 			/* watch for underflows */
+ 			nr_pages -= min(nr_pages, high_wmark_pages(z));
+-			nr_pages += zone_page_state(z, NR_INACTIVE_FILE);
+-			nr_pages += zone_page_state(z, NR_ACTIVE_FILE);
++			nr_pages += zone_page_state(z, NR_ZONE_INACTIVE_FILE);
++			nr_pages += zone_page_state(z, NR_ZONE_ACTIVE_FILE);
+ 			x += nr_pages;
+ 		}
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
