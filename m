@@ -1,104 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 650186B0261
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 04:36:23 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id hh10so322935472pac.3
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 01:36:23 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id 140si32538003pfx.153.2016.07.25.01.36.21
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B8946B0005
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 04:38:43 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id y134so386179985pfg.1
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 01:38:43 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id r71si32562420pfa.279.2016.07.25.01.38.41
         for <linux-mm@kvack.org>;
-        Mon, 25 Jul 2016 01:36:22 -0700 (PDT)
-From: Dou Liyang <douly.fnst@cn.fujitsu.com>
-Subject: [PATCH v9 7/7] acpi: Provide the interface to validate the proc_id
-Date: Mon, 25 Jul 2016 16:35:49 +0800
-Message-ID: <1469435749-19582-8-git-send-email-douly.fnst@cn.fujitsu.com>
-In-Reply-To: <1469435749-19582-1-git-send-email-douly.fnst@cn.fujitsu.com>
-References: <1469435749-19582-1-git-send-email-douly.fnst@cn.fujitsu.com>
+        Mon, 25 Jul 2016 01:38:42 -0700 (PDT)
+Date: Mon, 25 Jul 2016 17:39:13 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 5/5] mm, vmscan: Account for skipped pages as a partial
+ scan
+Message-ID: <20160725083913.GE1660@bbox>
+References: <1469110261-7365-1-git-send-email-mgorman@techsingularity.net>
+ <1469110261-7365-6-git-send-email-mgorman@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <1469110261-7365-6-git-send-email-mgorman@techsingularity.net>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux.com, tj@kernel.org, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, len.brown@intel.com, lenb@kernel.org, tglx@linutronix.de, chen.tang@easystack.cn, rafael@kernel.org
-Cc: x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dou Liyang <douly.fnst@cn.fujitsu.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-When we want to identify whether the proc_id is unreasonable or not, we
-can call the "acpi_processor_validate_proc_id" function. It will search
-in the duplicate IDs. If we find the proc_id in the IDs, we return true
-to the call function. Conversely, the false represents available.
+On Thu, Jul 21, 2016 at 03:11:01PM +0100, Mel Gorman wrote:
+> Page reclaim determines whether a pgdat is unreclaimable by examining how
+> many pages have been scanned since a page was freed and comparing that to
+> the LRU sizes. Skipped pages are not reclaim candidates but contribute to
+> scanned. This can prematurely mark a pgdat as unreclaimable and trigger
+> an OOM kill.
+> 
+> This patch accounts for skipped pages as a partial scan so that an
+> unreclaimable pgdat will still be marked as such but by scaling the cost
+> of a skip, it'll avoid the pgdat being marked prematurely.
+> 
+> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+> ---
+>  mm/vmscan.c | 20 ++++++++++++++++++--
+>  1 file changed, 18 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 6810d81f60c7..e5af357dd4ac 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1424,7 +1424,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+>  	LIST_HEAD(pages_skipped);
+>  
+>  	for (scan = 0; scan < nr_to_scan && nr_taken < nr_to_scan &&
+> -					!list_empty(src); scan++) {
+> +					!list_empty(src);) {
+>  		struct page *page;
+>  
+>  		page = lru_to_page(src);
+> @@ -1438,6 +1438,12 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+>  			continue;
+>  		}
+>  
+> +		/*
+> +		 * Account for scanned and skipped separetly to avoid the pgdat
+> +		 * being prematurely marked unreclaimable by pgdat_reclaimable.
+> +		 */
+> +		scan++;
+> +
+>  		switch (__isolate_lru_page(page, mode)) {
+>  		case 0:
+>  			nr_pages = hpage_nr_pages(page);
+> @@ -1465,14 +1471,24 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+>  	 */
+>  	if (!list_empty(&pages_skipped)) {
+>  		int zid;
+> +		unsigned long total_skipped = 0;
+>  
+> -		list_splice(&pages_skipped, src);
+>  		for (zid = 0; zid < MAX_NR_ZONES; zid++) {
+>  			if (!nr_skipped[zid])
+>  				continue;
+>  
+>  			__count_zid_vm_events(PGSCAN_SKIP, zid, nr_skipped[zid]);
+> +			total_skipped += nr_skipped[zid];
+>  		}
+> +
+> +		/*
+> +		 * Account skipped pages as a partial scan as the pgdat may be
+> +		 * close to unreclaimable. If the LRU list is empty, account
+> +		 * skipped pages as a full scan.
+> +		 */
 
-When we establish all possible cpuid <-> nodeid mapping to handle the
-cpu hotplugs, we will use the proc_id from ACPI table.
+node-lru made OOM detection lengthy because a freeing of any zone will
+reset NR_PAGES_SCANNED easily so that it's hard to meet a situation
+pgdat_reclaimable returns *false*.
 
-We do validation when we get the proc_id. If the result is true, we
-will stop the mapping.
+When I perform stress test, it seems I encounter the situation easily
+although I have no number now.
 
-Signed-off-by: Dou Liyang <douly.fnst@cn.fujitsu.com>
----
- drivers/acpi/acpi_processor.c | 16 ++++++++++++++++
- drivers/acpi/processor_core.c |  4 ++++
- include/linux/acpi.h          |  3 +++
- 3 files changed, 23 insertions(+)
+Anyway, this patch makes sense to me because it's better than now.
+About accounting scan, I supports this idea.
 
-diff --git a/drivers/acpi/acpi_processor.c b/drivers/acpi/acpi_processor.c
-index 346fbfc..ae6dae9 100644
---- a/drivers/acpi/acpi_processor.c
-+++ b/drivers/acpi/acpi_processor.c
-@@ -659,6 +659,22 @@ static void acpi_processor_duplication_valiate(void)
- 						NULL, NULL, NULL);
- }
- 
-+bool acpi_processor_validate_proc_id(int proc_id)
-+{
-+	int i;
-+
-+	/*
-+	 * compare the proc_id with duplicate IDs, if the proc_id is already
-+	 * in the duplicate IDs, return true, otherwise, return false.
-+	 */
-+	for (i = 0; i < nr_duplicate_ids; i++) {
-+		if (duplicate_processor_ids[i] == proc_id)
-+			return true;
-+	}
-+
-+	return false;
-+}
-+
- void __init acpi_processor_init(void)
- {
- 	acpi_processor_duplication_valiate();
-diff --git a/drivers/acpi/processor_core.c b/drivers/acpi/processor_core.c
-index b44675b..97adffb 100644
---- a/drivers/acpi/processor_core.c
-+++ b/drivers/acpi/processor_core.c
-@@ -282,6 +282,10 @@ static bool map_processor(acpi_handle handle, phys_cpuid_t *phys_id, int *cpuid)
- 		if (ACPI_FAILURE(status))
- 			return false;
- 		acpi_id = object.processor.proc_id;
-+
-+		/* validate the acpi_id */
-+		if(acpi_processor_validate_proc_id(acpi_id))
-+			return false;
- 		break;
- 	case ACPI_TYPE_DEVICE:
- 		status = acpi_evaluate_integer(handle, "_UID", NULL, &tmp);
-diff --git a/include/linux/acpi.h b/include/linux/acpi.h
-index 53b3014..94ceae1 100644
---- a/include/linux/acpi.h
-+++ b/include/linux/acpi.h
-@@ -254,6 +254,9 @@ static inline bool invalid_phys_cpuid(phys_cpuid_t phys_id)
- 	return phys_id == PHYS_CPUID_INVALID;
- }
- 
-+/*validate the processor object's proc_id*/
-+bool acpi_processor_validate_proc_id(int proc_id);
-+
- #ifdef CONFIG_ACPI_HOTPLUG_CPU
- /* Arch dependent functions for cpu hotplug support */
- int acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, int *pcpu);
--- 
-2.5.5
-
-
+But still, I doubt it's okay to continue skipping pages under
+irq-disabled-spin lock without any condition.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
