@@ -1,91 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E6E646B0005
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 17:52:21 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id u25so475291828ioi.1
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 14:52:21 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j6si19022412itg.111.2016.07.25.14.52.21
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A43F16B0005
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 19:20:25 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id p64so433892735pfb.0
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 16:20:25 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id g9si35838184pfk.211.2016.07.25.16.20.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jul 2016 14:52:21 -0700 (PDT)
-Date: Mon, 25 Jul 2016 17:52:17 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: [RFC PATCH 2/2] mm, mempool: do not throttle PF_LESS_THROTTLE
- tasks
-In-Reply-To: <878twt5i1j.fsf@notabene.neil.brown.name>
-Message-ID: <alpine.LRH.2.02.1607251730280.11852@file01.intranet.prod.int.rdu2.redhat.com>
-References: <1468831164-26621-1-git-send-email-mhocko@kernel.org> <1468831285-27242-1-git-send-email-mhocko@kernel.org> <1468831285-27242-2-git-send-email-mhocko@kernel.org> <87oa5q5abi.fsf@notabene.neil.brown.name> <20160722091558.GF794@dhcp22.suse.cz>
- <878twt5i1j.fsf@notabene.neil.brown.name>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Mon, 25 Jul 2016 16:20:24 -0700 (PDT)
+Date: Mon, 25 Jul 2016 16:20:22 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v9 0/7] Make cpuid <-> nodeid mapping persistent
+Message-Id: <20160725162022.e90e9c6c74a5d147e39e5945@linux-foundation.org>
+In-Reply-To: <1469435749-19582-1-git-send-email-douly.fnst@cn.fujitsu.com>
+References: <1469435749-19582-1-git-send-email-douly.fnst@cn.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <neilb@suse.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Ondrej Kozina <okozina@redhat.com>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, dm-devel@redhat.com
+To: Dou Liyang <douly.fnst@cn.fujitsu.com>
+Cc: cl@linux.com, tj@kernel.org, mika.j.penttila@gmail.com, mingo@redhat.com, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, len.brown@intel.com, lenb@kernel.org, tglx@linutronix.de, chen.tang@easystack.cn, rafael@kernel.org, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+
+On Mon, 25 Jul 2016 16:35:42 +0800 Dou Liyang <douly.fnst@cn.fujitsu.com> wrote:
+
+> [Problem]
+> 
+> cpuid <-> nodeid mapping is firstly established at boot time. And workqueue caches
+> the mapping in wq_numa_possible_cpumask in wq_numa_init() at boot time.
+> 
+> When doing node online/offline, cpuid <-> nodeid mapping is established/destroyed,
+> which means, cpuid <-> nodeid mapping will change if node hotplug happens. But
+> workqueue does not update wq_numa_possible_cpumask.
+> 
+> So here is the problem:
+> 
+> Assume we have the following cpuid <-> nodeid in the beginning:
+> 
+>   Node | CPU
+> ------------------------
+> node 0 |  0-14, 60-74
+> node 1 | 15-29, 75-89
+> node 2 | 30-44, 90-104
+> node 3 | 45-59, 105-119
+> 
+> and we hot-remove node2 and node3, it becomes:
+> 
+>   Node | CPU
+> ------------------------
+> node 0 |  0-14, 60-74
+> node 1 | 15-29, 75-89
+> 
+> and we hot-add node4 and node5, it becomes:
+> 
+>   Node | CPU
+> ------------------------
+> node 0 |  0-14, 60-74
+> node 1 | 15-29, 75-89
+> node 4 | 30-59
+> node 5 | 90-119
+> 
+> But in wq_numa_possible_cpumask, cpu30 is still mapped to node2, and the like.
+> 
+> When a pool workqueue is initialized, if its cpumask belongs to a node, its
+> pool->node will be mapped to that node. And memory used by this workqueue will
+> also be allocated on that node.
+
+Plan B is to hunt down and fix up all the workqueue structures at
+hotplug-time.  Has that option been evaluated?
 
 
+Your fix is x86-only and this bug presumably affects other
+architectures, yes?  I think a "Plan B" would fix all architectures?
 
-On Sat, 23 Jul 2016, NeilBrown wrote:
 
-> "dirtying ... from the reclaim context" ??? What does that mean?
-> According to
->   Commit: 26eecbf3543b ("[PATCH] vm: pageout throttling")
-> From the history tree, the purpose of throttle_vm_writeout() is to
-> limit the amount of memory that is concurrently under I/O.
-> That seems strange to me because I thought it was the responsibility of
-> each backing device to impose a limit - a maximum queue size of some
-> sort.
-
-Device mapper doesn't impose any limit for in-flight bios.
-
-Some simple device mapper targets (such as linear or stripe) pass bio 
-directly to the underlying device with generic_make_request, so if the 
-underlying device's request limit is reached, the target's request routine 
-waits.
-
-However, complex dm targets (such as dm-crypt, dm-mirror, dm-thin) pass 
-bios to a workqueue that processes them. And since there is no limit on 
-the number of workqueue entries, there is no limit on the number of 
-in-flight bios.
-
-I've seen a case when I had a HPFS filesystem on dm-crypt. I wrote to the 
-filesystem, there was about 2GB dirty data. The HPFS filesystem used 
-512-byte bios. dm-crypt allocates one temporary page for each incoming 
-bio. So, there were 4M bios in flight, each bio allocated 4k temporary 
-page - that is attempted 16GB allocation. It didn't trigger OOM condition 
-(because mempool allocations don't ever trigger it), but it temporarily 
-exhausted all computer's memory.
-
-I've made some patches that limit in-flight bios for device mapper in the 
-past, but there were not integrated into upstream.
-
-> If a thread is only making transient allocations, ones which will be
-> freed shortly afterwards (not, for example, put in a cache), then I
-> don't think it needs to be throttled at all.  I think this universally
-> applies to mempools.
-> In the case of dm_crypt, if it is writing too fast it will eventually be
-> throttled in generic_make_request when the underlying device has a full
-> queue and so blocks waiting for requests to be completed, and thus parts
-> of them returned to the mempool.
-
-No, it won't be throttled.
-
-dm-crypt does:
-1. pass the bio to the encryption workqueue
-2. allocate the outgoing bio and allocate temporary pages for the 
-   encrypted data
-3. do the encryption
-4. pass the bio to the writer thread
-5. submit the write request with generic_make_request
-
-So, if the underlying block device is throttled, it stalls the writer 
-thread, but it doesn't stall the encryption threads and it doesn't stall 
-the caller that submits the bios to dm-crypt.
-
-There can be really high number of in-flight bios for dm-crypt.
-
-Mikulas
+Thirdly, what is the merge path for these patches?  Is an x86
+or ACPI maintainer working with you on them?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
