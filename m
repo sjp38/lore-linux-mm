@@ -1,141 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FEA76B0005
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 15:16:31 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id f6so347038162ith.3
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 12:16:31 -0700 (PDT)
-Received: from mail-it0-f49.google.com (mail-it0-f49.google.com. [209.85.214.49])
-        by mx.google.com with ESMTPS id 78si21896437iok.47.2016.07.25.12.16.30
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A3D346B025E
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 15:23:48 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id p41so123484342lfi.0
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 12:23:48 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id ul8si16185583wjb.148.2016.07.25.12.23.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jul 2016 12:16:30 -0700 (PDT)
-Received: by mail-it0-f49.google.com with SMTP id f6so91962044ith.1
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 12:16:30 -0700 (PDT)
-From: Laura Abbott <labbott@redhat.com>
-Subject: Re: [PATCH v4 12/12] mm: SLUB hardened usercopy support
-References: <1469046427-12696-1-git-send-email-keescook@chromium.org>
- <1469046427-12696-13-git-send-email-keescook@chromium.org>
-Message-ID: <0f980e84-b587-3d9e-3c26-ad57f947c08b@redhat.com>
-Date: Mon, 25 Jul 2016 12:16:24 -0700
+        Mon, 25 Jul 2016 12:23:47 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id q128so18103027wma.1
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 12:23:47 -0700 (PDT)
+Date: Mon, 25 Jul 2016 21:23:45 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 2/2] mm, mempool: do not throttle PF_LESS_THROTTLE
+ tasks
+Message-ID: <20160725192344.GD2166@dhcp22.suse.cz>
+References: <1468831164-26621-1-git-send-email-mhocko@kernel.org>
+ <1468831285-27242-1-git-send-email-mhocko@kernel.org>
+ <1468831285-27242-2-git-send-email-mhocko@kernel.org>
+ <87oa5q5abi.fsf@notabene.neil.brown.name>
+ <20160722091558.GF794@dhcp22.suse.cz>
+ <878twt5i1j.fsf@notabene.neil.brown.name>
+ <20160725083247.GD9401@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1469046427-12696-13-git-send-email-keescook@chromium.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160725083247.GD9401@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>, kernel-hardening@lists.openwall.com
-Cc: Laura Abbott <labbott@fedoraproject.org>, Balbir Singh <bsingharora@gmail.com>, Daniel Micay <danielmicay@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Rik van Riel <riel@redhat.com>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, x86@kernel.org, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: NeilBrown <neilb@suse.com>
+Cc: linux-mm@kvack.org, Mikulas Patocka <mpatocka@redhat.com>, Ondrej Kozina <okozina@redhat.com>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, dm-devel@redhat.com, Marcelo Tosatti <mtosatti@redhat.com>
 
-On 07/20/2016 01:27 PM, Kees Cook wrote:
-> Under CONFIG_HARDENED_USERCOPY, this adds object size checking to the
-> SLUB allocator to catch any copies that may span objects. Includes a
-> redzone handling fix discovered by Michael Ellerman.
->
-> Based on code from PaX and grsecurity.
->
-> Signed-off-by: Kees Cook <keescook@chromium.org>
-> Tested-by: Michael Ellerman <mpe@ellerman.id.au>
-> ---
->  init/Kconfig |  1 +
->  mm/slub.c    | 36 ++++++++++++++++++++++++++++++++++++
->  2 files changed, 37 insertions(+)
->
-> diff --git a/init/Kconfig b/init/Kconfig
-> index 798c2020ee7c..1c4711819dfd 100644
-> --- a/init/Kconfig
-> +++ b/init/Kconfig
-> @@ -1765,6 +1765,7 @@ config SLAB
->
->  config SLUB
->  	bool "SLUB (Unqueued Allocator)"
-> +	select HAVE_HARDENED_USERCOPY_ALLOCATOR
->  	help
->  	   SLUB is a slab allocator that minimizes cache line usage
->  	   instead of managing queues of cached objects (SLAB approach).
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 825ff4505336..7dee3d9a5843 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -3614,6 +3614,42 @@ void *__kmalloc_node(size_t size, gfp_t flags, int node)
->  EXPORT_SYMBOL(__kmalloc_node);
->  #endif
->
-> +#ifdef CONFIG_HARDENED_USERCOPY
-> +/*
-> + * Rejects objects that are incorrectly sized.
-> + *
-> + * Returns NULL if check passes, otherwise const char * to name of cache
-> + * to indicate an error.
-> + */
-> +const char *__check_heap_object(const void *ptr, unsigned long n,
-> +				struct page *page)
-> +{
-> +	struct kmem_cache *s;
-> +	unsigned long offset;
-> +	size_t object_size;
-> +
-> +	/* Find object and usable object size. */
-> +	s = page->slab_cache;
-> +	object_size = slab_ksize(s);
-> +
-> +	/* Find offset within object. */
-> +	offset = (ptr - page_address(page)) % s->size;
-> +
-> +	/* Adjust for redzone and reject if within the redzone. */
-> +	if (kmem_cache_debug(s) && s->flags & SLAB_RED_ZONE) {
-> +		if (offset < s->red_left_pad)
-> +			return s->name;
-> +		offset -= s->red_left_pad;
-> +	}
-> +
-> +	/* Allow address range falling entirely within object size. */
-> +	if (offset <= object_size && n <= object_size - offset)
-> +		return NULL;
-> +
-> +	return s->name;
-> +}
-> +#endif /* CONFIG_HARDENED_USERCOPY */
-> +
+[CC Marcelo who might remember other details for the loads which made
+ him to add this code - see the patch changelog for more context]
 
-I compared this against what check_valid_pointer does for SLUB_DEBUG
-checking. I was hoping we could utilize that function to avoid
-duplication but a) __check_heap_object needs to allow accesses anywhere
-in the object, not just the beginning b) accessing page->objects
-is racy without the addition of locking in SLUB_DEBUG.
+On Mon 25-07-16 10:32:47, Michal Hocko wrote:
+> On Sat 23-07-16 10:12:24, NeilBrown wrote:
+[...]
+> > So I wonder what throttle_vm_writeout() really achieves these days.  Is
+> > it just a bandaid that no-one is brave enough to remove?
+> 
+> Maybe yes. It is sitting there quietly and you do not know about it
+> until it bites. Like in this particular case.
 
-Still, the ptr < page_address(page) check from __check_heap_object would
-be good to add to avoid generating garbage large offsets and trying to
-infer C math.
+So I was playing with this today and tried to provoke throttle_vm_writeout
+and couldn't hit that path with my pretty much default IO stack. I
+probably need a more complex IO setup like dm-crypt or something that
+basically have to double buffer every page in the writeout for some
+time.
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 7dee3d9..5370e4f 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -3632,6 +3632,9 @@ const char *__check_heap_object(const void *ptr, unsigned long n,
-         s = page->slab_cache;
-         object_size = slab_ksize(s);
-  
-+       if (ptr < page_address(page))
-+               return s->name;
-+
-         /* Find offset within object. */
-         offset = (ptr - page_address(page)) % s->size;
-  
+Anyway I believe that the throttle_vm_writeout is just a relict from the
+past which just survived after many other changes in the reclaim path. I
+fully realize my testing is quite poor and I would really appreciate if
+Mikulas could try to retest with his more complex IO setups but let me
+post a patch with the changelog so that we can at least reason about the
+justification. In principle the reclaim path should have sufficient
+throttling already and if that is not the case then we should
+consolidate the remaining rather than have yet another one.
 
-With that, you can add
-
-Reviwed-by: Laura Abbott <labbott@redhat.com>
-
->  static size_t __ksize(const void *object)
->  {
->  	struct page *page;
->
-
-Thanks,
-Laura
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Thoughts?
+---
