@@ -1,104 +1,195 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B8946B0005
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 04:38:43 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id y134so386179985pfg.1
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 01:38:43 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id r71si32562420pfa.279.2016.07.25.01.38.41
-        for <linux-mm@kvack.org>;
-        Mon, 25 Jul 2016 01:38:42 -0700 (PDT)
-Date: Mon, 25 Jul 2016 17:39:13 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 5/5] mm, vmscan: Account for skipped pages as a partial
- scan
-Message-ID: <20160725083913.GE1660@bbox>
-References: <1469110261-7365-1-git-send-email-mgorman@techsingularity.net>
- <1469110261-7365-6-git-send-email-mgorman@techsingularity.net>
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6557F6B0005
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 04:48:06 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id b65so73087692wmg.0
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 01:48:06 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id cm17si13864807wjb.239.2016.07.25.01.48.04
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 25 Jul 2016 01:48:04 -0700 (PDT)
+Date: Mon, 25 Jul 2016 10:48:03 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v3 0/8] Change OOM killer to use list of mm_struct.
+Message-ID: <20160725084803.GE9401@dhcp22.suse.cz>
+References: <1468330163-4405-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20160721112140.GG26379@dhcp22.suse.cz>
+ <201607222009.DII64068.VHMSQJtOOFOLFF@I-love.SAKURA.ne.jp>
+ <20160722120519.GJ794@dhcp22.suse.cz>
+ <201607231159.IFD26547.HVMOQtSJFOFFOL@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <1469110261-7365-6-git-send-email-mgorman@techsingularity.net>
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <201607231159.IFD26547.HVMOQtSJFOFFOL@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, oleg@redhat.com, rientjes@google.com, vdavydov@parallels.com, mst@redhat.com
 
-On Thu, Jul 21, 2016 at 03:11:01PM +0100, Mel Gorman wrote:
-> Page reclaim determines whether a pgdat is unreclaimable by examining how
-> many pages have been scanned since a page was freed and comparing that to
-> the LRU sizes. Skipped pages are not reclaim candidates but contribute to
-> scanned. This can prematurely mark a pgdat as unreclaimable and trigger
-> an OOM kill.
+On Sat 23-07-16 11:59:25, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > > > Now what about future plans? I would like to get rid of TIF_MEMDIE
+> > > > altogether and give access to memory reserves to oom victim when they
+> > > > allocate the memory. Something like:
+> > > 
+> > > Before doing so, can we handle a silent hang up caused by lowmem livelock
+> > > at http://lkml.kernel.org/r/20160211225929.GU14668@dastard ? It is a nearly
+> > > 7 years old bug (since commit 35cd78156c499ef8 "vmscan: throttle direct
+> > > reclaim when too many pages are isolated already") which got no progress
+> > > so far.
+> > 
+> > I do not see any dependecy/relation on/to the OOM work. I am even not
+> > sure why you are bringing that up here.
 > 
-> This patch accounts for skipped pages as a partial scan so that an
-> unreclaimable pgdat will still be marked as such but by scaling the cost
-> of a skip, it'll avoid the pgdat being marked prematurely.
+> This is a ABBA deadlock bug which disables the OOM killer caused by kswapd
+> waiting for GFP_NOIO allocations whereas GFP_NOIO allocations waiting for
+> kswapd. A flag like GFP_TRANSIENT suggested at
+> http://lkml.kernel.org/r/878twt5i1j.fsf@notabene.neil.brown.name which
+> prevents the allocating task from being throttled is expected if we want to
+> avoid escaping from too_many_isolated() loop in shrink_inactive_list()
+> using timeout.
+
+But this is completely irrelevant to _this_ particular discussion so I
+really fail to see why you keep bringing it up. It is definitely not
+helping to move on...
+
+> > [...]
+> > > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > > > index 788e4f22e0bb..34446f49c2e1 100644
+> > > > --- a/mm/page_alloc.c
+> > > > +++ b/mm/page_alloc.c
+> > > > @@ -3358,7 +3358,7 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
+> > > >  			alloc_flags |= ALLOC_NO_WATERMARKS;
+> > > >  		else if (!in_interrupt() &&
+> > > >  				((current->flags & PF_MEMALLOC) ||
+> > > > -				 unlikely(test_thread_flag(TIF_MEMDIE))))
+> > > > +				 tsk_is_oom_victim(current))
+> > > >  			alloc_flags |= ALLOC_NO_WATERMARKS;
+> > > >  	}
+> > > >  #ifdef CONFIG_CMA
+> > > > 
+> > > > where tsk_is_oom_victim wouldn't require the given task to go via
+> > > > out_of_memory. This would solve some of the problems we have right now
+> > > > when a thread doesn't get access to memory reserves because it never
+> > > > reaches out_of_memory (e.g. recently mentioned mempool_alloc doing
+> > > > __GFP_NORETRY). It would also make the code easier to follow. If we want
+> > > > to implement that we need an easy to implement tsk_is_oom_victim
+> > > > obviously. With the signal_struct::oom_mm this is really trivial thing.
+> > > > I am not sure we can do that with the mm list though because we are
+> > > > loosing the task->mm at certain point in time.
+> > > 
+> > > bool tsk_is_oom_victim(void)
+> > > {
+> > > 	return current->mm && test_bit(MMF_OOM_KILLED, &current->mm->flags) &&
+> > > 		 (fatal_signal_pending(current) || (current->flags & PF_EXITING));
+> > > }
+> > 
+> > which doesn't work as soon as exit_mm clears the mm which is exactly
+> > the concern I have raised above.
 > 
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> ---
->  mm/vmscan.c | 20 ++++++++++++++++++--
->  1 file changed, 18 insertions(+), 2 deletions(-)
+> Are you planning to change the scope where the OOM victims can access memory
+> reserves?
+
+Yes. Because we know that there are some post exit_mm allocations and I
+do not want to get back to PF_EXITING and other tricks...
+
+> (1) If you plan to allow the OOM victims to access memory reserves until
+>     TASK_DEAD, tsk_is_oom_victim() will be as trivial as
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 6810d81f60c7..e5af357dd4ac 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1424,7 +1424,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->  	LIST_HEAD(pages_skipped);
->  
->  	for (scan = 0; scan < nr_to_scan && nr_taken < nr_to_scan &&
-> -					!list_empty(src); scan++) {
-> +					!list_empty(src);) {
->  		struct page *page;
->  
->  		page = lru_to_page(src);
-> @@ -1438,6 +1438,12 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->  			continue;
->  		}
->  
-> +		/*
-> +		 * Account for scanned and skipped separetly to avoid the pgdat
-> +		 * being prematurely marked unreclaimable by pgdat_reclaimable.
-> +		 */
-> +		scan++;
-> +
->  		switch (__isolate_lru_page(page, mode)) {
->  		case 0:
->  			nr_pages = hpage_nr_pages(page);
-> @@ -1465,14 +1471,24 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->  	 */
->  	if (!list_empty(&pages_skipped)) {
->  		int zid;
-> +		unsigned long total_skipped = 0;
->  
-> -		list_splice(&pages_skipped, src);
->  		for (zid = 0; zid < MAX_NR_ZONES; zid++) {
->  			if (!nr_skipped[zid])
->  				continue;
->  
->  			__count_zid_vm_events(PGSCAN_SKIP, zid, nr_skipped[zid]);
-> +			total_skipped += nr_skipped[zid];
->  		}
-> +
-> +		/*
-> +		 * Account skipped pages as a partial scan as the pgdat may be
-> +		 * close to unreclaimable. If the LRU list is empty, account
-> +		 * skipped pages as a full scan.
-> +		 */
+> bool tsk_is_oom_victim(struct task_struct *task)
+> {
+> 	return task->signal->oom_mm;
+> }
 
-node-lru made OOM detection lengthy because a freeing of any zone will
-reset NR_PAGES_SCANNED easily so that it's hard to meet a situation
-pgdat_reclaimable returns *false*.
+yes, exactly. That's what I've tried to say above. with the oom_mm this
+is trivial to implement while mm lists will not help us much due to
+their life time. This also means that we know about the oom victim until
+it is unhashed and become invisible to the oom killer.
 
-When I perform stress test, it seems I encounter the situation easily
-although I have no number now.
+>     because you won't prevent the OOM victims to access memory reserves at
+>     e.g. exit_task_work() from do_exit(). In that case, I will suggest
+> 
+> bool tsk_is_oom_victim(struct task_struct *task)
+> {
+> 	return (fatal_signal_pending(task) || (task->flags & PF_EXITING));
+> }
 
-Anyway, this patch makes sense to me because it's better than now.
-About accounting scan, I supports this idea.
+No. This will cover any SIGKILLED or exiting task. I really do not think
+we can safely give exiting tasks access to memory reserves in general.
+That would require much more changes.
 
-But still, I doubt it's okay to continue skipping pages under
-irq-disabled-spin lock without any condition.
+>     like "[PATCH 2/3] mm,page_alloc: favor exiting tasks over normal tasks."
+>     does.
+> 
+> (2) If you plan to allow the OOM victims to access memory reserves until only
+>     before calling mmput() from exit_mm() from do_exit(), tsk_is_oom_victim()
+>     will be
+> 
+> bool tsk_is_oom_victim(struct task_struct *task)
+> {
+> 	return task->signal->oom_mm && task->mm;
+> }
+> 
+>     because you don't allow the OOM victims to access memory reserves at
+>     __mmput() from mmput() from exit_mm() from do_exit(). In that case, I think
+> 
+> bool tsk_is_oom_victim(void)
+> {
+> 	return current->mm && test_bit(MMF_OOM_KILLED, &current->mm->flags) &&
+> 		(fatal_signal_pending(current) || (current->flags & PF_EXITING));
+> }
+> 
+>     should work. But as you think it does not work, you are not planning to
+>     allow the OOM victims to access memory reserves until only before calling
+>     mmput() from exit_mm() from do_exit(), are you?
+
+Yes. the exit_mm is not really suitable place to cut the access to
+memory reserves. a) mmput might be not the last one and b) even if it is
+we shouldn't really rely it has cleared the memory. It will in 99% cases
+but we have seen that the code had to play PF_EXITING tricks in the past
+to cover post exit_mm allocations. I think the code flow would get
+simplified greatly if we just do not rely on tsk->mm for anything but
+the oom victim selection.
+
+> (3) If you are not planning to change the scope where the OOM victims can access
+>     memory reserves (i.e. neither (1) nor (2) above), how can we control it
+>     without using per task_struct flags like TIF_MEMDIE?
+> 
+> > 
+> > > 
+> > > >                                                The only way I can see
+> > > > this would fly would be preserving TIF_MEMDIE and setting it for all
+> > > > threads but I am not sure this is very much better and puts the mm list
+> > > > approach to a worse possition from my POV.
+> > > > 
+> > > 
+> > > But do we still need ALLOC_NO_WATERMARKS for OOM victims?
+> > 
+> > Yes as a safety net for cases when the oom_reaper cannot reclaim enough
+> > to get us out of OOM. Maybe one day we can make the oom_reaper
+> > completely bullet proof and granting access to memory reserves would be
+> > pointless. One reason I want to get rid of TIF_MEMDIE is that all would
+> > need to do at that time would be a single line dropping
+> > tsk_is_oom_victim from gfp_to_alloc_flags.
+> 
+> I didn't mean to forbid access to memory reserves completely. I meant that
+> do we need to allow access to all of memory reserves (via ALLOC_NO_WATERMARKS)
+> rather than portion of memory reserves (via ALLOC_HARDER like [PATCH 2/3] does).
+> I'm thinking that we can treat "threads killed by the OOM killer" and "threads
+> killed by SIGKILL" and "threads normally exiting via exit()" evenly by allowing
+> them access to portion of memory reserves.
+
+I didn't plan to change how much from the memory reserve the victim can
+consume. And I believe this is not really necessary at this stage. Maybe
+we want to do something about it but I would propose it to later. At
+this stage I would really like to make access to memory reserves
+independent on any other oom decisions. So either mm lists or
+signal::oom_mm approach. Can we get to some decision which one to go?
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
