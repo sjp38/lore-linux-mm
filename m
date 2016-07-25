@@ -1,73 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C55046B0005
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 10:39:43 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id w207so383449731oiw.1
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 07:39:43 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g17si10723649ita.7.2016.07.25.07.39.42
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C55B6B0005
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 13:50:09 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id l89so121476199lfi.3
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 10:50:09 -0700 (PDT)
+Received: from mail-wm0-x229.google.com (mail-wm0-x229.google.com. [2a00:1450:400c:c09::229])
+        by mx.google.com with ESMTPS id i7si6095867wjo.244.2016.07.25.10.50.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jul 2016 07:39:43 -0700 (PDT)
-From: Kyle Walker <kwalker@redhat.com>
-Subject: [PATCH] mm: Move readahead limit outside of readahead, and advisory syscalls
-Date: Mon, 25 Jul 2016 10:39:25 -0400
-Message-Id: <1469457565-22693-1-git-send-email-kwalker@redhat.com>
+        Mon, 25 Jul 2016 10:50:07 -0700 (PDT)
+Received: by mail-wm0-x229.google.com with SMTP id o80so168011481wme.1
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 10:50:07 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <93009d46-0171-7398-4add-98e09ade608b@redhat.com>
+References: <1469046427-12696-1-git-send-email-keescook@chromium.org> <93009d46-0171-7398-4add-98e09ade608b@redhat.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Mon, 25 Jul 2016 10:50:05 -0700
+Message-ID: <CAGXu5jJYYaedBZPoEWz5KROP=tn8hAmOepoC+gMpXkRn8SCyTw@mail.gmail.com>
+Subject: Re: [PATCH v4 00/12] mm: Hardened usercopy
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Kyle Walker <kwalker@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Geliang Tang <geliangtang@163.com>, Vlastimil Babka <vbabka@suse.cz>, Roman Gushchin <klamm@yandex-team.ru>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Laura Abbott <labbott@redhat.com>
+Cc: "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Balbir Singh <bsingharora@gmail.com>, Daniel Micay <danielmicay@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Rik van Riel <riel@redhat.com>, Casey Schaufler <casey@schaufler-ca.com>, PaX Team <pageexec@freemail.hu>, Brad Spengler <spender@grsecurity.net>, Russell King <linux@armlinux.org.uk>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Michael Ellerman <mpe@ellerman.id.au>, Tony Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, "David S. Miller" <davem@davemloft.net>, "x86@kernel.org" <x86@kernel.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, Jan Kara <jack@suse.cz>, Vitaly Wool <vitalywool@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, linux-ia64@vger.kernel.org, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, sparclinux <sparclinux@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Java workloads using the MappedByteBuffer library result in the fadvise()
-and madvise() syscalls being used extensively. Following recent readahead
-limiting alterations, such as 600e19af ("mm: use only per-device readahead
-limit") and 6d2be915 ("mm/readahead.c: fix readahead failure for
-memoryless NUMA nodes and limit readahead pages"), application performance
-suffers in instances where small readahead is configured.
+On Fri, Jul 22, 2016 at 5:36 PM, Laura Abbott <labbott@redhat.com> wrote:
+> On 07/20/2016 01:26 PM, Kees Cook wrote:
+>>
+>> Hi,
+>>
+>> [This is now in my kspp -next tree, though I'd really love to add some
+>> additional explicit Tested-bys, Reviewed-bys, or Acked-bys. If you've
+>> looked through any part of this or have done any testing, please consider
+>> sending an email with your "*-by:" line. :)]
+>>
+>> This is a start of the mainline port of PAX_USERCOPY[1]. After writing
+>> tests (now in lkdtm in -next) for Casey's earlier port[2], I kept tweaking
+>> things further and further until I ended up with a whole new patch series.
+>> To that end, I took Rik, Laura, and other people's feedback along with
+>> additional changes and clean-ups.
+>>
+>> Based on my understanding, PAX_USERCOPY was designed to catch a
+>> few classes of flaws (mainly bad bounds checking) around the use of
+>> copy_to_user()/copy_from_user(). These changes don't touch get_user() and
+>> put_user(), since these operate on constant sized lengths, and tend to be
+>> much less vulnerable. There are effectively three distinct protections in
+>> the whole series, each of which I've given a separate CONFIG, though this
+>> patch set is only the first of the three intended protections. (Generally
+>> speaking, PAX_USERCOPY covers what I'm calling CONFIG_HARDENED_USERCOPY
+>> (this) and CONFIG_HARDENED_USERCOPY_WHITELIST (future), and
+>> PAX_USERCOPY_SLABS covers CONFIG_HARDENED_USERCOPY_SPLIT_KMALLOC
+>> (future).)
+>>
+>> This series, which adds CONFIG_HARDENED_USERCOPY, checks that objects
+>> being copied to/from userspace meet certain criteria:
+>> - if address is a heap object, the size must not exceed the object's
+>>   allocated size. (This will catch all kinds of heap overflow flaws.)
+>> - if address range is in the current process stack, it must be within the
+>>   a valid stack frame (if such checking is possible) or at least entirely
+>>   within the current process's stack. (This could catch large lengths that
+>>   would have extended beyond the current process stack, or overflows if
+>>   their length extends back into the original stack.)
+>> - if the address range is part of kernel data, rodata, or bss, allow it.
+>> - if address range is page-allocated, that it doesn't span multiple
+>>   allocations (excepting Reserved and CMA pages).
+>> - if address is within the kernel text, reject it.
+>> - everything else is accepted
+>>
+>> The patches in the series are:
+>> - Support for examination of CMA page types:
+>>         1- mm: Add is_migrate_cma_page
+>> - Support for arch-specific stack frame checking (which will likely be
+>>   replaced in the future by Josh's more comprehensive unwinder):
+>>         2- mm: Implement stack frame object validation
+>> - The core copy_to/from_user() checks, without the slab object checks:
+>>         3- mm: Hardened usercopy
+>> - Per-arch enablement of the protection:
+>>         4- x86/uaccess: Enable hardened usercopy
+>>         5- ARM: uaccess: Enable hardened usercopy
+>>         6- arm64/uaccess: Enable hardened usercopy
+>>         7- ia64/uaccess: Enable hardened usercopy
+>>         8- powerpc/uaccess: Enable hardened usercopy
+>>         9- sparc/uaccess: Enable hardened usercopy
+>>        10- s390/uaccess: Enable hardened usercopy
+>> - The heap allocator implementation of object size checking:
+>>        11- mm: SLAB hardened usercopy support
+>>        12- mm: SLUB hardened usercopy support
+>>
+>> Some notes:
+>>
+>> - This is expected to apply on top of -next which contains fixes for the
+>>   position of _etext on both arm and arm64, though it has some conflicts
+>>   with KASAN that should be trivial to fix up. Also in -next are the
+>>   tests for this protection (in lkdtm), prefixed with USERCOPY_.
+>>
+>> - I couldn't detect a measurable performance change with these features
+>>   enabled. Kernel build times were unchanged, hackbench was unchanged,
+>>   etc. I think we could flip this to "on by default" at some point, but
+>>   for now, I'm leaving it off until I can get some more definitive
+>>   measurements. I would love if someone with greater familiarity with
+>>   perf could give this a spin and report results.
+>>
+>> - The SLOB support extracted from grsecurity seems entirely broken. I
+>>   have no idea what's going on there, I spent my time testing SLAB and
+>>   SLUB. Having someone else look at SLOB would be nice, but this series
+>>   doesn't depend on it.
+>>
+>> Additional features that would be nice, but aren't blocking this series:
+>>
+>> - Needs more architecture support for stack frame checking (only x86 now,
+>>   but it seems Josh will have a good solution for this soon).
+>>
+>>
+>> Thanks!
+>>
+>> -Kees
+>>
+>> [1] https://grsecurity.net/download.php "grsecurity - test kernel patch"
+>> [2] http://www.openwall.com/lists/kernel-hardening/2016/05/19/5
+>>
+>> v4:
+>> - handle CMA pages, labbott
+>> - update stack checker comments, labbott
+>> - check for vmalloc addresses, labbott
+>> - deal with KASAN in -next changing arm64 copy*user calls
+>> - check for linear mappings at runtime instead of via CONFIG
+>>
+>> v3:
+>> - switch to using BUG for better Oops integration
+>> - when checking page allocations, check each for Reserved
+>> - use enums for the stack check return for readability
+>>
+>> v2:
+>> - added s390 support
+>> - handle slub red zone
+>> - disallow writes to rodata area
+>> - stack frame walker now CONFIG-controlled arch-specific helper
+>>
+>
+> Do you have/plan to have LKDTM or the like tests for this? I started
+> reviewing
+> the slub code and was about to write some test cases for myself. I did that
+> for CMA as well which is a decent indicator these should all go somewhere.
 
-By moving this limit outside of the syscall codepaths, the syscalls are
-able to advise an inordinately large amount of readahead when desired.
-With a cap being imposed based on the half of NR_INACTIVE_FILE and
-NR_FREE_PAGES. In essence, allowing performance tuning efforts to define a
-small readahead limit, but then benefiting from large sequential readahead
-values selectively.
+Yeah, there is an entire section of tests in lkdtm for the usercopy
+protection. I didn't add anything for CMA or multipage allocations
+yet, though. Feel free to add those if you have a moment! :) It's on
+my todo list.
 
-Signed-off-by: Kyle Walker <kwalker@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Geliang Tang <geliangtang@163.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Roman Gushchin <klamm@yandex-team.ru>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
----
- mm/readahead.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+-Kees
 
-diff --git a/mm/readahead.c b/mm/readahead.c
-index 65ec288..6f8bb44 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -211,7 +211,9 @@ int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
- 	if (unlikely(!mapping->a_ops->readpage && !mapping->a_ops->readpages))
- 		return -EINVAL;
- 
--	nr_to_read = min(nr_to_read, inode_to_bdi(mapping->host)->ra_pages);
-+	nr_to_read = min(nr_to_read, (global_page_state(NR_INACTIVE_FILE) +
-+				     (global_page_state(NR_FREE_PAGES)) / 2));
-+
- 	while (nr_to_read) {
- 		int err;
- 
-@@ -484,6 +486,7 @@ void page_cache_sync_readahead(struct address_space *mapping,
- 
- 	/* be dumb */
- 	if (filp && (filp->f_mode & FMODE_RANDOM)) {
-+		req_size = min(req_size, inode_to_bdi(mapping->host)->ra_pages);
- 		force_page_cache_readahead(mapping, filp, offset, req_size);
- 		return;
- 	}
 -- 
-2.5.5
+Kees Cook
+Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
