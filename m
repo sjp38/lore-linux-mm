@@ -1,61 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3842D6B0005
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 03:23:04 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id l89so109527897lfi.3
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 00:23:04 -0700 (PDT)
-Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
-        by mx.google.com with ESMTPS id u1si13567926wjm.224.2016.07.25.00.23.02
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6982F6B0005
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 03:26:12 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id p129so71857973wmp.3
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 00:26:12 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id z12si22814272wmz.119.2016.07.25.00.26.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jul 2016 00:23:02 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id 694AE1C196B
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 08:23:02 +0100 (IST)
-Date: Mon, 25 Jul 2016 08:23:00 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH] mm: add per-zone lru list stat -fix
-Message-ID: <20160725072300.GK10438@techsingularity.net>
+        Mon, 25 Jul 2016 00:26:11 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id q128so15428733wma.1
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 00:26:11 -0700 (PDT)
+Date: Mon, 25 Jul 2016 09:26:09 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2] mm: add cond_resched to generic_swapfile_activate
+Message-ID: <20160725072609.GB9401@dhcp22.suse.cz>
+References: <alpine.LRH.2.02.1607221656530.4818@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.LRH.2.02.1607221710580.4818@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <alpine.LRH.2.02.1607221710580.4818@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan@kernel.org>, Fengguang Wu <fengguang.wu@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This patch renames the zone LRU stats as printed in /proc/vmstat to avoid
-confusion. This keeps both the node and zone stats which normally will be
-redundant but should always be roughly in sync.
+On Fri 22-07-16 17:11:20, Mikulas Patocka wrote:
+> The function generic_swapfile_activate can take quite long time, it iterates
+> over all blocks of a file, so add cond_resched to it. I observed about 1 second
+> stalls when activating a swapfile that was almost unfragmented - this patch
+> fixes it.
+> 
+> Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
 
-This is a fix to the mmotm patch mm-add-per-zone-lru-list-stat.patch
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- mm/vmstat.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+> 
+> ---
+>  mm/page_io.c |    2 ++
+>  1 file changed, 2 insertions(+)
+> 
+> Index: linux-4.7-rc7/mm/page_io.c
+> ===================================================================
+> --- linux-4.7-rc7.orig/mm/page_io.c	2016-05-30 17:34:37.000000000 +0200
+> +++ linux-4.7-rc7/mm/page_io.c	2016-07-11 17:23:33.000000000 +0200
+> @@ -166,6 +166,8 @@ int generic_swapfile_activate(struct swa
+>  		unsigned block_in_page;
+>  		sector_t first_block;
+>  
+> +		cond_resched();
+> +
+>  		first_block = bmap(inode, probe_block);
+>  		if (first_block == 0)
+>  			goto bad_bmap;
 
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index e1a46906c61b..89cec42d19ff 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -921,11 +921,11 @@ int fragmentation_index(struct zone *zone, unsigned int order)
- const char * const vmstat_text[] = {
- 	/* enum zone_stat_item countes */
- 	"nr_free_pages",
--	"nr_inactive_anon",
--	"nr_active_anon",
--	"nr_inactive_file",
--	"nr_active_file",
--	"nr_unevictable",
-+	"nr_zone_inactive_anon",
-+	"nr_zone_active_anon",
-+	"nr_zone_inactive_file",
-+	"nr_zone_active_file",
-+	"nr_zone_unevictable",
- 	"nr_zone_write_pending",
- 	"nr_mlock",
- 	"nr_slab_reclaimable",
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
