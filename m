@@ -1,97 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2509A6B0253
-	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 12:50:45 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id k16so34527673qke.3
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 09:50:45 -0700 (PDT)
-Received: from mail-yw0-x233.google.com (mail-yw0-x233.google.com. [2607:f8b0:4002:c05::233])
-        by mx.google.com with ESMTPS id o71si441201yba.280.2016.07.26.09.50.44
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D80CD6B025E
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 13:29:48 -0400 (EDT)
+Received: by mail-yw0-f197.google.com with SMTP id u134so27680753ywg.2
+        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 10:29:48 -0700 (PDT)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id k130si476960ywb.42.2016.07.26.10.29.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jul 2016 09:50:44 -0700 (PDT)
-Received: by mail-yw0-x233.google.com with SMTP id j12so21332470ywb.2
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 09:50:44 -0700 (PDT)
-Date: Tue, 26 Jul 2016 12:50:40 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] mm/memblock.c: fix index adjustment error in
- __next_mem_range_rev()
-Message-ID: <20160726165040.GU19588@mtj.duckdns.org>
-References: <42A378E55677204FAE257FE7EED241CB7E8EF004@CN-MBX01.HTC.COM.TW>
- <20160725185218.GG19588@mtj.duckdns.org>
- <42A378E55677204FAE257FE7EED241CB7E8EF0C9@CN-MBX01.HTC.COM.TW>
+        Tue, 26 Jul 2016 10:29:47 -0700 (PDT)
+Date: Tue, 26 Jul 2016 13:29:38 -0400
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: [PATCHv1, RFC 00/33] ext4: support of huge pages
+Message-ID: <20160726172938.GA9284@thunk.org>
+References: <1469493335-3622-1-git-send-email-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <42A378E55677204FAE257FE7EED241CB7E8EF0C9@CN-MBX01.HTC.COM.TW>
+In-Reply-To: <1469493335-3622-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zijun_hu@htc.com
-Cc: akpm@linux-foundation.org, kuleshovmail@gmail.com, ard.biesheuvel@linaro.org, tangchen@cn.fujitsu.com, weiyang@linux.vnet.ibm.com, dev@g0hl1n.net, david@gibson.dropbear.id.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org, zhiyuan_zhu@htc.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org
 
-Hello,
+On Tue, Jul 26, 2016 at 03:35:02AM +0300, Kirill A. Shutemov wrote:
+> Here's the first version of my patchset which intended to bring huge pages
+> to ext4. It's not yet ready for applying or serious use, but good enough
+> to show the approach.
 
-On Tue, Jul 26, 2016 at 03:03:58PM +0000, zijun_hu@htc.com wrote:
-> I am sorry, I don't take any test for the patch attached in previous
-> mail, and it can't fix the bug completely, please ignore it I
-> provide a new patch attached in this mail which pass test and can
-> fix the issue described below
->
-> __next_mem_range_rev() defined in mm/memblock.c doesn't Achieve
-> desired purpose if parameter type_b ==NULL This new patch can fix
-> the issue and get the last reversed region contained in type_a
-> rightly
+Thanks.  The major issues I noticed when doing a quick scan of the
+patches you've already mentioned here.  I'll try to take a closer look
+in the next week or so when I have time.
 
-Can you please flow future mails to 80 column?
+One random question --- in the huge=always approach, how much
+additional work would be needed to support file systems with a 64k
+block size on a system with 4k pages?
 
-> The new patch is descripted as follows
-> 
-> From 0e242eda7696f176a9a2e585a1db01f0575b39c9 Mon Sep 17 00:00:00 2001
-> From: zijun_hu <zijun_hu@htc.com>
-> Date: Mon, 25 Jul 2016 15:06:57 +0800
-> Subject: [PATCH] mm/memblock.c: fix index adjustment error in
->  __next_mem_range_rev()
-> 
-> fix region index adjustment error when parameter type_b of
-> __next_mem_range_rev() == NULL
-
-The patch is now fixing two bugs.  It'd be nice to describe each in
-the description and how the patch was tested.
-
-> @@ -991,7 +991,11 @@ void __init_memblock __next_mem_range_rev(u64 *idx, int nid, ulong flags,
->  
->  	if (*idx == (u64)ULLONG_MAX) {
->  		idx_a = type_a->cnt - 1;
-> -		idx_b = type_b->cnt;
-> +		/* in order to get the last reversed region rightly */
-
-Before, it would trigger null deref.  I don't think the above comment
-is necessary.
-
-> +		if (type_b != NULL)
-> +			idx_b = type_b->cnt;
-> +		else
-> +			idx_b = 0;
->  	}
->  
->  	for (; idx_a >= 0; idx_a--) {
-> @@ -1024,7 +1028,7 @@ void __init_memblock __next_mem_range_rev(u64 *idx, int nid, ulong flags,
->  				*out_end = m_end;
->  			if (out_nid)
->  				*out_nid = m_nid;
-> -			idx_a++;
-> +			idx_a--;
->  			*idx = (u32)idx_a | (u64)idx_b << 32;
->  			return;
->  		}
-
-Both changes look good to me.  Provided the changes are tested,
-
-Acked-by: Tejun Heo <tj@kernel.org>
-
-Thanks.
-
--- 
-tejun
+					- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
