@@ -1,226 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BD6E6B0005
-	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 03:07:59 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id p129so1099087wmp.3
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 00:07:59 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id i130si27662786wme.120.2016.07.26.00.07.57
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jul 2016 00:07:57 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id q128so193245wma.1
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 00:07:57 -0700 (PDT)
-Date: Tue, 26 Jul 2016 09:07:56 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 2/2] mm, mempool: do not throttle PF_LESS_THROTTLE
- tasks
-Message-ID: <20160726070755.GB32462@dhcp22.suse.cz>
-References: <1468831164-26621-1-git-send-email-mhocko@kernel.org>
- <1468831285-27242-1-git-send-email-mhocko@kernel.org>
- <1468831285-27242-2-git-send-email-mhocko@kernel.org>
- <87oa5q5abi.fsf@notabene.neil.brown.name>
- <20160722091558.GF794@dhcp22.suse.cz>
- <878twt5i1j.fsf@notabene.neil.brown.name>
- <20160725083247.GD9401@dhcp22.suse.cz>
- <20160725192344.GD2166@dhcp22.suse.cz>
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DC6F6B0260
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 03:14:15 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id q83so3543198iod.2
+        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 00:14:15 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id f74si11520iod.184.2016.07.26.00.14.13
+        for <linux-mm@kvack.org>;
+        Tue, 26 Jul 2016 00:14:14 -0700 (PDT)
+Date: Tue, 26 Jul 2016 16:18:49 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 06/11] mm/slab: don't keep free slabs if free_objects
+ exceeds free_limit
+Message-ID: <20160726071848.GA15721@js1304-P5Q-DELUXE>
+References: <1460436666-20462-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1460436666-20462-7-git-send-email-iamjoonsoo.kim@lge.com>
+ <2b417127-20a6-ef00-f541-57337a97c9ec@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160725192344.GD2166@dhcp22.suse.cz>
+In-Reply-To: <2b417127-20a6-ef00-f541-57337a97c9ec@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <neilb@suse.com>
-Cc: linux-mm@kvack.org, Mikulas Patocka <mpatocka@redhat.com>, Ondrej Kozina <okozina@redhat.com>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, dm-devel@redhat.com, Marcelo Tosatti <mtosatti@redhat.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org
 
-On Mon 25-07-16 21:23:44, Michal Hocko wrote:
-> [CC Marcelo who might remember other details for the loads which made
->  him to add this code - see the patch changelog for more context]
+On Fri, Jul 22, 2016 at 08:51:02PM +0900, Tetsuo Handa wrote:
+> Joonsoo Kim wrote:
+> > @@ -3313,6 +3310,14 @@ static void free_block(struct kmem_cache *cachep, void **objpp,
+> >  			list_add_tail(&page->lru, &n->slabs_partial);
+> >  		}
+> >  	}
+> > +
+> > +	while (n->free_objects > n->free_limit && !list_empty(&n->slabs_free)) {
+> > +		n->free_objects -= cachep->num;
+> > +
+> > +		page = list_last_entry(&n->slabs_free, struct page, lru);
+> > +		list_del(&page->lru);
+> > +		list_add(&page->lru, list);
+> > +	}
+> >  }
+> >  
+> >  static void cache_flusharray(struct kmem_cache *cachep, struct array_cache *ac)
+> > 
 > 
-> On Mon 25-07-16 10:32:47, Michal Hocko wrote:
-[...]
-> From 0d950d64e3c59061f7cca71fe5877d4e430499c9 Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.com>
-> Date: Mon, 25 Jul 2016 14:18:54 +0200
-> Subject: [PATCH] mm, vmscan: get rid of throttle_vm_writeout
+> I noticed that kmemcheck complains that n->free_limit is not initialized.
 > 
-> throttle_vm_writeout has been introduced back in 2005 to fix OOMs caused
-> by excessive pageout activity during the reclaim. Too many pages could
-> be put under writeback therefore LRUs would be full of unreclaimable pages
-> until the IO completes and in turn the OOM killer could be invoked.
+> [    0.000000] Console: colour VGA+ 80x25
+> [    0.000000] console [tty0] enabled
+> [    0.000000] console [ttyS0] enabled
+> [    0.000000] WARNING: kmemcheck: Caught 32-bit read from uninitialized memory (ffff88013ec085b8)
+> [    0.000000] a085c03e0188ffffa085c03e0188ffff06000000000000000000000000000000
+> [    0.000000]  i i i i i i i i i i i i i i i i i i i i i i i i u u u u i i i i
+> [    0.000000]                                                  ^
+> [    0.000000] RIP: 0010:[<ffffffff8113073e>]  [<ffffffff8113073e>] free_block+0x14e/0x1d0
+> [    0.000000] RSP: 0000:ffffffff81803e58  EFLAGS: 00010046
+> [    0.000000] RAX: 0000000000000006 RBX: ffff88013ec0c000 RCX: 0000000000000000
+> [    0.000000] RDX: 0000000000000000 RSI: ffff88013f7c5418 RDI: ffff88013ec0c000
+> [    0.000000] RBP: ffffffff81803e88 R08: ffffffff81803ea0 R09: ffff88013ec08580
+> [    0.000000] R10: ffff88013f7c55d0 R11: 00000000000005cd R12: ffff88013f7c5408
+> [    0.000000] R13: ffffffff81803ea0 R14: 0000000002000000 R15: 000000000000001b
+> [    0.000000] FS:  0000000000000000(0000) GS:ffffffff8182c000(0000) knlGS:0000000000000000
+> [    0.000000] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [    0.000000] CR2: ffff88013e800000 CR3: 000000000180c000 CR4: 00000000000406b0
+> [    0.000000]  [<ffffffff81131a84>] __do_tune_cpucache+0x84/0x310
+> [    0.000000]  [<ffffffff81131d35>] do_tune_cpucache+0x25/0x90
+> [    0.000000]  [<ffffffff81131df0>] enable_cpucache+0x50/0xc0
+> [    0.000000]  [<ffffffff818b5c70>] kmem_cache_init_late+0x3f/0x68
+> [    0.000000]  [<ffffffff81895eda>] start_kernel+0x2f2/0x48d
+> [    0.000000]  [<ffffffff8189553a>] x86_64_start_reservations+0x2f/0x31
+> [    0.000000]  [<ffffffff81895632>] x86_64_start_kernel+0xf6/0x111
+> [    0.000000]  [<ffffffffffffffff>] 0xffffffffffffffff
+> [    0.000000] tsc: Unable to calibrate against PIT
+> [    0.000000] tsc: using PMTIMER reference calibration
+> [    0.000000] tsc: Detected 2793.551 MHz processor
 > 
-> There have been some important changes introduced since then in the
-> reclaim path though. Writers are throttled by balance_dirty_pages
-> when initiating the buffered IO and later during the memory pressure,
-> the direct reclaim is throttled by wait_iff_congested if the node is
-> considered congested by dirty pages on LRUs and the underlying bdi
-> is congested by the queued IO. The kswapd is throttled as well if it
-> encounters pages marked for immediate reclaim or under writeback which
-> signals that that there are too many pages under writeback already.
-> Another important aspect is that we do not issue any IO from the direct
-> reclaim context anymore. In a heavy parallel load this could queue a lot
-> of IO which would be very scattered and thus unefficient which would
-> just make the problem worse.
+> Setting 0 at kmem_cache_node_init() fixes the problem, but what the initial
+> value should be? (Since list_empty(&n->slabs_free) == true, uninitialized
+> read of n->free_limit does not cause problems except kmemcheck.)
 
-And I forgot another throttling point. should_reclaim_retry which is the
-main logic to decide whether we go OOM or not has a congestion_wait if
-there are too many dirty/writeback pages. That should give the IO
-subsystem some time to finish the IO.
+Setting 0 would be okay because it would mean that we don't want to cache any
+object on kmem_cache_node. We will re-initialize it soon so it doesn't
+cause any problem.
 
-> This three mechanisms should throttle and keep the amount of IO in a
-> steady state even under heavy IO and memory pressure so yet another
-> throttling point doesn't really seem helpful. Quite contrary, Mikulas
-> Patocka has reported that swap backed by dm-crypt doesn't work properly
-> because the swapout IO cannot make sufficient progress as the writeout
-> path depends on dm_crypt worker which has to allocate memory to perform
-> the encryption. In order to guarantee a forward progress it relies
-> on the mempool allocator. mempool_alloc(), however, prefers to use
-> the underlying (usually page) allocator before it grabs objects from
-> the pool. Such an allocation can dive into the memory reclaim and
-> consequently to throttle_vm_writeout. If there are too many dirty or
-> pages under writeback it will get throttled even though it is in fact a
-> flusher to clear pending pages.
-> 
-> [  345.352536] kworker/u4:0    D ffff88003df7f438 10488     6      2	0x00000000
-> [  345.352536] Workqueue: kcryptd kcryptd_crypt [dm_crypt]
-> [  345.352536]  ffff88003df7f438 ffff88003e5d0380 ffff88003e5d0380 ffff88003e5d8e80
-> [  345.352536]  ffff88003dfb3240 ffff88003df73240 ffff88003df80000 ffff88003df7f470
-> [  345.352536]  ffff88003e5d0380 ffff88003e5d0380 ffff88003df7f828 ffff88003df7f450
-> [  345.352536] Call Trace:
-> [  345.352536]  [<ffffffff818d466c>] schedule+0x3c/0x90
-> [  345.352536]  [<ffffffff818d96a8>] schedule_timeout+0x1d8/0x360
-> [  345.352536]  [<ffffffff81135e40>] ? detach_if_pending+0x1c0/0x1c0
-> [  345.352536]  [<ffffffff811407c3>] ? ktime_get+0xb3/0x150
-> [  345.352536]  [<ffffffff811958cf>] ? __delayacct_blkio_start+0x1f/0x30
-> [  345.352536]  [<ffffffff818d39e4>] io_schedule_timeout+0xa4/0x110
-> [  345.352536]  [<ffffffff8121d886>] congestion_wait+0x86/0x1f0
-> [  345.352536]  [<ffffffff810fdf40>] ? prepare_to_wait_event+0xf0/0xf0
-> [  345.352536]  [<ffffffff812061d4>] throttle_vm_writeout+0x44/0xd0
-> [  345.352536]  [<ffffffff81211533>] shrink_zone_memcg+0x613/0x720
-> [  345.352536]  [<ffffffff81211720>] shrink_zone+0xe0/0x300
-> [  345.352536]  [<ffffffff81211aed>] do_try_to_free_pages+0x1ad/0x450
-> [  345.352536]  [<ffffffff81211e7f>] try_to_free_pages+0xef/0x300
-> [  345.352536]  [<ffffffff811fef19>] __alloc_pages_nodemask+0x879/0x1210
-> [  345.352536]  [<ffffffff810e8080>] ? sched_clock_cpu+0x90/0xc0
-> [  345.352536]  [<ffffffff8125a8d1>] alloc_pages_current+0xa1/0x1f0
-> [  345.352536]  [<ffffffff81265ef5>] ? new_slab+0x3f5/0x6a0
-> [  345.352536]  [<ffffffff81265dd7>] new_slab+0x2d7/0x6a0
-> [  345.352536]  [<ffffffff810e7f87>] ? sched_clock_local+0x17/0x80
-> [  345.352536]  [<ffffffff812678cb>] ___slab_alloc+0x3fb/0x5c0
-> [  345.352536]  [<ffffffff811f71bd>] ? mempool_alloc_slab+0x1d/0x30
-> [  345.352536]  [<ffffffff810e7f87>] ? sched_clock_local+0x17/0x80
-> [  345.352536]  [<ffffffff811f71bd>] ? mempool_alloc_slab+0x1d/0x30
-> [  345.352536]  [<ffffffff81267ae1>] __slab_alloc+0x51/0x90
-> [  345.352536]  [<ffffffff811f71bd>] ? mempool_alloc_slab+0x1d/0x30
-> [  345.352536]  [<ffffffff81267d9b>] kmem_cache_alloc+0x27b/0x310
-> [  345.352536]  [<ffffffff811f71bd>] mempool_alloc_slab+0x1d/0x30
-> [  345.352536]  [<ffffffff811f6f11>] mempool_alloc+0x91/0x230
-> [  345.352536]  [<ffffffff8141a02d>] bio_alloc_bioset+0xbd/0x260
-> [  345.352536]  [<ffffffffc02f1a54>] kcryptd_crypt+0x114/0x3b0 [dm_crypt]
-> 
-> Let's just drop throttle_vm_writeout altogether. It is not very much
-> helpful anymore.
-> 
-> I have tried to test a potential writeback IO runaway similar to the one
-> described in the original patch which has introduced that [1]. Small
-> virtual machine (512MB RAM, 4 CPUs, 2G of swap space and disk image on a
-> rather slow NFS in a sync mode on the host) with 8 parallel writers each
-> writing 1G worth of data. As soon as the pagecache fills up and the
-> direct reclaim hits then I start anon memory consumer in a loop
-> (allocating 300M and exiting after populating it) in the background
-> to make the memory pressure even stronger as well as to disrupt the
-> steady state for the IO. The direct reclaim is throttled because of the
-> congestion as well as kswapd hitting congestion_wait due to nr_immediate
-> but throttle_vm_writeout doesn't ever trigger the sleep throughout
-> the test. Dirty+writeback are close to nr_dirty_threshold with some
-> fluctuations caused by the anon consumer.
-> 
-> [1] https://www2.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.9-rc1/2.6.9-rc1-mm3/broken-out/vm-pageout-throttling.patch
-> Cc: Marcelo Tosatti <mtosatti@redhat.com>
-> Reported-by: Mikulas Patocka <mpatocka@redhat.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  include/linux/writeback.h |  1 -
->  mm/page-writeback.c       | 30 ------------------------------
->  mm/vmscan.c               |  2 --
->  3 files changed, 33 deletions(-)
-> 
-> diff --git a/include/linux/writeback.h b/include/linux/writeback.h
-> index 44b4422ae57f..f67a992cdf89 100644
-> --- a/include/linux/writeback.h
-> +++ b/include/linux/writeback.h
-> @@ -319,7 +319,6 @@ void laptop_mode_timer_fn(unsigned long data);
->  #else
->  static inline void laptop_sync_completion(void) { }
->  #endif
-> -void throttle_vm_writeout(gfp_t gfp_mask);
->  bool node_dirty_ok(struct pglist_data *pgdat);
->  int wb_domain_init(struct wb_domain *dom, gfp_t gfp);
->  #ifdef CONFIG_CGROUP_WRITEBACK
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index b82303a9e67d..2828d6ca1451 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -1962,36 +1962,6 @@ bool wb_over_bg_thresh(struct bdi_writeback *wb)
->  	return false;
->  }
->  
-> -void throttle_vm_writeout(gfp_t gfp_mask)
-> -{
-> -	unsigned long background_thresh;
-> -	unsigned long dirty_thresh;
-> -
-> -        for ( ; ; ) {
-> -		global_dirty_limits(&background_thresh, &dirty_thresh);
-> -		dirty_thresh = hard_dirty_limit(&global_wb_domain, dirty_thresh);
-> -
-> -                /*
-> -                 * Boost the allowable dirty threshold a bit for page
-> -                 * allocators so they don't get DoS'ed by heavy writers
-> -                 */
-> -                dirty_thresh += dirty_thresh / 10;      /* wheeee... */
-> -
-> -                if (global_node_page_state(NR_UNSTABLE_NFS) +
-> -			global_node_page_state(NR_WRITEBACK) <= dirty_thresh)
-> -                        	break;
-> -                congestion_wait(BLK_RW_ASYNC, HZ/10);
-> -
-> -		/*
-> -		 * The caller might hold locks which can prevent IO completion
-> -		 * or progress in the filesystem.  So we cannot just sit here
-> -		 * waiting for IO to complete.
-> -		 */
-> -		if ((gfp_mask & (__GFP_FS|__GFP_IO)) != (__GFP_FS|__GFP_IO))
-> -			break;
-> -        }
-> -}
-> -
->  /*
->   * sysctl handler for /proc/sys/vm/dirty_writeback_centisecs
->   */
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 0294ab34f475..0f35ed30e35b 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2410,8 +2410,6 @@ static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memc
->  	if (inactive_list_is_low(lruvec, false, sc))
->  		shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
->  				   sc, LRU_ACTIVE_ANON);
-> -
-> -	throttle_vm_writeout(sc->gfp_mask);
->  }
->  
->  /* Use reclaim/compaction for costly allocs or under memory pressure */
-> -- 
-> 2.8.1
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
-
--- 
-Michal Hocko
-SUSE Labs
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
