@@ -1,73 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 708CF6B025F
-	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 16:17:11 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id h186so779657pfg.2
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 13:17:11 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id 140si2162899pfx.153.2016.07.26.13.17.05
-        for <linux-mm@kvack.org>;
-        Tue, 26 Jul 2016 13:17:05 -0700 (PDT)
-From: "Roberts, William C" <william.c.roberts@intel.com>
-Subject: RE: [kernel-hardening] [PATCH] [RFC] Introduce mmap randomization
-Date: Tue, 26 Jul 2016 20:17:04 +0000
-Message-ID: <476DC76E7D1DF2438D32BFADF679FC560125F2D5@ORSMSX103.amr.corp.intel.com>
-References: <1469557346-5534-1-git-send-email-william.c.roberts@intel.com>
-	 <1469557346-5534-2-git-send-email-william.c.roberts@intel.com>
- <1469563923.10218.13.camel@redhat.com>
-In-Reply-To: <1469563923.10218.13.camel@redhat.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E20A6B025F
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 16:27:03 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id m130so12786ioa.1
+        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 13:27:03 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id j16si2793124ioo.23.2016.07.26.13.19.57
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Jul 2016 13:19:57 -0700 (PDT)
+Subject: Re: [PATCH] mm: correctly handle errors during VMA merging
+References: <1469514843-23778-1-git-send-email-vegard.nossum@oracle.com>
+ <20160726114823.GC7370@node.shutemov.name>
+From: Vegard Nossum <vegard.nossum@oracle.com>
+Message-ID: <5797C5E4.9010208@oracle.com>
+Date: Tue, 26 Jul 2016 22:19:48 +0200
 MIME-Version: 1.0
+In-Reply-To: <20160726114823.GC7370@node.shutemov.name>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "jason@lakedaemon.net" <jason@lakedaemon.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
-Cc: "keescook@chromium.org" <keescook@chromium.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "nnk@google.com" <nnk@google.com>, "jeffv@google.com" <jeffv@google.com>, "salyzyn@android.com" <salyzyn@android.com>, "dcashman@android.com" <dcashman@android.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Leon Yu <chianglungyu@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Rik van Riel <riel@redhat.com>, Daniel Forrest <dan.forrest@ssec.wisc.edu>
 
-PiAtLS0tLU9yaWdpbmFsIE1lc3NhZ2UtLS0tLQ0KPiBGcm9tOiBSaWsgdmFuIFJpZWwgW21haWx0
-bzpyaWVsQHJlZGhhdC5jb21dDQo+IFNlbnQ6IFR1ZXNkYXksIEp1bHkgMjYsIDIwMTYgMToxMiBQ
-TQ0KPiBUbzoga2VybmVsLWhhcmRlbmluZ0BsaXN0cy5vcGVud2FsbC5jb207IGphc29uQGxha2Vk
-YWVtb24ubmV0OyBsaW51eC0gDQo+IG1tQHZnZXIua2VybmVsLm9yZzsgbGludXgta2VybmVsQHZn
-ZXIua2VybmVsLm9yZzsgYWtwbUBsaW51eC0gDQo+IGZvdW5kYXRpb24ub3JnDQo+IENjOiBrZWVz
-Y29va0BjaHJvbWl1bS5vcmc7IGdyZWdraEBsaW51eGZvdW5kYXRpb24ub3JnOyBubmtAZ29vZ2xl
-LmNvbTsgDQo+IGplZmZ2QGdvb2dsZS5jb207IHNhbHl6eW5AYW5kcm9pZC5jb207IGRjYXNobWFu
-QGFuZHJvaWQuY29tOyBSb2JlcnRzLCANCj4gV2lsbGlhbSBDIDx3aWxsaWFtLmMucm9iZXJ0c0Bp
-bnRlbC5jb20+DQo+IFN1YmplY3Q6IFJlOiBba2VybmVsLWhhcmRlbmluZ10gW1BBVENIXSBbUkZD
-XSBJbnRyb2R1Y2UgbW1hcCANCj4gcmFuZG9taXphdGlvbg0KPiANCj4gT24gVHVlLCAyMDE2LTA3
-LTI2IGF0IDExOjIyIC0wNzAwLCB3aWxsaWFtLmMucm9iZXJ0c0BpbnRlbC5jb20gd3JvdGU6DQo+
-ID4gRnJvbTogV2lsbGlhbSBSb2JlcnRzIDx3aWxsaWFtLmMucm9iZXJ0c0BpbnRlbC5jb20+DQo+
-ID4NCj4gPiBUaGlzIHBhdGNoIGludHJvZHVjZXMgdGhlIGFiaWxpdHkgcmFuZG9taXplIG1tYXAg
-bG9jYXRpb25zIHdoZXJlIHRoZSANCj4gPiBhZGRyZXNzIGlzIG5vdCByZXF1ZXN0ZWQsIGZvciBp
-bnN0YW5jZSB3aGVuIGxkIGlzIGFsbG9jYXRpbmcgcGFnZXMgDQo+ID4gZm9yIHNoYXJlZCBsaWJy
-YXJpZXMuIEl0IGNob29zZXMgdG8gcmFuZG9taXplIGJhc2VkIG9uIHRoZSBjdXJyZW50IA0KPiA+
-IHBlcnNvbmFsaXR5IGZvciBBU0xSLg0KPiA+DQo+ID4gQ3VycmVudGx5LCBhbGxvY2F0aW9ucyBh
-cmUgZG9uZSBzZXF1ZW50aWFsbHkgd2l0aGluIHVubWFwcGVkIGFkZHJlc3MgDQo+ID4gc3BhY2Ug
-Z2Fwcy4gVGhpcyBtYXkgaGFwcGVuIHRvcCBkb3duIG9yIGJvdHRvbSB1cCBkZXBlbmRpbmcgb24g
-c2NoZW1lLg0KPiA+DQo+ID4gRm9yIGluc3RhbmNlIHRoZXNlIG1tYXAgY2FsbHMgcHJvZHVjZSBj
-b250aWd1b3VzIG1hcHBpbmdzOg0KPiA+IGludCBzaXplID0gZ2V0cGFnZXNpemUoKTsNCj4gPiBt
-bWFwKE5VTEwsIHNpemUsIGZsYWdzLCBNQVBfUFJJVkFURXxNQVBfQU5PTllNT1VTLCAtMSwgMCkg
-PQ0KPiA+IDB4NDAwMjYwMDANCj4gPiBtbWFwKE5VTEwsIHNpemUsIGZsYWdzLCBNQVBfUFJJVkFU
-RXxNQVBfQU5PTllNT1VTLCAtMSwgMCkgPQ0KPiA+IDB4NDAwMjcwMDANCj4gPg0KPiA+IE5vdGUg
-bm8gZ2FwIGJldHdlZW4uDQo+ID4NCj4gPiBBZnRlciBwYXRjaGVzOg0KPiA+IGludCBzaXplID0g
-Z2V0cGFnZXNpemUoKTsNCj4gPiBtbWFwKE5VTEwsIHNpemUsIGZsYWdzLCBNQVBfUFJJVkFURXxN
-QVBfQU5PTllNT1VTLCAtMSwgMCkgPQ0KPiA+IDB4NDAwYjQwMDANCj4gPiBtbWFwKE5VTEwsIHNp
-emUsIGZsYWdzLCBNQVBfUFJJVkFURXxNQVBfQU5PTllNT1VTLCAtMSwgMCkgPQ0KPiA+IDB4NDAw
-NTUwMDANCj4gPg0KPiA+IE5vdGUgZ2FwIGJldHdlZW4uDQo+IA0KPiBJIHN1c3BlY3QgdGhpcyBy
-YW5kb21pemF0aW9uIHdpbGwgYmUgbW9yZSB1c2VmdWwgZm9yIGZpbGUgbWFwcGluZ3MgDQo+IHRo
-YW4gZm9yIGFub255bW91cyBtYXBwaW5ncy4NCj4gDQo+IEkgZG9uJ3Qga25vdyB3aGV0aGVyIHRo
-ZXJlIGFyZSBkb3duc2lkZXMgdG8gY3JlYXRpbmcgbW9yZSBhbm9ueW1vdXMgDQo+IFZNQXMgdGhh
-biB3ZSBoYXZlIHRvLCB3aXRoIG1hbGxvYyBsaWJyYXJpZXMgdGhhdCBtYXkgcGVyZm9ybSB2YXJp
-b3VzIA0KPiBraW5kcyBvZiB0cmlja3Mgd2l0aCBtbWFwIGZvciB0aGVpciBvd24gcGVyZm9ybWFu
-Y2UgcmVhc29ucy4NCj4gDQo+IERvZXMgYW55b25lIGhhdmUgY29udmluY2luZyByZWFzb25zIHdo
-eSBtbWFwIHJhbmRvbWl6YXRpb24gc2hvdWxkIGRvIA0KPiBib3RoIGZpbGUgYW5kIGFub24sIG9y
-IHdoZXRoZXIgaXQgc2hvdWxkIGRvIGp1c3QgZmlsZSBtYXBwaW5ncz8NCg0KVGhyb3dpbmcgdGhp
-cyBvdXQgdGhlcmUsIGJ1dCBJZiB5b3UncmUgbW1hcCdpbmcgYnVmZmVycyBhdCBrbm93biBvZmZz
-ZXRzIGluIHRoZQ0KcHJvZ3JhbSB0aGVuIGZvbGtzIGtub3cgd2hlcmUgdG8gd3JpdGUvbW9kaWZ5
-Lg0KDQpKYXNvbiBDb29wZXIgbWVudGlvbmVkIHVzaW5nIGEgS0NvbmZpZyBhcm91bmQgdGhpcyAo
-YW1vbmdzdCBvdGhlciB0aGluZ3MpIHdoaWNoIHBlcmhhcHMNCkNvbnRyb2xsaW5nIHRoaXMgYXQg
-YSBiZXR0ZXIgZ3JhbnVsYXJpdHkgd291bGQgYmUgYmVuZWZpY2lhbC4NCg0KPiANCj4gLS0NCj4g
-QWxsIHJpZ2h0cyByZXZlcnNlZA0K
+On 07/26/2016 01:48 PM, Kirill A. Shutemov wrote:
+> On Tue, Jul 26, 2016 at 08:34:03AM +0200, Vegard Nossum wrote:
+>> Using trinity + fault injection I've been running into this bug a lot:
+>>
+>>      ==================================================================
+>>      BUG: KASAN: out-of-bounds in mprotect_fixup+0x523/0x5a0 at addr ffff8800b9e7d740
+
+[...]
+
+>> What's happening is that we're doing an mprotect() on a range that spans
+>> three existing adjacent mappings. The first two are merged fine, but if
+>> we merge the last one and anon_vma_clone() runs out of memory, we return
+>> an error and mprotect_fixup() tries to use the (now stale) pointer. It
+>> goes like this:
+>>
+>>      SyS_mprotect()
+>>        - mprotect_fixup()
+>>           - vma_merge()
+>>              - vma_adjust()
+>>                 // first merge
+>>                 - kmem_cache_free(vma)
+>>                 - goto again;
+>>                 // second merge
+>>                 - anon_vma_clone()
+>>                    - kmem_cache_alloc()
+>>                       - return NULL
+>>                    - kmem_cache_alloc()
+>>                       - return NULL
+>>                    - return -ENOMEM
+>>                 - return -ENOMEM
+>>              - return NULL
+>>           - vma->vm_start // use-after-free
+>>
+>> In other words, it is possible to run into a memory allocation error
+>> *after* part of the merging work has already been done. In this case,
+>> we probably shouldn't return an error back to userspace anyway (since
+>> it would not reflect the partial work that was done).
+>>
+>> I *think* the solution might be to simply ignore the errors from
+>> vma_adjust() and carry on with distinct VMAs for adjacent regions that
+>> might otherwise have been represented with a single VMA.
+>>
+>> I have a reproducer that runs into the bug within a few seconds when
+>> fault injection is enabled -- with the patch I no longer see any
+>> problems.
+>>
+>> The patch and resulting code admittedly look odd and I'm *far* from
+>> an expert on mm internals, so feel free to propose counter-patches and
+>> I can give the reproducer a spin.
+>
+> Could you give this a try (barely tested):
+
+No apparent problems using either the quick reproducer or trinity (used
+to take 1-5 hours) after ~8 hours of testing :-)
+
+
+Vegard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
