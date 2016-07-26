@@ -1,87 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C41CE6B0005
-	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 03:25:32 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id o80so1446889wme.1
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 00:25:32 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id io7si18500521wjb.172.2016.07.26.00.25.31
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B0E806B0005
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 03:31:02 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id p41so134703731lfi.0
+        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 00:31:02 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l135si27723399wmg.133.2016.07.26.00.31.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jul 2016 00:25:31 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id x83so243704wma.3
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 00:25:31 -0700 (PDT)
-Date: Tue, 26 Jul 2016 09:25:30 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 2/2] mm, mempool: do not throttle PF_LESS_THROTTLE
- tasks
-Message-ID: <20160726072530.GC32462@dhcp22.suse.cz>
-References: <1468831164-26621-1-git-send-email-mhocko@kernel.org>
- <1468831285-27242-1-git-send-email-mhocko@kernel.org>
- <1468831285-27242-2-git-send-email-mhocko@kernel.org>
- <87oa5q5abi.fsf@notabene.neil.brown.name>
- <20160722091558.GF794@dhcp22.suse.cz>
- <878twt5i1j.fsf@notabene.neil.brown.name>
- <alpine.LRH.2.02.1607251730280.11852@file01.intranet.prod.int.rdu2.redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 26 Jul 2016 00:31:01 -0700 (PDT)
+Subject: Re: [PATCH v2] mm: page-flags: Use bool return value instead of int
+ for all XXPageXXX functions
+References: <1469336184-1904-1-git-send-email-chengang@emindsoft.com.cn>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <13e3f511-e14c-2e4d-9627-4a85c65de931@suse.cz>
+Date: Tue, 26 Jul 2016 09:30:52 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1607251730280.11852@file01.intranet.prod.int.rdu2.redhat.com>
+In-Reply-To: <1469336184-1904-1-git-send-email-chengang@emindsoft.com.cn>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: NeilBrown <neilb@suse.com>, linux-mm@kvack.org, Ondrej Kozina <okozina@redhat.com>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, dm-devel@redhat.com
+To: chengang@emindsoft.com.cn, akpm@linux-foundation.org, minchan@kernel.org, mgorman@techsingularity.net, mhocko@suse.com
+Cc: gi-oh.kim@profitbricks.com, iamjoonsoo.kim@lge.com, hillf.zj@alibaba-inc.com, rientjes@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Gang <gang.chen.5i5j@gmail.com>
 
-On Mon 25-07-16 17:52:17, Mikulas Patocka wrote:
-> 
-> 
-> On Sat, 23 Jul 2016, NeilBrown wrote:
-> 
-> > "dirtying ... from the reclaim context" ??? What does that mean?
-> > According to
-> >   Commit: 26eecbf3543b ("[PATCH] vm: pageout throttling")
-> > From the history tree, the purpose of throttle_vm_writeout() is to
-> > limit the amount of memory that is concurrently under I/O.
-> > That seems strange to me because I thought it was the responsibility of
-> > each backing device to impose a limit - a maximum queue size of some
-> > sort.
-> 
-> Device mapper doesn't impose any limit for in-flight bios.
-> 
-> Some simple device mapper targets (such as linear or stripe) pass bio 
-> directly to the underlying device with generic_make_request, so if the 
-> underlying device's request limit is reached, the target's request routine 
-> waits.
-> 
-> However, complex dm targets (such as dm-crypt, dm-mirror, dm-thin) pass 
-> bios to a workqueue that processes them. And since there is no limit on 
-> the number of workqueue entries, there is no limit on the number of 
-> in-flight bios.
-> 
-> I've seen a case when I had a HPFS filesystem on dm-crypt. I wrote to the 
-> filesystem, there was about 2GB dirty data. The HPFS filesystem used 
-> 512-byte bios. dm-crypt allocates one temporary page for each incoming 
-> bio. So, there were 4M bios in flight, each bio allocated 4k temporary 
-> page - that is attempted 16GB allocation. It didn't trigger OOM condition 
-> (because mempool allocations don't ever trigger it), but it temporarily 
-> exhausted all computer's memory.
+On 07/24/2016 06:56 AM, chengang@emindsoft.com.cn wrote:
+> From: Chen Gang <gang.chen.5i5j@gmail.com>
+>
+> For pure bool function's return value, bool is a little better more or
+> less than int.
 
-OK, that is certainly not good and something that throttle_vm_writeout
-aimed at protecting from. It is a little bit poor protection because
-it might fire much more earlier than necessary. Shouldn't those workers
-simply backoff when the underlying bdi is congested? It wouldn't help
-to queue more IO when the bdi is hammered already.
- 
-> I've made some patches that limit in-flight bios for device mapper in the 
-> past, but there were not integrated into upstream.
+That's not exactly a bulletproof justification... At least provide a 
+scripts/bloat-o-meter output?
 
-Care to revive them? I am not an expert in dm but unbounded amount of
-inflight IO doesn't really sound good.
+> Under source root directory, use `grep -rn Page * | grep "\<int\>"` to
+> find the area that need be changed.
+>
+> For the related macro function definiations (e.g. TESTPAGEFLAG), they
+> use xxx_bit which should be pure bool functions, too. But under most of
+> architectures, xxx_bit are return int, which need be changed next.
 
-[...]
--- 
-Michal Hocko
-SUSE Labs
+Sounds like a large task. And until we know the arches will agree with 
+this, this patch will bring just inconsistency?
+
+Vlastimil
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
