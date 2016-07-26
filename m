@@ -1,89 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DC6F6B0260
-	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 03:14:15 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id q83so3543198iod.2
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 00:14:15 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id f74si11520iod.184.2016.07.26.00.14.13
-        for <linux-mm@kvack.org>;
-        Tue, 26 Jul 2016 00:14:14 -0700 (PDT)
-Date: Tue, 26 Jul 2016 16:18:49 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 06/11] mm/slab: don't keep free slabs if free_objects
- exceeds free_limit
-Message-ID: <20160726071848.GA15721@js1304-P5Q-DELUXE>
-References: <1460436666-20462-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1460436666-20462-7-git-send-email-iamjoonsoo.kim@lge.com>
- <2b417127-20a6-ef00-f541-57337a97c9ec@I-love.SAKURA.ne.jp>
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C41CE6B0005
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 03:25:32 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id o80so1446889wme.1
+        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 00:25:32 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id io7si18500521wjb.172.2016.07.26.00.25.31
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Jul 2016 00:25:31 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id x83so243704wma.3
+        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 00:25:31 -0700 (PDT)
+Date: Tue, 26 Jul 2016 09:25:30 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 2/2] mm, mempool: do not throttle PF_LESS_THROTTLE
+ tasks
+Message-ID: <20160726072530.GC32462@dhcp22.suse.cz>
+References: <1468831164-26621-1-git-send-email-mhocko@kernel.org>
+ <1468831285-27242-1-git-send-email-mhocko@kernel.org>
+ <1468831285-27242-2-git-send-email-mhocko@kernel.org>
+ <87oa5q5abi.fsf@notabene.neil.brown.name>
+ <20160722091558.GF794@dhcp22.suse.cz>
+ <878twt5i1j.fsf@notabene.neil.brown.name>
+ <alpine.LRH.2.02.1607251730280.11852@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <2b417127-20a6-ef00-f541-57337a97c9ec@I-love.SAKURA.ne.jp>
+In-Reply-To: <alpine.LRH.2.02.1607251730280.11852@file01.intranet.prod.int.rdu2.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Jesper Dangaard Brouer <brouer@redhat.com>, linux-mm@kvack.org
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: NeilBrown <neilb@suse.com>, linux-mm@kvack.org, Ondrej Kozina <okozina@redhat.com>, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, dm-devel@redhat.com
 
-On Fri, Jul 22, 2016 at 08:51:02PM +0900, Tetsuo Handa wrote:
-> Joonsoo Kim wrote:
-> > @@ -3313,6 +3310,14 @@ static void free_block(struct kmem_cache *cachep, void **objpp,
-> >  			list_add_tail(&page->lru, &n->slabs_partial);
-> >  		}
-> >  	}
-> > +
-> > +	while (n->free_objects > n->free_limit && !list_empty(&n->slabs_free)) {
-> > +		n->free_objects -= cachep->num;
-> > +
-> > +		page = list_last_entry(&n->slabs_free, struct page, lru);
-> > +		list_del(&page->lru);
-> > +		list_add(&page->lru, list);
-> > +	}
-> >  }
-> >  
-> >  static void cache_flusharray(struct kmem_cache *cachep, struct array_cache *ac)
-> > 
+On Mon 25-07-16 17:52:17, Mikulas Patocka wrote:
 > 
-> I noticed that kmemcheck complains that n->free_limit is not initialized.
 > 
-> [    0.000000] Console: colour VGA+ 80x25
-> [    0.000000] console [tty0] enabled
-> [    0.000000] console [ttyS0] enabled
-> [    0.000000] WARNING: kmemcheck: Caught 32-bit read from uninitialized memory (ffff88013ec085b8)
-> [    0.000000] a085c03e0188ffffa085c03e0188ffff06000000000000000000000000000000
-> [    0.000000]  i i i i i i i i i i i i i i i i i i i i i i i i u u u u i i i i
-> [    0.000000]                                                  ^
-> [    0.000000] RIP: 0010:[<ffffffff8113073e>]  [<ffffffff8113073e>] free_block+0x14e/0x1d0
-> [    0.000000] RSP: 0000:ffffffff81803e58  EFLAGS: 00010046
-> [    0.000000] RAX: 0000000000000006 RBX: ffff88013ec0c000 RCX: 0000000000000000
-> [    0.000000] RDX: 0000000000000000 RSI: ffff88013f7c5418 RDI: ffff88013ec0c000
-> [    0.000000] RBP: ffffffff81803e88 R08: ffffffff81803ea0 R09: ffff88013ec08580
-> [    0.000000] R10: ffff88013f7c55d0 R11: 00000000000005cd R12: ffff88013f7c5408
-> [    0.000000] R13: ffffffff81803ea0 R14: 0000000002000000 R15: 000000000000001b
-> [    0.000000] FS:  0000000000000000(0000) GS:ffffffff8182c000(0000) knlGS:0000000000000000
-> [    0.000000] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [    0.000000] CR2: ffff88013e800000 CR3: 000000000180c000 CR4: 00000000000406b0
-> [    0.000000]  [<ffffffff81131a84>] __do_tune_cpucache+0x84/0x310
-> [    0.000000]  [<ffffffff81131d35>] do_tune_cpucache+0x25/0x90
-> [    0.000000]  [<ffffffff81131df0>] enable_cpucache+0x50/0xc0
-> [    0.000000]  [<ffffffff818b5c70>] kmem_cache_init_late+0x3f/0x68
-> [    0.000000]  [<ffffffff81895eda>] start_kernel+0x2f2/0x48d
-> [    0.000000]  [<ffffffff8189553a>] x86_64_start_reservations+0x2f/0x31
-> [    0.000000]  [<ffffffff81895632>] x86_64_start_kernel+0xf6/0x111
-> [    0.000000]  [<ffffffffffffffff>] 0xffffffffffffffff
-> [    0.000000] tsc: Unable to calibrate against PIT
-> [    0.000000] tsc: using PMTIMER reference calibration
-> [    0.000000] tsc: Detected 2793.551 MHz processor
+> On Sat, 23 Jul 2016, NeilBrown wrote:
 > 
-> Setting 0 at kmem_cache_node_init() fixes the problem, but what the initial
-> value should be? (Since list_empty(&n->slabs_free) == true, uninitialized
-> read of n->free_limit does not cause problems except kmemcheck.)
+> > "dirtying ... from the reclaim context" ??? What does that mean?
+> > According to
+> >   Commit: 26eecbf3543b ("[PATCH] vm: pageout throttling")
+> > From the history tree, the purpose of throttle_vm_writeout() is to
+> > limit the amount of memory that is concurrently under I/O.
+> > That seems strange to me because I thought it was the responsibility of
+> > each backing device to impose a limit - a maximum queue size of some
+> > sort.
+> 
+> Device mapper doesn't impose any limit for in-flight bios.
+> 
+> Some simple device mapper targets (such as linear or stripe) pass bio 
+> directly to the underlying device with generic_make_request, so if the 
+> underlying device's request limit is reached, the target's request routine 
+> waits.
+> 
+> However, complex dm targets (such as dm-crypt, dm-mirror, dm-thin) pass 
+> bios to a workqueue that processes them. And since there is no limit on 
+> the number of workqueue entries, there is no limit on the number of 
+> in-flight bios.
+> 
+> I've seen a case when I had a HPFS filesystem on dm-crypt. I wrote to the 
+> filesystem, there was about 2GB dirty data. The HPFS filesystem used 
+> 512-byte bios. dm-crypt allocates one temporary page for each incoming 
+> bio. So, there were 4M bios in flight, each bio allocated 4k temporary 
+> page - that is attempted 16GB allocation. It didn't trigger OOM condition 
+> (because mempool allocations don't ever trigger it), but it temporarily 
+> exhausted all computer's memory.
 
-Setting 0 would be okay because it would mean that we don't want to cache any
-object on kmem_cache_node. We will re-initialize it soon so it doesn't
-cause any problem.
+OK, that is certainly not good and something that throttle_vm_writeout
+aimed at protecting from. It is a little bit poor protection because
+it might fire much more earlier than necessary. Shouldn't those workers
+simply backoff when the underlying bdi is congested? It wouldn't help
+to queue more IO when the bdi is hammered already.
+ 
+> I've made some patches that limit in-flight bios for device mapper in the 
+> past, but there were not integrated into upstream.
 
-Thanks.
+Care to revive them? I am not an expert in dm but unbounded amount of
+inflight IO doesn't really sound good.
+
+[...]
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
