@@ -1,75 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BEBB06B026F
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 20:36:44 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id ez1so359929840pab.0
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 17:36:44 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id c27si36078541pfk.274.2016.07.25.17.36.05
+	by kanga.kvack.org (Postfix) with ESMTP id B54026B0270
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 20:36:46 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id ez1so359931084pab.0
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 17:36:46 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id 185si36111454pfu.115.2016.07.25.17.36.12
         for <linux-mm@kvack.org>;
-        Mon, 25 Jul 2016 17:36:16 -0700 (PDT)
+        Mon, 25 Jul 2016 17:36:25 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv1, RFC 06/33] radix-tree: Handle multiorder entries being deleted by replace_clear_tags
-Date: Tue, 26 Jul 2016 03:35:08 +0300
-Message-Id: <1469493335-3622-7-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv1, RFC 18/33] HACK: block: bump BIO_MAX_PAGES
+Date: Tue, 26 Jul 2016 03:35:20 +0300
+Message-Id: <1469493335-3622-19-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1469493335-3622-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1469493335-3622-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-From: Matthew Wilcox <willy@infradead.org>
+We are going to do IO a huge page a time. For x86-64, it's 512 pages, so
+we need to double current BIO_MAX_PAGES.
 
-radix_tree_replace_clear_tags() can be called with NULL as the replacement
-value; in this case we need to delete sibling entries which point to
-the slot.
+To be portable to other archtectures we need more generic solution.
 
-Signed-off-by: Matthew Wilcox <willy@infradead.org>
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- lib/radix-tree.c | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ include/linux/bio.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index e49f32f7c537..89092c4011b8 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -1799,17 +1799,23 @@ void *radix_tree_delete(struct radix_tree_root *root, unsigned long index)
- }
- EXPORT_SYMBOL(radix_tree_delete);
+diff --git a/include/linux/bio.h b/include/linux/bio.h
+index b7e1a00810f2..e10c67f21366 100644
+--- a/include/linux/bio.h
++++ b/include/linux/bio.h
+@@ -40,7 +40,7 @@
+ #define BIO_BUG_ON
+ #endif
  
-+/*
-+ * If the caller passes NULL for @entry, it must take care to adjust
-+ * node->count.  See page_cache_tree_delete() for an example.
-+ */
- struct radix_tree_node *radix_tree_replace_clear_tags(
- 			struct radix_tree_root *root,
- 			unsigned long index, void *entry)
- {
- 	struct radix_tree_node *node;
- 	void **slot;
-+	unsigned int offset;
+-#define BIO_MAX_PAGES		256
++#define BIO_MAX_PAGES		512
  
- 	__radix_tree_lookup(root, index, &node, &slot);
- 
- 	if (node) {
--		unsigned int tag, offset = get_slot_offset(node, slot);
-+		unsigned int tag;
-+		offset = get_slot_offset(node, slot);
- 		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
- 			node_tag_clear(root, node, tag, offset);
- 	} else {
-@@ -1818,6 +1824,9 @@ struct radix_tree_node *radix_tree_replace_clear_tags(
- 	}
- 
- 	radix_tree_replace_slot(slot, entry);
-+	if (!entry && node)
-+		delete_sibling_entries(node, node_to_entry(slot), offset);
-+
- 	return node;
- }
- 
+ #define bio_prio(bio)			(bio)->bi_ioprio
+ #define bio_set_prio(bio, prio)		((bio)->bi_ioprio = prio)
 -- 
 2.8.1
 
