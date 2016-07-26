@@ -1,225 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 36BD76B025F
-	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 17:11:33 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id i27so3087281qte.3
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 14:11:33 -0700 (PDT)
-Received: from mail-yw0-x22b.google.com (mail-yw0-x22b.google.com. [2607:f8b0:4002:c05::22b])
-        by mx.google.com with ESMTPS id l128si616834ybf.110.2016.07.26.14.11.32
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B2E46B025F
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 17:45:04 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id p85so1840912lfg.3
+        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 14:45:04 -0700 (PDT)
+Received: from outbound1.eu.mailhop.org (outbound1.eu.mailhop.org. [52.28.251.132])
+        by mx.google.com with ESMTPS id v127si19429825wmb.147.2016.07.26.14.45.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jul 2016 14:11:32 -0700 (PDT)
-Received: by mail-yw0-x22b.google.com with SMTP id u134so33845475ywg.3
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 14:11:32 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <476DC76E7D1DF2438D32BFADF679FC5601260044@ORSMSX103.amr.corp.intel.com>
+        Tue, 26 Jul 2016 14:45:02 -0700 (PDT)
+Date: Tue, 26 Jul 2016 21:44:53 +0000
+From: Jason Cooper <jason@lakedaemon.net>
+Subject: Re: [PATCH] [RFC] Introduce mmap randomization
+Message-ID: <20160726214453.GN4541@io.lakedaemon.net>
 References: <1469557346-5534-1-git-send-email-william.c.roberts@intel.com>
  <1469557346-5534-2-git-send-email-william.c.roberts@intel.com>
- <CAFJ0LnENnrpVA_SdngGxeShsmxq9Mvc0h9EH1=8vEP=hFFnt1g@mail.gmail.com> <476DC76E7D1DF2438D32BFADF679FC5601260044@ORSMSX103.amr.corp.intel.com>
-From: Nick Kralevich <nnk@google.com>
-Date: Tue, 26 Jul 2016 14:11:23 -0700
-Message-ID: <CAFJ0LnHkpjSRwikMCcLNmjJ2Xxta_ngk+qeSqjPgFmyjrUvDnw@mail.gmail.com>
-Subject: Re: [PATCH] [RFC] Introduce mmap randomization
-Content-Type: text/plain; charset=UTF-8
+ <20160726200309.GJ4541@io.lakedaemon.net>
+ <476DC76E7D1DF2438D32BFADF679FC560125F29C@ORSMSX103.amr.corp.intel.com>
+ <20160726205944.GM4541@io.lakedaemon.net>
+ <476DC76E7D1DF2438D32BFADF679FC5601260068@ORSMSX103.amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <476DC76E7D1DF2438D32BFADF679FC5601260068@ORSMSX103.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Roberts, William C" <william.c.roberts@intel.com>
-Cc: "jason@lakedaemon.net" <jason@lakedaemon.net>, lkml <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Andrew Morton <akpm@linux-foundation.org>, Kees Cook <keescook@chromium.org>, Greg KH <gregkh@linuxfoundation.org>, Jeffrey Vander Stoep <jeffv@google.com>, "salyzyn@android.com" <salyzyn@android.com>, Daniel Cashman <dcashman@android.com>, linux-mm@kvack.org
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "keescook@chromium.org" <keescook@chromium.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "nnk@google.com" <nnk@google.com>, "jeffv@google.com" <jeffv@google.com>, "salyzyn@android.com" <salyzyn@android.com>, "dcashman@android.com" <dcashman@android.com>
 
-On Tue, Jul 26, 2016 at 2:02 PM, Roberts, William C
-<william.c.roberts@intel.com> wrote:
->
->
->> -----Original Message-----
->> From: Nick Kralevich [mailto:nnk@google.com]
->> Sent: Tuesday, July 26, 2016 1:41 PM
->> To: Roberts, William C <william.c.roberts@intel.com>
->> Cc: jason@lakedaemon.net; linux-mm@vger.kernel.org; lkml <linux-
->> kernel@vger.kernel.org>; kernel-hardening@lists.openwall.com; Andrew
->> Morton <akpm@linux-foundation.org>; Kees Cook <keescook@chromium.org>;
->> Greg KH <gregkh@linuxfoundation.org>; Jeffrey Vander Stoep
->> <jeffv@google.com>; salyzyn@android.com; Daniel Cashman
->> <dcashman@android.com>
->> Subject: Re: [PATCH] [RFC] Introduce mmap randomization
->>
->> My apologies in advance if I misunderstand the purposes of this patch.
->>
->> IIUC, this patch adds a random gap between various mmap() mappings, with the
->> goal of ensuring that both the mmap base address and gaps between pages are
->> randomized.
->>
->> If that's the goal, please note that this behavior has caused significant
->> performance problems to Android in the past. Specifically, random gaps between
->> mmap()ed regions causes memory space fragmentation. After a program runs for
->> a long time, the ability to find large contiguous blocks of memory becomes
->> impossible, and mmap()s fail due to lack of a large enough address space.
->
-> Yes and fragmentation is definitely a problem here. Especially when the mmaps()
-> are not a consistent length for program life.
->
->>
->> This isn't just a theoretical concern. Android actually hit this on kernels prior to
->> http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=7dbaa46
->> 6780a754154531b44c2086f6618cee3a8
->> . Before that patch, the gaps between mmap()ed pages were randomized.
->> See the discussion at:
->>
->>   http://lists.infradead.org/pipermail/linux-arm-kernel/2011-
->> November/073082.html
->>   http://marc.info/?t=132070957400005&r=1&w=2
->>
->> We ended up having to work around this problem in the following commits:
->>
->>
->> https://android.googlesource.com/platform/dalvik/+/311886c6c6fcd3b531531f59
->> 2d56caab5e2a259c
->>   https://android.googlesource.com/platform/art/+/51e5386
->>   https://android.googlesource.com/platform/art/+/f94b781
->>
->> If this behavior was re-introduced, it's likely to cause hard-to-reproduce
->> problems, and I suspect Android based distributions would tend to disable this
->> feature either globally, or for applications which make a large number of mmap()
->> calls.
->
-> Yeah and this is the issue I want to see if we can overcome. I see the biggest benefit
-> being on libraries loaded by dl. Perhaps a random flag and modify to linkers. Im just
-> spit balling here and collecting the feedback, like this. Thanks for the detail, that
-> helps a lot.
+On Tue, Jul 26, 2016 at 09:06:30PM +0000, Roberts, William C wrote:
+> > From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org] On
+> > Behalf Of Jason Cooper
+> > On Tue, Jul 26, 2016 at 08:13:23PM +0000, Roberts, William C wrote:
+> > > > > From: Jason Cooper [mailto:jason@lakedaemon.net] On Tue, Jul 26,
+> > > > > 2016 at 11:22:26AM -0700, william.c.roberts@intel.com wrote:
+> > > > > > Performance Measurements:
+> > > > > > Using strace with -T option and filtering for mmap on the
+> > > > > > program ls shows a slowdown of approximate 3.7%
+> > > > >
+> > > > > I think it would be helpful to show the effect on the resulting object code.
+> > > >
+> > > > Do you mean the maps of the process? I have some captures for
+> > > > whoopsie on my Ubuntu system I can share.
+> > 
+> > No, I mean changes to mm/mmap.o.
+> 
+> Sure I can post the objdump of that, do you just want a diff of old vs new?
 
-Android N introduced library load order randomization, which partially
-helps with this.
+Well, I'm partial to scripts/objdiff, but bloat-o-meter might be more
+familiar to most of the folks who you'll be trying to convince to merge
+this.
 
-https://android-review.googlesource.com/178130
+But that's the least of your worries atm. :-/  I was going to dig into
+mmap.c to confirm my suspicions, but Nick answered it for me.
+Fragmentation caused by this sort of feature is known to have caused
+problems in the past.
 
-There's also https://android-review.googlesource.com/248499 which adds
-additional gaps for shared libraries.
+I would highly recommend studying those prior use cases and answering
+those concerns before progressing too much further.  As I've mentioned
+elsewhere, you'll need to quantify the increased difficulty to the
+attacker that your patch imposes.  Personally, I would assess that first
+to see if it's worth the effort at all.
 
+> > > > One thing I didn't make clear in my commit message is why this
+> > > > is good. Right now, if you know An address within in a process,
+> > > > you know all offsets done with mmap(). For instance, an offset
+> > > > To libX can yield libY by adding/subtracting an offset. This is
+> > > > meant to make rops a bit harder, or In general any mapping
+> > > > offset mmore difficult to
+> > find/guess.
+> > 
+> > Are you able to quantify how many bits of entropy you're imposing on
+> > the attacker?  Is this a chair in the hallway or a significant
+> > increase in the chances of crashing the program before finding the
+> > desired address?
+> 
+> I'd likely need to take a small sample of programs and examine them,
+> especially considering That as gaps are harder to find, it forces the
+> randomization down and randomization can Be directly altered with
+> length on mmap(), versus randomize_addr() which didn't have this
+> restriction but OOM'd do to fragmented easier.
 
->
->>
->> -- Nick
->>
->>
->>
->> On Tue, Jul 26, 2016 at 11:22 AM,  <william.c.roberts@intel.com> wrote:
->> > From: William Roberts <william.c.roberts@intel.com>
->> >
->> > This patch introduces the ability randomize mmap locations where the
->> > address is not requested, for instance when ld is allocating pages for
->> > shared libraries. It chooses to randomize based on the current
->> > personality for ASLR.
->> >
->> > Currently, allocations are done sequentially within unmapped address
->> > space gaps. This may happen top down or bottom up depending on scheme.
->> >
->> > For instance these mmap calls produce contiguous mappings:
->> > int size = getpagesize();
->> > mmap(NULL, size, flags, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) =
->> 0x40026000
->> > mmap(NULL, size, flags, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) =
->> 0x40027000
->> >
->> > Note no gap between.
->> >
->> > After patches:
->> > int size = getpagesize();
->> > mmap(NULL, size, flags, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) =
->> 0x400b4000
->> > mmap(NULL, size, flags, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) =
->> 0x40055000
->> >
->> > Note gap between.
->> >
->> > Using the test program mentioned here, that allocates fixed sized
->> > blocks till exhaustion:
->> > https://www.linux-mips.org/archives/linux-mips/2011-05/msg00252.html,
->> > no difference was noticed in the number of allocations. Most varied
->> > from run to run, but were always within a few allocations of one
->> > another between patched and un-patched runs.
->> >
->> > Performance Measurements:
->> > Using strace with -T option and filtering for mmap on the program ls
->> > shows a slowdown of approximate 3.7%
->> >
->> > Signed-off-by: William Roberts <william.c.roberts@intel.com>
->> > ---
->> >  mm/mmap.c | 24 ++++++++++++++++++++++++
->> >  1 file changed, 24 insertions(+)
->> >
->> > diff --git a/mm/mmap.c b/mm/mmap.c
->> > index de2c176..7891272 100644
->> > --- a/mm/mmap.c
->> > +++ b/mm/mmap.c
->> > @@ -43,6 +43,7 @@
->> >  #include <linux/userfaultfd_k.h>
->> >  #include <linux/moduleparam.h>
->> >  #include <linux/pkeys.h>
->> > +#include <linux/random.h>
->> >
->> >  #include <asm/uaccess.h>
->> >  #include <asm/cacheflush.h>
->> > @@ -1582,6 +1583,24 @@ unacct_error:
->> >         return error;
->> >  }
->> >
->> > +/*
->> > + * Generate a random address within a range. This differs from
->> > +randomize_addr() by randomizing
->> > + * on len sized chunks. This helps prevent fragmentation of the virtual
->> memory map.
->> > + */
->> > +static unsigned long randomize_mmap(unsigned long start, unsigned
->> > +long end, unsigned long len) {
->> > +       unsigned long slots;
->> > +
->> > +       if ((current->personality & ADDR_NO_RANDOMIZE) ||
->> !randomize_va_space)
->> > +               return 0;
->> > +
->> > +       slots = (end - start)/len;
->> > +       if (!slots)
->> > +               return 0;
->> > +
->> > +       return PAGE_ALIGN(start + ((get_random_long() % slots) *
->> > +len)); }
->> > +
->> >  unsigned long unmapped_area(struct vm_unmapped_area_info *info)  {
->> >         /*
->> > @@ -1676,6 +1695,8 @@ found:
->> >         if (gap_start < info->low_limit)
->> >                 gap_start = info->low_limit;
->> >
->> > +       gap_start = randomize_mmap(gap_start, gap_end, length) ? :
->> > + gap_start;
->> > +
->> >         /* Adjust gap address to the desired alignment */
->> >         gap_start += (info->align_offset - gap_start) &
->> > info->align_mask;
->> >
->> > @@ -1775,6 +1796,9 @@ found:
->> >  found_highest:
->> >         /* Compute highest gap address at the desired alignment */
->> >         gap_end -= info->length;
->> > +
->> > +       gap_end = randomize_mmap(gap_start, gap_end, length) ? :
->> > + gap_end;
->> > +
->> >         gap_end -= (gap_end - info->align_offset) & info->align_mask;
->> >
->> >         VM_BUG_ON(gap_end < info->low_limit);
->> > --
->> > 1.9.1
->> >
->>
->>
->>
->> --
->> Nick Kralevich | Android Security | nnk@google.com | 650.214.4037
+Right, after the Android feedback from Nick, I think you have a lot of
+work on your hands.  Not just in design, but also in developing convincing
+arguments derived from real use cases.
 
+thx,
 
-
--- 
-Nick Kralevich | Android Security | nnk@google.com | 650.214.4037
+Jason.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
