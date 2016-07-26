@@ -1,86 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E20A6B025F
-	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 16:27:03 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id m130so12786ioa.1
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 13:27:03 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id j16si2793124ioo.23.2016.07.26.13.19.57
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D48F16B025F
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 16:29:30 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id b65so31530625wmg.0
+        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 13:29:30 -0700 (PDT)
+Received: from mail-lf0-x242.google.com (mail-lf0-x242.google.com. [2a00:1450:4010:c07::242])
+        by mx.google.com with ESMTPS id s124si1154952lfd.298.2016.07.26.13.29.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jul 2016 13:19:57 -0700 (PDT)
-Subject: Re: [PATCH] mm: correctly handle errors during VMA merging
-References: <1469514843-23778-1-git-send-email-vegard.nossum@oracle.com>
- <20160726114823.GC7370@node.shutemov.name>
-From: Vegard Nossum <vegard.nossum@oracle.com>
-Message-ID: <5797C5E4.9010208@oracle.com>
-Date: Tue, 26 Jul 2016 22:19:48 +0200
+        Tue, 26 Jul 2016 13:29:29 -0700 (PDT)
+Received: by mail-lf0-x242.google.com with SMTP id 33so979158lfw.3
+        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 13:29:29 -0700 (PDT)
+Date: Tue, 26 Jul 2016 23:29:26 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] [RFC] Introduce mmap randomization
+Message-ID: <20160726202926.GC11776@node.shutemov.name>
+References: <1469557631-5752-1-git-send-email-william.c.roberts@intel.com>
+ <20160726192627.GB11776@node.shutemov.name>
+ <476DC76E7D1DF2438D32BFADF679FC560125F23C@ORSMSX103.amr.corp.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20160726114823.GC7370@node.shutemov.name>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <476DC76E7D1DF2438D32BFADF679FC560125F23C@ORSMSX103.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Leon Yu <chianglungyu@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Rik van Riel <riel@redhat.com>, Daniel Forrest <dan.forrest@ssec.wisc.edu>
+To: "Roberts, William C" <william.c.roberts@intel.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 07/26/2016 01:48 PM, Kirill A. Shutemov wrote:
-> On Tue, Jul 26, 2016 at 08:34:03AM +0200, Vegard Nossum wrote:
->> Using trinity + fault injection I've been running into this bug a lot:
->>
->>      ==================================================================
->>      BUG: KASAN: out-of-bounds in mprotect_fixup+0x523/0x5a0 at addr ffff8800b9e7d740
+On Tue, Jul 26, 2016 at 07:57:45PM +0000, Roberts, William C wrote:
+> 
+> 
+> > -----Original Message-----
+> > From: Kirill A. Shutemov [mailto:kirill@shutemov.name]
+> > Sent: Tuesday, July 26, 2016 12:26 PM
+> > To: Roberts, William C <william.c.roberts@intel.com>
+> > Cc: linux-mm@kvack.org
+> > Subject: Re: [PATCH] [RFC] Introduce mmap randomization
+> > 
+> > On Tue, Jul 26, 2016 at 11:27:11AM -0700, william.c.roberts@intel.com wrote:
+> > > From: William Roberts <william.c.roberts@intel.com>
+> > >
+> > > This patch introduces the ability randomize mmap locations where the
+> > > address is not requested, for instance when ld is allocating pages for
+> > > shared libraries. It chooses to randomize based on the current
+> > > personality for ASLR.
+> > >
+> > > Currently, allocations are done sequentially within unmapped address
+> > > space gaps. This may happen top down or bottom up depending on scheme.
+> > >
+> > > For instance these mmap calls produce contiguous mappings:
+> > > int size = getpagesize();
+> > > mmap(NULL, size, flags, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) =
+> > 0x40026000
+> > > mmap(NULL, size, flags, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) =
+> > 0x40027000
+> > >
+> > > Note no gap between.
+> > >
+> > > After patches:
+> > > int size = getpagesize();
+> > > mmap(NULL, size, flags, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) =
+> > 0x400b4000
+> > > mmap(NULL, size, flags, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) =
+> > 0x40055000
+> > >
+> > > Note gap between.
+> > 
+> > And why is it good?
+> 
+> Currently if you get an info leak and discover, say the address to libX
+> It's just a matter of adding/subtracting a fixed offset to find libY. This
+> will make rop a bit harder if you're trying to rop into a different library
+> than what was leaked.
+> 
+> This also has a benefit outside of just libraries in that it randomizes all the
+> Mappings done via mmap from run to run. So you don't get consistent,
+> known offsets to things within the memory space. 
+> 
+> > 
+> > > Using the test program mentioned here, that allocates fixed sized
+> > > blocks till exhaustion:
+> > > https://www.linux-mips.org/archives/linux-mips/2011-05/msg00252.html,
+> > > no difference was noticed in the number of allocations. Most varied
+> > > from run to run, but were always within a few allocations of one
+> > > another between patched and un-patched runs.
+> > >
+> > > Performance Measurements:
+> > > Using strace with -T option and filtering for mmap on the program ls
+> > > shows a slowdown of approximate 3.7%
+> > 
+> > NAK.
+> > 
+> > It's just too costly. And no obvious benefits.
+> 
+> Sorry I used to have the explanation in the message, a carless edit
+> removed it.
+> 
+> The cost does suck, perhaps something like personality + KConfig option....
 
-[...]
+Cost sucks even more than you've mentioned: you'll pay on every page
+fault, as find_vma() would have more vmas in the tree and vmacache will
+not be that effective. That's something people spend a lot time to tune.
 
->> What's happening is that we're doing an mprotect() on a range that spans
->> three existing adjacent mappings. The first two are merged fine, but if
->> we merge the last one and anon_vma_clone() runs out of memory, we return
->> an error and mprotect_fixup() tries to use the (now stale) pointer. It
->> goes like this:
->>
->>      SyS_mprotect()
->>        - mprotect_fixup()
->>           - vma_merge()
->>              - vma_adjust()
->>                 // first merge
->>                 - kmem_cache_free(vma)
->>                 - goto again;
->>                 // second merge
->>                 - anon_vma_clone()
->>                    - kmem_cache_alloc()
->>                       - return NULL
->>                    - kmem_cache_alloc()
->>                       - return NULL
->>                    - return -ENOMEM
->>                 - return -ENOMEM
->>              - return NULL
->>           - vma->vm_start // use-after-free
->>
->> In other words, it is possible to run into a memory allocation error
->> *after* part of the merging work has already been done. In this case,
->> we probably shouldn't return an error back to userspace anyway (since
->> it would not reflect the partial work that was done).
->>
->> I *think* the solution might be to simply ignore the errors from
->> vma_adjust() and carry on with distinct VMAs for adjacent regions that
->> might otherwise have been represented with a single VMA.
->>
->> I have a reproducer that runs into the bug within a few seconds when
->> fault injection is enabled -- with the patch I no longer see any
->> problems.
->>
->> The patch and resulting code admittedly look odd and I'm *far* from
->> an expert on mm internals, so feel free to propose counter-patches and
->> I can give the reproducer a spin.
->
-> Could you give this a try (barely tested):
+Taking this into account, I can't see any real-world application that
+would opt-in for this security feature.
 
-No apparent problems using either the quick reproducer or trinity (used
-to take 1-5 hours) after ~8 hours of testing :-)
-
-
-Vegard
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
