@@ -1,82 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CA0126B0005
-	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 04:22:04 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id j124so8439634ith.1
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 01:22:04 -0700 (PDT)
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A5FB56B0005
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 04:26:26 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id m101so7332477ioi.0
+        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 01:26:26 -0700 (PDT)
 Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id d198si184287iof.179.2016.07.26.01.22.03
+        by mx.google.com with ESMTP id r64si195911iod.174.2016.07.26.01.26.25
         for <linux-mm@kvack.org>;
-        Tue, 26 Jul 2016 01:22:04 -0700 (PDT)
-Date: Tue, 26 Jul 2016 17:26:38 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 5/5] mm, vmscan: Account for skipped pages as a partial
- scan
-Message-ID: <20160726082638.GD15721@js1304-P5Q-DELUXE>
-References: <1469110261-7365-1-git-send-email-mgorman@techsingularity.net>
- <1469110261-7365-6-git-send-email-mgorman@techsingularity.net>
- <20160726081621.GC15721@js1304-P5Q-DELUXE>
+        Tue, 26 Jul 2016 01:26:25 -0700 (PDT)
+Date: Tue, 26 Jul 2016 17:27:01 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC] mm: bail out in shrin_inactive_list
+Message-ID: <20160726082701.GA9950@bbox>
+References: <1469433119-1543-1-git-send-email-minchan@kernel.org>
+ <20160725092909.GV11400@suse.de>
+ <20160726012157.GA11651@bbox>
+ <20160726074650.GW11400@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20160726074650.GW11400@suse.de>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20160726081621.GC15721@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov@virtuozzo.com>
 
-On Tue, Jul 26, 2016 at 05:16:22PM +0900, Joonsoo Kim wrote:
-> On Thu, Jul 21, 2016 at 03:11:01PM +0100, Mel Gorman wrote:
-> > Page reclaim determines whether a pgdat is unreclaimable by examining how
-> > many pages have been scanned since a page was freed and comparing that to
-> > the LRU sizes. Skipped pages are not reclaim candidates but contribute to
-> > scanned. This can prematurely mark a pgdat as unreclaimable and trigger
-> > an OOM kill.
+On Tue, Jul 26, 2016 at 08:46:50AM +0100, Mel Gorman wrote:
+> On Tue, Jul 26, 2016 at 10:21:57AM +0900, Minchan Kim wrote:
+> > > > I believe proper fix is to modify get_scan_count. IOW, I think
+> > > > we should introduce lruvec_reclaimable_lru_size with proper
+> > > > classzone_idx but I don't know how we can fix it with memcg
+> > > > which doesn't have zone stat now. should introduce zone stat
+> > > > back to memcg? Or, it's okay to ignore memcg?
+> > > > 
+> > > 
+> > > I think it's ok to ignore memcg in this case as a memcg shrink is often
+> > > going to be for pages that can use highmem anyway.
 > > 
-> > This patch accounts for skipped pages as a partial scan so that an
-> > unreclaimable pgdat will still be marked as such but by scaling the cost
-> > of a skip, it'll avoid the pgdat being marked prematurely.
+> > So, you mean it's okay to ignore kmemcg case?
+> > If memcg guys agree it, I want to make get_scan_count consider
+> > reclaimable lru size under the reclaim constraint, instead.
 > > 
-> > Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> > ---
-> >  mm/vmscan.c | 20 ++++++++++++++++++--
-> >  1 file changed, 18 insertions(+), 2 deletions(-)
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 6810d81f60c7..e5af357dd4ac 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -1424,7 +1424,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
-> >  	LIST_HEAD(pages_skipped);
-> >  
-> >  	for (scan = 0; scan < nr_to_scan && nr_taken < nr_to_scan &&
-> > -					!list_empty(src); scan++) {
-> > +					!list_empty(src);) {
-> >  		struct page *page;
-> >  
-> >  		page = lru_to_page(src);
-> > @@ -1438,6 +1438,12 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
-> >  			continue;
-> >  		}
-> >  
-> > +		/*
-> > +		 * Account for scanned and skipped separetly to avoid the pgdat
-> > +		 * being prematurely marked unreclaimable by pgdat_reclaimable.
-> > +		 */
-> > +		scan++;
-> > +
 > 
-> This logic has potential unbounded retry problem. src would not become
-> empty if __isolate_lru_page() return -EBUSY since we move failed page
-> to src list again in this case.
+> For now, I believe yet. My understanding is that the primary use cases
+> for kmemcg is systems running large numbers of containers. It consider
+> it extremely unlikely that large 32-bit systems are being used for large
+> numbers of containers and require usage of kmemcg.
 
-Oops.. It would not unbounded retry. It would cause needless retry but
-bounded. Sorry about noise.
-
-Thanks.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Okay, Then how about this?
+I didn't test it but I guess it should work.
