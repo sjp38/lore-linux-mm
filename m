@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C719E6B0262
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 20:36:20 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id y134so438590461pfg.1
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 17:36:20 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id cc15si36082537pac.249.2016.07.25.17.36.12
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D6C36B0263
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 20:36:22 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id b62so286799346pfa.2
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 17:36:22 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id u3si36044024pay.67.2016.07.25.17.36.07
         for <linux-mm@kvack.org>;
-        Mon, 25 Jul 2016 17:36:20 -0700 (PDT)
+        Mon, 25 Jul 2016 17:36:13 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv1, RFC 20/33] thp: introduce hpage_size() and hpage_mask()
-Date: Tue, 26 Jul 2016 03:35:22 +0300
-Message-Id: <1469493335-3622-21-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv1, RFC 11/33] thp: allow splitting non-shmem file-backed THPs
+Date: Tue, 26 Jul 2016 03:35:13 +0300
+Message-Id: <1469493335-3622-12-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1469493335-3622-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1469493335-3622-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,49 +19,26 @@ List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Introduce new helpers which return size/mask of the page:
-HPAGE_PMD_SIZE/HPAGE_PMD_MASK if the page is PageTransHuge() and
-PAGE_SIZE/PAGE_MASK otherwise.
+split_huge_page() is ready to handle file-backed huge pages, we only
+need to remove one guarding VM_BUG_ON_PAGE().
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/huge_mm.h | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ mm/huge_memory.c | 1 -
+ 1 file changed, 1 deletion(-)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 6f14de45b5ce..de2789b4402c 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -138,6 +138,20 @@ static inline int hpage_nr_pages(struct page *page)
- 	return 1;
- }
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index c1444a99a583..7f1271c38cb9 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2004,7 +2004,6 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
  
-+static inline int hpage_size(struct page *page)
-+{
-+	if (unlikely(PageTransHuge(page)))
-+		return HPAGE_PMD_SIZE;
-+	return PAGE_SIZE;
-+}
-+
-+static inline unsigned long hpage_mask(struct page *page)
-+{
-+	if (unlikely(PageTransHuge(page)))
-+		return HPAGE_PMD_MASK;
-+	return PAGE_MASK;
-+}
-+
- extern int do_huge_pmd_numa_page(struct fault_env *fe, pmd_t orig_pmd);
+ 	VM_BUG_ON_PAGE(is_huge_zero_page(page), page);
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+-	VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
+ 	VM_BUG_ON_PAGE(!PageCompound(page), page);
  
- extern struct page *huge_zero_page;
-@@ -163,6 +177,8 @@ void put_huge_zero_page(void);
- #define HPAGE_PMD_SIZE ({ BUILD_BUG(); 0; })
- 
- #define hpage_nr_pages(x) 1
-+#define hpage_size(x) PAGE_SIZE
-+#define hpage_mask(x) PAGE_MASK
- 
- #define transparent_hugepage_enabled(__vma) 0
- 
+ 	if (PageAnon(head)) {
 -- 
 2.8.1
 
