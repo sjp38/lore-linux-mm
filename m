@@ -1,199 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D51556B0005
-	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 07:48:28 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id r97so4200243lfi.2
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 04:48:28 -0700 (PDT)
-Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
-        by mx.google.com with ESMTPS id w10si166962lfd.404.2016.07.26.04.48.26
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jul 2016 04:48:26 -0700 (PDT)
-Received: by mail-lf0-x243.google.com with SMTP id 33so247404lfw.3
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 04:48:26 -0700 (PDT)
-Date: Tue, 26 Jul 2016 14:48:23 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm: correctly handle errors during VMA merging
-Message-ID: <20160726114823.GC7370@node.shutemov.name>
-References: <1469514843-23778-1-git-send-email-vegard.nossum@oracle.com>
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E49CB6B025E
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 07:48:40 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id l89so4118988lfi.3
+        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 04:48:40 -0700 (PDT)
+Received: from cloudserver094114.home.net.pl (cloudserver094114.home.net.pl. [79.96.170.134])
+        by mx.google.com with SMTP id v83si942824wmv.78.2016.07.26.04.48.39
+        for <linux-mm@kvack.org>;
+        Tue, 26 Jul 2016 04:48:39 -0700 (PDT)
+From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Subject: Re: [PATCH v9 0/7] Make cpuid <-> nodeid mapping persistent
+Date: Tue, 26 Jul 2016 13:53:42 +0200
+Message-ID: <122491145.6BHBUIrED6@vostro.rjw.lan>
+In-Reply-To: <34809745-7e48-29d3-f31b-826414ccdef3@cn.fujitsu.com>
+References: <1469435749-19582-1-git-send-email-douly.fnst@cn.fujitsu.com> <20160725162022.e90e9c6c74a5d147e39e5945@linux-foundation.org> <34809745-7e48-29d3-f31b-826414ccdef3@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1469514843-23778-1-git-send-email-vegard.nossum@oracle.com>
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vegard Nossum <vegard.nossum@oracle.com>
-Cc: linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Leon Yu <chianglungyu@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Rik van Riel <riel@redhat.com>, Daniel Forrest <dan.forrest@ssec.wisc.edu>
+To: Dou Liyang <douly.fnst@cn.fujitsu.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, cl@linux.com, tj@kernel.org, mika.j.penttila@gmail.com, mingo@redhat.com, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, len.brown@intel.com, lenb@kernel.org, tglx@linutronix.de, chen.tang@easystack.cn, rafael@kernel.org, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Jul 26, 2016 at 08:34:03AM +0200, Vegard Nossum wrote:
-> Using trinity + fault injection I've been running into this bug a lot:
-> 
->     ==================================================================
->     BUG: KASAN: out-of-bounds in mprotect_fixup+0x523/0x5a0 at addr ffff8800b9e7d740
->     Read of size 8 by task trinity-c3/6338
->     =============================================================================
->     BUG vm_area_struct (Not tainted): kasan: bad access detected
->     -----------------------------------------------------------------------------
-> 
->     Disabling lock debugging due to kernel taint
->     INFO: Allocated in copy_process.part.42+0x3ae7/0x52d0 age=13 cpu=0 pid=23703
->             ___slab_alloc+0x480/0x4b0
->             __slab_alloc.isra.53+0x56/0x80
->             kmem_cache_alloc+0x22d/0x270
->             copy_process.part.42+0x3ae7/0x52d0
->             _do_fork+0x16d/0x8e0
->             SyS_clone+0x14/0x20
->             do_syscall_64+0x19c/0x410
->             return_from_SYSCALL_64+0x0/0x6a
->     INFO: Freed in vma_adjust+0xab7/0x1740 age=25 cpu=1 pid=6338
->             __slab_free+0x17a/0x250
->             kmem_cache_free+0x20f/0x220
->             remove_vma+0x12e/0x170
->             exit_mmap+0x265/0x3c0
->             mmput+0x77/0x170
->             do_exit+0x636/0x2b80
->             do_group_exit+0xe2/0x2d0
->             get_signal+0x4be/0x1000
->             do_signal+0x83/0x1f10
->             exit_to_usermode_loop+0xa2/0x120
->             syscall_return_slowpath+0x13f/0x170
->             ret_from_fork+0x2f/0x40
-> 
->     CPU: 1 PID: 6338 Comm: trinity-c3 Tainted: G    B           4.7.0-rc7+ #45
->     Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Ubuntu-1.8.2-1ubuntu1 04/01/2014
->      ffffea0002e79f00 ffff88011887fc60 ffffffff81aa58b1 ffff88011a816400
->      ffff8800b9e7d740 ffff88011887fc90 ffffffff8142c54d ffff88011a816400
->      ffffea0002e79f00 ffff8800b9e7d740 0000000000000000 ffff88011887fcb8
->     Call Trace:
->      [<ffffffff81aa58b1>] dump_stack+0x65/0x84
->      [<ffffffff8142c54d>] print_trailer+0x10d/0x1a0
->      [<ffffffff8142fe5f>] object_err+0x2f/0x40
->      [<ffffffff81434ab1>] kasan_report_error+0x221/0x520
->      [<ffffffff81434eee>] __asan_report_load8_noabort+0x3e/0x40
->      [<ffffffff813e88f3>] mprotect_fixup+0x523/0x5a0
->      [<ffffffff813e8e34>] SyS_mprotect+0x4c4/0xa10
->      [<ffffffff8100534c>] do_syscall_64+0x19c/0x410
->      [<ffffffff83515d65>] entry_SYSCALL64_slow_path+0x25/0x25
-> 
-> followed shortly by assertion errors and/or other bugs due to memory
-> corruption.
-> 
-> What's happening is that we're doing an mprotect() on a range that spans
-> three existing adjacent mappings. The first two are merged fine, but if
-> we merge the last one and anon_vma_clone() runs out of memory, we return
-> an error and mprotect_fixup() tries to use the (now stale) pointer. It
-> goes like this:
-> 
->     SyS_mprotect()
->       - mprotect_fixup()
->          - vma_merge()
->             - vma_adjust()
->                // first merge
->                - kmem_cache_free(vma)
->                - goto again;
->                // second merge
->                - anon_vma_clone()
->                   - kmem_cache_alloc()
->                      - return NULL
->                   - kmem_cache_alloc()
->                      - return NULL
->                   - return -ENOMEM
->                - return -ENOMEM
->             - return NULL
->          - vma->vm_start // use-after-free
-> 
-> In other words, it is possible to run into a memory allocation error
-> *after* part of the merging work has already been done. In this case,
-> we probably shouldn't return an error back to userspace anyway (since
-> it would not reflect the partial work that was done).
-> 
-> I *think* the solution might be to simply ignore the errors from
-> vma_adjust() and carry on with distinct VMAs for adjacent regions that
-> might otherwise have been represented with a single VMA.
-> 
-> I have a reproducer that runs into the bug within a few seconds when
-> fault injection is enabled -- with the patch I no longer see any
-> problems.
-> 
-> The patch and resulting code admittedly look odd and I'm *far* from
-> an expert on mm internals, so feel free to propose counter-patches and
-> I can give the reproducer a spin.
+On Tuesday, July 26, 2016 11:59:38 AM Dou Liyang wrote:
+>=20
+> =E5=9C=A8 2016=E5=B9=B407=E6=9C=8826=E6=97=A5 07:20, Andrew Morton =E5=
+=86=99=E9=81=93:
+> > On Mon, 25 Jul 2016 16:35:42 +0800 Dou Liyang <douly.fnst@cn.fujits=
+u.com> wrote:
+> >
+> >> [Problem]
+> >>
+> >> cpuid <-> nodeid mapping is firstly established at boot time. And =
+workqueue caches
+> >> the mapping in wq_numa_possible_cpumask in wq_numa_init() at boot =
+time.
+> >>
+> >> When doing node online/offline, cpuid <-> nodeid mapping is establ=
+ished/destroyed,
+> >> which means, cpuid <-> nodeid mapping will change if node hotplug =
+happens. But
+> >> workqueue does not update wq_numa_possible_cpumask.
+> >>
+> >> So here is the problem:
+> >>
+> >> Assume we have the following cpuid <-> nodeid in the beginning:
+> >>
+> >>   Node | CPU
+> >> ------------------------
+> >> node 0 |  0-14, 60-74
+> >> node 1 | 15-29, 75-89
+> >> node 2 | 30-44, 90-104
+> >> node 3 | 45-59, 105-119
+> >>
+> >> and we hot-remove node2 and node3, it becomes:
+> >>
+> >>   Node | CPU
+> >> ------------------------
+> >> node 0 |  0-14, 60-74
+> >> node 1 | 15-29, 75-89
+> >>
+> >> and we hot-add node4 and node5, it becomes:
+> >>
+> >>   Node | CPU
+> >> ------------------------
+> >> node 0 |  0-14, 60-74
+> >> node 1 | 15-29, 75-89
+> >> node 4 | 30-59
+> >> node 5 | 90-119
+> >>
+> >> But in wq_numa_possible_cpumask, cpu30 is still mapped to node2, a=
+nd the like.
+> >>
+> >> When a pool workqueue is initialized, if its cpumask belongs to a =
+node, its
+> >> pool->node will be mapped to that node. And memory used by this wo=
+rkqueue will
+> >> also be allocated on that node.
+> >
+> > Plan B is to hunt down and fix up all the workqueue structures at
+> > hotplug-time.  Has that option been evaluated?
+> >
+>=20
+> Yes, the option has been evaluate in this patch:
+> http://www.gossamer-threads.com/lists/linux/kernel/2116748
+>=20
+> >
+> > Your fix is x86-only and this bug presumably affects other
+> > architectures, yes?I think a "Plan B" would fix all architectures?
+> >
+>=20
+> Yes, the bug may presumably affect few architectures which support CP=
+U=20
+> hotplug and NUMA.
+>=20
+> We have sent the "Plan B" in our community and got a lot of advice an=
+d=20
+> ideas. Based on these suggestions, We carefully balance that two plan=
+.=20
+> Then we choice the first.
+>=20
+> >
+> > Thirdly, what is the merge path for these patches?  Is an x86
+> > or ACPI maintainer working with you on them?
+>=20
+> Yes, we get a lot of guidance and help from RJ who is an ACPI maintai=
+ner.
 
-Could you give this a try (barely tested):
+FWIW, the patches are fine by me from the ACPI perspective.
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index a384c10c7657..58c10191c3d6 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -621,7 +621,6 @@ int vma_adjust(struct vm_area_struct *vma, unsigned long start,
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	struct vm_area_struct *next = vma->vm_next;
--	struct vm_area_struct *importer = NULL;
- 	struct address_space *mapping = NULL;
- 	struct rb_root *root = NULL;
- 	struct anon_vma *anon_vma = NULL;
-@@ -632,16 +631,23 @@ int vma_adjust(struct vm_area_struct *vma, unsigned long start,
- 
- 	if (next && !insert) {
- 		struct vm_area_struct *exporter = NULL;
-+		struct vm_area_struct *importer = NULL, *importer2 = NULL;
- 
- 		if (end >= next->vm_end) {
- 			/*
- 			 * vma expands, overlapping all the next, and
- 			 * perhaps the one after too (mprotect case 6).
- 			 */
--again:			remove_next = 1 + (end > next->vm_end);
-+			remove_next = 1 + (end > next->vm_end);
- 			end = next->vm_end;
- 			exporter = next;
- 			importer = vma;
-+			if (remove_next == 2 &&
-+					exporter && !exporter->anon_vma) {
-+				exporter = next->vm_next;
-+				importer2 = next;
-+			}
-+
- 		} else if (end > next->vm_start) {
- 			/*
- 			 * vma expands, overlapping part of the next:
-@@ -673,9 +679,19 @@ again:			remove_next = 1 + (end > next->vm_end);
- 			error = anon_vma_clone(importer, exporter);
- 			if (error)
- 				return error;
-+			if (importer2) {
-+				importer2->anon_vma = exporter->anon_vma;
-+				error = anon_vma_clone(importer2, exporter);
-+				if (error) {
-+					/* undo first anon_vma_clone() */
-+					importer->anon_vma = NULL;
-+					unlink_anon_vmas(importer);
-+					return error;
-+				}
-+			}
- 		}
- 	}
--
-+again:
- 	vma_adjust_trans_huge(vma, start, end, adjust_next);
- 
- 	if (file) {
-@@ -796,8 +812,11 @@ again:			remove_next = 1 + (end > next->vm_end);
- 		 * up the code too much to do both in one go.
- 		 */
- 		next = vma->vm_next;
--		if (remove_next == 2)
-+		if (remove_next == 2) {
-+			remove_next = 1;
-+			end = next->vm_end;
- 			goto again;
-+		}
- 		else if (next)
- 			vma_gap_update(next);
- 		else
--- 
- Kirill A. Shutemov
+If you want me to apply them, though, ACKs from the x86 and mm maintain=
+ers
+will be necessary.
+
+Thanks,
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
