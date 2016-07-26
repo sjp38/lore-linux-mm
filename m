@@ -1,85 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FE9B6B0253
-	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 15:23:45 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id c52so38353570qte.2
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 12:23:45 -0700 (PDT)
-Received: from mail-qt0-f180.google.com (mail-qt0-f180.google.com. [209.85.216.180])
-        by mx.google.com with ESMTPS id s5si541187ybf.337.2016.07.26.12.23.44
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 93C9C6B0253
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 15:26:31 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id p41so21159231lfi.0
+        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 12:26:31 -0700 (PDT)
+Received: from mail-lf0-x242.google.com (mail-lf0-x242.google.com. [2a00:1450:4010:c07::242])
+        by mx.google.com with ESMTPS id q20si1063847lfg.373.2016.07.26.12.26.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jul 2016 12:23:44 -0700 (PDT)
-Received: by mail-qt0-f180.google.com with SMTP id 52so16658316qtq.3
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 12:23:44 -0700 (PDT)
+        Tue, 26 Jul 2016 12:26:30 -0700 (PDT)
+Received: by mail-lf0-x242.google.com with SMTP id 33so902740lfw.3
+        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 12:26:30 -0700 (PDT)
+Date: Tue, 26 Jul 2016 22:26:27 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] [RFC] Introduce mmap randomization
+Message-ID: <20160726192627.GB11776@node.shutemov.name>
+References: <1469557631-5752-1-git-send-email-william.c.roberts@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20160725134732.b21912c54ef1ffe820ccdbca@linux-foundation.org>
-References: <1469457565-22693-1-git-send-email-kwalker@redhat.com> <20160725134732.b21912c54ef1ffe820ccdbca@linux-foundation.org>
-From: Kyle Walker <kwalker@redhat.com>
-Date: Tue, 26 Jul 2016 15:23:42 -0400
-Message-ID: <CAEPKNTJjqcmap70nEaVVixK9486mp=-MKuDBCCdHdP4cx-D2Yw@mail.gmail.com>
-Subject: Re: [PATCH] mm: Move readahead limit outside of readahead, and
- advisory syscalls
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1469557631-5752-1-git-send-email-william.c.roberts@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Geliang Tang <geliangtang@163.com>, Vlastimil Babka <vbabka@suse.cz>, Roman Gushchin <klamm@yandex-team.ru>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: william.c.roberts@intel.com
+Cc: linux-mm@kvack.org
 
-On Mon, Jul 25, 2016 at 4:47 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
->
-> Can this suffering be quantified please?
->
+On Tue, Jul 26, 2016 at 11:27:11AM -0700, william.c.roberts@intel.com wrote:
+> From: William Roberts <william.c.roberts@intel.com>
+> 
+> This patch introduces the ability randomize mmap locations where the
+> address is not requested, for instance when ld is allocating pages for
+> shared libraries. It chooses to randomize based on the current
+> personality for ASLR.
+> 
+> Currently, allocations are done sequentially within unmapped address
+> space gaps. This may happen top down or bottom up depending on scheme.
+> 
+> For instance these mmap calls produce contiguous mappings:
+> int size = getpagesize();
+> mmap(NULL, size, flags, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x40026000
+> mmap(NULL, size, flags, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x40027000
+> 
+> Note no gap between.
+> 
+> After patches:
+> int size = getpagesize();
+> mmap(NULL, size, flags, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x400b4000
+> mmap(NULL, size, flags, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x40055000
+> 
+> Note gap between.
 
-The observed suffering is primarily visible within an IBM Qradar
-installation. From a high level, the lower limit to the amount of advisory
-readahead pages results in a 3-5x increase in time necessary to complete
-an identical query within the application.
+And why is it good?
 
-Note, all of the below values are with Readahead configured to 64Kib.
+> Using the test program mentioned here, that allocates fixed sized blocks
+> till exhaustion: https://www.linux-mips.org/archives/linux-mips/2011-05/msg00252.html,
+> no difference was noticed in the number of allocations. Most varied from
+> run to run, but were always within a few allocations of one another
+> between patched and un-patched runs.
+> 
+> Performance Measurements:
+> Using strace with -T option and filtering for mmap on the program
+> ls shows a slowdown of approximate 3.7%
 
-Baseline behaviour - Prior to:
- 600e19af ("mm: use only per-device readahead limit")
- 6d2be915 ("mm/readahead.c: fix readahead failure for memoryless NUMA
-           nodes and limit readahead pages")
+NAK.
 
-Result:
- Qradar - Command: "username equals root" - 57.3s to complete search
+It's just too costly. And no obvious benefits.
 
-
-New performance - With:
- 600e19af ("mm: use only per-device readahead limit")
- 6d2be915 ("mm/readahead.c: fix readahead failure for memoryless NUMA
-           nodes and limit readahead pages")
-
-Result:
- Qradar - "username equals root" query - 245.7s to complete search
-
-
-Proposed behaviour - With the proposed patch in place.
-
-Result:
- Qradar - "username equals root" query - 57s to complete search
-
-
-In narrowing the source of the performance deficit, it was observed that
-the amount of data loaded into pagecache via madvise was quite a bit lower
-following the noted commits. As simply reverting those lower limits were
-not accepted previously, the proposed alternative strategy seemed like the
-most beneficial path forwards.
-
->
-> Linus probably has opinions ;)
->
-
-I understand that changes to readahead that are very similar have been
-proposed quite a bit lately. If there are any changes or testing needed,
-I'm more than happy to tackle that.
-
-
-Thank you in advance!
 -- 
-Kyle Walker
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
