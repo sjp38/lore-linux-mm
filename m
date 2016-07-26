@@ -1,53 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D7F36B0005
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 20:31:43 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id ag5so259943038pad.2
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 17:31:43 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id bl8si36048723pad.42.2016.07.25.17.26.01
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jul 2016 17:26:11 -0700 (PDT)
-Date: Mon, 25 Jul 2016 17:25:49 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v9 0/7] Make cpuid <-> nodeid mapping persistent
-Message-Id: <20160725172549.e5a23d495a356f026fbb28fa@linux-foundation.org>
-In-Reply-To: <20160726001151.GN19588@mtj.duckdns.org>
-References: <1469435749-19582-1-git-send-email-douly.fnst@cn.fujitsu.com>
-	<20160725162022.e90e9c6c74a5d147e39e5945@linux-foundation.org>
-	<20160726001151.GN19588@mtj.duckdns.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 782EF6B0005
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 20:36:13 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id h186so434968617pfg.3
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 17:36:13 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id cc15si36082537pac.249.2016.07.25.17.36.00
+        for <linux-mm@kvack.org>;
+        Mon, 25 Jul 2016 17:36:06 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv1, RFC 02/33] radix tree test suite: Allow GFP_ATOMIC allocations to fail
+Date: Tue, 26 Jul 2016 03:35:04 +0300
+Message-Id: <1469493335-3622-3-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1469493335-3622-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1469493335-3622-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Dou Liyang <douly.fnst@cn.fujitsu.com>, cl@linux.com, mika.j.penttila@gmail.com, mingo@redhat.com, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, len.brown@intel.com, lenb@kernel.org, tglx@linutronix.de, chen.tang@easystack.cn, rafael@kernel.org, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, Matthew Wilcox <willy@linux.intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Mon, 25 Jul 2016 20:11:51 -0400 Tejun Heo <tj@kernel.org> wrote:
+From: Matthew Wilcox <willy@linux.intel.com>
 
-> Hello, Andrew.
-> 
-> On Mon, Jul 25, 2016 at 04:20:22PM -0700, Andrew Morton wrote:
-> > > When a pool workqueue is initialized, if its cpumask belongs to a node, its
-> > > pool->node will be mapped to that node. And memory used by this workqueue will
-> > > also be allocated on that node.
-> > 
-> > Plan B is to hunt down and fix up all the workqueue structures at
-> > hotplug-time.  Has that option been evaluated?
-> > 
-> > Your fix is x86-only and this bug presumably affects other
-> > architectures, yes?  I think a "Plan B" would fix all architectures?
-> 
-> Yeah, that was one of the early approaches.  The issue isn't limited
-> to wq.  Any memory allocation can have similar issues of underlying
-> node association changing and we don't have any synchronization
-> mechanism around it.  It doesn't make any sense to make NUMA
-> association dynamic when the consumer surface is vastly larger and
-> there's nothing inherently dynamic about the association itself.
+In order to test the preload code, it is necessary to fail GFP_ATOMIC
+allocations, which requires defining GFP_KERNEL and GFP_ATOMIC properly.
+Remove the obsolete __GFP_WAIT and copy the definitions of the __GFP
+flags which are used from the kernel include files.  We also need the
+real definition of gfpflags_allow_blocking() to persuade the radix tree
+to actually use its preallocated nodes.
 
-And other architectures?
+Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ tools/testing/radix-tree/linux.c      |  7 ++++++-
+ tools/testing/radix-tree/linux/gfp.h  | 24 ++++++++++++++++++++----
+ tools/testing/radix-tree/linux/slab.h |  5 -----
+ 3 files changed, 26 insertions(+), 10 deletions(-)
+
+diff --git a/tools/testing/radix-tree/linux.c b/tools/testing/radix-tree/linux.c
+index 154823737b20..3cfb04e98e2f 100644
+--- a/tools/testing/radix-tree/linux.c
++++ b/tools/testing/radix-tree/linux.c
+@@ -33,7 +33,12 @@ mempool_t *mempool_create(int min_nr, mempool_alloc_t *alloc_fn,
+ 
+ void *kmem_cache_alloc(struct kmem_cache *cachep, int flags)
+ {
+-	void *ret = malloc(cachep->size);
++	void *ret;
++
++	if (flags & __GFP_NOWARN)
++		return NULL;
++
++	ret = malloc(cachep->size);
+ 	if (cachep->ctor)
+ 		cachep->ctor(ret);
+ 	uatomic_inc(&nr_allocated);
+diff --git a/tools/testing/radix-tree/linux/gfp.h b/tools/testing/radix-tree/linux/gfp.h
+index 0e37f7a760eb..5b09b2ce6c33 100644
+--- a/tools/testing/radix-tree/linux/gfp.h
++++ b/tools/testing/radix-tree/linux/gfp.h
+@@ -1,10 +1,26 @@
+ #ifndef _GFP_H
+ #define _GFP_H
+ 
+-#define __GFP_BITS_SHIFT 22
++#define __GFP_BITS_SHIFT 26
+ #define __GFP_BITS_MASK ((gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+-#define __GFP_WAIT 1
+-#define __GFP_ACCOUNT 0
+-#define __GFP_NOWARN 0
++
++#define __GFP_HIGH		0x20u
++#define __GFP_IO		0x40u
++#define __GFP_FS		0x80u
++#define __GFP_NOWARN		0x200u
++#define __GFP_ATOMIC		0x80000u
++#define __GFP_ACCOUNT		0x100000u
++#define __GFP_DIRECT_RECLAIM	0x400000u
++#define __GFP_KSWAPD_RECLAIM	0x2000000u
++
++#define __GFP_RECLAIM		(__GFP_DIRECT_RECLAIM|__GFP_KSWAPD_RECLAIM)
++
++#define GFP_ATOMIC		(__GFP_HIGH|__GFP_ATOMIC|__GFP_KSWAPD_RECLAIM)
++#define GFP_KERNEL		(__GFP_RECLAIM | __GFP_IO | __GFP_FS)
++
++static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
++{
++	return !!(gfp_flags & __GFP_DIRECT_RECLAIM);
++}
+ 
+ #endif
+diff --git a/tools/testing/radix-tree/linux/slab.h b/tools/testing/radix-tree/linux/slab.h
+index 6d5a34770fd4..452e2bf502e3 100644
+--- a/tools/testing/radix-tree/linux/slab.h
++++ b/tools/testing/radix-tree/linux/slab.h
+@@ -7,11 +7,6 @@
+ #define SLAB_PANIC 2
+ #define SLAB_RECLAIM_ACCOUNT    0x00020000UL            /* Objects are reclaimable */
+ 
+-static inline int gfpflags_allow_blocking(gfp_t mask)
+-{
+-	return 1;
+-}
+-
+ struct kmem_cache {
+ 	int size;
+ 	void (*ctor)(void *);
+-- 
+2.8.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
