@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 782EF6B0005
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 20:36:13 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id h186so434968617pfg.3
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 17:36:13 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id cc15si36082537pac.249.2016.07.25.17.36.00
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 03C956B025E
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 20:36:16 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id ag5so260132578pad.2
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 17:36:15 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id u29si36091364pfi.159.2016.07.25.17.35.57
         for <linux-mm@kvack.org>;
-        Mon, 25 Jul 2016 17:36:06 -0700 (PDT)
+        Mon, 25 Jul 2016 17:36:03 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv1, RFC 02/33] radix tree test suite: Allow GFP_ATOMIC allocations to fail
-Date: Tue, 26 Jul 2016 03:35:04 +0300
-Message-Id: <1469493335-3622-3-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv1, RFC 01/33] tools: Add WARN_ON_ONCE
+Date: Tue, 26 Jul 2016 03:35:03 +0300
+Message-Id: <1469493335-3622-2-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1469493335-3622-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1469493335-3622-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -21,90 +21,57 @@ Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, A
 
 From: Matthew Wilcox <willy@linux.intel.com>
 
-In order to test the preload code, it is necessary to fail GFP_ATOMIC
-allocations, which requires defining GFP_KERNEL and GFP_ATOMIC properly.
-Remove the obsolete __GFP_WAIT and copy the definitions of the __GFP
-flags which are used from the kernel include files.  We also need the
-real definition of gfpflags_allow_blocking() to persuade the radix tree
-to actually use its preallocated nodes.
+The radix tree uses its own buggy WARN_ON_ONCE.  Replace it with the
+definition from asm-generic/bug.h
 
 Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- tools/testing/radix-tree/linux.c      |  7 ++++++-
- tools/testing/radix-tree/linux/gfp.h  | 24 ++++++++++++++++++++----
- tools/testing/radix-tree/linux/slab.h |  5 -----
- 3 files changed, 26 insertions(+), 10 deletions(-)
+ tools/include/asm/bug.h              | 11 +++++++++++
+ tools/testing/radix-tree/Makefile    |  2 +-
+ tools/testing/radix-tree/linux/bug.h |  2 +-
+ 3 files changed, 13 insertions(+), 2 deletions(-)
 
-diff --git a/tools/testing/radix-tree/linux.c b/tools/testing/radix-tree/linux.c
-index 154823737b20..3cfb04e98e2f 100644
---- a/tools/testing/radix-tree/linux.c
-+++ b/tools/testing/radix-tree/linux.c
-@@ -33,7 +33,12 @@ mempool_t *mempool_create(int min_nr, mempool_alloc_t *alloc_fn,
+diff --git a/tools/include/asm/bug.h b/tools/include/asm/bug.h
+index 9e5f4846967f..beda1a884b50 100644
+--- a/tools/include/asm/bug.h
++++ b/tools/include/asm/bug.h
+@@ -12,6 +12,17 @@
+ 	unlikely(__ret_warn_on);		\
+ })
  
- void *kmem_cache_alloc(struct kmem_cache *cachep, int flags)
- {
--	void *ret = malloc(cachep->size);
-+	void *ret;
++#define WARN_ON_ONCE(condition) ({			\
++	static int __warned;				\
++	int __ret_warn_once = !!(condition);		\
++							\
++	if (unlikely(__ret_warn_once && !__warned)) {	\
++		__warned = true;			\
++		WARN_ON(1);				\
++	}						\
++	unlikely(__ret_warn_once);			\
++})
 +
-+	if (flags & __GFP_NOWARN)
-+		return NULL;
-+
-+	ret = malloc(cachep->size);
- 	if (cachep->ctor)
- 		cachep->ctor(ret);
- 	uatomic_inc(&nr_allocated);
-diff --git a/tools/testing/radix-tree/linux/gfp.h b/tools/testing/radix-tree/linux/gfp.h
-index 0e37f7a760eb..5b09b2ce6c33 100644
---- a/tools/testing/radix-tree/linux/gfp.h
-+++ b/tools/testing/radix-tree/linux/gfp.h
-@@ -1,10 +1,26 @@
- #ifndef _GFP_H
- #define _GFP_H
+ #define WARN_ONCE(condition, format...)	({	\
+ 	static int __warned;			\
+ 	int __ret_warn_once = !!(condition);	\
+diff --git a/tools/testing/radix-tree/Makefile b/tools/testing/radix-tree/Makefile
+index 3b530467148e..20d8bb37017a 100644
+--- a/tools/testing/radix-tree/Makefile
++++ b/tools/testing/radix-tree/Makefile
+@@ -1,5 +1,5 @@
  
--#define __GFP_BITS_SHIFT 22
-+#define __GFP_BITS_SHIFT 26
- #define __GFP_BITS_MASK ((gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
--#define __GFP_WAIT 1
--#define __GFP_ACCOUNT 0
--#define __GFP_NOWARN 0
-+
-+#define __GFP_HIGH		0x20u
-+#define __GFP_IO		0x40u
-+#define __GFP_FS		0x80u
-+#define __GFP_NOWARN		0x200u
-+#define __GFP_ATOMIC		0x80000u
-+#define __GFP_ACCOUNT		0x100000u
-+#define __GFP_DIRECT_RECLAIM	0x400000u
-+#define __GFP_KSWAPD_RECLAIM	0x2000000u
-+
-+#define __GFP_RECLAIM		(__GFP_DIRECT_RECLAIM|__GFP_KSWAPD_RECLAIM)
-+
-+#define GFP_ATOMIC		(__GFP_HIGH|__GFP_ATOMIC|__GFP_KSWAPD_RECLAIM)
-+#define GFP_KERNEL		(__GFP_RECLAIM | __GFP_IO | __GFP_FS)
-+
-+static inline bool gfpflags_allow_blocking(const gfp_t gfp_flags)
-+{
-+	return !!(gfp_flags & __GFP_DIRECT_RECLAIM);
-+}
- 
- #endif
-diff --git a/tools/testing/radix-tree/linux/slab.h b/tools/testing/radix-tree/linux/slab.h
-index 6d5a34770fd4..452e2bf502e3 100644
---- a/tools/testing/radix-tree/linux/slab.h
-+++ b/tools/testing/radix-tree/linux/slab.h
-@@ -7,11 +7,6 @@
- #define SLAB_PANIC 2
- #define SLAB_RECLAIM_ACCOUNT    0x00020000UL            /* Objects are reclaimable */
- 
--static inline int gfpflags_allow_blocking(gfp_t mask)
--{
--	return 1;
--}
--
- struct kmem_cache {
- 	int size;
- 	void (*ctor)(void *);
+-CFLAGS += -I. -g -Wall -D_LGPL_SOURCE
++CFLAGS += -I. -I../../include -g -Wall -D_LGPL_SOURCE
+ LDFLAGS += -lpthread -lurcu
+ TARGETS = main
+ OFILES = main.o radix-tree.o linux.o test.o tag_check.o find_next_bit.o \
+diff --git a/tools/testing/radix-tree/linux/bug.h b/tools/testing/radix-tree/linux/bug.h
+index ccbe444977df..23b8ed52f8c8 100644
+--- a/tools/testing/radix-tree/linux/bug.h
++++ b/tools/testing/radix-tree/linux/bug.h
+@@ -1 +1 @@
+-#define WARN_ON_ONCE(x)		assert(x)
++#include "asm/bug.h"
 -- 
 2.8.1
 
