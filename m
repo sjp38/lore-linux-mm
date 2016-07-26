@@ -1,59 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C2B4C6B026E
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 20:36:42 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id hh10so364705363pac.3
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 17:36:42 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id pl3si36119696pac.22.2016.07.25.17.36.26
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BEBB06B026F
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 20:36:44 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id ez1so359929840pab.0
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 17:36:44 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id c27si36078541pfk.274.2016.07.25.17.36.05
         for <linux-mm@kvack.org>;
-        Mon, 25 Jul 2016 17:36:28 -0700 (PDT)
+        Mon, 25 Jul 2016 17:36:16 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv1, RFC 27/33] ext4: handle huge pages in ext4_page_mkwrite()
-Date: Tue, 26 Jul 2016 03:35:29 +0300
-Message-Id: <1469493335-3622-28-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv1, RFC 06/33] radix-tree: Handle multiorder entries being deleted by replace_clear_tags
+Date: Tue, 26 Jul 2016 03:35:08 +0300
+Message-Id: <1469493335-3622-7-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1469493335-3622-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1469493335-3622-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-Trivial: remove assumption on page size.
+From: Matthew Wilcox <willy@infradead.org>
 
+radix_tree_replace_clear_tags() can be called with NULL as the replacement
+value; in this case we need to delete sibling entries which point to
+the slot.
+
+Signed-off-by: Matthew Wilcox <willy@infradead.org>
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- fs/ext4/inode.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
+ lib/radix-tree.c | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
 
-diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index f585f9160a96..45822097d8c2 100644
---- a/fs/ext4/inode.c
-+++ b/fs/ext4/inode.c
-@@ -5646,7 +5646,7 @@ static int ext4_bh_unmapped(handle_t *handle, struct buffer_head *bh)
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index e49f32f7c537..89092c4011b8 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -1799,17 +1799,23 @@ void *radix_tree_delete(struct radix_tree_root *root, unsigned long index)
+ }
+ EXPORT_SYMBOL(radix_tree_delete);
  
- int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
++/*
++ * If the caller passes NULL for @entry, it must take care to adjust
++ * node->count.  See page_cache_tree_delete() for an example.
++ */
+ struct radix_tree_node *radix_tree_replace_clear_tags(
+ 			struct radix_tree_root *root,
+ 			unsigned long index, void *entry)
  {
--	struct page *page = vmf->page;
-+	struct page *page = compound_head(vmf->page);
- 	loff_t size;
- 	unsigned long len;
- 	int ret;
-@@ -5682,10 +5682,10 @@ int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- 		goto out;
+ 	struct radix_tree_node *node;
+ 	void **slot;
++	unsigned int offset;
+ 
+ 	__radix_tree_lookup(root, index, &node, &slot);
+ 
+ 	if (node) {
+-		unsigned int tag, offset = get_slot_offset(node, slot);
++		unsigned int tag;
++		offset = get_slot_offset(node, slot);
+ 		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
+ 			node_tag_clear(root, node, tag, offset);
+ 	} else {
+@@ -1818,6 +1824,9 @@ struct radix_tree_node *radix_tree_replace_clear_tags(
  	}
  
--	if (page->index == size >> PAGE_SHIFT)
--		len = size & ~PAGE_MASK;
--	else
--		len = PAGE_SIZE;
-+	len = hpage_size(page);
-+	if (page->index + hpage_nr_pages(page) - 1 == size >> PAGE_SHIFT)
-+		len = size & ~hpage_mask(page);
+ 	radix_tree_replace_slot(slot, entry);
++	if (!entry && node)
++		delete_sibling_entries(node, node_to_entry(slot), offset);
 +
- 	/*
- 	 * Return if we have all the buffers mapped. This avoids the need to do
- 	 * journal_start/journal_stop which can block and take a long time
+ 	return node;
+ }
+ 
 -- 
 2.8.1
 
