@@ -1,51 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A5FB56B0005
-	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 04:26:26 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id m101so7332477ioi.0
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 01:26:26 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id r64si195911iod.174.2016.07.26.01.26.25
-        for <linux-mm@kvack.org>;
-        Tue, 26 Jul 2016 01:26:25 -0700 (PDT)
-Date: Tue, 26 Jul 2016 17:27:01 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC] mm: bail out in shrin_inactive_list
-Message-ID: <20160726082701.GA9950@bbox>
-References: <1469433119-1543-1-git-send-email-minchan@kernel.org>
- <20160725092909.GV11400@suse.de>
- <20160726012157.GA11651@bbox>
- <20160726074650.GW11400@suse.de>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EFDF6B0005
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 04:32:46 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id p64so458508882pfb.0
+        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 01:32:46 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id h185si38177347pfg.282.2016.07.26.01.32.43
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 26 Jul 2016 01:32:45 -0700 (PDT)
+Message-ID: <57971FDE.20507@huawei.com>
+Date: Tue, 26 Jul 2016 16:31:26 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <20160726074650.GW11400@suse.de>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Subject: Re: Re: [PATCH] mm: walk the zone in pageblock_nr_pages steps
+References: <1469502526-24486-1-git-send-email-zhongjiang@huawei.com> <7fcafdb1-86fa-9245-674b-db1ae53d1c77@suse.cz>
+In-Reply-To: <7fcafdb1-86fa-9245-674b-db1ae53d1c77@suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov@virtuozzo.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Tue, Jul 26, 2016 at 08:46:50AM +0100, Mel Gorman wrote:
-> On Tue, Jul 26, 2016 at 10:21:57AM +0900, Minchan Kim wrote:
-> > > > I believe proper fix is to modify get_scan_count. IOW, I think
-> > > > we should introduce lruvec_reclaimable_lru_size with proper
-> > > > classzone_idx but I don't know how we can fix it with memcg
-> > > > which doesn't have zone stat now. should introduce zone stat
-> > > > back to memcg? Or, it's okay to ignore memcg?
-> > > > 
-> > > 
-> > > I think it's ok to ignore memcg in this case as a memcg shrink is often
-> > > going to be for pages that can use highmem anyway.
-> > 
-> > So, you mean it's okay to ignore kmemcg case?
-> > If memcg guys agree it, I want to make get_scan_count consider
-> > reclaimable lru size under the reclaim constraint, instead.
-> > 
-> 
-> For now, I believe yet. My understanding is that the primary use cases
-> for kmemcg is systems running large numbers of containers. It consider
-> it extremely unlikely that large 32-bit systems are being used for large
-> numbers of containers and require usage of kmemcg.
+On 2016/7/26 14:24, Vlastimil Babka wrote:
+> On 07/26/2016 05:08 AM, zhongjiang wrote:
+>> From: zhong jiang <zhongjiang@huawei.com>
+>>
+>> when walking the zone, we can happens to the holes. we should not
+>> align MAX_ORDER_NR_PAGES, so it can skip the normal memory.
+>>
+>> In addition, pagetypeinfo_showmixedcount_print reflect fragmentization.
+>> we hope to get more accurate data. therefore, I decide to fix it.
+>
+> Can't say I'm happy with another random half-fix. What's the real granularity of holes for CONFIG_HOLES_IN_ZONE systems? I suspect it can be below pageblock_nr_pages. The pfn_valid_within() mechanism seems rather insufficient... it does prevent running unexpectedly into holes in the middle of pageblock/MAX_ORDER block, but together with the large skipping it doesn't guarantee that we cover all non-holes.
+>
+  I am sorry for that. I did not review the whole code before sending above patch.  In arch of x86, The real granularity of holes is in 256, that is a section. while in arm64, we can see that the hole is identify by located in
+  SYSTEM_RAM. I admit that that is not a best way. but at present, it's a better way to amend.
+> I think in a robust solution, functions such as these should use something like PAGE_HOLE_GRANULARITY which equals MAX_ORDER_NR_PAGES for !CONFIG_HOLES_IN_ZONE and some arch/config/system specific value for CONFIG_HOLES_IN_ZONE. This would then be used in the ALIGN() part.
+> It could be also used together with pfn_valid_within() in the inner loop to skip over holes more quickly (if it's worth).
+>
+ Maybe reimplement the code about hole punch is a better way.
+> Also I just learned there's also CONFIG_ARCH_HAS_HOLES_MEMORYMODEL that affects a function called memmap_valid_within(). But that one has only one caller - pagetypeinfo_showblockcount_print(). Why is it needed there and not in pagetypeinfo_showmixedcount_print() (or anywhere else?)
+>
+ yes, but in other place, for example, the caller apagetypeinfo_showmixedcount_print you can see the commit.(91c43c7313a995a8908f8f6b911a85d00fdbffd)
+>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+>> ---
+>>  mm/vmstat.c | 2 +-
+>>  1 file changed, 1 insertion(+), 1 deletion(-)
+>>
+>> diff --git a/mm/vmstat.c b/mm/vmstat.c
+>> index cb2a67b..3508f74 100644
+>> --- a/mm/vmstat.c
+>> +++ b/mm/vmstat.c
+>> @@ -1033,7 +1033,7 @@ static void pagetypeinfo_showmixedcount_print(struct seq_file *m,
+>>       */
+>>      for (; pfn < end_pfn; ) {
+>>          if (!pfn_valid(pfn)) {
+>> -            pfn = ALIGN(pfn + 1, MAX_ORDER_NR_PAGES);
+>> +            pfn = ALIGN(pfn + 1, pageblock_nr_pages);
+>>              continue;
+>>          }
+>>
+>>
+>
+> -- 
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
+>
 
-Okay, Then how about this?
-I didn't test it but I guess it should work.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
