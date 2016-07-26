@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B928B6B026C
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 20:36:38 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id h186so434987039pfg.3
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 17:36:38 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id u3si36044024pay.67.2016.07.25.17.36.22
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C7CBC6B026D
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 20:36:40 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id q2so359627254pap.1
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 17:36:40 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTP id o78si36056294pfi.291.2016.07.25.17.36.23
         for <linux-mm@kvack.org>;
-        Mon, 25 Jul 2016 17:36:33 -0700 (PDT)
+        Mon, 25 Jul 2016 17:36:34 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv1, RFC 12/33] truncate: make sure invalidate_mapping_pages() can discard huge pages
-Date: Tue, 26 Jul 2016 03:35:14 +0300
-Message-Id: <1469493335-3622-13-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv1, RFC 19/33] mm: make write_cache_pages() work on huge pages
+Date: Tue, 26 Jul 2016 03:35:21 +0300
+Message-Id: <1469493335-3622-20-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1469493335-3622-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1469493335-3622-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,44 +19,95 @@ List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-invalidate_inode_page() has expectation about page_count() of the page
--- if it's not 2 (one to caller, one to radix-tree), it will not be
-dropped. That condition almost never met for THPs -- tail pages are
-pinned to the pagevec.
-
-Let's drop them, before calling invalidate_inode_page().
+We writeback whole huge page a time. Let's adjust iteration this way.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/truncate.c | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+ include/linux/mm.h      |  1 +
+ include/linux/pagemap.h |  1 +
+ mm/page-writeback.c     | 17 ++++++++++++-----
+ 3 files changed, 14 insertions(+), 5 deletions(-)
 
-diff --git a/mm/truncate.c b/mm/truncate.c
-index a01cce450a26..ce904e4b1708 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -504,10 +504,21 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
- 				/* 'end' is in the middle of THP */
- 				if (index ==  round_down(end, HPAGE_PMD_NR))
- 					continue;
-+				/*
-+				 * invalidate_inode_page() expects
-+				 * page_count(page) == 2 to drop page from page
-+				 * cache -- drop tail pages references.
-+				 */
-+				get_page(page);
-+				pagevec_release(&pvec);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 08ed53eeedd5..b68d77912313 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1054,6 +1054,7 @@ struct address_space *page_file_mapping(struct page *page)
+  */
+ static inline pgoff_t page_index(struct page *page)
+ {
++	page = compound_head(page);
+ 	if (unlikely(PageSwapCache(page)))
+ 		return page_private(page);
+ 	return page->index;
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index d9cf4e0f35dc..24e14ef1cfe5 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -518,6 +518,7 @@ static inline void wait_on_page_locked(struct page *page)
+  */
+ static inline void wait_on_page_writeback(struct page *page)
+ {
++	page = compound_head(page);
+ 	if (PageWriteback(page))
+ 		wait_on_page_bit(page, PG_writeback);
+ }
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 573d138fa7a5..48409726d226 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -2246,7 +2246,7 @@ retry:
+ 			 * mapping. However, page->index will not change
+ 			 * because we have a reference on the page.
+ 			 */
+-			if (page->index > end) {
++			if (page_to_pgoff(page) > end) {
+ 				/*
+ 				 * can't be range_cyclic (1st pass) because
+ 				 * end == -1 in that case.
+@@ -2255,7 +2255,12 @@ retry:
+ 				break;
  			}
  
- 			ret = invalidate_inode_page(page);
- 			unlock_page(page);
-+
-+			if (PageTransHuge(page))
-+				put_page(page);
-+
- 			/*
- 			 * Invalidation is a hint that the page is no longer
- 			 * of interest and try to speed up its reclaim.
+-			done_index = page->index;
++			done_index = page_to_pgoff(page);
++			if (PageTransCompound(page)) {
++				index = round_up(index + 1, HPAGE_PMD_NR);
++				i += HPAGE_PMD_NR -
++					done_index % HPAGE_PMD_NR - 1;
++			}
+ 
+ 			lock_page(page);
+ 
+@@ -2267,7 +2272,7 @@ retry:
+ 			 * even if there is now a new, dirty page at the same
+ 			 * pagecache address.
+ 			 */
+-			if (unlikely(page->mapping != mapping)) {
++			if (unlikely(page_mapping(page) != mapping)) {
+ continue_unlock:
+ 				unlock_page(page);
+ 				continue;
+@@ -2305,7 +2310,8 @@ continue_unlock:
+ 					 * not be suitable for data integrity
+ 					 * writeout).
+ 					 */
+-					done_index = page->index + 1;
++					done_index = compound_head(page)->index
++						+ hpage_nr_pages(page);
+ 					done = 1;
+ 					break;
+ 				}
+@@ -2317,7 +2323,8 @@ continue_unlock:
+ 			 * keep going until we have written all the pages
+ 			 * we tagged for writeback prior to entering this loop.
+ 			 */
+-			if (--wbc->nr_to_write <= 0 &&
++			wbc->nr_to_write -= hpage_nr_pages(page);
++			if (wbc->nr_to_write <= 0 &&
+ 			    wbc->sync_mode == WB_SYNC_NONE) {
+ 				done = 1;
+ 				break;
 -- 
 2.8.1
 
