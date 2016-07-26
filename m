@@ -1,232 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BA24D6B0267
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 20:36:30 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id ag5so260142174pad.2
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 17:36:30 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id r8si36039796pav.187.2016.07.25.17.36.09
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B66366B0269
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 20:36:32 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id q2so359621954pap.1
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 17:36:32 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id u29si36091364pfi.159.2016.07.25.17.36.15
         for <linux-mm@kvack.org>;
-        Mon, 25 Jul 2016 17:36:18 -0700 (PDT)
+        Mon, 25 Jul 2016 17:36:29 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv1, RFC 10/33] mm, rmap: account file thp pages
-Date: Tue, 26 Jul 2016 03:35:12 +0300
-Message-Id: <1469493335-3622-11-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv1, RFC 05/33] radix-tree: Add radix_tree_split_preload()
+Date: Tue, 26 Jul 2016 03:35:07 +0300
+Message-Id: <1469493335-3622-6-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1469493335-3622-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1469493335-3622-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, Matthew Wilcox <willy@linux.intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-Let's add FileHugePages and FilePmdMapped fields into meminfo and smaps.
-It indicates how many times we allocate and map file THP.
+From: Matthew Wilcox <willy@linux.intel.com>
 
+Calculate how many nodes we need to allocate to split an old_order entry
+into multiple entries, each of size new_order.  The test suite checks that
+we allocated exactly the right number of nodes; neither too many (checked
+by rtp->nr == 0), nor too few (checked by comparing nr_allocated before
+and after the call to radix_tree_split()).
+
+Signed-off-by: Matthew Wilcox <willy@linux.intel.com>
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- drivers/base/node.c    |  6 ++++++
- fs/proc/meminfo.c      |  4 ++++
- fs/proc/task_mmu.c     |  5 ++++-
- include/linux/mmzone.h |  2 ++
- mm/filemap.c           |  3 ++-
- mm/huge_memory.c       |  5 ++++-
- mm/page_alloc.c        |  5 +++++
- mm/rmap.c              | 12 ++++++++----
- mm/vmstat.c            |  2 ++
- 9 files changed, 37 insertions(+), 7 deletions(-)
+ include/linux/radix-tree.h            |  1 +
+ lib/radix-tree.c                      | 22 ++++++++++++++++++++++
+ tools/testing/radix-tree/multiorder.c | 28 ++++++++++++++++++++++++++--
+ tools/testing/radix-tree/test.h       |  9 +++++++++
+ 4 files changed, 58 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 5548f9686016..45be0ddb84ed 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -116,6 +116,8 @@ static ssize_t node_read_meminfo(struct device *dev,
- 		       "Node %d AnonHugePages:  %8lu kB\n"
- 		       "Node %d ShmemHugePages: %8lu kB\n"
- 		       "Node %d ShmemPmdMapped: %8lu kB\n"
-+		       "Node %d FileHugePages: %8lu kB\n"
-+		       "Node %d FilePmdMapped: %8lu kB\n"
- #endif
- 			,
- 		       nid, K(node_page_state(pgdat, NR_FILE_DIRTY)),
-@@ -139,6 +141,10 @@ static ssize_t node_read_meminfo(struct device *dev,
- 		       nid, K(node_page_state(pgdat, NR_SHMEM_THPS) *
- 				       HPAGE_PMD_NR),
- 		       nid, K(node_page_state(pgdat, NR_SHMEM_PMDMAPPED) *
-+				       HPAGE_PMD_NR),
-+		       nid, K(node_page_state(pgdat, NR_FILE_THPS) *
-+				       HPAGE_PMD_NR),
-+		       nid, K(node_page_state(pgdat, NR_FILE_PMDMAPPED) *
- 				       HPAGE_PMD_NR));
- #else
- 		       nid, K(sum_zone_node_page_state(nid, NR_SLAB_UNRECLAIMABLE)));
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index 09e18fdf61e5..201a060f2c6c 100644
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -107,6 +107,8 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- 		"AnonHugePages:  %8lu kB\n"
- 		"ShmemHugePages: %8lu kB\n"
- 		"ShmemPmdMapped: %8lu kB\n"
-+		"FileHugePages:  %8lu kB\n"
-+		"FilePmdMapped:  %8lu kB\n"
- #endif
- #ifdef CONFIG_CMA
- 		"CmaTotal:       %8lu kB\n"
-@@ -167,6 +169,8 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- 		, K(global_node_page_state(NR_ANON_THPS) * HPAGE_PMD_NR)
- 		, K(global_node_page_state(NR_SHMEM_THPS) * HPAGE_PMD_NR)
- 		, K(global_node_page_state(NR_SHMEM_PMDMAPPED) * HPAGE_PMD_NR)
-+		, K(global_node_page_state(NR_FILE_THPS) * HPAGE_PMD_NR)
-+		, K(global_node_page_state(NR_FILE_PMDMAPPED) * HPAGE_PMD_NR)
- #endif
- #ifdef CONFIG_CMA
- 		, K(totalcma_pages)
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 187d84ef9de9..de698238a451 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -449,6 +449,7 @@ struct mem_size_stats {
- 	unsigned long anonymous;
- 	unsigned long anonymous_thp;
- 	unsigned long shmem_thp;
-+	unsigned long file_thp;
- 	unsigned long swap;
- 	unsigned long shared_hugetlb;
- 	unsigned long private_hugetlb;
-@@ -582,7 +583,7 @@ static void smaps_pmd_entry(pmd_t *pmd, unsigned long addr,
- 	else if (PageSwapBacked(page))
- 		mss->shmem_thp += HPAGE_PMD_SIZE;
- 	else
--		VM_BUG_ON_PAGE(1, page);
-+		mss->file_thp += HPAGE_PMD_SIZE;
- 	smaps_account(mss, page, true, pmd_young(*pmd), pmd_dirty(*pmd));
+diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
+index 7e906a270664..2f1404303bcc 100644
+--- a/include/linux/radix-tree.h
++++ b/include/linux/radix-tree.h
+@@ -318,6 +318,7 @@ static inline void radix_tree_preload_end(void)
+ 	preempt_enable();
  }
- #else
-@@ -777,6 +778,7 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
- 		   "Anonymous:      %8lu kB\n"
- 		   "AnonHugePages:  %8lu kB\n"
- 		   "ShmemPmdMapped: %8lu kB\n"
-+		   "FilePmdMapped:  %8lu kB\n"
- 		   "Shared_Hugetlb: %8lu kB\n"
- 		   "Private_Hugetlb: %7lu kB\n"
- 		   "Swap:           %8lu kB\n"
-@@ -795,6 +797,7 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
- 		   mss.anonymous >> 10,
- 		   mss.anonymous_thp >> 10,
- 		   mss.shmem_thp >> 10,
-+		   mss.file_thp >> 10,
- 		   mss.shared_hugetlb >> 10,
- 		   mss.private_hugetlb >> 10,
- 		   mss.swap >> 10,
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index e6aca07cedb7..cb2011ee5fc7 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -154,6 +154,8 @@ enum node_stat_item {
- 	NR_SHMEM,		/* shmem pages (included tmpfs/GEM pages) */
- 	NR_SHMEM_THPS,
- 	NR_SHMEM_PMDMAPPED,
-+	NR_FILE_THPS,
-+	NR_FILE_PMDMAPPED,
- 	NR_ANON_THPS,
- 	NR_UNSTABLE_NFS,	/* NFS unstable pages */
- 	NR_VMSCAN_WRITE,
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 6d545e5b9cec..7daedd910cf4 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -220,7 +220,8 @@ void __delete_from_page_cache(struct page *page, void *shadow)
- 		if (PageTransHuge(page))
- 			__dec_node_page_state(page, NR_SHMEM_THPS);
- 	} else {
--		VM_BUG_ON_PAGE(PageTransHuge(page) && !PageHuge(page), page);
-+		if (PageTransHuge(page) && !PageHuge(page))
-+			__dec_node_page_state(page, NR_FILE_THPS);
+ 
++int radix_tree_split_preload(unsigned old_order, unsigned new_order, gfp_t);
+ int radix_tree_split(struct radix_tree_root *, unsigned long index,
+ 			unsigned new_order);
+ int radix_tree_join(struct radix_tree_root *, unsigned long index,
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index e69f1053cd78..e49f32f7c537 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -404,6 +404,28 @@ int radix_tree_maybe_preload(gfp_t gfp_mask)
+ }
+ EXPORT_SYMBOL(radix_tree_maybe_preload);
+ 
++#ifdef CONFIG_RADIX_TREE_MULTIORDER
++/*
++ * Preload with enough objects to ensure that we can split a single entry
++ * of order @old_order into many entries of size @new_order
++ */
++int radix_tree_split_preload(unsigned int old_order, unsigned int new_order,
++							gfp_t gfp_mask)
++{
++	unsigned top = 1 << (old_order % RADIX_TREE_MAP_SHIFT);
++	unsigned layers = (old_order / RADIX_TREE_MAP_SHIFT) -
++				(new_order / RADIX_TREE_MAP_SHIFT);
++	unsigned nr = 0;
++
++	WARN_ON_ONCE(!gfpflags_allow_blocking(gfp_mask));
++	BUG_ON(new_order >= old_order);
++
++	while (layers--)
++		nr = nr * RADIX_TREE_MAP_SIZE + 1;
++	return __radix_tree_preload(gfp_mask, top * nr);
++}
++#endif
++
+ /*
+  * The same as function above, but preload number of nodes required to insert
+  * (1 << order) continuous naturally-aligned elements.
+diff --git a/tools/testing/radix-tree/multiorder.c b/tools/testing/radix-tree/multiorder.c
+index 9d27a4dd7b2a..5eda47dfe818 100644
+--- a/tools/testing/radix-tree/multiorder.c
++++ b/tools/testing/radix-tree/multiorder.c
+@@ -348,18 +348,42 @@ static void multiorder_join(void)
  	}
+ }
  
- 	/*
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 383f360e5fff..c1444a99a583 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1830,7 +1830,10 @@ static void __split_huge_page(struct page *page, struct list_head *list,
- 		struct radix_tree_iter iter;
- 		void **slot;
++static void check_mem(unsigned old_order, unsigned new_order, unsigned alloc)
++{
++	struct radix_tree_preload *rtp = &radix_tree_preloads;
++	if (rtp->nr != 0)
++		printf("split(%u %u) remaining %u\n", old_order, new_order,
++							rtp->nr);
++	/*
++	 * Can't check for equality here as some nodes may have been
++	 * RCU-freed while we ran.  But we should never finish with more
++	 * nodes allocated since they should have all been preloaded.
++	 */
++	if (nr_allocated > alloc)
++		printf("split(%u %u) allocated %u %u\n", old_order, new_order,
++							alloc, nr_allocated);
++}
++
+ static void __multiorder_split(int old_order, int new_order)
+ {
+-	RADIX_TREE(tree, GFP_KERNEL);
++	RADIX_TREE(tree, GFP_ATOMIC);
+ 	void **slot;
+ 	struct radix_tree_iter iter;
++	unsigned alloc;
  
--		__dec_node_page_state(head, NR_SHMEM_THPS);
-+		if (PageSwapBacked(page))
-+			__dec_node_page_state(page, NR_SHMEM_THPS);
-+		else
-+			__dec_node_page_state(page, NR_FILE_THPS);
+-	item_insert_order(&tree, 0, old_order);
++	radix_tree_preload(GFP_KERNEL);
++	assert(item_insert_order(&tree, 0, old_order) == 0);
++	radix_tree_callback(NULL, CPU_DEAD, NULL);
+ 	radix_tree_tag_set(&tree, 0, 2);
++
++	radix_tree_split_preload(old_order, new_order, GFP_KERNEL);
++	alloc = nr_allocated;
+ 	radix_tree_split(&tree, 0, new_order);
++	check_mem(old_order, new_order, alloc);
+ 	radix_tree_for_each_slot(slot, &tree, &iter, 0) {
+ 		radix_tree_replace_slot(slot, item_create(iter.index));
+ 	}
++	radix_tree_preload_end();
  
- 		radix_tree_split(&mapping->page_tree, head->index, 0);
- 		radix_tree_for_each_slot(slot, &mapping->page_tree, &iter,
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 830ad49a584a..f09f5832acc7 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4341,6 +4341,8 @@ void show_free_areas(unsigned int filter)
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 			" shmem_thp: %lukB"
- 			" shmem_pmdmapped: %lukB"
-+			" file_thp: %lukB"
-+			" file_pmdmapped: %lukB"
- 			" anon_thp: %lukB"
- #endif
- 			" writeback_tmp:%lukB"
-@@ -4363,6 +4365,9 @@ void show_free_areas(unsigned int filter)
- 			K(node_page_state(pgdat, NR_SHMEM_THPS) * HPAGE_PMD_NR),
- 			K(node_page_state(pgdat, NR_SHMEM_PMDMAPPED)
- 					* HPAGE_PMD_NR),
-+			K(node_page_state(pgdat, NR_FILE_THPS) * HPAGE_PMD_NR),
-+			K(node_page_state(pgdat, NR_FILE_PMDMAPPED)
-+					* HPAGE_PMD_NR),
- 			K(node_page_state(pgdat, NR_ANON_THPS) * HPAGE_PMD_NR),
- #endif
- 			K(node_page_state(pgdat, NR_SHMEM)),
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 709bc83703b1..eee844997bd8 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1281,8 +1281,10 @@ void page_add_file_rmap(struct page *page, bool compound)
- 		}
- 		if (!atomic_inc_and_test(compound_mapcount_ptr(page)))
- 			goto out;
--		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
--		__inc_node_page_state(page, NR_SHMEM_PMDMAPPED);
-+		if (PageSwapBacked(page))
-+			__inc_node_page_state(page, NR_SHMEM_PMDMAPPED);
-+		else
-+			__inc_node_page_state(page, NR_FILE_PMDMAPPED);
- 	} else {
- 		if (PageTransCompound(page)) {
- 			VM_BUG_ON_PAGE(!PageLocked(page), page);
-@@ -1321,8 +1323,10 @@ static void page_remove_file_rmap(struct page *page, bool compound)
- 		}
- 		if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
- 			goto out;
--		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
--		__dec_node_page_state(page, NR_SHMEM_PMDMAPPED);
-+		if (PageSwapBacked(page))
-+			__dec_node_page_state(page, NR_SHMEM_PMDMAPPED);
-+		else
-+			__dec_node_page_state(page, NR_FILE_PMDMAPPED);
- 	} else {
- 		if (!atomic_add_negative(-1, &page->_mapcount))
- 			goto out;
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 91ecca96dcae..fcf899e25f49 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -961,6 +961,8 @@ const char * const vmstat_text[] = {
- 	"nr_shmem",
- 	"nr_shmem_hugepages",
- 	"nr_shmem_pmdmapped",
-+	"nr_file_hugepaged",
-+	"nr_file_pmdmapped",
- 	"nr_anon_transparent_hugepages",
- 	"nr_unstable",
- 	"nr_vmscan_write",
+ 	item_kill_tree(&tree);
+ }
+diff --git a/tools/testing/radix-tree/test.h b/tools/testing/radix-tree/test.h
+index e85131369723..55e6d095047b 100644
+--- a/tools/testing/radix-tree/test.h
++++ b/tools/testing/radix-tree/test.h
+@@ -2,6 +2,8 @@
+ #include <linux/types.h>
+ #include <linux/radix-tree.h>
+ #include <linux/rcupdate.h>
++#include <linux/notifier.h>
++#include <linux/cpu.h>
+ 
+ struct item {
+ 	unsigned long index;
+@@ -43,3 +45,10 @@ void radix_tree_dump(struct radix_tree_root *root);
+ int root_tag_get(struct radix_tree_root *root, unsigned int tag);
+ unsigned long node_maxindex(struct radix_tree_node *);
+ unsigned long shift_maxindex(unsigned int shift);
++int radix_tree_callback(struct notifier_block *nfb,
++			unsigned long action, void *hcpu);
++struct radix_tree_preload {
++	unsigned nr;
++	struct radix_tree_node *nodes;
++};
++extern struct radix_tree_preload radix_tree_preloads;
 -- 
 2.8.1
 
