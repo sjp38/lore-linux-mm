@@ -1,174 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 91A676B0262
-	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 02:12:37 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id h186so448918454pfg.3
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 23:12:37 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id 27si37485850pfn.124.2016.07.25.23.12.35
-        for <linux-mm@kvack.org>;
-        Mon, 25 Jul 2016 23:12:36 -0700 (PDT)
-From: Dou Liyang <douly.fnst@cn.fujitsu.com>
-Subject: [PATCH v10 6/7] acpi: Provide the mechanism to validate processors in the ACPI tables
-Date: Tue, 26 Jul 2016 14:10:28 +0800
-Message-ID: <1469513429-25464-7-git-send-email-douly.fnst@cn.fujitsu.com>
-In-Reply-To: <1469513429-25464-1-git-send-email-douly.fnst@cn.fujitsu.com>
-References: <1469513429-25464-1-git-send-email-douly.fnst@cn.fujitsu.com>
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E476E6B0005
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 02:24:33 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id l89so132787405lfi.3
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 23:24:33 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m80si21151258wmi.50.2016.07.25.23.24.32
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 25 Jul 2016 23:24:32 -0700 (PDT)
+Subject: Re: [PATCH] mm: walk the zone in pageblock_nr_pages steps
+References: <1469502526-24486-1-git-send-email-zhongjiang@huawei.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <7fcafdb1-86fa-9245-674b-db1ae53d1c77@suse.cz>
+Date: Tue, 26 Jul 2016 08:24:29 +0200
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <1469502526-24486-1-git-send-email-zhongjiang@huawei.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux.com, tj@kernel.org, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, len.brown@intel.com, lenb@kernel.org, tglx@linutronix.de, chen.tang@easystack.cn, rafael@kernel.org
-Cc: x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dou Liyang <douly.fnst@cn.fujitsu.com>
+To: zhongjiang <zhongjiang@huawei.com>, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-[Problem]
+On 07/26/2016 05:08 AM, zhongjiang wrote:
+> From: zhong jiang <zhongjiang@huawei.com>
+>
+> when walking the zone, we can happens to the holes. we should not
+> align MAX_ORDER_NR_PAGES, so it can skip the normal memory.
+>
+> In addition, pagetypeinfo_showmixedcount_print reflect fragmentization.
+> we hope to get more accurate data. therefore, I decide to fix it.
 
-When we set cpuid <-> nodeid mapping to be persistent, it will use the DSDT
-As we know, the ACPI tables are just like user's input in that respect, and
-we don't crash if user's input is unreasonable.
+Can't say I'm happy with another random half-fix. What's the real 
+granularity of holes for CONFIG_HOLES_IN_ZONE systems? I suspect it can 
+be below pageblock_nr_pages. The pfn_valid_within() mechanism seems 
+rather insufficient... it does prevent running unexpectedly into holes 
+in the middle of pageblock/MAX_ORDER block, but together with the large 
+skipping it doesn't guarantee that we cover all non-holes.
 
-Such as, the mapping of the proc_id and pxm in some machine's ACPI table is
-like this:
+I think in a robust solution, functions such as these should use 
+something like PAGE_HOLE_GRANULARITY which equals MAX_ORDER_NR_PAGES for 
+!CONFIG_HOLES_IN_ZONE and some arch/config/system specific value for 
+CONFIG_HOLES_IN_ZONE. This would then be used in the ALIGN() part.
+It could be also used together with pfn_valid_within() in the inner loop 
+to skip over holes more quickly (if it's worth).
 
-proc_id   |    pxm
---------------------
-0       <->     0
-1       <->     0
-2       <->     1
-3       <->     1
-89      <->     0
-89      <->     0
-89      <->     0
-89      <->     1
-89      <->     1
-89      <->     2
-89      <->     3
-.....
+Also I just learned there's also CONFIG_ARCH_HAS_HOLES_MEMORYMODEL that 
+affects a function called memmap_valid_within(). But that one has only 
+one caller - pagetypeinfo_showblockcount_print(). Why is it needed there 
+and not in pagetypeinfo_showmixedcount_print() (or anywhere else?)
 
-We can't be sure which one is correct to the proc_id 89. We may map a wrong
-node to a cpu. When pages are allocated, this may cause a kernal panic.
-
-So, we should provide mechanisms to validate the ACPI tables, just like we
-do validation to check user's input in web project.
-
-The mechanism is that the processor objects which have the duplicate IDs
-are not valid.
-
-[Solution]
-
-We add a validation function, like this:
-
-foreach Processor in DSDT
-	proc_id= get_ACPI_Processor_number(Processor)
-	if(the proc_id has alreadly existed )
-		mark both of them as being unreasonable;
-
-The function will record the unique or duplicate processor IDs.
-
-The duplicate processor IDs such as 89 are regarded as the unreasonable IDs
-which mean that the processor objects in question are not valid.
-
-Signed-off-by: Dou Liyang <douly.fnst@cn.fujitsu.com>
----
- drivers/acpi/acpi_processor.c | 79 +++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 79 insertions(+)
-
-diff --git a/drivers/acpi/acpi_processor.c b/drivers/acpi/acpi_processor.c
-index 0c15828..346fbfc 100644
---- a/drivers/acpi/acpi_processor.c
-+++ b/drivers/acpi/acpi_processor.c
-@@ -581,8 +581,87 @@ static struct acpi_scan_handler processor_container_handler = {
- 	.attach = acpi_processor_container_attach,
- };
- 
-+/* The number of the unique processor IDs */
-+static int nr_unique_ids;
-+
-+/* The number of the duplicate processor IDs */
-+static int nr_duplicate_ids;
-+
-+/* Used to store the unique processor IDs */
-+static int unique_processor_ids[] = {
-+	[0 ... NR_CPUS - 1] = -1,
-+};
-+
-+/* Used to store the duplicate processor IDs */
-+static int duplicate_processor_ids[] = {
-+	[0 ... NR_CPUS - 1] = -1,
-+};
-+
-+static void processor_validated_ids_update(int proc_id)
-+{
-+	int i;
-+
-+	if (nr_unique_ids == NR_CPUS||nr_duplicate_ids == NR_CPUS)
-+		return;
-+
-+	/*
-+	 * Firstly, compare the proc_id with duplicate IDs, if the proc_id is
-+	 * already in the IDs, do nothing.
-+	 */
-+	for (i = 0; i < nr_duplicate_ids; i++) {
-+		if (duplicate_processor_ids[i] == proc_id)
-+			return;
-+	}
-+
-+	/*
-+	 * Secondly, compare the proc_id with unique IDs, if the proc_id is in
-+	 * the IDs, put it in the duplicate IDs.
-+	 */
-+	for (i = 0; i < nr_unique_ids; i++) {
-+		if (unique_processor_ids[i] == proc_id) {
-+			duplicate_processor_ids[nr_duplicate_ids] = proc_id;
-+			nr_duplicate_ids++;
-+			return;
-+		}
-+	}
-+
-+	/*
-+	 * Lastly, the proc_id is a unique ID, put it in the unique IDs.
-+	 */
-+	unique_processor_ids[nr_unique_ids] = proc_id;
-+	nr_unique_ids++;
-+}
-+
-+static acpi_status acpi_processor_ids_walk(acpi_handle handle,
-+						u32 lvl,
-+						void *context,
-+						void **rv)
-+{
-+	acpi_status status;
-+	union acpi_object object = { 0 };
-+	struct acpi_buffer buffer = { sizeof(union acpi_object), &object };
-+
-+	status = acpi_evaluate_object(handle, NULL, NULL, &buffer);
-+	if (ACPI_FAILURE(status))
-+		acpi_handle_info(handle, "Not get the processor object\n");
-+	else
-+		processor_validated_ids_update(object.processor.proc_id);
-+
-+	return AE_OK;
-+}
-+
-+static void acpi_processor_duplication_valiate(void)
-+{
-+	/* Search all processor nodes in ACPI namespace */
-+	acpi_walk_namespace(ACPI_TYPE_PROCESSOR, ACPI_ROOT_OBJECT,
-+						ACPI_UINT32_MAX,
-+						acpi_processor_ids_walk,
-+						NULL, NULL, NULL);
-+}
-+
- void __init acpi_processor_init(void)
- {
-+	acpi_processor_duplication_valiate();
- 	acpi_scan_add_handler_with_hotplug(&processor_handler, "processor");
- 	acpi_scan_add_handler(&processor_container_handler);
- }
--- 
-2.5.5
-
-
+> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+> ---
+>  mm/vmstat.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+>
+> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> index cb2a67b..3508f74 100644
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -1033,7 +1033,7 @@ static void pagetypeinfo_showmixedcount_print(struct seq_file *m,
+>  	 */
+>  	for (; pfn < end_pfn; ) {
+>  		if (!pfn_valid(pfn)) {
+> -			pfn = ALIGN(pfn + 1, MAX_ORDER_NR_PAGES);
+> +			pfn = ALIGN(pfn + 1, pageblock_nr_pages);
+>  			continue;
+>  		}
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
