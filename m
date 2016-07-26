@@ -1,52 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 76D716B0263
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 21:03:47 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id q11so413430540qtb.1
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 18:03:47 -0700 (PDT)
-Received: from mail-qk0-x241.google.com (mail-qk0-x241.google.com. [2607:f8b0:400d:c09::241])
-        by mx.google.com with ESMTPS id z197si19479125qkz.259.2016.07.25.18.03.46
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jul 2016 18:03:46 -0700 (PDT)
-Received: by mail-qk0-x241.google.com with SMTP id p126so15599259qke.1
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 18:03:46 -0700 (PDT)
-Date: Mon, 25 Jul 2016 21:03:44 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v9 0/7] Make cpuid <-> nodeid mapping persistent
-Message-ID: <20160726010344.GO19588@mtj.duckdns.org>
-References: <1469435749-19582-1-git-send-email-douly.fnst@cn.fujitsu.com>
- <20160725162022.e90e9c6c74a5d147e39e5945@linux-foundation.org>
- <20160726001151.GN19588@mtj.duckdns.org>
- <20160725172549.e5a23d495a356f026fbb28fa@linux-foundation.org>
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 60C846B0277
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 21:21:23 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id m101so485454956ioi.0
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 18:21:23 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id k130si19305696itk.113.2016.07.25.18.21.21
+        for <linux-mm@kvack.org>;
+        Mon, 25 Jul 2016 18:21:22 -0700 (PDT)
+Date: Tue, 26 Jul 2016 10:21:57 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC] mm: bail out in shrin_inactive_list
+Message-ID: <20160726012157.GA11651@bbox>
+References: <1469433119-1543-1-git-send-email-minchan@kernel.org>
+ <20160725092909.GV11400@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20160725092909.GV11400@suse.de>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20160725172549.e5a23d495a356f026fbb28fa@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dou Liyang <douly.fnst@cn.fujitsu.com>, cl@linux.com, mika.j.penttila@gmail.com, mingo@redhat.com, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, len.brown@intel.com, lenb@kernel.org, tglx@linutronix.de, chen.tang@easystack.cn, rafael@kernel.org, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov@virtuozzo.com>
 
-Hello,
-
-On Mon, Jul 25, 2016 at 05:25:49PM -0700, Andrew Morton wrote:
-> > Yeah, that was one of the early approaches.  The issue isn't limited
-> > to wq.  Any memory allocation can have similar issues of underlying
-> > node association changing and we don't have any synchronization
-> > mechanism around it.  It doesn't make any sense to make NUMA
-> > association dynamic when the consumer surface is vastly larger and
-> > there's nothing inherently dynamic about the association itself.
+On Mon, Jul 25, 2016 at 10:29:09AM +0100, Mel Gorman wrote:
+> There is a typo in the subject line.
 > 
-> And other architectures?
+> On Mon, Jul 25, 2016 at 04:51:59PM +0900, Minchan Kim wrote:
+> > With node-lru, if there are enough reclaimable pages in highmem
+> > but nothing in lowmem, VM can try to shrink inactive list although
+> > the requested zone is lowmem.
+> > 
+> > The problem is direct reclaimer scans inactive list is fulled with
+> 
+> 
+> > highmem pages to find a victim page at a reqested zone or lower zones
+> > but the result is that VM should skip all of pages. 
+> 
+> Rephease -- The problem is that if the inactive list is full of highmem
+> pages then a direct reclaimer searching for a lowmem page waste CPU
+> scanning uselessly.
 
-No idea but it only matters for NUMA + CPU hotplug combination where a
-whole node can go empty, which would at most be a few archs.
+It's better. Thanks.
 
-Thanks.
+> 
+> > CPU. Even, many direct reclaimers are stalled by too_many_isolated
+> > if lots of parallel reclaimer are going on although there are no
+> > reclaimable memory in inactive list.
+> > 
+> > I tried the experiment 4 times in 32bit 2G 8 CPU KVM machine
+> > to get elapsed time.
+> > 
+> > 	hackbench 500 process 2
+> > 
+> > = Old =
+> > 
+> > 1st: 289s 2nd: 310s 3rd: 112s 4th: 272s
+> > 
+> > = Now =
+> > 
+> > 1st: 31s  2nd: 132s 3rd: 162s 4th: 50s.
+> > 
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > ---
+> > I believe proper fix is to modify get_scan_count. IOW, I think
+> > we should introduce lruvec_reclaimable_lru_size with proper
+> > classzone_idx but I don't know how we can fix it with memcg
+> > which doesn't have zone stat now. should introduce zone stat
+> > back to memcg? Or, it's okay to ignore memcg?
+> > 
+> 
+> I think it's ok to ignore memcg in this case as a memcg shrink is often
+> going to be for pages that can use highmem anyway.
 
--- 
-tejun
+So, you mean it's okay to ignore kmemcg case?
+If memcg guys agree it, I want to make get_scan_count consider
+reclaimable lru size under the reclaim constraint, instead.
+
+> 
+> >  mm/vmscan.c | 28 ++++++++++++++++++++++++++++
+> >  1 file changed, 28 insertions(+)
+> > 
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index e5af357..3d285cc 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -1652,6 +1652,31 @@ static int current_may_throttle(void)
+> >  		bdi_write_congested(current->backing_dev_info);
+> >  }
+> >  
+> > +static inline bool inactive_reclaimable_pages(struct lruvec *lruvec,
+> > +				struct scan_control *sc,
+> > +				enum lru_list lru)
+> 
+> inline is unnecessary. The function is long but only has one caller so
+> it'll be inlined automatically.
+> 
+> > +{
+> > +	int zid;
+> > +	struct zone *zone;
+> > +	bool file = is_file_lru(lru);
+> 
+> It's more appropriate to use int for file in this case as it's used as a
+> multiplier. It'll work either way.
+> 
+> Otherwise;
+> 
+> Acked-by: Mel Gorman <mgorman@techsingularity.net>
+> 
+> -- 
+> Mel Gorman
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
