@@ -1,108 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 11E5F6B025E
-	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 05:32:17 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id j124so13216533ith.1
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 02:32:17 -0700 (PDT)
-Received: from szxga02-in.huawei.com ([119.145.14.65])
-        by mx.google.com with ESMTPS id q72si18691895itc.67.2016.07.26.02.32.15
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 57B386B0005
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 06:55:01 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id p129so6434213wmp.3
+        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 03:55:01 -0700 (PDT)
+Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
+        by mx.google.com with ESMTPS id d143si96154lfd.188.2016.07.26.03.54.59
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 26 Jul 2016 02:32:16 -0700 (PDT)
-Message-ID: <57972DD3.3050909@huawei.com>
-Date: Tue, 26 Jul 2016 17:30:59 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 26 Jul 2016 03:54:59 -0700 (PDT)
+Received: by mail-lf0-x243.google.com with SMTP id 33so174104lfw.3
+        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 03:54:59 -0700 (PDT)
+Date: Tue, 26 Jul 2016 13:54:56 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: correctly handle errors during VMA merging
+Message-ID: <20160726105456.GB7370@node.shutemov.name>
+References: <1469514843-23778-1-git-send-email-vegard.nossum@oracle.com>
+ <20160726085344.GA7370@node.shutemov.name>
+ <57972C45.5050803@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: walk the zone in pageblock_nr_pages steps
-References: <1469502526-24486-1-git-send-email-zhongjiang@huawei.com> <7fcafdb1-86fa-9245-674b-db1ae53d1c77@suse.cz> <57971FDE.20507@huawei.com> <473964c8-23cd-cee7-b25c-6ef020547b9a@suse.cz>
-In-Reply-To: <473964c8-23cd-cee7-b25c-6ef020547b9a@suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <57972C45.5050803@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Vegard Nossum <vegard.nossum@oracle.com>
+Cc: linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Leon Yu <chianglungyu@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Rik van Riel <riel@redhat.com>, Daniel Forrest <dan.forrest@ssec.wisc.edu>
 
-On 2016/7/26 16:53, Vlastimil Babka wrote:
-> On 07/26/2016 10:31 AM, zhong jiang wrote:
->> On 2016/7/26 14:24, Vlastimil Babka wrote:
->>> On 07/26/2016 05:08 AM, zhongjiang wrote:
->>>> From: zhong jiang <zhongjiang@huawei.com>
->>>>
->>>> when walking the zone, we can happens to the holes. we should
->>>> not align MAX_ORDER_NR_PAGES, so it can skip the normal memory.
->>>>
->>>> In addition, pagetypeinfo_showmixedcount_print reflect
->>>> fragmentization. we hope to get more accurate data. therefore, I
->>>> decide to fix it.
->>>
->>> Can't say I'm happy with another random half-fix. What's the real
->>> granularity of holes for CONFIG_HOLES_IN_ZONE systems? I suspect it
->>> can be below pageblock_nr_pages. The pfn_valid_within() mechanism
->>> seems rather insufficient... it does prevent running unexpectedly
->>> into holes in the middle of pageblock/MAX_ORDER block, but together
->>> with the large skipping it doesn't guarantee that we cover all
->>> non-holes.
->>>
->> I am sorry for that. I did not review the whole code before sending
->> above patch.  In arch of x86, The real granularity of holes is in
->> 256, that is a section.
->
-> Huh, x86 doesn't even have CONFIG_HOLES_IN_ZONE? So any pfn valid within MAX_ORDER_NR_PAGES (and within zone boundaries?) should mean the whole range is valid? AFAICS only ia64, mips and s390 has CONFIG_HOLES_IN_ZONE.
->
-> Maybe I misunderstand... can you help by demonstrating on which arch and configuration your patch makes a difference?
->
- a x86 arch ,for example, when CONFIG_HOLES_IN_ZONE disable, hole punch is not existence. we scan the zone in the way of pageblock ,compared with the MAX_ORDER_NR_PAGES, it should be more resonable.
- when CONFIG_HOLES_IN_ZONE enable, hole punch is existence. it will prevent the rest 2M to be skipped. you can get from code that we prefer to align with pageblock.
->> while in arm64, we can see that the hole is
->> identify by located in SYSTEM_RAM. I admit that that is not a best
->> way. but at present, it's a better way to amend.
->>> I think in a robust solution, functions such as these should use
->>> something like PAGE_HOLE_GRANULARITY which equals
->>> MAX_ORDER_NR_PAGES for !CONFIG_HOLES_IN_ZONE and some
->>> arch/config/system specific value for CONFIG_HOLES_IN_ZONE. This
->>> would then be used in the ALIGN() part. It could be also used
->>> together with pfn_valid_within() in the inner loop to skip over
->>> holes more quickly (if it's worth).
->>>
->> Maybe reimplement the code about hole punch is a better way.
->>> Also I just learned there's also CONFIG_ARCH_HAS_HOLES_MEMORYMODEL
->>> that affects a function called memmap_valid_within(). But that one
->>> has only one caller - pagetypeinfo_showblockcount_print(). Why is
->>> it needed there and not in pagetypeinfo_showmixedcount_print() (or
->>> anywhere else?)
->>>
->> yes, but in other place, for example, the caller
->> apagetypeinfo_showmixedcount_print you can see the
->> commit.(91c43c7313a995a8908f8f6b911a85d00fdbffd)
->
-> Hmm I don't see such commit in linus.git, mmotm or linux-next trees.
->
->>>> Signed-off-by: zhong jiang <zhongjiang@huawei.com> ---
->>>> mm/vmstat.c | 2 +- 1 file changed, 1 insertion(+), 1 deletion(-)
->>>>
->>>> diff --git a/mm/vmstat.c b/mm/vmstat.c index cb2a67b..3508f74
->>>> 100644 --- a/mm/vmstat.c +++ b/mm/vmstat.c @@ -1033,7 +1033,7 @@
->>>> static void pagetypeinfo_showmixedcount_print(struct seq_file
->>>> *m, */ for (; pfn < end_pfn; ) { if (!pfn_valid(pfn)) { -
->>>> pfn = ALIGN(pfn + 1, MAX_ORDER_NR_PAGES); +            pfn =
->>>> ALIGN(pfn + 1, pageblock_nr_pages); continue; }
->>>>
->>>>
->>>
->>> -- To unsubscribe, send a message with 'unsubscribe linux-mm' in
->>> the body to majordomo@kvack.org.  For more info on Linux MM, see:
->>> http://www.linux-mm.org/ . Don't email: <a
->>> href=mailto:"dont@kvack.org"> email@kvack.org </a>
->>>
->>>
->>
->>
->
->
-> .
->
+On Tue, Jul 26, 2016 at 11:24:21AM +0200, Vegard Nossum wrote:
+> On 07/26/2016 10:53 AM, Kirill A. Shutemov wrote:
+> >On Tue, Jul 26, 2016 at 08:34:03AM +0200, Vegard Nossum wrote:
+> >>Using trinity + fault injection I've been running into this bug a lot:
+> >>
+> >>     ==================================================================
+> >>     BUG: KASAN: out-of-bounds in mprotect_fixup+0x523/0x5a0 at addr ffff8800b9e7d740
+> >>     Read of size 8 by task trinity-c3/6338
+> [...]
+> >>I can give the reproducer a spin.
+> >
+> >Could you post your reproducer? I guess it requires kernel instrumentation
+> >to make allocation failure more likely.
+> 
+> I'm sorry but company policy prevents me from posting straight-up
+> reproducers.
 
+That's very weird policy. I don't think this kind of reproducer can be
+considered exploit.
+
+> But as I said I'm happy to rerun it if you have an alternative patch.
+> 
+> It should be enough to enable fault injection (echo 1 >
+> /proc/self/make-it-fail) for the process doing the mprotect().
+
+That's what I came up with:
+
+	#define _GNU_SOURCE
+	#include <stdio.h>
+	#include <stdlib.h>
+	#include <string.h>
+	#include <unistd.h>
+	#include <sys/mman.h>
+
+	#define PAGE_SIZE 4096
+	#define SIZE (3 * PAGE_SIZE)
+	#define BASE ((void *)0x400000000000)
+
+	int main(int argc, char **argv)
+	{
+		char *p;
+
+		p = mmap(BASE, SIZE, PROT_READ | PROT_WRITE,
+				MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+
+		mprotect(p + PAGE_SIZE, PAGE_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC);
+		memset(p + 2 * PAGE_SIZE, 1, PAGE_SIZE);
+		mprotect(p + PAGE_SIZE, PAGE_SIZE, PROT_READ | PROT_WRITE);
+
+		return 0;
+	}
+
+Plus kernel modification to make the allocation fail:
+
+
+index a384c10c7657..35f004676233 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -629,6 +629,7 @@ int vma_adjust(struct vm_area_struct *vma, unsigned long start,
+        bool start_changed = false, end_changed = false;
+        long adjust_next = 0;
+        int remove_next = 0;
++       bool second_iteration = false;
+ 
+        if (next && !insert) {
+                struct vm_area_struct *exporter = NULL;
+@@ -670,6 +671,8 @@ again:                      remove_next = 1 + (end > next->vm_end);
+                        int error;
+ 
+                        importer->anon_vma = exporter->anon_vma;
++                       if (second_iteration)
++                               return -ENOMEM;
+                        error = anon_vma_clone(importer, exporter);
+                        if (error)
+                                return error;
+@@ -796,6 +799,7 @@ again:                      remove_next = 1 + (end > next->vm_end);
+                 * up the code too much to do both in one go.
+                 */
+                next = vma->vm_next;
++               second_iteration = true;
+                if (remove_next == 2)
+                        goto again;
+                else if (next)
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
