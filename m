@@ -1,228 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A21D66B0005
-	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 08:44:50 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id c52so14260576qte.2
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 05:44:50 -0700 (PDT)
-Received: from mail-ua0-x241.google.com (mail-ua0-x241.google.com. [2607:f8b0:400c:c08::241])
-        by mx.google.com with ESMTPS id q69si80434uaq.19.2016.07.26.05.44.49
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D10276B0005
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 08:50:53 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id o80so9385034wme.1
+        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 05:50:53 -0700 (PDT)
+Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
+        by mx.google.com with ESMTPS id ud19si629990wjb.199.2016.07.26.05.50.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jul 2016 05:44:49 -0700 (PDT)
-Received: by mail-ua0-x241.google.com with SMTP id m60so123186uam.3
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 05:44:49 -0700 (PDT)
+        Tue, 26 Jul 2016 05:50:52 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id 05C3F1C13B7
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 13:50:52 +0100 (IST)
+Date: Tue, 26 Jul 2016 13:50:50 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 0/5] Candidate fixes for premature OOM kills with
+ node-lru v2
+Message-ID: <20160726125050.GP10438@techsingularity.net>
+References: <1469110261-7365-1-git-send-email-mgorman@techsingularity.net>
+ <20160726081129.GB15721@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
-From: =?UTF-8?Q?Marcin_=C5=9Alusarz?= <marcin.slusarz@gmail.com>
-Date: Tue, 26 Jul 2016 14:44:48 +0200
-Message-ID: <CA+GA0_uRjKznAB+d-3bDqdNRDYBA+YQbYSUcB9=rDTLk1NJEmg@mail.gmail.com>
-Subject: Is reading from /proc/self/smaps thread-safe?
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20160726081129.GB15721@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hey
+On Tue, Jul 26, 2016 at 05:11:30PM +0900, Joonsoo Kim wrote:
+> > These patches did not OOM for me on a 2G 32-bit KVM instance while running
+> > a stress test for an hour. Preliminary tests on a 64-bit system using a
+> > parallel dd workload did not show anything alarming.
+> > 
+> > If an OOM is detected then please post the full OOM message.
+> 
+> Before attaching OOM message, I should note that my test case also triggers
+> OOM in old kernel if there are four parallel file-readers. With node-lru and
+> patch 1~5, OOM is triggered even if there are one or more parallel file-readers.
+> With node-lru and patch 1~4, OOM is triggered if there are two or more
+> parallel file-readers.
+> 
 
-I have a simple program that mmaps 8MB of anonymous memory, spawns 16
-threads, reads /proc/self/smaps in each thread and looks up whether
-mapped address can be found in smaps. From time to time it's not there.
+The key there is that patch 5 allows OOM to be detected quicker. The fork
+workload exits after some time so it's inherently a race to see if the
+forked process exits before OOM is triggered or not.
 
-Is this supposed to work reliably?
+> <SNIP>
+> Mem-Info:
+> active_anon:26762 inactive_anon:95 isolated_anon:0
+>  active_file:42543 inactive_file:347438 isolated_file:0
+>  unevictable:0 dirty:0 writeback:0 unstable:0
+>  slab_reclaimable:5476 slab_unreclaimable:23140
+>  mapped:389534 shmem:95 pagetables:20927 bounce:0
+>  free:6948 free_pcp:222 free_cma:0
+> Node 0 active_anon:107048kB inactive_anon:380kB active_file:170008kB inactive_file:1389752kB unevictable:0kB isolated(anon):0kB isolated(file):0kB mapped:1558136kB dirty:0kB writeback:0kB shmem:0kB shmem_$
+> hp: 0kB shmem_pmdmapped: 0kB anon_thp: 380kB writeback_tmp:0kB unstable:0kB pages_scanned:4697206 all_unreclaimable? yes
+> Node 0 DMA free:2168kB min:204kB low:252kB high:300kB active_anon:3544kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:15992kB managed:15908kB mlocked:0kB sl$
+> b_reclaimable:0kB slab_unreclaimable:2684kB kernel_stack:1760kB pagetables:3092kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+> lowmem_reserve[]: 0 493 493 1955
 
-My guess is that libc functions allocate memory internally using mmap
-and modify process' address space while other thread is iterating over
-vmas.
+Zone DMA is unusable
 
-I see that reading from smaps takes mmap_sem in read mode. I'm guessing
-vm modifications are done under mmap_sem in write mode.
+> Node 0 DMA32 free:6508kB min:6492kB low:8112kB high:9732kB active_anon:81264kB inactive_anon:0kB active_file:101204kB inactive_file:228kB unevictable:0kB writepending:0kB present:2080632kB managed:508584k$
+>  mlocked:0kB slab_reclaimable:21904kB slab_unreclaimable:89876kB kernel_stack:46400kB pagetables:80616kB bounce:0kB free_pcp:544kB local_pcp:120kB free_cma:0kB
+> lowmem_reserve[]: 0 0 0 1462
 
-Documentation/filesystem/proc.txt says reading from smaps is "slow but
-very precise" (although in context of RSS).
+Zone DMA32 has reclaimable pages but not very many and they are active. It's
+at the min watemark. The pgdat is unreclaimable indicating that scans
+are high which implies that the active file pages are due to genuine
+activations.
 
-Example program below.
+> Node 0 Movable free:19116kB min:19256kB low:24068kB high:28880kB active_anon:22240kB inactive_anon:380kB active_file:68812kB inactive_file:1389688kB unevictable:0kB writepending:0kB present:1535864kB mana$
+> ed:1500964kB mlocked:0kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB bounce:0kB free_pcp:368kB local_pcp:0kB free_cma:0kB
 
-smaps_test.c:
-#include <fcntl.h>
-#include <pthread.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
+Zone Movable has reclaimable pages but it's at the min watermark and
+scanning aggressively.
 
-#define N 16
-#define SZ (8 * 1024 * 1024)
+As the failing allocation can use all allocations, this appears to be close
+to a genuine OOM case. Whether it survives is down to timing of when OOM
+is triggered and whether the forked process exits in time or not.
 
-void *addr;
-char addrstr[20];
-pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
+To some extent, it could be "addressed" by immediately reclaiming active
+pages moving to the inactive list at the cost of distorting page age for a
+workload that is genuinely close to OOM. That is similar to what zone-lru
+ended up doing -- fast reclaiming young pages from a zone.
 
-static void *worker(void *arg)
-{
-    char tmp[100000];
-    int ret;
-    int off = 0;
+> > Optionally please test without patch 5 if an OOM occurs.
+> 
+> Here goes without patch 5.
+> 
 
-    int fd = open("/proc/self/smaps", O_RDONLY);
-    if (fd < 0)
-        abort();
+Causing OOM detection to be delayed. Observations on the OOM message
+without patch 5 are similar.
 
-    do {
-        ret = read(fd, tmp + off, sizeof(tmp) - off);
-        if (ret < 0)
-            abort();
-        off += ret;
-        if (off == sizeof(tmp))
-            abort();
-    } while (ret != 0);
+Do you mind trying the following? In the patch there is a line
 
-    char *found = strstr(tmp, addrstr);
+scan += list_empty(src) ? total_skipped : total_skipped >> 2;
 
-    /* lock to prevent multiple threads from
-       writing to stdout at the same time */
-    pthread_mutex_lock(&mtx);
-    printf("%d\n", found ? 1 : 0);
-    if (!found) {
-        printf("%s\n", tmp);
-        printf("address %p not found in smaps\n", addr);
-        fflush(stdout);
-        abort();
-    }
-    pthread_mutex_unlock(&mtx);
+Try 
 
-    close(fd);
-    return NULL;
-}
+scan += list_empty(src) ? total_skipped : total_skipped >> 3;
+scan += list_empty(src) ? total_skipped : total_skipped >> 4;
+scan += total_skipped >> 4;
 
-int main()
-{
-    pthread_t t[N];
+Each line slows the rate that OOM is detected but it'll be somewhat
+specific to your test case as it's relying to fork to exit before OOM is
+fired.
 
-    addr = mmap(NULL, SZ, PROT_READ|PROT_WRITE,
-MAP_SHARED|MAP_ANONYMOUS, -1, 0);
-    if (addr == MAP_FAILED)
-        abort();
+A hackier option that is also related to the fact fork is a major source
+of the OOM triggering is to increase the zone reserve. That would give
+more space for the fork bomb while giving the file reader slightly less
+memory to work with. Again, what this is doing is simply altering OOM
+timing because indications are the stress workload is genuinely close to
+OOM.
 
-    sprintf(addrstr, "%lx-", (uintptr_t)addr);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 08ae8b0ef5c5..cedc8113c7a0 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -201,9 +201,9 @@ int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
+ 	 256,
+ #endif
+ #ifdef CONFIG_HIGHMEM
+-	 32,
++	 8,
+ #endif
+-	 32,
++	 8,
+ };
+ 
+ EXPORT_SYMBOL(totalram_pages);
 
-    for (int i = 0; i < N; ++i)
-        if (pthread_create(&t[i], NULL, worker, NULL))
-            abort();
-    for (int i = 0; i < N; ++i)
-        if (pthread_join(t[i], NULL))
-            abort();
-
-    munmap(addr, SZ);
-
-    return 0;
-}
-
-Makefile:
-LDFLAGS=-pthread
-
-smaps_test: smaps_test.c
-
-run: smaps_test
-    while ./smaps_test; do echo; done | grep -v ': '
-
-
-Failing run:
-$ make run
-while ./smaps_test; do echo; done | grep -v ': '
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-1
-0
-00400000-00401000 r-xp 00000000 08:02 19006749
-  /home/mslusarz/smaps_test/smaps_test
-00601000-00602000 rw-p 00001000 08:02 19006749
-  /home/mslusarz/smaps_test/smaps_test
-020f8000-02119000 rw-p 00000000 00:00 0                                  [heap]
-7f0dfdffc000-7f0dfe7fd000 rw-p 00000000 00:00 0
-7f0dfe7fd000-7f0dfe7fe000 ---p 00000000 00:00 0
-7f0dfe7fe000-7f0dfeffe000 rw-p 00000000 00:00 0
-7f0dfeffe000-7f0dfefff000 ---p 00000000 00:00 0
-7f0dfefff000-7f0dff7ff000 rw-p 00000000 00:00 0
-7f0dff7ff000-7f0dff800000 ---p 00000000 00:00 0
-7f0dff800000-7f0e00000000 rw-p 00000000 00:00 0
-7f0e00000000-7f0e00022000 rw-p 00000000 00:00 0
-7f0e00022000-7f0e04000000 ---p 00000000 00:00 0
-7f0e04595000-7f0e04596000 ---p 00000000 00:00 0
-7f0e04596000-7f0e04d96000 rw-p 00000000 00:00 0
-7f0e04d96000-7f0e04d97000 ---p 00000000 00:00 0
-7f0e04d97000-7f0e05597000 rw-p 00000000 00:00 0
-7f0e05597000-7f0e05598000 ---p 00000000 00:00 0
-7f0e05598000-7f0e05d98000 rw-p 00000000 00:00 0
-7f0e05d98000-7f0e05d99000 ---p 00000000 00:00 0
-7f0e05d99000-7f0e06599000 rw-p 00000000 00:00 0
-7f0e06599000-7f0e0659a000 ---p 00000000 00:00 0
-7f0e0659a000-7f0e06d9a000 rw-p 00000000 00:00 0
-7f0e06d9a000-7f0e06d9b000 ---p 00000000 00:00 0
-7f0e06d9b000-7f0e0759b000 rw-p 00000000 00:00 0
-7f0e0759b000-7f0e0759c000 ---p 00000000 00:00 0
-7f0e0759c000-7f0e07d9c000 rw-p 00000000 00:00 0
-7f0e07d9c000-7f0e07d9d000 ---p 00000000 00:00 0
-7f0e07d9d000-7f0e0859d000 rw-p 00000000 00:00 0
-7f0e0859d000-7f0e0859e000 ---p 00000000 00:00 0
-7f0e0859e000-7f0e08d9e000 rw-p 00000000 00:00 0
-7f0e08d9e000-7f0e08d9f000 ---p 00000000 00:00 0
-7f0e08d9f000-7f0e0959f000 rw-p 00000000 00:00 0
-7f0e0959f000-7f0e095a0000 ---p 00000000 00:00 0
-7f0e095a0000-7f0e09da0000 rw-p 00000000 00:00 0
-7f0e09da0000-7f0e09da1000 ---p 00000000 00:00 0
-(should be here)
-7f0e0ada1000-7f0e0af38000 r-xp 00000000 08:02 9699508
-  /lib/x86_64-linux-gnu/libc-2.23.so
-7f0e0af38000-7f0e0b138000 ---p 00197000 08:02 9699508
-  /lib/x86_64-linux-gnu/libc-2.23.so
-7f0e0b138000-7f0e0b13c000 r--p 00197000 08:02 9699508
-  /lib/x86_64-linux-gnu/libc-2.23.so
-7f0e0b13c000-7f0e0b13e000 rw-p 0019b000 08:02 9699508
-  /lib/x86_64-linux-gnu/libc-2.23.so
-7f0e0b13e000-7f0e0b142000 rw-p 00000000 00:00 0
-7f0e0b142000-7f0e0b15a000 r-xp 00000000 08:02 9699869
-  /lib/x86_64-linux-gnu/libpthread-2.23.so
-7f0e0b15a000-7f0e0b359000 ---p 00018000 08:02 9699869
-  /lib/x86_64-linux-gnu/libpthread-2.23.so
-7f0e0b359000-7f0e0b35a000 r--p 00017000 08:02 9699869
-  /lib/x86_64-linux-gnu/libpthread-2.23.so
-7f0e0b35a000-7f0e0b35b000 rw-p 00018000 08:02 9699869
-  /lib/x86_64-linux-gnu/libpthread-2.23.so
-7f0e0b35b000-7f0e0b35f000 rw-p 00000000 00:00 0
-7f0e0b35f000-7f0e0b383000 r-xp 00000000 08:02 9699378
-  /lib/x86_64-linux-gnu/ld-2.23.so
-7f0e0b557000-7f0e0b55a000 rw-p 00000000 00:00 0
-7f0e0b580000-7f0e0b582000 rw-p 00000000 00:00 0
-7f0e0b582000-7f0e0b583000 r--p 00023000 08:02 9699378
-  /lib/x86_64-linux-gnu/ld-2.23.so
-7f0e0b583000-7f0e0b584000 rw-p 00024000 08:02 9699378
-  /lib/x86_64-linux-gnu/ld-2.23.so
-7f0e0b584000-7f0e0b585000 rw-p 00000000 00:00 0
-7fff48fe4000-7fff49005000 rw-p 00000000 00:00 0                          [stack]
-7fff4908e000-7fff49090000 r--p 00000000 00:00 0                          [vvar]
-7fff49090000-7fff49092000 r-xp 00000000 00:00 0                          [vdso]
-ffffffffff600000-ffffffffff601000 r-xp 00000000 00:00 0
-  [vsyscall]
-
-address 0x7f0e0a5a1000 not found in smaps
-Aborted
-
-Cheers,
-Marcin
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
