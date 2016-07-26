@@ -1,116 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 60C846B0277
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 21:21:23 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id m101so485454956ioi.0
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 18:21:23 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id k130si19305696itk.113.2016.07.25.18.21.21
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 857546B0262
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 21:55:47 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id u186so376208575ita.0
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 18:55:47 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTP id q80si2568999oic.269.2016.07.25.18.55.44
         for <linux-mm@kvack.org>;
-        Mon, 25 Jul 2016 18:21:22 -0700 (PDT)
-Date: Tue, 26 Jul 2016 10:21:57 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC] mm: bail out in shrin_inactive_list
-Message-ID: <20160726012157.GA11651@bbox>
-References: <1469433119-1543-1-git-send-email-minchan@kernel.org>
- <20160725092909.GV11400@suse.de>
+        Mon, 25 Jul 2016 18:55:46 -0700 (PDT)
+Message-ID: <5796BE82.4060903@huawei.com>
+Date: Tue, 26 Jul 2016 09:36:02 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <20160725092909.GV11400@suse.de>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Subject: Re: [PATCH v3] mem-hotplug: alloc new page from a nearest neighbor
+ node when mem-offline
+References: <5795E18B.5060302@huawei.com> <20160725135159.d8f06042d91a5b5d1e5c4ebf@linux-foundation.org>
+In-Reply-To: <20160725135159.d8f06042d91a5b5d1e5c4ebf@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov@virtuozzo.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, David Rientjes <rientjes@google.com>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-On Mon, Jul 25, 2016 at 10:29:09AM +0100, Mel Gorman wrote:
-> There is a typo in the subject line.
-> 
-> On Mon, Jul 25, 2016 at 04:51:59PM +0900, Minchan Kim wrote:
-> > With node-lru, if there are enough reclaimable pages in highmem
-> > but nothing in lowmem, VM can try to shrink inactive list although
-> > the requested zone is lowmem.
-> > 
-> > The problem is direct reclaimer scans inactive list is fulled with
-> 
-> 
-> > highmem pages to find a victim page at a reqested zone or lower zones
-> > but the result is that VM should skip all of pages. 
-> 
-> Rephease -- The problem is that if the inactive list is full of highmem
-> pages then a direct reclaimer searching for a lowmem page waste CPU
-> scanning uselessly.
+On 2016/7/26 4:51, Andrew Morton wrote:
 
-It's better. Thanks.
+> On Mon, 25 Jul 2016 17:53:15 +0800 Xishi Qiu <qiuxishi@huawei.com> wrote:
+> 
+>> Subject: [PATCH v3] mem-hotplug: alloc new page from a nearest neighbor node when mem-offline
+> 
+> argh.
+> 
+> This is "v3" but there is no v1 and no v2.  Please don't change the
+> name of patches in this manner.  Or if you do, please be clear which
+> patch is being updated.
+> 
+> I'll drop your
+> mem-hotplug-use-different-mempolicy-in-alloc_migrate_target.patch.
+> 
 
-> 
-> > CPU. Even, many direct reclaimers are stalled by too_many_isolated
-> > if lots of parallel reclaimer are going on although there are no
-> > reclaimable memory in inactive list.
-> > 
-> > I tried the experiment 4 times in 32bit 2G 8 CPU KVM machine
-> > to get elapsed time.
-> > 
-> > 	hackbench 500 process 2
-> > 
-> > = Old =
-> > 
-> > 1st: 289s 2nd: 310s 3rd: 112s 4th: 272s
-> > 
-> > = Now =
-> > 
-> > 1st: 31s  2nd: 132s 3rd: 162s 4th: 50s.
-> > 
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > ---
-> > I believe proper fix is to modify get_scan_count. IOW, I think
-> > we should introduce lruvec_reclaimable_lru_size with proper
-> > classzone_idx but I don't know how we can fix it with memcg
-> > which doesn't have zone stat now. should introduce zone stat
-> > back to memcg? Or, it's okay to ignore memcg?
-> > 
-> 
-> I think it's ok to ignore memcg in this case as a memcg shrink is often
-> going to be for pages that can use highmem anyway.
+Hi Andrew,
 
-So, you mean it's okay to ignore kmemcg case?
-If memcg guys agree it, I want to make get_scan_count consider
-reclaimable lru size under the reclaim constraint, instead.
+Sorry for the confusion of title.
 
+The following patches are all the old versions and please drop them all.
+
+[PATCH] mem-hotplug: use GFP_HIGHUSER_MOVABLE and alloc from next node in alloc_migrate_target()
+[PATCH 1/2] mem-hotplug: use GFP_HIGHUSER_MOVABLE in, alloc_migrate_target()
+[PATCH 2/2] mem-hotplug: use different mempolicy in alloc_migrate_target()
+[PATCH v2] mem-hotplug: alloc new page from the next node if zone is MOVABLE_ZONE
+
+Thanks,
+Xishi Qiu
+
+> .
 > 
-> >  mm/vmscan.c | 28 ++++++++++++++++++++++++++++
-> >  1 file changed, 28 insertions(+)
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index e5af357..3d285cc 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -1652,6 +1652,31 @@ static int current_may_throttle(void)
-> >  		bdi_write_congested(current->backing_dev_info);
-> >  }
-> >  
-> > +static inline bool inactive_reclaimable_pages(struct lruvec *lruvec,
-> > +				struct scan_control *sc,
-> > +				enum lru_list lru)
-> 
-> inline is unnecessary. The function is long but only has one caller so
-> it'll be inlined automatically.
-> 
-> > +{
-> > +	int zid;
-> > +	struct zone *zone;
-> > +	bool file = is_file_lru(lru);
-> 
-> It's more appropriate to use int for file in this case as it's used as a
-> multiplier. It'll work either way.
-> 
-> Otherwise;
-> 
-> Acked-by: Mel Gorman <mgorman@techsingularity.net>
-> 
-> -- 
-> Mel Gorman
-> SUSE Labs
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
