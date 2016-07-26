@@ -1,55 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F260F6B025F
-	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 22:09:18 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id m101so487976162ioi.0
-        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 19:09:18 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id n26si22698561ioi.116.2016.07.25.19.09.17
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DF546B0005
+	for <linux-mm@kvack.org>; Mon, 25 Jul 2016 23:14:15 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id y134so445630753pfg.1
+        for <linux-mm@kvack.org>; Mon, 25 Jul 2016 20:14:15 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id 140si36747747pfx.153.2016.07.25.20.14.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Jul 2016 19:09:18 -0700 (PDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: RE: [PATCH v3 02/11] mm: Hardened usercopy
-In-Reply-To: <063D6719AE5E284EB5DD2968C1650D6D5F502102@AcuExch.aculab.com>
-References: <1468619065-3222-1-git-send-email-keescook@chromium.org> <1468619065-3222-3-git-send-email-keescook@chromium.org> <5790711f.2350420a.b4287.2cc0SMTPIN_ADDED_BROKEN@mx.google.com> <CAGXu5jLCu1Vv0uugKZrsjSEsoABgXJSOJ8GkKmrHbvj9jkC2YA@mail.gmail.com> <20160722174551.jddle6mf7zlq6xmb@treble> <063D6719AE5E284EB5DD2968C1650D6D5F502102@AcuExch.aculab.com>
-Date: Tue, 26 Jul 2016 12:09:14 +1000
-Message-ID: <87mvl5jgl1.fsf@concordia.ellerman.id.au>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 25 Jul 2016 20:14:14 -0700 (PDT)
+From: zhongjiang <zhongjiang@huawei.com>
+Subject: [PATCH] kexec: add restriction on kexec_load() segment sizes
+Date: Tue, 26 Jul 2016 11:03:39 +0800
+Message-ID: <1469502219-24140-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Laight <David.Laight@ACULAB.COM>, 'Josh Poimboeuf' <jpoimboe@redhat.com>, Kees Cook <keescook@chromium.org>
-Cc: "linux-ia64@vger.kernel.org" <linux-ia64@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Linux-MM <linux-mm@kvack.org>, sparclinux <sparclinux@vger.kernel.org>, Jan Kara <jack@suse.cz>, Christoph Lameter <cl@linux.com>, Andrea Arcangeli <aarcange@redhat.com>, "x86@kernel.org" <x86@kernel.org>, Russell King <linux@armlinux.org.uk>, Dmitry Vyukov <dvyukov@google.com>, David Rientjes <rientjes@google.com>, PaX Team <pageexec@freemail.hu>, Borislav Petkov <bp@suse.de>, Mathias Krause <minipli@googlemail.com>, linux-arch <linux-arch@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Brad Spengler <spender@grsecurity.net>, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Laura Abbott <labbott@fedoraproject.org>, Tony Luck <tony.luck@intel.com>, Ard Biesh euvel <ard.biesheuvel@linaro.org>, LKML <linux-kernel@vger.kernel.org>, Fenghua Yu <fenghua.yu@intel.com>, Pekka Enberg <penberg@kernel.org>, Daniel Micay <danielmicay@gmail.com>, Casey Schaufler <casey@schaufler-ca.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, "David S. Miller" <davem@davemloft.net>
+To: akpm@linux-foundation.org, ebiederm@xmission.com
+Cc: linux-mm@kvack.org, mm-commits@vger.kernel.org
 
-David Laight <David.Laight@ACULAB.COM> writes:
+From: zhong jiang <zhongjiang@huawei.com>
 
-> From: Josh Poimboeuf
->> Sent: 22 July 2016 18:46
->> >
->> > e.g. then if the pointer was in the thread_info, the second test would
->> > fail, triggering the protection.
->> 
->> FWIW, this won't work right on x86 after Andy's
->> CONFIG_THREAD_INFO_IN_TASK patches get merged.
->
-> What ends up in the 'thread_info' area?
+I hit the following issue when run trinity in my system.  The kernel is
+3.4 version, but mainline has the same issue.
 
-It depends on the arch.
+The root cause is that the segment size is too large so the kerenl spends
+too long trying to allocate a page.  Other cases will block until the test
+case quits.  Also, OOM conditions will occur.
 
-> If it contains the fp save area then programs like gdb may end up requesting
-> copy_in/out directly from that area.
+Call Trace:
+ [<ffffffff81106eac>] __alloc_pages_nodemask+0x14c/0x8f0
+ [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
+ [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
+ [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
+ [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
+ [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
+ [<ffffffff8113e5ef>] alloc_pages_current+0xaf/0x120
+ [<ffffffff810a0da0>] kimage_alloc_pages+0x10/0x60
+ [<ffffffff810a15ad>] kimage_alloc_control_pages+0x5d/0x270
+ [<ffffffff81027e85>] machine_kexec_prepare+0xe5/0x6c0
+ [<ffffffff810a0d52>] ? kimage_free_page_list+0x52/0x70
+ [<ffffffff810a1921>] sys_kexec_load+0x141/0x600
+ [<ffffffff8115e6b0>] ? vfs_write+0x100/0x180
+ [<ffffffff8145fbd9>] system_call_fastpath+0x16/0x1b
 
-On the arches I've seen thread_info doesn't usually contain register save areas,
-but if it did then it would be up to the arch helper to allow that copy to go
-through.
+The patch changes sanity_check_segment_list() to verify that no segment is
+larger than half of memory.
 
-However given thread_info generally contains lots of low level flags that would
-be a good target for an attacker, the best way to cope with ptrace wanting to
-copy to/from it would be to use a temporary, and prohibit copying directly
-to/from thread_info - IMHO.
+Suggested-off-by: Eric W. Biederman <ebiederm@xmission.com>
+Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+---
+ kernel/kexec_core.c | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
 
-cheers
+diff --git a/kernel/kexec_core.c b/kernel/kexec_core.c
+index 56b3ed0..536550f 100644
+--- a/kernel/kexec_core.c
++++ b/kernel/kexec_core.c
+@@ -140,6 +140,7 @@ int kexec_should_crash(struct task_struct *p)
+  * allocating pages whose destination address we do not care about.
+  */
+ #define KIMAGE_NO_DEST	(-1UL)
++#define PAGE_COUNT(x)	(((x) + PAGE_SIZE - 1) >> PAGE_SHIFT)
+ 
+ static struct page *kimage_alloc_page(struct kimage *image,
+ 				       gfp_t gfp_mask,
+@@ -149,6 +150,7 @@ int sanity_check_segment_list(struct kimage *image)
+ {
+ 	int result, i;
+ 	unsigned long nr_segments = image->nr_segments;
++	unsigned long total_segments = 0;
+ 
+ 	/*
+ 	 * Verify we have good destination addresses.  The caller is
+@@ -210,6 +212,23 @@ int sanity_check_segment_list(struct kimage *image)
+ 	}
+
++	/*
++	 * Verify that no segment is larger than half of memory.
++	 * If a segment from userspace is too large, a large amount
++	 * of time will be wasted allocating pages, which can cause
++	 * a soft lockup.
++	 */
++	for (i = 0; i < nr_segments; i++) {
++		if (PAGE_COUNT(image->segment[i].memsz) > totalram_pages / 2
++				|| PAGE_COUNT(total_segments) > totalram_pages / 2)
++			return result;
++
++		total_segments += image->segment[i].memsz;
++	}
++
++	if (PAGE_COUNT(total_segments) > totalram_pages / 2)
++		return result;
++
+	/*
+ 	 * Verify we have good destination addresses.  Normally
+ 	 * the caller is responsible for making certain we don't
+ 	 * attempt to load the new image into invalid or reserved
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
