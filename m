@@ -1,85 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6607D6B0005
-	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 05:31:50 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id x83so4434855wma.2
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 02:31:50 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id yn5si18922448wjc.170.2016.07.26.02.31.47
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 11E5F6B025E
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 05:32:17 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id j124so13216533ith.1
+        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 02:32:17 -0700 (PDT)
+Received: from szxga02-in.huawei.com ([119.145.14.65])
+        by mx.google.com with ESMTPS id q72si18691895itc.67.2016.07.26.02.32.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jul 2016 02:31:48 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id x83so728252wma.3
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 02:31:47 -0700 (PDT)
-Date: Tue, 26 Jul 2016 11:31:46 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: Move readahead limit outside of readahead, and
- advisory syscalls
-Message-ID: <20160726093146.GI32462@dhcp22.suse.cz>
-References: <1469457565-22693-1-git-send-email-kwalker@redhat.com>
- <20160725134732.b21912c54ef1ffe820ccdbca@linux-foundation.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 26 Jul 2016 02:32:16 -0700 (PDT)
+Message-ID: <57972DD3.3050909@huawei.com>
+Date: Tue, 26 Jul 2016 17:30:59 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160725134732.b21912c54ef1ffe820ccdbca@linux-foundation.org>
+Subject: Re: [PATCH] mm: walk the zone in pageblock_nr_pages steps
+References: <1469502526-24486-1-git-send-email-zhongjiang@huawei.com> <7fcafdb1-86fa-9245-674b-db1ae53d1c77@suse.cz> <57971FDE.20507@huawei.com> <473964c8-23cd-cee7-b25c-6ef020547b9a@suse.cz>
+In-Reply-To: <473964c8-23cd-cee7-b25c-6ef020547b9a@suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kyle Walker <kwalker@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Geliang Tang <geliangtang@163.com>, Vlastimil Babka <vbabka@suse.cz>, Roman Gushchin <klamm@yandex-team.ru>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Mon 25-07-16 13:47:32, Andrew Morton wrote:
-> On Mon, 25 Jul 2016 10:39:25 -0400 Kyle Walker <kwalker@redhat.com> wrote:
-> 
-> > Java workloads using the MappedByteBuffer library result in the fadvise()
-> > and madvise() syscalls being used extensively. Following recent readahead
-> > limiting alterations, such as 600e19af ("mm: use only per-device readahead
-> > limit") and 6d2be915 ("mm/readahead.c: fix readahead failure for
-> > memoryless NUMA nodes and limit readahead pages"), application performance
-> > suffers in instances where small readahead is configured.
-> 
-> Can this suffering be quantified please?
-> 
-> > By moving this limit outside of the syscall codepaths, the syscalls are
-> > able to advise an inordinately large amount of readahead when desired.
-> > With a cap being imposed based on the half of NR_INACTIVE_FILE and
-> > NR_FREE_PAGES. In essence, allowing performance tuning efforts to define a
-> > small readahead limit, but then benefiting from large sequential readahead
-> > values selectively.
-> > 
-> > ...
-> >
-> > --- a/mm/readahead.c
-> > +++ b/mm/readahead.c
-> > @@ -211,7 +211,9 @@ int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
-> >  	if (unlikely(!mapping->a_ops->readpage && !mapping->a_ops->readpages))
-> >  		return -EINVAL;
-> >  
-> > -	nr_to_read = min(nr_to_read, inode_to_bdi(mapping->host)->ra_pages);
-> > +	nr_to_read = min(nr_to_read, (global_page_state(NR_INACTIVE_FILE) +
-> > +				     (global_page_state(NR_FREE_PAGES)) / 2));
-> > +
-> >  	while (nr_to_read) {
-> >  		int err;
-> >  
-> > @@ -484,6 +486,7 @@ void page_cache_sync_readahead(struct address_space *mapping,
-> >  
-> >  	/* be dumb */
-> >  	if (filp && (filp->f_mode & FMODE_RANDOM)) {
-> > +		req_size = min(req_size, inode_to_bdi(mapping->host)->ra_pages);
-> >  		force_page_cache_readahead(mapping, filp, offset, req_size);
-> >  		return;
-> >  	}
-> 
-> Linus probably has opinions ;)
+On 2016/7/26 16:53, Vlastimil Babka wrote:
+> On 07/26/2016 10:31 AM, zhong jiang wrote:
+>> On 2016/7/26 14:24, Vlastimil Babka wrote:
+>>> On 07/26/2016 05:08 AM, zhongjiang wrote:
+>>>> From: zhong jiang <zhongjiang@huawei.com>
+>>>>
+>>>> when walking the zone, we can happens to the holes. we should
+>>>> not align MAX_ORDER_NR_PAGES, so it can skip the normal memory.
+>>>>
+>>>> In addition, pagetypeinfo_showmixedcount_print reflect
+>>>> fragmentization. we hope to get more accurate data. therefore, I
+>>>> decide to fix it.
+>>>
+>>> Can't say I'm happy with another random half-fix. What's the real
+>>> granularity of holes for CONFIG_HOLES_IN_ZONE systems? I suspect it
+>>> can be below pageblock_nr_pages. The pfn_valid_within() mechanism
+>>> seems rather insufficient... it does prevent running unexpectedly
+>>> into holes in the middle of pageblock/MAX_ORDER block, but together
+>>> with the large skipping it doesn't guarantee that we cover all
+>>> non-holes.
+>>>
+>> I am sorry for that. I did not review the whole code before sending
+>> above patch.  In arch of x86, The real granularity of holes is in
+>> 256, that is a section.
+>
+> Huh, x86 doesn't even have CONFIG_HOLES_IN_ZONE? So any pfn valid within MAX_ORDER_NR_PAGES (and within zone boundaries?) should mean the whole range is valid? AFAICS only ia64, mips and s390 has CONFIG_HOLES_IN_ZONE.
+>
+> Maybe I misunderstand... can you help by demonstrating on which arch and configuration your patch makes a difference?
+>
+ a x86 arch ,for example, when CONFIG_HOLES_IN_ZONE disable, hole punch is not existence. we scan the zone in the way of pageblock ,compared with the MAX_ORDER_NR_PAGES, it should be more resonable.
+ when CONFIG_HOLES_IN_ZONE enable, hole punch is existence. it will prevent the rest 2M to be skipped. you can get from code that we prefer to align with pageblock.
+>> while in arm64, we can see that the hole is
+>> identify by located in SYSTEM_RAM. I admit that that is not a best
+>> way. but at present, it's a better way to amend.
+>>> I think in a robust solution, functions such as these should use
+>>> something like PAGE_HOLE_GRANULARITY which equals
+>>> MAX_ORDER_NR_PAGES for !CONFIG_HOLES_IN_ZONE and some
+>>> arch/config/system specific value for CONFIG_HOLES_IN_ZONE. This
+>>> would then be used in the ALIGN() part. It could be also used
+>>> together with pfn_valid_within() in the inner loop to skip over
+>>> holes more quickly (if it's worth).
+>>>
+>> Maybe reimplement the code about hole punch is a better way.
+>>> Also I just learned there's also CONFIG_ARCH_HAS_HOLES_MEMORYMODEL
+>>> that affects a function called memmap_valid_within(). But that one
+>>> has only one caller - pagetypeinfo_showblockcount_print(). Why is
+>>> it needed there and not in pagetypeinfo_showmixedcount_print() (or
+>>> anywhere else?)
+>>>
+>> yes, but in other place, for example, the caller
+>> apagetypeinfo_showmixedcount_print you can see the
+>> commit.(91c43c7313a995a8908f8f6b911a85d00fdbffd)
+>
+> Hmm I don't see such commit in linus.git, mmotm or linux-next trees.
+>
+>>>> Signed-off-by: zhong jiang <zhongjiang@huawei.com> ---
+>>>> mm/vmstat.c | 2 +- 1 file changed, 1 insertion(+), 1 deletion(-)
+>>>>
+>>>> diff --git a/mm/vmstat.c b/mm/vmstat.c index cb2a67b..3508f74
+>>>> 100644 --- a/mm/vmstat.c +++ b/mm/vmstat.c @@ -1033,7 +1033,7 @@
+>>>> static void pagetypeinfo_showmixedcount_print(struct seq_file
+>>>> *m, */ for (; pfn < end_pfn; ) { if (!pfn_valid(pfn)) { -
+>>>> pfn = ALIGN(pfn + 1, MAX_ORDER_NR_PAGES); +            pfn =
+>>>> ALIGN(pfn + 1, pageblock_nr_pages); continue; }
+>>>>
+>>>>
+>>>
+>>> -- To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>>> the body to majordomo@kvack.org.  For more info on Linux MM, see:
+>>> http://www.linux-mm.org/ . Don't email: <a
+>>> href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>>
+>>>
+>>
+>>
+>
+>
+> .
+>
 
-Just for the reference a similar patch has been discussed already [1] or
-from a different angle [2]
-
-[1] http://lkml.kernel.org/r/1440087598-27185-1-git-send-email-klamm@yandex-team.ru
-[2] http://lkml.kernel.org/r/1456277927-12044-1-git-send-email-hannes@cmpxchg.org
--- 
-Michal Hocko
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
