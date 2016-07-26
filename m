@@ -1,60 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id ED26D6B0253
-	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 12:36:09 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id b35so28965559qta.0
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 09:36:09 -0700 (PDT)
-Received: from mail-qk0-x241.google.com (mail-qk0-x241.google.com. [2607:f8b0:400d:c09::241])
-        by mx.google.com with ESMTPS id y202si958017qkb.170.2016.07.26.09.36.09
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A6CB76B0253
+	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 12:41:06 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id p129so20530139wmp.3
+        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 09:41:06 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 138si2249508wmf.29.2016.07.26.09.41.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 26 Jul 2016 09:36:09 -0700 (PDT)
-Received: by mail-qk0-x241.google.com with SMTP id q8so783867qke.3
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 09:36:09 -0700 (PDT)
-Subject: Re: [RFC PATCH] mm/hugetlb: Avoid soft lockup in set_max_huge_pages()
-References: <1469547868-9814-1-git-send-email-hejianet@gmail.com>
- <579788BA.1040706@linux.intel.com>
-From: hejianet <hejianet@gmail.com>
-Message-ID: <5797916B.2020008@gmail.com>
-Date: Wed, 27 Jul 2016 00:35:55 +0800
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 26 Jul 2016 09:41:05 -0700 (PDT)
+Subject: Re: [PATCH 1/3] Add a new field to struct shrinker
+References: <cover.1468051277.git.janani.rvchndrn@gmail.com>
+ <85a9712f3853db5d9bc14810b287c23776235f01.1468051281.git.janani.rvchndrn@gmail.com>
+ <20160711063730.GA5284@dhcp22.suse.cz>
+ <1468246371.13253.63.camel@surriel.com>
+ <20160711143342.GN1811@dhcp22.suse.cz>
+ <F072D3E2-0514-4A25-868E-2104610EC14A@gmail.com>
+ <20160720145405.GP11249@dhcp22.suse.cz>
+From: Tony Jones <tonyj@suse.de>
+Message-ID: <5e6e4f2d-ae94-130e-198d-fa402a9eef50@suse.de>
+Date: Tue, 26 Jul 2016 09:40:57 -0700
 MIME-Version: 1.0
-In-Reply-To: <579788BA.1040706@linux.intel.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20160720145405.GP11249@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mike Kravetz <mike.kravetz@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Paul Gortmaker <paul.gortmaker@windriver.com>
+To: Michal Hocko <mhocko@suse.cz>, Janani Ravichandran <janani.rvchndrn@gmail.com>
+Cc: Rik van Riel <riel@surriel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@virtuozzo.com, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, bywxiaobai@163.com
 
-
-
-On 7/26/16 11:58 PM, Dave Hansen wrote:
-> On 07/26/2016 08:44 AM, Jia He wrote:
->> This patch is to fix such soft lockup. I thouhgt it is safe to call
->> cond_resched() because alloc_fresh_gigantic_page and alloc_fresh_huge_page
->> are out of spin_lock/unlock section.
-> Yikes.  So the call site for both the things you patch is this:
+On 07/20/2016 07:54 AM, Michal Hocko wrote:
+> On Wed 20-07-16 20:11:09, Janani Ravichandran wrote:
+>>
+>>> On Jul 11, 2016, at 8:03 PM, Michal Hocko <mhocko@kernel.org> wrote:
+>>>
+>>> On Mon 11-07-16 10:12:51, Rik van Riel wrote:
+>>>>
+>>>> What mechanism do you have in mind for obtaining the name,
+>>>> Michal?
+>>>
+>>> Not sure whether tracing infrastructure allows printk like %ps. If not
+>>> then it doesn't sound too hard to add.
+>>
+>> It does allow %ps. Currently what is being printed is the function symbol
+>> of the callback using %pF. Ia??d like to know why %pF is used instead of
+>> %ps in this case.
 >
->>          while (count > persistent_huge_pages(h)) {
-> ...
->>                  spin_unlock(&hugetlb_lock);
->>                  if (hstate_is_gigantic(h))
->>                          ret = alloc_fresh_gigantic_page(h, nodes_allowed);
->>                  else
->>                          ret = alloc_fresh_huge_page(h, nodes_allowed);
->>                  spin_lock(&hugetlb_lock);
-> and you choose to patch both of the alloc_*() functions.  Why not just
-> fix it at the common call site?  Seems like that
-> spin_lock(&hugetlb_lock) could be a cond_resched_lock() which would fix
-> both cases.
+> From a quick look into the code %pF should be doing the same thing as
+> %ps in the end. Some architectures just need some magic to get a proper
+> address of the function.
 >
-> Also, putting that cond_resched() inside the for_each_node*() loop is an
-> odd choice.  It seems to indicate that the loops can take a long time,
-> which really isn't the case.  The _loop_ isn't long, right?
-Yes,thanks for the suggestions
-Will send out V2 later
+>> Michal, just to make sure I understand you correctly, do you mean that we
+>> could infer the names of the shrinkers by looking at the names of their callbacks?
+>
+> Yes, %ps can then be used for the name of the shrinker structure
+> (assuming it is available).
 
-B.R.
+The "shrinker structure" (struct shrinker) isn't a good candidate (as it's often embedded as thus no symbol name can be
+resolved) but the callback seems to work fine in my testing.
+
+I made an earlier suggestion to Janani that it was helpful to have the superblock shrinker name constructed to include
+the fstype.   This level of specificity would be lost if just the callback is used.  I talked briefly to Michal and his view
+is that more specific tracepoints can be added for this case.   This is certainly an option as the super_cache_scan callback
+can access the superblock and thus the file_system_type via containing record.   It's just more work to later reconcile the
+output of two tracepoints.
+
+I talked briefly to Mel and we both think being able to have this level (of fstype) specificity would be useful and it would
+be lost just using the callback.   Another option which would avoid the static overhead of the names would be to add a new
+shrinker_name() callback.  If NULL,  the caller can just perform the default, in this case lookup the symbol for the callback,
+if !NULL it would provide additional string information which the caller could use.   The per-sb shrinker could implement it
+and return the fstype.   It's obviously still a +1 word growth of the struct shrinker but it avoids the text overhead of the
+constructed names.
+
+Opinions?
+
+Tony
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
