@@ -1,128 +1,212 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FF826B0260
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 03:14:09 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id h186so30511271pfg.2
-        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 00:14:09 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id yk6si5032951pab.73.2016.07.27.00.14.08
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jul 2016 00:14:08 -0700 (PDT)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u6R7E7Tr110444
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 03:14:07 -0400
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 24dsrq235x-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 03:14:07 -0400
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
-	Wed, 27 Jul 2016 08:14:04 +0100
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 0EEF11B08061
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 08:15:30 +0100 (BST)
-Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u6R7E2jS27787452
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 07:14:02 GMT
-Received: from d06av03.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av03.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u6R7E2bT030597
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 01:14:02 -0600
-Date: Wed, 27 Jul 2016 09:14:00 +0200
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: [BUG -next] "random: make /dev/urandom scalable for silly userspace
- programs" causes crash
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Message-Id: <20160727071400.GA3912@osiris>
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 541616B025F
+	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 03:29:13 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id i199so34690020ioi.2
+        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 00:29:13 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id d45si4110829ote.16.2016.07.27.00.29.11
+        for <linux-mm@kvack.org>;
+        Wed, 27 Jul 2016 00:29:12 -0700 (PDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [PATCH 1/2] mm: add skipped count and more lru information to trace
+Date: Wed, 27 Jul 2016 16:29:47 +0900
+Message-Id: <1469604588-6051-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>
-Cc: linux-next@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Minchan Kim <minchan@kernel.org>
 
-Hi Ted,
+The skipped count is important to investgate reclaim overhead problem
+so let's add it. As well, isolation happens both active and inactive
+lru list with decreasing priority so with that, it helps to identify
+which lru list we are scanning at which priority now.
 
-it looks like your patch "random: make /dev/urandom scalable for silly
-userspace programs" within linux-next seems to be a bit broken:
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ .../trace/postprocess/trace-vmscan-postprocess.pl  | 10 +++---
+ include/trace/events/vmscan.h                      | 39 ++++++++++++++++------
+ mm/vmscan.c                                        |  6 ++--
+ 3 files changed, 37 insertions(+), 18 deletions(-)
 
-It causes this allocation failure and subsequent crash on s390 with fake
-NUMA enabled:
-
-[    0.533195] SLUB: Unable to allocate memory on node 1, gfp=0x24008c0(GFP_KERNEL|__GFP_NOFAIL)
-[    0.533198]   cache: kmalloc-192, object size: 192, buffer size: 528, defaul order: 3, min order: 0
-[    0.533202]   node 0: slabs: 2, objs: 124, free: 17
-[    0.533208] Unable to handle kernel pointer dereference in virtual kernel address space
-[    0.533211] Failing address: 0000000000000000 TEID: 0000000000000483
-...
-[    0.533276] Krnl PSW : 0704e00180000000 00000000001a853e (lockdep_init_map+0x1e/0x220)
-[    0.533281]            R:0 T:1 IO:1 EX:1 Key:0 M:1 W:0 P:0 AS:3 CC:2 PM:0 RI:0 EA:3
-               Krnl GPRS: 0000000000a23400 00000000370c8008 0000000000000060 0000000000bedc90
-[    0.533285]            0000000002070800 0000000000000000 0000000000000001 0000000000000000
-[    0.533287]            000000003743d3f8 000000003743d408 0000000002070800 0000000000bedc90
-[    0.533289]            0000000000000048 00000000009c2030 00000000370cfd00 00000000370cfcc0
-[    0.533295] Krnl Code: 00000000001a852e: a7840001            brc     8,1a8530
-           00000000001a8532: e3f0ffc0ff71       lay     %r15,-64(%r15)
-          #00000000001a8538: e3e0f0980024       stg     %r14,152(%r15)
-          >00000000001a853e: e54820080000       mvghi   8(%r2),0
-           00000000001a8544: e54820100000       mvghi   16(%r2),0
-           00000000001a854a: 58100370           l       %r1,880
-           00000000001a854e: 50102020           st      %r1,32(%r2)
-           00000000001a8552: b90400c2           lgr     %r12,%r2
-[    0.533313] Call Trace:
-[    0.533315] ([<0000000000000001>] 0x1)
-[    0.533318] ([<00000000001b4220>] __raw_spin_lock_init+0x50/0x80)
-[    0.533320] ([<0000000000759e7a>] rand_initialize+0xc2/0xf0)
-[    0.533322] ([<00000000001002cc>] do_one_initcall+0xb4/0x140)
-[    0.533325] ([<0000000000ef2cc0>] kernel_init_freeable+0x140/0x2d8)
-[    0.533328] ([<00000000009b07ea>] kernel_init+0x2a/0x150)
-[    0.533330] ([<00000000009bd782>] kernel_thread_starter+0x6/0xc)
-[    0.533332] ([<00000000009bd77c>] kernel_thread_starter+0x0/0xc)
-
-To me it looks rand_initialize is broken with CONFIG_NUMA:
-
-static int rand_initialize(void)
-{
-#ifdef CONFIG_NUMA
-	int i;
-	int num_nodes = num_possible_nodes();
-	struct crng_state *crng;
-	struct crng_state **pool;
-#endif
-
-	init_std_data(&input_pool);
-	init_std_data(&blocking_pool);
-	crng_initialize(&primary_crng);
-
-#ifdef CONFIG_NUMA
-	pool = kmalloc(num_nodes * sizeof(void *),
-		       GFP_KERNEL|__GFP_NOFAIL|__GFP_ZERO);
-	for (i=0; i < num_nodes; i++) {
-		crng = kmalloc_node(sizeof(struct crng_state),
-				    GFP_KERNEL | __GFP_NOFAIL, i);
-		spin_lock_init(&crng->lock);
-		crng_initialize(crng);
-		pool[i] = crng;
-
-	}
-	mb();
-	crng_node_pool = pool;
-#endif
-	return 0;
-}
-early_initcall(rand_initialize);
-
-First the for loop should use for_each_node() to skip not possible nodes,
-no?
-
-However that wouldn't be enough, since in this case it crashed because node
-1 is in the possible map, but it isn't online and doesn't have any memory,
-which explains why the allocation fails and the subsequent crash when
-calling spin_lock_init().
-
-I think the proper fix would be to simply use for_each_online_node(); at
-least that fixes the crash on s390.
+diff --git a/Documentation/trace/postprocess/trace-vmscan-postprocess.pl b/Documentation/trace/postprocess/trace-vmscan-postprocess.pl
+index 8f961ef..461203d 100644
+--- a/Documentation/trace/postprocess/trace-vmscan-postprocess.pl
++++ b/Documentation/trace/postprocess/trace-vmscan-postprocess.pl
+@@ -112,7 +112,7 @@ my $regex_direct_end_default = 'nr_reclaimed=([0-9]*)';
+ my $regex_kswapd_wake_default = 'nid=([0-9]*) order=([0-9]*)';
+ my $regex_kswapd_sleep_default = 'nid=([0-9]*)';
+ my $regex_wakeup_kswapd_default = 'nid=([0-9]*) zid=([0-9]*) order=([0-9]*)';
+-my $regex_lru_isolate_default = 'isolate_mode=([0-9]*) order=([0-9]*) nr_requested=([0-9]*) nr_scanned=([0-9]*) nr_taken=([0-9]*) file=([0-9]*)';
++my $regex_lru_isolate_default = 'isolate_mode=([0-9]*) order=([0-9]*) priority=([0-9]*) nr_requested=([0-9]*) nr_scanned=([0-9]*) nr_taken=([0-9]*) nr_skipped=([0-9]*) lru=([A-Z_]*)';
+ my $regex_lru_shrink_inactive_default = 'nid=([0-9]*) zid=([0-9]*) nr_scanned=([0-9]*) nr_reclaimed=([0-9]*) priority=([0-9]*) flags=([A-Z_|]*)';
+ my $regex_lru_shrink_active_default = 'lru=([A-Z_]*) nr_scanned=([0-9]*) nr_rotated=([0-9]*) priority=([0-9]*)';
+ my $regex_writepage_default = 'page=([0-9a-f]*) pfn=([0-9]*) flags=([A-Z_|]*)';
+@@ -207,7 +207,7 @@ $regex_lru_isolate = generate_traceevent_regex(
+ 			$regex_lru_isolate_default,
+ 			"isolate_mode", "order",
+ 			"nr_requested", "nr_scanned", "nr_taken",
+-			"file");
++			"nr_skipped", "lru");
+ $regex_lru_shrink_inactive = generate_traceevent_regex(
+ 			"vmscan/mm_vmscan_lru_shrink_inactive",
+ 			$regex_lru_shrink_inactive_default,
+@@ -381,8 +381,8 @@ sub process_events {
+ 				next;
+ 			}
+ 			my $isolate_mode = $1;
+-			my $nr_scanned = $4;
+-			my $file = $6;
++			my $nr_scanned = $5;
++			my $lru = $8;
+ 
+ 			# To closer match vmstat scanning statistics, only count isolate_both
+ 			# and isolate_inactive as scanning. isolate_active is rotation
+@@ -391,7 +391,7 @@ sub process_events {
+ 			# isolate_both     == 3
+ 			if ($isolate_mode != 2) {
+ 				$perprocesspid{$process_pid}->{HIGH_NR_SCANNED} += $nr_scanned;
+-				if ($file == 1) {
++				if ($lru =~ /file/) {
+ 					$perprocesspid{$process_pid}->{HIGH_NR_FILE_SCANNED} += $nr_scanned;
+ 				} else {
+ 					$perprocesspid{$process_pid}->{HIGH_NR_ANON_SCANNED} += $nr_scanned;
+diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+index c88fd09..67f479d 100644
+--- a/include/trace/events/vmscan.h
++++ b/include/trace/events/vmscan.h
+@@ -273,55 +273,71 @@ DECLARE_EVENT_CLASS(mm_vmscan_lru_isolate_template,
+ 
+ 	TP_PROTO(int classzone_idx,
+ 		int order,
++		int priority,
+ 		unsigned long nr_requested,
+ 		unsigned long nr_scanned,
+ 		unsigned long nr_taken,
++		unsigned long nr_skipped,
+ 		isolate_mode_t isolate_mode,
+-		int file),
++		enum lru_list lru),
+ 
+-	TP_ARGS(classzone_idx, order, nr_requested, nr_scanned, nr_taken, isolate_mode, file),
++	TP_ARGS(classzone_idx, order, priority, nr_requested, nr_scanned,
++		nr_taken, nr_skipped, isolate_mode, lru),
+ 
+ 	TP_STRUCT__entry(
+ 		__field(int, classzone_idx)
+ 		__field(int, order)
++		__field(int, priority)
+ 		__field(unsigned long, nr_requested)
+ 		__field(unsigned long, nr_scanned)
+ 		__field(unsigned long, nr_taken)
++		__field(unsigned long, nr_skipped)
+ 		__field(isolate_mode_t, isolate_mode)
+-		__field(int, file)
++		__field(enum lru_list, lru)
+ 	),
+ 
+ 	TP_fast_assign(
+ 		__entry->classzone_idx = classzone_idx;
+ 		__entry->order = order;
++		__entry->priority = priority;
+ 		__entry->nr_requested = nr_requested;
+ 		__entry->nr_scanned = nr_scanned;
+ 		__entry->nr_taken = nr_taken;
++		__entry->nr_skipped = nr_skipped;
+ 		__entry->isolate_mode = isolate_mode;
+-		__entry->file = file;
++		__entry->lru = lru;
+ 	),
+ 
+-	TP_printk("isolate_mode=%d classzone=%d order=%d nr_requested=%lu nr_scanned=%lu nr_taken=%lu file=%d",
++	TP_printk("isolate_mode=%d classzone=%d order=%d priority=%d nr_requested=%lu nr_scanned=%lu nr_taken=%lu nr_skipped=%lu lru=%s",
+ 		__entry->isolate_mode,
+ 		__entry->classzone_idx,
+ 		__entry->order,
++		__entry->priority,
+ 		__entry->nr_requested,
+ 		__entry->nr_scanned,
+ 		__entry->nr_taken,
+-		__entry->file)
++		__entry->nr_skipped,
++		__print_symbolic(__entry->lru,
++			{ LRU_INACTIVE_ANON, "ia_anon"},
++			{ LRU_ACTIVE_ANON, "ac_anon"},
++			{ LRU_INACTIVE_FILE, "ia_file"},
++			{ LRU_ACTIVE_FILE, "ac_file"}))
+ );
+ 
+ DEFINE_EVENT(mm_vmscan_lru_isolate_template, mm_vmscan_lru_isolate,
+ 
+ 	TP_PROTO(int classzone_idx,
+ 		int order,
++		int priority,
+ 		unsigned long nr_requested,
+ 		unsigned long nr_scanned,
+ 		unsigned long nr_taken,
++		unsigned long nr_skipped,
+ 		isolate_mode_t isolate_mode,
+-		int file),
++		enum lru_list lru),
+ 
+-	TP_ARGS(classzone_idx, order, nr_requested, nr_scanned, nr_taken, isolate_mode, file)
++	TP_ARGS(classzone_idx, order, priority, nr_requested, nr_scanned,
++		nr_taken, nr_skipped, isolate_mode, lru)
+ 
+ );
+ 
+@@ -329,13 +345,16 @@ DEFINE_EVENT(mm_vmscan_lru_isolate_template, mm_vmscan_memcg_isolate,
+ 
+ 	TP_PROTO(int classzone_idx,
+ 		int order,
++		int priority,
+ 		unsigned long nr_requested,
+ 		unsigned long nr_scanned,
+ 		unsigned long nr_taken,
++		unsigned long nr_skipped,
+ 		isolate_mode_t isolate_mode,
+-		int file),
++		enum lru_list lru),
+ 
+-	TP_ARGS(classzone_idx, order, nr_requested, nr_scanned, nr_taken, isolate_mode, file)
++	TP_ARGS(classzone_idx, order, priority, nr_requested, nr_scanned,
++		nr_taken, nr_skipped, isolate_mode, lru)
+ 
+ );
+ 
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index e5af357..f8ded2b 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1421,6 +1421,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+ 	unsigned long nr_zone_taken[MAX_NR_ZONES] = { 0 };
+ 	unsigned long nr_skipped[MAX_NR_ZONES] = { 0, };
+ 	unsigned long scan, nr_pages;
++	unsigned long total_skipped = 0;
+ 	LIST_HEAD(pages_skipped);
+ 
+ 	for (scan = 0; scan < nr_to_scan && nr_taken < nr_to_scan &&
+@@ -1471,7 +1472,6 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+ 	 */
+ 	if (!list_empty(&pages_skipped)) {
+ 		int zid;
+-		unsigned long total_skipped = 0;
+ 
+ 		for (zid = 0; zid < MAX_NR_ZONES; zid++) {
+ 			if (!nr_skipped[zid])
+@@ -1491,8 +1491,8 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+ 		list_splice(&pages_skipped, src);
+ 	}
+ 	*nr_scanned = scan;
+-	trace_mm_vmscan_lru_isolate(sc->reclaim_idx, sc->order, nr_to_scan, scan,
+-				    nr_taken, mode, is_file_lru(lru));
++	trace_mm_vmscan_lru_isolate(sc->reclaim_idx, sc->order, sc->priority,
++			nr_to_scan, scan, nr_taken, total_skipped, mode, lru);
+ 	update_lru_sizes(lruvec, lru, nr_zone_taken, nr_taken);
+ 	return nr_taken;
+ }
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
