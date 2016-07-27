@@ -1,312 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A7CC66B025F
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 03:12:54 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id m101so82809860ioi.0
-        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 00:12:54 -0700 (PDT)
-Received: from tyimss-2.htc.com (tyimss.htc.com. [220.128.71.150])
-        by mx.google.com with ESMTPS id 9si21784938itl.8.2016.07.27.00.12.53
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FF826B0260
+	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 03:14:09 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id h186so30511271pfg.2
+        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 00:14:09 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id yk6si5032951pab.73.2016.07.27.00.14.08
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 27 Jul 2016 00:12:53 -0700 (PDT)
-From: <zijun_hu@htc.com>
-Subject: [PATCH] mm/memblock.c: fix index adjustment error in
- __next_mem_range_rev()
-Date: Wed, 27 Jul 2016 07:12:48 +0000
-Message-ID: <42A378E55677204FAE257FE7EED241CB7E8EF15F@CN-MBX01.HTC.COM.TW>
-Content-Language: zh-CN
-Content-Type: multipart/mixed;
-	boundary="_003_42A378E55677204FAE257FE7EED241CB7E8EF15FCNMBX01HTCCOMTW_"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Jul 2016 00:14:08 -0700 (PDT)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u6R7E7Tr110444
+	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 03:14:07 -0400
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 24dsrq235x-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 03:14:07 -0400
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
+	Wed, 27 Jul 2016 08:14:04 +0100
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
+	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 0EEF11B08061
+	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 08:15:30 +0100 (BST)
+Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u6R7E2jS27787452
+	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 07:14:02 GMT
+Received: from d06av03.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av03.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u6R7E2bT030597
+	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 01:14:02 -0600
+Date: Wed, 27 Jul 2016 09:14:00 +0200
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: [BUG -next] "random: make /dev/urandom scalable for silly userspace
+ programs" causes crash
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Message-Id: <20160727071400.GA3912@osiris>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tj@kernel.org
-Cc: akpm@linux-foundation.org, kuleshovmail@gmail.com, ard.biesheuvel@linaro.org, weiyang@linux.vnet.ibm.com, dev@g0hl1n.net, david@gibson.dropbear.id.au, linux-mm@kvack.org
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: linux-next@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
---_003_42A378E55677204FAE257FE7EED241CB7E8EF15FCNMBX01HTCCOMTW_
-Content-Type: multipart/alternative; boundary="__=_Part_Boundary_003_2002420913.1605868319"
+Hi Ted,
 
-This is MIME multipart 5.
---__=_Part_Boundary_003_2002420913.1605868319
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+it looks like your patch "random: make /dev/urandom scalable for silly
+userspace programs" within linux-next seems to be a bit broken:
 
-SGkgVGVqdW4sDQpJIGZpbmQgdGhhdCB0aGVyZSBpcyBhIGJ1ZyBpbiBfX25leHRfbWVtX3Jhbmdl
-X3JldigpIGRlZmluZWQgaW4gbW0vbWVtYmxvY2suYw0KDQpwYXRjaCAwMDAxIGNhbiBmaXggdGhl
-IGlzc3VlIGFuZCBwYXNzIHRlc3Qgc3VjY2Vzc2Z1bGx5LCBwbGVhc2UgaGVscCB0byByZXZpZXcN
-CmFuZCBwaGFzZS1pbiBpdA0KcGF0Y2ggMDAwMiBpcyB1c2VkIHRvIHZlcmlmeSB0aGUgc29sdXRp
-b24gb25seSBhbmQgaXMgcHJvdmlkZWQgZm9yIGV4cGxhaW5pbmcNCnRlc3QgbWV0aG9kLCBwbGVh
-c2UgZG9uJ3QgYXBwbHkgaXQNCg0KZm9yIF9fbmV4dF9tZW1fcmFuZ2VfcmV2KCksIGl0IG5vdCBv
-bmx5IHRyaWdnZXJzIG51bGwgZGVyZWYgaXNzdWUgYnV0IGFsc28NCmRvZXNuJ3QgaXRlcmF0ZSB0
-aHJvdWdoIG1lbW9yeSByZWdpb25zIGNvbnRhaW5lZCBpbiB0eXBlX2EgaW4gcmV2ZXJzZWQNCm9y
-ZGVyIHJpZ2h0bHkgaWYgaXRzIHBhcmFtZXRlciB0eXBlX2IgPT0gTlVMTCxtb3Jlb3ZlciwgaXQg
-d2lsbCBjYXVzZSBtYXNzDQplcnJvciBsb29wcyBpZiBtYWNybyBmb3JfZWFjaF9tZW1fcmFuZ2Vf
-cmV2IGlzIGNhbGxlZCB3aXRoIHBhcmFtZXRlcg0KdHlwZV9iID09IE5VTEwNCg0KdGhlIHBhdGNo
-IDAwMDEgY29ycmVjdHMgcmVnaW9uIGluZGV4IGlkeF9hIGFkanVzdG1lbnQgYW5kIGluaXRpYWxp
-emUgaWR4X2INCnRvIDAgdG8gcHJvbWlzZSBnZXR0aW5nIHRoZSBsYXN0IHJldmVyc2VkIHJlZ2lv
-biBjb3JyZWN0bHkgaWYgcGFyYW1ldGVyDQp0eXBlX2IgPT0gTlVMTCBhcyBzaG93ZWQgYmVsb3cN
-Cg0KbXkgdGVzdCBtZXRob2QgaXMgc2ltcGxlLCBuYW1lbHksIGR1bXAgYWxsIHR5cGVzIG9mIHJl
-Z2lvbnMgd2l0aCByaWdodCBrZXJuZWwNCmludGVyZmFjZSBhbmQgZml4ZWQgX19uZXh0X21lbV9y
-YW5nZSBzZXBhcmF0ZWx5ICx0aGVuIGNoZWNrIHdoZXRoZXINCmZpeGVkX19uZXh0X21lbV9yYW5n
-ZSBhY2hpZXZlcyBkZXNpcmVkIHB1cnBvc2UsIHNlZSB0ZXN0IHBhdGNoDQpzZWdtZW50cyBiZWxv
-dyBvciBlbnRpcmUgcGF0Y2ggMDAwMiBmb3IgbW9yZSBpbmZvDQoNCnRoYW5rcyBmb3IgVGVqdW4n
-cyBndWlkYW5jZSBhbmQgaGVscGluZw0KDQpmaXggcGF0Y2ggMDAwMSBpcyBzaG93ZWQgYXMgZm9s
-bG93cw0KDQpGcm9tIGRhMmYzY2FmYWI5NjMyZDU5MjYxY2YwODAxZjYyZTkwOWQwYmZkZTEgTW9u
-IFNlcCAxNyAwMDowMDowMCAyMDAxDQpGcm9tOiB6aWp1bl9odSA8emlqdW5faHVAaHRjLmNvbT4N
-CkRhdGU6IE1vbiwgMjUgSnVsIDIwMTYgMTU6MDY6NTcgKzA4MDANClN1YmplY3Q6IFtQQVRDSCAx
-LzJdIG1tL21lbWJsb2NrLmM6IGZpeCBpbmRleCBhZGp1c3RtZW50IGVycm9yIGluDQogX19uZXh0
-X21lbV9yYW5nZV9yZXYoKQ0KDQpmaXggcmVnaW9uIGluZGV4IGFkanVzdG1lbnQgZXJyb3Igd2hl
-biBwYXJhbWV0ZXIgdHlwZV9iIG9mDQpfX25leHRfbWVtX3JhbmdlX3JldigpID09IE5VTEwNCg0K
-U2lnbmVkLW9mZi1ieTogemlqdW5faHUgPHppanVuX2h1QGh0Yy5jb20+DQotLS0NCiBtbS9tZW1i
-bG9jay5jIHwgNyArKysrKy0tDQogMSBmaWxlIGNoYW5nZWQsIDUgaW5zZXJ0aW9ucygrKSwgMiBk
-ZWxldGlvbnMoLSkNCg0KZGlmZiAtLWdpdCBhL21tL21lbWJsb2NrLmMgYi9tbS9tZW1ibG9jay5j
-DQppbmRleCBhYzEyNDg5Li5lOTVmOTVmIDEwMDY0NA0KLS0tIGEvbW0vbWVtYmxvY2suYw0KKysr
-IGIvbW0vbWVtYmxvY2suYw0KQEAgLTk5MSw3ICs5OTEsMTAgQEAgdm9pZCBfX2luaXRfbWVtYmxv
-Y2sgX19uZXh0X21lbV9yYW5nZV9yZXYodTY0ICppZHgsIGludCBuaWQsIHVsb25nIGZsYWdzLA0K
-IA0KIAlpZiAoKmlkeCA9PSAodTY0KVVMTE9OR19NQVgpIHsNCiAJCWlkeF9hID0gdHlwZV9hLT5j
-bnQgLSAxOw0KLQkJaWR4X2IgPSB0eXBlX2ItPmNudDsNCisJCWlmICh0eXBlX2IgIT0gTlVMTCkN
-CisJCQlpZHhfYiA9IHR5cGVfYi0+Y250Ow0KKwkJZWxzZQ0KKwkJCWlkeF9iID0gMDsNCiAJfQ0K
-IA0KIAlmb3IgKDsgaWR4X2EgPj0gMDsgaWR4X2EtLSkgew0KQEAgLTEwMjQsNyArMTAyNyw3IEBA
-IHZvaWQgX19pbml0X21lbWJsb2NrIF9fbmV4dF9tZW1fcmFuZ2VfcmV2KHU2NCAqaWR4LCBpbnQg
-bmlkLCB1bG9uZyBmbGFncywNCiAJCQkJKm91dF9lbmQgPSBtX2VuZDsNCiAJCQlpZiAob3V0X25p
-ZCkNCiAJCQkJKm91dF9uaWQgPSBtX25pZDsNCi0JCQlpZHhfYSsrOw0KKwkJCWlkeF9hLS07DQog
-CQkJKmlkeCA9ICh1MzIpaWR4X2EgfCAodTY0KWlkeF9iIDw8IDMyOw0KIAkJCXJldHVybjsNCiAJ
-CX0NCi0tIA0KMS45LjENCg0KDQpUZXN0IHBhdGNoIDAwMiBjb2RlIHNlZ21lbnRzIGlzIHNob3dl
-ZCBhcyBmb2xsb3dzDQoNCmRpZmYgLS1naXQgYS9hcmNoL2FybTY0L21tL2luaXQuYyBiL2FyY2gv
-YXJtNjQvbW0vaW5pdC5jDQppbmRleCBkNDVmODYyLi4wZGI4MGJiIDEwMDY0NA0KLS0tIGEvYXJj
-aC9hcm02NC9tbS9pbml0LmMNCisrKyBiL2FyY2gvYXJtNjQvbW0vaW5pdC5jDQpAQCAtMzI2LDYg
-KzMyNiwxMyBAQCB2b2lkIF9faW5pdCBib290bWVtX2luaXQodm9pZCkNCiANCiAJaGlnaF9tZW1v
-cnkgPSBfX3ZhKChtYXggPDwgUEFHRV9TSElGVCkgLSAxKSArIDE7DQogCW1lbWJsb2NrX2R1bXBf
-YWxsKCk7DQorDQorCWlmICghbWVtYmxvY2tfZGVidWcpDQorCQlfX21lbWJsb2NrX2R1bXBfYWxs
-KCk7DQorCS8qDQorCSAqIGV4dGVybiB2b2lkIG1lbWJsb2NrX3BhdGNoX3ZlcmlmeSh2b2lkKTsN
-CisJICovDQorCW1lbWJsb2NrX3BhdGNoX3ZlcmlmeSgpOw0KIH0NCg0KZGlmZiAtLWdpdCBhL21t
-L21lbWJsb2NrLmMgYi9tbS9tZW1ibG9jay5jDQppbmRleCBlOTVmOTVmLi41YzE3OWFlIDEwMDY0
-NA0KLS0tIGEvbW0vbWVtYmxvY2suYw0KKysrIGIvbW0vbWVtYmxvY2suYw0KQEAgLTE2NTIsNiAr
-MTY1MiwzMSBAQCB2b2lkIF9faW5pdF9tZW1ibG9jayBfX21lbWJsb2NrX2R1bXBfYWxsKHZvaWQp
-DQogCW1lbWJsb2NrX2R1bXAoJm1lbWJsb2NrLnJlc2VydmVkLCAicmVzZXJ2ZWQiKTsNCiB9DQoN
-Cit2b2lkIF9faW5pdF9tZW1ibG9jayBtZW1ibG9ja19wYXRjaF92ZXJpZnkodm9pZCkNCit7DQor
-CXU2NCBpOw0KKwlwaHlzX2FkZHJfdCB0aGlzX3N0YXJ0LCB0aGlzX2VuZDsNCisNCisJcHJfaW5m
-bygiaW4gJXM6IG1lbW9yeVxuIiwgX19mdW5jX18pOw0KKwlmb3JfZWFjaF9tZW1fcmFuZ2VfcmV2
-KGksICZtZW1ibG9jay5tZW1vcnksIE5VTEwsIE5VTUFfTk9fTk9ERSwNCisJCQlNRU1CTE9DS19O
-T05FLCAmdGhpc19zdGFydCwgJnRoaXNfZW5kLCBOVUxMKQ0KKwkJcHJfaW5mbygiWyUjMDE2bGx4
-XVx0WyUjMDE2bGx4LSUjMDE2bGx4XVxuIiwNCisJCQkJaSwgdGhpc19zdGFydCwgdGhpc19lbmQp
-Ow0KKw0KKwlwcl9pbmZvKCJpbiAlczogcmVzZXJ2ZWRcbiIsIF9fZnVuY19fKTsNCisJZm9yX2Vh
-Y2hfbWVtX3JhbmdlX3JldihpLCAmbWVtYmxvY2sucmVzZXJ2ZWQsIE5VTEwsIE5VTUFfTk9fTk9E
-RSwNCisJCQlNRU1CTE9DS19OT05FLCAmdGhpc19zdGFydCwgJnRoaXNfZW5kLCBOVUxMKQ0KKwkJ
-cHJfaW5mbygiWyUjMDE2bGx4XVx0WyUjMDE2bGx4LSUjMDE2bGx4XVxuIiwNCisJCQkJaSwgdGhp
-c19zdGFydCwgdGhpc19lbmQpOw0KKw0KKwlwcl9pbmZvKCJpbiAlczogbWVtb3J5IFggcmVzZXJ2
-ZWRcbiIsIF9fZnVuY19fKTsNCisJZm9yX2VhY2hfbWVtX3JhbmdlX3JldihpLCAmbWVtYmxvY2su
-bWVtb3J5LCAmbWVtYmxvY2sucmVzZXJ2ZWQsDQorCQkJTlVNQV9OT19OT0RFLCBNRU1CTE9DS19O
-T05FLA0KKwkJCSZ0aGlzX3N0YXJ0LCAmdGhpc19lbmQsIE5VTEwpDQorCQlwcl9pbmZvKCJbJSMw
-MTZsbHhdXHRbJSMwMTZsbHgtJSMwMTZsbHhdXG4iLA0KKwkJCQlpLCB0aGlzX3N0YXJ0LCB0aGlz
-X2VuZCk7DQorfQ0KDQpaaWp1biBIdQ0KRjEgQnVpbGRpbmcsIDI5OSBLYW5nIFdlaSBSb2FkLCBQ
-dWRvbmcgTmV3IEFyZWEsDQpTaGFuZ2hhaSAyMDEzMTUsIENoaW5hDQpodGMuY29tDQoNCg0KDQoN
-Cg0KDQoNCg0K
+It causes this allocation failure and subsequent crash on s390 with fake
+NUMA enabled:
 
---__=_Part_Boundary_003_2002420913.1605868319
-Content-Type: text/html; charset="utf-8"
-Content-Transfer-Encoding: base64
+[    0.533195] SLUB: Unable to allocate memory on node 1, gfp=0x24008c0(GFP_KERNEL|__GFP_NOFAIL)
+[    0.533198]   cache: kmalloc-192, object size: 192, buffer size: 528, defaul order: 3, min order: 0
+[    0.533202]   node 0: slabs: 2, objs: 124, free: 17
+[    0.533208] Unable to handle kernel pointer dereference in virtual kernel address space
+[    0.533211] Failing address: 0000000000000000 TEID: 0000000000000483
+...
+[    0.533276] Krnl PSW : 0704e00180000000 00000000001a853e (lockdep_init_map+0x1e/0x220)
+[    0.533281]            R:0 T:1 IO:1 EX:1 Key:0 M:1 W:0 P:0 AS:3 CC:2 PM:0 RI:0 EA:3
+               Krnl GPRS: 0000000000a23400 00000000370c8008 0000000000000060 0000000000bedc90
+[    0.533285]            0000000002070800 0000000000000000 0000000000000001 0000000000000000
+[    0.533287]            000000003743d3f8 000000003743d408 0000000002070800 0000000000bedc90
+[    0.533289]            0000000000000048 00000000009c2030 00000000370cfd00 00000000370cfcc0
+[    0.533295] Krnl Code: 00000000001a852e: a7840001            brc     8,1a8530
+           00000000001a8532: e3f0ffc0ff71       lay     %r15,-64(%r15)
+          #00000000001a8538: e3e0f0980024       stg     %r14,152(%r15)
+          >00000000001a853e: e54820080000       mvghi   8(%r2),0
+           00000000001a8544: e54820100000       mvghi   16(%r2),0
+           00000000001a854a: 58100370           l       %r1,880
+           00000000001a854e: 50102020           st      %r1,32(%r2)
+           00000000001a8552: b90400c2           lgr     %r12,%r2
+[    0.533313] Call Trace:
+[    0.533315] ([<0000000000000001>] 0x1)
+[    0.533318] ([<00000000001b4220>] __raw_spin_lock_init+0x50/0x80)
+[    0.533320] ([<0000000000759e7a>] rand_initialize+0xc2/0xf0)
+[    0.533322] ([<00000000001002cc>] do_one_initcall+0xb4/0x140)
+[    0.533325] ([<0000000000ef2cc0>] kernel_init_freeable+0x140/0x2d8)
+[    0.533328] ([<00000000009b07ea>] kernel_init+0x2a/0x150)
+[    0.533330] ([<00000000009bd782>] kernel_thread_starter+0x6/0xc)
+[    0.533332] ([<00000000009bd77c>] kernel_thread_starter+0x0/0xc)
 
-PHByZT4NCkhpJiMzMjtUZWp1biwNCkkmIzMyO2ZpbmQmIzMyO3RoYXQmIzMyO3RoZXJlJiMzMjtp
-cyYjMzI7YSYjMzI7YnVnJiMzMjtpbiYjMzI7X19uZXh0X21lbV9yYW5nZV9yZXYoKSYjMzI7ZGVm
-aW5lZCYjMzI7aW4mIzMyO21tL21lbWJsb2NrLmMNCg0KcGF0Y2gmIzMyOzAwMDEmIzMyO2NhbiYj
-MzI7Zml4JiMzMjt0aGUmIzMyO2lzc3VlJiMzMjthbmQmIzMyO3Bhc3MmIzMyO3Rlc3QmIzMyO3N1
-Y2Nlc3NmdWxseSwmIzMyO3BsZWFzZSYjMzI7aGVscCYjMzI7dG8mIzMyO3Jldmlldw0KYW5kJiMz
-MjtwaGFzZS1pbiYjMzI7aXQNCnBhdGNoJiMzMjswMDAyJiMzMjtpcyYjMzI7dXNlZCYjMzI7dG8m
-IzMyO3ZlcmlmeSYjMzI7dGhlJiMzMjtzb2x1dGlvbiYjMzI7b25seSYjMzI7YW5kJiMzMjtpcyYj
-MzI7cHJvdmlkZWQmIzMyO2ZvciYjMzI7ZXhwbGFpbmluZw0KdGVzdCYjMzI7bWV0aG9kLCYjMzI7
-cGxlYXNlJiMzMjtkb24mIzM5O3QmIzMyO2FwcGx5JiMzMjtpdA0KDQpmb3ImIzMyO19fbmV4dF9t
-ZW1fcmFuZ2VfcmV2KCksJiMzMjtpdCYjMzI7bm90JiMzMjtvbmx5JiMzMjt0cmlnZ2VycyYjMzI7
-bnVsbCYjMzI7ZGVyZWYmIzMyO2lzc3VlJiMzMjtidXQmIzMyO2Fsc28NCmRvZXNuJiMzOTt0JiMz
-MjtpdGVyYXRlJiMzMjt0aHJvdWdoJiMzMjttZW1vcnkmIzMyO3JlZ2lvbnMmIzMyO2NvbnRhaW5l
-ZCYjMzI7aW4mIzMyO3R5cGVfYSYjMzI7aW4mIzMyO3JldmVyc2VkDQpvcmRlciYjMzI7cmlnaHRs
-eSYjMzI7aWYmIzMyO2l0cyYjMzI7cGFyYW1ldGVyJiMzMjt0eXBlX2ImIzMyOz09JiMzMjtOVUxM
-LG1vcmVvdmVyLCYjMzI7aXQmIzMyO3dpbGwmIzMyO2NhdXNlJiMzMjttYXNzDQplcnJvciYjMzI7
-bG9vcHMmIzMyO2lmJiMzMjttYWNybyYjMzI7Zm9yX2VhY2hfbWVtX3JhbmdlX3JldiYjMzI7aXMm
-IzMyO2NhbGxlZCYjMzI7d2l0aCYjMzI7cGFyYW1ldGVyDQp0eXBlX2ImIzMyOz09JiMzMjtOVUxM
-DQoNCnRoZSYjMzI7cGF0Y2gmIzMyOzAwMDEmIzMyO2NvcnJlY3RzJiMzMjtyZWdpb24mIzMyO2lu
-ZGV4JiMzMjtpZHhfYSYjMzI7YWRqdXN0bWVudCYjMzI7YW5kJiMzMjtpbml0aWFsaXplJiMzMjtp
-ZHhfYg0KdG8mIzMyOzAmIzMyO3RvJiMzMjtwcm9taXNlJiMzMjtnZXR0aW5nJiMzMjt0aGUmIzMy
-O2xhc3QmIzMyO3JldmVyc2VkJiMzMjtyZWdpb24mIzMyO2NvcnJlY3RseSYjMzI7aWYmIzMyO3Bh
-cmFtZXRlcg0KdHlwZV9iJiMzMjs9PSYjMzI7TlVMTCYjMzI7YXMmIzMyO3Nob3dlZCYjMzI7YmVs
-b3cNCg0KbXkmIzMyO3Rlc3QmIzMyO21ldGhvZCYjMzI7aXMmIzMyO3NpbXBsZSwmIzMyO25hbWVs
-eSwmIzMyO2R1bXAmIzMyO2FsbCYjMzI7dHlwZXMmIzMyO29mJiMzMjtyZWdpb25zJiMzMjt3aXRo
-JiMzMjtyaWdodCYjMzI7a2VybmVsDQppbnRlcmZhY2UmIzMyO2FuZCYjMzI7Zml4ZWQmIzMyO19f
-bmV4dF9tZW1fcmFuZ2UmIzMyO3NlcGFyYXRlbHkmIzMyOyx0aGVuJiMzMjtjaGVjayYjMzI7d2hl
-dGhlcg0KZml4ZWRfX25leHRfbWVtX3JhbmdlJiMzMjthY2hpZXZlcyYjMzI7ZGVzaXJlZCYjMzI7
-cHVycG9zZSwmIzMyO3NlZSYjMzI7dGVzdCYjMzI7cGF0Y2gNCnNlZ21lbnRzJiMzMjtiZWxvdyYj
-MzI7b3ImIzMyO2VudGlyZSYjMzI7cGF0Y2gmIzMyOzAwMDImIzMyO2ZvciYjMzI7bW9yZSYjMzI7
-aW5mbw0KDQp0aGFua3MmIzMyO2ZvciYjMzI7VGVqdW4mIzM5O3MmIzMyO2d1aWRhbmNlJiMzMjth
-bmQmIzMyO2hlbHBpbmcNCg0KZml4JiMzMjtwYXRjaCYjMzI7MDAwMSYjMzI7aXMmIzMyO3Nob3dl
-ZCYjMzI7YXMmIzMyO2ZvbGxvd3MNCg0KRnJvbSYjMzI7ZGEyZjNjYWZhYjk2MzJkNTkyNjFjZjA4
-MDFmNjJlOTA5ZDBiZmRlMSYjMzI7TW9uJiMzMjtTZXAmIzMyOzE3JiMzMjswMDowMDowMCYjMzI7
-MjAwMQ0KRnJvbTomIzMyO3ppanVuX2h1JiMzMjsmbHQ7emlqdW5faHVAaHRjLmNvbSZndDsNCkRh
-dGU6JiMzMjtNb24sJiMzMjsyNSYjMzI7SnVsJiMzMjsyMDE2JiMzMjsxNTowNjo1NyYjMzI7KzA4
-MDANClN1YmplY3Q6JiMzMjtbUEFUQ0gmIzMyOzEvMl0mIzMyO21tL21lbWJsb2NrLmM6JiMzMjtm
-aXgmIzMyO2luZGV4JiMzMjthZGp1c3RtZW50JiMzMjtlcnJvciYjMzI7aW4NCiYjMzI7X19uZXh0
-X21lbV9yYW5nZV9yZXYoKQ0KDQpmaXgmIzMyO3JlZ2lvbiYjMzI7aW5kZXgmIzMyO2FkanVzdG1l
-bnQmIzMyO2Vycm9yJiMzMjt3aGVuJiMzMjtwYXJhbWV0ZXImIzMyO3R5cGVfYiYjMzI7b2YNCl9f
-bmV4dF9tZW1fcmFuZ2VfcmV2KCkmIzMyOz09JiMzMjtOVUxMDQoNClNpZ25lZC1vZmYtYnk6JiMz
-Mjt6aWp1bl9odSYjMzI7Jmx0O3ppanVuX2h1QGh0Yy5jb20mZ3Q7DQotLS0NCiYjMzI7bW0vbWVt
-YmxvY2suYyYjMzI7fCYjMzI7NyYjMzI7KysrKystLQ0KJiMzMjsxJiMzMjtmaWxlJiMzMjtjaGFu
-Z2VkLCYjMzI7NSYjMzI7aW5zZXJ0aW9ucygrKSwmIzMyOzImIzMyO2RlbGV0aW9ucygtKQ0KDQpk
-aWZmJiMzMjstLWdpdCYjMzI7YS9tbS9tZW1ibG9jay5jJiMzMjtiL21tL21lbWJsb2NrLmMNCmlu
-ZGV4JiMzMjthYzEyNDg5Li5lOTVmOTVmJiMzMjsxMDA2NDQNCi0tLSYjMzI7YS9tbS9tZW1ibG9j
-ay5jDQorKysmIzMyO2IvbW0vbWVtYmxvY2suYw0KQEAmIzMyOy05OTEsNyYjMzI7Kzk5MSwxMCYj
-MzI7QEAmIzMyO3ZvaWQmIzMyO19faW5pdF9tZW1ibG9jayYjMzI7X19uZXh0X21lbV9yYW5nZV9y
-ZXYodTY0JiMzMjsqaWR4LCYjMzI7aW50JiMzMjtuaWQsJiMzMjt1bG9uZyYjMzI7ZmxhZ3MsDQom
-IzMyOw0KJiMzMjtpZiYjMzI7KCppZHgmIzMyOz09JiMzMjsodTY0KVVMTE9OR19NQVgpJiMzMjt7
-DQomIzMyO2lkeF9hJiMzMjs9JiMzMjt0eXBlX2EtJmd0O2NudCYjMzI7LSYjMzI7MTsNCi1pZHhf
-YiYjMzI7PSYjMzI7dHlwZV9iLSZndDtjbnQ7DQoraWYmIzMyOyh0eXBlX2ImIzMyOyE9JiMzMjtO
-VUxMKQ0KK2lkeF9iJiMzMjs9JiMzMjt0eXBlX2ItJmd0O2NudDsNCitlbHNlDQoraWR4X2ImIzMy
-Oz0mIzMyOzA7DQomIzMyO30NCiYjMzI7DQomIzMyO2ZvciYjMzI7KDsmIzMyO2lkeF9hJiMzMjsm
-Z3Q7PSYjMzI7MDsmIzMyO2lkeF9hLS0pJiMzMjt7DQpAQCYjMzI7LTEwMjQsNyYjMzI7KzEwMjcs
-NyYjMzI7QEAmIzMyO3ZvaWQmIzMyO19faW5pdF9tZW1ibG9jayYjMzI7X19uZXh0X21lbV9yYW5n
-ZV9yZXYodTY0JiMzMjsqaWR4LCYjMzI7aW50JiMzMjtuaWQsJiMzMjt1bG9uZyYjMzI7ZmxhZ3Ms
-DQomIzMyOypvdXRfZW5kJiMzMjs9JiMzMjttX2VuZDsNCiYjMzI7aWYmIzMyOyhvdXRfbmlkKQ0K
-JiMzMjsqb3V0X25pZCYjMzI7PSYjMzI7bV9uaWQ7DQotaWR4X2ErKzsNCitpZHhfYS0tOw0KJiMz
-MjsqaWR4JiMzMjs9JiMzMjsodTMyKWlkeF9hJiMzMjt8JiMzMjsodTY0KWlkeF9iJiMzMjsmbHQ7
-Jmx0OyYjMzI7MzI7DQomIzMyO3JldHVybjsNCiYjMzI7fQ0KLS0mIzMyOw0KMS45LjENCg0KDQpU
-ZXN0JiMzMjtwYXRjaCYjMzI7MDAyJiMzMjtjb2RlJiMzMjtzZWdtZW50cyYjMzI7aXMmIzMyO3No
-b3dlZCYjMzI7YXMmIzMyO2ZvbGxvd3MNCg0KZGlmZiYjMzI7LS1naXQmIzMyO2EvYXJjaC9hcm02
-NC9tbS9pbml0LmMmIzMyO2IvYXJjaC9hcm02NC9tbS9pbml0LmMNCmluZGV4JiMzMjtkNDVmODYy
-Li4wZGI4MGJiJiMzMjsxMDA2NDQNCi0tLSYjMzI7YS9hcmNoL2FybTY0L21tL2luaXQuYw0KKysr
-JiMzMjtiL2FyY2gvYXJtNjQvbW0vaW5pdC5jDQpAQCYjMzI7LTMyNiw2JiMzMjsrMzI2LDEzJiMz
-MjtAQCYjMzI7dm9pZCYjMzI7X19pbml0JiMzMjtib290bWVtX2luaXQodm9pZCkNCiYjMzI7DQom
-IzMyO2hpZ2hfbWVtb3J5JiMzMjs9JiMzMjtfX3ZhKChtYXgmIzMyOyZsdDsmbHQ7JiMzMjtQQUdF
-X1NISUZUKSYjMzI7LSYjMzI7MSkmIzMyOysmIzMyOzE7DQomIzMyO21lbWJsb2NrX2R1bXBfYWxs
-KCk7DQorDQoraWYmIzMyOyghbWVtYmxvY2tfZGVidWcpDQorX19tZW1ibG9ja19kdW1wX2FsbCgp
-Ow0KKy8qDQorJiMzMjsqJiMzMjtleHRlcm4mIzMyO3ZvaWQmIzMyO21lbWJsb2NrX3BhdGNoX3Zl
-cmlmeSh2b2lkKTsNCismIzMyOyovDQorbWVtYmxvY2tfcGF0Y2hfdmVyaWZ5KCk7DQomIzMyO30N
-Cg0KZGlmZiYjMzI7LS1naXQmIzMyO2EvbW0vbWVtYmxvY2suYyYjMzI7Yi9tbS9tZW1ibG9jay5j
-DQppbmRleCYjMzI7ZTk1Zjk1Zi4uNWMxNzlhZSYjMzI7MTAwNjQ0DQotLS0mIzMyO2EvbW0vbWVt
-YmxvY2suYw0KKysrJiMzMjtiL21tL21lbWJsb2NrLmMNCkBAJiMzMjstMTY1Miw2JiMzMjsrMTY1
-MiwzMSYjMzI7QEAmIzMyO3ZvaWQmIzMyO19faW5pdF9tZW1ibG9jayYjMzI7X19tZW1ibG9ja19k
-dW1wX2FsbCh2b2lkKQ0KJiMzMjttZW1ibG9ja19kdW1wKCZhbXA7bWVtYmxvY2sucmVzZXJ2ZWQs
-JiMzMjsmcXVvdDtyZXNlcnZlZCZxdW90Oyk7DQomIzMyO30NCg0KK3ZvaWQmIzMyO19faW5pdF9t
-ZW1ibG9jayYjMzI7bWVtYmxvY2tfcGF0Y2hfdmVyaWZ5KHZvaWQpDQorew0KK3U2NCYjMzI7aTsN
-CitwaHlzX2FkZHJfdCYjMzI7dGhpc19zdGFydCwmIzMyO3RoaXNfZW5kOw0KKw0KK3ByX2luZm8o
-JnF1b3Q7aW4mIzMyOyVzOiYjMzI7bWVtb3J5JiM5MjtuJnF1b3Q7LCYjMzI7X19mdW5jX18pOw0K
-K2Zvcl9lYWNoX21lbV9yYW5nZV9yZXYoaSwmIzMyOyZhbXA7bWVtYmxvY2subWVtb3J5LCYjMzI7
-TlVMTCwmIzMyO05VTUFfTk9fTk9ERSwNCitNRU1CTE9DS19OT05FLCYjMzI7JmFtcDt0aGlzX3N0
-YXJ0LCYjMzI7JmFtcDt0aGlzX2VuZCwmIzMyO05VTEwpDQorcHJfaW5mbygmcXVvdDtbJSMwMTZs
-bHhdJiM5Mjt0WyUjMDE2bGx4LSUjMDE2bGx4XSYjOTI7biZxdW90OywNCitpLCYjMzI7dGhpc19z
-dGFydCwmIzMyO3RoaXNfZW5kKTsNCisNCitwcl9pbmZvKCZxdW90O2luJiMzMjslczomIzMyO3Jl
-c2VydmVkJiM5MjtuJnF1b3Q7LCYjMzI7X19mdW5jX18pOw0KK2Zvcl9lYWNoX21lbV9yYW5nZV9y
-ZXYoaSwmIzMyOyZhbXA7bWVtYmxvY2sucmVzZXJ2ZWQsJiMzMjtOVUxMLCYjMzI7TlVNQV9OT19O
-T0RFLA0KK01FTUJMT0NLX05PTkUsJiMzMjsmYW1wO3RoaXNfc3RhcnQsJiMzMjsmYW1wO3RoaXNf
-ZW5kLCYjMzI7TlVMTCkNCitwcl9pbmZvKCZxdW90O1slIzAxNmxseF0mIzkyO3RbJSMwMTZsbHgt
-JSMwMTZsbHhdJiM5MjtuJnF1b3Q7LA0KK2ksJiMzMjt0aGlzX3N0YXJ0LCYjMzI7dGhpc19lbmQp
-Ow0KKw0KK3ByX2luZm8oJnF1b3Q7aW4mIzMyOyVzOiYjMzI7bWVtb3J5JiMzMjtYJiMzMjtyZXNl
-cnZlZCYjOTI7biZxdW90OywmIzMyO19fZnVuY19fKTsNCitmb3JfZWFjaF9tZW1fcmFuZ2VfcmV2
-KGksJiMzMjsmYW1wO21lbWJsb2NrLm1lbW9yeSwmIzMyOyZhbXA7bWVtYmxvY2sucmVzZXJ2ZWQs
-DQorTlVNQV9OT19OT0RFLCYjMzI7TUVNQkxPQ0tfTk9ORSwNCismYW1wO3RoaXNfc3RhcnQsJiMz
-MjsmYW1wO3RoaXNfZW5kLCYjMzI7TlVMTCkNCitwcl9pbmZvKCZxdW90O1slIzAxNmxseF0mIzky
-O3RbJSMwMTZsbHgtJSMwMTZsbHhdJiM5MjtuJnF1b3Q7LA0KK2ksJiMzMjt0aGlzX3N0YXJ0LCYj
-MzI7dGhpc19lbmQpOw0KK30NCg0KWmlqdW4mIzMyO0h1DQpGMSYjMzI7QnVpbGRpbmcsJiMzMjsy
-OTkmIzMyO0thbmcmIzMyO1dlaSYjMzI7Um9hZCwmIzMyO1B1ZG9uZyYjMzI7TmV3JiMzMjtBcmVh
-LA0KU2hhbmdoYWkmIzMyOzIwMTMxNSwmIzMyO0NoaW5hDQpodGMuY29tDQoNCg0KDQoNCg0KDQoN
-Cg0KDQo8L3ByZT48dGFibGU+PHRyPjx0ZD48IS0tdHlwZTpodG1sLS0+PCEtLXstLT5DT05GSURF
-TlRJQUxJVFkgTk9URSA6IFRoZSBpbmZvcm1hdGlvbiBpbiB0aGlzIGUtbWFpbCBpcyBjb25maWRl
-bnRpYWwgYW5kIHByaXZpbGVnZWQ7IGl0IGlzIGludGVuZGVkIGZvciB1c2Ugc29sZWx5IGJ5IHRo
-ZSBpbmRpdmlkdWFsIG9yIGVudGl0eSBuYW1lZCBhcyB0aGUgcmVjaXBpZW50IGhlcmVvZi4gRGlz
-Y2xvc3VyZSwgY29weWluZywgZGlzdHJpYnV0aW9uLCBvciB1c2Ugb2YgdGhlIGNvbnRlbnRzIG9m
-IHRoaXMgZS1tYWlsIGJ5IHBlcnNvbnMgb3RoZXIgdGhhbiB0aGUgaW50ZW5kZWQgcmVjaXBpZW50
-IGlzIHN0cmljdGx5IHByb2hpYml0ZWQgYW5kIG1heSB2aW9sYXRlIGFwcGxpY2FibGUgbGF3cy4g
-SWYgeW91IGhhdmUgcmVjZWl2ZWQgdGhpcyBlLW1haWwgaW4gZXJyb3IsIHBsZWFzZSBkZWxldGUg
-dGhlIG9yaWdpbmFsIG1lc3NhZ2UgYW5kIG5vdGlmeSB1cyBieSByZXR1cm4gZW1haWwgb3IgY29s
-bGVjdCBjYWxsIGltbWVkaWF0ZWx5LiBUaGFuayB5b3UuIEhUQyBDb3Jwb3JhdGlvbjwhLS19LS0+
-PC90ZD48L3RyPjwvdGFibGU+
+To me it looks rand_initialize is broken with CONFIG_NUMA:
 
---__=_Part_Boundary_003_2002420913.1605868319--
+static int rand_initialize(void)
+{
+#ifdef CONFIG_NUMA
+	int i;
+	int num_nodes = num_possible_nodes();
+	struct crng_state *crng;
+	struct crng_state **pool;
+#endif
 
---_003_42A378E55677204FAE257FE7EED241CB7E8EF15FCNMBX01HTCCOMTW_
-Content-Type: application/octet-stream;
-	name="0001-mm-memblock.c-fix-index-adjustment-error-in.patch"
-Content-Description: 0001-mm-memblock.c-fix-index-adjustment-error-in.patch
-Content-Disposition: attachment;
-	filename="0001-mm-memblock.c-fix-index-adjustment-error-in.patch"; size=1108;
-	creation-date="Wed, 27 Jul 2016 06:57:47 GMT";
-	modification-date="Wed, 27 Jul 2016 06:56:34 GMT"
-Content-Transfer-Encoding: base64
+	init_std_data(&input_pool);
+	init_std_data(&blocking_pool);
+	crng_initialize(&primary_crng);
 
-RnJvbSBkYTJmM2NhZmFiOTYzMmQ1OTI2MWNmMDgwMWY2MmU5MDlkMGJmZGUxIE1vbiBTZXAgMTcg
-MDA6MDA6MDAgMjAwMQpGcm9tOiB6aWp1bl9odSA8emlqdW5faHVAaHRjLmNvbT4KRGF0ZTogTW9u
-LCAyNSBKdWwgMjAxNiAxNTowNjo1NyArMDgwMApTdWJqZWN0OiBbUEFUQ0ggMS8yXSBtbS9tZW1i
-bG9jay5jOiBmaXggaW5kZXggYWRqdXN0bWVudCBlcnJvciBpbgogX19uZXh0X21lbV9yYW5nZV9y
-ZXYoKQoKZml4IHJlZ2lvbiBpbmRleCBhZGp1c3RtZW50IGVycm9yIHdoZW4gcGFyYW1ldGVyIHR5
-cGVfYiBvZgpfX25leHRfbWVtX3JhbmdlX3JldigpID09IE5VTEwKClNpZ25lZC1vZmYtYnk6IHpp
-anVuX2h1IDx6aWp1bl9odUBodGMuY29tPgotLS0KIG1tL21lbWJsb2NrLmMgfCA3ICsrKysrLS0K
-IDEgZmlsZSBjaGFuZ2VkLCA1IGluc2VydGlvbnMoKyksIDIgZGVsZXRpb25zKC0pCgpkaWZmIC0t
-Z2l0IGEvbW0vbWVtYmxvY2suYyBiL21tL21lbWJsb2NrLmMKaW5kZXggYWMxMjQ4OS4uZTk1Zjk1
-ZiAxMDA2NDQKLS0tIGEvbW0vbWVtYmxvY2suYworKysgYi9tbS9tZW1ibG9jay5jCkBAIC05OTEs
-NyArOTkxLDEwIEBAIHZvaWQgX19pbml0X21lbWJsb2NrIF9fbmV4dF9tZW1fcmFuZ2VfcmV2KHU2
-NCAqaWR4LCBpbnQgbmlkLCB1bG9uZyBmbGFncywKIAogCWlmICgqaWR4ID09ICh1NjQpVUxMT05H
-X01BWCkgewogCQlpZHhfYSA9IHR5cGVfYS0+Y250IC0gMTsKLQkJaWR4X2IgPSB0eXBlX2ItPmNu
-dDsKKwkJaWYgKHR5cGVfYiAhPSBOVUxMKQorCQkJaWR4X2IgPSB0eXBlX2ItPmNudDsKKwkJZWxz
-ZQorCQkJaWR4X2IgPSAwOwogCX0KIAogCWZvciAoOyBpZHhfYSA+PSAwOyBpZHhfYS0tKSB7CkBA
-IC0xMDI0LDcgKzEwMjcsNyBAQCB2b2lkIF9faW5pdF9tZW1ibG9jayBfX25leHRfbWVtX3Jhbmdl
-X3Jldih1NjQgKmlkeCwgaW50IG5pZCwgdWxvbmcgZmxhZ3MsCiAJCQkJKm91dF9lbmQgPSBtX2Vu
-ZDsKIAkJCWlmIChvdXRfbmlkKQogCQkJCSpvdXRfbmlkID0gbV9uaWQ7Ci0JCQlpZHhfYSsrOwor
-CQkJaWR4X2EtLTsKIAkJCSppZHggPSAodTMyKWlkeF9hIHwgKHU2NClpZHhfYiA8PCAzMjsKIAkJ
-CXJldHVybjsKIAkJfQotLSAKMS45LjEKCg==
+#ifdef CONFIG_NUMA
+	pool = kmalloc(num_nodes * sizeof(void *),
+		       GFP_KERNEL|__GFP_NOFAIL|__GFP_ZERO);
+	for (i=0; i < num_nodes; i++) {
+		crng = kmalloc_node(sizeof(struct crng_state),
+				    GFP_KERNEL | __GFP_NOFAIL, i);
+		spin_lock_init(&crng->lock);
+		crng_initialize(crng);
+		pool[i] = crng;
 
---_003_42A378E55677204FAE257FE7EED241CB7E8EF15FCNMBX01HTCCOMTW_
-Content-Type: application/octet-stream;
-	name="0002-mm-temporary-patch-for-fix-memblock-issue-test.patch"
-Content-Description: 0002-mm-temporary-patch-for-fix-memblock-issue-test.patch
-Content-Disposition: attachment;
-	filename="0002-mm-temporary-patch-for-fix-memblock-issue-test.patch";
-	size=2502; creation-date="Wed, 27 Jul 2016 06:57:47 GMT";
-	modification-date="Wed, 27 Jul 2016 06:56:34 GMT"
-Content-Transfer-Encoding: base64
+	}
+	mb();
+	crng_node_pool = pool;
+#endif
+	return 0;
+}
+early_initcall(rand_initialize);
 
-RnJvbSBkZjc1M2Q3ZDk0MjZiNGQyYTU1MTg5NThkMjgxYmUyOTg1Y2NkNDBkIE1vbiBTZXAgMTcg
-MDA6MDA6MDAgMjAwMQpGcm9tOiB6aWp1bl9odSA8emlqdW5faHVAaHRjLmNvbT4KRGF0ZTogV2Vk
-LCAyNyBKdWwgMjAxNiAxMjoxMzozNyArMDgwMApTdWJqZWN0OiBbUEFUQ0ggMi8yXSBtbTogdGVt
-cG9yYXJ5IHBhdGNoIGZvciBmaXggbWVtYmxvY2sgaXNzdWUgdGVzdAoKdGVtcG9yYXJ5IHBhdGNo
-IGZvciBmaXggbWVtYmxvY2sgaXNzdWUgdGVzdAoKU2lnbmVkLW9mZi1ieTogemlqdW5faHUgPHpp
-anVuX2h1QGh0Yy5jb20+Ci0tLQogYXJjaC9hcm02NC9tbS9pbml0LmMgICAgIHwgIDcgKysrKysr
-KwogaW5jbHVkZS9saW51eC9tZW1ibG9jay5oIHwgIDEgKwogbW0vbWVtYmxvY2suYyAgICAgICAg
-ICAgIHwgMjUgKysrKysrKysrKysrKysrKysrKysrKysrKwogMyBmaWxlcyBjaGFuZ2VkLCAzMyBp
-bnNlcnRpb25zKCspCgpkaWZmIC0tZ2l0IGEvYXJjaC9hcm02NC9tbS9pbml0LmMgYi9hcmNoL2Fy
-bTY0L21tL2luaXQuYwppbmRleCBkNDVmODYyLi4wZGI4MGJiIDEwMDY0NAotLS0gYS9hcmNoL2Fy
-bTY0L21tL2luaXQuYworKysgYi9hcmNoL2FybTY0L21tL2luaXQuYwpAQCAtMzI2LDYgKzMyNiwx
-MyBAQCB2b2lkIF9faW5pdCBib290bWVtX2luaXQodm9pZCkKIAogCWhpZ2hfbWVtb3J5ID0gX192
-YSgobWF4IDw8IFBBR0VfU0hJRlQpIC0gMSkgKyAxOwogCW1lbWJsb2NrX2R1bXBfYWxsKCk7CisK
-KwlpZiAoIW1lbWJsb2NrX2RlYnVnKQorCQlfX21lbWJsb2NrX2R1bXBfYWxsKCk7CisJLyoKKwkg
-KiBleHRlcm4gdm9pZCBtZW1ibG9ja19wYXRjaF92ZXJpZnkodm9pZCk7CisJICovCisJbWVtYmxv
-Y2tfcGF0Y2hfdmVyaWZ5KCk7CiB9CiAKICNpZm5kZWYgQ09ORklHX1NQQVJTRU1FTV9WTUVNTUFQ
-CmRpZmYgLS1naXQgYS9pbmNsdWRlL2xpbnV4L21lbWJsb2NrLmggYi9pbmNsdWRlL2xpbnV4L21l
-bWJsb2NrLmgKaW5kZXggMzEwNmFjMS4uYzYyZGYxZSAxMDA2NDQKLS0tIGEvaW5jbHVkZS9saW51
-eC9tZW1ibG9jay5oCisrKyBiL2luY2x1ZGUvbGludXgvbWVtYmxvY2suaApAQCAtMzQwLDYgKzM0
-MCw3IEBAIGJvb2wgbWVtYmxvY2tfaXNfcmVzZXJ2ZWQocGh5c19hZGRyX3QgYWRkcik7CiBib29s
-IG1lbWJsb2NrX2lzX3JlZ2lvbl9yZXNlcnZlZChwaHlzX2FkZHJfdCBiYXNlLCBwaHlzX2FkZHJf
-dCBzaXplKTsKIAogZXh0ZXJuIHZvaWQgX19tZW1ibG9ja19kdW1wX2FsbCh2b2lkKTsKK2V4dGVy
-biB2b2lkIG1lbWJsb2NrX3BhdGNoX3ZlcmlmeSh2b2lkKTsKIAogc3RhdGljIGlubGluZSB2b2lk
-IG1lbWJsb2NrX2R1bXBfYWxsKHZvaWQpCiB7CmRpZmYgLS1naXQgYS9tbS9tZW1ibG9jay5jIGIv
-bW0vbWVtYmxvY2suYwppbmRleCBlOTVmOTVmLi41YzE3OWFlIDEwMDY0NAotLS0gYS9tbS9tZW1i
-bG9jay5jCisrKyBiL21tL21lbWJsb2NrLmMKQEAgLTE2NTIsNiArMTY1MiwzMSBAQCB2b2lkIF9f
-aW5pdF9tZW1ibG9jayBfX21lbWJsb2NrX2R1bXBfYWxsKHZvaWQpCiAJbWVtYmxvY2tfZHVtcCgm
-bWVtYmxvY2sucmVzZXJ2ZWQsICJyZXNlcnZlZCIpOwogfQogCit2b2lkIF9faW5pdF9tZW1ibG9j
-ayBtZW1ibG9ja19wYXRjaF92ZXJpZnkodm9pZCkKK3sKKwl1NjQgaTsKKwlwaHlzX2FkZHJfdCB0
-aGlzX3N0YXJ0LCB0aGlzX2VuZDsKKworCXByX2luZm8oImluICVzOiBtZW1vcnlcbiIsIF9fZnVu
-Y19fKTsKKwlmb3JfZWFjaF9tZW1fcmFuZ2VfcmV2KGksICZtZW1ibG9jay5tZW1vcnksIE5VTEws
-IE5VTUFfTk9fTk9ERSwKKwkJCU1FTUJMT0NLX05PTkUsICZ0aGlzX3N0YXJ0LCAmdGhpc19lbmQs
-IE5VTEwpCisJCXByX2luZm8oIlslIzAxNmxseF1cdFslIzAxNmxseC0lIzAxNmxseF1cbiIsCisJ
-CQkJaSwgdGhpc19zdGFydCwgdGhpc19lbmQpOworCisJcHJfaW5mbygiaW4gJXM6IHJlc2VydmVk
-XG4iLCBfX2Z1bmNfXyk7CisJZm9yX2VhY2hfbWVtX3JhbmdlX3JldihpLCAmbWVtYmxvY2sucmVz
-ZXJ2ZWQsIE5VTEwsIE5VTUFfTk9fTk9ERSwKKwkJCU1FTUJMT0NLX05PTkUsICZ0aGlzX3N0YXJ0
-LCAmdGhpc19lbmQsIE5VTEwpCisJCXByX2luZm8oIlslIzAxNmxseF1cdFslIzAxNmxseC0lIzAx
-NmxseF1cbiIsCisJCQkJaSwgdGhpc19zdGFydCwgdGhpc19lbmQpOworCisJcHJfaW5mbygiaW4g
-JXM6IG1lbW9yeSBYIHJlc2VydmVkXG4iLCBfX2Z1bmNfXyk7CisJZm9yX2VhY2hfbWVtX3Jhbmdl
-X3JldihpLCAmbWVtYmxvY2subWVtb3J5LCAmbWVtYmxvY2sucmVzZXJ2ZWQsCisJCQlOVU1BX05P
-X05PREUsIE1FTUJMT0NLX05PTkUsCisJCQkmdGhpc19zdGFydCwgJnRoaXNfZW5kLCBOVUxMKQor
-CQlwcl9pbmZvKCJbJSMwMTZsbHhdXHRbJSMwMTZsbHgtJSMwMTZsbHhdXG4iLAorCQkJCWksIHRo
-aXNfc3RhcnQsIHRoaXNfZW5kKTsKK30KKwogdm9pZCBfX2luaXQgbWVtYmxvY2tfYWxsb3dfcmVz
-aXplKHZvaWQpCiB7CiAJbWVtYmxvY2tfY2FuX3Jlc2l6ZSA9IDE7Ci0tIAoxLjkuMQoK
+First the for loop should use for_each_node() to skip not possible nodes,
+no?
 
---_003_42A378E55677204FAE257FE7EED241CB7E8EF15FCNMBX01HTCCOMTW_--
+However that wouldn't be enough, since in this case it crashed because node
+1 is in the possible map, but it isn't online and doesn't have any memory,
+which explains why the allocation fails and the subsequent crash when
+calling spin_lock_init().
+
+I think the proper fix would be to simply use for_each_online_node(); at
+least that fixes the crash on s390.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
