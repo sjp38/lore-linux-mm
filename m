@@ -1,117 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A0366B0260
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 18:13:33 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id i199so21109919ioi.2
-        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 15:13:33 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 187si9185326iov.29.2016.07.27.15.13.32
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jul 2016 15:13:32 -0700 (PDT)
-Date: Thu, 28 Jul 2016 01:13:26 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DDFE6B0260
+	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 18:16:59 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id ag5so16516516pad.2
+        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 15:16:59 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id k70si8500235pfk.85.2016.07.27.15.16.58
+        for <linux-mm@kvack.org>;
+        Wed, 27 Jul 2016 15:16:58 -0700 (PDT)
 Subject: Re: [PATCH v2 repost 6/7] mm: add the related functions to get free
  page info
-Message-ID: <20160728010921-mutt-send-email-mst@kernel.org>
 References: <1469582616-5729-1-git-send-email-liang.z.li@intel.com>
  <1469582616-5729-7-git-send-email-liang.z.li@intel.com>
+ <5798E418.7080608@intel.com> <20160728010030-mutt-send-email-mst@kernel.org>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <579932D9.6000106@intel.com>
+Date: Wed, 27 Jul 2016 15:16:57 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1469582616-5729-7-git-send-email-liang.z.li@intel.com>
+In-Reply-To: <20160728010030-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Liang Li <liang.z.li@intel.com>
-Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, virtio-dev@lists.oasis-open.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, dgilbert@redhat.com, quintela@redhat.com, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Paolo Bonzini <pbonzini@redhat.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Amit Shah <amit.shah@redhat.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Liang Li <liang.z.li@intel.com>, linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, virtio-dev@lists.oasis-open.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, dgilbert@redhat.com, quintela@redhat.com, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Paolo Bonzini <pbonzini@redhat.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Amit Shah <amit.shah@redhat.com>
 
-On Wed, Jul 27, 2016 at 09:23:35AM +0800, Liang Li wrote:
-> Save the free page info into a page bitmap, will be used in virtio
-> balloon device driver.
+On 07/27/2016 03:05 PM, Michael S. Tsirkin wrote:
+> On Wed, Jul 27, 2016 at 09:40:56AM -0700, Dave Hansen wrote:
+>> On 07/26/2016 06:23 PM, Liang Li wrote:
+>>> +	for_each_migratetype_order(order, t) {
+>>> +		list_for_each(curr, &zone->free_area[order].free_list[t]) {
+>>> +			pfn = page_to_pfn(list_entry(curr, struct page, lru));
+>>> +			if (pfn >= start_pfn && pfn <= end_pfn) {
+>>> +				page_num = 1UL << order;
+>>> +				if (pfn + page_num > end_pfn)
+>>> +					page_num = end_pfn - pfn;
+>>> +				bitmap_set(bitmap, pfn - start_pfn, page_num);
+>>> +			}
+>>> +		}
+>>> +	}
+>>
+>> Nit:  The 'page_num' nomenclature really confused me here.  It is the
+>> number of bits being set in the bitmap.  Seems like calling it nr_pages
+>> or num_pages would be more appropriate.
+>>
+>> Isn't this bitmap out of date by the time it's send up to the
+>> hypervisor?  Is there something that makes the inaccuracy OK here?
 > 
-> Signed-off-by: Liang Li <liang.z.li@intel.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Michael S. Tsirkin <mst@redhat.com>
-> Cc: Paolo Bonzini <pbonzini@redhat.com>
-> Cc: Cornelia Huck <cornelia.huck@de.ibm.com>
-> Cc: Amit Shah <amit.shah@redhat.com>
-> ---
->  mm/page_alloc.c | 46 ++++++++++++++++++++++++++++++++++++++++++++++
->  1 file changed, 46 insertions(+)
+> Yes. Calling these free pages is unfortunate. It's likely to confuse
+> people thinking they can just discard these pages.
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 7da61ad..3ad8b10 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -4523,6 +4523,52 @@ unsigned long get_max_pfn(void)
->  }
->  EXPORT_SYMBOL(get_max_pfn);
->  
-> +static void mark_free_pages_bitmap(struct zone *zone, unsigned long start_pfn,
-> +	unsigned long end_pfn, unsigned long *bitmap, unsigned long len)
-> +{
-> +	unsigned long pfn, flags, page_num;
-> +	unsigned int order, t;
-> +	struct list_head *curr;
-> +
-> +	if (zone_is_empty(zone))
-> +		return;
-> +	end_pfn = min(start_pfn + len, end_pfn);
-> +	spin_lock_irqsave(&zone->lock, flags);
-> +
-> +	for_each_migratetype_order(order, t) {
+> Hypervisor sends a request. We respond with this list of pages, and
+> the guarantee hypervisor needs is that these were free sometime between request
+> and response, so they are safe to free if they are unmodified
+> since the request. hypervisor can detect modifications so
+> it can detect modifications itself and does not need guest help.
 
-Why not do each order separately? This way you can
-use a single bit to pass a huge page to host.
+Ahh, that makes sense.
 
-Not a requirement but hey.
+So the hypervisor is trying to figure out: "Which pages do I move?".  It
+wants to know which pages the guest thinks have good data and need to
+move.  But, the list of free pages is (likely) smaller than the list of
+pages with good data, so it asks for that instead.
 
-Alternatively (and maybe that is a better idea0
-if you wanted to, you could just skip lone 4K pages.
-It's not clear that they are worth bothering with.
-Add a flag to start with some reasonably large order and go from there.
+A write to a page means that it has valuable data, regardless of whether
+it was in the free list or not.
 
+The hypervisor only skips moving pages that were free *and* were never
+written to.  So we never lose data, even if this "get free page info"
+stuff is totally out of date.
 
-> +		list_for_each(curr, &zone->free_area[order].free_list[t]) {
-> +			pfn = page_to_pfn(list_entry(curr, struct page, lru));
-> +			if (pfn >= start_pfn && pfn <= end_pfn) {
-> +				page_num = 1UL << order;
-> +				if (pfn + page_num > end_pfn)
-> +					page_num = end_pfn - pfn;
-> +				bitmap_set(bitmap, pfn - start_pfn, page_num);
-> +			}
-> +		}
-> +	}
-> +
-> +	spin_unlock_irqrestore(&zone->lock, flags);
-> +}
-> +
-> +int get_free_pages(unsigned long start_pfn, unsigned long end_pfn,
-> +		unsigned long *bitmap, unsigned long len)
-> +{
-> +	struct zone *zone;
-> +	int ret = 0;
-> +
-> +	if (bitmap == NULL || start_pfn > end_pfn || start_pfn >= max_pfn)
-> +		return 0;
-> +	if (end_pfn < max_pfn)
-> +		ret = 1;
-> +	if (end_pfn >= max_pfn)
-> +		ret = 0;
-> +
-> +	for_each_populated_zone(zone)
-> +		mark_free_pages_bitmap(zone, start_pfn, end_pfn, bitmap, len);
-> +	return ret;
-> +}
-> +EXPORT_SYMBOL(get_free_pages);
-> +
->  static void zoneref_set_zone(struct zone *zone, struct zoneref *zoneref)
->  {
->  	zoneref->zone = zone;
-> -- 
-> 1.9.1
+The patch description and code comments are, um, a _bit_ light for this
+level of subtlety. :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
