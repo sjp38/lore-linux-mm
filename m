@@ -1,130 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FFD96B025F
-	for <linux-mm@kvack.org>; Tue, 26 Jul 2016 23:43:49 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id e7so8618644lfe.0
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 20:43:49 -0700 (PDT)
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 260826B025F
+	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 00:03:04 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id e7so8804825lfe.0
+        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 21:03:04 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fq8si4412601wjc.159.2016.07.26.20.43.47
+        by mx.google.com with ESMTPS id tj3si4467315wjb.290.2016.07.26.21.03.02
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 26 Jul 2016 20:43:47 -0700 (PDT)
+        Tue, 26 Jul 2016 21:03:02 -0700 (PDT)
 From: NeilBrown <neilb@suse.com>
-Date: Wed, 27 Jul 2016 13:43:35 +1000
+Date: Wed, 27 Jul 2016 14:02:53 +1000
 Subject: Re: [dm-devel] [RFC PATCH 2/2] mm, mempool: do not throttle PF_LESS_THROTTLE tasks
-In-Reply-To: <20160725083247.GD9401@dhcp22.suse.cz>
-References: <1468831164-26621-1-git-send-email-mhocko@kernel.org> <1468831285-27242-1-git-send-email-mhocko@kernel.org> <1468831285-27242-2-git-send-email-mhocko@kernel.org> <87oa5q5abi.fsf@notabene.neil.brown.name> <20160722091558.GF794@dhcp22.suse.cz> <878twt5i1j.fsf@notabene.neil.brown.name> <20160725083247.GD9401@dhcp22.suse.cz>
-Message-ID: <87lh0n4ufs.fsf@notabene.neil.brown.name>
+In-Reply-To: <alpine.LRH.2.02.1607251730280.11852@file01.intranet.prod.int.rdu2.redhat.com>
+References: <1468831164-26621-1-git-send-email-mhocko@kernel.org> <1468831285-27242-1-git-send-email-mhocko@kernel.org> <1468831285-27242-2-git-send-email-mhocko@kernel.org> <87oa5q5abi.fsf@notabene.neil.brown.name> <20160722091558.GF794@dhcp22.suse.cz> <878twt5i1j.fsf@notabene.neil.brown.name> <alpine.LRH.2.02.1607251730280.11852@file01.intranet.prod.int.rdu2.redhat.com>
+Message-ID: <87invr4tjm.fsf@notabene.neil.brown.name>
 MIME-Version: 1.0
 Content-Type: multipart/signed; boundary="=-=-=";
 	micalg=pgp-sha256; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, Mikulas Patocka <mpatocka@redhat.com>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Ondrej Kozina <okozina@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Ondrej Kozina <okozina@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 
 --=-=-=
 Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
 
-On Mon, Jul 25 2016, Michal Hocko wrote:
+On Tue, Jul 26 2016, Mikulas Patocka wrote:
 
-> On Sat 23-07-16 10:12:24, NeilBrown wrote:
-
->> Maybe that is impractical, but having firm rules like that would go a
->> long way to make it possible to actually understand and reason about how
->> MM works.  As it is, there seems to be a tendency to put bandaids over
->> bandaids.
+> On Sat, 23 Jul 2016, NeilBrown wrote:
 >
-> Ohh, I would definitely wish for this to be more clear but as it turned
-> out over time there are quite some interdependencies between MM/FS/IO
-> layers which make the picture really blur. If there is a brave soul to
-> make that more clear without breaking any of that it would be really
-> cool ;)
-
-Just need that comprehensive regression-test-suite and off we go....
-
-
->> > My thinking was that throttle_vm_writeout is there to prevent from
->> > dirtying too many pages from the reclaim the context.  PF_LESS_THROTTLE
->> > is part of the writeout so throttling it on too many dirty pages is
->> > questionable (well we get some bias but that is not really reliable). =
-It
->> > still makes sense to throttle when the backing device is congested
->> > because the writeout path wouldn't make much progress anyway and we al=
-so
->> > do not want to cycle through LRU lists too quickly in that case.
->>=20
 >> "dirtying ... from the reclaim context" ??? What does that mean?
+>> According to
+>>   Commit: 26eecbf3543b ("[PATCH] vm: pageout throttling")
+>> From the history tree, the purpose of throttle_vm_writeout() is to
+>> limit the amount of memory that is concurrently under I/O.
+>> That seems strange to me because I thought it was the responsibility of
+>> each backing device to impose a limit - a maximum queue size of some
+>> sort.
 >
-> Say you would cause a swapout from the reclaim context. You would
-> effectively dirty that anon page until it gets written down to the
-> storage.
+> Device mapper doesn't impose any limit for in-flight bios.
 
-I should probably figure out how swap really works.  I have vague ideas
-which are probably missing important details...
-Isn't the first step that the page gets moved into the swap-cache - and
-marked dirty I guess.  Then it gets written out and the page is marked
-'clean'.
-Then further memory pressure might push it out of the cache, or an early
-re-use would pull it back from the cache.
-If so, then "dirtying in reclaim context" could also be described as
-"moving into the swap cache" - yes?  So should there be a limit on dirty
-pages in the swap cache just like there is for dirty pages in any
-filesystem (the max_dirty_ratio thing) ??
-Maybe there is?
+I would suggest that it probably should. At least it should
+"set_wb_congested()" when the number of in-flight bios reaches some
+arbitrary threshold.
 
->> The use of PF_LESS_THROTTLE in current_may_throttle() in vmscan.c is to
->> avoid a live-lock.  A key premise is that nfsd only allocates unbounded
->> memory when it is writing to the page cache.  So it only needs to be
->> throttled when the backing device it is writing to is congested.  It is
->> particularly important that it *doesn't* get throttled just because an
->> NFS backing device is congested, because nfsd might be trying to clear
->> that congestion.
->
-> Thanks for the clarification. IIUC then removing throttle_vm_writeout
-> for the nfsd writeout should be harmless as well, right?
+The write-back throttling needs this to get an estimate of how fast the
+backing device is, so it can share the dirty_threshold space fairly
+among the different backing devices.
 
-Certainly shouldn't hurt from the perspective of nfsd.
+I added an arbitrary limit to raid1 back in 2011 (34db0cd60f8a1f)
+because the lack of a limit was causing problems.
+Specifically the write queue would get so long that ext3 would block for
+an extended period when trying to flush a transaction, and that blocked
+lots of other things, like atime updates.
 
->> >> The purpose of that flag is to allow a thread to dirty a page-cache p=
-age
->> >> as part of cleaning another page-cache page.
->> >> So it makes sense for loop and sometimes for nfsd.  It would make sen=
-se
->> >> for dm-crypt if it was putting the encrypted version in the page cach=
-e.
->> >> But if dm-crypt is just allocating a transient page (which I think it
->> >> is), then a mempool should be sufficient (and we should make sure it =
-is
->> >> sufficient) and access to an extra 10% (or whatever) of the page cache
->> >> isn't justified.
->> >
->> > If you think that PF_LESS_THROTTLE (ab)use in mempool_alloc is not
->> > appropriate then would a PF_MEMPOOL be any better?
->>=20
->> Why a PF rather than a GFP flag?
->
-> Well, short answer is that gfp masks are almost depleted.
+Maybe there have been other fixes since then to other parts of the
+puzzle, but the congestion tracking still seems to be an important part
+of the picture and I think it would be best if every bdi would admit to
+being congested well before it has consumed a significant fraction of
+memory in its output queue.
 
-Really?  We have 26.
+> I've made some patches that limit in-flight bios for device mapper in
+> the past, but there were not integrated into upstream.
 
-pagemap has a cute hack to store both GFP flags and other flag bits in
-the one 32 it number per address_space.  'struct address_space' could
-afford an extra 32 number I think.
-
-radix_tree_root adds 3 'tag' flags to the gfp_mask.
-There is 16bits of free space in radix_tree_node (between 'offset' and
-'count').  That space on the root node could store a record of which tags
-are set anywhere.  Or would that extra memory de-ref be a killer?
-
-I think we'd end up with cleaner code if we removed the cute-hacks.  And
-we'd be able to use 6 more GFP flags!!  (though I do wonder if we really
-need all those 26).
+I second the motion to resurrect these.
 
 Thanks,
 NeilBrown
-
 
 --=-=-=
 Content-Type: application/pgp-signature; name="signature.asc"
@@ -132,19 +75,19 @@ Content-Type: application/pgp-signature; name="signature.asc"
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v2
 
-iQIcBAEBCAAGBQJXmC3oAAoJEDnsnt1WYoG5ra4P/i5JZtF5py+6vNFiiZdOoJx1
-ZMuitWbsn0b7/fWZslBeOTign4CDKD4SIQE5lbY1NsGUMv6+K9VmTAT0yopFT47U
-zdyWQSNnJUh8Y/MCXUdRYD5nxi/tccj9WyGGvSguGOrHNgz0vT2+EN9ve3a7H39r
-grQv722jqiQRu2AYYJbL+WX+vSWpHOi3mTasg2f2qYJlAGJ4jNrKsSu4jcnfEdLA
-bdk6EY7wuT/6UmF5p+kbRYwlwb5VfVf4S4wFAw5s/8so7ZphxXk6DpGairyqW/CI
-Kyex1tdI/8hNBCMYkQYjv5FC4KBHuPzBjNNfkNtLOjDQI78yku3+L6cZA4rGP2F3
-BSU8aHQUisyahoSKgyMF0nlHFWcpkVzctCE3NPOjzXrIBLe0xwGs13wxMaVn9R/i
-ClC9/7y2z0QqEf075J8j5uvdxsOhVZOrhmD9DSpuZXi+biSC+vBEwghp4Pzeccm1
-xpLAdNpUqtd62ztz5ixPklyXdIuL9Z+xkbUjctxPmMYdfTanjENnGkhYlKylvlFN
-fXyVpmi93cqneD94tNcS2XTHyArTmytu5S9B4/X79q5FJxO+KHwkBr9qJfoYGpIj
-fSmLk+cVk+iZdXRDTyH2Vf7T84hasbXGwugWdrUJEhhoK4zPNIMw97WmbJrqimtk
-VTaAa6OQ1Hovk/FSz9qj
-=v9wZ
+iQIcBAEBCAAGBQJXmDJtAAoJEDnsnt1WYoG5nOgP/0XJg515n6zK4s9J6ZFRmfdZ
+cn+o3q+38/NGlnXvKa+YRml4a/M4gVT98bD7XtQhg6LxtEI6Gydj4H+raSxJ7qAN
+KLDmouzZBQ95F8myGjPVflprRmfReuJHxmCY2qZWnRi78Amb+TisSh1WavZGZocd
+xAEShMDPQ/UAO2R77fICqD5x8OPIK7D9p7IJXn4/Yb1GPW9aFTOH2OpYcI4BrKfu
+qjI3mlEqLrtoI2YA0KW+BsZIn0AO6lNDBemkFyqmp5P9IXEa49+o7C89IZLon5u7
+/wGwsSVkTFojiluc+vsIkQHTkSBJuFNRkIHe/FwKEVM6lzi7m5m/tNEOjQMRArUR
+EoQhq7BEwlUsJSmkY2uarQz68raYYkVksnvnqUYn75GNFQA2/gGuZ2Lzlw8TPb3A
+a6K+fGVJCKwm0OLXcSuemG2fUYwb52EdpX/IdlUeNWH08Dj04T6XY07bE3cFgcK1
+HQ8hWzWAFNgruD/BvsmNhdHvfW8c1dJFiceBSZN8UIXCNpRpqNXG/rW7YmByOqP/
+UaZ9ziTcXsj6w0hrk+Xo8l5jWsCaeH4orHD4opIEgT4JDjLvYARFdv9FY/bnW6V5
+XID7b9Vgj6OJh7GGVkgVmxSiuUhnl9VCd9CyRDYmjb8BsiqIICIPA2o7SYlFy3OA
+/IQviZ0iWlBWtHqL5Sjp
+=I237
 -----END PGP SIGNATURE-----
 --=-=-=--
 
