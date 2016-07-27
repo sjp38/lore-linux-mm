@@ -1,89 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D75956B025F
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 10:57:49 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 1so1784566wmz.2
-        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 07:57:49 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id ay2si7516073wjc.89.2016.07.27.07.57.48
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CE366B0005
+	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 11:13:39 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id o80so2377853wme.1
+        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 08:13:39 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a64si8114414wmc.86.2016.07.27.08.13.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jul 2016 07:57:48 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id o80so6873211wme.0
-        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 07:57:48 -0700 (PDT)
-Date: Wed, 27 Jul 2016 16:57:46 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PowerPC] Kernel OOPS while compiling LTP test suite on linus
- mainline
-Message-ID: <20160727145746.GA21891@dhcp22.suse.cz>
-References: <2a9abff6-7820-a95b-0de3-8e6723707cb6@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 27 Jul 2016 08:13:36 -0700 (PDT)
+Date: Wed, 27 Jul 2016 16:13:33 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 2/2] mm: get_scan_count consider reclaimable lru pages
+Message-ID: <20160727151333.GB2693@suse.de>
+References: <1469604588-6051-1-git-send-email-minchan@kernel.org>
+ <1469604588-6051-2-git-send-email-minchan@kernel.org>
+ <20160727142226.GA2693@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <2a9abff6-7820-a95b-0de3-8e6723707cb6@linux.vnet.ibm.com>
+In-Reply-To: <20160727142226.GA2693@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Abdul Haleem <abdhalee@linux.vnet.ibm.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, aneesh.kumar@linux.vnet.ibm.com, mpe@ellerman.id.au, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-[CC linux-mm]
-
-On Wed 27-07-16 16:45:35, Abdul Haleem wrote:
-> Hi,
+On Wed, Jul 27, 2016 at 03:22:26PM +0100, Mel Gorman wrote:
+> ---8<---
+> From: Mel Gorman <mgorman@techsingularity.net>
+> Subject: [PATCH] mm, vmscan: Wait on a waitqueue when too many pages are
+>  isolated
 > 
-> Kernel OOPS messages were seen while compiling linux test project (LTP) source on 4.7.0-rc5 mainline.
-> 
-> Kernel config : pseries_le_defconfig
-> Machine Type  : PowerVM LPAR
-> Machine hardware : LPAR uses 16 vCPUs, and 29G memory
-> 
-> trace messages:
-> *15:34:57* [  862.548866] Unable to handle kernel paging request for data at address 0x00000000
-> *15:34:57* [  862.548904] Faulting instruction address: 0xc000000000260900
-> *15:34:57* [  862.548911] Oops: Kernel access of bad area, sig: 11 [#1]
-> *15:34:57* [  862.548917] SMP NR_CPUS=2048 NUMA pSeries
-> *15:34:57* [  862.548924] Modules linked in: rtc_generic(E) pseries_rng(E) autofs4(E)
-> *15:34:57* [  862.548938] CPU: 0 PID: 129 Comm: kswapd2 Tainted: G            E   4.7.0-rc5-autotest #1
-> *15:34:57* [  862.548946] task: c0000007766a2600 ti: c000000776764000 task.ti: c000000776764000
-> *15:34:57* [  862.548953] NIP: c000000000260900 LR: c00000000026452c CTR: 0000000000000000
-> *15:34:57* [  862.548961] REGS: c000000776767830 TRAP: 0300   Tainted: G            E    (4.7.0-rc5-autotest)
-> *15:34:57* [  862.548968] MSR: 800000010280b033 <SF,VEC,VSX,EE,FP,ME,IR,DR,RI,LE,TM[E]>  CR: 24000222  XER: 20000001
-> *15:34:57* [  862.548996] CFAR: c000000000008468 DAR: 0000000000000000 DSISR: 40000000 SOFTE: 0
-> *15:34:57* GPR00: c00000000026452c c000000776767ab0 c0000000013ac100 c00000077ff54200
-> *15:34:57* GPR04: 0000000000000000 c000000776767ba0 0000000000000001 c00000000151c100
-> *15:34:57* GPR08: 0000000000000000 00000000000b4057 0000000080000000 c00000071664b7a0
-> *15:34:57* GPR12: 0000000000000000 c00000000e800000 0000000000000001 f0000000015dc000
-> *15:34:57* GPR16: c00000077ff54700 0000000000000000 0000000000000000 c00000077ff54700
-> *15:34:57* GPR20: 0000000000000001 0000000000000100 0000000000000200 c00000077ff54200
-> *15:34:57* GPR24: c000000776767ba0 0000000000000020 0000000000000000 0000000000000001
-> *15:34:57* GPR28: 0000000000000010 0000000000000000 c000000776767ba0 f0000000015dc020
-> *15:34:57* [  862.549094] NIP [c000000000260900] move_active_pages_to_lru.isra.16+0xa0/0x380
-> *15:34:57* [  862.549102] LR [c00000000026452c] shrink_active_list+0x2fc/0x510
 
-Could you map this to the kernel source line please?
+This is potentially a much better version as it avoids wakeup storms and
+do a better job of handling the case where pages could not be reclaimed.
 
-> *15:34:57* [  862.549108] Call Trace:
-> *15:34:57* [  862.549112] [c000000776767ab0] [f0000000015dc000] 0xf0000000015dc000 (unreliable)
-> *15:34:57* [  862.549122] [c000000776767b60] [c00000000026452c] shrink_active_list+0x2fc/0x510
-> *15:34:57* [  862.549131] [c000000776767c50] [c0000000002665d4] kswapd+0x434/0xa70
-> *15:34:57* [  862.549139] [c000000776767d80] [c0000000000f1b50] kthread+0x110/0x130
-> *15:34:57* [  862.549148] [c000000776767e30] [c0000000000095f0] ret_from_kernel_thread+0x5c/0x6c
-> *15:34:57* [  862.549155] Instruction dump:
-> *15:34:57* [  862.549161] 60000000 3b200020 3a800001 7b7c26e4 3aa00100 3ac00200 3a400000 3a770500
-> *15:34:57* [  862.549174] 3a200000 60000000 60000000 60420000 <e93d0000> 7fbd4840 419e01b8 ebfd0008
-> *15:34:57* [  862.549193] ---[ end trace fcc50906d9164c56 ]---
-> *15:34:57* [  862.550562]
-> *15:35:18* [  883.551577] INFO: rcu_sched self-detected stall on CPU
-> *15:35:18* [  883.551578] INFO: rcu_sched self-detected stall on CPU
-> *15:35:18* [  883.551588] 	2-...: (5249 ticks this GP) idle=cc5/140000000000001/0 softirq=50260/50260 fqs=5249
-> *15:35:18* [  883.551591] 	 (t=5250 jiffies g=48365 c=48364 q=182)
-> 
-> Regard's
-> Abdul
+---8<---
+mm, vmscan: Wait on a waitqueue when too many pages are isolated
 
--- 
-Michal Hocko
-SUSE Labs
+When too many pages are isolated, direct reclaim waits on congestion to
+clear for up to a tenth of a second. There is no reason to believe that too
+many pages are isolated due to dirty pages, reclaim efficiency or congestion.
+It may simply be because an extremely large number of processes have entered
+direct reclaim at the same time.
+
+This patch has processes wait on a waitqueue when too many pages are
+isolated.  When parallel reclaimers finish shrink_page_list, they wake the
+waiters to recheck whether too many pages are isolated. While it is difficult
+to trigger this corner case, it's possible by lauching an extremely large
+number of hackbench processes on a 32-bit system with limited memory. Without
+the patch, a large number of processes wait uselessly and with the patch
+applied, I was unable to stall the system.
+
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+---
+ include/linux/mmzone.h |  1 +
+ mm/page_alloc.c        |  1 +
+ mm/vmscan.c            | 24 +++++++++++++++---------
+ 3 files changed, 17 insertions(+), 9 deletions(-)
+
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index d572b78b65e1..467878d7af33 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -653,6 +653,7 @@ typedef struct pglist_data {
+ 	int node_id;
+ 	wait_queue_head_t kswapd_wait;
+ 	wait_queue_head_t pfmemalloc_wait;
++	wait_queue_head_t isolated_wait;
+ 	struct task_struct *kswapd;	/* Protected by
+ 					   mem_hotplug_begin/end() */
+ 	int kswapd_order;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index fbd329e61bf6..3800972f240e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5859,6 +5859,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+ #endif
+ 	init_waitqueue_head(&pgdat->kswapd_wait);
+ 	init_waitqueue_head(&pgdat->pfmemalloc_wait);
++	init_waitqueue_head(&pgdat->isolated_wait);
+ #ifdef CONFIG_COMPACTION
+ 	init_waitqueue_head(&pgdat->kcompactd_wait);
+ #endif
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 9c0b2b0fc164..e264fcb7556b 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1554,16 +1554,16 @@ int isolate_lru_page(struct page *page)
+  * the LRU list will go small and be scanned faster than necessary, leading to
+  * unnecessary swapping, thrashing and OOM.
+  */
+-static int too_many_isolated(struct pglist_data *pgdat, int file,
++static bool safe_to_isolate(struct pglist_data *pgdat, int file,
+ 		struct scan_control *sc)
+ {
+ 	unsigned long inactive, isolated;
+ 
+ 	if (current_is_kswapd())
+-		return 0;
++		return true;
+ 
+-	if (!sane_reclaim(sc))
+-		return 0;
++	if (sane_reclaim(sc))
++		return true;
+ 
+ 	if (file) {
+ 		inactive = node_page_state(pgdat, NR_INACTIVE_FILE);
+@@ -1581,7 +1581,7 @@ static int too_many_isolated(struct pglist_data *pgdat, int file,
+ 	if ((sc->gfp_mask & (__GFP_IO | __GFP_FS)) == (__GFP_IO | __GFP_FS))
+ 		inactive >>= 3;
+ 
+-	return isolated > inactive;
++	return isolated < inactive;
+ }
+ 
+ static noinline_for_stack void
+@@ -1701,12 +1701,15 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 	if (!inactive_reclaimable_pages(lruvec, sc, lru))
+ 		return 0;
+ 
+-	while (unlikely(too_many_isolated(pgdat, file, sc))) {
+-		congestion_wait(BLK_RW_ASYNC, HZ/10);
++	if (!safe_to_isolate(pgdat, file, sc)) {
++		wait_event_killable(pgdat->isolated_wait,
++			safe_to_isolate(pgdat, file, sc));
+ 
+ 		/* We are about to die and free our memory. Return now. */
+-		if (fatal_signal_pending(current))
+-			return SWAP_CLUSTER_MAX;
++		if (fatal_signal_pending(current)) {
++			nr_reclaimed = SWAP_CLUSTER_MAX;
++			goto out;
++		}
+ 	}
+ 
+ 	lru_add_drain();
+@@ -1819,6 +1822,9 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 	trace_mm_vmscan_lru_shrink_inactive(pgdat->node_id,
+ 			nr_scanned, nr_reclaimed,
+ 			sc->priority, file);
++
++out:
++	wake_up(&pgdat->isolated_wait);
+ 	return nr_reclaimed;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
