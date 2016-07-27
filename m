@@ -1,62 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BEC86B0253
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 12:44:01 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id w207so2609075oiw.1
-        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 09:44:01 -0700 (PDT)
-Received: from mail-oi0-x241.google.com (mail-oi0-x241.google.com. [2607:f8b0:4003:c06::241])
-        by mx.google.com with ESMTPS id d28si6109917otd.269.2016.07.27.09.44.00
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C43E46B0253
+	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 12:59:37 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id m130so3499894ioa.1
+        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 09:59:37 -0700 (PDT)
+Received: from mail-io0-x231.google.com (mail-io0-x231.google.com. [2607:f8b0:4001:c06::231])
+        by mx.google.com with ESMTPS id q194si8235066ioe.102.2016.07.27.09.59.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jul 2016 09:44:00 -0700 (PDT)
-Received: by mail-oi0-x241.google.com with SMTP id l9so1832845oih.0
-        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 09:44:00 -0700 (PDT)
+        Wed, 27 Jul 2016 09:59:37 -0700 (PDT)
+Received: by mail-io0-x231.google.com with SMTP id m101so75894354ioi.2
+        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 09:59:37 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1650204.9z6KOJWgNh@storm>
-References: <bug-64121-27@https.bugzilla.kernel.org/> <b4aff3a2-cc22-c68c-cafc-96db332f86c3@intra2net.com>
- <b3219832-110d-2b74-5ba9-694ab30589f0@suse.cz> <1650204.9z6KOJWgNh@storm>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 27 Jul 2016 09:44:00 -0700
-Message-ID: <CA+55aFw-g0T6c3Oza8UDssdCiEhMQZHDixsBqCXU4funLsumFg@mail.gmail.com>
-Subject: Re: Re: [Bug 64121] New: [BISECTED] "mm" performance regression
- updating from 3.2 to 3.3
+In-Reply-To: <20160726205944.GM4541@io.lakedaemon.net>
+References: <1469557346-5534-1-git-send-email-william.c.roberts@intel.com>
+ <1469557346-5534-2-git-send-email-william.c.roberts@intel.com>
+ <20160726200309.GJ4541@io.lakedaemon.net> <476DC76E7D1DF2438D32BFADF679FC560125F29C@ORSMSX103.amr.corp.intel.com>
+ <20160726205944.GM4541@io.lakedaemon.net>
+From: Nick Kralevich <nnk@google.com>
+Date: Wed, 27 Jul 2016 09:59:35 -0700
+Message-ID: <CAFJ0LnEZW7Y1zfN8v0_ckXQZn1n-UKEhf_tSmNOgHwrrnNnuMg@mail.gmail.com>
+Subject: Re: [PATCH] [RFC] Introduce mmap randomization
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Jarosch <thomas.jarosch@intra2net.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Jason Cooper <jason@lakedaemon.net>
+Cc: "Roberts, William C" <william.c.roberts@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "keescook@chromium.org" <keescook@chromium.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "jeffv@google.com" <jeffv@google.com>, "salyzyn@android.com" <salyzyn@android.com>, "dcashman@android.com" <dcashman@android.com>
 
-On Wed, Jul 27, 2016 at 2:18 AM, Thomas Jarosch
-<thomas.jarosch@intra2net.com> wrote:
+On Tue, Jul 26, 2016 at 1:59 PM, Jason Cooper <jason@lakedaemon.net> wrote:
+>> > One thing I didn't make clear in my commit message is why this is good. Right
+>> > now, if you know An address within in a process, you know all offsets done with
+>> > mmap(). For instance, an offset To libX can yield libY by adding/subtracting an
+>> > offset. This is meant to make rops a bit harder, or In general any mapping offset
+>> > mmore difficult to find/guess.
 >
-> Yesterday another busy mail server showed the same problem during backup
-> creation. This time I knew about slabtop and could see that the
-> ext4_inode_cache occupied about 393MB of the 776MB total low memory.
+> Are you able to quantify how many bits of entropy you're imposing on the
+> attacker?  Is this a chair in the hallway or a significant increase in
+> the chances of crashing the program before finding the desired address?
 
-Honestly, we're never going to really fix the problem with low memory
-on 32-bit kernels. PAE is a horrible hardware hack, and it was always
-very fragile. It's only going to get more fragile as fewer and fewer
-people are running 32-bit environments in any big way.
+Quantifying the effect of many security changes is extremely
+difficult, especially for a probabilistic defense like ASLR. I would
+urge us to not place too high of a proof bar on this change.
+Channeling Spender / grsecurity team, ASLR gets it's benefit not from
+it's high benefit, but from it's low cost of implementation
+(https://forums.grsecurity.net/viewtopic.php?f=7&t=3367). This patch
+certainly meets the low cost of implementation bar.
 
-Quite frankly, 32GB of RAM on a 32-bit kernel is so crazy as to be
-ludicrous, and nobody sane will support that. Run 32-bit user space by
-all means, but the kernel needs to be 64-bit if you have more than 8GB
-of RAM.
+In the Project Zero Stagefright post
+(http://googleprojectzero.blogspot.com/2015/09/stagefrightened.html),
+we see that the linear allocation of memory combined with the low
+number of bits in the initial mmap offset resulted in a much more
+predictable layout which aided the attacker. The initial random mmap
+base range was increased by Daniel Cashman in
+d07e22597d1d355829b7b18ac19afa912cf758d1, but we've done nothing to
+address page relative attacks.
 
-Realistically, PAE is "workable" up to approximately 4GB of physical
-RAM, where the exact limit depends on your workload.
+Inter-mmap randomization will decrease the predictability of later
+mmap() allocations, which should help make data structures harder to
+find in memory. In addition, this patch will also introduce unmapped
+gaps between pages, preventing linear overruns from one mapping to
+another another mapping. I am unable to quantify how much this will
+improve security, but it should be > 0.
 
-So if the bulk of your memory use is just user-space processes, then
-you can more comfortably run with more memory (so 8GB or even 16GB of
-RAM might work quite well).
+I like Dave Hansen's suggestion that this functionality be limited to
+64 bits, where concerns about running out of address space are
+essentially nil. I'd be supportive of this change if it was limited to
+64 bits.
 
-And as mentioned, things are getting worse, and not better. We cared
-much more deeply about PAE back in the 2.x timeframe. Back then, it
-was a primary target, and you would find people who cared. These days,
-it simply isn't. These days, the technical solution to PAE literally
-is "just run a 64-bit kernel".
+-- Nick
 
-                   Linus
+-- 
+Nick Kralevich | Android Security | nnk@google.com | 650.214.4037
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
