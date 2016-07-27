@@ -1,117 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D5C86B025F
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 09:14:32 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id pp5so36846369pac.3
-        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 06:14:32 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id x6si6469858pac.8.2016.07.27.06.14.31
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CED586B025F
+	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 09:42:53 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id pp5so540242pac.3
+        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 06:42:53 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTP id er10si6537272pac.38.2016.07.27.06.42.47
         for <linux-mm@kvack.org>;
-        Wed, 27 Jul 2016 06:14:31 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH] mm: fix use-after-free if memory allocation failed in vma_adjust()
-Date: Wed, 27 Jul 2016 16:14:15 +0300
-Message-Id: <1469625255-126641-1-git-send-email-kirill.shutemov@linux.intel.com>
+        Wed, 27 Jul 2016 06:42:52 -0700 (PDT)
+From: zhongjiang <zhongjiang@huawei.com>
+Subject: [PATCH v2] kexec: add restriction on kexec_load() segment sizes
+Date: Wed, 27 Jul 2016 21:17:54 +0800
+Message-ID: <1469625474-53904-1-git-send-email-zhongjiang@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>
-Cc: linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Vegard Nossum <vegard.nossum@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: akpm@linux-foundation.org, ebiederm@xmission.com
+Cc: linux-mm@kvack.org
 
-There's one case when vma_adjust() expands the vma, overlapping with
-*two* next vma. See case 6 of mprotect, described in the comment to
-vma_merge().
+From: zhong jiang <zhongjiang@huawei.com>
 
-To handle this (and only this) situation we iterate twice over main part
-of the function. See "goto again".
+I hit the following issue when run trinity in my system.  The kernel is
+3.4 version, but mainline has the same issue.
 
-Vegard reported[1] that he sees out-of-bounds access complain from
-KASAN, if anon_vma_clone() on the *second* iteration fails.
+The root cause is that the segment size is too large so the kerenl spends
+too long trying to allocate a page.  Other cases will block until the test
+case quits.  Also, OOM conditions will occur.
 
-This happens because we free 'next' vma by the end of first iteration
-and don't have a way to undo this if anon_vma_clone() fails on the
-second iteration.
+Call Trace:
+ [<ffffffff81106eac>] __alloc_pages_nodemask+0x14c/0x8f0
+ [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
+ [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
+ [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
+ [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
+ [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
+ [<ffffffff8113e5ef>] alloc_pages_current+0xaf/0x120
+ [<ffffffff810a0da0>] kimage_alloc_pages+0x10/0x60
+ [<ffffffff810a15ad>] kimage_alloc_control_pages+0x5d/0x270
+ [<ffffffff81027e85>] machine_kexec_prepare+0xe5/0x6c0
+ [<ffffffff810a0d52>] ? kimage_free_page_list+0x52/0x70
+ [<ffffffff810a1921>] sys_kexec_load+0x141/0x600
+ [<ffffffff8115e6b0>] ? vfs_write+0x100/0x180
+ [<ffffffff8145fbd9>] system_call_fastpath+0x16/0x1b
 
-The solution is to do all required allocations upfront, before we touch
-vmas.
+The patch changes sanity_check_segment_list() to verify that the usage by
+all segments does not exceed half of memory.
 
-The allocation on the second iteration is only required if first two
-vmas don't have anon_vma, but third does. So we need, in total, one
-anon_vma_clone() call.
-
-It's easy to adjust 'exporter' to the third vma for such case.
-
-[1] http://lkml.kernel.org/r/1469514843-23778-1-git-send-email-vegard.nossum@oracle.com
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Reported-by: Vegard Nossum <vegard.nossum@oracle.com>
+Suggested-by: Eric W. Biederman <ebiederm@xmission.com>
+Signed-off-by: zhong jiang <zhongjiang@huawei.com>
 ---
- mm/mmap.c | 20 +++++++++++++++-----
- 1 file changed, 15 insertions(+), 5 deletions(-)
+ kernel/kexec_core.c | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index a384c10c7657..ca9d91bca0d6 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -621,7 +621,6 @@ int vma_adjust(struct vm_area_struct *vma, unsigned long start,
+diff --git a/kernel/kexec_core.c b/kernel/kexec_core.c
+index 56b3ed0..33d2e3f 100644
+--- a/kernel/kexec_core.c
++++ b/kernel/kexec_core.c
+@@ -140,6 +140,7 @@ int kexec_should_crash(struct task_struct *p)
+  * allocating pages whose destination address we do not care about.
+  */
+ #define KIMAGE_NO_DEST (-1UL)
++#define PAGE_COUNT(x) (((x) + PAGE_SIZE - 1) >> PAGE_SHIFT)
+ 
+ static struct page *kimage_alloc_page(struct kimage *image,
+ 				       gfp_t gfp_mask,
+@@ -149,6 +150,7 @@ int sanity_check_segment_list(struct kimage *image)
  {
- 	struct mm_struct *mm = vma->vm_mm;
- 	struct vm_area_struct *next = vma->vm_next;
--	struct vm_area_struct *importer = NULL;
- 	struct address_space *mapping = NULL;
- 	struct rb_root *root = NULL;
- 	struct anon_vma *anon_vma = NULL;
-@@ -631,17 +630,25 @@ int vma_adjust(struct vm_area_struct *vma, unsigned long start,
- 	int remove_next = 0;
+ 	int result, i;
+ 	unsigned long nr_segments = image->nr_segments;
++	unsigned long total_pages = 0;
  
- 	if (next && !insert) {
--		struct vm_area_struct *exporter = NULL;
-+		struct vm_area_struct *exporter = NULL, *importer = NULL;
- 
- 		if (end >= next->vm_end) {
- 			/*
- 			 * vma expands, overlapping all the next, and
- 			 * perhaps the one after too (mprotect case 6).
- 			 */
--again:			remove_next = 1 + (end > next->vm_end);
-+			remove_next = 1 + (end > next->vm_end);
- 			end = next->vm_end;
- 			exporter = next;
- 			importer = vma;
-+
-+			/*
-+			 * If next doesn't have anon_vma, import from vma after
-+			 * next, if the vma overlaps with it.
-+			 */
-+			if (remove_next == 2 && next && !next->anon_vma)
-+				exporter = next->vm_next;
-+
- 		} else if (end > next->vm_start) {
- 			/*
- 			 * vma expands, overlapping part of the next:
-@@ -675,7 +682,7 @@ again:			remove_next = 1 + (end > next->vm_end);
- 				return error;
- 		}
+ 	/*
+ 	 * Verify we have good destination addresses.  The caller is
+@@ -210,6 +212,22 @@ int sanity_check_segment_list(struct kimage *image)
  	}
--
-+again:
- 	vma_adjust_trans_huge(vma, start, end, adjust_next);
  
- 	if (file) {
-@@ -796,8 +803,11 @@ again:			remove_next = 1 + (end > next->vm_end);
- 		 * up the code too much to do both in one go.
- 		 */
- 		next = vma->vm_next;
--		if (remove_next == 2)
-+		if (remove_next == 2) {
-+			remove_next = 1;
-+			end = next->vm_end;
- 			goto again;
-+		}
- 		else if (next)
- 			vma_gap_update(next);
- 		else
++	/*
++	 * Verify that no segment is larger than half of memory.
++	 * If a segment from userspace is too large, a large amount
++	 * of time will be wasted allocating pages, which can cause
++	 * * a soft lockup.
++	 */
++	for (i = 0; i < nr_segments; i++) {
++		if (PAGE_COUNT(image->segment[i].memsz) > totalram_pages / 2)
++			return result;
++
++		total_pages += PAGE_COUNT(image->segment[i].memsz);
++	}
++
++	if (total_pages > totalram_pages / 2)
++		return result;
++
+	/*
+ 	 * Verify we have good destination addresses.  Normally
+ 	 * the caller is responsible for making certain we don't
+ 	 * attempt to load the new image into invalid or reserved
 -- 
-2.8.1
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
