@@ -1,95 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 260826B025F
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 00:03:04 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id e7so8804825lfe.0
-        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 21:03:04 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id tj3si4467315wjb.290.2016.07.26.21.03.02
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AAA13828E1
+	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 00:15:31 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id m101so76107527ioi.0
+        for <linux-mm@kvack.org>; Tue, 26 Jul 2016 21:15:31 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id u42si2927011otu.221.2016.07.26.21.15.26
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 26 Jul 2016 21:03:02 -0700 (PDT)
-From: NeilBrown <neilb@suse.com>
-Date: Wed, 27 Jul 2016 14:02:53 +1000
-Subject: Re: [dm-devel] [RFC PATCH 2/2] mm, mempool: do not throttle PF_LESS_THROTTLE tasks
-In-Reply-To: <alpine.LRH.2.02.1607251730280.11852@file01.intranet.prod.int.rdu2.redhat.com>
-References: <1468831164-26621-1-git-send-email-mhocko@kernel.org> <1468831285-27242-1-git-send-email-mhocko@kernel.org> <1468831285-27242-2-git-send-email-mhocko@kernel.org> <87oa5q5abi.fsf@notabene.neil.brown.name> <20160722091558.GF794@dhcp22.suse.cz> <878twt5i1j.fsf@notabene.neil.brown.name> <alpine.LRH.2.02.1607251730280.11852@file01.intranet.prod.int.rdu2.redhat.com>
-Message-ID: <87invr4tjm.fsf@notabene.neil.brown.name>
+        Tue, 26 Jul 2016 21:15:30 -0700 (PDT)
+Message-ID: <57983425.4090901@huawei.com>
+Date: Wed, 27 Jul 2016 12:10:13 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; boundary="=-=-=";
-	micalg=pgp-sha256; protocol="application/pgp-signature"
+Subject: Re: [PATCH] kexec: add restriction on kexec_load() segment sizes
+References: <1469502219-24140-1-git-send-email-zhongjiang@huawei.com> <20160726125501.69c8186ab9c3b1cef89899d4@linux-foundation.org>
+In-Reply-To: <20160726125501.69c8186ab9c3b1cef89899d4@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Ondrej Kozina <okozina@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: ebiederm@xmission.com, linux-mm@kvack.org, mm-commits@vger.kernel.org
 
---=-=-=
-Content-Type: text/plain
-
-On Tue, Jul 26 2016, Mikulas Patocka wrote:
-
-> On Sat, 23 Jul 2016, NeilBrown wrote:
+On 2016/7/27 3:55, Andrew Morton wrote:
+> On Tue, 26 Jul 2016 11:03:39 +0800 zhongjiang <zhongjiang@huawei.com> wrote:
 >
->> "dirtying ... from the reclaim context" ??? What does that mean?
->> According to
->>   Commit: 26eecbf3543b ("[PATCH] vm: pageout throttling")
->> From the history tree, the purpose of throttle_vm_writeout() is to
->> limit the amount of memory that is concurrently under I/O.
->> That seems strange to me because I thought it was the responsibility of
->> each backing device to impose a limit - a maximum queue size of some
->> sort.
+>> From: zhong jiang <zhongjiang@huawei.com>
+>>
+>> I hit the following issue when run trinity in my system.  The kernel is
+>> 3.4 version, but mainline has the same issue.
+>>
+>> The root cause is that the segment size is too large so the kerenl spends
+>> too long trying to allocate a page.  Other cases will block until the test
+>> case quits.  Also, OOM conditions will occur.
+>>
+>> Call Trace:
+>>  [<ffffffff81106eac>] __alloc_pages_nodemask+0x14c/0x8f0
+>>  [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
+>>  [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
+>>  [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
+>>  [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
+>>  [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
+>>  [<ffffffff8113e5ef>] alloc_pages_current+0xaf/0x120
+>>  [<ffffffff810a0da0>] kimage_alloc_pages+0x10/0x60
+>>  [<ffffffff810a15ad>] kimage_alloc_control_pages+0x5d/0x270
+>>  [<ffffffff81027e85>] machine_kexec_prepare+0xe5/0x6c0
+>>  [<ffffffff810a0d52>] ? kimage_free_page_list+0x52/0x70
+>>  [<ffffffff810a1921>] sys_kexec_load+0x141/0x600
+>>  [<ffffffff8115e6b0>] ? vfs_write+0x100/0x180
+>>  [<ffffffff8145fbd9>] system_call_fastpath+0x16/0x1b
+>>
+>> The patch changes sanity_check_segment_list() to verify that no segment is
+>> larger than half of memory.
+> "to verify that the usage by all segmetns does not exceed half of memory"
+  yes
+>> Suggested-off-by: Eric W. Biederman <ebiederm@xmission.com>
+> "Suggested-by:"
+  yes
+>> --- a/kernel/kexec_core.c
+>> +++ b/kernel/kexec_core.c
+>> @@ -140,6 +140,7 @@ int kexec_should_crash(struct task_struct *p)
+>>   * allocating pages whose destination address we do not care about.
+>>   */
+>>  #define KIMAGE_NO_DEST	(-1UL)
+>> +#define PAGE_COUNT(x)	(((x) + PAGE_SIZE - 1) >> PAGE_SHIFT)
+>>  
+>>  static struct page *kimage_alloc_page(struct kimage *image,
+>>  				       gfp_t gfp_mask,
+>> @@ -149,6 +150,7 @@ int sanity_check_segment_list(struct kimage *image)
+>>  {
+>>  	int result, i;
+>>  	unsigned long nr_segments = image->nr_segments;
+>> +	unsigned long total_segments = 0;
+> "total_segments" implies "total number of segments".  ie, nr_segments. 
+> I'd call this "total_pages" instead.
+  yes,  it is better.
+>>  	/*
+>>  	 * Verify we have good destination addresses.  The caller is
+>> @@ -210,6 +212,23 @@ int sanity_check_segment_list(struct kimage *image)
+>>  	}
+>>
+>> +	/*
+>> +	 * Verify that no segment is larger than half of memory.
+>> +	 * If a segment from userspace is too large, a large amount
+>> +	 * of time will be wasted allocating pages, which can cause
+>> +	 * a soft lockup.
+>> +	 */
+> 	/*
+> 	 * Verify that the memory usage required for all segments does not
+> 	 * exceed half of all memory.  If the memory usage requested by
+> 	 * userspace is excessive, a large amount of time will be wasted
+> 	 * allocating pages, which can cause a soft lockup.
+> 	 */
+> 	
+>> +	for (i = 0; i < nr_segments; i++) {
+>> +		if (PAGE_COUNT(image->segment[i].memsz) > totalram_pages / 2
+>> +				|| PAGE_COUNT(total_segments) > totalram_pages / 2)
+>> +			return result;
+> And I don't think we need this?  Unless we're worried about the sum of
+> all segments overflowing an unsigned long, which I guess is possible. 
+> But if we care about that we should handle it in the next statement:
 >
-> Device mapper doesn't impose any limit for in-flight bios.
+>> +		total_segments += image->segment[i].memsz;
+> Should this be 
+>
+> 		total_pages += PAGE_COUNT(image->segment[i].memsz);
+  ok
+> ?  I think "yes", if the segments are allocated separately and "no" if
+> they are all allocated in a big blob.
+   There is a possible that  most of segments size will exceed half of  the real memory.
 
-I would suggest that it probably should. At least it should
-"set_wb_congested()" when the number of in-flight bios reaches some
-arbitrary threshold.
+  if (PAGE_COUNT(image->segment[i].memsz) > totalram_pages / 2
+	|| total_pages > totalram_pages / 2)
+  I guess that it is ok , we should bail out timely when it happens to the condition.
+  
+  is right ?
 
-The write-back throttling needs this to get an estimate of how fast the
-backing device is, so it can share the dirty_threshold space fairly
-among the different backing devices.
+ your mean that above condition is no need. In the end, we check the overflow just one time.
+  or I misunderstand.
 
-I added an arbitrary limit to raid1 back in 2011 (34db0cd60f8a1f)
-because the lack of a limit was causing problems.
-Specifically the write queue would get so long that ext3 would block for
-an extended period when trying to flush a transaction, and that blocked
-lots of other things, like atime updates.
+> And it is after this statement that we should check for arithmetic
+> overflow.
+>
+>> +	}
+>> +
+>> +	if (PAGE_COUNT(total_segments) > totalram_pages / 2)
+>> +		return result;
+>> +
+>
+> .
+>
 
-Maybe there have been other fixes since then to other parts of the
-puzzle, but the congestion tracking still seems to be an important part
-of the picture and I think it would be best if every bdi would admit to
-being congested well before it has consumed a significant fraction of
-memory in its output queue.
-
-> I've made some patches that limit in-flight bios for device mapper in
-> the past, but there were not integrated into upstream.
-
-I second the motion to resurrect these.
-
-Thanks,
-NeilBrown
-
---=-=-=
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQIcBAEBCAAGBQJXmDJtAAoJEDnsnt1WYoG5nOgP/0XJg515n6zK4s9J6ZFRmfdZ
-cn+o3q+38/NGlnXvKa+YRml4a/M4gVT98bD7XtQhg6LxtEI6Gydj4H+raSxJ7qAN
-KLDmouzZBQ95F8myGjPVflprRmfReuJHxmCY2qZWnRi78Amb+TisSh1WavZGZocd
-xAEShMDPQ/UAO2R77fICqD5x8OPIK7D9p7IJXn4/Yb1GPW9aFTOH2OpYcI4BrKfu
-qjI3mlEqLrtoI2YA0KW+BsZIn0AO6lNDBemkFyqmp5P9IXEa49+o7C89IZLon5u7
-/wGwsSVkTFojiluc+vsIkQHTkSBJuFNRkIHe/FwKEVM6lzi7m5m/tNEOjQMRArUR
-EoQhq7BEwlUsJSmkY2uarQz68raYYkVksnvnqUYn75GNFQA2/gGuZ2Lzlw8TPb3A
-a6K+fGVJCKwm0OLXcSuemG2fUYwb52EdpX/IdlUeNWH08Dj04T6XY07bE3cFgcK1
-HQ8hWzWAFNgruD/BvsmNhdHvfW8c1dJFiceBSZN8UIXCNpRpqNXG/rW7YmByOqP/
-UaZ9ziTcXsj6w0hrk+Xo8l5jWsCaeH4orHD4opIEgT4JDjLvYARFdv9FY/bnW6V5
-XID7b9Vgj6OJh7GGVkgVmxSiuUhnl9VCd9CyRDYmjb8BsiqIICIPA2o7SYlFy3OA
-/IQviZ0iWlBWtHqL5Sjp
-=I237
------END PGP SIGNATURE-----
---=-=-=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
