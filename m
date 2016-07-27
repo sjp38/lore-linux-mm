@@ -1,103 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CED586B025F
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 09:42:53 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id pp5so540242pac.3
-        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 06:42:53 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTP id er10si6537272pac.38.2016.07.27.06.42.47
-        for <linux-mm@kvack.org>;
-        Wed, 27 Jul 2016 06:42:52 -0700 (PDT)
-From: zhongjiang <zhongjiang@huawei.com>
-Subject: [PATCH v2] kexec: add restriction on kexec_load() segment sizes
-Date: Wed, 27 Jul 2016 21:17:54 +0800
-Message-ID: <1469625474-53904-1-git-send-email-zhongjiang@huawei.com>
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EFAB6B025F
+	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 10:09:43 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id c126so2992462ith.3
+        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 07:09:43 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v68si27646967itd.27.2016.07.27.07.09.42
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Jul 2016 07:09:42 -0700 (PDT)
+Date: Wed, 27 Jul 2016 16:09:38 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCHv1, RFC 00/33] ext4: support of huge pages
+Message-ID: <20160727140938.lsvn6c7pwbodkeio@redhat.com>
+References: <1469493335-3622-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <20160726172938.GA9284@thunk.org>
+ <20160726191212.GA11776@node.shutemov.name>
+ <20160727091723.GG6860@quack2.suse.cz>
+ <20160727103335.GE11776@node.shutemov.name>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160727103335.GE11776@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, ebiederm@xmission.com
-Cc: linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Jan Kara <jack@suse.cz>, Theodore Ts'o <tytso@mit.edu>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org
 
-From: zhong jiang <zhongjiang@huawei.com>
+Hello,
 
-I hit the following issue when run trinity in my system.  The kernel is
-3.4 version, but mainline has the same issue.
+On Wed, Jul 27, 2016 at 01:33:35PM +0300, Kirill A. Shutemov wrote:
+> I guess you can get work 64k blocks with 4k pages if you *always* allocate
+> order-4 pages for page cache of the filesystem. But I don't think it's
+> sustainable. It's significant pressure on buddy allocator and compaction.
 
-The root cause is that the segment size is too large so the kerenl spends
-too long trying to allocate a page.  Other cases will block until the test
-case quits.  Also, OOM conditions will occur.
+Agreed.
 
-Call Trace:
- [<ffffffff81106eac>] __alloc_pages_nodemask+0x14c/0x8f0
- [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
- [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
- [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
- [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
- [<ffffffff8124c2be>] ? trace_hardirqs_on_thunk+0x3a/0x3c
- [<ffffffff8113e5ef>] alloc_pages_current+0xaf/0x120
- [<ffffffff810a0da0>] kimage_alloc_pages+0x10/0x60
- [<ffffffff810a15ad>] kimage_alloc_control_pages+0x5d/0x270
- [<ffffffff81027e85>] machine_kexec_prepare+0xe5/0x6c0
- [<ffffffff810a0d52>] ? kimage_free_page_list+0x52/0x70
- [<ffffffff810a1921>] sys_kexec_load+0x141/0x600
- [<ffffffff8115e6b0>] ? vfs_write+0x100/0x180
- [<ffffffff8145fbd9>] system_call_fastpath+0x16/0x1b
+To guarantee compaction to succeed for a certain percentage of the RAM
+kernelcore= would need to be used, but the bigger the movable zone is,
+the bigger the imbalance will be, because the memory used by the
+kernel cannot use the RAM that is in the movable zone. If the movable
+zone is too big, early OOM failures may materialize where the kernel
+hits OOM despite there's plenty of free memory in the movable zone.
+So it's not ideal.
 
-The patch changes sanity_check_segment_list() to verify that the usage by
-all segments does not exceed half of memory.
+> I guess the right approach would a mechanism to scatter one block to
+> multiple order-0 pages. At least for fallback.
 
-Suggested-by: Eric W. Biederman <ebiederm@xmission.com>
-Signed-off-by: zhong jiang <zhongjiang@huawei.com>
----
- kernel/kexec_core.c | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+That would be ideal to avoid having to mess with kernelcore=, because
+no matter what direct compaction does (and current direction
+compaction defaults wouldn't be aggressive enough anyway), without
+kernelcore= the THP (or order4) allocation can fail at times.
 
-diff --git a/kernel/kexec_core.c b/kernel/kexec_core.c
-index 56b3ed0..33d2e3f 100644
---- a/kernel/kexec_core.c
-+++ b/kernel/kexec_core.c
-@@ -140,6 +140,7 @@ int kexec_should_crash(struct task_struct *p)
-  * allocating pages whose destination address we do not care about.
-  */
- #define KIMAGE_NO_DEST (-1UL)
-+#define PAGE_COUNT(x) (((x) + PAGE_SIZE - 1) >> PAGE_SHIFT)
- 
- static struct page *kimage_alloc_page(struct kimage *image,
- 				       gfp_t gfp_mask,
-@@ -149,6 +150,7 @@ int sanity_check_segment_list(struct kimage *image)
- {
- 	int result, i;
- 	unsigned long nr_segments = image->nr_segments;
-+	unsigned long total_pages = 0;
- 
- 	/*
- 	 * Verify we have good destination addresses.  The caller is
-@@ -210,6 +212,22 @@ int sanity_check_segment_list(struct kimage *image)
- 	}
- 
-+	/*
-+	 * Verify that no segment is larger than half of memory.
-+	 * If a segment from userspace is too large, a large amount
-+	 * of time will be wasted allocating pages, which can cause
-+	 * * a soft lockup.
-+	 */
-+	for (i = 0; i < nr_segments; i++) {
-+		if (PAGE_COUNT(image->segment[i].memsz) > totalram_pages / 2)
-+			return result;
-+
-+		total_pages += PAGE_COUNT(image->segment[i].memsz);
-+	}
-+
-+	if (total_pages > totalram_pages / 2)
-+		return result;
-+
-	/*
- 	 * Verify we have good destination addresses.  Normally
- 	 * the caller is responsible for making certain we don't
- 	 * attempt to load the new image into invalid or reserved
--- 
-1.8.3.1
+THP always requires a fallback so that a compaction failure isn't
+fatal and it can actually be fixed up later by khugepaged as more free
+memory becomes available at runtime.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
