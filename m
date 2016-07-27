@@ -1,48 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 24AA26B0253
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 12:40:59 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id ca5so1986403pac.0
-        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 09:40:59 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id xq3si7081788pac.194.2016.07.27.09.40.56
-        for <linux-mm@kvack.org>;
-        Wed, 27 Jul 2016 09:40:58 -0700 (PDT)
-Subject: Re: [PATCH v2 repost 6/7] mm: add the related functions to get free
- page info
-References: <1469582616-5729-1-git-send-email-liang.z.li@intel.com>
- <1469582616-5729-7-git-send-email-liang.z.li@intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <5798E418.7080608@intel.com>
-Date: Wed, 27 Jul 2016 09:40:56 -0700
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BEC86B0253
+	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 12:44:01 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id w207so2609075oiw.1
+        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 09:44:01 -0700 (PDT)
+Received: from mail-oi0-x241.google.com (mail-oi0-x241.google.com. [2607:f8b0:4003:c06::241])
+        by mx.google.com with ESMTPS id d28si6109917otd.269.2016.07.27.09.44.00
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Jul 2016 09:44:00 -0700 (PDT)
+Received: by mail-oi0-x241.google.com with SMTP id l9so1832845oih.0
+        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 09:44:00 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1469582616-5729-7-git-send-email-liang.z.li@intel.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1650204.9z6KOJWgNh@storm>
+References: <bug-64121-27@https.bugzilla.kernel.org/> <b4aff3a2-cc22-c68c-cafc-96db332f86c3@intra2net.com>
+ <b3219832-110d-2b74-5ba9-694ab30589f0@suse.cz> <1650204.9z6KOJWgNh@storm>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 27 Jul 2016 09:44:00 -0700
+Message-ID: <CA+55aFw-g0T6c3Oza8UDssdCiEhMQZHDixsBqCXU4funLsumFg@mail.gmail.com>
+Subject: Re: Re: [Bug 64121] New: [BISECTED] "mm" performance regression
+ updating from 3.2 to 3.3
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Liang Li <liang.z.li@intel.com>, linux-kernel@vger.kernel.org
-Cc: virtualization@lists.linux-foundation.org, linux-mm@kvack.org, virtio-dev@lists.oasis-open.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, dgilbert@redhat.com, quintela@redhat.com, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, "Michael S. Tsirkin" <mst@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Amit Shah <amit.shah@redhat.com>
+To: Thomas Jarosch <thomas.jarosch@intra2net.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm <linux-mm@kvack.org>
 
-On 07/26/2016 06:23 PM, Liang Li wrote:
-> +	for_each_migratetype_order(order, t) {
-> +		list_for_each(curr, &zone->free_area[order].free_list[t]) {
-> +			pfn = page_to_pfn(list_entry(curr, struct page, lru));
-> +			if (pfn >= start_pfn && pfn <= end_pfn) {
-> +				page_num = 1UL << order;
-> +				if (pfn + page_num > end_pfn)
-> +					page_num = end_pfn - pfn;
-> +				bitmap_set(bitmap, pfn - start_pfn, page_num);
-> +			}
-> +		}
-> +	}
+On Wed, Jul 27, 2016 at 2:18 AM, Thomas Jarosch
+<thomas.jarosch@intra2net.com> wrote:
+>
+> Yesterday another busy mail server showed the same problem during backup
+> creation. This time I knew about slabtop and could see that the
+> ext4_inode_cache occupied about 393MB of the 776MB total low memory.
 
-Nit:  The 'page_num' nomenclature really confused me here.  It is the
-number of bits being set in the bitmap.  Seems like calling it nr_pages
-or num_pages would be more appropriate.
+Honestly, we're never going to really fix the problem with low memory
+on 32-bit kernels. PAE is a horrible hardware hack, and it was always
+very fragile. It's only going to get more fragile as fewer and fewer
+people are running 32-bit environments in any big way.
 
-Isn't this bitmap out of date by the time it's send up to the
-hypervisor?  Is there something that makes the inaccuracy OK here?
+Quite frankly, 32GB of RAM on a 32-bit kernel is so crazy as to be
+ludicrous, and nobody sane will support that. Run 32-bit user space by
+all means, but the kernel needs to be 64-bit if you have more than 8GB
+of RAM.
+
+Realistically, PAE is "workable" up to approximately 4GB of physical
+RAM, where the exact limit depends on your workload.
+
+So if the bulk of your memory use is just user-space processes, then
+you can more comfortably run with more memory (so 8GB or even 16GB of
+RAM might work quite well).
+
+And as mentioned, things are getting worse, and not better. We cared
+much more deeply about PAE back in the 2.x timeframe. Back then, it
+was a primary target, and you would find people who cared. These days,
+it simply isn't. These days, the technical solution to PAE literally
+is "just run a 64-bit kernel".
+
+                   Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
