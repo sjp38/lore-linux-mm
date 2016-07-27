@@ -1,65 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DA5DB6B025F
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 05:17:27 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id 1so12465559wmz.2
-        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 02:17:27 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f3si6489228wma.80.2016.07.27.02.17.26
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 944756B0261
+	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 05:18:41 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id p85so10469586lfg.3
+        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 02:18:41 -0700 (PDT)
+Received: from rp02.intra2net.com (rp02.intra2net.com. [62.75.181.28])
+        by mx.google.com with ESMTPS id k6si5966589wjy.153.2016.07.27.02.18.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 27 Jul 2016 02:17:26 -0700 (PDT)
-Date: Wed, 27 Jul 2016 11:17:23 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCHv1, RFC 00/33] ext4: support of huge pages
-Message-ID: <20160727091723.GG6860@quack2.suse.cz>
-References: <1469493335-3622-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20160726172938.GA9284@thunk.org>
- <20160726191212.GA11776@node.shutemov.name>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Jul 2016 02:18:39 -0700 (PDT)
+From: Thomas Jarosch <thomas.jarosch@intra2net.com>
+Subject: Re: Re: [Bug 64121] New: [BISECTED] "mm" performance regression updating from 3.2 to 3.3
+Date: Wed, 27 Jul 2016 11:18:36 +0200
+Message-ID: <1650204.9z6KOJWgNh@storm>
+In-Reply-To: <b3219832-110d-2b74-5ba9-694ab30589f0@suse.cz>
+References: <bug-64121-27@https.bugzilla.kernel.org/> <b4aff3a2-cc22-c68c-cafc-96db332f86c3@intra2net.com> <b3219832-110d-2b74-5ba9-694ab30589f0@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160726191212.GA11776@node.shutemov.name>
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Theodore Ts'o <tytso@mit.edu>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
 
-On Tue 26-07-16 22:12:12, Kirill A. Shutemov wrote:
-> On Tue, Jul 26, 2016 at 01:29:38PM -0400, Theodore Ts'o wrote:
-> > On Tue, Jul 26, 2016 at 03:35:02AM +0300, Kirill A. Shutemov wrote:
-> > > Here's the first version of my patchset which intended to bring huge pages
-> > > to ext4. It's not yet ready for applying or serious use, but good enough
-> > > to show the approach.
-> > 
-> > Thanks.  The major issues I noticed when doing a quick scan of the
-> > patches you've already mentioned here.  I'll try to take a closer look
-> > in the next week or so when I have time.
+On Thursday, 21. July 2016 16:02:06 Vlastimil Babka wrote:
+> > recently we've updated our production mail server from 3.14.69
+> > to 3.14.73 and it worked fine for a few days. When the box is really
+> > busy (=incoming malware via email), the I/O speed drops to crawl,
 > 
-> Thanks.
-> 
-> > One random question --- in the huge=always approach, how much
-> > additional work would be needed to support file systems with a 64k
-> > block size on a system with 4k pages?
-> 
-> I think it's totally different story.
-> 
-> Here I have block size smaller than page size and it's not new to the
-> filesystem -- similar to 1k block size with 4k page size. So I was able to
-> re-use most of infrastructure to handle the situation.
-> 
-> Block size bigger than page size is backward task. I don't think I know
-> enough to understand how hard it would be. I guess not easy. :)
+> I don't see anything either, might be some change e.g. under fs/ though.
+> How about git bisect?
 
-I think Ted wanted to ask: When you always have huge pages in page cache,
-block size of 64k is smaller than the page size of the page cache so there
-are chances it could work. Or is there anything which still exposes the
-fact that actual pages are 4k even in huge=always case?
+One day later I failed to trigger it, so no easy git bisect.
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Yesterday another busy mail server showed the same problem during backup 
+creation. This time I knew about slabtop and could see that the 
+ext4_inode_cache occupied about 393MB of the 776MB total low memory.
+Write speed was down to 25 MB/s.
+
+"sysctl -w vm.drop_caches=3" cleared the inode cache
+and the write speed was back to 300 MB/s.
+
+It might be related to memory fragmentation of low memory due to the 
+inode cache, the mail server has over 1.400.000 millions files.
+
+I suspect the problem is unrelated to 3.14.73 per se, it seems to trigger 
+depending how busy the machine is and the memory layout.
+
+A 64 bit kernel (even with a 32 bit userspace) is the proper solution here.
+Still that would mean to deprecate working 32 bit only boxes.
+
+Cheers,
+Thomas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
