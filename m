@@ -1,154 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 22DE56B0260
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 10:52:31 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 63so4357686pfx.0
-        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 07:52:31 -0700 (PDT)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id w10si6753148pag.138.2016.07.27.07.52.30
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D75956B025F
+	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 10:57:49 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 1so1784566wmz.2
+        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 07:57:49 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id ay2si7516073wjc.89.2016.07.27.07.57.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jul 2016 07:52:30 -0700 (PDT)
-Received: by mail-pf0-x242.google.com with SMTP id i6so1985030pfe.0
-        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 07:52:30 -0700 (PDT)
-Date: Wed, 27 Jul 2016 10:51:03 -0400
-From: Janani Ravichandran <janani.rvchndrn@gmail.com>
-Subject: [PATCH 2/2] mm: compaction.c: Add/Modify direct compaction
- tracepoints
-Message-ID: <7d2c2beef96e76cb01a21eee85ba5611bceb4307.1469629027.git.janani.rvchndrn@gmail.com>
-References: <cover.1469629027.git.janani.rvchndrn@gmail.com>
+        Wed, 27 Jul 2016 07:57:48 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id o80so6873211wme.0
+        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 07:57:48 -0700 (PDT)
+Date: Wed, 27 Jul 2016 16:57:46 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PowerPC] Kernel OOPS while compiling LTP test suite on linus
+ mainline
+Message-ID: <20160727145746.GA21891@dhcp22.suse.cz>
+References: <2a9abff6-7820-a95b-0de3-8e6723707cb6@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <cover.1469629027.git.janani.rvchndrn@gmail.com>
+In-Reply-To: <2a9abff6-7820-a95b-0de3-8e6723707cb6@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: riel@surriel.com, akpm@linux-foundation.org, hannes@compxchg.org, vdavydov@virtuozzo.com, mhocko@suse.com, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, bywxiaobai@163.com, rostedt@goodmis.org
+To: Abdul Haleem <abdhalee@linux.vnet.ibm.com>
+Cc: linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, aneesh.kumar@linux.vnet.ibm.com, mpe@ellerman.id.au, linux-mm@kvack.org
 
-Add zone information to an existing tracepoint in compact_zone(). Also,
-add a new tracepoint at the end of the compaction code so that latency 
-information can be derived.
+[CC linux-mm]
 
-Signed-off-by: Janani Ravichandran <janani.rvchndrn@gmail.com>
----
- include/trace/events/compaction.h | 38 +++++++++++++++++++++++++++++++++-----
- mm/compaction.c                   |  6 ++++--
- 2 files changed, 37 insertions(+), 7 deletions(-)
+On Wed 27-07-16 16:45:35, Abdul Haleem wrote:
+> Hi,
+> 
+> Kernel OOPS messages were seen while compiling linux test project (LTP) source on 4.7.0-rc5 mainline.
+> 
+> Kernel config : pseries_le_defconfig
+> Machine Type  : PowerVM LPAR
+> Machine hardware : LPAR uses 16 vCPUs, and 29G memory
+> 
+> trace messages:
+> *15:34:57* [  862.548866] Unable to handle kernel paging request for data at address 0x00000000
+> *15:34:57* [  862.548904] Faulting instruction address: 0xc000000000260900
+> *15:34:57* [  862.548911] Oops: Kernel access of bad area, sig: 11 [#1]
+> *15:34:57* [  862.548917] SMP NR_CPUS=2048 NUMA pSeries
+> *15:34:57* [  862.548924] Modules linked in: rtc_generic(E) pseries_rng(E) autofs4(E)
+> *15:34:57* [  862.548938] CPU: 0 PID: 129 Comm: kswapd2 Tainted: G            E   4.7.0-rc5-autotest #1
+> *15:34:57* [  862.548946] task: c0000007766a2600 ti: c000000776764000 task.ti: c000000776764000
+> *15:34:57* [  862.548953] NIP: c000000000260900 LR: c00000000026452c CTR: 0000000000000000
+> *15:34:57* [  862.548961] REGS: c000000776767830 TRAP: 0300   Tainted: G            E    (4.7.0-rc5-autotest)
+> *15:34:57* [  862.548968] MSR: 800000010280b033 <SF,VEC,VSX,EE,FP,ME,IR,DR,RI,LE,TM[E]>  CR: 24000222  XER: 20000001
+> *15:34:57* [  862.548996] CFAR: c000000000008468 DAR: 0000000000000000 DSISR: 40000000 SOFTE: 0
+> *15:34:57* GPR00: c00000000026452c c000000776767ab0 c0000000013ac100 c00000077ff54200
+> *15:34:57* GPR04: 0000000000000000 c000000776767ba0 0000000000000001 c00000000151c100
+> *15:34:57* GPR08: 0000000000000000 00000000000b4057 0000000080000000 c00000071664b7a0
+> *15:34:57* GPR12: 0000000000000000 c00000000e800000 0000000000000001 f0000000015dc000
+> *15:34:57* GPR16: c00000077ff54700 0000000000000000 0000000000000000 c00000077ff54700
+> *15:34:57* GPR20: 0000000000000001 0000000000000100 0000000000000200 c00000077ff54200
+> *15:34:57* GPR24: c000000776767ba0 0000000000000020 0000000000000000 0000000000000001
+> *15:34:57* GPR28: 0000000000000010 0000000000000000 c000000776767ba0 f0000000015dc020
+> *15:34:57* [  862.549094] NIP [c000000000260900] move_active_pages_to_lru.isra.16+0xa0/0x380
+> *15:34:57* [  862.549102] LR [c00000000026452c] shrink_active_list+0x2fc/0x510
 
-diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
-index 36e2d6f..4d86769 100644
---- a/include/trace/events/compaction.h
-+++ b/include/trace/events/compaction.h
-@@ -158,12 +158,15 @@ TRACE_EVENT(mm_compaction_migratepages,
- );
- 
- TRACE_EVENT(mm_compaction_begin,
--	TP_PROTO(unsigned long zone_start, unsigned long migrate_pfn,
--		unsigned long free_pfn, unsigned long zone_end, bool sync),
-+	TP_PROTO(struct zone *zone, unsigned long zone_start,
-+		unsigned long migrate_pfn, unsigned long free_pfn,
-+		unsigned long zone_end, bool sync),
- 
--	TP_ARGS(zone_start, migrate_pfn, free_pfn, zone_end, sync),
-+	TP_ARGS(zone, zone_start, migrate_pfn, free_pfn, zone_end, sync),
- 
- 	TP_STRUCT__entry(
-+		__field(int, nid)
-+		__field(int, zid)
- 		__field(unsigned long, zone_start)
- 		__field(unsigned long, migrate_pfn)
- 		__field(unsigned long, free_pfn)
-@@ -172,6 +175,8 @@ TRACE_EVENT(mm_compaction_begin,
- 	),
- 
- 	TP_fast_assign(
-+		__entry->nid = zone_to_nid(zone);
-+		__entry->zid = zone_idx(zone);
- 		__entry->zone_start = zone_start;
- 		__entry->migrate_pfn = migrate_pfn;
- 		__entry->free_pfn = free_pfn;
-@@ -179,7 +184,9 @@ TRACE_EVENT(mm_compaction_begin,
- 		__entry->sync = sync;
- 	),
- 
--	TP_printk("zone_start=0x%lx migrate_pfn=0x%lx free_pfn=0x%lx zone_end=0x%lx, mode=%s",
-+	TP_printk("nid=%d zid=%d zone_start=0x%lx migrate_pfn=0x%lx free_pfn=0x%lx zone_end=0x%lx, mode=%s",
-+		__entry->nid,
-+		__entry->zid,
- 		__entry->zone_start,
- 		__entry->migrate_pfn,
- 		__entry->free_pfn,
-@@ -221,7 +228,7 @@ TRACE_EVENT(mm_compaction_end,
- 		__print_symbolic(__entry->status, COMPACTION_STATUS))
- );
- 
--TRACE_EVENT(mm_compaction_try_to_compact_pages,
-+TRACE_EVENT(mm_compaction_try_to_compact_pages_begin,
- 
- 	TP_PROTO(
- 		int order,
-@@ -248,6 +255,27 @@ TRACE_EVENT(mm_compaction_try_to_compact_pages,
- 		(int)__entry->mode)
- );
- 
-+TRACE_EVENT(mm_compaction_try_to_compact_pages_end,
-+
-+	TP_PROTO(int rc, int contended),
-+
-+	TP_ARGS(rc, contended),
-+
-+	TP_STRUCT__entry(
-+		__field(int, rc)
-+		__field(int, contended)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->rc = rc;
-+		__entry->contended = contended;
-+	),
-+
-+	TP_printk("rc=%s contended=%d",
-+		__print_symbolic(__entry->rc, COMPACTION_STATUS),
-+		__entry->contended)
-+);
-+
- DECLARE_EVENT_CLASS(mm_compaction_suitable_template,
- 
- 	TP_PROTO(struct zone *zone,
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 7bc0477..dddd7c7 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1453,7 +1453,7 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
- 
- 	cc->last_migrated_pfn = 0;
- 
--	trace_mm_compaction_begin(start_pfn, cc->migrate_pfn,
-+	trace_mm_compaction_begin(zone, start_pfn, cc->migrate_pfn,
- 				cc->free_pfn, end_pfn, sync);
- 
- 	migrate_prep_local();
-@@ -1625,7 +1625,7 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
- 	if (!order || !may_enter_fs || !may_perform_io)
- 		return COMPACT_SKIPPED;
- 
--	trace_mm_compaction_try_to_compact_pages(order, gfp_mask, mode);
-+	trace_mm_compaction_try_to_compact_pages_begin(order, gfp_mask, mode);
- 
- 	/* Compact each zone in the list */
- 	for_each_zone_zonelist_nodemask(zone, z, ac->zonelist, ac->high_zoneidx,
-@@ -1711,6 +1711,8 @@ break_loop:
- 	if (rc > COMPACT_INACTIVE && all_zones_contended)
- 		*contended = COMPACT_CONTENDED_LOCK;
- 
-+	trace_mm_compaction_try_to_compact_pages_end(rc, *contended);
-+
- 	return rc;
- }
- 
+Could you map this to the kernel source line please?
+
+> *15:34:57* [  862.549108] Call Trace:
+> *15:34:57* [  862.549112] [c000000776767ab0] [f0000000015dc000] 0xf0000000015dc000 (unreliable)
+> *15:34:57* [  862.549122] [c000000776767b60] [c00000000026452c] shrink_active_list+0x2fc/0x510
+> *15:34:57* [  862.549131] [c000000776767c50] [c0000000002665d4] kswapd+0x434/0xa70
+> *15:34:57* [  862.549139] [c000000776767d80] [c0000000000f1b50] kthread+0x110/0x130
+> *15:34:57* [  862.549148] [c000000776767e30] [c0000000000095f0] ret_from_kernel_thread+0x5c/0x6c
+> *15:34:57* [  862.549155] Instruction dump:
+> *15:34:57* [  862.549161] 60000000 3b200020 3a800001 7b7c26e4 3aa00100 3ac00200 3a400000 3a770500
+> *15:34:57* [  862.549174] 3a200000 60000000 60000000 60420000 <e93d0000> 7fbd4840 419e01b8 ebfd0008
+> *15:34:57* [  862.549193] ---[ end trace fcc50906d9164c56 ]---
+> *15:34:57* [  862.550562]
+> *15:35:18* [  883.551577] INFO: rcu_sched self-detected stall on CPU
+> *15:35:18* [  883.551578] INFO: rcu_sched self-detected stall on CPU
+> *15:35:18* [  883.551588] 	2-...: (5249 ticks this GP) idle=cc5/140000000000001/0 softirq=50260/50260 fqs=5249
+> *15:35:18* [  883.551591] 	 (t=5250 jiffies g=48365 c=48364 q=182)
+> 
+> Regard's
+> Abdul
+
 -- 
-2.7.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
