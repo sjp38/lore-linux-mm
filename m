@@ -1,125 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7225A6B0260
-	for <linux-mm@kvack.org>; Thu, 28 Jul 2016 03:51:05 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id h186so40712222pfg.2
-        for <linux-mm@kvack.org>; Thu, 28 Jul 2016 00:51:05 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id to7si11023121pac.282.2016.07.28.00.51.04
-        for <linux-mm@kvack.org>;
-        Thu, 28 Jul 2016 00:51:04 -0700 (PDT)
-From: "Li, Liang Z" <liang.z.li@intel.com>
-Subject: RE: [PATCH v2 repost 7/7] virtio-balloon: tell host vm's free page
- info
-Date: Thu, 28 Jul 2016 07:50:52 +0000
-Message-ID: <F2CBF3009FA73547804AE4C663CAB28E042141EE@shsmsx102.ccr.corp.intel.com>
-References: <1469582616-5729-1-git-send-email-liang.z.li@intel.com>
- <1469582616-5729-8-git-send-email-liang.z.li@intel.com>
- <20160728004606-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20160728004606-mutt-send-email-mst@kernel.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B43D1828E1
+	for <linux-mm@kvack.org>; Thu, 28 Jul 2016 03:51:20 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id g14so44113846ioj.3
+        for <linux-mm@kvack.org>; Thu, 28 Jul 2016 00:51:20 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id 1si8046356otc.292.2016.07.28.00.51.18
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 28 Jul 2016 00:51:20 -0700 (PDT)
+Message-ID: <5799B741.8090506@huawei.com>
+Date: Thu, 28 Jul 2016 15:41:53 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
+Subject: Re: [RFC] can we use vmalloc to alloc thread stack if compaction
+ failed
+References: <5799AF6A.2070507@huawei.com> <20160728072028.GC31860@dhcp22.suse.cz>
+In-Reply-To: <20160728072028.GC31860@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "quintela@redhat.com" <quintela@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil
- Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Paolo
- Bonzini <pbonzini@redhat.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Amit Shah <amit.shah@redhat.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andy Lutomirski <luto@amacapital.net>, Yisheng Xie <xieyisheng1@huawei.com>
 
-> >  }
-> >
-> > +static void update_free_pages_stats(struct virtio_balloon *vb,
->=20
-> why _stats?
+On 2016/7/28 15:20, Michal Hocko wrote:
 
-Will change.
+> On Thu 28-07-16 15:08:26, Xishi Qiu wrote:
+>> Usually THREAD_SIZE_ORDER is 2, it means we need to alloc 16kb continuous
+>> physical memory during fork a new process.
+>>
+>> If the system's memory is very small, especially the smart phone, maybe there
+>> is only 1G memory. So the free memory is very small and compaction is not
+>> always success in slowpath(__alloc_pages_slowpath), then alloc thread stack
+>> may be failed for memory fragment.
+> 
+> Well, with the current implementation of the page allocator those
+> requests will not fail in most cases. The oom killer would be invoked in
+> order to free up some memory.
+> 
 
-> > +	max_pfn =3D get_max_pfn();
-> > +	mutex_lock(&vb->balloon_lock);
-> > +	while (pfn < max_pfn) {
-> > +		memset(vb->page_bitmap, 0, vb->bmap_len);
-> > +		ret =3D get_free_pages(pfn, pfn + vb->pfn_limit,
-> > +			vb->page_bitmap, vb->bmap_len * BITS_PER_BYTE);
-> > +		hdr->cmd =3D cpu_to_virtio16(vb->vdev,
-> BALLOON_GET_FREE_PAGES);
-> > +		hdr->page_shift =3D cpu_to_virtio16(vb->vdev, PAGE_SHIFT);
-> > +		hdr->req_id =3D cpu_to_virtio64(vb->vdev, req_id);
-> > +		hdr->start_pfn =3D cpu_to_virtio64(vb->vdev, pfn);
-> > +		bmap_len =3D vb->pfn_limit / BITS_PER_BYTE;
-> > +		if (!ret) {
-> > +			hdr->flag =3D cpu_to_virtio16(vb->vdev,
-> > +
-> 	BALLOON_FLAG_DONE);
-> > +			if (pfn + vb->pfn_limit > max_pfn)
-> > +				bmap_len =3D (max_pfn - pfn) /
-> BITS_PER_BYTE;
-> > +		} else
-> > +			hdr->flag =3D cpu_to_virtio16(vb->vdev,
-> > +
-> 	BALLOON_FLAG_CONT);
-> > +		hdr->bmap_len =3D cpu_to_virtio64(vb->vdev, bmap_len);
-> > +		sg_init_one(&sg_out, hdr,
-> > +			 sizeof(struct balloon_bmap_hdr) + bmap_len);
->=20
-> Wait a second. This adds the same buffer multiple times in a loop.
-> We will overwrite the buffer without waiting for hypervisor to process it=
-.
-> What did I miss?
+Hi Michal,
 
-I am no quite sure about this part, I though the virtqueue_kick(vq) will pr=
-event
-the buffer from overwrite, I realized it's wrong.
+Yes, it success in most cases, but I did have seen this problem in some
+stress-test.
 
-> > +
-> > +		virtqueue_add_outbuf(vq, &sg_out, 1, vb, GFP_KERNEL);
->=20
-> this can fail. you want to maybe make sure vq has enough space before you
-> use it or check error and wait.
->=20
-> > +		virtqueue_kick(vq);
->=20
-> why kick here within loop? wait until done. in fact kick outside lock is =
-better
-> for smp.
+DMA free:470628kB, but alloc 2 order block failed during fork a new process.
+There are so many memory fragments and the large block may be soon taken by
+others after compact because of stress-test.
 
-I will change this part in v3.
+--- dmesg messages ---
+07-13 08:41:51.341 <4>[309805.658142s][pid:1361,cpu5,sManagerService]sManagerService: page allocation failure: order:2, mode:0x2000d1
+07-13 08:41:51.346 <4>[309805.658142s][pid:1361,cpu5,sManagerService]CPU: 5 PID: 1361 Comm: sManagerService Tainted: G        W       4.1.18-g09f547b #1
+07-13 08:41:51.347 <4>[309805.658142s][pid:1361,cpu5,sManagerService]TGID: 981 Comm: system_server
+07-13 08:41:51.347 <4>[309805.658172s][pid:1361,cpu5,sManagerService]Hardware name: hi3650 (DT)
+07-13 08:41:51.347 <0>[309805.658172s][pid:1361,cpu5,sManagerService]Call trace:
+07-13 08:41:51.347 <4>[309805.658203s][pid:1361,cpu5,sManagerService][<ffffffc00008a0a4>] dump_backtrace+0x0/0x150
+07-13 08:41:51.347 <4>[309805.658203s][pid:1361,cpu5,sManagerService][<ffffffc00008a214>] show_stack+0x20/0x28
+07-13 08:41:51.347 <4>[309805.658203s][pid:1361,cpu5,sManagerService][<ffffffc000fc4034>] dump_stack+0x84/0xa8
+07-13 08:41:51.347 <4>[309805.658203s][pid:1361,cpu5,sManagerService][<ffffffc00018af54>] warn_alloc_failed+0x10c/0x164
+07-13 08:41:51.347 <4>[309805.658233s][pid:1361,cpu5,sManagerService][<ffffffc00018e778>] __alloc_pages_nodemask+0x5b4/0x888
+07-13 08:41:51.347 <4>[309805.658233s][pid:1361,cpu5,sManagerService][<ffffffc00018eb84>] alloc_kmem_pages_node+0x44/0x50
+07-13 08:41:51.347 <4>[309805.658233s][pid:1361,cpu5,sManagerService][<ffffffc00009fa78>] copy_process.part.46+0x140/0x15ac
+07-13 08:41:51.347 <4>[309805.658233s][pid:1361,cpu5,sManagerService][<ffffffc0000a10a0>] do_fork+0xe8/0x444
+07-13 08:41:51.347 <4>[309805.658264s][pid:1361,cpu5,sManagerService][<ffffffc0000a14e8>] SyS_clone+0x3c/0x48
+07-13 08:41:51.347 <4>[309805.658264s][pid:1361,cpu5,sManagerService]Mem-Info:
+07-13 08:41:51.347 <4>[309805.658264s][pid:1361,cpu5,sManagerService]active_anon:491074 inactive_anon:118072 isolated_anon:0
+07-13 08:41:51.347 <4>[309805.658264s] active_file:19087 inactive_file:9843 isolated_file:0
+07-13 08:41:51.347 <4>[309805.658264s] unevictable:322 dirty:20 writeback:0 unstable:0
+07-13 08:41:51.347 <4>[309805.658264s] slab_reclaimable:11788 slab_unreclaimable:28068
+07-13 08:41:51.347 <4>[309805.658264s] mapped:20633 shmem:4038 pagetables:10865 bounce:72
+07-13 08:41:51.347 <4>[309805.658264s] free:118678 free_pcp:58 free_cma:0
+07-13 08:41:51.347 <4>[309805.658294s][pid:1361,cpu5,sManagerService]DMA free:470628kB min:6800kB low:29116kB high:30816kB active_anon:1868540kB inactive_anon:376100kB active_file:292kB inactive_file:240kB unevictable:1080kB isolated(anon):0kB isolated(file):0kB present:3446780kB managed:3307056kB mlocked:1080kB dirty:80kB writeback:0kB mapped:7604kB shmem:14380kB slab_reclaimable:47152kB slab_unreclaimable:112268kB kernel_stack:28224kB pagetables:43460kB unstable:0kB bounce:288kB free_pcp:204kB local_pcp:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+07-13 08:41:51.347 <4>[309805.658294s][pid:1361,cpu5,sManagerService]lowmem_reserve[]: 0 415 415
+07-13 08:41:51.347 <4>[309805.658294s][pid:1361,cpu5,sManagerService]Normal free:4084kB min:872kB low:3740kB high:3960kB active_anon:95756kB inactive_anon:96188kB active_file:76056kB inactive_file:39132kB unevictable:208kB isolated(anon):0kB isolated(file):0kB present:524288kB managed:425480kB mlocked:208kB dirty:0kB writeback:0kB mapped:74928kB shmem:1772kB slab_reclaimable:0kB slab_unreclaimable:4kB kernel_stack:0kB pagetables:0kB unstable:0kB bounce:0kB free_pcp:28kB local_pcp:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:0 all_unreclaimable? no
+07-13 08:41:51.347 <4>[309805.658294s][pid:1361,cpu5,sManagerService]lowmem_reserve[]: 0 0 0
+07-13 08:41:51.347 <4>[309805.658325s][pid:1361,cpu5,sManagerService]DMA: 68324*4kB (UEM) 24706*8kB (UER) 2*16kB (U) 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 470976kB
+07-13 08:41:51.347 <4>[309805.658355s][pid:1361,cpu5,sManagerService]Normal: 270*4kB (UMR) 82*8kB (UMR) 48*16kB (MR) 25*32kB (R) 12*64kB (R) 2*128kB (R) 1*256kB (R) 0*512kB 0*1024kB 0*2048kB 0*4096kB = 4584kB
+07-13 08:41:51.347 <4>[309805.658386s][pid:1361,cpu5,sManagerService]38319 total pagecache pages
+07-13 08:41:51.347 <4>[309805.658386s][pid:1361,cpu5,sManagerService]5384 pages in swap cache
+07-13 08:41:51.347 <4>[309805.658386s][pid:1361,cpu5,sManagerService]Swap cache stats: add 628084, delete 622700, find 2187699/2264909
+07-13 08:41:51.347 <4>[309805.658386s][pid:1361,cpu5,sManagerService]Free swap  = 0kB
+07-13 08:41:51.348 <4>[309805.658416s][pid:1361,cpu5,sManagerService]Total swap = 524284kB
+07-13 08:41:51.348 <4>[309805.658416s][pid:1361,cpu5,sManagerService]992767 pages RAM
+07-13 08:41:51.348 <4>[309805.658416s][pid:1361,cpu5,sManagerService]0 pages HighMem/MovableOnly
+07-13 08:41:51.348 <4>[309805.658416s][pid:1361,cpu5,sManagerService]51441 pages reserved
+07-13 08:41:51.348 <4>[309805.658416s][pid:1361,cpu5,sManagerService]8192 pages cma reserved
+07-13 08:41:51.767 <6>[309806.068298s][pid:2247,cpu6,notification-sq][I/sensorhub] shb_release ok
 
->=20
-> > +		pfn +=3D vb->pfn_limit;
-> > +	static const char * const names[] =3D { "inflate", "deflate", "stats"=
-,
-> > +						 "misc" };
-> >  	int err, nvqs;
-> >
-> >  	/*
-> >  	 * We expect two virtqueues: inflate and deflate, and
-> >  	 * optionally stat.
-> >  	 */
-> > -	nvqs =3D virtio_has_feature(vb->vdev,
-> VIRTIO_BALLOON_F_STATS_VQ) ? 3 : 2;
-> > +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_MISC_VQ))
-> > +		nvqs =3D 4;
->=20
-> Does misc vq depend on stats vq feature then? if yes please validate that=
-.
+>> Can we use vmalloc to alloc thread stack if compaction failed in slowpath?
+> 
+> Not yet but Andy is working on this.
+> 
+>> e.g. Use vmalloc as a fallback if alloc_page/kamlloc failed.
+>>
+>> I think the performance may be a little regression, and any other problems?
+>>
+>> Thanks,
+>> Xishi Qiu
+> 
 
-Yes, what's you mean by 'validate' that?
 
->=20
->=20
-> > +	else
-> > +		nvqs =3D virtio_has_feature(vb->vdev,
-> > +					  VIRTIO_BALLOON_F_STATS_VQ) ? 3 :
-> 2;
->=20
-> Replace that ? with else too pls.
-
-Will change.
-
-Thanks!
-Liang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
