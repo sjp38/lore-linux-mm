@@ -1,91 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 105D86B025F
-	for <linux-mm@kvack.org>; Thu, 28 Jul 2016 02:36:27 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id ez1so33391139pab.1
-        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 23:36:27 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id xp2si10825359pab.19.2016.07.27.23.36.26
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EBC26B025F
+	for <linux-mm@kvack.org>; Thu, 28 Jul 2016 02:39:52 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id d65so51165098ith.0
+        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 23:39:52 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id u17si26829060itc.119.2016.07.27.23.39.50
         for <linux-mm@kvack.org>;
-        Wed, 27 Jul 2016 23:36:26 -0700 (PDT)
-From: "Li, Liang Z" <liang.z.li@intel.com>
-Subject: RE: [virtio-dev] Re: [PATCH v2 repost 4/7] virtio-balloon: speed up
- inflate/deflate process
-Date: Thu, 28 Jul 2016 06:36:18 +0000
-Message-ID: <F2CBF3009FA73547804AE4C663CAB28E04214103@shsmsx102.ccr.corp.intel.com>
-References: <1469582616-5729-1-git-send-email-liang.z.li@intel.com>
- <1469582616-5729-5-git-send-email-liang.z.li@intel.com>
- <5798DB49.7030803@intel.com>
- <F2CBF3009FA73547804AE4C663CAB28E04213CCB@shsmsx102.ccr.corp.intel.com>
- <20160728044000-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20160728044000-mutt-send-email-mst@kernel.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Wed, 27 Jul 2016 23:39:51 -0700 (PDT)
+Date: Thu, 28 Jul 2016 15:44:33 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 0/5] Candidate fixes for premature OOM kills with
+ node-lru v2
+Message-ID: <20160728064432.GA28136@js1304-P5Q-DELUXE>
+References: <1469110261-7365-1-git-send-email-mgorman@techsingularity.net>
+ <20160726081129.GB15721@js1304-P5Q-DELUXE>
+ <20160726125050.GP10438@techsingularity.net>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160726125050.GP10438@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: "Hansen, Dave" <dave.hansen@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "quintela@redhat.com" <quintela@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil
- Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Paolo
- Bonzini <pbonzini@redhat.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Amit Shah <amit.shah@redhat.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-> > > This ends up doing a 1MB kmalloc() right?  That seems a _bit_ big.
-> > > How big was the pfn buffer before?
-> >
-> > Yes, it is if the max pfn is more than 32GB.
-> > The size of the pfn buffer use before is 256*4 =3D 1024 Bytes, it's too
-> > small, and it's the main reason for bad performance.
-> > Use the max 1MB kmalloc is a balance between performance and
-> > flexibility, a large page bitmap covers the range of all the memory is
-> > no good for a system with huge amount of memory. If the bitmap is too
-> > small, it means we have to traverse a long list for many times, and it'=
-s bad
-> for performance.
-> >
-> > Thanks!
-> > Liang
->=20
-> There are all your implementation decisions though.
->=20
-> If guest memory is so fragmented that you only have order 0 4k pages, the=
-n
-> allocating a huge 1M contigious chunk is very problematic in and of itsel=
-f.
->=20
+On Tue, Jul 26, 2016 at 01:50:50PM +0100, Mel Gorman wrote:
+> On Tue, Jul 26, 2016 at 05:11:30PM +0900, Joonsoo Kim wrote:
+> > > These patches did not OOM for me on a 2G 32-bit KVM instance while running
+> > > a stress test for an hour. Preliminary tests on a 64-bit system using a
+> > > parallel dd workload did not show anything alarming.
+> > > 
+> > > If an OOM is detected then please post the full OOM message.
+> > 
+> > Before attaching OOM message, I should note that my test case also triggers
+> > OOM in old kernel if there are four parallel file-readers. With node-lru and
+> > patch 1~5, OOM is triggered even if there are one or more parallel file-readers.
+> > With node-lru and patch 1~4, OOM is triggered if there are two or more
+> > parallel file-readers.
+> > 
+> 
+> The key there is that patch 5 allows OOM to be detected quicker. The fork
+> workload exits after some time so it's inherently a race to see if the
+> forked process exits before OOM is triggered or not.
+> 
+> > <SNIP>
+> > Mem-Info:
+> > active_anon:26762 inactive_anon:95 isolated_anon:0
+> >  active_file:42543 inactive_file:347438 isolated_file:0
+> >  unevictable:0 dirty:0 writeback:0 unstable:0
+> >  slab_reclaimable:5476 slab_unreclaimable:23140
+> >  mapped:389534 shmem:95 pagetables:20927 bounce:0
+> >  free:6948 free_pcp:222 free_cma:0
+> > Node 0 active_anon:107048kB inactive_anon:380kB active_file:170008kB inactive_file:1389752kB unevictable:0kB isolated(anon):0kB isolated(file):0kB mapped:1558136kB dirty:0kB writeback:0kB shmem:0kB shmem_$
+> > hp: 0kB shmem_pmdmapped: 0kB anon_thp: 380kB writeback_tmp:0kB unstable:0kB pages_scanned:4697206 all_unreclaimable? yes
+> > Node 0 DMA free:2168kB min:204kB low:252kB high:300kB active_anon:3544kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:15992kB managed:15908kB mlocked:0kB sl$
+> > b_reclaimable:0kB slab_unreclaimable:2684kB kernel_stack:1760kB pagetables:3092kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+> > lowmem_reserve[]: 0 493 493 1955
+> 
+> Zone DMA is unusable
+> 
+> > Node 0 DMA32 free:6508kB min:6492kB low:8112kB high:9732kB active_anon:81264kB inactive_anon:0kB active_file:101204kB inactive_file:228kB unevictable:0kB writepending:0kB present:2080632kB managed:508584k$
+> >  mlocked:0kB slab_reclaimable:21904kB slab_unreclaimable:89876kB kernel_stack:46400kB pagetables:80616kB bounce:0kB free_pcp:544kB local_pcp:120kB free_cma:0kB
+> > lowmem_reserve[]: 0 0 0 1462
+> 
+> Zone DMA32 has reclaimable pages but not very many and they are active. It's
+> at the min watemark. The pgdat is unreclaimable indicating that scans
+> are high which implies that the active file pages are due to genuine
+> activations.
+> 
+> > Node 0 Movable free:19116kB min:19256kB low:24068kB high:28880kB active_anon:22240kB inactive_anon:380kB active_file:68812kB inactive_file:1389688kB unevictable:0kB writepending:0kB present:1535864kB mana$
+> > ed:1500964kB mlocked:0kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB bounce:0kB free_pcp:368kB local_pcp:0kB free_cma:0kB
+> 
+> Zone Movable has reclaimable pages but it's at the min watermark and
+> scanning aggressively.
+> 
+> As the failing allocation can use all allocations, this appears to be close
+> to a genuine OOM case. Whether it survives is down to timing of when OOM
+> is triggered and whether the forked process exits in time or not.
+>
+> To some extent, it could be "addressed" by immediately reclaiming active
+> pages moving to the inactive list at the cost of distorting page age for a
+> workload that is genuinely close to OOM. That is similar to what zone-lru
+> ended up doing -- fast reclaiming young pages from a zone.
 
-The memory is allocated in the probe stage. This will not happen if the dri=
-ver is
- loaded when booting the guest.
+My expectation on my test case is that reclaimers should kick out
+actively used page and make a room for 'fork' because parallel readers
+would work even if reading pages are not cached.
 
-> Most people rarely migrate and do not care how fast that happens.
-> Wasting a large chunk of memory (and it's zeroed for no good reason, so y=
-ou
-> actually request host memory for it) for everyone to speed it up when it
-> does happen is not really an option.
->=20
-If people don't plan to do inflating/deflating, they should not enable the =
-virtio-balloon
-at the beginning, once they decide to use it, the driver should provide bet=
-ter performance
-as much as possible.
+It is sensitive on reclaimers efficiency because parallel readers
+read pages repeatedly and disturb reclaim. I thought that it is a
+good test for node-lru which changes reclaimers efficiency for lower
+zone. However, as you said, this efficiency comes from the cost
+distorting page aging so now I'm not sure if it is a problem that we
+need to consider. Let's skip it?
 
-1MB is a very small portion for a VM with more than 32GB memory and it's th=
-e *worst case*,=20
-for VM with less than 32GB memory, the amount of RAM depends on VM's memory=
- size
-and will be less than 1MB.
+Anyway, thanks for tracking down the problem.
 
-If 1MB is too big, how about 512K, or 256K?  32K seems too small.
 
-Liang
+> 
+> > > Optionally please test without patch 5 if an OOM occurs.
+> > 
+> > Here goes without patch 5.
+> > 
+> 
+> Causing OOM detection to be delayed. Observations on the OOM message
+> without patch 5 are similar.
+> 
+> Do you mind trying the following? In the patch there is a line
+> 
+> scan += list_empty(src) ? total_skipped : total_skipped >> 2;
+> 
+> Try 
+> 
+> scan += list_empty(src) ? total_skipped : total_skipped >> 3;
+> scan += list_empty(src) ? total_skipped : total_skipped >> 4;
+> scan += total_skipped >> 4;
 
-> --
-> MST
->=20
-> ---------------------------------------------------------------------
-> To unsubscribe, e-mail: virtio-dev-unsubscribe@lists.oasis-open.org
-> For additional commands, e-mail: virtio-dev-help@lists.oasis-open.org
+Tested but all result looks like there isn't much difference.
+
+> 
+> Each line slows the rate that OOM is detected but it'll be somewhat
+> specific to your test case as it's relying to fork to exit before OOM is
+> fired.
+
+Okay. I don't think optimizing general code to my specific test case
+is a good idea.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
