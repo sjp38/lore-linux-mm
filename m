@@ -1,95 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F70A6B025F
-	for <linux-mm@kvack.org>; Thu, 28 Jul 2016 01:56:01 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id p85so9299335lfg.3
-        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 22:56:01 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id a64si11751206wmc.86.2016.07.27.22.55.59
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jul 2016 22:56:00 -0700 (PDT)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u6S5naFj010705
-	for <linux-mm@kvack.org>; Thu, 28 Jul 2016 01:55:58 -0400
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 24e5wec9ku-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 28 Jul 2016 01:55:58 -0400
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
-	Thu, 28 Jul 2016 06:55:57 +0100
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (d06relay13.portsmouth.uk.ibm.com [9.149.109.198])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 66FEB1B0804B
-	for <linux-mm@kvack.org>; Thu, 28 Jul 2016 06:57:18 +0100 (BST)
-Received: from d06av08.portsmouth.uk.ibm.com (d06av08.portsmouth.uk.ibm.com [9.149.37.249])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u6S5tobS43385048
-	for <linux-mm@kvack.org>; Thu, 28 Jul 2016 05:55:50 GMT
-Received: from d06av08.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av08.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u6S5tof9017583
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 23:55:50 -0600
-Date: Thu, 28 Jul 2016 07:55:48 +0200
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: Re: [BUG -next] "random: make /dev/urandom scalable for silly
- userspace programs" causes crash
-References: <20160727071400.GA3912@osiris>
- <20160728034601.GC20032@thunk.org>
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 105D86B025F
+	for <linux-mm@kvack.org>; Thu, 28 Jul 2016 02:36:27 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id ez1so33391139pab.1
+        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 23:36:27 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id xp2si10825359pab.19.2016.07.27.23.36.26
+        for <linux-mm@kvack.org>;
+        Wed, 27 Jul 2016 23:36:26 -0700 (PDT)
+From: "Li, Liang Z" <liang.z.li@intel.com>
+Subject: RE: [virtio-dev] Re: [PATCH v2 repost 4/7] virtio-balloon: speed up
+ inflate/deflate process
+Date: Thu, 28 Jul 2016 06:36:18 +0000
+Message-ID: <F2CBF3009FA73547804AE4C663CAB28E04214103@shsmsx102.ccr.corp.intel.com>
+References: <1469582616-5729-1-git-send-email-liang.z.li@intel.com>
+ <1469582616-5729-5-git-send-email-liang.z.li@intel.com>
+ <5798DB49.7030803@intel.com>
+ <F2CBF3009FA73547804AE4C663CAB28E04213CCB@shsmsx102.ccr.corp.intel.com>
+ <20160728044000-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20160728044000-mutt-send-email-mst@kernel.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160728034601.GC20032@thunk.org>
-Message-Id: <20160728055548.GA3942@osiris>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>, linux-next@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: "Hansen, Dave" <dave.hansen@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "quintela@redhat.com" <quintela@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil
+ Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Paolo
+ Bonzini <pbonzini@redhat.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Amit Shah <amit.shah@redhat.com>
 
-On Wed, Jul 27, 2016 at 11:46:01PM -0400, Theodore Ts'o wrote:
-> On Wed, Jul 27, 2016 at 09:14:00AM +0200, Heiko Carstens wrote:
-> > it looks like your patch "random: make /dev/urandom scalable for silly
-> > userspace programs" within linux-next seems to be a bit broken:
-> > 
-> > It causes this allocation failure and subsequent crash on s390 with fake
-> > NUMA enabled
-> 
-> Thanks for reporting this.  This patch fixes things for you, yes?
-> 
->        	   	     	    	       	     	    - Ted
+> > > This ends up doing a 1MB kmalloc() right?  That seems a _bit_ big.
+> > > How big was the pfn buffer before?
+> >
+> > Yes, it is if the max pfn is more than 32GB.
+> > The size of the pfn buffer use before is 256*4 =3D 1024 Bytes, it's too
+> > small, and it's the main reason for bad performance.
+> > Use the max 1MB kmalloc is a balance between performance and
+> > flexibility, a large page bitmap covers the range of all the memory is
+> > no good for a system with huge amount of memory. If the bitmap is too
+> > small, it means we have to traverse a long list for many times, and it'=
+s bad
+> for performance.
+> >
+> > Thanks!
+> > Liang
+>=20
+> There are all your implementation decisions though.
+>=20
+> If guest memory is so fragmented that you only have order 0 4k pages, the=
+n
+> allocating a huge 1M contigious chunk is very problematic in and of itsel=
+f.
+>=20
 
-Yes, it does. It's actually the same what I did to fix this ;)
+The memory is allocated in the probe stage. This will not happen if the dri=
+ver is
+ loaded when booting the guest.
 
-> commit 59b8d4f1f5d26e4ca92172ff6dcd1492cdb39613
-> Author: Theodore Ts'o <tytso@mit.edu>
-> Date:   Wed Jul 27 23:30:25 2016 -0400
-> 
->     random: use for_each_online_node() to iterate over NUMA nodes
->     
->     This fixes a crash on s390 with fake NUMA enabled.
->     
->     Reported-by: Heiko Carstens <heiko.carstens@de.ibm.com>
->     Fixes: 1e7f583af67b ("random: make /dev/urandom scalable for silly userspace programs")
->     Signed-off-by: Theodore Ts'o <tytso@mit.edu>
-> 
-> diff --git a/drivers/char/random.c b/drivers/char/random.c
-> index 8d0af74..7f06224 100644
-> --- a/drivers/char/random.c
-> +++ b/drivers/char/random.c
-> @@ -1668,13 +1668,12 @@ static int rand_initialize(void)
->  #ifdef CONFIG_NUMA
->  	pool = kmalloc(num_nodes * sizeof(void *),
->  		       GFP_KERNEL|__GFP_NOFAIL|__GFP_ZERO);
-> -	for (i=0; i < num_nodes; i++) {
-> +	for_each_online_node(i) {
->  		crng = kmalloc_node(sizeof(struct crng_state),
->  				    GFP_KERNEL | __GFP_NOFAIL, i);
->  		spin_lock_init(&crng->lock);
->  		crng_initialize(crng);
->  		pool[i] = crng;
-> -
->  	}
->  	mb();
->  	crng_node_pool = pool;
-> 
+> Most people rarely migrate and do not care how fast that happens.
+> Wasting a large chunk of memory (and it's zeroed for no good reason, so y=
+ou
+> actually request host memory for it) for everyone to speed it up when it
+> does happen is not really an option.
+>=20
+If people don't plan to do inflating/deflating, they should not enable the =
+virtio-balloon
+at the beginning, once they decide to use it, the driver should provide bet=
+ter performance
+as much as possible.
+
+1MB is a very small portion for a VM with more than 32GB memory and it's th=
+e *worst case*,=20
+for VM with less than 32GB memory, the amount of RAM depends on VM's memory=
+ size
+and will be less than 1MB.
+
+If 1MB is too big, how about 512K, or 256K?  32K seems too small.
+
+Liang
+
+> --
+> MST
+>=20
+> ---------------------------------------------------------------------
+> To unsubscribe, e-mail: virtio-dev-unsubscribe@lists.oasis-open.org
+> For additional commands, e-mail: virtio-dev-help@lists.oasis-open.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
