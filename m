@@ -1,104 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6040C6B0261
-	for <linux-mm@kvack.org>; Thu, 28 Jul 2016 05:43:30 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id o80so14317575wme.1
-        for <linux-mm@kvack.org>; Thu, 28 Jul 2016 02:43:30 -0700 (PDT)
-Received: from mail-wm0-f50.google.com (mail-wm0-f50.google.com. [74.125.82.50])
-        by mx.google.com with ESMTPS id u62si12539593wmd.129.2016.07.28.02.43.28
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 19EA36B025F
+	for <linux-mm@kvack.org>; Thu, 28 Jul 2016 06:25:34 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id e7so13605689lfe.0
+        for <linux-mm@kvack.org>; Thu, 28 Jul 2016 03:25:34 -0700 (PDT)
+Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
+        by mx.google.com with ESMTPS id l4si12753100wmf.56.2016.07.28.03.25.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jul 2016 02:43:29 -0700 (PDT)
-Received: by mail-wm0-f50.google.com with SMTP id i5so99135201wmg.0
-        for <linux-mm@kvack.org>; Thu, 28 Jul 2016 02:43:28 -0700 (PDT)
-Date: Thu, 28 Jul 2016 11:43:27 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC] can we use vmalloc to alloc thread stack if compaction
- failed
-Message-ID: <20160728094327.GB1000@dhcp22.suse.cz>
-References: <5799AF6A.2070507@huawei.com>
- <20160728072028.GC31860@dhcp22.suse.cz>
- <5799B741.8090506@huawei.com>
- <20160728075856.GE31860@dhcp22.suse.cz>
- <5799C612.1050502@huawei.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 28 Jul 2016 03:25:32 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 08F4F993D7
+	for <linux-mm@kvack.org>; Thu, 28 Jul 2016 10:25:31 +0000 (UTC)
+Date: Thu, 28 Jul 2016 11:25:13 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 1/3] Add a new field to struct shrinker
+Message-ID: <20160728102513.GA2799@techsingularity.net>
+References: <cover.1468051277.git.janani.rvchndrn@gmail.com>
+ <85a9712f3853db5d9bc14810b287c23776235f01.1468051281.git.janani.rvchndrn@gmail.com>
+ <20160711063730.GA5284@dhcp22.suse.cz>
+ <1468246371.13253.63.camel@surriel.com>
+ <20160711143342.GN1811@dhcp22.suse.cz>
+ <F072D3E2-0514-4A25-868E-2104610EC14A@gmail.com>
+ <20160720145405.GP11249@dhcp22.suse.cz>
+ <5e6e4f2d-ae94-130e-198d-fa402a9eef50@suse.de>
+ <20160728054947.GL12670@dastard>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <5799C612.1050502@huawei.com>
+In-Reply-To: <20160728054947.GL12670@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andy Lutomirski <luto@amacapital.net>, Yisheng Xie <xieyisheng1@huawei.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Tony Jones <tonyj@suse.de>, Michal Hocko <mhocko@suse.cz>, Janani Ravichandran <janani.rvchndrn@gmail.com>, Rik van Riel <riel@surriel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@virtuozzo.com, vbabka@suse.cz, kirill.shutemov@linux.intel.com, bywxiaobai@163.com
 
-On Thu 28-07-16 16:45:06, Xishi Qiu wrote:
-> On 2016/7/28 15:58, Michal Hocko wrote:
+On Thu, Jul 28, 2016 at 03:49:47PM +1000, Dave Chinner wrote:
+> Seems you're all missing the obvious.
 > 
-> > On Thu 28-07-16 15:41:53, Xishi Qiu wrote:
-> >> On 2016/7/28 15:20, Michal Hocko wrote:
-> >>
-> >>> On Thu 28-07-16 15:08:26, Xishi Qiu wrote:
-> >>>> Usually THREAD_SIZE_ORDER is 2, it means we need to alloc 16kb continuous
-> >>>> physical memory during fork a new process.
-> >>>>
-> >>>> If the system's memory is very small, especially the smart phone, maybe there
-> >>>> is only 1G memory. So the free memory is very small and compaction is not
-> >>>> always success in slowpath(__alloc_pages_slowpath), then alloc thread stack
-> >>>> may be failed for memory fragment.
-> >>>
-> >>> Well, with the current implementation of the page allocator those
-> >>> requests will not fail in most cases. The oom killer would be invoked in
-> >>> order to free up some memory.
-> >>>
-> >>
-> >> Hi Michal,
-> >>
-> >> Yes, it success in most cases, but I did have seen this problem in some
-> >> stress-test.
-> >>
-> >> DMA free:470628kB, but alloc 2 order block failed during fork a new process.
-> >> There are so many memory fragments and the large block may be soon taken by
-> >> others after compact because of stress-test.
-> >>
-> >> --- dmesg messages ---
-> >> 07-13 08:41:51.341 <4>[309805.658142s][pid:1361,cpu5,sManagerService]sManagerService: page allocation failure: order:2, mode:0x2000d1
-> > 
-> > Yes but this is __GFP_DMA allocation. I guess you have already reported
-> > this failure and you've been told that this is quite unexpected for the
-> > kernel stack allocation. It is your out-of-tree patch which just makes
-> > things worse because DMA restricted allocations are considered "lowmem"
-> > and so they do not invoke OOM killer and do not retry like regular
-> > GFP_KERNEL allocations.
+> Add a tracepoint for a shrinker callback that includes a "name"
+> field, have the shrinker callback fill it out appropriately. e.g
+> in the superblock shrinker:
 > 
-> Hi Michal,
+> 	trace_shrinker_callback(shrinker, shrink_control, sb->s_type->name);
 > 
-> Yes, we add GFP_DMA, but I don't think this is the key for the problem.
 
-You are restricting the allocation request to a single zone which is
-definitely not good. Look at how many larger order pages are available
-in the Normal zone.
+That misses capturing the latency of the call unless there is a begin/end
+tracepoint. I was aware of the function graph tracer but I don't know how
+to convince that to give the following information;
 
-> If we do oom-killer, maybe we will get a large block later, but there
-> is enough free memory before oom(although most of them are fragments).
+1. The length of time spent in a given function
+2. The tracepoint information that might explain why the stall occurred
 
-Killing a task is of course the last resort action. It would give you
-larger order blocks used for the victims thread.
+Take the compaction tracepoint for example
 
-> I wonder if we can alloc success without kill any process in this situation.
+        trace_mm_compaction_begin(start_pfn, cc->migrate_pfn,
+                                cc->free_pfn, end_pfn, sync);
 
-Sure it would be preferable to compact that memory but that might be
-hard with your restriction in place. Consider that DMA zone would tend
-to be less movable than normal zones as users would have to pin it for
-DMA. Your DMA is really large so this might turn out to just happen to
-work but note that the primary problem here is that you put a zone
-restriction for your allocations.
+	...
 
-> Maybe use vmalloc is a good way, but I don't know the influence.
+	trace_mm_compaction_end(start_pfn, cc->migrate_pfn,
+                                cc->free_pfn, end_pfn, sync, ret);
 
-You can have a look at vmalloc patches posted by Andy. They are not that
-trivial.
+The function graph tracer can say that X time is compact_zone() but it
+cannot distinguish between a short time spent in that function because
+compaction_suitable == false or compaction simply finished quickly.  While
+the cc struct parameters could be extracted, end_pfn is much harder to figure
+out because a user would have to parse zoneinfo to figure it out and even
+*that* would only work if there are no overlapping nodes. Extracting sync
+would require making assumptions about the implementation of compact_zone()
+that could change.
+
+> And now you know exactly what shrinker is being run.
+> 
+
+Sure and it's a good suggestion but does not say how long the shrinker
+was running.
+
+My understanding was the point of the tracepoints was to get detailed
+information on points where the kernel is known to stall for long periods
+of time. I don't actually know how to convince the function graph tracer
+to get that type of information. Maybe it's possible and I just haven't
+tried recently enough.
+
+It potentially duration could be inferred from using a return probe on
+the function but that requires that the function the tracepoint is running
+is is known by the tool, has not been inlined and that there are no retry
+loops that hit the begin tracepoint.
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
