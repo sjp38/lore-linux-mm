@@ -1,71 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 782356B025F
-	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 23:46:08 -0400 (EDT)
-Received: by mail-yw0-f199.google.com with SMTP id r9so27768186ywg.0
-        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 20:46:08 -0700 (PDT)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id q137si2657438ybq.124.2016.07.27.20.46.07
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Jul 2016 20:46:07 -0700 (PDT)
-Date: Wed, 27 Jul 2016 23:46:01 -0400
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: [BUG -next] "random: make /dev/urandom scalable for silly
- userspace programs" causes crash
-Message-ID: <20160728034601.GC20032@thunk.org>
-References: <20160727071400.GA3912@osiris>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 324896B025F
+	for <linux-mm@kvack.org>; Wed, 27 Jul 2016 23:48:21 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id h186so31661011pfg.2
+        for <linux-mm@kvack.org>; Wed, 27 Jul 2016 20:48:21 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id xq3si9893980pac.194.2016.07.27.20.48.20
+        for <linux-mm@kvack.org>;
+        Wed, 27 Jul 2016 20:48:20 -0700 (PDT)
+From: "Li, Liang Z" <liang.z.li@intel.com>
+Subject: RE: [PATCH v2 repost 4/7] virtio-balloon: speed up inflate/deflate
+ process
+Date: Thu, 28 Jul 2016 03:48:16 +0000
+Message-ID: <F2CBF3009FA73547804AE4C663CAB28E04213E86@shsmsx102.ccr.corp.intel.com>
+References: <1469582616-5729-1-git-send-email-liang.z.li@intel.com>
+ <1469582616-5729-5-git-send-email-liang.z.li@intel.com>
+ <20160728010616-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20160728010616-mutt-send-email-mst@kernel.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160727071400.GA3912@osiris>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: linux-next@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "quintela@redhat.com" <quintela@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil
+ Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Paolo
+ Bonzini <pbonzini@redhat.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Amit Shah <amit.shah@redhat.com>
 
-On Wed, Jul 27, 2016 at 09:14:00AM +0200, Heiko Carstens wrote:
-> it looks like your patch "random: make /dev/urandom scalable for silly
-> userspace programs" within linux-next seems to be a bit broken:
-> 
-> It causes this allocation failure and subsequent crash on s390 with fake
-> NUMA enabled
+> > +/*
+> > + * VIRTIO_BALLOON_PFNS_LIMIT is used to limit the size of page bitmap
+> > + * to prevent a very large page bitmap, there are two reasons for this=
+:
+> > + * 1) to save memory.
+> > + * 2) allocate a large bitmap may fail.
+> > + *
+> > + * The actual limit of pfn is determined by:
+> > + * pfn_limit =3D min(max_pfn, VIRTIO_BALLOON_PFNS_LIMIT);
+> > + *
+> > + * If system has more pages than VIRTIO_BALLOON_PFNS_LIMIT, we will
+> > +scan
+> > + * the page list and send the PFNs with several times. To reduce the
+> > + * overhead of scanning the page list. VIRTIO_BALLOON_PFNS_LIMIT
+> > +should
+> > + * be set with a value which can cover most cases.
+> > + */
+> > +#define VIRTIO_BALLOON_PFNS_LIMIT ((32 * (1ULL << 30)) >>
+> PAGE_SHIFT)
+> > +/* 32GB */
+> > +
+> >  static int oom_pages =3D OOM_VBALLOON_DEFAULT_PAGES;
+> > module_param(oom_pages, int, S_IRUSR | S_IWUSR);
+> > MODULE_PARM_DESC(oom_pages, "pages to free on OOM");
+> >
+> > +extern unsigned long get_max_pfn(void);
+> > +
+>=20
+> Please just include the correct header. No need for this hackery.
+>=20
 
-Thanks for reporting this.  This patch fixes things for you, yes?
+Will change. Thanks!
 
-       	   	     	    	       	     	    - Ted
-
-commit 59b8d4f1f5d26e4ca92172ff6dcd1492cdb39613
-Author: Theodore Ts'o <tytso@mit.edu>
-Date:   Wed Jul 27 23:30:25 2016 -0400
-
-    random: use for_each_online_node() to iterate over NUMA nodes
-    
-    This fixes a crash on s390 with fake NUMA enabled.
-    
-    Reported-by: Heiko Carstens <heiko.carstens@de.ibm.com>
-    Fixes: 1e7f583af67b ("random: make /dev/urandom scalable for silly userspace programs")
-    Signed-off-by: Theodore Ts'o <tytso@mit.edu>
-
-diff --git a/drivers/char/random.c b/drivers/char/random.c
-index 8d0af74..7f06224 100644
---- a/drivers/char/random.c
-+++ b/drivers/char/random.c
-@@ -1668,13 +1668,12 @@ static int rand_initialize(void)
- #ifdef CONFIG_NUMA
- 	pool = kmalloc(num_nodes * sizeof(void *),
- 		       GFP_KERNEL|__GFP_NOFAIL|__GFP_ZERO);
--	for (i=0; i < num_nodes; i++) {
-+	for_each_online_node(i) {
- 		crng = kmalloc_node(sizeof(struct crng_state),
- 				    GFP_KERNEL | __GFP_NOFAIL, i);
- 		spin_lock_init(&crng->lock);
- 		crng_initialize(crng);
- 		pool[i] = crng;
--
- 	}
- 	mb();
- 	crng_node_pool = pool;
+Liang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
