@@ -1,105 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 910C86B025F
-	for <linux-mm@kvack.org>; Thu, 28 Jul 2016 08:06:55 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id l2so49014451qkf.2
-        for <linux-mm@kvack.org>; Thu, 28 Jul 2016 05:06:55 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id x67si3237714ybg.245.2016.07.28.05.06.51
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E4BE76B0261
+	for <linux-mm@kvack.org>; Thu, 28 Jul 2016 08:15:18 -0400 (EDT)
+Received: by mail-vk0-f70.google.com with SMTP id x130so49312665vkc.3
+        for <linux-mm@kvack.org>; Thu, 28 Jul 2016 05:15:18 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id p7si2823864uap.197.2016.07.28.05.15.18
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 28 Jul 2016 05:06:54 -0700 (PDT)
-Message-ID: <5799E394.4060200@huawei.com>
-Date: Thu, 28 Jul 2016 18:51:00 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
-MIME-Version: 1.0
-Subject: Re: [RFC] can we use vmalloc to alloc thread stack if compaction
- failed
-References: <5799AF6A.2070507@huawei.com> <20160728072028.GC31860@dhcp22.suse.cz> <5799B741.8090506@huawei.com> <20160728075856.GE31860@dhcp22.suse.cz> <5799C612.1050502@huawei.com> <20160728094327.GB1000@dhcp22.suse.cz>
-In-Reply-To: <20160728094327.GB1000@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Jul 2016 05:15:18 -0700 (PDT)
+From: Vegard Nossum <vegard.nossum@oracle.com>
+Subject: [PATCH] mm: fail prefaulting if page table allocation fails
+Date: Thu, 28 Jul 2016 14:15:07 +0200
+Message-Id: <1469708107-11868-1-git-send-email-vegard.nossum@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andy Lutomirski <luto@amacapital.net>, Yisheng Xie <xieyisheng1@huawei.com>
+To: linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, Vegard Nossum <vegard.nossum@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 2016/7/28 17:43, Michal Hocko wrote:
+I ran into this:
 
-> On Thu 28-07-16 16:45:06, Xishi Qiu wrote:
->> On 2016/7/28 15:58, Michal Hocko wrote:
->>
->>> On Thu 28-07-16 15:41:53, Xishi Qiu wrote:
->>>> On 2016/7/28 15:20, Michal Hocko wrote:
->>>>
->>>>> On Thu 28-07-16 15:08:26, Xishi Qiu wrote:
->>>>>> Usually THREAD_SIZE_ORDER is 2, it means we need to alloc 16kb continuous
->>>>>> physical memory during fork a new process.
->>>>>>
->>>>>> If the system's memory is very small, especially the smart phone, maybe there
->>>>>> is only 1G memory. So the free memory is very small and compaction is not
->>>>>> always success in slowpath(__alloc_pages_slowpath), then alloc thread stack
->>>>>> may be failed for memory fragment.
->>>>>
->>>>> Well, with the current implementation of the page allocator those
->>>>> requests will not fail in most cases. The oom killer would be invoked in
->>>>> order to free up some memory.
->>>>>
->>>>
->>>> Hi Michal,
->>>>
->>>> Yes, it success in most cases, but I did have seen this problem in some
->>>> stress-test.
->>>>
->>>> DMA free:470628kB, but alloc 2 order block failed during fork a new process.
->>>> There are so many memory fragments and the large block may be soon taken by
->>>> others after compact because of stress-test.
->>>>
->>>> --- dmesg messages ---
->>>> 07-13 08:41:51.341 <4>[309805.658142s][pid:1361,cpu5,sManagerService]sManagerService: page allocation failure: order:2, mode:0x2000d1
->>>
->>> Yes but this is __GFP_DMA allocation. I guess you have already reported
->>> this failure and you've been told that this is quite unexpected for the
->>> kernel stack allocation. It is your out-of-tree patch which just makes
->>> things worse because DMA restricted allocations are considered "lowmem"
->>> and so they do not invoke OOM killer and do not retry like regular
->>> GFP_KERNEL allocations.
->>
->> Hi Michal,
->>
->> Yes, we add GFP_DMA, but I don't think this is the key for the problem.
-> 
-> You are restricting the allocation request to a single zone which is
-> definitely not good. Look at how many larger order pages are available
-> in the Normal zone.
-> 
->> If we do oom-killer, maybe we will get a large block later, but there
->> is enough free memory before oom(although most of them are fragments).
-> 
-> Killing a task is of course the last resort action. It would give you
-> larger order blocks used for the victims thread.
-> 
->> I wonder if we can alloc success without kill any process in this situation.
-> 
-> Sure it would be preferable to compact that memory but that might be
-> hard with your restriction in place. Consider that DMA zone would tend
-> to be less movable than normal zones as users would have to pin it for
-> DMA. Your DMA is really large so this might turn out to just happen to
-> work but note that the primary problem here is that you put a zone
-> restriction for your allocations.
-> 
->> Maybe use vmalloc is a good way, but I don't know the influence.
-> 
-> You can have a look at vmalloc patches posted by Andy. They are not that
-> trivial.
-> 
+    BUG: sleeping function called from invalid context at mm/page_alloc.c:3784
+    in_atomic(): 0, irqs_disabled(): 0, pid: 1434, name: trinity-c1
+    2 locks held by trinity-c1/1434:
+     #0:  (&mm->mmap_sem){......}, at: [<ffffffff810ce31e>] __do_page_fault+0x1ce/0x8f0
+     #1:  (rcu_read_lock){......}, at: [<ffffffff81378f86>] filemap_map_pages+0xd6/0xdd0
 
-Hi Michal,
+    CPU: 0 PID: 1434 Comm: trinity-c1 Not tainted 4.7.0+ #58
+    Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Ubuntu-1.8.2-1ubuntu1 04/01/2014
+     ffff8800b662f698 ffff8800b662f548 ffffffff81d6d001 ffffffff83a61100
+     ffff8800b662f620 ffff8800b662f610 ffffffff81373fd1 0000000041b58ab3
+     ffffffff8406ca21 ffffffff81373e4c 0000000041b58ab3 ffffffff00000008
+    Call Trace:
+     [<ffffffff81d6d001>] dump_stack+0x65/0x84
+     [<ffffffff81373fd1>] panic+0x185/0x2dd
+     [<ffffffff8118e38c>] ___might_sleep+0x51c/0x600
+     [<ffffffff8118e500>] __might_sleep+0x90/0x1a0
+     [<ffffffff81392761>] __alloc_pages_nodemask+0x5b1/0x2160
+     [<ffffffff814665ac>] alloc_pages_current+0xcc/0x370
+     [<ffffffff810d95b2>] pte_alloc_one+0x12/0x90
+     [<ffffffff814053cd>] __pte_alloc+0x1d/0x200
+     [<ffffffff8140be4e>] alloc_set_pte+0xe3e/0x14a0
+     [<ffffffff813792db>] filemap_map_pages+0x42b/0xdd0
+     [<ffffffff8140e0d5>] handle_mm_fault+0x17d5/0x28b0
+     [<ffffffff810ce460>] __do_page_fault+0x310/0x8f0
+     [<ffffffff810cec7d>] trace_do_page_fault+0x18d/0x310
+     [<ffffffff810c2177>] do_async_page_fault+0x27/0xa0
+     [<ffffffff8389e258>] async_page_fault+0x28/0x30
 
-Thank you for your comment, could you give me the link?
+The important bits from the above is that filemap_map_pages() is calling
+into the page allocator while holding rcu_read_lock (sleeping is not
+allowed inside RCU read-side critical sections).
 
-Thanks,
-Xishi Qiu
+According to Kirill Shutemov, the prefaulting code in do_fault_around()
+is supposed to take care of this, but missing error handling means that
+the allocation failure can go unnoticed.
+
+We don't need to return VM_FAULT_OOM (or any other error) here, since we
+can just let the normal fault path try again.
+
+Fixes: 7267ec008b5c ("mm: postpone page table allocation until we have page to map")
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Signed-off-by: Vegard Nossum <vegard.nossum@oracle.com>
+---
+ mm/memory.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/mm/memory.c b/mm/memory.c
+index 4425b60..0400483 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3133,6 +3133,8 @@ static int do_fault_around(struct fault_env *fe, pgoff_t start_pgoff)
+ 
+ 	if (pmd_none(*fe->pmd)) {
+ 		fe->prealloc_pte = pte_alloc_one(fe->vma->vm_mm, fe->address);
++		if (!fe->prealloc_pte)
++			goto out;
+ 		smp_wmb(); /* See comment in __pte_alloc() */
+ 	}
+ 
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
