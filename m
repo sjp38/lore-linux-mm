@@ -1,103 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 855AD828E2
-	for <linux-mm@kvack.org>; Thu, 28 Jul 2016 15:43:03 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id l4so24933479wml.0
-        for <linux-mm@kvack.org>; Thu, 28 Jul 2016 12:43:03 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id fs5si14658320wjb.260.2016.07.28.12.42.50
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E9B06B025F
+	for <linux-mm@kvack.org>; Thu, 28 Jul 2016 15:47:37 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id ca5so66838420pac.0
+        for <linux-mm@kvack.org>; Thu, 28 Jul 2016 12:47:37 -0700 (PDT)
+Received: from smtprelay.synopsys.com (smtprelay.synopsys.com. [198.182.60.111])
+        by mx.google.com with ESMTPS id w10si13830816pag.138.2016.07.28.12.47.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jul 2016 12:42:50 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id q128so12643805wma.1
-        for <linux-mm@kvack.org>; Thu, 28 Jul 2016 12:42:50 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 10/10] oom, oom_reaper: allow to reap mm shared by the kthreads
-Date: Thu, 28 Jul 2016 21:42:34 +0200
-Message-Id: <1469734954-31247-11-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1469734954-31247-1-git-send-email-mhocko@kernel.org>
-References: <1469734954-31247-1-git-send-email-mhocko@kernel.org>
+        Thu, 28 Jul 2016 12:47:36 -0700 (PDT)
+From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
+Subject: [PATCH] ARC: mm: don't loose PTE_SPECIAL in pte_modify()
+Date: Thu, 28 Jul 2016 12:47:22 -0700
+Message-ID: <1469735242-6003-1-git-send-email-vgupta@synopsys.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Michal Hocko <mhocko@suse.com>
+To: linux-snps-arc@lists.infradead.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vineet Gupta <Vineet.Gupta1@synopsys.com>
 
-From: Michal Hocko <mhocko@suse.com>
+LTP madvise05 was generating mm splat
 
-oom reaper was skipped for an mm which is shared with the kernel thread
-(aka use_mm()). The primary concern was that such a kthread might want
-to read from the userspace memory and see zero page as a result of the
-oom reaper action. This seems to be overly conservative because none of
-the current use_mm() users need to do copy_from_user or get_user. aio
-code used to rely on copy_from_user but this is long gone along with
-use_mm() usage in fs/aio.c.
+| [ARCLinux]# /sd/ltp/testcases/bin/madvise05
+| BUG: Bad page map in process madvise05  pte:80e08211 pmd:9f7d4000
+| page:9fdcfc90 count:1 mapcount:-1 mapping:  (null) index:0x0 flags: 0x404(referenced|reserved)
+| page dumped because: bad pte
+| addr:200b8000 vm_flags:00000070 anon_vma:  (null) mapping:  (null) index:1005c
+| file:  (null) fault:  (null) mmap:  (null) readpage:  (null)
+| CPU: 2 PID: 6707 Comm: madvise05
 
-We currently have only 3 users in the kernel:
-- ffs_user_copy_worker, ep_user_copy_worker only do copy_to_iter()
-- vhost_worker needs to copy from userspace but it relies on the
-  safe __get_user_mm, copy_from_user_mm resp. copy_from_iter_mm
+And for newer kernels, the system was rendered unusable afterwards.
 
-Add a note to use_mm about the copy_from_user risk and allow the oom
-killer to invoke the oom_reaper for mms shared with kthreads. This will
-practically cause all the sane use cases to be reapable.
+The problem was mprotect->pte_modify() clearing PTE_SPECIAL (which is
+set to identify the special zero page wired to the pte).
+When pte was finally unmapped, special casing for zero page was not
+done, and instead it was treated as a "normal" page, tripping on the
+map counts etc.
 
-Signed-off-by: Michal Hocko <mhocko@suse.com>
+This fixes ARC STAR 9001053308
+
+Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
 ---
- mm/mmu_context.c |  6 ++++++
- mm/oom_kill.c    | 14 +++++++-------
- 2 files changed, 13 insertions(+), 7 deletions(-)
+ arch/arc/include/asm/pgtable.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/mmu_context.c b/mm/mmu_context.c
-index f802c2d216a7..61a7a90250be 100644
---- a/mm/mmu_context.c
-+++ b/mm/mmu_context.c
-@@ -16,6 +16,12 @@
-  *	mm context.
-  *	(Note: this routine is intended to be called only
-  *	from a kernel thread context)
-+ *
-+ *	Do not use copy_from_user/__get_user from this context
-+ *	and use the safe copy_from_user_mm/__get_user_mm because
-+ *	the address space might got reclaimed behind the back by
-+ *	the oom_reaper so an unexpected zero page might be
-+ *	encountered.
-  */
- void use_mm(struct mm_struct *mm)
- {
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 6ccf63fbfc72..ca83b1706e13 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -894,13 +894,7 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 			continue;
- 		if (same_thread_group(p, victim))
- 			continue;
--		if (unlikely(p->flags & PF_KTHREAD) || is_global_init(p)) {
--			/*
--			 * We cannot use oom_reaper for the mm shared by this
--			 * process because it wouldn't get killed and so the
--			 * memory might be still used. Hide the mm from the oom
--			 * killer to guarantee OOM forward progress.
--			 */
-+		if (is_global_init(p)) {
- 			can_oom_reap = false;
- 			set_bit(MMF_OOM_SKIP, &mm->flags);
- 			pr_info("oom killer %d (%s) has mm pinned by %d (%s)\n",
-@@ -908,6 +902,12 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,
- 					task_pid_nr(p), p->comm);
- 			continue;
- 		}
-+		/*
-+		 * No use_mm() user needs to read from the userspace so we are
-+		 * ok to reap it.
-+		 */
-+		if (unlikely(p->flags & PF_KTHREAD))
-+			continue;
- 		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
- 	}
- 	rcu_read_unlock();
+diff --git a/arch/arc/include/asm/pgtable.h b/arch/arc/include/asm/pgtable.h
+index 57af2f05ae84..3cab04255ae0 100644
+--- a/arch/arc/include/asm/pgtable.h
++++ b/arch/arc/include/asm/pgtable.h
+@@ -110,7 +110,7 @@
+ #define ___DEF (_PAGE_PRESENT | _PAGE_CACHEABLE)
+ 
+ /* Set of bits not changed in pte_modify */
+-#define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
++#define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_SPECIAL)
+ 
+ /* More Abbrevaited helpers */
+ #define PAGE_U_NONE     __pgprot(___DEF)
 -- 
-2.8.1
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
