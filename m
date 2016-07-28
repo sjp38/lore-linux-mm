@@ -1,91 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 19EA36B025F
-	for <linux-mm@kvack.org>; Thu, 28 Jul 2016 06:25:34 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id e7so13605689lfe.0
-        for <linux-mm@kvack.org>; Thu, 28 Jul 2016 03:25:34 -0700 (PDT)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id l4si12753100wmf.56.2016.07.28.03.25.32
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D6666B025F
+	for <linux-mm@kvack.org>; Thu, 28 Jul 2016 06:27:57 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id 33so13595974lfw.1
+        for <linux-mm@kvack.org>; Thu, 28 Jul 2016 03:27:57 -0700 (PDT)
+Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
+        by mx.google.com with ESMTPS id h10si12256972wjl.4.2016.07.28.03.27.55
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 28 Jul 2016 03:25:32 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 08F4F993D7
-	for <linux-mm@kvack.org>; Thu, 28 Jul 2016 10:25:31 +0000 (UTC)
-Date: Thu, 28 Jul 2016 11:25:13 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Jul 2016 03:27:55 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
+	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 923231C1D31
+	for <linux-mm@kvack.org>; Thu, 28 Jul 2016 11:27:53 +0100 (IST)
+Date: Thu, 28 Jul 2016 11:27:51 +0100
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 1/3] Add a new field to struct shrinker
-Message-ID: <20160728102513.GA2799@techsingularity.net>
-References: <cover.1468051277.git.janani.rvchndrn@gmail.com>
- <85a9712f3853db5d9bc14810b287c23776235f01.1468051281.git.janani.rvchndrn@gmail.com>
- <20160711063730.GA5284@dhcp22.suse.cz>
- <1468246371.13253.63.camel@surriel.com>
- <20160711143342.GN1811@dhcp22.suse.cz>
- <F072D3E2-0514-4A25-868E-2104610EC14A@gmail.com>
- <20160720145405.GP11249@dhcp22.suse.cz>
- <5e6e4f2d-ae94-130e-198d-fa402a9eef50@suse.de>
- <20160728054947.GL12670@dastard>
+Subject: Re: [PATCH 0/5] Candidate fixes for premature OOM kills with
+ node-lru v2
+Message-ID: <20160728102751.GB2799@techsingularity.net>
+References: <1469110261-7365-1-git-send-email-mgorman@techsingularity.net>
+ <20160726081129.GB15721@js1304-P5Q-DELUXE>
+ <20160726125050.GP10438@techsingularity.net>
+ <20160728064432.GA28136@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20160728054947.GL12670@dastard>
+In-Reply-To: <20160728064432.GA28136@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Tony Jones <tonyj@suse.de>, Michal Hocko <mhocko@suse.cz>, Janani Ravichandran <janani.rvchndrn@gmail.com>, Rik van Riel <riel@surriel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@virtuozzo.com, vbabka@suse.cz, kirill.shutemov@linux.intel.com, bywxiaobai@163.com
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@suse.cz>, Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Jul 28, 2016 at 03:49:47PM +1000, Dave Chinner wrote:
-> Seems you're all missing the obvious.
+On Thu, Jul 28, 2016 at 03:44:33PM +0900, Joonsoo Kim wrote:
+> > To some extent, it could be "addressed" by immediately reclaiming active
+> > pages moving to the inactive list at the cost of distorting page age for a
+> > workload that is genuinely close to OOM. That is similar to what zone-lru
+> > ended up doing -- fast reclaiming young pages from a zone.
 > 
-> Add a tracepoint for a shrinker callback that includes a "name"
-> field, have the shrinker callback fill it out appropriately. e.g
-> in the superblock shrinker:
+> My expectation on my test case is that reclaimers should kick out
+> actively used page and make a room for 'fork' because parallel readers
+> would work even if reading pages are not cached.
 > 
-> 	trace_shrinker_callback(shrinker, shrink_control, sb->s_type->name);
-> 
-
-That misses capturing the latency of the call unless there is a begin/end
-tracepoint. I was aware of the function graph tracer but I don't know how
-to convince that to give the following information;
-
-1. The length of time spent in a given function
-2. The tracepoint information that might explain why the stall occurred
-
-Take the compaction tracepoint for example
-
-        trace_mm_compaction_begin(start_pfn, cc->migrate_pfn,
-                                cc->free_pfn, end_pfn, sync);
-
-	...
-
-	trace_mm_compaction_end(start_pfn, cc->migrate_pfn,
-                                cc->free_pfn, end_pfn, sync, ret);
-
-The function graph tracer can say that X time is compact_zone() but it
-cannot distinguish between a short time spent in that function because
-compaction_suitable == false or compaction simply finished quickly.  While
-the cc struct parameters could be extracted, end_pfn is much harder to figure
-out because a user would have to parse zoneinfo to figure it out and even
-*that* would only work if there are no overlapping nodes. Extracting sync
-would require making assumptions about the implementation of compact_zone()
-that could change.
-
-> And now you know exactly what shrinker is being run.
+> It is sensitive on reclaimers efficiency because parallel readers
+> read pages repeatedly and disturb reclaim. I thought that it is a
+> good test for node-lru which changes reclaimers efficiency for lower
+> zone. However, as you said, this efficiency comes from the cost
+> distorting page aging so now I'm not sure if it is a problem that we
+> need to consider. Let's skip it?
 > 
 
-Sure and it's a good suggestion but does not say how long the shrinker
-was running.
+I think we should skip it for now. The alterations are too specific to a
+test case that is very close to being genuinely OOM. Adjusting timing
+for one OOM case may just lead to complains that OOM is detected too
+slowly in others.
 
-My understanding was the point of the tracepoints was to get detailed
-information on points where the kernel is known to stall for long periods
-of time. I don't actually know how to convince the function graph tracer
-to get that type of information. Maybe it's possible and I just haven't
-tried recently enough.
+> Anyway, thanks for tracking down the problem.
+> 
 
-It potentially duration could be inferred from using a return probe on
-the function but that requires that the function the tracepoint is running
-is is known by the tool, has not been inlined and that there are no retry
-loops that hit the begin tracepoint.
+My pleasure, thanks to both you and Minchan for persisting with this as
+we got some important fixes out of the discussion.
 
 -- 
 Mel Gorman
