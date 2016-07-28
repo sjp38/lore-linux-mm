@@ -1,65 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E9B06B025F
-	for <linux-mm@kvack.org>; Thu, 28 Jul 2016 15:47:37 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id ca5so66838420pac.0
-        for <linux-mm@kvack.org>; Thu, 28 Jul 2016 12:47:37 -0700 (PDT)
-Received: from smtprelay.synopsys.com (smtprelay.synopsys.com. [198.182.60.111])
-        by mx.google.com with ESMTPS id w10si13830816pag.138.2016.07.28.12.47.36
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C2C236B0253
+	for <linux-mm@kvack.org>; Thu, 28 Jul 2016 16:11:28 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id ca5so67949734pac.0
+        for <linux-mm@kvack.org>; Thu, 28 Jul 2016 13:11:28 -0700 (PDT)
+Received: from mail-pa0-x243.google.com (mail-pa0-x243.google.com. [2607:f8b0:400e:c03::243])
+        by mx.google.com with ESMTPS id xz3si13859974pab.244.2016.07.28.13.11.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Jul 2016 12:47:36 -0700 (PDT)
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Subject: [PATCH] ARC: mm: don't loose PTE_SPECIAL in pte_modify()
-Date: Thu, 28 Jul 2016 12:47:22 -0700
-Message-ID: <1469735242-6003-1-git-send-email-vgupta@synopsys.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        Thu, 28 Jul 2016 13:11:27 -0700 (PDT)
+Received: by mail-pa0-x243.google.com with SMTP id ez1so4009751pab.3
+        for <linux-mm@kvack.org>; Thu, 28 Jul 2016 13:11:27 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 8.2 \(2104\))
+Subject: Re: [PATCH 1/2] mm: page_alloc.c: Add tracepoints for slowpath
+From: Janani Ravichandran <janani.rvchndrn@gmail.com>
+In-Reply-To: <20160727112303.11409a4e@gandalf.local.home>
+Date: Fri, 29 Jul 2016 01:41:20 +0530
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <0AF03F78-AA34-4531-899A-EA1076B6B3A1@gmail.com>
+References: <cover.1469629027.git.janani.rvchndrn@gmail.com> <6b12aed89ad75cb2b3525a24265fa1d622409b42.1469629027.git.janani.rvchndrn@gmail.com> <20160727112303.11409a4e@gandalf.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-snps-arc@lists.infradead.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vineet Gupta <Vineet.Gupta1@synopsys.com>
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@surriel.com, akpm@linux-foundation.org, hannes@compxchg.org, vdavydov@virtuozzo.com, mhocko@suse.com, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, bywxiaobai@163.com
 
-LTP madvise05 was generating mm splat
 
-| [ARCLinux]# /sd/ltp/testcases/bin/madvise05
-| BUG: Bad page map in process madvise05  pte:80e08211 pmd:9f7d4000
-| page:9fdcfc90 count:1 mapcount:-1 mapping:  (null) index:0x0 flags: 0x404(referenced|reserved)
-| page dumped because: bad pte
-| addr:200b8000 vm_flags:00000070 anon_vma:  (null) mapping:  (null) index:1005c
-| file:  (null) fault:  (null) mmap:  (null) readpage:  (null)
-| CPU: 2 PID: 6707 Comm: madvise05
+> On Jul 27, 2016, at 8:53 PM, Steven Rostedt <rostedt@goodmis.org> =
+wrote:
+>=20
+> I'm thinking you only need one tracepoint, and use function_graph
+> tracer for the length of the function call.
+>=20
+> # cd /sys/kernel/debug/tracing
+> # echo __alloc_pages_nodemask > set_ftrace_filter
+> # echo function_graph > current_tracer
+> # echo 1 > events/kmem/trace_mm_slowpath/enable
 
-And for newer kernels, the system was rendered unusable afterwards.
+Thank you so much for your feedback!=20
 
-The problem was mprotect->pte_modify() clearing PTE_SPECIAL (which is
-set to identify the special zero page wired to the pte).
-When pte was finally unmapped, special casing for zero page was not
-done, and instead it was treated as a "normal" page, tripping on the
-map counts etc.
+Actually, the goal is to only single out those cases with latencies =
+higher than a given
+threshold.
 
-This fixes ARC STAR 9001053308
+So, in accordance with this, I added those begin/end tracepoints and =
+thought I=20
+could use a script to read the output of trace_pipe and only write to =
+disk the trace=20
+information associated with latencies above the threshold. This would =
+help prevent=20
+high disk I/O, especially when the threshold set is high.
 
-Signed-off-by: Vineet Gupta <vgupta@synopsys.com>
----
- arch/arc/include/asm/pgtable.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+I looked at function graph trace, as you=E2=80=99d suggested. I saw that =
+I could set a threshold=20
+there using tracing_thresh. But the problem was that slowpath trace =
+information was printed
+for all the cases (even when __alloc_pages_nodemask latencies were below =
+the threshold).
+Is there a way to print tracepoint information only when =
+__alloc_pages_nodemask
+exceeds the threshold?
 
-diff --git a/arch/arc/include/asm/pgtable.h b/arch/arc/include/asm/pgtable.h
-index 57af2f05ae84..3cab04255ae0 100644
---- a/arch/arc/include/asm/pgtable.h
-+++ b/arch/arc/include/asm/pgtable.h
-@@ -110,7 +110,7 @@
- #define ___DEF (_PAGE_PRESENT | _PAGE_CACHEABLE)
- 
- /* Set of bits not changed in pte_modify */
--#define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
-+#define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_SPECIAL)
- 
- /* More Abbrevaited helpers */
- #define PAGE_U_NONE     __pgprot(___DEF)
--- 
-2.7.4
+Thanks!
+
+Janani.
+>=20
+> -- Steve
+>=20
+>=20
+>> 	return page;
+>> }
+>>=20
+>=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
