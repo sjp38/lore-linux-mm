@@ -1,63 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6925A6B0260
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2016 15:16:50 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id p85so40644931lfg.3
-        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 12:16:50 -0700 (PDT)
-Received: from mail-lf0-x231.google.com (mail-lf0-x231.google.com. [2a00:1450:4010:c07::231])
-        by mx.google.com with ESMTPS id g14si9507294ljg.42.2016.07.29.12.16.48
+Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CFD16B0261
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2016 15:44:45 -0400 (EDT)
+Received: by mail-ua0-f198.google.com with SMTP id m60so61179545uam.3
+        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 12:44:45 -0700 (PDT)
+Received: from mail-vk0-x230.google.com (mail-vk0-x230.google.com. [2607:f8b0:400c:c05::230])
+        by mx.google.com with ESMTPS id s32si5069175uas.142.2016.07.29.12.44.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jul 2016 12:16:48 -0700 (PDT)
-Received: by mail-lf0-x231.google.com with SMTP id f93so77736742lfi.2
-        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 12:16:48 -0700 (PDT)
+        Fri, 29 Jul 2016 12:44:44 -0700 (PDT)
+Received: by mail-vk0-x230.google.com with SMTP id s189so61513697vkh.1
+        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 12:44:44 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <579BAA1F.6000704@oracle.com>
-References: <579B991C.9050809@oracle.com> <CACT4Y+a9=LJjaXgkp=0Dm+ftDbYQchqrzm7P9cM6ksRdHCnw-w@mail.gmail.com>
- <579BAA1F.6000704@oracle.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Fri, 29 Jul 2016 21:16:29 +0200
-Message-ID: <CACT4Y+aZLFP47uOvxZgXH0PHs=oipa_zO6eipRxnKuw82Y2Kpg@mail.gmail.com>
-Subject: Re: kernel BUG at mm/mempolicy.c:1699!
+In-Reply-To: <579B977B.7090609@intel.com>
+References: <20160729163009.5EC1D38C@viggo.jf.intel.com> <20160729163021.F3C25D4A@viggo.jf.intel.com>
+ <CALCETrWMg=+YSi7Az+gw9B59OoAEkOd=znpr7+++5=UUg6DThw@mail.gmail.com> <579B977B.7090609@intel.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Fri, 29 Jul 2016 12:44:24 -0700
+Message-ID: <CALCETrVW0taeuBjha1DEdafM5zZgbAHo=x1AJm=BafTEr++8Vg@mail.gmail.com>
+Subject: Re: [PATCH 08/10] x86, pkeys: default to a restrictive init PKRU
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vegard Nossum <vegard.nossum@oracle.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andrew Lutomirski <luto@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Dave Hansen <dave.hansen@linux.intel.com>, Arnd Bergmann <arnd@arndb.de>
 
-On Fri, Jul 29, 2016 at 9:10 PM, Vegard Nossum <vegard.nossum@oracle.com> wrote:
-> On 07/29/2016 08:05 PM, Dmitry Vyukov wrote:
+On Fri, Jul 29, 2016 at 10:50 AM, Dave Hansen <dave.hansen@intel.com> wrote:
+> On 07/29/2016 10:29 AM, Andy Lutomirski wrote:
+>>> > In the end, this ensures that threads which do not know how to
+>>> > manage their own pkey rights can not do damage to data which is
+>>> > pkey-protected.
+>> I think you missed the fpu__clear() caller in kernel/fpu/signal.c.
 >>
->> On Fri, Jul 29, 2016 at 7:57 PM, Vegard Nossum <vegard.nossum@oracle.com>
->> wrote:
->>>
->>> ------------[ cut here ]------------
->>> kernel BUG at mm/mempolicy.c:1699!
+>> ISTM it might be more comprehensible to change fpu__clear in general
+>> and then special case things you want to behave differently.
 >
-> [...]
->>>
->>> In particular, it's interesting that the kernel/exit.c line is
->>>
->>>      mpol_put(tsk->mempolicy);
->>>
->>> and alloc_pages_current() does (potentially):
->>>
->>>      pol = get_task_policy(current);.
->>>
->>> The bug seems very new or very rare or both.
->>
->>
->> This is https://github.com/google/kasan/issues/35
->> It is introduced with stackdepot.
+> The code actually already patched the generic fpu__clear():
 >
+>         fpu__clear() ->
+>         copy_init_fpstate_to_fpregs() ->
+>         copy_init_pkru_to_fpregs()
 >
-> Ah, cool.
->
-> Would it be enough to set __GFP_THISNODE in depot_save_stack() so it
-> uses &default_policy instead of current->mempolicy?
+> So I think it hit the case you are talking about.
 
-I don't have deep understanding of that code. But looks at the code,
-using &default_policy should help.
+Whoops, missed that.
+
+-- 
+Andy Lutomirski
+AMA Capital Management, LLC
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
