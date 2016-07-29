@@ -1,76 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EB7EC6B0005
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2016 13:57:49 -0400 (EDT)
-Received: by mail-yw0-f199.google.com with SMTP id j12so111229669ywb.3
-        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 10:57:49 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z185si12930897qkc.32.2016.07.29.10.57.49
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 861DD6B0260
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2016 13:57:56 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id ag5so114748023pad.2
+        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 10:57:56 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id q75si19440755pfi.216.2016.07.29.10.57.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jul 2016 10:57:49 -0700 (PDT)
-Date: Fri, 29 Jul 2016 20:57:44 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH 09/10] vhost, mm: make sure that oom_reaper doesn't reap
- memory read by vhost
-Message-ID: <20160729205620-mutt-send-email-mst@kernel.org>
-References: <1469734954-31247-1-git-send-email-mhocko@kernel.org>
- <1469734954-31247-10-git-send-email-mhocko@kernel.org>
- <20160728233359-mutt-send-email-mst@kernel.org>
- <20160729060422.GA5504@dhcp22.suse.cz>
- <20160729161039-mutt-send-email-mst@kernel.org>
- <20160729133529.GE8031@dhcp22.suse.cz>
+        Fri, 29 Jul 2016 10:57:55 -0700 (PDT)
+From: Vegard Nossum <vegard.nossum@oracle.com>
+Subject: kernel BUG at mm/mempolicy.c:1699!
+Message-ID: <579B991C.9050809@oracle.com>
+Date: Fri, 29 Jul 2016 19:57:48 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160729133529.GE8031@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>
+Cc: kasan-dev@googlegroups.com, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
 
-On Fri, Jul 29, 2016 at 03:35:29PM +0200, Michal Hocko wrote:
-> On Fri 29-07-16 16:14:10, Michael S. Tsirkin wrote:
-> > On Fri, Jul 29, 2016 at 08:04:22AM +0200, Michal Hocko wrote:
-> > > On Thu 28-07-16 23:41:53, Michael S. Tsirkin wrote:
-> > > > On Thu, Jul 28, 2016 at 09:42:33PM +0200, Michal Hocko wrote:
-> [...]
-> > > > > and the reader would hit a page fault
-> > > > > +	 * if it stumbled over a reaped memory.
-> > > > 
-> > > > This last point I don't get. flag read could bypass data read
-> > > > if that happens data read could happen after unmap
-> > > > yes it might get a PF but you handle that, correct?
-> > > 
-> > > The point I've tried to make is that if the reader really page faults
-> > > then get_user will imply the full barrier already. If get_user didn't
-> > > page fault then the state of the flag is not really important because
-> > > the reaper shouldn't have touched it. Does it make more sense now or
-> > > I've missed your question?
-> > 
-> > Can task flag read happen before the get_user pagefault?
-> 
-> Do you mean?
-> 
-> get_user_mm()
->   temp = false <- test_bit(MMF_UNSTABLE, &mm->flags)
->   ret = __get_user(x, ptr)
->   #PF
->   if (!ret && temp) # misses the flag
-> 
-> The code is basically doing
-> 
->   if (!__get_user() && test_bit(MMF_UNSTABLE, &mm->flags))
-> 
-> so test_bit part of the conditional cannot be evaluated before
-> __get_user() part is done. Compiler cannot reorder two depending
-> subconditions AFAIK.
+Hi guys,
 
-But maybe the CPU can.
+I ran into this one on commit c624c86615fb8aa61fa76ed8c935446d06c80e77:
 
-> -- 
-> Michal Hocko
-> SUSE Labs
+------------[ cut here ]------------
+kernel BUG at mm/mempolicy.c:1699!
+invalid opcode: 0000 [#1] PREEMPT SMP KASAN
+Dumping ftrace buffer:
+    (ftrace buffer empty)
+CPU: 1 PID: 27676 Comm: trinity-c0 Not tainted 4.7.0+ #64
+Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 
+Ubuntu-1.8.2-1ubuntu1 04/01/2014
+task: ffff88010b055a00 task.stack: ffff880101fb0000
+RIP: 0010:[<ffffffff8146246b>]  [<ffffffff8146246b>] 
+policy_zonelist+0xab/0x1a0
+RSP: 0018:ffff880101fb7838  EFLAGS: 00010293
+RAX: 0000000000000000 RBX: 0000000002000200 RCX: 0000000000000000
+RDX: 0000000000000000 RSI: ffff880103ef0690 RDI: ffff880103ef0694
+RBP: ffff880101fb7858 R08: 000000000000000b R09: 0000000000000001
+R10: 000000007d18a1c3 R11: 00000000b63bb1ad R12: 0000000002000200
+R13: ffff88010b055a00 R14: 0000000000000000 R15: ffff880103ef0694
+FS:  00007f405819e700(0000) GS:ffff88011ac80000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 0000000001746770 CR3: 0000000004218000 CR4: 00000000000006e4
+Stack:
+  ffff880103ef0690 0000000002000200 ffff880103ef0690 0000000002000200
+  ffff880101fb78c0 ffffffff8146893a ffff880101fb78d0 0000000000015320
+  ffff88010b055a00 0000000000000000 ffff88010b056968 00000002030594a7
+Call Trace:
+  [<ffffffff8146893a>] alloc_pages_current+0xba/0x370
+  [<ffffffff81e136d4>] depot_save_stack+0x3f4/0x490
+  [<ffffffff81476a65>] save_stack+0xb5/0xd0
+  [<ffffffff814770dc>] kasan_slab_free+0x9c/0xd0
+  [<ffffffff814734ef>] kmem_cache_free+0xaf/0x2b0
+  [<ffffffff81465429>] __mpol_put+0x19/0x20
+  [<ffffffff81109c95>] do_exit+0x1515/0x2c90
+  [<ffffffff812bf16e>] seccomp_phase1+0x68e/0x830
+  [<ffffffff8100476c>] syscall_trace_enter_phase1+0x24c/0x500
+  [<ffffffff81004fe4>] syscall_trace_enter+0x64/0xb0
+  [<ffffffff81005586>] do_syscall_64+0x336/0x460
+  [<ffffffff8389f42a>] entry_SYSCALL64_slow_path+0x25/0x25
+Code: db 0f 95 c0 48 89 c1 48 c1 e0 0b 48 c1 e1 04 48 89 ca 4a 03 14 e5 
+c0 58 84 84 48 83 c4 10 5b 41 5c 5d 48 8d 84 02 00 15 00 00 c3 <0f> 0b 
+48 8d 7e 06 48 b8 00 00 00 00 00 fc ff df 48 89 f9 48 c1
+RIP  [<ffffffff8146246b>] policy_zonelist+0xab/0x1a0
+  RSP <ffff880101fb7838>
+---[ end trace a30466557ef07873 ]---
+
+That's:
+
+$ addr2line -e runs/1469799091/vmlinux -i ffffffff8146246b 
+ffffffff8146893a ffffffff81e136d4 ffffffff81476a65 ffffffff814770dc 
+ffffffff814734ef ffffffff81465429 ffffffff81109c95 ffffffff812bf16e
+/home/vegard/linux/mm/mempolicy.c:1699
+/home/vegard/linux/mm/mempolicy.c:2072
+/home/vegard/linux/lib/stackdepot.c:247
+/home/vegard/linux/mm/kasan/kasan.c:491
+/home/vegard/linux/mm/kasan/kasan.c:496
+/home/vegard/linux/mm/kasan/kasan.c:547
+/home/vegard/linux/mm/slub.c:2940
+/home/vegard/linux/mm/slub.c:2957
+/home/vegard/linux/mm/mempolicy.c:300
+/home/vegard/linux/kernel/exit.c:854
+/home/vegard/linux/include/linux/audit.h:325
+/home/vegard/linux/kernel/seccomp.c:536
+/home/vegard/linux/kernel/seccomp.c:656
+
+In particular, it's interesting that the kernel/exit.c line is
+
+     mpol_put(tsk->mempolicy);
+
+and alloc_pages_current() does (potentially):
+
+     pol = get_task_policy(current);.
+
+The bug seems very new or very rare or both.
+
+
+Vegard
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
