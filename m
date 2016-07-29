@@ -1,82 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DF566B0253
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2016 10:11:38 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id p129so40308379wmp.3
-        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 07:11:38 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id tn19si19071969wjb.284.2016.07.29.07.11.36
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EC976B0253
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2016 10:46:21 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id d65so165432400ith.0
+        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 07:46:21 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id d129si13974501oia.17.2016.07.29.07.46.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jul 2016 07:11:36 -0700 (PDT)
-Date: Fri, 29 Jul 2016 10:11:30 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC] mm: bail out in shrin_inactive_list
-Message-ID: <20160729141130.GC2034@cmpxchg.org>
-References: <1469433119-1543-1-git-send-email-minchan@kernel.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 29 Jul 2016 07:46:20 -0700 (PDT)
+From: zhongjiang <zhongjiang@huawei.com>
+Subject: =?UTF-8?q?=5BPATCH=5D=20fs=3A=20wipe=20off=20the=20compiler=20warn?=
+Date: Fri, 29 Jul 2016 22:45:01 +0800
+Message-ID: <1469803501-44148-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1469433119-1543-1-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Jul 25, 2016 at 04:51:59PM +0900, Minchan Kim wrote:
-> With node-lru, if there are enough reclaimable pages in highmem
-> but nothing in lowmem, VM can try to shrink inactive list although
-> the requested zone is lowmem.
-> 
-> The problem is direct reclaimer scans inactive list is fulled with
-> highmem pages to find a victim page at a reqested zone or lower zones
-> but the result is that VM should skip all of pages. It just burns out
-> CPU. Even, many direct reclaimers are stalled by too_many_isolated
-> if lots of parallel reclaimer are going on although there are no
-> reclaimable memory in inactive list.
-> 
-> I tried the experiment 4 times in 32bit 2G 8 CPU KVM machine
-> to get elapsed time.
-> 
-> 	hackbench 500 process 2
-> 
-> = Old =
-> 
-> 1st: 289s 2nd: 310s 3rd: 112s 4th: 272s
-> 
-> = Now =
-> 
-> 1st: 31s  2nd: 132s 3rd: 162s 4th: 50s.
-> 
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
-> I believe proper fix is to modify get_scan_count. IOW, I think
-> we should introduce lruvec_reclaimable_lru_size with proper
-> classzone_idx but I don't know how we can fix it with memcg
-> which doesn't have zone stat now. should introduce zone stat
-> back to memcg? Or, it's okay to ignore memcg?
+From: zhong jiang <zhongjiang@huawei.com>
 
-You can fully ignore memcg and kmemcg. They only care about the
-balance sheet - page in, page out - never mind the type of page.
+when compile the kenrel code, I happens to the following warn.
+fs/reiserfs/ibalance.c:1156:2: warning: a??new_insert_keya?? may be used
+uninitialized in this function.
+memcpy(new_insert_key_addr, &new_insert_key, KEY_SIZE);
+^
+The patch just fix it to avoid the warn.
 
-If you are allocating a slab object and there is no physical memory,
-you'll wake kswapd or enter direct reclaim with the restricted zone
-index. If you then try to charge the freshly allocated page or object
-but hit the limit, kmem or otherwise, you'll enter memcg reclaim that
-is not restricted and only cares about getting usage + pages < limit.
+Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+---
+ fs/reiserfs/ibalance.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-I agree that it might be better to put this logic in get_scan_count()
-and set both nr[lru] as well as *lru_pages according to the pages that
-are eligible for the given reclaim index.
-
-if (global_reclaim(sc))
-  add zone stats from 0 to sc->reclaim_idx
-else
-  use lruvec_lru_size()
-
-It's a bit unfortunate that abstractions like the lruvec fall apart
-when we have to reconstruct zones ad-hoc now, but I don't see any
-obvious way around it...
+diff --git a/fs/reiserfs/ibalance.c b/fs/reiserfs/ibalance.c
+index b751eea..512ce95 100644
+--- a/fs/reiserfs/ibalance.c
++++ b/fs/reiserfs/ibalance.c
+@@ -818,7 +818,7 @@ int balance_internal(struct tree_balance *tb,
+ 	int order;
+ 	int insert_num, n, k;
+ 	struct buffer_head *S_new;
+-	struct item_head new_insert_key;
++	struct item_head uninitialized_var(new_insert_key);
+ 	struct buffer_head *new_insert_ptr = NULL;
+ 	struct item_head *new_insert_key_addr = insert_key;
+ 
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
