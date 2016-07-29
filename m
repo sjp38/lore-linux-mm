@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EC976B0253
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2016 10:46:21 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id d65so165432400ith.0
-        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 07:46:21 -0700 (PDT)
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BC6846B025F
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2016 10:47:52 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id m130so134260766ioa.1
+        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 07:47:52 -0700 (PDT)
 Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id d129si13974501oia.17.2016.07.29.07.46.19
+        by mx.google.com with ESMTPS id 39si14004529otw.240.2016.07.29.07.47.51
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 29 Jul 2016 07:46:20 -0700 (PDT)
+        Fri, 29 Jul 2016 07:47:52 -0700 (PDT)
 From: zhongjiang <zhongjiang@huawei.com>
 Subject: =?UTF-8?q?=5BPATCH=5D=20fs=3A=20wipe=20off=20the=20compiler=20warn?=
-Date: Fri, 29 Jul 2016 22:45:01 +0800
-Message-ID: <1469803501-44148-1-git-send-email-zhongjiang@huawei.com>
+Date: Fri, 29 Jul 2016 22:46:39 +0800
+Message-ID: <1469803600-44293-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 8bit
