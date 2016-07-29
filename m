@@ -1,139 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0EAED6B0262
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2016 04:59:25 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id l4so35002139wml.0
-        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 01:59:25 -0700 (PDT)
-Received: from ou.quest-ce.net ([2001:bc8:3541:100::1])
-        by mx.google.com with ESMTPS id dw15si17939199wjb.134.2016.07.29.01.59.23
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id F07396B0253
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2016 06:10:19 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id d65so147499341ith.0
+        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 03:10:19 -0700 (PDT)
+Received: from mail-it0-x243.google.com (mail-it0-x243.google.com. [2607:f8b0:4001:c0b::243])
+        by mx.google.com with ESMTPS id b185si3196491itb.24.2016.07.29.03.10.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Fri, 29 Jul 2016 01:59:23 -0700 (PDT)
-Message-ID: <1469782754.16837.20.camel@opteya.com>
-From: Yann Droneaud <ydroneaud@opteya.com>
-Date: Fri, 29 Jul 2016 10:59:14 +0200
-In-Reply-To: <20160728204730.27453-2-jason@lakedaemon.net>
-References: <20160728204730.27453-1-jason@lakedaemon.net>
-	 <20160728204730.27453-2-jason@lakedaemon.net>
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 29 Jul 2016 03:10:19 -0700 (PDT)
+Received: by mail-it0-x243.google.com with SMTP id f6so6677804ith.2
+        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 03:10:19 -0700 (PDT)
+Message-ID: <1469787002.10626.34.camel@gmail.com>
+Subject: Re: [kernel-hardening] Re: [PATCH] [RFC] Introduce mmap
+ randomization
+From: Daniel Micay <danielmicay@gmail.com>
+Date: Fri, 29 Jul 2016 06:10:02 -0400
+In-Reply-To: <20160728210734.GU4541@io.lakedaemon.net>
+References: <1469557346-5534-1-git-send-email-william.c.roberts@intel.com>
+	 <1469557346-5534-2-git-send-email-william.c.roberts@intel.com>
+	 <20160726200309.GJ4541@io.lakedaemon.net>
+	 <476DC76E7D1DF2438D32BFADF679FC560125F29C@ORSMSX103.amr.corp.intel.com>
+	 <20160726205944.GM4541@io.lakedaemon.net>
+	 <CAFJ0LnEZW7Y1zfN8v0_ckXQZn1n-UKEhf_tSmNOgHwrrnNnuMg@mail.gmail.com>
+	 <20160728210734.GU4541@io.lakedaemon.net>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-7L3CSBziRWBjmI0R+yDs"
 Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Subject: Re: [PATCH 1/7] random: Simplify API for random address requests
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jason Cooper <jason@lakedaemon.net>, william.c.roberts@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
-Cc: linux@arm.linux.org.uk, akpm@linux-foundation.org, keescook@chromium.org, tytso@mit.edu, arnd@arndb.de, gregkh@linuxfoundation.org, catalin.marinas@arm.com, will.deacon@arm.com, ralf@linux-mips.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, davem@davemloft.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, viro@zeniv.linux.org.uk, nnk@google.com, jeffv@google.com, dcashman@android.com
-
-Hi,
-
-Le jeudi 28 juillet 2016 A  20:47 +0000, Jason Cooper a A(C)critA :
-> To date, all callers of randomize_range() have set the length to 0,
-> and check for a zero return value.A A For the current callers, the only
-> way to get zero returned is if end <= start.A A Since they are all
-> adding a constant to the start address, this is unnecessary.
-> 
-> We can remove a bunch of needless checks by simplifying the API to do
-> just what everyone wants, return an address between [start, start +
-> range).
-> 
-> While we're here, s/get_random_int/get_random_long/.A A No current call
-> site is adversely affected by get_random_int(), since all current
-> range requests are < UINT_MAX.A A However, we should match caller
-> expectations to avoid coming up short (ha!) in the future.
-> 
-> Address generation within [start, start + range) behavior is
-> preserved.
-> 
-> All current callers to randomize_range() chose to use the start
-> address if randomize_range() failed.A A Therefore, we simplify things
-> by just returning the start address on error.
-> 
-> randomize_range() will be removed once all callers have been
-> converted over to randomize_addr().
-> 
-> Signed-off-by: Jason Cooper <jason@lakedaemon.net>
-> ---
-> A drivers/char/random.cA A | 26 ++++++++++++++++++++++++++
-> A include/linux/random.h |A A 1 +
-> A 2 files changed, 27 insertions(+)
-> 
-> diff --git a/drivers/char/random.c b/drivers/char/random.c
-> index 0158d3bff7e5..3610774bcc53 100644
-> --- a/drivers/char/random.c
-> +++ b/drivers/char/random.c
-> @@ -1840,6 +1840,32 @@ randomize_range(unsigned long start, unsigned
-> long end, unsigned long len)
-> A 	return PAGE_ALIGN(get_random_int() % range + start);
-> A }
-> A 
-> +/**
-> + * randomize_addr - Generate a random, page aligned address
-> + * @start:	The smallest acceptable address the caller will take.
-> + * @range:	The size of the area, starting at @start, within which the
-> + *		random address must fall.
-> + *
-> + * Before page alignment, the random address generated can be any value from
-> + * @start, to @start + @range - 1 inclusive.
-> + *
-> + * If @start + @range would overflow, @range is capped.
-> + *
-> + * Return: A page aligned address within [start, start + range).
-
-PAGE_ALIGN(start + range - 1) can be greater than start + range ..
-
-In the worst case, when start = 0, range = ULONG_MAX, the result would
-be 0.
-
-In order to stay in the bounds, the start address must be rounded up,
-and the random offset must be rounded down.
-
-Something I haven't found the time to send was looking like this:
-
-A  unsigned long base = PAGE_ALIGN(start);
-
-A  range -= (base - start);
-A  range >>= PAGE_SHIFT;
-
-A  return base + ((get_random_int() % range) << PAGE_SHIFT);
+To: kernel-hardening@lists.openwall.com, Nick Kralevich <nnk@google.com>
+Cc: "Roberts, William C" <william.c.roberts@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "keescook@chromium.org" <keescook@chromium.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "jeffv@google.com" <jeffv@google.com>, "salyzyn@android.com" <salyzyn@android.com>, "dcashman@android.com" <dcashman@android.com>
 
 
-> A A On error,
-> + * @start is returned.
-> + */
-> +unsigned long
-> +randomize_addr(unsigned long start, unsigned long range)
-> +{
-> +	if (range == 0)
-> +		return start;
-> +
-> +	if (start > ULONG_MAX - range)
-> +		range = ULONG_MAX - start;
-> +
-> +	return PAGE_ALIGN(get_random_long() % range + start);
-> +}
-> +
-> A /* Interface for in-kernel drivers of true hardware RNGs.
-> A  * Those devices may produce endless random bits and will be throttled
-> A  * when our pool is full.
-> diff --git a/include/linux/random.h b/include/linux/random.h
-> index e47e533742b5..f1ca2fa4c071 100644
-> --- a/include/linux/random.h
-> +++ b/include/linux/random.h
-> @@ -35,6 +35,7 @@ extern const struct file_operations random_fops, urandom_fops;
-> A unsigned int get_random_int(void);
-> A unsigned long get_random_long(void);
-> A unsigned long randomize_range(unsigned long start, unsigned long end, unsigned long len);
-> +unsigned long randomize_addr(unsigned long start, unsigned long range);
-> A 
-> A u32 prandom_u32(void);
-> A void prandom_bytes(void *buf, size_t nbytes);
+--=-7L3CSBziRWBjmI0R+yDs
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
+> > In the Project Zero Stagefright post
+> > (http://googleprojectzero.blogspot.com/2015/09/stagefrightened.html)
+> > ,
+> > we see that the linear allocation of memory combined with the low
+> > number of bits in the initial mmap offset resulted in a much more
+> > predictable layout which aided the attacker. The initial random mmap
+> > base range was increased by Daniel Cashman in
+> > d07e22597d1d355829b7b18ac19afa912cf758d1, but we've done nothing to
+> > address page relative attacks.
+> >=20
+> > Inter-mmap randomization will decrease the predictability of later
+> > mmap() allocations, which should help make data structures harder to
+> > find in memory. In addition, this patch will also introduce unmapped
+> > gaps between pages, preventing linear overruns from one mapping to
+> > another another mapping. I am unable to quantify how much this will
+> > improve security, but it should be > 0.
+>=20
+> One person calls "unmapped gaps between pages" a feature, others call
+> it
+> a mess. ;-)
 
-Regards.
+It's very hard to quantify the benefits of fine-grained randomization,
+but there are other useful guarantees you could provide. It would be
+quite helpful for the kernel to expose the option to force a PROT_NONE
+mapping after every allocation. The gaps should actually be enforced.
 
--- 
-Yann Droneaud
-OPTEYA
+So perhaps 3 things, simply exposed as off-by-default sysctl options (no
+need for special treatment on 32-bit):
+
+a) configurable minimum gap size in pages (for protection against linear
+and small {under,over}flows)
+b) configurable minimum gap size based on a ratio to allocation size
+(for making the heap sparse to mitigate heap sprays, especially when
+mixed with fine-grained randomization - for example 2x would add a 2M
+gap after a 1M mapping)
+c) configurable maximum random gap size (the random gap would be in
+addition to the enforced minimums)
+
+The randomization could just be considered an extra with minor benefits
+rather than the whole feature. A full fine-grained randomization
+implementation would need a higher-level form of randomization than gaps
+in the kernel along with cooperation from userspace allocators. This
+would make sense as one part of it though.
+--=-7L3CSBziRWBjmI0R+yDs
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIzBAABCAAdBQJXmyt6FhxkYW5pZWxtaWNheUBnbWFpbC5jb20ACgkQ+ecS5Zr1
+8ipPGxAAgXNziBxf6snaEWRnS0vJfBg3zJkzfs9AxgM/j3Nf5efTCN0VaNKctqbc
+A6gL83PtFqT681ZEb/ILALkBCk892o6b1yU+uibXLPJTDGJkVmzgrVMNdZ0lUKdH
+mVbupdcnBqrZ1RsThShnOC9F1OfCtkAq8y+G5amKaN6pubu83ohdGFa4JtWsq1Hp
+E1BuYThA9SNV4fG5AmwLMAy7TOg98zG5fQ4AxORAKUTIIbypw1FoXfCuhhzLToRF
+scLwMg2ElhlwXk9zgW05LfOUisDNqYj2kAoJQekYCvXhB4p2iAXe7KYrID2e0V/P
+zlVyEU2QrNFikFuWzktWW7o8NK0wKGEVgoF11QOsGEx1suj5XeebJfgy49IpwIo8
++TSXLr2vYMSIhFdx/QWQJxIFQEGTJuZu8/fl1BE01rCl93zcQiuZHepwCe9I6Wlp
+z73izV2xMrTSjPNfZjuqGhdcjTSBGCW9XqB1NybKqAAczVizvWjclTWtYWzmqGax
+VqUqiEgx2rOQ/56RuAJn44o+geeYmtoH8gppSMiJcXiCdX1pYpJZYAYVYFDlO/bB
+XOVLwjEMwGL8LAGXZYQH6bW3f73UdyDFXQrShnyHnYk8REebbQIUetWvU9Lmbzyc
+fCDRufi6ebQjn40ne/nhlVmpZlTGl3We3fIIhAX8/AfWHvXU2i8=
+=tPV0
+-----END PGP SIGNATURE-----
+
+--=-7L3CSBziRWBjmI0R+yDs--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
