@@ -1,71 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 716A76B0005
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2016 13:07:27 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id i27so118913916qte.3
-        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 10:07:27 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u128si12775894qkc.250.2016.07.29.10.07.26
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AA3006B0005
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2016 13:30:18 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id u66so122062175qkf.1
+        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 10:30:18 -0700 (PDT)
+Received: from mail-ua0-x235.google.com (mail-ua0-x235.google.com. [2607:f8b0:400c:c08::235])
+        by mx.google.com with ESMTPS id c53si4245057uaa.249.2016.07.29.10.30.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jul 2016 10:07:26 -0700 (PDT)
-Date: Fri, 29 Jul 2016 19:07:28 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 09/10] vhost, mm: make sure that oom_reaper doesn't
-	reap memory read by vhost
-Message-ID: <20160729170728.GB7698@redhat.com>
-References: <1469734954-31247-1-git-send-email-mhocko@kernel.org> <1469734954-31247-10-git-send-email-mhocko@kernel.org>
+        Fri, 29 Jul 2016 10:30:17 -0700 (PDT)
+Received: by mail-ua0-x235.google.com with SMTP id k90so66605669uak.0
+        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 10:30:17 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1469734954-31247-10-git-send-email-mhocko@kernel.org>
+In-Reply-To: <20160729163021.F3C25D4A@viggo.jf.intel.com>
+References: <20160729163009.5EC1D38C@viggo.jf.intel.com> <20160729163021.F3C25D4A@viggo.jf.intel.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Fri, 29 Jul 2016 10:29:58 -0700
+Message-ID: <CALCETrWMg=+YSi7Az+gw9B59OoAEkOd=znpr7+++5=UUg6DThw@mail.gmail.com>
+Subject: Re: [PATCH 08/10] x86, pkeys: default to a restrictive init PKRU
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Michal Hocko <mhocko@suse.com>, "Michael S. Tsirkin" <mst@redhat.com>
+To: Dave Hansen <dave@sr71.net>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andrew Lutomirski <luto@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Dave Hansen <dave.hansen@linux.intel.com>, Arnd Bergmann <arnd@arndb.de>
 
-Well. I promised to not argue, but I can't resist...
-
-On 07/28, Michal Hocko wrote:
+On Fri, Jul 29, 2016 at 9:30 AM, Dave Hansen <dave@sr71.net> wrote:
 >
-> --- a/include/linux/uaccess.h
-> +++ b/include/linux/uaccess.h
-> @@ -76,6 +76,28 @@ static inline unsigned long __copy_from_user_nocache(void *to,
->  #endif		/* ARCH_HAS_NOCACHE_UACCESS */
+> From: Dave Hansen <dave.hansen@linux.intel.com>
 >
->  /*
-> + * A safe variant of __get_user for for use_mm() users to have a
-> + * gurantee that the address space wasn't reaped in the background
-> + */
-> +#define __get_user_mm(mm, x, ptr)				\
-> +({								\
-> +	int ___gu_err = __get_user(x, ptr);			\
-> +	if (!___gu_err && test_bit(MMF_UNSTABLE, &mm->flags))	\
-> +		___gu_err = -EFAULT;				\
-> +	___gu_err;						\
-> +})
-> +
-> +/* similar to __get_user_mm */
-> +static inline __must_check long __copy_from_user_mm(struct mm_struct *mm,
-> +		void *to, const void __user * from, unsigned long n)
-> +{
-> +	long ret = __copy_from_user(to, from, n);
-> +	if ((ret >= 0) && test_bit(MMF_UNSTABLE, &mm->flags))
-> +		return -EFAULT;
-> +	return ret;
-> +}
+> PKRU is the register that lets you disallow writes or all access
+> to a given protection key.
+>
+> The XSAVE hardware defines an "init state" of 0 for PKRU: its
+> most permissive state, allowing access/writes to everything.
+> Since we start off all new processes with the init state, we
+> start all processes off with the most permissive possible PKRU.
+>
+> This is unfortunate.  If a thread is clone()'d [1] before a
+> program has time to set PKRU to a restrictive value, that thread
+> will be able to write to all data, no matter what pkey is set on
+> it.  This weakens any integrity guarantees that we want pkeys to
+> provide.
+>
+> To fix this, we define a very restrictive PKRU to override the
+> XSAVE-provided value when we create a new FPU context.  We choose
+> a value that only allows access to pkey 0, which is as
+> restrictive as we can practically make it.
+>
+> This does not cause any practical problems with applications
+> using protection keys because we require them to specify initial
+> permissions for each key when it is allocated, which override the
+> restrictive default.
+>
+> In the end, this ensures that threads which do not know how to
+> manage their own pkey rights can not do damage to data which is
+> pkey-protected.
 
-Still fail to understand why do we actually need this, but nevermind.
+I think you missed the fpu__clear() caller in kernel/fpu/signal.c.
 
-Can't we instead change handle_pte_fault() or do_anonymous_page() to
-fail if MMF_UNSTABLE? We can realy pte_offset_map_lock(), MMF_UNSTABLE
-must be visible under this lock.
-
-We do not even need to actually disallow to re-populate the unmapped
-pte afaics, so we can even change handle_mm_fault() to check
-MMF_UNSTABLE after at the ens and return VM_FAULT_SIGBUS if it is set.
-
-Oleg.
+ISTM it might be more comprehensible to change fpu__clear in general
+and then special case things you want to behave differently.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
