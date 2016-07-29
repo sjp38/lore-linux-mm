@@ -1,65 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AA3006B0005
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2016 13:30:18 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id u66so122062175qkf.1
-        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 10:30:18 -0700 (PDT)
-Received: from mail-ua0-x235.google.com (mail-ua0-x235.google.com. [2607:f8b0:400c:c08::235])
-        by mx.google.com with ESMTPS id c53si4245057uaa.249.2016.07.29.10.30.17
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3307E6B0260
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2016 13:31:32 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id l4so43694310wml.0
+        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 10:31:32 -0700 (PDT)
+Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
+        by mx.google.com with ESMTPS id pp3si19846060wjb.275.2016.07.29.10.31.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jul 2016 10:30:17 -0700 (PDT)
-Received: by mail-ua0-x235.google.com with SMTP id k90so66605669uak.0
-        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 10:30:17 -0700 (PDT)
+        Fri, 29 Jul 2016 10:31:31 -0700 (PDT)
+Received: by mail-wm0-x243.google.com with SMTP id q128so16672955wma.1
+        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 10:31:31 -0700 (PDT)
+Subject: Re: [4.7+] various memory corruption reports.
+References: <20160729150513.GB29545@codemonkey.org.uk>
+ <20160729151907.GC29545@codemonkey.org.uk>
+ <CAPAsAGxDOvD64+5T4vPiuJgHkdHaaXGRfikFxXGHDRRiW4ivVQ@mail.gmail.com>
+ <20160729154929.GA30611@codemonkey.org.uk>
+From: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Message-ID: <579B9339.7030707@gmail.com>
+Date: Fri, 29 Jul 2016 20:32:41 +0300
 MIME-Version: 1.0
-In-Reply-To: <20160729163021.F3C25D4A@viggo.jf.intel.com>
-References: <20160729163009.5EC1D38C@viggo.jf.intel.com> <20160729163021.F3C25D4A@viggo.jf.intel.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Fri, 29 Jul 2016 10:29:58 -0700
-Message-ID: <CALCETrWMg=+YSi7Az+gw9B59OoAEkOd=znpr7+++5=UUg6DThw@mail.gmail.com>
-Subject: Re: [PATCH 08/10] x86, pkeys: default to a restrictive init PKRU
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20160729154929.GA30611@codemonkey.org.uk>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Linux API <linux-api@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andrew Lutomirski <luto@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Dave Hansen <dave.hansen@linux.intel.com>, Arnd Bergmann <arnd@arndb.de>
+To: Dave Jones <davej@codemonkey.org.uk>, Linux Kernel <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, Jul 29, 2016 at 9:30 AM, Dave Hansen <dave@sr71.net> wrote:
->
-> From: Dave Hansen <dave.hansen@linux.intel.com>
->
-> PKRU is the register that lets you disallow writes or all access
-> to a given protection key.
->
-> The XSAVE hardware defines an "init state" of 0 for PKRU: its
-> most permissive state, allowing access/writes to everything.
-> Since we start off all new processes with the init state, we
-> start all processes off with the most permissive possible PKRU.
->
-> This is unfortunate.  If a thread is clone()'d [1] before a
-> program has time to set PKRU to a restrictive value, that thread
-> will be able to write to all data, no matter what pkey is set on
-> it.  This weakens any integrity guarantees that we want pkeys to
-> provide.
->
-> To fix this, we define a very restrictive PKRU to override the
-> XSAVE-provided value when we create a new FPU context.  We choose
-> a value that only allows access to pkey 0, which is as
-> restrictive as we can practically make it.
->
-> This does not cause any practical problems with applications
-> using protection keys because we require them to specify initial
-> permissions for each key when it is allocated, which override the
-> restrictive default.
->
-> In the end, this ensures that threads which do not know how to
-> manage their own pkey rights can not do damage to data which is
-> pkey-protected.
 
-I think you missed the fpu__clear() caller in kernel/fpu/signal.c.
 
-ISTM it might be more comprehensible to change fpu__clear in general
-and then special case things you want to behave differently.
+On 07/29/2016 06:49 PM, Dave Jones wrote:
+> On Fri, Jul 29, 2016 at 06:21:12PM +0300, Andrey Ryabinin wrote:
+>  > 2016-07-29 18:19 GMT+03:00 Dave Jones <davej@codemonkey.org.uk>:
+>  > > On Fri, Jul 29, 2016 at 11:05:14AM -0400, Dave Jones wrote:
+>  > >  > I've just gotten back into running trinity on daily pulls of master, and it seems pretty horrific
+>  > >  > right now.  I can reproduce some kind of memory corruption within a couple minutes runtime.
+>  > >  >
+>  > >  > ,,,
+>  > >  >
+>  > >  > I'll work on narrowing down the exact syscalls needed to trigger this.
+>  > >
+>  > > Even limiting it to do just a simple syscall like execve (which fails most the time in trinity)
+>  > > triggers it, suggesting it's not syscall related, but the fact that trinity is forking/killing
+>  > > tons of processes at high rate is stressing something more fundamental.
+>  > >
+>  > > Given how easy this reproduces, I'll see if bisecting gives up something useful.
+>  > 
+>  > I suspect this is false positives due to changes in KASAN.
+>  > Bisection probably will point to
+>  > 80a9201a5965f4715d5c09790862e0df84ce0614 ("mm, kasan: switch SLUB to
+>  > stackdepot, enable memory quarantine for SLUB)"
+> 
+> good call. reverting that changeset seems to have solved it.
+> 
+
+Unfortunately, I wasn't able to reproduce it.
+
+Could you please try with this?
+
+---
+ mm/kasan/kasan.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index b6f99e8..bf25340 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -543,8 +543,8 @@ bool kasan_slab_free(struct kmem_cache *cache, void *object)
+ 		switch (alloc_info->state) {
+ 		case KASAN_STATE_ALLOC:
+ 			alloc_info->state = KASAN_STATE_QUARANTINE;
+-			quarantine_put(free_info, cache);
+ 			set_track(&free_info->track, GFP_NOWAIT);
++			quarantine_put(free_info, cache);
+ 			kasan_poison_slab_free(cache, object);
+ 			return true;
+ 		case KASAN_STATE_QUARANTINE:
+-- 
+2.7.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
