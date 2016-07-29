@@ -1,81 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FA856B0253
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2016 09:00:09 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id e7so35385493lfe.0
-        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 06:00:09 -0700 (PDT)
-Received: from outbound-smtp11.blacknight.com (outbound-smtp11.blacknight.com. [46.22.139.16])
-        by mx.google.com with ESMTPS id o2si3377481wmg.89.2016.07.29.06.00.08
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E98C6B0253
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2016 09:14:16 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id 101so109171428qtb.0
+        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 06:14:16 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p31si12140775qtb.49.2016.07.29.06.14.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jul 2016 06:00:08 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id B97511C198B
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2016 14:00:07 +0100 (IST)
-Date: Fri, 29 Jul 2016 14:00:06 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 1/3] Add a new field to struct shrinker
-Message-ID: <20160729130005.GE2799@techsingularity.net>
-References: <85a9712f3853db5d9bc14810b287c23776235f01.1468051281.git.janani.rvchndrn@gmail.com>
- <20160711063730.GA5284@dhcp22.suse.cz>
- <1468246371.13253.63.camel@surriel.com>
- <20160711143342.GN1811@dhcp22.suse.cz>
- <F072D3E2-0514-4A25-868E-2104610EC14A@gmail.com>
- <20160720145405.GP11249@dhcp22.suse.cz>
- <5e6e4f2d-ae94-130e-198d-fa402a9eef50@suse.de>
- <20160728054947.GL12670@dastard>
- <20160728102513.GA2799@techsingularity.net>
- <20160729001340.GM12670@dastard>
+        Fri, 29 Jul 2016 06:14:15 -0700 (PDT)
+Date: Fri, 29 Jul 2016 16:14:10 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH 09/10] vhost, mm: make sure that oom_reaper doesn't reap
+ memory read by vhost
+Message-ID: <20160729161039-mutt-send-email-mst@kernel.org>
+References: <1469734954-31247-1-git-send-email-mhocko@kernel.org>
+ <1469734954-31247-10-git-send-email-mhocko@kernel.org>
+ <20160728233359-mutt-send-email-mst@kernel.org>
+ <20160729060422.GA5504@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160729001340.GM12670@dastard>
+In-Reply-To: <20160729060422.GA5504@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Tony Jones <tonyj@suse.de>, Michal Hocko <mhocko@suse.cz>, Janani Ravichandran <janani.rvchndrn@gmail.com>, Rik van Riel <riel@surriel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, hannes@cmpxchg.org, vdavydov@virtuozzo.com, vbabka@suse.cz, kirill.shutemov@linux.intel.com, bywxiaobai@163.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>
 
-On Fri, Jul 29, 2016 at 10:13:40AM +1000, Dave Chinner wrote:
-> On Thu, Jul 28, 2016 at 11:25:13AM +0100, Mel Gorman wrote:
-> > On Thu, Jul 28, 2016 at 03:49:47PM +1000, Dave Chinner wrote:
-> > > Seems you're all missing the obvious.
-> > > 
-> > > Add a tracepoint for a shrinker callback that includes a "name"
-> > > field, have the shrinker callback fill it out appropriately. e.g
-> > > in the superblock shrinker:
-> > > 
-> > > 	trace_shrinker_callback(shrinker, shrink_control, sb->s_type->name);
-> > > 
+On Fri, Jul 29, 2016 at 08:04:22AM +0200, Michal Hocko wrote:
+> On Thu 28-07-16 23:41:53, Michael S. Tsirkin wrote:
+> > On Thu, Jul 28, 2016 at 09:42:33PM +0200, Michal Hocko wrote:
+> [...]
+> > > diff --git a/include/linux/uaccess.h b/include/linux/uaccess.h
+> > > index 349557825428..a327d5362581 100644
+> > > --- a/include/linux/uaccess.h
+> > > +++ b/include/linux/uaccess.h
+> > > @@ -76,6 +76,28 @@ static inline unsigned long __copy_from_user_nocache(void *to,
+> > >  #endif		/* ARCH_HAS_NOCACHE_UACCESS */
+> > >  
+> > >  /*
+> > > + * A safe variant of __get_user for for use_mm() users to have a
 > > 
-> > That misses capturing the latency of the call unless there is a begin/end
-> > tracepoint.
+> > for for -> for?
 > 
-> Sure, but I didn't see that in the email talking about how to add a
-> name. Even if it is a requirement, it's not necessary as we've
-> already got shrinker runtime measurements from the
-> trace_mm_shrink_slab_start and trace_mm_shrink_slab_end trace
-> points. With the above callback event, shrinker call runtime is
-> simply the time between the calls to the same shrinker within
-> mm_shrink_slab start/end trace points.
+> fixed
 > 
-
-Fair point. It's not that hard to correlate them.
-
-> <SNIP>
+> > 
+> > > + * gurantee that the address space wasn't reaped in the background
+> > > + */
+> > > +#define __get_user_mm(mm, x, ptr)				\
+> > > +({								\
+> > > +	int ___gu_err = __get_user(x, ptr);			\
+> > 
+> > I suspect you need smp_rmb() here to make sure it test does not
+> > bypass the memory read.
+> > 
+> > You will accordingly need smp_wmb() when you set the flag,
+> > maybe it's there already - I have not checked.
 > 
-> > My understanding was the point of the tracepoints was to get detailed
-> > information on points where the kernel is known to stall for long periods
-> > of time.
+> As the comment for setting the flag explains the memory barriers
+> shouldn't be really needed AFAIU. More on that below.
 > 
-> First I've heard that's what tracepoints are supposed to be used
-> for.
+> [...]
+> > > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > > index ca1cc24ba720..6ccf63fbfc72 100644
+> > > --- a/mm/oom_kill.c
+> > > +++ b/mm/oom_kill.c
+> > > @@ -488,6 +488,14 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+> > >  		goto unlock_oom;
+> > >  	}
+> > >  
+> > > +	/*
+> > > +	 * Tell all users of get_user_mm/copy_from_user_mm that the content
+> > > +	 * is no longer stable. No barriers really needed because unmapping
+> > > +	 * should imply barriers already
+> > 
+> > ok
+> > 
+> > > and the reader would hit a page fault
+> > > +	 * if it stumbled over a reaped memory.
+> > 
+> > This last point I don't get. flag read could bypass data read
+> > if that happens data read could happen after unmap
+> > yes it might get a PF but you handle that, correct?
+> 
+> The point I've tried to make is that if the reader really page faults
+> then get_user will imply the full barrier already. If get_user didn't
+> page fault then the state of the flag is not really important because
+> the reaper shouldn't have touched it. Does it make more sense now or
+> I've missed your question?
 
-I meant the specific case of trace_X_begin followed by trace_X_end, not
-tracepoints in general.
+Can task flag read happen before the get_user pagefault?
+If it does, task flag could not be set even though
+page fault triggered.
 
--- 
-Mel Gorman
-SUSE Labs
+> > 
+> > > +	 */
+> > > +	set_bit(MMF_UNSTABLE, &mm->flags);
+> > > +
+> > 
+> > I would really prefer a callback that vhost would register
+> > and stop all accesses. Tell me if you need help on above idea.
+> 
+> 
+> Well, in order to make callback workable the oom reaper would have to
+> synchronize with the said callback until it declares all currently
+> ongoing accesses done. That means oom reaper would have to block/wait
+> and that is something I would really like to prevent from because it
+> just adds another possibility of the lockup (say the get_user cannot
+> make forward progress because it is stuck in the page fault allocating
+> memory). Or do you see any other way how to implement such a callback
+> mechanism without blocking on the oom_reaper side?
+
+I'll think it over and respond.
+
+> 
+> > But with the above nits addressed,
+> > I think this would be acceptable as well.
+> 
+> Thank you for your review and feedback!
+> -- 
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
