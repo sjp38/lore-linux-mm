@@ -1,51 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FC8F6B0253
-	for <linux-mm@kvack.org>; Thu, 28 Jul 2016 23:24:59 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id n69so103653255ion.0
-        for <linux-mm@kvack.org>; Thu, 28 Jul 2016 20:24:59 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id 15si1418072itx.100.2016.07.28.20.24.57
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C7E4A6B0253
+	for <linux-mm@kvack.org>; Thu, 28 Jul 2016 23:29:22 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id c126so128650415ith.3
+        for <linux-mm@kvack.org>; Thu, 28 Jul 2016 20:29:22 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id q72si1469468itc.67.2016.07.28.20.29.21
         for <linux-mm@kvack.org>;
-        Thu, 28 Jul 2016 20:24:58 -0700 (PDT)
+        Thu, 28 Jul 2016 20:29:22 -0700 (PDT)
+Date: Fri, 29 Jul 2016 12:30:07 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH] mm: move swap-in anonymous page into active list
-Date: Fri, 29 Jul 2016 12:25:40 +0900
-Message-Id: <1469762740-17860-1-git-send-email-minchan@kernel.org>
+Subject: Re: [PATCH] mm: move swap-in anonymous page into active list
+Message-ID: <20160729033007.GA17905@bbox>
+References: <1469762740-17860-1-git-send-email-minchan@kernel.org>
+MIME-Version: 1.0
+In-Reply-To: <1469762740-17860-1-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>
 
-Every swap-in anonymous page starts from inactive lru list's head.
-It should be activated unconditionally when VM decide to reclaim
-because page table entry for the page always usually has marked
-accessed bit. Thus, their window size for getting a new referece
-is 2 * NR_inactive + NR_active while others is NR_active + NR_active.
+On Fri, Jul 29, 2016 at 12:25:40PM +0900, Minchan Kim wrote:
+> Every swap-in anonymous page starts from inactive lru list's head.
+> It should be activated unconditionally when VM decide to reclaim
+> because page table entry for the page always usually has marked
+> accessed bit. Thus, their window size for getting a new referece
+> is 2 * NR_inactive + NR_active while others is NR_active + NR_active.
 
-It's not fair that it has more chance to be referenced compared
-to other newly allocated page which starts from active lru list's
-head.
+                                                 NR_inactive
 
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- mm/memory.c | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index 4425b6059339..3a730b920242 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2642,6 +2642,7 @@ int do_swap_page(struct fault_env *fe, pte_t orig_pte)
- 	if (page == swapcache) {
- 		do_page_add_anon_rmap(page, vma, fe->address, exclusive);
- 		mem_cgroup_commit_charge(page, memcg, true, false);
-+		activate_page(page);
- 	} else { /* ksm created a completely new copy */
- 		page_add_new_anon_rmap(page, vma, fe->address, false);
- 		mem_cgroup_commit_charge(page, memcg, false, false);
--- 
-1.9.1
+typo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
