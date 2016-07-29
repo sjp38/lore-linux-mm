@@ -1,146 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BF412828E1
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2016 12:30:32 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id ez1so110571460pab.1
-        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 09:30:32 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id l5si19098370pfa.134.2016.07.29.09.30.29
-        for <linux-mm@kvack.org>;
-        Fri, 29 Jul 2016 09:30:29 -0700 (PDT)
-Subject: [PATCH 09/10] x86, pkeys: allow configuration of init_pkru
-From: Dave Hansen <dave@sr71.net>
-Date: Fri, 29 Jul 2016 09:30:23 -0700
-References: <20160729163009.5EC1D38C@viggo.jf.intel.com>
-In-Reply-To: <20160729163009.5EC1D38C@viggo.jf.intel.com>
-Message-Id: <20160729163023.407672D2@viggo.jf.intel.com>
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 527736B0005
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2016 12:55:37 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id i184so109879452ywb.1
+        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 09:55:37 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a4si12753892qkf.84.2016.07.29.09.55.36
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 29 Jul 2016 09:55:36 -0700 (PDT)
+Message-ID: <1469811331.13905.10.camel@redhat.com>
+Subject: Re: [PATCH] mm: move swap-in anonymous page into active list
+From: Rik van Riel <riel@redhat.com>
+Date: Fri, 29 Jul 2016 12:55:31 -0400
+In-Reply-To: <1469762740-17860-1-git-send-email-minchan@kernel.org>
+References: <1469762740-17860-1-git-send-email-minchan@kernel.org>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-Dd6BkX+eYPGZC1l2JBaU"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: x86@kernel.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, luto@kernel.org, mgorman@techsingularity.net, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com, arnd@arndb.de
+To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>
 
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+--=-Dd6BkX+eYPGZC1l2JBaU
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-As discussed in the previous patch, there is a reliability
-benefit to allowing an init value for the Protection Keys Rights
-User register (PKRU) which differs from what the XSAVE hardware
-provides.
+On Fri, 2016-07-29 at 12:25 +0900, Minchan Kim wrote:
+> Every swap-in anonymous page starts from inactive lru list's head.
+> It should be activated unconditionally when VM decide to reclaim
+> because page table entry for the page always usually has marked
+> accessed bit. Thus, their window size for getting a new referece
+> is 2 * NR_inactive + NR_active while others is NR_active + NR_active.
+>=20
+> It's not fair that it has more chance to be referenced compared
+> to other newly allocated page which starts from active lru list's
+> head.
+>=20
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 
-But, having PKRU be 0 (its init value) provides some nonzero
-amount of optimization potential to the hardware.  It can, for
-instance, skip writes to the XSAVE buffer when it knows that PKRU
-is in its init state.
+Acked-by: Rik van Riel <riel@redhat.com>
 
-The cost of losing this optimization is approximately 100 cycles
-per context switch for a workload which lightly using XSAVE
-state (something not using AVX much).  The overhead comes from a
-combinaation of actually manipulating PKRU and the overhead of
-pullin in an extra cacheline.
+The reason newly read in swap cache pages start on the
+inactive list is that we do some amount of read-around,
+and do not know which pages will get used.
 
-This overhead is not huge, but it's also not something that I
-think we should unconditionally inflict on everyone.  So, make it
-configurable both at boot-time and from debugfs.
+However, immediately activating the ones that DO get
+used, like your patch does, is the right thing to do.
 
-Changes to the debugfs value affect all processes created after
-the write to debugfs.
+--=C2=A0
+All Rights Reversed.
+--=-Dd6BkX+eYPGZC1l2JBaU
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
 
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-api@vger.kernel.org
-Cc: linux-arch@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: x86@kernel.org
-Cc: torvalds@linux-foundation.org
-Cc: akpm@linux-foundation.org
-Cc: Arnd Bergmann <arnd@arndb.de>
-Cc: mgorman@techsingularity.net
----
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
 
- b/arch/x86/mm/pkeys.c |   67 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 67 insertions(+)
+iQEcBAABCAAGBQJXm4qDAAoJEM553pKExN6DCtcIAIHRnbXgRlxVfoK3rLNsXwdC
+i69XPRI9Q05BWanoXj1vgKnoddrJigjBeGgksOME86EIeiuWYGcEIi8m5YSiIpHB
+keJra06IoHTTTTFau7QQg2UziykSO3ax1/ORSKQZLY7hjYiGAg6nTbAnobbRYleF
+xwce8RQ+WMPmyh/8RHSApAWGUTG1w17nveTo0eHACVvQIb1yErTfDAl7Cuyq0uwq
+OilQvpU1ahtOP4Dk1XhhHIushxzn4JiS4WTdh/WLDraniclI1/ZnfVJzbeqwHtrJ
+hfgun6XaeamYfAA1y7FCRSurlI15H0EGLSy1vBPBOlGJKmhXV2v+mWvWfzKY2co=
+=mXnQ
+-----END PGP SIGNATURE-----
 
-diff -puN arch/x86/mm/pkeys.c~pkeys-141-restrictive-init-pkru-debugfs arch/x86/mm/pkeys.c
---- a/arch/x86/mm/pkeys.c~pkeys-141-restrictive-init-pkru-debugfs	2016-07-29 09:18:59.811625219 -0700
-+++ b/arch/x86/mm/pkeys.c	2016-07-29 09:18:59.814625355 -0700
-@@ -11,6 +11,7 @@
-  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  * more details.
-  */
-+#include <linux/debugfs.h>		/* debugfs_create_u32()		*/
- #include <linux/mm_types.h>             /* mm_struct, vma, etc...       */
- #include <linux/pkeys.h>                /* PKEY_*                       */
- #include <uapi/asm-generic/mman-common.h>
-@@ -159,3 +160,69 @@ void copy_init_pkru_to_fpregs(void)
- 	 */
- 	write_pkru(init_pkru_value_snapshot);
- }
-+
-+static ssize_t init_pkru_read_file(struct file *file, char __user *user_buf,
-+			     size_t count, loff_t *ppos)
-+{
-+	char buf[32];
-+	unsigned int len;
-+
-+	len = sprintf(buf, "0x%x\n", init_pkru_value);
-+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
-+}
-+
-+static ssize_t init_pkru_write_file(struct file *file,
-+		 const char __user *user_buf, size_t count, loff_t *ppos)
-+{
-+	char buf[32];
-+	ssize_t len;
-+	u32 new_init_pkru;
-+
-+	len = min(count, sizeof(buf) - 1);
-+	if (copy_from_user(buf, user_buf, len))
-+		return -EFAULT;
-+
-+	/* Make the buffer a valid string that we can not overrun */
-+	buf[len] = '\0';
-+	if (kstrtouint(buf, 0, &new_init_pkru))
-+		return -EINVAL;
-+
-+	/*
-+	 * Don't allow insane settings that will blow the system
-+	 * up immediately if someone attempts to disable access
-+	 * or writes to pkey 0.
-+	 */
-+	if (new_init_pkru & (PKRU_AD_BIT|PKRU_WD_BIT))
-+		return -EINVAL;
-+
-+	WRITE_ONCE(init_pkru_value, new_init_pkru);
-+	return count;
-+}
-+
-+static const struct file_operations fops_init_pkru = {
-+	.read = init_pkru_read_file,
-+	.write = init_pkru_write_file,
-+	.llseek = default_llseek,
-+};
-+
-+static int __init create_init_pkru_value(void)
-+{
-+	debugfs_create_file("init_pkru", S_IRUSR | S_IWUSR,
-+			arch_debugfs_dir, NULL, &fops_init_pkru);
-+	return 0;
-+}
-+late_initcall(create_init_pkru_value);
-+
-+static __init int setup_init_pkru(char *opt)
-+{
-+	u32 new_init_pkru;
-+
-+	if (kstrtouint(opt, 0, &new_init_pkru))
-+		return 1;
-+
-+	WRITE_ONCE(init_pkru_value, new_init_pkru);
-+
-+	return 1;
-+}
-+__setup("init_pkru=", setup_init_pkru);
-+
-_
+--=-Dd6BkX+eYPGZC1l2JBaU--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
