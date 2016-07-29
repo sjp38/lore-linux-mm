@@ -1,127 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E98C6B0253
-	for <linux-mm@kvack.org>; Fri, 29 Jul 2016 09:14:16 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id 101so109171428qtb.0
-        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 06:14:16 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p31si12140775qtb.49.2016.07.29.06.14.15
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 95D196B0253
+	for <linux-mm@kvack.org>; Fri, 29 Jul 2016 09:30:44 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id 33so35818950lfw.1
+        for <linux-mm@kvack.org>; Fri, 29 Jul 2016 06:30:44 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id fj4si18950818wjb.194.2016.07.29.06.30.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Jul 2016 06:14:15 -0700 (PDT)
-Date: Fri, 29 Jul 2016 16:14:10 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH 09/10] vhost, mm: make sure that oom_reaper doesn't reap
- memory read by vhost
-Message-ID: <20160729161039-mutt-send-email-mst@kernel.org>
-References: <1469734954-31247-1-git-send-email-mhocko@kernel.org>
- <1469734954-31247-10-git-send-email-mhocko@kernel.org>
- <20160728233359-mutt-send-email-mst@kernel.org>
- <20160729060422.GA5504@dhcp22.suse.cz>
+        Fri, 29 Jul 2016 06:30:43 -0700 (PDT)
+Date: Fri, 29 Jul 2016 09:30:33 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: move swap-in anonymous page into active list
+Message-ID: <20160729133033.GA2034@cmpxchg.org>
+References: <1469762740-17860-1-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160729060422.GA5504@dhcp22.suse.cz>
+In-Reply-To: <1469762740-17860-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>
 
-On Fri, Jul 29, 2016 at 08:04:22AM +0200, Michal Hocko wrote:
-> On Thu 28-07-16 23:41:53, Michael S. Tsirkin wrote:
-> > On Thu, Jul 28, 2016 at 09:42:33PM +0200, Michal Hocko wrote:
-> [...]
-> > > diff --git a/include/linux/uaccess.h b/include/linux/uaccess.h
-> > > index 349557825428..a327d5362581 100644
-> > > --- a/include/linux/uaccess.h
-> > > +++ b/include/linux/uaccess.h
-> > > @@ -76,6 +76,28 @@ static inline unsigned long __copy_from_user_nocache(void *to,
-> > >  #endif		/* ARCH_HAS_NOCACHE_UACCESS */
-> > >  
-> > >  /*
-> > > + * A safe variant of __get_user for for use_mm() users to have a
-> > 
-> > for for -> for?
+On Fri, Jul 29, 2016 at 12:25:40PM +0900, Minchan Kim wrote:
+> Every swap-in anonymous page starts from inactive lru list's head.
+> It should be activated unconditionally when VM decide to reclaim
+> because page table entry for the page always usually has marked
+> accessed bit. Thus, their window size for getting a new referece
+> is 2 * NR_inactive + NR_active while others is NR_active + NR_active.
 > 
-> fixed
+> It's not fair that it has more chance to be referenced compared
+> to other newly allocated page which starts from active lru list's
+> head.
 > 
-> > 
-> > > + * gurantee that the address space wasn't reaped in the background
-> > > + */
-> > > +#define __get_user_mm(mm, x, ptr)				\
-> > > +({								\
-> > > +	int ___gu_err = __get_user(x, ptr);			\
-> > 
-> > I suspect you need smp_rmb() here to make sure it test does not
-> > bypass the memory read.
-> > 
-> > You will accordingly need smp_wmb() when you set the flag,
-> > maybe it's there already - I have not checked.
-> 
-> As the comment for setting the flag explains the memory barriers
-> shouldn't be really needed AFAIU. More on that below.
-> 
-> [...]
-> > > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> > > index ca1cc24ba720..6ccf63fbfc72 100644
-> > > --- a/mm/oom_kill.c
-> > > +++ b/mm/oom_kill.c
-> > > @@ -488,6 +488,14 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
-> > >  		goto unlock_oom;
-> > >  	}
-> > >  
-> > > +	/*
-> > > +	 * Tell all users of get_user_mm/copy_from_user_mm that the content
-> > > +	 * is no longer stable. No barriers really needed because unmapping
-> > > +	 * should imply barriers already
-> > 
-> > ok
-> > 
-> > > and the reader would hit a page fault
-> > > +	 * if it stumbled over a reaped memory.
-> > 
-> > This last point I don't get. flag read could bypass data read
-> > if that happens data read could happen after unmap
-> > yes it might get a PF but you handle that, correct?
-> 
-> The point I've tried to make is that if the reader really page faults
-> then get_user will imply the full barrier already. If get_user didn't
-> page fault then the state of the flag is not really important because
-> the reaper shouldn't have touched it. Does it make more sense now or
-> I've missed your question?
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
 
-Can task flag read happen before the get_user pagefault?
-If it does, task flag could not be set even though
-page fault triggered.
+That behavior stood out to me as well recently, but I couldn't
+convince myself that activation is the right thing.
 
-> > 
-> > > +	 */
-> > > +	set_bit(MMF_UNSTABLE, &mm->flags);
-> > > +
-> > 
-> > I would really prefer a callback that vhost would register
-> > and stop all accesses. Tell me if you need help on above idea.
-> 
-> 
-> Well, in order to make callback workable the oom reaper would have to
-> synchronize with the said callback until it declares all currently
-> ongoing accesses done. That means oom reaper would have to block/wait
-> and that is something I would really like to prevent from because it
-> just adds another possibility of the lockup (say the get_user cannot
-> make forward progress because it is stuck in the page fault allocating
-> memory). Or do you see any other way how to implement such a callback
-> mechanism without blocking on the oom_reaper side?
+The page can still have a valid copy on the swap device, so prefering
+to reclaim that page over a fresh one could make sense. But as you
+point out, having it start inactive instead of active actually ends up
+giving it *more* LRU time, and that seems to be without justification.
 
-I'll think it over and respond.
+So this change makes sense to me. Maybe somebody else remembers a good
+reason for why the behavior is the way it is, but likely it has always
+been an oversight.
 
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+
+> ---
+>  mm/memory.c | 1 +
+>  1 file changed, 1 insertion(+)
 > 
-> > But with the above nits addressed,
-> > I think this would be acceptable as well.
-> 
-> Thank you for your review and feedback!
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 4425b6059339..3a730b920242 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2642,6 +2642,7 @@ int do_swap_page(struct fault_env *fe, pte_t orig_pte)
+>  	if (page == swapcache) {
+>  		do_page_add_anon_rmap(page, vma, fe->address, exclusive);
+>  		mem_cgroup_commit_charge(page, memcg, true, false);
+> +		activate_page(page);
+>  	} else { /* ksm created a completely new copy */
+>  		page_add_new_anon_rmap(page, vma, fe->address, false);
+>  		mem_cgroup_commit_charge(page, memcg, false, false);
 > -- 
-> Michal Hocko
-> SUSE Labs
+> 1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
