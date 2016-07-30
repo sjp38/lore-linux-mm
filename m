@@ -1,193 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C9A06B0260
-	for <linux-mm@kvack.org>; Sat, 30 Jul 2016 04:20:43 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id g62so24329813ith.0
-        for <linux-mm@kvack.org>; Sat, 30 Jul 2016 01:20:43 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id c10si15539045otc.14.2016.07.30.01.20.41
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F303828E1
+	for <linux-mm@kvack.org>; Sat, 30 Jul 2016 11:43:25 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id k135so51001663lfb.2
+        for <linux-mm@kvack.org>; Sat, 30 Jul 2016 08:43:25 -0700 (PDT)
+Received: from outbound1.eu.mailhop.org (outbound1.eu.mailhop.org. [52.28.251.132])
+        by mx.google.com with ESMTPS id n123si8395624wmg.68.2016.07.30.08.43.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 30 Jul 2016 01:20:42 -0700 (PDT)
-Subject: Re: [PATCH 08/10] exit, oom: postpone exit_oom_victim to later
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1469734954-31247-1-git-send-email-mhocko@kernel.org>
-	<1469734954-31247-9-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1469734954-31247-9-git-send-email-mhocko@kernel.org>
-Message-Id: <201607301720.GHG43737.JLVtHOOSQOFFMF@I-love.SAKURA.ne.jp>
-Date: Sat, 30 Jul 2016 17:20:30 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 30 Jul 2016 08:43:23 -0700 (PDT)
+From: Jason Cooper <jason@lakedaemon.net>
+Subject: [PATCH v2 1/7] random: Simplify API for random address requests
+Date: Sat, 30 Jul 2016 15:42:38 +0000
+Message-Id: <20160730154244.403-2-jason@lakedaemon.net>
+In-Reply-To: <20160730154244.403-1-jason@lakedaemon.net>
+References: <20160728204730.27453-1-jason@lakedaemon.net>
+ <20160730154244.403-1-jason@lakedaemon.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, oleg@redhat.com, rientjes@google.com, vdavydov@parallels.com, mhocko@suse.com
+To: william.c.roberts@intel.com, Yann Droneaud <ydroneaud@opteya.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+Cc: linux@arm.linux.org.uk, akpm@linux-foundation.org, keescook@chromium.org, tytso@mit.edu, arnd@arndb.de, gregkh@linuxfoundation.org, catalin.marinas@arm.com, will.deacon@arm.com, ralf@linux-mips.org, benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, davem@davemloft.net, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, x86@kernel.org, viro@zeniv.linux.org.uk, nnk@google.com, jeffv@google.com, dcashman@android.com, Jason Cooper <jason@lakedaemon.net>
 
-Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> exit_oom_victim was called after mmput because it is expected that
-> address space of the victim would get released by that time and there is
-> no reason to hold off the oom killer from selecting another task should
-> that be insufficient to handle the oom situation. In order to catch
-> post exit_mm() allocations we used to check for PF_EXITING but this
-> got removed by 6a618957ad17 ("mm: oom_kill: don't ignore oom score on
-> exiting tasks") because this check was lockup prone.
-> 
-> It seems that we have all needed pieces ready now and can finally
-> fix this properly (at least for CONFIG_MMU cases where we have the
-> oom_reaper).  Since "oom: keep mm of the killed task available" we have
-> a reliable way to ignore oom victims which are no longer interesting
-> because they either were reaped and do not sit on a lot of memory or
-> they are not reapable for some reason and it is safer to ignore them
-> and move on to another victim. That means that we can safely postpone
-> exit_oom_victim to closer to the final schedule.
+To date, all callers of randomize_range() have set the length to 0, and
+check for a zero return value.  For the current callers, the only way
+to get zero returned is if end <= start.  Since they are all adding a
+constant to the start address, this is unnecessary.
 
-I don't like this patch. The advantage of this patch will be that we can
-avoid selecting next OOM victim when only OOM victims need to allocate
-memory after they left exit_mm(). But the disadvantage of this patch will
-be that we increase the possibility of depleting 100% of memory reserves
-by allowing them to allocate using ALLOC_NO_WATERMARKS after they left
-exit_mm(). It is possible that a user creates a process with 10000 threads
-and let that process be OOM-killed. Then, this patch allows 10000 threads
-to start consuming memory reserves after they left exit_mm(). OOM victims
-are not the only threads who need to allocate memory for termination. Non
-OOM victims might need to allocate memory at exit_task_work() in order to
-allow OOM victims to make forward progress. I think that allocations from
-do_exit() are important for terminating cleanly (from the point of view of
-filesystem integrity and kernel object management) and such allocations
-should not be given up simply because ALLOC_NO_WATERMARKS allocations
-failed.
+We can remove a bunch of needless checks by simplifying the API to do
+just what everyone wants, return an address between [start, start +
+range).
 
-> 
-> There is possible advantages of this because we are reducing chances
-> of further interference of the oom victim with the rest of the system
-> after oom_killer_disable(). Strictly speaking this is possible right
-> now because there are indeed allocations possible past exit_mm() and
-> who knows whether some of them can trigger IO. I haven't seen this in
-> practice though.
+While we're here, s/get_random_int/get_random_long/.  No current call
+site is adversely affected by get_random_int(), since all current range
+requests are < UINT_MAX.  However, we should match caller expectations
+to avoid coming up short (ha!) in the future.
 
-I don't know which I/O oom_killer_disable() must act as a hard barrier.
-But safer way is to get rid of TIF_MEMDIE's triple meanings. The first
-one which prevents the OOM killer from selecting next OOM victim was
-removed by replacing TIF_MEMDIE test in oom_scan_process_thread() with
-tsk_is_oom_victim(). The second one which allows the OOM victims to
-deplete 100% of memory reserves wants some changes in order not to
-block memory allocations by non OOM victims (e.g. GFP_ATOMIC allocations
-by interrupt handlers, GFP_NOIO / GFP_NOFS allocations by subsystems
-which are needed for making forward progress of threads in do_exit())
-by consuming too much of memory reserves. The third one which blocks
-oom_killer_disable() can be removed by replacing TIF_MEMDIE test in
-exit_oom_victim() with PFA_OOM_WAITING test like below patch. (If
-oom_killer_disable() were specific to CONFIG_MMU=y kernels, I think
-that not thawing OOM victims will be simpler because the OOM reaper
-can reclaim memory without thawing OOM victims.)
+All current callers to randomize_range() chose to use the start address
+if randomize_range() failed.  Therefore, we simplify things by just
+returning the start address on error.
 
+randomize_range() will be removed once all callers have been converted
+over to randomize_addr().
+
+Signed-off-by: Jason Cooper <jason@lakedaemon.net>
 ---
- include/linux/oom.h   | 2 +-
- include/linux/sched.h | 4 ++++
- kernel/exit.c         | 4 +++-
- kernel/freezer.c      | 2 +-
- mm/oom_kill.c         | 7 +++----
- 5 files changed, 12 insertions(+), 7 deletions(-)
+Changes from v1:
+ - Explicitly mention page_aligned start assumption (Yann Droneaud)
+ - pick random pages vice random addresses (Yann Droneaud)
+ - catch range=0 last
 
-diff --git a/include/linux/oom.h b/include/linux/oom.h
-index 22e18c4..69d56c5 100644
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -102,7 +102,7 @@ extern enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
+ drivers/char/random.c  | 28 ++++++++++++++++++++++++++++
+ include/linux/random.h |  1 +
+ 2 files changed, 29 insertions(+)
+
+diff --git a/drivers/char/random.c b/drivers/char/random.c
+index 0158d3bff7e5..3bedf69546d6 100644
+--- a/drivers/char/random.c
++++ b/drivers/char/random.c
+@@ -1840,6 +1840,34 @@ randomize_range(unsigned long start, unsigned long end, unsigned long len)
+ 	return PAGE_ALIGN(get_random_int() % range + start);
+ }
  
- extern bool out_of_memory(struct oom_control *oc);
- 
--extern void exit_oom_victim(void);
-+extern void unmark_oom_victim(void);
- 
- extern int register_oom_notifier(struct notifier_block *nb);
- extern int unregister_oom_notifier(struct notifier_block *nb);
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 32212e9..7f624d1 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -2290,6 +2290,7 @@ static inline void memalloc_noio_restore(unsigned int flags)
- #define PFA_SPREAD_PAGE  1      /* Spread page cache over cpuset */
- #define PFA_SPREAD_SLAB  2      /* Spread some slab caches over cpuset */
- #define PFA_LMK_WAITING  3      /* Lowmemorykiller is waiting */
-+#define PFA_OOM_WAITING  4      /* Freezer is waiting for OOM killer */
- 
- 
- #define TASK_PFA_TEST(name, func)					\
-@@ -2316,6 +2317,9 @@ TASK_PFA_CLEAR(SPREAD_SLAB, spread_slab)
- TASK_PFA_TEST(LMK_WAITING, lmk_waiting)
- TASK_PFA_SET(LMK_WAITING, lmk_waiting)
- 
-+TASK_PFA_TEST(OOM_WAITING, oom_waiting)
-+TASK_PFA_SET(OOM_WAITING, oom_waiting)
++/**
++ * randomize_addr - Generate a random, page aligned address
++ * @start:	The smallest acceptable address the caller will take.
++ * @range:	The size of the area, starting at @start, within which the
++ *		random address must fall.
++ *
++ * If @start + @range would overflow, @range is capped.
++ *
++ * NOTE: Historical use of randomize_range, which this replaces, presumed that
++ * @start was already page aligned.  This assumption still holds.
++ *
++ * Return: A page aligned address within [start, start + range).  On error,
++ * @start is returned.
++ */
++unsigned long
++randomize_addr(unsigned long start, unsigned long range)
++{
++	if (start > ULONG_MAX - range)
++		range = ULONG_MAX - start;
 +
- /*
-  * task->jobctl flags
-  */
-diff --git a/kernel/exit.c b/kernel/exit.c
-index e9bca29..b19dbfd 100644
---- a/kernel/exit.c
-+++ b/kernel/exit.c
-@@ -511,7 +511,7 @@ static void exit_mm(struct task_struct *tsk)
- 	mm_update_next_owner(mm);
- 	mmput(mm);
- 	if (test_thread_flag(TIF_MEMDIE))
--		exit_oom_victim();
-+		clear_thread_flag(TIF_MEMDIE);
- }
++	range >>= PAGE_SHIFT;
++
++	if (range == 0)
++		return start;
++
++	return start + (get_random_long() % range << PAGE_SHIFT);
++}
++
+ /* Interface for in-kernel drivers of true hardware RNGs.
+  * Those devices may produce endless random bits and will be throttled
+  * when our pool is full.
+diff --git a/include/linux/random.h b/include/linux/random.h
+index e47e533742b5..f1ca2fa4c071 100644
+--- a/include/linux/random.h
++++ b/include/linux/random.h
+@@ -35,6 +35,7 @@ extern const struct file_operations random_fops, urandom_fops;
+ unsigned int get_random_int(void);
+ unsigned long get_random_long(void);
+ unsigned long randomize_range(unsigned long start, unsigned long end, unsigned long len);
++unsigned long randomize_addr(unsigned long start, unsigned long range);
  
- static struct task_struct *find_alive_thread(struct task_struct *p)
-@@ -902,6 +902,8 @@ void do_exit(long code)
- 	smp_mb();
- 	raw_spin_unlock_wait(&tsk->pi_lock);
- 
-+	if (task_oom_waiting(tsk))
-+		unmark_oom_victim();
- 	/* causes final put_task_struct in finish_task_switch(). */
- 	tsk->state = TASK_DEAD;
- 	tsk->flags |= PF_NOFREEZE;	/* tell freezer to ignore us */
-diff --git a/kernel/freezer.c b/kernel/freezer.c
-index 6f56a9e..306270d 100644
---- a/kernel/freezer.c
-+++ b/kernel/freezer.c
-@@ -42,7 +42,7 @@ bool freezing_slow_path(struct task_struct *p)
- 	if (p->flags & (PF_NOFREEZE | PF_SUSPEND_TASK))
- 		return false;
- 
--	if (test_tsk_thread_flag(p, TIF_MEMDIE))
-+	if (task_oom_waiting(p))
- 		return false;
- 
- 	if (pm_nosig_freezing || cgroup_freezing(p))
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index ca1cc24..c7ae974 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -644,17 +644,16 @@ void mark_oom_victim(struct task_struct *tsk)
- 	 * any memory and livelock. freezing_slow_path will tell the freezer
- 	 * that TIF_MEMDIE tasks should be ignored.
- 	 */
-+	task_set_oom_waiting(tsk);
- 	__thaw_task(tsk);
- 	atomic_inc(&oom_victims);
- }
- 
- /**
-- * exit_oom_victim - note the exit of an OOM victim
-+ * unmark_oom_victim - note the exit of an OOM victim
-  */
--void exit_oom_victim(void)
-+void unmark_oom_victim(void)
- {
--	clear_thread_flag(TIF_MEMDIE);
--
- 	if (!atomic_dec_return(&oom_victims))
- 		wake_up_all(&oom_victims_wait);
- }
+ u32 prandom_u32(void);
+ void prandom_bytes(void *buf, size_t nbytes);
 -- 
-1.8.3.1
+2.9.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
