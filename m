@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B3345828E2
-	for <linux-mm@kvack.org>; Sat, 30 Jul 2016 11:43:42 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id p129so56114706wmp.3
-        for <linux-mm@kvack.org>; Sat, 30 Jul 2016 08:43:42 -0700 (PDT)
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 16354828E2
+	for <linux-mm@kvack.org>; Sat, 30 Jul 2016 11:43:55 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id e7so51149946lfe.0
+        for <linux-mm@kvack.org>; Sat, 30 Jul 2016 08:43:55 -0700 (PDT)
 Received: from outbound1.eu.mailhop.org (outbound1.eu.mailhop.org. [52.28.251.132])
-        by mx.google.com with ESMTPS id a80si8410640wma.36.2016.07.30.08.43.41
+        by mx.google.com with ESMTPS id j6si8379693wmj.88.2016.07.30.08.43.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 30 Jul 2016 08:43:41 -0700 (PDT)
+        Sat, 30 Jul 2016 08:43:53 -0700 (PDT)
 From: Jason Cooper <jason@lakedaemon.net>
-Subject: [PATCH v2 3/7] ARM: Use simpler API for random address requests
-Date: Sat, 30 Jul 2016 15:42:40 +0000
-Message-Id: <20160730154244.403-4-jason@lakedaemon.net>
+Subject: [PATCH v2 4/7] arm64: Use simpler API for random address requests
+Date: Sat, 30 Jul 2016 15:42:41 +0000
+Message-Id: <20160730154244.403-5-jason@lakedaemon.net>
 In-Reply-To: <20160730154244.403-1-jason@lakedaemon.net>
 References: <20160728204730.27453-1-jason@lakedaemon.net>
  <20160730154244.403-1-jason@lakedaemon.net>
@@ -29,27 +29,33 @@ Use the new randomize_addr(start, range) call to set the requested
 address.
 
 Signed-off-by: Jason Cooper <jason@lakedaemon.net>
+Acked-by: Will Deacon <will.deacon@arm.com>
 ---
 Changes from v1:
- - none
+ - Add Ack for arm64 (Will Deacon)
 
- arch/arm/kernel/process.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+ arch/arm64/kernel/process.c | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
 
-diff --git a/arch/arm/kernel/process.c b/arch/arm/kernel/process.c
-index 4a803c5a1ff7..02dee671cded 100644
---- a/arch/arm/kernel/process.c
-+++ b/arch/arm/kernel/process.c
-@@ -314,8 +314,7 @@ unsigned long get_wchan(struct task_struct *p)
+diff --git a/arch/arm64/kernel/process.c b/arch/arm64/kernel/process.c
+index 6cd2612236dc..11bf454baf86 100644
+--- a/arch/arm64/kernel/process.c
++++ b/arch/arm64/kernel/process.c
+@@ -374,12 +374,8 @@ unsigned long arch_align_stack(unsigned long sp)
  
  unsigned long arch_randomize_brk(struct mm_struct *mm)
  {
--	unsigned long range_end = mm->brk + 0x02000000;
+-	unsigned long range_end = mm->brk;
+-
+ 	if (is_compat_task())
+-		range_end += 0x02000000;
++		return randomize_addr(mm->brk, 0x02000000);
+ 	else
+-		range_end += 0x40000000;
+-
 -	return randomize_range(mm->brk, range_end, 0) ? : mm->brk;
-+	return randomize_addr(mm->brk, 0x02000000);
++		return randomize_addr(mm->brk, 0x40000000);
  }
- 
- #ifdef CONFIG_MMU
 -- 
 2.9.2
 
