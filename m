@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 53AB8828E2
-	for <linux-mm@kvack.org>; Sat, 30 Jul 2016 11:43:41 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id k135so51003430lfb.2
-        for <linux-mm@kvack.org>; Sat, 30 Jul 2016 08:43:41 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B3345828E2
+	for <linux-mm@kvack.org>; Sat, 30 Jul 2016 11:43:42 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id p129so56114706wmp.3
+        for <linux-mm@kvack.org>; Sat, 30 Jul 2016 08:43:42 -0700 (PDT)
 Received: from outbound1.eu.mailhop.org (outbound1.eu.mailhop.org. [52.28.251.132])
-        by mx.google.com with ESMTPS id c3si23795148wjv.231.2016.07.30.08.43.39
+        by mx.google.com with ESMTPS id a80si8410640wma.36.2016.07.30.08.43.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 30 Jul 2016 08:43:39 -0700 (PDT)
+        Sat, 30 Jul 2016 08:43:41 -0700 (PDT)
 From: Jason Cooper <jason@lakedaemon.net>
-Subject: [PATCH v2 2/7] x86: Use simpler API for random address requests
-Date: Sat, 30 Jul 2016 15:42:39 +0000
-Message-Id: <20160730154244.403-3-jason@lakedaemon.net>
+Subject: [PATCH v2 3/7] ARM: Use simpler API for random address requests
+Date: Sat, 30 Jul 2016 15:42:40 +0000
+Message-Id: <20160730154244.403-4-jason@lakedaemon.net>
 In-Reply-To: <20160730154244.403-1-jason@lakedaemon.net>
 References: <20160728204730.27453-1-jason@lakedaemon.net>
  <20160730154244.403-1-jason@lakedaemon.net>
@@ -33,15 +33,14 @@ Signed-off-by: Jason Cooper <jason@lakedaemon.net>
 Changes from v1:
  - none
 
- arch/x86/kernel/process.c    | 3 +--
- arch/x86/kernel/sys_x86_64.c | 5 +----
- 2 files changed, 2 insertions(+), 6 deletions(-)
+ arch/arm/kernel/process.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/arch/x86/kernel/process.c b/arch/x86/kernel/process.c
-index 96becbbb52e0..a083a2c0744e 100644
---- a/arch/x86/kernel/process.c
-+++ b/arch/x86/kernel/process.c
-@@ -507,8 +507,7 @@ unsigned long arch_align_stack(unsigned long sp)
+diff --git a/arch/arm/kernel/process.c b/arch/arm/kernel/process.c
+index 4a803c5a1ff7..02dee671cded 100644
+--- a/arch/arm/kernel/process.c
++++ b/arch/arm/kernel/process.c
+@@ -314,8 +314,7 @@ unsigned long get_wchan(struct task_struct *p)
  
  unsigned long arch_randomize_brk(struct mm_struct *mm)
  {
@@ -50,30 +49,7 @@ index 96becbbb52e0..a083a2c0744e 100644
 +	return randomize_addr(mm->brk, 0x02000000);
  }
  
- /*
-diff --git a/arch/x86/kernel/sys_x86_64.c b/arch/x86/kernel/sys_x86_64.c
-index 10e0272d789a..f9cad22808fc 100644
---- a/arch/x86/kernel/sys_x86_64.c
-+++ b/arch/x86/kernel/sys_x86_64.c
-@@ -101,7 +101,6 @@ static void find_start_end(unsigned long flags, unsigned long *begin,
- 			   unsigned long *end)
- {
- 	if (!test_thread_flag(TIF_ADDR32) && (flags & MAP_32BIT)) {
--		unsigned long new_begin;
- 		/* This is usually used needed to map code in small
- 		   model, so it needs to be in the first 31bit. Limit
- 		   it to that.  This means we need to move the
-@@ -112,9 +111,7 @@ static void find_start_end(unsigned long flags, unsigned long *begin,
- 		*begin = 0x40000000;
- 		*end = 0x80000000;
- 		if (current->flags & PF_RANDOMIZE) {
--			new_begin = randomize_range(*begin, *begin + 0x02000000, 0);
--			if (new_begin)
--				*begin = new_begin;
-+			*begin = randomize_addr(*begin, 0x02000000);
- 		}
- 	} else {
- 		*begin = current->mm->mmap_legacy_base;
+ #ifdef CONFIG_MMU
 -- 
 2.9.2
 
