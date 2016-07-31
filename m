@@ -1,135 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E8EB828F6
-	for <linux-mm@kvack.org>; Sun, 31 Jul 2016 05:35:35 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id e7so58698086lfe.0
-        for <linux-mm@kvack.org>; Sun, 31 Jul 2016 02:35:35 -0700 (PDT)
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com. [74.125.82.52])
-        by mx.google.com with ESMTPS id s70si11150375wme.140.2016.07.31.02.35.33
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C6DD828F6
+	for <linux-mm@kvack.org>; Sun, 31 Jul 2016 05:44:42 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id 33so58727050lfw.1
+        for <linux-mm@kvack.org>; Sun, 31 Jul 2016 02:44:42 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id m126si11230902wmm.55.2016.07.31.02.44.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 31 Jul 2016 02:35:33 -0700 (PDT)
-Received: by mail-wm0-f52.google.com with SMTP id o80so205167355wme.1
-        for <linux-mm@kvack.org>; Sun, 31 Jul 2016 02:35:33 -0700 (PDT)
-Date: Sun, 31 Jul 2016 11:35:31 +0200
+        Sun, 31 Jul 2016 02:44:40 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id o80so21904024wme.0
+        for <linux-mm@kvack.org>; Sun, 31 Jul 2016 02:44:40 -0700 (PDT)
+Date: Sun, 31 Jul 2016 11:44:38 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 08/10] exit, oom: postpone exit_oom_victim to later
-Message-ID: <20160731093530.GB22397@dhcp22.suse.cz>
+Subject: Re: [PATCH 09/10] vhost, mm: make sure that oom_reaper doesn't reap
+ memory read by vhost
+Message-ID: <20160731094438.GA24353@dhcp22.suse.cz>
 References: <1469734954-31247-1-git-send-email-mhocko@kernel.org>
- <1469734954-31247-9-git-send-email-mhocko@kernel.org>
- <201607301720.GHG43737.JLVtHOOSQOFFMF@I-love.SAKURA.ne.jp>
+ <1469734954-31247-10-git-send-email-mhocko@kernel.org>
+ <20160728233359-mutt-send-email-mst@kernel.org>
+ <20160729060422.GA5504@dhcp22.suse.cz>
+ <20160729161039-mutt-send-email-mst@kernel.org>
+ <20160729133529.GE8031@dhcp22.suse.cz>
+ <20160729205620-mutt-send-email-mst@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201607301720.GHG43737.JLVtHOOSQOFFMF@I-love.SAKURA.ne.jp>
+In-Reply-To: <20160729205620-mutt-send-email-mst@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, oleg@redhat.com, rientjes@google.com, vdavydov@parallels.com
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Sat 30-07-16 17:20:30, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > From: Michal Hocko <mhocko@suse.com>
+On Fri 29-07-16 20:57:44, Michael S. Tsirkin wrote:
+> On Fri, Jul 29, 2016 at 03:35:29PM +0200, Michal Hocko wrote:
+> > On Fri 29-07-16 16:14:10, Michael S. Tsirkin wrote:
+> > > On Fri, Jul 29, 2016 at 08:04:22AM +0200, Michal Hocko wrote:
+> > > > On Thu 28-07-16 23:41:53, Michael S. Tsirkin wrote:
+> > > > > On Thu, Jul 28, 2016 at 09:42:33PM +0200, Michal Hocko wrote:
+> > [...]
+> > > > > > and the reader would hit a page fault
+> > > > > > +	 * if it stumbled over a reaped memory.
+> > > > > 
+> > > > > This last point I don't get. flag read could bypass data read
+> > > > > if that happens data read could happen after unmap
+> > > > > yes it might get a PF but you handle that, correct?
+> > > > 
+> > > > The point I've tried to make is that if the reader really page faults
+> > > > then get_user will imply the full barrier already. If get_user didn't
+> > > > page fault then the state of the flag is not really important because
+> > > > the reaper shouldn't have touched it. Does it make more sense now or
+> > > > I've missed your question?
+> > > 
+> > > Can task flag read happen before the get_user pagefault?
 > > 
-> > exit_oom_victim was called after mmput because it is expected that
-> > address space of the victim would get released by that time and there is
-> > no reason to hold off the oom killer from selecting another task should
-> > that be insufficient to handle the oom situation. In order to catch
-> > post exit_mm() allocations we used to check for PF_EXITING but this
-> > got removed by 6a618957ad17 ("mm: oom_kill: don't ignore oom score on
-> > exiting tasks") because this check was lockup prone.
+> > Do you mean?
 > > 
-> > It seems that we have all needed pieces ready now and can finally
-> > fix this properly (at least for CONFIG_MMU cases where we have the
-> > oom_reaper).  Since "oom: keep mm of the killed task available" we have
-> > a reliable way to ignore oom victims which are no longer interesting
-> > because they either were reaped and do not sit on a lot of memory or
-> > they are not reapable for some reason and it is safer to ignore them
-> > and move on to another victim. That means that we can safely postpone
-> > exit_oom_victim to closer to the final schedule.
+> > get_user_mm()
+> >   temp = false <- test_bit(MMF_UNSTABLE, &mm->flags)
+> >   ret = __get_user(x, ptr)
+> >   #PF
+> >   if (!ret && temp) # misses the flag
+> > 
+> > The code is basically doing
+> > 
+> >   if (!__get_user() && test_bit(MMF_UNSTABLE, &mm->flags))
+> > 
+> > so test_bit part of the conditional cannot be evaluated before
+> > __get_user() part is done. Compiler cannot reorder two depending
+> > subconditions AFAIK.
 > 
-> I don't like this patch. The advantage of this patch will be that we can
-> avoid selecting next OOM victim when only OOM victims need to allocate
-> memory after they left exit_mm().
+> But maybe the CPU can.
 
-Not really as we do not rely on TIF_MEMDIE nor signal->oom_victims to
-block new oom victim selection anymore.
+Are you sure? How does that differ from
+	if (ptr && ptr->something)
+construct?
 
-> But the disadvantage of this patch will
-> be that we increase the possibility of depleting 100% of memory reserves
-> by allowing them to allocate using ALLOC_NO_WATERMARKS after they left
-> exit_mm().
+Let's CC Paul. Just to describe the situation. We have the following
+situation:
 
-I think this is a separate problem. As the current code stands we can
-already deplete memory reserves. The large number of threads might be
-sitting in an allocation loop before they bail out to handle the
-SIGKILL. Exit path shouldn't add too much on top of that. If we want to
-be reliable in not consuming all the reserves we would have to employ
-some form of throttling and that is out of scope of this patch.
+#define __get_user_mm(mm, x, ptr)				\
+({								\
+	int ___gu_err = __get_user(x, ptr);			\
+	if (!___gu_err && test_bit(MMF_UNSTABLE, &mm->flags))	\
+		___gu_err = -EFAULT;				\
+	___gu_err;						\
+})
 
-> It is possible that a user creates a process with 10000 threads
-> and let that process be OOM-killed. Then, this patch allows 10000 threads
-> to start consuming memory reserves after they left exit_mm(). OOM victims
-> are not the only threads who need to allocate memory for termination. Non
-> OOM victims might need to allocate memory at exit_task_work() in order to
-> allow OOM victims to make forward progress.
+and the oom reaper doing:
 
-this might be possible but unlike the regular exiting tasks we do
-reclaim oom victim's memory in the background. So while they can consume
-memory reserves we should also give some (and arguably much more) memory
-back. The reserves are there to expedite the exit.
+	set_bit(MMF_UNSTABLE, &mm->flags);
 
-> I think that allocations from
-> do_exit() are important for terminating cleanly (from the point of view of
-> filesystem integrity and kernel object management) and such allocations
-> should not be given up simply because ALLOC_NO_WATERMARKS allocations
-> failed.
+	for (vma = mm->mmap ; vma; vma = vma->vm_next) {
+		unmap_page_range
 
-We are talking about a fatal condition when OOM killer forcefully kills
-a task. Chances are that the userspace leaves so much state behind that
-a manual cleanup would be necessary anyway. Depleting the memory
-reserves is not nice but I really believe that this particular patch
-doesn't make the situation really much worse than before.
- 
-> > There is possible advantages of this because we are reducing chances
-> > of further interference of the oom victim with the rest of the system
-> > after oom_killer_disable(). Strictly speaking this is possible right
-> > now because there are indeed allocations possible past exit_mm() and
-> > who knows whether some of them can trigger IO. I haven't seen this in
-> > practice though.
-> 
-> I don't know which I/O oom_killer_disable() must act as a hard barrier.
-
-Any allocation that could trigger the IO can corrupt the hibernation
-image or access the half suspended device. The whole point of
-oom_killer_disable is to prevent anything like that to happen.
-
-> But safer way is to get rid of TIF_MEMDIE's triple meanings. The first
-> one which prevents the OOM killer from selecting next OOM victim was
-> removed by replacing TIF_MEMDIE test in oom_scan_process_thread() with
-> tsk_is_oom_victim(). The second one which allows the OOM victims to
-> deplete 100% of memory reserves wants some changes in order not to
-> block memory allocations by non OOM victims (e.g. GFP_ATOMIC allocations
-> by interrupt handlers, GFP_NOIO / GFP_NOFS allocations by subsystems
-> which are needed for making forward progress of threads in do_exit())
-> by consuming too much of memory reserves. The third one which blocks
-> oom_killer_disable() can be removed by replacing TIF_MEMDIE test in
-> exit_oom_victim() with PFA_OOM_WAITING test like below patch.
-
-I plan to remove TIF_MEMDIE dependency for this as well but I would like
-to finish this pile first. We actually do not need any flag for that. We
-just need to detect last exiting thread and tsk_is_oom_victim. I have
-some preliminary code for that.
-
-> (If
-> oom_killer_disable() were specific to CONFIG_MMU=y kernels, I think
-> that not thawing OOM victims will be simpler because the OOM reaper
-> can reclaim memory without thawing OOM victims.)
-
-Well I do not think keeping an oom victim inside the fridge is a good
-idea. The task might be not sitting on any reclaimable memory but it
-still might consume resources which are bound to its life time (open
-files and their buffers etc.).
+I assume that write memory barrier between set_bit and unmap_page_range
+is not really needed because unmapping should already imply the memory
+barrier. A read memory barrier between __get_user and test_bit shouldn't
+be really needed because we can tolerate a stale value if __get_user
+didn't #PF because we haven't unmapped that address obviously. If we
+unmapped it then __get_user would #PF and that should imply a full
+memory barrier as well. Now the question is whether a CPU can speculate
+and read the flag before we issue the #PF.
 -- 
 Michal Hocko
 SUSE Labs
