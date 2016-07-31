@@ -1,89 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 83D8982963
-	for <linux-mm@kvack.org>; Sun, 31 Jul 2016 11:25:25 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id l4so67195221wml.0
-        for <linux-mm@kvack.org>; Sun, 31 Jul 2016 08:25:25 -0700 (PDT)
-Received: from mail.ud10.udmedia.de (ud10.udmedia.de. [194.117.254.50])
-        by mx.google.com with ESMTPS id ck13si27605328wjb.10.2016.07.31.08.25.23
+	by kanga.kvack.org (Postfix) with ESMTP id 437946B0273
+	for <linux-mm@kvack.org>; Sun, 31 Jul 2016 12:46:56 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id p129so67738730wmp.3
+        for <linux-mm@kvack.org>; Sun, 31 Jul 2016 09:46:56 -0700 (PDT)
+Received: from mail-wm0-x22b.google.com (mail-wm0-x22b.google.com. [2a00:1450:400c:c09::22b])
+        by mx.google.com with ESMTPS id f10si12343885wme.70.2016.07.31.09.46.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 31 Jul 2016 08:25:24 -0700 (PDT)
-Date: Sun, 31 Jul 2016 17:25:22 +0200
-From: Markus Trippelsdorf <markus@trippelsdorf.de>
-Subject: Re: OOM killer invoked during btrfs send/recieve on otherwise idle
- machine
-Message-ID: <20160731152522.GA311@x4>
-References: <20160731051121.GB307@x4>
- <20160731151047.GA4496@dhcp22.suse.cz>
+        Sun, 31 Jul 2016 09:46:54 -0700 (PDT)
+Received: by mail-wm0-x22b.google.com with SMTP id q128so343660938wma.1
+        for <linux-mm@kvack.org>; Sun, 31 Jul 2016 09:46:54 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160731151047.GA4496@dhcp22.suse.cz>
+In-Reply-To: <20160730154244.403-2-jason@lakedaemon.net>
+References: <20160728204730.27453-1-jason@lakedaemon.net> <20160730154244.403-1-jason@lakedaemon.net>
+ <20160730154244.403-2-jason@lakedaemon.net>
+From: Kees Cook <keescook@chromium.org>
+Date: Sun, 31 Jul 2016 09:46:53 -0700
+Message-ID: <CAGXu5jL3ZtjbhOYujVUpBuDttPjetaz8rSY_hNK13r6OtR4sFQ@mail.gmail.com>
+Subject: Re: [PATCH v2 1/7] random: Simplify API for random address requests
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
+To: Jason Cooper <jason@lakedaemon.net>
+Cc: "Roberts, William C" <william.c.roberts@intel.com>, Yann Droneaud <ydroneaud@opteya.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Arnd Bergmann <arnd@arndb.de>, Greg KH <gregkh@linuxfoundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "benh@kernel.crashing.org" <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, "David S. Miller" <davem@davemloft.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Nick Kralevich <nnk@google.com>, Jeffrey Vander Stoep <jeffv@google.com>, Daniel Cashman <dcashman@android.com>
 
-On 2016.07.31 at 17:10 +0200, Michal Hocko wrote:
-> [CC Mel and linux-mm]
-> 
-> On Sun 31-07-16 07:11:21, Markus Trippelsdorf wrote:
-> > Tonight the OOM killer got invoked during backup of /:
-> > 
-> > [Jul31 01:56] kthreadd invoked oom-killer: gfp_mask=0x27000c0(GFP_KERNEL_ACCOUNT|__GFP_NOTRACK), order=2, oom_score_adj=0
-> 
-> This a kernel stack allocation.
-> 
-> > [  +0.000004] CPU: 3 PID: 2 Comm: kthreadd Not tainted 4.7.0-06816-g797cee982eef-dirty #37
-> > [  +0.000000] Hardware name: System manufacturer System Product Name/M4A78T-E, BIOS 3503    04/13/2011
-> > [  +0.000002]  0000000000000000 ffffffff813c2d58 ffff8802168e7d48 00000000002ec4ea
-> > [  +0.000002]  ffffffff8118eb9d 00000000000001b8 0000000000000440 00000000000003b0
-> > [  +0.000002]  ffff8802133fe400 00000000002ec4ea ffffffff81b8ac9c 0000000000000006
-> > [  +0.000001] Call Trace:
-> > [  +0.000004]  [<ffffffff813c2d58>] ? dump_stack+0x46/0x6e
-> > [  +0.000003]  [<ffffffff8118eb9d>] ? dump_header.isra.11+0x4c/0x1a7
-> > [  +0.000002]  [<ffffffff811382eb>] ? oom_kill_process+0x2ab/0x460
-> > [  +0.000001]  [<ffffffff811387e3>] ? out_of_memory+0x2e3/0x380
-> > [  +0.000002]  [<ffffffff81141532>] ? __alloc_pages_slowpath.constprop.124+0x1d32/0x1e40
-> > [  +0.000001]  [<ffffffff81141b4c>] ? __alloc_pages_nodemask+0x10c/0x120
-> > [  +0.000002]  [<ffffffff810939aa>] ? copy_process.part.72+0xea/0x17a0
-> > [  +0.000002]  [<ffffffff810d1a55>] ? pick_next_task_fair+0x915/0x1520
-> > [  +0.000001]  [<ffffffff810b7a00>] ? kthread_flush_work_fn+0x20/0x20
-> > [  +0.000001]  [<ffffffff8109549a>] ? kernel_thread+0x7a/0x1c0
-> > [  +0.000001]  [<ffffffff810b82f2>] ? kthreadd+0xd2/0x120
-> > [  +0.000002]  [<ffffffff818d828f>] ? ret_from_fork+0x1f/0x40
-> > [  +0.000001]  [<ffffffff810b8220>] ? kthread_stop+0x100/0x100
-> > [  +0.000001] Mem-Info:
-> > [  +0.000003] active_anon:5882 inactive_anon:60307 isolated_anon:0
-> >                active_file:1523729 inactive_file:223965 isolated_file:0
-> >                unevictable:1970 dirty:130014 writeback:40735 unstable:0
-> >                slab_reclaimable:179690 slab_unreclaimable:8041
-> >                mapped:6771 shmem:3 pagetables:592 bounce:0
-> >                free:11374 free_pcp:54 free_cma:0
-> > [  +0.000004] Node 0 active_anon:23528kB inactive_anon:241228kB active_file:6094916kB inactive_file:895860kB unevictable:7880kB isolated(anon):0kB isolated(file):0kB mapped:27084kB dirty:520056kB writeback:162940kB shmem:12kB writeback_tmp:0kB unstable:0kB pages_scanned:32 all_unreclaimable? no
-> > [  +0.000002] DMA free:15908kB min:20kB low:32kB high:44kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:15992kB managed:15908kB mlocked:0kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
-> > [  +0.000001] lowmem_reserve[]: 0 3486 7953 7953
-> > [  +0.000004] DMA32 free:23456kB min:4996kB low:8564kB high:12132kB active_anon:2480kB inactive_anon:10564kB active_file:2559792kB inactive_file:478680kB unevictable:0kB writepending:365292kB present:3652160kB managed:3574264kB mlocked:0kB slab_reclaimable:437456kB slab_unreclaimable:12304kB kernel_stack:144kB pagetables:28kB bounce:0kB free_pcp:212kB local_pcp:0kB free_cma:0kB
-> > [  +0.000001] lowmem_reserve[]: 0 0 4466 4466
-> > [  +0.000003] Normal free:6132kB min:6400kB low:10972kB high:15544kB active_anon:21048kB inactive_anon:230664kB active_file:3535124kB inactive_file:417312kB unevictable:7880kB writepending:318020kB present:4718592kB managed:4574096kB mlocked:7880kB slab_reclaimable:281304kB slab_unreclaimable:19860kB kernel_stack:2944kB pagetables:2340kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
-> > [  +0.000000] lowmem_reserve[]: 0 0 0 0
-> > [  +0.000002] DMA: 1*4kB (U) 0*8kB 0*16kB 1*32kB (U) 2*64kB (U) 1*128kB (U) 1*256kB (U) 0*512kB 1*1024kB (U) 1*2048kB (U) 3*4096kB (M) = 15908kB
-> > [  +0.000005] DMA32: 4215*4kB (UMEH) 319*8kB (UMH) 5*16kB (H) 2*32kB (H) 2*64kB (H) 1*128kB (H) 0*256kB 1*512kB (H) 1*1024kB (H) 1*2048kB (H) 0*4096kB = 23396kB
-> > [  +0.000006] Normal: 650*4kB (UMH) 4*8kB (UH) 27*16kB (H) 23*32kB (H) 17*64kB (H) 11*128kB (H) 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 6296kB
-> 
-> The memory is quite fragmented but there are order-2+ free blocks. They
-> seem to be in the high atomic reserves but we should release them.
-> Is this reproducible? If yes, could you try with the 4.7 kernel please?
+On Sat, Jul 30, 2016 at 8:42 AM, Jason Cooper <jason@lakedaemon.net> wrote:
+> To date, all callers of randomize_range() have set the length to 0, and
+> check for a zero return value.  For the current callers, the only way
+> to get zero returned is if end <= start.  Since they are all adding a
+> constant to the start address, this is unnecessary.
+>
+> We can remove a bunch of needless checks by simplifying the API to do
+> just what everyone wants, return an address between [start, start +
+> range).
+>
+> While we're here, s/get_random_int/get_random_long/.  No current call
+> site is adversely affected by get_random_int(), since all current range
+> requests are < UINT_MAX.  However, we should match caller expectations
+> to avoid coming up short (ha!) in the future.
+>
+> All current callers to randomize_range() chose to use the start address
+> if randomize_range() failed.  Therefore, we simplify things by just
+> returning the start address on error.
+>
+> randomize_range() will be removed once all callers have been converted
+> over to randomize_addr().
+>
+> Signed-off-by: Jason Cooper <jason@lakedaemon.net>
+> ---
+> Changes from v1:
+>  - Explicitly mention page_aligned start assumption (Yann Droneaud)
+>  - pick random pages vice random addresses (Yann Droneaud)
+>  - catch range=0 last
+>
+>  drivers/char/random.c  | 28 ++++++++++++++++++++++++++++
+>  include/linux/random.h |  1 +
+>  2 files changed, 29 insertions(+)
+>
+> diff --git a/drivers/char/random.c b/drivers/char/random.c
+> index 0158d3bff7e5..3bedf69546d6 100644
+> --- a/drivers/char/random.c
+> +++ b/drivers/char/random.c
+> @@ -1840,6 +1840,34 @@ randomize_range(unsigned long start, unsigned long end, unsigned long len)
+>         return PAGE_ALIGN(get_random_int() % range + start);
+>  }
+>
+> +/**
+> + * randomize_addr - Generate a random, page aligned address
+> + * @start:     The smallest acceptable address the caller will take.
+> + * @range:     The size of the area, starting at @start, within which the
+> + *             random address must fall.
+> + *
+> + * If @start + @range would overflow, @range is capped.
+> + *
+> + * NOTE: Historical use of randomize_range, which this replaces, presumed that
+> + * @start was already page aligned.  This assumption still holds.
+> + *
+> + * Return: A page aligned address within [start, start + range).  On error,
+> + * @start is returned.
+> + */
+> +unsigned long
+> +randomize_addr(unsigned long start, unsigned long range)
 
-It never happened before and it only happend once yet. I will continue
-to run the latest git kernel and let you know if it happens again.
+Since we're changing other things about this, let's try to document
+its behavior in its name too and call this "randomize_page" instead.
+If it requires a page-aligned value, we should probably also BUG_ON
+it, or adjust the start too.
 
-(I did copy several git trees to my root partition yesterday, so the
-incremental btrfs stream was larger than usual.)
+-Kees
+
+> +{
+> +       if (start > ULONG_MAX - range)
+> +               range = ULONG_MAX - start;
+> +
+> +       range >>= PAGE_SHIFT;
+> +
+> +       if (range == 0)
+> +               return start;
+> +
+> +       return start + (get_random_long() % range << PAGE_SHIFT);
+> +}
+> +
+>  /* Interface for in-kernel drivers of true hardware RNGs.
+>   * Those devices may produce endless random bits and will be throttled
+>   * when our pool is full.
+> diff --git a/include/linux/random.h b/include/linux/random.h
+> index e47e533742b5..f1ca2fa4c071 100644
+> --- a/include/linux/random.h
+> +++ b/include/linux/random.h
+> @@ -35,6 +35,7 @@ extern const struct file_operations random_fops, urandom_fops;
+>  unsigned int get_random_int(void);
+>  unsigned long get_random_long(void);
+>  unsigned long randomize_range(unsigned long start, unsigned long end, unsigned long len);
+> +unsigned long randomize_addr(unsigned long start, unsigned long range);
+>
+>  u32 prandom_u32(void);
+>  void prandom_bytes(void *buf, size_t nbytes);
+> --
+> 2.9.2
+>
+
+
 
 -- 
-Markus
+Kees Cook
+Chrome OS & Brillo Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
