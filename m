@@ -1,107 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C6DD828F6
-	for <linux-mm@kvack.org>; Sun, 31 Jul 2016 05:44:42 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id 33so58727050lfw.1
-        for <linux-mm@kvack.org>; Sun, 31 Jul 2016 02:44:42 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id m126si11230902wmm.55.2016.07.31.02.44.40
+	by kanga.kvack.org (Postfix) with ESMTP id 5E4A2828F6
+	for <linux-mm@kvack.org>; Sun, 31 Jul 2016 06:19:39 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id p85so58922648lfg.3
+        for <linux-mm@kvack.org>; Sun, 31 Jul 2016 03:19:39 -0700 (PDT)
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com. [74.125.82.45])
+        by mx.google.com with ESMTPS id r133si11295619wma.97.2016.07.31.03.19.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 31 Jul 2016 02:44:40 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id o80so21904024wme.0
-        for <linux-mm@kvack.org>; Sun, 31 Jul 2016 02:44:40 -0700 (PDT)
-Date: Sun, 31 Jul 2016 11:44:38 +0200
+        Sun, 31 Jul 2016 03:19:37 -0700 (PDT)
+Received: by mail-wm0-f45.google.com with SMTP id q128so48436837wma.1
+        for <linux-mm@kvack.org>; Sun, 31 Jul 2016 03:19:37 -0700 (PDT)
+Date: Sun, 31 Jul 2016 12:19:36 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 09/10] vhost, mm: make sure that oom_reaper doesn't reap
- memory read by vhost
-Message-ID: <20160731094438.GA24353@dhcp22.suse.cz>
+Subject: Re: [PATCH 08/10] exit, oom: postpone exit_oom_victim to later
+Message-ID: <20160731101935.GA26220@dhcp22.suse.cz>
 References: <1469734954-31247-1-git-send-email-mhocko@kernel.org>
- <1469734954-31247-10-git-send-email-mhocko@kernel.org>
- <20160728233359-mutt-send-email-mst@kernel.org>
- <20160729060422.GA5504@dhcp22.suse.cz>
- <20160729161039-mutt-send-email-mst@kernel.org>
- <20160729133529.GE8031@dhcp22.suse.cz>
- <20160729205620-mutt-send-email-mst@kernel.org>
+ <1469734954-31247-9-git-send-email-mhocko@kernel.org>
+ <201607301720.GHG43737.JLVtHOOSQOFFMF@I-love.SAKURA.ne.jp>
+ <20160731093530.GB22397@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160729205620-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20160731093530.GB22397@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, oleg@redhat.com, rientjes@google.com, vdavydov@parallels.com
 
-On Fri 29-07-16 20:57:44, Michael S. Tsirkin wrote:
-> On Fri, Jul 29, 2016 at 03:35:29PM +0200, Michal Hocko wrote:
-> > On Fri 29-07-16 16:14:10, Michael S. Tsirkin wrote:
-> > > On Fri, Jul 29, 2016 at 08:04:22AM +0200, Michal Hocko wrote:
-> > > > On Thu 28-07-16 23:41:53, Michael S. Tsirkin wrote:
-> > > > > On Thu, Jul 28, 2016 at 09:42:33PM +0200, Michal Hocko wrote:
-> > [...]
-> > > > > > and the reader would hit a page fault
-> > > > > > +	 * if it stumbled over a reaped memory.
-> > > > > 
-> > > > > This last point I don't get. flag read could bypass data read
-> > > > > if that happens data read could happen after unmap
-> > > > > yes it might get a PF but you handle that, correct?
-> > > > 
-> > > > The point I've tried to make is that if the reader really page faults
-> > > > then get_user will imply the full barrier already. If get_user didn't
-> > > > page fault then the state of the flag is not really important because
-> > > > the reaper shouldn't have touched it. Does it make more sense now or
-> > > > I've missed your question?
-> > > 
-> > > Can task flag read happen before the get_user pagefault?
-> > 
-> > Do you mean?
-> > 
-> > get_user_mm()
-> >   temp = false <- test_bit(MMF_UNSTABLE, &mm->flags)
-> >   ret = __get_user(x, ptr)
-> >   #PF
-> >   if (!ret && temp) # misses the flag
-> > 
-> > The code is basically doing
-> > 
-> >   if (!__get_user() && test_bit(MMF_UNSTABLE, &mm->flags))
-> > 
-> > so test_bit part of the conditional cannot be evaluated before
-> > __get_user() part is done. Compiler cannot reorder two depending
-> > subconditions AFAIK.
+On Sun 31-07-16 11:35:30, Michal Hocko wrote:
+> On Sat 30-07-16 17:20:30, Tetsuo Handa wrote:
+[...]
+> > But safer way is to get rid of TIF_MEMDIE's triple meanings. The first
+> > one which prevents the OOM killer from selecting next OOM victim was
+> > removed by replacing TIF_MEMDIE test in oom_scan_process_thread() with
+> > tsk_is_oom_victim(). The second one which allows the OOM victims to
+> > deplete 100% of memory reserves wants some changes in order not to
+> > block memory allocations by non OOM victims (e.g. GFP_ATOMIC allocations
+> > by interrupt handlers, GFP_NOIO / GFP_NOFS allocations by subsystems
+> > which are needed for making forward progress of threads in do_exit())
+> > by consuming too much of memory reserves. The third one which blocks
+> > oom_killer_disable() can be removed by replacing TIF_MEMDIE test in
+> > exit_oom_victim() with PFA_OOM_WAITING test like below patch.
 > 
-> But maybe the CPU can.
+> I plan to remove TIF_MEMDIE dependency for this as well but I would like
+> to finish this pile first. We actually do not need any flag for that. We
+> just need to detect last exiting thread and tsk_is_oom_victim. I have
+> some preliminary code for that.
 
-Are you sure? How does that differ from
-	if (ptr && ptr->something)
-construct?
-
-Let's CC Paul. Just to describe the situation. We have the following
-situation:
-
-#define __get_user_mm(mm, x, ptr)				\
-({								\
-	int ___gu_err = __get_user(x, ptr);			\
-	if (!___gu_err && test_bit(MMF_UNSTABLE, &mm->flags))	\
-		___gu_err = -EFAULT;				\
-	___gu_err;						\
-})
-
-and the oom reaper doing:
-
-	set_bit(MMF_UNSTABLE, &mm->flags);
-
-	for (vma = mm->mmap ; vma; vma = vma->vm_next) {
-		unmap_page_range
-
-I assume that write memory barrier between set_bit and unmap_page_range
-is not really needed because unmapping should already imply the memory
-barrier. A read memory barrier between __get_user and test_bit shouldn't
-be really needed because we can tolerate a stale value if __get_user
-didn't #PF because we haven't unmapped that address obviously. If we
-unmapped it then __get_user would #PF and that should imply a full
-memory barrier as well. Now the question is whether a CPU can speculate
-and read the flag before we issue the #PF.
+That being said. If you _really_ consider this patch to be controversial
+I can drop it and handle it with other patches which should handle also
+TIF_MEMDIE removal. The rest of the series doesn't really depend on it
+in any way. I just though this would be easy enough to carry it with
+this pile already. I do not insist on it.
 -- 
 Michal Hocko
 SUSE Labs
