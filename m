@@ -1,109 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id ADCFC6B0260
-	for <linux-mm@kvack.org>; Sun, 31 Jul 2016 16:56:38 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id w128so233340424pfd.3
-        for <linux-mm@kvack.org>; Sun, 31 Jul 2016 13:56:38 -0700 (PDT)
-Received: from outbound1a.ore.mailhop.org (outbound1a.ore.mailhop.org. [54.213.22.21])
-        by mx.google.com with ESMTPS id j71si31259543pfa.161.2016.07.31.13.56.37
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 415326B0265
+	for <linux-mm@kvack.org>; Sun, 31 Jul 2016 18:24:28 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id 33so64483441lfw.1
+        for <linux-mm@kvack.org>; Sun, 31 Jul 2016 15:24:28 -0700 (PDT)
+Received: from outbound1.eu.mailhop.org (outbound1.eu.mailhop.org. [52.28.251.132])
+        by mx.google.com with ESMTPS id g64si13214026wmd.109.2016.07.31.15.24.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 31 Jul 2016 13:56:37 -0700 (PDT)
-Date: Sun, 31 Jul 2016 20:56:32 +0000
+        Sun, 31 Jul 2016 15:24:26 -0700 (PDT)
+Date: Sun, 31 Jul 2016 22:24:16 +0000
 From: Jason Cooper <jason@lakedaemon.net>
-Subject: Re: [PATCH v2 1/7] random: Simplify API for random address requests
-Message-ID: <20160731205632.GY4541@io.lakedaemon.net>
-References: <20160728204730.27453-1-jason@lakedaemon.net>
- <20160730154244.403-1-jason@lakedaemon.net>
- <20160730154244.403-2-jason@lakedaemon.net>
- <CAGXu5jL3ZtjbhOYujVUpBuDttPjetaz8rSY_hNK13r6OtR4sFQ@mail.gmail.com>
+Subject: Re: [kernel-hardening] Re: [PATCH] [RFC] Introduce mmap randomization
+Message-ID: <20160731222416.GZ4541@io.lakedaemon.net>
+References: <1469557346-5534-1-git-send-email-william.c.roberts@intel.com>
+ <1469557346-5534-2-git-send-email-william.c.roberts@intel.com>
+ <20160726200309.GJ4541@io.lakedaemon.net>
+ <476DC76E7D1DF2438D32BFADF679FC560125F29C@ORSMSX103.amr.corp.intel.com>
+ <20160726205944.GM4541@io.lakedaemon.net>
+ <CAFJ0LnEZW7Y1zfN8v0_ckXQZn1n-UKEhf_tSmNOgHwrrnNnuMg@mail.gmail.com>
+ <20160728210734.GU4541@io.lakedaemon.net>
+ <1469787002.10626.34.camel@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAGXu5jL3ZtjbhOYujVUpBuDttPjetaz8rSY_hNK13r6OtR4sFQ@mail.gmail.com>
+In-Reply-To: <1469787002.10626.34.camel@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: "Roberts, William C" <william.c.roberts@intel.com>, Yann Droneaud <ydroneaud@opteya.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Arnd Bergmann <arnd@arndb.de>, Greg KH <gregkh@linuxfoundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "benh@kernel.crashing.org" <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, "David S. Miller" <davem@davemloft.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Nick Kralevich <nnk@google.com>, Jeffrey Vander Stoep <jeffv@google.com>, Daniel Cashman <dcashman@android.com>
+To: kernel-hardening@lists.openwall.com
+Cc: Nick Kralevich <nnk@google.com>, "Roberts, William C" <william.c.roberts@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "keescook@chromium.org" <keescook@chromium.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "jeffv@google.com" <jeffv@google.com>, "salyzyn@android.com" <salyzyn@android.com>, "dcashman@android.com" <dcashman@android.com>
 
-On Sun, Jul 31, 2016 at 09:46:53AM -0700, Kees Cook wrote:
-> On Sat, Jul 30, 2016 at 8:42 AM, Jason Cooper <jason@lakedaemon.net> wrote:
-> > To date, all callers of randomize_range() have set the length to 0, and
-> > check for a zero return value.  For the current callers, the only way
-> > to get zero returned is if end <= start.  Since they are all adding a
-> > constant to the start address, this is unnecessary.
-> >
-> > We can remove a bunch of needless checks by simplifying the API to do
-> > just what everyone wants, return an address between [start, start +
-> > range).
-> >
-> > While we're here, s/get_random_int/get_random_long/.  No current call
-> > site is adversely affected by get_random_int(), since all current range
-> > requests are < UINT_MAX.  However, we should match caller expectations
-> > to avoid coming up short (ha!) in the future.
-> >
-> > All current callers to randomize_range() chose to use the start address
-> > if randomize_range() failed.  Therefore, we simplify things by just
-> > returning the start address on error.
-> >
-> > randomize_range() will be removed once all callers have been converted
-> > over to randomize_addr().
-> >
-> > Signed-off-by: Jason Cooper <jason@lakedaemon.net>
-> > ---
-> > Changes from v1:
-> >  - Explicitly mention page_aligned start assumption (Yann Droneaud)
-> >  - pick random pages vice random addresses (Yann Droneaud)
-> >  - catch range=0 last
-> >
-> >  drivers/char/random.c  | 28 ++++++++++++++++++++++++++++
-> >  include/linux/random.h |  1 +
-> >  2 files changed, 29 insertions(+)
-> >
-> > diff --git a/drivers/char/random.c b/drivers/char/random.c
-> > index 0158d3bff7e5..3bedf69546d6 100644
-> > --- a/drivers/char/random.c
-> > +++ b/drivers/char/random.c
-> > @@ -1840,6 +1840,34 @@ randomize_range(unsigned long start, unsigned long end, unsigned long len)
-> >         return PAGE_ALIGN(get_random_int() % range + start);
-> >  }
-> >
-> > +/**
-> > + * randomize_addr - Generate a random, page aligned address
-> > + * @start:     The smallest acceptable address the caller will take.
-> > + * @range:     The size of the area, starting at @start, within which the
-> > + *             random address must fall.
-> > + *
-> > + * If @start + @range would overflow, @range is capped.
-> > + *
-> > + * NOTE: Historical use of randomize_range, which this replaces, presumed that
-> > + * @start was already page aligned.  This assumption still holds.
-> > + *
-> > + * Return: A page aligned address within [start, start + range).  On error,
-> > + * @start is returned.
-> > + */
-> > +unsigned long
-> > +randomize_addr(unsigned long start, unsigned long range)
+Hi Daniel,
+
+On Fri, Jul 29, 2016 at 06:10:02AM -0400, Daniel Micay wrote:
+> > > In the Project Zero Stagefright post
+> > > (http://googleprojectzero.blogspot.com/2015/09/stagefrightened.html)
+> > > , we see that the linear allocation of memory combined with the
+> > > low number of bits in the initial mmap offset resulted in a much
+> > > more predictable layout which aided the attacker. The initial
+> > > random mmap base range was increased by Daniel Cashman in
+> > > d07e22597d1d355829b7b18ac19afa912cf758d1, but we've done nothing
+> > > to address page relative attacks.
+> > > 
+> > > Inter-mmap randomization will decrease the predictability of later
+> > > mmap() allocations, which should help make data structures harder
+> > > to find in memory. In addition, this patch will also introduce
+> > > unmapped gaps between pages, preventing linear overruns from one
+> > > mapping to another another mapping. I am unable to quantify how
+> > > much this will improve security, but it should be > 0.
+> > 
+> > One person calls "unmapped gaps between pages" a feature, others
+> > call it a mess. ;-)
 > 
-> Since we're changing other things about this, let's try to document
-> its behavior in its name too and call this "randomize_page" instead.
+> It's very hard to quantify the benefits of fine-grained randomization,
 
-Ack.  Definitely more accurate.
+?  N = # of possible addresses.  The bigger N is, the more chances the
+attacker will trip up before finding what they were looking for.
 
-> If it requires a page-aligned value, we should probably also BUG_ON
-> it, or adjust the start too.
+> but there are other useful guarantees you could provide. It would be
+> quite helpful for the kernel to expose the option to force a PROT_NONE
+> mapping after every allocation. The gaps should actually be enforced.
+> 
+> So perhaps 3 things, simply exposed as off-by-default sysctl options
+> (no need for special treatment on 32-bit):
 
-merf.  So, this whole series started from a suggested cleanup by William
-to s/get_random_int/get_random_long/.
+I'm certainly not an mm-developer, but this looks to me like we're
+pushing the work of creating efficient, random mappings out to
+userspace.  :-/
 
-The current users have all been stable the way they are for a long time.
-Like pre-git long.  So, if this is just a cleanup for those callers, I
-don't think we need to do more than we already are.
+> a) configurable minimum gap size in pages (for protection against
+> linear and small {under,over}flows) b) configurable minimum gap size
+> based on a ratio to allocation size (for making the heap sparse to
+> mitigate heap sprays, especially when mixed with fine-grained
+> randomization - for example 2x would add a 2M gap after a 1M mapping)
 
-However, if the intent is for this function to see wider use, then by
-all means, we need to handle start != PAGE_ALIGN(start).
+mmm, this looks like an information leak.  Best to set a range of pages
+and pick a random number within that range for each call.
 
-Do you have any new call sites in mind?
+> c) configurable maximum random gap size (the random gap would be in
+> addition to the enforced minimums)
+> 
+> The randomization could just be considered an extra with minor
+> benefits rather than the whole feature. A full fine-grained
+> randomization implementation would need a higher-level form of
+> randomization than gaps in the kernel along with cooperation from
+> userspace allocators. This would make sense as one part of it though.
+
+Ok, so here's an idea.  This idea could be used in conjunction with
+random gaps, or on it's own.  It would be enhanced by userspace random
+load order.
+
+The benefit is that with 32bit address space, and no random gapping,
+it's still not wasting much space.
+
+Given a memory space, break it up into X bands such that there are 2*X
+possible addresses.
+
+  |A     B|C     D|E     F|G     H| ... |2*X-2  2*X-1|
+  |--> <--|--> <--|--> <--|--> <--| ... |-->      <--|
+min                                                  max
+
+For each call to mmap, we randomly pick a value within [0 - 2*X).
+Assuming A=0 in the diagram above, even values grow up, odd values grow
+down.  Gradually consuming the single gap in the middle of each band.
+
+How many bands to use would depend on:
+  * 32/64bit
+  * Average number of mmap calls
+  * largest single mmap call usually seen
+  * if using random gaps and range used
+
+If the free gap in a chosen band is too small for the request, pick
+again among the other bands.
+
+Again, I'm not an mm dev, so I might be totally smoking crack on this
+one...
 
 thx,
 
