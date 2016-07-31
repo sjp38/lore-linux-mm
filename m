@@ -1,143 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 91909828F6
-	for <linux-mm@kvack.org>; Sun, 31 Jul 2016 09:40:26 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id ag5so196218709pad.2
-        for <linux-mm@kvack.org>; Sun, 31 Jul 2016 06:40:26 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id fv10si29787836pad.137.2016.07.31.06.40.25
-        for <linux-mm@kvack.org>;
-        Sun, 31 Jul 2016 06:40:25 -0700 (PDT)
-Date: Sun, 31 Jul 2016 21:39:12 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: core.c:undefined reference to `fpu_save'
-Message-ID: <201607312108.P4uIuTms%fengguang.wu@intel.com>
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B9E5828EA
+	for <linux-mm@kvack.org>; Sun, 31 Jul 2016 11:10:51 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id 33so61295199lfw.1
+        for <linux-mm@kvack.org>; Sun, 31 Jul 2016 08:10:51 -0700 (PDT)
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com. [74.125.82.47])
+        by mx.google.com with ESMTPS id u2si27500798wji.139.2016.07.31.08.10.49
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 31 Jul 2016 08:10:49 -0700 (PDT)
+Received: by mail-wm0-f47.google.com with SMTP id o80so211632731wme.1
+        for <linux-mm@kvack.org>; Sun, 31 Jul 2016 08:10:49 -0700 (PDT)
+Date: Sun, 31 Jul 2016 17:10:47 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: OOM killer invoked during btrfs send/recieve on otherwise idle
+ machine
+Message-ID: <20160731151047.GA4496@dhcp22.suse.cz>
+References: <20160731051121.GB307@x4>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="uAKRQypu60I7Lcqm"
-Content-Disposition: inline
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
-
-
---uAKRQypu60I7Lcqm
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20160731051121.GB307@x4>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Markus Trippelsdorf <markus@trippelsdorf.de>
+Cc: linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
 
-Hi,
+[CC Mel and linux-mm]
 
-It's probably a bug fix that unveils the link errors.
+On Sun 31-07-16 07:11:21, Markus Trippelsdorf wrote:
+> Tonight the OOM killer got invoked during backup of /:
+> 
+> [Jul31 01:56] kthreadd invoked oom-killer: gfp_mask=0x27000c0(GFP_KERNEL_ACCOUNT|__GFP_NOTRACK), order=2, oom_score_adj=0
 
-tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
-head:   c9b95e5961c0294e0efffeaa847c1a1e6369204c
-commit: c60f169202c7643991a8b4bfeea60e06843d5b5a arch/mn10300/kernel/fpu-nofpu.c: needs asm/elf.h
-date:   5 months ago
-config: mn10300-allnoconfig (attached as .config)
-compiler: am33_2.0-linux-gcc (GCC) 4.9.0
-reproduce:
-        wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
-        chmod +x ~/bin/make.cross
-        git checkout c60f169202c7643991a8b4bfeea60e06843d5b5a
-        # save the attached .config to linux build tree
-        make.cross ARCH=mn10300 
+This a kernel stack allocation.
 
-All errors (new ones prefixed by >>):
+> [  +0.000004] CPU: 3 PID: 2 Comm: kthreadd Not tainted 4.7.0-06816-g797cee982eef-dirty #37
+> [  +0.000000] Hardware name: System manufacturer System Product Name/M4A78T-E, BIOS 3503    04/13/2011
+> [  +0.000002]  0000000000000000 ffffffff813c2d58 ffff8802168e7d48 00000000002ec4ea
+> [  +0.000002]  ffffffff8118eb9d 00000000000001b8 0000000000000440 00000000000003b0
+> [  +0.000002]  ffff8802133fe400 00000000002ec4ea ffffffff81b8ac9c 0000000000000006
+> [  +0.000001] Call Trace:
+> [  +0.000004]  [<ffffffff813c2d58>] ? dump_stack+0x46/0x6e
+> [  +0.000003]  [<ffffffff8118eb9d>] ? dump_header.isra.11+0x4c/0x1a7
+> [  +0.000002]  [<ffffffff811382eb>] ? oom_kill_process+0x2ab/0x460
+> [  +0.000001]  [<ffffffff811387e3>] ? out_of_memory+0x2e3/0x380
+> [  +0.000002]  [<ffffffff81141532>] ? __alloc_pages_slowpath.constprop.124+0x1d32/0x1e40
+> [  +0.000001]  [<ffffffff81141b4c>] ? __alloc_pages_nodemask+0x10c/0x120
+> [  +0.000002]  [<ffffffff810939aa>] ? copy_process.part.72+0xea/0x17a0
+> [  +0.000002]  [<ffffffff810d1a55>] ? pick_next_task_fair+0x915/0x1520
+> [  +0.000001]  [<ffffffff810b7a00>] ? kthread_flush_work_fn+0x20/0x20
+> [  +0.000001]  [<ffffffff8109549a>] ? kernel_thread+0x7a/0x1c0
+> [  +0.000001]  [<ffffffff810b82f2>] ? kthreadd+0xd2/0x120
+> [  +0.000002]  [<ffffffff818d828f>] ? ret_from_fork+0x1f/0x40
+> [  +0.000001]  [<ffffffff810b8220>] ? kthread_stop+0x100/0x100
+> [  +0.000001] Mem-Info:
+> [  +0.000003] active_anon:5882 inactive_anon:60307 isolated_anon:0
+>                active_file:1523729 inactive_file:223965 isolated_file:0
+>                unevictable:1970 dirty:130014 writeback:40735 unstable:0
+>                slab_reclaimable:179690 slab_unreclaimable:8041
+>                mapped:6771 shmem:3 pagetables:592 bounce:0
+>                free:11374 free_pcp:54 free_cma:0
+> [  +0.000004] Node 0 active_anon:23528kB inactive_anon:241228kB active_file:6094916kB inactive_file:895860kB unevictable:7880kB isolated(anon):0kB isolated(file):0kB mapped:27084kB dirty:520056kB writeback:162940kB shmem:12kB writeback_tmp:0kB unstable:0kB pages_scanned:32 all_unreclaimable? no
+> [  +0.000002] DMA free:15908kB min:20kB low:32kB high:44kB active_anon:0kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:15992kB managed:15908kB mlocked:0kB slab_reclaimable:0kB slab_unreclaimable:0kB kernel_stack:0kB pagetables:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+> [  +0.000001] lowmem_reserve[]: 0 3486 7953 7953
+> [  +0.000004] DMA32 free:23456kB min:4996kB low:8564kB high:12132kB active_anon:2480kB inactive_anon:10564kB active_file:2559792kB inactive_file:478680kB unevictable:0kB writepending:365292kB present:3652160kB managed:3574264kB mlocked:0kB slab_reclaimable:437456kB slab_unreclaimable:12304kB kernel_stack:144kB pagetables:28kB bounce:0kB free_pcp:212kB local_pcp:0kB free_cma:0kB
+> [  +0.000001] lowmem_reserve[]: 0 0 4466 4466
+> [  +0.000003] Normal free:6132kB min:6400kB low:10972kB high:15544kB active_anon:21048kB inactive_anon:230664kB active_file:3535124kB inactive_file:417312kB unevictable:7880kB writepending:318020kB present:4718592kB managed:4574096kB mlocked:7880kB slab_reclaimable:281304kB slab_unreclaimable:19860kB kernel_stack:2944kB pagetables:2340kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
+> [  +0.000000] lowmem_reserve[]: 0 0 0 0
+> [  +0.000002] DMA: 1*4kB (U) 0*8kB 0*16kB 1*32kB (U) 2*64kB (U) 1*128kB (U) 1*256kB (U) 0*512kB 1*1024kB (U) 1*2048kB (U) 3*4096kB (M) = 15908kB
+> [  +0.000005] DMA32: 4215*4kB (UMEH) 319*8kB (UMH) 5*16kB (H) 2*32kB (H) 2*64kB (H) 1*128kB (H) 0*256kB 1*512kB (H) 1*1024kB (H) 1*2048kB (H) 0*4096kB = 23396kB
+> [  +0.000006] Normal: 650*4kB (UMH) 4*8kB (UH) 27*16kB (H) 23*32kB (H) 17*64kB (H) 11*128kB (H) 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 6296kB
 
-   kernel/built-in.o: In function `.L412':
->> core.c:(.sched.text+0x257): undefined reference to `fpu_save'
+The memory is quite fragmented but there are order-2+ free blocks. They
+seem to be in the high atomic reserves but we should release them.
+Is this reproducible? If yes, could you try with the 4.7 kernel please?
 
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+Keeping the rest of the emil for reference.
 
---uAKRQypu60I7Lcqm
-Content-Type: application/octet-stream
-Content-Disposition: attachment; filename=".config.gz"
-Content-Transfer-Encoding: base64
+> [  +0.000005] 1749526 total pagecache pages
+> [  +0.000001] 150 pages in swap cache
+> [  +0.000001] Swap cache stats: add 1222, delete 1072, find 2366/2401
+> [  +0.000000] Free swap  = 4091520kB
+> [  +0.000001] Total swap = 4095996kB
+> [  +0.000000] 2096686 pages RAM
+> [  +0.000001] 0 pages HighMem/MovableOnly
+> [  +0.000000] 55619 pages reserved
+> [  +0.000001] [ pid ]   uid  tgid total_vm      rss nr_ptes nr_pmds swapents oom_score_adj name
+> [  +0.000004] [  153]     0   153     4087      406       9       3      104         -1000 udevd
+> [  +0.000001] [  181]     0   181     5718     1169      15       3      143             0 syslog-ng
+> [  +0.000001] [  187]   102   187    88789     5137      53       3      663             0 mpd
+> [  +0.000002] [  188]     0   188    22278     1956      16       3        0             0 ntpd
+> [  +0.000001] [  189]     0   189     4973      859      14       3      188             0 cupsd
+> [  +0.000001] [  192]     0   192     2680      391      10       3       21             0 fcron
+> [  +0.000001] [  219]     0   219     4449      506      13       3        0             0 login
+> [  +0.000002] [  220]     0   220     2876      368       9       3        0             0 agetty
+> [  +0.000001] [  222]    31   222    27193    20995      57       3        0             0 squid
+> [  +0.000001] [  225]  1000   225     7410     3878      17       3        0             0 zsh
+> [  +0.000001] [  297]  1000   297     9339     4771      23       3        0             0 tmux
+> [  +0.000001] [  298]     0   298     4674      571      13       3        0             0 sudo
+> [  +0.000001] [  300]     0   300     4674      588      13       3        0             0 sudo
+> [  +0.000002] [  302]  1000   302     2721      738       9       3        0             0 sh
+> [  +0.000001] [  304]  1000   304    18149     5230      35       3        0             0 ncmpcpp
+> [  +0.000014] [  307]  1000   307    19239    13079      40       3        0             0 mutt
+> [  +0.000001] [  309]  1000   309     7550     4002      17       3        0             0 zsh
+> [  +0.000001] [  311]  1000   311     7620     4089      18       3        0             0 zsh
+> [  +0.000002] [  313]     0   313     4072      568      13       3        0             0 su
+> [  +0.000001] [  314]     0   314     4072      560      14       3        0             0 su
+> [  +0.000001] [  315]  1000   315     7554     4045      19       3        0             0 zsh
+> [  +0.000001] [  317]  1000   317     7571     4030      18       3        0             0 zsh
+> [  +0.000001] [  319]  1000   319     7624     4097      18       3        0             0 zsh
+> [  +0.000002] [  334]     0   334     5511     1952      15       3        0             0 zsh
+> [  +0.000001] [  335]     0   335     5539     2059      15       3        0             0 zsh
+> [  +0.000001] [  376]     0   376     4674      553      14       3        0             0 sudo
+> [  +0.000001] [  377]     0   377     6915     2915      17       3        0             0 multitail
+> [  +0.000001] [  378]     0   378     1829      146       8       3        0             0 tail
+> [  +0.000001] [  379]     0   379     1829      144       8       3        0             0 tail
+> [  +0.000002] [14764]  1000 14764     6731     2363      16       3        0             0 mc
+> [  +0.000005] [22909]     0 22909     2680      430      10       3        8             0 fcron
+> [  +0.000003] [22910]     0 22910     1943      612       8       3        0             0 sh
+> [  +0.000002] [22915]     0 22915     3915      242       8       3        0             0 btrfs
+> [  +0.000003] [22916]     0 22916     1866      245       8       3        0             0 btrfs
+> [  +0.000003] Out of memory: Kill process 222 (squid) score 6 or sacrifice child
+> [  +0.001307] Killed process 222 (squid) total-vm:108772kB, anon-rss:76336kB, file-rss:7632kB, shmem-rss:12kB
+> 
+> The machine was otherwise idle (I was asleep). I have 8GB of memory.
+> 
+> This is the backup script that I run daily at 01:52:
+> 
+> x4 ~ # cat /sbin/snapshot_btrfs
+> btrfs subvolume snapshot -r / /root/snap-new
+> sync
+> btrfs send -p /root/snap /root/snap-new | btrfs receive /var/.snapshots
+> sync
+> btrfs subvolume delete /root/snap
+> mv /root/snap-new /root/snap
+> mv /var/.snapshots/snap /var/.snapshots/snap.$(date +%Y-%m-%d)
+> mv /var/.snapshots/snap-new /var/.snapshots/snap
+> 
+> The OOM killer triggered during btrfs send/receive.
+> 
+> I'm running the latest git kernel.
+> 
+> -- 
+> Markus
 
-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
-
---uAKRQypu60I7Lcqm--
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
