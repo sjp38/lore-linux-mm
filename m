@@ -1,53 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5093E6B0260
-	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 09:21:54 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id d65so10456620ith.0
-        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 06:21:54 -0700 (PDT)
-Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00103.outbound.protection.outlook.com. [40.107.0.103])
-        by mx.google.com with ESMTPS id r10si19328303oih.174.2016.08.01.06.21.53
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 26A246B0260
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 09:25:15 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id p85so75283876lfg.3
+        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 06:25:15 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p7si31359076wjm.211.2016.08.01.06.25.13
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 01 Aug 2016 06:21:53 -0700 (PDT)
-Date: Mon, 1 Aug 2016 16:21:45 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH] mm: vmscan: fix memcg-aware shrinkers not called on
- global reclaim
-Message-ID: <20160801132145.GA19395@esperanza>
-References: <1470056590-7177-1-git-send-email-vdavydov@virtuozzo.com>
- <20160801131840.GE13544@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 01 Aug 2016 06:25:13 -0700 (PDT)
+Subject: Re: [PATCH 2/2] mm: compaction.c: Add/Modify direct compaction
+ tracepoints
+References: <cover.1469629027.git.janani.rvchndrn@gmail.com>
+ <7d2c2beef96e76cb01a21eee85ba5611bceb4307.1469629027.git.janani.rvchndrn@gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <7ab4a23a-1311-9579-2d58-263bbcdcd725@suse.cz>
+Date: Mon, 1 Aug 2016 15:25:09 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20160801131840.GE13544@dhcp22.suse.cz>
+In-Reply-To: <7d2c2beef96e76cb01a21eee85ba5611bceb4307.1469629027.git.janani.rvchndrn@gmail.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Hillf Danton <hillf.zj@alibaba-inc.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@surriel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Janani Ravichandran <janani.rvchndrn@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: riel@surriel.com, akpm@linux-foundation.org, hannes@compxchg.org, vdavydov@virtuozzo.com, mhocko@suse.com, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, bywxiaobai@163.com, rostedt@goodmis.org
 
-On Mon, Aug 01, 2016 at 03:18:40PM +0200, Michal Hocko wrote:
-> On Mon 01-08-16 16:03:10, Vladimir Davydov wrote:
-> > We must call shrink_slab() for each memory cgroup on both global and
-> > memcg reclaim in shrink_node_memcg(). Commit d71df22b55099 accidentally
-> > changed that so that now shrink_slab() is only called with memcg != NULL
-> > on memcg reclaim. As a result, memcg-aware shrinkers (including
-> > dentry/inode) are never invoked on global reclaim. Fix that.
-> > 
-> > Fixes: d71df22b55099 ("mm, vmscan: begin reclaiming pages on a per-node basis")
-> 
-> I guess you meant b2e18757f2c9. I do not see d71df22b55099 anywhere.
+On 07/27/2016 04:51 PM, Janani Ravichandran wrote:
+> Add zone information to an existing tracepoint in compact_zone(). Also,
+> add a new tracepoint at the end of the compaction code so that latency
+> information can be derived.
+>
+> Signed-off-by: Janani Ravichandran <janani.rvchndrn@gmail.com>
+> ---
+>  include/trace/events/compaction.h | 38 +++++++++++++++++++++++++++++++++-----
+>  mm/compaction.c                   |  6 ++++--
+>  2 files changed, 37 insertions(+), 7 deletions(-)
+>
+> diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
+> index 36e2d6f..4d86769 100644
+> --- a/include/trace/events/compaction.h
+> +++ b/include/trace/events/compaction.h
+> @@ -158,12 +158,15 @@ TRACE_EVENT(mm_compaction_migratepages,
+>  );
+>
+>  TRACE_EVENT(mm_compaction_begin,
+> -	TP_PROTO(unsigned long zone_start, unsigned long migrate_pfn,
+> -		unsigned long free_pfn, unsigned long zone_end, bool sync),
+> +	TP_PROTO(struct zone *zone, unsigned long zone_start,
+> +		unsigned long migrate_pfn, unsigned long free_pfn,
+> +		unsigned long zone_end, bool sync),
+>
+> -	TP_ARGS(zone_start, migrate_pfn, free_pfn, zone_end, sync),
+> +	TP_ARGS(zone, zone_start, migrate_pfn, free_pfn, zone_end, sync),
+>
+>  	TP_STRUCT__entry(
+> +		__field(int, nid)
+> +		__field(int, zid)
+>  		__field(unsigned long, zone_start)
+>  		__field(unsigned long, migrate_pfn)
+>  		__field(unsigned long, free_pfn)
+> @@ -172,6 +175,8 @@ TRACE_EVENT(mm_compaction_begin,
+>  	),
+>
+>  	TP_fast_assign(
+> +		__entry->nid = zone_to_nid(zone);
+> +		__entry->zid = zone_idx(zone);
+>  		__entry->zone_start = zone_start;
+>  		__entry->migrate_pfn = migrate_pfn;
+>  		__entry->free_pfn = free_pfn;
+> @@ -179,7 +184,9 @@ TRACE_EVENT(mm_compaction_begin,
+>  		__entry->sync = sync;
+>  	),
+>
+> -	TP_printk("zone_start=0x%lx migrate_pfn=0x%lx free_pfn=0x%lx zone_end=0x%lx, mode=%s",
+> +	TP_printk("nid=%d zid=%d zone_start=0x%lx migrate_pfn=0x%lx free_pfn=0x%lx zone_end=0x%lx, mode=%s",
 
-I'm basing on top of v4.7-mmotm-2016-07-28-16-33 and there it's
-d71df22b55099.
+Yea, this tracepoint has been odd in not printing node/zone in a 
+friendly way (it's possible to determine it from zone_start/zone_end 
+though, so this is good in general. But instead of printing nid and zid 
+like this, it would be nice to unify the output with the other 
+tracepoints, e.g.:
 
-> 
-> > Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
-> 
-> The fix looks ok to me otherwise
-> 
-> Acked-by: Michal Hocko <mhocko@suse.com>
+DECLARE_EVENT_CLASS(mm_compaction_suitable_template,
+[...]
+         TP_printk("node=%d zone=%-8s order=%d ret=%s",
+                 __entry->nid,
+                 __print_symbolic(__entry->idx, ZONE_TYPE),
 
-Thanks!
+Thanks,
+Vlastimil
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
