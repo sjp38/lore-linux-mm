@@ -1,126 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 626D36B0253
-	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 19:17:42 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id e7so83194940lfe.0
-        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 16:17:42 -0700 (PDT)
-Received: from outbound1.eu.mailhop.org (outbound1.eu.mailhop.org. [52.28.251.132])
-        by mx.google.com with ESMTPS id lg1si33758076wjc.113.2016.08.01.16.17.40
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Aug 2016 16:17:40 -0700 (PDT)
-Date: Mon, 1 Aug 2016 23:17:23 +0000
-From: Jason Cooper <jason@lakedaemon.net>
-Subject: Re: [PATCH v2 1/7] random: Simplify API for random address requests
-Message-ID: <20160801231723.GG4541@io.lakedaemon.net>
-References: <20160728204730.27453-1-jason@lakedaemon.net>
- <20160730154244.403-1-jason@lakedaemon.net>
- <20160730154244.403-2-jason@lakedaemon.net>
- <CAGXu5jL3ZtjbhOYujVUpBuDttPjetaz8rSY_hNK13r6OtR4sFQ@mail.gmail.com>
- <20160731205632.GY4541@io.lakedaemon.net>
- <CAGXu5jJVM=LXA10z06zVcFDSbf8s72HcOPRc_nUeuU7W=-3JWg@mail.gmail.com>
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 08FC26B0253
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 19:45:45 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id pp5so270285671pac.3
+        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 16:45:45 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id f66si37471787pfc.168.2016.08.01.16.45.43
+        for <linux-mm@kvack.org>;
+        Mon, 01 Aug 2016 16:45:43 -0700 (PDT)
+Date: Tue, 2 Aug 2016 08:46:39 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC] mm: bail out in shrin_inactive_list
+Message-ID: <20160801234639.GA6770@bbox>
+References: <1469433119-1543-1-git-send-email-minchan@kernel.org>
+ <20160729141130.GC2034@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <20160729141130.GC2034@cmpxchg.org>
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <CAGXu5jJVM=LXA10z06zVcFDSbf8s72HcOPRc_nUeuU7W=-3JWg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: "Roberts, William C" <william.c.roberts@intel.com>, Yann Droneaud <ydroneaud@opteya.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Arnd Bergmann <arnd@arndb.de>, Greg KH <gregkh@linuxfoundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "benh@kernel.crashing.org" <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, "David S. Miller" <davem@davemloft.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Nick Kralevich <nnk@google.com>, Jeffrey Vander Stoep <jeffv@google.com>, Daniel Cashman <dcashman@android.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Kees,
-
-On Mon, Aug 01, 2016 at 12:47:59PM -0700, Kees Cook wrote:
-> On Sun, Jul 31, 2016 at 1:56 PM, Jason Cooper <jason@lakedaemon.net> wrote:
-> > On Sun, Jul 31, 2016 at 09:46:53AM -0700, Kees Cook wrote:
-> >> On Sat, Jul 30, 2016 at 8:42 AM, Jason Cooper <jason@lakedaemon.net> wrote:
-> >> > To date, all callers of randomize_range() have set the length to 0, and
-> >> > check for a zero return value.  For the current callers, the only way
-> >> > to get zero returned is if end <= start.  Since they are all adding a
-> >> > constant to the start address, this is unnecessary.
-> >> >
-> >> > We can remove a bunch of needless checks by simplifying the API to do
-> >> > just what everyone wants, return an address between [start, start +
-> >> > range).
-> >> >
-> >> > While we're here, s/get_random_int/get_random_long/.  No current call
-> >> > site is adversely affected by get_random_int(), since all current range
-> >> > requests are < UINT_MAX.  However, we should match caller expectations
-> >> > to avoid coming up short (ha!) in the future.
-> >> >
-> >> > All current callers to randomize_range() chose to use the start address
-> >> > if randomize_range() failed.  Therefore, we simplify things by just
-> >> > returning the start address on error.
-> >> >
-> >> > randomize_range() will be removed once all callers have been converted
-> >> > over to randomize_addr().
-> >> >
-> >> > Signed-off-by: Jason Cooper <jason@lakedaemon.net>
-> >> > ---
-> >> > Changes from v1:
-> >> >  - Explicitly mention page_aligned start assumption (Yann Droneaud)
-> >> >  - pick random pages vice random addresses (Yann Droneaud)
-> >> >  - catch range=0 last
-> >> >
-> >> >  drivers/char/random.c  | 28 ++++++++++++++++++++++++++++
-> >> >  include/linux/random.h |  1 +
-> >> >  2 files changed, 29 insertions(+)
-> >> >
-> >> > diff --git a/drivers/char/random.c b/drivers/char/random.c
-> >> > index 0158d3bff7e5..3bedf69546d6 100644
-> >> > --- a/drivers/char/random.c
-> >> > +++ b/drivers/char/random.c
-> >> > @@ -1840,6 +1840,34 @@ randomize_range(unsigned long start, unsigned long end, unsigned long len)
-> >> >         return PAGE_ALIGN(get_random_int() % range + start);
-> >> >  }
-> >> >
-> >> > +/**
-> >> > + * randomize_addr - Generate a random, page aligned address
-> >> > + * @start:     The smallest acceptable address the caller will take.
-> >> > + * @range:     The size of the area, starting at @start, within which the
-> >> > + *             random address must fall.
-> >> > + *
-> >> > + * If @start + @range would overflow, @range is capped.
-> >> > + *
-> >> > + * NOTE: Historical use of randomize_range, which this replaces, presumed that
-> >> > + * @start was already page aligned.  This assumption still holds.
-> >> > + *
-> >> > + * Return: A page aligned address within [start, start + range).  On error,
-> >> > + * @start is returned.
-> >> > + */
-> >> > +unsigned long
-> >> > +randomize_addr(unsigned long start, unsigned long range)
-> >>
-> >> Since we're changing other things about this, let's try to document
-> >> its behavior in its name too and call this "randomize_page" instead.
-> >
-> > Ack.  Definitely more accurate.
-> >
-> >> If it requires a page-aligned value, we should probably also BUG_ON
-> >> it, or adjust the start too.
-> >
-> > merf.  So, this whole series started from a suggested cleanup by William
-> > to s/get_random_int/get_random_long/.
-> >
-> > The current users have all been stable the way they are for a long time.
-> > Like pre-git long.  So, if this is just a cleanup for those callers, I
-> > don't think we need to do more than we already are.
-> >
-> > However, if the intent is for this function to see wider use, then by
-> > all means, we need to handle start != PAGE_ALIGN(start).
-> >
-> > Do you have any new call sites in mind?
+On Fri, Jul 29, 2016 at 10:11:30AM -0400, Johannes Weiner wrote:
+> On Mon, Jul 25, 2016 at 04:51:59PM +0900, Minchan Kim wrote:
+> > With node-lru, if there are enough reclaimable pages in highmem
+> > but nothing in lowmem, VM can try to shrink inactive list although
+> > the requested zone is lowmem.
+> > 
+> > The problem is direct reclaimer scans inactive list is fulled with
+> > highmem pages to find a victim page at a reqested zone or lower zones
+> > but the result is that VM should skip all of pages. It just burns out
+> > CPU. Even, many direct reclaimers are stalled by too_many_isolated
+> > if lots of parallel reclaimer are going on although there are no
+> > reclaimable memory in inactive list.
+> > 
+> > I tried the experiment 4 times in 32bit 2G 8 CPU KVM machine
+> > to get elapsed time.
+> > 
+> > 	hackbench 500 process 2
+> > 
+> > = Old =
+> > 
+> > 1st: 289s 2nd: 310s 3rd: 112s 4th: 272s
+> > 
+> > = Now =
+> > 
+> > 1st: 31s  2nd: 132s 3rd: 162s 4th: 50s.
+> > 
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > ---
+> > I believe proper fix is to modify get_scan_count. IOW, I think
+> > we should introduce lruvec_reclaimable_lru_size with proper
+> > classzone_idx but I don't know how we can fix it with memcg
+> > which doesn't have zone stat now. should introduce zone stat
+> > back to memcg? Or, it's okay to ignore memcg?
 > 
-> I have no new call sites in mind, but it seems safe to add a BUG_ON to
-> verify we don't gain callers that don't follow the correct
-> expectations. (Or maybe WARN and return start.)
+> You can fully ignore memcg and kmemcg. They only care about the
+> balance sheet - page in, page out - never mind the type of page.
+> 
+> If you are allocating a slab object and there is no physical memory,
+> you'll wake kswapd or enter direct reclaim with the restricted zone
+> index. If you then try to charge the freshly allocated page or object
+> but hit the limit, kmem or otherwise, you'll enter memcg reclaim that
+> is not restricted and only cares about getting usage + pages < limit.
 
-No, I think BUG_ON is appropriate.  afaict, the only time this will be
-encountered is during the development process.
+Thanks. I got understood.
 
-thx,
+> 
+> I agree that it might be better to put this logic in get_scan_count()
+> and set both nr[lru] as well as *lru_pages according to the pages that
+> are eligible for the given reclaim index.
+> 
+> if (global_reclaim(sc))
+>   add zone stats from 0 to sc->reclaim_idx
+> else
+>   use lruvec_lru_size()
 
-Jason.
+Yeb, I already sent it.
+http://lkml.kernel.org/r/1469604588-6051-2-git-send-email-minchan@kernel.org
+
+Thanks for the review, Johannes!
+
+> 
+> It's a bit unfortunate that abstractions like the lruvec fall apart
+> when we have to reconstruct zones ad-hoc now, but I don't see any
+> obvious way around it...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
