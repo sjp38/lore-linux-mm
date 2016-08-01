@@ -1,93 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 75DD36B0253
-	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 19:05:12 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id h186so297894383pfg.2
-        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 16:05:12 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 19si37282961pft.165.2016.08.01.16.05.11
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 626D36B0253
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 19:17:42 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id e7so83194940lfe.0
+        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 16:17:42 -0700 (PDT)
+Received: from outbound1.eu.mailhop.org (outbound1.eu.mailhop.org. [52.28.251.132])
+        by mx.google.com with ESMTPS id lg1si33758076wjc.113.2016.08.01.16.17.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Aug 2016 16:05:11 -0700 (PDT)
-Date: Mon, 1 Aug 2016 16:05:10 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] fs: fix a bug when new_insert_key is not initialization
-Message-Id: <20160801160510.4a48a02d68aa5d89a0435b52@linux-foundation.org>
-In-Reply-To: <1469850669-64815-1-git-send-email-zhongjiang@huawei.com>
-References: <1469850669-64815-1-git-send-email-zhongjiang@huawei.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Mon, 01 Aug 2016 16:17:40 -0700 (PDT)
+Date: Mon, 1 Aug 2016 23:17:23 +0000
+From: Jason Cooper <jason@lakedaemon.net>
+Subject: Re: [PATCH v2 1/7] random: Simplify API for random address requests
+Message-ID: <20160801231723.GG4541@io.lakedaemon.net>
+References: <20160728204730.27453-1-jason@lakedaemon.net>
+ <20160730154244.403-1-jason@lakedaemon.net>
+ <20160730154244.403-2-jason@lakedaemon.net>
+ <CAGXu5jL3ZtjbhOYujVUpBuDttPjetaz8rSY_hNK13r6OtR4sFQ@mail.gmail.com>
+ <20160731205632.GY4541@io.lakedaemon.net>
+ <CAGXu5jJVM=LXA10z06zVcFDSbf8s72HcOPRc_nUeuU7W=-3JWg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAGXu5jJVM=LXA10z06zVcFDSbf8s72HcOPRc_nUeuU7W=-3JWg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhongjiang <zhongjiang@huawei.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Kees Cook <keescook@chromium.org>
+Cc: "Roberts, William C" <william.c.roberts@intel.com>, Yann Droneaud <ydroneaud@opteya.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Arnd Bergmann <arnd@arndb.de>, Greg KH <gregkh@linuxfoundation.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "benh@kernel.crashing.org" <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, "David S. Miller" <davem@davemloft.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, "x86@kernel.org" <x86@kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Nick Kralevich <nnk@google.com>, Jeffrey Vander Stoep <jeffv@google.com>, Daniel Cashman <dcashman@android.com>
 
-On Sat, 30 Jul 2016 11:51:09 +0800 zhongjiang <zhongjiang@huawei.com> wrote:
+Hi Kees,
 
-> From: zhong jiang <zhongjiang@huawei.com>
+On Mon, Aug 01, 2016 at 12:47:59PM -0700, Kees Cook wrote:
+> On Sun, Jul 31, 2016 at 1:56 PM, Jason Cooper <jason@lakedaemon.net> wrote:
+> > On Sun, Jul 31, 2016 at 09:46:53AM -0700, Kees Cook wrote:
+> >> On Sat, Jul 30, 2016 at 8:42 AM, Jason Cooper <jason@lakedaemon.net> wrote:
+> >> > To date, all callers of randomize_range() have set the length to 0, and
+> >> > check for a zero return value.  For the current callers, the only way
+> >> > to get zero returned is if end <= start.  Since they are all adding a
+> >> > constant to the start address, this is unnecessary.
+> >> >
+> >> > We can remove a bunch of needless checks by simplifying the API to do
+> >> > just what everyone wants, return an address between [start, start +
+> >> > range).
+> >> >
+> >> > While we're here, s/get_random_int/get_random_long/.  No current call
+> >> > site is adversely affected by get_random_int(), since all current range
+> >> > requests are < UINT_MAX.  However, we should match caller expectations
+> >> > to avoid coming up short (ha!) in the future.
+> >> >
+> >> > All current callers to randomize_range() chose to use the start address
+> >> > if randomize_range() failed.  Therefore, we simplify things by just
+> >> > returning the start address on error.
+> >> >
+> >> > randomize_range() will be removed once all callers have been converted
+> >> > over to randomize_addr().
+> >> >
+> >> > Signed-off-by: Jason Cooper <jason@lakedaemon.net>
+> >> > ---
+> >> > Changes from v1:
+> >> >  - Explicitly mention page_aligned start assumption (Yann Droneaud)
+> >> >  - pick random pages vice random addresses (Yann Droneaud)
+> >> >  - catch range=0 last
+> >> >
+> >> >  drivers/char/random.c  | 28 ++++++++++++++++++++++++++++
+> >> >  include/linux/random.h |  1 +
+> >> >  2 files changed, 29 insertions(+)
+> >> >
+> >> > diff --git a/drivers/char/random.c b/drivers/char/random.c
+> >> > index 0158d3bff7e5..3bedf69546d6 100644
+> >> > --- a/drivers/char/random.c
+> >> > +++ b/drivers/char/random.c
+> >> > @@ -1840,6 +1840,34 @@ randomize_range(unsigned long start, unsigned long end, unsigned long len)
+> >> >         return PAGE_ALIGN(get_random_int() % range + start);
+> >> >  }
+> >> >
+> >> > +/**
+> >> > + * randomize_addr - Generate a random, page aligned address
+> >> > + * @start:     The smallest acceptable address the caller will take.
+> >> > + * @range:     The size of the area, starting at @start, within which the
+> >> > + *             random address must fall.
+> >> > + *
+> >> > + * If @start + @range would overflow, @range is capped.
+> >> > + *
+> >> > + * NOTE: Historical use of randomize_range, which this replaces, presumed that
+> >> > + * @start was already page aligned.  This assumption still holds.
+> >> > + *
+> >> > + * Return: A page aligned address within [start, start + range).  On error,
+> >> > + * @start is returned.
+> >> > + */
+> >> > +unsigned long
+> >> > +randomize_addr(unsigned long start, unsigned long range)
+> >>
+> >> Since we're changing other things about this, let's try to document
+> >> its behavior in its name too and call this "randomize_page" instead.
+> >
+> > Ack.  Definitely more accurate.
+> >
+> >> If it requires a page-aligned value, we should probably also BUG_ON
+> >> it, or adjust the start too.
+> >
+> > merf.  So, this whole series started from a suggested cleanup by William
+> > to s/get_random_int/get_random_long/.
+> >
+> > The current users have all been stable the way they are for a long time.
+> > Like pre-git long.  So, if this is just a cleanup for those callers, I
+> > don't think we need to do more than we already are.
+> >
+> > However, if the intent is for this function to see wider use, then by
+> > all means, we need to handle start != PAGE_ALIGN(start).
+> >
+> > Do you have any new call sites in mind?
 > 
-> when compile the kenrel code, I happens to the following warn.
-> fs/reiserfs/ibalance.c:1156:2: warning: ___new_insert_key___ may be used
-> uninitialized in this function.
-> memcpy(new_insert_key_addr, &new_insert_key, KEY_SIZE);
-> 
-> The patch fix it by check the new_insert_ptr. if new_insert_ptr is not
-> NULL, we ensure that new_insert_key is assigned. therefore, memcpy will
-> saftly exec the operatetion.
-> 
-> --- a/fs/reiserfs/ibalance.c
-> +++ b/fs/reiserfs/ibalance.c
-> @@ -1153,8 +1153,10 @@ int balance_internal(struct tree_balance *tb,
->  				       insert_ptr);
->  	}
->  
-> -	memcpy(new_insert_key_addr, &new_insert_key, KEY_SIZE);
-> -	insert_ptr[0] = new_insert_ptr;
-> +	if (new_insert_ptr) {
-> +		memcpy(new_insert_key_addr, &new_insert_key, KEY_SIZE);
-> +		insert_ptr[0] = new_insert_ptr;
-> +	}
->  
->  	return order;
+> I have no new call sites in mind, but it seems safe to add a BUG_ON to
+> verify we don't gain callers that don't follow the correct
+> expectations. (Or maybe WARN and return start.)
 
-Jeff has aleady fixed this with an equivalent patch.  It's in -mm at
-present.
+No, I think BUG_ON is appropriate.  afaict, the only time this will be
+encountered is during the development process.
 
-From: Jeff Mahoney <jeffm@suse.com>
-Subject: reiserfs: fix "new_insert_key may be used uninitialized ..."
+thx,
 
-new_insert_key only makes any sense when it's associated with a
-new_insert_ptr, which is initialized to NULL and changed to a buffer_head
-when we also initialize new_insert_key.  We can key off of that to avoid
-the uninitialized warning.
-
-Link: http://lkml.kernel.org/r/5eca5ffb-2155-8df2-b4a2-f162f105efed@suse.com
-Signed-off-by: Jeff Mahoney <jeffm@suse.com>
-Cc: Arnd Bergmann <arnd@arndb.de>
-Cc: Jan Kara <jack@suse.cz>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- fs/reiserfs/ibalance.c |    3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-
-diff -puN fs/reiserfs/ibalance.c~reiserfs-fix-new_insert_key-may-be-used-uninitialized fs/reiserfs/ibalance.c
---- a/fs/reiserfs/ibalance.c~reiserfs-fix-new_insert_key-may-be-used-uninitialized
-+++ a/fs/reiserfs/ibalance.c
-@@ -1153,8 +1153,9 @@ int balance_internal(struct tree_balance
- 				       insert_ptr);
- 	}
- 
--	memcpy(new_insert_key_addr, &new_insert_key, KEY_SIZE);
- 	insert_ptr[0] = new_insert_ptr;
-+	if (new_insert_ptr)
-+		memcpy(new_insert_key_addr, &new_insert_key, KEY_SIZE);
- 
- 	return order;
- }
-_
+Jason.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
