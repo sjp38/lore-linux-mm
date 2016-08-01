@@ -1,78 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 64C94828E2
-	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 09:26:35 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id d65so10737524ith.0
-        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 06:26:35 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0093.outbound.protection.outlook.com. [104.47.1.93])
-        by mx.google.com with ESMTPS id d124si19412646oig.35.2016.08.01.06.26.33
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CCAE1828E2
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 09:27:06 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 1so82361719wmz.2
+        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 06:27:06 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id sj15si31363785wjb.130.2016.08.01.06.27.05
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 01 Aug 2016 06:26:33 -0700 (PDT)
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: [PATCH 3/3] mm: memcontrol: add sanity checks for memcg->id.ref on get/put
-Date: Mon, 1 Aug 2016 16:26:26 +0300
-Message-ID: <ad702144f24374cbfb3a35b71658a0ae24ba7d84.1470057819.git.vdavydov@virtuozzo.com>
-In-Reply-To: <01cbe4d1a9fd9bbd42c95e91694d8ed9c9fc2208.1470057819.git.vdavydov@virtuozzo.com>
-References: <01cbe4d1a9fd9bbd42c95e91694d8ed9c9fc2208.1470057819.git.vdavydov@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 01 Aug 2016 06:27:05 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id i5so26179853wmg.2
+        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 06:27:05 -0700 (PDT)
+Date: Mon, 1 Aug 2016 15:27:04 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: vmscan: fix memcg-aware shrinkers not called on
+ global reclaim
+Message-ID: <20160801132703.GF13544@dhcp22.suse.cz>
+References: <1470056590-7177-1-git-send-email-vdavydov@virtuozzo.com>
+ <20160801131840.GE13544@dhcp22.suse.cz>
+ <20160801132145.GA19395@esperanza>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160801132145.GA19395@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Hillf Danton <hillf.zj@alibaba-inc.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@surriel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
----
- mm/memcontrol.c | 8 ++++++--
- 1 file changed, 6 insertions(+), 2 deletions(-)
+On Mon 01-08-16 16:21:45, Vladimir Davydov wrote:
+> On Mon, Aug 01, 2016 at 03:18:40PM +0200, Michal Hocko wrote:
+> > On Mon 01-08-16 16:03:10, Vladimir Davydov wrote:
+> > > We must call shrink_slab() for each memory cgroup on both global and
+> > > memcg reclaim in shrink_node_memcg(). Commit d71df22b55099 accidentally
+> > > changed that so that now shrink_slab() is only called with memcg != NULL
+> > > on memcg reclaim. As a result, memcg-aware shrinkers (including
+> > > dentry/inode) are never invoked on global reclaim. Fix that.
+> > > 
+> > > Fixes: d71df22b55099 ("mm, vmscan: begin reclaiming pages on a per-node basis")
+> > 
+> > I guess you meant b2e18757f2c9. I do not see d71df22b55099 anywhere.
+> 
+> I'm basing on top of v4.7-mmotm-2016-07-28-16-33 and there it's
+> d71df22b55099.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 58c229071fb1..cf7fb63860e5 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4032,18 +4032,22 @@ static DEFINE_IDR(mem_cgroup_idr);
- 
- static void mem_cgroup_id_get_many(struct mem_cgroup *memcg, unsigned int n)
- {
-+	VM_BUG_ON(atomic_read(&memcg->id.ref) <= 0);
- 	atomic_add(n, &memcg->id.ref);
- }
- 
- static struct mem_cgroup *mem_cgroup_id_get_active(struct mem_cgroup *memcg)
- {
--	while (!atomic_inc_not_zero(&memcg->id.ref))
-+	while (!atomic_inc_not_zero(&memcg->id.ref)) {
-+		VM_BUG_ON(mem_cgroup_is_root(memcg));
- 		memcg = parent_mem_cgroup(memcg);
-+	}
- 	return memcg;
- }
- 
- static void mem_cgroup_id_put_many(struct mem_cgroup *memcg, unsigned int n)
- {
-+	VM_BUG_ON(atomic_read(&memcg->id.ref) < n);
- 	if (atomic_sub_and_test(n, &memcg->id.ref)) {
- 		idr_remove(&mem_cgroup_idr, memcg->id.id);
- 		memcg->id.id = 0;
-@@ -4164,6 +4168,7 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
- 	INIT_LIST_HEAD(&memcg->cgwb_list);
- #endif
- 	idr_replace(&mem_cgroup_idr, memcg, memcg->id.id);
-+	atomic_set(&memcg->id.ref, 1);
- 	return memcg;
- fail:
- 	if (memcg->id.id > 0)
-@@ -4233,7 +4238,6 @@ fail:
- static int mem_cgroup_css_online(struct cgroup_subsys_state *css)
- {
- 	/* Online state pins memcg ID, memcg ID pins CSS */
--	mem_cgroup_id_get(mem_cgroup_from_css(css));
- 	css_get(css);
- 	return 0;
- }
+But this sha is unstable. THe patch you are referring to is already
+sitting in the Linus tree so please use his (stable sha instead).
 -- 
-2.1.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
