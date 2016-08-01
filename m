@@ -1,56 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D19936B026A
-	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 11:29:37 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id e7so77531345lfe.0
-        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 08:29:37 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 186si16475529wmz.140.2016.08.01.08.29.36
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A6166B026D
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 11:31:46 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id o80so84642581wme.1
+        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 08:31:46 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id n78si14699454lfg.49.2016.08.01.08.31.44
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 01 Aug 2016 08:29:36 -0700 (PDT)
-Date: Mon, 1 Aug 2016 17:29:33 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [memcg:auto-latest 238/243] include/linux/compiler-gcc.h:243:38:
- error: impossible constraint in 'asm'
-Message-ID: <20160801152933.GM13544@dhcp22.suse.cz>
-References: <201607300506.W5FnCSrY%fengguang.wu@intel.com>
- <20160731121125.GA29775@dhcp22.suse.cz>
- <579F6422.1040202@akamai.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 01 Aug 2016 08:31:44 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id q128so26719040wma.1
+        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 08:31:44 -0700 (PDT)
+Date: Mon, 1 Aug 2016 17:31:43 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: + mm-hugetlb-fix-race-when-migrate-pages.patch added to -mm tree
+Message-ID: <20160801153143.GN13544@dhcp22.suse.cz>
+References: <578eb28b.YbRUDGz5RloTVlrE%akpm@linux-foundation.org>
+ <20160721074340.GA26398@dhcp22.suse.cz>
+ <20160729112707.GB8031@dhcp22.suse.cz>
+ <579C4A2E.4080009@huawei.com>
+ <20160801110203.GB13544@dhcp22.suse.cz>
+ <579F64E1.8030707@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <579F6422.1040202@akamai.com>
+In-Reply-To: <579F64E1.8030707@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jason Baron <jbaron@akamai.com>
-Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: akpm@linux-foundation.org
+Cc: zhong jiang <zhongjiang@huawei.com>, qiuxishi@huawei.com, vbabka@suse.cz, mm-commits@vger.kernel.org, Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
 
-On Mon 01-08-16 11:00:50, Jason Baron wrote:
-> On 07/31/2016 08:11 AM, Michal Hocko wrote:
-> > It seems that this has been already reported and Jason has noticed [1] that
-> > the problem is in the disabled optimizations:
-> > 
-> > $ grep CRYPTO_DEV_UX500_DEBUG .config
-> > CONFIG_CRYPTO_DEV_UX500_DEBUG=y
-> > 
-> > if I disable this particular option the code compiles just fine. I have
-> > no idea what is wrong about the code but it seems to depend on
-> > optimizations enabled which sounds a bit scrary...
-> > 
-> > [1] http://www.spinics.net/lists/linux-mm/msg109590.html
-> 
-> 
-> Hi,
-> 
-> There was a patch from Arnd Bergmann to address this
-> issue by removing the usage of -O0 here, included in
-> linux-next:
-> 
-> https://marc.info/?l=linux-kernel&m=146701898520633&w=2
+On Mon 01-08-16 23:04:01, zhong jiang wrote:
+> On 2016/8/1 19:02, Michal Hocko wrote:
+> > On Sat 30-07-16 14:33:18, zhong jiang wrote:
+> >> On 2016/7/29 19:27, Michal Hocko wrote:
+> >>> On Thu 21-07-16 09:43:40, Michal Hocko wrote:
+> >>>> We have further discussed the patch and I believe it is not correct. See [1].
+> >>>> I am proposing the following alternative.
+> >>> Andrew, please drop the mm-hugetlb-fix-race-when-migrate-pages.patch. It
+> >>> is clearly racy. Whether the BUG_ON update is really the right and
+> >>> sufficient fix is not 100% clear yet and we are waiting for Zhong Jiang
+> >>> testing.
+> >> The issue is very hard to recur.  Without attaching any patch to
+> >> kernel code. up to now, it still not happens to it.
+> > Hmm, OK. So what do you propose? Are you OK with the BUG_ON change or do
+> > you think that this needs a deeper fix?
+>
+>   yes,  I  agree  with your change.
 
-AFAIU the code should be fixed as well. See
-http://lkml.kernel.org/r/35a0878d-84bd-ad93-8810-23c861ed464e@suse.cz
+OK, Andrew, could you merge
+http://lkml.kernel.org/r/20160721074340.GA26398@dhcp22.suse.cz with ack
+from Naoya
+http://lkml.kernel.org/r/20160721081355.GB25398@hori1.linux.bs1.fc.nec.co.jp
+
+Thanks!
+
 -- 
 Michal Hocko
 SUSE Labs
