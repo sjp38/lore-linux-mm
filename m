@@ -1,49 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AF6EE6B0253
-	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 10:58:11 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id pp5so248611607pac.3
-        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 07:58:11 -0700 (PDT)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id a90si35457738pfk.184.2016.08.01.07.58.11
-        for <linux-mm@kvack.org>;
-        Mon, 01 Aug 2016 07:58:11 -0700 (PDT)
-Subject: Re: [PATCH 08/10] x86, pkeys: default to a restrictive init PKRU
-References: <20160729163009.5EC1D38C@viggo.jf.intel.com>
- <20160729163021.F3C25D4A@viggo.jf.intel.com>
- <cd74ae8b-36e4-a397-e36f-fe3d4281d400@suse.cz>
-From: Dave Hansen <dave@sr71.net>
-Message-ID: <579F6380.2070600@sr71.net>
-Date: Mon, 1 Aug 2016 07:58:08 -0700
-MIME-Version: 1.0
-In-Reply-To: <cd74ae8b-36e4-a397-e36f-fe3d4281d400@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9932D6B025E
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 10:59:31 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id e7so76982228lfe.0
+        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 07:59:31 -0700 (PDT)
+Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
+        by mx.google.com with ESMTPS id wg3si31794235wjb.188.2016.08.01.07.59.30
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 01 Aug 2016 07:59:30 -0700 (PDT)
+Received: by mail-wm0-x232.google.com with SMTP id f65so373708745wmi.0
+        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 07:59:30 -0700 (PDT)
+From: Alexander Potapenko <glider@google.com>
+Subject: [PATCH] kasan: avoid overflowing quarantine size on low memory systems
+Date: Mon,  1 Aug 2016 16:59:23 +0200
+Message-Id: <1470063563-96266-1-git-send-email-glider@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org
-Cc: x86@kernel.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, luto@kernel.org, mgorman@techsingularity.net, dave.hansen@linux.intel.com, arnd@arndb.de
+To: dvyukov@google.com, kcc@google.com, aryabinin@virtuozzo.com, adech.fo@gmail.com, cl@linux.com, akpm@linux-foundation.org, rostedt@goodmis.org, js1304@gmail.com, iamjoonsoo.kim@lge.com, kuthonuzo.luruo@hpe.com
+Cc: kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 08/01/2016 07:42 AM, Vlastimil Babka wrote:
-> On 07/29/2016 06:30 PM, Dave Hansen wrote:
->> This does not cause any practical problems with applications
->> using protection keys because we require them to specify initial
->> permissions for each key when it is allocated, which override the
->> restrictive default.
-> 
-> Here you mean the init_access_rights parameter of pkey_alloc()? So will
-> children of fork() after that pkey_alloc() inherit the new value or go
-> default?
+If the total amount of memory assigned to quarantine is less than the
+amount of memory assigned to per-cpu quarantines, |new_quarantine_size|
+may overflow. Instead, set it to zero.
 
-Hi Vlastimil,
+Reported-by: Dmitry Vyukov <dvyukov@google.com>
+Fixes: 55834c59098d ("mm: kasan: initial memory quarantine
+implementation")
+Signed-off-by: Alexander Potapenko <glider@google.com>
+---
+ mm/kasan/quarantine.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
 
-Yes, exactly, the initial permissions are provided via pkey_alloc()'s
-'init_access_rights' argument.
-
-Do you mean fork() or clone()?  In both cases, we actually copy the FPU
-state from the parent, so children always inherit the state from their
-parent which contains the permissions set by the parent's calls to
-pkey_alloc().
+diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
+index 65793f1..416d3b0 100644
+--- a/mm/kasan/quarantine.c
++++ b/mm/kasan/quarantine.c
+@@ -196,7 +196,7 @@ void quarantine_put(struct kasan_free_meta *info, struct kmem_cache *cache)
+ 
+ void quarantine_reduce(void)
+ {
+-	size_t new_quarantine_size;
++	size_t new_quarantine_size, percpu_quarantines;
+ 	unsigned long flags;
+ 	struct qlist_head to_free = QLIST_INIT;
+ 	size_t size_to_free = 0;
+@@ -214,7 +214,15 @@ void quarantine_reduce(void)
+ 	 */
+ 	new_quarantine_size = (READ_ONCE(totalram_pages) << PAGE_SHIFT) /
+ 		QUARANTINE_FRACTION;
+-	new_quarantine_size -= QUARANTINE_PERCPU_SIZE * num_online_cpus();
++	percpu_quarantines = QUARANTINE_PERCPU_SIZE * num_online_cpus();
++	if (new_quarantine_size < percpu_quarantines) {
++		WARN_ONCE(1,
++			"Too little memory, disabling global KASAN quarantine.\n",
++		);
++		new_quarantine_size = 0;
++	} else {
++		new_quarantine_size -= percpu_quarantines;
++	}
+ 	WRITE_ONCE(quarantine_size, new_quarantine_size);
+ 
+ 	last = global_quarantine.head;
+-- 
+2.8.0.rc3.226.g39d4020
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
