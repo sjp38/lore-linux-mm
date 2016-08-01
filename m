@@ -1,18 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 093116B0253
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EE6F36B0253
 	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 10:44:12 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id d65so16369735ith.0
+Received: by mail-it0-f69.google.com with SMTP id d65so16371030ith.0
         for <linux-mm@kvack.org>; Mon, 01 Aug 2016 07:44:12 -0700 (PDT)
 Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00104.outbound.protection.outlook.com. [40.107.0.104])
-        by mx.google.com with ESMTPS id c133si19807053oif.84.2016.08.01.07.44.10
+        by mx.google.com with ESMTPS id c133si19807053oif.84.2016.08.01.07.44.11
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
         Mon, 01 Aug 2016 07:44:11 -0700 (PDT)
 From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Subject: [PATCH 1/6] mm/kasan: fix corruptions and false positive reports
-Date: Mon, 1 Aug 2016 17:45:10 +0300
-Message-ID: <1470062715-14077-1-git-send-email-aryabinin@virtuozzo.com>
+Subject: [PATCH 2/6] mm/kasan: don't reduce quarantine in atomic contexts
+Date: Mon, 1 Aug 2016 17:45:11 +0300
+Message-ID: <1470062715-14077-2-git-send-email-aryabinin@virtuozzo.com>
+In-Reply-To: <1470062715-14077-1-git-send-email-aryabinin@virtuozzo.com>
+References: <1470062715-14077-1-git-send-email-aryabinin@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -20,84 +22,66 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexander Potapenko <glider@google.com>, Dave Jones <davej@codemonkey.org.uk>, Vegard Nossum <vegard.nossum@oracle.com>, Sasha Levin <alexander.levin@verizon.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-Once object put in quarantine, we no longer own it, i.e. object could leave
-the quarantine and be reallocated. So having set_track() call after the
-quarantine_put() may corrupt slab objects.
+Currently we call quarantine_reduce() for ___GFP_KSWAPD_RECLAIM
+(implied by __GFP_RECLAIM) allocation. So, basically we call it on
+almost every allocation. quarantine_reduce() sometimes is heavy operation,
+and calling it with disabled interrupts may trigger hard LOCKUP:
 
- BUG kmalloc-4096 (Not tainted): Poison overwritten
- -----------------------------------------------------------------------------
- Disabling lock debugging due to kernel taint
- INFO: 0xffff8804540de850-0xffff8804540de857. First byte 0xb5 instead of 0x6b
-...
- INFO: Freed in qlist_free_all+0x42/0x100 age=75 cpu=3 pid=24492
-  __slab_free+0x1d6/0x2e0
-  ___cache_free+0xb6/0xd0
-  qlist_free_all+0x83/0x100
-  quarantine_reduce+0x177/0x1b0
-  kasan_kmalloc+0xf3/0x100
-  kasan_slab_alloc+0x12/0x20
-  kmem_cache_alloc+0x109/0x3e0
-  mmap_region+0x53e/0xe40
-  do_mmap+0x70f/0xa50
-  vm_mmap_pgoff+0x147/0x1b0
-  SyS_mmap_pgoff+0x2c7/0x5b0
-  SyS_mmap+0x1b/0x30
-  do_syscall_64+0x1a0/0x4e0
-  return_from_SYSCALL_64+0x0/0x7a
- INFO: Slab 0xffffea0011503600 objects=7 used=7 fp=0x          (null) flags=0x8000000000004080
- INFO: Object 0xffff8804540de848 @offset=26696 fp=0xffff8804540dc588
- Redzone ffff8804540de840: bb bb bb bb bb bb bb bb                          ........
- Object ffff8804540de848: 6b 6b 6b 6b 6b 6b 6b 6b b5 52 00 00 f2 01 60 cc  kkkkkkkk.R....`.
-
-Similarly, poisoning after the quarantine_put() leads to false positive
-use-after-free reports:
-
- BUG: KASAN: use-after-free in anon_vma_interval_tree_insert+0x304/0x430 at addr ffff880405c540a0
- Read of size 8 by task trinity-c0/3036
- CPU: 0 PID: 3036 Comm: trinity-c0 Not tainted 4.7.0-think+ #9
-  ffff880405c54200 00000000c5c4423e ffff88044a5ef9f0 ffffffffaea48532
-  ffff88044a5efa88 ffff880461497a00 ffff88044a5efa78 ffffffffae57cfe2
-  ffff88046501c958 ffff880436aa5440 0000000000000282 0000000000000007
+ NMI watchdog: Watchdog detected hard LOCKUP on cpu 2irq event stamp: 1411258
  Call Trace:
-  [<ffffffffaea48532>] dump_stack+0x68/0x96
-  [<ffffffffae57cfe2>] kasan_report_error+0x222/0x600
-  [<ffffffffae57d571>] __asan_report_load8_noabort+0x61/0x70
-  [<ffffffffae4f8924>] anon_vma_interval_tree_insert+0x304/0x430
-  [<ffffffffae52f811>] anon_vma_chain_link+0x91/0xd0
-  [<ffffffffae536e46>] anon_vma_clone+0x136/0x3f0
-  [<ffffffffae537181>] anon_vma_fork+0x81/0x4c0
-  [<ffffffffae125663>] copy_process.part.47+0x2c43/0x5b20
-  [<ffffffffae12895d>] _do_fork+0x16d/0xbd0
-  [<ffffffffae129469>] SyS_clone+0x19/0x20
-  [<ffffffffae0064b0>] do_syscall_64+0x1a0/0x4e0
-  [<ffffffffafa09b1a>] entry_SYSCALL64_slow_path+0x25/0x25
+  <NMI>  [<ffffffff98a48532>] dump_stack+0x68/0x96
+  [<ffffffff98357fbb>] watchdog_overflow_callback+0x15b/0x190
+  [<ffffffff9842f7d1>] __perf_event_overflow+0x1b1/0x540
+  [<ffffffff98455b14>] perf_event_overflow+0x14/0x20
+  [<ffffffff9801976a>] intel_pmu_handle_irq+0x36a/0xad0
+  [<ffffffff9800ba4c>] perf_event_nmi_handler+0x2c/0x50
+  [<ffffffff98057058>] nmi_handle+0x128/0x480
+  [<ffffffff980576d2>] default_do_nmi+0xb2/0x210
+  [<ffffffff980579da>] do_nmi+0x1aa/0x220
+  [<ffffffff99a0bb07>] end_repeat_nmi+0x1a/0x1e
+  <<EOE>>  [<ffffffff981871e6>] __kernel_text_address+0x86/0xb0
+  [<ffffffff98055c4b>] print_context_stack+0x7b/0x100
+  [<ffffffff98054e9b>] dump_trace+0x12b/0x350
+  [<ffffffff98076ceb>] save_stack_trace+0x2b/0x50
+  [<ffffffff98573003>] set_track+0x83/0x140
+  [<ffffffff98575f4a>] free_debug_processing+0x1aa/0x420
+  [<ffffffff98578506>] __slab_free+0x1d6/0x2e0
+  [<ffffffff9857a9b6>] ___cache_free+0xb6/0xd0
+  [<ffffffff9857db53>] qlist_free_all+0x83/0x100
+  [<ffffffff9857df07>] quarantine_reduce+0x177/0x1b0
+  [<ffffffff9857c423>] kasan_kmalloc+0xf3/0x100
 
-Fix this by putting an object in the quarantine after all other operations.
+Reduce the quarantine_reduce iff direct reclaim is allowed.
 
-Fixes: 80a9201a5965 ("mm, kasan: switch SLUB to stackdepot, enable memory quarantine for SLUB")
+Fixes: 55834c59098d("mm: kasan: initial memory quarantine implementation")
 Reported-by: Dave Jones <davej@codemonkey.org.uk>
-Reported-by: Vegard Nossum <vegard.nossum@oracle.com>
-Reported-by: Sasha Levin <alexander.levin@verizon.com>
 Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
 ---
- mm/kasan/kasan.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/kasan/kasan.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index b6f99e8..3019cec 100644
+index 3019cec..c99ef40 100644
 --- a/mm/kasan/kasan.c
 +++ b/mm/kasan/kasan.c
-@@ -543,9 +543,9 @@ bool kasan_slab_free(struct kmem_cache *cache, void *object)
- 		switch (alloc_info->state) {
- 		case KASAN_STATE_ALLOC:
- 			alloc_info->state = KASAN_STATE_QUARANTINE;
--			quarantine_put(free_info, cache);
- 			set_track(&free_info->track, GFP_NOWAIT);
- 			kasan_poison_slab_free(cache, object);
-+			quarantine_put(free_info, cache);
- 			return true;
- 		case KASAN_STATE_QUARANTINE:
- 		case KASAN_STATE_FREE:
+@@ -565,7 +565,7 @@ void kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t size,
+ 	unsigned long redzone_start;
+ 	unsigned long redzone_end;
+ 
+-	if (flags & __GFP_RECLAIM)
++	if (gfpflags_allow_blocking(flags))
+ 		quarantine_reduce();
+ 
+ 	if (unlikely(object == NULL))
+@@ -596,7 +596,7 @@ void kasan_kmalloc_large(const void *ptr, size_t size, gfp_t flags)
+ 	unsigned long redzone_start;
+ 	unsigned long redzone_end;
+ 
+-	if (flags & __GFP_RECLAIM)
++	if (gfpflags_allow_blocking(flags))
+ 		quarantine_reduce();
+ 
+ 	if (unlikely(ptr == NULL))
 -- 
 2.7.3
 
