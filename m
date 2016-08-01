@@ -1,98 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B411F6B025E
-	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 11:03:54 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id p85so76969042lfg.3
-        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 08:03:54 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id p141si16330655wmg.141.2016.08.01.08.03.52
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E4B276B0262
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 11:09:37 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id v184so254976934qkc.0
+        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 08:09:37 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id f51si20250325qtc.97.2016.08.01.08.09.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Aug 2016 08:03:52 -0700 (PDT)
-Date: Mon, 1 Aug 2016 11:03:43 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] memcg: put soft limit reclaim out of way if the excess
- tree is empty
-Message-ID: <20160801150343.GA7603@cmpxchg.org>
-References: <1470045621-14335-1-git-send-email-mhocko@kernel.org>
- <20160801135757.GB19395@esperanza>
- <20160801141227.GI13544@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 01 Aug 2016 08:09:37 -0700 (PDT)
+From: zhongjiang <zhongjiang@huawei.com>
+Subject: [PATCH] mm: add restriction when memory_hotplug config enable
+Date: Mon, 1 Aug 2016 23:00:51 +0800
+Message-ID: <1470063651-29519-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160801141227.GI13544@dhcp22.suse.cz>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org
 
-On Mon, Aug 01, 2016 at 04:12:28PM +0200, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> Date: Mon, 1 Aug 2016 10:42:06 +0200
-> Subject: [PATCH] memcg: put soft limit reclaim out of way if the excess tree
->  is empty
-> 
-> We've had a report about soft lockups caused by lock bouncing in the
-> soft reclaim path:
-> 
-> [331404.849734] BUG: soft lockup - CPU#0 stuck for 22s! [kav4proxy-kavic:3128]
-> [331404.849920] RIP: 0010:[<ffffffff81469798>]  [<ffffffff81469798>] _raw_spin_lock+0x18/0x20
-> [331404.849997] Call Trace:
-> [331404.850010]  [<ffffffff811557ea>] mem_cgroup_soft_limit_reclaim+0x25a/0x280
-> [331404.850020]  [<ffffffff8111041d>] shrink_zones+0xed/0x200
-> [331404.850027]  [<ffffffff81111a94>] do_try_to_free_pages+0x74/0x320
-> [331404.850034]  [<ffffffff81112072>] try_to_free_pages+0x112/0x180
-> [331404.850042]  [<ffffffff81104a6f>] __alloc_pages_slowpath+0x3ff/0x820
-> [331404.850049]  [<ffffffff81105079>] __alloc_pages_nodemask+0x1e9/0x200
-> [331404.850056]  [<ffffffff81141e01>] alloc_pages_vma+0xe1/0x290
-> [331404.850064]  [<ffffffff8112402f>] do_wp_page+0x19f/0x840
-> [331404.850071]  [<ffffffff811257cd>] handle_pte_fault+0x1cd/0x230
-> [331404.850079]  [<ffffffff8146d3ed>] do_page_fault+0x1fd/0x4c0
-> [331404.850087]  [<ffffffff81469ec5>] page_fault+0x25/0x30
-> 
-> There are no memcgs created so there cannot be any in the soft limit
-> excess obviously:
-> [...]
-> memory  0       1       1
-> 
-> so all this just seems to be mem_cgroup_largest_soft_limit_node
-> trying to get spin_lock_irq(&mctz->lock) just to find out that the soft
-> limit excess tree is empty. This is just pointless waisting of cycles
-> and cache line bouncing during heavy parallel reclaim on large machines.
-> The particular machine wasn't very healthy and most probably suffering
-> from a memory leak which just caused the memory reclaim to trash
-> heavily. But bouncing on the lock certainly didn't help...
-> 
-> Introduce soft_limit_tree_empty which does the optimistic lockless check
-> and bail out early if the tree is empty. This is theoretically racy but
-> that shouldn't matter all that much. First of all soft limit is a best
-> effort feature and it is slowly getting deprecated and its usage should
-> be really scarce. Bouncing on a lock without a good reason is surely
-> much bigger problem, especially on large CPU machines.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  mm/memcontrol.c | 8 ++++++++
->  1 file changed, 8 insertions(+)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index c265212bec8c..c0b57b6a194e 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2543,6 +2543,11 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
->  	return ret;
->  }
->  
-> +static inline bool soft_limit_tree_empty(struct mem_cgroup_tree_per_node *mctz)
-> +{
-> +	return RB_EMPTY_ROOT(&mctz->rb_root);
-> +}
+From: zhong jiang <zhongjiang@huawei.com>
 
-Can you please fold this into the caller? It should be obvious enough.
+At present, It is obvious that memory online and offline will fail
+when KASAN enable,  therefore, it is necessary to add the condition
+to limit the memory_hotplug when KASAN enable.
 
-Other than that, this patch makes sense to me.
+Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+---
+ mm/Kconfig | 1 +
+ 1 file changed, 1 insertion(+)
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 3e2daef..f6dd77e 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -187,6 +187,7 @@ config MEMORY_HOTPLUG
+ 	bool "Allow for memory hot-add"
+ 	depends on SPARSEMEM || X86_64_ACPI_NUMA
+ 	depends on ARCH_ENABLE_MEMORY_HOTPLUG
++	depends on !KASAN
+ 
+ config MEMORY_HOTPLUG_SPARSE
+ 	def_bool y
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
