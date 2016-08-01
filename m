@@ -1,59 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8191E6B0005
-	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 13:14:45 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id e7so79067908lfe.0
-        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 10:14:45 -0700 (PDT)
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 96F0D6B025E
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 13:17:23 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id 33so79073944lfw.1
+        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 10:17:23 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id x5si32324317wjv.206.2016.08.01.10.14.43
+        by mx.google.com with ESMTPS id cm17si32383318wjb.239.2016.08.01.10.17.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Aug 2016 10:14:44 -0700 (PDT)
-Date: Mon, 1 Aug 2016 13:14:35 -0400
+        Mon, 01 Aug 2016 10:17:22 -0700 (PDT)
+Date: Mon, 1 Aug 2016 13:17:17 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] radix-tree: account nodes to memcg only if explicitly
- requested
-Message-ID: <20160801171435.GA8724@cmpxchg.org>
-References: <1470057188-7864-1-git-send-email-vdavydov@virtuozzo.com>
- <20160801152409.GC7603@cmpxchg.org>
- <20160801160605.GA13263@esperanza>
+Subject: Re: [PATCH] memcg: put soft limit reclaim out of way if the excess
+ tree is empty
+Message-ID: <20160801171717.GB8724@cmpxchg.org>
+References: <1470045621-14335-1-git-send-email-mhocko@kernel.org>
+ <20160801135757.GB19395@esperanza>
+ <20160801141227.GI13544@dhcp22.suse.cz>
+ <20160801150343.GA7603@cmpxchg.org>
+ <20160801152454.GK13544@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160801160605.GA13263@esperanza>
+In-Reply-To: <20160801152454.GK13544@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Aug 01, 2016 at 07:06:05PM +0300, Vladimir Davydov wrote:
-> On Mon, Aug 01, 2016 at 11:24:09AM -0400, Johannes Weiner wrote:
-> > On Mon, Aug 01, 2016 at 04:13:08PM +0300, Vladimir Davydov wrote:
-> > > @@ -351,6 +351,12 @@ static int __radix_tree_preload(gfp_t gfp_mask, int nr)
-> > >  	struct radix_tree_node *node;
-> > >  	int ret = -ENOMEM;
-> > >  
-> > > +	/*
-> > > +	 * Nodes preloaded by one cgroup can be be used by another cgroup, so
-> > > +	 * they should never be accounted to any particular memory cgroup.
-> > > +	 */
-> > > +	gfp_mask &= ~__GFP_ACCOUNT;
-> > 
-> > But *all* page cache radix tree nodes are allocated from inside the
-> > preload code, since the tree insertions need mapping->tree_lock. So
-> > this would effectively disable accounting of the biggest radix tree
-> > consumer in the kernel, no?
-> 
-> No, that's not how accounting of radix tree nodes works. We never
-> account preloaded nodes, because this could result in a node accounted
-> to one cgroup used by an unrelated cgroup. Instead we always try to
-> kmalloc a node on insertion falling back on preloads only if kmalloc
-> fails - see commit 58e698af4c634 ("radix-tree: account radix_tree_node
-> to memory cgroup").
+On Mon, Aug 01, 2016 at 05:24:54PM +0200, Michal Hocko wrote:
+> @@ -2564,7 +2559,13 @@ unsigned long mem_cgroup_soft_limit_reclaim(pg_data_t *pgdat, int order,
+>  		return 0;
+>  
+>  	mctz = soft_limit_tree_node(pgdat->node_id);
+> -	if (soft_limit_tree_empty(mctz))
+> +
+> +	/*
+> +	 * Do not even bother to check the largest node if the node
 
-You are right, I forgot we are doing this. The patch makes sense then.
+                                                               root
+
+> +	 * is empty. Do it lockless to prevent lock bouncing. Races
+> +	 * are acceptable as soft limit is best effort anyway.
+> +	 */
+> +	if (RB_EMPTY_ROOT(&mctz->rb_root))
+>  		return 0;
+
+Other than that, looks good. Please retain my
 
 Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+
+in version 2.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
