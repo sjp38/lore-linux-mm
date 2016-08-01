@@ -1,94 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 26A246B0260
-	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 09:25:15 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id p85so75283876lfg.3
-        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 06:25:15 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p7si31359076wjm.211.2016.08.01.06.25.13
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 01D1F6B0262
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 09:26:33 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id m130so304799538ioa.1
+        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 06:26:32 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0093.outbound.protection.outlook.com. [104.47.1.93])
+        by mx.google.com with ESMTPS id d124si19412646oig.35.2016.08.01.06.26.31
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 01 Aug 2016 06:25:13 -0700 (PDT)
-Subject: Re: [PATCH 2/2] mm: compaction.c: Add/Modify direct compaction
- tracepoints
-References: <cover.1469629027.git.janani.rvchndrn@gmail.com>
- <7d2c2beef96e76cb01a21eee85ba5611bceb4307.1469629027.git.janani.rvchndrn@gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <7ab4a23a-1311-9579-2d58-263bbcdcd725@suse.cz>
-Date: Mon, 1 Aug 2016 15:25:09 +0200
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 01 Aug 2016 06:26:32 -0700 (PDT)
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: [PATCH 1/3] mm: memcontrol: fix swap counter leak on swapout from offline cgroup
+Date: Mon, 1 Aug 2016 16:26:24 +0300
+Message-ID: <01cbe4d1a9fd9bbd42c95e91694d8ed9c9fc2208.1470057819.git.vdavydov@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <7d2c2beef96e76cb01a21eee85ba5611bceb4307.1469629027.git.janani.rvchndrn@gmail.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Janani Ravichandran <janani.rvchndrn@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: riel@surriel.com, akpm@linux-foundation.org, hannes@compxchg.org, vdavydov@virtuozzo.com, mhocko@suse.com, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, bywxiaobai@163.com, rostedt@goodmis.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 07/27/2016 04:51 PM, Janani Ravichandran wrote:
-> Add zone information to an existing tracepoint in compact_zone(). Also,
-> add a new tracepoint at the end of the compaction code so that latency
-> information can be derived.
->
-> Signed-off-by: Janani Ravichandran <janani.rvchndrn@gmail.com>
-> ---
->  include/trace/events/compaction.h | 38 +++++++++++++++++++++++++++++++++-----
->  mm/compaction.c                   |  6 ++++--
->  2 files changed, 37 insertions(+), 7 deletions(-)
->
-> diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
-> index 36e2d6f..4d86769 100644
-> --- a/include/trace/events/compaction.h
-> +++ b/include/trace/events/compaction.h
-> @@ -158,12 +158,15 @@ TRACE_EVENT(mm_compaction_migratepages,
->  );
->
->  TRACE_EVENT(mm_compaction_begin,
-> -	TP_PROTO(unsigned long zone_start, unsigned long migrate_pfn,
-> -		unsigned long free_pfn, unsigned long zone_end, bool sync),
-> +	TP_PROTO(struct zone *zone, unsigned long zone_start,
-> +		unsigned long migrate_pfn, unsigned long free_pfn,
-> +		unsigned long zone_end, bool sync),
->
-> -	TP_ARGS(zone_start, migrate_pfn, free_pfn, zone_end, sync),
-> +	TP_ARGS(zone, zone_start, migrate_pfn, free_pfn, zone_end, sync),
->
->  	TP_STRUCT__entry(
-> +		__field(int, nid)
-> +		__field(int, zid)
->  		__field(unsigned long, zone_start)
->  		__field(unsigned long, migrate_pfn)
->  		__field(unsigned long, free_pfn)
-> @@ -172,6 +175,8 @@ TRACE_EVENT(mm_compaction_begin,
->  	),
->
->  	TP_fast_assign(
-> +		__entry->nid = zone_to_nid(zone);
-> +		__entry->zid = zone_idx(zone);
->  		__entry->zone_start = zone_start;
->  		__entry->migrate_pfn = migrate_pfn;
->  		__entry->free_pfn = free_pfn;
-> @@ -179,7 +184,9 @@ TRACE_EVENT(mm_compaction_begin,
->  		__entry->sync = sync;
->  	),
->
-> -	TP_printk("zone_start=0x%lx migrate_pfn=0x%lx free_pfn=0x%lx zone_end=0x%lx, mode=%s",
-> +	TP_printk("nid=%d zid=%d zone_start=0x%lx migrate_pfn=0x%lx free_pfn=0x%lx zone_end=0x%lx, mode=%s",
+An offline memory cgroup might have anonymous memory or shmem left
+charged to it and no swap. Since only swap entries pin the id of an
+offline cgroup, such a cgroup will have no id and so an attempt to
+swapout its anon/shmem will not store memory cgroup info in the swap
+cgroup map. As a result, memcg->swap or memcg->memsw will never get
+uncharged from it and any of its ascendants.
 
-Yea, this tracepoint has been odd in not printing node/zone in a 
-friendly way (it's possible to determine it from zone_start/zone_end 
-though, so this is good in general. But instead of printing nid and zid 
-like this, it would be nice to unify the output with the other 
-tracepoints, e.g.:
+Fix this by always charging swapout to the first ancestor cgroup that
+hasn't released its id yet.
 
-DECLARE_EVENT_CLASS(mm_compaction_suitable_template,
-[...]
-         TP_printk("node=%d zone=%-8s order=%d ret=%s",
-                 __entry->nid,
-                 __print_symbolic(__entry->idx, ZONE_TYPE),
+Fixes: 73f576c04b941 ("mm: memcontrol: fix cgroup creation failure after many small jobs")
+Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+---
+ mm/memcontrol.c | 27 +++++++++++++++++++++------
+ 1 file changed, 21 insertions(+), 6 deletions(-)
 
-Thanks,
-Vlastimil
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index b5804e4e6324..5fe285f27ea7 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4035,6 +4035,13 @@ static void mem_cgroup_id_get(struct mem_cgroup *memcg)
+ 	atomic_inc(&memcg->id.ref);
+ }
+ 
++static struct mem_cgroup *mem_cgroup_id_get_active(struct mem_cgroup *memcg)
++{
++	while (!atomic_inc_not_zero(&memcg->id.ref))
++		memcg = parent_mem_cgroup(memcg);
++	return memcg;
++}
++
+ static void mem_cgroup_id_put(struct mem_cgroup *memcg)
+ {
+ 	if (atomic_dec_and_test(&memcg->id.ref)) {
+@@ -5751,7 +5758,7 @@ subsys_initcall(mem_cgroup_init);
+  */
+ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+ {
+-	struct mem_cgroup *memcg;
++	struct mem_cgroup *memcg, *swap_memcg;
+ 	unsigned short oldid;
+ 
+ 	VM_BUG_ON_PAGE(PageLRU(page), page);
+@@ -5766,15 +5773,20 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+ 	if (!memcg)
+ 		return;
+ 
+-	mem_cgroup_id_get(memcg);
+-	oldid = swap_cgroup_record(entry, mem_cgroup_id(memcg));
++	swap_memcg = mem_cgroup_id_get_active(memcg);
++	oldid = swap_cgroup_record(entry, mem_cgroup_id(swap_memcg));
+ 	VM_BUG_ON_PAGE(oldid, page);
+-	mem_cgroup_swap_statistics(memcg, true);
++	mem_cgroup_swap_statistics(swap_memcg, true);
+ 
+ 	page->mem_cgroup = NULL;
+ 
+ 	if (!mem_cgroup_is_root(memcg))
+ 		page_counter_uncharge(&memcg->memory, 1);
++	if (memcg != swap_memcg) {
++		if (!mem_cgroup_is_root(swap_memcg))
++			page_counter_charge(&swap_memcg->memsw, 1);
++		page_counter_uncharge(&memcg->memsw, 1);
++	}
+ 
+ 	/*
+ 	 * Interrupts should be disabled here because the caller holds the
+@@ -5814,11 +5826,14 @@ int mem_cgroup_try_charge_swap(struct page *page, swp_entry_t entry)
+ 	if (!memcg)
+ 		return 0;
+ 
++	memcg = mem_cgroup_id_get_active(memcg);
++
+ 	if (!mem_cgroup_is_root(memcg) &&
+-	    !page_counter_try_charge(&memcg->swap, 1, &counter))
++	    !page_counter_try_charge(&memcg->swap, 1, &counter)) {
++		mem_cgroup_id_put(memcg);
+ 		return -ENOMEM;
++	}
+ 
+-	mem_cgroup_id_get(memcg);
+ 	oldid = swap_cgroup_record(entry, mem_cgroup_id(memcg));
+ 	VM_BUG_ON_PAGE(oldid, page);
+ 	mem_cgroup_swap_statistics(memcg, true);
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
