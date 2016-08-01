@@ -1,91 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 69C2A6B0253
-	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 10:47:16 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id e7so76794942lfe.0
-        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 07:47:16 -0700 (PDT)
-Received: from mail-lf0-x232.google.com (mail-lf0-x232.google.com. [2a00:1450:4010:c07::232])
-        by mx.google.com with ESMTPS id s129si14583006lfd.333.2016.08.01.07.47.14
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 43A1D6B0253
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 10:54:14 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id n69so309738651ion.0
+        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 07:54:14 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0098.outbound.protection.outlook.com. [104.47.0.98])
+        by mx.google.com with ESMTPS id v73si19883329oia.111.2016.08.01.07.54.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Aug 2016 07:47:14 -0700 (PDT)
-Received: by mail-lf0-x232.google.com with SMTP id b199so117417761lfe.0
-        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 07:47:14 -0700 (PDT)
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 01 Aug 2016 07:54:09 -0700 (PDT)
+Subject: Re: [PATCH v8 2/3] mm, kasan: align free_meta_offset on sizeof(void*)
+References: <1469719879-11761-1-git-send-email-glider@google.com>
+ <1469719879-11761-3-git-send-email-glider@google.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <579F62D3.8030605@virtuozzo.com>
+Date: Mon, 1 Aug 2016 17:55:15 +0300
 MIME-Version: 1.0
-In-Reply-To: <1470062715-14077-3-git-send-email-aryabinin@virtuozzo.com>
-References: <1470062715-14077-1-git-send-email-aryabinin@virtuozzo.com> <1470062715-14077-3-git-send-email-aryabinin@virtuozzo.com>
-From: Alexander Potapenko <glider@google.com>
-Date: Mon, 1 Aug 2016 16:47:13 +0200
-Message-ID: <CAG_fn=Xm9aZ0tsritE3uD3ucNUkWaVLCX-=Wyf_wGC1HTV_EqQ@mail.gmail.com>
-Subject: Re: [PATCH 3/6] mm/kasan, slub: don't disable interrupts when object
- leaves quarantine
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <1469719879-11761-3-git-send-email-glider@google.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@codemonkey.org.uk>, Vegard Nossum <vegard.nossum@oracle.com>, Sasha Levin <alexander.levin@verizon.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Alexander Potapenko <glider@google.com>, dvyukov@google.com, kcc@google.com, adech.fo@gmail.com, cl@linux.com, akpm@linux-foundation.org, rostedt@goodmis.org, js1304@gmail.com, iamjoonsoo.kim@lge.com, kuthonuzo.luruo@hpe.com
+Cc: kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Aug 1, 2016 at 4:45 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> w=
-rote:
-> SLUB doesn't require disabled interrupts to call ___cache_free().
->
-> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Acked-by: Alexander Potapenko <glider@google.com>
+
+
+On 07/28/2016 06:31 PM, Alexander Potapenko wrote:
+> When free_meta_offset is not zero, it is usually aligned on 4 bytes,
+> because the size of preceding kasan_alloc_meta is aligned on 4 bytes.
+> As a result, accesses to kasan_free_meta fields may be misaligned.
+> 
+> Signed-off-by: Alexander Potapenko <glider@google.com>
 > ---
->  mm/kasan/quarantine.c | 8 ++++++--
->  1 file changed, 6 insertions(+), 2 deletions(-)
->
-> diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
-> index 65793f1..4852625 100644
-> --- a/mm/kasan/quarantine.c
-> +++ b/mm/kasan/quarantine.c
-> @@ -147,10 +147,14 @@ static void qlink_free(struct qlist_node *qlink, st=
-ruct kmem_cache *cache)
->         struct kasan_alloc_meta *alloc_info =3D get_alloc_info(cache, obj=
-ect);
->         unsigned long flags;
->
-> -       local_irq_save(flags);
-> +       if (IS_ENABLED(CONFIG_SLAB))
-> +               local_irq_save(flags);
-> +
->         alloc_info->state =3D KASAN_STATE_FREE;
->         ___cache_free(cache, object, _THIS_IP_);
-> -       local_irq_restore(flags);
-> +
-> +       if (IS_ENABLED(CONFIG_SLAB))
-> +               local_irq_restore(flags);
->  }
->
->  static void qlist_free_all(struct qlist_head *q, struct kmem_cache *cach=
-e)
-> --
-> 2.7.3
->
-> --
-> You received this message because you are subscribed to the Google Groups=
- "kasan-dev" group.
-> To unsubscribe from this group and stop receiving emails from it, send an=
- email to kasan-dev+unsubscribe@googlegroups.com.
-> To post to this group, send email to kasan-dev@googlegroups.com.
-> To view this discussion on the web visit https://groups.google.com/d/msgi=
-d/kasan-dev/1470062715-14077-3-git-send-email-aryabinin%40virtuozzo.com.
-> For more options, visit https://groups.google.com/d/optout.
+>  mm/kasan/kasan.c | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+> index 6845f92..0379551 100644
+> --- a/mm/kasan/kasan.c
+> +++ b/mm/kasan/kasan.c
+> @@ -390,7 +390,8 @@ void kasan_cache_create(struct kmem_cache *cache, size_t *size,
+>  	/* Add free meta. */
+>  	if (cache->flags & SLAB_DESTROY_BY_RCU || cache->ctor ||
+>  	    cache->object_size < sizeof(struct kasan_free_meta)) {
+> -		cache->kasan_info.free_meta_offset = *size;
+> +		cache->kasan_info.free_meta_offset =
+> +			ALIGN(*size, sizeof(void *));
 
+This cannot work.
 
+I slightly changed metadata layout in http://lkml.kernel.org/g/<1470062715-14077-5-git-send-email-aryabinin@virtuozzo.com>
+which should also fix UBSAN's complain.
 
---=20
-Alexander Potapenko
-Software Engineer
-
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
-
-Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+>  		*size += sizeof(struct kasan_free_meta);
+>  	}
+>  	redzone_adjust = optimal_redzone(cache->object_size) -
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
