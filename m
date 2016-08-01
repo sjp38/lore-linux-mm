@@ -1,75 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C01696B0253
-	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 12:06:14 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id d65so22790174ith.0
-        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 09:06:14 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0093.outbound.protection.outlook.com. [104.47.1.93])
-        by mx.google.com with ESMTPS id e128si20212380oib.108.2016.08.01.09.06.13
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E52A6B0005
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 12:37:38 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id o80so85723354wme.1
+        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 09:37:38 -0700 (PDT)
+Received: from arcturus.aphlor.org (arcturus.ipv6.aphlor.org. [2a03:9800:10:4a::2])
+        by mx.google.com with ESMTPS id he7si32194081wjb.279.2016.08.01.09.37.37
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 01 Aug 2016 09:06:13 -0700 (PDT)
-Date: Mon, 1 Aug 2016 19:06:05 +0300
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: Re: [PATCH] radix-tree: account nodes to memcg only if explicitly
- requested
-Message-ID: <20160801160605.GA13263@esperanza>
-References: <1470057188-7864-1-git-send-email-vdavydov@virtuozzo.com>
- <20160801152409.GC7603@cmpxchg.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 01 Aug 2016 09:37:37 -0700 (PDT)
+Date: Mon, 1 Aug 2016 12:37:31 -0400
+From: Dave Jones <davej@codemonkey.org.uk>
+Subject: Re: [4.7+] various memory corruption reports.
+Message-ID: <20160801163731.xmlcb7vi2hfqe3ri@codemonkey.org.uk>
+References: <20160729150513.GB29545@codemonkey.org.uk>
+ <20160729151907.GC29545@codemonkey.org.uk>
+ <CAPAsAGxDOvD64+5T4vPiuJgHkdHaaXGRfikFxXGHDRRiW4ivVQ@mail.gmail.com>
+ <20160729154929.GA30611@codemonkey.org.uk>
+ <579B9339.7030707@gmail.com>
+ <579B98B8.40007@gmail.com>
+ <20160729183925.GA28376@codemonkey.org.uk>
+ <579F2C73.6090406@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160801152409.GC7603@cmpxchg.org>
+In-Reply-To: <579F2C73.6090406@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrey Ryabinin <ryabinin.a.a@gmail.com>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, Aug 01, 2016 at 11:24:09AM -0400, Johannes Weiner wrote:
-> On Mon, Aug 01, 2016 at 04:13:08PM +0300, Vladimir Davydov wrote:
-> > Radix trees may be used not only for storing page cache pages, so
-> > unconditionally accounting radix tree nodes to the current memory cgroup
-> > is bad: if a radix tree node is used for storing data shared among
-> > different cgroups we risk pinning dead memory cgroups forever. So let's
-> > only account radix tree nodes if it was explicitly requested by passing
-> > __GFP_ACCOUNT to INIT_RADIX_TREE. Currently, we only want to account
-> > page cache entries, so mark mapping->page_tree so.
-> 
-> Is this a theoretical fix, or did you actually run into problems? I
-> wouldn't expect any other radix tree node consumer in the kernel to
-> come anywhere close to the page cache, so I wonder why it matters.
+On Mon, Aug 01, 2016 at 02:03:15PM +0300, Andrey Ryabinin wrote:
+ > On 07/29/2016 09:39 PM, Dave Jones wrote:
+ > > On Fri, Jul 29, 2016 at 08:56:08PM +0300, Andrey Ryabinin wrote:
+ > > 
+ > >  > >>  > I suspect this is false positives due to changes in KASAN.
+ > >  > >>  > Bisection probably will point to
+ > >  > >>  > 80a9201a5965f4715d5c09790862e0df84ce0614 ("mm, kasan: switch SLUB to
+ > >  > >>  > stackdepot, enable memory quarantine for SLUB)"
+ > >  > >>
+ > >  > >> good call. reverting that changeset seems to have solved it.
+ > >  > > Could you please try with this?
+ > >  > Actually, this is not quite right, it should be like this:
+ > > 
+ > > 
+ > > Seems to have stopped the corruption, but now I get NMi watchdog traces..
+ > > 
+ > 
+ > This should help:
 
-There are radix trees used for storing kernel data for different
-cgroups, e.g. bdi->cgwb_tree. Nodes of such trees are shared among
-different cgroups, so accounting a node to a particular memory cgroup
-will pin the cgroup until all users of the node are gone which may never
-happen. Although this can only result in slightly increased memory
-consumption due to dangling offline memory cgroups and their kmem
-caches, we'd better avoid it whenever possible. BTW this was one of the
-arguments for switching to the white-list kmem accounting policy.
+Yep, this seems to have silenced all the problems I saw.
 
-> 
-> > @@ -351,6 +351,12 @@ static int __radix_tree_preload(gfp_t gfp_mask, int nr)
-> >  	struct radix_tree_node *node;
-> >  	int ret = -ENOMEM;
-> >  
-> > +	/*
-> > +	 * Nodes preloaded by one cgroup can be be used by another cgroup, so
-> > +	 * they should never be accounted to any particular memory cgroup.
-> > +	 */
-> > +	gfp_mask &= ~__GFP_ACCOUNT;
-> 
-> But *all* page cache radix tree nodes are allocated from inside the
-> preload code, since the tree insertions need mapping->tree_lock. So
-> this would effectively disable accounting of the biggest radix tree
-> consumer in the kernel, no?
+thanks,
 
-No, that's not how accounting of radix tree nodes works. We never
-account preloaded nodes, because this could result in a node accounted
-to one cgroup used by an unrelated cgroup. Instead we always try to
-kmalloc a node on insertion falling back on preloads only if kmalloc
-fails - see commit 58e698af4c634 ("radix-tree: account radix_tree_node
-to memory cgroup").
+	Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
