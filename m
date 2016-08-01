@@ -1,333 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CE016B0005
-	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 09:42:21 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id l4so82691349wml.0
-        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 06:42:21 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id mn4si31443610wjb.101.2016.08.01.06.42.19
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DDEC16B0005
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 09:58:07 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id e139so298001070oib.3
+        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 06:58:07 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0102.outbound.protection.outlook.com. [104.47.0.102])
+        by mx.google.com with ESMTPS id g67si19583852otb.74.2016.08.01.06.58.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Aug 2016 06:42:19 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id q128so26260871wma.1
-        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 06:42:19 -0700 (PDT)
-Date: Mon, 1 Aug 2016 15:42:17 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH stable 4.4] mm: memcontrol: fix cgroup creation failure
- after many small jobs
-Message-ID: <20160801134217.GG13544@dhcp22.suse.cz>
-References: <1470058420-19739-1-git-send-email-mhocko@kernel.org>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 01 Aug 2016 06:58:07 -0700 (PDT)
+Date: Mon, 1 Aug 2016 16:57:57 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH] memcg: put soft limit reclaim out of way if the excess
+ tree is empty
+Message-ID: <20160801135757.GB19395@esperanza>
+References: <1470045621-14335-1-git-send-email-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <1470058420-19739-1-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1470045621-14335-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: stable@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>
-Cc: Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Nikolay Borisov <kernel@kyup.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-I have just noticed that Vladimir has posted some follow up fixes for
-the original patch
-http://lkml.kernel.org/r/01cbe4d1a9fd9bbd42c95e91694d8ed9c9fc2208.1470057819.git.vdavydov@virtuozzo.com
-so even if this backport is correct I will wait sending an efficial
-inclusion request after that gets sorted out.
-
-On Mon 01-08-16 15:33:40, Michal Hocko wrote:
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> 
-> commit 73f576c04b9410ed19660f74f97521bee6e1c546 upstream.
-> 
-> The memory controller has quite a bit of state that usually outlives the
-> cgroup and pins its CSS until said state disappears.  At the same time
-> it imposes a 16-bit limit on the CSS ID space to economically store IDs
-> in the wild.  Consequently, when we use cgroups to contain frequent but
-> small and short-lived jobs that leave behind some page cache, we quickly
-> run into the 64k limitations of outstanding CSSs.  Creating a new cgroup
-> fails with -ENOSPC while there are only a few, or even no user-visible
-> cgroups in existence.
-> 
-> Although pinning CSSs past cgroup removal is common, there are only two
-> instances that actually need an ID after a cgroup is deleted: cache
-> shadow entries and swapout records.
-> 
-> Cache shadow entries reference the ID weakly and can deal with the CSS
-> having disappeared when it's looked up later.  They pose no hurdle.
-> 
-> Swap-out records do need to pin the css to hierarchically attribute
-> swapins after the cgroup has been deleted; though the only pages that
-> remain swapped out after offlining are tmpfs/shmem pages.  And those
-> references are under the user's control, so they are manageable.
-> 
-> This patch introduces a private 16-bit memcg ID and switches swap and
-> cache shadow entries over to using that.  This ID can then be recycled
-> after offlining when the CSS remains pinned only by objects that don't
-> specifically need it.
-> 
-> This script demonstrates the problem by faulting one cache page in a new
-> cgroup and deleting it again:
-> 
->   set -e
->   mkdir -p pages
->   for x in `seq 128000`; do
->     [ $((x % 1000)) -eq 0 ] && echo $x
->     mkdir /cgroup/foo
->     echo $$ >/cgroup/foo/cgroup.procs
->     echo trex >pages/$x
->     echo $$ >/cgroup/cgroup.procs
->     rmdir /cgroup/foo
->   done
-> 
-> When run on an unpatched kernel, we eventually run out of possible IDs
-> even though there are no visible cgroups:
-> 
->   [root@ham ~]# ./cssidstress.sh
->   [...]
->   65000
->   mkdir: cannot create directory '/cgroup/foo': No space left on device
-> 
-> After this patch, the IDs get released upon cgroup destruction and the
-> cache and css objects get released once memory reclaim kicks in.
-> 
-> [hannes@cmpxchg.org: init the IDR]
->   Link: http://lkml.kernel.org/r/20160621154601.GA22431@cmpxchg.org
-> Fixes: b2052564e66d ("mm: memcontrol: continue cache reclaim from offlined groups")
-> Link: http://lkml.kernel.org/r/20160617162516.GD19084@cmpxchg.org
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Reported-by: John Garcia <john.garcia@mesosphere.io>
-> Reviewed-by: Vladimir Davydov <vdavydov@virtuozzo.com>
-> Acked-by: Tejun Heo <tj@kernel.org>
-> Cc: Nikolay Borisov <kernel@kyup.com>
-> Cc: <stable@vger.kernel.org>	[3.19+]
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
-> 
-> Hi Johannes,
-> backporting the above patch to 4.4 stable required some manual tweaking
-> because many things have changed in that area. I would be really greatful
-> if you could double check after me. The reason why I am looking into this
-> is that I would like to include the patch into our enterprise kernel and
-> that is based on 4.4 kernel. I believe that other 4.4 kernel users could
-> benefit from the backport as well so I am CCing stable tree as well.
-> 
-> Thanks
-> 
->  include/linux/memcontrol.h |  8 ++++
->  mm/memcontrol.c            | 95 ++++++++++++++++++++++++++++++++++++----------
->  mm/slab_common.c           |  2 +-
->  3 files changed, 85 insertions(+), 20 deletions(-)
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index cd0e2413c358..435fd8426b8a 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -174,6 +174,11 @@ struct mem_cgroup_thresholds {
->  	struct mem_cgroup_threshold_ary *spare;
->  };
->  
-> +struct mem_cgroup_id {
-> +	int id;
-> +	atomic_t ref;
-> +};
-> +
->  /*
->   * The memory controller data structure. The memory controller controls both
->   * page cache and RSS per cgroup. We would eventually like to provide
-> @@ -183,6 +188,9 @@ struct mem_cgroup_thresholds {
->  struct mem_cgroup {
->  	struct cgroup_subsys_state css;
->  
-> +	/* Private memcg ID. Used to ID objects that outlive the cgroup */
-> +	struct mem_cgroup_id id;
-> +
->  	/* Accounted resources */
->  	struct page_counter memory;
->  	struct page_counter memsw;
+On Mon, Aug 01, 2016 at 12:00:21PM +0200, Michal Hocko wrote:
+...
 > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 67648e6b2ac8..b148c1eecc98 100644
+> index c265212bec8c..eb7e39c2d948 100644
 > --- a/mm/memcontrol.c
 > +++ b/mm/memcontrol.c
-> @@ -272,21 +272,7 @@ static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
->  
->  static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
->  {
-> -	return memcg->css.id;
-> -}
-> -
-> -/*
-> - * A helper function to get mem_cgroup from ID. must be called under
-> - * rcu_read_lock().  The caller is responsible for calling
-> - * css_tryget_online() if the mem_cgroup is used for charging. (dropping
-> - * refcnt from swap can be called against removed memcg.)
-> - */
-> -static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
-> -{
-> -	struct cgroup_subsys_state *css;
-> -
-> -	css = css_from_id(id, &memory_cgrp_subsys);
-> -	return mem_cgroup_from_css(css);
-> +	return memcg->id.id;
+> @@ -2543,6 +2543,11 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+>  	return ret;
 >  }
 >  
->  /* Writing them here to avoid exposing memcg's inner layout */
-> @@ -4124,6 +4110,60 @@ static struct cftype mem_cgroup_legacy_files[] = {
->  	{ },	/* terminate */
->  };
->  
-> +/*
-> + * Private memory cgroup IDR
-> + *
-> + * Swap-out records and page cache shadow entries need to store memcg
-> + * references in constrained space, so we maintain an ID space that is
-> + * limited to 16 bit (MEM_CGROUP_ID_MAX), limiting the total number of
-> + * memory-controlled cgroups to 64k.
-> + *
-> + * However, there usually are many references to the oflline CSS after
-> + * the cgroup has been destroyed, such as page cache or reclaimable
-> + * slab objects, that don't need to hang on to the ID. We want to keep
-> + * those dead CSS from occupying IDs, or we might quickly exhaust the
-> + * relatively small ID space and prevent the creation of new cgroups
-> + * even when there are much fewer than 64k cgroups - possibly none.
-> + *
-> + * Maintain a private 16-bit ID space for memcg, and allow the ID to
-> + * be freed and recycled when it's no longer needed, which is usually
-> + * when the CSS is offlined.
-> + *
-> + * The only exception to that are records of swapped out tmpfs/shmem
-> + * pages that need to be attributed to live ancestors on swapin. But
-> + * those references are manageable from userspace.
-> + */
-> +
-> +static DEFINE_IDR(mem_cgroup_idr);
-> +
-> +static void mem_cgroup_id_get(struct mem_cgroup *memcg)
+> +static inline bool soft_limit_tree_empty(struct mem_cgroup_tree_per_node *mctz)
 > +{
-> +	atomic_inc(&memcg->id.ref);
+> +	return rb_last(&mctz->rb_root) == NULL;
 > +}
 > +
-> +static void mem_cgroup_id_put(struct mem_cgroup *memcg)
-> +{
-> +	if (atomic_dec_and_test(&memcg->id.ref)) {
-> +		idr_remove(&mem_cgroup_idr, memcg->id.id);
-> +		memcg->id.id = 0;
-> +
-> +		/* Memcg ID pins CSS */
-> +		css_put(&memcg->css);
-> +	}
-> +}
-> +
-> +/**
-> + * mem_cgroup_from_id - look up a memcg from a memcg id
-> + * @id: the memcg id to look up
-> + *
-> + * Caller must hold rcu_read_lock().
-> + */
-> +struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
-> +{
-> +	WARN_ON_ONCE(!rcu_read_lock_held());
-> +	return idr_find(&mem_cgroup_idr, id);
-> +}
-> +
->  static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)
->  {
->  	struct mem_cgroup_per_node *pn;
-> @@ -4171,17 +4211,27 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
->  	if (!memcg)
->  		return NULL;
->  
-> +	memcg->id.id = idr_alloc(&mem_cgroup_idr, NULL,
-> +				 1, MEM_CGROUP_ID_MAX,
-> +				 GFP_KERNEL);
-> +	if (memcg->id.id < 0)
-> +		goto out_free;
-> +
->  	memcg->stat = alloc_percpu(struct mem_cgroup_stat_cpu);
->  	if (!memcg->stat)
-> -		goto out_free;
-> +		goto out_idr;
->  
->  	if (memcg_wb_domain_init(memcg, GFP_KERNEL))
->  		goto out_free_stat;
->  
-> +	idr_replace(&mem_cgroup_idr, memcg, memcg->id.id);
->  	return memcg;
->  
->  out_free_stat:
->  	free_percpu(memcg->stat);
-> +out_idr:
-> +	if (memcg->id.id > 0)
-> +		idr_remove(&mem_cgroup_idr, memcg->id.id);
->  out_free:
->  	kfree(memcg);
->  	return NULL;
-> @@ -4277,8 +4327,9 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
->  	struct mem_cgroup *parent = mem_cgroup_from_css(css->parent);
->  	int ret;
->  
-> -	if (css->id > MEM_CGROUP_ID_MAX)
-> -		return -ENOSPC;
-> +	/* Online state pins memcg ID, memcg ID pins CSS */
-> +	mem_cgroup_id_get(mem_cgroup_from_css(css));
-> +	css_get(css);
->  
->  	if (!parent)
->  		return 0;
-> @@ -4352,6 +4403,8 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
->  	memcg_deactivate_kmem(memcg);
->  
->  	wb_memcg_offline(memcg);
-> +
-> +	mem_cgroup_id_put(memcg);
->  }
->  
->  static void mem_cgroup_css_released(struct cgroup_subsys_state *css)
-> @@ -5685,6 +5738,7 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
->  	if (!memcg)
->  		return;
->  
-> +	mem_cgroup_id_get(memcg);
->  	oldid = swap_cgroup_record(entry, mem_cgroup_id(memcg));
->  	VM_BUG_ON_PAGE(oldid, page);
->  	mem_cgroup_swap_statistics(memcg, true);
-> @@ -5703,6 +5757,9 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
->  	VM_BUG_ON(!irqs_disabled());
->  	mem_cgroup_charge_statistics(memcg, page, -1);
->  	memcg_check_events(memcg, page);
-> +
-> +	if (!mem_cgroup_is_root(memcg))
-> +		css_put(&memcg->css);
->  }
->  
->  /**
-> @@ -5726,7 +5783,7 @@ void mem_cgroup_uncharge_swap(swp_entry_t entry)
->  		if (!mem_cgroup_is_root(memcg))
->  			page_counter_uncharge(&memcg->memsw, 1);
->  		mem_cgroup_swap_statistics(memcg, false);
-> -		css_put(&memcg->css);
-> +		mem_cgroup_id_put(memcg);
->  	}
->  	rcu_read_unlock();
->  }
-> diff --git a/mm/slab_common.c b/mm/slab_common.c
-> index 3c6a86b4ec25..312ef6f7b7b1 100644
-> --- a/mm/slab_common.c
-> +++ b/mm/slab_common.c
-> @@ -522,7 +522,7 @@ void memcg_create_kmem_cache(struct mem_cgroup *memcg,
->  
->  	cgroup_name(css->cgroup, memcg_name_buf, sizeof(memcg_name_buf));
->  	cache_name = kasprintf(GFP_KERNEL, "%s(%d:%s)", root_cache->name,
-> -			       css->id, memcg_name_buf);
-> +			       css->serial_nr, memcg_name_buf);
->  	if (!cache_name)
->  		goto out_unlock;
->  
-> -- 
-> 2.8.1
 
--- 
-Michal Hocko
-SUSE Labs
+I don't think traversing rb tree as rb_last() does w/o holding the lock
+is a good idea. Why is RB_EMPTY_ROOT() insufficient here?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
