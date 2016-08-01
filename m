@@ -1,86 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 96B5E6B0269
-	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 11:27:30 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id l4so84673693wml.0
-        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 08:27:30 -0700 (PDT)
-Received: from mail-lf0-x233.google.com (mail-lf0-x233.google.com. [2a00:1450:4010:c07::233])
-        by mx.google.com with ESMTPS id f65si14671888lff.360.2016.08.01.08.27.29
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D19936B026A
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 11:29:37 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id e7so77531345lfe.0
+        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 08:29:37 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 186si16475529wmz.140.2016.08.01.08.29.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Aug 2016 08:27:29 -0700 (PDT)
-Received: by mail-lf0-x233.google.com with SMTP id f93so118233159lfi.2
-        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 08:27:29 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 01 Aug 2016 08:29:36 -0700 (PDT)
+Date: Mon, 1 Aug 2016 17:29:33 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [memcg:auto-latest 238/243] include/linux/compiler-gcc.h:243:38:
+ error: impossible constraint in 'asm'
+Message-ID: <20160801152933.GM13544@dhcp22.suse.cz>
+References: <201607300506.W5FnCSrY%fengguang.wu@intel.com>
+ <20160731121125.GA29775@dhcp22.suse.cz>
+ <579F6422.1040202@akamai.com>
 MIME-Version: 1.0
-In-Reply-To: <579F669A.4090806@virtuozzo.com>
-References: <1469719879-11761-1-git-send-email-glider@google.com>
- <1469719879-11761-3-git-send-email-glider@google.com> <579F62D3.8030605@virtuozzo.com>
- <CAG_fn=XOa9mrE-9=0j73qMZQZXNJDOT2X7EL+xU+6zL_W1cqsw@mail.gmail.com> <579F669A.4090806@virtuozzo.com>
-From: Alexander Potapenko <glider@google.com>
-Date: Mon, 1 Aug 2016 17:27:28 +0200
-Message-ID: <CAG_fn=WSqvuDNi7GN=6wYQxmGtDb0=Z6RLDyUB-V_JJgf3ANLg@mail.gmail.com>
-Subject: Re: [PATCH v8 2/3] mm, kasan: align free_meta_offset on sizeof(void*)
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <579F6422.1040202@akamai.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Dmitriy Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <js1304@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Kuthonuzo Luruo <kuthonuzo.luruo@hpe.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Jason Baron <jbaron@akamai.com>
+Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, Aug 1, 2016 at 5:11 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> w=
-rote:
->
->
-> On 08/01/2016 05:56 PM, Alexander Potapenko wrote:
->> On Mon, Aug 1, 2016 at 4:55 PM, Andrey Ryabinin <aryabinin@virtuozzo.com=
-> wrote:
->>>
->>>
->>> On 07/28/2016 06:31 PM, Alexander Potapenko wrote:
->>>> When free_meta_offset is not zero, it is usually aligned on 4 bytes,
->>>> because the size of preceding kasan_alloc_meta is aligned on 4 bytes.
->>>> As a result, accesses to kasan_free_meta fields may be misaligned.
->>>>
->>>> Signed-off-by: Alexander Potapenko <glider@google.com>
->>>> ---
->>>>  mm/kasan/kasan.c | 3 ++-
->>>>  1 file changed, 2 insertions(+), 1 deletion(-)
->>>>
->>>> diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
->>>> index 6845f92..0379551 100644
->>>> --- a/mm/kasan/kasan.c
->>>> +++ b/mm/kasan/kasan.c
->>>> @@ -390,7 +390,8 @@ void kasan_cache_create(struct kmem_cache *cache, =
-size_t *size,
->>>>       /* Add free meta. */
->>>>       if (cache->flags & SLAB_DESTROY_BY_RCU || cache->ctor ||
->>>>           cache->object_size < sizeof(struct kasan_free_meta)) {
->>>> -             cache->kasan_info.free_meta_offset =3D *size;
->>>> +             cache->kasan_info.free_meta_offset =3D
->>>> +                     ALIGN(*size, sizeof(void *));
->>>
->>> This cannot work.
->> Well, it does, at least on my tests.
->
-> JFYI. You aligned only meta offset, but didn't change the size, so after =
-the '*size +=3D sizeof(struct kasan_free_meta);'
-> *size may point into the middle of free_meta struct.
-> Plus, alignment wasn't taken into account in kasan_metadata_size().
-That's what I do in PATCH 3/3
-(https://marc.info/?l=3Dlinux-mm&m=3D146971994204507&w=3D2)
+On Mon 01-08-16 11:00:50, Jason Baron wrote:
+> On 07/31/2016 08:11 AM, Michal Hocko wrote:
+> > It seems that this has been already reported and Jason has noticed [1] that
+> > the problem is in the disabled optimizations:
+> > 
+> > $ grep CRYPTO_DEV_UX500_DEBUG .config
+> > CONFIG_CRYPTO_DEV_UX500_DEBUG=y
+> > 
+> > if I disable this particular option the code compiles just fine. I have
+> > no idea what is wrong about the code but it seems to depend on
+> > optimizations enabled which sounds a bit scrary...
+> > 
+> > [1] http://www.spinics.net/lists/linux-mm/msg109590.html
+> 
+> 
+> Hi,
+> 
+> There was a patch from Arnd Bergmann to address this
+> issue by removing the usage of -O0 here, included in
+> linux-next:
+> 
+> https://marc.info/?l=linux-kernel&m=146701898520633&w=2
 
-
---=20
-Alexander Potapenko
-Software Engineer
-
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
-
-Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+AFAIU the code should be fixed as well. See
+http://lkml.kernel.org/r/35a0878d-84bd-ad93-8810-23c861ed464e@suse.cz
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
