@@ -1,82 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4070E6B025E
-	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 10:56:09 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id o80so83936582wme.1
-        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 07:56:09 -0700 (PDT)
-Received: from mail-lf0-x229.google.com (mail-lf0-x229.google.com. [2a00:1450:4010:c07::229])
-        by mx.google.com with ESMTPS id t133si14583674lfe.41.2016.08.01.07.56.07
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Aug 2016 07:56:08 -0700 (PDT)
-Received: by mail-lf0-x229.google.com with SMTP id f93so117549156lfi.2
-        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 07:56:07 -0700 (PDT)
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AF6EE6B0253
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 10:58:11 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id pp5so248611607pac.3
+        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 07:58:11 -0700 (PDT)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id a90si35457738pfk.184.2016.08.01.07.58.11
+        for <linux-mm@kvack.org>;
+        Mon, 01 Aug 2016 07:58:11 -0700 (PDT)
+Subject: Re: [PATCH 08/10] x86, pkeys: default to a restrictive init PKRU
+References: <20160729163009.5EC1D38C@viggo.jf.intel.com>
+ <20160729163021.F3C25D4A@viggo.jf.intel.com>
+ <cd74ae8b-36e4-a397-e36f-fe3d4281d400@suse.cz>
+From: Dave Hansen <dave@sr71.net>
+Message-ID: <579F6380.2070600@sr71.net>
+Date: Mon, 1 Aug 2016 07:58:08 -0700
 MIME-Version: 1.0
-In-Reply-To: <579F62D3.8030605@virtuozzo.com>
-References: <1469719879-11761-1-git-send-email-glider@google.com>
- <1469719879-11761-3-git-send-email-glider@google.com> <579F62D3.8030605@virtuozzo.com>
-From: Alexander Potapenko <glider@google.com>
-Date: Mon, 1 Aug 2016 16:56:07 +0200
-Message-ID: <CAG_fn=XOa9mrE-9=0j73qMZQZXNJDOT2X7EL+xU+6zL_W1cqsw@mail.gmail.com>
-Subject: Re: [PATCH v8 2/3] mm, kasan: align free_meta_offset on sizeof(void*)
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <cd74ae8b-36e4-a397-e36f-fe3d4281d400@suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Dmitriy Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <js1304@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Kuthonuzo Luruo <kuthonuzo.luruo@hpe.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org
+Cc: x86@kernel.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, luto@kernel.org, mgorman@techsingularity.net, dave.hansen@linux.intel.com, arnd@arndb.de
 
-On Mon, Aug 1, 2016 at 4:55 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> w=
-rote:
->
->
-> On 07/28/2016 06:31 PM, Alexander Potapenko wrote:
->> When free_meta_offset is not zero, it is usually aligned on 4 bytes,
->> because the size of preceding kasan_alloc_meta is aligned on 4 bytes.
->> As a result, accesses to kasan_free_meta fields may be misaligned.
->>
->> Signed-off-by: Alexander Potapenko <glider@google.com>
->> ---
->>  mm/kasan/kasan.c | 3 ++-
->>  1 file changed, 2 insertions(+), 1 deletion(-)
->>
->> diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
->> index 6845f92..0379551 100644
->> --- a/mm/kasan/kasan.c
->> +++ b/mm/kasan/kasan.c
->> @@ -390,7 +390,8 @@ void kasan_cache_create(struct kmem_cache *cache, si=
-ze_t *size,
->>       /* Add free meta. */
->>       if (cache->flags & SLAB_DESTROY_BY_RCU || cache->ctor ||
->>           cache->object_size < sizeof(struct kasan_free_meta)) {
->> -             cache->kasan_info.free_meta_offset =3D *size;
->> +             cache->kasan_info.free_meta_offset =3D
->> +                     ALIGN(*size, sizeof(void *));
->
-> This cannot work.
-Well, it does, at least on my tests.
-> I slightly changed metadata layout in http://lkml.kernel.org/g/<147006271=
-5-14077-5-git-send-email-aryabinin@virtuozzo.com>
-> which should also fix UBSAN's complain.
-Thanks, will take a look.
->>               *size +=3D sizeof(struct kasan_free_meta);
->>       }
->>       redzone_adjust =3D optimal_redzone(cache->object_size) -
->>
+On 08/01/2016 07:42 AM, Vlastimil Babka wrote:
+> On 07/29/2016 06:30 PM, Dave Hansen wrote:
+>> This does not cause any practical problems with applications
+>> using protection keys because we require them to specify initial
+>> permissions for each key when it is allocated, which override the
+>> restrictive default.
+> 
+> Here you mean the init_access_rights parameter of pkey_alloc()? So will
+> children of fork() after that pkey_alloc() inherit the new value or go
+> default?
 
+Hi Vlastimil,
 
+Yes, exactly, the initial permissions are provided via pkey_alloc()'s
+'init_access_rights' argument.
 
---=20
-Alexander Potapenko
-Software Engineer
-
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
-
-Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+Do you mean fork() or clone()?  In both cases, we actually copy the FPU
+state from the parent, so children always inherit the state from their
+parent which contains the permissions set by the parent's calls to
+pkey_alloc().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
