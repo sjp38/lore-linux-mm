@@ -1,249 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 93CAC6B0253
-	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 11:00:52 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id s189so261153646vkh.0
-        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 08:00:52 -0700 (PDT)
-Received: from prod-mail-xrelay07.akamai.com (prod-mail-xrelay07.akamai.com. [23.79.238.175])
-        by mx.google.com with ESMTP id n59si14121051qtd.126.2016.08.01.08.00.51
-        for <linux-mm@kvack.org>;
-        Mon, 01 Aug 2016 08:00:51 -0700 (PDT)
-Subject: Re: [memcg:auto-latest 238/243] include/linux/compiler-gcc.h:243:38:
- error: impossible constraint in 'asm'
-References: <201607300506.W5FnCSrY%fengguang.wu@intel.com>
- <20160731121125.GA29775@dhcp22.suse.cz>
-From: Jason Baron <jbaron@akamai.com>
-Message-ID: <579F6422.1040202@akamai.com>
-Date: Mon, 1 Aug 2016 11:00:50 -0400
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B411F6B025E
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 11:03:54 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id p85so76969042lfg.3
+        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 08:03:54 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id p141si16330655wmg.141.2016.08.01.08.03.52
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 01 Aug 2016 08:03:52 -0700 (PDT)
+Date: Mon, 1 Aug 2016 11:03:43 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] memcg: put soft limit reclaim out of way if the excess
+ tree is empty
+Message-ID: <20160801150343.GA7603@cmpxchg.org>
+References: <1470045621-14335-1-git-send-email-mhocko@kernel.org>
+ <20160801135757.GB19395@esperanza>
+ <20160801141227.GI13544@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20160731121125.GA29775@dhcp22.suse.cz>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160801141227.GI13544@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>, kbuild test robot <fengguang.wu@intel.com>
-Cc: kbuild-all@01.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 07/31/2016 08:11 AM, Michal Hocko wrote:
-> It seems that this has been already reported and Jason has noticed [1] that
-> the problem is in the disabled optimizations:
->
-> $ grep CRYPTO_DEV_UX500_DEBUG .config
-> CONFIG_CRYPTO_DEV_UX500_DEBUG=y
->
-> if I disable this particular option the code compiles just fine. I have
-> no idea what is wrong about the code but it seems to depend on
-> optimizations enabled which sounds a bit scrary...
->
-> [1] http://www.spinics.net/lists/linux-mm/msg109590.html
+On Mon, Aug 01, 2016 at 04:12:28PM +0200, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Mon, 1 Aug 2016 10:42:06 +0200
+> Subject: [PATCH] memcg: put soft limit reclaim out of way if the excess tree
+>  is empty
+> 
+> We've had a report about soft lockups caused by lock bouncing in the
+> soft reclaim path:
+> 
+> [331404.849734] BUG: soft lockup - CPU#0 stuck for 22s! [kav4proxy-kavic:3128]
+> [331404.849920] RIP: 0010:[<ffffffff81469798>]  [<ffffffff81469798>] _raw_spin_lock+0x18/0x20
+> [331404.849997] Call Trace:
+> [331404.850010]  [<ffffffff811557ea>] mem_cgroup_soft_limit_reclaim+0x25a/0x280
+> [331404.850020]  [<ffffffff8111041d>] shrink_zones+0xed/0x200
+> [331404.850027]  [<ffffffff81111a94>] do_try_to_free_pages+0x74/0x320
+> [331404.850034]  [<ffffffff81112072>] try_to_free_pages+0x112/0x180
+> [331404.850042]  [<ffffffff81104a6f>] __alloc_pages_slowpath+0x3ff/0x820
+> [331404.850049]  [<ffffffff81105079>] __alloc_pages_nodemask+0x1e9/0x200
+> [331404.850056]  [<ffffffff81141e01>] alloc_pages_vma+0xe1/0x290
+> [331404.850064]  [<ffffffff8112402f>] do_wp_page+0x19f/0x840
+> [331404.850071]  [<ffffffff811257cd>] handle_pte_fault+0x1cd/0x230
+> [331404.850079]  [<ffffffff8146d3ed>] do_page_fault+0x1fd/0x4c0
+> [331404.850087]  [<ffffffff81469ec5>] page_fault+0x25/0x30
+> 
+> There are no memcgs created so there cannot be any in the soft limit
+> excess obviously:
+> [...]
+> memory  0       1       1
+> 
+> so all this just seems to be mem_cgroup_largest_soft_limit_node
+> trying to get spin_lock_irq(&mctz->lock) just to find out that the soft
+> limit excess tree is empty. This is just pointless waisting of cycles
+> and cache line bouncing during heavy parallel reclaim on large machines.
+> The particular machine wasn't very healthy and most probably suffering
+> from a memory leak which just caused the memory reclaim to trash
+> heavily. But bouncing on the lock certainly didn't help...
+> 
+> Introduce soft_limit_tree_empty which does the optimistic lockless check
+> and bail out early if the tree is empty. This is theoretically racy but
+> that shouldn't matter all that much. First of all soft limit is a best
+> effort feature and it is slowly getting deprecated and its usage should
+> be really scarce. Bouncing on a lock without a good reason is surely
+> much bigger problem, especially on large CPU machines.
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  mm/memcontrol.c | 8 ++++++++
+>  1 file changed, 8 insertions(+)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index c265212bec8c..c0b57b6a194e 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2543,6 +2543,11 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+>  	return ret;
+>  }
+>  
+> +static inline bool soft_limit_tree_empty(struct mem_cgroup_tree_per_node *mctz)
+> +{
+> +	return RB_EMPTY_ROOT(&mctz->rb_root);
+> +}
 
+Can you please fold this into the caller? It should be obvious enough.
 
-Hi,
+Other than that, this patch makes sense to me.
 
-There was a patch from Arnd Bergmann to address this
-issue by removing the usage of -O0 here, included in
-linux-next:
-
-https://marc.info/?l=linux-kernel&m=146701898520633&w=2
-
-Thanks,
-
--Jason
-
->
-> On Sat 30-07-16 05:04:07, Wu Fengguang wrote:
->> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git auto-latest
->> head:   a7bf930624bb1d3368b71b79c5e3351b5d03aa9f
->> commit: 966a2c66863bb2d984b9b49aee271de502cf8747 [238/243] dynamic_debug: add jump label support
->> config: arm-allmodconfig (attached as .config)
->> compiler: arm-linux-gnueabi-gcc (Debian 5.4.0-6) 5.4.0 20160609
->> reproduce:
->>          wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
->>          chmod +x ~/bin/make.cross
->>          git checkout 966a2c66863bb2d984b9b49aee271de502cf8747
->>          # save the attached .config to linux build tree
->>          make.cross ARCH=arm
->>
->> All errors (new ones prefixed by >>):
->>
->>     In file included from include/linux/compiler.h:58:0,
->>                      from include/linux/linkage.h:4,
->>                      from include/linux/kernel.h:6,
->>                      from drivers/crypto/ux500/cryp/cryp_irq.c:11:
->>     arch/arm/include/asm/jump_label.h: In function 'cryp_enable_irq_src':
->>     include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->>      #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->>                                           ^
->>     arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->>       asm_volatile_goto("1:\n\t"
->>       ^
->>>> include/linux/compiler-gcc.h:243:38: error: impossible constraint in 'asm'
->>      #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->>                                           ^
->>     arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->>       asm_volatile_goto("1:\n\t"
->>       ^
->>     arch/arm/include/asm/jump_label.h: In function 'cryp_disable_irq_src':
->>     include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->>      #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->>                                           ^
->>     arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->>       asm_volatile_goto("1:\n\t"
->>       ^
->> --
->>     In file included from include/linux/compiler.h:58:0,
->>                      from include/linux/err.h:4,
->>                      from include/linux/clk.h:15,
->>                      from drivers/crypto/ux500/cryp/cryp_core.c:12:
->>     arch/arm/include/asm/jump_label.h: In function 'cryp_interrupt_handler':
->>     include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->>      #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->>                                           ^
->>     arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->>       asm_volatile_goto("1:\n\t"
->>       ^
->>>> include/linux/compiler-gcc.h:243:38: error: impossible constraint in 'asm'
->>      #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->>                                           ^
->>     arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->>       asm_volatile_goto("1:\n\t"
->>       ^
->>     arch/arm/include/asm/jump_label.h: In function 'cfg_iv':
->>     include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->>      #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->>                                           ^
->>     arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->>       asm_volatile_goto("1:\n\t"
->>       ^
->>     arch/arm/include/asm/jump_label.h: In function 'cfg_ivs':
->>     include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->>      #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->>                                           ^
->>     arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->>       asm_volatile_goto("1:\n\t"
->>       ^
->>     arch/arm/include/asm/jump_label.h: In function 'set_key':
->>     include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->>      #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->>                                           ^
->>     arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->>       asm_volatile_goto("1:\n\t"
->>       ^
->>     arch/arm/include/asm/jump_label.h: In function 'cfg_keys':
->>     include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->>      #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->>                                           ^
->>     arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->>       asm_volatile_goto("1:\n\t"
->>       ^
->>     arch/arm/include/asm/jump_label.h: In function 'cryp_get_device_data':
->>     include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->>      #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->>                                           ^
->>     arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->>       asm_volatile_goto("1:\n\t"
->>       ^
->>     arch/arm/include/asm/jump_label.h: In function 'cryp_dma_out_callback':
->>     include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->>      #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->>                                           ^
->>     arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->>       asm_volatile_goto("1:\n\t"
->>       ^
->>     arch/arm/include/asm/jump_label.h: In function 'cryp_set_dma_transfer':
->>     include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->>      #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->>                                           ^
->>     arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->>       asm_volatile_goto("1:\n\t"
->>       ^
->>     include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->>      #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->>                                           ^
->>     arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->>       asm_volatile_goto("1:\n\t"
->>       ^
->>     include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->>      #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->>                                           ^
->>     arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->>       asm_volatile_goto("1:\n\t"
->>       ^
->>     include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->>      #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->>                                           ^
->>     arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->>       asm_volatile_goto("1:\n\t"
->>       ^
->>     include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->>      #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->>                                           ^
->>     arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->>       asm_volatile_goto("1:\n\t"
->>       ^
->>     include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->>      #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->>                                           ^
->>     arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->>       asm_volatile_goto("1:\n\t"
->>       ^
->>     arch/arm/include/asm/jump_label.h: In function 'cryp_dma_done':
->>     include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->>      #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->>                                           ^
->>     arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->>       asm_volatile_goto("1:\n\t"
->>       ^
->>     arch/arm/include/asm/jump_label.h: In function 'cryp_dma_write':
->>     include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->>      #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->>                                           ^
->>     arch/arm/include/asm/jump_label.h:13:2: note: in expansion of macro 'asm_volatile_goto'
->>       asm_volatile_goto("1:\n\t"
->>       ^
->>     include/linux/compiler-gcc.h:243:38: warning: asm operand 0 probably doesn't match constraints
->>      #define asm_volatile_goto(x...) do { asm goto(x); asm (""); } while (0)
->>
->> vim +/asm +243 include/linux/compiler-gcc.h
->>
->> a744fd17 Rasmus Villemoes 2015-11-05  227   * returning extra information in the low bits (but in that case the
->> a744fd17 Rasmus Villemoes 2015-11-05  228   * compiler should see some alignment anyway, when the return value is
->> a744fd17 Rasmus Villemoes 2015-11-05  229   * massaged by 'flags = ptr & 3; ptr &= ~3;').
->> a744fd17 Rasmus Villemoes 2015-11-05  230   */
->> a744fd17 Rasmus Villemoes 2015-11-05  231  #define __assume_aligned(a, ...) __attribute__((__assume_aligned__(a, ## __VA_ARGS__)))
->> a744fd17 Rasmus Villemoes 2015-11-05  232  #endif
->> a744fd17 Rasmus Villemoes 2015-11-05  233
->> cb984d10 Joe Perches      2015-06-25  234  /*
->> cb984d10 Joe Perches      2015-06-25  235   * GCC 'asm goto' miscompiles certain code sequences:
->> cb984d10 Joe Perches      2015-06-25  236   *
->> cb984d10 Joe Perches      2015-06-25  237   *   http://gcc.gnu.org/bugzilla/show_bug.cgi?id=58670
->> cb984d10 Joe Perches      2015-06-25  238   *
->> cb984d10 Joe Perches      2015-06-25  239   * Work it around via a compiler barrier quirk suggested by Jakub Jelinek.
->> cb984d10 Joe Perches      2015-06-25  240   *
->> cb984d10 Joe Perches      2015-06-25  241   * (asm goto is automatically volatile - the naming reflects this.)
->> cb984d10 Joe Perches      2015-06-25  242   */
->> cb984d10 Joe Perches      2015-06-25 @243  #define asm_volatile_goto(x...)	do { asm goto(x); asm (""); } while (0)
->> cb984d10 Joe Perches      2015-06-25  244
->> cb984d10 Joe Perches      2015-06-25  245  #ifdef CONFIG_ARCH_USE_BUILTIN_BSWAP
->> cb984d10 Joe Perches      2015-06-25  246  #if GCC_VERSION >= 40400
->> cb984d10 Joe Perches      2015-06-25  247  #define __HAVE_BUILTIN_BSWAP32__
->> cb984d10 Joe Perches      2015-06-25  248  #define __HAVE_BUILTIN_BSWAP64__
->> cb984d10 Joe Perches      2015-06-25  249  #endif
->> 8634de6d Josh Poimboeuf   2016-05-06  250  #if GCC_VERSION >= 40800
->> cb984d10 Joe Perches      2015-06-25  251  #define __HAVE_BUILTIN_BSWAP16__
->>
->> :::::: The code at line 243 was first introduced by commit
->> :::::: cb984d101b30eb7478d32df56a0023e4603cba7f compiler-gcc: integrate the various compiler-gcc[345].h files
->>
->> :::::: TO: Joe Perches <joe@perches.com>
->> :::::: CC: Linus Torvalds <torvalds@linux-foundation.org>
->>
->> ---
->> 0-DAY kernel test infrastructure                Open Source Technology Center
->> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
->
->
->
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
