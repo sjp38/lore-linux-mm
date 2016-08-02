@@ -1,128 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B2BDF6B0005
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 13:17:22 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id h186so343145705pfg.2
-        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 10:17:22 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id t21si3902478pfj.215.2016.08.02.10.17.21
-        for <linux-mm@kvack.org>;
-        Tue, 02 Aug 2016 10:17:21 -0700 (PDT)
-From: "Roberts, William C" <william.c.roberts@intel.com>
-Subject: RE: [PATCH] [RFC] Introduce mmap randomization
-Date: Tue, 2 Aug 2016 17:17:19 +0000
-Message-ID: <476DC76E7D1DF2438D32BFADF679FC560127815C@ORSMSX103.amr.corp.intel.com>
-References: <1469557346-5534-1-git-send-email-william.c.roberts@intel.com>
- <1469557346-5534-2-git-send-email-william.c.roberts@intel.com>
- <20160726200309.GJ4541@io.lakedaemon.net>
- <476DC76E7D1DF2438D32BFADF679FC560125F29C@ORSMSX103.amr.corp.intel.com>
- <20160726205944.GM4541@io.lakedaemon.net>
- <476DC76E7D1DF2438D32BFADF679FC5601260068@ORSMSX103.amr.corp.intel.com>
- <20160726214453.GN4541@io.lakedaemon.net>
-In-Reply-To: <20160726214453.GN4541@io.lakedaemon.net>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 345956B025E
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 13:20:19 -0400 (EDT)
+Received: by mail-yw0-f199.google.com with SMTP id i184so292294941ywb.1
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 10:20:19 -0700 (PDT)
+Received: from mail-ua0-x229.google.com (mail-ua0-x229.google.com. [2607:f8b0:400c:c08::229])
+        by mx.google.com with ESMTPS id k94si1025413uak.15.2016.08.02.10.20.18
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 Aug 2016 10:20:18 -0700 (PDT)
+Received: by mail-ua0-x229.google.com with SMTP id j59so134022646uaj.3
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 10:20:18 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <20160731062248.lqdakdzdyl7qya73@mguzik>
+References: <CA+GA0_uRjKznAB+d-3bDqdNRDYBA+YQbYSUcB9=rDTLk1NJEmg@mail.gmail.com>
+ <20160731062248.lqdakdzdyl7qya73@mguzik>
+From: =?UTF-8?Q?Marcin_=C5=9Alusarz?= <marcin.slusarz@gmail.com>
+Date: Tue, 2 Aug 2016 19:20:17 +0200
+Message-ID: <CA+GA0_vGaHfpjYLq-NO4MMzRbgv0_YFnniaYXYQTvSNUUkSxKg@mail.gmail.com>
+Subject: Re: Is reading from /proc/self/smaps thread-safe?
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jason Cooper <jason@lakedaemon.net>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "keescook@chromium.org" <keescook@chromium.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "nnk@google.com" <nnk@google.com>, "jeffv@google.com" <jeffv@google.com>, "salyzyn@android.com" <salyzyn@android.com>, "dcashman@android.com" <dcashman@android.com>
+To: Mateusz Guzik <mguzik@redhat.com>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
+2016-07-31 8:22 GMT+02:00 Mateusz Guzik <mguzik@redhat.com>:
+> On Tue, Jul 26, 2016 at 02:44:48PM +0200, Marcin =C5=9Alusarz wrote:
+>> Hey
+>>
+>> I have a simple program that mmaps 8MB of anonymous memory, spawns 16
+>> threads, reads /proc/self/smaps in each thread and looks up whether
+>> mapped address can be found in smaps. From time to time it's not there.
+>>
+>> Is this supposed to work reliably?
+>>
+>> My guess is that libc functions allocate memory internally using mmap
+>> and modify process' address space while other thread is iterating over
+>> vmas.
+>>
+>> I see that reading from smaps takes mmap_sem in read mode. I'm guessing
+>> vm modifications are done under mmap_sem in write mode.
+>>
+>> Documentation/filesystem/proc.txt says reading from smaps is "slow but
+>> very precise" (although in context of RSS).
+>>
+>
+> Address space modification definitely happens as threads get their
+> stacks mmaped and unmapped.
+>
+> If you run your program under strace you will see all threads perform
+> multiple read()s to get the content as the kernel keeps return short
+> reads (below 1 page size). In particular, seq_read imposes the limit
+> artificially.
+>
+> Since there are multiple trips to the kernel, locks are dropped and
+> special measures are needed to maintain consistency of the result.
+>
+> In m_start you can see there is a best-effort attempt: it is remembered
+> what vma was accessed by the previous run. But the vma can be unmapped
+> before we get here next time.
 
+I added printks to m_start and I see that when last_addr is non-zero, find_=
+vma
+succeeds, even in cases when my test can't find its mapping.
+So it seems the problem is not that simple.
 
-> -----Original Message-----
-> From: Jason Cooper [mailto:jason@lakedaemon.net]
-> Sent: Tuesday, July 26, 2016 2:45 PM
-> To: Roberts, William C <william.c.roberts@intel.com>
-> Cc: linux-mm@kvack.org; linux-kernel@vger.kernel.org; kernel-
-> hardening@lists.openwall.com; akpm@linux-foundation.org;
-> keescook@chromium.org; gregkh@linuxfoundation.org; nnk@google.com;
-> jeffv@google.com; salyzyn@android.com; dcashman@android.com
-> Subject: Re: [PATCH] [RFC] Introduce mmap randomization
->=20
-> On Tue, Jul 26, 2016 at 09:06:30PM +0000, Roberts, William C wrote:
-> > > From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org] On
-> > > Behalf Of Jason Cooper On Tue, Jul 26, 2016 at 08:13:23PM +0000,
-> > > Roberts, William C wrote:
-> > > > > > From: Jason Cooper [mailto:jason@lakedaemon.net] On Tue, Jul
-> > > > > > 26,
-> > > > > > 2016 at 11:22:26AM -0700, william.c.roberts@intel.com wrote:
-> > > > > > > Performance Measurements:
-> > > > > > > Using strace with -T option and filtering for mmap on the
-> > > > > > > program ls shows a slowdown of approximate 3.7%
-> > > > > >
-> > > > > > I think it would be helpful to show the effect on the resulting=
- object
-> code.
-> > > > >
-> > > > > Do you mean the maps of the process? I have some captures for
-> > > > > whoopsie on my Ubuntu system I can share.
-> > >
-> > > No, I mean changes to mm/mmap.o.
-> >
-> > Sure I can post the objdump of that, do you just want a diff of old vs =
-new?
->=20
-> Well, I'm partial to scripts/objdiff, but bloat-o-meter might be more fam=
-iliar to
-> most of the folks who you'll be trying to convince to merge this.
+Just for testing I commented out m_next_vma call from m_start and now my
+test always succeeds (of course at the expense of duplicated entries).
+Maybe it's just because of changed timing or maybe the problem is deeper...
 
-Ahh I didn't know there were tools for this, thanks.
+>
+> So no, reading the file when the content is bigger than 4k is not
+> guaranteed to give consistent results across reads.
+>
+> I don't have a good idea how to fix it, and it is likely not worth
+> working on. This is not the only place which is unable to return
+> reliable information for sufficiently large dataset.
+>
+> The obvious thing to try out is just storing all the necessary
+> information and generating the text form on read. Unfortunately even
+> that data is quite big -- over 100 bytes per vma. This can be shrinked
+> down significantly with encoding what information is present as opposed
+> to keeping all records). But with thousands of entries per application
+> this translates into kilobytes of memory which would have to allocated
+> just to hold it, sounds like a non-starter to me.
 
->=20
-> But that's the least of your worries atm. :-/  I was going to dig into mm=
-ap.c to
-> confirm my suspicions, but Nick answered it for me.
-> Fragmentation caused by this sort of feature is known to have caused prob=
-lems
-> in the past.
+Another idea is to change seq_read to flush data to user buffer every
+time it's full, without "stopping/starting" the seq_file. The logic of seq_=
+read
+is quite hairy, so I didn't try this. And I'm not sure if page fault in
+copy_to_user could retake mmap_sem in write mode.
 
-I don't know of any mmap randomization done in the past like this. Only the=
- ASLR stuff, which
-has had known issues on 32 bit address spaces.
+Another (crazy) idea is to implement write operation for smaps where
+buffer contents would pick the right VMA for the next read.
+Too crazy? :)
 
->=20
-> I would highly recommend studying those prior use cases and answering tho=
-se
-> concerns before progressing too much further.  As I've mentioned elsewher=
-e,
-> you'll need to quantify the increased difficulty to the attacker that you=
-r patch
-> imposes.  Personally, I would assess that first to see if it's worth the =
-effort at all.
-
-Yes agreed.
-
->=20
-> > > > > One thing I didn't make clear in my commit message is why this
-> > > > > is good. Right now, if you know An address within in a process,
-> > > > > you know all offsets done with mmap(). For instance, an offset
-> > > > > To libX can yield libY by adding/subtracting an offset. This is
-> > > > > meant to make rops a bit harder, or In general any mapping
-> > > > > offset mmore difficult to
-> > > find/guess.
-> > >
-> > > Are you able to quantify how many bits of entropy you're imposing on
-> > > the attacker?  Is this a chair in the hallway or a significant
-> > > increase in the chances of crashing the program before finding the
-> > > desired address?
-> >
-> > I'd likely need to take a small sample of programs and examine them,
-> > especially considering That as gaps are harder to find, it forces the
-> > randomization down and randomization can Be directly altered with
-> > length on mmap(), versus randomize_addr() which didn't have this
-> > restriction but OOM'd do to fragmented easier.
->=20
-> Right, after the Android feedback from Nick, I think you have a lot of wo=
-rk on
-> your hands.  Not just in design, but also in developing convincing argume=
-nts
-> derived from real use cases.
->=20
-> thx,
->=20
-> Jason.
+Marcin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
