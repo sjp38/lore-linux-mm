@@ -1,115 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A636F6B0005
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 07:42:23 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id k135so92567922lfb.2
-        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 04:42:23 -0700 (PDT)
-Received: from mail-lf0-x235.google.com (mail-lf0-x235.google.com. [2a00:1450:4010:c07::235])
-        by mx.google.com with ESMTPS id 42si936735lfs.66.2016.08.02.04.42.21
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D465B6B0005
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 07:51:17 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id w128so326613640pfd.3
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 04:51:17 -0700 (PDT)
+Received: from mail-pa0-f66.google.com (mail-pa0-f66.google.com. [209.85.220.66])
+        by mx.google.com with ESMTPS id a73si2820026pfc.20.2016.08.02.04.51.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Aug 2016 04:42:22 -0700 (PDT)
-Received: by mail-lf0-x235.google.com with SMTP id b199so136392788lfe.0
-        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 04:42:21 -0700 (PDT)
+        Tue, 02 Aug 2016 04:51:16 -0700 (PDT)
+Received: by mail-pa0-f66.google.com with SMTP id q2so11849652pap.0
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 04:51:15 -0700 (PDT)
+Date: Tue, 2 Aug 2016 13:51:12 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] radix-tree: account nodes to memcg only if explicitly
+ requested
+Message-ID: <20160802115111.GG12403@dhcp22.suse.cz>
+References: <1470057188-7864-1-git-send-email-vdavydov@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <1470062715-14077-2-git-send-email-aryabinin@virtuozzo.com>
-References: <1470062715-14077-1-git-send-email-aryabinin@virtuozzo.com> <1470062715-14077-2-git-send-email-aryabinin@virtuozzo.com>
-From: Alexander Potapenko <glider@google.com>
-Date: Tue, 2 Aug 2016 13:42:20 +0200
-Message-ID: <CAG_fn=W6DAYeYgo5a-28zt=sCY8LAMP6Yi35a6Aq_C_=dX=yUg@mail.gmail.com>
-Subject: Re: [PATCH 2/6] mm/kasan: don't reduce quarantine in atomic contexts
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1470057188-7864-1-git-send-email-vdavydov@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@codemonkey.org.uk>, Vegard Nossum <vegard.nossum@oracle.com>, Sasha Levin <alexander.levin@verizon.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Aug 1, 2016 at 4:45 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> w=
-rote:
-> Currently we call quarantine_reduce() for ___GFP_KSWAPD_RECLAIM
-> (implied by __GFP_RECLAIM) allocation. So, basically we call it on
-> almost every allocation. quarantine_reduce() sometimes is heavy operation=
-,
-> and calling it with disabled interrupts may trigger hard LOCKUP:
->
->  NMI watchdog: Watchdog detected hard LOCKUP on cpu 2irq event stamp: 141=
-1258
->  Call Trace:
->   <NMI>  [<ffffffff98a48532>] dump_stack+0x68/0x96
->   [<ffffffff98357fbb>] watchdog_overflow_callback+0x15b/0x190
->   [<ffffffff9842f7d1>] __perf_event_overflow+0x1b1/0x540
->   [<ffffffff98455b14>] perf_event_overflow+0x14/0x20
->   [<ffffffff9801976a>] intel_pmu_handle_irq+0x36a/0xad0
->   [<ffffffff9800ba4c>] perf_event_nmi_handler+0x2c/0x50
->   [<ffffffff98057058>] nmi_handle+0x128/0x480
->   [<ffffffff980576d2>] default_do_nmi+0xb2/0x210
->   [<ffffffff980579da>] do_nmi+0x1aa/0x220
->   [<ffffffff99a0bb07>] end_repeat_nmi+0x1a/0x1e
->   <<EOE>>  [<ffffffff981871e6>] __kernel_text_address+0x86/0xb0
->   [<ffffffff98055c4b>] print_context_stack+0x7b/0x100
->   [<ffffffff98054e9b>] dump_trace+0x12b/0x350
->   [<ffffffff98076ceb>] save_stack_trace+0x2b/0x50
->   [<ffffffff98573003>] set_track+0x83/0x140
->   [<ffffffff98575f4a>] free_debug_processing+0x1aa/0x420
->   [<ffffffff98578506>] __slab_free+0x1d6/0x2e0
->   [<ffffffff9857a9b6>] ___cache_free+0xb6/0xd0
->   [<ffffffff9857db53>] qlist_free_all+0x83/0x100
->   [<ffffffff9857df07>] quarantine_reduce+0x177/0x1b0
->   [<ffffffff9857c423>] kasan_kmalloc+0xf3/0x100
->
-> Reduce the quarantine_reduce iff direct reclaim is allowed.
->
-> Fixes: 55834c59098d("mm: kasan: initial memory quarantine implementation"=
-)
-> Reported-by: Dave Jones <davej@codemonkey.org.uk>
-> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Acked-by: Alexander Potapenko <glider@google.com>
+On Mon 01-08-16 16:13:08, Vladimir Davydov wrote:
+> Radix trees may be used not only for storing page cache pages, so
+> unconditionally accounting radix tree nodes to the current memory cgroup
+> is bad: if a radix tree node is used for storing data shared among
+> different cgroups we risk pinning dead memory cgroups forever. So let's
+> only account radix tree nodes if it was explicitly requested by passing
+> __GFP_ACCOUNT to INIT_RADIX_TREE. Currently, we only want to account
+> page cache entries, so mark mapping->page_tree so.
+> 
+> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+
+OK, the patch makes sense to me. Such a false sharing would be really
+tedious to debug
+
+Do we want to mark it for stable 4.6 to prevent from some pathological
+issues. The patch is simple enough.
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
 > ---
->  mm/kasan/kasan.c | 4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
->
-> diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-> index 3019cec..c99ef40 100644
-> --- a/mm/kasan/kasan.c
-> +++ b/mm/kasan/kasan.c
-> @@ -565,7 +565,7 @@ void kasan_kmalloc(struct kmem_cache *cache, const vo=
-id *object, size_t size,
->         unsigned long redzone_start;
->         unsigned long redzone_end;
->
-> -       if (flags & __GFP_RECLAIM)
-> +       if (gfpflags_allow_blocking(flags))
->                 quarantine_reduce();
->
->         if (unlikely(object =3D=3D NULL))
-> @@ -596,7 +596,7 @@ void kasan_kmalloc_large(const void *ptr, size_t size=
-, gfp_t flags)
->         unsigned long redzone_start;
->         unsigned long redzone_end;
->
-> -       if (flags & __GFP_RECLAIM)
-> +       if (gfpflags_allow_blocking(flags))
->                 quarantine_reduce();
->
->         if (unlikely(ptr =3D=3D NULL))
+>  fs/inode.c       |  2 +-
+>  lib/radix-tree.c | 14 ++++++++++----
+>  2 files changed, 11 insertions(+), 5 deletions(-)
+> 
+> diff --git a/fs/inode.c b/fs/inode.c
+> index 559a9da25237..1d04dab5211c 100644
+> --- a/fs/inode.c
+> +++ b/fs/inode.c
+> @@ -345,7 +345,7 @@ EXPORT_SYMBOL(inc_nlink);
+>  void address_space_init_once(struct address_space *mapping)
+>  {
+>  	memset(mapping, 0, sizeof(*mapping));
+> -	INIT_RADIX_TREE(&mapping->page_tree, GFP_ATOMIC);
+> +	INIT_RADIX_TREE(&mapping->page_tree, GFP_ATOMIC | __GFP_ACCOUNT);
+>  	spin_lock_init(&mapping->tree_lock);
+>  	init_rwsem(&mapping->i_mmap_rwsem);
+>  	INIT_LIST_HEAD(&mapping->private_list);
+> diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+> index 61b8fb529cef..1b7bf7314141 100644
+> --- a/lib/radix-tree.c
+> +++ b/lib/radix-tree.c
+> @@ -277,10 +277,11 @@ radix_tree_node_alloc(struct radix_tree_root *root)
+>  
+>  		/*
+>  		 * Even if the caller has preloaded, try to allocate from the
+> -		 * cache first for the new node to get accounted.
+> +		 * cache first for the new node to get accounted to the memory
+> +		 * cgroup.
+>  		 */
+>  		ret = kmem_cache_alloc(radix_tree_node_cachep,
+> -				       gfp_mask | __GFP_ACCOUNT | __GFP_NOWARN);
+> +				       gfp_mask | __GFP_NOWARN);
+>  		if (ret)
+>  			goto out;
+>  
+> @@ -303,8 +304,7 @@ radix_tree_node_alloc(struct radix_tree_root *root)
+>  		kmemleak_update_trace(ret);
+>  		goto out;
+>  	}
+> -	ret = kmem_cache_alloc(radix_tree_node_cachep,
+> -			       gfp_mask | __GFP_ACCOUNT);
+> +	ret = kmem_cache_alloc(radix_tree_node_cachep, gfp_mask);
+>  out:
+>  	BUG_ON(radix_tree_is_internal_node(ret));
+>  	return ret;
+> @@ -351,6 +351,12 @@ static int __radix_tree_preload(gfp_t gfp_mask, int nr)
+>  	struct radix_tree_node *node;
+>  	int ret = -ENOMEM;
+>  
+> +	/*
+> +	 * Nodes preloaded by one cgroup can be be used by another cgroup, so
+> +	 * they should never be accounted to any particular memory cgroup.
+> +	 */
+> +	gfp_mask &= ~__GFP_ACCOUNT;
+> +
+>  	preempt_disable();
+>  	rtp = this_cpu_ptr(&radix_tree_preloads);
+>  	while (rtp->nr < nr) {
+> -- 
+> 2.1.4
+> 
 > --
-> 2.7.3
->
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-
-
---=20
-Alexander Potapenko
-Software Engineer
-
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
-
-Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
