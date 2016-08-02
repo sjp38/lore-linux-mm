@@ -1,58 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B2FD76B0005
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 04:20:49 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id 33so89236382lfw.1
-        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 01:20:49 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CC176B0005
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 04:22:49 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 1so97867138wmz.2
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 01:22:49 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u4si20196315wmf.121.2016.08.02.01.20.47
+        by mx.google.com with ESMTPS id ds7si1469280wjd.223.2016.08.02.01.22.47
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 02 Aug 2016 01:20:48 -0700 (PDT)
-Subject: Re: [PATCH 08/10] x86, pkeys: default to a restrictive init PKRU
-References: <20160729163009.5EC1D38C@viggo.jf.intel.com>
- <20160729163021.F3C25D4A@viggo.jf.intel.com>
- <cd74ae8b-36e4-a397-e36f-fe3d4281d400@suse.cz> <579F6380.2070600@sr71.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <95491d2d-35cf-ebf9-a34e-0405def707e2@suse.cz>
-Date: Tue, 2 Aug 2016 10:20:41 +0200
+        Tue, 02 Aug 2016 01:22:48 -0700 (PDT)
+Date: Tue, 2 Aug 2016 09:22:43 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [   25.666092] WARNING: CPU: 0 PID: 451 at mm/memcontrol.c:998
+ mem_cgroup_update_lru_size
+Message-ID: <20160802082243.GE2693@suse.de>
+References: <20160801013830.GB27998@wfg-t540p.sh.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <579F6380.2070600@sr71.net>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20160801013830.GB27998@wfg-t540p.sh.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>, linux-kernel@vger.kernel.org
-Cc: x86@kernel.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, luto@kernel.org, mgorman@techsingularity.net, dave.hansen@linux.intel.com, arnd@arndb.de
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, LKP <lkp@01.org>
 
-On 08/01/2016 04:58 PM, Dave Hansen wrote:
-> On 08/01/2016 07:42 AM, Vlastimil Babka wrote:
->> On 07/29/2016 06:30 PM, Dave Hansen wrote:
->>> This does not cause any practical problems with applications
->>> using protection keys because we require them to specify initial
->>> permissions for each key when it is allocated, which override the
->>> restrictive default.
->>
->> Here you mean the init_access_rights parameter of pkey_alloc()? So will
->> children of fork() after that pkey_alloc() inherit the new value or go
->> default?
->
-> Hi Vlastimil,
->
-> Yes, exactly, the initial permissions are provided via pkey_alloc()'s
-> 'init_access_rights' argument.
+On Mon, Aug 01, 2016 at 09:38:30AM +0800, Fengguang Wu wrote:
+> Greetings,
+> 
+> 0day kernel testing robot got the below dmesg and the first bad commit is
+> 
+> https://git.kernel.org/pub/scm/linux/kernel/git/mel/linux.git mm-vmscan-node-lru-follow-up-v2r1
+> 
+> commit d5d54a2c5517f0818ad75a2f5b1d26a0dacae46a
+> Author:     Mel Gorman <mgorman@techsingularity.net>
+> AuthorDate: Wed Jul 13 09:30:01 2016 +0100
+> Commit:     Mel Gorman <mgorman@techsingularity.net>
+> CommitDate: Wed Jul 13 09:30:01 2016 +0100
+> 
 
-OK. I was a bit sceptical of that part of the syscall, as you removed 
-other syscalls changing PKRU for the thread in kernel, so leaving this 
-seemed odd. But it makes sense to me together with the restrictive default.
+That bug is addressed later in the tree by "mm, vmscan: Update all zone
+LRU sizes before updating memcg". Is the warning visible in the latest
+mainline tree?
 
-> Do you mean fork() or clone()?  In both cases, we actually copy the FPU
-> state from the parent, so children always inherit the state from their
-> parent which contains the permissions set by the parent's calls to
-> pkey_alloc().
-
-I meant just fork() as I misunderstood the changelog in that clone() is 
-different. Thanks for clarifying.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
