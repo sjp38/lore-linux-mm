@@ -1,54 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C87E36B0005
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 06:22:39 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id n69so365671327ion.0
-        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 03:22:39 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0133.outbound.protection.outlook.com. [104.47.2.133])
-        by mx.google.com with ESMTPS id i11si881553oih.211.2016.08.02.03.22.38
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A04076B0005
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 06:27:07 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id l4so100331649wml.0
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 03:27:07 -0700 (PDT)
+Received: from mail-wm0-x234.google.com (mail-wm0-x234.google.com. [2a00:1450:400c:c09::234])
+        by mx.google.com with ESMTPS id h7si1916208wjo.70.2016.08.02.03.27.06
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 02 Aug 2016 03:22:39 -0700 (PDT)
-Subject: Re: [PATCH] kasan: avoid overflowing quarantine size on low memory
- systems
-References: <1470063563-96266-1-git-send-email-glider@google.com>
- <57A06F23.9080804@virtuozzo.com>
- <CACT4Y+ad6ZY=1=kM0FGZD8LtOaupV4c0AW0mXjMoxMNRsH2omA@mail.gmail.com>
- <CAG_fn=X2zahG9enAdSPxwqC-VV6nwK2PhuAXPyhOvASnXok9JQ@mail.gmail.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <57A074AF.3040505@virtuozzo.com>
-Date: Tue, 2 Aug 2016 13:23:43 +0300
-MIME-Version: 1.0
-In-Reply-To: <CAG_fn=X2zahG9enAdSPxwqC-VV6nwK2PhuAXPyhOvASnXok9JQ@mail.gmail.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 Aug 2016 03:27:06 -0700 (PDT)
+Received: by mail-wm0-x234.google.com with SMTP id i5so282914106wmg.0
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 03:27:06 -0700 (PDT)
+From: Alexander Potapenko <glider@google.com>
+Subject: [PATCH v2] kasan: avoid overflowing quarantine size on low memory systems
+Date: Tue,  2 Aug 2016 12:27:00 +0200
+Message-Id: <1470133620-28683-1-git-send-email-glider@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>
-Cc: Kostya Serebryany <kcc@google.com>, Andrey Konovalov <adech.fo@gmail.com>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Steven Rostedt <rostedt@goodmis.org>, Joonsoo Kim <js1304@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Kuthonuzo Luruo <kuthonuzo.luruo@hpe.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: dvyukov@google.com, kcc@google.com, aryabinin@virtuozzo.com, adech.fo@gmail.com, cl@linux.com, akpm@linux-foundation.org, rostedt@goodmis.org, js1304@gmail.com, iamjoonsoo.kim@lge.com, kuthonuzo.luruo@hpe.com
+Cc: kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
+If the total amount of memory assigned to quarantine is less than the
+amount of memory assigned to per-cpu quarantines, |new_quarantine_size|
+may overflow. Instead, set it to zero.
 
+Reported-by: Dmitry Vyukov <dvyukov@google.com>
+Fixes: 55834c59098d ("mm: kasan: initial memory quarantine
+implementation")
+Signed-off-by: Alexander Potapenko <glider@google.com>
+---
+v2: Don't print the warning if we don't have enough memory for quarantine.
+---
+ mm/kasan/quarantine.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
 
-On 08/02/2016 01:07 PM, Alexander Potapenko wrote:
-> On Tue, Aug 2, 2016 at 12:05 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
->> On Tue, Aug 2, 2016 at 12:00 PM, Andrey Ryabinin
->>>
->>> Why WARN? I'd suggest pr_warn_once();
->>
->>
->> I would suggest to just do something useful. Setting quarantine
->> new_quarantine_size to 0 looks fine.
->> What would user do with this warning? Number of CPUs and amount of
->> memory are generally fixed. Why is it an issue for end user at all? We
->> still have some quarantine per-cpu. A WARNING means a [non-critical]
->> kernel bug. E.g. syzkaller will catch each and every boot of such
->> system as a bug.
-> How about printk_once then?
-> Silently setting the quarantine size to zero may puzzle the user.
->
-
-Nope, user will not notice anything. So keeping it silent would be better.
-Plus it's very unlikely that this will ever happen in real life.
+diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
+index 65793f1..8c29938 100644
+--- a/mm/kasan/quarantine.c
++++ b/mm/kasan/quarantine.c
+@@ -196,7 +196,7 @@ void quarantine_put(struct kasan_free_meta *info, struct kmem_cache *cache)
+ 
+ void quarantine_reduce(void)
+ {
+-	size_t new_quarantine_size;
++	size_t new_quarantine_size, percpu_quarantines;
+ 	unsigned long flags;
+ 	struct qlist_head to_free = QLIST_INIT;
+ 	size_t size_to_free = 0;
+@@ -214,7 +214,9 @@ void quarantine_reduce(void)
+ 	 */
+ 	new_quarantine_size = (READ_ONCE(totalram_pages) << PAGE_SHIFT) /
+ 		QUARANTINE_FRACTION;
+-	new_quarantine_size -= QUARANTINE_PERCPU_SIZE * num_online_cpus();
++	percpu_quarantines = QUARANTINE_PERCPU_SIZE * num_online_cpus();
++	new_quarantine_size = (new_quarantine_size < percpu_quarantines) ?
++		0 : new_quarantine_size - percpu_quarantines;
+ 	WRITE_ONCE(quarantine_size, new_quarantine_size);
+ 
+ 	last = global_quarantine.head;
+-- 
+2.8.0.rc3.226.g39d4020
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
