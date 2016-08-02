@@ -1,119 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 006486B0005
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 15:25:18 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id p129so109873924wmp.3
-        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 12:25:17 -0700 (PDT)
-Received: from mx0b-000ceb01.pphosted.com (mx0b-000ceb01.pphosted.com. [67.231.152.126])
-        by mx.google.com with ESMTPS id u2si4052253wji.139.2016.08.02.12.25.15
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BBBD6B0253
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 16:31:19 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id l4so110919179wml.0
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 13:31:19 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id bq6si4358075wjc.14.2016.08.02.13.31.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Aug 2016 12:25:15 -0700 (PDT)
-Subject: Re: OOM killer changes
-References: <30dbabc4-585c-55a5-9f3a-4e243c28356a@Quantum.com>
- <20160801192620.GD31957@dhcp22.suse.cz>
- <939def12-3fa8-e877-ce17-b59db9fa1876@Quantum.com>
- <20160801194323.GE31957@dhcp22.suse.cz>
- <d8116023-dcd4-8763-af77-f2889f84cdb6@Quantum.com>
- <20160801200926.GF31957@dhcp22.suse.cz>
- <3c022d92-9c96-9022-8496-aa8738fb7358@quantum.com>
- <20160801202616.GG31957@dhcp22.suse.cz>
- <b91f97ee-c369-43be-c934-f84b96260ead@Quantum.com>
- <27bd5116-f489-252c-f257-97be00786629@Quantum.com>
- <20160802071010.GB12403@dhcp22.suse.cz>
-From: Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>
-Message-ID: <ccad54a2-be1e-44cf-b9c8-d6b34af4901d@quantum.com>
-Date: Tue, 2 Aug 2016 12:25:12 -0700
+        Tue, 02 Aug 2016 13:31:18 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id i5so32837654wmg.2
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 13:31:18 -0700 (PDT)
+Date: Tue, 2 Aug 2016 22:31:16 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 1/3] mm: memcontrol: fix swap counter leak on swapout
+ from offline cgroup
+Message-ID: <20160802203115.GA11239@dhcp22.suse.cz>
+References: <c911b6a1bacfd2bcb8ddf7314db26d0eee0f0b70.1470149524.git.vdavydov@virtuozzo.com>
+ <20160802160025.GB28900@dhcp22.suse.cz>
+ <20160802173337.GD6637@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <20160802071010.GB12403@dhcp22.suse.cz>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160802173337.GD6637@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-I can do that but it'll be later this week.
+On Tue 02-08-16 13:33:37, Johannes Weiner wrote:
+> On Tue, Aug 02, 2016 at 06:00:26PM +0200, Michal Hocko wrote:
+> > On Tue 02-08-16 18:00:48, Vladimir Davydov wrote:
+> > > @@ -5767,15 +5785,20 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+> > >  	if (!memcg)
+> > >  		return;
+> > >  
+> > > -	mem_cgroup_id_get(memcg);
+> > > -	oldid = swap_cgroup_record(entry, mem_cgroup_id(memcg));
+> > > +	swap_memcg = mem_cgroup_id_get_active(memcg);
+> > > +	oldid = swap_cgroup_record(entry, mem_cgroup_id(swap_memcg));
+> > >  	VM_BUG_ON_PAGE(oldid, page);
+> > > -	mem_cgroup_swap_statistics(memcg, true);
+> > > +	mem_cgroup_swap_statistics(swap_memcg, true);
+> > >  
+> > >  	page->mem_cgroup = NULL;
+> > >  
+> > >  	if (!mem_cgroup_is_root(memcg))
+> > >  		page_counter_uncharge(&memcg->memory, 1);
+> > > +	if (memcg != swap_memcg) {
+> > > +		if (!mem_cgroup_is_root(swap_memcg))
+> > > +			page_counter_charge(&swap_memcg->memsw, 1);
+> > > +		page_counter_uncharge(&memcg->memsw, 1);
+> > > +	}
+> > >  
+> > >  	/*
+> > >  	 * Interrupts should be disabled here because the caller holds the
+> > 
+> > The resulting code is a weird mixture of memcg and swap_memcg usage
+> > which is really confusing and error prone. Do we really have to do
+> > uncharge on an already offline memcg?
+> 
+> The charge is recursive and includes swap_memcg, i.e. live groups, so
+> the uncharge is necessary.
 
-Ralf-Peter
-On 08/02/2016 12:10 AM, Michal Hocko wrote:
-> On Mon 01-08-16 14:27:51, Ralf-Peter Rohbeck wrote:
->> On 01.08.2016 14:14, Ralf-Peter Rohbeck wrote:
->>> On 01.08.2016 13:26, Michal Hocko wrote:
->>>>> sdc, sdd and sde each at max speed, with a little bit of garden
->>>>> variety IO
->>>>> on sda and sdb.
->>>> So do I get it right that the majority of the IO is to those slower USB
->>>> disks?  If yes then does lowering the dirty_bytes to something smaller
->>>> help?
->>> ADMIN
->>> Yes, the vast majority.
->>>
->>> I set dirty_bytes to 128MiB and started a fairly IO and memory intensive
->>> process and the OOM killer kicked in within a few seconds.
->>>
->>> Same with 16MiB dirty_bytes and 1MiB.
->>>
->>> Some additional IO load from my fast subsystem is enough:
->>>
->>> At 1MiB dirty_bytes,
->>>
->>> find /btrfs0/ -type f -exec md5sum {} \;
->>>
->>> was enough (where /btrfs0 is on a LVM2 LV and the PV is on sda.) It read
->>> a few dozen files (random stuff with very mixed file sizes, none very
->>> big) until the OOM killer kicked in.
->>>
->>> I'll try 4.6.
->> With Debian 4.6.0.1 (4.6.4-1) it works: Writing to 3 USB drives and running
->> each of the 3 tests that triggered the OOM killer in parallel, with default
->> dirty settings.
-> Thanks for retesting! Now that it seems you are able to reproduce this,
-> could you do some experiments, please? First of all it would be great to
-> find out why we do not retry the compaction and whether it could make
-> some progress. The patch below will tell us the first part. Tracepoints
-> can tell us the other part. Vlastimil, could you recommend some which
-> would give us some hints without generating way too much output?
-> ---
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 8b3e1341b754..a10b29a918d4 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3274,6 +3274,7 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
->   			*migrate_mode = MIGRATE_SYNC_LIGHT;
->   			return true;
->   		}
-> +		pr_info("XXX: compaction_failed\n");
->   		return false;
->   	}
->   
-> @@ -3283,8 +3284,12 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
->   	 * But do not retry if the given zonelist is not suitable for
->   	 * compaction.
->   	 */
-> -	if (compaction_withdrawn(compact_result))
-> -		return compaction_zonelist_suitable(ac, order, alloc_flags);
-> +	if (compaction_withdrawn(compact_result)) {
-> +		int ret = compaction_zonelist_suitable(ac, order, alloc_flags);
-> +		if (!ret)
-> +			pr_info("XXX: no zone suitable for compaction\n");
-> +		return ret;
-> +	}
->   
->   	/*
->   	 * !costly requests are much more important than __GFP_REPEAT
-> @@ -3299,6 +3304,7 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
->   	if (compaction_retries <= max_retries)
->   		return true;
->   
-> +	pr_info("XXX: compaction retries fail after %d\n", compaction_retries);
->   	return false;
->   }
->   #else
->
+Hmm, the charge is recursive, alraight, but then I see only see only
+small sympathy for
+               if (!mem_cgroup_is_root(swap_memcg))
+                       page_counter_charge(&swap_memcg->memsw, 1);
+               page_counter_uncharge(&memcg->memsw, 1);
 
-----------------------------------------------------------------------
-The information contained in this transmission may be confidential. Any disclosure, copying, or further distribution of confidential information is not permitted unless such privilege is explicitly granted in writing by Quantum. Quantum reserves the right to have electronic communications, including email and attachments, sent across its networks filtered through anti virus and spam software programs and retain such messages in order to comply with applicable data security and retention requirements. Quantum is not responsible for the proper and complete transmission of the substance of this communication or for any delay in its receipt.
+we first charge up the hierarchy just to uncharge the same balance from
+the lower. So the end result should be same, right? The only reason
+would be that we uncharge the lower layer as well. I do not remember
+details, but I do not remember we would be checking counters being 0 on
+exit.
+But it is quite late and my brain is quite burnt so I might miss
+something easily. So whatever small style issues, I think the patch
+is correct and feel free to add
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+I just think we can make this easier and more straightforward. See the
+diff below (not even compile tested - just for an illustration).
+
+> I don't think the code is too bad, though?
+> swap_memcg is the target that is being charged for swap, memcg is the
+> origin group from which we swap out. Seems pretty straightforward...?
+> 
+> But maybe a comment above the memcg != swap_memcg check would be nice:
+> 
+> /*
+>  * In case the memcg owning these pages has been offlined and doesn't
+>  * have an ID allocated to it anymore, charge the closest online
+>  * ancestor for the swap instead and transfer the memory+swap charge.
+>  */
+
+comment would be definitely helpful.
+ 
+> Thinking about it, mem_cgroup_id_get_active() is a little strange; the
+> term we use throughout the cgroup code is "online". It might be good
+> to rename this mem_cgroup_id_get_online().
+
+yes, that would be better, imho
+
+---
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index b6ac01d2b908..66868b2a4c8c 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -5819,6 +5819,14 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+ 	VM_BUG_ON_PAGE(PageLRU(page), page);
+ 	VM_BUG_ON_PAGE(page_count(page), page);
+ 
++	/*
++	 * Interrupts should be disabled here because the caller holds the
++	 * mapping->tree_lock lock which is taken with interrupts-off. It is
++	 * important here to have the interrupts disabled because it is the
++	 * only synchronisation we have for udpating the per-CPU variables.
++	 */
++	VM_BUG_ON(!irqs_disabled());
++
+ 	if (!do_memsw_account())
+ 		return;
+ 
+@@ -5828,6 +5836,12 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+ 	if (!memcg)
+ 		return;
+ 
++	/*
++	 * In case the memcg owning these pages has been offlined and doesn't
++	 * have an ID allocated to it anymore, charge the closest online
++	 * ancestor for the swap instead. Hierarchical charges will be preserved
++	 * and the offlined one will not cry with some discrepances in statistics
++	 */
+ 	swap_memcg = mem_cgroup_id_get_active(memcg);
+ 	oldid = swap_cgroup_record(entry, mem_cgroup_id(swap_memcg));
+ 	VM_BUG_ON_PAGE(oldid, page);
+@@ -5837,21 +5851,11 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+ 
+ 	if (!mem_cgroup_is_root(memcg))
+ 		page_counter_uncharge(&memcg->memory, 1);
+-	if (memcg != swap_memcg) {
+-		if (!mem_cgroup_is_root(swap_memcg))
+-			page_counter_charge(&swap_memcg->memsw, 1);
+-		page_counter_uncharge(&memcg->memsw, 1);
+-	}
+ 
+-	/*
+-	 * Interrupts should be disabled here because the caller holds the
+-	 * mapping->tree_lock lock which is taken with interrupts-off. It is
+-	 * important here to have the interrupts disabled because it is the
+-	 * only synchronisation we have for udpating the per-CPU variables.
+-	 */
+-	VM_BUG_ON(!irqs_disabled());
+-	mem_cgroup_charge_statistics(memcg, page, false, -1);
+-	memcg_check_events(memcg, page);
++	if (memcg == swap_memcg) {
++		mem_cgroup_charge_statistics(memcg, page, false, -1);
++		memcg_check_events(memcg, page);
++	}
+ 
+ 	if (!mem_cgroup_is_root(memcg))
+ 		css_put(&memcg->css);
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
