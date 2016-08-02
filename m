@@ -1,79 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C4C06B0005
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 13:36:17 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id e7so98957200lfe.0
-        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 10:36:17 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id aj2si3695911wjd.169.2016.08.02.10.36.16
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 782846B0005
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 13:39:41 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id m130so390821030ioa.1
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 10:39:41 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id d10si4111778ioj.68.2016.08.02.10.39.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Aug 2016 10:36:16 -0700 (PDT)
-Date: Tue, 2 Aug 2016 13:33:37 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v2 1/3] mm: memcontrol: fix swap counter leak on swapout
- from offline cgroup
-Message-ID: <20160802173337.GD6637@cmpxchg.org>
-References: <c911b6a1bacfd2bcb8ddf7314db26d0eee0f0b70.1470149524.git.vdavydov@virtuozzo.com>
- <20160802160025.GB28900@dhcp22.suse.cz>
+        Tue, 02 Aug 2016 10:39:40 -0700 (PDT)
+Subject: Re: [PATCH] mm/slab: Improve performance of gathering slabinfo stats
+References: <1470096548-15095-1-git-send-email-aruna.ramakrishna@oracle.com>
+ <20160802005514.GA14725@js1304-P5Q-DELUXE>
+ <4a3fe3bc-eb1d-ea18-bd70-98b8b9c6a7d7@oracle.com>
+ <20160802024342.GA15062@js1304-P5Q-DELUXE>
+ <alpine.DEB.2.20.1608020953160.24620@east.gentwo.org>
+From: Aruna Ramakrishna <aruna.ramakrishna@oracle.com>
+Message-ID: <39e8a2e9-93c9-9051-cd90-3690baa8239f@oracle.com>
+Date: Tue, 2 Aug 2016 10:39:13 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160802160025.GB28900@dhcp22.suse.cz>
+In-Reply-To: <alpine.DEB.2.20.1608020953160.24620@east.gentwo.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Kravetz <mike.kravetz@oracle.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, Aug 02, 2016 at 06:00:26PM +0200, Michal Hocko wrote:
-> On Tue 02-08-16 18:00:48, Vladimir Davydov wrote:
-> > @@ -5767,15 +5785,20 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
-> >  	if (!memcg)
-> >  		return;
-> >  
-> > -	mem_cgroup_id_get(memcg);
-> > -	oldid = swap_cgroup_record(entry, mem_cgroup_id(memcg));
-> > +	swap_memcg = mem_cgroup_id_get_active(memcg);
-> > +	oldid = swap_cgroup_record(entry, mem_cgroup_id(swap_memcg));
-> >  	VM_BUG_ON_PAGE(oldid, page);
-> > -	mem_cgroup_swap_statistics(memcg, true);
-> > +	mem_cgroup_swap_statistics(swap_memcg, true);
-> >  
-> >  	page->mem_cgroup = NULL;
-> >  
-> >  	if (!mem_cgroup_is_root(memcg))
-> >  		page_counter_uncharge(&memcg->memory, 1);
-> > +	if (memcg != swap_memcg) {
-> > +		if (!mem_cgroup_is_root(swap_memcg))
-> > +			page_counter_charge(&swap_memcg->memsw, 1);
-> > +		page_counter_uncharge(&memcg->memsw, 1);
-> > +	}
-> >  
-> >  	/*
-> >  	 * Interrupts should be disabled here because the caller holds the
-> 
-> The resulting code is a weird mixture of memcg and swap_memcg usage
-> which is really confusing and error prone. Do we really have to do
-> uncharge on an already offline memcg?
 
-The charge is recursive and includes swap_memcg, i.e. live groups, so
-the uncharge is necessary. I don't think the code is too bad, though?
-swap_memcg is the target that is being charged for swap, memcg is the
-origin group from which we swap out. Seems pretty straightforward...?
+On 08/02/2016 07:59 AM, Christoph Lameter wrote:
+> Hmm.... What SLUB does is:
+>
+> 1. Keep a count of the total number of allocated slab pages per node.
+> 	This counter only needs to be updated when a slab page is
+> 	allocated from the page allocator or when it is freed to the
+> 	page allocator. At that point we already hold the per node lock,
+> 	page allocator operations are extremely costly anyways and so that
+> 	is ok.
+>
+> 2. Keep a count of the number of partially allocated slab pages per node.
+> 	At that point we have to access the partial list and take a per
+> 	node lock. Placing the counter into the same cacheline and
+> 	the increment/decrement into the period when the lock has been taken
+> 	avoids the overhead.
+>
 
-But maybe a comment above the memcg != swap_memcg check would be nice:
+As Joonsoo mentioned in his previous comment, the partial list is pretty 
+small anyway. And we cannot avoid traversal of the partial list - we 
+have to count the number of active objects in each partial slab:
+	
+	active_objs += page->active;
 
-/*
- * In case the memcg owning these pages has been offlined and doesn't
- * have an ID allocated to it anymore, charge the closest online
- * ancestor for the swap instead and transfer the memory+swap charge.
- */
+So keeping a count of partially allocated slabs seems unnecessary to me.
 
-Thinking about it, mem_cgroup_id_get_active() is a little strange; the
-term we use throughout the cgroup code is "online". It might be good
-to rename this mem_cgroup_id_get_online().
+> The number of full pages is then
+>
+> 	total - partial
+>
+>
+> If both allocators would use the same scheme here then the code to
+> maintain the counter can be moved into mm/slab_common.c. Plus the per node
+> structures could be mostly harmonized between both allocators. Maybe even
+> the page allocator operations could become common code.
+>
+> Aruna: Could you work on a solution like that?
+>
 
-Thanks
+Yup, I'll replace the 3 counters with one counter for number of slabs 
+per node and send out a new patch. I'll try to make the counter 
+management as similar as possible, between SLAB and SLUB.
+
+Thanks,
+Aruna
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
