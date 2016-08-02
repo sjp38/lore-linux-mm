@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 529296B0005
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 07:39:47 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id l4so101707697wml.0
-        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 04:39:47 -0700 (PDT)
-Received: from mail-lf0-x231.google.com (mail-lf0-x231.google.com. [2a00:1450:4010:c07::231])
-        by mx.google.com with ESMTPS id f64si914515lji.91.2016.08.02.04.39.45
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A636F6B0005
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 07:42:23 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id k135so92567922lfb.2
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 04:42:23 -0700 (PDT)
+Received: from mail-lf0-x235.google.com (mail-lf0-x235.google.com. [2a00:1450:4010:c07::235])
+        by mx.google.com with ESMTPS id 42si936735lfs.66.2016.08.02.04.42.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Aug 2016 04:39:45 -0700 (PDT)
-Received: by mail-lf0-x231.google.com with SMTP id g62so136110060lfe.3
-        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 04:39:45 -0700 (PDT)
+        Tue, 02 Aug 2016 04:42:22 -0700 (PDT)
+Received: by mail-lf0-x235.google.com with SMTP id b199so136392788lfe.0
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 04:42:21 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1470062715-14077-6-git-send-email-aryabinin@virtuozzo.com>
-References: <1470062715-14077-1-git-send-email-aryabinin@virtuozzo.com> <1470062715-14077-6-git-send-email-aryabinin@virtuozzo.com>
+In-Reply-To: <1470062715-14077-2-git-send-email-aryabinin@virtuozzo.com>
+References: <1470062715-14077-1-git-send-email-aryabinin@virtuozzo.com> <1470062715-14077-2-git-send-email-aryabinin@virtuozzo.com>
 From: Alexander Potapenko <glider@google.com>
-Date: Tue, 2 Aug 2016 13:39:44 +0200
-Message-ID: <CAG_fn=WP2VmNNuzp1YMi+vPLaG9B3JH9TD4FfzxVyeZL2AyM_Q@mail.gmail.com>
-Subject: Re: [PATCH 6/6] kasan: improve double-free reports.
+Date: Tue, 2 Aug 2016 13:42:20 +0200
+Message-ID: <CAG_fn=W6DAYeYgo5a-28zt=sCY8LAMP6Yi35a6Aq_C_=dX=yUg@mail.gmail.com>
+Subject: Re: [PATCH 2/6] mm/kasan: don't reduce quarantine in atomic contexts
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
@@ -27,173 +27,72 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@codemonkey.org.
 
 On Mon, Aug 1, 2016 at 4:45 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> w=
 rote:
-> Currently we just dump stack in case of double free bug.
-> Let's dump all info about the object that we have.
+> Currently we call quarantine_reduce() for ___GFP_KSWAPD_RECLAIM
+> (implied by __GFP_RECLAIM) allocation. So, basically we call it on
+> almost every allocation. quarantine_reduce() sometimes is heavy operation=
+,
+> and calling it with disabled interrupts may trigger hard LOCKUP:
 >
+>  NMI watchdog: Watchdog detected hard LOCKUP on cpu 2irq event stamp: 141=
+1258
+>  Call Trace:
+>   <NMI>  [<ffffffff98a48532>] dump_stack+0x68/0x96
+>   [<ffffffff98357fbb>] watchdog_overflow_callback+0x15b/0x190
+>   [<ffffffff9842f7d1>] __perf_event_overflow+0x1b1/0x540
+>   [<ffffffff98455b14>] perf_event_overflow+0x14/0x20
+>   [<ffffffff9801976a>] intel_pmu_handle_irq+0x36a/0xad0
+>   [<ffffffff9800ba4c>] perf_event_nmi_handler+0x2c/0x50
+>   [<ffffffff98057058>] nmi_handle+0x128/0x480
+>   [<ffffffff980576d2>] default_do_nmi+0xb2/0x210
+>   [<ffffffff980579da>] do_nmi+0x1aa/0x220
+>   [<ffffffff99a0bb07>] end_repeat_nmi+0x1a/0x1e
+>   <<EOE>>  [<ffffffff981871e6>] __kernel_text_address+0x86/0xb0
+>   [<ffffffff98055c4b>] print_context_stack+0x7b/0x100
+>   [<ffffffff98054e9b>] dump_trace+0x12b/0x350
+>   [<ffffffff98076ceb>] save_stack_trace+0x2b/0x50
+>   [<ffffffff98573003>] set_track+0x83/0x140
+>   [<ffffffff98575f4a>] free_debug_processing+0x1aa/0x420
+>   [<ffffffff98578506>] __slab_free+0x1d6/0x2e0
+>   [<ffffffff9857a9b6>] ___cache_free+0xb6/0xd0
+>   [<ffffffff9857db53>] qlist_free_all+0x83/0x100
+>   [<ffffffff9857df07>] quarantine_reduce+0x177/0x1b0
+>   [<ffffffff9857c423>] kasan_kmalloc+0xf3/0x100
+>
+> Reduce the quarantine_reduce iff direct reclaim is allowed.
+>
+> Fixes: 55834c59098d("mm: kasan: initial memory quarantine implementation"=
+)
+> Reported-by: Dave Jones <davej@codemonkey.org.uk>
 > Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Acked-by: Alexander Potapenko <glider@google.com>
 > ---
->  mm/kasan/kasan.c  |  3 +--
->  mm/kasan/kasan.h  |  2 ++
->  mm/kasan/report.c | 54 ++++++++++++++++++++++++++++++++++++++-----------=
------
->  3 files changed, 41 insertions(+), 18 deletions(-)
+>  mm/kasan/kasan.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
 >
 > diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-> index 92750e3..88af13c 100644
+> index 3019cec..c99ef40 100644
 > --- a/mm/kasan/kasan.c
 > +++ b/mm/kasan/kasan.c
-> @@ -543,8 +543,7 @@ bool kasan_slab_free(struct kmem_cache *cache, void *=
-object)
+> @@ -565,7 +565,7 @@ void kasan_kmalloc(struct kmem_cache *cache, const vo=
+id *object, size_t size,
+>         unsigned long redzone_start;
+>         unsigned long redzone_end;
 >
->         shadow_byte =3D READ_ONCE(*(s8 *)kasan_mem_to_shadow(object));
->         if (shadow_byte < 0 || shadow_byte >=3D KASAN_SHADOW_SCALE_SIZE) =
-{
-> -               pr_err("Double free");
-> -               dump_stack();
-> +               kasan_report_double_free(cache, object, shadow_byte);
->                 return true;
->         }
+> -       if (flags & __GFP_RECLAIM)
+> +       if (gfpflags_allow_blocking(flags))
+>                 quarantine_reduce();
 >
-> diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
-> index 9b7b31e..e5c2181 100644
-> --- a/mm/kasan/kasan.h
-> +++ b/mm/kasan/kasan.h
-> @@ -99,6 +99,8 @@ static inline bool kasan_report_enabled(void)
+>         if (unlikely(object =3D=3D NULL))
+> @@ -596,7 +596,7 @@ void kasan_kmalloc_large(const void *ptr, size_t size=
+, gfp_t flags)
+>         unsigned long redzone_start;
+>         unsigned long redzone_end;
 >
->  void kasan_report(unsigned long addr, size_t size,
->                 bool is_write, unsigned long ip);
-> +void kasan_report_double_free(struct kmem_cache *cache, void *object,
-> +                       s8 shadow);
+> -       if (flags & __GFP_RECLAIM)
+> +       if (gfpflags_allow_blocking(flags))
+>                 quarantine_reduce();
 >
->  #if defined(CONFIG_SLAB) || defined(CONFIG_SLUB)
->  void quarantine_put(struct kasan_free_meta *info, struct kmem_cache *cac=
-he);
-> diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-> index f437398..ee2bdb4 100644
-> --- a/mm/kasan/report.c
-> +++ b/mm/kasan/report.c
-> @@ -116,6 +116,26 @@ static inline bool init_task_stack_addr(const void *=
-addr)
->                         sizeof(init_thread_union.stack));
->  }
->
-> +static DEFINE_SPINLOCK(report_lock);
-> +
-> +static void kasan_start_report(unsigned long *flags)
-> +{
-> +       /*
-> +        * Make sure we don't end up in loop.
-> +        */
-> +       kasan_disable_current();
-> +       spin_lock_irqsave(&report_lock, *flags);
-> +       pr_err("=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D\n");
-> +}
-> +
-> +static void kasan_end_report(unsigned long *flags)
-> +{
-> +       pr_err("=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D\n");
-> +       add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
-Don't we want to add the taint as early as possible once we've
-detected the error?
-> +       spin_unlock_irqrestore(&report_lock, *flags);
-> +       kasan_enable_current();
-> +}
-> +
->  static void print_track(struct kasan_track *track)
->  {
->         pr_err("PID =3D %u\n", track->pid);
-> @@ -129,8 +149,7 @@ static void print_track(struct kasan_track *track)
->         }
->  }
->
-> -static void kasan_object_err(struct kmem_cache *cache, struct page *page=
-,
-> -                               void *object, char *unused_reason)
-> +static void kasan_object_err(struct kmem_cache *cache, void *object)
->  {
->         struct kasan_alloc_meta *alloc_info =3D get_alloc_info(cache, obj=
-ect);
->
-> @@ -147,6 +166,18 @@ static void kasan_object_err(struct kmem_cache *cach=
-e, struct page *page,
->         print_track(&alloc_info->free_track);
->  }
->
-> +void kasan_report_double_free(struct kmem_cache *cache, void *object,
-> +                       s8 shadow)
-> +{
-> +       unsigned long flags;
-> +
-> +       kasan_start_report(&flags);
-> +       pr_err("BUG: Double free or corrupt pointer\n");
-How about "Double free or freeing an invalid pointer\n"?
-I think "corrupt pointer" doesn't exactly reflect where the bug is.
-> +       pr_err("Unexpected shadow byte: 0x%hhX\n", shadow);
-> +       kasan_object_err(cache, object);
-> +       kasan_end_report(&flags);
-> +}
-> +
->  static void print_address_description(struct kasan_access_info *info)
->  {
->         const void *addr =3D info->access_addr;
-> @@ -160,8 +191,7 @@ static void print_address_description(struct kasan_ac=
-cess_info *info)
->                         struct kmem_cache *cache =3D page->slab_cache;
->                         object =3D nearest_obj(cache, page,
->                                                 (void *)info->access_addr=
-);
-> -                       kasan_object_err(cache, page, object,
-> -                                       "kasan: bad access detected");
-> +                       kasan_object_err(cache, object);
->                         return;
->                 }
->                 dump_page(page, "kasan: bad access detected");
-> @@ -226,19 +256,13 @@ static void print_shadow_for_address(const void *ad=
-dr)
->         }
->  }
->
-> -static DEFINE_SPINLOCK(report_lock);
-> -
->  static void kasan_report_error(struct kasan_access_info *info)
->  {
->         unsigned long flags;
->         const char *bug_type;
->
-> -       /*
-> -        * Make sure we don't end up in loop.
-> -        */
-> -       kasan_disable_current();
-> -       spin_lock_irqsave(&report_lock, flags);
-> -       pr_err("=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D\n");
-> +       kasan_start_report(&flags);
-> +
->         if (info->access_addr <
->                         kasan_shadow_to_mem((void *)KASAN_SHADOW_START)) =
-{
->                 if ((unsigned long)info->access_addr < PAGE_SIZE)
-> @@ -259,10 +283,8 @@ static void kasan_report_error(struct kasan_access_i=
-nfo *info)
->                 print_address_description(info);
->                 print_shadow_for_address(info->first_bad_addr);
->         }
-> -       pr_err("=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D\n");
-> -       add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
-> -       spin_unlock_irqrestore(&report_lock, flags);
-> -       kasan_enable_current();
-> +
-> +       kasan_end_report(&flags);
->  }
->
->  void kasan_report(unsigned long addr, size_t size,
+>         if (unlikely(ptr =3D=3D NULL))
 > --
 > 2.7.3
 >
