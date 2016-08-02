@@ -1,38 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A4E66B025E
-	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 20:10:40 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 63so303271761pfx.0
-        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 17:10:40 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id iv7si37625609pac.17.2016.08.01.17.10.38
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 803916B025E
+	for <linux-mm@kvack.org>; Mon,  1 Aug 2016 20:28:25 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id h186so301334875pfg.2
+        for <linux-mm@kvack.org>; Mon, 01 Aug 2016 17:28:25 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id x20si37617229pal.165.2016.08.01.17.28.24
         for <linux-mm@kvack.org>;
-        Mon, 01 Aug 2016 17:10:39 -0700 (PDT)
-Date: Tue, 2 Aug 2016 09:11:38 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: vmscan: fix memcg-aware shrinkers not called on
- global reclaim
-Message-ID: <20160802001138.GB6770@bbox>
-References: <1470056590-7177-1-git-send-email-vdavydov@virtuozzo.com>
-MIME-Version: 1.0
-In-Reply-To: <1470056590-7177-1-git-send-email-vdavydov@virtuozzo.com>
+        Mon, 01 Aug 2016 17:28:24 -0700 (PDT)
+From: "Li, Liang Z" <liang.z.li@intel.com>
+Subject: RE: [virtio-dev] Re: [PATCH v2 repost 4/7] virtio-balloon: speed up
+ inflate/deflate process
+Date: Tue, 2 Aug 2016 00:28:19 +0000
+Message-ID: <F2CBF3009FA73547804AE4C663CAB28E04216308@shsmsx102.ccr.corp.intel.com>
+References: <1469582616-5729-1-git-send-email-liang.z.li@intel.com>
+ <1469582616-5729-5-git-send-email-liang.z.li@intel.com>
+ <5798DB49.7030803@intel.com>
+ <F2CBF3009FA73547804AE4C663CAB28E04213CCB@shsmsx102.ccr.corp.intel.com>
+ <20160728044000-mutt-send-email-mst@kernel.org>
+ <F2CBF3009FA73547804AE4C663CAB28E04214103@shsmsx102.ccr.corp.intel.com>
+ <20160729003759-mutt-send-email-mst@kernel.org> <579BB30B.2040704@intel.com>
+In-Reply-To: <579BB30B.2040704@intel.com>
+Content-Language: en-US
 Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Hillf Danton <hillf.zj@alibaba-inc.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@surriel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Hansen, Dave" <dave.hansen@intel.com>, "Michael S. Tsirkin" <mst@redhat.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "quintela@redhat.com" <quintela@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil
+ Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Paolo
+ Bonzini <pbonzini@redhat.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Amit Shah <amit.shah@redhat.com>
 
-On Mon, Aug 01, 2016 at 04:03:10PM +0300, Vladimir Davydov wrote:
-> We must call shrink_slab() for each memory cgroup on both global and
-> memcg reclaim in shrink_node_memcg(). Commit d71df22b55099 accidentally
-> changed that so that now shrink_slab() is only called with memcg != NULL
-> on memcg reclaim. As a result, memcg-aware shrinkers (including
-> dentry/inode) are never invoked on global reclaim. Fix that.
-> 
-> Fixes: d71df22b55099 ("mm, vmscan: begin reclaiming pages on a per-node basis")
-> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
-Acked-by: Minchan Kim <minchan@kernel.org>
+> > It's only small because it makes you rescan the free list.
+> > So maybe you should do something else.
+> > I looked at it a bit. Instead of scanning the free list, how about
+> > scanning actual page structures? If page is unused, pass it to host.
+> > Solves the problem of rescanning multiple times, does it not?
+>=20
+> FWIW, I think the new data structure needs some work.
+>=20
+> Before, we had a potentially very long list of 4k areas.  Now, we've just=
+ got a
+> very large bitmap.  The bitmap might not even be very dense if we are
+> ballooning relatively few things.
+>=20
+> Can I suggest an alternate scheme?  I think you actually need a hybrid
+> scheme that has bitmaps but also allows more flexibility in the pfn range=
+s.
+> The payload could be a number of records each containing 3 things:
+>=20
+> 	pfn, page order, length of bitmap (maybe in powers of 2)
+>=20
+> Each record is followed by the bitmap.  Or, if the bitmap length is 0,
+> immediately followed by another record.  A bitmap length of 0 implies a
+> bitmap with the least significant bit set.  Page order specifies how many
+> pages each bit represents.
+>=20
+> This scheme could easily encode the new data structure you are proposing
+> by just setting pfn=3D0, order=3D0, and a very long bitmap length.  But, =
+it could
+> handle sparse bitmaps much better *and* represent large pages much more
+> efficiently.
+>=20
+> There's plenty of space to fit a whole record in 64 bits.
+
+I like your idea and it's more flexible, and it's very useful if we want to=
+ optimize the
+page allocating stage further. I believe the memory fragmentation will not =
+be very
+serious, so the performance won't be too bad in the worst case.
+
+Thanks!
+Liang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
