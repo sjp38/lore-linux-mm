@@ -1,176 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 54ECB6B0005
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 04:28:06 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id 33so89353174lfw.1
-        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 01:28:06 -0700 (PDT)
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 77C046B0005
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 05:02:42 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id p85so89855803lfg.3
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 02:02:42 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g1si20291255wmc.33.2016.08.02.01.28.04
+        by mx.google.com with ESMTPS id ed10si1611878wjb.149.2016.08.02.02.02.40
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 02 Aug 2016 01:28:04 -0700 (PDT)
-Subject: Re: [PATCH 09/10] x86, pkeys: allow configuration of init_pkru
-References: <20160729163009.5EC1D38C@viggo.jf.intel.com>
- <20160729163023.407672D2@viggo.jf.intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <2cd6331c-7fa7-b358-6892-580bef430755@suse.cz>
-Date: Tue, 2 Aug 2016 10:28:03 +0200
+        Tue, 02 Aug 2016 02:02:41 -0700 (PDT)
+Date: Tue, 2 Aug 2016 11:02:39 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: OOM killer changes
+Message-ID: <20160802090238.GD12403@dhcp22.suse.cz>
+References: <d8f3adcc-3607-1ef6-9ec5-82b2e125eef2@quantum.com>
+ <20160801061625.GA11623@dhcp22.suse.cz>
+ <b1a39756-a0b5-1900-6575-d6e1f502cb26@Quantum.com>
+ <20160801182358.GB31957@dhcp22.suse.cz>
+ <30dbabc4-585c-55a5-9f3a-4e243c28356a@Quantum.com>
+ <20160801192620.GD31957@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20160729163023.407672D2@viggo.jf.intel.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160801192620.GD31957@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>, linux-kernel@vger.kernel.org
-Cc: x86@kernel.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, luto@kernel.org, mgorman@techsingularity.net, dave.hansen@linux.intel.com, arnd@arndb.de
+To: Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>
+Cc: linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>
 
-On 07/29/2016 06:30 PM, Dave Hansen wrote:
-> From: Dave Hansen <dave.hansen@linux.intel.com>
->
-> As discussed in the previous patch, there is a reliability
-> benefit to allowing an init value for the Protection Keys Rights
-> User register (PKRU) which differs from what the XSAVE hardware
-> provides.
->
-> But, having PKRU be 0 (its init value) provides some nonzero
-> amount of optimization potential to the hardware.  It can, for
-> instance, skip writes to the XSAVE buffer when it knows that PKRU
-> is in its init state.
+On Mon 01-08-16 21:26:20, Michal Hocko wrote:
+> [re-adding linux-mm mailing list - please always use reply-to-all
+>  also CCing Vlastimil who can help with the compaction debugging]
+> 
+> On Mon 01-08-16 11:48:53, Ralf-Peter Rohbeck wrote:
+> > See the messages log attached. It has several OOM killer entries.
+> > Let me know if there's anything else I can do. I'll try the disk erasing on
+> > 4.6 and on 4.7.
+> 
+> Jul 31 17:17:05 fs kernel: [11918.534744] x2golistsession invoked oom-killer: gfp_mask=0x27000c0(GFP_KERNEL_ACCOUNT|__GFP_NOTRACK), order=2, oom_score_adj=0
+> [...]
+> Jul 31 17:17:05 fs kernel: [11918.557356] Mem-Info:
+> Jul 31 17:17:05 fs kernel: [11918.558268] active_anon:7856 inactive_anon:21924 isolated_anon:0
+> Jul 31 17:17:05 fs kernel: [11918.558268]  active_file:70925 inactive_file:1796707 isolated_file:0
+> Jul 31 17:17:05 fs kernel: [11918.558268]  unevictable:0 dirty:277675 writeback:57117 unstable:0
+> Jul 31 17:17:05 fs kernel: [11918.558268]  slab_reclaimable:75821 slab_unreclaimable:9490
+> Jul 31 17:17:05 fs kernel: [11918.558268]  mapped:12014 shmem:2414 pagetables:1497 bounce:0
+> Jul 31 17:17:05 fs kernel: [11918.558268]  free:37021 free_pcp:89 free_cma:0
+> [...]
+> Jul 31 17:17:05 fs kernel: [11918.578836] Node 0 DMA32: 2137*4kB (UME) 5043*8kB (U) 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 48892kB
+> Jul 31 17:17:05 fs kernel: [11918.580370] Node 0 Normal: 2663*4kB (UME) 7452*8kB (U) 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 70268kB
+> 
+> The above process is trying to allocate the kernel stack which is
+> order-2 (16kB) of physically contiguous memory which is clearly
+> not available as you can see. Memory compaction (assuming you have
+> CONFIG_COMPACTION enabled) which is a part of the oom reclaim process
+> should help to form such blocks but those retries are bound and if
+> there is not much hope left we eventually hit the OOM killer. If you
+> look at the above counters there is a lot of memory dirty and under the
+> writeback (1.3G), this suggests that the IO is quite slow wrt. writers.
+> Anyway there is a lot of anonymous memory which should be a good
+> candidate for compaction.
+> 
+> But the IO doesn't seem to be the main factor I guess. Later OOM
+> invocations have a slightly different pattern (let's take the last one):
 
-I'm not very happy with tuning options that need the admin to make 
-choice between reliability and performance. Is there no way to to 
-optimize similarly for a non-zero init state?
+OK, so I've checked anon/file counters for all of OOM invocations and
+the pattern is in fact pretty much consistent:
+anon 29780 (1%) file 1867632 (89%) dirty 334792 (15%) slab 85311 (4%)
+anon 30215 (1%) file 1866069 (89%) dirty 336974 (16%) slab 85074 (4%)
+anon 32800 (1%) file 1865752 (89%) dirty 335470 (16%) slab 84793 (4%)
+anon 33040 (1%) file 1850425 (88%) dirty 349561 (16%) slab 88997 (4%)
+anon 31536 (1%) file 1859444 (88%) dirty 351498 (16%) slab 87475 (4%)
+anon 31540 (1%) file 1861497 (88%) dirty 351126 (16%) slab 86976 (4%)
+anon 28390 (1%) file 1863807 (88%) dirty 351404 (16%) slab 86292 (4%)
+anon 29655 (1%) file 1863581 (88%) dirty 351632 (16%) slab 86295 (4%)
+anon 28907 (1%) file 1861612 (88%) dirty 302386 (14%) slab 88269 (4%)
+anon 28475 (1%) file 1857073 (88%) dirty 299464 (14%) slab 88193 (4%)
+anon 29610 (1%) file 1861161 (88%) dirty 297911 (14%) slab 87796 (4%)
+anon 28624 (1%) file 1862460 (88%) dirty 300628 (14%) slab 87650 (4%)
+anon 35317 (1%) file 1901489 (90%) dirty 32652 (1%) slab 47519 (2%)
+anon 36518 (1%) file 1896775 (90%) dirty 32734 (1%) slab 49460 (2%)
 
-> The cost of losing this optimization is approximately 100 cycles
-> per context switch for a workload which lightly using XSAVE
-> state (something not using AVX much).  The overhead comes from a
-> combinaation of actually manipulating PKRU and the overhead of
-> pullin in an extra cacheline.
-
-So the cost is in extra steps in software, not in hardware as you 
-mentioned above?
-
-> This overhead is not huge, but it's also not something that I
-> think we should unconditionally inflict on everyone.
-
-Here, everyone means really all processes on system, that never heard of 
-PKEs, and pay the cost just because the kernel was configured for it? 
-But in that case, all PTEs use the key 0 anyway, so the non-zero default 
-actually provides no extra reliability/security? Seems suboptimal that 
-admins of such system have to recognize such situation themselves and 
-change the default?
-
-Vlastimil
-
-> So, make it
-> configurable both at boot-time and from debugfs.
->
-> Changes to the debugfs value affect all processes created after
-> the write to debugfs.
->
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-> Cc: linux-api@vger.kernel.org
-> Cc: linux-arch@vger.kernel.org
-> Cc: linux-mm@kvack.org
-> Cc: x86@kernel.org
-> Cc: torvalds@linux-foundation.org
-> Cc: akpm@linux-foundation.org
-> Cc: Arnd Bergmann <arnd@arndb.de>
-> Cc: mgorman@techsingularity.net
-> ---
->
->  b/arch/x86/mm/pkeys.c |   67 ++++++++++++++++++++++++++++++++++++++++++++++++++
->  1 file changed, 67 insertions(+)
->
-> diff -puN arch/x86/mm/pkeys.c~pkeys-141-restrictive-init-pkru-debugfs arch/x86/mm/pkeys.c
-> --- a/arch/x86/mm/pkeys.c~pkeys-141-restrictive-init-pkru-debugfs	2016-07-29 09:18:59.811625219 -0700
-> +++ b/arch/x86/mm/pkeys.c	2016-07-29 09:18:59.814625355 -0700
-> @@ -11,6 +11,7 @@
->   * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
->   * more details.
->   */
-> +#include <linux/debugfs.h>		/* debugfs_create_u32()		*/
->  #include <linux/mm_types.h>             /* mm_struct, vma, etc...       */
->  #include <linux/pkeys.h>                /* PKEY_*                       */
->  #include <uapi/asm-generic/mman-common.h>
-> @@ -159,3 +160,69 @@ void copy_init_pkru_to_fpregs(void)
->  	 */
->  	write_pkru(init_pkru_value_snapshot);
->  }
-> +
-> +static ssize_t init_pkru_read_file(struct file *file, char __user *user_buf,
-> +			     size_t count, loff_t *ppos)
-> +{
-> +	char buf[32];
-> +	unsigned int len;
-> +
-> +	len = sprintf(buf, "0x%x\n", init_pkru_value);
-> +	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
-> +}
-> +
-> +static ssize_t init_pkru_write_file(struct file *file,
-> +		 const char __user *user_buf, size_t count, loff_t *ppos)
-> +{
-> +	char buf[32];
-> +	ssize_t len;
-> +	u32 new_init_pkru;
-> +
-> +	len = min(count, sizeof(buf) - 1);
-> +	if (copy_from_user(buf, user_buf, len))
-> +		return -EFAULT;
-> +
-> +	/* Make the buffer a valid string that we can not overrun */
-> +	buf[len] = '\0';
-> +	if (kstrtouint(buf, 0, &new_init_pkru))
-> +		return -EINVAL;
-> +
-> +	/*
-> +	 * Don't allow insane settings that will blow the system
-> +	 * up immediately if someone attempts to disable access
-> +	 * or writes to pkey 0.
-> +	 */
-> +	if (new_init_pkru & (PKRU_AD_BIT|PKRU_WD_BIT))
-> +		return -EINVAL;
-> +
-> +	WRITE_ONCE(init_pkru_value, new_init_pkru);
-> +	return count;
-> +}
-> +
-> +static const struct file_operations fops_init_pkru = {
-> +	.read = init_pkru_read_file,
-> +	.write = init_pkru_write_file,
-> +	.llseek = default_llseek,
-> +};
-> +
-> +static int __init create_init_pkru_value(void)
-> +{
-> +	debugfs_create_file("init_pkru", S_IRUSR | S_IWUSR,
-> +			arch_debugfs_dir, NULL, &fops_init_pkru);
-> +	return 0;
-> +}
-> +late_initcall(create_init_pkru_value);
-> +
-> +static __init int setup_init_pkru(char *opt)
-> +{
-> +	u32 new_init_pkru;
-> +
-> +	if (kstrtouint(opt, 0, &new_init_pkru))
-> +		return 1;
-> +
-> +	WRITE_ONCE(init_pkru_value, new_init_pkru);
-> +
-> +	return 1;
-> +}
-> +__setup("init_pkru=", setup_init_pkru);
-> +
-> _
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
+the dirty+writeback (marked as dirty above) drops down in the end but
+file LRU is consistently ~89% of the memory. That alone shouldn't be
+problem for the compaction to proceed except when those pages are pinned
+by the filesystem for some reason. You have said that you are using the
+Btrfs.  Would it be possible to retest with the same storage layout and
+a different fs? That would help to rule out the FS as the source of the
+problems.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
