@@ -1,77 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 782846B0005
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 13:39:41 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id m130so390821030ioa.1
-        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 10:39:41 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id d10si4111778ioj.68.2016.08.02.10.39.40
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Aug 2016 10:39:40 -0700 (PDT)
-Subject: Re: [PATCH] mm/slab: Improve performance of gathering slabinfo stats
-References: <1470096548-15095-1-git-send-email-aruna.ramakrishna@oracle.com>
- <20160802005514.GA14725@js1304-P5Q-DELUXE>
- <4a3fe3bc-eb1d-ea18-bd70-98b8b9c6a7d7@oracle.com>
- <20160802024342.GA15062@js1304-P5Q-DELUXE>
- <alpine.DEB.2.20.1608020953160.24620@east.gentwo.org>
-From: Aruna Ramakrishna <aruna.ramakrishna@oracle.com>
-Message-ID: <39e8a2e9-93c9-9051-cd90-3690baa8239f@oracle.com>
-Date: Tue, 2 Aug 2016 10:39:13 -0700
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 78E056B0005
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 14:09:23 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id pp5so311433743pac.3
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 11:09:23 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id xd8si4051037pac.276.2016.08.02.11.09.22
+        for <linux-mm@kvack.org>;
+        Tue, 02 Aug 2016 11:09:22 -0700 (PDT)
+Subject: Re: [PATCH 1/2] mm: Allow disabling deferred struct page
+ initialisation
+References: <1470143947-24443-1-git-send-email-srikar@linux.vnet.ibm.com>
+ <1470143947-24443-2-git-send-email-srikar@linux.vnet.ibm.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <57A0E1D1.8020608@intel.com>
+Date: Tue, 2 Aug 2016 11:09:21 -0700
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1608020953160.24620@east.gentwo.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+In-Reply-To: <1470143947-24443-2-git-send-email-srikar@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Kravetz <mike.kravetz@oracle.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux--foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org
 
+On 08/02/2016 06:19 AM, Srikar Dronamraju wrote:
+> Kernels compiled with CONFIG_DEFERRED_STRUCT_PAGE_INIT will initialise
+> only certain size memory per node. The certain size takes into account
+> the dentry and inode cache sizes. However such a kernel when booting a
+> secondary kernel will not be able to allocate the required amount of
+> memory to suffice for the dentry and inode caches. This results in
+> crashes like the below on large systems such as 32 TB systems.
 
-On 08/02/2016 07:59 AM, Christoph Lameter wrote:
-> Hmm.... What SLUB does is:
->
-> 1. Keep a count of the total number of allocated slab pages per node.
-> 	This counter only needs to be updated when a slab page is
-> 	allocated from the page allocator or when it is freed to the
-> 	page allocator. At that point we already hold the per node lock,
-> 	page allocator operations are extremely costly anyways and so that
-> 	is ok.
->
-> 2. Keep a count of the number of partially allocated slab pages per node.
-> 	At that point we have to access the partial list and take a per
-> 	node lock. Placing the counter into the same cacheline and
-> 	the increment/decrement into the period when the lock has been taken
-> 	avoids the overhead.
->
-
-As Joonsoo mentioned in his previous comment, the partial list is pretty 
-small anyway. And we cannot avoid traversal of the partial list - we 
-have to count the number of active objects in each partial slab:
-	
-	active_objs += page->active;
-
-So keeping a count of partially allocated slabs seems unnecessary to me.
-
-> The number of full pages is then
->
-> 	total - partial
->
->
-> If both allocators would use the same scheme here then the code to
-> maintain the counter can be moved into mm/slab_common.c. Plus the per node
-> structures could be mostly harmonized between both allocators. Maybe even
-> the page allocator operations could become common code.
->
-> Aruna: Could you work on a solution like that?
->
-
-Yup, I'll replace the 3 counters with one counter for number of slabs 
-per node and send out a new patch. I'll try to make the counter 
-management as similar as possible, between SLAB and SLUB.
-
-Thanks,
-Aruna
+What's a "secondary kernel"?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
