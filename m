@@ -1,90 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 022236B0005
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 12:57:52 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id ez1so306147667pab.1
-        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 09:57:51 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id p75si3822574pfd.230.2016.08.02.09.57.50
-        for <linux-mm@kvack.org>;
-        Tue, 02 Aug 2016 09:57:50 -0700 (PDT)
-From: "Roberts, William C" <william.c.roberts@intel.com>
-Subject: RE: [PATCH] [RFC] Introduce mmap randomization
-Date: Tue, 2 Aug 2016 16:57:48 +0000
-Message-ID: <476DC76E7D1DF2438D32BFADF679FC5601276FB4@ORSMSX103.amr.corp.intel.com>
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DD4166B0005
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 13:02:51 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id i27so313513542qte.3
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 10:02:51 -0700 (PDT)
+Received: from mail-yw0-x22e.google.com (mail-yw0-x22e.google.com. [2607:f8b0:4002:c05::22e])
+        by mx.google.com with ESMTPS id s7si2043063qtc.72.2016.08.02.10.02.51
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 Aug 2016 10:02:51 -0700 (PDT)
+Received: by mail-yw0-x22e.google.com with SMTP id z8so203892581ywa.1
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 10:02:51 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <476DC76E7D1DF2438D32BFADF679FC5601276FB4@ORSMSX103.amr.corp.intel.com>
 References: <1469557346-5534-1-git-send-email-william.c.roberts@intel.com>
  <1469557346-5534-2-git-send-email-william.c.roberts@intel.com>
- <20160726200309.GJ4541@io.lakedaemon.net>
- <476DC76E7D1DF2438D32BFADF679FC560125F29C@ORSMSX103.amr.corp.intel.com>
- <20160726205944.GM4541@io.lakedaemon.net>
- <CAFJ0LnEZW7Y1zfN8v0_ckXQZn1n-UKEhf_tSmNOgHwrrnNnuMg@mail.gmail.com>
-In-Reply-To: <CAFJ0LnEZW7Y1zfN8v0_ckXQZn1n-UKEhf_tSmNOgHwrrnNnuMg@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+ <20160726200309.GJ4541@io.lakedaemon.net> <476DC76E7D1DF2438D32BFADF679FC560125F29C@ORSMSX103.amr.corp.intel.com>
+ <20160726205944.GM4541@io.lakedaemon.net> <CAFJ0LnEZW7Y1zfN8v0_ckXQZn1n-UKEhf_tSmNOgHwrrnNnuMg@mail.gmail.com>
+ <476DC76E7D1DF2438D32BFADF679FC5601276FB4@ORSMSX103.amr.corp.intel.com>
+From: Nick Kralevich <nnk@google.com>
+Date: Tue, 2 Aug 2016 10:02:49 -0700
+Message-ID: <CAFJ0LnF7GGCk0LaJXQtBP9sROM3S3+d6hJ=1SjjgwpBcfGqJ1g@mail.gmail.com>
+Subject: Re: [PATCH] [RFC] Introduce mmap randomization
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nick Kralevich <nnk@google.com>, Jason Cooper <jason@lakedaemon.net>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "keescook@chromium.org" <keescook@chromium.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "jeffv@google.com" <jeffv@google.com>, "salyzyn@android.com" <salyzyn@android.com>, "dcashman@android.com" <dcashman@android.com>
+To: "Roberts, William C" <william.c.roberts@intel.com>
+Cc: Jason Cooper <jason@lakedaemon.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "keescook@chromium.org" <keescook@chromium.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "jeffv@google.com" <jeffv@google.com>, "salyzyn@android.com" <salyzyn@android.com>, "dcashman@android.com" <dcashman@android.com>
 
-DQoNCj4gLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCj4gRnJvbTogTmljayBLcmFsZXZpY2gg
-W21haWx0bzpubmtAZ29vZ2xlLmNvbV0NCj4gU2VudDogV2VkbmVzZGF5LCBKdWx5IDI3LCAyMDE2
-IDEwOjAwIEFNDQo+IFRvOiBKYXNvbiBDb29wZXIgPGphc29uQGxha2VkYWVtb24ubmV0Pg0KPiBD
-YzogUm9iZXJ0cywgV2lsbGlhbSBDIDx3aWxsaWFtLmMucm9iZXJ0c0BpbnRlbC5jb20+OyBsaW51
-eC1tbUBrdmFjay5vcmc7DQo+IGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc7IGtlcm5lbC1o
-YXJkZW5pbmdAbGlzdHMub3BlbndhbGwuY29tOw0KPiBha3BtQGxpbnV4LWZvdW5kYXRpb24ub3Jn
-OyBrZWVzY29va0BjaHJvbWl1bS5vcmc7DQo+IGdyZWdraEBsaW51eGZvdW5kYXRpb24ub3JnOyBq
-ZWZmdkBnb29nbGUuY29tOyBzYWx5enluQGFuZHJvaWQuY29tOw0KPiBkY2FzaG1hbkBhbmRyb2lk
-LmNvbQ0KPiBTdWJqZWN0OiBSZTogW1BBVENIXSBbUkZDXSBJbnRyb2R1Y2UgbW1hcCByYW5kb21p
-emF0aW9uDQo+IA0KPiBPbiBUdWUsIEp1bCAyNiwgMjAxNiBhdCAxOjU5IFBNLCBKYXNvbiBDb29w
-ZXIgPGphc29uQGxha2VkYWVtb24ubmV0PiB3cm90ZToNCj4gPj4gPiBPbmUgdGhpbmcgSSBkaWRu
-J3QgbWFrZSBjbGVhciBpbiBteSBjb21taXQgbWVzc2FnZSBpcyB3aHkgdGhpcyBpcw0KPiA+PiA+
-IGdvb2QuIFJpZ2h0IG5vdywgaWYgeW91IGtub3cgQW4gYWRkcmVzcyB3aXRoaW4gaW4gYSBwcm9j
-ZXNzLCB5b3UNCj4gPj4gPiBrbm93IGFsbCBvZmZzZXRzIGRvbmUgd2l0aCBtbWFwKCkuIEZvciBp
-bnN0YW5jZSwgYW4gb2Zmc2V0IFRvIGxpYlgNCj4gPj4gPiBjYW4geWllbGQgbGliWSBieSBhZGRp
-bmcvc3VidHJhY3RpbmcgYW4gb2Zmc2V0LiBUaGlzIGlzIG1lYW50IHRvDQo+ID4+ID4gbWFrZSBy
-b3BzIGEgYml0IGhhcmRlciwgb3IgSW4gZ2VuZXJhbCBhbnkgbWFwcGluZyBvZmZzZXQgbW1vcmUg
-ZGlmZmljdWx0IHRvDQo+IGZpbmQvZ3Vlc3MuDQo+ID4NCj4gPiBBcmUgeW91IGFibGUgdG8gcXVh
-bnRpZnkgaG93IG1hbnkgYml0cyBvZiBlbnRyb3B5IHlvdSdyZSBpbXBvc2luZyBvbg0KPiA+IHRo
-ZSBhdHRhY2tlcj8gIElzIHRoaXMgYSBjaGFpciBpbiB0aGUgaGFsbHdheSBvciBhIHNpZ25pZmlj
-YW50DQo+ID4gaW5jcmVhc2UgaW4gdGhlIGNoYW5jZXMgb2YgY3Jhc2hpbmcgdGhlIHByb2dyYW0g
-YmVmb3JlIGZpbmRpbmcgdGhlIGRlc2lyZWQNCj4gYWRkcmVzcz8NCj4gDQo+IFF1YW50aWZ5aW5n
-IHRoZSBlZmZlY3Qgb2YgbWFueSBzZWN1cml0eSBjaGFuZ2VzIGlzIGV4dHJlbWVseSBkaWZmaWN1
-bHQsIGVzcGVjaWFsbHkNCj4gZm9yIGEgcHJvYmFiaWxpc3RpYyBkZWZlbnNlIGxpa2UgQVNMUi4g
-SSB3b3VsZCB1cmdlIHVzIHRvIG5vdCBwbGFjZSB0b28gaGlnaCBvZiBhDQo+IHByb29mIGJhciBv
-biB0aGlzIGNoYW5nZS4NCj4gQ2hhbm5lbGluZyBTcGVuZGVyIC8gZ3JzZWN1cml0eSB0ZWFtLCBB
-U0xSIGdldHMgaXQncyBiZW5lZml0IG5vdCBmcm9tIGl0J3MgaGlnaA0KPiBiZW5lZml0LCBidXQg
-ZnJvbSBpdCdzIGxvdyBjb3N0IG9mIGltcGxlbWVudGF0aW9uDQo+IChodHRwczovL2ZvcnVtcy5n
-cnNlY3VyaXR5Lm5ldC92aWV3dG9waWMucGhwP2Y9NyZ0PTMzNjcpLiBUaGlzIHBhdGNoIGNlcnRh
-aW5seQ0KPiBtZWV0cyB0aGUgbG93IGNvc3Qgb2YgaW1wbGVtZW50YXRpb24gYmFyLg0KPiANCj4g
-SW4gdGhlIFByb2plY3QgWmVybyBTdGFnZWZyaWdodCBwb3N0DQo+IChodHRwOi8vZ29vZ2xlcHJv
-amVjdHplcm8uYmxvZ3Nwb3QuY29tLzIwMTUvMDkvc3RhZ2VmcmlnaHRlbmVkLmh0bWwpLA0KPiB3
-ZSBzZWUgdGhhdCB0aGUgbGluZWFyIGFsbG9jYXRpb24gb2YgbWVtb3J5IGNvbWJpbmVkIHdpdGgg
-dGhlIGxvdyBudW1iZXIgb2YNCj4gYml0cyBpbiB0aGUgaW5pdGlhbCBtbWFwIG9mZnNldCByZXN1
-bHRlZCBpbiBhIG11Y2ggbW9yZSBwcmVkaWN0YWJsZSBsYXlvdXQgd2hpY2gNCj4gYWlkZWQgdGhl
-IGF0dGFja2VyLiBUaGUgaW5pdGlhbCByYW5kb20gbW1hcCBiYXNlIHJhbmdlIHdhcyBpbmNyZWFz
-ZWQgYnkgRGFuaWVsDQo+IENhc2htYW4gaW4gZDA3ZTIyNTk3ZDFkMzU1ODI5YjdiMThhYzE5YWZh
-OTEyY2Y3NThkMSwgYnV0IHdlJ3ZlIGRvbmUNCj4gbm90aGluZyB0byBhZGRyZXNzIHBhZ2UgcmVs
-YXRpdmUgYXR0YWNrcy4NCj4gDQo+IEludGVyLW1tYXAgcmFuZG9taXphdGlvbiB3aWxsIGRlY3Jl
-YXNlIHRoZSBwcmVkaWN0YWJpbGl0eSBvZiBsYXRlcg0KPiBtbWFwKCkgYWxsb2NhdGlvbnMsIHdo
-aWNoIHNob3VsZCBoZWxwIG1ha2UgZGF0YSBzdHJ1Y3R1cmVzIGhhcmRlciB0byBmaW5kIGluDQo+
-IG1lbW9yeS4gSW4gYWRkaXRpb24sIHRoaXMgcGF0Y2ggd2lsbCBhbHNvIGludHJvZHVjZSB1bm1h
-cHBlZCBnYXBzIGJldHdlZW4NCj4gcGFnZXMsIHByZXZlbnRpbmcgbGluZWFyIG92ZXJydW5zIGZy
-b20gb25lIG1hcHBpbmcgdG8gYW5vdGhlciBhbm90aGVyDQo+IG1hcHBpbmcuIEkgYW0gdW5hYmxl
-IHRvIHF1YW50aWZ5IGhvdyBtdWNoIHRoaXMgd2lsbCBpbXByb3ZlIHNlY3VyaXR5LCBidXQgaXQN
-Cj4gc2hvdWxkIGJlID4gMC4NCj4gDQo+IEkgbGlrZSBEYXZlIEhhbnNlbidzIHN1Z2dlc3Rpb24g
-dGhhdCB0aGlzIGZ1bmN0aW9uYWxpdHkgYmUgbGltaXRlZCB0bw0KPiA2NCBiaXRzLCB3aGVyZSBj
-b25jZXJucyBhYm91dCBydW5uaW5nIG91dCBvZiBhZGRyZXNzIHNwYWNlIGFyZSBlc3NlbnRpYWxs
-eSBuaWwuIEknZA0KPiBiZSBzdXBwb3J0aXZlIG9mIHRoaXMgY2hhbmdlIGlmIGl0IHdhcyBsaW1p
-dGVkIHRvDQo+IDY0IGJpdHMuDQoNClNvcnJ5IGZvciB0aGUgZGVsYXkgb24gcmVzcG9uZGluZywg
-SSB3YXMgb24gdmFjYXRpb24gYmVpbmcgd29ydGhsZXNzLiBOaWNrLCB2ZXJ5IGVsb3F1ZW50bHks
-DQpkZXNjcmliZWQgd2hhdCBJIGZhaWxlZCB0byBwdXQgaW4gdGhlIGNvbW1pdCBtZXNzYWdlLiBJ
-IHdhcyB0aGlua2luZyBhYm91dCB0aGlzIG9uIHZhY2F0aW9uDQphbmQgYWxzbyB0aG91Z2h0IHRo
-YXQgb24gNjQgYml0IHRoZSBmcmFnbWVudGF0aW9uIHNob3VsZG4ndCBiZSBhbiBpc3N1ZS4NCg0K
-QG5uaywgZGlzYWJsaW5nIEFTTFIgdmlhIHNldF9hcmNoKCkgb24gQW5kcm9pZCwgaXMgdGhhdCBv
-bmx5IGZvciAzMiBiaXQgYWRkcmVzcyBzcGFjZXMgd2hlcmUNCnlvdSBoYWQgdGhhdCBwcm9ibGVt
-Pw0K
+On Tue, Aug 2, 2016 at 9:57 AM, Roberts, William C
+<william.c.roberts@intel.com> wrote:
+> @nnk, disabling ASLR via set_arch() on Android, is that only for 32 bit address spaces where
+> you had that problem?
+
+Yes. Only 32 bit address spaces had the fragmentation problem.
+
+-- 
+Nick Kralevich | Android Security | nnk@google.com | 650.214.4037
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
