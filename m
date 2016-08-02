@@ -1,58 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C995828E1
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 08:48:10 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id w128so329042129pfd.3
-        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 05:48:10 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DC36A828E1
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 08:52:25 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id o124so333024911pfg.1
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 05:52:25 -0700 (PDT)
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id h2si2976452paz.181.2016.08.02.05.48.04
+        by mx.google.com with ESMTP id i5si3021859pae.80.2016.08.02.05.52.25
         for <linux-mm@kvack.org>;
-        Tue, 02 Aug 2016 05:48:04 -0700 (PDT)
-Date: Tue, 2 Aug 2016 20:48:00 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [   25.666092] WARNING: CPU: 0 PID: 451 at mm/memcontrol.c:998
- mem_cgroup_update_lru_size
-Message-ID: <20160802124800.GA1475@wfg-t540p.sh.intel.com>
-References: <20160801013830.GB27998@wfg-t540p.sh.intel.com>
- <20160802082243.GE2693@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <20160802082243.GE2693@suse.de>
+        Tue, 02 Aug 2016 05:52:25 -0700 (PDT)
+From: Baole Ni <baolex.ni@intel.com>
+Subject: [PATCH 1081/1285] Replace numeric parameter like 0444 with macro
+Date: Tue,  2 Aug 2016 20:14:43 +0800
+Message-Id: <20160802121443.22191-1-baolex.ni@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, LKP <lkp@01.org>
+To: jbaron@akamai.com, jiangshanlai@gmail.com, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, m.chehab@samsung.com, gregkh@linuxfoundation.org, m.szyprowski@samsung.com, kyungmin.park@samsung.com, k.kozlowski@samsung.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, oleg@redhat.com, gang.chen.5i5j@gmail.com, mhocko@suse.com, koct9i@gmail.com, aarcange@redhat.com, aryabinin@virtuozzo.com, chuansheng.liu@intel.com, baolex.ni@intel.com
 
-Hi Mel,
+I find that the developers often just specified the numeric value
+when calling a macro which is defined with a parameter for access permission.
+As we know, these numeric value for access permission have had the corresponding macro,
+and that using macro can improve the robustness and readability of the code,
+thus, I suggest replacing the numeric parameter with the macro.
 
-On Tue, Aug 02, 2016 at 09:22:43AM +0100, Mel Gorman wrote:
->On Mon, Aug 01, 2016 at 09:38:30AM +0800, Fengguang Wu wrote:
->> Greetings,
->>
->> 0day kernel testing robot got the below dmesg and the first bad commit is
->>
->> https://git.kernel.org/pub/scm/linux/kernel/git/mel/linux.git mm-vmscan-node-lru-follow-up-v2r1
->>
->> commit d5d54a2c5517f0818ad75a2f5b1d26a0dacae46a
->> Author:     Mel Gorman <mgorman@techsingularity.net>
->> AuthorDate: Wed Jul 13 09:30:01 2016 +0100
->> Commit:     Mel Gorman <mgorman@techsingularity.net>
->> CommitDate: Wed Jul 13 09:30:01 2016 +0100
->>
->
->That bug is addressed later in the tree by "mm, vmscan: Update all zone
->LRU sizes before updating memcg". Is the warning visible in the latest
->mainline tree?
+Signed-off-by: Chuansheng Liu <chuansheng.liu@intel.com>
+Signed-off-by: Baole Ni <baolex.ni@intel.com>
+---
+ mm/mmap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Yes that warning no longer show up in branch
-"mm-vmscan-node-lru-follow-up-v2r1" HEAD.
-
-Mainline kernel is also fine. I should have checked these,
-sorry for the noise!
-
-Regards,
-Fengguang
+diff --git a/mm/mmap.c b/mm/mmap.c
+index de2c176..fad009c 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -67,7 +67,7 @@ int mmap_rnd_compat_bits __read_mostly = CONFIG_ARCH_MMAP_RND_COMPAT_BITS;
+ #endif
+ 
+ static bool ignore_rlimit_data;
+-core_param(ignore_rlimit_data, ignore_rlimit_data, bool, 0644);
++core_param(ignore_rlimit_data, ignore_rlimit_data, bool, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+ 
+ static void unmap_region(struct mm_struct *mm,
+ 		struct vm_area_struct *vma, struct vm_area_struct *prev,
+-- 
+2.9.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
