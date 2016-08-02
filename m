@@ -1,72 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 438DB828E2
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 08:52:31 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id ez1so295854227pab.1
-        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 05:52:31 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id oy8si3003830pac.126.2016.08.02.05.52.30
-        for <linux-mm@kvack.org>;
-        Tue, 02 Aug 2016 05:52:30 -0700 (PDT)
-From: Baole Ni <baolex.ni@intel.com>
-Subject: [PATCH 1082/1285] Replace numeric parameter like 0444 with macro
-Date: Tue,  2 Aug 2016 20:14:48 +0800
-Message-Id: <20160802121448.22258-1-baolex.ni@intel.com>
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9737E6B0253
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 08:53:52 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 1so103108296wmz.2
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 05:53:52 -0700 (PDT)
+Received: from mail-lf0-x22d.google.com (mail-lf0-x22d.google.com. [2a00:1450:4010:c07::22d])
+        by mx.google.com with ESMTPS id 11si1081099ljf.100.2016.08.02.05.53.51
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 Aug 2016 05:53:51 -0700 (PDT)
+Received: by mail-lf0-x22d.google.com with SMTP id b199so137800702lfe.0
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 05:53:51 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <57A0933F.8000706@virtuozzo.com>
+References: <1470062715-14077-1-git-send-email-aryabinin@virtuozzo.com>
+ <1470062715-14077-6-git-send-email-aryabinin@virtuozzo.com>
+ <CAG_fn=WP2VmNNuzp1YMi+vPLaG9B3JH9TD4FfzxVyeZL2AyM_Q@mail.gmail.com> <57A0933F.8000706@virtuozzo.com>
+From: Alexander Potapenko <glider@google.com>
+Date: Tue, 2 Aug 2016 14:53:50 +0200
+Message-ID: <CAG_fn=ViiZ+WnL_c6vMg5-4HFeBjMJfm9RU15XO6uVKet+YD_w@mail.gmail.com>
+Subject: Re: [PATCH 6/6] kasan: improve double-free reports.
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sjenning@redhat.com, jiangshanlai@gmail.com, rostedt@goodmis.org, mathieu.desnoyers@efficios.com, m.chehab@samsung.com, gregkh@linuxfoundation.org, m.szyprowski@samsung.com, kyungmin.park@samsung.com, k.kozlowski@samsung.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, chuansheng.liu@intel.com, baolex.ni@intel.com, oleg@redhat.com, gang.chen.5i5j@gmail.com, mhocko@suse.com, koct9i@gmail.com, aarcange@redhat.com, aryabinin@virtuozzo.com
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@codemonkey.org.uk>, Vegard Nossum <vegard.nossum@oracle.com>, Sasha Levin <alexander.levin@verizon.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-I find that the developers often just specified the numeric value
-when calling a macro which is defined with a parameter for access permission.
-As we know, these numeric value for access permission have had the corresponding macro,
-and that using macro can improve the robustness and readability of the code,
-thus, I suggest replacing the numeric parameter with the macro.
+On Tue, Aug 2, 2016 at 2:34 PM, Andrey Ryabinin <aryabinin@virtuozzo.com> w=
+rote:
+>
+>
+> On 08/02/2016 02:39 PM, Alexander Potapenko wrote:
+>
+>>> +static void kasan_end_report(unsigned long *flags)
+>>> +{
+>>> +       pr_err("=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D\n");
+>>> +       add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
+>> Don't we want to add the taint as early as possible once we've
+>> detected the error?
+>
+> What for?
+> It certainly shouldn't be before dump_stack(), otherwise on the first rep=
+ort the kernel will claimed as tainted.
+Ah, got it. Fair enough.
+>
+>>>
+>>> +void kasan_report_double_free(struct kmem_cache *cache, void *object,
+>>> +                       s8 shadow)
+>>> +{
+>>> +       unsigned long flags;
+>>> +
+>>> +       kasan_start_report(&flags);
+>>> +       pr_err("BUG: Double free or corrupt pointer\n");
+>> How about "Double free or freeing an invalid pointer\n"?
+>> I think "corrupt pointer" doesn't exactly reflect where the bug is.
+>
+> Ok
+>
 
-Signed-off-by: Chuansheng Liu <chuansheng.liu@intel.com>
-Signed-off-by: Baole Ni <baolex.ni@intel.com>
----
- mm/zswap.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/mm/zswap.c b/mm/zswap.c
-index 275b22c..aede3ee 100644
---- a/mm/zswap.c
-+++ b/mm/zswap.c
-@@ -78,7 +78,7 @@ static u64 zswap_duplicate_entry;
- 
- /* Enable/disable zswap (disabled by default) */
- static bool zswap_enabled;
--module_param_named(enabled, zswap_enabled, bool, 0644);
-+module_param_named(enabled, zswap_enabled, bool, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
- 
- /* Crypto compressor to use */
- #define ZSWAP_COMPRESSOR_DEFAULT "lzo"
-@@ -91,7 +91,7 @@ static struct kernel_param_ops zswap_compressor_param_ops = {
- 	.free =		param_free_charp,
- };
- module_param_cb(compressor, &zswap_compressor_param_ops,
--		&zswap_compressor, 0644);
-+		&zswap_compressor, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
- 
- /* Compressed storage zpool to use */
- #define ZSWAP_ZPOOL_DEFAULT "zbud"
-@@ -102,11 +102,11 @@ static struct kernel_param_ops zswap_zpool_param_ops = {
- 	.get =		param_get_charp,
- 	.free =		param_free_charp,
- };
--module_param_cb(zpool, &zswap_zpool_param_ops, &zswap_zpool_type, 0644);
-+module_param_cb(zpool, &zswap_zpool_param_ops, &zswap_zpool_type, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
- 
- /* The maximum percentage of memory that the compressed pool can occupy */
- static unsigned int zswap_max_pool_percent = 20;
--module_param_named(max_pool_percent, zswap_max_pool_percent, uint, 0644);
-+module_param_named(max_pool_percent, zswap_max_pool_percent, uint, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
- 
- /*********************************
- * data structures
--- 
-2.9.2
+
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Matthew Scott Sucherman, Paul Terence Manicle
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
