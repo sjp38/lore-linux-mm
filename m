@@ -1,99 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DAAA26B0005
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 10:37:58 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id ag5so302218861pad.2
-        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 07:37:58 -0700 (PDT)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id 190si3335065pfg.255.2016.08.02.07.37.57
-        for <linux-mm@kvack.org>;
-        Tue, 02 Aug 2016 07:37:58 -0700 (PDT)
-Subject: Re: [PATCH 09/10] x86, pkeys: allow configuration of init_pkru
-References: <20160729163009.5EC1D38C@viggo.jf.intel.com>
- <20160729163023.407672D2@viggo.jf.intel.com>
- <2cd6331c-7fa7-b358-6892-580bef430755@suse.cz>
-From: Dave Hansen <dave@sr71.net>
-Message-ID: <57A0B044.1010405@sr71.net>
-Date: Tue, 2 Aug 2016 07:37:56 -0700
-MIME-Version: 1.0
-In-Reply-To: <2cd6331c-7fa7-b358-6892-580bef430755@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B59536B0005
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 10:59:29 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id q62so370883024oih.0
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 07:59:29 -0700 (PDT)
+Received: from resqmta-ch2-11v.sys.comcast.net (resqmta-ch2-11v.sys.comcast.net. [2001:558:fe21:29:69:252:207:43])
+        by mx.google.com with ESMTPS id a99si3623620ioj.94.2016.08.02.07.59.28
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 Aug 2016 07:59:28 -0700 (PDT)
+Date: Tue, 2 Aug 2016 09:59:26 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] mm/slab: Improve performance of gathering slabinfo
+ stats
+In-Reply-To: <20160802024342.GA15062@js1304-P5Q-DELUXE>
+Message-ID: <alpine.DEB.2.20.1608020953160.24620@east.gentwo.org>
+References: <1470096548-15095-1-git-send-email-aruna.ramakrishna@oracle.com> <20160802005514.GA14725@js1304-P5Q-DELUXE> <4a3fe3bc-eb1d-ea18-bd70-98b8b9c6a7d7@oracle.com> <20160802024342.GA15062@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org
-Cc: x86@kernel.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, luto@kernel.org, mgorman@techsingularity.net, dave.hansen@linux.intel.com, arnd@arndb.de
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Aruna Ramakrishna <aruna.ramakrishna@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Kravetz <mike.kravetz@oracle.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On 08/02/2016 01:28 AM, Vlastimil Babka wrote:
-> On 07/29/2016 06:30 PM, Dave Hansen wrote:
->> From: Dave Hansen <dave.hansen@linux.intel.com>
->> But, having PKRU be 0 (its init value) provides some nonzero
->> amount of optimization potential to the hardware.  It can, for
->> instance, skip writes to the XSAVE buffer when it knows that PKRU
->> is in its init state.
-> 
-> I'm not very happy with tuning options that need the admin to make
-> choice between reliability and performance. Is there no way to to
-> optimize similarly for a non-zero init state?
+Hmm.... What SLUB does is:
 
-The init state is architecturally defined and the overhead comes from
-hardware cost when the register is not in its 'init state'.  There's
-nothing I can think of that we can do in software to work around this.
+1. Keep a count of the total number of allocated slab pages per node.
+	This counter only needs to be updated when a slab page is
+	allocated from the page allocator or when it is freed to the
+	page allocator. At that point we already hold the per node lock,
+	page allocator operations are extremely costly anyways and so that
+	is ok.
 
-I did try a few things with our XSAVE/XRSTOR code to optimize this since
-most tasks will have the same PKRU value, but they didn't pan out and
-added more overhead than they removed.
+2. Keep a count of the number of partially allocated slab pages per node.
+	At that point we have to access the partial list and take a per
+	node lock. Placing the counter into the same cacheline and
+	the increment/decrement into the period when the lock has been taken
+	avoids the overhead.
 
->> The cost of losing this optimization is approximately 100 cycles
->> per context switch for a workload which lightly using XSAVE
->> state (something not using AVX much).  The overhead comes from a
->> combinaation of actually manipulating PKRU and the overhead of
->> pullin in an extra cacheline.
-> 
-> So the cost is in extra steps in software, not in hardware as you
-> mentioned above?
+The number of full pages is then
 
-There are two sources of overhead: a RDPKRU/WRPKRU pair of instructions
-at fpu__clear() time (mostly called via execve()) and overhead in the
-XSAVE and XRSTOR instructions that occurs at context-switch time.
+	total - partial
 
-Taking the PKRU state out of the 'init state' makes us read at least one
-additional cacheline during XRSTOR, plus some additional work inside the
-instruction that the processor has to do to shuffle registers in/out of
-memory.  This, I consider hardware overhead.
 
->> This overhead is not huge, but it's also not something that I
->> think we should unconditionally inflict on everyone.
-> 
-> Here, everyone means really all processes on system, that never heard of
-> PKEs, and pay the cost just because the kernel was configured for it?
+If both allocators would use the same scheme here then the code to
+maintain the counter can be moved into mm/slab_common.c. Plus the per node
+structures could be mostly harmonized between both allocators. Maybe even
+the page allocator operations could become common code.
 
-Yes, all processes on all systems that have memory protection keys
-enabled in hardware.  In a normal workload that's context switching 1000
-times a second is about 3/100,000 cycles on a 3GHz processor, which I
-haven't been able to measure other than instrumenting the XSAVE/XRSTOR
-paths themselves.
-
-I also expect the relative overhead to decrease as more pervasive AVX
-use increases the overall overhead of XSAVE. (AVX state is ~1k and PKU's
-64b of space pales in comparison).
-
-> But in that case, all PTEs use the key 0 anyway, so the non-zero default
-> actually provides no extra reliability/security?
-
-Correct.  It provides no additional security or reliability for
-processes not using protection keys.
-
-> Seems suboptimal that
-> admins of such system have to recognize such situation themselves and
-> change the default?
-
-To be honest, I don't think anyone will notice.  Most folks will run a
-kernel with PKU support on the new hardware that contains this feature
-from day one and they'll never know about the 0.003% performance penalty
-that I *think* this might cause.  Say that the processor with protection
-keys is 5% faster than its predecessor (made up number), it will now
-appear to be 4.996% faster.
+Aruna: Could you work on a solution like that?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
