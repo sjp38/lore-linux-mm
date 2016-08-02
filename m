@@ -1,60 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8006E6B0005
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 07:00:46 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id w207so356376937oiw.1
-        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 04:00:46 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0093.outbound.protection.outlook.com. [104.47.2.93])
-        by mx.google.com with ESMTPS id p22si1006937otd.125.2016.08.02.04.00.44
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A02506B0005
+	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 07:31:32 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id p85so92428928lfg.3
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 04:31:32 -0700 (PDT)
+Received: from mail-wm0-f42.google.com (mail-wm0-f42.google.com. [74.125.82.42])
+        by mx.google.com with ESMTPS id ax6si2125814wjc.277.2016.08.02.04.31.31
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 02 Aug 2016 04:00:45 -0700 (PDT)
-Subject: Re: [PATCHv2 3/6] x86/arch_prctl/vdso: add ARCH_MAP_VDSO_*
-References: <20160629105736.15017-1-dsafonov@virtuozzo.com>
- <20160629105736.15017-4-dsafonov@virtuozzo.com>
- <CALCETrW+xWp-xVDjOyPkB5P3-zAubt4U65R4tVNsY34+406tTg@mail.gmail.com>
- <b451bdf2-3ce9-dc86-6f9c-fe3bd665d1d8@virtuozzo.com>
- <CALCETrUEP-q-Be1i=L7hxX-nf4OpBv7edq2Mg0gi5TRX73FTsA@mail.gmail.com>
- <20160711182654.GA19160@redhat.com>
- <CALCETrVaO_E923KY2bKGfG1tH75JBtEns4nKc+GWsYAx9NT0hQ@mail.gmail.com>
- <20160712141446.GB28837@redhat.com>
-From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Message-ID: <e9e3b298-d655-2ee8-3d19-e581501aee1d@virtuozzo.com>
-Date: Tue, 2 Aug 2016 13:59:40 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 Aug 2016 04:31:31 -0700 (PDT)
+Received: by mail-wm0-f42.google.com with SMTP id i5so285436737wmg.0
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 04:31:31 -0700 (PDT)
+Date: Tue, 2 Aug 2016 13:31:29 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 08/10] exit, oom: postpone exit_oom_victim to later
+Message-ID: <20160802113129.GE12403@dhcp22.suse.cz>
+References: <1469734954-31247-9-git-send-email-mhocko@kernel.org>
+ <201607301720.GHG43737.JLVtHOOSQOFFMF@I-love.SAKURA.ne.jp>
+ <20160731093530.GB22397@dhcp22.suse.cz>
+ <201608011946.JAI56255.HJLOtSMFOFOVQF@I-love.SAKURA.ne.jp>
+ <20160801113304.GD13544@dhcp22.suse.cz>
+ <201608021932.IFA41217.FHtFLOOOQVJMFS@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20160712141446.GB28837@redhat.com>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201608021932.IFA41217.FHtFLOOOQVJMFS@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>, Andy Lutomirski <luto@amacapital.net>
-Cc: Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Safonov <0x7f454c46@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>, Cyrill Gorcunov <gorcunov@openvz.org>, xemul@virtuozzo.com, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, oleg@redhat.com, rientjes@google.com, vdavydov@parallels.com
 
-On 07/12/2016 05:14 PM, Oleg Nesterov wrote:
-> On 07/11, Andy Lutomirski wrote:
->> I'm starting to wonder if we should finally suck it up and give
->> special mappings a non-NULL vm_file so we can track them properly.
->> Oleg, weren't you thinking of doing that for some other reason?
->
-> Yes, uprobes. Currently we can't probe vdso page(s).
+On Tue 02-08-16 19:32:45, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > > > > It is possible that a user creates a process with 10000 threads
+> > > > > and let that process be OOM-killed. Then, this patch allows 10000 threads
+> > > > > to start consuming memory reserves after they left exit_mm(). OOM victims
+> > > > > are not the only threads who need to allocate memory for termination. Non
+> > > > > OOM victims might need to allocate memory at exit_task_work() in order to
+> > > > > allow OOM victims to make forward progress.
+> > > > 
+> > > > this might be possible but unlike the regular exiting tasks we do
+> > > > reclaim oom victim's memory in the background. So while they can consume
+> > > > memory reserves we should also give some (and arguably much more) memory
+> > > > back. The reserves are there to expedite the exit.
+> > > 
+> > > Background reclaim does not occur on CONFIG_MMU=n kernels. But this patch
+> > > also affects CONFIG_MMU=n kernels. If a process with two threads was
+> > > OOM-killed and one thread consumed too much memory after it left exit_mm()
+> > > before the other thread sets MMF_OOM_SKIP on their mm by returning from
+> > > exit_aio() etc. in __mmput() from mmput() from exit_mm(), this patch
+> > > introduces a new possibility to OOM livelock. I think it is wild to assume
+> > > that "CONFIG_MMU=n kernels can OOM livelock even without this patch. Thus,
+> > > let's apply this patch even though this patch might break the balance of
+> > > OOM handling in CONFIG_MMU=n kernels."
+> > 
+> > As I've said if you have strong doubts about the patch I can drop it for
+> > now. I do agree that nommu really matters here, though.
+> 
+> OK. Then, for now let's postpone only the oom_killer_disbale() to later
+> rather than postpone the exit_oom_victim() to later.
 
-So, to make sure, that I've understood correctly, I need to:
-o add vm_file to vdso/vvar vmas, __install_special_mapping will init
-   them;
-o place array pages[] inside f_mapping;
-o create f_inode for each file -- for this we need some mount point, so
-   I'll create something like vdsofs, register this filesystem and mount
-   it in initcall (or like do_basic_setup - as it's done by shmem, i.e).
+that would require other changes (basically make oom_killer_disbale
+independent on TIF_MEMDIE) which I think doesn't belong to this pile. So
+I would rather sacrifice this patch instead and it will not be part of
+the v2.
+ 
+[...]
+> > > > > I think that allocations from
+> > > > > do_exit() are important for terminating cleanly (from the point of view of
+> > > > > filesystem integrity and kernel object management) and such allocations
+> > > > > should not be given up simply because ALLOC_NO_WATERMARKS allocations
+> > > > > failed.
+> > > > 
+> > > > We are talking about a fatal condition when OOM killer forcefully kills
+> > > > a task. Chances are that the userspace leaves so much state behind that
+> > > > a manual cleanup would be necessary anyway. Depleting the memory
+> > > > reserves is not nice but I really believe that this particular patch
+> > > > doesn't make the situation really much worse than before.
+> > > 
+> > > I'm not talking about inconsistency in userspace programs. I'm talking
+> > > about inconsistency of objects managed by kernel (e.g. failing to drop
+> > > references) caused by allocation failures.
+> > 
+> > That would be a bug on its own, no?
+> 
+> Right, but memory allocations after exit_mm() from do_exit() (e.g.
+> exit_task_work()) might assume (or depend on) the "too small to fail"
+> memory-allocation rule where small GFP_FS allocations won't fail unless
+> TIF_MEMDIE is set, but this patch can unexpectedly break that rule if
+> they assume (or depend on) that rule.
 
-Is this the idea, or I got it wrong?
+Silent dependency on nofail semantic withtou GFP_NOFAIL is still a bug.
+Full stop. I really fail to see why you are still arguing about that.
 
-And maybe the idea is to create fake vm_file for just reference
-counting, but do not treat/init it like file with inode, etc?
-So with fake file I can also check if vdso is mapped already, but
-I'm sure the fake file will not help Oleg with uprobes.
-
+[...]
 -- 
-              Dmitry
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
