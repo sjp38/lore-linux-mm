@@ -1,61 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4487F6B0253
-	for <linux-mm@kvack.org>; Wed,  3 Aug 2016 17:08:09 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id v184so373622553qkc.0
-        for <linux-mm@kvack.org>; Wed, 03 Aug 2016 14:08:09 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i26si6017346qte.95.2016.08.03.14.08.08
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 28BAE6B0253
+	for <linux-mm@kvack.org>; Wed,  3 Aug 2016 17:49:10 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id m130so475981971ioa.1
+        for <linux-mm@kvack.org>; Wed, 03 Aug 2016 14:49:10 -0700 (PDT)
+Received: from mail-io0-x244.google.com (mail-io0-x244.google.com. [2607:f8b0:4001:c06::244])
+        by mx.google.com with ESMTPS id m69si9820606ioo.203.2016.08.03.14.49.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Aug 2016 14:08:08 -0700 (PDT)
-Date: Wed, 3 Aug 2016 23:08:04 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [RFC PATCH] kernel/fork: fix CLONE_CHILD_CLEARTID regression in
- nscd
-Message-ID: <20160803210804.GA11549@redhat.com>
-References: <1470039287-14643-1-git-send-email-mhocko@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1470039287-14643-1-git-send-email-mhocko@kernel.org>
+        Wed, 03 Aug 2016 14:49:09 -0700 (PDT)
+Received: by mail-io0-x244.google.com with SMTP id y195so19034601iod.0
+        for <linux-mm@kvack.org>; Wed, 03 Aug 2016 14:49:09 -0700 (PDT)
+From: Nicholas Krause <xerofoify@gmail.com>
+Subject: [PATCH] fs:Fix kmemleak leak warning in getname_flags about working on unitialized memory
+Date: Wed,  3 Aug 2016 17:48:16 -0400
+Message-Id: <1470260896-31767-1-git-send-email-xerofoify@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, William Preston <wpreston@suse.com>, Michal Hocko <mhocko@suse.com>, Roland McGrath <roland@hack.frob.com>, Andreas Schwab <schwab@suse.com>
+To: viro@zeniv.linux.org.uk
+Cc: akpm@linux-foundation.org, msalter@redhat.com, kuleshovmail@gmail.com, david.vrabel@citrix.com, vbabka@suse.cz, ard.biesheuvel@linaro.org, jgross@suse.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-sorry for delay, I am travelling till the end of the week.
+This fixes a kmemleak leak warning complaining about working on
+unitializied memory as found in the function, getname_flages. Seems
+that we are indeed working on unitialized memory, as the filename
+char pointer is never made to point to the filname structure's result
+member for holding it's name, fix this by using memcpy to copy the
+filname structure pointer's, name to the char pointer passed to this
+function.
 
-On 08/01, Michal Hocko wrote:
->
-> fec1d0115240 ("[PATCH] Disable CLONE_CHILD_CLEARTID for abnormal exit")
+Signed-off-by: Nicholas Krause <xerofoify@gmail.com>
+---
+ fs/namei.c         | 1 +
+ mm/early_ioremap.c | 1 +
+ 2 files changed, 2 insertions(+)
 
-almost 10 years ago ;)
-
-> has caused a subtle regression in nscd which uses CLONE_CHILD_CLEARTID
-> to clear the nscd_certainly_running flag in the shared databases, so
-> that the clients are notified when nscd is restarted.
-
-So iiuc with this patch nscd_certainly_running should be cleared even if
-ncsd was killed by !sig_kernel_coredump() signal, right?
-
-> We should also check for vfork because
-> this is killable since d68b46fe16ad ("vfork: make it killable").
-
-Hmm, why? Can't understand... In any case this check doesn't look right, the
-comment says "a killed vfork parent" while tsk->vfork_done != NULL means it
-is a vforked child.
-
-So if we want this change, why we can't simply do
-
-	-	if (!(tsk->flags & PF_SIGNALED) &&
-	+	if (!(tsk->signal->flags & SIGNAL_GROUP_COREDUMP) &&
-
-?
-
-And I think PF_SIGNALED must die in any case... but this is off-topic.
-
-Oleg.
+diff --git a/fs/namei.c b/fs/namei.c
+index c386a32..6b18d57 100644
+--- a/fs/namei.c
++++ b/fs/namei.c
+@@ -196,6 +196,7 @@ getname_flags(const char __user *filename, int flags, int *empty)
+ 		}
+ 	}
+ 
++	memcpy((char *)result->name, filename, len);
+ 	result->uptr = filename;
+ 	result->aname = NULL;
+ 	audit_getname(result);
+diff --git a/mm/early_ioremap.c b/mm/early_ioremap.c
+index 6d5717b..92c5235 100644
+--- a/mm/early_ioremap.c
++++ b/mm/early_ioremap.c
+@@ -215,6 +215,7 @@ early_ioremap(resource_size_t phys_addr, unsigned long size)
+ void __init *
+ early_memremap(resource_size_t phys_addr, unsigned long size)
+ {
++	dump_stack();
+ 	return (__force void *)__early_ioremap(phys_addr, size,
+ 					       FIXMAP_PAGE_NORMAL);
+ }
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
