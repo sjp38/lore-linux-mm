@@ -1,71 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C3256B025F
-	for <linux-mm@kvack.org>; Wed,  3 Aug 2016 06:35:19 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id q62so423428518oih.0
-        for <linux-mm@kvack.org>; Wed, 03 Aug 2016 03:35:19 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0094.outbound.protection.outlook.com. [104.47.1.94])
-        by mx.google.com with ESMTPS id h67si4097115oia.97.2016.08.03.03.35.16
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2337D6B0253
+	for <linux-mm@kvack.org>; Wed,  3 Aug 2016 07:09:45 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id o80so122893647wme.1
+        for <linux-mm@kvack.org>; Wed, 03 Aug 2016 04:09:45 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id o198si26153657wmd.84.2016.08.03.04.09.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 03 Aug 2016 03:35:17 -0700 (PDT)
-From: Vladimir Davydov <vdavydov@virtuozzo.com>
-Subject: [PATCH v3 3/3] mm: memcontrol: add sanity checks for memcg->id.ref on get/put
-Date: Wed, 3 Aug 2016 13:35:08 +0300
-Message-ID: <1c5ddb1c171dbdfc3262252769d6138a29b35b70.1470219853.git.vdavydov@virtuozzo.com>
-In-Reply-To: <5336daa5c9a32e776067773d9da655d2dc126491.1470219853.git.vdavydov@virtuozzo.com>
-References: <5336daa5c9a32e776067773d9da655d2dc126491.1470219853.git.vdavydov@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 03 Aug 2016 04:09:43 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id o80so35727309wme.0
+        for <linux-mm@kvack.org>; Wed, 03 Aug 2016 04:09:43 -0700 (PDT)
+Date: Wed, 3 Aug 2016 13:09:42 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 1/3] mm: memcontrol: fix swap counter leak on swapout
+ from offline cgroup
+Message-ID: <20160803110941.GA19196@dhcp22.suse.cz>
+References: <c911b6a1bacfd2bcb8ddf7314db26d0eee0f0b70.1470149524.git.vdavydov@virtuozzo.com>
+ <20160802160025.GB28900@dhcp22.suse.cz>
+ <20160803095049.GG13263@esperanza>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160803095049.GG13263@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
----
-Changes in v3:
- - move memcg->id.ref initialization to mem_cgroup_css_online to make the code
-   easier to follow (Johannes)
+On Wed 03-08-16 12:50:49, Vladimir Davydov wrote:
+> On Tue, Aug 02, 2016 at 06:00:26PM +0200, Michal Hocko wrote:
+> > On Tue 02-08-16 18:00:48, Vladimir Davydov wrote:
+> ...
+> > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > > index 3be791afd372..4ae12effe347 100644
+> > > --- a/mm/memcontrol.c
+> > > +++ b/mm/memcontrol.c
+> > > @@ -4036,6 +4036,24 @@ static void mem_cgroup_id_get(struct mem_cgroup *memcg)
+> > >  	atomic_inc(&memcg->id.ref);
+> > >  }
+> > >  
+> > > +static struct mem_cgroup *mem_cgroup_id_get_active(struct mem_cgroup *memcg)
+> > > +{
+> > > +	while (!atomic_inc_not_zero(&memcg->id.ref)) {
+> > > +		/*
+> > > +		 * The root cgroup cannot be destroyed, so it's refcount must
+> > > +		 * always be >= 1.
+> > > +		 */
+> > > +		if (memcg == root_mem_cgroup) {
+> > > +			VM_BUG_ON(1);
+> > > +			break;
+> > > +		}
+> > 
+> > why not simply VM_BUG_ON(memcg == root_mem_cgroup)?
+> 
+> Because with DEBUG_VM disabled we could wind up looping forever here if
+> the refcount of the root_mem_cgroup got screwed up. On production
+> kernels, it's better to break the loop and carry on closing eyes on
+> diverging counters rather than getting a lockup.
 
- mm/memcontrol.c | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 18db8a490a93..1c0aa59fd333 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4033,6 +4033,7 @@ static DEFINE_IDR(mem_cgroup_idr);
- 
- static void mem_cgroup_id_get_many(struct mem_cgroup *memcg, unsigned int n)
- {
-+	VM_BUG_ON(atomic_read(&memcg->id.ref) <= 0);
- 	atomic_add(n, &memcg->id.ref);
- }
- 
-@@ -4056,6 +4057,7 @@ static struct mem_cgroup *mem_cgroup_id_get_online(struct mem_cgroup *memcg)
- 
- static void mem_cgroup_id_put_many(struct mem_cgroup *memcg, unsigned int n)
- {
-+	VM_BUG_ON(atomic_read(&memcg->id.ref) < n);
- 	if (atomic_sub_and_test(n, &memcg->id.ref)) {
- 		idr_remove(&mem_cgroup_idr, memcg->id.id);
- 		memcg->id.id = 0;
-@@ -4244,8 +4246,10 @@ fail:
- 
- static int mem_cgroup_css_online(struct cgroup_subsys_state *css)
- {
-+	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
-+
- 	/* Online state pins memcg ID, memcg ID pins CSS */
--	mem_cgroup_id_get(mem_cgroup_from_css(css));
-+	atomic_set(&memcg->id.ref, 1);
- 	css_get(css);
- 	return 0;
- }
+Wouldn't this just paper over a real bug? Anyway I will not insist but
+making the code more complex just to pretend we can handle a situation
+gracefully doesn't sound right to me.
 -- 
-2.1.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
