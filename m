@@ -1,49 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A2CC6B0253
-	for <linux-mm@kvack.org>; Wed,  3 Aug 2016 07:34:25 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id w128so388198260pfd.3
-        for <linux-mm@kvack.org>; Wed, 03 Aug 2016 04:34:25 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id n6si8549324pap.89.2016.08.03.04.34.21
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 64D6C6B0005
+	for <linux-mm@kvack.org>; Wed,  3 Aug 2016 07:46:48 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id i199so439508294ioi.2
+        for <linux-mm@kvack.org>; Wed, 03 Aug 2016 04:46:48 -0700 (PDT)
+Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50120.outbound.protection.outlook.com. [40.107.5.120])
+        by mx.google.com with ESMTPS id p125si4257487oih.232.2016.08.03.04.46.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Aug 2016 04:34:22 -0700 (PDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH 2/2] fadump: Disable deferred page struct initialisation
-In-Reply-To: <acefe941-2c2a-d7d2-0720-4cfbee404a16@suse.cz>
-References: <1470143947-24443-1-git-send-email-srikar@linux.vnet.ibm.com> <1470143947-24443-3-git-send-email-srikar@linux.vnet.ibm.com> <1470201642.5034.3.camel@gmail.com> <acefe941-2c2a-d7d2-0720-4cfbee404a16@suse.cz>
-Date: Wed, 03 Aug 2016 21:34:11 +1000
-Message-ID: <87twf2ulvw.fsf@concordia.ellerman.id.au>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 03 Aug 2016 04:46:47 -0700 (PDT)
+Date: Wed, 3 Aug 2016 14:46:40 +0300
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: Re: [PATCH v2 1/3] mm: memcontrol: fix swap counter leak on swapout
+ from offline cgroup
+Message-ID: <20160803114639.GI13263@esperanza>
+References: <c911b6a1bacfd2bcb8ddf7314db26d0eee0f0b70.1470149524.git.vdavydov@virtuozzo.com>
+ <20160802160025.GB28900@dhcp22.suse.cz>
+ <20160803095049.GG13263@esperanza>
+ <20160803110941.GA19196@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20160803110941.GA19196@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Balbir Singh <bsingharora@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux--foundation.org>, linuxppc-dev@lists.ozlabs.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Vlastimil Babka <vbabka@suse.cz> writes:
+On Wed, Aug 03, 2016 at 01:09:42PM +0200, Michal Hocko wrote:
+> On Wed 03-08-16 12:50:49, Vladimir Davydov wrote:
+> > On Tue, Aug 02, 2016 at 06:00:26PM +0200, Michal Hocko wrote:
+> > > On Tue 02-08-16 18:00:48, Vladimir Davydov wrote:
+> > ...
+> > > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > > > index 3be791afd372..4ae12effe347 100644
+> > > > --- a/mm/memcontrol.c
+> > > > +++ b/mm/memcontrol.c
+> > > > @@ -4036,6 +4036,24 @@ static void mem_cgroup_id_get(struct mem_cgroup *memcg)
+> > > >  	atomic_inc(&memcg->id.ref);
+> > > >  }
+> > > >  
+> > > > +static struct mem_cgroup *mem_cgroup_id_get_active(struct mem_cgroup *memcg)
+> > > > +{
+> > > > +	while (!atomic_inc_not_zero(&memcg->id.ref)) {
+> > > > +		/*
+> > > > +		 * The root cgroup cannot be destroyed, so it's refcount must
+> > > > +		 * always be >= 1.
+> > > > +		 */
+> > > > +		if (memcg == root_mem_cgroup) {
+> > > > +			VM_BUG_ON(1);
+> > > > +			break;
+> > > > +		}
+> > > 
+> > > why not simply VM_BUG_ON(memcg == root_mem_cgroup)?
+> > 
+> > Because with DEBUG_VM disabled we could wind up looping forever here if
+> > the refcount of the root_mem_cgroup got screwed up. On production
+> > kernels, it's better to break the loop and carry on closing eyes on
+> > diverging counters rather than getting a lockup.
+> 
+> Wouldn't this just paper over a real bug? Anyway I will not insist but
+> making the code more complex just to pretend we can handle a situation
+> gracefully doesn't sound right to me.
 
-> On 08/03/2016 07:20 AM, Balbir Singh wrote:
->> On Tue, 2016-08-02 at 18:49 +0530, Srikar Dronamraju wrote:
->>> Fadump kernel reserves significant number of memory blocks. On a multi-node
->>> machine, with CONFIG_DEFFERRED_STRUCT_PAGE support, fadump kernel fails to
->>> boot. Fix this by disabling deferred page struct initialisation.
->>>
->>
->> How much memory does a fadump kernel need? Can we bump up the limits depending
->> on the config. I presume when you say fadump kernel you mean kernel with
->> FADUMP in the config?
->>
->> BTW, I would much rather prefer a config based solution that does not select
->> DEFERRED_INIT if FADUMP is enabled.
->
-> IIRC the kdump/fadump kernel is typically the same vmlinux as the main 
-> kernel, just with special initrd and boot params. So if you want 
-> deferred init for the main kernel, this would be impractical.
+But we can handle this IMO. AFAICS diverging id refcount will typically
+result in leaking swap charges, which aren't even a real resource. At
+worst, we can leak an offline mem_cgroup, which is also not critical
+enough to crash the production system.
 
-Yes. Distros won't build a separate kernel, so it has to work at runtime.
+I see your concern of papering over a bug though. What about adding a
+warning there?
 
-cheers
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 1c0aa59fd333..8c8e68becee9 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -4044,7 +4044,7 @@ static struct mem_cgroup *mem_cgroup_id_get_online(struct mem_cgroup *memcg)
+ 		 * The root cgroup cannot be destroyed, so it's refcount must
+ 		 * always be >= 1.
+ 		 */
+-		if (memcg == root_mem_cgroup) {
++		if (WARN_ON_ONCE(memcg == root_mem_cgroup)) {
+ 			VM_BUG_ON(1);
+ 			break;
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
