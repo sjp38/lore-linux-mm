@@ -1,52 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 55ECF6B0253
-	for <linux-mm@kvack.org>; Tue,  2 Aug 2016 23:59:48 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id pp5so333583690pac.3
-        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 20:59:48 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id ux1si6575059pac.84.2016.08.02.20.59.47
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CFB36B0253
+	for <linux-mm@kvack.org>; Wed,  3 Aug 2016 01:16:56 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id ez1so333423935pab.1
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 22:16:56 -0700 (PDT)
+Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
+        by mx.google.com with ESMTPS id 19si6931713pft.165.2016.08.02.22.16.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Aug 2016 20:59:47 -0700 (PDT)
-Date: Wed, 3 Aug 2016 05:51:39 +0200
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH stable 4.6+] radix-tree: account nodes to memcg only if
- explicitly requested
-Message-ID: <20160803035139.GB31125@kroah.com>
-References: <1470141934-4568-1-git-send-email-vdavydov@virtuozzo.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1470141934-4568-1-git-send-email-vdavydov@virtuozzo.com>
+        Tue, 02 Aug 2016 22:16:55 -0700 (PDT)
+Received: by mail-pf0-x243.google.com with SMTP id y134so13875020pfg.3
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 22:16:55 -0700 (PDT)
+Message-ID: <1470201421.5034.1.camel@gmail.com>
+Subject: Re: [memcg:auto-latest 238/243]
+ include/linux/compiler-gcc.h:243:38: error: impossible constraint in 'asm'
+From: Balbir Singh <bsingharora@gmail.com>
+Date: Wed, 03 Aug 2016 15:17:01 +1000
+In-Reply-To: <CAOSf1CG1OB+tQx=u5C5RSEFydPy4Rsa04L=Cwm4PfENWJa658A@mail.gmail.com>
+References: <201607300506.W5FnCSrY%fengguang.wu@intel.com>
+	 <20160731121125.GA29775@dhcp22.suse.cz>
+	 <20160801110859.GC13544@dhcp22.suse.cz>
+	 <35a0878d-84bd-ad93-8810-23c861ed464e@suse.cz>
+	 <CAOSf1CG1OB+tQx=u5C5RSEFydPy4Rsa04L=Cwm4PfENWJa658A@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@virtuozzo.com>
-Cc: stable@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: oliver <oohall@gmail.com>, Martin =?UTF-8?Q?Li=C5=A1ka?= <mliska@suse.cz>
+Cc: Michal Hocko <mhocko@suse.cz>, kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, linux-mm@kvack.org, Jason Baron <jbaron@akamai.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, Aug 02, 2016 at 03:45:34PM +0300, Vladimir Davydov wrote:
-> Radix trees may be used not only for storing page cache pages, so
-> unconditionally accounting radix tree nodes to the current memory cgroup
-> is bad: if a radix tree node is used for storing data shared among
-> different cgroups we risk pinning dead memory cgroups forever. So let's
-> only account radix tree nodes if it was explicitly requested by passing
-> __GFP_ACCOUNT to INIT_RADIX_TREE. Currently, we only want to account
-> page cache entries, so mark mapping->page_tree so.
-> 
-> Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> Cc: <stable@vger.kernel.org>  [4.6+]
-> ---
->  fs/inode.c       |  2 +-
->  lib/radix-tree.c | 14 ++++++++++----
->  2 files changed, 11 insertions(+), 5 deletions(-)
+On Mon, 2016-08-01 at 22:41 +1000, oliver wrote:
+> On Mon, Aug 1, 2016 at 9:27 PM, Martin LiA!ka <mliska@suse.cz> wrote:
+> >A 
+> > On 08/01/2016 01:09 PM, Michal Hocko wrote:
+> > >A 
+> > > [CC our gcc guy - I guess he has some theory for this]
+> > >A 
+> > > On Sun 31-07-16 14:11:25, Michal Hocko wrote:
+> > > >A 
+> > > > It seems that this has been already reported and Jason has noticed [1] that
+> > > > the problem is in the disabled optimizations:
+> > > >A 
+> > > > $ grep CRYPTO_DEV_UX500_DEBUG .config
+> > > > CONFIG_CRYPTO_DEV_UX500_DEBUG=y
+> > > >A 
+> > > > if I disable this particular option the code compiles just fine. I have
+> > > > no idea what is wrong about the code but it seems to depend on
+> > > > optimizations enabled which sounds a bit scrary...
+> > > >A 
+> > > > [1] http://www.spinics.net/lists/linux-mm/msg109590.html
+> > Hi.
+> >A 
+> > The difference is that w/o any optimization level, GCC doesn't make %c0 an
+> > intermediate integer operand [1] (see description of "i" constraint).
+> We recently hit a similar problem on ppc where the compiler couldn't
+> satisfy an "i" when it was wrapped in an function and optimisations
+> were disabled. The fix[1] was to change the function signature so that
+> it's arguments were explicitly const. I don't know enough about gcc to
+> tell if that behaviour is arch specific or not, but it's worth trying.
+>A 
+> Oliver
+>A 
+> [1] https://lists.ozlabs.org/pipermail/skiboot/2016-July/004061.html
 
-Is this patch in Linus's tree already?
+Yes, the way I solved the issue was to look at the RTL and provide
+hints to the compiler that the passed argument was a constant and it
+needed to be passed as such to the instruction
 
-confused,
+I would suggest just looking at the RTL and figuring out why the constraints
+break
 
-greg k-h
+Balbir Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
