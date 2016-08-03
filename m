@@ -1,152 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 610526B0253
-	for <linux-mm@kvack.org>; Wed,  3 Aug 2016 18:19:50 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id w128so419688969pfd.3
-        for <linux-mm@kvack.org>; Wed, 03 Aug 2016 15:19:50 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id gc6si10906537pab.18.2016.08.03.15.19.49
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 203116B0253
+	for <linux-mm@kvack.org>; Wed,  3 Aug 2016 19:39:47 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id h186so423798264pfg.2
+        for <linux-mm@kvack.org>; Wed, 03 Aug 2016 16:39:47 -0700 (PDT)
+Received: from pmta2.delivery5.ore.mailhop.org (pmta2.delivery5.ore.mailhop.org. [54.186.218.12])
+        by mx.google.com with ESMTPS id bg10si11231572pab.12.2016.08.03.16.39.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Aug 2016 15:19:49 -0700 (PDT)
-Date: Wed, 03 Aug 2016 15:19:48 -0700
-From: akpm@linux-foundation.org
-Subject: mmotm 2016-08-03-15-19 uploaded
-Message-ID: <57a26e04.+wBCBljpAc+ZsNLb%akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+        Wed, 03 Aug 2016 16:39:45 -0700 (PDT)
+From: Jason Cooper <jason@lakedaemon.net>
+Subject: [PATCH v3 1/7] random: Simplify API for random address requests
+Date: Wed,  3 Aug 2016 23:39:07 +0000
+Message-Id: <20160803233913.32511-2-jason@lakedaemon.net>
+In-Reply-To: <20160803233913.32511-1-jason@lakedaemon.net>
+References: <20160728204730.27453-1-jason@lakedaemon.net>
+ <20160803233913.32511-1-jason@lakedaemon.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, broonie@kernel.org
+To: Kees Cook <keescook@chromium.org>, Michael Ellerman <mpe@ellerman.id.au>, "Roberts, William C" <william.c.roberts@intel.com>, Yann Droneaud <ydroneaud@opteya.com>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, kernel-hardening <kernel-hardening@lists.openwall.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Arnd Bergmann <arnd@arndb.de>, gregkh@linuxfoundation.org, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>, benh@kernel.crashing.org, paulus@samba.org, "David S. Miller" <davem@davemloft.net>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, x86@kernel.org, viro@zeniv.linux.org.uk, Nick Kralevich <nnk@google.com>, Jeffrey Vander Stoep <jeffv@google.com>, Daniel Cashman <dcashman@android.com>, Jason Cooper <jason@lakedaemon.net>
 
-The mm-of-the-moment snapshot 2016-08-03-15-19 has been uploaded to
+To date, all callers of randomize_range() have set the length to 0, and
+check for a zero return value.  For the current callers, the only way
+to get zero returned is if end <= start.  Since they are all adding a
+constant to the start address, this is unnecessary.
 
-   http://www.ozlabs.org/~akpm/mmotm/
+We can remove a bunch of needless checks by simplifying the API to do
+just what everyone wants, return an address between [start, start +
+range).
 
-mmotm-readme.txt says
+While we're here, s/get_random_int/get_random_long/.  No current call
+site is adversely affected by get_random_int(), since all current range
+requests are < UINT_MAX.  However, we should match caller expectations
+to avoid coming up short (ha!) in the future.
 
-README for mm-of-the-moment:
+All current callers to randomize_range() chose to use the start address
+if randomize_range() failed.  Therefore, we simplify things by just
+returning the start address on error.
 
-http://www.ozlabs.org/~akpm/mmotm/
+randomize_range() will be removed once all callers have been converted
+over to randomize_addr().
 
-This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-more than once a week.
+Signed-off-by: Jason Cooper <jason@lakedaemon.net>
+---
+Changes from v2:
+ - s/randomize_addr/randomize_page/ (Kees Cook)
+ - PAGE_ALIGN(start) if it wasn't (Kees Cook, Michael Ellerman)
 
-You will need quilt to apply these patches to the latest Linus release (4.x
-or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
-http://ozlabs.org/~akpm/mmotm/series
+ drivers/char/random.c  | 33 +++++++++++++++++++++++++++++++++
+ include/linux/random.h |  1 +
+ 2 files changed, 34 insertions(+)
 
-The file broken-out.tar.gz contains two datestamp files: .DATE and
-.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
-followed by the base kernel version against which this patch series is to
-be applied.
-
-This tree is partially included in linux-next.  To see which patches are
-included in linux-next, consult the `series' file.  Only the patches
-within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
-linux-next.
-
-A git tree which contains the memory management portion of this tree is
-maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-by Michal Hocko.  It contains the patches which are between the
-"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
-file, http://www.ozlabs.org/~akpm/mmotm/series.
-
-
-A full copy of the full kernel tree with the linux-next and mmotm patches
-already applied is available through git within an hour of the mmotm
-release.  Individual mmotm releases are tagged.  The master branch always
-points to the latest release, so it's constantly rebasing.
-
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
-
-To develop on top of mmotm git:
-
-  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-  $ git remote update mmotm
-  $ git checkout -b topic mmotm/master
-  <make changes, commit>
-  $ git send-email mmotm/master.. [...]
-
-To rebase a branch with older patches to a new mmotm release:
-
-  $ git remote update mmotm
-  $ git rebase --onto mmotm/master <topic base> topic
-
-
-
-
-The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
-contains daily snapshots of the -mm tree.  It is updated more frequently
-than mmotm, and is untested.
-
-A git copy of this tree is available at
-
-	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
-
-and use of this tree is similar to
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
-
-
-This mmotm tree contains the following patches against 4.7:
-(patches marked "*" will be included in linux-next)
-
-  origin.patch
-* fpga-zynq-fpga-fix-build-failure.patch
-* tree-wide-replace-config_enabled-with-is_enabled.patch
-* bitmap-bitmap_equal-memcmp-optimization-fix.patch
-* media-mtk-vcodec-remove-unused-dma_attrs.patch
-* dma-mapping-use-unsigned-long-for-dma_attrs.patch
-* samples-kprobe-convert-the-printk-to-pr_info-pr_err.patch
-* samples-jprobe-convert-the-printk-to-pr_info-pr_err.patch
-* samples-kretprobe-convert-the-printk-to-pr_info-pr_err.patch
-* samples-kretprobe-fix-the-wrong-type.patch
-* block-remove-blk_dev_dax-config-option.patch
-* maintainers-update-email-and-list-of-samsung-hw-driver-maintainers.patch
-* cxd2841er-avoid-misleading-gcc-warning.patch
-* powerpc-add-explicit-include-asm-asm-compath-for-jump-label.patch
-* sparc-support-static_key-usage-in-non-module-__exit-sections.patch
-* tile-support-static_key-usage-in-non-module-__exit-sections.patch
-* arm-jump-label-may-reference-text-in-__exit.patch
-* jump_label-remove-bugh-atomich-dependencies-for-have_jump_label.patch
-* dynamic_debug-add-jump-label-support.patch
-  arch-alpha-kernel-systblss-remove-debug-check.patch
-  i-need-old-gcc.patch
-* mm-add-restriction-when-memory_hotplug-config-enable.patch
-* mm-memcontrol-fix-swap-counter-leak-on-swapout-from-offline-cgroup.patch
-* mm-memcontrol-fix-memcg-id-ref-counter-on-swap-charge-move.patch
-* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
-* kbuild-simpler-generation-of-assembly-constants.patch
-* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
-* kernel-watchdog-use-nmi-registers-snapshot-in-hardlockup-handler.patch
-  mm.patch
-* mm-memcontrol-add-sanity-checks-for-memcg-idref-on-get-put.patch
-* mm-oom-deduplicate-victim-selection-code-for-memcg-and-global-oom.patch
-* mm-zsmalloc-add-trace-events-for-zs_compact.patch
-* mm-zsmalloc-add-per-class-compact-trace-event.patch
-* mm-page_owner-align-with-pageblock_nr-pages.patch
-* mm-walk-the-zone-in-pageblock_nr_pages-steps.patch
-* proc-relax-proc-tid-timerslack_ns-capability-requirements.patch
-* proc-add-lsm-hook-checks-to-proc-tid-timerslack_ns.patch
-* lib-add-crc64-ecma-module.patch
-* compat-remove-compat_printk.patch
-* kdump-vmcoreinfo-report-actual-value-of-phys_base.patch
-* ipc-msgc-msgsnd-use-freezable-blocking-call.patch
-* msgrcv-use-freezable-blocking-call.patch
-  linux-next.patch
-  linux-next-git-rejects.patch
-* drivers-net-wireless-intel-iwlwifi-dvm-calibc-fix-min-warning.patch
-* ipc-semc-fix-complex_count-vs-simple-op-race.patch
-  mm-add-strictlimit-knob-v2.patch
-  make-sure-nobodys-leaking-resources.patch
-  releasing-resources-with-children.patch
-  make-frame_pointer-default=y.patch
-  kernel-forkc-export-kernel_thread-to-modules.patch
-  mutex-subsystem-synchro-test-module.patch
-  slab-leaks3-default-y.patch
-  add-debugging-aid-for-memory-initialisation-problems.patch
-  workaround-for-a-pci-restoring-bug.patch
+diff --git a/drivers/char/random.c b/drivers/char/random.c
+index 0158d3bff7e5..61cb434e3bea 100644
+--- a/drivers/char/random.c
++++ b/drivers/char/random.c
+@@ -1840,6 +1840,39 @@ randomize_range(unsigned long start, unsigned long end, unsigned long len)
+ 	return PAGE_ALIGN(get_random_int() % range + start);
+ }
+ 
++/**
++ * randomize_page - Generate a random, page aligned address
++ * @start:	The smallest acceptable address the caller will take.
++ * @range:	The size of the area, starting at @start, within which the
++ *		random address must fall.
++ *
++ * If @start + @range would overflow, @range is capped.
++ *
++ * NOTE: Historical use of randomize_range, which this replaces, presumed that
++ * @start was already page aligned.  We now align it regardless.
++ *
++ * Return: A page aligned address within [start, start + range).  On error,
++ * @start is returned.
++ */
++unsigned long
++randomize_page(unsigned long start, unsigned long range)
++{
++	if (!PAGE_ALIGNED(start)) {
++		range -= PAGE_ALIGN(start) - start;
++		start = PAGE_ALIGN(start);
++	}
++
++	if (start > ULONG_MAX - range)
++		range = ULONG_MAX - start;
++
++	range >>= PAGE_SHIFT;
++
++	if (range == 0)
++		return start;
++
++	return start + (get_random_long() % range << PAGE_SHIFT);
++}
++
+ /* Interface for in-kernel drivers of true hardware RNGs.
+  * Those devices may produce endless random bits and will be throttled
+  * when our pool is full.
+diff --git a/include/linux/random.h b/include/linux/random.h
+index e47e533742b5..098fec690d65 100644
+--- a/include/linux/random.h
++++ b/include/linux/random.h
+@@ -35,6 +35,7 @@ extern const struct file_operations random_fops, urandom_fops;
+ unsigned int get_random_int(void);
+ unsigned long get_random_long(void);
+ unsigned long randomize_range(unsigned long start, unsigned long end, unsigned long len);
++unsigned long randomize_page(unsigned long start, unsigned long range);
+ 
+ u32 prandom_u32(void);
+ void prandom_bytes(void *buf, size_t nbytes);
+-- 
+2.9.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
