@@ -1,80 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B1BF16B0253
-	for <linux-mm@kvack.org>; Wed,  3 Aug 2016 02:35:58 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id o124so379997710pfg.1
-        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 23:35:58 -0700 (PDT)
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CE70C6B0253
+	for <linux-mm@kvack.org>; Wed,  3 Aug 2016 02:38:18 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id pp5so338530116pac.3
+        for <linux-mm@kvack.org>; Tue, 02 Aug 2016 23:38:18 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id lz7si7309101pab.147.2016.08.02.23.35.57
+        by mx.google.com with ESMTPS id v27si7317875pfj.178.2016.08.02.23.38.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Aug 2016 23:35:57 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u736Y0VQ046880
-	for <linux-mm@kvack.org>; Wed, 3 Aug 2016 02:35:57 -0400
-Received: from e28smtp04.in.ibm.com (e28smtp04.in.ibm.com [125.16.236.4])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 24k0bp5n0f-1
+        Tue, 02 Aug 2016 23:38:18 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u736XtZT032908
+	for <linux-mm@kvack.org>; Wed, 3 Aug 2016 02:38:17 -0400
+Received: from e23smtp01.au.ibm.com (e23smtp01.au.ibm.com [202.81.31.143])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 24k0bme0w7-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 03 Aug 2016 02:35:57 -0400
+	for <linux-mm@kvack.org>; Wed, 03 Aug 2016 02:38:17 -0400
 Received: from localhost
-	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Wed, 3 Aug 2016 12:05:54 +0530
-Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id A6CAEE0060
-	for <linux-mm@kvack.org>; Wed,  3 Aug 2016 12:10:09 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay01.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u736ZmMk42074136
-	for <linux-mm@kvack.org>; Wed, 3 Aug 2016 12:05:48 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u736ZiHU030540
-	for <linux-mm@kvack.org>; Wed, 3 Aug 2016 12:05:47 +0530
-Date: Wed, 3 Aug 2016 12:05:38 +0530
+	Wed, 3 Aug 2016 16:38:14 +1000
+Received: from d23relay10.au.ibm.com (d23relay10.au.ibm.com [9.190.26.77])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 54A1C2CE802D
+	for <linux-mm@kvack.org>; Wed,  3 Aug 2016 16:38:12 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u736cCts32636930
+	for <linux-mm@kvack.org>; Wed, 3 Aug 2016 16:38:12 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u736cBam027504
+	for <linux-mm@kvack.org>; Wed, 3 Aug 2016 16:38:12 +1000
+Date: Wed, 3 Aug 2016 12:08:08 +0530
 From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 2/2] fadump: Disable deferred page struct initialisation
+Subject: Re: [PATCH 1/2] mm: Allow disabling deferred struct page
+ initialisation
 Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 References: <1470143947-24443-1-git-send-email-srikar@linux.vnet.ibm.com>
- <1470143947-24443-3-git-send-email-srikar@linux.vnet.ibm.com>
- <1470201642.5034.3.camel@gmail.com>
+ <1470143947-24443-2-git-send-email-srikar@linux.vnet.ibm.com>
+ <57A0E1D1.8020608@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1470201642.5034.3.camel@gmail.com>
-Message-Id: <20160803063538.GH6310@linux.vnet.ibm.com>
+In-Reply-To: <57A0E1D1.8020608@intel.com>
+Message-Id: <20160803063808.GI6310@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, mahesh@linux.vnet.ibm.com
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org, mahesh@linux.vnet.ibm.com, hbathini@linux.vnet.ibm.com
 
-* Balbir Singh <bsingharora@gmail.com> [2016-08-03 15:20:42]:
+* Dave Hansen <dave.hansen@intel.com> [2016-08-02 11:09:21]:
 
-> On Tue, 2016-08-02 at 18:49 +0530, Srikar Dronamraju wrote:
-> > Fadump kernel reserves significant number of memory blocks. On a multi-node
-> > machine, with CONFIG_DEFFERRED_STRUCT_PAGE support, fadump kernel fails to
-> > boot. Fix this by disabling deferred page struct initialisation.
-> > 
->
-> How much memory does a fadump kernel need? Can we bump up the limits depending
-> on the config. I presume when you say fadump kernel you mean kernel with
-> FADUMP in the config?
+> On 08/02/2016 06:19 AM, Srikar Dronamraju wrote:
+> > Kernels compiled with CONFIG_DEFERRED_STRUCT_PAGE_INIT will initialise
+> > only certain size memory per node. The certain size takes into account
+> > the dentry and inode cache sizes. However such a kernel when booting a
+> > secondary kernel will not be able to allocate the required amount of
+> > memory to suffice for the dentry and inode caches. This results in
+> > crashes like the below on large systems such as 32 TB systems.
+> 
+> What's a "secondary kernel"?
+> 
 
-On a regular kernel with CONFIG_FADUMP and fadump configured, 5% of the
-total memory is reserved for booting the kernel on crash.  On crash,
-fadump kernel reserves the 95% memory and boots into the 5% memory that
-was reserved for it. It then parses the reserved 95% memory to collect
-the dump.
-
-The problem is not about the amount of memory thats reserved for fadump
-kernel. Even if we increase/decrease, we will still end up with the same
-issue.
-
-> BTW, I would much rather prefer a config based solution that does not select
-> DEFERRED_INIT if FADUMP is enabled.
-
-As Vlastimil rightly pointed out, for fadump, the same kernel is booted
-back at a different location when we crash. So we cannot have a config
-based solution.
+I mean the kernel thats booted to collect the crash, On fadump, the
+first kernel acts as the secondary kernel i.e the same kernel is booted
+to collect the crash.
 
 -- 
 Thanks and Regards
