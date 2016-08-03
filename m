@@ -1,83 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4338D6B0005
-	for <linux-mm@kvack.org>; Wed,  3 Aug 2016 11:24:17 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id l2so358396116qkf.2
-        for <linux-mm@kvack.org>; Wed, 03 Aug 2016 08:24:17 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h186si2409915qkd.278.2016.08.03.08.24.16
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D28106B0253
+	for <linux-mm@kvack.org>; Wed,  3 Aug 2016 13:58:25 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id 33so118788702lfw.1
+        for <linux-mm@kvack.org>; Wed, 03 Aug 2016 10:58:25 -0700 (PDT)
+Received: from baptiste.telenet-ops.be (baptiste.telenet-ops.be. [2a02:1800:120:4::f00:13])
+        by mx.google.com with ESMTPS id yb9si9200704wjb.180.2016.08.03.10.58.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Aug 2016 08:24:16 -0700 (PDT)
-Date: Wed, 3 Aug 2016 11:24:09 -0400
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH] mm: Move readahead limit outside of readahead, and
- advisory syscalls
-Message-ID: <20160803152409.GB8962@t510>
-References: <1469457565-22693-1-git-send-email-kwalker@redhat.com>
- <20160725134732.b21912c54ef1ffe820ccdbca@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160725134732.b21912c54ef1ffe820ccdbca@linux-foundation.org>
+        Wed, 03 Aug 2016 10:58:24 -0700 (PDT)
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Subject: [PATCH] shmem: Fix link error if huge pages support is disabled
+Date: Wed,  3 Aug 2016 19:58:19 +0200
+Message-Id: <1470247099-14217-1-git-send-email-geert@linux-m68k.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Kyle Walker <kwalker@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Geliang Tang <geliangtang@163.com>, Vlastimil Babka <vbabka@suse.cz>, Roman Gushchin <klamm@yandex-team.ru>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Geert Uytterhoeven <geert@linux-m68k.org>
 
-On Mon, Jul 25, 2016 at 01:47:32PM -0700, Andrew Morton wrote:
-> On Mon, 25 Jul 2016 10:39:25 -0400 Kyle Walker <kwalker@redhat.com> wrote:
-> 
-> > Java workloads using the MappedByteBuffer library result in the fadvise()
-> > and madvise() syscalls being used extensively. Following recent readahead
-> > limiting alterations, such as 600e19af ("mm: use only per-device readahead
-> > limit") and 6d2be915 ("mm/readahead.c: fix readahead failure for
-> > memoryless NUMA nodes and limit readahead pages"), application performance
-> > suffers in instances where small readahead is configured.
-> 
-> Can this suffering be quantified please?
-> 
-> > By moving this limit outside of the syscall codepaths, the syscalls are
-> > able to advise an inordinately large amount of readahead when desired.
-> > With a cap being imposed based on the half of NR_INACTIVE_FILE and
-> > NR_FREE_PAGES. In essence, allowing performance tuning efforts to define a
-> > small readahead limit, but then benefiting from large sequential readahead
-> > values selectively.
-> > 
-> > ...
-> >
-> > --- a/mm/readahead.c
-> > +++ b/mm/readahead.c
-> > @@ -211,7 +211,9 @@ int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
-> >  	if (unlikely(!mapping->a_ops->readpage && !mapping->a_ops->readpages))
-> >  		return -EINVAL;
-> >  
-> > -	nr_to_read = min(nr_to_read, inode_to_bdi(mapping->host)->ra_pages);
-> > +	nr_to_read = min(nr_to_read, (global_page_state(NR_INACTIVE_FILE) +
-> > +				     (global_page_state(NR_FREE_PAGES)) / 2));
-> > +
-> >  	while (nr_to_read) {
-> >  		int err;
-> >  
-> > @@ -484,6 +486,7 @@ void page_cache_sync_readahead(struct address_space *mapping,
-> >  
-> >  	/* be dumb */
-> >  	if (filp && (filp->f_mode & FMODE_RANDOM)) {
-> > +		req_size = min(req_size, inode_to_bdi(mapping->host)->ra_pages);
-> >  		force_page_cache_readahead(mapping, filp, offset, req_size);
-> >  		return;
-> >  	}
-> 
-> Linus probably has opinions ;)
->
+If CONFIG_TRANSPARENT_HUGE_PAGECACHE=n, HPAGE_PMD_NR evaluates to
+BUILD_BUG_ON(), and may cause (e.g. with gcc 4.12):
 
-IIRC one of the issues Linus had with previous attempts was because 
-they were utilizing/bringing back a node-memory state based heuristic. 
+    mm/built-in.o: In function `shmem_alloc_hugepage':
+    shmem.c:(.text+0x17570): undefined reference to `__compiletime_assert_1365'
 
-Since Kyle patch is using a global state counter for that matter,
-I think that issue condition might now be sorted out.
+To fix this, move the assignment to hindex after the check for huge
+pages support.
 
--- Rafael
+Fixes: 800d8c63b2e989c2 ("shmem: add huge pages support")
+Signed-off-by: Geert Uytterhoeven <geert@linux-m68k.org>
+---
+ mm/shmem.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 2ac19a61d5655b82..7f7748a0f9e1f738 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1362,13 +1362,14 @@ static struct page *shmem_alloc_hugepage(gfp_t gfp,
+ 	struct vm_area_struct pvma;
+ 	struct inode *inode = &info->vfs_inode;
+ 	struct address_space *mapping = inode->i_mapping;
+-	pgoff_t idx, hindex = round_down(index, HPAGE_PMD_NR);
++	pgoff_t idx, hindex;
+ 	void __rcu **results;
+ 	struct page *page;
+ 
+ 	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGE_PAGECACHE))
+ 		return NULL;
+ 
++	hindex = round_down(index, HPAGE_PMD_NR);
+ 	rcu_read_lock();
+ 	if (radix_tree_gang_lookup_slot(&mapping->page_tree, &results, &idx,
+ 				hindex, 1) && idx < hindex + HPAGE_PMD_NR) {
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
