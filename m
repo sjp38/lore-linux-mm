@@ -1,116 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 329AF6B0253
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 04:37:54 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id w128so443519662pfd.3
-        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 01:37:54 -0700 (PDT)
-Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
-        by mx.google.com with ESMTPS id a90si13555201pfk.184.2016.08.04.01.37.53
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EFED96B025F
+	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 04:59:11 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id p85so129368461lfg.3
+        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 01:59:11 -0700 (PDT)
+Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
+        by mx.google.com with ESMTPS id z206si5177224lfa.415.2016.08.04.01.51.04
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 04 Aug 2016 01:37:53 -0700 (PDT)
-From: zijun_hu <zijun_hu@zoho.com>
-Subject: Re: [PATCH] mm/vmalloc: fix align value calculation error
-References: <57A2F6A3.9080908@zoho.com>
-Message-ID: <57A2FE7B.5070505@zoho.com>
-Date: Thu, 4 Aug 2016 16:36:11 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 04 Aug 2016 01:51:04 -0700 (PDT)
+Received: by mail-lf0-x244.google.com with SMTP id l89so14011248lfi.2
+        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 01:51:04 -0700 (PDT)
+Date: Thu, 4 Aug 2016 14:50:55 +0600
+From: Alexnader Kuleshov <kuleshovmail@gmail.com>
+Subject: Re: [PATCH] fs:Fix kmemleak leak warning in getname_flags about
+ working on unitialized memory
+Message-ID: <20160804085055.GB2509@localhost>
+References: <1470260896-31767-1-git-send-email-xerofoify@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <57A2F6A3.9080908@zoho.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1470260896-31767-1-git-send-email-xerofoify@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, tj@kernel.org, hannes@cmpxchg.org
-Cc: mhocko@kernel.org, minchan@kernel.org, zijun_hu@htc.com, rientjes@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nicholas Krause <xerofoify@gmail.com>
+Cc: viro@zeniv.linux.org.uk, akpm@linux-foundation.org, msalter@redhat.com, kuleshovmail@gmail.com, david.vrabel@citrix.com, vbabka@suse.cz, ard.biesheuvel@linaro.org, jgross@suse.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 08/04/2016 04:02 PM, zijun_hu wrote:
->>From e40d1066f61394992e0167f259001ae9d2581dc1 Mon Sep 17 00:00:00 2001
-> From: zijun_hu <zijun_hu@htc.com>
-> Date: Thu, 4 Aug 2016 14:22:52 +0800
-> Subject: [PATCH] mm/vmalloc: fix align value calculation error
+On 08-03-16, Nicholas Krause wrote:
+> This fixes a kmemleak leak warning complaining about working on
+> unitializied memory as found in the function, getname_flages. Seems
+
+s/getname_flages/getname_flags
+
+> that we are indeed working on unitialized memory, as the filename
+> char pointer is never made to point to the filname structure's result
+> member for holding it's name, fix this by using memcpy to copy the
+> filname structure pointer's, name to the char pointer passed to this
+> function.
 > 
-> it causes double align requirement for __get_vm_area_node() if parameter
-> size is power of 2 and VM_IOREMAP is set in parameter flags
-> 
-> it is fixed by using order_base_2 instead of fls_long() due to lack of
-> get_count_order() for long parameter
-> 
-> Signed-off-by: zijun_hu <zijun_hu@htc.com>
+> Signed-off-by: Nicholas Krause <xerofoify@gmail.com>
 > ---
->  mm/vmalloc.c | 14 +++++++++++---
->  1 file changed, 11 insertions(+), 3 deletions(-)
+>  fs/namei.c         | 1 +
+>  mm/early_ioremap.c | 1 +
+>  2 files changed, 2 insertions(+)
 > 
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index 91f44e7..8b17c51 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -1357,11 +1357,19 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
+> diff --git a/fs/namei.c b/fs/namei.c
+> index c386a32..6b18d57 100644
+> --- a/fs/namei.c
+> +++ b/fs/namei.c
+> @@ -196,6 +196,7 @@ getname_flags(const char __user *filename, int flags, int *empty)
+>  		}
+>  	}
+>  
+> +	memcpy((char *)result->name, filename, len);
+>  	result->uptr = filename;
+>  	result->aname = NULL;
+>  	audit_getname(result);
+> diff --git a/mm/early_ioremap.c b/mm/early_ioremap.c
+> index 6d5717b..92c5235 100644
+> --- a/mm/early_ioremap.c
+> +++ b/mm/early_ioremap.c
+> @@ -215,6 +215,7 @@ early_ioremap(resource_size_t phys_addr, unsigned long size)
+>  void __init *
+>  early_memremap(resource_size_t phys_addr, unsigned long size)
 >  {
->  	struct vmap_area *va;
->  	struct vm_struct *area;
-> +	int ioremap_size_order;
->  
->  	BUG_ON(in_interrupt());
-> -	if (flags & VM_IOREMAP)
-> -		align = 1ul << clamp_t(int, fls_long(size),
-> -				       PAGE_SHIFT, IOREMAP_MAX_ORDER);
-> +	if (flags & VM_IOREMAP) {
-> +		if (unlikely(size < 2))
-> +			ioremap_size_order = size;
-> +		else if (unlikely((signed long)size < 0))
-> +			ioremap_size_order = sizeof(size) * 8;
-> +		else
-> +			ioremap_size_order = order_base_2(size);
-> +		align = 1ul << clamp_t(int, ioremap_size_order, PAGE_SHIFT,
-> +				IOREMAP_MAX_ORDER);
-> +	}
->  
->  	size = PAGE_ALIGN(size);
->  	if (unlikely(!size))
+> +	dump_stack();
+
+Why?
+
+>  	return (__force void *)__early_ioremap(phys_addr, size,
+>  					       FIXMAP_PAGE_NORMAL);
+>  }
+> -- 
+> 2.7.4
 > 
-another fix approach is shown as follows
-
-From: zijun_hu <zijun_hu@htc.com>
-Date: Thu, 4 Aug 2016 14:22:52 +0800
-Subject: [PATCH] mm/vmalloc: fix align value calculation error
-
-it causes double align requirement for __get_vm_area_node() if parameter
-size is power of 2 and VM_IOREMAP is set in parameter flags
-
-it is fixed by handling the specail case manually due to lack of
-get_count_order() for long parameter
-
-Signed-off-by: zijun_hu <zijun_hu@htc.com>
----
- mm/vmalloc.c | 11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
-
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 91f44e7..dbbca8a 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1357,11 +1357,16 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
- {
- 	struct vmap_area *va;
- 	struct vm_struct *area;
-+	int ioremap_size_order;
- 
- 	BUG_ON(in_interrupt());
--	if (flags & VM_IOREMAP)
--		align = 1ul << clamp_t(int, fls_long(size),
--				       PAGE_SHIFT, IOREMAP_MAX_ORDER);
-+	if (flags & VM_IOREMAP) {
-+		ioremap_size_order = fls_long(size);
-+		if (is_power_of_2(size) && size != 1)
-+			ioremap_size_order--;
-+		align = 1ul << clamp_t(int, ioremap_size_order, PAGE_SHIFT,
-+				IOREMAP_MAX_ORDER);
-+	}
- 
- 	size = PAGE_ALIGN(size);
- 	if (unlikely(!size))
--- 
-1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
