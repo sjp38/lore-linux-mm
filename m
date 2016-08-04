@@ -1,100 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 720156B0253
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 12:19:24 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id r9so385236936ywg.0
-        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 09:19:24 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r83si6079233qki.269.2016.08.04.09.19.23
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 688186B0253
+	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 13:12:30 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id p85so138003403lfg.3
+        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 10:12:30 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id in9si14496762wjb.161.2016.08.04.10.12.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Aug 2016 09:19:23 -0700 (PDT)
-Date: Thu, 4 Aug 2016 18:19:13 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: order-0 vs order-N driver allocation. Was: [PATCH v10 07/12]
- net/mlx4_en: add page recycle to prepare rx ring for tx support
-Message-ID: <20160804181913.26ee17b9@redhat.com>
-In-Reply-To: <20160803174107.GA38399@ast-mbp.thefacebook.com>
-References: <1468955817-10604-1-git-send-email-bblanco@plumgrid.com>
-	<1468955817-10604-8-git-send-email-bblanco@plumgrid.com>
-	<1469432120.8514.5.camel@edumazet-glaptop3.roam.corp.google.com>
-	<20160803174107.GA38399@ast-mbp.thefacebook.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 04 Aug 2016 10:12:29 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u74H3wrL007673
+	for <linux-mm@kvack.org>; Thu, 4 Aug 2016 13:12:27 -0400
+Received: from e23smtp08.au.ibm.com (e23smtp08.au.ibm.com [202.81.31.141])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 24kkanqhvu-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 04 Aug 2016 13:12:26 -0400
+Received: from localhost
+	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Fri, 5 Aug 2016 03:12:23 +1000
+Received: from d23relay10.au.ibm.com (d23relay10.au.ibm.com [9.190.26.77])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id B4BE73578052
+	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 03:12:21 +1000 (EST)
+Received: from d23av06.au.ibm.com (d23av06.au.ibm.com [9.190.235.151])
+	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u74HCLCs28442706
+	for <linux-mm@kvack.org>; Fri, 5 Aug 2016 03:12:21 +1000
+Received: from d23av06.au.ibm.com (localhost [127.0.0.1])
+	by d23av06.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u74HCLbq017904
+	for <linux-mm@kvack.org>; Fri, 5 Aug 2016 03:12:21 +1000
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: [PATCH V2 1/2] mm/page_alloc: Replace set_dma_reserve to set_memory_reserve
+Date: Thu,  4 Aug 2016 22:42:08 +0530
+Message-Id: <1470330729-6273-1-git-send-email-srikar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexei Starovoitov <alexei.starovoitov@gmail.com>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, Brenden Blanco <bblanco@plumgrid.com>, davem@davemloft.net, netdev@vger.kernel.org, Jamal Hadi Salim <jhs@mojatatu.com>, Saeed Mahameed <saeedm@dev.mellanox.co.il>, Martin KaFai Lau <kafai@fb.com>, Ari Saha <as754m@att.com>, Or Gerlitz <gerlitz.or@gmail.com>, john.fastabend@gmail.com, hannes@stressinduktion.org, Thomas Graf <tgraf@suug.ch>, Tom Herbert <tom@herbertland.com>, Daniel Borkmann <daniel@iogearbox.net>, Tariq Toukan <ttoukan.linux@gmail.com>, brouer@redhat.com, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org, Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>, Hari Bathini <hbathini@linux.vnet.ibm.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Balbir Singh <bsingharora@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 
+Expand the scope of the existing dma_reserve to accommodate other memory
+reserves too. Accordingly rename variable dma_reserve to
+nr_memory_reserve.
 
-On Wed, 3 Aug 2016 10:45:13 -0700 Alexei Starovoitov <alexei.starovoitov@gmail.com> wrote:
+set_memory_reserve also takes a new parameter that helps to identify if
+the current value needs to be incremented.
 
-> On Mon, Jul 25, 2016 at 09:35:20AM +0200, Eric Dumazet wrote:
-> > On Tue, 2016-07-19 at 12:16 -0700, Brenden Blanco wrote:  
-> > > The mlx4 driver by default allocates order-3 pages for the ring to
-> > > consume in multiple fragments. When the device has an xdp program, this
-> > > behavior will prevent tx actions since the page must be re-mapped in
-> > > TODEVICE mode, which cannot be done if the page is still shared.
-> > > 
-> > > Start by making the allocator configurable based on whether xdp is
-> > > running, such that order-0 pages are always used and never shared.
-> > > 
-> > > Since this will stress the page allocator, add a simple page cache to
-> > > each rx ring. Pages in the cache are left dma-mapped, and in drop-only
-> > > stress tests the page allocator is eliminated from the perf report.
-> > > 
-> > > Note that setting an xdp program will now require the rings to be
-> > > reconfigured.  
-> > 
-> > Again, this has nothing to do with XDP ?
-> > 
-> > Please submit a separate patch, switching this driver to order-0
-> > allocations.
-> > 
-> > I mentioned this order-3 vs order-0 issue earlier [1], and proposed to
-> > send a generic patch, but had been traveling lately, and currently in
-> > vacation.
-> > 
-> > order-3 pages are problematic when dealing with hostile traffic anyway,
-> > so we should exclusively use order-0 pages, and page recycling like
-> > Intel drivers.
-> > 
-> > http://lists.openwall.net/netdev/2016/04/11/88  
-> 
-> Completely agree. These multi-page tricks work only for benchmarks and
-> not for production.
-> Eric, if you can submit that patch for mlx4 that would be awesome.
-> 
-> I think we should default to order-0 for both mlx4 and mlx5.
-> Alternatively we're thinking to do a netlink or ethtool switch to
-> preserve old behavior, but frankly I don't see who needs this order-N
-> allocation schemes.
+Suggested-by: Mel Gorman <mgorman@techsingularity.net>
+Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+---
+ arch/x86/kernel/e820.c |  2 +-
+ include/linux/mm.h     |  2 +-
+ mm/page_alloc.c        | 20 ++++++++++++--------
+ 3 files changed, 14 insertions(+), 10 deletions(-)
 
-I actually agree, that we should switch to order-0 allocations.
-
-*BUT* this will cause performance regressions on platforms with
-expensive DMA operations (as they no longer amortize the cost of
-mapping a larger page).
-
-Plus, the base cost of order-0 page is 246 cycles (see [1] slide#9),
-and the 10G wirespeed target is approx 201 cycles.  Thus, for these
-speeds some page recycling tricks are needed.  I described how the Intel
-drives does a cool trick in [1] slide#14, but it does not address the
-DMA part and costs some extra atomic ops.
-
-I've started coding on the page-pool last week, which address both the
-DMA mapping and recycling (with less atomic ops). (p.s. still on
-vacation this week).
-
-http://people.netfilter.org/hawk/presentations/MM-summit2016/generic_page_pool_mm_summit2016.pdf
-
+diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
+index 621b501..d935983 100644
+--- a/arch/x86/kernel/e820.c
++++ b/arch/x86/kernel/e820.c
+@@ -1188,6 +1188,6 @@ void __init memblock_find_dma_reserve(void)
+ 			nr_free_pages += end_pfn - start_pfn;
+ 	}
+ 
+-	set_dma_reserve(nr_pages - nr_free_pages);
++	set_memory_reserve(nr_pages - nr_free_pages, false);
+ #endif
+ }
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 8f468e0..c884ffb 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1886,7 +1886,7 @@ extern int __meminit __early_pfn_to_nid(unsigned long pfn,
+ 					struct mminit_pfnnid_cache *state);
+ #endif
+ 
+-extern void set_dma_reserve(unsigned long new_dma_reserve);
++extern void set_memory_reserve(unsigned long nr_reserve, bool inc);
+ extern void memmap_init_zone(unsigned long, int, unsigned long,
+ 				unsigned long, enum memmap_context);
+ extern void setup_per_zone_wmarks(void);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index c1069ef..a154c2f 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -253,7 +253,7 @@ int watermark_scale_factor = 10;
+ 
+ static unsigned long __meminitdata nr_kernel_pages;
+ static unsigned long __meminitdata nr_all_pages;
+-static unsigned long __meminitdata dma_reserve;
++static unsigned long __meminitdata nr_memory_reserve;
+ 
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ static unsigned long __meminitdata arch_zone_lowest_possible_pfn[MAX_NR_ZONES];
+@@ -5493,10 +5493,10 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+ 		}
+ 
+ 		/* Account for reserved pages */
+-		if (j == 0 && freesize > dma_reserve) {
+-			freesize -= dma_reserve;
++		if (j == 0 && freesize > nr_memory_reserve) {
++			freesize -= nr_memory_reserve;
+ 			printk(KERN_DEBUG "  %s zone: %lu pages reserved\n",
+-					zone_names[0], dma_reserve);
++					zone_names[0], nr_memory_reserve);
+ 		}
+ 
+ 		if (!is_highmem_idx(j))
+@@ -6186,8 +6186,9 @@ void __init mem_init_print_info(const char *str)
+ }
+ 
+ /**
+- * set_dma_reserve - set the specified number of pages reserved in the first zone
+- * @new_dma_reserve: The number of pages to mark reserved
++ * set_memory_reserve - set number of pages reserved in the first zone
++ * @nr_reserve: The number of pages to mark reserved
++ * @inc: true increment to existing value; false set new value.
+  *
+  * The per-cpu batchsize and zone watermarks are determined by managed_pages.
+  * In the DMA zone, a significant percentage may be consumed by kernel image
+@@ -6196,9 +6197,12 @@ void __init mem_init_print_info(const char *str)
+  * first zone (e.g., ZONE_DMA). The effect will be lower watermarks and
+  * smaller per-cpu batchsize.
+  */
+-void __init set_dma_reserve(unsigned long new_dma_reserve)
++void __init set_memory_reserve(unsigned long nr_reserve, bool inc)
+ {
+-	dma_reserve = new_dma_reserve;
++	if (inc)
++		nr_memory_reserve += nr_reserve;
++	else
++		nr_memory_reserve = nr_reserve;
+ }
+ 
+ void __init free_area_init(unsigned long *zones_size)
 -- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+1.8.5.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
