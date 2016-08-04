@@ -1,103 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FFD96B0253
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 01:25:40 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id 33so126316557lfw.1
-        for <linux-mm@kvack.org>; Wed, 03 Aug 2016 22:25:40 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id q63si2123168wmd.131.2016.08.03.22.25.38
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id ECF696B0253
+	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 02:44:25 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id ag5so392511592pad.2
+        for <linux-mm@kvack.org>; Wed, 03 Aug 2016 23:44:25 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id pl3si13078220pac.22.2016.08.03.23.44.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Aug 2016 22:25:39 -0700 (PDT)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u745OOXW123841
-	for <linux-mm@kvack.org>; Thu, 4 Aug 2016 01:25:37 -0400
-Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com [202.81.31.147])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 24kkahsrry-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 04 Aug 2016 01:25:37 -0400
-Received: from localhost
-	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Thu, 4 Aug 2016 15:25:34 +1000
-Received: from d23relay08.au.ibm.com (d23relay08.au.ibm.com [9.185.71.33])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id CE4503578056
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 15:25:30 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u745PUMx27721910
-	for <linux-mm@kvack.org>; Thu, 4 Aug 2016 15:25:30 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u745PUZZ007593
-	for <linux-mm@kvack.org>; Thu, 4 Aug 2016 15:25:30 +1000
-Date: Thu, 4 Aug 2016 10:55:26 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 1/2] mm: Allow disabling deferred struct page
- initialisation
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <1470143947-24443-1-git-send-email-srikar@linux.vnet.ibm.com>
- <1470143947-24443-2-git-send-email-srikar@linux.vnet.ibm.com>
- <57A0E1D1.8020608@intel.com>
- <20160803063808.GI6310@linux.vnet.ibm.com>
- <57A23547.1070207@intel.com>
+        Wed, 03 Aug 2016 23:44:24 -0700 (PDT)
+Date: Thu, 4 Aug 2016 16:44:10 +1000
+From: Paul Mackerras <paulus@ozlabs.org>
+Subject: Crashes in refresh_zone_stat_thresholds when some nodes have no
+ memory
+Message-ID: <20160804064410.GA20509@fergus.ozlabs.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <57A23547.1070207@intel.com>
-Message-Id: <20160804052526.GB11268@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org, mahesh@linux.vnet.ibm.com, hbathini@linux.vnet.ibm.com
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Balbir Singh <bsingharora@gmail.com>, Nicholas Piggin <npiggin@gmail.com>
 
-* Dave Hansen <dave.hansen@intel.com> [2016-08-03 11:17:43]:
+It appears that commit 75ef71840539 ("mm, vmstat: add infrastructure
+for per-node vmstats", 2016-07-28) has introduced a regression on
+machines that have nodes which have no memory, such as the POWER8
+server that I use for testing.  When I boot current upstream, I get a
+splat like this:
 
-> On 08/02/2016 11:38 PM, Srikar Dronamraju wrote:
-> > * Dave Hansen <dave.hansen@intel.com> [2016-08-02 11:09:21]:
-> >> On 08/02/2016 06:19 AM, Srikar Dronamraju wrote:
-> >>> Kernels compiled with CONFIG_DEFERRED_STRUCT_PAGE_INIT will initialise
-> >>> only certain size memory per node. The certain size takes into account
-> >>> the dentry and inode cache sizes. However such a kernel when booting a
-> >>> secondary kernel will not be able to allocate the required amount of
-> >>> memory to suffice for the dentry and inode caches. This results in
-> >>> crashes like the below on large systems such as 32 TB systems.
-> >>
-> >> What's a "secondary kernel"?
-> >>
-> > I mean the kernel thats booted to collect the crash, On fadump, the
-> > first kernel acts as the secondary kernel i.e the same kernel is booted
-> > to collect the crash.
-> 
-> OK, but I'm still not seeing what the problem is.  You've said that it
-> crashes and that it crashes during inode/dentry cache allocation.
-> 
-> But, *why* does the same kernel image crash in when it is used as a
-> "secondary kernel"?
-> 
+[    1.713998] Unable to handle kernel paging request for data at address 0xff7a10000
+[    1.714164] Faulting instruction address: 0xc000000000270cd0
+[    1.714304] Oops: Kernel access of bad area, sig: 11 [#1]
+[    1.714414] SMP NR_CPUS=2048 NUMA PowerNV
+[    1.714530] Modules linked in:
+[    1.714647] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 4.7.0-kvm+ #118
+[    1.714786] task: c000000ff0680010 task.stack: c000000ff0704000
+[    1.714926] NIP: c000000000270cd0 LR: c000000000270ce8 CTR: 0000000000000000
+[    1.715093] REGS: c000000ff0707900 TRAP: 0300   Not tainted  (4.7.0-kvm+)
+[    1.715232] MSR: 9000000102009033 <SF,HV,VEC,EE,ME,IR,DR,RI,LE,TM[E]>  CR: 846b6824  XER: 20000000
+[    1.715748] CFAR: c000000000008768 DAR: 0000000ff7a10000 DSISR: 42000000 SOFTE: 1 
+GPR00: c000000000270d08 c000000ff0707b80 c0000000011fb200 0000000000000000 
+GPR04: 0000000000000800 0000000000000000 0000000000000000 0000000000000000 
+GPR08: ffffffffffffffff 0000000000000000 0000000ff7a10000 c00000000122aae0 
+GPR12: c000000000a1e440 c00000000fb80000 c00000000000c188 0000000000000000 
+GPR16: 0000000000000000 0000000000000000 0000000000000000 0000000000000000 
+GPR20: 0000000000000000 0000000000000000 0000000000000000 c000000000cecad0 
+GPR24: c000000000d035b8 c000000000d6cd18 c000000000d6cd18 c000001fffa86300 
+GPR28: 0000000000000000 c000001fffa96300 c000000001230034 c00000000122eb18 
+[    1.717484] NIP [c000000000270cd0] refresh_zone_stat_thresholds+0x80/0x240
+[    1.717568] LR [c000000000270ce8] refresh_zone_stat_thresholds+0x98/0x240
+[    1.717648] Call Trace:
+[    1.717687] [c000000ff0707b80] [c000000000270d08] refresh_zone_stat_thresholds+0xb8/0x240 (unreliable)
+[    1.717818] [c000000ff0707bd0] [c000000000a1e4d4] init_per_zone_wmark_min+0x94/0xb0
+[    1.717932] [c000000ff0707c30] [c00000000000b90c] do_one_initcall+0x6c/0x1d0
+[    1.718036] [c000000ff0707cf0] [c000000000d04244] kernel_init_freeable+0x294/0x384
+[    1.718150] [c000000ff0707dc0] [c00000000000c1a8] kernel_init+0x28/0x160
+[    1.718249] [c000000ff0707e30] [c000000000009968] ret_from_kernel_thread+0x5c/0x74
+[    1.718358] Instruction dump:
+[    1.718408] 3fc20003 3bde4e34 3b800000 60420000 3860ffff 3fbb0001 4800001c 60420000 
+[    1.718575] 3d220003 3929f8e0 7d49502a e93d9c00 <7f8a49ae> 38a30001 38800800 7ca507b4 
 
-I guess you already got it. But let me try to explain it again.
+It turns out that we can get a pgdat in the online pgdat list where
+pgdat->per_cpu_nodestats is NULL.  On my machine the pgdats for nodes
+1 and 17 are like this.  All the memory is in nodes 0 and 16.
 
-Lets say we have a 32 TB system with 16 nodes each node having 2T of
-memory. We are assuming deferred page initialisation is configured.
+With the patch below, the system boots normally.  I don't guarantee to
+have found every place that needs a check, and it may be better to fix
+this by allocating space for per-cpu statistics on nodes which have no
+memory rather than checking at each use site.
 
-When the regular kernel boots,
-1. It reserves 5% of the memory for fadump.
-2. It initializes 8GB per node, i.e 128GB
-3. It allocated dentry/inode cache which is around 16GB.
-4. It then kicks the parallel page struct initialization.
+Paul.
+--------
+mm: cope with memoryless nodes not having per-cpu statistics allocated
 
-Now lets say kernel crashed and fadump was triggered.
+It seems that the pgdat for nodes which have no memory will also have
+no per-cpu statistics space allocated, that is, pgdat->per_cpu_nodestats
+is NULL.  Avoid crashing on machines which have memoryless nodes by
+checking for non-NULL pgdat->per_cpu_nodestats.
 
-1. The same kernel boots in the 5% reserved space which is 1600GB
-2. It reserves the rest 95% memory.
-3. It tries to initialize 8GB per node but can only initialize 8GB.
-	(since except for 1st node the rest nodes are all reserved)
-4. It tries to allocate dentry/inode cache of 16GB but fails.
-	(tries to reclaim but reclaim needs spinlock 
-	and spinlock is not yet initialized.)
-
--- 
-Thanks and Regards
-Srikar Dronamraju
+Signed-off-by: Paul Mackerras <paulus@ozlabs.org>
+---
+diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
+index 6137719..48b2780 100644
+--- a/include/linux/vmstat.h
++++ b/include/linux/vmstat.h
+@@ -184,8 +184,9 @@ static inline unsigned long node_page_state_snapshot(pg_data_t *pgdat,
+ 
+ #ifdef CONFIG_SMP
+ 	int cpu;
+-	for_each_online_cpu(cpu)
+-		x += per_cpu_ptr(pgdat->per_cpu_nodestats, cpu)->vm_node_stat_diff[item];
++	if (pgdat->per_cpu_nodestats)
++		for_each_online_cpu(cpu)
++			x += per_cpu_ptr(pgdat->per_cpu_nodestats, cpu)->vm_node_stat_diff[item];
+ 
+ 	if (x < 0)
+ 		x = 0;
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 89cec42..d83881e 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -176,6 +176,10 @@ void refresh_zone_stat_thresholds(void)
+ 
+ 	/* Zero current pgdat thresholds */
+ 	for_each_online_pgdat(pgdat) {
++		if (!pgdat->per_cpu_nodestats) {
++			pr_err("No nodestats for node %d\n", pgdat->node_id);
++			continue;
++		}
+ 		for_each_online_cpu(cpu) {
+ 			per_cpu_ptr(pgdat->per_cpu_nodestats, cpu)->stat_threshold = 0;
+ 		}
+@@ -184,6 +188,10 @@ void refresh_zone_stat_thresholds(void)
+ 	for_each_populated_zone(zone) {
+ 		struct pglist_data *pgdat = zone->zone_pgdat;
+ 		unsigned long max_drift, tolerate_drift;
++		if (!pgdat->per_cpu_nodestats) {
++			pr_err("No per cpu nodestats\n");
++			continue;
++		}
+ 
+ 		threshold = calculate_normal_threshold(zone);
+ 
+@@ -701,6 +709,8 @@ static int refresh_cpu_vm_stats(bool do_pagesets)
+ 	for_each_online_pgdat(pgdat) {
+ 		struct per_cpu_nodestat __percpu *p = pgdat->per_cpu_nodestats;
+ 
++		if (!p)
++			continue;
+ 		for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++) {
+ 			int v;
+ 
+@@ -748,6 +758,8 @@ void cpu_vm_stats_fold(int cpu)
+ 	for_each_online_pgdat(pgdat) {
+ 		struct per_cpu_nodestat *p;
+ 
++		if (!pgdat->per_cpu_nodestats)
++			continue;
+ 		p = per_cpu_ptr(pgdat->per_cpu_nodestats, cpu);
+ 
+ 		for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
