@@ -1,96 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 888956B0253
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 09:45:45 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id l4so147385072wml.0
-        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 06:45:45 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E453E6B0253
+	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 09:54:35 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 1so147491850wmz.2
+        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 06:54:35 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id ev12si13720180wjc.104.2016.08.04.06.45.44
+        by mx.google.com with ESMTPS id ek4si13730500wjd.140.2016.08.04.06.54.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Aug 2016 06:45:44 -0700 (PDT)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u74DiFds012666
-	for <linux-mm@kvack.org>; Thu, 4 Aug 2016 09:45:43 -0400
-Received: from e23smtp03.au.ibm.com (e23smtp03.au.ibm.com [202.81.31.145])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 24kkak58tp-1
+        Thu, 04 Aug 2016 06:54:34 -0700 (PDT)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u74DsNEa009340
+	for <linux-mm@kvack.org>; Thu, 4 Aug 2016 09:54:33 -0400
+Received: from e28smtp06.in.ibm.com (e28smtp06.in.ibm.com [125.16.236.6])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 24kxmhe5mc-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 04 Aug 2016 09:45:42 -0400
+	for <linux-mm@kvack.org>; Thu, 04 Aug 2016 09:54:33 -0400
 Received: from localhost
-	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Thu, 4 Aug 2016 23:45:37 +1000
-Received: from d23relay08.au.ibm.com (d23relay08.au.ibm.com [9.185.71.33])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 61EE82BB0057
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 23:45:35 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u74DjZIL22610084
-	for <linux-mm@kvack.org>; Thu, 4 Aug 2016 23:45:35 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u74DjYhn025733
-	for <linux-mm@kvack.org>; Thu, 4 Aug 2016 23:45:35 +1000
+	Thu, 4 Aug 2016 19:24:29 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 29E0AE005E
+	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 19:28:50 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay05.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u74Dqlt17340058
+	for <linux-mm@kvack.org>; Thu, 4 Aug 2016 19:22:47 +0530
+Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u74DsPKN029359
+	for <linux-mm@kvack.org>; Thu, 4 Aug 2016 19:24:27 +0530
+Date: Thu, 4 Aug 2016 19:24:14 +0530
 From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: [PATCH] fadump: Register the memory reserved by fadump
-Date: Thu,  4 Aug 2016 19:12:45 +0530
-Message-Id: <1470318165-2521-1-git-send-email-srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 2/2] fadump: Disable deferred page struct initialisation
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <1470143947-24443-1-git-send-email-srikar@linux.vnet.ibm.com>
+ <1470143947-24443-3-git-send-email-srikar@linux.vnet.ibm.com>
+ <1470201642.5034.3.camel@gmail.com>
+ <20160803063538.GH6310@linux.vnet.ibm.com>
+ <57A248A1.40807@intel.com>
+ <20160804051035.GA11268@linux.vnet.ibm.com>
+ <20160804102801.GJ2799@techsingularity.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20160804102801.GJ2799@techsingularity.net>
+Message-Id: <20160804135414.GC11268@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org, Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>, Hari Bathini <hbathini@linux.vnet.ibm.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Balbir Singh <bsingharora@gmail.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Dave Hansen <dave.hansen@intel.com>, Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, mahesh@linux.vnet.ibm.com
 
-Fadump kernel reserves large chunks of memory even before the pages are
-initialized. This could mean memory that corresponds to several nodes might
-fall in memblock reserved regions.
+* Mel Gorman <mgorman@techsingularity.net> [2016-08-04 11:28:01]:
 
-Kernels compiled with CONFIG_DEFERRED_STRUCT_PAGE_INIT will initialize
-only certain size memory per node. The certain size takes into account
-the dentry and inode cache sizes. Currently the cache sizes are
-calculated based on the total system memory including the reserved
-memory. However such a kernel when booting the same kernel as fadump
-kernel will not be able to allocate the required amount of memory to
-suffice for the dentry and inode caches. This results in crashes like
-the below on large systems such as 32 TB systems.
+> > > 
+> > > Oh, and the dentry/inode caches are sized based on 100% of memory, not
+> > > the 5% that's left after the fadump reservation?
+> > 
+> > Yes, the dentry/inode caches are sized based on the 100% memory.
+> > 
+> 
+> By and large, I'm not a major fan of introducing an API to disable it for
+> a single feature that is arch-specific because it's very heavy handed.
+> There is no guarantee that the existence of fadump will cause a failure
 
-Dentry cache hash table entries: 536870912 (order: 16, 4294967296 bytes)
-vmalloc: allocation failure, allocated 4097114112 of 17179934720 bytes
-swapper/0: page allocation failure: order:0, mode:0x2080020(GFP_ATOMIC)
-CPU: 0 PID: 0 Comm: swapper/0 Not tainted 4.6-master+ #3
-Call Trace:
-[c00000000108fb10] [c0000000007fac88] dump_stack+0xb0/0xf0 (unreliable)
-[c00000000108fb50] [c000000000235264] warn_alloc_failed+0x114/0x160
-[c00000000108fbf0] [c000000000281484] __vmalloc_node_range+0x304/0x340
-[c00000000108fca0] [c00000000028152c] __vmalloc+0x6c/0x90
-[c00000000108fd40] [c000000000aecfb0]
-alloc_large_system_hash+0x1b8/0x2c0
-[c00000000108fe00] [c000000000af7240] inode_init+0x94/0xe4
-[c00000000108fe80] [c000000000af6fec] vfs_caches_init+0x8c/0x13c
-[c00000000108ff00] [c000000000ac4014] start_kernel+0x50c/0x578
-[c00000000108ff90] [c000000000008c6c] start_here_common+0x20/0xa8
+okay.
 
-Register the memory reserved by fadump, so that the cache sizes are
-calculated based on the free memory (i.e Total memory - reserved
-memory).
+> 
+> If fadump is reserving memory and alloc_large_system_hash(HASH_EARLY)
+> does not know about then then would an arch-specific callback for
+> arch_reserved_kernel_pages() be more appropriate? fadump would need to
+> return how many pages it reserved there. That would shrink the size of
+> the inode and dentry hash tables when booting with 95% of memory
+> reserved.
+> 
+> That approach would limit the impact to ppc64 and would be less costly than
+> doing a memblock walk instead of using nr_kernel_pages for everyone else.
+> 
 
-Suggested-by: Mel Gorman <mgorman@techsingularity.net>
-Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
----
- arch/powerpc/kernel/fadump.c | 1 +
- 1 file changed, 1 insertion(+)
+I have posted a patch based on Mel and Dave's feedback
 
-diff --git a/arch/powerpc/kernel/fadump.c b/arch/powerpc/kernel/fadump.c
-index 3cb3b02a..eae547d 100644
---- a/arch/powerpc/kernel/fadump.c
-+++ b/arch/powerpc/kernel/fadump.c
-@@ -330,6 +330,7 @@ int __init fadump_reserve_mem(void)
- 	}
- 	fw_dump.reserve_dump_area_start = base;
- 	fw_dump.reserve_dump_area_size = size;
-+	set_dma_reserve(size/PAGE_SIZE);
- 	return 1;
- }
- 
+http://lkml.kernel.org/r/1470318165-2521-1-git-send-email-srikar@linux.vnet.ibm.com
+
 -- 
-1.8.5.6
+Thanks and Regards
+Srikar Dronamraju
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
