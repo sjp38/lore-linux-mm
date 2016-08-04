@@ -1,74 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CB256B025F
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 09:57:31 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id o80so147526029wme.1
-        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 06:57:31 -0700 (PDT)
-Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [2002:c35c:fd02::1])
-        by mx.google.com with ESMTPS id h11si4136898wmd.58.2016.08.04.06.57.30
+	by kanga.kvack.org (Postfix) with ESMTP id E85346B0253
+	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 10:09:38 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 1so147850171wmz.2
+        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 07:09:38 -0700 (PDT)
+Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
+        by mx.google.com with ESMTPS id h6si4194416wmf.110.2016.08.04.07.09.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Aug 2016 06:57:30 -0700 (PDT)
-Date: Thu, 4 Aug 2016 14:57:12 +0100
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: [PATCH] fs:Fix kmemleak leak warning in getname_flags about
- working on unitialized memory
-Message-ID: <20160804135712.GK2356@ZenIV.linux.org.uk>
-References: <1470260896-31767-1-git-send-email-xerofoify@gmail.com>
- <df8dd6cd-245d-0673-0246-e514b2a67fc2@I-love.SAKURA.ne.jp>
+        Thu, 04 Aug 2016 07:09:36 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id 416A81C1A1C
+	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 15:09:36 +0100 (IST)
+Date: Thu, 4 Aug 2016 15:09:34 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] fadump: Register the memory reserved by fadump
+Message-ID: <20160804140934.GM2799@techsingularity.net>
+References: <1470318165-2521-1-git-send-email-srikar@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <df8dd6cd-245d-0673-0246-e514b2a67fc2@I-love.SAKURA.ne.jp>
+In-Reply-To: <1470318165-2521-1-git-send-email-srikar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Nicholas Krause <xerofoify@gmail.com>, akpm@linux-foundation.org, msalter@redhat.com, kuleshovmail@gmail.com, david.vrabel@citrix.com, vbabka@suse.cz, ard.biesheuvel@linaro.org, jgross@suse.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org, Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@intel.com>, Balbir Singh <bsingharora@gmail.com>
 
-On Thu, Aug 04, 2016 at 09:18:19PM +0900, Tetsuo Handa wrote:
-> On 2016/08/04 6:48, Nicholas Krause wrote:
-> > This fixes a kmemleak leak warning complaining about working on
-> > unitializied memory as found in the function, getname_flages. Seems
-> > that we are indeed working on unitialized memory, as the filename
-> > char pointer is never made to point to the filname structure's result
-> > member for holding it's name, fix this by using memcpy to copy the
-> > filname structure pointer's, name to the char pointer passed to this
-> > function.
-> > 
-> > Signed-off-by: Nicholas Krause <xerofoify@gmail.com>
-> > ---
-> >  fs/namei.c         | 1 +
-> >  mm/early_ioremap.c | 1 +
-> >  2 files changed, 2 insertions(+)
-> > 
-> > diff --git a/fs/namei.c b/fs/namei.c
-> > index c386a32..6b18d57 100644
-> > --- a/fs/namei.c
-> > +++ b/fs/namei.c
-> > @@ -196,6 +196,7 @@ getname_flags(const char __user *filename, int flags, int *empty)
-> >  		}
-> >  	}
-> >  
-> > +	memcpy((char *)result->name, filename, len);
+On Thu, Aug 04, 2016 at 07:12:45PM +0530, Srikar Dronamraju wrote:
+> Fadump kernel reserves large chunks of memory even before the pages are
+> initialized. This could mean memory that corresponds to several nodes might
+> fall in memblock reserved regions.
 > 
-> This filename is a __user pointer. Reading with memcpy() is not safe.
+> Kernels compiled with CONFIG_DEFERRED_STRUCT_PAGE_INIT will initialize
+> only certain size memory per node. The certain size takes into account
+> the dentry and inode cache sizes. Currently the cache sizes are
+> calculated based on the total system memory including the reserved
+> memory. However such a kernel when booting the same kernel as fadump
+> kernel will not be able to allocate the required amount of memory to
+> suffice for the dentry and inode caches. This results in crashes like
+> the below on large systems such as 32 TB systems.
+> 
+> Dentry cache hash table entries: 536870912 (order: 16, 4294967296 bytes)
+> vmalloc: allocation failure, allocated 4097114112 of 17179934720 bytes
+> swapper/0: page allocation failure: order:0, mode:0x2080020(GFP_ATOMIC)
+> CPU: 0 PID: 0 Comm: swapper/0 Not tainted 4.6-master+ #3
+> Call Trace:
+> [c00000000108fb10] [c0000000007fac88] dump_stack+0xb0/0xf0 (unreliable)
+> [c00000000108fb50] [c000000000235264] warn_alloc_failed+0x114/0x160
+> [c00000000108fbf0] [c000000000281484] __vmalloc_node_range+0x304/0x340
+> [c00000000108fca0] [c00000000028152c] __vmalloc+0x6c/0x90
+> [c00000000108fd40] [c000000000aecfb0]
+> alloc_large_system_hash+0x1b8/0x2c0
+> [c00000000108fe00] [c000000000af7240] inode_init+0x94/0xe4
+> [c00000000108fe80] [c000000000af6fec] vfs_caches_init+0x8c/0x13c
+> [c00000000108ff00] [c000000000ac4014] start_kernel+0x50c/0x578
+> [c00000000108ff90] [c000000000008c6c] start_here_common+0x20/0xa8
+> 
+> Register the memory reserved by fadump, so that the cache sizes are
+> calculated based on the free memory (i.e Total memory - reserved
+> memory).
+> 
+> Suggested-by: Mel Gorman <mgorman@techsingularity.net>
 
-Don't feed the troll.  On all paths leading to that place we have
-        result->name = kname;
-        len = strncpy_from_user(kname, filename, EMBEDDED_NAME_MAX);
-or
-                result->name = kname;
-                len = strncpy_from_user(kname, filename, PATH_MAX);
-with failure exits taken if strncpy_from_user() returns an error, which means
-that the damn thing has already been copied into.
+I didn't suggest this specifically. While it happens to be safe on ppc64,
+it potentially overwrites any future caller of set_dma_reserve. While the
+only other one is for the e820 map, it may be better to change the API
+to inc_dma_reserve?
 
-FWIW, it looks a lot like buggered kmemcheck; as usual, he can't be bothered
-to mention which kernel version would it be (let alone how to reproduce it
-on the kernel in question), but IIRC davej had run into some instrumentation
-breakage lately.
+It's also unfortunate that it's called dma_reserve because it has
+nothing to do with DMA or ZONE_DMA. inc_kernel_reserve may be more
+appropriate?
 
-Again, don't feed the troll - you are only inviting an "improved" version
-of that garbage, just as pointless.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
