@@ -1,50 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 237E76B0253
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 11:45:56 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id le9so39945019pab.0
-        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 08:45:56 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id g9si15167912pfk.211.2016.08.04.08.45.55
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 720156B0253
+	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 12:19:24 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id r9so385236936ywg.0
+        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 09:19:24 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r83si6079233qki.269.2016.08.04.09.19.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Aug 2016 08:45:55 -0700 (PDT)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u74FYCAa014323
-	for <linux-mm@kvack.org>; Thu, 4 Aug 2016 11:45:55 -0400
-Received: from e38.co.us.ibm.com (e38.co.us.ibm.com [32.97.110.159])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 24kngd6w6k-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 04 Aug 2016 11:45:54 -0400
-Received: from localhost
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Thu, 4 Aug 2016 09:45:54 -0600
-Date: Thu, 4 Aug 2016 10:45:48 -0500
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: Re: mm: Initialise per_cpu_nodestats for all online pgdats at boot
-References: <20160804092404.GI2799@techsingularity.net>
+        Thu, 04 Aug 2016 09:19:23 -0700 (PDT)
+Date: Thu, 4 Aug 2016 18:19:13 +0200
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: order-0 vs order-N driver allocation. Was: [PATCH v10 07/12]
+ net/mlx4_en: add page recycle to prepare rx ring for tx support
+Message-ID: <20160804181913.26ee17b9@redhat.com>
+In-Reply-To: <20160803174107.GA38399@ast-mbp.thefacebook.com>
+References: <1468955817-10604-1-git-send-email-bblanco@plumgrid.com>
+	<1468955817-10604-8-git-send-email-bblanco@plumgrid.com>
+	<1469432120.8514.5.camel@edumazet-glaptop3.roam.corp.google.com>
+	<20160803174107.GA38399@ast-mbp.thefacebook.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <20160804092404.GI2799@techsingularity.net>
-Message-Id: <20160804154548.GD28305@arbab-laptop.austin.ibm.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Paul Mackerras <paulus@ozlabs.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org
+To: Alexei Starovoitov <alexei.starovoitov@gmail.com>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, Brenden Blanco <bblanco@plumgrid.com>, davem@davemloft.net, netdev@vger.kernel.org, Jamal Hadi Salim <jhs@mojatatu.com>, Saeed Mahameed <saeedm@dev.mellanox.co.il>, Martin KaFai Lau <kafai@fb.com>, Ari Saha <as754m@att.com>, Or Gerlitz <gerlitz.or@gmail.com>, john.fastabend@gmail.com, hannes@stressinduktion.org, Thomas Graf <tgraf@suug.ch>, Tom Herbert <tom@herbertland.com>, Daniel Borkmann <daniel@iogearbox.net>, Tariq Toukan <ttoukan.linux@gmail.com>, brouer@redhat.com, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>
 
-On Thu, Aug 04, 2016 at 10:24:04AM +0100, Mel Gorman wrote:
->This has been compile-tested and boot-tested on a 32-bit KVM only. A
->memoryless system was not available to test the patch with. A confirmation
->from Paul and Reza that it resolves their problem is welcome.
 
-Works for me. Thanks, Mel!
+On Wed, 3 Aug 2016 10:45:13 -0700 Alexei Starovoitov <alexei.starovoitov@gmail.com> wrote:
 
-Tested-by: Reza Arbab <arbab@linux.vnet.ibm.com>
+> On Mon, Jul 25, 2016 at 09:35:20AM +0200, Eric Dumazet wrote:
+> > On Tue, 2016-07-19 at 12:16 -0700, Brenden Blanco wrote:  
+> > > The mlx4 driver by default allocates order-3 pages for the ring to
+> > > consume in multiple fragments. When the device has an xdp program, this
+> > > behavior will prevent tx actions since the page must be re-mapped in
+> > > TODEVICE mode, which cannot be done if the page is still shared.
+> > > 
+> > > Start by making the allocator configurable based on whether xdp is
+> > > running, such that order-0 pages are always used and never shared.
+> > > 
+> > > Since this will stress the page allocator, add a simple page cache to
+> > > each rx ring. Pages in the cache are left dma-mapped, and in drop-only
+> > > stress tests the page allocator is eliminated from the perf report.
+> > > 
+> > > Note that setting an xdp program will now require the rings to be
+> > > reconfigured.  
+> > 
+> > Again, this has nothing to do with XDP ?
+> > 
+> > Please submit a separate patch, switching this driver to order-0
+> > allocations.
+> > 
+> > I mentioned this order-3 vs order-0 issue earlier [1], and proposed to
+> > send a generic patch, but had been traveling lately, and currently in
+> > vacation.
+> > 
+> > order-3 pages are problematic when dealing with hostile traffic anyway,
+> > so we should exclusively use order-0 pages, and page recycling like
+> > Intel drivers.
+> > 
+> > http://lists.openwall.net/netdev/2016/04/11/88  
+> 
+> Completely agree. These multi-page tricks work only for benchmarks and
+> not for production.
+> Eric, if you can submit that patch for mlx4 that would be awesome.
+> 
+> I think we should default to order-0 for both mlx4 and mlx5.
+> Alternatively we're thinking to do a netlink or ethtool switch to
+> preserve old behavior, but frankly I don't see who needs this order-N
+> allocation schemes.
+
+I actually agree, that we should switch to order-0 allocations.
+
+*BUT* this will cause performance regressions on platforms with
+expensive DMA operations (as they no longer amortize the cost of
+mapping a larger page).
+
+Plus, the base cost of order-0 page is 246 cycles (see [1] slide#9),
+and the 10G wirespeed target is approx 201 cycles.  Thus, for these
+speeds some page recycling tricks are needed.  I described how the Intel
+drives does a cool trick in [1] slide#14, but it does not address the
+DMA part and costs some extra atomic ops.
+
+I've started coding on the page-pool last week, which address both the
+DMA mapping and recycling (with less atomic ops). (p.s. still on
+vacation this week).
+
+http://people.netfilter.org/hawk/presentations/MM-summit2016/generic_page_pool_mm_summit2016.pdf
 
 -- 
-Reza Arbab
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
