@@ -1,56 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 94B836B0253
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 15:21:08 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id i64so13480952ith.1
-        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 12:21:08 -0700 (PDT)
-Received: from mail-it0-x22e.google.com (mail-it0-x22e.google.com. [2607:f8b0:4001:c0b::22e])
-        by mx.google.com with ESMTPS id e63si4390064ite.96.2016.08.04.12.21.07
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9468C6B0253
+	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 16:08:05 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id o124so480871798pfg.1
+        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 13:08:05 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id n11si16130155pfj.141.2016.08.04.13.08.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Aug 2016 12:21:07 -0700 (PDT)
-Received: by mail-it0-x22e.google.com with SMTP id x130so4047327ite.1
-        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 12:21:07 -0700 (PDT)
-Subject: Re: [PATCH RFC] mm, writeback: flush plugged IO in
- wakeup_flusher_threads()
-References: <147033576532.682609.2277943215598867297.stgit@buzz>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <3ee639d7-2371-c27d-3639-e4b1315d6663@kernel.dk>
-Date: Thu, 4 Aug 2016 13:21:05 -0600
-MIME-Version: 1.0
-In-Reply-To: <147033576532.682609.2277943215598867297.stgit@buzz>
-Content-Type: text/plain; charset=utf-8; format=flowed
+        Thu, 04 Aug 2016 13:08:04 -0700 (PDT)
+Date: Thu, 4 Aug 2016 13:08:03 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: add restriction when memory_hotplug config enable
+Message-Id: <20160804130803.de357aa080482bc3977c77ce@linux-foundation.org>
+In-Reply-To: <57A186C6.9050301@huawei.com>
+References: <1470063651-29519-1-git-send-email-zhongjiang@huawei.com>
+	<20160801125417.ece9c623f03d952a60113a3f@linux-foundation.org>
+	<57A078B1.6060408@virtuozzo.com>
+	<57A186C6.9050301@huawei.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-mm@kvack.org
-Cc: Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, linux-raid@vger.kernel.org, Dave Chinner <dchinner@redhat.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Shaohua Li <shli@kernel.org>
+To: zhong jiang <zhongjiang@huawei.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-mm@kvack.org, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com
 
-On 08/04/2016 12:36 PM, Konstantin Khlebnikov wrote:
-> I've found funny live-lock between raid10 barriers during resync and memory
-> controller hard limits. Inside mpage_readpages() task holds on its plug bio
-> which blocks barrier in raid10. Its memory cgroup have no free memory thus
-> task goes into reclaimer but all reclaimable pages are dirty and cannot be
-> written because raid10 is rebuilding and stuck on barrier.
->
-> Common flush of such IO in schedule() never happens because machine where
-> that happened has a lot of free cpus and task never goes sleep.
->
-> Lock is 'live' because changing memory limit or killing tasks which holds
-> that stuck bio unblock whole progress.
->
-> That was happened in 3.18.x but I see no difference in upstream logic.
-> Theoretically this might happen even without memory cgroup.
+On Wed, 3 Aug 2016 13:53:10 +0800 zhong jiang <zhongjiang@huawei.com> wrote:
 
-So the issue is that the caller of wakeup_flusher_threads() ends up 
-never going to sleep, hence the plug is never auto-flushed. I didn't 
-quite understand your reasoning for why it never sleeps above, but that 
-must be the gist of it.
+> On 2016/8/2 18:40, Andrey Ryabinin wrote:
+> >
+> > On 08/01/2016 10:54 PM, Andrew Morton wrote:
+> >> On Mon, 1 Aug 2016 23:00:51 +0800 zhongjiang <zhongjiang@huawei.com> wrote:
+> >>
+> >>> From: zhong jiang <zhongjiang@huawei.com>
+> >>>
+> >>> At present, It is obvious that memory online and offline will fail
+> >>> when KASAN enable,
+> >> huh, I didn't know that.
+> > Ahem... https://lkml.kernel.org/r/<20150130133552.580f73b97a9bd007979b5419@linux-foundation.org>
+> >
+> > Also
+> >
+> > commit 786a8959912eb94fc2381c2ae487a96ce55dabca
+> >     kasan: disable memory hotplug
+> >     
+> >     Currently memory hotplug won't work with KASan.  As we don't have shadow
+> >     for hotplugged memory, kernel will crash on the first access to it.  To
+> >     make this work we will need to allocate shadow for new memory.
+> >     
+> >     At some future point proper memory hotplug support will be implemented.
+> >     Until then, print a warning at startup and disable memory hot-add.
+> >
+> >
+> >
+> >> What's the problem and are there plans to fix it?
+> > Nobody complained, so I didn't bother to fix it.
+> > The fix for this should be simple, I'll look into this.
+> >
+> >>>  therefore, it is necessary to add the condition
+> >>> to limit the memory_hotplug when KASAN enable.
+> >>>
+> > I don't understand why we need Kconfig dependency.
+> > Why is that better than runtime warn message?
+>   The user rarely care about the runtime warn message when the
+>   system is good running.  In fact, They are confilct with each other.
+>   For me,  I know the reason. but I always forget to do so. As a result,
+>   I test the memory hotplug fails again.  so, I hope to add the explicit dependency.
 
-I don't see anything inherently wrong with the fix.
+Yes, I think it's better to disable the configuration than to permit
+people to run known-to-be-broken kernel setups - that will just cause
+confusion and pointless bug reports.  Let's undo the Kconfig change
+when this gets fixed up.
 
--- 
-Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
