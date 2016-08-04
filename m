@@ -1,71 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1785B6B0253
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 09:01:14 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id s207so23753459oie.1
-        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 06:01:14 -0700 (PDT)
-Received: from mail-io0-x244.google.com (mail-io0-x244.google.com. [2607:f8b0:4001:c06::244])
-        by mx.google.com with ESMTPS id i125si2949090itb.72.2016.08.04.06.01.12
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B13546B0253
+	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 09:19:12 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id p129so146719943wmp.3
+        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 06:19:12 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id ly3si13618670wjb.68.2016.08.04.06.19.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Aug 2016 06:01:12 -0700 (PDT)
-Received: by mail-io0-x244.google.com with SMTP id g86so21670970ioj.1
-        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 06:01:12 -0700 (PDT)
-Subject: Re: [PATCH] fs:Fix kmemleak leak warning in getname_flags about
- working on unitialized memory
-References: <1470260896-31767-1-git-send-email-xerofoify@gmail.com>
- <df8dd6cd-245d-0673-0246-e514b2a67fc2@I-love.SAKURA.ne.jp>
-From: nick <xerofoify@gmail.com>
-Message-ID: <43b955c4-8592-1d8b-2624-419dd5501d6e@gmail.com>
-Date: Thu, 4 Aug 2016 09:01:09 -0400
+        Thu, 04 Aug 2016 06:19:11 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u74DJApG143086
+	for <linux-mm@kvack.org>; Thu, 4 Aug 2016 09:19:10 -0400
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 24kkajbpqq-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 04 Aug 2016 09:19:09 -0400
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Thu, 4 Aug 2016 14:19:01 +0100
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
+	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id CF400219004D
+	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 14:18:24 +0100 (BST)
+Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u74DIxpi22413334
+	for <linux-mm@kvack.org>; Thu, 4 Aug 2016 13:18:59 GMT
+Received: from d06av03.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av03.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u74DIw0r029884
+	for <linux-mm@kvack.org>; Thu, 4 Aug 2016 07:18:58 -0600
+Date: Thu, 4 Aug 2016 16:18:55 +0300
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH 2/7] userfaultfd: shmem: add shmem_mcopy_atomic_pte for
+ userfaultfd support
+References: <004301d1ee32$fc583630$f508a290$@alibaba-inc.com>
+ <004401d1ee33$c9b748f0$5d25dad0$@alibaba-inc.com>
 MIME-Version: 1.0
-In-Reply-To: <df8dd6cd-245d-0673-0246-e514b2a67fc2@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <004401d1ee33$c9b748f0$5d25dad0$@alibaba-inc.com>
+Message-Id: <20160804131855.GC21679@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, viro@zeniv.linux.org.uk
-Cc: akpm@linux-foundation.org, msalter@redhat.com, kuleshovmail@gmail.com, david.vrabel@citrix.com, vbabka@suse.cz, ard.biesheuvel@linaro.org, jgross@suse.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: linux-mm@kvack.org
 
+On Thu, Aug 04, 2016 at 05:37:16PM +0800, Hillf Danton wrote:
+> > 
+> > +int shmem_mcopy_atomic_pte(struct mm_struct *dst_mm,
+> > +			   pmd_t *dst_pmd,
+> > +			   struct vm_area_struct *dst_vma,
+> > +			   unsigned long dst_addr,
+> > +			   unsigned long src_addr,
+> > +			   struct page **pagep)
+> > +{
+> > +	struct inode *inode = file_inode(dst_vma->vm_file);
+> > +	struct shmem_inode_info *info = SHMEM_I(inode);
+> > +	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
+> > +	struct address_space *mapping = inode->i_mapping;
+> > +	gfp_t gfp = mapping_gfp_mask(mapping);
+> > +	pgoff_t pgoff = linear_page_index(dst_vma, dst_addr);
+> > +	struct mem_cgroup *memcg;
+> > +	spinlock_t *ptl;
+> > +	void *page_kaddr;
+> > +	struct page *page;
+> > +	pte_t _dst_pte, *dst_pte;
+> > +	int ret;
+> > +
+> > +	if (!*pagep) {
+> > +		ret = -ENOMEM;
+> > +		if (shmem_acct_block(info->flags))
+> > +			goto out;
+> > +		if (sbinfo->max_blocks) {
+> > +			if (percpu_counter_compare(&sbinfo->used_blocks,
+> > +						   sbinfo->max_blocks) >= 0)
+> > +				goto out_unacct_blocks;
+> > +			percpu_counter_inc(&sbinfo->used_blocks);
+> > +		}
+> > +
+> > +		page = shmem_alloc_page(gfp, info, pgoff);
+> > +		if (!page)
+> > +			goto out_dec_used_blocks;
+> > +
+> > +		page_kaddr = kmap_atomic(page);
+> > +		ret = copy_from_user(page_kaddr, (const void __user *)src_addr,
+> > +				     PAGE_SIZE);
+> > +		kunmap_atomic(page_kaddr);
+> > +
+> > +		/* fallback to copy_from_user outside mmap_sem */
+> > +		if (unlikely(ret)) {
+> > +			*pagep = page;
+> > +			/* don't free the page */
+> > +			return -EFAULT;
+> > +		}
+> > +	} else {
+> > +		page = *pagep;
+> > +		*pagep = NULL;
+> > +	}
+> > +
+> > +	_dst_pte = mk_pte(page, dst_vma->vm_page_prot);
+> > +	if (dst_vma->vm_flags & VM_WRITE)
+> > +		_dst_pte = pte_mkwrite(pte_mkdirty(_dst_pte));
+> > +
+> > +	ret = -EEXIST;
+> > +	dst_pte = pte_offset_map_lock(dst_mm, dst_pmd, dst_addr, &ptl);
+> > +	if (!pte_none(*dst_pte))
+> > +		goto out_release_uncharge_unlock;
+> > +
+> > +	__SetPageUptodate(page);
+> > +
+> > +	ret = mem_cgroup_try_charge(page, dst_mm, gfp, &memcg,
+> > +				    false);
+> > +	if (ret)
+> > +		goto out_release_uncharge_unlock;
+> > +	ret = radix_tree_maybe_preload(gfp & GFP_RECLAIM_MASK);
+> 
+> You have to load radix tree without &ptl held.
 
+Thanks, will fix.
+ 
+> Hillf
+> 
 
-On 2016-08-04 08:18 AM, Tetsuo Handa wrote:
-> On 2016/08/04 6:48, Nicholas Krause wrote:
->> This fixes a kmemleak leak warning complaining about working on
->> unitializied memory as found in the function, getname_flages. Seems
->> that we are indeed working on unitialized memory, as the filename
->> char pointer is never made to point to the filname structure's result
->> member for holding it's name, fix this by using memcpy to copy the
->> filname structure pointer's, name to the char pointer passed to this
->> function.
->>
->> Signed-off-by: Nicholas Krause <xerofoify@gmail.com>
->> ---
->>  fs/namei.c         | 1 +
->>  mm/early_ioremap.c | 1 +
->>  2 files changed, 2 insertions(+)
->>
->> diff --git a/fs/namei.c b/fs/namei.c
->> index c386a32..6b18d57 100644
->> --- a/fs/namei.c
->> +++ b/fs/namei.c
->> @@ -196,6 +196,7 @@ getname_flags(const char __user *filename, int flags, int *empty)
->>  		}
->>  	}
->>  
->> +	memcpy((char *)result->name, filename, len);
-> 
-> This filename is a __user pointer. Reading with memcpy() is not safe.
-Indeed that is dangerous, I will test a v2 seeing if it is also fixed using
-copy_to_user with the same pointers to kernel memory space into user space 
-like this with memcpy.
-Good Catch,
-Nick
-> 
->>  	result->uptr = filename;
->>  	result->aname = NULL;
->>  	audit_getname(result);
-> 
+--
+Sincerely yours,
+Mike.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
