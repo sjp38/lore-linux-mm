@@ -1,89 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E453E6B0253
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 09:54:35 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 1so147491850wmz.2
-        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 06:54:35 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id ek4si13730500wjd.140.2016.08.04.06.54.34
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 90AE56B025E
+	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 09:57:17 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id m130so518123846ioa.1
+        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 06:57:17 -0700 (PDT)
+Received: from mail-io0-x243.google.com (mail-io0-x243.google.com. [2607:f8b0:4001:c06::243])
+        by mx.google.com with ESMTPS id l198si3180657itl.82.2016.08.04.06.57.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Aug 2016 06:54:34 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u74DsNEa009340
-	for <linux-mm@kvack.org>; Thu, 4 Aug 2016 09:54:33 -0400
-Received: from e28smtp06.in.ibm.com (e28smtp06.in.ibm.com [125.16.236.6])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 24kxmhe5mc-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 04 Aug 2016 09:54:33 -0400
-Received: from localhost
-	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Thu, 4 Aug 2016 19:24:29 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 29E0AE005E
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 19:28:50 +0530 (IST)
-Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
-	by d28relay05.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u74Dqlt17340058
-	for <linux-mm@kvack.org>; Thu, 4 Aug 2016 19:22:47 +0530
-Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
-	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u74DsPKN029359
-	for <linux-mm@kvack.org>; Thu, 4 Aug 2016 19:24:27 +0530
-Date: Thu, 4 Aug 2016 19:24:14 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 2/2] fadump: Disable deferred page struct initialisation
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <1470143947-24443-1-git-send-email-srikar@linux.vnet.ibm.com>
- <1470143947-24443-3-git-send-email-srikar@linux.vnet.ibm.com>
- <1470201642.5034.3.camel@gmail.com>
- <20160803063538.GH6310@linux.vnet.ibm.com>
- <57A248A1.40807@intel.com>
- <20160804051035.GA11268@linux.vnet.ibm.com>
- <20160804102801.GJ2799@techsingularity.net>
+        Thu, 04 Aug 2016 06:57:17 -0700 (PDT)
+Received: by mail-io0-x243.google.com with SMTP id q83so21966110iod.2
+        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 06:57:16 -0700 (PDT)
+Subject: Re: [PATCH] fs:Fix kmemleak leak warning in getname_flags about
+ working on unitialized memory
+References: <1470260896-31767-1-git-send-email-xerofoify@gmail.com>
+ <6b369f5c-6a9d-febf-81fe-2e1a4b408814@suse.cz>
+From: nick <xerofoify@gmail.com>
+Message-ID: <4bbd8d52-e4ee-74ef-d3f3-897c6ba209a2@gmail.com>
+Date: Thu, 4 Aug 2016 09:57:14 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20160804102801.GJ2799@techsingularity.net>
-Message-Id: <20160804135414.GC11268@linux.vnet.ibm.com>
+In-Reply-To: <6b369f5c-6a9d-febf-81fe-2e1a4b408814@suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Dave Hansen <dave.hansen@intel.com>, Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, mahesh@linux.vnet.ibm.com
+To: Vlastimil Babka <vbabka@suse.cz>, viro@zeniv.linux.org.uk
+Cc: akpm@linux-foundation.org, msalter@redhat.com, kuleshovmail@gmail.com, david.vrabel@citrix.com, ard.biesheuvel@linaro.org, jgross@suse.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-* Mel Gorman <mgorman@techsingularity.net> [2016-08-04 11:28:01]:
 
-> > > 
-> > > Oh, and the dentry/inode caches are sized based on 100% of memory, not
-> > > the 5% that's left after the fadump reservation?
-> > 
-> > Yes, the dentry/inode caches are sized based on the 100% memory.
-> > 
+
+On 2016-08-04 09:31 AM, Vlastimil Babka wrote:
+> On 08/03/2016 11:48 PM, Nicholas Krause wrote:
+>> This fixes a kmemleak leak warning complaining about working on
+>> unitializied memory as found in the function, getname_flages. Seems
 > 
-> By and large, I'm not a major fan of introducing an API to disable it for
-> a single feature that is arch-specific because it's very heavy handed.
-> There is no guarantee that the existence of fadump will cause a failure
-
-okay.
-
+> What exactly is the kmemleak warning saying?
 > 
-> If fadump is reserving memory and alloc_large_system_hash(HASH_EARLY)
-> does not know about then then would an arch-specific callback for
-> arch_reserved_kernel_pages() be more appropriate? fadump would need to
-> return how many pages it reserved there. That would shrink the size of
-> the inode and dentry hash tables when booting with 95% of memory
-> reserved.
+>> that we are indeed working on unitialized memory, as the filename
+>> char pointer is never made to point to the filname structure's result
+>> member for holding it's name, fix this by using memcpy to copy the
+>> filname structure pointer's, name to the char pointer passed to this
+>> function.
 > 
-> That approach would limit the impact to ppc64 and would be less costly than
-> doing a memblock walk instead of using nr_kernel_pages for everyone else.
+> I don't understand what you're saying here. "the char pointer passed to
+> this function" is the source, not destination.
 > 
-
-I have posted a patch based on Mel and Dave's feedback
-
-http://lkml.kernel.org/r/1470318165-2521-1-git-send-email-srikar@linux.vnet.ibm.com
-
--- 
-Thanks and Regards
-Srikar Dronamraju
+That's fine what I mean to state is this we are never copying back our internal
+struct filename result's name member to the user pointer leading to a kmemleak
+warning.
+>> Signed-off-by: Nicholas Krause <xerofoify@gmail.com>
+>> ---
+>>  fs/namei.c         | 1 +
+>>  mm/early_ioremap.c | 1 +
+>>  2 files changed, 2 insertions(+)
+>>
+>> diff --git a/fs/namei.c b/fs/namei.c
+>> index c386a32..6b18d57 100644
+>> --- a/fs/namei.c
+>> +++ b/fs/namei.c
+>> @@ -196,6 +196,7 @@ getname_flags(const char __user *filename, int flags, int *empty)
+>>  		}
+>>  	}
+>>  
+>> +	memcpy((char *)result->name, filename, len);
+> 
+> This will be wrong even with strncpy_from_user instead of memcpy. AFAICS
+> result->name already points to a copy of filename.
+Yes that is correct but the pointer we are passing is called, filename into
+getname_flags which is what I am passing as the second argument which is
+confusing at least to me :).
+> Also if you think that the above is "copy[ing] the filname structure
+> pointer's, name to the char pointer passed to this function" then you
+> are wrong.
+> 
+I assumed here that it was copying or moving the pointer over to point to
+the region of memory allocated for the structure result pointer to hold
+it's name member, I could be wrong :).
+>>  	result->uptr = filename;
+>>  	result->aname = NULL;
+>>  	audit_getname(result);
+>> diff --git a/mm/early_ioremap.c b/mm/early_ioremap.c
+>> index 6d5717b..92c5235 100644
+>> --- a/mm/early_ioremap.c
+>> +++ b/mm/early_ioremap.c
+>> @@ -215,6 +215,7 @@ early_ioremap(resource_size_t phys_addr, unsigned long size)
+>>  void __init *
+>>  early_memremap(resource_size_t phys_addr, unsigned long size)
+>>  {
+>> +	dump_stack();
+>>  	return (__force void *)__early_ioremap(phys_addr, size,
+>>  					       FIXMAP_PAGE_NORMAL);
+>>  }
+>>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
