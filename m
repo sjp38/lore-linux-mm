@@ -1,79 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E85346B0253
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 10:09:38 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 1so147850171wmz.2
-        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 07:09:38 -0700 (PDT)
-Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
-        by mx.google.com with ESMTPS id h6si4194416wmf.110.2016.08.04.07.09.36
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 07FED6B0253
+	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 11:20:06 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id x130so191272156ite.3
+        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 08:20:06 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0196.hostedemail.com. [216.40.44.196])
+        by mx.google.com with ESMTPS id z68si3554193itd.12.2016.08.04.08.19.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Aug 2016 07:09:36 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id 416A81C1A1C
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 15:09:36 +0100 (IST)
-Date: Thu, 4 Aug 2016 15:09:34 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] fadump: Register the memory reserved by fadump
-Message-ID: <20160804140934.GM2799@techsingularity.net>
-References: <1470318165-2521-1-git-send-email-srikar@linux.vnet.ibm.com>
+        Thu, 04 Aug 2016 08:19:51 -0700 (PDT)
+Date: Thu, 4 Aug 2016 11:19:46 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH 1/2] mm: page_alloc.c: Add tracepoints for slowpath
+Message-ID: <20160804111946.6cbbd30b@gandalf.local.home>
+In-Reply-To: <0AF03F78-AA34-4531-899A-EA1076B6B3A1@gmail.com>
+References: <cover.1469629027.git.janani.rvchndrn@gmail.com>
+	<6b12aed89ad75cb2b3525a24265fa1d622409b42.1469629027.git.janani.rvchndrn@gmail.com>
+	<20160727112303.11409a4e@gandalf.local.home>
+	<0AF03F78-AA34-4531-899A-EA1076B6B3A1@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1470318165-2521-1-git-send-email-srikar@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org, Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@intel.com>, Balbir Singh <bsingharora@gmail.com>
+To: Janani Ravichandran <janani.rvchndrn@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@surriel.com, akpm@linux-foundation.org, hannes@compxchg.org, vdavydov@virtuozzo.com, mhocko@suse.com, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, bywxiaobai@163.com
 
-On Thu, Aug 04, 2016 at 07:12:45PM +0530, Srikar Dronamraju wrote:
-> Fadump kernel reserves large chunks of memory even before the pages are
-> initialized. This could mean memory that corresponds to several nodes might
-> fall in memblock reserved regions.
-> 
-> Kernels compiled with CONFIG_DEFERRED_STRUCT_PAGE_INIT will initialize
-> only certain size memory per node. The certain size takes into account
-> the dentry and inode cache sizes. Currently the cache sizes are
-> calculated based on the total system memory including the reserved
-> memory. However such a kernel when booting the same kernel as fadump
-> kernel will not be able to allocate the required amount of memory to
-> suffice for the dentry and inode caches. This results in crashes like
-> the below on large systems such as 32 TB systems.
-> 
-> Dentry cache hash table entries: 536870912 (order: 16, 4294967296 bytes)
-> vmalloc: allocation failure, allocated 4097114112 of 17179934720 bytes
-> swapper/0: page allocation failure: order:0, mode:0x2080020(GFP_ATOMIC)
-> CPU: 0 PID: 0 Comm: swapper/0 Not tainted 4.6-master+ #3
-> Call Trace:
-> [c00000000108fb10] [c0000000007fac88] dump_stack+0xb0/0xf0 (unreliable)
-> [c00000000108fb50] [c000000000235264] warn_alloc_failed+0x114/0x160
-> [c00000000108fbf0] [c000000000281484] __vmalloc_node_range+0x304/0x340
-> [c00000000108fca0] [c00000000028152c] __vmalloc+0x6c/0x90
-> [c00000000108fd40] [c000000000aecfb0]
-> alloc_large_system_hash+0x1b8/0x2c0
-> [c00000000108fe00] [c000000000af7240] inode_init+0x94/0xe4
-> [c00000000108fe80] [c000000000af6fec] vfs_caches_init+0x8c/0x13c
-> [c00000000108ff00] [c000000000ac4014] start_kernel+0x50c/0x578
-> [c00000000108ff90] [c000000000008c6c] start_here_common+0x20/0xa8
-> 
-> Register the memory reserved by fadump, so that the cache sizes are
-> calculated based on the free memory (i.e Total memory - reserved
-> memory).
-> 
-> Suggested-by: Mel Gorman <mgorman@techsingularity.net>
+On Fri, 29 Jul 2016 01:41:20 +0530
+Janani Ravichandran <janani.rvchndrn@gmail.com> wrote:
 
-I didn't suggest this specifically. While it happens to be safe on ppc64,
-it potentially overwrites any future caller of set_dma_reserve. While the
-only other one is for the e820 map, it may be better to change the API
-to inc_dma_reserve?
+Sorry for the late reply, I've been swamped with other things since
+coming back from my vacation.
 
-It's also unfortunate that it's called dma_reserve because it has
-nothing to do with DMA or ZONE_DMA. inc_kernel_reserve may be more
-appropriate?
+> I looked at function graph trace, as you=E2=80=99d suggested. I saw that =
+I could set a threshold=20
+> there using tracing_thresh. But the problem was that slowpath trace infor=
+mation was printed
+> for all the cases (even when __alloc_pages_nodemask latencies were below =
+the threshold).
+> Is there a way to print tracepoint information only when __alloc_pages_no=
+demask
+> exceeds the threshold?
 
--- 
-Mel Gorman
-SUSE Labs
+One thing you could do is to create your own module and hook into the
+function graph tracer yourself!
+
+It would require a patch to export two functions in
+kernel/trace/ftrace.c:
+
+ register_ftrace_graph()
+ unregister_ftrace_graph()
+
+Note, currently only one user of these functions is allowed at a time.
+If function_graph tracing is already enabled, the register function
+will return -EBUSY.
+
+You pass in a "retfunc" and a "entryfunc" (I never understood why they
+were backwards), and these are the functions that are called when a
+function returns and when a function is entered respectively.
+
+The retfunc looks like this:
+
+static void my_retfunc(struct ftrace_graph_ret *trace)
+{
+	[...]
+}
+
+static int my_entryfunc(struct ftrace_graph_ent *trace)
+{
+	[...]
+}
+
+
+The ftrace_graph_ret structure looks like this:
+
+struct ftrace_graph_ret {
+	unsigned long func;
+	unsigned long overrun;
+	unsigned long calltime;
+	unsigned long rettime;
+	int depth;
+};
+
+Where func is actually the instruction pointer of the function that is
+being traced.
+
+You can ignore "overrun".
+
+calltime is the trace_clock_local() (sched_clock() like timestamp) of
+when the function was entered.
+
+rettime is the trace_clock_local() timestamp of when the function
+returns.
+
+ rettime - calltime is the time difference of the entire function.
+
+And that's the time you want to look at.
+
+depth is how deep into the call chain the current function is. There's
+a limit (50 I think), of how deep it will record, and anything deeper
+will go into that "overrun" field I told you to ignore.
+
+
+Hmm, looking at the code, it appears setting tracing_thresh should
+work. Could you show me exactly what you did?
+
+Either way, adding your own function graph hook may be a good exercise
+in seeing how all this works.
+
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
