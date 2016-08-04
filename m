@@ -1,85 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B46C26B0253
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 06:28:05 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id 33so130937944lfw.1
-        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 03:28:05 -0700 (PDT)
-Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
-        by mx.google.com with ESMTPS id p200si3298051wme.0.2016.08.04.03.28.03
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B484C6B0253
+	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 07:29:53 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id le9so29475628pab.0
+        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 04:29:53 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id d5si14320037pfb.98.2016.08.04.04.29.50
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 04 Aug 2016 03:28:04 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id A3E0998A6D
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 10:28:03 +0000 (UTC)
-Date: Thu, 4 Aug 2016 11:28:01 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 2/2] fadump: Disable deferred page struct initialisation
-Message-ID: <20160804102801.GJ2799@techsingularity.net>
-References: <1470143947-24443-1-git-send-email-srikar@linux.vnet.ibm.com>
- <1470143947-24443-3-git-send-email-srikar@linux.vnet.ibm.com>
- <1470201642.5034.3.camel@gmail.com>
- <20160803063538.GH6310@linux.vnet.ibm.com>
- <57A248A1.40807@intel.com>
- <20160804051035.GA11268@linux.vnet.ibm.com>
+        Thu, 04 Aug 2016 04:29:53 -0700 (PDT)
+Message-ID: <57A3260F.4050709@huawei.com>
+Date: Thu, 4 Aug 2016 19:25:03 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20160804051035.GA11268@linux.vnet.ibm.com>
+Subject: [PATCH 1/3] mm: fix set pageblock migratetype in deferred struct
+ page init
+References: <57A325CA.9050707@huawei.com>
+In-Reply-To: <57A325CA.9050707@huawei.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, Balbir Singh <bsingharora@gmail.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, mahesh@linux.vnet.ibm.com
+To: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H.
+ Peter Anvin" <hpa@zytor.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Aug 04, 2016 at 10:40:35AM +0530, Srikar Dronamraju wrote:
-> * Dave Hansen <dave.hansen@intel.com> [2016-08-03 12:40:17]:
-> 
-> > On 08/02/2016 11:35 PM, Srikar Dronamraju wrote:
-> > > On a regular kernel with CONFIG_FADUMP and fadump configured, 5% of the
-> > > total memory is reserved for booting the kernel on crash.  On crash,
-> > > fadump kernel reserves the 95% memory and boots into the 5% memory that
-> > > was reserved for it. It then parses the reserved 95% memory to collect
-> > > the dump.
-> > > 
-> > > The problem is not about the amount of memory thats reserved for fadump
-> > > kernel. Even if we increase/decrease, we will still end up with the same
-> > > issue.
-> > 
-> > Oh, and the dentry/inode caches are sized based on 100% of memory, not
-> > the 5% that's left after the fadump reservation?
-> 
-> Yes, the dentry/inode caches are sized based on the 100% memory.
-> 
+MAX_ORDER_NR_PAGES is usually 4M, and a pageblock is usually 2M, so we only
+set one pageblock's migratetype in deferred_free_range() if pfn is aligned
+to MAX_ORDER_NR_PAGES.
 
-By and large, I'm not a major fan of introducing an API to disable it for
-a single feature that is arch-specific because it's very heavy handed.
-There is no guarantee that the existence of fadump will cause a failure
+Also we missed to free the last block in deferred_init_memmap().
 
-If fadump is reserving memory and alloc_large_system_hash(HASH_EARLY)
-does not know about then then would an arch-specific callback for
-arch_reserved_kernel_pages() be more appropriate? fadump would need to
-return how many pages it reserved there. That would shrink the size of
-the inode and dentry hash tables when booting with 95% of memory
-reserved.
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+---
+ mm/page_alloc.c | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)
 
-That approach would limit the impact to ppc64 and would be less costly than
-doing a memblock walk instead of using nr_kernel_pages for everyone else.
-
-> > Is the deferred initialization kicked in progress at the time we do the
-> > dentry/inode allocations?  Can waiting a bit let the allocation succeed?
-> > 
-> 
-> Right now deferred initialisation kicks in after dentry/inode
-> allocations.
-> 
-> Can we defer the cache allocations till deferred
-> initialisation? I dont know.
-
-Only by backing it with vmalloc memory.
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2b258ec..e0ec3b6 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1399,15 +1399,18 @@ static void __init deferred_free_range(struct page *page,
+ 		return;
+ 
+ 	/* Free a large naturally-aligned chunk if possible */
+-	if (nr_pages == MAX_ORDER_NR_PAGES &&
+-	    (pfn & (MAX_ORDER_NR_PAGES-1)) == 0) {
++	if (nr_pages == pageblock_nr_pages &&
++	    (pfn & (pageblock_nr_pages - 1)) == 0) {
+ 		set_pageblock_migratetype(page, MIGRATE_MOVABLE);
+-		__free_pages_boot_core(page, MAX_ORDER-1);
++		__free_pages_boot_core(page, pageblock_order);
+ 		return;
+ 	}
+ 
+-	for (i = 0; i < nr_pages; i++, page++)
++	for (i = 0; i < nr_pages; i++, page++, pfn++) {
++		if ((pfn & (pageblock_nr_pages - 1)) == 0)
++			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
+ 		__free_pages_boot_core(page, 0);
++	}
+ }
+ 
+ /* Completion tracking for deferred_init_memmap() threads */
+@@ -1475,9 +1478,9 @@ static int __init deferred_init_memmap(void *data)
+ 
+ 			/*
+ 			 * Ensure pfn_valid is checked every
+-			 * MAX_ORDER_NR_PAGES for memory holes
++			 * pageblock_nr_pages for memory holes
+ 			 */
+-			if ((pfn & (MAX_ORDER_NR_PAGES - 1)) == 0) {
++			if ((pfn & (pageblock_nr_pages - 1)) == 0) {
+ 				if (!pfn_valid(pfn)) {
+ 					page = NULL;
+ 					goto free_range;
+@@ -1490,7 +1493,7 @@ static int __init deferred_init_memmap(void *data)
+ 			}
+ 
+ 			/* Minimise pfn page lookups and scheduler checks */
+-			if (page && (pfn & (MAX_ORDER_NR_PAGES - 1)) != 0) {
++			if (page && (pfn & (pageblock_nr_pages - 1)) != 0) {
+ 				page++;
+ 			} else {
+ 				nr_pages += nr_to_free;
+@@ -1526,6 +1529,9 @@ free_range:
+ 			free_base_page = NULL;
+ 			free_base_pfn = nr_to_free = 0;
+ 		}
++		/* Free the last block of pages to allocator */
++		nr_pages += nr_to_free;
++		deferred_free_range(free_base_page, free_base_pfn, nr_to_free);
+ 
+ 		first_init_pfn = max(end_pfn, first_init_pfn);
+ 	}
 -- 
-Mel Gorman
-SUSE Labs
+1.8.3.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
