@@ -1,19 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 422526B025E
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 07:29:56 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id e7so132094085lfe.0
-        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 04:29:56 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id m6si13059581wjc.227.2016.08.04.04.29.52
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 04 Aug 2016 04:29:55 -0700 (PDT)
-Message-ID: <57A325CA.9050707@huawei.com>
-Date: Thu, 4 Aug 2016 19:23:54 +0800
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 013FC6B0253
+	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 07:35:47 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id x130so412712369vkc.3
+        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 04:35:46 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTP id o10si7926433qtb.120.2016.08.04.04.35.44
+        for <linux-mm@kvack.org>;
+        Thu, 04 Aug 2016 04:35:46 -0700 (PDT)
+Message-ID: <57A325E8.6070100@huawei.com>
+Date: Thu, 4 Aug 2016 19:24:24 +0800
 From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Subject: [PATCH 1/3] mem-hotplug: introduce movablenode option
+Subject: [PATCH 2/3] mem-hotplug: fix node spanned pages when we have a movable
+ node
+References: <57A325CA.9050707@huawei.com>
+In-Reply-To: <57A325CA.9050707@huawei.com>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -22,93 +24,132 @@ To: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H.
  Peter Anvin" <hpa@zytor.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-This patch introduces a new boot option movablenode.
+commit 342332e6a925e9ed015e5465062c38d2b86ec8f9 rewrite the calculate of
+node spanned pages. But when we have a movable node, the size of node spanned
+pages is double added. That's because we have an empty normal zone, the present
+pages is zero, but its spanned pages is not zero.
 
-To support memory hotplug, boot option "movable_node" is needed. And to
-support debug memory hotplug, boot option "movable_node" and "movablenode"
-are both needed.
+e.g.
+[    0.000000] Zone ranges:
+[    0.000000]   DMA      [mem 0x0000000000001000-0x0000000000ffffff]
+[    0.000000]   DMA32    [mem 0x0000000001000000-0x00000000ffffffff]
+[    0.000000]   Normal   [mem 0x0000000100000000-0x0000007c7fffffff]
+[    0.000000] Movable zone start for each node
+[    0.000000]   Node 1: 0x0000001080000000
+[    0.000000]   Node 2: 0x0000002080000000
+[    0.000000]   Node 3: 0x0000003080000000
+[    0.000000]   Node 4: 0x0000003c80000000
+[    0.000000]   Node 5: 0x0000004c80000000
+[    0.000000]   Node 6: 0x0000005c80000000
+[    0.000000] Early memory node ranges
+[    0.000000]   node   0: [mem 0x0000000000001000-0x000000000009ffff]
+[    0.000000]   node   0: [mem 0x0000000000100000-0x000000007552afff]
+[    0.000000]   node   0: [mem 0x000000007bd46000-0x000000007bd46fff]
+[    0.000000]   node   0: [mem 0x000000007bdcd000-0x000000007bffffff]
+[    0.000000]   node   0: [mem 0x0000000100000000-0x000000107fffffff]
+[    0.000000]   node   1: [mem 0x0000001080000000-0x000000207fffffff]
+[    0.000000]   node   2: [mem 0x0000002080000000-0x000000307fffffff]
+[    0.000000]   node   3: [mem 0x0000003080000000-0x0000003c7fffffff]
+[    0.000000]   node   4: [mem 0x0000003c80000000-0x0000004c7fffffff]
+[    0.000000]   node   5: [mem 0x0000004c80000000-0x0000005c7fffffff]
+[    0.000000]   node   6: [mem 0x0000005c80000000-0x0000006c7fffffff]
+[    0.000000]   node   7: [mem 0x0000006c80000000-0x0000007c7fffffff]
 
-e.g. movable_node movablenode=1,2,4
+node1:
+[  760.227767] Normal, start=0x1080000, present=0x0, spanned=0x1000000
+[  760.234024] Movable, start=0x1080000, present=0x1000000, spanned=0x1000000
+[  760.240883] pgdat, start=0x1080000, present=0x1000000, spanned=0x2000000
 
-It means node 1,2,4 will be set to movable nodes, the other nodes are
-unmovable nodes. Usually movable nodes are parsed from SRAT table which
-offered by BIOS, so this boot option is used for debug.
+After apply this patch, the problem is fixed.
+node1:
+[  289.770922] Normal, start=0x0, present=0x0, spanned=0x0
+[  289.776153] Movable, start=0x1080000, present=0x1000000, spanned=0x1000000
+[  289.783019] pgdat, start=0x1080000, present=0x1000000, spanned=0x1000000
 
 Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
 ---
- Documentation/kernel-parameters.txt |  4 ++++
- arch/x86/mm/srat.c                  | 36 ++++++++++++++++++++++++++++++++++++
- 2 files changed, 40 insertions(+)
+ mm/page_alloc.c | 54 +++++++++++++++++++++++-------------------------------
+ 1 file changed, 23 insertions(+), 31 deletions(-)
 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index 82b42c9..f8726f8 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -2319,6 +2319,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 	movable_node	[KNL,X86] Boot-time switch to enable the effects
- 			of CONFIG_MOVABLE_NODE=y. See mm/Kconfig for details.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 6903b69..2b258ec 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5173,15 +5173,6 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
  
-+	movablenode=	[KNL,X86] Boot-time switch to set which node is
-+			movable node.
-+			Format: <movable nid>,...,<movable nid>
-+
- 	MTD_Partition=	[MTD]
- 			Format: <name>,<region-number>,<size>,<offset>
+ #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+ 		/*
+-		 * If not mirrored_kernelcore and ZONE_MOVABLE exists, range
+-		 * from zone_movable_pfn[nid] to end of each node should be
+-		 * ZONE_MOVABLE not ZONE_NORMAL. skip it.
+-		 */
+-		if (!mirrored_kernelcore && zone_movable_pfn[nid])
+-			if (zone == ZONE_NORMAL && pfn >= zone_movable_pfn[nid])
+-				continue;
+-
+-		/*
+ 		 * Check given memblock attribute by firmware which can affect
+ 		 * kernel memory layout.  If zone==ZONE_MOVABLE but memory is
+ 		 * mirrored, it's an overlapped memmap init. skip it.
+@@ -5619,6 +5610,12 @@ static void __meminit adjust_zone_range_for_zone_movable(int nid,
+ 			*zone_end_pfn = min(node_end_pfn,
+ 				arch_zone_highest_possible_pfn[movable_zone]);
  
-diff --git a/arch/x86/mm/srat.c b/arch/x86/mm/srat.c
-index b5f8218..c4cd81a 100644
---- a/arch/x86/mm/srat.c
-+++ b/arch/x86/mm/srat.c
-@@ -157,6 +157,38 @@ static inline int save_add_info(void) {return 1;}
- static inline int save_add_info(void) {return 0;}
- #endif
++		/* Adjust for ZONE_MOVABLE starting within this range */
++		} else if (!mirrored_kernelcore &&
++			*zone_start_pfn < zone_movable_pfn[nid] &&
++			*zone_end_pfn > zone_movable_pfn[nid]) {
++			*zone_end_pfn = zone_movable_pfn[nid];
++
+ 		/* Check if this whole range is within ZONE_MOVABLE */
+ 		} else if (*zone_start_pfn >= zone_movable_pfn[nid])
+ 			*zone_start_pfn = *zone_end_pfn;
+@@ -5722,28 +5719,23 @@ static unsigned long __meminit zone_absent_pages_in_node(int nid,
+ 	 * Treat pages to be ZONE_MOVABLE in ZONE_NORMAL as absent pages
+ 	 * and vice versa.
+ 	 */
+-	if (zone_movable_pfn[nid]) {
+-		if (mirrored_kernelcore) {
+-			unsigned long start_pfn, end_pfn;
+-			struct memblock_region *r;
+-
+-			for_each_memblock(memory, r) {
+-				start_pfn = clamp(memblock_region_memory_base_pfn(r),
+-						  zone_start_pfn, zone_end_pfn);
+-				end_pfn = clamp(memblock_region_memory_end_pfn(r),
+-						zone_start_pfn, zone_end_pfn);
+-
+-				if (zone_type == ZONE_MOVABLE &&
+-				    memblock_is_mirror(r))
+-					nr_absent += end_pfn - start_pfn;
+-
+-				if (zone_type == ZONE_NORMAL &&
+-				    !memblock_is_mirror(r))
+-					nr_absent += end_pfn - start_pfn;
+-			}
+-		} else {
+-			if (zone_type == ZONE_NORMAL)
+-				nr_absent += node_end_pfn - zone_movable_pfn[nid];
++	if (mirrored_kernelcore && zone_movable_pfn[nid]) {
++		unsigned long start_pfn, end_pfn;
++		struct memblock_region *r;
++
++		for_each_memblock(memory, r) {
++			start_pfn = clamp(memblock_region_memory_base_pfn(r),
++					  zone_start_pfn, zone_end_pfn);
++			end_pfn = clamp(memblock_region_memory_end_pfn(r),
++					zone_start_pfn, zone_end_pfn);
++
++			if (zone_type == ZONE_MOVABLE &&
++			    memblock_is_mirror(r))
++				nr_absent += end_pfn - start_pfn;
++
++			if (zone_type == ZONE_NORMAL &&
++			    !memblock_is_mirror(r))
++				nr_absent += end_pfn - start_pfn;
+ 		}
+ 	}
  
-+static nodemask_t movablenode_mask;
-+
-+static void __init parse_movablenode_one(char *p)
-+{
-+	int node;
-+
-+	get_option(&p, &node);
-+	node_set(node, movablenode_mask);
-+}
-+
-+/*
-+ * movablenode=<movable nid>,...,<movable nid> sets which node is movable
-+ * node.
-+ */
-+static int __init parse_movablenode_opt(char *str)
-+{
-+#ifdef CONFIG_MOVABLE_NODE
-+	while (str) {
-+		char *k = strchr(str, ',');
-+
-+		if (k)
-+			*k++ = 0;
-+		parse_movablenode_one(str);
-+		str = k;
-+	}
-+#else
-+	pr_warn("movable_node option not supported\n");
-+#endif
-+	return 0;
-+}
-+early_param("movablenode", parse_movablenode_opt);
-+
- /* Callback for parsing of the Proximity Domain <-> Memory Area mappings */
- int __init
- acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
-@@ -205,6 +237,10 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
- 
- 	max_possible_pfn = max(max_possible_pfn, PFN_UP(end - 1));
- 
-+	if (node_isset(node, movablenode_mask) && memblock_mark_hotplug(start, ma->length))
-+		pr_warn("SRAT debug: Failed to mark hotplug range [mem %#010Lx-%#010Lx] in memblock\n",
-+			(unsigned long long)start, (unsigned long long)end - 1);
-+
- 	return 0;
- out_err_bad_srat:
- 	bad_srat();
 -- 
 1.8.3.1
 
