@@ -1,56 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E70B6B0253
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 08:18:32 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id l4so145627663wml.0
-        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 05:18:32 -0700 (PDT)
-Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
-        by mx.google.com with ESMTPS id g14si5593962ljg.42.2016.08.04.05.18.31
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CAC56B025E
+	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 08:19:12 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id n69so510984580ion.0
+        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 05:19:12 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id s17si4035593oih.89.2016.08.04.05.19.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Aug 2016 05:18:31 -0700 (PDT)
-Received: by mail-lf0-x244.google.com with SMTP id l89so14756384lfi.2
-        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 05:18:31 -0700 (PDT)
-From: Alexander Kuleshov <kuleshovmail@gmail.com>
-Subject: [PATCH] mm/memblock: fix a typo in a comment
-Date: Thu,  4 Aug 2016 18:18:24 +0600
-Message-Id: <20160804121824.18100-1-kuleshovmail@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 04 Aug 2016 05:19:11 -0700 (PDT)
+Subject: Re: [PATCH] fs:Fix kmemleak leak warning in getname_flags about
+ working on unitialized memory
+References: <1470260896-31767-1-git-send-email-xerofoify@gmail.com>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <df8dd6cd-245d-0673-0246-e514b2a67fc2@I-love.SAKURA.ne.jp>
+Date: Thu, 4 Aug 2016 21:18:19 +0900
+MIME-Version: 1.0
+In-Reply-To: <1470260896-31767-1-git-send-email-xerofoify@gmail.com>
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, Wei Yang <weiyang@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, Dennis Chen <dennis.chen@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Kuleshov <kuleshovmail@gmail.com>
+To: Nicholas Krause <xerofoify@gmail.com>, viro@zeniv.linux.org.uk
+Cc: akpm@linux-foundation.org, msalter@redhat.com, kuleshovmail@gmail.com, david.vrabel@citrix.com, vbabka@suse.cz, ard.biesheuvel@linaro.org, jgross@suse.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-s/accomodate/accommodate
+On 2016/08/04 6:48, Nicholas Krause wrote:
+> This fixes a kmemleak leak warning complaining about working on
+> unitializied memory as found in the function, getname_flages. Seems
+> that we are indeed working on unitialized memory, as the filename
+> char pointer is never made to point to the filname structure's result
+> member for holding it's name, fix this by using memcpy to copy the
+> filname structure pointer's, name to the char pointer passed to this
+> function.
+> 
+> Signed-off-by: Nicholas Krause <xerofoify@gmail.com>
+> ---
+>  fs/namei.c         | 1 +
+>  mm/early_ioremap.c | 1 +
+>  2 files changed, 2 insertions(+)
+> 
+> diff --git a/fs/namei.c b/fs/namei.c
+> index c386a32..6b18d57 100644
+> --- a/fs/namei.c
+> +++ b/fs/namei.c
+> @@ -196,6 +196,7 @@ getname_flags(const char __user *filename, int flags, int *empty)
+>  		}
+>  	}
+>  
+> +	memcpy((char *)result->name, filename, len);
 
-Signed-off-by: Alexander Kuleshov <kuleshovmail@gmail.com>
----
- mm/memblock.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+This filename is a __user pointer. Reading with memcpy() is not safe.
 
-diff --git a/mm/memblock.c b/mm/memblock.c
-index ff5ff3b..1f065da 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -482,7 +482,7 @@ static void __init_memblock memblock_merge_regions(struct memblock_type *type)
-  * @flags:	flags of the new region
-  *
-  * Insert new memblock region [@base,@base+@size) into @type at @idx.
-- * @type must already have extra room to accomodate the new region.
-+ * @type must already have extra room to accommodate the new region.
-  */
- static void __init_memblock memblock_insert_region(struct memblock_type *type,
- 						   int idx, phys_addr_t base,
-@@ -544,7 +544,7 @@ repeat:
- 	/*
- 	 * The following is executed twice.  Once with %false @insert and
- 	 * then with %true.  The first counts the number of regions needed
--	 * to accomodate the new area.  The second actually inserts them.
-+	 * to accommodate the new area.  The second actually inserts them.
- 	 */
- 	base = obase;
- 	nr_new = 0;
--- 
-2.8.0.rc3.1353.gea9bdc0
+>  	result->uptr = filename;
+>  	result->aname = NULL;
+>  	audit_getname(result);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
