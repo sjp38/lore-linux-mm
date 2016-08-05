@@ -1,67 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DA10E6B0005
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 23:22:34 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id m130so567173887ioa.1
-        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 20:22:34 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id e63si5837996ite.96.2016.08.04.20.22.33
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 113FA6B0005
+	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 23:55:43 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id ag5so442407100pad.2
+        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 20:55:43 -0700 (PDT)
+Received: from mail-pa0-x244.google.com (mail-pa0-x244.google.com. [2607:f8b0:400e:c03::244])
+        by mx.google.com with ESMTPS id c83si18060031pfd.268.2016.08.04.20.55.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Aug 2016 20:22:34 -0700 (PDT)
-Date: Fri, 5 Aug 2016 13:22:20 +1000
-From: Paul Mackerras <paulus@ozlabs.org>
-Subject: Re: mm: Initialise per_cpu_nodestats for all online pgdats at boot
-Message-ID: <20160805032220.GA17119@oak.ozlabs.ibm.com>
-References: <20160804092404.GI2799@techsingularity.net>
+        Thu, 04 Aug 2016 20:55:41 -0700 (PDT)
+Received: by mail-pa0-x244.google.com with SMTP id vy10so71952pac.0
+        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 20:55:41 -0700 (PDT)
+Date: Thu, 4 Aug 2016 20:55:36 -0700
+From: Alexei Starovoitov <alexei.starovoitov@gmail.com>
+Subject: Re: order-0 vs order-N driver allocation. Was: [PATCH v10 07/12]
+ net/mlx4_en: add page recycle to prepare rx ring for tx support
+Message-ID: <20160805035534.GA56390@ast-mbp.thefacebook.com>
+References: <1468955817-10604-1-git-send-email-bblanco@plumgrid.com>
+ <1468955817-10604-8-git-send-email-bblanco@plumgrid.com>
+ <1469432120.8514.5.camel@edumazet-glaptop3.roam.corp.google.com>
+ <20160803174107.GA38399@ast-mbp.thefacebook.com>
+ <20160804181913.26ee17b9@redhat.com>
+ <CAKgT0UdbVK6Ti9drCQFfa0MyU40Kh=Hu=BtDTRCqqsSiBvJ7rg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160804092404.GI2799@techsingularity.net>
+In-Reply-To: <CAKgT0UdbVK6Ti9drCQFfa0MyU40Kh=Hu=BtDTRCqqsSiBvJ7rg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Reza Arbab <arbab@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Brenden Blanco <bblanco@plumgrid.com>, David Miller <davem@davemloft.net>, Netdev <netdev@vger.kernel.org>, Jamal Hadi Salim <jhs@mojatatu.com>, Saeed Mahameed <saeedm@dev.mellanox.co.il>, Martin KaFai Lau <kafai@fb.com>, Ari Saha <as754m@att.com>, Or Gerlitz <gerlitz.or@gmail.com>, john fastabend <john.fastabend@gmail.com>, Hannes Frederic Sowa <hannes@stressinduktion.org>, Thomas Graf <tgraf@suug.ch>, Tom Herbert <tom@herbertland.com>, Daniel Borkmann <daniel@iogearbox.net>, Tariq Toukan <ttoukan.linux@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>
 
-On Thu, Aug 04, 2016 at 10:24:04AM +0100, Mel Gorman wrote:
-> Paul Mackerras and Reza Arbab reported that machines with memoryless nodes
-> fails when vmstats are refreshed. Paul reported an oops as follows
-> 
-> [    1.713998] Unable to handle kernel paging request for data at address 0xff7a10000
-> [    1.714164] Faulting instruction address: 0xc000000000270cd0
-> [    1.714304] Oops: Kernel access of bad area, sig: 11 [#1]
-> [    1.714414] SMP NR_CPUS=2048 NUMA PowerNV
-> [    1.714530] Modules linked in:
-> [    1.714647] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 4.7.0-kvm+ #118
-> [    1.714786] task: c000000ff0680010 task.stack: c000000ff0704000
-> [    1.714926] NIP: c000000000270cd0 LR: c000000000270ce8 CTR: 0000000000000000
-> [    1.715093] REGS: c000000ff0707900 TRAP: 0300   Not tainted  (4.7.0-kvm+)
-> [    1.715232] MSR: 9000000102009033 <SF,HV,VEC,EE,ME,IR,DR,RI,LE,TM[E]>  CR: 846b6824  XER: 20000000
-> [    1.715748] CFAR: c000000000008768 DAR: 0000000ff7a10000 DSISR: 42000000 SOFTE: 1
-> GPR00: c000000000270d08 c000000ff0707b80 c0000000011fb200 0000000000000000
-> GPR04: 0000000000000800 0000000000000000 0000000000000000 0000000000000000
-> GPR08: ffffffffffffffff 0000000000000000 0000000ff7a10000 c00000000122aae0
-> GPR12: c000000000a1e440 c00000000fb80000 c00000000000c188 0000000000000000
-> GPR16: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
-> GPR20: 0000000000000000 0000000000000000 0000000000000000 c000000000cecad0
-> GPR24: c000000000d035b8 c000000000d6cd18 c000000000d6cd18 c000001fffa86300
-> GPR28: 0000000000000000 c000001fffa96300 c000000001230034 c00000000122eb18
-> [    1.717484] NIP [c000000000270cd0] refresh_zone_stat_thresholds+0x80/0x240
-> [    1.717568] LR [c000000000270ce8] refresh_zone_stat_thresholds+0x98/0x240
-> [    1.717648] Call Trace:
-> [    1.717687] [c000000ff0707b80] [c000000000270d08] refresh_zone_stat_thresholds+0xb8/0x240 (unreliable)
-> 
-> Both supplied potential fixes but one potentially misses checks and another
-> had redundant initialisations. This version initialises per_cpu_nodestats
-> on a per-pgdat basis instead of on a per-zone basis.
-> 
-> Reported-by: Paul Mackerras <paulus@ozlabs.org>
-> Reported-by: Reza Arbab <arbab@linux.vnet.ibm.com>
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+On Thu, Aug 04, 2016 at 05:30:56PM -0700, Alexander Duyck wrote:
+> On Thu, Aug 4, 2016 at 9:19 AM, Jesper Dangaard Brouer
+> <brouer@redhat.com> wrote:
+> >
+> > On Wed, 3 Aug 2016 10:45:13 -0700 Alexei Starovoitov <alexei.starovoitov@gmail.com> wrote:
+> >
+> >> On Mon, Jul 25, 2016 at 09:35:20AM +0200, Eric Dumazet wrote:
+> >> > On Tue, 2016-07-19 at 12:16 -0700, Brenden Blanco wrote:
+> >> > > The mlx4 driver by default allocates order-3 pages for the ring to
+> >> > > consume in multiple fragments. When the device has an xdp program, this
+> >> > > behavior will prevent tx actions since the page must be re-mapped in
+> >> > > TODEVICE mode, which cannot be done if the page is still shared.
+> >> > >
+> >> > > Start by making the allocator configurable based on whether xdp is
+> >> > > running, such that order-0 pages are always used and never shared.
+> >> > >
+> >> > > Since this will stress the page allocator, add a simple page cache to
+> >> > > each rx ring. Pages in the cache are left dma-mapped, and in drop-only
+> >> > > stress tests the page allocator is eliminated from the perf report.
+> >> > >
+> >> > > Note that setting an xdp program will now require the rings to be
+> >> > > reconfigured.
+> >> >
+> >> > Again, this has nothing to do with XDP ?
+> >> >
+> >> > Please submit a separate patch, switching this driver to order-0
+> >> > allocations.
+> >> >
+> >> > I mentioned this order-3 vs order-0 issue earlier [1], and proposed to
+> >> > send a generic patch, but had been traveling lately, and currently in
+> >> > vacation.
+> >> >
+> >> > order-3 pages are problematic when dealing with hostile traffic anyway,
+> >> > so we should exclusively use order-0 pages, and page recycling like
+> >> > Intel drivers.
+> >> >
+> >> > http://lists.openwall.net/netdev/2016/04/11/88
+> >>
+> >> Completely agree. These multi-page tricks work only for benchmarks and
+> >> not for production.
+> >> Eric, if you can submit that patch for mlx4 that would be awesome.
+> >>
+> >> I think we should default to order-0 for both mlx4 and mlx5.
+> >> Alternatively we're thinking to do a netlink or ethtool switch to
+> >> preserve old behavior, but frankly I don't see who needs this order-N
+> >> allocation schemes.
+> >
+> > I actually agree, that we should switch to order-0 allocations.
+> >
+> > *BUT* this will cause performance regressions on platforms with
+> > expensive DMA operations (as they no longer amortize the cost of
+> > mapping a larger page).
 
-That works, thanks.
+order-0 is mainly about correctness under memory pressure.
+As Eric pointed out order-N is a serious issue for hostile traffic,
+but even for normal traffic it's a problem. Sooner or later
+only order-0 pages will be available.
+Performance considerations come second.
 
-Tested-by: Paul Mackerras <paulus@ozlabs.org>
+> The trick is to use page reuse like we do for the Intel NICs.  If you
+> can get away with just reusing the page you don't have to keep making
+> the expensive map/unmap calls.
+
+you mean two packet per page trick?
+I think it's trading off performance vs memory.
+It's useful. I wish there was a knob to turn it on/off instead
+of relying on mtu size threshold.
+
+> > I've started coding on the page-pool last week, which address both the
+> > DMA mapping and recycling (with less atomic ops). (p.s. still on
+> > vacation this week).
+> >
+> > http://people.netfilter.org/hawk/presentations/MM-summit2016/generic_page_pool_mm_summit2016.pdf
+> 
+> I really wonder if we couldn't get away with creating some sort of 2
+> tiered allocator for this.  So instead of allocating a page pool we
+> just reserved blocks of memory like we do with huge pages.  Then you
+> have essentially a huge page that is mapped to a given device for DMA
+> and reserved for it to use as a memory resource to allocate the order
+> 0 pages out of.  Doing it that way would likely have multiple
+> advantages when working with things like IOMMU since the pages would
+> all belong to one linear block so it would likely consume less
+> resources on those devices, and it wouldn't be that far off from how
+> DPDK is making use of huge pages in order to improve it's memory
+> access times and such.
+
+interesting idea. Like dma_map 1GB region and then allocate
+pages from it only? but the rest of the kernel won't be able
+to use them? so only some smaller region then? or it will be
+a boot time flag to reserve this pseudo-huge page?
+I don't think any of that is needed for XDP. As demonstrated by current
+mlx4 it's very fast already. No bottlenecks in page allocators.
+Tiny page recycle array does the magic because most of the traffic
+is not going to the stack.
+This order-0 vs order-N discussion is for the main stack.
+Not related to XDP.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
