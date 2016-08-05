@@ -1,89 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 19F296B025F
-	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 11:21:27 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id h186so522612441pfg.2
-        for <linux-mm@kvack.org>; Fri, 05 Aug 2016 08:14:43 -0700 (PDT)
-Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
-        by mx.google.com with ESMTPS id q11si20826185pfd.42.2016.08.05.07.48.05
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B1E546B0261
+	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 11:21:56 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id 33so155155593lfw.1
+        for <linux-mm@kvack.org>; Fri, 05 Aug 2016 08:15:12 -0700 (PDT)
+Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
+        by mx.google.com with ESMTPS id x62si8652793wmd.112.2016.08.05.05.32.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 05 Aug 2016 07:48:06 -0700 (PDT)
-Received: from epcas2p3.samsung.com (unknown [182.195.41.55])
- by mailout4.samsung.com
- (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0OBF02KA9YG49M10@mailout4.samsung.com> for linux-mm@kvack.org;
- Fri, 05 Aug 2016 23:48:04 +0900 (KST)
-From: PINTU KUMAR <pintu.k@samsung.com>
-In-reply-to: <20160805082015.GA28235@bbox>
-Subject: RE: [linux-mm] Drastic increase in application memory usage with
- Kernel version upgrade
-Date: Fri, 05 Aug 2016 20:17:36 +0530
-Message-id: <01c101d1ef28$50706ad0$f1514070$@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-transfer-encoding: 7bit
-Content-language: en-us
-References: 
- <CGME20160805045709epcas3p1dc6f12f2fa3031112c4da5379e33b5e9@epcas3p1.samsung.com>
- <01a001d1eed5$c50726c0$4f157440$@samsung.com> <20160805082015.GA28235@bbox>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Aug 2016 05:32:54 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 9424D1C1EB6
+	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 13:32:53 +0100 (IST)
+Date: Fri, 5 Aug 2016 13:32:51 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] metag: Drop show_mem() from mem_init()
+Message-ID: <20160805123251.GT2799@techsingularity.net>
+References: <20160805121704.32198-1-james.hogan@imgtec.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20160805121704.32198-1-james.hogan@imgtec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Minchan Kim' <minchan@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jaejoon.seo@samsung.com, jy0.jeon@samsung.com, vishnu.ps@samsung.com
+To: James Hogan <james.hogan@imgtec.com>
+Cc: linux-metag@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi,
-> -----Original Message-----
-> From: Minchan Kim [mailto:minchan@kernel.org]
-> Sent: Friday, August 05, 2016 1:50 PM
-> To: PINTU KUMAR
-> Cc: linux-kernel@vger.kernel.org; linux-mm@kvack.org;
-> jaejoon.seo@samsung.com; jy0.jeon@samsung.com; vishnu.ps@samsung.com
-> Subject: Re: [linux-mm] Drastic increase in application memory usage with
-Kernel
-> version upgrade
+On Fri, Aug 05, 2016 at 01:17:04PM +0100, James Hogan wrote:
+> The recent commit 599d0c954f91 ("mm, vmscan: move LRU lists to node"),
+> changed memory management code so that show_mem() is no longer safe to
+> call prior to setup_per_cpu_pageset(), as pgdat->per_cpu_nodestats will
+> still be NULL. This causes an oops on metag due to the call to
+> show_mem() from mem_init():
 > 
-> On Fri, Aug 05, 2016 at 10:26:37AM +0530, PINTU KUMAR wrote:
-> > Hi All,
-> >
-> > For one of our ARM embedded product, we recently updated the Kernel
-> > version from
-> > 3.4 to 3.18 and we noticed that the same application memory usage (PSS
-> > value) gone up by ~10% and for some cases it even crossed ~50%.
-> > There is no change in platform part. All platform component was built
-> > with ARM 32-bit toolchain.
-> > However, the Kernel is changed from 32-bit to 64-bit.
-> >
-> > Is upgrading Kernel version and moving from 32-bit to 64-bit is such a risk
-?
-> > After the upgrade, what can we do further to reduce the application
-> > memory usage ?
-> > Is there any other factor that will help us to improve without major
-> > modifications in platform ?
-> >
-> > As a proof, we did a small experiment on our Ubuntu-32 bit machine.
-> > We upgraded Ubuntu Kernel version from 3.13 to 4.01 and we observed
-> > the
-> > following:
-> > ----------------------------------------------------------------------
-> > ----------
-> > -------------
-> > |UBUNTU-32 bit		|Kernel 3.13	|Kernel 4.03	|DIFF	|
-> > |CALCULATOR PSS	|6057 KB	|6466 KB	|409 KB	|
-> > ----------------------------------------------------------------------
-> > ----------
-> > -------------
-> > So, just by upgrading the Kernel version: PSS value for calculator is
-> > increased by 409KB.
-> >
-> > If anybody knows any in-sight about it please point out more details
-> > about the root cause.
+>   node_page_state_snapshot(...) + 0x48
+>   pgdat_reclaimable(struct pglist_data * pgdat = 0x402517a0)
+>   show_free_areas(unsigned int filter = 0) + 0x2cc
+>   show_mem(unsigned int filter = 0) + 0x18
+>   mem_init()
+>   mm_init()
+>   start_kernel() + 0x204
 > 
-> One of culprit is [8c6e50b0290c, mm: introduce vm_ops->map_pages()].
-Ok. Thank you for your reply.
-So, if I revert this patch, will the memory usage be decreased for the processes
-with Kernel 3.18 ?
+> This wasn't a problem before with zone_reclaimable() as zone_pcp_init()
+> was already setting zone->pageset to &boot_pageset, via setup_arch() and
+> paging_init(), which happens before mm_init():
+> 
+>   zone_pcp_init(...)
+>   free_area_init_core(...) + 0x138
+>   free_area_init_node(int nid = 0, ...) + 0x1a0
+>   free_area_init_nodes(...) + 0x440
+>   paging_init(unsigned long mem_end = 0x4fe00000) + 0x378
+>   setup_arch(char ** cmdline_p = 0x4024e038) + 0x2b8
+>   start_kernel() + 0x54
+> 
+> No other arches appear to call show_mem() during boot, and it doesn't
+> really add much value to the log, so lets just drop it from mem_init().
+> 
+> Signed-off-by: James Hogan <james.hogan@imgtec.com>
+> Cc: Mel Gorman <mgorman@techsingularity.net>
 
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
