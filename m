@@ -1,72 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 99C90828E1
-	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 11:47:04 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id e7so155757475lfe.0
-        for <linux-mm@kvack.org>; Fri, 05 Aug 2016 08:47:04 -0700 (PDT)
-Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
-        by mx.google.com with ESMTPS id tl19si18143278wjb.46.2016.08.05.04.55.28
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EDCD6828E1
+	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 11:48:32 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id le9so93740399pab.0
+        for <linux-mm@kvack.org>; Fri, 05 Aug 2016 08:48:32 -0700 (PDT)
+Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
+        by mx.google.com with ESMTPS id w198si21007637pfd.144.2016.08.05.08.48.31
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 05 Aug 2016 04:55:28 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
-	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id 8E23998CF4
-	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 11:55:28 +0000 (UTC)
-Date: Fri, 5 Aug 2016 12:55:26 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 03/34] mm, vmscan: move LRU lists to node
-Message-ID: <20160805115526.GS2799@techsingularity.net>
-References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
- <1467970510-21195-4-git-send-email-mgorman@techsingularity.net>
- <CAAG0J9_k3edxDzqpEjt2BqqZXMW4PVj7BNUBAk6TWtw3Zh_oMg@mail.gmail.com>
- <20160805084115.GO2799@techsingularity.net>
- <20160805105256.GH19514@jhogan-linux.le.imgtec.org>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 05 Aug 2016 08:48:32 -0700 (PDT)
+Subject: Re: [PATCH] mm/vmalloc: fix align value calculation error
+References: <57A2F6A3.9080908@zoho.com> <57A2FE7B.5070505@zoho.com>
+ <20160804142421.576426492d629f0839298f9a@linux-foundation.org>
+From: zijun_hu <zijun_hu@zoho.com>
+Message-ID: <fc045ecf-20fa-0722-b3ac-9a6140488fad@zoho.com>
+Date: Fri, 5 Aug 2016 23:48:21 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20160805105256.GH19514@jhogan-linux.le.imgtec.org>
+In-Reply-To: <20160804142421.576426492d629f0839298f9a@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Hogan <james.hogan@imgtec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>, metag <linux-metag@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: tj@kernel.org, hannes@cmpxchg.org, mhocko@kernel.org, minchan@kernel.org, zijun_hu@htc.com, rientjes@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Aug 05, 2016 at 11:52:57AM +0100, James Hogan wrote:
-> > What's surprising is that it worked for the zone stats as it appears
-> > that calling zone_reclaimable() from that context should also have
-> > broken. Did anything change recently that would have avoided the
-> > zone->pageset dereference in zone_reclaimable() before?
+On 2016/8/5 5:24, Andrew Morton wrote:
+>>
+>> it causes double align requirement for __get_vm_area_node() if parameter
+>> size is power of 2 and VM_IOREMAP is set in parameter flags
+>>
+>> it is fixed by handling the specail case manually due to lack of
+>> get_count_order() for long parameter
+>>
+>> ...
+>>
+>> --- a/mm/vmalloc.c
+>> +++ b/mm/vmalloc.c
+>> @@ -1357,11 +1357,16 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
+>>  {
+>>  	struct vmap_area *va;
+>>  	struct vm_struct *area;
+>> +	int ioremap_size_order;
+>>  
+>>  	BUG_ON(in_interrupt());
+>> -	if (flags & VM_IOREMAP)
+>> -		align = 1ul << clamp_t(int, fls_long(size),
+>> -				       PAGE_SHIFT, IOREMAP_MAX_ORDER);
+>> +	if (flags & VM_IOREMAP) {
+>> +		ioremap_size_order = fls_long(size);
+>> +		if (is_power_of_2(size) && size != 1)
+>> +			ioremap_size_order--;
+>> +		align = 1ul << clamp_t(int, ioremap_size_order, PAGE_SHIFT,
+>> +				IOREMAP_MAX_ORDER);
+>> +	}
+>>  
+>>  	size = PAGE_ALIGN(size);
+>>  	if (unlikely(!size))
 > 
-> It appears that zone_pcp_init() was already setting zone->pageset to
-> &boot_pageset, via paging_init():
+> I'm having trouble with this, and a more complete description would
+> have helped!
+> 
+> As far as I can tell, the current code will decide the following:
+> 
+> size=0x10000: alignment=0x10000
+> size=0x0f000: alignment=0x8000
 > 
 
-/me slaps self
+no, the current code doesn't achieve the above results as shown below
+size=0x10000 -> fls_long(0x10000)=17 -> alignment=0x20000
+size=0x0f000 -> fls_long(0x0f000)=16 -> alignment=0x10000
+it is wrong for power of 2 value such as size=0x10000
 
-Of course.
-
-> > The easiest option would be to not call show_mem from arch code until
-> > after the pagesets are setup.
+> And your patch will change it so that
 > 
-> Since no other arches seem to do show_mem earily during boot like metag,
-> and doing so doesn't really add much value, I'm happy to remove it
-> anyway.
+> size=0x10000: alignment=0x8000
+> size=0x0f000: alignment=0x8000
 > 
+> Correct?
+>
 
-Thanks. Can I assume you'll merge such a patch or should I roll one?
+no, my patch will results in the following calculations
+size=0x10000: alignment=0x10000
+size=0x0f000: alignment=0x10000
 
-> However could your change break other things and need fixing anyway?
+> If so, I'm struggling to see the sense in this.  Shouldn't we be
+> changing things so that
 > 
-
-Not that I'm aware of. There would have to be a node-based stat that has
-meaning that early in boot to have an effect. If one happened to added
-then it would need fixing but until then the complexity is unnecessary.
-
--- 
-Mel Gorman
-SUSE Labs
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> size=0x10000: alignment=0x10000
+> size=0x0f000: alignment=0x10000
+> 
+> ?
+okay, it is the aim of my patch as explained above
+i provide another solution as shown below
+i appreciate it since it is more canonical
+please help to review and apply it kindly
