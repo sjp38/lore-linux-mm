@@ -1,92 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C6E26B0005
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 21:22:11 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id pp5so438313608pac.3
-        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 18:22:11 -0700 (PDT)
-Received: from mail-pa0-x241.google.com (mail-pa0-x241.google.com. [2607:f8b0:400e:c03::241])
-        by mx.google.com with ESMTPS id tj3si17388146pab.171.2016.08.04.18.22.09
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 643956B0005
+	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 22:27:40 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id o124so497419656pfg.1
+        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 19:27:40 -0700 (PDT)
+Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
+        by mx.google.com with ESMTPS id yv3si17681266pab.56.2016.08.04.19.27.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Aug 2016 18:22:10 -0700 (PDT)
-Received: by mail-pa0-x241.google.com with SMTP id cf3so18327329pad.2
-        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 18:22:09 -0700 (PDT)
-Date: Fri, 5 Aug 2016 10:22:12 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: Choosing z3fold allocator in zswap gives WARNING: CPU: 0 PID:
- 5140 at mm/zswap.c:503 __zswap_pool_current+0x56/0x60
-Message-ID: <20160805012212.GB514@swordfish>
-References: <2f8a65db-e5a8-75f0-8c08-daa41e1cd3ba@mejor.pl>
- <20160804115809.GA447@swordfish>
- <CALZtONBODigWHuCdz0j9OUTwEhs9vdfuQZ1HnjHDLXNdNdz4qg@mail.gmail.com>
- <20160805004357.GA514@swordfish>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 04 Aug 2016 19:27:39 -0700 (PDT)
+Subject: Re: [PATCH] mm/vmalloc: fix align value calculation error
+References: <57A2F6A3.9080908@zoho.com> <57A2FE7B.5070505@zoho.com>
+ <20160804142421.576426492d629f0839298f9a@linux-foundation.org>
+From: zijun_hu <zijun_hu@zoho.com>
+Message-ID: <57A3F98D.1060500@zoho.com>
+Date: Fri, 5 Aug 2016 10:27:25 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20160805004357.GA514@swordfish>
+In-Reply-To: <20160804142421.576426492d629f0839298f9a@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Seth Jennings <sjenning@redhat.com>, Linux-MM <linux-mm@kvack.org>, Vitaly Wool <vitalywool@gmail.com>, Marcin =?utf-8?B?TWlyb3PFgmF3?= <marcin@mejor.pl>, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: tj@kernel.org, hannes@cmpxchg.org, mhocko@kernel.org, minchan@kernel.org, zijun_hu@htc.com, rientjes@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On (08/05/16 09:43), Sergey Senozhatsky wrote:
-> On (08/04/16 14:15), Dan Streetman wrote:
-> [..]
-> >    yep that's exactly right.  I reproduced it with zbud compiled out.
-> [..]
-> >    yep that's true as well.
-> >    i can get patches going for both these, unless you're already working on
-> >    it?
+On 08/05/2016 05:24 AM, Andrew Morton wrote:
+>>
+>> it causes double align requirement for __get_vm_area_node() if parameter
+>> size is power of 2 and VM_IOREMAP is set in parameter flags
+>>
+>> it is fixed by handling the specail case manually due to lack of
+>> get_count_order() for long parameter
+>>
+>> ...
+>>
+>> --- a/mm/vmalloc.c
+>> +++ b/mm/vmalloc.c
+>> @@ -1357,11 +1357,16 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
+>>  {
+>>  	struct vmap_area *va;
+>>  	struct vm_struct *area;
+>> +	int ioremap_size_order;
+>>  
+>>  	BUG_ON(in_interrupt());
+>> -	if (flags & VM_IOREMAP)
+>> -		align = 1ul << clamp_t(int, fls_long(size),
+>> -				       PAGE_SHIFT, IOREMAP_MAX_ORDER);
+>> +	if (flags & VM_IOREMAP) {
+>> +		ioremap_size_order = fls_long(size);
+>> +		if (is_power_of_2(size) && size != 1)
+>> +			ioremap_size_order--;
+>> +		align = 1ul << clamp_t(int, ioremap_size_order, PAGE_SHIFT,
+>> +				IOREMAP_MAX_ORDER);
+>> +	}
+>>  
+>>  	size = PAGE_ALIGN(size);
+>>  	if (unlikely(!size))
 > 
-> please go ahead.
+> I'm having trouble with this, and a more complete description would
+> have helped!
+> 
+> As far as I can tell, the current code will decide the following:
+> 
+> size=0x10000: alignment=0x10000
+> size=0x0f000: alignment=0x8000
+>
+no, the current code doesn't achieve the above results as shown below
+size=0x10000 -> fls_long(0x10000)=17 -> alignment=0x20000
+size=0x0f000 -> fls_long(0x0f000)=16 -> alignment=0x10000
+it is wrong for power of 2 value such as size=0x10000
+ 
+> And your patch will change it so that
+> 
+> size=0x10000: alignment=0x8000
+> size=0x0f000: alignment=0x8000
+> 
+> Correct?
+>
+no, my patch will results in the following calculations
+size=0x10000: alignment=0x10000
+size=0x0f000: alignment=0x10000
 
-while at it.
+> If so, I'm struggling to see the sense in this.  Shouldn't we be
+> changing things so that
+> 
+> size=0x10000: alignment=0x10000
+> size=0x0f000: alignment=0x10000
+> 
+> ?
+okay, it is the aim of my patch as explained above
+> 
+> 
 
-__zswap_param_set():
-
-	pool = zswap_pool_find_get(type, compressor);
-	if (pool) {
-		zswap_pool_debug("using existing", pool);
-		list_del_rcu(&pool->list);
-	} else {
-		spin_unlock(&zswap_pools_lock);
-		pool = zswap_pool_create(type, compressor);
-		spin_lock(&zswap_pools_lock);
-	}
-
-	if (pool)
-		ret = param_set_charp(s, kp);
-	else
-		ret = -EINVAL;
-
-	if (!ret) {
-		put_pool = zswap_pool_current();
-		list_add_rcu(&pool->list, &zswap_pools);
-	} else if (pool) {
-		/* add the possibly pre-existing pool to the end of the pools
-		 * list; if it's new (and empty) then it'll be removed and
-		 * destroyed by the put after we drop the lock
-		 */
-		list_add_tail_rcu(&pool->list, &zswap_pools);
-		put_pool = pool;
-	}
-
-this can be simplified, I think.
-
-suppose there is no zswap_pool_find_get() pool. so we try to
-zswap_pool_create() one, but it doesn't go well. at this point
-we basically can just return -ENOMEM
-
-	spin_unlock(&zswap_pools_lock);
-	pool = zswap_pool_create(type, compressor);
-	if (!pool)
-		return -ENOMEM;
-	spin_lock(&zswap_pools_lock);
-
-so some of later if-s can go away.
-
-	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
