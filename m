@@ -1,79 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9360B6B025E
-	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 12:00:51 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id ez1so465031686pab.1
-        for <linux-mm@kvack.org>; Fri, 05 Aug 2016 09:00:51 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTP id w10si20654554pfd.81.2016.08.05.07.09.11
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D60F6B025F
+	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 12:01:50 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id q83so82470385iod.3
+        for <linux-mm@kvack.org>; Fri, 05 Aug 2016 09:01:50 -0700 (PDT)
+Received: from out4434.biz.mail.alibaba.com (out4434.biz.mail.alibaba.com. [47.88.44.34])
+        by mx.google.com with ESMTP id 19si6876466ity.19.2016.08.04.23.54.38
         for <linux-mm@kvack.org>;
-        Fri, 05 Aug 2016 07:09:21 -0700 (PDT)
-From: zhongjiang <zhongjiang@huawei.com>
-Subject: [PATCH] mm: optimize find_zone_movable_pfns_for_nodes to avoid unnecessary loop.
-Date: Fri, 5 Aug 2016 22:04:07 +0800
-Message-ID: <1470405847-53322-1-git-send-email-zhongjiang@huawei.com>
+        Thu, 04 Aug 2016 23:54:40 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+Subject: shmem: Are we accounting block right?
+Date: Fri, 05 Aug 2016 14:54:23 +0800
+Message-ID: <006b01d1eee6$338c0c40$9aa424c0$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain;
+	charset="gb2312"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org
 
-From: zhong jiang <zhongjiang@huawei.com>
+Hi all
 
-when required_kernelcore decrease to zero, we should exit the loop in time.
-because It will waste time to scan the remainder node.
+Currently in mainline we do block account if the flags parameter 
+carries VM_NORESERVE. 
 
-Signed-off-by: zhong jiang <zhongjiang@huawei.com>
----
- mm/page_alloc.c | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+But blocks should be accounted if reserved, as shown by the
+following diff.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index ea759b9..be7df17 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6093,7 +6093,7 @@ static unsigned long __init early_calculate_totalpages(void)
- 		unsigned long pages = end_pfn - start_pfn;
+Am I missing anything?
+
+thanks
+Hillf
+
+--- a/mm/shmem.c	Fri Aug  5 14:01:59 2016
++++ b/mm/shmem.c	Fri Aug  5 14:36:31 2016
+@@ -168,7 +168,7 @@ static inline int shmem_reacct_size(unsi
+  */
+ static inline int shmem_acct_block(unsigned long flags, long pages)
+ {
+-	if (!(flags & VM_NORESERVE))
++	if (flags & VM_NORESERVE)
+ 		return 0;
  
- 		totalpages += pages;
--		if (pages)
-+		if (!node_isset(nid, node_states[N_MEMORY]) && pages)
- 			node_set_state(nid, N_MEMORY);
- 	}
- 	return totalpages;
-@@ -6115,6 +6115,7 @@ static void __init find_zone_movable_pfns_for_nodes(void)
- 	unsigned long totalpages = early_calculate_totalpages();
- 	int usable_nodes = nodes_weight(node_states[N_MEMORY]);
- 	struct memblock_region *r;
-+	bool avoid_loop = false;
+ 	return security_vm_enough_memory_mm(current->mm,
+@@ -177,7 +177,7 @@ static inline int shmem_acct_block(unsig
  
- 	/* Need to find movable_zone earlier when movable_node is specified. */
- 	find_usable_zone_for_movable();
-@@ -6275,6 +6276,8 @@ restart:
- 			required_kernelcore -= min(required_kernelcore,
- 								size_pages);
- 			kernelcore_remaining -= size_pages;
-+			if (!required_kernelcore && avoid_loop)
-+				goto out2;
- 			if (!kernelcore_remaining)
- 				break;
- 		}
-@@ -6287,9 +6290,10 @@ restart:
- 	 * satisfied
- 	 */
- 	usable_nodes--;
--	if (usable_nodes && required_kernelcore > usable_nodes)
-+	if (usable_nodes && required_kernelcore > usable_nodes) {
-+		avoid_loop = true;
- 		goto restart;
--
-+	}
- out2:
- 	/* Align start of ZONE_MOVABLE on all nids to MAX_ORDER_NR_PAGES */
- 	for (nid = 0; nid < MAX_NUMNODES; nid++)
--- 
-1.8.3.1
+ static inline void shmem_unacct_blocks(unsigned long flags, long pages)
+ {
+-	if (flags & VM_NORESERVE)
++	if (!(flags & VM_NORESERVE))
+ 		vm_unacct_memory(pages * VM_ACCT(PAGE_SIZE));
+ }
+ 
+--
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
