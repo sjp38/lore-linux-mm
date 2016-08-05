@@ -1,127 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 255BA6B0005
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 20:30:58 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id q83so37581548iod.3
-        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 17:30:58 -0700 (PDT)
-Received: from mail-io0-x22a.google.com (mail-io0-x22a.google.com. [2607:f8b0:4001:c06::22a])
-        by mx.google.com with ESMTPS id o12si14781884ioe.169.2016.08.04.17.30.57
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 021266B0005
+	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 20:35:35 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id i27so444874730qte.3
+        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 17:35:34 -0700 (PDT)
+Received: from mail-vk0-x243.google.com (mail-vk0-x243.google.com. [2607:f8b0:400c:c05::243])
+        by mx.google.com with ESMTPS id 18si4017638uad.62.2016.08.04.17.35.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Aug 2016 17:30:57 -0700 (PDT)
-Received: by mail-io0-x22a.google.com with SMTP id b62so286310808iod.3
-        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 17:30:57 -0700 (PDT)
+        Thu, 04 Aug 2016 17:35:34 -0700 (PDT)
+Received: by mail-vk0-x243.google.com with SMTP id w127so11772274vkh.1
+        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 17:35:34 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20160804181913.26ee17b9@redhat.com>
-References: <1468955817-10604-1-git-send-email-bblanco@plumgrid.com>
- <1468955817-10604-8-git-send-email-bblanco@plumgrid.com> <1469432120.8514.5.camel@edumazet-glaptop3.roam.corp.google.com>
- <20160803174107.GA38399@ast-mbp.thefacebook.com> <20160804181913.26ee17b9@redhat.com>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Thu, 4 Aug 2016 17:30:56 -0700
-Message-ID: <CAKgT0UdbVK6Ti9drCQFfa0MyU40Kh=Hu=BtDTRCqqsSiBvJ7rg@mail.gmail.com>
-Subject: Re: order-0 vs order-N driver allocation. Was: [PATCH v10 07/12]
- net/mlx4_en: add page recycle to prepare rx ring for tx support
+In-Reply-To: <1470337273-6700-1-git-send-email-aruna.ramakrishna@oracle.com>
+References: <1470337273-6700-1-git-send-email-aruna.ramakrishna@oracle.com>
+From: Joonsoo Kim <js1304@gmail.com>
+Date: Fri, 5 Aug 2016 09:35:33 +0900
+Message-ID: <CAAmzW4On7FWc37fQJOsDQOEOVXqK3ue+uiB0ZOFM9R5e-Jj3WQ@mail.gmail.com>
+Subject: Re: [PATCH v2] mm/slab: Improve performance of gathering slabinfo stats
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: Alexei Starovoitov <alexei.starovoitov@gmail.com>, Eric Dumazet <eric.dumazet@gmail.com>, Brenden Blanco <bblanco@plumgrid.com>, David Miller <davem@davemloft.net>, Netdev <netdev@vger.kernel.org>, Jamal Hadi Salim <jhs@mojatatu.com>, Saeed Mahameed <saeedm@dev.mellanox.co.il>, Martin KaFai Lau <kafai@fb.com>, Ari Saha <as754m@att.com>, Or Gerlitz <gerlitz.or@gmail.com>, john fastabend <john.fastabend@gmail.com>, Hannes Frederic Sowa <hannes@stressinduktion.org>, Thomas Graf <tgraf@suug.ch>, Tom Herbert <tom@herbertland.com>, Daniel Borkmann <daniel@iogearbox.net>, Tariq Toukan <ttoukan.linux@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>
+To: Aruna Ramakrishna <aruna.ramakrishna@oracle.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Aug 4, 2016 at 9:19 AM, Jesper Dangaard Brouer
-<brouer@redhat.com> wrote:
+2016-08-05 4:01 GMT+09:00 Aruna Ramakrishna <aruna.ramakrishna@oracle.com>:
+> On large systems, when some slab caches grow to millions of objects (and
+> many gigabytes), running 'cat /proc/slabinfo' can take up to 1-2 seconds.
+> During this time, interrupts are disabled while walking the slab lists
+> (slabs_full, slabs_partial, and slabs_free) for each node, and this
+> sometimes causes timeouts in other drivers (for instance, Infiniband).
 >
-> On Wed, 3 Aug 2016 10:45:13 -0700 Alexei Starovoitov <alexei.starovoitov@gmail.com> wrote:
+> This patch optimizes 'cat /proc/slabinfo' by maintaining a counter for
+> total number of allocated slabs per node, per cache. This counter is
+> updated when a slab is created or destroyed. This enables us to skip
+> traversing the slabs_full list while gathering slabinfo statistics, and
+> since slabs_full tends to be the biggest list when the cache is large, it
+> results in a dramatic performance improvement. Getting slabinfo statistics
+> now only requires walking the slabs_free and slabs_partial lists, and
+> those lists are usually much smaller than slabs_full. We tested this after
+> growing the dentry cache to 70GB, and the performance improved from 2s to
+> 5ms.
 >
->> On Mon, Jul 25, 2016 at 09:35:20AM +0200, Eric Dumazet wrote:
->> > On Tue, 2016-07-19 at 12:16 -0700, Brenden Blanco wrote:
->> > > The mlx4 driver by default allocates order-3 pages for the ring to
->> > > consume in multiple fragments. When the device has an xdp program, this
->> > > behavior will prevent tx actions since the page must be re-mapped in
->> > > TODEVICE mode, which cannot be done if the page is still shared.
->> > >
->> > > Start by making the allocator configurable based on whether xdp is
->> > > running, such that order-0 pages are always used and never shared.
->> > >
->> > > Since this will stress the page allocator, add a simple page cache to
->> > > each rx ring. Pages in the cache are left dma-mapped, and in drop-only
->> > > stress tests the page allocator is eliminated from the perf report.
->> > >
->> > > Note that setting an xdp program will now require the rings to be
->> > > reconfigured.
->> >
->> > Again, this has nothing to do with XDP ?
->> >
->> > Please submit a separate patch, switching this driver to order-0
->> > allocations.
->> >
->> > I mentioned this order-3 vs order-0 issue earlier [1], and proposed to
->> > send a generic patch, but had been traveling lately, and currently in
->> > vacation.
->> >
->> > order-3 pages are problematic when dealing with hostile traffic anyway,
->> > so we should exclusively use order-0 pages, and page recycling like
->> > Intel drivers.
->> >
->> > http://lists.openwall.net/netdev/2016/04/11/88
->>
->> Completely agree. These multi-page tricks work only for benchmarks and
->> not for production.
->> Eric, if you can submit that patch for mlx4 that would be awesome.
->>
->> I think we should default to order-0 for both mlx4 and mlx5.
->> Alternatively we're thinking to do a netlink or ethtool switch to
->> preserve old behavior, but frankly I don't see who needs this order-N
->> allocation schemes.
+> Signed-off-by: Aruna Ramakrishna <aruna.ramakrishna@oracle.com>
+> Cc: Mike Kravetz <mike.kravetz@oracle.com>
+> Cc: Christoph Lameter <cl@linux.com>
+> Cc: Pekka Enberg <penberg@kernel.org>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> Note: this has been tested only on x86_64.
 >
-> I actually agree, that we should switch to order-0 allocations.
+>  mm/slab.c | 25 ++++++++++++++++---------
+>  mm/slab.h | 15 ++++++++++++++-
+>  mm/slub.c | 19 +------------------
+>  3 files changed, 31 insertions(+), 28 deletions(-)
 >
-> *BUT* this will cause performance regressions on platforms with
-> expensive DMA operations (as they no longer amortize the cost of
-> mapping a larger page).
-
-The trick is to use page reuse like we do for the Intel NICs.  If you
-can get away with just reusing the page you don't have to keep making
-the expensive map/unmap calls.
-
-> Plus, the base cost of order-0 page is 246 cycles (see [1] slide#9),
-> and the 10G wirespeed target is approx 201 cycles.  Thus, for these
-> speeds some page recycling tricks are needed.  I described how the Intel
-> drives does a cool trick in [1] slide#14, but it does not address the
-> DMA part and costs some extra atomic ops.
-
-I'm not sure what you mean about it not addressing the DMA part.  Last
-I knew we should be just as fast using the page reuse in the Intel
-drivers as the Mellanox driver using the 32K page.  The only real
-difference in cost is the spot where we are atomically incrementing
-the page count since that is the atomic I assume you are referring to.
-
-I had thought about it and amortizing the atomic operation would
-probably be pretty straight forward.  All we would have to do is the
-same trick we use in the page frag allocator.  We could add a separate
-page_count type variable to the Rx buffer info structure and decrement
-that instead.  If I am not mistaken that would allow us to drop it
-down to only one atomic update of the page count every 64K or so uses
-of the page.
-
-> I've started coding on the page-pool last week, which address both the
-> DMA mapping and recycling (with less atomic ops). (p.s. still on
-> vacation this week).
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 261147b..d683840 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -233,6 +233,7 @@ static void kmem_cache_node_init(struct kmem_cache_node *parent)
+>         spin_lock_init(&parent->list_lock);
+>         parent->free_objects = 0;
+>         parent->free_touched = 0;
+> +       atomic_long_set(&parent->nr_slabs, 0);
+>  }
 >
-> http://people.netfilter.org/hawk/presentations/MM-summit2016/generic_page_pool_mm_summit2016.pdf
+>  #define MAKE_LIST(cachep, listp, slab, nodeid)                         \
+> @@ -2333,6 +2334,7 @@ static int drain_freelist(struct kmem_cache *cache,
+>                 n->free_objects -= cache->num;
+>                 spin_unlock_irq(&n->list_lock);
+>                 slab_destroy(cache, page);
+> +               atomic_long_dec(&n->nr_slabs);
+>                 nr_freed++;
+>         }
 
-I really wonder if we couldn't get away with creating some sort of 2
-tiered allocator for this.  So instead of allocating a page pool we
-just reserved blocks of memory like we do with huge pages.  Then you
-have essentially a huge page that is mapped to a given device for DMA
-and reserved for it to use as a memory resource to allocate the order
-0 pages out of.  Doing it that way would likely have multiple
-advantages when working with things like IOMMU since the pages would
-all belong to one linear block so it would likely consume less
-resources on those devices, and it wouldn't be that far off from how
-DPDK is making use of huge pages in order to improve it's memory
-access times and such.
+Please decrease counter when a slab is detached from the list.
+Otherwise, there would be inconsistent between counter and
+number of attached slab on the list.
 
-- Alex
+>  out:
+> @@ -2736,6 +2738,8 @@ static struct page *cache_grow_begin(struct kmem_cache *cachep,
+>         if (gfpflags_allow_blocking(local_flags))
+>                 local_irq_disable();
+>
+> +       atomic_long_inc(&n->nr_slabs);
+> +
+>         return page;
+
+Please increase counter when a slab is attached to the list
+in cache_grow_end().
+
+>  opps1:
+> @@ -3455,6 +3459,7 @@ static void free_block(struct kmem_cache *cachep, void **objpp,
+>
+>                 page = list_last_entry(&n->slabs_free, struct page, lru);
+>                 list_move(&page->lru, list);
+> +               atomic_long_dec(&n->nr_slabs);
+>         }
+>  }
+>
+> @@ -4111,6 +4116,8 @@ void get_slabinfo(struct kmem_cache *cachep, struct slabinfo *sinfo)
+>         unsigned long num_objs;
+>         unsigned long active_slabs = 0;
+>         unsigned long num_slabs, free_objects = 0, shared_avail = 0;
+> +       unsigned long num_slabs_partial = 0, num_slabs_free = 0;
+> +       unsigned long num_slabs_full = 0;
+>         const char *name;
+>         char *error = NULL;
+>         int node;
+> @@ -4120,36 +4127,36 @@ void get_slabinfo(struct kmem_cache *cachep, struct slabinfo *sinfo)
+>         num_slabs = 0;
+>         for_each_kmem_cache_node(cachep, node, n) {
+>
+> +               num_slabs += node_nr_slabs(n);
+>                 check_irq_on();
+>                 spin_lock_irq(&n->list_lock);
+>
+> -               list_for_each_entry(page, &n->slabs_full, lru) {
+> -                       if (page->active != cachep->num && !error)
+> -                               error = "slabs_full accounting error";
+> -                       active_objs += cachep->num;
+> -                       active_slabs++;
+> -               }
+>                 list_for_each_entry(page, &n->slabs_partial, lru) {
+>                         if (page->active == cachep->num && !error)
+>                                 error = "slabs_partial accounting error";
+>                         if (!page->active && !error)
+>                                 error = "slabs_partial accounting error";
+>                         active_objs += page->active;
+> -                       active_slabs++;
+> +                       num_slabs_partial++;
+>                 }
+> +
+>                 list_for_each_entry(page, &n->slabs_free, lru) {
+>                         if (page->active && !error)
+>                                 error = "slabs_free accounting error";
+> -                       num_slabs++;
+> +                       num_slabs_free++;
+>                 }
+> +
+>                 free_objects += n->free_objects;
+>                 if (n->shared)
+>                         shared_avail += n->shared->avail;
+>
+>                 spin_unlock_irq(&n->list_lock);
+>         }
+> -       num_slabs += active_slabs;
+>         num_objs = num_slabs * cachep->num;
+> +       active_slabs = num_slabs - num_slabs_free;
+> +       num_slabs_full = num_slabs - (num_slabs_partial + num_slabs_free);
+> +       active_objs += (num_slabs_full * cachep->num);
+> +
+>         if (num_objs - active_objs != free_objects && !error)
+>                 error = "free_objects accounting error";
+>
+> diff --git a/mm/slab.h b/mm/slab.h
+> index 9653f2e..5740cec 100644
+> --- a/mm/slab.h
+> +++ b/mm/slab.h
+> @@ -427,6 +427,7 @@ static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags,
+>   */
+>  struct kmem_cache_node {
+>         spinlock_t list_lock;
+> +       atomic_long_t nr_slabs;
+
+If above my comments are fixed, all counting would be done with
+holding a lock. So, atomic definition isn't needed for the SLAB.
+I think that it's better not to commonize this counting.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
