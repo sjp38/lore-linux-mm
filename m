@@ -1,90 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F0CE86B0261
-	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 11:31:15 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id 33so155415869lfw.1
-        for <linux-mm@kvack.org>; Fri, 05 Aug 2016 08:31:15 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id jo1si9453996wjb.272.2016.08.05.06.37.44
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 49735828E1
+	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 11:32:00 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id k135so155254584lfb.2
+        for <linux-mm@kvack.org>; Fri, 05 Aug 2016 08:32:00 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y12si17109384wjw.183.2016.08.04.23.45.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Fri, 05 Aug 2016 06:37:44 -0700 (PDT)
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Subject: [PATCH] x86/mm: disable preemption during CR3 read+write
-Date: Fri,  5 Aug 2016 15:37:39 +0200
-Message-Id: <1470404259-26290-1-git-send-email-bigeasy@linutronix.de>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 04 Aug 2016 23:45:06 -0700 (PDT)
+Subject: Re: [PATCH V2 1/2] mm/page_alloc: Replace set_dma_reserve to
+ set_memory_reserve
+References: <1470330729-6273-1-git-send-email-srikar@linux.vnet.ibm.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <09d5b30e-5956-bf64-5f4c-ea5425d7f7a5@suse.cz>
+Date: Fri, 5 Aug 2016 08:45:03 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <1470330729-6273-1-git-send-email-srikar@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: x86@kernel.org, Borislav Petkov <bp@suse.de>, Andy Lutomirski <luto@kernel.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org, Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>, Hari Bathini <hbathini@linux.vnet.ibm.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Balbir Singh <bsingharora@gmail.com>
 
-Usually current->mm (and therefore mm->pgd) stays the same during the
-lifetime of a task so it does not matter if a task gets preempted during
-the read and write of the CR3.
+On 08/04/2016 07:12 PM, Srikar Dronamraju wrote:
+> Expand the scope of the existing dma_reserve to accommodate other memory
+> reserves too. Accordingly rename variable dma_reserve to
+> nr_memory_reserve.
+>
+> set_memory_reserve also takes a new parameter that helps to identify if
+> the current value needs to be incremented.
+>
+> Suggested-by: Mel Gorman <mgorman@techsingularity.net>
+> Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+> ---
+>  arch/x86/kernel/e820.c |  2 +-
+>  include/linux/mm.h     |  2 +-
+>  mm/page_alloc.c        | 20 ++++++++++++--------
+>  3 files changed, 14 insertions(+), 10 deletions(-)
+>
+> diff --git a/arch/x86/kernel/e820.c b/arch/x86/kernel/e820.c
+> index 621b501..d935983 100644
+> --- a/arch/x86/kernel/e820.c
+> +++ b/arch/x86/kernel/e820.c
+> @@ -1188,6 +1188,6 @@ void __init memblock_find_dma_reserve(void)
+>  			nr_free_pages += end_pfn - start_pfn;
+>  	}
+>
+> -	set_dma_reserve(nr_pages - nr_free_pages);
+> +	set_memory_reserve(nr_pages - nr_free_pages, false);
+>  #endif
+>  }
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 8f468e0..c884ffb 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1886,7 +1886,7 @@ extern int __meminit __early_pfn_to_nid(unsigned long pfn,
+>  					struct mminit_pfnnid_cache *state);
+>  #endif
+>
+> -extern void set_dma_reserve(unsigned long new_dma_reserve);
+> +extern void set_memory_reserve(unsigned long nr_reserve, bool inc);
+>  extern void memmap_init_zone(unsigned long, int, unsigned long,
+>  				unsigned long, enum memmap_context);
+>  extern void setup_per_zone_wmarks(void);
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index c1069ef..a154c2f 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -253,7 +253,7 @@ int watermark_scale_factor = 10;
+>
+>  static unsigned long __meminitdata nr_kernel_pages;
+>  static unsigned long __meminitdata nr_all_pages;
+> -static unsigned long __meminitdata dma_reserve;
+> +static unsigned long __meminitdata nr_memory_reserve;
+>
+>  #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+>  static unsigned long __meminitdata arch_zone_lowest_possible_pfn[MAX_NR_ZONES];
+> @@ -5493,10 +5493,10 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+>  		}
+>
+>  		/* Account for reserved pages */
+> -		if (j == 0 && freesize > dma_reserve) {
+> -			freesize -= dma_reserve;
+> +		if (j == 0 && freesize > nr_memory_reserve) {
 
-But then, there is this scenario on x86-UP:
-TaskA is in do_exit() and exit_mm() sets current->mm = NULL followed by
-mmput() -> exit_mmap() -> tlb_finish_mmu() -> tlb_flush_mmu() ->
-tlb_flush_mmu_tlbonly() -> tlb_flush() -> flush_tlb_mm_range() ->
-__flush_tlb_up() -> __flush_tlb() ->  __native_flush_tlb().
+Will this really work (together with patch 2) as intended?
+This j == 0 means that we are doing this only for the first zone, which 
+is ZONE_DMA (or ZONE_DMA32) on node 0 on many systems. I.e. I don't 
+think it's really true that "dma_reserve has nothing to do with DMA or 
+ZONE_DMA".
 
-At this point current->mm is NULL but current->active_mm still points to
-the "old" mm.
-Let's preempt taskA _after_ native_read_cr3() by taskB. TaskB has its
-own mm so CR3 has changed.
-Now preempt back to taskA. TaskA has no ->mm set so it borrows taskB's
-mm and so CR3 remains unchanged. Once taskA gets active it continues
-where it was interrupted and that means it writes its old CR3 value
-back. Everything is fine because userland won't need its memory
-anymore.
+This zone will have limited amount of memory, so the "freesize > 
+nr_memory_reserve" will easily be false once you set this to many 
+gigabytes, so in fact nothing will get subtracted.
 
-Now the fun part. Let's preempt taskA one more time and get back to
-taskB. This time switch_mm() won't do a thing because oldmm
-(->active_mm) is the same as mm (as per context_switch()). So we remain
-with a bad CR3 / pgd and return to userland.
-The next thing that happens is handle_mm_fault() with an address for the
-execution of its code in userland. handle_mm_fault() realizes that it
-has a PTE with proper rights so it returns doing nothing. But the CPU
-looks at the wrong pgd and insists that something is wrong and faults
-again. And again. And one more timea?|
+On the other hand if the kernel has both CONFIG_ZONE_DMA and 
+CONFIG_ZONE_DMA32 disabled, then j == 0 will be true for ZONE_NORMAL. 
+This zone might be present on multiple nodes (unless they are configured 
+as movable) and then the value intended to be global will be subtracted 
+from several nodes.
 
-This pagefault circle continues until the scheduler gets tired of it and
-puts another task on the CPU. It gets little difficult if the task is a
-RT task with a high priority. The system will either freeze or it gets
-fixed by the software watchdog thread which usually runs at RT-max prio.
-But waiting for the watchdog will increase the latency of the RT task
-which is no good.
+I don't know what's the exact ppc64 situation here, perhaps there are 
+indeed no DMA/DMA32 zones, and the fadump kernel only uses one node, so 
+it works in the end, but it doesn't seem much robust to me?
 
-Cc: stable@vger.kernel.org
-Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
----
- arch/x86/include/asm/tlbflush.h | 7 +++++++
- 1 file changed, 7 insertions(+)
-
-diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
-index 4e5be94e079a..1ee065954e24 100644
---- a/arch/x86/include/asm/tlbflush.h
-+++ b/arch/x86/include/asm/tlbflush.h
-@@ -135,7 +135,14 @@ static inline void cr4_set_bits_and_update_boot(unsigned long mask)
- 
- static inline void __native_flush_tlb(void)
- {
-+	/*
-+	 * if current->mm == NULL then we borrow a mm which may change during a
-+	 * task switch and therefore we must not be preempted while we write CR3
-+	 * back.
-+	 */
-+	preempt_disable();
- 	native_write_cr3(native_read_cr3());
-+	preempt_enable();
- }
- 
- static inline void __native_flush_tlb_global_irq_disabled(void)
--- 
-2.8.1
+> +			freesize -= nr_memory_reserve;
+>  			printk(KERN_DEBUG "  %s zone: %lu pages reserved\n",
+> -					zone_names[0], dma_reserve);
+> +					zone_names[0], nr_memory_reserve);
+>  		}
+>
+>  		if (!is_highmem_idx(j))
+> @@ -6186,8 +6186,9 @@ void __init mem_init_print_info(const char *str)
+>  }
+>
+>  /**
+> - * set_dma_reserve - set the specified number of pages reserved in the first zone
+> - * @new_dma_reserve: The number of pages to mark reserved
+> + * set_memory_reserve - set number of pages reserved in the first zone
+> + * @nr_reserve: The number of pages to mark reserved
+> + * @inc: true increment to existing value; false set new value.
+>   *
+>   * The per-cpu batchsize and zone watermarks are determined by managed_pages.
+>   * In the DMA zone, a significant percentage may be consumed by kernel image
+> @@ -6196,9 +6197,12 @@ void __init mem_init_print_info(const char *str)
+>   * first zone (e.g., ZONE_DMA). The effect will be lower watermarks and
+>   * smaller per-cpu batchsize.
+>   */
+> -void __init set_dma_reserve(unsigned long new_dma_reserve)
+> +void __init set_memory_reserve(unsigned long nr_reserve, bool inc)
+>  {
+> -	dma_reserve = new_dma_reserve;
+> +	if (inc)
+> +		nr_memory_reserve += nr_reserve;
+> +	else
+> +		nr_memory_reserve = nr_reserve;
+>  }
+>
+>  void __init free_area_init(unsigned long *zones_size)
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
