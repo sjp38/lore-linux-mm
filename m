@@ -1,54 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 44DF5828E1
-	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 11:42:54 -0400 (EDT)
-Received: by mail-ua0-f197.google.com with SMTP id n59so402954002uan.1
-        for <linux-mm@kvack.org>; Fri, 05 Aug 2016 08:42:54 -0700 (PDT)
-Received: from mail-vk0-x232.google.com (mail-vk0-x232.google.com. [2607:f8b0:400c:c05::232])
-        by mx.google.com with ESMTPS id j2si3205045vkc.27.2016.08.05.08.42.53
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 99C90828E1
+	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 11:47:04 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id e7so155757475lfe.0
+        for <linux-mm@kvack.org>; Fri, 05 Aug 2016 08:47:04 -0700 (PDT)
+Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
+        by mx.google.com with ESMTPS id tl19si18143278wjb.46.2016.08.05.04.55.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Aug 2016 08:42:53 -0700 (PDT)
-Received: by mail-vk0-x232.google.com with SMTP id x130so194694063vkc.0
-        for <linux-mm@kvack.org>; Fri, 05 Aug 2016 08:42:53 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 05 Aug 2016 04:55:28 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
+	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id 8E23998CF4
+	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 11:55:28 +0000 (UTC)
+Date: Fri, 5 Aug 2016 12:55:26 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 03/34] mm, vmscan: move LRU lists to node
+Message-ID: <20160805115526.GS2799@techsingularity.net>
+References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
+ <1467970510-21195-4-git-send-email-mgorman@techsingularity.net>
+ <CAAG0J9_k3edxDzqpEjt2BqqZXMW4PVj7BNUBAk6TWtw3Zh_oMg@mail.gmail.com>
+ <20160805084115.GO2799@techsingularity.net>
+ <20160805105256.GH19514@jhogan-linux.le.imgtec.org>
 MIME-Version: 1.0
-In-Reply-To: <1470404259-26290-1-git-send-email-bigeasy@linutronix.de>
-References: <1470404259-26290-1-git-send-email-bigeasy@linutronix.de>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Fri, 5 Aug 2016 08:42:32 -0700
-Message-ID: <CALCETrV9n=-Zi2KBT7i-WLrYGffXy1ha+M=_PhvnuOiG7pim8A@mail.gmail.com>
-Subject: Re: [PATCH] x86/mm: disable preemption during CR3 read+write
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20160805105256.GH19514@jhogan-linux.le.imgtec.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Borislav Petkov <bp@suse.de>, Andy Lutomirski <luto@kernel.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: James Hogan <james.hogan@imgtec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>, metag <linux-metag@vger.kernel.org>
 
-On Fri, Aug 5, 2016 at 6:37 AM, Sebastian Andrzej Siewior
-<bigeasy@linutronix.de> wrote:
-> Usually current->mm (and therefore mm->pgd) stays the same during the
-> lifetime of a task so it does not matter if a task gets preempted during
-> the read and write of the CR3.
->
-> But then, there is this scenario on x86-UP:
-> TaskA is in do_exit() and exit_mm() sets current->mm = NULL followed by
-> mmput() -> exit_mmap() -> tlb_finish_mmu() -> tlb_flush_mmu() ->
-> tlb_flush_mmu_tlbonly() -> tlb_flush() -> flush_tlb_mm_range() ->
-> __flush_tlb_up() -> __flush_tlb() ->  __native_flush_tlb().
->
-> At this point current->mm is NULL but current->active_mm still points to
-> the "old" mm.
-> Let's preempt taskA _after_ native_read_cr3() by taskB. TaskB has its
-> own mm so CR3 has changed.
-> Now preempt back to taskA. TaskA has no ->mm set so it borrows taskB's
-> mm and so CR3 remains unchanged. Once taskA gets active it continues
-> where it was interrupted and that means it writes its old CR3 value
-> back. Everything is fine because userland won't need its memory
-> anymore.
+On Fri, Aug 05, 2016 at 11:52:57AM +0100, James Hogan wrote:
+> > What's surprising is that it worked for the zone stats as it appears
+> > that calling zone_reclaimable() from that context should also have
+> > broken. Did anything change recently that would have avoided the
+> > zone->pageset dereference in zone_reclaimable() before?
+> 
+> It appears that zone_pcp_init() was already setting zone->pageset to
+> &boot_pageset, via paging_init():
+> 
 
-This should affect kernel threads too, right?
+/me slaps self
 
-Acked-by: Andy Lutomirski <luto@kernel.org>
+Of course.
+
+> > The easiest option would be to not call show_mem from arch code until
+> > after the pagesets are setup.
+> 
+> Since no other arches seem to do show_mem earily during boot like metag,
+> and doing so doesn't really add much value, I'm happy to remove it
+> anyway.
+> 
+
+Thanks. Can I assume you'll merge such a patch or should I roll one?
+
+> However could your change break other things and need fixing anyway?
+> 
+
+Not that I'm aware of. There would have to be a node-based stat that has
+meaning that early in boot to have an effect. If one happened to added
+then it would need fixing but until then the complexity is unnecessary.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
