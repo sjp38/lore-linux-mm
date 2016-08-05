@@ -1,128 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0289C6B0253
-	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 12:09:08 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id e7so156109516lfe.0
-        for <linux-mm@kvack.org>; Fri, 05 Aug 2016 09:09:07 -0700 (PDT)
-Received: from imgpgp01.kl.imgtec.org (mailapp01.imgtec.com. [195.59.15.196])
-        by mx.google.com with ESMTPS id b189si8312032wmd.92.2016.08.05.03.53.00
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F7156B025E
+	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 12:10:03 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id l4so20722304wml.0
+        for <linux-mm@kvack.org>; Fri, 05 Aug 2016 09:10:03 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id w10si17215920wjg.143.2016.08.05.00.24.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 05 Aug 2016 03:53:00 -0700 (PDT)
-Date: Fri, 5 Aug 2016 11:52:57 +0100
-From: James Hogan <james.hogan@imgtec.com>
-Subject: Re: [PATCH 03/34] mm, vmscan: move LRU lists to node
-Message-ID: <20160805105256.GH19514@jhogan-linux.le.imgtec.org>
-References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
- <1467970510-21195-4-git-send-email-mgorman@techsingularity.net>
- <CAAG0J9_k3edxDzqpEjt2BqqZXMW4PVj7BNUBAk6TWtw3Zh_oMg@mail.gmail.com>
- <20160805084115.GO2799@techsingularity.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Aug 2016 00:24:59 -0700 (PDT)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u757JWtu085277
+	for <linux-mm@kvack.org>; Fri, 5 Aug 2016 03:24:57 -0400
+Received: from e28smtp03.in.ibm.com (e28smtp03.in.ibm.com [125.16.236.3])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 24kxmjj321-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 05 Aug 2016 03:24:57 -0400
+Received: from localhost
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Fri, 5 Aug 2016 12:54:54 +0530
+Received: from d28relay09.in.ibm.com (d28relay09.in.ibm.com [9.184.220.160])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id B12703940060
+	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 12:54:52 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay09.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u757OqS135979400
+	for <linux-mm@kvack.org>; Fri, 5 Aug 2016 12:54:52 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u757Opxc028688
+	for <linux-mm@kvack.org>; Fri, 5 Aug 2016 12:54:52 +0530
+Date: Fri, 5 Aug 2016 12:54:50 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH V2 1/2] mm/page_alloc: Replace set_dma_reserve to
+ set_memory_reserve
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <1470330729-6273-1-git-send-email-srikar@linux.vnet.ibm.com>
+ <09d5b30e-5956-bf64-5f4c-ea5425d7f7a5@suse.cz>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="o7gdRJTuwFmWapyH"
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20160805084115.GO2799@techsingularity.net>
+In-Reply-To: <09d5b30e-5956-bf64-5f4c-ea5425d7f7a5@suse.cz>
+Message-Id: <20160805072450.GE11268@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>, metag <linux-metag@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org, Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@intel.com>, Balbir Singh <bsingharora@gmail.com>
 
---o7gdRJTuwFmWapyH
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+* Vlastimil Babka <vbabka@suse.cz> [2016-08-05 08:45:03]:
 
-On Fri, Aug 05, 2016 at 09:41:15AM +0100, Mel Gorman wrote:
-> On Thu, Aug 04, 2016 at 09:59:17PM +0100, James Hogan wrote:
-> > > Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> > > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> > > Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> >=20
-> > This breaks boot on metag architecture:
-> > Oops: err 0007 (Data access general read/write fault) addr 00233008 [#1]
-> >=20
-> > It appears to be in node_page_state_snapshot() (via
-> > pgdat_reclaimable()), and have come via mm_init. Here's the relevant
-> > bit of the backtrace:
-> >=20
-> >     node_page_state_snapshot@0x4009c884(enum node_stat_item item =3D
-> > ???, struct pglist_data * pgdat =3D ???) + 0x48
-> >     pgdat_reclaimable(struct pglist_data * pgdat =3D 0x402517a0)
-> >     show_free_areas(unsigned int filter =3D 0) + 0x2cc
-> >     show_mem(unsigned int filter =3D 0) + 0x18
-> >     mm_init@0x4025c3d4()
-> >     start_kernel() + 0x204
-> >=20
-> > __per_cpu_offset[0] =3D=3D 0x233000 (close to bad addr),
-> > pgdat->per_cpu_nodestats =3D NULL. and setup_per_cpu_pageset()
-> > definitely hasn't been called yet (mm_init is called before
-> > setup_per_cpu_pageset()).
-> >=20
-> > Any ideas what the correct solution is (and why presumably others
-> > haven't seen the same issue on other architectures?).
-> >=20
->=20
-> metag calls show_mem in mem_init() before the pagesets are initialised.
+> >@@ -5493,10 +5493,10 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+> > 		}
+> >
+> > 		/* Account for reserved pages */
+> >-		if (j == 0 && freesize > dma_reserve) {
+> >-			freesize -= dma_reserve;
+> >+		if (j == 0 && freesize > nr_memory_reserve) {
+> 
+> Will this really work (together with patch 2) as intended?
+> This j == 0 means that we are doing this only for the first zone, which is
+> ZONE_DMA (or ZONE_DMA32) on node 0 on many systems. I.e. I don't think it's
+> really true that "dma_reserve has nothing to do with DMA or ZONE_DMA".
+> 
+> This zone will have limited amount of memory, so the "freesize >
+> nr_memory_reserve" will easily be false once you set this to many gigabytes,
+> so in fact nothing will get subtracted.
+> 
+> On the other hand if the kernel has both CONFIG_ZONE_DMA and
+> CONFIG_ZONE_DMA32 disabled, then j == 0 will be true for ZONE_NORMAL. This
+> zone might be present on multiple nodes (unless they are configured as
+> movable) and then the value intended to be global will be subtracted from
+> several nodes.
+> 
+> I don't know what's the exact ppc64 situation here, perhaps there are indeed
+> no DMA/DMA32 zones, and the fadump kernel only uses one node, so it works in
+> the end, but it doesn't seem much robust to me?
+> 
 
-Indeed, I didn't spot yesterday evening that this appears to be
-different to other arches.
+At the page initialization time, powerpc seems to have just one zone
+spread across the 16 nodes.
 
-> What's surprising is that it worked for the zone stats as it appears
-> that calling zone_reclaimable() from that context should also have
-> broken. Did anything change recently that would have avoided the
-> zone->pageset dereference in zone_reclaimable() before?
+>From the dmesg.
 
-It appears that zone_pcp_init() was already setting zone->pageset to
-&boot_pageset, via paging_init():
+[    0.000000] Memory hole size: 0MB
+[    0.000000] Zone ranges:
+[    0.000000]   DMA      [mem 0x0000000000000000-0x00001f5c8fffffff]
+[    0.000000]   DMA32    empty
+[    0.000000]   Normal   empty
+[    0.000000] Movable zone start for each node
+[    0.000000] Early memory node ranges
+[    0.000000]   node   0: [mem 0x0000000000000000-0x000001fb4fffffff]
+[    0.000000]   node   1: [mem 0x000001fb50000000-0x000003fa8fffffff]
+[    0.000000]   node   2: [mem 0x000003fa90000000-0x000005f9cfffffff]
+[    0.000000]   node   3: [mem 0x000005f9d0000000-0x000007f8efffffff]
+[    0.000000]   node   4: [mem 0x000007f8f0000000-0x000009f81fffffff]
+[    0.000000]   node   5: [mem 0x000009f820000000-0x00000bf77fffffff]
+[    0.000000]   node   6: [mem 0x00000bf780000000-0x00000df6dfffffff]
+[    0.000000]   node   7: [mem 0x00000df6e0000000-0x00000ff63fffffff]
+[    0.000000]   node   8: [mem 0x00000ff640000000-0x000011f58fffffff]
+[    0.000000]   node   9: [mem 0x000011f590000000-0x000013644fffffff]
+[    0.000000]   node  10: [mem 0x0000136450000000-0x00001563afffffff]
+[    0.000000]   node  11: [mem 0x00001563b0000000-0x000017630fffffff]
+[    0.000000]   node  12: [mem 0x0000176310000000-0x000019625fffffff]
+[    0.000000]   node  13: [mem 0x0000196260000000-0x00001b5dcfffffff]
+[    0.000000]   node  14: [mem 0x00001b5dd0000000-0x00001d5d2fffffff]
+[    0.000000]   node  15: [mem 0x00001d5d30000000-0x00001f5c8fffffff]
 
-zone_pcp_init@0x40265d54(struct zone * zone =3D ???)
-free_area_init_core@0x40265c18(struct pglist_data * pgdat =3D ???) + 0x138
-free_area_init_node(int nid =3D 0, unsigned long * zones_size =3D ???, unsi=
-gned long node_start_pfn =3D ???, unsigned long * zholes_size =3D ???) + 0x=
-1a0
-free_area_init_nodes(unsigned long * max_zone_pfn =3D ???) + 0x440
-paging_init(unsigned long mem_end =3D 0x4fe00000) + 0x378
-setup_arch(char ** cmdline_p =3D 0x4024e038) + 0x2b8
-start_kernel() + 0x54
 
-setup_arch() is called prior to mm_init(), which explains why it wasn't
-crashing before.
+The config has the below.
 
-> The easiest option would be to not call show_mem from arch code until
-> after the pagesets are setup.
+CONFIG_ZONE_DMA32=y
+CONFIG_HIGH_RES_TIMERS=y
+CONFIG_ZONE_DMA_FLAG=1
+CONFIG_FORCE_MAX_ZONEORDER=9
+CONFIG_ZONE_DMA=y
 
-Since no other arches seem to do show_mem earily during boot like metag,
-and doing so doesn't really add much value, I'm happy to remove it
-anyway.
+I tried forcing CONFIG_ZONE_DMA to be not set, but make always pick it.
+>From source arch/powerpc/Kconfig marks CONFIG_ZONE_DMA as "default y"
 
-However could your change break other things and need fixing anyway?
-
-Thanks!
-James
-
---o7gdRJTuwFmWapyH
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQIcBAEBCAAGBQJXpHAIAAoJEGwLaZPeOHZ6ejsP/2zVPMn7XAabdJU3V+1N9NXu
-Hl6obf8BVvlvR0v/7oOwXBUm12WBpszPZTtRMpsiO/SiswdKzC21waKH13q9EUDN
-u2GZKep8xGM7Y8ax/PvlEUl/2fE8ScUDSGwnwGTcaFc9ohbED5TeVVsVCz3sq2KF
-TCU90z2w0mGo8Avs5DFLPImG6gUwd4irINjPY9nSMzbfdDPKG3lHzvdAOXdbN+1a
-0ZRpyrzH3BbqQLB/HVyHxRxRVDYnEqYu5IEdhyakxyW4pcR0SAnkf8Pihw/G+hYM
-lXEwEet+7BOJtKlw8hsYuQRo0oytOKcKC9FbaN+XzKPag7oCTukIdNvO57iXjYrr
-GNYZDa6Q806NG5y1CC5/R78Y4O2SN0mXxWsjK7blYGPNv6gbj+YluyGJxYtLiLhP
-ngJvDpqooBUhJiJlwGrVSoOlYIqGRQKN2SedE8FkdAofazBYwY9AJ2m0X2fr6Ox8
-o0i6M/enrR7chNn6C9TXbLGpJHcoYCWrJ3orWSXHCX2mB7yyXx9ZBTjP3HkgDh+E
-mZtwKsBMtJTf3eXXSjBnajx0C0SQ2kVk+rDAuNvZR1rdwsWNiShmXdJRJm/8XBWz
-x27No+iqfj0Hd6y9Eun/RHUbj5aTf4crxwyDKglPkOybbl7RZg6feRk6hAsA7pfs
-QgK+HAduAvPVo7bRTdnT
-=TJUm
------END PGP SIGNATURE-----
-
---o7gdRJTuwFmWapyH--
+-- 
+Thanks and Regards
+Srikar Dronamraju
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
