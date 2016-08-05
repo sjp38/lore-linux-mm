@@ -1,132 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 113FA6B0005
-	for <linux-mm@kvack.org>; Thu,  4 Aug 2016 23:55:43 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id ag5so442407100pad.2
-        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 20:55:43 -0700 (PDT)
-Received: from mail-pa0-x244.google.com (mail-pa0-x244.google.com. [2607:f8b0:400e:c03::244])
-        by mx.google.com with ESMTPS id c83si18060031pfd.268.2016.08.04.20.55.41
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D1B86B0005
+	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 00:57:34 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id x130so27025849ite.3
+        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 21:57:34 -0700 (PDT)
+Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
+        by mx.google.com with ESMTPS id 11si6299877itf.7.2016.08.04.21.57.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Aug 2016 20:55:41 -0700 (PDT)
-Received: by mail-pa0-x244.google.com with SMTP id vy10so71952pac.0
-        for <linux-mm@kvack.org>; Thu, 04 Aug 2016 20:55:41 -0700 (PDT)
-Date: Thu, 4 Aug 2016 20:55:36 -0700
-From: Alexei Starovoitov <alexei.starovoitov@gmail.com>
-Subject: Re: order-0 vs order-N driver allocation. Was: [PATCH v10 07/12]
- net/mlx4_en: add page recycle to prepare rx ring for tx support
-Message-ID: <20160805035534.GA56390@ast-mbp.thefacebook.com>
-References: <1468955817-10604-1-git-send-email-bblanco@plumgrid.com>
- <1468955817-10604-8-git-send-email-bblanco@plumgrid.com>
- <1469432120.8514.5.camel@edumazet-glaptop3.roam.corp.google.com>
- <20160803174107.GA38399@ast-mbp.thefacebook.com>
- <20160804181913.26ee17b9@redhat.com>
- <CAKgT0UdbVK6Ti9drCQFfa0MyU40Kh=Hu=BtDTRCqqsSiBvJ7rg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAKgT0UdbVK6Ti9drCQFfa0MyU40Kh=Hu=BtDTRCqqsSiBvJ7rg@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 04 Aug 2016 21:57:33 -0700 (PDT)
+Received: from epcas2p1.samsung.com (unknown [182.195.41.53])
+ by mailout1.samsung.com
+ (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
+ with ESMTP id <0OBF02KL373AXI80@mailout1.samsung.com> for linux-mm@kvack.org;
+ Fri, 05 Aug 2016 13:57:10 +0900 (KST)
+From: PINTU KUMAR <pintu.k@samsung.com>
+Subject: [linux-mm] Drastic increase in application memory usage with Kernel
+ version upgrade
+Date: Fri, 05 Aug 2016 10:26:37 +0530
+Message-id: <01a001d1eed5$c50726c0$4f157440$@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-transfer-encoding: 7bit
+Content-language: en-us
+References: 
+ <CGME20160805045709epcas3p1dc6f12f2fa3031112c4da5379e33b5e9@epcas3p1.samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Brenden Blanco <bblanco@plumgrid.com>, David Miller <davem@davemloft.net>, Netdev <netdev@vger.kernel.org>, Jamal Hadi Salim <jhs@mojatatu.com>, Saeed Mahameed <saeedm@dev.mellanox.co.il>, Martin KaFai Lau <kafai@fb.com>, Ari Saha <as754m@att.com>, Or Gerlitz <gerlitz.or@gmail.com>, john fastabend <john.fastabend@gmail.com>, Hannes Frederic Sowa <hannes@stressinduktion.org>, Thomas Graf <tgraf@suug.ch>, Tom Herbert <tom@herbertland.com>, Daniel Borkmann <daniel@iogearbox.net>, Tariq Toukan <ttoukan.linux@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: jaejoon.seo@samsung.com, jy0.jeon@samsung.com, vishnu.ps@samsung.com, pintu.k@samsung.com
 
-On Thu, Aug 04, 2016 at 05:30:56PM -0700, Alexander Duyck wrote:
-> On Thu, Aug 4, 2016 at 9:19 AM, Jesper Dangaard Brouer
-> <brouer@redhat.com> wrote:
-> >
-> > On Wed, 3 Aug 2016 10:45:13 -0700 Alexei Starovoitov <alexei.starovoitov@gmail.com> wrote:
-> >
-> >> On Mon, Jul 25, 2016 at 09:35:20AM +0200, Eric Dumazet wrote:
-> >> > On Tue, 2016-07-19 at 12:16 -0700, Brenden Blanco wrote:
-> >> > > The mlx4 driver by default allocates order-3 pages for the ring to
-> >> > > consume in multiple fragments. When the device has an xdp program, this
-> >> > > behavior will prevent tx actions since the page must be re-mapped in
-> >> > > TODEVICE mode, which cannot be done if the page is still shared.
-> >> > >
-> >> > > Start by making the allocator configurable based on whether xdp is
-> >> > > running, such that order-0 pages are always used and never shared.
-> >> > >
-> >> > > Since this will stress the page allocator, add a simple page cache to
-> >> > > each rx ring. Pages in the cache are left dma-mapped, and in drop-only
-> >> > > stress tests the page allocator is eliminated from the perf report.
-> >> > >
-> >> > > Note that setting an xdp program will now require the rings to be
-> >> > > reconfigured.
-> >> >
-> >> > Again, this has nothing to do with XDP ?
-> >> >
-> >> > Please submit a separate patch, switching this driver to order-0
-> >> > allocations.
-> >> >
-> >> > I mentioned this order-3 vs order-0 issue earlier [1], and proposed to
-> >> > send a generic patch, but had been traveling lately, and currently in
-> >> > vacation.
-> >> >
-> >> > order-3 pages are problematic when dealing with hostile traffic anyway,
-> >> > so we should exclusively use order-0 pages, and page recycling like
-> >> > Intel drivers.
-> >> >
-> >> > http://lists.openwall.net/netdev/2016/04/11/88
-> >>
-> >> Completely agree. These multi-page tricks work only for benchmarks and
-> >> not for production.
-> >> Eric, if you can submit that patch for mlx4 that would be awesome.
-> >>
-> >> I think we should default to order-0 for both mlx4 and mlx5.
-> >> Alternatively we're thinking to do a netlink or ethtool switch to
-> >> preserve old behavior, but frankly I don't see who needs this order-N
-> >> allocation schemes.
-> >
-> > I actually agree, that we should switch to order-0 allocations.
-> >
-> > *BUT* this will cause performance regressions on platforms with
-> > expensive DMA operations (as they no longer amortize the cost of
-> > mapping a larger page).
+Hi All,
 
-order-0 is mainly about correctness under memory pressure.
-As Eric pointed out order-N is a serious issue for hostile traffic,
-but even for normal traffic it's a problem. Sooner or later
-only order-0 pages will be available.
-Performance considerations come second.
+For one of our ARM embedded product, we recently updated the Kernel version from
+3.4 to 3.18 and we noticed that the same application memory usage (PSS value)
+gone up by ~10% and for some cases it even crossed ~50%.
+There is no change in platform part. All platform component was built with ARM
+32-bit toolchain.
+However, the Kernel is changed from 32-bit to 64-bit.
 
-> The trick is to use page reuse like we do for the Intel NICs.  If you
-> can get away with just reusing the page you don't have to keep making
-> the expensive map/unmap calls.
+Is upgrading Kernel version and moving from 32-bit to 64-bit is such a risk ?
+After the upgrade, what can we do further to reduce the application memory usage
+?
+Is there any other factor that will help us to improve without major
+modifications in platform ?
 
-you mean two packet per page trick?
-I think it's trading off performance vs memory.
-It's useful. I wish there was a knob to turn it on/off instead
-of relying on mtu size threshold.
+As a proof, we did a small experiment on our Ubuntu-32 bit machine.
+We upgraded Ubuntu Kernel version from 3.13 to 4.01 and we observed the
+following:
+--------------------------------------------------------------------------------
+-------------
+|UBUNTU-32 bit		|Kernel 3.13	|Kernel 4.03	|DIFF	|
+|CALCULATOR PSS	|6057 KB	|6466 KB	|409 KB	|
+--------------------------------------------------------------------------------
+-------------
+So, just by upgrading the Kernel version: PSS value for calculator is increased
+by 409KB.
 
-> > I've started coding on the page-pool last week, which address both the
-> > DMA mapping and recycling (with less atomic ops). (p.s. still on
-> > vacation this week).
-> >
-> > http://people.netfilter.org/hawk/presentations/MM-summit2016/generic_page_pool_mm_summit2016.pdf
-> 
-> I really wonder if we couldn't get away with creating some sort of 2
-> tiered allocator for this.  So instead of allocating a page pool we
-> just reserved blocks of memory like we do with huge pages.  Then you
-> have essentially a huge page that is mapped to a given device for DMA
-> and reserved for it to use as a memory resource to allocate the order
-> 0 pages out of.  Doing it that way would likely have multiple
-> advantages when working with things like IOMMU since the pages would
-> all belong to one linear block so it would likely consume less
-> resources on those devices, and it wouldn't be that far off from how
-> DPDK is making use of huge pages in order to improve it's memory
-> access times and such.
+If anybody knows any in-sight about it please point out more details about the
+root cause.
 
-interesting idea. Like dma_map 1GB region and then allocate
-pages from it only? but the rest of the kernel won't be able
-to use them? so only some smaller region then? or it will be
-a boot time flag to reserve this pseudo-huge page?
-I don't think any of that is needed for XDP. As demonstrated by current
-mlx4 it's very fast already. No bottlenecks in page allocators.
-Tiny page recycle array does the magic because most of the traffic
-is not going to the stack.
-This order-0 vs order-N discussion is for the main stack.
-Not related to XDP.
+Thank You!
+
+Regards,
+Pintu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
