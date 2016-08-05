@@ -1,61 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D892828E1
-	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 11:36:46 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id i64so70230339ith.2
-        for <linux-mm@kvack.org>; Fri, 05 Aug 2016 08:36:46 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id l5si16846918ioe.59.2016.08.05.01.19.04
-        for <linux-mm@kvack.org>;
-        Fri, 05 Aug 2016 01:19:05 -0700 (PDT)
-Date: Fri, 5 Aug 2016 17:20:15 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [linux-mm] Drastic increase in application memory usage with
- Kernel version upgrade
-Message-ID: <20160805082015.GA28235@bbox>
-References: <CGME20160805045709epcas3p1dc6f12f2fa3031112c4da5379e33b5e9@epcas3p1.samsung.com>
- <01a001d1eed5$c50726c0$4f157440$@samsung.com>
-MIME-Version: 1.0
-In-Reply-To: <01a001d1eed5$c50726c0$4f157440$@samsung.com>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CD957828E1
+	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 11:41:09 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id s189so484605590vkh.0
+        for <linux-mm@kvack.org>; Fri, 05 Aug 2016 08:41:09 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i200si906138qke.191.2016.08.05.07.38.38
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Aug 2016 07:38:39 -0700 (PDT)
+Message-ID: <1470407913.13905.66.camel@redhat.com>
+Subject: Re: [PATCH] x86/mm: disable preemption during CR3 read+write
+From: Rik van Riel <riel@redhat.com>
+Date: Fri, 05 Aug 2016 10:38:33 -0400
+In-Reply-To: <1470404259-26290-1-git-send-email-bigeasy@linutronix.de>
+References: <1470404259-26290-1-git-send-email-bigeasy@linutronix.de>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-ygw81KUwZ+4QWFNpmg93"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: PINTU KUMAR <pintu.k@samsung.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jaejoon.seo@samsung.com, jy0.jeon@samsung.com, vishnu.ps@samsung.com
+To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: x86@kernel.org, Borislav Petkov <bp@suse.de>, Andy Lutomirski <luto@kernel.org>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-On Fri, Aug 05, 2016 at 10:26:37AM +0530, PINTU KUMAR wrote:
-> Hi All,
-> 
-> For one of our ARM embedded product, we recently updated the Kernel version from
-> 3.4 to 3.18 and we noticed that the same application memory usage (PSS value)
-> gone up by ~10% and for some cases it even crossed ~50%.
-> There is no change in platform part. All platform component was built with ARM
-> 32-bit toolchain.
-> However, the Kernel is changed from 32-bit to 64-bit.
-> 
-> Is upgrading Kernel version and moving from 32-bit to 64-bit is such a risk ?
-> After the upgrade, what can we do further to reduce the application memory usage
-> ?
-> Is there any other factor that will help us to improve without major
-> modifications in platform ?
-> 
-> As a proof, we did a small experiment on our Ubuntu-32 bit machine.
-> We upgraded Ubuntu Kernel version from 3.13 to 4.01 and we observed the
-> following:
-> --------------------------------------------------------------------------------
-> -------------
-> |UBUNTU-32 bit		|Kernel 3.13	|Kernel 4.03	|DIFF	|
-> |CALCULATOR PSS	|6057 KB	|6466 KB	|409 KB	|
-> --------------------------------------------------------------------------------
-> -------------
-> So, just by upgrading the Kernel version: PSS value for calculator is increased
-> by 409KB.
-> 
-> If anybody knows any in-sight about it please point out more details about the
-> root cause.
 
-One of culprit is [8c6e50b0290c, mm: introduce vm_ops->map_pages()].
+--=-ygw81KUwZ+4QWFNpmg93
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+On Fri, 2016-08-05 at 15:37 +0200, Sebastian Andrzej Siewior wrote:
+>=C2=A0
+> +++ b/arch/x86/include/asm/tlbflush.h
+> @@ -135,7 +135,14 @@ static inline void
+> cr4_set_bits_and_update_boot(unsigned long mask)
+> =C2=A0
+> =C2=A0static inline void __native_flush_tlb(void)
+> =C2=A0{
+> +	/*
+> +	=C2=A0* if current->mm =3D=3D NULL then we borrow a mm which may
+> change during a
+> +	=C2=A0* task switch and therefore we must not be preempted while
+> we write CR3
+> +	=C2=A0* back.
+> +	=C2=A0*/
+> +	preempt_disable();
+> =C2=A0	native_write_cr3(native_read_cr3());
+> +	preempt_enable();
+> =C2=A0}
+
+That is one subtle race!
+
+Acked-by: Rik van Riel <riel@redhat.com>
+
+--=20
+
+All Rights Reversed.
+--=-ygw81KUwZ+4QWFNpmg93
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQEcBAABCAAGBQJXpKTpAAoJEM553pKExN6DAc8H/3DhcXs3/x1K6aTFAzUfp97M
+33REzE+JcAI0uWWisVPHSHAcoK8g5tGzpcXG7UuLGjPqohyB0500ukaFMFghcij8
+zWCJweM49VZCPSUm7L/hpwXTkx+Ltraem6TsDuFRf3jMfSM8l500OcwocLdV4S7J
+tza4Gy6ZVM49Csx42jWO1Ac15oLQWJ/77/YzyGIuGkfrHtK04pCCECzdCoCdU5I7
+vxINhsoo8QFoTkeAQPXWRqUmSQkZboNn6GKg+aDWGC6TVu6KLVlpfuzgmc0wN7EN
+ySA0IhptXVFT9GcXgqIy7Ow9XbsATyxXw8MUK2SBLi1LDrYW7Kts80N3mTVU1f4=
+=foAC
+-----END PGP SIGNATURE-----
+
+--=-ygw81KUwZ+4QWFNpmg93--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
