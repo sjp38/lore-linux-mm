@@ -1,66 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 087AD6B0005
-	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 12:45:49 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id k135so156307356lfb.2
-        for <linux-mm@kvack.org>; Fri, 05 Aug 2016 09:45:48 -0700 (PDT)
-Received: from outbound-smtp07.blacknight.com (outbound-smtp07.blacknight.com. [46.22.139.12])
-        by mx.google.com with ESMTPS id ul8si17950503wjb.148.2016.08.05.03.58.08
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 801936B0005
+	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 12:54:38 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id le9so96265642pab.0
+        for <linux-mm@kvack.org>; Fri, 05 Aug 2016 09:54:38 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id b81si19154472pfb.21.2016.08.05.00.28.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Aug 2016 03:58:08 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp07.blacknight.com (Postfix) with ESMTPS id B8A421C1C04
-	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 11:58:06 +0100 (IST)
-Date: Fri, 5 Aug 2016 11:58:05 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH] proc, meminfo: Use correct helpers for calculating LRU sizes
- in meminfo
-Message-ID: <20160805105805.GR2799@techsingularity.net>
+        Fri, 05 Aug 2016 00:28:54 -0700 (PDT)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u757PZtv057147
+	for <linux-mm@kvack.org>; Fri, 5 Aug 2016 03:28:52 -0400
+Received: from e23smtp02.au.ibm.com (e23smtp02.au.ibm.com [202.81.31.144])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 24kkaj9rs1-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 05 Aug 2016 03:28:52 -0400
+Received: from localhost
+	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Fri, 5 Aug 2016 17:28:48 +1000
+Received: from d23relay09.au.ibm.com (d23relay09.au.ibm.com [9.185.63.181])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 9A27E2CE805A
+	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 17:28:45 +1000 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u757SjYe24641760
+	for <linux-mm@kvack.org>; Fri, 5 Aug 2016 17:28:45 +1000
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u757ShSa026235
+	for <linux-mm@kvack.org>; Fri, 5 Aug 2016 17:28:45 +1000
+Date: Fri, 5 Aug 2016 12:58:38 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH] fadump: Register the memory reserved by fadump
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <1470318165-2521-1-git-send-email-srikar@linux.vnet.ibm.com>
+ <87mvkritii.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
+In-Reply-To: <87mvkritii.fsf@concordia.ellerman.id.au>
+Message-Id: <20160805072838.GF11268@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michael Ellerman <mpe@ellerman.id.au>
+Cc: linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@intel.com>, Balbir Singh <bsingharora@gmail.com>
 
-meminfo_proc_show and si_mem_available are using the wrong helpers for
-calculating the size of the LRUs. The user-visible impact is that there
-appears to be an abnormally high number of unevictable pages.
+* Michael Ellerman <mpe@ellerman.id.au> [2016-08-05 17:07:01]:
 
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
----
- fs/proc/meminfo.c | 2 +-
- mm/page_alloc.c   | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+> Srikar Dronamraju <srikar@linux.vnet.ibm.com> writes:
+> 
+> > Fadump kernel reserves large chunks of memory even before the pages are
+> > initialized. This could mean memory that corresponds to several nodes might
+> > fall in memblock reserved regions.
+> >
+> ...
+> > Register the memory reserved by fadump, so that the cache sizes are
+> > calculated based on the free memory (i.e Total memory - reserved
+> > memory).
+> 
+> The memory is reserved, with memblock_reserve(). Why is that not sufficient?
+> 
+> cheers
+> 
 
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index 09e18fdf61e5..b9a8c813e5e6 100644
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -46,7 +46,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- 		cached = 0;
- 
- 	for (lru = LRU_BASE; lru < NR_LRU_LISTS; lru++)
--		pages[lru] = global_page_state(NR_LRU_BASE + lru);
-+		pages[lru] = global_node_page_state(NR_LRU_BASE + lru);
- 
- 	available = si_mem_available();
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index fb975cec3518..baa97da3687d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -4064,7 +4064,7 @@ long si_mem_available(void)
- 	int lru;
- 
- 	for (lru = LRU_BASE; lru < NR_LRU_LISTS; lru++)
--		pages[lru] = global_page_state(NR_LRU_BASE + lru);
-+		pages[lru] = global_node_page_state(NR_LRU_BASE + lru);
- 
- 	for_each_zone(zone)
- 		wmark_low += zone->watermark[WMARK_LOW];
+Because at page initialization time, the kernel doesnt know how many
+pages are reserved. One way to do that would be to walk through the
+different memory reserved blocks and calculate the size. But Mel feels
+thats an overhead (from his reply to the other thread) esp for just one
+use case.
+
+-- 
+Thanks and Regards
+Srikar Dronamraju
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
