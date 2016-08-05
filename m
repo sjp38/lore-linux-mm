@@ -1,77 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 801936B0005
-	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 12:54:38 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id le9so96265642pab.0
-        for <linux-mm@kvack.org>; Fri, 05 Aug 2016 09:54:38 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id b81si19154472pfb.21.2016.08.05.00.28.53
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D51CD6B0253
+	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 16:50:20 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 1so24380708wmz.2
+        for <linux-mm@kvack.org>; Fri, 05 Aug 2016 13:50:20 -0700 (PDT)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTPS id q126si10225094wme.10.2016.08.05.13.50.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Aug 2016 00:28:54 -0700 (PDT)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u757PZtv057147
-	for <linux-mm@kvack.org>; Fri, 5 Aug 2016 03:28:52 -0400
-Received: from e23smtp02.au.ibm.com (e23smtp02.au.ibm.com [202.81.31.144])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 24kkaj9rs1-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 05 Aug 2016 03:28:52 -0400
-Received: from localhost
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Fri, 5 Aug 2016 17:28:48 +1000
-Received: from d23relay09.au.ibm.com (d23relay09.au.ibm.com [9.185.63.181])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 9A27E2CE805A
-	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 17:28:45 +1000 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u757SjYe24641760
-	for <linux-mm@kvack.org>; Fri, 5 Aug 2016 17:28:45 +1000
-Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u757ShSa026235
-	for <linux-mm@kvack.org>; Fri, 5 Aug 2016 17:28:45 +1000
-Date: Fri, 5 Aug 2016 12:58:38 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH] fadump: Register the memory reserved by fadump
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <1470318165-2521-1-git-send-email-srikar@linux.vnet.ibm.com>
- <87mvkritii.fsf@concordia.ellerman.id.au>
+        Fri, 05 Aug 2016 13:50:19 -0700 (PDT)
+Date: Fri, 5 Aug 2016 22:50:18 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [linux-mm] Drastic increase in application memory usage with
+ Kernel version upgrade
+Message-ID: <20160805205018.GE7999@amd>
+References: <CGME20160805045709epcas3p1dc6f12f2fa3031112c4da5379e33b5e9@epcas3p1.samsung.com>
+ <01a001d1eed5$c50726c0$4f157440$@samsung.com>
+ <20160805082015.GA28235@bbox>
+ <01c101d1ef28$50706ad0$f1514070$@samsung.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87mvkritii.fsf@concordia.ellerman.id.au>
-Message-Id: <20160805072838.GF11268@linux.vnet.ibm.com>
+In-Reply-To: <01c101d1ef28$50706ad0$f1514070$@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>
-Cc: linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@intel.com>, Balbir Singh <bsingharora@gmail.com>
+To: PINTU KUMAR <pintu.k@samsung.com>
+Cc: 'Minchan Kim' <minchan@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jaejoon.seo@samsung.com, jy0.jeon@samsung.com, vishnu.ps@samsung.com
 
-* Michael Ellerman <mpe@ellerman.id.au> [2016-08-05 17:07:01]:
+On Fri 2016-08-05 20:17:36, PINTU KUMAR wrote:
+> Hi,
 
-> Srikar Dronamraju <srikar@linux.vnet.ibm.com> writes:
-> 
-> > Fadump kernel reserves large chunks of memory even before the pages are
-> > initialized. This could mean memory that corresponds to several nodes might
-> > fall in memblock reserved regions.
-> >
-> ...
-> > Register the memory reserved by fadump, so that the cache sizes are
-> > calculated based on the free memory (i.e Total memory - reserved
-> > memory).
-> 
-> The memory is reserved, with memblock_reserve(). Why is that not sufficient?
-> 
-> cheers
-> 
+> > On Fri, Aug 05, 2016 at 10:26:37AM +0530, PINTU KUMAR wrote:
+> > > Hi All,
+> > >
+> > > For one of our ARM embedded product, we recently updated the Kernel
+> > > version from
+> > > 3.4 to 3.18 and we noticed that the same application memory usage (PSS
+> > > value) gone up by ~10% and for some cases it even crossed ~50%.
+> > > There is no change in platform part. All platform component was built
+> > > with ARM 32-bit toolchain.
+> > > However, the Kernel is changed from 32-bit to 64-bit.
+> > >
+> > > Is upgrading Kernel version and moving from 32-bit to 64-bit is such a risk
+> ?
+> > > After the upgrade, what can we do further to reduce the application
+> > > memory usage ?
+> > > Is there any other factor that will help us to improve without major
+> > > modifications in platform ?
+> > >
+> > > As a proof, we did a small experiment on our Ubuntu-32 bit machine.
+> > > We upgraded Ubuntu Kernel version from 3.13 to 4.01 and we observed
+> > > the
+> > > following:
+> > > ----------------------------------------------------------------------
+> > > ----------
+> > > -------------
+> > > |UBUNTU-32 bit		|Kernel 3.13	|Kernel 4.03	|DIFF	|
+> > > |CALCULATOR PSS	|6057 KB	|6466 KB	|409 KB	|
+> > > ----------------------------------------------------------------------
+> > > ----------
+> > > -------------
+> > > So, just by upgrading the Kernel version: PSS value for calculator is
+> > > increased by 409KB.
+> > >
+> > > If anybody knows any in-sight about it please point out more details
+> > > about the root cause.
+> > 
+> > One of culprit is [8c6e50b0290c, mm: introduce vm_ops->map_pages()].
+> Ok. Thank you for your reply.
+> So, if I revert this patch, will the memory usage be decreased for the processes
+> with Kernel 3.18 ?
 
-Because at page initialization time, the kernel doesnt know how many
-pages are reserved. One way to do that would be to walk through the
-different memory reserved blocks and calculate the size. But Mel feels
-thats an overhead (from his reply to the other thread) esp for just one
-use case.
+I guess you should try it...
 
+You may want to try the same kernel version, once in 32-bit and once
+in 64-bit version. And you may consider moving to recent kernel.
+
+Yes, 64-bit kernel will increase memory usage _of kernel_, but...
+
+									Pavel
 -- 
-Thanks and Regards
-Srikar Dronamraju
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
