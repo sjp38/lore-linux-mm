@@ -1,85 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id ABAB86B0005
-	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 12:00:27 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id f14so55692445ioj.2
-        for <linux-mm@kvack.org>; Fri, 05 Aug 2016 09:00:27 -0700 (PDT)
-Received: from mail-io0-x242.google.com (mail-io0-x242.google.com. [2607:f8b0:4001:c06::242])
-        by mx.google.com with ESMTPS id 63si18938298iod.17.2016.08.05.09.00.26
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 47D106B0253
+	for <linux-mm@kvack.org>; Fri,  5 Aug 2016 12:00:32 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id 33so155833181lfw.1
+        for <linux-mm@kvack.org>; Fri, 05 Aug 2016 09:00:32 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d8si7917357wma.123.2016.08.05.02.09.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Aug 2016 09:00:26 -0700 (PDT)
-Received: by mail-io0-x242.google.com with SMTP id y195so24522830iod.0
-        for <linux-mm@kvack.org>; Fri, 05 Aug 2016 09:00:26 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 05 Aug 2016 02:09:19 -0700 (PDT)
+Subject: Re: [PATCH V2 1/2] mm/page_alloc: Replace set_dma_reserve to
+ set_memory_reserve
+References: <1470330729-6273-1-git-send-email-srikar@linux.vnet.ibm.com>
+ <09d5b30e-5956-bf64-5f4c-ea5425d7f7a5@suse.cz>
+ <20160805072450.GE11268@linux.vnet.ibm.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <ac7c8d81-ffe2-a70b-4219-c0b43623ab3b@suse.cz>
+Date: Fri, 5 Aug 2016 11:09:15 +0200
 MIME-Version: 1.0
-In-Reply-To: <063D6719AE5E284EB5DD2968C1650D6D5F50B52E@AcuExch.aculab.com>
-References: <1468955817-10604-1-git-send-email-bblanco@plumgrid.com>
- <1468955817-10604-8-git-send-email-bblanco@plumgrid.com> <1469432120.8514.5.camel@edumazet-glaptop3.roam.corp.google.com>
- <20160803174107.GA38399@ast-mbp.thefacebook.com> <20160804181913.26ee17b9@redhat.com>
- <CAKgT0UdbVK6Ti9drCQFfa0MyU40Kh=Hu=BtDTRCqqsSiBvJ7rg@mail.gmail.com>
- <20160805035534.GA56390@ast-mbp.thefacebook.com> <CAKgT0Uc0=10xhcJJ+55rBv=YNPgPLmHb8x82CKbj+N895JQY5Q@mail.gmail.com>
- <063D6719AE5E284EB5DD2968C1650D6D5F50B52E@AcuExch.aculab.com>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Fri, 5 Aug 2016 09:00:25 -0700
-Message-ID: <CAKgT0Ue2vikpFwqTyAEgYsH0iKgOajXvp_F-CMuZfz-cLggrrg@mail.gmail.com>
-Subject: Re: order-0 vs order-N driver allocation. Was: [PATCH v10 07/12]
- net/mlx4_en: add page recycle to prepare rx ring for tx support
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20160805072450.GE11268@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Laight <David.Laight@aculab.com>
-Cc: Alexei Starovoitov <alexei.starovoitov@gmail.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Brenden Blanco <bblanco@plumgrid.com>, David Miller <davem@davemloft.net>, Netdev <netdev@vger.kernel.org>, Jamal Hadi Salim <jhs@mojatatu.com>, Saeed Mahameed <saeedm@dev.mellanox.co.il>, Martin KaFai Lau <kafai@fb.com>, Ari Saha <as754m@att.com>, Or Gerlitz <gerlitz.or@gmail.com>, john fastabend <john.fastabend@gmail.com>, Hannes Frederic Sowa <hannes@stressinduktion.org>, Thomas Graf <tgraf@suug.ch>, Tom Herbert <tom@herbertland.com>, Daniel Borkmann <daniel@iogearbox.net>, Tariq Toukan <ttoukan.linux@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org, Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@intel.com>, Balbir Singh <bsingharora@gmail.com>
 
-On Fri, Aug 5, 2016 at 8:33 AM, David Laight <David.Laight@aculab.com> wrote:
-> From: Alexander Duyck
->> Sent: 05 August 2016 16:15
-> ...
->> >
->> > interesting idea. Like dma_map 1GB region and then allocate
->> > pages from it only? but the rest of the kernel won't be able
->> > to use them? so only some smaller region then? or it will be
->> > a boot time flag to reserve this pseudo-huge page?
+On 08/05/2016 09:24 AM, Srikar Dronamraju wrote:
+> * Vlastimil Babka <vbabka@suse.cz> [2016-08-05 08:45:03]:
+>
+>>> @@ -5493,10 +5493,10 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+>>> 		}
+>>>
+>>> 		/* Account for reserved pages */
+>>> -		if (j == 0 && freesize > dma_reserve) {
+>>> -			freesize -= dma_reserve;
+>>> +		if (j == 0 && freesize > nr_memory_reserve) {
 >>
->> Yeah, something like that.  If we were already talking about
->> allocating a pool of pages it might make sense to just setup something
->> like this where you could reserve a 1GB region for a single 10G device
->> for instance.  Then it would make the whole thing much easier to deal
->> with since you would have a block of memory that should perform very
->> well in terms of DMA accesses.
+>> Will this really work (together with patch 2) as intended?
+>> This j == 0 means that we are doing this only for the first zone, which is
+>> ZONE_DMA (or ZONE_DMA32) on node 0 on many systems. I.e. I don't think it's
+>> really true that "dma_reserve has nothing to do with DMA or ZONE_DMA".
+>>
+>> This zone will have limited amount of memory, so the "freesize >
+>> nr_memory_reserve" will easily be false once you set this to many gigabytes,
+>> so in fact nothing will get subtracted.
+>>
+>> On the other hand if the kernel has both CONFIG_ZONE_DMA and
+>> CONFIG_ZONE_DMA32 disabled, then j == 0 will be true for ZONE_NORMAL. This
+>> zone might be present on multiple nodes (unless they are configured as
+>> movable) and then the value intended to be global will be subtracted from
+>> several nodes.
+>>
+>> I don't know what's the exact ppc64 situation here, perhaps there are indeed
+>> no DMA/DMA32 zones, and the fadump kernel only uses one node, so it works in
+>> the end, but it doesn't seem much robust to me?
+>>
 >
-> ISTM that the main kernel allocator ought to be keeping a cache
-> of pages that are mapped into the various IOMMU.
-> This might be a per-driver cache, but could be much wider.
+> At the page initialization time, powerpc seems to have just one zone
+> spread across the 16 nodes.
 >
-> Then if some code wants such a page it can be allocated one that is
-> already mapped.
-> Under memory pressure the pages could then be reused for other purposes.
+> From the dmesg.
 >
-> ...
->> In the Intel drivers for instance if the frame
->> size is less than 256 bytes we just copy the whole thing out since it
->> is cheaper to just extend the header copy rather than taking the extra
->> hit for get_page/put_page.
->
-> How fast is 'rep movsb' (on cached addresses) on recent x86 cpu?
-> It might actually be worth unconditionally copying the entire frame
-> on those cpus.
+> [    0.000000] Memory hole size: 0MB
+> [    0.000000] Zone ranges:
+> [    0.000000]   DMA      [mem 0x0000000000000000-0x00001f5c8fffffff]
+> [    0.000000]   DMA32    empty
+> [    0.000000]   Normal   empty
+> [    0.000000] Movable zone start for each node
+> [    0.000000] Early memory node ranges
+> [    0.000000]   node   0: [mem 0x0000000000000000-0x000001fb4fffffff]
+> [    0.000000]   node   1: [mem 0x000001fb50000000-0x000003fa8fffffff]
+> [    0.000000]   node   2: [mem 0x000003fa90000000-0x000005f9cfffffff]
+> [    0.000000]   node   3: [mem 0x000005f9d0000000-0x000007f8efffffff]
+> [    0.000000]   node   4: [mem 0x000007f8f0000000-0x000009f81fffffff]
+> [    0.000000]   node   5: [mem 0x000009f820000000-0x00000bf77fffffff]
+> [    0.000000]   node   6: [mem 0x00000bf780000000-0x00000df6dfffffff]
+> [    0.000000]   node   7: [mem 0x00000df6e0000000-0x00000ff63fffffff]
+> [    0.000000]   node   8: [mem 0x00000ff640000000-0x000011f58fffffff]
+> [    0.000000]   node   9: [mem 0x000011f590000000-0x000013644fffffff]
+> [    0.000000]   node  10: [mem 0x0000136450000000-0x00001563afffffff]
+> [    0.000000]   node  11: [mem 0x00001563b0000000-0x000017630fffffff]
+> [    0.000000]   node  12: [mem 0x0000176310000000-0x000019625fffffff]
+> [    0.000000]   node  13: [mem 0x0000196260000000-0x00001b5dcfffffff]
+> [    0.000000]   node  14: [mem 0x00001b5dd0000000-0x00001d5d2fffffff]
+> [    0.000000]   node  15: [mem 0x00001d5d30000000-0x00001f5c8fffffff]
 
-The cost for rep movsb on modern x86 is about 1 cycle for every 16
-bytes plus some fixed amount of setup time.  The time it usually takes
-for something like an atomic operation can vary but it is usually in
-the 10s of cycles when you factor in a get_page/put_page which is why
-I ended up going with 256 being the upper limit as I recall since that
-allowed for the best performance without starting to incur any
-penalty.
-
-> A long time ago we found the breakeven point for the copy to be about
-> 1kb on sparc mbus/sbus systems - and that might not have been aligning
-> the copy.
-
-I wouldn't know about other architectures.
-
-- Alex
+Hmm so it will work for ppc64 and its fadump, but I'm not happy that we 
+made the function name sound like it's generic (unlike when the name 
+contained "dma"), while it only works as intended in specific corner 
+cases. The next user might be surprised...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
