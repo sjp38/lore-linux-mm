@@ -1,84 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6345F6B0253
-	for <linux-mm@kvack.org>; Sun,  7 Aug 2016 06:36:24 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 63so615502304pfx.0
-        for <linux-mm@kvack.org>; Sun, 07 Aug 2016 03:36:24 -0700 (PDT)
-Received: from mail-pa0-x244.google.com (mail-pa0-x244.google.com. [2607:f8b0:400e:c03::244])
-        by mx.google.com with ESMTPS id h12si30869101pfa.73.2016.08.07.03.36.23
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 828686B0253
+	for <linux-mm@kvack.org>; Sun,  7 Aug 2016 08:32:47 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id o124so618810419pfg.1
+        for <linux-mm@kvack.org>; Sun, 07 Aug 2016 05:32:47 -0700 (PDT)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id c69si31289131pfj.224.2016.08.07.05.32.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 07 Aug 2016 03:36:23 -0700 (PDT)
-Received: by mail-pa0-x244.google.com with SMTP id ez1so22120733pab.3
-        for <linux-mm@kvack.org>; Sun, 07 Aug 2016 03:36:23 -0700 (PDT)
-Content-Type: text/plain; charset=utf-8
+        Sun, 07 Aug 2016 05:32:46 -0700 (PDT)
+Received: by mail-pf0-x242.google.com with SMTP id g202so23260036pfb.1
+        for <linux-mm@kvack.org>; Sun, 07 Aug 2016 05:32:46 -0700 (PDT)
+Content-Type: text/plain; charset=windows-1252
 Mime-Version: 1.0 (Mac OS X Mail 8.2 \(2104\))
-Subject: Re: [PATCH 1/2] mm: page_alloc.c: Add tracepoints for slowpath
+Subject: Re: [PATCH 2/2] mm: compaction.c: Add/Modify direct compaction tracepoints
 From: Janani Ravichandran <janani.rvchndrn@gmail.com>
-In-Reply-To: <20160805123034.75fae008@gandalf.local.home>
-Date: Sun, 7 Aug 2016 16:06:18 +0530
+In-Reply-To: <7ab4a23a-1311-9579-2d58-263bbcdcd725@suse.cz>
+Date: Sun, 7 Aug 2016 18:02:41 +0530
 Content-Transfer-Encoding: quoted-printable
-Message-Id: <93BEB5B5-321C-429B-9B87-40F8B499E45D@gmail.com>
-References: <cover.1469629027.git.janani.rvchndrn@gmail.com> <6b12aed89ad75cb2b3525a24265fa1d622409b42.1469629027.git.janani.rvchndrn@gmail.com> <20160727112303.11409a4e@gandalf.local.home> <0AF03F78-AA34-4531-899A-EA1076B6B3A1@gmail.com> <20160804111946.6cbbd30b@gandalf.local.home> <9D639468-2A70-4620-8BF5-C8B2FBB38A99@gmail.com> <20160805123034.75fae008@gandalf.local.home>
+Message-Id: <36624B5E-12F3-437D-90B6-E3197D31A0F3@gmail.com>
+References: <cover.1469629027.git.janani.rvchndrn@gmail.com> <7d2c2beef96e76cb01a21eee85ba5611bceb4307.1469629027.git.janani.rvchndrn@gmail.com> <7ab4a23a-1311-9579-2d58-263bbcdcd725@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Janani Ravichandran <janani.rvchndrn@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@surriel.com, akpm@linux-foundation.org, hannes@compxchg.org, vdavydov@virtuozzo.com, mhocko@suse.com, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, bywxiaobai@163.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Janani Ravichandran <janani.rvchndrn@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@surriel.com, akpm@linux-foundation.org, hannes@compxchg.org, vdavydov@virtuozzo.com, mhocko@suse.com, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, bywxiaobai@163.com, rostedt@goodmis.org
 
 
-> On Aug 5, 2016, at 10:00 PM, Steven Rostedt <rostedt@goodmis.org> =
-wrote:
+> On Aug 1, 2016, at 6:55 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
 >=20
->>=20
 >=20
-> You probably want to clear the trace here, or set function_graph here
-> first. Because the function graph starts writing to the buffer
-> immediately.
+> Yea, this tracepoint has been odd in not printing node/zone in a =
+friendly way (it's possible to determine it from zone_start/zone_end =
+though, so this is good in general. But instead of printing nid and zid =
+like this, it would be nice to unify the output with the other =
+tracepoints, e.g.:
 >=20
+> DECLARE_EVENT_CLASS(mm_compaction_suitable_template,
+> [...]
+>        TP_printk("node=3D%d zone=3D%-8s order=3D%d ret=3D%s",
+>                __entry->nid,
+>                __print_symbolic(__entry->idx, ZONE_TYPE),
 
-I did that, just didn=E2=80=99t include it here :)
->>=20
->=20
-> When threshold is set, the entry is not recorded, because it is only
-> showing the exit and the time it took in that function:
->=20
-> 0) kswapd0-52 | + 54.141 us | } /* shrink_zone */
->=20
-> shrink_zone() took 54.141us.
->=20
-> The reason it doesn't record the entry is because it would fill the
-> entire buffer, if the threshold is never hit. One can't predict the
-> time in a function when you first enter that function.
+Sure, I=92ll do that in v2. Thanks!
 
-Right!
->=20
->>=20
->=20
-> You need your own interpreter here. Perhaps a module that either reads
-> the tracepoints directly and registers a function graph tracer itself.
-> The trace events and function tracers are plugable. You don't need to
-> use the tracing system to use them. Just hook into them directly.
->=20
-> Things like the wakeup latency tracer does this. Look at
-> kernel/trace/trace_sched_wakeup.c for an example. It hooks into the
-> sched_wakeup and sched_switch tracepoints, and also has a way to use
-> function and function_graph tracing.
->=20
->=20
+Also, I guess I should have mentioned that the tracepoint added
+at the end of the compaction code wasn=92t just for deriving latency =
+information.=20
+rc and *contended would give us the result of the compaction attempted,=20=
 
-I will look at that file. Thanks!
->=20
->>=20
->=20
-> Great! And note, even if you add extra tracepoints, you can hook
-> directly into them too. Again, see the trace_sched_wakeup.c for
-> examples.
+which I thought would be useful.
 
-Alright. Thanks for all the help! :)
+I get that begin/end tracepoints aren=92t required here, but how about =
+having
+trace_mm_compaction_try_to_compact_pages moved to the end to=20
+include compaction status?
 
 Janani.
 >=20
-> -- Steve
+> Thanks,
+> Vlastimil
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
