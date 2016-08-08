@@ -1,70 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 06F606B0253
-	for <linux-mm@kvack.org>; Mon,  8 Aug 2016 02:43:09 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 63so656960755pfx.0
-        for <linux-mm@kvack.org>; Sun, 07 Aug 2016 23:43:08 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id 68si35423031pfr.68.2016.08.07.23.43.07
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BE8B56B025E
+	for <linux-mm@kvack.org>; Mon,  8 Aug 2016 02:43:11 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id h186so650856763pfg.2
+        for <linux-mm@kvack.org>; Sun, 07 Aug 2016 23:43:11 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id gh4si35360248pac.124.2016.08.07.23.43.10
         for <linux-mm@kvack.org>;
-        Sun, 07 Aug 2016 23:43:07 -0700 (PDT)
+        Sun, 07 Aug 2016 23:43:11 -0700 (PDT)
 From: Liang Li <liang.z.li@intel.com>
-Subject: [PATCH v3 kernel 0/7] Extend virtio-balloon for fast (de)inflating & fast live migration 
-Date: Mon,  8 Aug 2016 14:35:27 +0800
-Message-Id: <1470638134-24149-1-git-send-email-liang.z.li@intel.com>
+Subject: [PATCH v3 kernel 1/7] virtio-balloon: rework deflate to add page to a list
+Date: Mon,  8 Aug 2016 14:35:28 +0800
+Message-Id: <1470638134-24149-2-git-send-email-liang.z.li@intel.com>
+In-Reply-To: <1470638134-24149-1-git-send-email-liang.z.li@intel.com>
+References: <1470638134-24149-1-git-send-email-liang.z.li@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: virtualization@lists.linux-foundation.org, linux-mm@kvack.org, virtio-dev@lists.oasis-open.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, quintela@redhat.com, dgilbert@redhat.com, dave.hansen@intel.com, Liang Li <liang.z.li@intel.com>
+Cc: virtualization@lists.linux-foundation.org, linux-mm@kvack.org, virtio-dev@lists.oasis-open.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, quintela@redhat.com, dgilbert@redhat.com, dave.hansen@intel.com, Liang Li <liang.z.li@intel.com>, "Michael S. Tsirkin" <mst@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Amit Shah <amit.shah@redhat.com>
 
-This patch set contains two parts of changes to the virtio-balloon. 
+Will allow faster notifications using a bitmap down the road.
+balloon_pfn_to_page() can be removed because it's useless.
 
-One is the change for speeding up the inflating & deflating process,
-the main idea of this optimization is to use bitmap to send the page
-information to host instead of the PFNs, to reduce the overhead of
-virtio data transmission, address translation and madvise(). This can
-help to improve the performance by about 85%.
+Signed-off-by: Liang Li <liang.z.li@intel.com>
+Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+Cc: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Cornelia Huck <cornelia.huck@de.ibm.com>
+Cc: Amit Shah <amit.shah@redhat.com>
+Cc: Dave Hansen <dave.hansen@intel.com>
+---
+ drivers/virtio/virtio_balloon.c | 22 ++++++++--------------
+ 1 file changed, 8 insertions(+), 14 deletions(-)
 
-Another change is for speeding up live migration. By skipping process
-guest's free pages in the first round of data copy, to reduce needless
-data processing, this can help to save quite a lot of CPU cycles and
-network bandwidth. We put guest's free page information in bitmap and
-send it to host with the virt queue of virtio-balloon. For an idle 8GB
-guest, this can help to shorten the total live migration time from 2Sec
-to about 500ms in the 10Gbps network environment.  
-
-Dave Hansen suggested a new scheme to encode the data structure,
-because of additional complexity, it's not implemented in v3.
-
-Changes from v2 to v3:
-    * Change the name of 'free page' to 'unused page'.
-    * Use the scatter & gather bitmap instead of a 1MB page bitmap. 
-    * Fix overwriting the page bitmap after kicking. 
-    * Some of MST's comments for v2. 
-
-Changes from v1 to v2:
-    * Abandon the patch for dropping page cache.
-    * Put some structures to uapi head file.
-    * Use a new way to determine the page bitmap size.
-    * Use a unified way to send the free page information with the bitmap 
-    * Address the issues referred in MST's comments
-
-
-Liang Li (7):
-  virtio-balloon: rework deflate to add page to a list
-  virtio-balloon: define new feature bit and page bitmap head
-  mm: add a function to get the max pfn
-  virtio-balloon: speed up inflate/deflate process
-  mm: add the related functions to get unused page
-  virtio-balloon: define feature bit and head for misc virt queue
-  virtio-balloon: tell host vm's unused page info
-
- drivers/virtio/virtio_balloon.c     | 390 ++++++++++++++++++++++++++++++++----
- include/linux/mm.h                  |   3 +
- include/uapi/linux/virtio_balloon.h |  41 ++++
- mm/page_alloc.c                     |  94 +++++++++
- 4 files changed, 485 insertions(+), 43 deletions(-)
-
+diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+index 4e7003d..59ffe5a 100644
+--- a/drivers/virtio/virtio_balloon.c
++++ b/drivers/virtio/virtio_balloon.c
+@@ -103,12 +103,6 @@ static u32 page_to_balloon_pfn(struct page *page)
+ 	return pfn * VIRTIO_BALLOON_PAGES_PER_PAGE;
+ }
+ 
+-static struct page *balloon_pfn_to_page(u32 pfn)
+-{
+-	BUG_ON(pfn % VIRTIO_BALLOON_PAGES_PER_PAGE);
+-	return pfn_to_page(pfn / VIRTIO_BALLOON_PAGES_PER_PAGE);
+-}
+-
+ static void balloon_ack(struct virtqueue *vq)
+ {
+ 	struct virtio_balloon *vb = vq->vdev->priv;
+@@ -181,18 +175,16 @@ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
+ 	return num_allocated_pages;
+ }
+ 
+-static void release_pages_balloon(struct virtio_balloon *vb)
++static void release_pages_balloon(struct virtio_balloon *vb,
++				 struct list_head *pages)
+ {
+-	unsigned int i;
+-	struct page *page;
++	struct page *page, *next;
+ 
+-	/* Find pfns pointing at start of each page, get pages and free them. */
+-	for (i = 0; i < vb->num_pfns; i += VIRTIO_BALLOON_PAGES_PER_PAGE) {
+-		page = balloon_pfn_to_page(virtio32_to_cpu(vb->vdev,
+-							   vb->pfns[i]));
++	list_for_each_entry_safe(page, next, pages, lru) {
+ 		if (!virtio_has_feature(vb->vdev,
+ 					VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
+ 			adjust_managed_page_count(page, 1);
++		list_del(&page->lru);
+ 		put_page(page); /* balloon reference */
+ 	}
+ }
+@@ -202,6 +194,7 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
+ 	unsigned num_freed_pages;
+ 	struct page *page;
+ 	struct balloon_dev_info *vb_dev_info = &vb->vb_dev_info;
++	LIST_HEAD(pages);
+ 
+ 	/* We can only do one array worth at a time. */
+ 	num = min(num, ARRAY_SIZE(vb->pfns));
+@@ -215,6 +208,7 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
+ 		if (!page)
+ 			break;
+ 		set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
++		list_add(&page->lru, &pages);
+ 		vb->num_pages -= VIRTIO_BALLOON_PAGES_PER_PAGE;
+ 	}
+ 
+@@ -226,7 +220,7 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
+ 	 */
+ 	if (vb->num_pfns != 0)
+ 		tell_host(vb, vb->deflate_vq);
+-	release_pages_balloon(vb);
++	release_pages_balloon(vb, &pages);
+ 	mutex_unlock(&vb->balloon_lock);
+ 	return num_freed_pages;
+ }
 -- 
 1.8.3.1
 
