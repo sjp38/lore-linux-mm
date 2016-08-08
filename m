@@ -1,248 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B7E16B0264
-	for <linux-mm@kvack.org>; Mon,  8 Aug 2016 02:43:32 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id ag5so581264271pad.2
-        for <linux-mm@kvack.org>; Sun, 07 Aug 2016 23:43:32 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id sz2si22411107pac.129.2016.08.07.23.43.31
-        for <linux-mm@kvack.org>;
-        Sun, 07 Aug 2016 23:43:31 -0700 (PDT)
-From: Liang Li <liang.z.li@intel.com>
-Subject: [PATCH v3 kernel 7/7] virtio-balloon: tell host vm's unused page info
-Date: Mon,  8 Aug 2016 14:35:34 +0800
-Message-Id: <1470638134-24149-8-git-send-email-liang.z.li@intel.com>
-In-Reply-To: <1470638134-24149-1-git-send-email-liang.z.li@intel.com>
-References: <1470638134-24149-1-git-send-email-liang.z.li@intel.com>
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 547986B0253
+	for <linux-mm@kvack.org>; Mon,  8 Aug 2016 04:01:30 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id f123so540651316ywd.2
+        for <linux-mm@kvack.org>; Mon, 08 Aug 2016 01:01:30 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w10si19231292qta.121.2016.08.08.01.01.29
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 08 Aug 2016 01:01:29 -0700 (PDT)
+Date: Mon, 8 Aug 2016 10:01:15 +0200
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: order-0 vs order-N driver allocation. Was: [PATCH v10 07/12]
+ net/mlx4_en: add page recycle to prepare rx ring for tx support
+Message-ID: <20160808100115.143d6ed3@redhat.com>
+In-Reply-To: <20160808021525.GA81429@ast-mbp>
+References: <1468955817-10604-1-git-send-email-bblanco@plumgrid.com>
+	<1468955817-10604-8-git-send-email-bblanco@plumgrid.com>
+	<1469432120.8514.5.camel@edumazet-glaptop3.roam.corp.google.com>
+	<20160803174107.GA38399@ast-mbp.thefacebook.com>
+	<20160804181913.26ee17b9@redhat.com>
+	<1470381333.13693.48.camel@edumazet-glaptop3.roam.corp.google.com>
+	<20160808021525.GA81429@ast-mbp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: virtualization@lists.linux-foundation.org, linux-mm@kvack.org, virtio-dev@lists.oasis-open.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, quintela@redhat.com, dgilbert@redhat.com, dave.hansen@intel.com, Liang Li <liang.z.li@intel.com>, "Michael S. Tsirkin" <mst@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Cornelia Huck <cornelia.huck@de.ibm.com>, Amit Shah <amit.shah@redhat.com>
+To: Alexei Starovoitov <alexei.starovoitov@gmail.com>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, Brenden Blanco <bblanco@plumgrid.com>, davem@davemloft.net, netdev@vger.kernel.org, Jamal Hadi Salim <jhs@mojatatu.com>, Saeed Mahameed <saeedm@dev.mellanox.co.il>, Martin KaFai Lau <kafai@fb.com>, Ari Saha <as754m@att.com>, Or Gerlitz <gerlitz.or@gmail.com>, john.fastabend@gmail.com, hannes@stressinduktion.org, Thomas Graf <tgraf@suug.ch>, Tom Herbert <tom@herbertland.com>, Daniel Borkmann <daniel@iogearbox.net>, Tariq Toukan <ttoukan.linux@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>, brouer@redhat.com
 
-Support the request for vm's unused page information, response with
-a page bitmap. QEMU can make use of this bitmap and the dirty page
-logging mechanism to skip the transportation of these unused pages,
-this is very helpful to speed up the live migration process.
 
-Signed-off-by: Liang Li <liang.z.li@intel.com>
-Cc: Michael S. Tsirkin <mst@redhat.com>
-Cc: Paolo Bonzini <pbonzini@redhat.com>
-Cc: Cornelia Huck <cornelia.huck@de.ibm.com>
-Cc: Amit Shah <amit.shah@redhat.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
----
- drivers/virtio/virtio_balloon.c | 143 +++++++++++++++++++++++++++++++++++++---
- 1 file changed, 134 insertions(+), 9 deletions(-)
+On Sun, 7 Aug 2016 19:15:27 -0700 Alexei Starovoitov <alexei.starovoitov@gmail.com> wrote:
 
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index c31839c..f10bb8b 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -56,7 +56,7 @@ static struct vfsmount *balloon_mnt;
- 
- struct virtio_balloon {
- 	struct virtio_device *vdev;
--	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq;
-+	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq, *misc_vq;
- 
- 	/* The balloon servicing is delegated to a freezable workqueue. */
- 	struct work_struct update_balloon_stats_work;
-@@ -78,6 +78,8 @@ struct virtio_balloon {
- 	unsigned int nr_page_bmap;
- 	/* Used to record the processed pfn range */
- 	unsigned long min_pfn, max_pfn, start_pfn, end_pfn;
-+	/* Request header */
-+	struct balloon_req_hdr req_hdr;
- 	/*
- 	 * The pages we've told the Host we're not using are enqueued
- 	 * at vb_dev_info->pages list.
-@@ -423,6 +425,78 @@ static void update_balloon_stats(struct virtio_balloon *vb)
- 				pages_to_bytes(available));
- }
- 
-+static void send_unused_pages_info(struct virtio_balloon *vb,
-+				unsigned long req_id)
-+{
-+	struct scatterlist sg_in, sg_out[BALLOON_BMAP_COUNT + 1];
-+	unsigned long pfn = 0, bmap_len, pfn_limit, last_pfn, nr_pfn;
-+	struct virtqueue *vq = vb->misc_vq;
-+	struct balloon_bmap_hdr *hdr = vb->bmap_hdr;
-+	int ret = 1, nr_buf, used_nr_bmap = 0, i;
-+
-+	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_PAGE_BITMAP) &&
-+		vb->nr_page_bmap == 1)
-+		extend_page_bitmap(vb);
-+
-+	pfn_limit = PFNS_PER_BMAP * vb->nr_page_bmap;
-+	mutex_lock(&vb->balloon_lock);
-+	last_pfn = get_max_pfn();
-+
-+	while (ret) {
-+		clear_page_bitmap(vb);
-+		ret = get_unused_pages(pfn, pfn + pfn_limit, vb->page_bitmap,
-+			 PFNS_PER_BMAP, vb->nr_page_bmap);
-+		if (ret < 0)
-+			break;
-+		hdr->cmd = cpu_to_virtio16(vb->vdev, BALLOON_GET_UNUSED_PAGES);
-+		hdr->page_shift = cpu_to_virtio16(vb->vdev, PAGE_SHIFT);
-+		hdr->req_id = cpu_to_virtio64(vb->vdev, req_id);
-+		hdr->start_pfn = cpu_to_virtio64(vb->vdev, pfn);
-+		bmap_len = BALLOON_BMAP_SIZE * vb->nr_page_bmap;
-+
-+		if (!ret) {
-+			hdr->flag = cpu_to_virtio16(vb->vdev,
-+						 BALLOON_FLAG_DONE);
-+			nr_pfn = last_pfn - pfn;
-+			used_nr_bmap = nr_pfn / PFNS_PER_BMAP;
-+			if (nr_pfn % PFNS_PER_BMAP)
-+				used_nr_bmap++;
-+			bmap_len = nr_pfn / BITS_PER_BYTE;
-+		} else {
-+			hdr->flag = cpu_to_virtio16(vb->vdev,
-+							BALLOON_FLAG_CONT);
-+			used_nr_bmap = vb->nr_page_bmap;
-+		}
-+		hdr->bmap_len = cpu_to_virtio64(vb->vdev, bmap_len);
-+		nr_buf = used_nr_bmap + 1;
-+		sg_init_table(sg_out, nr_buf);
-+		sg_set_buf(&sg_out[0], hdr, sizeof(struct balloon_bmap_hdr));
-+		for (i = 0; i < used_nr_bmap; i++) {
-+			unsigned int buf_len = BALLOON_BMAP_SIZE;
-+
-+			if (i + 1 == used_nr_bmap)
-+				buf_len = bmap_len - BALLOON_BMAP_SIZE * i;
-+			sg_set_buf(&sg_out[i + 1], vb->page_bitmap[i], buf_len);
-+		}
-+
-+		while (vq->num_free < nr_buf)
-+			msleep(2);
-+		if (virtqueue_add_outbuf(vq, sg_out, nr_buf, vb,
-+				 GFP_KERNEL) == 0) {
-+			virtqueue_kick(vq);
-+			while (!virtqueue_get_buf(vq, &i)
-+				&& !virtqueue_is_broken(vq))
-+				cpu_relax();
-+		}
-+		pfn += pfn_limit;
-+	}
-+
-+	mutex_unlock(&vb->balloon_lock);
-+	sg_init_one(&sg_in, &vb->req_hdr, sizeof(vb->req_hdr));
-+	virtqueue_add_inbuf(vq, &sg_in, 1, &vb->req_hdr, GFP_KERNEL);
-+	virtqueue_kick(vq);
-+}
-+
- /*
-  * While most virtqueues communicate guest-initiated requests to the hypervisor,
-  * the stats queue operates in reverse.  The driver initializes the virtqueue
-@@ -563,18 +637,56 @@ static void update_balloon_size_func(struct work_struct *work)
- 		queue_work(system_freezable_wq, work);
- }
- 
-+static void misc_handle_rq(struct virtio_balloon *vb)
-+{
-+	struct balloon_req_hdr *ptr_hdr;
-+	unsigned int len;
-+
-+	ptr_hdr = virtqueue_get_buf(vb->misc_vq, &len);
-+	if (!ptr_hdr || len != sizeof(vb->req_hdr))
-+		return;
-+
-+	switch (ptr_hdr->cmd) {
-+	case BALLOON_GET_UNUSED_PAGES:
-+		send_unused_pages_info(vb, ptr_hdr->param);
-+		break;
-+	default:
-+		break;
-+	}
-+}
-+
-+static void misc_request(struct virtqueue *vq)
-+{
-+	struct virtio_balloon *vb = vq->vdev->priv;
-+
-+	misc_handle_rq(vb);
-+}
-+
- static int init_vqs(struct virtio_balloon *vb)
- {
--	struct virtqueue *vqs[3];
--	vq_callback_t *callbacks[] = { balloon_ack, balloon_ack, stats_request };
--	static const char * const names[] = { "inflate", "deflate", "stats" };
-+	struct virtqueue *vqs[4];
-+	vq_callback_t *callbacks[] = { balloon_ack, balloon_ack,
-+					 stats_request, misc_request };
-+	static const char * const names[] = { "inflate", "deflate", "stats",
-+						 "misc" };
- 	int err, nvqs;
- 
- 	/*
- 	 * We expect two virtqueues: inflate and deflate, and
- 	 * optionally stat.
- 	 */
--	nvqs = virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ) ? 3 : 2;
-+	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_MISC_VQ))
-+		nvqs = 4;
-+	else if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ))
-+		nvqs = 3;
-+	else
-+		nvqs = 2;
-+
-+	if (!virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
-+		__virtio_clear_bit(vb->vdev, VIRTIO_BALLOON_F_PAGE_BITMAP);
-+		__virtio_clear_bit(vb->vdev, VIRTIO_BALLOON_F_MISC_VQ);
-+	}
-+
- 	err = vb->vdev->config->find_vqs(vb->vdev, nvqs, vqs, callbacks, names);
- 	if (err)
- 		return err;
-@@ -595,6 +707,16 @@ static int init_vqs(struct virtio_balloon *vb)
- 			BUG();
- 		virtqueue_kick(vb->stats_vq);
- 	}
-+	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_MISC_VQ)) {
-+		struct scatterlist sg_in;
-+
-+		vb->misc_vq = vqs[3];
-+		sg_init_one(&sg_in, &vb->req_hdr, sizeof(vb->req_hdr));
-+		if (virtqueue_add_inbuf(vb->misc_vq, &sg_in, 1,
-+		    &vb->req_hdr, GFP_KERNEL) < 0)
-+			BUG();
-+		virtqueue_kick(vb->misc_vq);
-+	}
- 	return 0;
- }
- 
-@@ -703,13 +825,15 @@ static int virtballoon_probe(struct virtio_device *vdev)
- 	vb->num_pages = 0;
- 	vb->bmap_hdr = kzalloc(sizeof(struct balloon_bmap_hdr), GFP_KERNEL);
- 	/* Clear the feature bit if memory allocation fails */
--	if (!vb->bmap_hdr)
-+	if (!vb->bmap_hdr) {
- 		__virtio_clear_bit(vdev, VIRTIO_BALLOON_F_PAGE_BITMAP);
--	else {
-+		__virtio_clear_bit(vdev, VIRTIO_BALLOON_F_MISC_VQ);
-+	} else {
- 		vb->page_bitmap[0] = kmalloc(BALLOON_BMAP_SIZE, GFP_KERNEL);
--		if (!vb->page_bitmap[0])
-+		if (!vb->page_bitmap[0]) {
- 			__virtio_clear_bit(vdev, VIRTIO_BALLOON_F_PAGE_BITMAP);
--		else
-+			__virtio_clear_bit(vdev, VIRTIO_BALLOON_F_MISC_VQ);
-+		} else
- 			vb->nr_page_bmap = 1;
- 	}
- 	mutex_init(&vb->balloon_lock);
-@@ -832,6 +956,7 @@ static unsigned int features[] = {
- 	VIRTIO_BALLOON_F_STATS_VQ,
- 	VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
- 	VIRTIO_BALLOON_F_PAGE_BITMAP,
-+	VIRTIO_BALLOON_F_MISC_VQ,
- };
- 
- static struct virtio_driver virtio_balloon_driver = {
+> On Fri, Aug 05, 2016 at 09:15:33AM +0200, Eric Dumazet wrote:
+> > On Thu, 2016-08-04 at 18:19 +0200, Jesper Dangaard Brouer wrote:
+> >   
+> > > I actually agree, that we should switch to order-0 allocations.
+> > > 
+> > > *BUT* this will cause performance regressions on platforms with
+> > > expensive DMA operations (as they no longer amortize the cost of
+> > > mapping a larger page).  
+> > 
+> > 
+> > We much prefer reliable behavior, even it it is ~1 % slower than the
+> > super-optimized thing that opens highways for attackers.  
+> 
+> +1
+> It's more important to have deterministic performance at fresh boot
+> and after long uptime when high order-N are gone.
+
+Yes, exactly. Doing high order-N pages allocations might look good on
+benchmarks on a freshly booted system, but once the page allocator gets
+fragmented (after long uptime) then performance characteristics change.
+(Discussed this with Christoph Lameter during MM-summit, and he have
+seen issues with this kind of fragmentation in production)
+
+
+> > Anyway, in most cases pages are re-used, so we only call
+> > dma_sync_single_range_for_cpu(), and there is no way to avoid this.
+> > 
+> > Using order-0 pages [1] is actually faster, since when we use high-order
+> > pages (multiple frames per 'page') we can not reuse the pages.
+> > 
+> > [1] I had a local patch to allocate these pages using a very simple
+> > allocator allocating max order (order-10) pages and splitting them into
+> > order-0 ages, in order to lower TLB footprint. But I could not measure a
+> > gain doing so on x86, at least on my lab machines.  
+> 
+> Which driver was that?
+> I suspect that should indeed be the case for any driver that
+> uses build_skb and <256 copybreak.
+> 
+> Saeed,
+> could you please share the performance numbers for mlx5 order-0 vs order-N ?
+> You mentioned that there was some performance improvement. We need to know
+> how much we'll lose when we turn off order-N.
+
+I'm not sure the compare will be "fair" with the mlx5 driver, because
+(1) the N-order page mode (MPWQE) is a hardware feature, plus (2) the
+order-0 page mode is done "wrongly" (by preallocating SKBs together
+with RX ring entries).
+
+AFAIK it is a hardware feature the MPQWE (Multi-Packet Work Queue
+Element) or Striding RQ, for ConnectX4-Lx.  Thus, the need to support
+two modes in the mlx5 driver.
+
+Commit[1] 461017cb006a ("net/mlx5e: Support RX multi-packet WQE
+(Striding RQ)") states this gives a 10-15% performance improvement for
+netperf TCP stream (and ability to absorb bursty traffic).
+
+ [1] https://git.kernel.org/torvalds/c/461017cb006
+
+
+The MPWQE mode, uses order-5 pages.  The critical question is: what
+happens to the performance when order-5 allocations gets slower (or
+impossible) due to page fragmentation? (Notice the page allocator uses
+a central lock for order-N pages)
+
 -- 
-1.8.3.1
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  Author of http://www.iptv-analyzer.org
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
