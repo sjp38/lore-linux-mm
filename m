@@ -1,282 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A5436B0253
-	for <linux-mm@kvack.org>; Mon,  8 Aug 2016 15:07:09 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id p129so79046294wmp.3
-        for <linux-mm@kvack.org>; Mon, 08 Aug 2016 12:07:09 -0700 (PDT)
-Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
-        by mx.google.com with ESMTPS id u1si31375579wju.85.2016.08.08.12.07.07
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AAFE6B0253
+	for <linux-mm@kvack.org>; Mon,  8 Aug 2016 16:03:23 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id s207so302300924oie.1
+        for <linux-mm@kvack.org>; Mon, 08 Aug 2016 13:03:23 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0127.outbound.protection.outlook.com. [104.47.0.127])
+        by mx.google.com with ESMTPS id w7si9305060ota.241.2016.08.08.13.03.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Aug 2016 12:07:07 -0700 (PDT)
-Received: by mail-wm0-x232.google.com with SMTP id q128so136824303wma.1
-        for <linux-mm@kvack.org>; Mon, 08 Aug 2016 12:07:07 -0700 (PDT)
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 08 Aug 2016 13:03:22 -0700 (PDT)
+From: Vladimir Davydov <vdavydov@virtuozzo.com>
+Subject: [PATCH] mm: memcontrol: only mark charged pages with PageKmemcg
+Date: Mon, 8 Aug 2016 23:03:12 +0300
+Message-ID: <1470686593-31943-1-git-send-email-vdavydov@virtuozzo.com>
+In-Reply-To: <20160808183754.GE1983@esperanza>
+References: <20160808183754.GE1983@esperanza>
 MIME-Version: 1.0
-In-Reply-To: <20160808145542.7297-1-dvlasenk@redhat.com>
-References: <20160808145542.7297-1-dvlasenk@redhat.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Mon, 8 Aug 2016 12:07:05 -0700
-Message-ID: <CAGXu5j+HYkAweod-CC7QhTr3rB-18fMMzthdu4f_Cg3ykQZXUg@mail.gmail.com>
-Subject: Re: [PATCH v2] powerpc: Do not make the entire heap executable
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Oleg Nesterov <oleg@redhat.com>, Michael Ellerman <mpe@ellerman.id.au>, Florian Weimer <fweimer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: stable@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Aug 8, 2016 at 7:55 AM, Denys Vlasenko <dvlasenk@redhat.com> wrote:
-> On 32-bit powerps the ELF PLT sections of binaries (built with --bss-plt,
-> or with a toolchain which defaults to it) look like this:
->
->   [17] .sbss             NOBITS          0002aff8 01aff8 000014 00  WA  0   0  4
->   [18] .plt              NOBITS          0002b00c 01aff8 000084 00 WAX  0   0  4
->   [19] .bss              NOBITS          0002b090 01aff8 0000a4 00  WA  0   0  4
->
-> Which results in an ELF load header:
->
->   Type           Offset   VirtAddr   PhysAddr   FileSiz MemSiz  Flg Align
->   LOAD           0x019c70 0x00029c70 0x00029c70 0x01388 0x014c4 RWE 0x10000
->
-> This is all correct, the load region containing the PLT is marked as
-> executable. Note that the PLT starts at 0002b00c but the file mapping ends at
-> 0002aff8, so the PLT falls in the 0 fill section described by the load header,
-> and after a page boundary.
->
-> Unfortunately the generic ELF loader ignores the X bit in the load headers
-> when it creates the 0 filled non-file backed mappings. It assumes all of these
-> mappings are RW BSS sections, which is not the case for PPC.
->
-> gcc/ld has an option (--secure-plt) to not do this, this is said to incur
-> a small performance penalty.
->
-> Currently, to support 32-bit binaries with PLT in BSS kernel maps *entire
-> brk area* with executable rights for all binaries, even --secure-plt ones.
->
-> Stop doing that.
->
-> Teach the ELF loader to check the X bit in the relevant load header
-> and create 0 filled anonymous mappings that are executable
-> if the load header requests that.
->
-> The patch was originally posted in 2012 by Jason Gunthorpe
-> and apparently ignored:
->
-> https://lkml.org/lkml/2012/9/30/138
->
-> Lightly run-tested.
->
-> Signed-off-by: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
-> Signed-off-by: Denys Vlasenko <dvlasenk@redhat.com>
-> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> CC: Paul Mackerras <paulus@samba.org>
-> CC: Kees Cook <keescook@chromium.org>
-> CC: Oleg Nesterov <oleg@redhat.com>,
-> CC: Michael Ellerman <mpe@ellerman.id.au>
-> CC: Florian Weimer <fweimer@redhat.com>
-> CC: linux-mm@kvack.org,
-> CC: linuxppc-dev@lists.ozlabs.org
-> CC: linux-kernel@vger.kernel.org
-> ---
-> Changes since v1:
-> * wrapped lines to not exceed 79 chars
-> * improved comment
-> * expanded CC list
->
->  arch/powerpc/include/asm/page.h    | 10 +------
->  arch/powerpc/include/asm/page_32.h |  2 --
->  arch/powerpc/include/asm/page_64.h |  4 ---
->  fs/binfmt_elf.c                    | 56 ++++++++++++++++++++++++++++++--------
->  4 files changed, 45 insertions(+), 27 deletions(-)
->
-> diff --git a/arch/powerpc/include/asm/page.h b/arch/powerpc/include/asm/page.h
-> index 56398e7..42d7ea1 100644
-> --- a/arch/powerpc/include/asm/page.h
-> +++ b/arch/powerpc/include/asm/page.h
-> @@ -225,15 +225,7 @@ extern long long virt_phys_offset;
->  #endif
->  #endif
->
-> -/*
-> - * Unfortunately the PLT is in the BSS in the PPC32 ELF ABI,
-> - * and needs to be executable.  This means the whole heap ends
-> - * up being executable.
-> - */
-> -#define VM_DATA_DEFAULT_FLAGS32        (VM_READ | VM_WRITE | VM_EXEC | \
-> -                                VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
-> -
-> -#define VM_DATA_DEFAULT_FLAGS64        (VM_READ | VM_WRITE | \
-> +#define VM_DATA_DEFAULT_FLAGS  (VM_READ | VM_WRITE | \
->                                  VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
->
->  #ifdef __powerpc64__
-> diff --git a/arch/powerpc/include/asm/page_32.h b/arch/powerpc/include/asm/page_32.h
-> index 6a8e179..6113fa8 100644
-> --- a/arch/powerpc/include/asm/page_32.h
-> +++ b/arch/powerpc/include/asm/page_32.h
-> @@ -9,8 +9,6 @@
->  #endif
->  #endif
->
-> -#define VM_DATA_DEFAULT_FLAGS  VM_DATA_DEFAULT_FLAGS32
-> -
->  #ifdef CONFIG_NOT_COHERENT_CACHE
->  #define ARCH_DMA_MINALIGN      L1_CACHE_BYTES
->  #endif
-> diff --git a/arch/powerpc/include/asm/page_64.h b/arch/powerpc/include/asm/page_64.h
-> index dd5f071..52d8e9c 100644
-> --- a/arch/powerpc/include/asm/page_64.h
-> +++ b/arch/powerpc/include/asm/page_64.h
-> @@ -159,10 +159,6 @@ do {                                               \
->
->  #endif /* !CONFIG_HUGETLB_PAGE */
->
-> -#define VM_DATA_DEFAULT_FLAGS \
-> -       (is_32bit_task() ? \
-> -        VM_DATA_DEFAULT_FLAGS32 : VM_DATA_DEFAULT_FLAGS64)
-> -
->  /*
->   * This is the default if a program doesn't have a PT_GNU_STACK
->   * program header entry. The PPC64 ELF ABI has a non executable stack
-> diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
-> index a7a28110..50006d0 100644
-> --- a/fs/binfmt_elf.c
-> +++ b/fs/binfmt_elf.c
-> @@ -91,14 +91,25 @@ static struct linux_binfmt elf_format = {
->
->  #define BAD_ADDR(x) ((unsigned long)(x) >= TASK_SIZE)
->
-> -static int set_brk(unsigned long start, unsigned long end)
-> +static int set_brk(unsigned long start, unsigned long end, int prot)
->  {
->         start = ELF_PAGEALIGN(start);
->         end = ELF_PAGEALIGN(end);
->         if (end > start) {
-> -               int error = vm_brk(start, end - start);
-> -               if (error)
-> -                       return error;
-> +               /* Map the non-file portion of the last load header. If the
-> +                  header is requesting these pages to be executeable then
-> +                  we have to honour that, otherwise assume they are bss. */
-> +               if (prot & PROT_EXEC) {
-> +                       unsigned long addr;
-> +                       addr = vm_mmap(0, start, end - start, prot,
-> +                               MAP_PRIVATE | MAP_FIXED, 0);
-> +                       if (BAD_ADDR(addr))
-> +                               return addr;
-> +               } else {
-> +                       int error = vm_brk(start, end - start);
-> +                       if (error)
-> +                               return error;
-> +               }
+To distinguish non-slab pages charged to kmemcg we mark them PageKmemcg,
+which sets page->_mapcount to -512. Currently, we set/clear PageKmemcg in
+__alloc_pages_nodemask()/free_pages_prepare() for any page allocated
+with __GFP_ACCOUNT, including those that aren't actually charged to any
+cgroup, i.e. allocated from the root cgroup context. To avoid overhead
+in case cgroups are not used, we only do that if memcg_kmem_enabled() is
+true. The latter is set iff there are kmem-enabled memory cgroups
+(online or offline). The root cgroup is not considered kmem-enabled.
 
-Rather than repeating this logic twice, I think this should be a
-helper that both sections can call.
+As a result, if a page is allocated with __GFP_ACCOUNT for the root
+cgroup when there are kmem-enabled memory cgroups and is freed after all
+kmem-enabled memory cgroups were removed, e.g.
 
--Kees
+  # no memory cgroups has been created yet, create one
+  mkdir /sys/fs/cgroup/memory/test
+  # run something allocating pages with __GFP_ACCOUNT, e.g.
+  # a program using pipe
+  dmesg | tail
+  # remove the memory cgroup
+  rmdir /sys/fs/cgroup/memory/test
 
->         }
->         current->mm->start_brk = current->mm->brk = end;
->         return 0;
-> @@ -524,6 +535,7 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
->         unsigned long load_addr = 0;
->         int load_addr_set = 0;
->         unsigned long last_bss = 0, elf_bss = 0;
-> +       int bss_prot = 0;
->         unsigned long error = ~0UL;
->         unsigned long total_size;
->         int i;
-> @@ -606,8 +618,10 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
->                          * elf_bss and last_bss is the bss section.
->                          */
->                         k = load_addr + eppnt->p_memsz + eppnt->p_vaddr;
-> -                       if (k > last_bss)
-> +                       if (k > last_bss) {
->                                 last_bss = k;
-> +                               bss_prot = elf_prot;
-> +                       }
->                 }
->         }
->
-> @@ -626,10 +640,27 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
->                 /* What we have mapped so far */
->                 elf_bss = ELF_PAGESTART(elf_bss + ELF_MIN_ALIGN - 1);
->
-> -               /* Map the last of the bss segment */
-> -               error = vm_brk(elf_bss, last_bss - elf_bss);
-> -               if (error)
-> -                       goto out;
-> +               if (last_bss > elf_bss) {
-> +                       /*
-> +                        * Map the non-file portion of the last load header.
-> +                        * If the header is requesting these pages to be
-> +                        * executable, honour that (ppc32 needs this).
-> +                        * Otherwise assume they are bss.
-> +                        */
-> +                       if (bss_prot & PROT_EXEC) {
-> +                               unsigned long addr;
-> +                               addr = vm_mmap(0, elf_bss, last_bss - elf_bss,
-> +                                       bss_prot, MAP_PRIVATE | MAP_FIXED, 0);
-> +                               if (BAD_ADDR(addr)) {
-> +                                       error = addr;
-> +                                       goto out;
-> +                               }
-> +                       } else {
-> +                               error = vm_brk(elf_bss, last_bss - elf_bss);
-> +                               if (error)
-> +                                       goto out;
-> +                       }
-> +               }
->         }
->
->         error = load_addr;
-> @@ -672,6 +700,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
->         unsigned long error;
->         struct elf_phdr *elf_ppnt, *elf_phdata, *interp_elf_phdata = NULL;
->         unsigned long elf_bss, elf_brk;
-> +       int bss_prot = 0;
->         int retval, i;
->         unsigned long elf_entry;
->         unsigned long interp_load_addr = 0;
-> @@ -879,7 +908,8 @@ static int load_elf_binary(struct linux_binprm *bprm)
->                            before this one. Map anonymous pages, if needed,
->                            and clear the area.  */
->                         retval = set_brk(elf_bss + load_bias,
-> -                                        elf_brk + load_bias);
-> +                                        elf_brk + load_bias,
-> +                                        bss_prot);
->                         if (retval)
->                                 goto out_free_dentry;
->                         nbyte = ELF_PAGEOFFSET(elf_bss);
-> @@ -973,8 +1003,10 @@ static int load_elf_binary(struct linux_binprm *bprm)
->                 if (end_data < k)
->                         end_data = k;
->                 k = elf_ppnt->p_vaddr + elf_ppnt->p_memsz;
-> -               if (k > elf_brk)
-> +               if (k > elf_brk) {
-> +                       bss_prot = elf_prot;
->                         elf_brk = k;
-> +               }
->         }
->
->         loc->elf_ex.e_entry += load_bias;
-> @@ -990,7 +1022,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
->          * mapping in the interpreter, to make sure it doesn't wind
->          * up getting placed where the bss needs to go.
->          */
-> -       retval = set_brk(elf_bss, elf_brk);
-> +       retval = set_brk(elf_bss, elf_brk, bss_prot);
->         if (retval)
->                 goto out_free_dentry;
->         if (likely(elf_bss != elf_brk) && unlikely(padzero(elf_bss))) {
-> --
-> 2.9.2
->
+we'll get bad page state bug complaining about page->_mapcount != -1:
 
+  BUG: Bad page state in process swapper/0  pfn:1fd945c
+  page:ffffea007f651700 count:0 mapcount:-511 mapping:          (null) index:0x0
+  flags: 0x1000000000000000()
 
+To avoid that, let's mark with PageKmemcg only those pages that are
+actually charged to and hence pin a non-root memory cgroup.
 
+Fixes: 4949148ad433 ("mm: charge/uncharge kmemcg from generic page allocator paths")
+Reported-by: Eric Dumazet <eric.dumazet@gmail.com>
+Signed-off-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: <stable@vger.kernel.org>	[4.7+]
+---
+ fs/pipe.c       |  4 +---
+ mm/memcontrol.c | 14 ++++++++++++--
+ mm/page_alloc.c | 14 +++++---------
+ 3 files changed, 18 insertions(+), 14 deletions(-)
+
+diff --git a/fs/pipe.c b/fs/pipe.c
+index 4b32928f5426..4ebe6b2e5217 100644
+--- a/fs/pipe.c
++++ b/fs/pipe.c
+@@ -144,10 +144,8 @@ static int anon_pipe_buf_steal(struct pipe_inode_info *pipe,
+ 	struct page *page = buf->page;
+ 
+ 	if (page_count(page) == 1) {
+-		if (memcg_kmem_enabled()) {
++		if (memcg_kmem_enabled())
+ 			memcg_kmem_uncharge(page, 0);
+-			__ClearPageKmemcg(page);
+-		}
+ 		__SetPageLocked(page);
+ 		return 0;
+ 	}
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 1c0aa59fd333..7c9c0bd475f0 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2308,8 +2308,11 @@ int memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
+ 		return 0;
+ 
+ 	memcg = get_mem_cgroup_from_mm(current->mm);
+-	if (!mem_cgroup_is_root(memcg))
++	if (!mem_cgroup_is_root(memcg)) {
+ 		ret = memcg_kmem_charge_memcg(page, gfp, order, memcg);
++		if (!ret)
++			__SetPageKmemcg(page);
++	}
+ 	css_put(&memcg->css);
+ 	return ret;
+ }
+@@ -2336,6 +2339,11 @@ void memcg_kmem_uncharge(struct page *page, int order)
+ 		page_counter_uncharge(&memcg->memsw, nr_pages);
+ 
+ 	page->mem_cgroup = NULL;
++
++	/* slab pages do not have PageKmemcg flag set */
++	if (PageKmemcg(page))
++		__ClearPageKmemcg(page);
++
+ 	css_put_many(&memcg->css, nr_pages);
+ }
+ #endif /* !CONFIG_SLOB */
+@@ -5533,8 +5541,10 @@ static void uncharge_list(struct list_head *page_list)
+ 			else
+ 				nr_file += nr_pages;
+ 			pgpgout++;
+-		} else
++		} else {
+ 			nr_kmem += 1 << compound_order(page);
++			__ClearPageKmemcg(page);
++		}
+ 
+ 		page->mem_cgroup = NULL;
+ 	} while (next != page_list);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index ee5a4b20daf4..3a7d3a1fb6a0 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1009,10 +1009,8 @@ static __always_inline bool free_pages_prepare(struct page *page,
+ 	}
+ 	if (PageMappingFlags(page))
+ 		page->mapping = NULL;
+-	if (memcg_kmem_enabled() && PageKmemcg(page)) {
++	if (memcg_kmem_enabled() && PageKmemcg(page))
+ 		memcg_kmem_uncharge(page, order);
+-		__ClearPageKmemcg(page);
+-	}
+ 	if (check_free)
+ 		bad += free_pages_check(page);
+ 	if (bad)
+@@ -3788,12 +3786,10 @@ no_zone:
+ 	}
+ 
+ out:
+-	if (memcg_kmem_enabled() && (gfp_mask & __GFP_ACCOUNT) && page) {
+-		if (unlikely(memcg_kmem_charge(page, gfp_mask, order))) {
+-			__free_pages(page, order);
+-			page = NULL;
+-		} else
+-			__SetPageKmemcg(page);
++	if (memcg_kmem_enabled() && (gfp_mask & __GFP_ACCOUNT) && page &&
++	    unlikely(memcg_kmem_charge(page, gfp_mask, order) != 0)) {
++		__free_pages(page, order);
++		page = NULL;
+ 	}
+ 
+ 	if (kmemcheck_enabled && page)
 -- 
-Kees Cook
-Nexus Security
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
