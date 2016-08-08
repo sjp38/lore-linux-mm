@@ -1,48 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 31F536B0253
-	for <linux-mm@kvack.org>; Sun,  7 Aug 2016 22:54:44 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id ez1so571496928pab.1
-        for <linux-mm@kvack.org>; Sun, 07 Aug 2016 19:54:44 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTP id ln2si34422346pab.23.2016.08.07.19.54.41
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 06F606B0253
+	for <linux-mm@kvack.org>; Mon,  8 Aug 2016 02:43:09 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id 63so656960755pfx.0
+        for <linux-mm@kvack.org>; Sun, 07 Aug 2016 23:43:08 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id 68si35423031pfr.68.2016.08.07.23.43.07
         for <linux-mm@kvack.org>;
-        Sun, 07 Aug 2016 19:54:43 -0700 (PDT)
-From: zhongjiang <zhongjiang@huawei.com>
-Subject: [PATCH] mm: fix the incorrect hugepages count
-Date: Mon, 8 Aug 2016 10:49:06 +0800
-Message-ID: <1470624546-902-1-git-send-email-zhongjiang@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        Sun, 07 Aug 2016 23:43:07 -0700 (PDT)
+From: Liang Li <liang.z.li@intel.com>
+Subject: [PATCH v3 kernel 0/7] Extend virtio-balloon for fast (de)inflating & fast live migration 
+Date: Mon,  8 Aug 2016 14:35:27 +0800
+Message-Id: <1470638134-24149-1-git-send-email-liang.z.li@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: virtualization@lists.linux-foundation.org, linux-mm@kvack.org, virtio-dev@lists.oasis-open.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, quintela@redhat.com, dgilbert@redhat.com, dave.hansen@intel.com, Liang Li <liang.z.li@intel.com>
 
-From: zhong jiang <zhongjiang@huawei.com>
+This patch set contains two parts of changes to the virtio-balloon. 
 
-when memory hotplug enable, free hugepages will be freed if movable node offline.
-therefore, /proc/sys/vm/nr_hugepages will be incorrect.
+One is the change for speeding up the inflating & deflating process,
+the main idea of this optimization is to use bitmap to send the page
+information to host instead of the PFNs, to reduce the overhead of
+virtio data transmission, address translation and madvise(). This can
+help to improve the performance by about 85%.
 
-The patch fix it by reduce the max_huge_pages when the node offline.
+Another change is for speeding up live migration. By skipping process
+guest's free pages in the first round of data copy, to reduce needless
+data processing, this can help to save quite a lot of CPU cycles and
+network bandwidth. We put guest's free page information in bitmap and
+send it to host with the virt queue of virtio-balloon. For an idle 8GB
+guest, this can help to shorten the total live migration time from 2Sec
+to about 500ms in the 10Gbps network environment.  
 
-Signed-off-by: zhong jiang <zhongjiang@huawei.com>
----
- mm/hugetlb.c | 1 +
- 1 file changed, 1 insertion(+)
+Dave Hansen suggested a new scheme to encode the data structure,
+because of additional complexity, it's not implemented in v3.
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index f904246..3356e3a 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1448,6 +1448,7 @@ static void dissolve_free_huge_page(struct page *page)
- 		list_del(&page->lru);
- 		h->free_huge_pages--;
- 		h->free_huge_pages_node[nid]--;
-+		h->max_huge_pages--;
- 		update_and_free_page(h, page);
- 	}
- 	spin_unlock(&hugetlb_lock);
+Changes from v2 to v3:
+    * Change the name of 'free page' to 'unused page'.
+    * Use the scatter & gather bitmap instead of a 1MB page bitmap. 
+    * Fix overwriting the page bitmap after kicking. 
+    * Some of MST's comments for v2. 
+
+Changes from v1 to v2:
+    * Abandon the patch for dropping page cache.
+    * Put some structures to uapi head file.
+    * Use a new way to determine the page bitmap size.
+    * Use a unified way to send the free page information with the bitmap 
+    * Address the issues referred in MST's comments
+
+
+Liang Li (7):
+  virtio-balloon: rework deflate to add page to a list
+  virtio-balloon: define new feature bit and page bitmap head
+  mm: add a function to get the max pfn
+  virtio-balloon: speed up inflate/deflate process
+  mm: add the related functions to get unused page
+  virtio-balloon: define feature bit and head for misc virt queue
+  virtio-balloon: tell host vm's unused page info
+
+ drivers/virtio/virtio_balloon.c     | 390 ++++++++++++++++++++++++++++++++----
+ include/linux/mm.h                  |   3 +
+ include/uapi/linux/virtio_balloon.h |  41 ++++
+ mm/page_alloc.c                     |  94 +++++++++
+ 4 files changed, 485 insertions(+), 43 deletions(-)
+
 -- 
 1.8.3.1
 
