@@ -1,141 +1,262 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 187316B0253
-	for <linux-mm@kvack.org>; Mon,  8 Aug 2016 08:00:00 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id f14so228000025ioj.2
-        for <linux-mm@kvack.org>; Mon, 08 Aug 2016 05:00:00 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id q31si14349934ota.54.2016.08.08.04.59.58
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 66D506B0253
+	for <linux-mm@kvack.org>; Mon,  8 Aug 2016 10:55:54 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id t7so107734845qkh.2
+        for <linux-mm@kvack.org>; Mon, 08 Aug 2016 07:55:54 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t189si17533601qkd.292.2016.08.08.07.55.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 08 Aug 2016 04:59:58 -0700 (PDT)
-Subject: Re: [PATCH/RFC] mm, oom: Fix uninitialized ret in task_will_free_mem()
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1470255599-24841-1-git-send-email-geert@linux-m68k.org>
-	<178c5e9b-b92d-b62b-40a9-ee98b10d6bce@I-love.SAKURA.ne.jp>
-	<20160804144649.7ac4727ad0d93097c4055610@linux-foundation.org>
-In-Reply-To: <20160804144649.7ac4727ad0d93097c4055610@linux-foundation.org>
-Message-Id: <201608082059.DAD64516.MQVLSFHOFFtOJO@I-love.SAKURA.ne.jp>
-Date: Mon, 8 Aug 2016 20:59:53 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 08 Aug 2016 07:55:53 -0700 (PDT)
+From: Denys Vlasenko <dvlasenk@redhat.com>
+Subject: [PATCH v2] powerpc: Do not make the entire heap executable
+Date: Mon,  8 Aug 2016 16:55:42 +0200
+Message-Id: <20160808145542.7297-1-dvlasenk@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: geert@linux-m68k.org, mhocko@suse.com, oleg@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linuxppc-dev@lists.ozlabs.org
+Cc: Denys Vlasenko <dvlasenk@redhat.com>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Kees Cook <keescook@chromium.org>, Oleg Nesterov <oleg@redhat.com>, Michael Ellerman <mpe@ellerman.id.au>, Florian Weimer <fweimer@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Andrew Morton wrote:
-> On Thu, 4 Aug 2016 21:28:13 +0900 Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> wrote:
-> 
-> > > 
-> > > Fixes: 1af8bb43269563e4 ("mm, oom: fortify task_will_free_mem()")
-> > > Signed-off-by: Geert Uytterhoeven <geert@linux-m68k.org>
-> > > ---
-> > > Untested. I'm not familiar with the code, hence the default value of
-> > > true was deducted from the logic in the loop (return false as soon as
-> > > __task_will_free_mem() has returned false).
-> > 
-> > I think ret = true is correct. Andrew, please send to linux.git.
-> 
-> task_will_free_mem() is too hard to understand.
-> 
-> We're examining task "A":
-> 
-> : 	for_each_process(p) {
-> : 		if (!process_shares_mm(p, mm))
-> : 			continue;
-> : 		if (same_thread_group(task, p))
-> : 			continue;
-> 
-> So here, we've found a process `p' which shares A's mm and which does
-> not share A's thread group.
+On 32-bit powerps the ELF PLT sections of binaries (built with --bss-plt,
+or with a toolchain which defaults to it) look like this:
 
-Correct.
+  [17] .sbss             NOBITS          0002aff8 01aff8 000014 00  WA  0   0  4
+  [18] .plt              NOBITS          0002b00c 01aff8 000084 00 WAX  0   0  4
+  [19] .bss              NOBITS          0002b090 01aff8 0000a4 00  WA  0   0  4
 
-> 
-> : 		ret = __task_will_free_mem(p);
-> 
-> And here we check to see if killing `p' would free up memory.
+Which results in an ELF load header:
 
-Not correct. Basic idea of __task_will_free_mem() is "check whether
-the given task is already killed or exiting" in order to avoid sending
-SIGKILL to tasks more than needed, and task_will_free_mem() is "check
-whether all of the given mm users are already killed or exiting" in
-order to avoid sending SIGKILL to tasks more than needed.
+  Type           Offset   VirtAddr   PhysAddr   FileSiz MemSiz  Flg Align
+  LOAD           0x019c70 0x00029c70 0x00029c70 0x01388 0x014c4 RWE 0x10000
 
-__task_will_free_mem(p) == true means p is already killed or exiting
-and therefore the OOM killer does not need to send SIGKILL to `p'.
+This is all correct, the load region containing the PLT is marked as
+executable. Note that the PLT starts at 0002b00c but the file mapping ends at
+0002aff8, so the PLT falls in the 0 fill section described by the load header,
+and after a page boundary.
 
-> 
-> : 		if (!ret)
-> : 			break;
-> 
-> If killing `p' will not free memory then give up the scan of all
-> processes because <reasons>, and we decide that killing `A' will
-> not free memory either, because some other task is holding onto
-> A's memory anyway.
+Unfortunately the generic ELF loader ignores the X bit in the load headers
+when it creates the 0 filled non-file backed mappings. It assumes all of these
+mappings are RW BSS sections, which is not the case for PPC.
 
-If `p' is not already killed or exiting, the OOM reaper cannot reap
-p->mm because p will crash if p->mm suddenly disappears. Therefore,
-the OOM killer needs to send SIGKILL to somebody.
+gcc/ld has an option (--secure-plt) to not do this, this is said to incur
+a small performance penalty.
 
-> 
-> : 	}
-> 
-> And if no task is found to be sharing A's mm while not sharing A's
-> thread group then fall through and decide to kill A.  In which case the
-> patch to return `true' is correct.
+Currently, to support 32-bit binaries with PLT in BSS kernel maps *entire
+brk area* with executable rights for all binaries, even --secure-plt ones.
 
-`A' is already killed or exiting, for it passed
+Stop doing that.
 
-	if (!__task_will_free_mem(task))
-		return false;
+Teach the ELF loader to check the X bit in the relevant load header
+and create 0 filled anonymous mappings that are executable
+if the load header requests that.
 
-test before the for_each_process(p) loop.
+The patch was originally posted in 2012 by Jason Gunthorpe
+and apparently ignored:
 
-Although
+https://lkml.org/lkml/2012/9/30/138
 
-	if (atomic_read(&mm->mm_users) <= 1)
-		return true;
+Lightly run-tested.
 
-test was false as of atomic_read(), it is possible that `p'
-releases its mm before reaching
+Signed-off-by: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
+Signed-off-by: Denys Vlasenko <dvlasenk@redhat.com>
+CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+CC: Paul Mackerras <paulus@samba.org>
+CC: Kees Cook <keescook@chromium.org>
+CC: Oleg Nesterov <oleg@redhat.com>,
+CC: Michael Ellerman <mpe@ellerman.id.au>
+CC: Florian Weimer <fweimer@redhat.com>
+CC: linux-mm@kvack.org,
+CC: linuxppc-dev@lists.ozlabs.org
+CC: linux-kernel@vger.kernel.org
+---
+Changes since v1:
+* wrapped lines to not exceed 79 chars
+* improved comment
+* expanded CC list
 
-	if (!process_shares_mm(p, mm))
-		continue;
+ arch/powerpc/include/asm/page.h    | 10 +------
+ arch/powerpc/include/asm/page_32.h |  2 --
+ arch/powerpc/include/asm/page_64.h |  4 ---
+ fs/binfmt_elf.c                    | 56 ++++++++++++++++++++++++++++++--------
+ 4 files changed, 45 insertions(+), 27 deletions(-)
 
-test. Therefore, it is possible that __task_will_free_mem(p) is
-never called inside the for_each_process(p) loop. In that case,
-task_will_free_mem(task) should return true, for it passed
-
-	if (!__task_will_free_mem(task))
-		return false;
-
-test before the for_each_process(p) loop.
-
-
-
-It is possible that `p' and `A' are the same thread group because
-`A' (which can be "current") is not always a thread group leader.
-If there is no external process sharing A's mm,
-
-	if (!process_shares_mm(p, mm))
-		continue;
-
-test is true for all processes except the process for `A', and
-
-	if (same_thread_group(task, p))
-		continue;
-
-test is true for the process for `A'. Therefore, it is possible that
-__task_will_free_mem(p) is never called inside the for_each_process(p)
-loop. In that case, task_will_free_mem(task) should return true.
-
-> 
-> Correctish?  Maybe.  Can we please get some comments in there to
-> demystify the decision-making?
-> 
-> 
+diff --git a/arch/powerpc/include/asm/page.h b/arch/powerpc/include/asm/page.h
+index 56398e7..42d7ea1 100644
+--- a/arch/powerpc/include/asm/page.h
++++ b/arch/powerpc/include/asm/page.h
+@@ -225,15 +225,7 @@ extern long long virt_phys_offset;
+ #endif
+ #endif
+ 
+-/*
+- * Unfortunately the PLT is in the BSS in the PPC32 ELF ABI,
+- * and needs to be executable.  This means the whole heap ends
+- * up being executable.
+- */
+-#define VM_DATA_DEFAULT_FLAGS32	(VM_READ | VM_WRITE | VM_EXEC | \
+-				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
+-
+-#define VM_DATA_DEFAULT_FLAGS64	(VM_READ | VM_WRITE | \
++#define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | \
+ 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
+ 
+ #ifdef __powerpc64__
+diff --git a/arch/powerpc/include/asm/page_32.h b/arch/powerpc/include/asm/page_32.h
+index 6a8e179..6113fa8 100644
+--- a/arch/powerpc/include/asm/page_32.h
++++ b/arch/powerpc/include/asm/page_32.h
+@@ -9,8 +9,6 @@
+ #endif
+ #endif
+ 
+-#define VM_DATA_DEFAULT_FLAGS	VM_DATA_DEFAULT_FLAGS32
+-
+ #ifdef CONFIG_NOT_COHERENT_CACHE
+ #define ARCH_DMA_MINALIGN	L1_CACHE_BYTES
+ #endif
+diff --git a/arch/powerpc/include/asm/page_64.h b/arch/powerpc/include/asm/page_64.h
+index dd5f071..52d8e9c 100644
+--- a/arch/powerpc/include/asm/page_64.h
++++ b/arch/powerpc/include/asm/page_64.h
+@@ -159,10 +159,6 @@ do {						\
+ 
+ #endif /* !CONFIG_HUGETLB_PAGE */
+ 
+-#define VM_DATA_DEFAULT_FLAGS \
+-	(is_32bit_task() ? \
+-	 VM_DATA_DEFAULT_FLAGS32 : VM_DATA_DEFAULT_FLAGS64)
+-
+ /*
+  * This is the default if a program doesn't have a PT_GNU_STACK
+  * program header entry. The PPC64 ELF ABI has a non executable stack
+diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
+index a7a28110..50006d0 100644
+--- a/fs/binfmt_elf.c
++++ b/fs/binfmt_elf.c
+@@ -91,14 +91,25 @@ static struct linux_binfmt elf_format = {
+ 
+ #define BAD_ADDR(x) ((unsigned long)(x) >= TASK_SIZE)
+ 
+-static int set_brk(unsigned long start, unsigned long end)
++static int set_brk(unsigned long start, unsigned long end, int prot)
+ {
+ 	start = ELF_PAGEALIGN(start);
+ 	end = ELF_PAGEALIGN(end);
+ 	if (end > start) {
+-		int error = vm_brk(start, end - start);
+-		if (error)
+-			return error;
++		/* Map the non-file portion of the last load header. If the
++		   header is requesting these pages to be executeable then
++		   we have to honour that, otherwise assume they are bss. */
++		if (prot & PROT_EXEC) {
++			unsigned long addr;
++			addr = vm_mmap(0, start, end - start, prot,
++				MAP_PRIVATE | MAP_FIXED, 0);
++			if (BAD_ADDR(addr))
++				return addr;
++		} else {
++			int error = vm_brk(start, end - start);
++			if (error)
++				return error;
++		}
+ 	}
+ 	current->mm->start_brk = current->mm->brk = end;
+ 	return 0;
+@@ -524,6 +535,7 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
+ 	unsigned long load_addr = 0;
+ 	int load_addr_set = 0;
+ 	unsigned long last_bss = 0, elf_bss = 0;
++	int bss_prot = 0;
+ 	unsigned long error = ~0UL;
+ 	unsigned long total_size;
+ 	int i;
+@@ -606,8 +618,10 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
+ 			 * elf_bss and last_bss is the bss section.
+ 			 */
+ 			k = load_addr + eppnt->p_memsz + eppnt->p_vaddr;
+-			if (k > last_bss)
++			if (k > last_bss) {
+ 				last_bss = k;
++				bss_prot = elf_prot;
++			}
+ 		}
+ 	}
+ 
+@@ -626,10 +640,27 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
+ 		/* What we have mapped so far */
+ 		elf_bss = ELF_PAGESTART(elf_bss + ELF_MIN_ALIGN - 1);
+ 
+-		/* Map the last of the bss segment */
+-		error = vm_brk(elf_bss, last_bss - elf_bss);
+-		if (error)
+-			goto out;
++		if (last_bss > elf_bss) {
++			/*
++			 * Map the non-file portion of the last load header.
++			 * If the header is requesting these pages to be
++			 * executable, honour that (ppc32 needs this).
++			 * Otherwise assume they are bss.
++			 */
++			if (bss_prot & PROT_EXEC) {
++				unsigned long addr;
++				addr = vm_mmap(0, elf_bss, last_bss - elf_bss,
++					bss_prot, MAP_PRIVATE | MAP_FIXED, 0);
++				if (BAD_ADDR(addr)) {
++					error = addr;
++					goto out;
++				}
++			} else {
++				error = vm_brk(elf_bss, last_bss - elf_bss);
++				if (error)
++					goto out;
++			}
++		}
+ 	}
+ 
+ 	error = load_addr;
+@@ -672,6 +700,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
+ 	unsigned long error;
+ 	struct elf_phdr *elf_ppnt, *elf_phdata, *interp_elf_phdata = NULL;
+ 	unsigned long elf_bss, elf_brk;
++	int bss_prot = 0;
+ 	int retval, i;
+ 	unsigned long elf_entry;
+ 	unsigned long interp_load_addr = 0;
+@@ -879,7 +908,8 @@ static int load_elf_binary(struct linux_binprm *bprm)
+ 			   before this one. Map anonymous pages, if needed,
+ 			   and clear the area.  */
+ 			retval = set_brk(elf_bss + load_bias,
+-					 elf_brk + load_bias);
++					 elf_brk + load_bias,
++					 bss_prot);
+ 			if (retval)
+ 				goto out_free_dentry;
+ 			nbyte = ELF_PAGEOFFSET(elf_bss);
+@@ -973,8 +1003,10 @@ static int load_elf_binary(struct linux_binprm *bprm)
+ 		if (end_data < k)
+ 			end_data = k;
+ 		k = elf_ppnt->p_vaddr + elf_ppnt->p_memsz;
+-		if (k > elf_brk)
++		if (k > elf_brk) {
++			bss_prot = elf_prot;
+ 			elf_brk = k;
++		}
+ 	}
+ 
+ 	loc->elf_ex.e_entry += load_bias;
+@@ -990,7 +1022,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
+ 	 * mapping in the interpreter, to make sure it doesn't wind
+ 	 * up getting placed where the bss needs to go.
+ 	 */
+-	retval = set_brk(elf_bss, elf_brk);
++	retval = set_brk(elf_bss, elf_brk, bss_prot);
+ 	if (retval)
+ 		goto out_free_dentry;
+ 	if (likely(elf_bss != elf_brk) && unlikely(padzero(elf_bss))) {
+-- 
+2.9.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
