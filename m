@@ -1,162 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C324F828EE
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2016 02:39:34 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id w128so8007503pfd.3
-        for <linux-mm@kvack.org>; Mon, 08 Aug 2016 23:39:34 -0700 (PDT)
-Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
-        by mx.google.com with ESMTPS id e73si41187603pfj.239.2016.08.08.23.39.34
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A2F9F6B0261
+	for <linux-mm@kvack.org>; Tue,  9 Aug 2016 03:02:54 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id o124so9083700pfg.1
+        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 00:02:54 -0700 (PDT)
+Received: from mail-pa0-x241.google.com (mail-pa0-x241.google.com. [2607:f8b0:400e:c03::241])
+        by mx.google.com with ESMTPS id h21si41307709pfk.107.2016.08.09.00.02.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Aug 2016 23:39:34 -0700 (PDT)
-Received: by mail-pf0-x243.google.com with SMTP id g202so341312pfb.1
-        for <linux-mm@kvack.org>; Mon, 08 Aug 2016 23:39:34 -0700 (PDT)
-From: js1304@gmail.com
-Subject: [PATCH v4 5/5] mm/cma: remove per zone CMA stat
-Date: Tue,  9 Aug 2016 15:39:19 +0900
-Message-Id: <1470724759-855-6-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1470724759-855-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1470724759-855-1-git-send-email-iamjoonsoo.kim@lge.com>
+        Tue, 09 Aug 2016 00:02:53 -0700 (PDT)
+Received: by mail-pa0-x241.google.com with SMTP id hh10so462088pac.1
+        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 00:02:53 -0700 (PDT)
+Subject: Re: [RFC][PATCH] cgroup_threadgroup_rwsem - affects scalability and
+ OOM
+References: <4717ef90-ca86-4a34-c63a-94b8b4bfaaec@gmail.com>
+ <20160809062900.GD4906@mtj.duckdns.org>
+From: Balbir Singh <bsingharora@gmail.com>
+Message-ID: <0a7ffe43-c0c6-85df-9bc2-d00fc837e284@gmail.com>
+Date: Tue, 9 Aug 2016 17:02:47 +1000
+MIME-Version: 1.0
+In-Reply-To: <20160809062900.GD4906@mtj.duckdns.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: cgroups@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Now, all reserved pages for CMA region are belong to the ZONE_CMA
-so we don't need to maintain CMA stat in other zones. Remove it.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
----
- fs/proc/meminfo.c      |  2 +-
- include/linux/cma.h    |  6 ++++++
- include/linux/mmzone.h |  1 -
- mm/cma.c               | 15 +++++++++++++++
- mm/page_alloc.c        |  7 +++----
- mm/vmstat.c            |  1 -
- 6 files changed, 25 insertions(+), 7 deletions(-)
+On 09/08/16 16:29, Tejun Heo wrote:
+> Hello, Balbir.
+> 
+> On Tue, Aug 09, 2016 at 02:19:01PM +1000, Balbir Singh wrote:
+>>
+>> cgroup_threadgroup_rwsem is acquired in read mode during process exit and fork.
+>> It is also grabbed in write mode during __cgroups_proc_write
+>>
+>> I've recently run into a scenario with lots of memory pressure and OOM
+>> and I am beginning to see
+>>
+>> systemd
+>>
+>>  __switch_to+0x1f8/0x350
+>>  __schedule+0x30c/0x990
+>>  schedule+0x48/0xc0
+>>  percpu_down_write+0x114/0x170
+>>  __cgroup_procs_write.isra.12+0xb8/0x3c0
+>>  cgroup_file_write+0x74/0x1a0
+>>  kernfs_fop_write+0x188/0x200
+>>  __vfs_write+0x6c/0xe0
+>>  vfs_write+0xc0/0x230
+>>  SyS_write+0x6c/0x110
+>>  system_call+0x38/0xb4
+>>
+>> This thread is waiting on the reader of cgroup_threadgroup_rwsem to exit.
+>> The reader itself is under memory pressure and has gone into reclaim after
+>> fork. There are times the reader also ends up waiting on oom_lock as well.
+>>
+> ...
+>>  copy_page_range+0x4ec/0x950
+>>  copy_process.isra.5+0x15a0/0x1870
+>>  _do_fork+0xa8/0x4b0
+>>  ppc_clone+0x8/0xc
+> 
+> Yeah, we definitely don't wanna be holding the rwsem during the actual
+> fork.
+> 
+> ...
+>> There are other theoretical issues with this semaphore
+>>
+>> systemd can do
+>>
+>> 1. cgroup_mutex (cgroup_kn_lock_live)
+>> 2. cgroup_threadgroup_rwsem (W) (__cgroup_procs_write)
+>>
+>> and other threads can go
+>>
+>> 1. cgroup_threadgroup_rwsem (R) (copy_process)
+>> 2. mem_cgroup_iter (as a part of reclaim) (cgroup_mutex -- rcu lock or cgroup_mutex)
+> 
+> Hmm? Where does mem_cgroup_iter grab cgroup_mutex?  cgroup_mutex nests
+> outside cgroup_threadgroup_rwsem or most other mutexes for that matter
+> and isn't exposed from cgroup core.
+> 
 
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index 09e18fd..8a1d2bd 100644
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -170,7 +170,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- #endif
- #ifdef CONFIG_CMA
- 		, K(totalcma_pages)
--		, K(global_page_state(NR_FREE_CMA_PAGES))
-+		, K(cma_get_free())
- #endif
- 		);
- 
-diff --git a/include/linux/cma.h b/include/linux/cma.h
-index 29f9e77..816290c 100644
---- a/include/linux/cma.h
-+++ b/include/linux/cma.h
-@@ -28,4 +28,10 @@ extern int cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
- 					struct cma **res_cma);
- extern struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align);
- extern bool cma_release(struct cma *cma, const struct page *pages, unsigned int count);
-+
-+#ifdef CONFIG_CMA
-+extern unsigned long cma_get_free(void);
-+#else
-+static inline unsigned long cma_get_free(void) { return 0; }
-+#endif
- #endif
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 9b59613..bb168bc 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -113,7 +113,6 @@ enum zone_stat_item {
- 	NUMA_LOCAL,		/* allocation from local node */
- 	NUMA_OTHER,		/* allocation from other node */
- #endif
--	NR_FREE_CMA_PAGES,
- 	NR_VM_ZONE_STAT_ITEMS };
- 
- enum node_stat_item {
-diff --git a/mm/cma.c b/mm/cma.c
-index 6524fa5..a600726 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -54,6 +54,21 @@ unsigned long cma_get_size(const struct cma *cma)
- 	return cma->count << PAGE_SHIFT;
- }
- 
-+unsigned long cma_get_free(void)
-+{
-+	struct zone *zone;
-+	unsigned long freecma = 0;
-+
-+	for_each_populated_zone(zone) {
-+		if (!is_zone_cma(zone))
-+			continue;
-+
-+		freecma += zone_page_state(zone, NR_FREE_PAGES);
-+	}
-+
-+	return freecma;
-+}
-+
- static unsigned long cma_bitmap_aligned_mask(const struct cma *cma,
- 					     int align_order)
- {
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 3e1c7b1..a96d020 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -65,6 +65,7 @@
- #include <linux/kthread.h>
- #include <linux/random.h>
- #include <linux/memcontrol.h>
-+#include <linux/cma.h>
- 
- #include <asm/sections.h>
- #include <asm/tlbflush.h>
-@@ -4243,7 +4244,7 @@ void show_free_areas(unsigned int filter)
- 		global_page_state(NR_BOUNCE),
- 		global_page_state(NR_FREE_PAGES),
- 		free_pcp,
--		global_page_state(NR_FREE_CMA_PAGES));
-+		cma_get_free());
- 
- 	for_each_online_pgdat(pgdat) {
- 		printk("Node %d"
-@@ -4324,7 +4325,6 @@ void show_free_areas(unsigned int filter)
- 			" bounce:%lukB"
- 			" free_pcp:%lukB"
- 			" local_pcp:%ukB"
--			" free_cma:%lukB"
- 			"\n",
- 			zone->name,
- 			K(zone_page_state(zone, NR_FREE_PAGES)),
-@@ -4346,8 +4346,7 @@ void show_free_areas(unsigned int filter)
- 			K(zone_page_state(zone, NR_PAGETABLE)),
- 			K(zone_page_state(zone, NR_BOUNCE)),
- 			K(free_pcp),
--			K(this_cpu_read(zone->pageset->pcp.count)),
--			K(zone_page_state(zone, NR_FREE_CMA_PAGES)));
-+			K(this_cpu_read(zone->pageset->pcp.count)));
- 		printk("lowmem_reserve[]:");
- 		for (i = 0; i < MAX_NR_ZONES; i++)
- 			printk(" %ld", zone->lowmem_reserve[i]);
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index ff012e8..b8e9834 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -951,7 +951,6 @@ const char * const vmstat_text[] = {
- 	"numa_local",
- 	"numa_other",
- #endif
--	"nr_free_cma",
- 
- 	/* Node-based counters */
- 	"nr_inactive_anon",
--- 
-1.9.1
+I based my theory on the code
+
+mem_cgroup_iter -> css_next_descendant_pre which asserts
+
+cgroup_assert_mutex_or_rcu_locked(), 
+
+although you are right, we hold RCU lock while calling css_* routines.
+
+>> However, I've not examined them in too much detail or looked at lockdep
+>> wait chains for those paths.
+>>
+>> I am sure there is a good reason for placing cgroup_threadgroup_rwsem
+>> where it is today and I might be missing something. I am also surprised
+> 
+> I could be missing something too but the positioning is largely
+> historic.
+> 
+>> no-one else has run into it so far.
+> 
+> Maybe it might matter that much on a system which is already heavily
+> thrasing, but yeah, we definitely want to tighten down the reader
+> sections so that it doesn't get in the way of making forward progress.
+> 
+
+It seems to cause my system to thrash quite badly.
+
+>> Comments?
+> 
+> The change looks good to me on the first glance but I'll think more
+> about it tomorrow.
+> 
+> Thanks!
+> 
+
+
+Thanks for the review.
+
+Balbir Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
