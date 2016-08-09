@@ -1,128 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A2F9F6B0261
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2016 03:02:54 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id o124so9083700pfg.1
-        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 00:02:54 -0700 (PDT)
-Received: from mail-pa0-x241.google.com (mail-pa0-x241.google.com. [2607:f8b0:400e:c03::241])
-        by mx.google.com with ESMTPS id h21si41307709pfk.107.2016.08.09.00.02.53
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B01716B0005
+	for <linux-mm@kvack.org>; Tue,  9 Aug 2016 03:26:52 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id u81so9810001wmu.3
+        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 00:26:52 -0700 (PDT)
+Received: from outbound-smtp08.blacknight.com (outbound-smtp08.blacknight.com. [46.22.139.13])
+        by mx.google.com with ESMTPS id gw1si24463863wjb.102.2016.08.09.00.26.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Aug 2016 00:02:53 -0700 (PDT)
-Received: by mail-pa0-x241.google.com with SMTP id hh10so462088pac.1
-        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 00:02:53 -0700 (PDT)
-Subject: Re: [RFC][PATCH] cgroup_threadgroup_rwsem - affects scalability and
- OOM
-References: <4717ef90-ca86-4a34-c63a-94b8b4bfaaec@gmail.com>
- <20160809062900.GD4906@mtj.duckdns.org>
-From: Balbir Singh <bsingharora@gmail.com>
-Message-ID: <0a7ffe43-c0c6-85df-9bc2-d00fc837e284@gmail.com>
-Date: Tue, 9 Aug 2016 17:02:47 +1000
+        Tue, 09 Aug 2016 00:26:51 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp08.blacknight.com (Postfix) with ESMTPS id C6F581C1B4E
+	for <linux-mm@kvack.org>; Tue,  9 Aug 2016 08:26:50 +0100 (IST)
+Date: Tue, 9 Aug 2016 08:26:39 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 1/2] mm/page_alloc: fix wrong initialization when
+ sysctl_min_unmapped_ratio changes
+Message-ID: <20160809072639.GA8119@techsingularity.net>
+References: <1470724248-26780-1-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
-In-Reply-To: <20160809062900.GD4906@mtj.duckdns.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1470724248-26780-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: cgroups@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: js1304@gmail.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-
-
-On 09/08/16 16:29, Tejun Heo wrote:
-> Hello, Balbir.
+On Tue, Aug 09, 2016 at 03:30:47PM +0900, js1304@gmail.com wrote:
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > 
-> On Tue, Aug 09, 2016 at 02:19:01PM +1000, Balbir Singh wrote:
->>
->> cgroup_threadgroup_rwsem is acquired in read mode during process exit and fork.
->> It is also grabbed in write mode during __cgroups_proc_write
->>
->> I've recently run into a scenario with lots of memory pressure and OOM
->> and I am beginning to see
->>
->> systemd
->>
->>  __switch_to+0x1f8/0x350
->>  __schedule+0x30c/0x990
->>  schedule+0x48/0xc0
->>  percpu_down_write+0x114/0x170
->>  __cgroup_procs_write.isra.12+0xb8/0x3c0
->>  cgroup_file_write+0x74/0x1a0
->>  kernfs_fop_write+0x188/0x200
->>  __vfs_write+0x6c/0xe0
->>  vfs_write+0xc0/0x230
->>  SyS_write+0x6c/0x110
->>  system_call+0x38/0xb4
->>
->> This thread is waiting on the reader of cgroup_threadgroup_rwsem to exit.
->> The reader itself is under memory pressure and has gone into reclaim after
->> fork. There are times the reader also ends up waiting on oom_lock as well.
->>
-> ...
->>  copy_page_range+0x4ec/0x950
->>  copy_process.isra.5+0x15a0/0x1870
->>  _do_fork+0xa8/0x4b0
->>  ppc_clone+0x8/0xc
+> Before resetting min_unmapped_pages, we need to initialize
+> min_unmapped_pages rather than min_slab_pages.
 > 
-> Yeah, we definitely don't wanna be holding the rwsem during the actual
-> fork.
-> 
-> ...
->> There are other theoretical issues with this semaphore
->>
->> systemd can do
->>
->> 1. cgroup_mutex (cgroup_kn_lock_live)
->> 2. cgroup_threadgroup_rwsem (W) (__cgroup_procs_write)
->>
->> and other threads can go
->>
->> 1. cgroup_threadgroup_rwsem (R) (copy_process)
->> 2. mem_cgroup_iter (as a part of reclaim) (cgroup_mutex -- rcu lock or cgroup_mutex)
-> 
-> Hmm? Where does mem_cgroup_iter grab cgroup_mutex?  cgroup_mutex nests
-> outside cgroup_threadgroup_rwsem or most other mutexes for that matter
-> and isn't exposed from cgroup core.
-> 
+> Fixes: a5f5f91da6 (mm: convert zone_reclaim to node_reclaim)
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-I based my theory on the code
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
 
-mem_cgroup_iter -> css_next_descendant_pre which asserts
-
-cgroup_assert_mutex_or_rcu_locked(), 
-
-although you are right, we hold RCU lock while calling css_* routines.
-
->> However, I've not examined them in too much detail or looked at lockdep
->> wait chains for those paths.
->>
->> I am sure there is a good reason for placing cgroup_threadgroup_rwsem
->> where it is today and I might be missing something. I am also surprised
-> 
-> I could be missing something too but the positioning is largely
-> historic.
-> 
->> no-one else has run into it so far.
-> 
-> Maybe it might matter that much on a system which is already heavily
-> thrasing, but yeah, we definitely want to tighten down the reader
-> sections so that it doesn't get in the way of making forward progress.
-> 
-
-It seems to cause my system to thrash quite badly.
-
->> Comments?
-> 
-> The change looks good to me on the first glance but I'll think more
-> about it tomorrow.
-> 
-> Thanks!
-> 
-
-
-Thanks for the review.
-
-Balbir Singh.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
