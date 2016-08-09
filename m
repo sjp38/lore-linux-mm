@@ -1,1725 +1,547 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 33EA2828EA
-	for <linux-mm@kvack.org>; Mon,  8 Aug 2016 19:18:45 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id o124so700250179pfg.1
-        for <linux-mm@kvack.org>; Mon, 08 Aug 2016 16:18:45 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id o75si39267318pfj.22.2016.08.08.16.18.36
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 77F376B0005
+	for <linux-mm@kvack.org>; Mon,  8 Aug 2016 21:00:02 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id le9so249418655pab.0
+        for <linux-mm@kvack.org>; Mon, 08 Aug 2016 18:00:02 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id y186si39663046pfb.59.2016.08.08.18.00.01
         for <linux-mm@kvack.org>;
-        Mon, 08 Aug 2016 16:18:36 -0700 (PDT)
-Subject: [PATCH 10/10] x86, pkeys: add self-tests
-From: Dave Hansen <dave@sr71.net>
-Date: Mon, 08 Aug 2016 16:18:35 -0700
-References: <20160808231820.F7A9C4D8@viggo.jf.intel.com>
-In-Reply-To: <20160808231820.F7A9C4D8@viggo.jf.intel.com>
-Message-Id: <20160808231835.17503B21@viggo.jf.intel.com>
+        Mon, 08 Aug 2016 18:00:01 -0700 (PDT)
+Date: Tue, 9 Aug 2016 09:04:23 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [linux-stable-rc:linux-3.14.y 1941/4855]
+ arch/mips/jz4740/irq.c:62:6: error: conflicting types for
+ 'jz4740_irq_suspend'
+Message-ID: <201608090921.ZFF5cAHU%fengguang.wu@intel.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="T4sUOijqQbZv57TR"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: x86@kernel.org, linux-api@vger.kernel.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, akpm@linux-foundation.org, luto@kernel.org, mgorman@techsingularity.net, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com, shuahkh@osg.samsung.com, arnd@arndb.de
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: kbuild-all@01.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+--T4sUOijqQbZv57TR
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-This code should be a good demonstration of how to use the new
-system calls as well as how to use protection keys in general.
+Hi Sasha,
 
-This code shows how to:
-1. Manipulate the Protection Keys Rights User (PKRU) register
-2. Set a protection key on memory
-3. Fetch and/or modify PKRU from the signal XSAVE state
-4. Read the kernel-provided protection key in the siginfo
-5. Set up an execute-only mapping
+First bad commit (maybe != root cause):
 
-There are currently 13 tests:
+tree:   https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable-rc.git linux-3.14.y
+head:   80b848303c2e36c5029a8cbde4f3287abbd796bd
+commit: 017ff97daa4a7892181a4dd315c657108419da0c [1941/4855] kernel: add support for gcc 5
+config: mips-jz4740 (attached as .config)
+compiler: mipsel-linux-gnu-gcc (Debian 5.4.0-6) 5.4.0 20160609
+reproduce:
+        wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
+        chmod +x ~/bin/make.cross
+        git checkout 017ff97daa4a7892181a4dd315c657108419da0c
+        # save the attached .config to linux build tree
+        make.cross ARCH=mips 
 
-        test_read_of_write_disabled_region
-        test_read_of_access_disabled_region
-        test_write_of_write_disabled_region
-        test_write_of_access_disabled_region
-        test_kernel_write_of_access_disabled_region
-        test_kernel_write_of_write_disabled_region
-        test_kernel_gup_of_access_disabled_region
-        test_kernel_gup_write_to_write_disabled_region
-        test_executing_on_unreadable_memory
-        test_ptrace_of_child
-        test_pkey_syscalls_on_non_allocated_pkey
-        test_pkey_syscalls_bad_args
-	test_pkey_alloc_exhaust
+All errors (new ones prefixed by >>):
 
-Each of the tests is run with plain memory (via mmap(MAP_ANON)),
-transparent huge pages, and hugetlb.
+   In file included from arch/mips/include/asm/irq.h:18:0,
+                    from include/linux/irq.h:24,
+                    from include/asm-generic/hardirq.h:12,
+                    from arch/mips/include/asm/hardirq.h:16,
+                    from include/linux/hardirq.h:8,
+                    from include/linux/interrupt.h:12,
+                    from arch/mips/jz4740/irq.c:19:
+   arch/mips/jz4740/irq.h:20:39: warning: 'struct irq_data' declared inside parameter list
+    extern void jz4740_irq_suspend(struct irq_data *data);
+                                          ^
+   arch/mips/jz4740/irq.h:20:39: warning: its scope is only this definition or declaration, which is probably not what you want
+   arch/mips/jz4740/irq.h:21:38: warning: 'struct irq_data' declared inside parameter list
+    extern void jz4740_irq_resume(struct irq_data *data);
+                                         ^
+   In file included from include/linux/irq.h:363:0,
+                    from include/asm-generic/hardirq.h:12,
+                    from arch/mips/include/asm/hardirq.h:16,
+                    from include/linux/hardirq.h:8,
+                    from include/linux/interrupt.h:12,
+                    from arch/mips/jz4740/irq.c:19:
+   include/linux/irqdesc.h:80:33: error: 'NR_IRQS' undeclared here (not in a function)
+    extern struct irq_desc irq_desc[NR_IRQS];
+                                    ^
+   arch/mips/jz4740/irq.c: In function 'jz4740_cascade':
+   arch/mips/jz4740/irq.c:49:39: error: 'JZ4740_IRQ_BASE' undeclared (first use in this function)
+      generic_handle_irq(__fls(irq_reg) + JZ4740_IRQ_BASE);
+                                          ^
+   arch/mips/jz4740/irq.c:49:39: note: each undeclared identifier is reported only once for each function it appears in
+   arch/mips/jz4740/irq.c: At top level:
+>> arch/mips/jz4740/irq.c:62:6: error: conflicting types for 'jz4740_irq_suspend'
+    void jz4740_irq_suspend(struct irq_data *data)
+         ^
+   In file included from arch/mips/include/asm/irq.h:18:0,
+                    from include/linux/irq.h:24,
+                    from include/asm-generic/hardirq.h:12,
+                    from arch/mips/include/asm/hardirq.h:16,
+                    from include/linux/hardirq.h:8,
+                    from include/linux/interrupt.h:12,
+                    from arch/mips/jz4740/irq.c:19:
+   arch/mips/jz4740/irq.h:20:13: note: previous declaration of 'jz4740_irq_suspend' was here
+    extern void jz4740_irq_suspend(struct irq_data *data);
+                ^
+>> arch/mips/jz4740/irq.c:68:6: error: conflicting types for 'jz4740_irq_resume'
+    void jz4740_irq_resume(struct irq_data *data)
+         ^
+   In file included from arch/mips/include/asm/irq.h:18:0,
+                    from include/linux/irq.h:24,
+                    from include/asm-generic/hardirq.h:12,
+                    from arch/mips/include/asm/hardirq.h:16,
+                    from include/linux/hardirq.h:8,
+                    from include/linux/interrupt.h:12,
+                    from arch/mips/jz4740/irq.c:19:
+   arch/mips/jz4740/irq.h:21:13: note: previous declaration of 'jz4740_irq_resume' was here
+    extern void jz4740_irq_resume(struct irq_data *data);
+                ^
+   arch/mips/jz4740/irq.c: In function 'arch_init_irq':
+   arch/mips/jz4740/irq.c:91:41: error: 'JZ4740_IRQ_BASE' undeclared (first use in this function)
+     gc = irq_alloc_generic_chip("INTC", 1, JZ4740_IRQ_BASE, jz_intc_base,
+                                            ^
+--
+   arch/mips/kernel/r4k_switch.S: Assembler messages:
+>> arch/mips/kernel/r4k_switch.S:67: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f0,952($4)'
+   arch/mips/kernel/r4k_switch.S:67: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f2,968($4)'
+   arch/mips/kernel/r4k_switch.S:67: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f4,984($4)'
+>> arch/mips/kernel/r4k_switch.S:67: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f6,1000($4)'
+>> arch/mips/kernel/r4k_switch.S:67: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f8,1016($4)'
+>> arch/mips/kernel/r4k_switch.S:67: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f10,1032($4)'
+>> arch/mips/kernel/r4k_switch.S:67: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f12,1048($4)'
+>> arch/mips/kernel/r4k_switch.S:67: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f14,1064($4)'
+   arch/mips/kernel/r4k_switch.S:67: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f16,1080($4)'
+   arch/mips/kernel/r4k_switch.S:67: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f18,1096($4)'
+   arch/mips/kernel/r4k_switch.S:67: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f20,1112($4)'
+   arch/mips/kernel/r4k_switch.S:67: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f22,1128($4)'
+   arch/mips/kernel/r4k_switch.S:67: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f24,1144($4)'
+   arch/mips/kernel/r4k_switch.S:67: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f26,1160($4)'
+   arch/mips/kernel/r4k_switch.S:67: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f28,1176($4)'
+   arch/mips/kernel/r4k_switch.S:67: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f30,1192($4)'
+   arch/mips/kernel/r4k_switch.S:129: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f0,952($4)'
+   arch/mips/kernel/r4k_switch.S:129: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f2,968($4)'
+   arch/mips/kernel/r4k_switch.S:129: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f4,984($4)'
+   arch/mips/kernel/r4k_switch.S:129: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f6,1000($4)'
+   arch/mips/kernel/r4k_switch.S:129: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f8,1016($4)'
+   arch/mips/kernel/r4k_switch.S:129: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f10,1032($4)'
+   arch/mips/kernel/r4k_switch.S:129: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f12,1048($4)'
+   arch/mips/kernel/r4k_switch.S:129: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f14,1064($4)'
+   arch/mips/kernel/r4k_switch.S:129: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f16,1080($4)'
+   arch/mips/kernel/r4k_switch.S:129: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f18,1096($4)'
+   arch/mips/kernel/r4k_switch.S:129: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f20,1112($4)'
+   arch/mips/kernel/r4k_switch.S:129: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f22,1128($4)'
+   arch/mips/kernel/r4k_switch.S:129: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f24,1144($4)'
+   arch/mips/kernel/r4k_switch.S:129: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f26,1160($4)'
+   arch/mips/kernel/r4k_switch.S:129: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f28,1176($4)'
+   arch/mips/kernel/r4k_switch.S:129: Error: opcode not supported on this processor: mips32 (mips32) `sdc1 $f30,1192($4)'
+>> arch/mips/kernel/r4k_switch.S:140: Error: opcode not supported on this processor: mips32 (mips32) `ldc1 $f0,952($4)'
+   arch/mips/kernel/r4k_switch.S:140: Error: opcode not supported on this processor: mips32 (mips32) `ldc1 $f2,968($4)'
+   arch/mips/kernel/r4k_switch.S:140: Error: opcode not supported on this processor: mips32 (mips32) `ldc1 $f4,984($4)'
+>> arch/mips/kernel/r4k_switch.S:140: Error: opcode not supported on this processor: mips32 (mips32) `ldc1 $f6,1000($4)'
+>> arch/mips/kernel/r4k_switch.S:140: Error: opcode not supported on this processor: mips32 (mips32) `ldc1 $f8,1016($4)'
+>> arch/mips/kernel/r4k_switch.S:140: Error: opcode not supported on this processor: mips32 (mips32) `ldc1 $f10,1032($4)'
+>> arch/mips/kernel/r4k_switch.S:140: Error: opcode not supported on this processor: mips32 (mips32) `ldc1 $f12,1048($4)'
+>> arch/mips/kernel/r4k_switch.S:140: Error: opcode not supported on this processor: mips32 (mips32) `ldc1 $f14,1064($4)'
+   arch/mips/kernel/r4k_switch.S:140: Error: opcode not supported on this processor: mips32 (mips32) `ldc1 $f16,1080($4)'
+   arch/mips/kernel/r4k_switch.S:140: Error: opcode not supported on this processor: mips32 (mips32) `ldc1 $f18,1096($4)'
+   arch/mips/kernel/r4k_switch.S:140: Error: opcode not supported on this processor: mips32 (mips32) `ldc1 $f20,1112($4)'
+   arch/mips/kernel/r4k_switch.S:140: Error: opcode not supported on this processor: mips32 (mips32) `ldc1 $f22,1128($4)'
+   arch/mips/kernel/r4k_switch.S:140: Error: opcode not supported on this processor: mips32 (mips32) `ldc1 $f24,1144($4)'
+   arch/mips/kernel/r4k_switch.S:140: Error: opcode not supported on this processor: mips32 (mips32) `ldc1 $f26,1160($4)'
+   arch/mips/kernel/r4k_switch.S:140: Error: opcode not supported on this processor: mips32 (mips32) `ldc1 $f28,1176($4)'
+   arch/mips/kernel/r4k_switch.S:140: Error: opcode not supported on this processor: mips32 (mips32) `ldc1 $f30,1192($4)'
+>> arch/mips/kernel/r4k_switch.S:199: Error: opcode not supported on this processor: mips32 (mips32) `mtc1 $9,$f0'
+>> arch/mips/kernel/r4k_switch.S:200: Error: opcode not supported on this processor: mips32 (mips32) `mtc1 $9,$f1'
+>> arch/mips/kernel/r4k_switch.S:201: Error: opcode not supported on this processor: mips32 (mips32) `mtc1 $9,$f2'
+>> arch/mips/kernel/r4k_switch.S:202: Error: opcode not supported on this processor: mips32 (mips32) `mtc1 $9,$f3'
+>> arch/mips/kernel/r4k_switch.S:203: Error: opcode not supported on this processor: mips32 (mips32) `mtc1 $9,$f4'
+>> arch/mips/kernel/r4k_switch.S:204: Error: opcode not supported on this processor: mips32 (mips32) `mtc1 $9,$f5'
+>> arch/mips/kernel/r4k_switch.S:205: Error: opcode not supported on this processor: mips32 (mips32) `mtc1 $9,$f6'
+>> arch/mips/kernel/r4k_switch.S:206: Error: opcode not supported on this processor: mips32 (mips32) `mtc1 $9,$f7'
 
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: shuahkh@osg.samsung.com
-Cc: linux-api@vger.kernel.org
-Cc: linux-arch@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: x86@kernel.org
-Cc: torvalds@linux-foundation.org
-Cc: akpm@linux-foundation.org
-Cc: Arnd Bergmann <arnd@arndb.de>
-Cc: mgorman@techsingularity.net
+vim +/jz4740_irq_suspend +62 arch/mips/jz4740/irq.c
+
+9869848d Lars-Peter Clausen 2010-07-17  13   *
+9869848d Lars-Peter Clausen 2010-07-17  14   */
+9869848d Lars-Peter Clausen 2010-07-17  15  
+9869848d Lars-Peter Clausen 2010-07-17  16  #include <linux/errno.h>
+9869848d Lars-Peter Clausen 2010-07-17  17  #include <linux/init.h>
+9869848d Lars-Peter Clausen 2010-07-17  18  #include <linux/types.h>
+9869848d Lars-Peter Clausen 2010-07-17 @19  #include <linux/interrupt.h>
+9869848d Lars-Peter Clausen 2010-07-17  20  #include <linux/ioport.h>
+9869848d Lars-Peter Clausen 2010-07-17  21  #include <linux/timex.h>
+9869848d Lars-Peter Clausen 2010-07-17  22  #include <linux/slab.h>
+9869848d Lars-Peter Clausen 2010-07-17  23  #include <linux/delay.h>
+9869848d Lars-Peter Clausen 2010-07-17  24  
+9869848d Lars-Peter Clausen 2010-07-17  25  #include <linux/debugfs.h>
+9869848d Lars-Peter Clausen 2010-07-17  26  #include <linux/seq_file.h>
+9869848d Lars-Peter Clausen 2010-07-17  27  
+9869848d Lars-Peter Clausen 2010-07-17  28  #include <asm/io.h>
+9869848d Lars-Peter Clausen 2010-07-17  29  #include <asm/mipsregs.h>
+9869848d Lars-Peter Clausen 2010-07-17  30  #include <asm/irq_cpu.h>
+9869848d Lars-Peter Clausen 2010-07-17  31  
+9869848d Lars-Peter Clausen 2010-07-17  32  #include <asm/mach-jz4740/base.h>
+9869848d Lars-Peter Clausen 2010-07-17  33  
+9869848d Lars-Peter Clausen 2010-07-17  34  static void __iomem *jz_intc_base;
+9869848d Lars-Peter Clausen 2010-07-17  35  
+9869848d Lars-Peter Clausen 2010-07-17  36  #define JZ_REG_INTC_STATUS	0x00
+9869848d Lars-Peter Clausen 2010-07-17  37  #define JZ_REG_INTC_MASK	0x04
+9869848d Lars-Peter Clausen 2010-07-17  38  #define JZ_REG_INTC_SET_MASK	0x08
+9869848d Lars-Peter Clausen 2010-07-17  39  #define JZ_REG_INTC_CLEAR_MASK	0x0c
+9869848d Lars-Peter Clausen 2010-07-17  40  #define JZ_REG_INTC_PENDING	0x10
+9869848d Lars-Peter Clausen 2010-07-17  41  
+83bc7692 Lars-Peter Clausen 2011-09-24  42  static irqreturn_t jz4740_cascade(int irq, void *data)
+9869848d Lars-Peter Clausen 2010-07-17  43  {
+83bc7692 Lars-Peter Clausen 2011-09-24  44  	uint32_t irq_reg;
+9869848d Lars-Peter Clausen 2010-07-17  45  
+83bc7692 Lars-Peter Clausen 2011-09-24  46  	irq_reg = readl(jz_intc_base + JZ_REG_INTC_PENDING);
+9869848d Lars-Peter Clausen 2010-07-17  47  
+83bc7692 Lars-Peter Clausen 2011-09-24  48  	if (irq_reg)
+83bc7692 Lars-Peter Clausen 2011-09-24 @49  		generic_handle_irq(__fls(irq_reg) + JZ4740_IRQ_BASE);
+83bc7692 Lars-Peter Clausen 2011-09-24  50  
+83bc7692 Lars-Peter Clausen 2011-09-24  51  	return IRQ_HANDLED;
+42b64f38 Thomas Gleixner    2011-03-23  52  }
+42b64f38 Thomas Gleixner    2011-03-23  53  
+83bc7692 Lars-Peter Clausen 2011-09-24  54  static void jz4740_irq_set_mask(struct irq_chip_generic *gc, uint32_t mask)
+9869848d Lars-Peter Clausen 2010-07-17  55  {
+83bc7692 Lars-Peter Clausen 2011-09-24  56  	struct irq_chip_regs *regs = &gc->chip_types->regs;
+9869848d Lars-Peter Clausen 2010-07-17  57  
+83bc7692 Lars-Peter Clausen 2011-09-24  58  	writel(mask, gc->reg_base + regs->enable);
+83bc7692 Lars-Peter Clausen 2011-09-24  59  	writel(~mask, gc->reg_base + regs->disable);
+9869848d Lars-Peter Clausen 2010-07-17  60  }
+9869848d Lars-Peter Clausen 2010-07-17  61  
+83bc7692 Lars-Peter Clausen 2011-09-24 @62  void jz4740_irq_suspend(struct irq_data *data)
+9869848d Lars-Peter Clausen 2010-07-17  63  {
+83bc7692 Lars-Peter Clausen 2011-09-24  64  	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(data);
+83bc7692 Lars-Peter Clausen 2011-09-24  65  	jz4740_irq_set_mask(gc, gc->wake_active);
+83bc7692 Lars-Peter Clausen 2011-09-24  66  }
+9869848d Lars-Peter Clausen 2010-07-17  67  
+83bc7692 Lars-Peter Clausen 2011-09-24 @68  void jz4740_irq_resume(struct irq_data *data)
+83bc7692 Lars-Peter Clausen 2011-09-24  69  {
+83bc7692 Lars-Peter Clausen 2011-09-24  70  	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(data);
+83bc7692 Lars-Peter Clausen 2011-09-24  71  	jz4740_irq_set_mask(gc, gc->mask_cache);
+
+:::::: The code at line 62 was first introduced by commit
+:::::: 83bc769200802c9ce8fd1c7315fd14198d385b12 MIPS: JZ4740: Use generic irq chip
+
+:::::: TO: Lars-Peter Clausen <lars@metafoo.de>
+:::::: CC: Ralf Baechle <ralf@linux-mips.org>
+
 ---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
- b/tools/testing/selftests/x86/Makefile          |    3 
- b/tools/testing/selftests/x86/pkey-helpers.h    |  219 +++
- b/tools/testing/selftests/x86/protection_keys.c | 1411 ++++++++++++++++++++++++
- 3 files changed, 1632 insertions(+), 1 deletion(-)
+--T4sUOijqQbZv57TR
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename=".config.gz"
+Content-Transfer-Encoding: base64
 
-diff -puN tools/testing/selftests/x86/Makefile~pkeys-130-selftests tools/testing/selftests/x86/Makefile
---- a/tools/testing/selftests/x86/Makefile~pkeys-130-selftests	2016-08-08 16:15:13.783177018 -0700
-+++ b/tools/testing/selftests/x86/Makefile	2016-08-08 16:15:13.786177154 -0700
-@@ -5,7 +5,8 @@ include ../lib.mk
- .PHONY: all all_32 all_64 warn_32bit_failure clean
- 
- TARGETS_C_BOTHBITS := single_step_syscall sysret_ss_attrs syscall_nt ptrace_syscall test_mremap_vdso \
--			check_initial_reg_state sigreturn ldt_gdt iopl mpx-mini-test
-+			check_initial_reg_state sigreturn ldt_gdt iopl mpx-mini-test \
-+			protection_keys
- TARGETS_C_32BIT_ONLY := entry_from_vm86 syscall_arg_fault test_syscall_vdso unwind_vdso \
- 			test_FCMOV test_FCOMI test_FISTTP \
- 			vdso_restorer
-diff -puN /dev/null tools/testing/selftests/x86/pkey-helpers.h
---- /dev/null	2016-08-01 12:51:02.402390087 -0700
-+++ b/tools/testing/selftests/x86/pkey-helpers.h	2016-08-08 16:15:13.786177154 -0700
-@@ -0,0 +1,219 @@
-+#ifndef _PKEYS_HELPER_H
-+#define _PKEYS_HELPER_H
-+#define _GNU_SOURCE
-+#include <string.h>
-+#include <stdarg.h>
-+#include <stdio.h>
-+#include <stdint.h>
-+#include <stdbool.h>
-+#include <signal.h>
-+#include <assert.h>
-+#include <stdlib.h>
-+#include <ucontext.h>
-+#include <sys/mman.h>
-+
-+#define NR_PKEYS 16
-+#define PKRU_BITS_PER_PKEY 2
-+
-+#ifndef DEBUG_LEVEL
-+#define DEBUG_LEVEL 0
-+#endif
-+#define DPRINT_IN_SIGNAL_BUF_SIZE 4096
-+extern int dprint_in_signal;
-+extern char dprint_in_signal_buffer[DPRINT_IN_SIGNAL_BUF_SIZE];
-+static inline void sigsafe_printf(const char *format, ...)
-+{
-+	va_list ap;
-+
-+	va_start(ap, format);
-+	if (!dprint_in_signal) {
-+		vprintf(format, ap);
-+	} else {
-+		int len = vsnprintf(dprint_in_signal_buffer,
-+				    DPRINT_IN_SIGNAL_BUF_SIZE,
-+				    format, ap);
-+		/*
-+		 * len is amount that would have been printed,
-+		 * but actual write is truncated at BUF_SIZE.
-+		 */
-+		if (len > DPRINT_IN_SIGNAL_BUF_SIZE)
-+			len = DPRINT_IN_SIGNAL_BUF_SIZE;
-+		write(1, dprint_in_signal_buffer, len);
-+	}
-+	va_end(ap);
-+}
-+#define dprintf_level(level, args...) do { 	\
-+	if (level <= DEBUG_LEVEL)		\
-+		sigsafe_printf(args);		\
-+	fflush(NULL);				\
-+} while (0)
-+#define dprintf0(args...) dprintf_level(0, args)
-+#define dprintf1(args...) dprintf_level(1, args)
-+#define dprintf2(args...) dprintf_level(2, args)
-+#define dprintf3(args...) dprintf_level(3, args)
-+#define dprintf4(args...) dprintf_level(4, args)
-+
-+extern unsigned int shadow_pkru;
-+static inline unsigned int __rdpkru(void)
-+{
-+	unsigned int eax, edx;
-+	unsigned int ecx = 0;
-+	unsigned int pkru;
-+
-+	asm volatile(".byte 0x0f,0x01,0xee\n\t"
-+		     : "=a" (eax), "=d" (edx)
-+		     : "c" (ecx));
-+	pkru = eax;
-+	return pkru;
-+}
-+
-+static inline unsigned int _rdpkru(int line)
-+{
-+	unsigned int pkru = __rdpkru();
-+
-+	dprintf4("rdpkru(line=%d) pkru: %x shadow: %x\n",
-+			line, pkru, shadow_pkru);
-+	assert(pkru == shadow_pkru);
-+
-+	return pkru;
-+}
-+
-+#define rdpkru() _rdpkru(__LINE__)
-+
-+static inline void __wrpkru(unsigned int pkru)
-+{
-+	unsigned int eax = pkru;
-+	unsigned int ecx = 0;
-+	unsigned int edx = 0;
-+
-+	dprintf4("%s() changing %08x to %08x\n", __func__, __rdpkru(), pkru);
-+	asm volatile(".byte 0x0f,0x01,0xef\n\t"
-+		     : : "a" (eax), "c" (ecx), "d" (edx));
-+	assert(pkru == __rdpkru());
-+}
-+
-+static inline void wrpkru(unsigned int pkru)
-+{
-+	dprintf4("%s() changing %08x to %08x\n", __func__, __rdpkru(), pkru);
-+	/* will do the shadow check for us: */
-+	rdpkru();
-+	__wrpkru(pkru);
-+	shadow_pkru = pkru;
-+	dprintf4("%s(%08x) pkru: %08x\n", __func__, pkru, __rdpkru());
-+}
-+
-+/*
-+ * These are technically racy. since something could
-+ * change PKRU between the read and the write.
-+ */
-+static inline void __pkey_access_allow(int pkey, int do_allow)
-+{
-+	unsigned int pkru = rdpkru();
-+	int bit = pkey * 2;
-+
-+	if (do_allow)
-+		pkru &= (1<<bit);
-+	else
-+		pkru |= (1<<bit);
-+
-+	dprintf4("pkru now: %08x\n", rdpkru());
-+	wrpkru(pkru);
-+}
-+
-+static inline void __pkey_write_allow(int pkey, int do_allow_write)
-+{
-+	long pkru = rdpkru();
-+	int bit = pkey * 2 + 1;
-+
-+	if (do_allow_write)
-+		pkru &= (1<<bit);
-+	else
-+		pkru |= (1<<bit);
-+
-+	wrpkru(pkru);
-+	dprintf4("pkru now: %08x\n", rdpkru());
-+}
-+
-+#define PROT_PKEY0     0x10            /* protection key value (bit 0) */
-+#define PROT_PKEY1     0x20            /* protection key value (bit 1) */
-+#define PROT_PKEY2     0x40            /* protection key value (bit 2) */
-+#define PROT_PKEY3     0x80            /* protection key value (bit 3) */
-+
-+#define PAGE_SIZE 4096
-+#define MB	(1<<20)
-+
-+static inline void __cpuid(unsigned int *eax, unsigned int *ebx,
-+		unsigned int *ecx, unsigned int *edx)
-+{
-+	/* ecx is often an input as well as an output. */
-+	asm volatile(
-+		"cpuid;"
-+		: "=a" (*eax),
-+		  "=b" (*ebx),
-+		  "=c" (*ecx),
-+		  "=d" (*edx)
-+		: "0" (*eax), "2" (*ecx));
-+}
-+
-+/* Intel-defined CPU features, CPUID level 0x00000007:0 (ecx) */
-+#define X86_FEATURE_PKU        (1<<3) /* Protection Keys for Userspace */
-+#define X86_FEATURE_OSPKE      (1<<4) /* OS Protection Keys Enable */
-+
-+static inline int cpu_has_pku(void)
-+{
-+	unsigned int eax;
-+	unsigned int ebx;
-+	unsigned int ecx;
-+	unsigned int edx;
-+
-+	eax = 0x7;
-+	ecx = 0x0;
-+	__cpuid(&eax, &ebx, &ecx, &edx);
-+
-+	if (!(ecx & X86_FEATURE_PKU)) {
-+		dprintf2("cpu does not have PKU\n");
-+		return 0;
-+	}
-+	if (!(ecx & X86_FEATURE_OSPKE)) {
-+		dprintf2("cpu does not have OSPKE\n");
-+		return 0;
-+	}
-+	return 1;
-+}
-+
-+#define XSTATE_PKRU_BIT	(9)
-+#define XSTATE_PKRU	0x200
-+
-+int pkru_xstate_offset(void)
-+{
-+	unsigned int eax;
-+	unsigned int ebx;
-+	unsigned int ecx;
-+	unsigned int edx;
-+	int xstate_offset;
-+	int xstate_size;
-+	unsigned long XSTATE_CPUID = 0xd;
-+	int leaf;
-+
-+	/* assume that XSTATE_PKRU is set in XCR0 */
-+	leaf = XSTATE_PKRU_BIT;
-+	{
-+		eax = XSTATE_CPUID;
-+		ecx = leaf;
-+		__cpuid(&eax, &ebx, &ecx, &edx);
-+
-+		if (leaf == XSTATE_PKRU_BIT) {
-+			xstate_offset = ebx;
-+			xstate_size = eax;
-+		}
-+	}
-+
-+	if (xstate_size == 0) {
-+		printf("could not find size/offset of PKRU in xsave state\n");
-+		return 0;
-+	}
-+
-+	return xstate_offset;
-+}
-+
-+#endif /* _PKEYS_HELPER_H */
-diff -puN /dev/null tools/testing/selftests/x86/protection_keys.c
---- /dev/null	2016-08-01 12:51:02.402390087 -0700
-+++ b/tools/testing/selftests/x86/protection_keys.c	2016-08-08 16:15:13.789177291 -0700
-@@ -0,0 +1,1411 @@
-+/*
-+ * Tests x86 Memory Protection Keys (see Documentation/x86/protection-keys.txt)
-+ *
-+ * There are examples in here of:
-+ *  * how to set protection keys on memory
-+ *  * how to set/clear bits in PKRU (the rights register)
-+ *  * how to handle SEGV_PKRU signals and extract pkey-relevant
-+ *    information from the siginfo
-+ *
-+ * Things to add:
-+ *	make sure KSM and KSM COW breaking works
-+ *	prefault pages in at malloc, or not
-+ *	protect MPX bounds tables with protection keys?
-+ *	make sure VMA splitting/merging is working correctly
-+ *	OOMs can destroy mm->mmap (see exit_mmap()), so make sure it is immune to pkeys
-+ *	look for pkey "leaks" where it is still set on a VMA but "freed" back to the kernel
-+ *	do a plain mprotect() to a mprotect_pkey() area and make sure the pkey sticks
-+ *
-+ * Compile like this:
-+ *	gcc      -o protection_keys    -O2 -g -std=gnu99 -pthread -Wall protection_keys.c -lrt -ldl -lm
-+ *	gcc -m32 -o protection_keys_32 -O2 -g -std=gnu99 -pthread -Wall protection_keys.c -lrt -ldl -lm
-+ */
-+#define _GNU_SOURCE
-+#include <errno.h>
-+#include <linux/futex.h>
-+#include <sys/time.h>
-+#include <sys/syscall.h>
-+#include <string.h>
-+#include <stdio.h>
-+#include <stdint.h>
-+#include <stdbool.h>
-+#include <signal.h>
-+#include <assert.h>
-+#include <stdlib.h>
-+#include <ucontext.h>
-+#include <sys/mman.h>
-+#include <sys/types.h>
-+#include <sys/wait.h>
-+#include <sys/stat.h>
-+#include <fcntl.h>
-+#include <unistd.h>
-+#include <sys/ptrace.h>
-+#include <setjmp.h>
-+
-+#include "pkey-helpers.h"
-+
-+int iteration_nr = 1;
-+int test_nr;
-+
-+unsigned int shadow_pkru;
-+
-+#define HPAGE_SIZE	(1UL<<21)
-+#define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
-+#define ALIGN_UP(x, align_to)	(((x) + ((align_to)-1)) & ~((align_to)-1))
-+#define ALIGN_DOWN(x, align_to) ((x) & ~((align_to)-1))
-+#define ALIGN_PTR_UP(p, ptr_align_to)	((typeof(p))ALIGN_UP((unsigned long)(p),	ptr_align_to))
-+#define ALIGN_PTR_DOWN(p, ptr_align_to)	((typeof(p))ALIGN_DOWN((unsigned long)(p),	ptr_align_to))
-+#define __stringify_1(x...)     #x
-+#define __stringify(x...)       __stringify_1(x)
-+
-+#define PTR_ERR_ENOTSUP ((void *)-ENOTSUP)
-+
-+int dprint_in_signal;
-+char dprint_in_signal_buffer[DPRINT_IN_SIGNAL_BUF_SIZE];
-+
-+extern void abort_hooks(void);
-+#define pkey_assert(condition) do {		\
-+	if (!(condition)) {			\
-+		dprintf0("assert() at %s::%d test_nr: %d iteration: %d\n", \
-+				__FILE__, __LINE__,	\
-+				test_nr, iteration_nr);	\
-+		dprintf0("errno at assert: %d", errno);	\
-+		abort_hooks();			\
-+		assert(condition);		\
-+	}					\
-+} while (0)
-+#define raw_assert(cond) assert(cond)
-+
-+void cat_into_file(char *str, char *file)
-+{
-+	int fd = open(file, O_RDWR);
-+	int ret;
-+
-+	dprintf2("%s(): writing '%s' to '%s'\n", __func__, str, file);
-+	/*
-+	 * these need to be raw because they are called under
-+	 * pkey_assert()
-+	 */
-+	raw_assert(fd >= 0);
-+	ret = write(fd, str, strlen(str));
-+	if (ret != strlen(str)) {
-+		perror("write to file failed");
-+		fprintf(stderr, "filename: '%s' str: '%s'\n", file, str);
-+		raw_assert(0);
-+	}
-+	close(fd);
-+}
-+
-+#if CONTROL_TRACING > 0
-+static int warned_tracing;
-+int tracing_root_ok(void)
-+{
-+	if (geteuid() != 0) {
-+		if (!warned_tracing)
-+			fprintf(stderr, "WARNING: not run as root, "
-+					"can not do tracing control\n");
-+		warned_tracing = 1;
-+		return 0;
-+	}
-+	return 1;
-+}
-+#endif
-+
-+void tracing_on(void)
-+{
-+#if CONTROL_TRACING > 0
-+#define TRACEDIR "/sys/kernel/debug/tracing"
-+	char pidstr[32];
-+
-+	if (!tracing_root_ok())
-+		return;
-+
-+	sprintf(pidstr, "%d", getpid());
-+	cat_into_file("0", TRACEDIR "/tracing_on");
-+	cat_into_file("\n", TRACEDIR "/trace");
-+	if (1) {
-+		cat_into_file("function_graph", TRACEDIR "/current_tracer");
-+		cat_into_file("1", TRACEDIR "/options/funcgraph-proc");
-+	} else {
-+		cat_into_file("nop", TRACEDIR "/current_tracer");
-+	}
-+	cat_into_file(pidstr, TRACEDIR "/set_ftrace_pid");
-+	cat_into_file("1", TRACEDIR "/tracing_on");
-+	dprintf1("enabled tracing\n");
-+#endif
-+}
-+
-+void tracing_off(void)
-+{
-+#if CONTROL_TRACING > 0
-+	if (!tracing_root_ok())
-+		return;
-+	cat_into_file("0", "/sys/kernel/debug/tracing/tracing_on");
-+#endif
-+}
-+
-+void abort_hooks(void)
-+{
-+	fprintf(stderr, "running %s()...\n", __func__);
-+	tracing_off();
-+#ifdef SLEEP_ON_ABORT
-+	sleep(SLEEP_ON_ABORT);
-+#endif
-+}
-+
-+static inline void __page_o_noops(void)
-+{
-+	/* 8-bytes of instruction * 512 bytes = 1 page */
-+	asm(".rept 512 ; nopl 0x7eeeeeee(%eax) ; .endr");
-+}
-+
-+/*
-+ * This attempts to have roughly a page of instructions followed by a few
-+ * instructions that do a write, and another page of instructions.  That
-+ * way, we are pretty sure that the write is in the second page of
-+ * instructions and has at least a page of padding behind it.
-+ *
-+ * *That* lets us be sure to madvise() away the write instruction, which
-+ * will then fault, which makes sure that the fault code handles
-+ * execute-only memory properly.
-+ */
-+__attribute__((__aligned__(PAGE_SIZE)))
-+void lots_o_noops_around_write(int *write_to_me)
-+{
-+	dprintf3("running %s()\n", __func__);
-+	__page_o_noops();
-+	/* Assume this happens in the second page of instructions: */
-+	*write_to_me = __LINE__;
-+	/* pad out by another page: */
-+	__page_o_noops();
-+	dprintf3("%s() done\n", __func__);
-+}
-+
-+/* Define some kernel-like types */
-+#define  u8 uint8_t
-+#define u16 uint16_t
-+#define u32 uint32_t
-+#define u64 uint64_t
-+
-+#ifdef __i386__
-+#define SYS_mprotect_key 380
-+#define SYS_pkey_alloc	 381
-+#define SYS_pkey_free	 382
-+#define REG_IP_IDX REG_EIP
-+#define si_pkey_offset 0x18
-+#else
-+#define SYS_mprotect_key 329
-+#define SYS_pkey_alloc	 330
-+#define SYS_pkey_free	 331
-+#define REG_IP_IDX REG_RIP
-+#define si_pkey_offset 0x20
-+#endif
-+
-+void dump_mem(void *dumpme, int len_bytes)
-+{
-+	char *c = (void *)dumpme;
-+	int i;
-+
-+	for (i = 0; i < len_bytes; i += sizeof(u64)) {
-+		u64 *ptr = (u64 *)(c + i);
-+		dprintf1("dump[%03d][@%p]: %016jx\n", i, ptr, *ptr);
-+	}
-+}
-+
-+#define __SI_FAULT      (3 << 16)
-+#define SEGV_BNDERR     (__SI_FAULT|3)  /* failed address bound checks */
-+#define SEGV_PKUERR     (__SI_FAULT|4)
-+
-+static char *si_code_str(int si_code)
-+{
-+	if (si_code & SEGV_MAPERR)
-+		return "SEGV_MAPERR";
-+	if (si_code & SEGV_ACCERR)
-+		return "SEGV_ACCERR";
-+	if (si_code & SEGV_BNDERR)
-+		return "SEGV_BNDERR";
-+	if (si_code & SEGV_PKUERR)
-+		return "SEGV_PKUERR";
-+	return "UNKNOWN";
-+}
-+
-+int pkru_faults;
-+int last_si_pkey = -1;
-+void signal_handler(int signum, siginfo_t *si, void *vucontext)
-+{
-+	ucontext_t *uctxt = vucontext;
-+	int trapno;
-+	unsigned long ip;
-+	char *fpregs;
-+	u32 *pkru_ptr;
-+	u64 si_pkey;
-+	u32 *si_pkey_ptr;
-+	int pkru_offset;
-+	fpregset_t fpregset;
-+
-+	dprint_in_signal = 1;
-+	dprintf1(">>>>===============SIGSEGV============================\n");
-+	dprintf1("%s()::%d, pkru: 0x%x shadow: %x\n", __func__, __LINE__,
-+			__rdpkru(), shadow_pkru);
-+
-+	trapno = uctxt->uc_mcontext.gregs[REG_TRAPNO];
-+	ip = uctxt->uc_mcontext.gregs[REG_IP_IDX];
-+	fpregset = uctxt->uc_mcontext.fpregs;
-+	fpregs = (void *)fpregset;
-+
-+	dprintf2("%s() trapno: %d ip: 0x%lx info->si_code: %s/%d\n", __func__,
-+			trapno, ip, si_code_str(si->si_code), si->si_code);
-+#ifdef __i386__
-+	/*
-+	 * 32-bit has some extra padding so that userspace can tell whether
-+	 * the XSTATE header is present in addition to the "legacy" FPU
-+	 * state.  We just assume that it is here.
-+	 */
-+	fpregs += 0x70;
-+#endif
-+	pkru_offset = pkru_xstate_offset();
-+	pkru_ptr = (void *)(&fpregs[pkru_offset]);
-+
-+	dprintf1("siginfo: %p\n", si);
-+	dprintf1(" fpregs: %p\n", fpregs);
-+	/*
-+	 * If we got a PKRU fault, we *HAVE* to have at least one bit set in
-+	 * here.
-+	 */
-+	dprintf1("pkru_xstate_offset: %d\n", pkru_xstate_offset());
-+	if (DEBUG_LEVEL > 4)
-+		dump_mem(pkru_ptr - 128, 256);
-+	pkey_assert(*pkru_ptr);
-+
-+	si_pkey_ptr = (u32 *)(((u8 *)si) + si_pkey_offset);
-+	dprintf1("si_pkey_ptr: %p\n", si_pkey_ptr);
-+	dump_mem(si_pkey_ptr - 8, 24);
-+	si_pkey = *si_pkey_ptr;
-+	pkey_assert(si_pkey < NR_PKEYS);
-+	last_si_pkey = si_pkey;
-+
-+	if ((si->si_code == SEGV_MAPERR) ||
-+	    (si->si_code == SEGV_ACCERR) ||
-+	    (si->si_code == SEGV_BNDERR)) {
-+		printf("non-PK si_code, exiting...\n");
-+		exit(4);
-+	}
-+
-+	dprintf1("signal pkru from xsave: %08x\n", *pkru_ptr);
-+	/* need __rdpkru() version so we do not do shadow_pkru checking */
-+	dprintf1("signal pkru from  pkru: %08x\n", __rdpkru());
-+	dprintf1("si_pkey from siginfo: %jx\n", si_pkey);
-+	*(u64 *)pkru_ptr = 0x00000000;
-+	dprintf1("WARNING: set PRKU=0 to allow faulting instruction to continue\n");
-+	pkru_faults++;
-+	dprintf1("<<<<==================================================\n");
-+	return;
-+	if (trapno == 14) {
-+		fprintf(stderr,
-+			"ERROR: In signal handler, page fault, trapno = %d, ip = %016lx\n",
-+			trapno, ip);
-+		fprintf(stderr, "si_addr %p\n", si->si_addr);
-+		fprintf(stderr, "REG_ERR: %lx\n",
-+				(unsigned long)uctxt->uc_mcontext.gregs[REG_ERR]);
-+		exit(1);
-+	} else {
-+		fprintf(stderr, "unexpected trap %d! at 0x%lx\n", trapno, ip);
-+		fprintf(stderr, "si_addr %p\n", si->si_addr);
-+		fprintf(stderr, "REG_ERR: %lx\n",
-+				(unsigned long)uctxt->uc_mcontext.gregs[REG_ERR]);
-+		exit(2);
-+	}
-+	dprint_in_signal = 0;
-+}
-+
-+int wait_all_children(void)
-+{
-+	int status;
-+	return waitpid(-1, &status, 0);
-+}
-+
-+void sig_chld(int x)
-+{
-+	dprint_in_signal = 1;
-+	dprintf2("[%d] SIGCHLD: %d\n", getpid(), x);
-+	dprint_in_signal = 0;
-+}
-+
-+void setup_sigsegv_handler(void)
-+{
-+	int r, rs;
-+	struct sigaction newact;
-+	struct sigaction oldact;
-+
-+	/* #PF is mapped to sigsegv */
-+	int signum  = SIGSEGV;
-+
-+	newact.sa_handler = 0;
-+	newact.sa_sigaction = signal_handler;
-+
-+	/*sigset_t - signals to block while in the handler */
-+	/* get the old signal mask. */
-+	rs = sigprocmask(SIG_SETMASK, 0, &newact.sa_mask);
-+	pkey_assert(rs == 0);
-+
-+	/* call sa_sigaction, not sa_handler*/
-+	newact.sa_flags = SA_SIGINFO;
-+
-+	newact.sa_restorer = 0;  /* void(*)(), obsolete */
-+	r = sigaction(signum, &newact, &oldact);
-+	r = sigaction(SIGALRM, &newact, &oldact);
-+	pkey_assert(r == 0);
-+}
-+
-+void setup_handlers(void)
-+{
-+	signal(SIGCHLD, &sig_chld);
-+	setup_sigsegv_handler();
-+}
-+
-+pid_t fork_lazy_child(void)
-+{
-+	pid_t forkret;
-+
-+	forkret = fork();
-+	pkey_assert(forkret >= 0);
-+	dprintf3("[%d] fork() ret: %d\n", getpid(), forkret);
-+
-+	if (!forkret) {
-+		/* in the child */
-+		while (1) {
-+			dprintf1("child sleeping...\n");
-+			sleep(30);
-+		}
-+	}
-+	return forkret;
-+}
-+
-+void davecmp(void *_a, void *_b, int len)
-+{
-+	int i;
-+	unsigned long *a = _a;
-+	unsigned long *b = _b;
-+
-+	for (i = 0; i < len / sizeof(*a); i++) {
-+		if (a[i] == b[i])
-+			continue;
-+
-+		dprintf3("[%3d]: a: %016lx b: %016lx\n", i, a[i], b[i]);
-+	}
-+}
-+
-+void dumpit(char *f)
-+{
-+	int fd = open(f, O_RDONLY);
-+	char buf[100];
-+	int nr_read;
-+
-+	dprintf2("maps fd: %d\n", fd);
-+	do {
-+		nr_read = read(fd, &buf[0], sizeof(buf));
-+		write(1, buf, nr_read);
-+	} while (nr_read > 0);
-+	close(fd);
-+}
-+
-+#define PKEY_DISABLE_ACCESS    0x1
-+#define PKEY_DISABLE_WRITE     0x2
-+
-+u32 pkey_get(int pkey, unsigned long flags)
-+{
-+	u32 mask = (PKEY_DISABLE_ACCESS|PKEY_DISABLE_WRITE);
-+	u32 pkru = __rdpkru();
-+	u32 shifted_pkru;
-+	u32 masked_pkru;
-+
-+	dprintf1("%s(pkey=%d, flags=%lx) = %x / %d\n",
-+			__func__, pkey, flags, 0, 0);
-+	dprintf2("%s() raw pkru: %x\n", __func__, pkru);
-+
-+	shifted_pkru = (pkru >> (pkey * PKRU_BITS_PER_PKEY));
-+	dprintf2("%s() shifted_pkru: %x\n", __func__, shifted_pkru);
-+	masked_pkru = shifted_pkru & mask;
-+	dprintf2("%s() masked  pkru: %x\n", __func__, masked_pkru);
-+	/*
-+	 * shift down the relevant bits to the lowest two, then
-+	 * mask off all the other high bits.
-+	 */
-+	return masked_pkru;
-+}
-+
-+int pkey_set(int pkey, unsigned long rights, unsigned long flags)
-+{
-+	u32 mask = (PKEY_DISABLE_ACCESS|PKEY_DISABLE_WRITE);
-+	u32 old_pkru = __rdpkru();
-+	u32 new_pkru;
-+
-+	/* make sure that 'rights' only contains the bits we expect: */
-+	assert(!(rights & ~mask));
-+
-+	/* copy old pkru */
-+	new_pkru = old_pkru;
-+	/* mask out bits from pkey in old value: */
-+	new_pkru &= ~(mask << (pkey * PKRU_BITS_PER_PKEY));
-+	/* OR in new bits for pkey: */
-+	new_pkru |= (rights << (pkey * PKRU_BITS_PER_PKEY));
-+
-+	__wrpkru(new_pkru);
-+
-+	dprintf3("%s(pkey=%d, rights=%lx, flags=%lx) = %x pkru now: %x old_pkru: %x\n",
-+			__func__, pkey, rights, flags, 0, __rdpkru(), old_pkru);
-+	return 0;
-+}
-+
-+void pkey_disable_set(int pkey, int flags)
-+{
-+	unsigned long syscall_flags = 0;
-+	int ret;
-+	int pkey_rights;
-+	u32 orig_pkru;
-+
-+	dprintf1("START->%s(%d, 0x%x)\n", __func__,
-+		pkey, flags);
-+	pkey_assert(flags & (PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE));
-+
-+	pkey_rights = pkey_get(pkey, syscall_flags);
-+
-+	dprintf1("%s(%d) pkey_get(%d): %x\n", __func__,
-+			pkey, pkey, pkey_rights);
-+	pkey_assert(pkey_rights >= 0);
-+
-+	pkey_rights |= flags;
-+
-+	ret = pkey_set(pkey, pkey_rights, syscall_flags);
-+	assert(!ret);
-+	/*pkru and flags have the same format */
-+	shadow_pkru |= flags << (pkey * 2);
-+	dprintf1("%s(%d) shadow: 0x%x\n", __func__, pkey, shadow_pkru);
-+
-+	pkey_assert(ret >= 0);
-+
-+	pkey_rights = pkey_get(pkey, syscall_flags);
-+	dprintf1("%s(%d) pkey_get(%d): %x\n", __func__,
-+			pkey, pkey, pkey_rights);
-+
-+	dprintf1("%s(%d) pkru: 0x%x\n", __func__, pkey, rdpkru());
-+	if (flags)
-+		pkey_assert(rdpkru() > orig_pkru);
-+	dprintf1("END<---%s(%d, 0x%x)\n", __func__,
-+		pkey, flags);
-+}
-+
-+void pkey_disable_clear(int pkey, int flags)
-+{
-+	unsigned long syscall_flags = 0;
-+	int ret;
-+	int pkey_rights = pkey_get(pkey, syscall_flags);
-+	u32 orig_pkru = rdpkru();
-+
-+	pkey_assert(flags & (PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE));
-+
-+	dprintf1("%s(%d) pkey_get(%d): %x\n", __func__,
-+			pkey, pkey, pkey_rights);
-+	pkey_assert(pkey_rights >= 0);
-+
-+	pkey_rights |= flags;
-+
-+	ret = pkey_set(pkey, pkey_rights, 0);
-+	/* pkru and flags have the same format */
-+	shadow_pkru &= ~(flags << (pkey * 2));
-+	pkey_assert(ret >= 0);
-+
-+	pkey_rights = pkey_get(pkey, syscall_flags);
-+	dprintf1("%s(%d) pkey_get(%d): %x\n", __func__,
-+			pkey, pkey, pkey_rights);
-+
-+	dprintf1("%s(%d) pkru: 0x%x\n", __func__, pkey, rdpkru());
-+	if (flags)
-+		assert(rdpkru() > orig_pkru);
-+}
-+
-+void pkey_write_allow(int pkey)
-+{
-+	pkey_disable_clear(pkey, PKEY_DISABLE_WRITE);
-+}
-+void pkey_write_deny(int pkey)
-+{
-+	pkey_disable_set(pkey, PKEY_DISABLE_WRITE);
-+}
-+void pkey_access_allow(int pkey)
-+{
-+	pkey_disable_clear(pkey, PKEY_DISABLE_ACCESS);
-+}
-+void pkey_access_deny(int pkey)
-+{
-+	pkey_disable_set(pkey, PKEY_DISABLE_ACCESS);
-+}
-+
-+int sys_mprotect_pkey(void *ptr, size_t size, unsigned long orig_prot,
-+		unsigned long pkey)
-+{
-+	int sret;
-+
-+	dprintf2("%s(0x%p, %zx, prot=%lx, pkey=%lx)\n", __func__,
-+			ptr, size, orig_prot, pkey);
-+
-+	errno = 0;
-+	sret = syscall(SYS_mprotect_key, ptr, size, orig_prot, pkey);
-+	if (errno) {
-+		dprintf2("SYS_mprotect_key sret: %d\n", sret);
-+		dprintf2("SYS_mprotect_key prot: 0x%lx\n", orig_prot);
-+		dprintf2("SYS_mprotect_key failed, errno: %d\n", errno);
-+		if (DEBUG_LEVEL >= 2)
-+			perror("SYS_mprotect_pkey");
-+	}
-+	return sret;
-+}
-+
-+int sys_pkey_alloc(unsigned long flags, unsigned long init_val)
-+{
-+	int ret = syscall(SYS_pkey_alloc, flags, init_val);
-+	dprintf1("%s(flags=%lx, init_val=%lx) syscall ret: %d errno: %d\n",
-+			__func__, flags, init_val, ret, errno);
-+	return ret;
-+}
-+
-+int alloc_pkey(void)
-+{
-+	int ret;
-+	unsigned long init_val = 0x0;
-+
-+	dprintf1("alloc_pkey()::%d, pkru: 0x%x shadow: %x\n",
-+			__LINE__, __rdpkru(), shadow_pkru);
-+	ret = sys_pkey_alloc(0, init_val);
-+	/*
-+	 * pkey_alloc() sets PKRU, so we need to reflect it in
-+	 * shadow_pkru:
-+	 */
-+	dprintf4("alloc_pkey()::%d, ret: %d pkru: 0x%x shadow: 0x%x\n",
-+			__LINE__, ret, __rdpkru(), shadow_pkru);
-+	if (ret) {
-+		/* clear both the bits: */
-+		shadow_pkru &= ~(0x3      << (ret * 2));
-+		dprintf4("alloc_pkey()::%d, ret: %d pkru: 0x%x shadow: 0x%x\n",
-+				__LINE__, ret, __rdpkru(), shadow_pkru);
-+		/*
-+		 * move the new state in from init_val
-+		 * (remember, we cheated and init_val == pkru format)
-+		 */
-+		shadow_pkru |=  (init_val << (ret * 2));
-+	}
-+	dprintf4("alloc_pkey()::%d, ret: %d pkru: 0x%x shadow: 0x%x\n",
-+			__LINE__, ret, __rdpkru(), shadow_pkru);
-+	dprintf1("alloc_pkey()::%d errno: %d\n", __LINE__, errno);
-+	/* for shadow checking: */
-+	rdpkru();
-+	dprintf4("alloc_pkey()::%d, ret: %d pkru: 0x%x shadow: 0x%x\n",
-+			__LINE__, ret, __rdpkru(), shadow_pkru);
-+	return ret;
-+}
-+
-+int sys_pkey_free(unsigned long pkey)
-+{
-+	int ret = syscall(SYS_pkey_free, pkey);
-+	dprintf1("%s(pkey=%ld) syscall ret: %d\n", __func__, pkey, ret);
-+	return ret;
-+}
-+
-+/*
-+ * I had a bug where pkey bits could be set by mprotect() but
-+ * not cleared.  This ensures we get lots of random bit sets
-+ * and clears on the vma and pte pkey bits.
-+ */
-+int alloc_random_pkey(void)
-+{
-+	int max_nr_pkey_allocs;
-+	int ret;
-+	int i;
-+	int alloced_pkeys[NR_PKEYS];
-+	int nr_alloced = 0;
-+	int random_index;
-+	memset(alloced_pkeys, 0, sizeof(alloced_pkeys));
-+
-+	/* allocate every possible key and make a note of which ones we got */
-+	max_nr_pkey_allocs = NR_PKEYS;
-+	max_nr_pkey_allocs = 1;
-+	for (i = 0; i < max_nr_pkey_allocs; i++) {
-+		int new_pkey = alloc_pkey();
-+		if (new_pkey < 0)
-+			break;
-+		alloced_pkeys[nr_alloced++] = new_pkey;
-+	}
-+
-+	pkey_assert(nr_alloced > 0);
-+	/* select a random one out of the allocated ones */
-+	random_index = rand() % nr_alloced;
-+	ret = alloced_pkeys[random_index];
-+	/* now zero it out so we don't free it next */
-+	alloced_pkeys[random_index] = 0;
-+
-+	/* go through the allocated ones that we did not want and free them */
-+	for (i = 0; i < nr_alloced; i++) {
-+		int free_ret;
-+		if (!alloced_pkeys[i])
-+			continue;
-+		free_ret = sys_pkey_free(alloced_pkeys[i]);
-+		pkey_assert(!free_ret);
-+	}
-+	dprintf1("%s()::%d, ret: %d pkru: 0x%x shadow: 0x%x\n", __func__,
-+			__LINE__, ret, __rdpkru(), shadow_pkru);
-+	return ret;
-+}
-+
-+int mprotect_pkey(void *ptr, size_t size, unsigned long orig_prot,
-+		unsigned long pkey)
-+{
-+	int nr_iterations = random() % 100;
-+	int ret;
-+
-+	while (0) {
-+		int rpkey = alloc_random_pkey();
-+		ret = sys_mprotect_pkey(ptr, size, orig_prot, pkey);
-+		dprintf1("sys_mprotect_pkey(%p, %zx, prot=0x%lx, pkey=%ld) ret: %d\n",
-+				ptr, size, orig_prot, pkey, ret);
-+		if (nr_iterations-- < 0)
-+			break;
-+
-+		dprintf1("%s()::%d, ret: %d pkru: 0x%x shadow: 0x%x\n", __func__,
-+			__LINE__, ret, __rdpkru(), shadow_pkru);
-+		sys_pkey_free(rpkey);
-+		dprintf1("%s()::%d, ret: %d pkru: 0x%x shadow: 0x%x\n", __func__,
-+			__LINE__, ret, __rdpkru(), shadow_pkru);
-+	}
-+	pkey_assert(pkey < NR_PKEYS);
-+
-+	ret = sys_mprotect_pkey(ptr, size, orig_prot, pkey);
-+	dprintf1("mprotect_pkey(%p, %zx, prot=0x%lx, pkey=%ld) ret: %d\n",
-+			ptr, size, orig_prot, pkey, ret);
-+	pkey_assert(!ret);
-+	dprintf1("%s()::%d, ret: %d pkru: 0x%x shadow: 0x%x\n", __func__,
-+			__LINE__, ret, __rdpkru(), shadow_pkru);
-+	return ret;
-+}
-+
-+struct pkey_malloc_record {
-+	void *ptr;
-+	long size;
-+};
-+struct pkey_malloc_record *pkey_malloc_records;
-+long nr_pkey_malloc_records;
-+void record_pkey_malloc(void *ptr, long size)
-+{
-+	long i;
-+	struct pkey_malloc_record *rec = NULL;
-+
-+	for (i = 0; i < nr_pkey_malloc_records; i++) {
-+		rec = &pkey_malloc_records[i];
-+		/* find a free record */
-+		if (rec)
-+			break;
-+	}
-+	if (!rec) {
-+		/* every record is full */
-+		size_t old_nr_records = nr_pkey_malloc_records;
-+		size_t new_nr_records = (nr_pkey_malloc_records * 2 + 1);
-+		size_t new_size = new_nr_records * sizeof(struct pkey_malloc_record);
-+		dprintf2("new_nr_records: %zd\n", new_nr_records);
-+		dprintf2("new_size: %zd\n", new_size);
-+		pkey_malloc_records = realloc(pkey_malloc_records, new_size);
-+		pkey_assert(pkey_malloc_records != NULL);
-+		rec = &pkey_malloc_records[nr_pkey_malloc_records];
-+		/*
-+		 * realloc() does not initialize memory, so zero it from
-+		 * the first new record all the way to the end.
-+		 */
-+		for (i = 0; i < new_nr_records - old_nr_records; i++)
-+			memset(rec + i, 0, sizeof(*rec));
-+	}
-+	dprintf3("filling malloc record[%d/%p]: {%p, %ld}\n",
-+		(int)(rec - pkey_malloc_records), rec, ptr, size);
-+	rec->ptr = ptr;
-+	rec->size = size;
-+	nr_pkey_malloc_records++;
-+}
-+
-+void free_pkey_malloc(void *ptr)
-+{
-+	long i;
-+	int ret;
-+	dprintf3("%s(%p)\n", __func__, ptr);
-+	for (i = 0; i < nr_pkey_malloc_records; i++) {
-+		struct pkey_malloc_record *rec = &pkey_malloc_records[i];
-+		dprintf4("looking for ptr %p at record[%ld/%p]: {%p, %ld}\n",
-+				ptr, i, rec, rec->ptr, rec->size);
-+		if ((ptr <  rec->ptr) ||
-+		    (ptr >= rec->ptr + rec->size))
-+			continue;
-+
-+		dprintf3("found ptr %p at record[%ld/%p]: {%p, %ld}\n",
-+				ptr, i, rec, rec->ptr, rec->size);
-+		nr_pkey_malloc_records--;
-+		ret = munmap(rec->ptr, rec->size);
-+		dprintf3("munmap ret: %d\n", ret);
-+		pkey_assert(!ret);
-+		dprintf3("clearing rec->ptr, rec: %p\n", rec);
-+		rec->ptr = NULL;
-+		dprintf3("done clearing rec->ptr, rec: %p\n", rec);
-+		return;
-+	}
-+	pkey_assert(false);
-+}
-+
-+
-+void *malloc_pkey_with_mprotect(long size, int prot, u16 pkey)
-+{
-+	void *ptr;
-+	int ret;
-+
-+	rdpkru();
-+	dprintf1("doing %s(size=%ld, prot=0x%x, pkey=%d)\n", __func__,
-+			size, prot, pkey);
-+	pkey_assert(pkey < NR_PKEYS);
-+	ptr = mmap(NULL, size, prot, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
-+	pkey_assert(ptr != (void *)-1);
-+	ret = mprotect_pkey((void *)ptr, PAGE_SIZE, prot, pkey);
-+	pkey_assert(!ret);
-+	record_pkey_malloc(ptr, size);
-+	rdpkru();
-+
-+	dprintf1("%s() for pkey %d @ %p\n", __func__, pkey, ptr);
-+	return ptr;
-+}
-+
-+void *malloc_pkey_anon_huge(long size, int prot, u16 pkey)
-+{
-+	int ret;
-+	void *ptr;
-+
-+	dprintf1("doing %s(size=%ld, prot=0x%x, pkey=%d)\n", __func__,
-+			size, prot, pkey);
-+	/*
-+	 * Guarantee we can fit at least one huge page in the resulting
-+	 * allocation by allocating space for 2:
-+	 */
-+	size = ALIGN_UP(size, HPAGE_SIZE * 2);
-+	ptr = mmap(NULL, size, PROT_NONE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
-+	pkey_assert(ptr != (void *)-1);
-+	record_pkey_malloc(ptr, size);
-+	mprotect_pkey(ptr, size, prot, pkey);
-+
-+	dprintf1("unaligned ptr: %p\n", ptr);
-+	ptr = ALIGN_PTR_UP(ptr, HPAGE_SIZE);
-+	dprintf1("  aligned ptr: %p\n", ptr);
-+	ret = madvise(ptr, HPAGE_SIZE, MADV_HUGEPAGE);
-+	dprintf1("MADV_HUGEPAGE ret: %d\n", ret);
-+	ret = madvise(ptr, HPAGE_SIZE, MADV_WILLNEED);
-+	dprintf1("MADV_WILLNEED ret: %d\n", ret);
-+	memset(ptr, 0, HPAGE_SIZE);
-+
-+	dprintf1("mmap()'d thp for pkey %d @ %p\n", pkey, ptr);
-+	return ptr;
-+}
-+
-+int hugetlb_setup_ok;
-+#define GET_NR_HUGE_PAGES 10
-+void setup_hugetlbfs(void)
-+{
-+	int err;
-+	int fd;
-+	int validated_nr_pages;
-+	int i;
-+	char buf[] = "123";
-+
-+	if (geteuid() != 0) {
-+		fprintf(stderr, "WARNING: not run as root, can not do hugetlb test\n");
-+		return;
-+	}
-+
-+	cat_into_file(__stringify(GET_NR_HUGE_PAGES), "/proc/sys/vm/nr_hugepages");
-+
-+	/*
-+	 * Now go make sure that we got the pages and that they
-+	 * are 2M pages.  Someone might have made 1G the default.
-+	 */
-+	fd = open("/sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages", O_RDONLY);
-+	if (fd < 0) {
-+		perror("opening sysfs 2M hugetlb config");
-+		return;
-+	}
-+
-+	/* -1 to guarantee leaving the trailing \0 */
-+	err = read(fd, buf, sizeof(buf)-1);
-+	close(fd);
-+	if (err <= 0) {
-+		perror("reading sysfs 2M hugetlb config");
-+		return;
-+	}
-+
-+	if (atoi(buf) != GET_NR_HUGE_PAGES) {
-+		fprintf(stderr, "could not confirm 2M pages, got: '%s' expected %d\n",
-+			buf, GET_NR_HUGE_PAGES);
-+		return;
-+	}
-+
-+	hugetlb_setup_ok = 1;
-+}
-+
-+void *malloc_pkey_hugetlb(long size, int prot, u16 pkey)
-+{
-+	void *ptr;
-+	int flags = MAP_ANONYMOUS|MAP_PRIVATE|MAP_HUGETLB;
-+
-+	if (!hugetlb_setup_ok)
-+		return PTR_ERR_ENOTSUP;
-+
-+	dprintf1("doing %s(%ld, %x, %x)\n", __func__, size, prot, pkey);
-+	size = ALIGN_UP(size, HPAGE_SIZE * 2);
-+	pkey_assert(pkey < NR_PKEYS);
-+	ptr = mmap(NULL, size, PROT_NONE, flags, -1, 0);
-+	pkey_assert(ptr != (void *)-1);
-+	mprotect_pkey(ptr, size, prot, pkey);
-+
-+	record_pkey_malloc(ptr, size);
-+
-+	dprintf1("mmap()'d hugetlbfs for pkey %d @ %p\n", pkey, ptr);
-+	return ptr;
-+}
-+
-+void *malloc_pkey_mmap_dax(long size, int prot, u16 pkey)
-+{
-+	void *ptr;
-+	int fd;
-+
-+	dprintf1("doing %s(size=%ld, prot=0x%x, pkey=%d)\n", __func__,
-+			size, prot, pkey);
-+	pkey_assert(pkey < NR_PKEYS);
-+	fd = open("/dax/foo", O_RDWR);
-+	pkey_assert(fd >= 0);
-+
-+	ptr = mmap(0, size, prot, MAP_SHARED, fd, 0);
-+	pkey_assert(ptr != (void *)-1);
-+
-+	mprotect_pkey(ptr, size, prot, pkey);
-+
-+	record_pkey_malloc(ptr, size);
-+
-+	dprintf1("mmap()'d for pkey %d @ %p\n", pkey, ptr);
-+	close(fd);
-+	return ptr;
-+}
-+
-+void *(*pkey_malloc[])(long size, int prot, u16 pkey) = {
-+
-+	malloc_pkey_with_mprotect,
-+	malloc_pkey_anon_huge,
-+	malloc_pkey_hugetlb
-+/* can not do direct with the pkey_mprotect() API:
-+	malloc_pkey_mmap_direct,
-+	malloc_pkey_mmap_dax,
-+*/
-+};
-+
-+void *malloc_pkey(long size, int prot, u16 pkey)
-+{
-+	void *ret;
-+	static int malloc_type;
-+	int nr_malloc_types = ARRAY_SIZE(pkey_malloc);
-+
-+	pkey_assert(pkey < NR_PKEYS);
-+
-+	while (1) {
-+		pkey_assert(malloc_type < nr_malloc_types);
-+
-+		ret = pkey_malloc[malloc_type](size, prot, pkey);
-+		pkey_assert(ret != (void *)-1);
-+
-+		malloc_type++;
-+		if (malloc_type >= nr_malloc_types)
-+			malloc_type = (random()%nr_malloc_types);
-+
-+		/* try again if the malloc_type we tried is unsupported */
-+		if (ret == PTR_ERR_ENOTSUP)
-+			continue;
-+
-+		break;
-+	}
-+
-+	dprintf3("%s(%ld, prot=%x, pkey=%x) returning: %p\n", __func__,
-+			size, prot, pkey, ret);
-+	return ret;
-+}
-+
-+int last_pkru_faults;
-+void expected_pk_fault(int pkey)
-+{
-+	dprintf2("%s(): last_pkru_faults: %d pkru_faults: %d\n",
-+			__func__, last_pkru_faults, pkru_faults);
-+	dprintf2("%s(%d): last_si_pkey: %d\n", __func__, pkey, last_si_pkey);
-+	pkey_assert(last_pkru_faults + 1 == pkru_faults);
-+	pkey_assert(last_si_pkey == pkey);
-+	/*
-+	 * The signal handler shold have cleared out PKRU to let the
-+	 * test program continue.  We now have to restore it.
-+	 */
-+	if (__rdpkru() != 0)
-+		pkey_assert(0);
-+
-+	__wrpkru(shadow_pkru);
-+	dprintf1("%s() set PKRU=%x to restore state after signal nuked it\n",
-+			__func__, shadow_pkru);
-+	last_pkru_faults = pkru_faults;
-+	last_si_pkey = -1;
-+}
-+
-+void do_not_expect_pk_fault(void)
-+{
-+	pkey_assert(last_pkru_faults == pkru_faults);
-+}
-+
-+int test_fds[10] = { -1 };
-+int nr_test_fds;
-+void __save_test_fd(int fd)
-+{
-+	pkey_assert(fd >= 0);
-+	pkey_assert(nr_test_fds < ARRAY_SIZE(test_fds));
-+	test_fds[nr_test_fds] = fd;
-+	nr_test_fds++;
-+}
-+
-+int get_test_read_fd(void)
-+{
-+	int test_fd = open("/etc/passwd", O_RDONLY);
-+	__save_test_fd(test_fd);
-+	return test_fd;
-+}
-+
-+void close_test_fds(void)
-+{
-+	int i;
-+
-+	for (i = 0; i < nr_test_fds; i++) {
-+		if (test_fds[i] < 0)
-+			continue;
-+		close(test_fds[i]);
-+		test_fds[i] = -1;
-+	}
-+	nr_test_fds = 0;
-+}
-+
-+#define barrier() __asm__ __volatile__("": : :"memory")
-+__attribute__((noinline)) int read_ptr(int *ptr)
-+{
-+	/*
-+	 * Keep GCC from optimizing this away somehow
-+	 */
-+	barrier();
-+	return *ptr;
-+}
-+
-+void test_read_of_write_disabled_region(int *ptr, u16 pkey)
-+{
-+	int ptr_contents;
-+
-+	dprintf1("disabling write access to PKEY[1], doing read\n");
-+	pkey_write_deny(pkey);
-+	ptr_contents = read_ptr(ptr);
-+	dprintf1("*ptr: %d\n", ptr_contents);
-+	dprintf1("\n");
-+}
-+void test_read_of_access_disabled_region(int *ptr, u16 pkey)
-+{
-+	int ptr_contents;
-+
-+	dprintf1("disabling access to PKEY[%02d], doing read @ %p\n", pkey, ptr);
-+	rdpkru();
-+	pkey_access_deny(pkey);
-+	ptr_contents = read_ptr(ptr);
-+	dprintf1("*ptr: %d\n", ptr_contents);
-+	expected_pk_fault(pkey);
-+}
-+void test_write_of_write_disabled_region(int *ptr, u16 pkey)
-+{
-+	dprintf1("disabling write access to PKEY[%02d], doing write\n", pkey);
-+	pkey_write_deny(pkey);
-+	*ptr = __LINE__;
-+	expected_pk_fault(pkey);
-+}
-+void test_write_of_access_disabled_region(int *ptr, u16 pkey)
-+{
-+	dprintf1("disabling access to PKEY[%02d], doing write\n", pkey);
-+	pkey_access_deny(pkey);
-+	*ptr = __LINE__;
-+	expected_pk_fault(pkey);
-+}
-+void test_kernel_write_of_access_disabled_region(int *ptr, u16 pkey)
-+{
-+	int ret;
-+	int test_fd = get_test_read_fd();
-+
-+	dprintf1("disabling access to PKEY[%02d], "
-+		 "having kernel read() to buffer\n", pkey);
-+	pkey_access_deny(pkey);
-+	ret = read(test_fd, ptr, 1);
-+	dprintf1("read ret: %d\n", ret);
-+	pkey_assert(ret);
-+}
-+void test_kernel_write_of_write_disabled_region(int *ptr, u16 pkey)
-+{
-+	int ret;
-+	int test_fd = get_test_read_fd();
-+
-+	pkey_write_deny(pkey);
-+	ret = read(test_fd, ptr, 100);
-+	dprintf1("read ret: %d\n", ret);
-+	if (ret < 0 && (DEBUG_LEVEL > 0))
-+		perror("verbose read result (OK for this to be bad)");
-+	pkey_assert(ret);
-+}
-+
-+void test_kernel_gup_of_access_disabled_region(int *ptr, u16 pkey)
-+{
-+	int pipe_ret, vmsplice_ret;
-+	struct iovec iov;
-+	int pipe_fds[2];
-+
-+	pipe_ret = pipe(pipe_fds);
-+
-+	pkey_assert(pipe_ret == 0);
-+	dprintf1("disabling access to PKEY[%02d], "
-+		 "having kernel vmsplice from buffer\n", pkey);
-+	pkey_access_deny(pkey);
-+	iov.iov_base = ptr;
-+	iov.iov_len = PAGE_SIZE;
-+	vmsplice_ret = vmsplice(pipe_fds[1], &iov, 1, SPLICE_F_GIFT);
-+	dprintf1("vmsplice() ret: %d\n", vmsplice_ret);
-+	pkey_assert(vmsplice_ret == -1);
-+
-+	close(pipe_fds[0]);
-+	close(pipe_fds[1]);
-+}
-+
-+void test_kernel_gup_write_to_write_disabled_region(int *ptr, u16 pkey)
-+{
-+	int ignored = 0xdada;
-+	int futex_ret;
-+	int some_int = __LINE__;
-+
-+	dprintf1("disabling write to PKEY[%02d], "
-+		 "doing futex gunk in buffer\n", pkey);
-+	*ptr = some_int;
-+	pkey_write_deny(pkey);
-+	futex_ret = syscall(SYS_futex, ptr, FUTEX_WAIT, some_int-1, NULL,
-+			&ignored, ignored);
-+	if (DEBUG_LEVEL > 0)
-+		perror("futex");
-+	dprintf1("futex() ret: %d\n", futex_ret);
-+}
-+
-+/* Assumes that all pkeys other than 'pkey' are unallocated */
-+void test_pkey_syscalls_on_non_allocated_pkey(int *ptr, u16 pkey)
-+{
-+	int err;
-+	int i;
-+
-+	/* Note: 0 is the default pkey, so don't mess with it */
-+	for (i = 1; i < NR_PKEYS; i++) {
-+		if (pkey == i)
-+			continue;
-+
-+		dprintf1("trying get/set/free to non-allocated pkey: %2d\n", i);
-+		err = sys_pkey_free(i);
-+		pkey_assert(err);
-+
-+		/* not enforced when pkey_get() is not a syscall
-+		err = pkey_get(i, 0);
-+		pkey_assert(err < 0);
-+		*/
-+
-+		err = sys_pkey_free(i);
-+		pkey_assert(err);
-+
-+		err = sys_mprotect_pkey(ptr, PAGE_SIZE, PROT_READ, i);
-+		pkey_assert(err);
-+	}
-+}
-+
-+/* Assumes that all pkeys other than 'pkey' are unallocated */
-+void test_pkey_syscalls_bad_args(int *ptr, u16 pkey)
-+{
-+	int err;
-+	int bad_flag = (PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE) + 1;
-+	int bad_pkey = NR_PKEYS+99;
-+
-+	/* not enforced when pkey_get() is not a syscall
-+	err = pkey_get(bad_pkey, bad_flag);
-+	pkey_assert(err < 0);
-+	*/
-+
-+	/* pass a known-invalid pkey in: */
-+	err = sys_mprotect_pkey(ptr, PAGE_SIZE, PROT_READ, bad_pkey);
-+	pkey_assert(err);
-+}
-+
-+/* Assumes that all pkeys other than 'pkey' are unallocated */
-+void test_pkey_alloc_exhaust(int *ptr, u16 pkey)
-+{
-+	unsigned long flags;
-+	unsigned long init_val;
-+	int err;
-+	int allocated_pkeys[NR_PKEYS] = {0};
-+	int nr_allocated_pkeys = 0;
-+	int i;
-+
-+	for (i = 0; i < NR_PKEYS*2; i++) {
-+		int new_pkey;
-+		dprintf1("%s() alloc loop: %d\n", __func__, i);
-+		new_pkey = alloc_pkey();
-+		dprintf4("%s()::%d, err: %d pkru: 0x%x shadow: 0x%x\n", __func__,
-+				__LINE__, err, __rdpkru(), shadow_pkru);
-+		rdpkru(); /* for shadow checking */
-+		dprintf2("%s() errno: %d ENOSPC: %d\n", __func__, errno, ENOSPC);
-+		if ((new_pkey == -1) && (errno == ENOSPC)) {
-+			dprintf2("%s() failed to allocate pkey after %d tries\n",
-+				__func__, nr_allocated_pkeys);
-+			break;
-+		}
-+		pkey_assert(nr_allocated_pkeys < NR_PKEYS);
-+		allocated_pkeys[nr_allocated_pkeys++] = new_pkey;
-+	}
-+
-+	dprintf3("%s()::%d\n", __func__, __LINE__);
-+
-+	/*
-+	 * ensure it did not reach the end of the loop without
-+	 * failure:
-+	 */
-+	pkey_assert(i < NR_PKEYS*2);
-+
-+	/*
-+	 * There are 16 pkeys supported in hardware.  One is taken
-+	 * up for the default (0) and another can be taken up by
-+	 * an execute-only mapping.  Ensure that we can allocate
-+	 * at least 14 (16-2).
-+	 */
-+	pkey_assert(i >= NR_PKEYS-2);
-+
-+	for (i = 0; i < nr_allocated_pkeys; i++) {
-+		err = sys_pkey_free(allocated_pkeys[i]);
-+		pkey_assert(!err);
-+		rdpkru(); /* for shadow checking */
-+	}
-+}
-+
-+void test_ptrace_of_child(int *ptr, u16 pkey)
-+{
-+	__attribute__((__unused__)) int peek_result;
-+	pid_t child_pid;
-+	void *ignored = 0;
-+	long ret;
-+	int status;
-+	/*
-+	 * This is the "control" for our little expermient.  Make sure
-+	 * we can always access it when ptracing.
-+	 */
-+	int *plain_ptr_unaligned = malloc(HPAGE_SIZE);
-+	int *plain_ptr = ALIGN_PTR_UP(plain_ptr_unaligned, PAGE_SIZE);
-+
-+	/*
-+	 * Fork a child which is an exact copy of this process, of course.
-+	 * That means we can do all of our tests via ptrace() and then plain
-+	 * memory access and ensure they work differently.
-+	 */
-+	child_pid = fork_lazy_child();
-+	dprintf1("[%d] child pid: %d\n", getpid(), child_pid);
-+
-+	ret = ptrace(PTRACE_ATTACH, child_pid, ignored, ignored);
-+	if (ret)
-+		perror("attach");
-+	dprintf1("[%d] attach ret: %ld %d\n", getpid(), ret, __LINE__);
-+	pkey_assert(ret != -1);
-+	ret = waitpid(child_pid, &status, WUNTRACED);
-+	if ((ret != child_pid) || !(WIFSTOPPED(status))) {
-+		fprintf(stderr, "weird waitpid result %ld stat %x\n",
-+				ret, status);
-+		pkey_assert(0);
-+	}
-+	dprintf2("waitpid ret: %ld\n", ret);
-+	dprintf2("waitpid status: %d\n", status);
-+
-+	pkey_access_deny(pkey);
-+	pkey_write_deny(pkey);
-+
-+	/* Write access, untested for now:
-+	ret = ptrace(PTRACE_POKEDATA, child_pid, peek_at, data);
-+	pkey_assert(ret != -1);
-+	dprintf1("poke at %p: %ld\n", peek_at, ret);
-+	*/
-+
-+	/*
-+	 * Try to access the pkey-protected "ptr" via ptrace:
-+	 */
-+	ret = ptrace(PTRACE_PEEKDATA, child_pid, ptr, ignored);
-+	/* expect it to work, without an error: */
-+	pkey_assert(ret != -1);
-+	/* Now access from the current task, and expect an exception: */
-+	peek_result = read_ptr(ptr);
-+	expected_pk_fault(pkey);
-+
-+	/*
-+	 * Try to access the NON-pkey-protected "plain_ptr" via ptrace:
-+	 */
-+	ret = ptrace(PTRACE_PEEKDATA, child_pid, plain_ptr, ignored);
-+	/* expect it to work, without an error: */
-+	pkey_assert(ret != -1);
-+	/* Now access from the current task, and expect NO exception: */
-+	peek_result = read_ptr(plain_ptr);
-+	do_not_expect_pk_fault();
-+
-+	ret = ptrace(PTRACE_DETACH, child_pid, ignored, 0);
-+	pkey_assert(ret != -1);
-+
-+	ret = kill(child_pid, SIGKILL);
-+	pkey_assert(ret != -1);
-+
-+	wait(&status);
-+
-+	free(plain_ptr_unaligned);
-+}
-+
-+void test_executing_on_unreadable_memory(int *ptr, u16 pkey)
-+{
-+	void *p1;
-+	int scratch;
-+	int ptr_contents;
-+	int ret;
-+
-+	p1 = ALIGN_PTR_UP(&lots_o_noops_around_write, PAGE_SIZE);
-+	dprintf3("&lots_o_noops: %p\n", &lots_o_noops_around_write);
-+	/* lots_o_noops_around_write should be page-aligned already */
-+	assert(p1 == &lots_o_noops_around_write);
-+
-+	/* Point 'p1' at the *second* page of the function: */
-+	p1 += PAGE_SIZE;
-+
-+	madvise(p1, PAGE_SIZE, MADV_DONTNEED);
-+	lots_o_noops_around_write(&scratch);
-+	ptr_contents = read_ptr(p1);
-+	dprintf2("ptr (%p) contents@%d: %x\n", p1, __LINE__, ptr_contents);
-+
-+	ret = mprotect_pkey(p1, PAGE_SIZE, PROT_EXEC, (u64)pkey);
-+	pkey_assert(!ret);
-+	pkey_access_deny(pkey);
-+
-+	dprintf2("pkru: %x\n", rdpkru());
-+
-+	/*
-+	 * Make sure this is an *instruction* fault
-+	 */
-+	madvise(p1, PAGE_SIZE, MADV_DONTNEED);
-+	lots_o_noops_around_write(&scratch);
-+	do_not_expect_pk_fault();
-+	ptr_contents = read_ptr(p1);
-+	dprintf2("ptr (%p) contents@%d: %x\n", p1, __LINE__, ptr_contents);
-+	expected_pk_fault(pkey);
-+}
-+
-+void test_mprotect_pkey_on_unsupported_cpu(int *ptr, u16 pkey)
-+{
-+	int size = PAGE_SIZE;
-+	int sret;
-+
-+	if (cpu_has_pku()) {
-+		dprintf1("SKIP: %s: no CPU support\n", __func__);
-+		return;
-+	}
-+
-+	sret = syscall(SYS_mprotect_key, ptr, size, PROT_READ, pkey);
-+	pkey_assert(sret < 0);
-+}
-+
-+void (*pkey_tests[])(int *ptr, u16 pkey) = {
-+	test_read_of_write_disabled_region,
-+	test_read_of_access_disabled_region,
-+	test_write_of_write_disabled_region,
-+	test_write_of_access_disabled_region,
-+	test_kernel_write_of_access_disabled_region,
-+	test_kernel_write_of_write_disabled_region,
-+	test_kernel_gup_of_access_disabled_region,
-+	test_kernel_gup_write_to_write_disabled_region,
-+	test_executing_on_unreadable_memory,
-+	test_ptrace_of_child,
-+	test_pkey_syscalls_on_non_allocated_pkey,
-+	test_pkey_syscalls_bad_args,
-+	test_pkey_alloc_exhaust,
-+};
-+
-+void run_tests_once(void)
-+{
-+	int *ptr;
-+	int prot = PROT_READ|PROT_WRITE;
-+
-+	for (test_nr = 0; test_nr < ARRAY_SIZE(pkey_tests); test_nr++) {
-+		int pkey;
-+		int orig_pkru_faults = pkru_faults;
-+
-+		dprintf1("======================\n");
-+		dprintf1("test %d preparing...\n", test_nr);
-+
-+		tracing_on();
-+		pkey = alloc_random_pkey();
-+		dprintf1("test %d starting with pkey: %d\n", test_nr, pkey);
-+		ptr = malloc_pkey(PAGE_SIZE, prot, pkey);
-+		dprintf1("test %d starting...\n", test_nr);
-+		pkey_tests[test_nr](ptr, pkey);
-+		dprintf1("freeing test memory: %p\n", ptr);
-+		free_pkey_malloc(ptr);
-+		sys_pkey_free(pkey);
-+
-+		dprintf1("pkru_faults: %d\n", pkru_faults);
-+		dprintf1("orig_pkru_faults: %d\n", orig_pkru_faults);
-+
-+		tracing_off();
-+		close_test_fds();
-+
-+		printf("test %2d PASSED (itertation %d)\n", test_nr, iteration_nr);
-+		dprintf1("======================\n\n");
-+	}
-+	iteration_nr++;
-+}
-+
-+void pkey_setup_shadow(void)
-+{
-+	shadow_pkru = __rdpkru();
-+}
-+
-+int main(void)
-+{
-+	int nr_iterations = 22;
-+
-+	setup_handlers();
-+
-+	printf("has pku: %d\n", cpu_has_pku());
-+
-+	if (!cpu_has_pku()) {
-+		int size = PAGE_SIZE;
-+		int *ptr;
-+
-+		printf("running PKEY tests for unsupported CPU/OS\n");
-+
-+		ptr  = mmap(NULL, size, PROT_NONE, MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
-+		assert(ptr != (void *)-1);
-+		test_mprotect_pkey_on_unsupported_cpu(ptr, 1);
-+		exit(0);
-+	}
-+
-+	pkey_setup_shadow();
-+	printf("startup pkru: %x\n", rdpkru());
-+	setup_hugetlbfs();
-+
-+	while (nr_iterations-- > 0)
-+		run_tests_once();
-+
-+	printf("done (all tests OK)\n");
-+	return 0;
-+}
-+
-_
+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
+TH+fX1mG3PoJFb83nj3/D7sSCS+jCAEA
+
+--T4sUOijqQbZv57TR--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
