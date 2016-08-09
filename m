@@ -1,81 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 473DB6B0005
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2016 09:56:50 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id w128so25528972pfd.3
-        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 06:56:50 -0700 (PDT)
-Received: from mail-pa0-x241.google.com (mail-pa0-x241.google.com. [2607:f8b0:400e:c03::241])
-        by mx.google.com with ESMTPS id g8si42842352pfc.294.2016.08.09.06.56.49
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AA086B0253
+	for <linux-mm@kvack.org>; Tue,  9 Aug 2016 10:26:07 -0400 (EDT)
+Received: by mail-yb0-f198.google.com with SMTP id e125so11742848ybc.3
+        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 07:26:07 -0700 (PDT)
+Received: from mail-yw0-x244.google.com (mail-yw0-x244.google.com. [2607:f8b0:4002:c05::244])
+        by mx.google.com with ESMTPS id x84si5562675ybx.336.2016.08.09.07.26.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Aug 2016 06:56:49 -0700 (PDT)
-Received: by mail-pa0-x241.google.com with SMTP id cf3so1000235pad.2
-        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 06:56:49 -0700 (PDT)
-Date: Tue, 9 Aug 2016 23:57:03 +1000
-From: Balbir Singh <bsingharora@gmail.com>
+        Tue, 09 Aug 2016 07:26:06 -0700 (PDT)
+Received: by mail-yw0-x244.google.com with SMTP id r9so574780ywg.2
+        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 07:26:06 -0700 (PDT)
+Date: Tue, 9 Aug 2016 10:26:03 -0400
+From: Tejun Heo <tj@kernel.org>
 Subject: Re: [RFC][PATCH] cgroup_threadgroup_rwsem - affects scalability and
  OOM
-Message-ID: <20160809135703.GA11823@350D>
-Reply-To: bsingharora@gmail.com
+Message-ID: <20160809142603.GE4906@mtj.duckdns.org>
 References: <4717ef90-ca86-4a34-c63a-94b8b4bfaaec@gmail.com>
- <57A99BCB.6070905@huawei.com>
+ <20160809062900.GD4906@mtj.duckdns.org>
+ <0a7ffe43-c0c6-85df-9bc2-d00fc837e284@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <57A99BCB.6070905@huawei.com>
+In-Reply-To: <0a7ffe43-c0c6-85df-9bc2-d00fc837e284@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zefan Li <lizefan@huawei.com>
-Cc: Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: cgroups@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, Aug 09, 2016 at 05:00:59PM +0800, Zefan Li wrote:
-> > This almost stalls the system, this patch moves the threadgroup_change_begin
-> > from before cgroup_fork() to just before cgroup_canfork(). Ideally we shouldn't
-> > have to worry about threadgroup changes till the task is actually added to
-> > the threadgroup. This avoids having to call reclaim with cgroup_threadgroup_rwsem
-> > held.
-> > 
-> > There are other theoretical issues with this semaphore
-> > 
-> > systemd can do
-> > 
-> > 1. cgroup_mutex (cgroup_kn_lock_live)
-> > 2. cgroup_threadgroup_rwsem (W) (__cgroup_procs_write)
-> > 
-> > and other threads can go
-> > 
-> > 1. cgroup_threadgroup_rwsem (R) (copy_process)
-> > 2. mem_cgroup_iter (as a part of reclaim) (cgroup_mutex -- rcu lock or cgroup_mutex)
-> > 
-> > However, I've not examined them in too much detail or looked at lockdep
-> > wait chains for those paths.
-> > 
-> > I am sure there is a good reason for placing cgroup_threadgroup_rwsem
-> > where it is today and I might be missing something. I am also surprised
-> > no-one else has run into it so far.
-> > 
-> > Comments?
+Hello, Balbir.
+
+On Tue, Aug 09, 2016 at 05:02:47PM +1000, Balbir Singh wrote:
+> > Hmm? Where does mem_cgroup_iter grab cgroup_mutex?  cgroup_mutex nests
+> > outside cgroup_threadgroup_rwsem or most other mutexes for that matter
+> > and isn't exposed from cgroup core.
 > > 
 > 
-> We used to use cgroup_threadgroup_rwsem for syncronization between threads
-> in the same threadgroup, but now it has evolved to ensure atomic operations
-> across multi processes.
+> I based my theory on the code
 > 
-
-Yes and it seems incorrect
-
-> For example, I'm trying to fix a race. See https://lkml.org/lkml/2016/8/8/900
+> mem_cgroup_iter -> css_next_descendant_pre which asserts
 > 
-> And the fix kind of relies on the fact that cgroup_post_fork() is placed
-> inside the read section of cgroup_threadgroup_rwsem, so that cpuset_fork()
-> won't race with cgroup migration.
->
+> cgroup_assert_mutex_or_rcu_locked(), 
+> 
+> although you are right, we hold RCU lock while calling css_* routines.
 
-My patch retains that behaviour, before ss->fork() is called we hold
-the cgroup_threadgroup_rwsem, in fact it is held prior to ss->can_fork()
+That's "or".  The iterator can be called either with RCU lock or
+cgroup_mutex.  cgroup core may use it under cgroup_mutex.  Everyone
+else uses it with rcu.
 
+Thanks.
 
-Balbir 
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
