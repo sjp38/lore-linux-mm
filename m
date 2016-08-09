@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E3B74828F0
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2016 12:38:30 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id ez1so30850198pab.1
-        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 09:38:30 -0700 (PDT)
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C507828F0
+	for <linux-mm@kvack.org>; Tue,  9 Aug 2016 12:38:33 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id ag5so30811962pad.2
+        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 09:38:33 -0700 (PDT)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id x69si43400947pfi.273.2016.08.09.09.38.13
+        by mx.google.com with ESMTP id r71si1655316pfb.169.2016.08.09.09.38.13
         for <linux-mm@kvack.org>;
         Tue, 09 Aug 2016 09:38:13 -0700 (PDT)
 From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [RFC 09/11] mm, THP: Add can_split_huge_page()
-Date: Tue,  9 Aug 2016 09:37:51 -0700
-Message-Id: <1470760673-12420-10-git-send-email-ying.huang@intel.com>
+Subject: [RFC 10/11] mm, THP, swap: Support to split THP in swap cache
+Date: Tue,  9 Aug 2016 09:37:52 -0700
+Message-Id: <1470760673-12420-11-git-send-email-ying.huang@intel.com>
 In-Reply-To: <1470760673-12420-1-git-send-email-ying.huang@intel.com>
 References: <1470760673-12420-1-git-send-email-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -21,81 +21,81 @@ Cc: tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@
 
 From: Huang Ying <ying.huang@intel.com>
 
-Separates checking whether we can split the huge page from
-split_huge_page_to_list() into a function.  This will help to check that
-before splitting the THP (Transparent Huge Page) really.
+This patch enhanced the split_huge_page_to_list() to work properly for
+THP (Transparent Huge Page) in swap cache during swapping out.
 
-This will be used for delaying splitting THP during swapping out.  Where
-for a THP, we will allocate a swap cluster, add the THP into swap cache,
-then split the THP.  To avoid unnecessary operations for un-splittable
-THP, we will check that firstly.
-
-There is no functionality change in this patch.
+This is used for delaying splitting THP during swapping out.  Where for
+a THP to be swapped out, we will allocate a swap cluster, add the THP
+into the swap cache, then split the THP.  The page lock will be held
+during this process.  So in the code path other than swapping out, if
+the THP need to be split, the PageSwapCache(THP) will be always false.
 
 Cc: Andrea Arcangeli <aarcange@redhat.com>
 Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 Cc: Ebru Akagunduz <ebru.akagunduz@gmail.com>
 Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
 ---
- include/linux/huge_mm.h |  6 ++++++
- mm/huge_memory.c        | 13 ++++++++++++-
- 2 files changed, 18 insertions(+), 1 deletion(-)
+ mm/huge_memory.c | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 6f14de4..95ccbb4 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -90,6 +90,7 @@ extern unsigned long transparent_hugepage_flags;
- extern void prep_transhuge_page(struct page *page);
- extern void free_transhuge_page(struct page *page);
- 
-+bool can_split_huge_page(struct page *page);
- int split_huge_page_to_list(struct page *page, struct list_head *list);
- static inline int split_huge_page(struct page *page)
- {
-@@ -169,6 +170,11 @@ void put_huge_zero_page(void);
- static inline void prep_transhuge_page(struct page *page) {}
- 
- #define transparent_hugepage_flags 0UL
-+static inline bool
-+can_split_huge_page(struct page *page)
-+{
-+	return false;
-+}
- static inline int
- split_huge_page_to_list(struct page *page, struct list_head *list)
- {
 diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 2373f0a..af65413 100644
+index af65413..f738a7e 100644
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -1954,6 +1954,17 @@ int page_trans_huge_mapcount(struct page *page, int *total_mapcount)
- 	return ret;
- }
- 
-+/* Racy check whether the huge page can be split */
-+bool can_split_huge_page(struct page *page)
-+{
-+	int extra_pins = 0;
-+
-+	/* Additional pins from radix tree */
-+	if (!PageAnon(page))
-+		extra_pins = HPAGE_PMD_NR;
-+	return total_mapcount(page) == page_count(page) - extra_pins - 1;
-+}
-+
- /*
-  * This function splits huge page into normal pages. @page can point to any
-  * subpage of huge page to split. Split doesn't change the position of @page.
-@@ -2024,7 +2035,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
- 	 * Racy check if we can split the page, before freeze_page() will
- 	 * split PMDs
+@@ -1772,7 +1772,7 @@ static void __split_huge_page_tail(struct page *head, int tail,
+ 	 * atomic_set() here would be safe on all archs (and not only on x86),
+ 	 * it's safer to use atomic_inc()/atomic_add().
  	 */
--	if (total_mapcount(head) != page_count(head) - extra_pins - 1) {
-+	if (!can_split_huge_page(head)) {
- 		ret = -EBUSY;
- 		goto out_unlock;
- 	}
+-	if (PageAnon(head)) {
++	if (PageAnon(head) && !PageSwapCache(head)) {
+ 		page_ref_inc(page_tail);
+ 	} else {
+ 		/* Additional pin to radix tree */
+@@ -1783,6 +1783,7 @@ static void __split_huge_page_tail(struct page *head, int tail,
+ 	page_tail->flags |= (head->flags &
+ 			((1L << PG_referenced) |
+ 			 (1L << PG_swapbacked) |
++			 (1L << PG_swapcache) |
+ 			 (1L << PG_mlocked) |
+ 			 (1L << PG_uptodate) |
+ 			 (1L << PG_active) |
+@@ -1845,7 +1846,11 @@ static void __split_huge_page(struct page *page, struct list_head *list,
+ 	ClearPageCompound(head);
+ 	/* See comment in __split_huge_page_tail() */
+ 	if (PageAnon(head)) {
+-		page_ref_inc(head);
++		/* Additional pin to radix tree of swap cache */
++		if (PageSwapCache(head))
++			page_ref_add(head, 2);
++		else
++			page_ref_inc(head);
+ 	} else {
+ 		/* Additional pin to radix tree */
+ 		page_ref_add(head, 2);
+@@ -1957,10 +1962,12 @@ int page_trans_huge_mapcount(struct page *page, int *total_mapcount)
+ /* Racy check whether the huge page can be split */
+ bool can_split_huge_page(struct page *page)
+ {
+-	int extra_pins = 0;
++	int extra_pins;
+ 
+ 	/* Additional pins from radix tree */
+-	if (!PageAnon(page))
++	if (PageAnon(page))
++		extra_pins = PageSwapCache(page) ? HPAGE_PMD_NR : 0;
++	else
+ 		extra_pins = HPAGE_PMD_NR;
+ 	return total_mapcount(page) == page_count(page) - extra_pins - 1;
+ }
+@@ -2013,7 +2020,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ 			ret = -EBUSY;
+ 			goto out;
+ 		}
+-		extra_pins = 0;
++		extra_pins = PageSwapCache(head) ? HPAGE_PMD_NR : 0;
+ 		mapping = NULL;
+ 		anon_vma_lock_write(anon_vma);
+ 	} else {
 -- 
 2.8.1
 
