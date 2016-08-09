@@ -1,60 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A3446B025F
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2016 08:34:47 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id pp5so21359183pac.3
-        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 05:34:47 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id wi6si42575341pab.81.2016.08.09.05.34.46
-        for <linux-mm@kvack.org>;
-        Tue, 09 Aug 2016 05:34:46 -0700 (PDT)
-From: Steve Capper <steve.capper@arm.com>
-Subject: [PATCH] rmap: Fix compound check logic in page_remove_file_rmap
-Date: Tue,  9 Aug 2016 13:34:35 +0100
-Message-Id: <1470746075-20856-1-git-send-email-steve.capper@arm.com>
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EC4A6B0261
+	for <linux-mm@kvack.org>; Tue,  9 Aug 2016 08:42:44 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 1so20273528wmz.2
+        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 05:42:44 -0700 (PDT)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.10])
+        by mx.google.com with ESMTPS id 131si2873441wma.114.2016.08.09.05.42.42
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Aug 2016 05:42:43 -0700 (PDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: [PATCH] thp: move shmem_huge_enabled() outside of SYSFS ifdef
+Date: Tue,  9 Aug 2016 14:36:02 +0200
+Message-Id: <20160809123638.1357593-1-arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, shijie.huang@arm.com, will.deacon@arm.com, catalin.marinas@arm.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Arnd Bergmann <arnd@arndb.de>, Hugh Dickins <hughd@google.com>, Al Viro <viro@zeniv.linux.org.uk>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-In page_remove_file_rmap(.) we have the following check:
-  VM_BUG_ON_PAGE(compound && !PageTransHuge(page), page);
+The newly introduced shmem_huge_enabled() function has two definitions,
+but neither of them is visible if CONFIG_SYSFS is disabled, leading
+to a build error:
 
-This is meant to check for either HugeTLB pages or THP when a compound
-page is passed in.
+mm/khugepaged.o: In function `khugepaged':
+khugepaged.c:(.text.khugepaged+0x3ca): undefined reference to `shmem_huge_enabled'
 
-Unfortunately, if one disables CONFIG_TRANSPARENT_HUGEPAGE, then
-PageTransHuge(.) will always return false provoking BUGs when one runs
-the libhugetlbfs test suite.
+This changes the #ifdef guards around the definition to match those that
+are used in the header file.
 
-Changing the definition of PageTransHuge to be defined for
-!CONFIG_TRANSPARENT_HUGEPAGE turned out to provoke build bugs; so this
-patch instead replaces the errant check with:
-  PageTransHuge(page) || PageHuge(page)
-
-Fixes: dd78fedde4b9 ("rmap: support file thp")
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Steve Capper <steve.capper@arm.com>
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+Fixes: e496cf3d7821 ("thp: introduce CONFIG_TRANSPARENT_HUGE_PAGECACHE")
 ---
- mm/rmap.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/shmem.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 709bc83..ad8fc51 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1303,7 +1303,7 @@ static void page_remove_file_rmap(struct page *page, bool compound)
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 7f7748a0f9e1..fd8b2b5741b1 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -3975,7 +3975,9 @@ static ssize_t shmem_enabled_store(struct kobject *kobj,
+ 
+ struct kobj_attribute shmem_enabled_attr =
+ 	__ATTR(shmem_enabled, 0644, shmem_enabled_show, shmem_enabled_store);
++#endif /* CONFIG_TRANSPARENT_HUGE_PAGECACHE && CONFIG_SYSFS */
+ 
++#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
+ bool shmem_huge_enabled(struct vm_area_struct *vma)
  {
- 	int i, nr = 1;
+ 	struct inode *inode = file_inode(vma->vm_file);
+@@ -4006,7 +4008,7 @@ bool shmem_huge_enabled(struct vm_area_struct *vma)
+ 			return false;
+ 	}
+ }
+-#endif /* CONFIG_TRANSPARENT_HUGE_PAGECACHE && CONFIG_SYSFS */
++#endif /* CONFIG_TRANSPARENT_HUGE_PAGECACHE */
  
--	VM_BUG_ON_PAGE(compound && !PageTransHuge(page), page);
-+	VM_BUG_ON_PAGE(compound && !(PageTransHuge(page) || PageHuge(page)), page);
- 	lock_page_memcg(page);
+ #else /* !CONFIG_SHMEM */
  
- 	/* Hugepages are not counted in NR_FILE_MAPPED for now. */
 -- 
-1.8.3.1
+2.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
