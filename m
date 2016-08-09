@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A438B6B0005
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2016 16:30:14 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id u81so33960980wmu.3
-        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 13:30:14 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 1428A6B025F
+	for <linux-mm@kvack.org>; Tue,  9 Aug 2016 16:30:15 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id l4so34598058wml.0
+        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 13:30:15 -0700 (PDT)
 Received: from mellanox.co.il (mail-il-dmz.mellanox.com. [193.47.165.129])
-        by mx.google.com with ESMTP id m67si4758867wmm.31.2016.08.09.13.30.12
+        by mx.google.com with ESMTP id s140si4746293wmd.57.2016.08.09.13.30.12
         for <linux-mm@kvack.org>;
         Tue, 09 Aug 2016 13:30:13 -0700 (PDT)
 From: Chris Metcalf <cmetcalf@mellanox.com>
-Subject: [PATCH v14 02/14] vmstat: add vmstat_idle function
-Date: Tue,  9 Aug 2016 16:29:44 -0400
-Message-Id: <1470774596-17341-3-git-send-email-cmetcalf@mellanox.com>
+Subject: [PATCH v14 03/14] lru_add_drain_all: factor out lru_add_drain_needed
+Date: Tue,  9 Aug 2016 16:29:45 -0400
+Message-Id: <1470774596-17341-4-git-send-email-cmetcalf@mellanox.com>
 In-Reply-To: <1470774596-17341-1-git-send-email-cmetcalf@mellanox.com>
 References: <1470774596-17341-1-git-send-email-cmetcalf@mellanox.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,59 +19,61 @@ List-ID: <linux-mm.kvack.org>
 To: Gilad Ben Yossef <giladb@mellanox.com>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Tejun Heo <tj@kernel.org>, Frederic Weisbecker <fweisbec@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Viresh Kumar <viresh.kumar@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Chris Metcalf <cmetcalf@mellanox.com>
 
-This function checks to see if a vmstat worker is not running,
-and the vmstat diffs don't require an update.  The function is
-called from the task-isolation code to see if we need to
-actually do some work to quiet vmstat.
+This per-cpu check was being done in the loop in lru_add_drain_all(),
+but having it be callable for a particular cpu is helpful for the
+task-isolation patches.
 
-Acked-by: Christoph Lameter <cl@linux.com>
 Signed-off-by: Chris Metcalf <cmetcalf@mellanox.com>
 ---
- include/linux/vmstat.h |  2 ++
- mm/vmstat.c            | 10 ++++++++++
- 2 files changed, 12 insertions(+)
+ include/linux/swap.h |  1 +
+ mm/swap.c            | 15 ++++++++++-----
+ 2 files changed, 11 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-index fab62aa74079..69b6cc4be909 100644
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -235,6 +235,7 @@ extern void __dec_node_state(struct pglist_data *, enum node_stat_item);
- 
- void quiet_vmstat(void);
- void quiet_vmstat_sync(void);
-+bool vmstat_idle(void);
- void cpu_vm_stats_fold(int cpu);
- void refresh_zone_stat_thresholds(void);
- 
-@@ -338,6 +339,7 @@ static inline void refresh_zone_stat_thresholds(void) { }
- static inline void cpu_vm_stats_fold(int cpu) { }
- static inline void quiet_vmstat(void) { }
- static inline void quiet_vmstat_sync(void) { }
-+static inline bool vmstat_idle(void) { return true; }
- 
- static inline void drain_zonestat(struct zone *zone,
- 			struct per_cpu_pageset *pset) { }
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 57fc29750da6..7dd17c06d3a7 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1763,6 +1763,16 @@ void quiet_vmstat_sync(void)
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index b17cc4830fa6..58966a235298 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -295,6 +295,7 @@ extern void activate_page(struct page *);
+ extern void mark_page_accessed(struct page *);
+ extern void lru_add_drain(void);
+ extern void lru_add_drain_cpu(int cpu);
++extern bool lru_add_drain_needed(int cpu);
+ extern void lru_add_drain_all(void);
+ extern void rotate_reclaimable_page(struct page *page);
+ extern void deactivate_file_page(struct page *page);
+diff --git a/mm/swap.c b/mm/swap.c
+index 75c63bb2a1da..a2be6f0931b5 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -655,6 +655,15 @@ void deactivate_page(struct page *page)
+ 	}
  }
  
- /*
-+ * Report on whether vmstat processing is quiesced on the core currently:
-+ * no vmstat worker running and no vmstat updates to perform.
-+ */
-+bool vmstat_idle(void)
++bool lru_add_drain_needed(int cpu)
 +{
-+	return !delayed_work_pending(this_cpu_ptr(&vmstat_work)) &&
-+		!need_update(smp_processor_id());
++	return (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
++		pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
++		pagevec_count(&per_cpu(lru_deactivate_file_pvecs, cpu)) ||
++		pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
++		need_activate_page_drain(cpu));
 +}
 +
-+/*
-  * Shepherd worker thread that checks the
-  * differentials of processors that have their worker
-  * threads for vm statistics updates disabled because of
+ void lru_add_drain(void)
+ {
+ 	lru_add_drain_cpu(get_cpu());
+@@ -699,11 +708,7 @@ void lru_add_drain_all(void)
+ 	for_each_online_cpu(cpu) {
+ 		struct work_struct *work = &per_cpu(lru_add_drain_work, cpu);
+ 
+-		if (pagevec_count(&per_cpu(lru_add_pvec, cpu)) ||
+-		    pagevec_count(&per_cpu(lru_rotate_pvecs, cpu)) ||
+-		    pagevec_count(&per_cpu(lru_deactivate_file_pvecs, cpu)) ||
+-		    pagevec_count(&per_cpu(lru_deactivate_pvecs, cpu)) ||
+-		    need_activate_page_drain(cpu)) {
++		if (lru_add_drain_needed(cpu)) {
+ 			INIT_WORK(work, lru_add_drain_per_cpu);
+ 			queue_work_on(cpu, lru_add_drain_wq, work);
+ 			cpumask_set_cpu(cpu, &has_work);
 -- 
 2.7.2
 
