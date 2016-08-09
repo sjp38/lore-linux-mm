@@ -1,109 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A0F316B0005
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2016 02:29:02 -0400 (EDT)
-Received: by mail-ua0-f200.google.com with SMTP id r91so7279396uar.0
-        for <linux-mm@kvack.org>; Mon, 08 Aug 2016 23:29:02 -0700 (PDT)
-Received: from mail-qk0-x243.google.com (mail-qk0-x243.google.com. [2607:f8b0:400d:c09::243])
-        by mx.google.com with ESMTPS id b34si22667845qtb.136.2016.08.08.23.29.01
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 96C7A6B025E
+	for <linux-mm@kvack.org>; Tue,  9 Aug 2016 02:30:42 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id o124so7837555pfg.1
+        for <linux-mm@kvack.org>; Mon, 08 Aug 2016 23:30:42 -0700 (PDT)
+Received: from mail-pa0-x242.google.com (mail-pa0-x242.google.com. [2607:f8b0:400e:c03::242])
+        by mx.google.com with ESMTPS id xy10si41067604pac.60.2016.08.08.23.30.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Aug 2016 23:29:01 -0700 (PDT)
-Received: by mail-qk0-x243.google.com with SMTP id o1so374915qkd.2
-        for <linux-mm@kvack.org>; Mon, 08 Aug 2016 23:29:01 -0700 (PDT)
-Date: Tue, 9 Aug 2016 02:29:00 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC][PATCH] cgroup_threadgroup_rwsem - affects scalability and
- OOM
-Message-ID: <20160809062900.GD4906@mtj.duckdns.org>
-References: <4717ef90-ca86-4a34-c63a-94b8b4bfaaec@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4717ef90-ca86-4a34-c63a-94b8b4bfaaec@gmail.com>
+        Mon, 08 Aug 2016 23:30:41 -0700 (PDT)
+Received: by mail-pa0-x242.google.com with SMTP id cf3so409719pad.2
+        for <linux-mm@kvack.org>; Mon, 08 Aug 2016 23:30:41 -0700 (PDT)
+From: js1304@gmail.com
+Subject: [PATCH 1/2] mm/page_alloc: fix wrong initialization when sysctl_min_unmapped_ratio changes
+Date: Tue,  9 Aug 2016 15:30:47 +0900
+Message-Id: <1470724248-26780-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: cgroups@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Hello, Balbir.
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Tue, Aug 09, 2016 at 02:19:01PM +1000, Balbir Singh wrote:
-> 
-> cgroup_threadgroup_rwsem is acquired in read mode during process exit and fork.
-> It is also grabbed in write mode during __cgroups_proc_write
-> 
-> I've recently run into a scenario with lots of memory pressure and OOM
-> and I am beginning to see
-> 
-> systemd
-> 
->  __switch_to+0x1f8/0x350
->  __schedule+0x30c/0x990
->  schedule+0x48/0xc0
->  percpu_down_write+0x114/0x170
->  __cgroup_procs_write.isra.12+0xb8/0x3c0
->  cgroup_file_write+0x74/0x1a0
->  kernfs_fop_write+0x188/0x200
->  __vfs_write+0x6c/0xe0
->  vfs_write+0xc0/0x230
->  SyS_write+0x6c/0x110
->  system_call+0x38/0xb4
-> 
-> This thread is waiting on the reader of cgroup_threadgroup_rwsem to exit.
-> The reader itself is under memory pressure and has gone into reclaim after
-> fork. There are times the reader also ends up waiting on oom_lock as well.
-> 
-...
->  copy_page_range+0x4ec/0x950
->  copy_process.isra.5+0x15a0/0x1870
->  _do_fork+0xa8/0x4b0
->  ppc_clone+0x8/0xc
+Before resetting min_unmapped_pages, we need to initialize
+min_unmapped_pages rather than min_slab_pages.
 
-Yeah, we definitely don't wanna be holding the rwsem during the actual
-fork.
+Fixes: a5f5f91da6 (mm: convert zone_reclaim to node_reclaim)
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+---
+ mm/page_alloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-...
-> There are other theoretical issues with this semaphore
-> 
-> systemd can do
-> 
-> 1. cgroup_mutex (cgroup_kn_lock_live)
-> 2. cgroup_threadgroup_rwsem (W) (__cgroup_procs_write)
-> 
-> and other threads can go
-> 
-> 1. cgroup_threadgroup_rwsem (R) (copy_process)
-> 2. mem_cgroup_iter (as a part of reclaim) (cgroup_mutex -- rcu lock or cgroup_mutex)
-
-Hmm? Where does mem_cgroup_iter grab cgroup_mutex?  cgroup_mutex nests
-outside cgroup_threadgroup_rwsem or most other mutexes for that matter
-and isn't exposed from cgroup core.
-
-> However, I've not examined them in too much detail or looked at lockdep
-> wait chains for those paths.
-> 
-> I am sure there is a good reason for placing cgroup_threadgroup_rwsem
-> where it is today and I might be missing something. I am also surprised
-
-I could be missing something too but the positioning is largely
-historic.
-
-> no-one else has run into it so far.
-
-Maybe it might matter that much on a system which is already heavily
-thrasing, but yeah, we definitely want to tighten down the reader
-sections so that it doesn't get in the way of making forward progress.
-
-> Comments?
-
-The change looks good to me on the first glance but I'll think more
-about it tomorrow.
-
-Thanks!
-
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index afdb7f8..555b609 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6894,7 +6894,7 @@ int sysctl_min_unmapped_ratio_sysctl_handler(struct ctl_table *table, int write,
+ 		return rc;
+ 
+ 	for_each_online_pgdat(pgdat)
+-		pgdat->min_slab_pages = 0;
++		pgdat->min_unmapped_pages = 0;
+ 
+ 	for_each_zone(zone)
+ 		zone->zone_pgdat->min_unmapped_pages += (zone->managed_pages *
 -- 
-tejun
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
