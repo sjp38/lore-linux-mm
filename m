@@ -1,74 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2908B6B0005
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 03:51:47 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 1so50127420wmz.2
-        for <linux-mm@kvack.org>; Wed, 10 Aug 2016 00:51:47 -0700 (PDT)
-Received: from outbound-smtp06.blacknight.com (outbound-smtp06.blacknight.com. [81.17.249.39])
-        by mx.google.com with ESMTPS id l66si6836524wml.74.2016.08.10.00.51.44
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 10 Aug 2016 00:51:45 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp06.blacknight.com (Postfix) with ESMTPS id 9A8D299139
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 07:51:44 +0000 (UTC)
-Date: Wed, 10 Aug 2016 08:51:43 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] fadump: Register the memory reserved by fadump
-Message-ID: <20160810075142.GC8119@techsingularity.net>
-References: <1470318165-2521-1-git-send-email-srikar@linux.vnet.ibm.com>
- <87mvkritii.fsf@concordia.ellerman.id.au>
- <20160805072838.GF11268@linux.vnet.ibm.com>
- <87h9azin4g.fsf@concordia.ellerman.id.au>
- <20160805100609.GP2799@techsingularity.net>
- <87d1lhtb3s.fsf@concordia.ellerman.id.au>
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E62C6B0005
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 04:02:15 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id ez1so62763312pab.1
+        for <linux-mm@kvack.org>; Wed, 10 Aug 2016 01:02:15 -0700 (PDT)
+Received: from out4435.biz.mail.alibaba.com (out4435.biz.mail.alibaba.com. [47.88.44.35])
+        by mx.google.com with ESMTP id p11si47351423pao.78.2016.08.10.01.02.13
+        for <linux-mm@kvack.org>;
+        Wed, 10 Aug 2016 01:02:14 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <01f101d1f2da$5e943aa0$1bbcafe0$@alibaba-inc.com> <01f201d1f2dc$bd43f750$37cbe5f0$@alibaba-inc.com>
+In-Reply-To: <01f201d1f2dc$bd43f750$37cbe5f0$@alibaba-inc.com>
+Subject: Re: [RFC 11/11] mm, THP, swap: Delay splitting THP during swap out
+Date: Wed, 10 Aug 2016 16:01:59 +0800
+Message-ID: <01f301d1f2dd$78df7660$6a9e6320$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <87d1lhtb3s.fsf@concordia.ellerman.id.au>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@intel.com>, Balbir Singh <bsingharora@gmail.com>
+To: 'Huang Ying' <ying.huang@intel.com>
+Cc: linux-mm@kvack.org
 
-On Wed, Aug 10, 2016 at 04:02:47PM +1000, Michael Ellerman wrote:
-> > Conceptually it would be cleaner, if expensive, to calculate the real
-> > memblock reserves if HASH_EARLY and ditch the dma_reserve, memory_reserve
-> > and nr_kernel_pages entirely.
 > 
-> Why is it expensive? memblock tracks the totals for all memory and
-> reserved memory AFAIK, so it should just be a case of subtracting one
-> from the other?
+> @@ -187,6 +221,14 @@ int add_to_swap(struct page *page, struct list_head *list)
+>  	VM_BUG_ON_PAGE(!PageLocked(page), page);
+>  	VM_BUG_ON_PAGE(!PageUptodate(page), page);
 > 
+> +	if (unlikely(PageTransHuge(page))) {
+> +		err = add_to_swap_trans_huge(page, list);
+> +		if (err < 0)
+> +			return 0;
+> +		else if (err > 0)
+> +			return err;
+> +		/* fallback to split firstly if return 0 */
 
-I didn't actually check that it tracks the totals. If it does, then the cost
-will be negligible in comparison to the total cost of initialising memory.
+switch (err) and add vm event count according to the meaning of err? 
+> +	}
 
-> > Unfortuantely, aside from the calculation,
-> > there is a potential cost due to a smaller hash table that affects everyone,
-> > not just ppc64.
-> 
-> Yeah OK. We could make it an arch hook, or controlled by a CONFIG.
-> 
-> > However, if the hash table is meant to be sized on the
-> > number of available pages then it really should be based on that and not
-> > just a made-up number.
-> 
-> Yeah that seems to make sense.
-> 
-> The one complication I think is that we may have memory that's marked
-> reserved in memblock, but is later freed to the page allocator (eg.
-> initrd).
-> 
-
-It would be ideal if the amount of reserved memory that is freed later
-in the normal case was estimated. If it's a small percentage of memory
-then the difference is unlikely to be detectable and avoids ppc64 being
-special.
-
--- 
-Mel Gorman
-SUSE Labs
+thanks
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
