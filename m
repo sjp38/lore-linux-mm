@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C79E5828F3
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 02:16:27 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id o124so65478093pfg.1
-        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 23:16:27 -0700 (PDT)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id oy8si46771089pac.126.2016.08.09.23.16.19
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 185D3828F3
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 02:16:31 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 63so65517155pfx.0
+        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 23:16:31 -0700 (PDT)
+Received: from mail-pa0-x241.google.com (mail-pa0-x241.google.com. [2607:f8b0:400e:c03::241])
+        by mx.google.com with ESMTPS id h5si46805440paw.116.2016.08.09.23.16.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Aug 2016 23:16:25 -0700 (PDT)
-Received: by mail-pf0-x241.google.com with SMTP id i6so2242780pfe.0
-        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 23:16:19 -0700 (PDT)
+        Tue, 09 Aug 2016 23:16:26 -0700 (PDT)
+Received: by mail-pa0-x241.google.com with SMTP id ez1so2250915pab.3
+        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 23:16:25 -0700 (PDT)
 From: js1304@gmail.com
-Subject: [PATCH 1/5] mm/debug_pagealloc: clean-up guard page handling code
-Date: Wed, 10 Aug 2016 15:16:20 +0900
-Message-Id: <1470809784-11516-2-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 3/5] mm/page_owner: move page_owner specific function to page_owner.c
+Date: Wed, 10 Aug 2016 15:16:22 +0900
+Message-Id: <1470809784-11516-4-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1470809784-11516-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1470809784-11516-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,90 +24,202 @@ Cc: Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Michal H
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-We can make code clean by moving decision condition
-for set_page_guard() into set_page_guard() itself. It will
-help code readability. There is no functional change.
+There is no reason that page_owner specific function resides on vmstat.c.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/page_alloc.c | 34 ++++++++++++++++++----------------
- 1 file changed, 18 insertions(+), 16 deletions(-)
+ include/linux/page_owner.h |  2 ++
+ mm/page_owner.c            | 73 ++++++++++++++++++++++++++++++++++++++++++
+ mm/vmstat.c                | 79 ----------------------------------------------
+ 3 files changed, 75 insertions(+), 79 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 277c3d0..5e7944b 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -638,17 +638,20 @@ static int __init debug_guardpage_minorder_setup(char *buf)
- }
- __setup("debug_guardpage_minorder=", debug_guardpage_minorder_setup);
+diff --git a/include/linux/page_owner.h b/include/linux/page_owner.h
+index 30583ab..2be728d 100644
+--- a/include/linux/page_owner.h
++++ b/include/linux/page_owner.h
+@@ -14,6 +14,8 @@ extern void __split_page_owner(struct page *page, unsigned int order);
+ extern void __copy_page_owner(struct page *oldpage, struct page *newpage);
+ extern void __set_page_owner_migrate_reason(struct page *page, int reason);
+ extern void __dump_page_owner(struct page *page);
++extern void pagetypeinfo_showmixedcount_print(struct seq_file *m,
++					pg_data_t *pgdat, struct zone *zone);
  
--static inline void set_page_guard(struct zone *zone, struct page *page,
-+static inline bool set_page_guard(struct zone *zone, struct page *page,
- 				unsigned int order, int migratetype)
+ static inline void reset_page_owner(struct page *page, unsigned int order)
  {
- 	struct page_ext *page_ext;
- 
- 	if (!debug_guardpage_enabled())
--		return;
-+		return false;
-+
-+	if (order >= debug_guardpage_minorder())
-+		return false;
- 
- 	page_ext = lookup_page_ext(page);
- 	if (unlikely(!page_ext))
--		return;
-+		return false;
- 
- 	__set_bit(PAGE_EXT_DEBUG_GUARD, &page_ext->flags);
- 
-@@ -656,6 +659,8 @@ static inline void set_page_guard(struct zone *zone, struct page *page,
- 	set_page_private(page, order);
- 	/* Guard pages are not available for any usage */
- 	__mod_zone_freepage_state(zone, -(1 << order), migratetype);
-+
-+	return true;
+diff --git a/mm/page_owner.c b/mm/page_owner.c
+index 3b241f5..14c8e65 100644
+--- a/mm/page_owner.c
++++ b/mm/page_owner.c
+@@ -214,6 +214,79 @@ void __copy_page_owner(struct page *oldpage, struct page *newpage)
+ 	__set_bit(PAGE_EXT_OWNER, &new_ext->flags);
  }
  
- static inline void clear_page_guard(struct zone *zone, struct page *page,
-@@ -678,8 +683,8 @@ static inline void clear_page_guard(struct zone *zone, struct page *page,
++void pagetypeinfo_showmixedcount_print(struct seq_file *m, pg_data_t *pgdat,
++					struct zone *zone)
++{
++	struct page *page;
++	struct page_ext *page_ext;
++	unsigned long pfn = zone->zone_start_pfn, block_end_pfn;
++	unsigned long end_pfn = pfn + zone->spanned_pages;
++	unsigned long count[MIGRATE_TYPES] = { 0, };
++	int pageblock_mt, page_mt;
++	int i;
++
++	/* Scan block by block. First and last block may be incomplete */
++	pfn = zone->zone_start_pfn;
++
++	/*
++	 * Walk the zone in pageblock_nr_pages steps. If a page block spans
++	 * a zone boundary, it will be double counted between zones. This does
++	 * not matter as the mixed block count will still be correct
++	 */
++	for (; pfn < end_pfn; ) {
++		if (!pfn_valid(pfn)) {
++			pfn = ALIGN(pfn + 1, pageblock_nr_pages);
++			continue;
++		}
++
++		block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
++		block_end_pfn = min(block_end_pfn, end_pfn);
++
++		page = pfn_to_page(pfn);
++		pageblock_mt = get_pageblock_migratetype(page);
++
++		for (; pfn < block_end_pfn; pfn++) {
++			if (!pfn_valid_within(pfn))
++				continue;
++
++			page = pfn_to_page(pfn);
++
++			if (page_zone(page) != zone)
++				continue;
++
++			if (PageBuddy(page)) {
++				pfn += (1UL << page_order(page)) - 1;
++				continue;
++			}
++
++			if (PageReserved(page))
++				continue;
++
++			page_ext = lookup_page_ext(page);
++			if (unlikely(!page_ext))
++				continue;
++
++			if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags))
++				continue;
++
++			page_mt = gfpflags_to_migratetype(page_ext->gfp_mask);
++			if (pageblock_mt != page_mt) {
++				count[pageblock_mt]++;
++
++				pfn = block_end_pfn;
++				break;
++			}
++			pfn += (1UL << page_ext->order) - 1;
++		}
++	}
++
++	/* Print counts */
++	seq_printf(m, "Node %d, zone %8s ", pgdat->node_id, zone->name);
++	for (i = 0; i < MIGRATE_TYPES; i++)
++		seq_printf(m, "%12lu ", count[i]);
++	seq_putc(m, '\n');
++}
++
+ static ssize_t
+ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
+ 		struct page *page, struct page_ext *page_ext,
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 84397e8..dc04e76 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1254,85 +1254,6 @@ static int pagetypeinfo_showblockcount(struct seq_file *m, void *arg)
+ 	return 0;
  }
- #else
- struct page_ext_operations debug_guardpage_ops = { NULL, };
--static inline void set_page_guard(struct zone *zone, struct page *page,
--				unsigned int order, int migratetype) {}
-+static inline bool set_page_guard(struct zone *zone, struct page *page,
-+			unsigned int order, int migratetype) { return false; }
- static inline void clear_page_guard(struct zone *zone, struct page *page,
- 				unsigned int order, int migratetype) {}
- #endif
-@@ -1650,18 +1655,15 @@ static inline void expand(struct zone *zone, struct page *page,
- 		size >>= 1;
- 		VM_BUG_ON_PAGE(bad_range(zone, &page[size]), &page[size]);
  
--		if (IS_ENABLED(CONFIG_DEBUG_PAGEALLOC) &&
--			debug_guardpage_enabled() &&
--			high < debug_guardpage_minorder()) {
--			/*
--			 * Mark as guard pages (or page), that will allow to
--			 * merge back to allocator when buddy will be freed.
--			 * Corresponding page table entries will not be touched,
--			 * pages will stay not present in virtual address space
--			 */
--			set_page_guard(zone, &page[size], high, migratetype);
-+		/*
-+		 * Mark as guard pages (or page), that will allow to
-+		 * merge back to allocator when buddy will be freed.
-+		 * Corresponding page table entries will not be touched,
-+		 * pages will stay not present in virtual address space
-+		 */
-+		if (set_page_guard(zone, &page[size], high, migratetype))
- 			continue;
+-#ifdef CONFIG_PAGE_OWNER
+-static void pagetypeinfo_showmixedcount_print(struct seq_file *m,
+-							pg_data_t *pgdat,
+-							struct zone *zone)
+-{
+-	struct page *page;
+-	struct page_ext *page_ext;
+-	unsigned long pfn = zone->zone_start_pfn, block_end_pfn;
+-	unsigned long end_pfn = pfn + zone->spanned_pages;
+-	unsigned long count[MIGRATE_TYPES] = { 0, };
+-	int pageblock_mt, page_mt;
+-	int i;
+-
+-	/* Scan block by block. First and last block may be incomplete */
+-	pfn = zone->zone_start_pfn;
+-
+-	/*
+-	 * Walk the zone in pageblock_nr_pages steps. If a page block spans
+-	 * a zone boundary, it will be double counted between zones. This does
+-	 * not matter as the mixed block count will still be correct
+-	 */
+-	for (; pfn < end_pfn; ) {
+-		if (!pfn_valid(pfn)) {
+-			pfn = ALIGN(pfn + 1, pageblock_nr_pages);
+-			continue;
 -		}
-+
- 		list_add(&page[size].lru, &area->free_list[migratetype]);
- 		area->nr_free++;
- 		set_page_order(&page[size], high);
+-
+-		block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
+-		block_end_pfn = min(block_end_pfn, end_pfn);
+-
+-		page = pfn_to_page(pfn);
+-		pageblock_mt = get_pageblock_migratetype(page);
+-
+-		for (; pfn < block_end_pfn; pfn++) {
+-			if (!pfn_valid_within(pfn))
+-				continue;
+-
+-			page = pfn_to_page(pfn);
+-
+-			if (page_zone(page) != zone)
+-				continue;
+-
+-			if (PageBuddy(page)) {
+-				pfn += (1UL << page_order(page)) - 1;
+-				continue;
+-			}
+-
+-			if (PageReserved(page))
+-				continue;
+-
+-			page_ext = lookup_page_ext(page);
+-			if (unlikely(!page_ext))
+-				continue;
+-
+-			if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags))
+-				continue;
+-
+-			page_mt = gfpflags_to_migratetype(page_ext->gfp_mask);
+-			if (pageblock_mt != page_mt) {
+-				if (is_migrate_cma(pageblock_mt))
+-					count[MIGRATE_MOVABLE]++;
+-				else
+-					count[pageblock_mt]++;
+-
+-				pfn = block_end_pfn;
+-				break;
+-			}
+-			pfn += (1UL << page_ext->order) - 1;
+-		}
+-	}
+-
+-	/* Print counts */
+-	seq_printf(m, "Node %d, zone %8s ", pgdat->node_id, zone->name);
+-	for (i = 0; i < MIGRATE_TYPES; i++)
+-		seq_printf(m, "%12lu ", count[i]);
+-	seq_putc(m, '\n');
+-}
+-#endif /* CONFIG_PAGE_OWNER */
+-
+ /*
+  * Print out the number of pageblocks for each migratetype that contain pages
+  * of other types. This gives an indication of how well fallbacks are being
 -- 
 1.9.1
 
