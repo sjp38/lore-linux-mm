@@ -1,84 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C01516B0005
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 02:02:55 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id d65so105716952ith.0
-        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 23:02:55 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id w73si5513791itw.123.2016.08.09.23.02.54
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3343D6B0005
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 02:16:25 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id ez1so59350374pab.1
+        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 23:16:25 -0700 (PDT)
+Received: from mail-pa0-x241.google.com (mail-pa0-x241.google.com. [2607:f8b0:400e:c03::241])
+        by mx.google.com with ESMTPS id m6si46866984pfj.88.2016.08.09.23.16.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Aug 2016 23:02:54 -0700 (PDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH] fadump: Register the memory reserved by fadump
-In-Reply-To: <20160805100609.GP2799@techsingularity.net>
-References: <1470318165-2521-1-git-send-email-srikar@linux.vnet.ibm.com> <87mvkritii.fsf@concordia.ellerman.id.au> <20160805072838.GF11268@linux.vnet.ibm.com> <87h9azin4g.fsf@concordia.ellerman.id.au> <20160805100609.GP2799@techsingularity.net>
-Date: Wed, 10 Aug 2016 16:02:47 +1000
-Message-ID: <87d1lhtb3s.fsf@concordia.ellerman.id.au>
-MIME-Version: 1.0
-Content-Type: text/plain
+        Tue, 09 Aug 2016 23:16:21 -0700 (PDT)
+Received: by mail-pa0-x241.google.com with SMTP id hh10so2255337pac.1
+        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 23:16:16 -0700 (PDT)
+From: js1304@gmail.com
+Subject: [PATCH 0/5] Reduce memory waste by page extension user
+Date: Wed, 10 Aug 2016 15:16:19 +0900
+Message-Id: <1470809784-11516-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@intel.com>, Balbir Singh <bsingharora@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Mel Gorman <mgorman@techsingularity.net> writes:
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-> On Fri, Aug 05, 2016 at 07:25:03PM +1000, Michael Ellerman wrote:
->> > One way to do that would be to walk through the different memory
->> > reserved blocks and calculate the size. But Mel feels thats an
->> > overhead (from his reply to the other thread) esp for just one use
->> > case.
->> 
->> OK. I think you're referring to this:
->> 
->>   If fadump is reserving memory and alloc_large_system_hash(HASH_EARLY)
->>   does not know about then then would an arch-specific callback for
->>   arch_reserved_kernel_pages() be more appropriate?
->>   ...
->>   
->>   That approach would limit the impact to ppc64 and would be less costly than
->>   doing a memblock walk instead of using nr_kernel_pages for everyone else.
->> 
->> That sounds more robust to me than this solution.
->
-> It would be the fastest with the least impact but not necessarily the
-> best. Ultimately that dma_reserve/memory_reserve is used for the sizing
-> calculation of the large system hashes but only the e820 map and fadump
-> is taken into account. That's a bit filthy even if it happens to work out ok.
+This patchset tries to reduce memory waste by page extension user.
 
-Right.
+First case is architecture supported debug_pagealloc. It doesn't
+requires additional memory if guard page isn't used. 8 bytes per
+page will be saved in this case.
 
-> Conceptually it would be cleaner, if expensive, to calculate the real
-> memblock reserves if HASH_EARLY and ditch the dma_reserve, memory_reserve
-> and nr_kernel_pages entirely.
+Second case is related to page owner feature. Until now, if page_ext
+users want to use it's own fields on page_ext, fields should be
+defined in struct page_ext by hard-coding. It has a following problem.
 
-Why is it expensive? memblock tracks the totals for all memory and
-reserved memory AFAIK, so it should just be a case of subtracting one
-from the other?
+struct page_ext {
+ #ifdef CONFIG_A
+	int a;
+ #endif
+ #ifdef CONFIG_B
+	int b;
+ #endif
+};
 
-> Unfortuantely, aside from the calculation,
-> there is a potential cost due to a smaller hash table that affects everyone,
-> not just ppc64.
+Assume that kernel is built with both CONFIG_A and CONFIG_B.
+Even if we enable feature A and doesn't enable feature B at runtime,
+each entry of struct page_ext takes two int rather than one int.
+It's undesirable waste so this patch tries to reduce it. By this patchset,
+we can save 20 bytes per page dedicated for page owner feature
+in some configurations.
 
-Yeah OK. We could make it an arch hook, or controlled by a CONFIG.
+Thanks.
 
-> However, if the hash table is meant to be sized on the
-> number of available pages then it really should be based on that and not
-> just a made-up number.
+Joonsoo Kim (5):
+  mm/debug_pagealloc: clean-up guard page handling code
+  mm/debug_pagealloc: don't allocate page_ext if we don't use guard page
+  mm/page_owner: move page_owner specific function to page_owner.c
+  mm/page_ext: support extra space allocation by page_ext user
+  mm/page_owner: don't define fields on struct page_ext by hard-coding
 
-Yeah that seems to make sense.
+ include/linux/page_ext.h   |   8 +--
+ include/linux/page_owner.h |   2 +
+ mm/page_alloc.c            |  44 +++++++------
+ mm/page_ext.c              |  41 +++++++++---
+ mm/page_owner.c            | 152 ++++++++++++++++++++++++++++++++++++++-------
+ mm/vmstat.c                |  79 -----------------------
+ 6 files changed, 190 insertions(+), 136 deletions(-)
 
-The one complication I think is that we may have memory that's marked
-reserved in memblock, but is later freed to the page allocator (eg.
-initrd).
-
-I'm not sure if that's actually a concern in practice given the relative
-size of the initrd and memory on most systems. But possibly there are
-other things that get reserved and then freed which could skew the hash
-table size calculation.
-
-cheers
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
