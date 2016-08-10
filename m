@@ -1,98 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C9F5E6B0005
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 01:33:17 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id o124so63798336pfg.1
-        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 22:33:17 -0700 (PDT)
-Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
-        by mx.google.com with ESMTPS id m18si46631988pfg.123.2016.08.09.22.33.16
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C01516B0005
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 02:02:55 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id d65so105716952ith.0
+        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 23:02:55 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id w73si5513791itw.123.2016.08.09.23.02.54
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 09 Aug 2016 22:33:16 -0700 (PDT)
-Subject: Re: [PATCH] mm/vmalloc: fix align value calculation error
-References: <57A2F6A3.9080908@zoho.com> <57A2FE7B.5070505@zoho.com>
- <20160804142421.576426492d629f0839298f9a@linux-foundation.org>
- <fc045ecf-20fa-0722-b3ac-9a6140488fad@zoho.com>
- <20160809142832.623dfdbf666c08b8fc8772d2@linux-foundation.org>
-From: zijun_hu <zijun_hu@zoho.com>
-Message-ID: <57AABC8B.1040409@zoho.com>
-Date: Wed, 10 Aug 2016 13:32:59 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Aug 2016 23:02:54 -0700 (PDT)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [PATCH] fadump: Register the memory reserved by fadump
+In-Reply-To: <20160805100609.GP2799@techsingularity.net>
+References: <1470318165-2521-1-git-send-email-srikar@linux.vnet.ibm.com> <87mvkritii.fsf@concordia.ellerman.id.au> <20160805072838.GF11268@linux.vnet.ibm.com> <87h9azin4g.fsf@concordia.ellerman.id.au> <20160805100609.GP2799@techsingularity.net>
+Date: Wed, 10 Aug 2016 16:02:47 +1000
+Message-ID: <87d1lhtb3s.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-In-Reply-To: <20160809142832.623dfdbf666c08b8fc8772d2@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: tj@kernel.org, hannes@cmpxchg.org, mhocko@kernel.org, minchan@kernel.org, zijun_hu@htc.com, rientjes@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@intel.com>, Balbir Singh <bsingharora@gmail.com>
 
-On 08/10/2016 05:28 AM, Andrew Morton wrote:
-> On Fri, 5 Aug 2016 23:48:21 +0800 zijun_hu <zijun_hu@zoho.com> wrote:
-> 
->> From: zijun_hu <zijun_hu@htc.com>
->> Date: Fri, 5 Aug 2016 22:10:07 +0800
->> Subject: [PATCH 1/1] mm/vmalloc: fix align value calculation error
->>
->> it causes double align requirement for __get_vm_area_node() if parameter
->> size is power of 2 and VM_IOREMAP is set in parameter flags
->>
->> get_order_long() is implemented and used instead of fls_long() for
->> fixing the bug
-> 
-> Makes sense.  I think.
-> 
->> --- a/include/linux/bitops.h
->> +++ b/include/linux/bitops.h
->> @@ -192,6 +192,23 @@ static inline unsigned fls_long(unsigned long l)
->>  }
->>  
->>  /**
->> + * get_order_long - get order after rounding @l up to power of 2
->> + * @l: parameter
->> + *
->> + * it is same as get_count_order() but long type parameter
->> + * or 0 is returned if @l == 0UL
->> + */
->> +static inline int get_order_long(unsigned long l)
->> +{
->> +	if (l == 0UL)
->> +		return 0;
->> +	else if (l & (l - 1UL))
->> +		return fls_long(l);
->> +	else
->> +		return fls_long(l) - 1;
->> +}
->> +
->> +/**
->>   * __ffs64 - find first set bit in a 64 bit word
->>   * @word: The 64 bit word
->>   *
->> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
->> index 91f44e7..7d717f3 100644
->> --- a/mm/vmalloc.c
->> +++ b/mm/vmalloc.c
->> @@ -1360,7 +1360,7 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
->>  
->>  	BUG_ON(in_interrupt());
->>  	if (flags & VM_IOREMAP)
->> -		align = 1ul << clamp_t(int, fls_long(size),
->> +		align = 1ul << clamp_t(int, get_order_long(size),
->>  				       PAGE_SHIFT, IOREMAP_MAX_ORDER);
->>  
->>  	size = PAGE_ALIGN(size);
-> 
-> It would be better to call this get_count_order_long(), I think?  To
-> match get_count_order()?
-> 
-yes, i agree with you to correct function name
+Mel Gorman <mgorman@techsingularity.net> writes:
 
-i provide another patch called v2 based on your suggestion as shown below
-it have following correction against original patch v1
-1) use name get_count_order_long() instead of get_order_long()
-2) return -1 if @l == 0 to consist with get_order_long()
-3) cast type to int before returning from get_count_order_long()
-4) move up function parameter checking for __get_vm_area_node()
-5) more commit message is offered to make issue and approach clear
-any comments about new patch is welcome
+> On Fri, Aug 05, 2016 at 07:25:03PM +1000, Michael Ellerman wrote:
+>> > One way to do that would be to walk through the different memory
+>> > reserved blocks and calculate the size. But Mel feels thats an
+>> > overhead (from his reply to the other thread) esp for just one use
+>> > case.
+>> 
+>> OK. I think you're referring to this:
+>> 
+>>   If fadump is reserving memory and alloc_large_system_hash(HASH_EARLY)
+>>   does not know about then then would an arch-specific callback for
+>>   arch_reserved_kernel_pages() be more appropriate?
+>>   ...
+>>   
+>>   That approach would limit the impact to ppc64 and would be less costly than
+>>   doing a memblock walk instead of using nr_kernel_pages for everyone else.
+>> 
+>> That sounds more robust to me than this solution.
+>
+> It would be the fastest with the least impact but not necessarily the
+> best. Ultimately that dma_reserve/memory_reserve is used for the sizing
+> calculation of the large system hashes but only the e820 map and fadump
+> is taken into account. That's a bit filthy even if it happens to work out ok.
 
-this new patch called patch v2 is shown below
+Right.
+
+> Conceptually it would be cleaner, if expensive, to calculate the real
+> memblock reserves if HASH_EARLY and ditch the dma_reserve, memory_reserve
+> and nr_kernel_pages entirely.
+
+Why is it expensive? memblock tracks the totals for all memory and
+reserved memory AFAIK, so it should just be a case of subtracting one
+from the other?
+
+> Unfortuantely, aside from the calculation,
+> there is a potential cost due to a smaller hash table that affects everyone,
+> not just ppc64.
+
+Yeah OK. We could make it an arch hook, or controlled by a CONFIG.
+
+> However, if the hash table is meant to be sized on the
+> number of available pages then it really should be based on that and not
+> just a made-up number.
+
+Yeah that seems to make sense.
+
+The one complication I think is that we may have memory that's marked
+reserved in memblock, but is later freed to the page allocator (eg.
+initrd).
+
+I'm not sure if that's actually a concern in practice given the relative
+size of the initrd and memory on most systems. But possibly there are
+other things that get reserved and then freed which could skew the hash
+table size calculation.
+
+cheers
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
