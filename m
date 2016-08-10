@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C19BA828F3
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 05:12:53 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 1so53013064wmz.2
-        for <linux-mm@kvack.org>; Wed, 10 Aug 2016 02:12:53 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E7C18828F3
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 05:12:55 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id l4so52870731wml.0
+        for <linux-mm@kvack.org>; Wed, 10 Aug 2016 02:12:55 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e73si7147196wma.8.2016.08.10.02.12.42
+        by mx.google.com with ESMTPS id ti3si38953233wjb.1.2016.08.10.02.12.43
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 10 Aug 2016 02:12:42 -0700 (PDT)
+        Wed, 10 Aug 2016 02:12:43 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v6 05/11] mm, compaction: add the ultimate direct compaction priority
-Date: Wed, 10 Aug 2016 11:12:20 +0200
-Message-Id: <20160810091226.6709-6-vbabka@suse.cz>
+Subject: [PATCH v6 06/11] mm, compaction: more reliably increase direct compaction priority
+Date: Wed, 10 Aug 2016 11:12:21 +0200
+Message-Id: <20160810091226.6709-7-vbabka@suse.cz>
 In-Reply-To: <20160810091226.6709-1-vbabka@suse.cz>
 References: <20160810091226.6709-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,69 +20,58 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
 
-During reclaim/compaction loop, it's desirable to get a final answer from
-unsuccessful compaction so we can either fail the allocation or invoke the OOM
-killer. However, heuristics such as deferred compaction or pageblock skip bits
-can cause compaction to skip parts or whole zones and lead to premature OOM's,
-failures or excessive reclaim/compaction retries.
+During reclaim/compaction loop, compaction priority can be increased by the
+should_compact_retry() function, but the current code is not optimal. Priority
+is only increased when compaction_failed() is true, which means that compaction
+has scanned the whole zone. This may not happen even after multiple attempts
+with a lower priority due to parallel activity, so we might needlessly
+struggle on the lower priorities and possibly run out of compaction retry
+attempts in the process.
 
-To remedy this, we introduce a new direct compaction priority called
-COMPACT_PRIO_SYNC_FULL, which instructs direct compaction to:
-
-- ignore deferred compaction status for a zone
-- ignore pageblock skip hints
-- ignore cached scanner positions and scan the whole zone
-
-The new priority should get eventually picked up by should_compact_retry() and
-this should improve success rates for costly allocations using __GFP_REPEAT,
-such as hugetlbfs allocations, and reduce some corner-case OOM's for non-costly
-allocations.
+After this patch we are guaranteed at least one attempt at the highest
+compaction priority even if we exhaust all retries at the lower priorities.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Acked-by: Michal Hocko <mhocko@suse.com>
 ---
- include/linux/compaction.h | 3 ++-
- mm/compaction.c            | 5 ++++-
- 2 files changed, 6 insertions(+), 2 deletions(-)
+ mm/page_alloc.c | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)
 
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index e88c037afe47..a1fba9994728 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -6,8 +6,9 @@
-  * Lower value means higher priority, analogically to reclaim priority.
-  */
- enum compact_priority {
-+	COMPACT_PRIO_SYNC_FULL,
-+	MIN_COMPACT_PRIORITY = COMPACT_PRIO_SYNC_FULL,
- 	COMPACT_PRIO_SYNC_LIGHT,
--	MIN_COMPACT_PRIORITY = COMPACT_PRIO_SYNC_LIGHT,
- 	DEF_COMPACT_PRIORITY = COMPACT_PRIO_SYNC_LIGHT,
- 	COMPACT_PRIO_ASYNC,
- 	INIT_COMPACT_PRIORITY = COMPACT_PRIO_ASYNC
-diff --git a/mm/compaction.c b/mm/compaction.c
-index a144f58f7193..ae4f40afcca1 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1644,6 +1644,8 @@ static enum compact_result compact_zone_order(struct zone *zone, int order,
- 		.alloc_flags = alloc_flags,
- 		.classzone_idx = classzone_idx,
- 		.direct_compaction = true,
-+		.whole_zone = (prio == COMPACT_PRIO_SYNC_FULL),
-+		.ignore_skip_hint = (prio == COMPACT_PRIO_SYNC_FULL)
- 	};
- 	INIT_LIST_HEAD(&cc.freepages);
- 	INIT_LIST_HEAD(&cc.migratepages);
-@@ -1689,7 +1691,8 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
- 								ac->nodemask) {
- 		enum compact_result status;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index fb975cec3518..b28517b918b0 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3155,13 +3155,8 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
+ 	 * so it doesn't really make much sense to retry except when the
+ 	 * failure could be caused by insufficient priority
+ 	 */
+-	if (compaction_failed(compact_result)) {
+-		if (*compact_priority > MIN_COMPACT_PRIORITY) {
+-			(*compact_priority)--;
+-			return true;
+-		}
+-		return false;
+-	}
++	if (compaction_failed(compact_result))
++		goto check_priority;
  
--		if (compaction_deferred(zone, order)) {
-+		if (prio > COMPACT_PRIO_SYNC_FULL
-+					&& compaction_deferred(zone, order)) {
- 			rc = max_t(enum compact_result, COMPACT_DEFERRED, rc);
- 			continue;
- 		}
+ 	/*
+ 	 * make sure the compaction wasn't deferred or didn't bail out early
+@@ -3185,6 +3180,15 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
+ 	if (compaction_retries <= max_retries)
+ 		return true;
+ 
++	/*
++	 * Make sure there is at least one attempt at the highest priority
++	 * if we exhausted all retries at the lower priorities
++	 */
++check_priority:
++	if (*compact_priority > MIN_COMPACT_PRIORITY) {
++		(*compact_priority)--;
++		return true;
++	}
+ 	return false;
+ }
+ #else
 -- 
 2.9.2
 
