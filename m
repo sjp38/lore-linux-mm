@@ -1,40 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 547206B0005
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 12:20:01 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id ag5so80231010pad.2
-        for <linux-mm@kvack.org>; Wed, 10 Aug 2016 09:20:01 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id m2si49177328paw.225.2016.08.10.09.20.00
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 500136B0005
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 12:26:49 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id pp5so80639335pac.3
+        for <linux-mm@kvack.org>; Wed, 10 Aug 2016 09:26:49 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id a68si49121309pfb.39.2016.08.10.09.26.48
         for <linux-mm@kvack.org>;
-        Wed, 10 Aug 2016 09:20:00 -0700 (PDT)
-Subject: Re: [QUESTION] mmap of device file with huge pages
-References: <85d8c7bb8bcc4a30865a4512dd174cf8@IL-EXCH02.marvell.com>
- <57AA155B.70009@intel.com>
- <ca84d8e02a0942c39ad0da01a1fe43f1@IL-EXCH02.marvell.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <57AB5430.5000305@intel.com>
-Date: Wed, 10 Aug 2016 09:20:00 -0700
+        Wed, 10 Aug 2016 09:26:48 -0700 (PDT)
+Message-ID: <57AB55C4.1070200@arm.com>
+Date: Wed, 10 Aug 2016 17:26:44 +0100
+From: James Morse <james.morse@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <ca84d8e02a0942c39ad0da01a1fe43f1@IL-EXCH02.marvell.com>
+Subject: Re: [PATCH v24 2/9] memblock: add memblock_cap_memory_range()
+References: <20160809015248.28414-2-takahiro.akashi@linaro.org> <20160809015526.28479-1-takahiro.akashi@linaro.org>
+In-Reply-To: <20160809015526.28479-1-takahiro.akashi@linaro.org>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yehuda Yitschak <yehuday@marvell.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: Shadi Ammouri <shadi@marvell.com>
+To: AKASHI Takahiro <takahiro.akashi@linaro.org>
+Cc: catalin.marinas@arm.com, will.deacon@arm.com, geoff@infradead.org, bauerman@linux.vnet.ibm.com, dyoung@redhat.com, mark.rutland@arm.com, kexec@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
 
-On 08/10/2016 12:36 AM, Yehuda Yitschak wrote:
->>> But, the thing I generally suggest is that you
->>> allocate hugetlbfs memory or anonymous transparent huge pages in
->>> your applciation via the _normal_ mechanisms, and then hand a
->>> pointer to that in to your driver.
-> Thanks. I can try that. Once I hand the pointer to the driver, is
-> there a standard API to map user-space memory to kernel space.
+Hi Akashi,
 
-Yes.  It's probably worth reading:
+On 09/08/16 02:55, AKASHI Takahiro wrote:
+> Crash dump kernel uses only a limited range of memory as System RAM.
+> On arm64 implementation, a new device tree property,
+> "linux,usable-memory-range," is used to notify crash dump kernel of
+> this range.[1]
+> But simply excluding all the other regions, whatever their memory types
+> are, doesn't work, especially, on the systems with ACPI. Since some of
+> such regions will be later mapped as "device memory" by ioremap()/
+> acpi_os_ioremap(), it can cause errors like unalignment accesses.[2]
+> This issue is akin to the one reported in [3].
+> 
+> So this patch follows Chen's approach, and implements a new function,
+> memblock_cap_memory_range(), which will exclude only the memory regions
+> that are not marked "NOMAP" from memblock.memory.
 
-http://www.oreilly.com/openbook/linuxdrive3/book/ch15.pdf
+This (and the next patch) fixes the acpi related unaligned access problem I had.
+I've tested it on a Juno r1 and Seattle B0.
+
+Tested-by: James Morse <james.morse@arm.com>
+
+
+Thanks,
+
+James
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
