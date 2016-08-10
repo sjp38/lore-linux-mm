@@ -1,101 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 92EE7828F3
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 05:12:51 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id l4so52868691wml.0
-        for <linux-mm@kvack.org>; Wed, 10 Aug 2016 02:12:51 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C19BA828F3
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 05:12:53 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 1so53013064wmz.2
+        for <linux-mm@kvack.org>; Wed, 10 Aug 2016 02:12:53 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k10si7155987wmh.11.2016.08.10.02.12.41
+        by mx.google.com with ESMTPS id e73si7147196wma.8.2016.08.10.02.12.42
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Wed, 10 Aug 2016 02:12:42 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v6 00/11] make direct compaction more deterministic
-Date: Wed, 10 Aug 2016 11:12:15 +0200
-Message-Id: <20160810091226.6709-1-vbabka@suse.cz>
+Subject: [PATCH v6 05/11] mm, compaction: add the ultimate direct compaction priority
+Date: Wed, 10 Aug 2016 11:12:20 +0200
+Message-Id: <20160810091226.6709-6-vbabka@suse.cz>
+In-Reply-To: <20160810091226.6709-1-vbabka@suse.cz>
+References: <20160810091226.6709-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
 
-Changes since v3
-* The first part with cleanups (v4, v5) went separately to 4.8-rc1
-* Rebased to 4.8-rc1
-* Patch 1 - don't touch cached pfns in whole-zone compaction (Joonsoo)
-* New patches 2 and 3 in response to Joonsoo pointing out missing adustments
-  to watermark checks in patch 7 - turns out we can remove those watermark
-  checks altogether.
-* Patch 6 made less aggressive to avoid premature OOM (Joonsoo)
+During reclaim/compaction loop, it's desirable to get a final answer from
+unsuccessful compaction so we can either fail the allocation or invoke the OOM
+killer. However, heuristics such as deferred compaction or pageblock skip bits
+can cause compaction to skip parts or whole zones and lead to premature OOM's,
+failures or excessive reclaim/compaction retries.
 
-This is mostly a followup to Michal's oom detection rework, which highlighted
-the need for direct compaction to provide better feedback in reclaim/compaction
-loop, so that it can reliably recognize when compaction cannot make further
-progress, and allocation should invoke OOM killer or fail. We've discussed
-this at LSF/MM [1] where I proposed expanding the async/sync migration mode
-used in compaction to more general "priorities". This patchset adds one new
-priority that just overrides all the heuristics and makes compaction fully
-scan all zones. I don't currently think that we need more fine-grained
-priorities, but we'll see. Other than that there's some smaller fixes and
-cleanups, mainly related to the THP-specific hacks.
+To remedy this, we introduce a new direct compaction priority called
+COMPACT_PRIO_SYNC_FULL, which instructs direct compaction to:
 
-I've tested this with stress-highalloc in GFP_KERNEL order-4 and
-THP-like order-9 scenarios. There's some improvement for compaction stats
-for the order-4, which is likely due to the better watermarks handling.
-In the previous version I reported mostly noise wrt compaction stats, and
-decreased direct reclaim - now the reclaim is without difference. I believe
-this is due to the less aggressive compaction priority increase in patch 6.
+- ignore deferred compaction status for a zone
+- ignore pageblock skip hints
+- ignore cached scanner positions and scan the whole zone
 
-"before" is a mmotm tree prior to 4.7 release plus the first part of the
-series that was sent and merged separately
+The new priority should get eventually picked up by should_compact_retry() and
+this should improve success rates for costly allocations using __GFP_REPEAT,
+such as hugetlbfs allocations, and reduce some corner-case OOM's for non-costly
+allocations.
 
-                                    before        after
-order-4:
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Acked-by: Michal Hocko <mhocko@suse.com>
+---
+ include/linux/compaction.h | 3 ++-
+ mm/compaction.c            | 5 ++++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)
 
-Compaction stalls                    27216       30759
-Compaction success                   19598       25475
-Compaction failures                   7617        5283
-Page migrate success                370510      464919
-Page migrate failure                 25712       27987
-Compaction pages isolated           849601     1041581
-Compaction migrate scanned       143146541   101084990
-Compaction free scanned          208355124   144863510
-Compaction cost                       1403        1210
-
-order-9:
-
-Compaction stalls                     7311        7401
-Compaction success                    1634        1683
-Compaction failures                   5677        5718
-Page migrate success                194657      183988
-Page migrate failure                  4753        4170
-Compaction pages isolated           498790      456130
-Compaction migrate scanned          565371      524174
-Compaction free scanned            4230296     4250744
-Compaction cost                        215         203
-
-[1] https://lwn.net/Articles/684611/
-
-Vlastimil Babka (11):
-  mm, compaction: make whole_zone flag ignore cached scanner positions
-  mm, compaction: cleanup unused functions
-  mm, compaction: rename COMPACT_PARTIAL to COMPACT_SUCCESS
-  mm, compaction: don't recheck watermarks after COMPACT_SUCCESS
-  mm, compaction: add the ultimate direct compaction priority
-  mm, compaction: more reliably increase direct compaction priority
-  mm, compaction: use correct watermark when checking compaction success
-  mm, compaction: create compact_gap wrapper
-  mm, compaction: use proper alloc_flags in __compaction_suitable()
-  mm, compaction: require only min watermarks for non-costly orders
-  mm, vmscan: make compaction_ready() more accurate and readable
-
- include/linux/compaction.h        |  32 +++++---
- include/trace/events/compaction.h |   2 +-
- mm/compaction.c                   | 154 +++++++++++++++++---------------------
- mm/internal.h                     |   2 +-
- mm/page_alloc.c                   |  22 +++---
- mm/vmscan.c                       |  49 ++++++------
- 6 files changed, 128 insertions(+), 133 deletions(-)
-
+diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+index e88c037afe47..a1fba9994728 100644
+--- a/include/linux/compaction.h
++++ b/include/linux/compaction.h
+@@ -6,8 +6,9 @@
+  * Lower value means higher priority, analogically to reclaim priority.
+  */
+ enum compact_priority {
++	COMPACT_PRIO_SYNC_FULL,
++	MIN_COMPACT_PRIORITY = COMPACT_PRIO_SYNC_FULL,
+ 	COMPACT_PRIO_SYNC_LIGHT,
+-	MIN_COMPACT_PRIORITY = COMPACT_PRIO_SYNC_LIGHT,
+ 	DEF_COMPACT_PRIORITY = COMPACT_PRIO_SYNC_LIGHT,
+ 	COMPACT_PRIO_ASYNC,
+ 	INIT_COMPACT_PRIORITY = COMPACT_PRIO_ASYNC
+diff --git a/mm/compaction.c b/mm/compaction.c
+index a144f58f7193..ae4f40afcca1 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1644,6 +1644,8 @@ static enum compact_result compact_zone_order(struct zone *zone, int order,
+ 		.alloc_flags = alloc_flags,
+ 		.classzone_idx = classzone_idx,
+ 		.direct_compaction = true,
++		.whole_zone = (prio == COMPACT_PRIO_SYNC_FULL),
++		.ignore_skip_hint = (prio == COMPACT_PRIO_SYNC_FULL)
+ 	};
+ 	INIT_LIST_HEAD(&cc.freepages);
+ 	INIT_LIST_HEAD(&cc.migratepages);
+@@ -1689,7 +1691,8 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+ 								ac->nodemask) {
+ 		enum compact_result status;
+ 
+-		if (compaction_deferred(zone, order)) {
++		if (prio > COMPACT_PRIO_SYNC_FULL
++					&& compaction_deferred(zone, order)) {
+ 			rc = max_t(enum compact_result, COMPACT_DEFERRED, rc);
+ 			continue;
+ 		}
 -- 
 2.9.2
 
