@@ -1,46 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EC706B0005
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2016 21:36:24 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id ez1so50759932pab.1
-        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 18:36:24 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id x67si45529454pff.126.2016.08.09.18.36.22
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A86356B0005
+	for <linux-mm@kvack.org>; Tue,  9 Aug 2016 22:38:08 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id l4so42175973wml.0
+        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 19:38:08 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id w127si5844417wmg.118.2016.08.09.19.38.02
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 09 Aug 2016 18:36:23 -0700 (PDT)
-Subject: Re: [RFC][PATCH] cgroup_threadgroup_rwsem - affects scalability and
- OOM
-References: <4717ef90-ca86-4a34-c63a-94b8b4bfaaec@gmail.com>
- <57A99BCB.6070905@huawei.com> <20160809135703.GA11823@350D>
-From: Zefan Li <lizefan@huawei.com>
-Message-ID: <57AA83FE.1050809@huawei.com>
-Date: Wed, 10 Aug 2016 09:31:42 +0800
+        Tue, 09 Aug 2016 19:38:07 -0700 (PDT)
+Message-ID: <57AA936E.3080503@huawei.com>
+Date: Wed, 10 Aug 2016 10:37:34 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <20160809135703.GA11823@350D>
-Content-Type: text/plain; charset="windows-1252"
+Subject: Re: [PATCH] mm: optimize find_zone_movable_pfns_for_nodes to avoid
+ unnecessary loop.
+References: <1470405847-53322-1-git-send-email-zhongjiang@huawei.com> <20160809162919.266e58ca0c33896dcf417a02@linux-foundation.org>
+In-Reply-To: <20160809162919.266e58ca0c33896dcf417a02@linux-foundation.org>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: bsingharora@gmail.com
-Cc: cgroups@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
->> For example, I'm trying to fix a race. See https://lkml.org/lkml/2016/8/8/900
->>
->> And the fix kind of relies on the fact that cgroup_post_fork() is placed
->> inside the read section of cgroup_threadgroup_rwsem, so that cpuset_fork()
->> won't race with cgroup migration.
->>
-> 
-> My patch retains that behaviour, before ss->fork() is called we hold
-> the cgroup_threadgroup_rwsem, in fact it is held prior to ss->can_fork()
-> 
+On 2016/8/10 7:29, Andrew Morton wrote:
+> On Fri, 5 Aug 2016 22:04:07 +0800 zhongjiang <zhongjiang@huawei.com> wrote:
+>
+>> when required_kernelcore decrease to zero, we should exit the loop in time.
+>> because It will waste time to scan the remainder node.
+> The patch is rather ugly and it only affects __init code, so the only
+> benefit will be to boot time.
+   yes
+> Do we have any timing measurements which would justify changing this code?
+  I am sorry for that.  That is a only theoretical analysis.
+>
 
-I read the patch again and now I see only threadgroup_change_begin() is moved
-downwards, and threadgroup_change_end() remains intact. Then I have no problem
-with it.
 
-Acked-by: Zefan Li <lizefan@huawei.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
