@@ -1,115 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 022D1828F3
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 05:13:07 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id u81so51938692wmu.3
-        for <linux-mm@kvack.org>; Wed, 10 Aug 2016 02:13:06 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i9si38948658wjg.122.2016.08.10.02.12.47
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E72782970
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 05:22:09 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id h186so71479609pfg.2
+        for <linux-mm@kvack.org>; Wed, 10 Aug 2016 02:22:09 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id pj6si47664228pac.250.2016.08.10.02.22.08
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 10 Aug 2016 02:12:48 -0700 (PDT)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v6 11/11] mm, vmscan: make compaction_ready() more accurate and readable
-Date: Wed, 10 Aug 2016 11:12:26 +0200
-Message-Id: <20160810091226.6709-12-vbabka@suse.cz>
-In-Reply-To: <20160810091226.6709-1-vbabka@suse.cz>
-References: <20160810091226.6709-1-vbabka@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 Aug 2016 02:22:08 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u7A9JLSs112848
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 05:22:07 -0400
+Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com [202.81.31.147])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 24qm9t4gqj-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 05:22:06 -0400
+Received: from localhost
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Wed, 10 Aug 2016 19:21:52 +1000
+Received: from d23relay09.au.ibm.com (d23relay09.au.ibm.com [9.185.63.181])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 947EB357805D
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 19:21:49 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u7A9Ln8J13172828
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 19:21:49 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u7A9Lm6U020073
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 19:21:49 +1000
+Date: Wed, 10 Aug 2016 14:51:45 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH] fadump: Register the memory reserved by fadump
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <1470318165-2521-1-git-send-email-srikar@linux.vnet.ibm.com>
+ <87mvkritii.fsf@concordia.ellerman.id.au>
+ <20160805072838.GF11268@linux.vnet.ibm.com>
+ <87h9azin4g.fsf@concordia.ellerman.id.au>
+ <20160805100609.GP2799@techsingularity.net>
+ <87d1lhtb3s.fsf@concordia.ellerman.id.au>
+ <20160810064056.GB24800@linux.vnet.ibm.com>
+ <877fbpt8ju.fsf@concordia.ellerman.id.au>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <877fbpt8ju.fsf@concordia.ellerman.id.au>
+Message-Id: <20160810092145.GA20502@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
+To: Michael Ellerman <mpe@ellerman.id.au>
+Cc: Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@intel.com>, Balbir Singh <bsingharora@gmail.com>
 
-The compaction_ready() is used during direct reclaim for costly order
-allocations to skip reclaim for zones where compaction should be attempted
-instead. It's combining the standard compaction_suitable() check with its own
-watermark check based on high watermark with extra gap, and the result is
-confusing at best.
+* Michael Ellerman <mpe@ellerman.id.au> [2016-08-10 16:57:57]:
 
-This patch attempts to better structure and document the checks involved.
-First, compaction_suitable() can determine that the allocation should either
-succeed already, or that compaction doesn't have enough free pages to proceed.
-The third possibility is that compaction has enough free pages, but we still
-decide to reclaim first - unless we are already above the high watermark with
-gap.  This does not mean that the reclaim will actually reach this watermark
-during single attempt, this is rather an over-reclaim protection. So document
-the code as such. The check for compaction_deferred() is removed completely, as
-it in fact had no proper role here.
+> Srikar Dronamraju <srikar@linux.vnet.ibm.com> writes:
+> 
+> >> 
+> >> > Conceptually it would be cleaner, if expensive, to calculate the real
+> >> > memblock reserves if HASH_EARLY and ditch the dma_reserve, memory_reserve
+> >> > and nr_kernel_pages entirely.
+> >> 
+> >> Why is it expensive? memblock tracks the totals for all memory and
+> >> reserved memory AFAIK, so it should just be a case of subtracting one
+> >> from the other?
+> >
+> > Are you suggesting that we use something like
+> > memblock_phys_mem_size() but one which returns
+> > memblock.reserved.total_size ? Maybe a new function like
+> > memblock_reserved_mem_size()?
+> 
+> Yeah, something like that. I'm not sure if it actually needs a function,
+> AFAIK you can just look at the structure directly.
 
-The result after this patch is mainly a less confusing code. We also skip some
-over-reclaim in cases where the allocation should already succed.
+For now memblock structure is only available in mm/memblock.c
+Every other access to memblock from outside mm/memblock is through an
+api.
 
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Acked-by: Michal Hocko <mhocko@suse.com>
----
- mm/vmscan.c | 43 ++++++++++++++++++++-----------------------
- 1 file changed, 20 insertions(+), 23 deletions(-)
+> >
+> > Yes, this is a possibility, for example lets say we want fadump to
+> > continue to run instead of rebooting to a new kernel as it does today.
+> 
+> But that's a bad idea and no one should ever do it.
+> 
+> For starters all your caches will be undersized, and anything that is
+> allocated per-node early in boot will not be allocated on the nodes
+> which were reserved, so the system's performance will potentially differ
+> from a normal boot in weird and unpredictable ways.
+> 
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index b676b4b51db0..f9b3112e963a 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2617,38 +2617,35 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- }
- 
- /*
-- * Returns true if compaction should go ahead for a high-order request, or
-- * the high-order allocation would succeed without compaction.
-+ * Returns true if compaction should go ahead for a costly-order request, or
-+ * the allocation would already succeed without compaction. Return false if we
-+ * should reclaim first.
-  */
- static inline bool compaction_ready(struct zone *zone, struct scan_control *sc)
- {
- 	unsigned long watermark;
--	bool watermark_ok;
-+	enum compact_result suitable;
- 
--	/*
--	 * Compaction takes time to run and there are potentially other
--	 * callers using the pages just freed. Continue reclaiming until
--	 * there is a buffer of free pages available to give compaction
--	 * a reasonable chance of completing and allocating the page
--	 */
--	watermark = high_wmark_pages(zone) + compact_gap(sc->order);
--	watermark_ok = zone_watermark_ok_safe(zone, 0, watermark, sc->reclaim_idx);
--
--	/*
--	 * If compaction is deferred, reclaim up to a point where
--	 * compaction will have a chance of success when re-enabled
--	 */
--	if (compaction_deferred(zone, sc->order))
--		return watermark_ok;
-+	suitable = compaction_suitable(zone, sc->order, 0, sc->reclaim_idx);
-+	if (suitable == COMPACT_SUCCESS)
-+		/* Allocation should succeed already. Don't reclaim. */
-+		return true;
-+	if (suitable == COMPACT_SKIPPED)
-+		/* Compaction cannot yet proceed. Do reclaim. */
-+		return false;
- 
- 	/*
--	 * If compaction is not ready to start and allocation is not likely
--	 * to succeed without it, then keep reclaiming.
-+	 * Compaction is already possible, but it takes time to run and there
-+	 * are potentially other callers using the pages just freed. So proceed
-+	 * with reclaim to make a buffer of free pages available to give
-+	 * compaction a reasonable chance of completing and allocating the page.
-+	 * Note that we won't actually reclaim the whole buffer in one attempt
-+	 * as the target watermark in should_continue_reclaim() is lower. But if
-+	 * we are already above the high+gap watermark, don't reclaim at all.
- 	 */
--	if (compaction_suitable(zone, sc->order, 0, sc->reclaim_idx) == COMPACT_SKIPPED)
--		return false;
-+	watermark = high_wmark_pages(zone) + compact_gap(sc->order);
- 
--	return watermark_ok;
-+	return zone_watermark_ok_safe(zone, 0, watermark, sc->reclaim_idx);
- }
- 
- /*
+Okay
+
 -- 
-2.9.2
+Thanks and Regards
+Srikar Dronamraju
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
