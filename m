@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5845F6B025E
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C79E5828F3
 	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 02:16:27 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id h186so64594183pfg.2
+Received: by mail-pf0-f197.google.com with SMTP id o124so65478093pfg.1
         for <linux-mm@kvack.org>; Tue, 09 Aug 2016 23:16:27 -0700 (PDT)
-Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
-        by mx.google.com with ESMTPS id y15si46810708pfb.247.2016.08.09.23.16.22
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id oy8si46771089pac.126.2016.08.09.23.16.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 09 Aug 2016 23:16:25 -0700 (PDT)
-Received: by mail-pf0-x243.google.com with SMTP id h186so2233062pfg.2
-        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 23:16:22 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id i6so2242780pfe.0
+        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 23:16:19 -0700 (PDT)
 From: js1304@gmail.com
-Subject: [PATCH 2/5] mm/debug_pagealloc: don't allocate page_ext if we don't use guard page
-Date: Wed, 10 Aug 2016 15:16:21 +0900
-Message-Id: <1470809784-11516-3-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 1/5] mm/debug_pagealloc: clean-up guard page handling code
+Date: Wed, 10 Aug 2016 15:16:20 +0900
+Message-Id: <1470809784-11516-2-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1470809784-11516-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1470809784-11516-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,53 +24,90 @@ Cc: Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Michal H
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-What debug_pagealloc does is just mapping/unmapping page table.
-Basically, it doesn't need additional memory space to memorize something.
-But, with guard page feature, it requires additional memory to distinguish
-if the page is for guard or not. Guard page is only used when
-debug_guardpage_minorder is non-zero so this patch removes additional
-memory allocation (page_ext) if debug_guardpage_minorder is zero.
-
-It saves memory if we just use debug_pagealloc and not guard page.
+We can make code clean by moving decision condition
+for set_page_guard() into set_page_guard() itself. It will
+help code readability. There is no functional change.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/page_alloc.c | 8 +++++++-
- 1 file changed, 7 insertions(+), 1 deletion(-)
+ mm/page_alloc.c | 34 ++++++++++++++++++----------------
+ 1 file changed, 18 insertions(+), 16 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 5e7944b..45cb021 100644
+index 277c3d0..5e7944b 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -608,6 +608,9 @@ static bool need_debug_guardpage(void)
- 	if (!debug_pagealloc_enabled())
- 		return false;
+@@ -638,17 +638,20 @@ static int __init debug_guardpage_minorder_setup(char *buf)
+ }
+ __setup("debug_guardpage_minorder=", debug_guardpage_minorder_setup);
  
-+	if (!debug_guardpage_minorder())
+-static inline void set_page_guard(struct zone *zone, struct page *page,
++static inline bool set_page_guard(struct zone *zone, struct page *page,
+ 				unsigned int order, int migratetype)
+ {
+ 	struct page_ext *page_ext;
+ 
+ 	if (!debug_guardpage_enabled())
+-		return;
 +		return false;
 +
- 	return true;
- }
++	if (order >= debug_guardpage_minorder())
++		return false;
  
-@@ -616,6 +619,9 @@ static void init_debug_guardpage(void)
- 	if (!debug_pagealloc_enabled())
- 		return;
+ 	page_ext = lookup_page_ext(page);
+ 	if (unlikely(!page_ext))
+-		return;
++		return false;
  
-+	if (!debug_guardpage_minorder())
-+		return;
+ 	__set_bit(PAGE_EXT_DEBUG_GUARD, &page_ext->flags);
+ 
+@@ -656,6 +659,8 @@ static inline void set_page_guard(struct zone *zone, struct page *page,
+ 	set_page_private(page, order);
+ 	/* Guard pages are not available for any usage */
+ 	__mod_zone_freepage_state(zone, -(1 << order), migratetype);
 +
- 	_debug_guardpage_enabled = true;
++	return true;
  }
  
-@@ -636,7 +642,7 @@ static int __init debug_guardpage_minorder_setup(char *buf)
- 	pr_info("Setting debug_guardpage_minorder to %lu\n", res);
- 	return 0;
+ static inline void clear_page_guard(struct zone *zone, struct page *page,
+@@ -678,8 +683,8 @@ static inline void clear_page_guard(struct zone *zone, struct page *page,
  }
--__setup("debug_guardpage_minorder=", debug_guardpage_minorder_setup);
-+early_param("debug_guardpage_minorder", debug_guardpage_minorder_setup);
+ #else
+ struct page_ext_operations debug_guardpage_ops = { NULL, };
+-static inline void set_page_guard(struct zone *zone, struct page *page,
+-				unsigned int order, int migratetype) {}
++static inline bool set_page_guard(struct zone *zone, struct page *page,
++			unsigned int order, int migratetype) { return false; }
+ static inline void clear_page_guard(struct zone *zone, struct page *page,
+ 				unsigned int order, int migratetype) {}
+ #endif
+@@ -1650,18 +1655,15 @@ static inline void expand(struct zone *zone, struct page *page,
+ 		size >>= 1;
+ 		VM_BUG_ON_PAGE(bad_range(zone, &page[size]), &page[size]);
  
- static inline bool set_page_guard(struct zone *zone, struct page *page,
- 				unsigned int order, int migratetype)
+-		if (IS_ENABLED(CONFIG_DEBUG_PAGEALLOC) &&
+-			debug_guardpage_enabled() &&
+-			high < debug_guardpage_minorder()) {
+-			/*
+-			 * Mark as guard pages (or page), that will allow to
+-			 * merge back to allocator when buddy will be freed.
+-			 * Corresponding page table entries will not be touched,
+-			 * pages will stay not present in virtual address space
+-			 */
+-			set_page_guard(zone, &page[size], high, migratetype);
++		/*
++		 * Mark as guard pages (or page), that will allow to
++		 * merge back to allocator when buddy will be freed.
++		 * Corresponding page table entries will not be touched,
++		 * pages will stay not present in virtual address space
++		 */
++		if (set_page_guard(zone, &page[size], high, migratetype))
+ 			continue;
+-		}
++
+ 		list_add(&page[size].lru, &area->free_list[migratetype]);
+ 		area->nr_free++;
+ 		set_page_order(&page[size], high);
 -- 
 1.9.1
 
