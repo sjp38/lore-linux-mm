@@ -1,60 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DA436B0005
-	for <linux-mm@kvack.org>; Tue,  9 Aug 2016 21:21:20 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id j12so52038042ywb.3
-        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 18:21:20 -0700 (PDT)
-Received: from mail-yw0-x243.google.com (mail-yw0-x243.google.com. [2607:f8b0:4002:c05::243])
-        by mx.google.com with ESMTPS id p63si6503563ywp.232.2016.08.09.18.21.19
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EC706B0005
+	for <linux-mm@kvack.org>; Tue,  9 Aug 2016 21:36:24 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id ez1so50759932pab.1
+        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 18:36:24 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id x67si45529454pff.126.2016.08.09.18.36.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Aug 2016 18:21:19 -0700 (PDT)
-Received: by mail-yw0-x243.google.com with SMTP id j12so1325039ywb.1
-        for <linux-mm@kvack.org>; Tue, 09 Aug 2016 18:21:19 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20160809142603.GE4906@mtj.duckdns.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 09 Aug 2016 18:36:23 -0700 (PDT)
+Subject: Re: [RFC][PATCH] cgroup_threadgroup_rwsem - affects scalability and
+ OOM
 References: <4717ef90-ca86-4a34-c63a-94b8b4bfaaec@gmail.com>
- <20160809062900.GD4906@mtj.duckdns.org> <0a7ffe43-c0c6-85df-9bc2-d00fc837e284@gmail.com>
- <20160809142603.GE4906@mtj.duckdns.org>
-From: Balbir Singh <bsingharora@gmail.com>
-Date: Wed, 10 Aug 2016 11:21:17 +1000
-Message-ID: <CAKTCnzkXaZHaJVJGodphFRAnDfDzh9NKTYQqJ-90CMZ93epk3Q@mail.gmail.com>
-Subject: Re: [RFC][PATCH] cgroup_threadgroup_rwsem - affects scalability and OOM
-Content-Type: text/plain; charset=UTF-8
+ <57A99BCB.6070905@huawei.com> <20160809135703.GA11823@350D>
+From: Zefan Li <lizefan@huawei.com>
+Message-ID: <57AA83FE.1050809@huawei.com>
+Date: Wed, 10 Aug 2016 09:31:42 +0800
+MIME-Version: 1.0
+In-Reply-To: <20160809135703.GA11823@350D>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: bsingharora@gmail.com
+Cc: cgroups@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed, Aug 10, 2016 at 12:26 AM, Tejun Heo <tj@kernel.org> wrote:
-> Hello, Balbir.
->
-> On Tue, Aug 09, 2016 at 05:02:47PM +1000, Balbir Singh wrote:
->> > Hmm? Where does mem_cgroup_iter grab cgroup_mutex?  cgroup_mutex nests
->> > outside cgroup_threadgroup_rwsem or most other mutexes for that matter
->> > and isn't exposed from cgroup core.
->> >
+>> For example, I'm trying to fix a race. See https://lkml.org/lkml/2016/8/8/900
 >>
->> I based my theory on the code
+>> And the fix kind of relies on the fact that cgroup_post_fork() is placed
+>> inside the read section of cgroup_threadgroup_rwsem, so that cpuset_fork()
+>> won't race with cgroup migration.
 >>
->> mem_cgroup_iter -> css_next_descendant_pre which asserts
->>
->> cgroup_assert_mutex_or_rcu_locked(),
->>
->> although you are right, we hold RCU lock while calling css_* routines.
->
-> That's "or".  The iterator can be called either with RCU lock or
-> cgroup_mutex.  cgroup core may use it under cgroup_mutex.  Everyone
-> else uses it with rcu.
->
-> Thanks.
->
+> 
+> My patch retains that behaviour, before ss->fork() is called we hold
+> the cgroup_threadgroup_rwsem, in fact it is held prior to ss->can_fork()
+> 
 
-Hi, Tejun
+I read the patch again and now I see only threadgroup_change_begin() is moved
+downwards, and threadgroup_change_end() remains intact. Then I have no problem
+with it.
 
-Thanks agreed! Could you please consider queuing the fix after review.
-
-Balbir Singh.
+Acked-by: Zefan Li <lizefan@huawei.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
