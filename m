@@ -1,69 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E6626B0005
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 03:36:35 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id u81so48760995wmu.3
-        for <linux-mm@kvack.org>; Wed, 10 Aug 2016 00:36:35 -0700 (PDT)
-Received: from mx0b-0016f401.pphosted.com (mx0b-0016f401.pphosted.com. [67.231.156.173])
-        by mx.google.com with ESMTPS id be6si16123940wjb.31.2016.08.10.00.36.33
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2908B6B0005
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 03:51:47 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 1so50127420wmz.2
+        for <linux-mm@kvack.org>; Wed, 10 Aug 2016 00:51:47 -0700 (PDT)
+Received: from outbound-smtp06.blacknight.com (outbound-smtp06.blacknight.com. [81.17.249.39])
+        by mx.google.com with ESMTPS id l66si6836524wml.74.2016.08.10.00.51.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Aug 2016 00:36:34 -0700 (PDT)
-From: Yehuda Yitschak <yehuday@marvell.com>
-Subject: RE: [QUESTION] mmap of device file with huge pages
-Date: Wed, 10 Aug 2016 07:36:29 +0000
-Message-ID: <ca84d8e02a0942c39ad0da01a1fe43f1@IL-EXCH02.marvell.com>
-References: <85d8c7bb8bcc4a30865a4512dd174cf8@IL-EXCH02.marvell.com>
- <57AA155B.70009@intel.com>
-In-Reply-To: <57AA155B.70009@intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 10 Aug 2016 00:51:45 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp06.blacknight.com (Postfix) with ESMTPS id 9A8D299139
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 07:51:44 +0000 (UTC)
+Date: Wed, 10 Aug 2016 08:51:43 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] fadump: Register the memory reserved by fadump
+Message-ID: <20160810075142.GC8119@techsingularity.net>
+References: <1470318165-2521-1-git-send-email-srikar@linux.vnet.ibm.com>
+ <87mvkritii.fsf@concordia.ellerman.id.au>
+ <20160805072838.GF11268@linux.vnet.ibm.com>
+ <87h9azin4g.fsf@concordia.ellerman.id.au>
+ <20160805100609.GP2799@techsingularity.net>
+ <87d1lhtb3s.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <87d1lhtb3s.fsf@concordia.ellerman.id.au>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: Shadi Ammouri <shadi@marvell.com>
+To: Michael Ellerman <mpe@ellerman.id.au>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@intel.com>, Balbir Singh <bsingharora@gmail.com>
 
+On Wed, Aug 10, 2016 at 04:02:47PM +1000, Michael Ellerman wrote:
+> > Conceptually it would be cleaner, if expensive, to calculate the real
+> > memblock reserves if HASH_EARLY and ditch the dma_reserve, memory_reserve
+> > and nr_kernel_pages entirely.
+> 
+> Why is it expensive? memblock tracks the totals for all memory and
+> reserved memory AFAIK, so it should just be a case of subtracting one
+> from the other?
+> 
 
+I didn't actually check that it tracks the totals. If it does, then the cost
+will be negligible in comparison to the total cost of initialising memory.
 
-> -----Original Message-----
-> From: Dave Hansen [mailto:dave.hansen@intel.com]
-> Sent: Tuesday, August 09, 2016 20:40
-> To: Yehuda Yitschak; linux-mm@kvack.org
-> Cc: Shadi Ammouri
-> Subject: Re: [QUESTION] mmap of device file with huge pages
->=20
-> On 08/09/2016 02:58 AM, Yehuda Yitschak wrote:
-> > I would appreciate any advice on this issue
->=20
-> This is kinda a FAQ at this point. =20
+> > Unfortuantely, aside from the calculation,
+> > there is a potential cost due to a smaller hash table that affects everyone,
+> > not just ppc64.
+> 
+> Yeah OK. We could make it an arch hook, or controlled by a CONFIG.
+> 
+> > However, if the hash table is meant to be sized on the
+> > number of available pages then it really should be based on that and not
+> > just a made-up number.
+> 
+> Yeah that seems to make sense.
+> 
+> The one complication I think is that we may have memory that's marked
+> reserved in memblock, but is later freed to the page allocator (eg.
+> initrd).
+> 
 
-Sorry for posting a FAQ but I found nothing on the web.
-There's tons of general material about mmap, huge-pages and device files bu=
-t nothing on this specific use case.
-I posted this question since I suspected I might need a ugly hack for this =
-scenario.
-Is there any standard solution to this issue ?=20
+It would be ideal if the amount of reserved memory that is freed later
+in the normal case was estimated. If it's a small percentage of memory
+then the difference is unlikely to be detectable and avoids ppc64 being
+special.
 
-> But, the thing I generally suggest is that you
-> allocate hugetlbfs memory or anonymous transparent huge pages in your
-> applciation via the _normal_ mechanisms, and then hand a pointer to that =
-in
-> to your driver.
-
-Thanks. I can try that.
-Once I hand the pointer to the driver, is there a standard API to map user-=
-space memory to kernel space.
-
-Thanks=20
-
-Yehuda=20
-
->=20
-> It's backwards from how you're doing it now, but it makes things easier d=
-own
-> the road.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
