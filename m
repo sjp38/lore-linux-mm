@@ -1,70 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 92F156B0005
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 09:36:33 -0400 (EDT)
-Received: by mail-yw0-f197.google.com with SMTP id j12so75444799ywb.3
-        for <linux-mm@kvack.org>; Wed, 10 Aug 2016 06:36:33 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m20si14560575qke.275.2016.08.10.06.36.32
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Aug 2016 06:36:32 -0700 (PDT)
-Date: Wed, 10 Aug 2016 15:36:21 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH v4] powerpc: Do not make the entire heap executable
-Message-ID: <20160810133621.GA30167@redhat.com>
-References: <20160810130030.5268-1-dvlasenk@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160810130030.5268-1-dvlasenk@redhat.com>
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A2DFA6B0005
+	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 10:10:46 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id pp5so75468535pac.3
+        for <linux-mm@kvack.org>; Wed, 10 Aug 2016 07:10:46 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id wv6si48682259pab.263.2016.08.10.07.10.45
+        for <linux-mm@kvack.org>;
+        Wed, 10 Aug 2016 07:10:45 -0700 (PDT)
+From: Steve Capper <steve.capper@arm.com>
+Subject: [PATCH v2] rmap: Fix compound check logic in page_remove_file_rmap
+Date: Wed, 10 Aug 2016 15:10:17 +0100
+Message-Id: <1470838217-5889-1-git-send-email-steve.capper@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: linuxppc-dev@lists.ozlabs.org, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Kees Cook <keescook@chromium.org>, Michael Ellerman <mpe@ellerman.id.au>, Florian Weimer <fweimer@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, shijie.huang@arm.com, will.deacon@arm.com, catalin.marinas@arm.com, Steve Capper <steve.capper@arm.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On 08/10, Denys Vlasenko wrote:
->
-> Currently, to support 32-bit binaries with PLT in BSS kernel maps *entire
-> brk area* with executable rights for all binaries, even --secure-plt ones.
->
-> Stop doing that.
+In page_remove_file_rmap(.) we have the following check:
+  VM_BUG_ON_PAGE(compound && !PageTransHuge(page), page);
 
-Can't really review this patch, but at least the change in mm/mmap.c looks
-technically correct to me... One nit below, feel free to ignore.
+This is meant to check for either HugeTLB pages or THP when a compound
+page is passed in.
 
-> @@ -2668,7 +2668,7 @@ static int do_brk(unsigned long addr, unsigned long request)
->  	if (!len)
->  		return 0;
->
-> -	flags = VM_DATA_DEFAULT_FLAGS | VM_ACCOUNT | mm->def_flags;
-> +	flags |= VM_DATA_DEFAULT_FLAGS | VM_ACCOUNT | mm->def_flags;
+Unfortunately, if one disables CONFIG_TRANSPARENT_HUGEPAGE, then
+PageTransHuge(.) will always return false, provoking BUGs when one runs
+the libhugetlbfs test suite.
 
-OK. But note that we have
+This patch replaces PageTransHuge(), with PageHead() which will work for
+both HugeTLB and THP.
 
-	mlock_future_check(mm->def_flags);
+Fixes: dd78fedde4b9 ("rmap: support file thp")
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Steve Capper <steve.capper@arm.com>
 
-a few lines below and after this change this _looks_ wrong because
-VM_LOCKED can come from the new "flags" argument passed to do_brk().
-Nobody does this right now, still this looks wrong/confusing.
+---
 
-I'd suggest to add another change
+v2 - switch to PageHead as suggested by Kirill.
+---
+ mm/rmap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-	-	mlock_future_check(mm->def_flags);
-	+	mlock_future_check(flags);
-
-or add a sanity check at the start to deny VM_LOCKED and perhaps
-something else...
-
-The same for vm_brk_flags() which after your change does
-
-	do_brk_flags(flags);
-	populate = (mm->def_flags & VM_LOCKED);
-
-again, this is just a nit, I do not think it will be ever called
-with VM_LOCKED in "flags".
-
-Oleg.
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 709bc83..1180340 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1303,7 +1303,7 @@ static void page_remove_file_rmap(struct page *page, bool compound)
+ {
+ 	int i, nr = 1;
+ 
+-	VM_BUG_ON_PAGE(compound && !PageTransHuge(page), page);
++	VM_BUG_ON_PAGE(compound && !PageHead(page), page);
+ 	lock_page_memcg(page);
+ 
+ 	/* Hugepages are not counted in NR_FILE_MAPPED for now. */
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
