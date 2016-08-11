@@ -1,47 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 466CB6B0005
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 06:07:37 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id 63so128361017pfx.0
-        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 03:07:37 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id zy8si2555169pab.68.2016.08.11.03.07.36
-        for <linux-mm@kvack.org>;
-        Thu, 11 Aug 2016 03:07:36 -0700 (PDT)
-Date: Thu, 11 Aug 2016 11:07:32 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: arm64: why set SECTION_SIZE_BITS to 1G size?
-Message-ID: <20160811100732.GA18366@e104818-lin.cambridge.arm.com>
-References: <57AC490E.4080204@huawei.com>
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id F3BF06B0005
+	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 07:51:01 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id d65so10612603ith.0
+        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 04:51:01 -0700 (PDT)
+Received: from arroyo.ext.ti.com (arroyo.ext.ti.com. [198.47.19.12])
+        by mx.google.com with ESMTPS id e138si1198463oig.186.2016.08.11.04.51.01
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 11 Aug 2016 04:51:01 -0700 (PDT)
+From: Vignesh R <vigneshr@ti.com>
+Subject: kmemleak: Cannot insert 0xff7f1000 into the object search tree
+ (overlaps existing)
+Message-ID: <7f50c137-5c6a-0882-3704-ae9bb7552c30@ti.com>
+Date: Thu, 11 Aug 2016 17:20:51 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <57AC490E.4080204@huawei.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Will Deacon <will.deacon@arm.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, chenjie6@huawei.com
+To: linux-mm@kvack.org
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-omap@vger.kernel.org" <linux-omap@vger.kernel.org>, Catalin Marinas <catalin.marinas@arm.com>
 
-On Thu, Aug 11, 2016 at 05:44:46PM +0800, Xishi Qiu wrote:
-> arm64:
-> SECTION_SIZE_BITS 30 -----1G
-> 
-> The memory hotplug(add_memory -->check_hotplug_memory_range) 
-> must be aligned with section.So I can not add mem with 64M ...
-> Can I modify the SECTION_SIZE_BITS to 26?
+Hi,
 
-There was a patch to reduce this to 27:
 
-http://lkml.kernel.org/g/1465821119-3384-1-git-send-email-jszhang@marvell.com
+I see the below message from kmemleak when booting linux-next on AM335x
+GP EVM and DRA7 EVM
 
-Also some discussions in this thread on a different patch:
+[    0.803934] kmemleak: Cannot insert 0xff7f1000 into the object search
+tree (overlaps existing)
+[    0.803950] CPU: 0 PID: 1 Comm: swapper/0 Not tainted
+4.8.0-rc1-next-20160809 #497
+[    0.803958] Hardware name: Generic DRA72X (Flattened Device Tree)
+[    0.803979] [<c0110104>] (unwind_backtrace) from [<c010c24c>]
+(show_stack+0x10/0x14)
+[    0.803994] [<c010c24c>] (show_stack) from [<c0490df0>]
+(dump_stack+0xac/0xe0)
+[    0.804010] [<c0490df0>] (dump_stack) from [<c0296f88>]
+(create_object+0x214/0x278)
+[    0.804025] [<c0296f88>] (create_object) from [<c07c770c>]
+(kmemleak_alloc_percpu+0x54/0xc0)
+[    0.804038] [<c07c770c>] (kmemleak_alloc_percpu) from [<c025fb08>]
+(pcpu_alloc+0x368/0x5fc)
+[    0.804052] [<c025fb08>] (pcpu_alloc) from [<c0b1bfbc>]
+(crash_notes_memory_init+0x10/0x40)
+[    0.804064] [<c0b1bfbc>] (crash_notes_memory_init) from [<c010188c>]
+(do_one_initcall+0x3c/0x178)
+[    0.804075] [<c010188c>] (do_one_initcall) from [<c0b00e98>]
+(kernel_init_freeable+0x1fc/0x2c8)
+[    0.804086] [<c0b00e98>] (kernel_init_freeable) from [<c07c66b0>]
+(kernel_init+0x8/0x114)
+[    0.804098] [<c07c66b0>] (kernel_init) from [<c0107910>]
+(ret_from_fork+0x14/0x24)
+[    0.804106] kmemleak: Kernel memory leak detector disabled
+[    0.804113] kmemleak: Object 0xfe800000 (size 16777216):
+[    0.804121] kmemleak:   comm "swapper/0", pid 0, jiffies 4294937296
+[    0.804127] kmemleak:   min_count = -1
+[    0.804132] kmemleak:   count = 0
+[    0.804138] kmemleak:   flags = 0x5
+[    0.804143] kmemleak:   checksum = 0
+[    0.804149] kmemleak:   backtrace:
+[    0.804155]      [<c0b26a90>] cma_declare_contiguous+0x16c/0x214
+[    0.804170]      [<c0b3c9c0>] dma_contiguous_reserve_area+0x30/0x64
+[    0.804183]      [<c0b3ca74>] dma_contiguous_reserve+0x80/0x94
+[    0.804195]      [<c0b06810>] arm_memblock_init+0x130/0x184
+[    0.804207]      [<c0b04214>] setup_arch+0x590/0xc08
+[    0.804217]      [<c0b00940>] start_kernel+0x58/0x3b4
+[    0.804227]      [<8000807c>] 0x8000807c
+[    0.804237]      [<ffffffff>] 0xffffffff
 
-http://lkml.iu.edu/hypermail/linux/kernel/1604.1/03036.html
 
-Does your system really have such small alignment memory blocks?
+
+This happens early in the boot and the stack dump depends on the driver
+that is being probed at that moment (and therefore I believe its a
+generic issue).
+Full boot log here: http://pastebin.ubuntu.com/23014650/
+Config used: omap2plus_defconfig +
+CONFIG_HAVE_DEBUG_KMEMLEAK=y
+CONFIG_DEBUG_KMEMLEAK=y
+CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE=8000
+
+
+Has anyone seen this issue before?
+
+Any help appreciated. Thanks!
 
 -- 
-Catalin
+Regards
+Vignesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
