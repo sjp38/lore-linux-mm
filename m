@@ -1,36 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B27E86B0005
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 05:51:43 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id h186so126019034pfg.2
-        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 02:51:43 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id sq1si2488664pab.29.2016.08.11.02.47.26
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BA8296B0005
+	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 05:53:21 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id l4so2444284wml.0
+        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 02:53:21 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k10si2204239wmh.11.2016.08.11.02.53.20
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 11 Aug 2016 02:51:43 -0700 (PDT)
-Message-ID: <57AC490E.4080204@huawei.com>
-Date: Thu, 11 Aug 2016 17:44:46 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        Thu, 11 Aug 2016 02:53:20 -0700 (PDT)
+Subject: Re: [PATCH 2/5] mm/debug_pagealloc: don't allocate page_ext if we
+ don't use guard page
+References: <1470809784-11516-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1470809784-11516-3-git-send-email-iamjoonsoo.kim@lge.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <7391d520-0512-231b-ef2d-600ab22bda5b@suse.cz>
+Date: Thu, 11 Aug 2016 11:53:18 +0200
 MIME-Version: 1.0
-Subject: arm64: why set SECTION_SIZE_BITS to 1G size?
-Content-Type: text/plain; charset="ISO-8859-1"
+In-Reply-To: <1470809784-11516-3-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, chenjie6@huawei.com
+To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Hi everyone:
-arm64:
-SECTION_SIZE_BITS 30 -----1G
+On 08/10/2016 08:16 AM, js1304@gmail.com wrote:
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>
+> What debug_pagealloc does is just mapping/unmapping page table.
+> Basically, it doesn't need additional memory space to memorize something.
+> But, with guard page feature, it requires additional memory to distinguish
+> if the page is for guard or not. Guard page is only used when
+> debug_guardpage_minorder is non-zero so this patch removes additional
+> memory allocation (page_ext) if debug_guardpage_minorder is zero.
+>
+> It saves memory if we just use debug_pagealloc and not guard page.
 
-The memory hotplug(add_memory -->check_hotplug_memory_range) 
-must be aligned with section.So I can not add mem with 64M ...
-Can I modify the SECTION_SIZE_BITS to 26?
+We could also save cycles with a static key for _debug_guardpage_enabled :)
 
-Thanks,
-Xishi Qiu
+But memory savings are likely more significant, so
+
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
