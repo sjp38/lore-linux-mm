@@ -1,62 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 283226B0005
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 05:41:14 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id l4so2077373wml.0
-        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 02:41:14 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i7si1612322wjo.244.2016.08.11.02.41.12
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B27E86B0005
+	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 05:51:43 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id h186so126019034pfg.2
+        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 02:51:43 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id sq1si2488664pab.29.2016.08.11.02.47.26
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 11 Aug 2016 02:41:12 -0700 (PDT)
-Subject: Re: [PATCH 1/5] mm/debug_pagealloc: clean-up guard page handling code
-References: <1470809784-11516-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1470809784-11516-2-git-send-email-iamjoonsoo.kim@lge.com>
- <20160810081453.GB573@swordfish>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <172b4c63-b519-cf1d-ed68-1f85f2caed14@suse.cz>
-Date: Thu, 11 Aug 2016 11:41:12 +0200
+        Thu, 11 Aug 2016 02:51:43 -0700 (PDT)
+Message-ID: <57AC490E.4080204@huawei.com>
+Date: Thu, 11 Aug 2016 17:44:46 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <20160810081453.GB573@swordfish>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Subject: arm64: why set SECTION_SIZE_BITS to 1G size?
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, js1304@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, chenjie6@huawei.com
 
-On 08/10/2016 10:14 AM, Sergey Senozhatsky wrote:
->> @@ -1650,18 +1655,15 @@ static inline void expand(struct zone *zone, struct page *page,
->>  		size >>= 1;
->>  		VM_BUG_ON_PAGE(bad_range(zone, &page[size]), &page[size]);
->>
->> -		if (IS_ENABLED(CONFIG_DEBUG_PAGEALLOC) &&
->> -			debug_guardpage_enabled() &&
->> -			high < debug_guardpage_minorder()) {
->> -			/*
->> -			 * Mark as guard pages (or page), that will allow to
->> -			 * merge back to allocator when buddy will be freed.
->> -			 * Corresponding page table entries will not be touched,
->> -			 * pages will stay not present in virtual address space
->> -			 */
->> -			set_page_guard(zone, &page[size], high, migratetype);
->> +		/*
->> +		 * Mark as guard pages (or page), that will allow to
->> +		 * merge back to allocator when buddy will be freed.
->> +		 * Corresponding page table entries will not be touched,
->> +		 * pages will stay not present in virtual address space
->> +		 */
->> +		if (set_page_guard(zone, &page[size], high, migratetype))
->>  			continue;
->> -		}
->
-> so previously IS_ENABLED(CONFIG_DEBUG_PAGEALLOC) could have optimized out
-> the entire branch -- no set_page_guard() invocation and checks, right? but
-> now we would call set_page_guard() every time?
+Hi everyone:
+arm64:
+SECTION_SIZE_BITS 30 -----1G
 
-No, there's a !CONFIG_DEBUG_PAGEALLOC version of set_page_guard() that 
-returns false (static inline), so this whole if will be eliminated by 
-the compiler, same as before.
+The memory hotplug(add_memory -->check_hotplug_memory_range) 
+must be aligned with section.So I can not add mem with 64M ...
+Can I modify the SECTION_SIZE_BITS to 26?
+
+Thanks,
+Xishi Qiu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
