@@ -1,153 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E7B7D6B0261
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 13:44:57 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id w128so4181082pfd.3
-        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 10:44:57 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id zp5si4144413pac.134.2016.08.11.10.44.56
-        for <linux-mm@kvack.org>;
-        Thu, 11 Aug 2016 10:44:56 -0700 (PDT)
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: [PATCH] arm64: Introduce execute-only page access permissions
-Date: Thu, 11 Aug 2016 18:44:50 +0100
-Message-Id: <1470937490-7375-1-git-send-email-catalin.marinas@arm.com>
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DF596B0261
+	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 13:53:30 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 1so3093030wmz.2
+        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 10:53:30 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id x67si1086842wmx.110.2016.08.11.10.53.28
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Aug 2016 10:53:29 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u7BHnLUZ122965
+	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 13:53:27 -0400
+Received: from e37.co.us.ibm.com (e37.co.us.ibm.com [32.97.110.158])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 24ru300q8x-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 13:53:27 -0400
+Received: from localhost
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
+	Thu, 11 Aug 2016 11:53:26 -0600
+Date: Thu, 11 Aug 2016 12:53:11 -0500
+From: Reza Arbab <arbab@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/4] dt-bindings: add doc for ibm,hotplug-aperture
+References: <1470680843-28702-1-git-send-email-arbab@linux.vnet.ibm.com>
+ <1470680843-28702-2-git-send-email-arbab@linux.vnet.ibm.com>
+ <92e34173-b2e2-bac0-3bbb-fc5407cbb8a5@gmail.com>
+ <874m6r2a2s.fsf@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <874m6r2a2s.fsf@linux.vnet.ibm.com>
+Message-Id: <20160811175311.GD12039@arbab-laptop.austin.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org
-Cc: Kees Cook <keescook@chromium.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Will Deacon <will.deacon@arm.com>
+To: Stewart Smith <stewart@linux.vnet.ibm.com>
+Cc: Balbir Singh <bsingharora@gmail.com>, Rob Herring <robh+dt@kernel.org>, Mark Rutland <mark.rutland@arm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Jonathan Corbet <corbet@lwn.net>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, devicetree@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alistair Popple <apopple@au1.ibm.com>
 
-The ARMv8 architecture allows execute-only user permissions by clearing
-the PTE_UXN and PTE_USER bits. However, the kernel running on a CPU
-implementation without User Access Override (ARMv8.2 onwards) can still
-access such page, so execute-only page permission does not protect
-against read(2)/write(2) etc. accesses. Systems requiring such
-protection must enable features like SECCOMP.
+On Thu, Aug 11, 2016 at 02:39:23PM +1000, Stewart Smith wrote:
+>Forgive me for being absent on the whole discussion here, but is this 
+>an OPAL specific binding? If so, shouldn't the docs also appear in the
+>skiboot tree?
 
-This patch changes the arm64 __P100 and __S100 protection_map[] macros
-to the new __PAGE_EXECONLY attributes. A side effect is that
-pte_user() no longer triggers for __PAGE_EXECONLY since PTE_USER isn't
-set. To work around this, the check is done on the PTE_NG bit via the
-pte_ng() macro. VM_READ is also checked now for page faults.
+Good question. I guess it's not necessarily OPAL-specific, even though 
+OPAL may initially be the only implementor of the binding.
 
-Cc: Will Deacon <will.deacon@arm.com>
-Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
----
- arch/arm64/include/asm/pgtable-prot.h |  5 +++--
- arch/arm64/include/asm/pgtable.h      | 10 +++++-----
- arch/arm64/mm/fault.c                 |  5 ++---
- mm/mmap.c                             |  5 +++++
- 4 files changed, 15 insertions(+), 10 deletions(-)
+Would it be more appropriate to move the file up a directory, directly 
+under Documentation/devicetree/bindings/powerpc? I hesitated at that 
+because the binding is tied to "ibm,associativity".
 
-diff --git a/arch/arm64/include/asm/pgtable-prot.h b/arch/arm64/include/asm/pgtable-prot.h
-index 39f5252673f7..2142c7726e76 100644
---- a/arch/arm64/include/asm/pgtable-prot.h
-+++ b/arch/arm64/include/asm/pgtable-prot.h
-@@ -70,12 +70,13 @@
- #define PAGE_COPY_EXEC		__pgprot(_PAGE_DEFAULT | PTE_USER | PTE_NG | PTE_PXN)
- #define PAGE_READONLY		__pgprot(_PAGE_DEFAULT | PTE_USER | PTE_NG | PTE_PXN | PTE_UXN)
- #define PAGE_READONLY_EXEC	__pgprot(_PAGE_DEFAULT | PTE_USER | PTE_NG | PTE_PXN)
-+#define PAGE_EXECONLY		__pgprot(_PAGE_DEFAULT | PTE_NG | PTE_PXN)
- 
- #define __P000  PAGE_NONE
- #define __P001  PAGE_READONLY
- #define __P010  PAGE_COPY
- #define __P011  PAGE_COPY
--#define __P100  PAGE_READONLY_EXEC
-+#define __P100  PAGE_EXECONLY
- #define __P101  PAGE_READONLY_EXEC
- #define __P110  PAGE_COPY_EXEC
- #define __P111  PAGE_COPY_EXEC
-@@ -84,7 +85,7 @@
- #define __S001  PAGE_READONLY
- #define __S010  PAGE_SHARED
- #define __S011  PAGE_SHARED
--#define __S100  PAGE_READONLY_EXEC
-+#define __S100  PAGE_EXECONLY
- #define __S101  PAGE_READONLY_EXEC
- #define __S110  PAGE_SHARED_EXEC
- #define __S111  PAGE_SHARED_EXEC
-diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
-index dbb1b7bf1b07..403a61cf4967 100644
---- a/arch/arm64/include/asm/pgtable.h
-+++ b/arch/arm64/include/asm/pgtable.h
-@@ -74,7 +74,7 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
- #define pte_write(pte)		(!!(pte_val(pte) & PTE_WRITE))
- #define pte_exec(pte)		(!(pte_val(pte) & PTE_UXN))
- #define pte_cont(pte)		(!!(pte_val(pte) & PTE_CONT))
--#define pte_user(pte)		(!!(pte_val(pte) & PTE_USER))
-+#define pte_ng(pte)		(!!(pte_val(pte) & PTE_NG))
- 
- #ifdef CONFIG_ARM64_HW_AFDBM
- #define pte_hw_dirty(pte)	(pte_write(pte) && !(pte_val(pte) & PTE_RDONLY))
-@@ -85,8 +85,8 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
- #define pte_dirty(pte)		(pte_sw_dirty(pte) || pte_hw_dirty(pte))
- 
- #define pte_valid(pte)		(!!(pte_val(pte) & PTE_VALID))
--#define pte_valid_not_user(pte) \
--	((pte_val(pte) & (PTE_VALID | PTE_USER)) == PTE_VALID)
-+#define pte_valid_global(pte) \
-+	((pte_val(pte) & (PTE_VALID | PTE_NG)) == PTE_VALID)
- #define pte_valid_young(pte) \
- 	((pte_val(pte) & (PTE_VALID | PTE_AF)) == (PTE_VALID | PTE_AF))
- 
-@@ -179,7 +179,7 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
- 	 * Only if the new pte is valid and kernel, otherwise TLB maintenance
- 	 * or update_mmu_cache() have the necessary barriers.
- 	 */
--	if (pte_valid_not_user(pte)) {
-+	if (pte_valid_global(pte)) {
- 		dsb(ishst);
- 		isb();
- 	}
-@@ -213,7 +213,7 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
- 			pte_val(pte) &= ~PTE_RDONLY;
- 		else
- 			pte_val(pte) |= PTE_RDONLY;
--		if (pte_user(pte) && pte_exec(pte) && !pte_special(pte))
-+		if (pte_ng(pte) && pte_exec(pte) && !pte_special(pte))
- 			__sync_icache_dcache(pte, addr);
- 	}
- 
-diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
-index c8beaa0da7df..58f697fe18b6 100644
---- a/arch/arm64/mm/fault.c
-+++ b/arch/arm64/mm/fault.c
-@@ -245,8 +245,7 @@ static int __do_page_fault(struct mm_struct *mm, unsigned long addr,
- good_area:
- 	/*
- 	 * Check that the permissions on the VMA allow for the fault which
--	 * occurred. If we encountered a write or exec fault, we must have
--	 * appropriate permissions, otherwise we allow any permission.
-+	 * occurred.
- 	 */
- 	if (!(vma->vm_flags & vm_flags)) {
- 		fault = VM_FAULT_BADACCESS;
-@@ -281,7 +280,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
- 	struct task_struct *tsk;
- 	struct mm_struct *mm;
- 	int fault, sig, code;
--	unsigned long vm_flags = VM_READ | VM_WRITE | VM_EXEC;
-+	unsigned long vm_flags = VM_READ | VM_WRITE;
- 	unsigned int mm_flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
- 
- 	if (notify_page_fault(regs, esr))
-diff --git a/mm/mmap.c b/mm/mmap.c
-index ca9d91bca0d6..69cad562cd00 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -88,6 +88,11 @@ static void unmap_region(struct mm_struct *mm,
-  *		w: (no) no	w: (no) no	w: (copy) copy	w: (no) no
-  *		x: (no) no	x: (no) yes	x: (no) yes	x: (yes) yes
-  *
-+ * On arm64, PROT_EXEC has the following behaviour for both MAP_SHARED and
-+ * MAP_PRIVATE:
-+ *								r: (no) no
-+ *								w: (no) no
-+ *								x: (yes) yes
-  */
- pgprot_t protection_map[16] = {
- 	__P000, __P001, __P010, __P011, __P100, __P101, __P110, __P111,
+-- 
+Reza Arbab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
