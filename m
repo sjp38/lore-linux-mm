@@ -1,203 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F97A6B0253
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 18:30:29 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id le9so14053696pab.0
-        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 15:30:29 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CC6D6B0253
+	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 19:13:42 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id o124so17912460pfg.1
+        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 16:13:42 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id a16si5263463pfj.8.2016.08.11.15.30.28
+        by mx.google.com with ESMTPS id 19si5401440pft.165.2016.08.11.16.13.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Aug 2016 15:30:28 -0700 (PDT)
-Date: Thu, 11 Aug 2016 15:30:27 -0700
-From: akpm@linux-foundation.org
-Subject: mmotm 2016-08-11-15-29 uploaded
-Message-ID: <57acfc83.m1jfhXlimbkvzxCS%akpm@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        Thu, 11 Aug 2016 16:13:40 -0700 (PDT)
+Date: Thu, 11 Aug 2016 16:13:35 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/3] mem-hotplug: introduce movablenode option
+Message-Id: <20160811161335.8599521d14927394f1208fc7@linux-foundation.org>
+In-Reply-To: <57A325CA.9050707@huawei.com>
+References: <57A325CA.9050707@huawei.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, broonie@kernel.org
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-The mm-of-the-moment snapshot 2016-08-11-15-29 has been uploaded to
+On Thu, 4 Aug 2016 19:23:54 +0800 Xishi Qiu <qiuxishi@huawei.com> wrote:
 
-   http://www.ozlabs.org/~akpm/mmotm/
+> This patch introduces a new boot option movablenode.
+> 
+> To support memory hotplug, boot option "movable_node" is needed. And to
+> support debug memory hotplug, boot option "movable_node" and "movablenode"
+> are both needed.
+> 
+> e.g. movable_node movablenode=1,2,4
 
-mmotm-readme.txt says
+I have some naming concerns.  "movable_node" and "movablenode" is just
+confusing and ugly.
 
-README for mm-of-the-moment:
+Can we just use the one parameter?   eg,
 
-http://www.ozlabs.org/~akpm/mmotm/
+	vmlinux movable_node
 
-This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-more than once a week.
+or
 
-You will need quilt to apply these patches to the latest Linus release (4.x
-or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
-http://ozlabs.org/~akpm/mmotm/series
+	vmlinux movable_node=1,2,4
 
-The file broken-out.tar.gz contains two datestamp files: .DATE and
-.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
-followed by the base kernel version against which this patch series is to
-be applied.
+if not that, then how about "movable_node" and "movable_nodes"?  Then
+every instance of "movablenode" in the patch itself should become
+"movable_nodes" to be consistent with the command line parameter.
 
-This tree is partially included in linux-next.  To see which patches are
-included in linux-next, consult the `series' file.  Only the patches
-within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
-linux-next.
+> It means node 1,2,4 will be set to movable nodes, the other nodes are
+> unmovable nodes. Usually movable nodes are parsed from SRAT table which
+> offered by BIOS, so this boot option is used for debug.
+> 
+>
+> ---
+>  Documentation/kernel-parameters.txt |  4 ++++
+>  arch/x86/mm/srat.c                  | 36 ++++++++++++++++++++++++++++++++++++
+>  2 files changed, 40 insertions(+)
+> 
+> diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+> index 82b42c9..f8726f8 100644
+> --- a/Documentation/kernel-parameters.txt
+> +++ b/Documentation/kernel-parameters.txt
+> @@ -2319,6 +2319,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+>  	movable_node	[KNL,X86] Boot-time switch to enable the effects
+>  			of CONFIG_MOVABLE_NODE=y. See mm/Kconfig for details.
+>  
+> +	movablenode=	[KNL,X86] Boot-time switch to set which node is
+> +			movable node.
+> +			Format: <movable nid>,...,<movable nid>
 
-A git tree which contains the memory management portion of this tree is
-maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-by Michal Hocko.  It contains the patches which are between the
-"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
-file, http://www.ozlabs.org/~akpm/mmotm/series.
+I think the docs should emphasize that this option disables the usual
+SRAT-driven allocation and replaces it with manual allocation.
 
-
-A full copy of the full kernel tree with the linux-next and mmotm patches
-already applied is available through git within an hour of the mmotm
-release.  Individual mmotm releases are tagged.  The master branch always
-points to the latest release, so it's constantly rebasing.
-
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
-
-To develop on top of mmotm git:
-
-  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-  $ git remote update mmotm
-  $ git checkout -b topic mmotm/master
-  <make changes, commit>
-  $ git send-email mmotm/master.. [...]
-
-To rebase a branch with older patches to a new mmotm release:
-
-  $ git remote update mmotm
-  $ git rebase --onto mmotm/master <topic base> topic
-
-
-
-
-The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
-contains daily snapshots of the -mm tree.  It is updated more frequently
-than mmotm, and is untested.
-
-A git copy of this tree is available at
-
-	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
-
-and use of this tree is similar to
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
-
-
-This mmotm tree contains the following patches against 4.8-rc1:
-(patches marked "*" will be included in linux-next)
-
-  origin.patch
-  arch-alpha-kernel-systblss-remove-debug-check.patch
-  i-need-old-gcc.patch
-* mm-fix-the-incorrect-hugepages-count.patch
-* proc-meminfo-use-correct-helpers-for-calculating-lru-sizes-in-meminfo.patch
-* mm-memcontrol-fix-swap-counter-leak-on-swapout-from-offline-cgroup.patch
-* mm-memcontrol-fix-swap-counter-leak-on-swapout-from-offline-cgroup-fix.patch
-* mm-memcontrol-fix-memcg-id-ref-counter-on-swap-charge-move.patch
-* kasan-remove-the-unnecessary-warn_once-from-quarantinec.patch
-* mm-oom-fix-uninitialized-ret-in-task_will_free_mem.patch
-* mm-initialize-per_cpu_nodestats-for-hotadded-pgdats.patch
-* byteswap-dont-use-__builtin_bswap-with-sparse.patch
-* mm-page_alloc-replace-set_dma_reserve-to-set_memory_reserve.patch
-* fadump-register-the-memory-reserved-by-fadump.patch
-* mm-slab-improve-performance-of-gathering-slabinfo-stats.patch
-* kthread-rename-probe_kthread_data-to-kthread_probe_data.patch
-* kthread-kthread-worker-api-cleanup.patch
-* kthread-smpboot-do-not-park-in-kthread_create_on_cpu.patch
-* kthread-allow-to-call-__kthread_create_on_node-with-va_list-args.patch
-* kthread-add-kthread_create_worker.patch
-* kthread-add-kthread_destroy_worker.patch
-* kthread-detect-when-a-kthread-work-is-used-by-more-workers.patch
-* kthread-initial-support-for-delayed-kthread-work.patch
-* kthread-allow-to-cancel-kthread-work.patch
-* kthread-allow-to-modify-delayed-kthread-work.patch
-* kthread-better-support-freezable-kthread-workers.patch
-* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
-* kbuild-simpler-generation-of-assembly-constants.patch
-* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
-* kernel-watchdog-use-nmi-registers-snapshot-in-hardlockup-handler.patch
-  mm.patch
-* mm-oom-deduplicate-victim-selection-code-for-memcg-and-global-oom.patch
-* mm-zsmalloc-add-trace-events-for-zs_compact.patch
-* mm-zsmalloc-add-per-class-compact-trace-event.patch
-* mm-vmalloc-fix-align-value-calculation-error.patch
-* mm-vmalloc-fix-align-value-calculation-error-fix.patch
-* mm-vmalloc-fix-align-value-calculation-error-v2.patch
-* mm-vmalloc-fix-align-value-calculation-error-v2-fix.patch
-* mm-vmalloc-fix-align-value-calculation-error-v2-fix-fix.patch
-* mm-memcontrol-add-sanity-checks-for-memcg-idref-on-get-put.patch
-* mm-oom_killc-fix-task_will_free_mem-comment.patch
-* mm-compaction-make-whole_zone-flag-ignore-cached-scanner-positions.patch
-* mm-compaction-make-whole_zone-flag-ignore-cached-scanner-positions-checkpatch-fixes.patch
-* mm-compaction-cleanup-unused-functions.patch
-* mm-compaction-rename-compact_partial-to-compact_success.patch
-* mm-compaction-dont-recheck-watermarks-after-compact_success.patch
-* mm-compaction-add-the-ultimate-direct-compaction-priority.patch
-* mm-compaction-more-reliably-increase-direct-compaction-priority.patch
-* mm-compaction-use-correct-watermark-when-checking-compaction-success.patch
-* mm-compaction-create-compact_gap-wrapper.patch
-* mm-compaction-use-proper-alloc_flags-in-__compaction_suitable.patch
-* mm-compaction-require-only-min-watermarks-for-non-costly-orders.patch
-* mm-vmscan-make-compaction_ready-more-accurate-and-readable.patch
-* mm-page_owner-align-with-pageblock_nr-pages.patch
-* mm-walk-the-zone-in-pageblock_nr_pages-steps.patch
-* proc-much-faster-proc-vmstat.patch
-* proc-faster-proc-status.patch
-* seq-proc-modify-seq_put_decimal_ll-to-take-a-const-char-not-char.patch
-* seq-proc-modify-seq_put_decimal_ll-to-take-a-const-char-not-char-fix.patch
-* meminfo-break-apart-a-very-long-seq_printf-with-ifdefs.patch
-* proc-relax-proc-tid-timerslack_ns-capability-requirements.patch
-* proc-add-lsm-hook-checks-to-proc-tid-timerslack_ns.patch
-* console-dont-prefer-first-registered-if-dt-specifies-stdout-path.patch
-* lib-add-crc64-ecma-module.patch
-* compat-remove-compat_printk.patch
-* kdump-vmcoreinfo-report-actual-value-of-phys_base.patch
-* rapidio-rio_cm-use-memdup_user-instead-of-duplicating-code.patch
-* random-simplify-api-for-random-address-requests.patch
-* random-simplify-api-for-random-address-requests-v2.patch
-* x86-use-simpler-api-for-random-address-requests.patch
-* x86-use-simpler-api-for-random-address-requests-v2.patch
-* arm-use-simpler-api-for-random-address-requests.patch
-* arm-use-simpler-api-for-random-address-requests-v2.patch
-* arm64-use-simpler-api-for-random-address-requests.patch
-* arm64-use-simpler-api-for-random-address-requests-v2.patch
-* tile-use-simpler-api-for-random-address-requests.patch
-* tile-use-simpler-api-for-random-address-requests-v2.patch
-* unicore32-use-simpler-api-for-random-address-requests.patch
-* unicore32-use-simpler-api-for-random-address-requests-v2.patch
-* random-remove-unused-randomize_range.patch
-* dma-mapping-introduce-the-dma_attr_no_warn-attribute.patch
-* powerpc-implement-the-dma_attr_no_warn-attribute.patch
-* nvme-use-the-dma_attr_no_warn-attribute.patch
-* x86-panic-replace-smp_send_stop-with-kdump-friendly-version-in-panic-path.patch
-* mips-panic-replace-smp_send_stop-with-kdump-friendly-version-in-panic-path.patch
-* relay-use-per-cpu-constructs-for-the-relay-channel-buffer-pointers.patch
-* config-android-remove-config_ipv6_privacy.patch
-* ipc-semc-fix-complex_count-vs-simple-op-race.patch
-* ipc-msg-implement-lockless-pipelined-wakeups.patch
-* ipc-msg-batch-queue-sender-wakeups.patch
-* ipc-msg-make-ss_wakeup-kill-arg-boolean.patch
-* ipc-msg-lockless-security-checks-for-msgsnd.patch
-* ipc-msg-avoid-waking-sender-upon-full-queue.patch
-* ipc-msg-avoid-waking-sender-upon-full-queue-checkpatch-fixes.patch
-  linux-next.patch
-* drivers-net-wireless-intel-iwlwifi-dvm-calibc-fix-min-warning.patch
-* mm-writeback-flush-plugged-io-in-wakeup_flusher_threads.patch
-  mm-add-strictlimit-knob-v2.patch
-  make-sure-nobodys-leaking-resources.patch
-  releasing-resources-with-children.patch
-  make-frame_pointer-default=y.patch
-  kernel-forkc-export-kernel_thread-to-modules.patch
-  mutex-subsystem-synchro-test-module.patch
-  slab-leaks3-default-y.patch
-  add-debugging-aid-for-memory-initialisation-problems.patch
-  workaround-for-a-pci-restoring-bug.patch
+Also, can we please have more details in the patch changelog?  Why do we
+*need* this?  Just for debugging?  Normally people will just use
+SRAT-based allocation so normal users won't use this?  If so, why is
+this debugging feature considered useful enough to add to the kernel?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
