@@ -1,89 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 138246B0005
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 16:35:06 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id ez1so9921599pab.1
-        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 13:35:06 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 6F97A6B0253
+	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 18:30:29 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id le9so14053696pab.0
+        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 15:30:29 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id v5si4763906paz.176.2016.08.11.13.35.04
+        by mx.google.com with ESMTPS id a16si5263463pfj.8.2016.08.11.15.30.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Aug 2016 13:35:05 -0700 (PDT)
-Date: Thu, 11 Aug 2016 13:35:03 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [mm, kasan] 80a9201a59:  RIP: 0010:[<ffffffff9890f590>]
- [<ffffffff9890f590>] __kernel_text_address
-Message-Id: <20160811133503.f0896f6781a41570f9eebb42@linux-foundation.org>
-In-Reply-To: <57ac048b.Qkbm0ARWLAJq8zX6%fengguang.wu@intel.com>
-References: <57ac048b.Qkbm0ARWLAJq8zX6%fengguang.wu@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Thu, 11 Aug 2016 15:30:28 -0700 (PDT)
+Date: Thu, 11 Aug 2016 15:30:27 -0700
+From: akpm@linux-foundation.org
+Subject: mmotm 2016-08-11-15-29 uploaded
+Message-ID: <57acfc83.m1jfhXlimbkvzxCS%akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kernel test robot <fengguang.wu@intel.com>
-Cc: Alexander Potapenko <glider@google.com>, LKP <lkp@01.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, wfg@linux.intel.com, Neil Horman <nhorman@redhat.com>, Andy Lutomirski <luto@kernel.org>
+To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, broonie@kernel.org
 
-On Thu, 11 Aug 2016 12:52:27 +0800 kernel test robot <fengguang.wu@intel.com> wrote:
+The mm-of-the-moment snapshot 2016-08-11-15-29 has been uploaded to
 
-> Greetings,
-> 
-> 0day kernel testing robot got the below dmesg and the first bad commit is
-> 
-> https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
-> 
-> commit 80a9201a5965f4715d5c09790862e0df84ce0614
-> Author:     Alexander Potapenko <glider@google.com>
-> AuthorDate: Thu Jul 28 15:49:07 2016 -0700
-> Commit:     Linus Torvalds <torvalds@linux-foundation.org>
-> CommitDate: Thu Jul 28 16:07:41 2016 -0700
-> 
->     mm, kasan: switch SLUB to stackdepot, enable memory quarantine for SLUB
->     
->     For KASAN builds:
->      - switch SLUB allocator to using stackdepot instead of storing the
->        allocation/deallocation stacks in the objects;
->      - change the freelist hook so that parts of the freelist can be put
->        into the quarantine.
->
-> ...
->
-> [   64.298576] NMI watchdog: BUG: soft lockup - CPU#0 stuck for 22s! [swapper/0:1]
-> [   64.300827] irq event stamp: 5606950
-> [   64.301377] hardirqs last  enabled at (5606949): [<ffffffff98a4ef09>] T.2097+0x9a/0xbe
-> [   64.302586] hardirqs last disabled at (5606950): [<ffffffff997347a9>] apic_timer_interrupt+0x89/0xa0
-> [   64.303991] softirqs last  enabled at (5605564): [<ffffffff99735abe>] __do_softirq+0x23e/0x2bb
-> [   64.305308] softirqs last disabled at (5605557): [<ffffffff988ee34f>] irq_exit+0x73/0x108
-> [   64.306598] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 4.7.0-05999-g80a9201 #1
-> [   64.307678] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Debian-1.8.2-1 04/01/2014
-> [   64.326233] task: ffff88000ea19ec0 task.stack: ffff88000ea20000
-> [   64.327137] RIP: 0010:[<ffffffff9890f590>]  [<ffffffff9890f590>] __kernel_text_address+0xb/0xa1
-> [   64.328504] RSP: 0000:ffff88000ea27348  EFLAGS: 00000207
-> [   64.329320] RAX: 0000000000000001 RBX: ffff88000ea275c0 RCX: 0000000000000001
-> [   64.330426] RDX: ffff88000ea27ff8 RSI: 024080c099733d8f RDI: 024080c099733d8f
-> [   64.331496] RBP: ffff88000ea27348 R08: ffff88000ea27678 R09: 0000000000000000
-> [   64.332567] R10: 0000000000021298 R11: ffffffff990f235c R12: ffff88000ea276c8
-> [   64.333635] R13: ffffffff99805e20 R14: ffff88000ea19ec0 R15: 0000000000000000
-> [   64.334706] FS:  0000000000000000(0000) GS:ffff88000ee00000(0000) knlGS:0000000000000000
-> [   64.335916] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [   64.336782] CR2: 0000000000000000 CR3: 000000000aa0a000 CR4: 00000000000406b0
-> [   64.337846] Stack:
-> [   64.338206]  ffff88000ea273a8 ffffffff9881f3dd 024080c099733d8f ffffffffffff8000
-> [   64.339410]  ffff88000ea27678 ffff88000ea276c8 000000020e81a4d8 ffff88000ea273f8
-> [   64.340602]  ffffffff99805e20 ffff88000ea19ec0 ffff88000ea27438 ffff88000ee07fc0
-> [   64.348993] Call Trace:
-> [   64.349380]  [<ffffffff9881f3dd>] print_context_stack+0x68/0x13e
-> [   64.350295]  [<ffffffff9881e4af>] dump_trace+0x3ab/0x3d6
-> [   64.351102]  [<ffffffff9882f6e4>] save_stack_trace+0x31/0x5c
-> [   64.351964]  [<ffffffff98a521db>] kasan_kmalloc+0x126/0x1f6
-> [   64.365727]  [<ffffffff9882f6e4>] ? save_stack_trace+0x31/0x5c
-> [   64.366675]  [<ffffffff98a521db>] ? kasan_kmalloc+0x126/0x1f6
-> [   64.367560]  [<ffffffff9904a8eb>] ? acpi_ut_create_generic_state+0x43/0x5c
-> 
+   http://www.ozlabs.org/~akpm/mmotm/
 
-At a guess I'd say that
-arch/x86/kernel/dumpstack.c:print_context_stack() failed to terminate,
-or took a super long time.  Is that a thing that is known to be possible?
+mmotm-readme.txt says
+
+README for mm-of-the-moment:
+
+http://www.ozlabs.org/~akpm/mmotm/
+
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
+
+You will need quilt to apply these patches to the latest Linus release (4.x
+or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
+
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
+
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
+
+A git tree which contains the memory management portion of this tree is
+maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+by Michal Hocko.  It contains the patches which are between the
+"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+file, http://www.ozlabs.org/~akpm/mmotm/series.
+
+
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
+
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
+
+To develop on top of mmotm git:
+
+  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+  $ git remote update mmotm
+  $ git checkout -b topic mmotm/master
+  <make changes, commit>
+  $ git send-email mmotm/master.. [...]
+
+To rebase a branch with older patches to a new mmotm release:
+
+  $ git remote update mmotm
+  $ git rebase --onto mmotm/master <topic base> topic
+
+
+
+
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
+
+A git copy of this tree is available at
+
+	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
+
+and use of this tree is similar to
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
+
+
+This mmotm tree contains the following patches against 4.8-rc1:
+(patches marked "*" will be included in linux-next)
+
+  origin.patch
+  arch-alpha-kernel-systblss-remove-debug-check.patch
+  i-need-old-gcc.patch
+* mm-fix-the-incorrect-hugepages-count.patch
+* proc-meminfo-use-correct-helpers-for-calculating-lru-sizes-in-meminfo.patch
+* mm-memcontrol-fix-swap-counter-leak-on-swapout-from-offline-cgroup.patch
+* mm-memcontrol-fix-swap-counter-leak-on-swapout-from-offline-cgroup-fix.patch
+* mm-memcontrol-fix-memcg-id-ref-counter-on-swap-charge-move.patch
+* kasan-remove-the-unnecessary-warn_once-from-quarantinec.patch
+* mm-oom-fix-uninitialized-ret-in-task_will_free_mem.patch
+* mm-initialize-per_cpu_nodestats-for-hotadded-pgdats.patch
+* byteswap-dont-use-__builtin_bswap-with-sparse.patch
+* mm-page_alloc-replace-set_dma_reserve-to-set_memory_reserve.patch
+* fadump-register-the-memory-reserved-by-fadump.patch
+* mm-slab-improve-performance-of-gathering-slabinfo-stats.patch
+* kthread-rename-probe_kthread_data-to-kthread_probe_data.patch
+* kthread-kthread-worker-api-cleanup.patch
+* kthread-smpboot-do-not-park-in-kthread_create_on_cpu.patch
+* kthread-allow-to-call-__kthread_create_on_node-with-va_list-args.patch
+* kthread-add-kthread_create_worker.patch
+* kthread-add-kthread_destroy_worker.patch
+* kthread-detect-when-a-kthread-work-is-used-by-more-workers.patch
+* kthread-initial-support-for-delayed-kthread-work.patch
+* kthread-allow-to-cancel-kthread-work.patch
+* kthread-allow-to-modify-delayed-kthread-work.patch
+* kthread-better-support-freezable-kthread-workers.patch
+* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
+* kbuild-simpler-generation-of-assembly-constants.patch
+* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
+* kernel-watchdog-use-nmi-registers-snapshot-in-hardlockup-handler.patch
+  mm.patch
+* mm-oom-deduplicate-victim-selection-code-for-memcg-and-global-oom.patch
+* mm-zsmalloc-add-trace-events-for-zs_compact.patch
+* mm-zsmalloc-add-per-class-compact-trace-event.patch
+* mm-vmalloc-fix-align-value-calculation-error.patch
+* mm-vmalloc-fix-align-value-calculation-error-fix.patch
+* mm-vmalloc-fix-align-value-calculation-error-v2.patch
+* mm-vmalloc-fix-align-value-calculation-error-v2-fix.patch
+* mm-vmalloc-fix-align-value-calculation-error-v2-fix-fix.patch
+* mm-memcontrol-add-sanity-checks-for-memcg-idref-on-get-put.patch
+* mm-oom_killc-fix-task_will_free_mem-comment.patch
+* mm-compaction-make-whole_zone-flag-ignore-cached-scanner-positions.patch
+* mm-compaction-make-whole_zone-flag-ignore-cached-scanner-positions-checkpatch-fixes.patch
+* mm-compaction-cleanup-unused-functions.patch
+* mm-compaction-rename-compact_partial-to-compact_success.patch
+* mm-compaction-dont-recheck-watermarks-after-compact_success.patch
+* mm-compaction-add-the-ultimate-direct-compaction-priority.patch
+* mm-compaction-more-reliably-increase-direct-compaction-priority.patch
+* mm-compaction-use-correct-watermark-when-checking-compaction-success.patch
+* mm-compaction-create-compact_gap-wrapper.patch
+* mm-compaction-use-proper-alloc_flags-in-__compaction_suitable.patch
+* mm-compaction-require-only-min-watermarks-for-non-costly-orders.patch
+* mm-vmscan-make-compaction_ready-more-accurate-and-readable.patch
+* mm-page_owner-align-with-pageblock_nr-pages.patch
+* mm-walk-the-zone-in-pageblock_nr_pages-steps.patch
+* proc-much-faster-proc-vmstat.patch
+* proc-faster-proc-status.patch
+* seq-proc-modify-seq_put_decimal_ll-to-take-a-const-char-not-char.patch
+* seq-proc-modify-seq_put_decimal_ll-to-take-a-const-char-not-char-fix.patch
+* meminfo-break-apart-a-very-long-seq_printf-with-ifdefs.patch
+* proc-relax-proc-tid-timerslack_ns-capability-requirements.patch
+* proc-add-lsm-hook-checks-to-proc-tid-timerslack_ns.patch
+* console-dont-prefer-first-registered-if-dt-specifies-stdout-path.patch
+* lib-add-crc64-ecma-module.patch
+* compat-remove-compat_printk.patch
+* kdump-vmcoreinfo-report-actual-value-of-phys_base.patch
+* rapidio-rio_cm-use-memdup_user-instead-of-duplicating-code.patch
+* random-simplify-api-for-random-address-requests.patch
+* random-simplify-api-for-random-address-requests-v2.patch
+* x86-use-simpler-api-for-random-address-requests.patch
+* x86-use-simpler-api-for-random-address-requests-v2.patch
+* arm-use-simpler-api-for-random-address-requests.patch
+* arm-use-simpler-api-for-random-address-requests-v2.patch
+* arm64-use-simpler-api-for-random-address-requests.patch
+* arm64-use-simpler-api-for-random-address-requests-v2.patch
+* tile-use-simpler-api-for-random-address-requests.patch
+* tile-use-simpler-api-for-random-address-requests-v2.patch
+* unicore32-use-simpler-api-for-random-address-requests.patch
+* unicore32-use-simpler-api-for-random-address-requests-v2.patch
+* random-remove-unused-randomize_range.patch
+* dma-mapping-introduce-the-dma_attr_no_warn-attribute.patch
+* powerpc-implement-the-dma_attr_no_warn-attribute.patch
+* nvme-use-the-dma_attr_no_warn-attribute.patch
+* x86-panic-replace-smp_send_stop-with-kdump-friendly-version-in-panic-path.patch
+* mips-panic-replace-smp_send_stop-with-kdump-friendly-version-in-panic-path.patch
+* relay-use-per-cpu-constructs-for-the-relay-channel-buffer-pointers.patch
+* config-android-remove-config_ipv6_privacy.patch
+* ipc-semc-fix-complex_count-vs-simple-op-race.patch
+* ipc-msg-implement-lockless-pipelined-wakeups.patch
+* ipc-msg-batch-queue-sender-wakeups.patch
+* ipc-msg-make-ss_wakeup-kill-arg-boolean.patch
+* ipc-msg-lockless-security-checks-for-msgsnd.patch
+* ipc-msg-avoid-waking-sender-upon-full-queue.patch
+* ipc-msg-avoid-waking-sender-upon-full-queue-checkpatch-fixes.patch
+  linux-next.patch
+* drivers-net-wireless-intel-iwlwifi-dvm-calibc-fix-min-warning.patch
+* mm-writeback-flush-plugged-io-in-wakeup_flusher_threads.patch
+  mm-add-strictlimit-knob-v2.patch
+  make-sure-nobodys-leaking-resources.patch
+  releasing-resources-with-children.patch
+  make-frame_pointer-default=y.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  mutex-subsystem-synchro-test-module.patch
+  slab-leaks3-default-y.patch
+  add-debugging-aid-for-memory-initialisation-problems.patch
+  workaround-for-a-pci-restoring-bug.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
