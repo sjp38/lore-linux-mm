@@ -1,61 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A29F6B0005
-	for <linux-mm@kvack.org>; Wed, 10 Aug 2016 18:50:17 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id o124so104896980pfg.1
-        for <linux-mm@kvack.org>; Wed, 10 Aug 2016 15:50:17 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id z88si50624867pff.218.2016.08.10.15.50.16
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id F2C216B0005
+	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 00:12:43 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id pp5so103894063pac.3
+        for <linux-mm@kvack.org>; Wed, 10 Aug 2016 21:12:43 -0700 (PDT)
+Received: from mail-pa0-x244.google.com (mail-pa0-x244.google.com. [2607:f8b0:400e:c03::244])
+        by mx.google.com with ESMTPS id as4si961322pac.185.2016.08.10.21.12.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Aug 2016 15:50:16 -0700 (PDT)
-Date: Wed, 10 Aug 2016 15:50:15 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] kasan: avoid overflowing quarantine size on low
- memory systems
-Message-Id: <20160810155015.bffc044a171466b2fdf5195e@linux-foundation.org>
-In-Reply-To: <1470133620-28683-1-git-send-email-glider@google.com>
-References: <1470133620-28683-1-git-send-email-glider@google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Wed, 10 Aug 2016 21:12:43 -0700 (PDT)
+Received: by mail-pa0-x244.google.com with SMTP id hh10so3960591pac.1
+        for <linux-mm@kvack.org>; Wed, 10 Aug 2016 21:12:43 -0700 (PDT)
+Subject: Re: [PATCH 1/4] dt-bindings: add doc for ibm,hotplug-aperture
+References: <1470680843-28702-1-git-send-email-arbab@linux.vnet.ibm.com>
+ <1470680843-28702-2-git-send-email-arbab@linux.vnet.ibm.com>
+From: Balbir Singh <bsingharora@gmail.com>
+Message-ID: <92e34173-b2e2-bac0-3bbb-fc5407cbb8a5@gmail.com>
+Date: Thu, 11 Aug 2016 14:12:31 +1000
+MIME-Version: 1.0
+In-Reply-To: <1470680843-28702-2-git-send-email-arbab@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: dvyukov@google.com, kcc@google.com, aryabinin@virtuozzo.com, adech.fo@gmail.com, cl@linux.com, rostedt@goodmis.org, js1304@gmail.com, iamjoonsoo.kim@lge.com, kuthonuzo.luruo@hpe.com, kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Reza Arbab <arbab@linux.vnet.ibm.com>, Rob Herring <robh+dt@kernel.org>, Mark Rutland <mark.rutland@arm.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Jonathan Corbet <corbet@lwn.net>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, devicetree@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Alistair Popple <apopple@au1.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>
 
-On Tue,  2 Aug 2016 12:27:00 +0200 Alexander Potapenko <glider@google.com> wrote:
 
-> If the total amount of memory assigned to quarantine is less than the
-> amount of memory assigned to per-cpu quarantines, |new_quarantine_size|
-> may overflow. Instead, set it to zero.
+
+On 09/08/16 04:27, Reza Arbab wrote:
+> Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
+> ---
+>  .../bindings/powerpc/opal/hotplug-aperture.txt     | 26 ++++++++++++++++++++++
+>  1 file changed, 26 insertions(+)
+>  create mode 100644 Documentation/devicetree/bindings/powerpc/opal/hotplug-aperture.txt
 > 
-> ...
->
-> --- a/mm/kasan/quarantine.c
-> +++ b/mm/kasan/quarantine.c
-> @@ -196,7 +196,7 @@ void quarantine_put(struct kasan_free_meta *info, struct kmem_cache *cache)
->  
->  void quarantine_reduce(void)
->  {
-> -	size_t new_quarantine_size;
-> +	size_t new_quarantine_size, percpu_quarantines;
->  	unsigned long flags;
->  	struct qlist_head to_free = QLIST_INIT;
->  	size_t size_to_free = 0;
-> @@ -214,7 +214,9 @@ void quarantine_reduce(void)
->  	 */
->  	new_quarantine_size = (READ_ONCE(totalram_pages) << PAGE_SHIFT) /
->  		QUARANTINE_FRACTION;
-> -	new_quarantine_size -= QUARANTINE_PERCPU_SIZE * num_online_cpus();
-> +	percpu_quarantines = QUARANTINE_PERCPU_SIZE * num_online_cpus();
-> +	new_quarantine_size = (new_quarantine_size < percpu_quarantines) ?
-> +		0 : new_quarantine_size - percpu_quarantines;
->  	WRITE_ONCE(quarantine_size, new_quarantine_size);
->  
->  	last = global_quarantine.head;
+> diff --git a/Documentation/devicetree/bindings/powerpc/opal/hotplug-aperture.txt b/Documentation/devicetree/bindings/powerpc/opal/hotplug-aperture.txt
+> new file mode 100644
+> index 0000000..b8dffaa
+> --- /dev/null
+> +++ b/Documentation/devicetree/bindings/powerpc/opal/hotplug-aperture.txt
+> @@ -0,0 +1,26 @@
+> +Designated hotplug memory
+> +-------------------------
+> +
+> +This binding describes a region of hotplug memory which is not present at boot,
+> +allowing its eventual NUMA associativity to be prespecified.
+> +
+> +Required properties:
+> +
+> +- compatible
+> +	"ibm,hotplug-aperture"
+> +
+> +- reg
+> +	base address and size of the region (standard definition)
+> +
+> +- ibm,associativity
+> +	NUMA associativity (standard definition)
+> +
+> +Example:
+> +
+> +A 2 GiB aperture at 0x100000000, to be part of nid 3 when hotplugged:
+> +
+> +	hotplug-memory@100000000 {
+> +		compatible = "ibm,hotplug-aperture";
+> +		reg = <0x0 0x100000000 0x0 0x80000000>;
+> +		ibm,associativity = <0x4 0x0 0x0 0x0 0x3>;
+> +	};
+> 
 
-Confused.  Which kernel version is this supposed to apply to?
++Stewart and Alistair
+
+Looks good to me!
+
+Acked-by: Balbir Singh <bsingharora@gmail.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
