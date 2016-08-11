@@ -1,49 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BA8296B0005
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 05:53:21 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id l4so2444284wml.0
-        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 02:53:21 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k10si2204239wmh.11.2016.08.11.02.53.20
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 11 Aug 2016 02:53:20 -0700 (PDT)
-Subject: Re: [PATCH 2/5] mm/debug_pagealloc: don't allocate page_ext if we
- don't use guard page
-References: <1470809784-11516-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1470809784-11516-3-git-send-email-iamjoonsoo.kim@lge.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <7391d520-0512-231b-ef2d-600ab22bda5b@suse.cz>
-Date: Thu, 11 Aug 2016 11:53:18 +0200
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 466CB6B0005
+	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 06:07:37 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 63so128361017pfx.0
+        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 03:07:37 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id zy8si2555169pab.68.2016.08.11.03.07.36
+        for <linux-mm@kvack.org>;
+        Thu, 11 Aug 2016 03:07:36 -0700 (PDT)
+Date: Thu, 11 Aug 2016 11:07:32 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: arm64: why set SECTION_SIZE_BITS to 1G size?
+Message-ID: <20160811100732.GA18366@e104818-lin.cambridge.arm.com>
+References: <57AC490E.4080204@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <1470809784-11516-3-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <57AC490E.4080204@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Will Deacon <will.deacon@arm.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, chenjie6@huawei.com
 
-On 08/10/2016 08:16 AM, js1304@gmail.com wrote:
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->
-> What debug_pagealloc does is just mapping/unmapping page table.
-> Basically, it doesn't need additional memory space to memorize something.
-> But, with guard page feature, it requires additional memory to distinguish
-> if the page is for guard or not. Guard page is only used when
-> debug_guardpage_minorder is non-zero so this patch removes additional
-> memory allocation (page_ext) if debug_guardpage_minorder is zero.
->
-> It saves memory if we just use debug_pagealloc and not guard page.
+On Thu, Aug 11, 2016 at 05:44:46PM +0800, Xishi Qiu wrote:
+> arm64:
+> SECTION_SIZE_BITS 30 -----1G
+> 
+> The memory hotplug(add_memory -->check_hotplug_memory_range) 
+> must be aligned with section.So I can not add mem with 64M ...
+> Can I modify the SECTION_SIZE_BITS to 26?
 
-We could also save cycles with a static key for _debug_guardpage_enabled :)
+There was a patch to reduce this to 27:
 
-But memory savings are likely more significant, so
+http://lkml.kernel.org/g/1465821119-3384-1-git-send-email-jszhang@marvell.com
 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Also some discussions in this thread on a different patch:
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+http://lkml.iu.edu/hypermail/linux/kernel/1604.1/03036.html
+
+Does your system really have such small alignment memory blocks?
+
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
