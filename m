@@ -1,68 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B415A6B0005
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 05:28:11 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id l4so1658732wml.0
-        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 02:28:11 -0700 (PDT)
-Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
-        by mx.google.com with ESMTPS id p71si2098624wmf.51.2016.08.11.02.28.10
+	by kanga.kvack.org (Postfix) with ESMTP id B22C66B0005
+	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 05:38:54 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id u81so1821157wmu.3
+        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 02:38:54 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id be6si1641084wjb.31.2016.08.11.02.38.53
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 11 Aug 2016 02:28:10 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id D7ACE98CF3
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 09:28:09 +0000 (UTC)
-Date: Thu, 11 Aug 2016 10:28:08 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: mm: Initialise per_cpu_nodestats for all online pgdats at boot
-Message-ID: <20160811092808.GD8119@techsingularity.net>
-References: <20160804092404.GI2799@techsingularity.net>
- <20160810175940.GA12039@arbab-laptop.austin.ibm.com>
+        Thu, 11 Aug 2016 02:38:53 -0700 (PDT)
+Subject: Re: [PATCH 1/5] mm/debug_pagealloc: clean-up guard page handling code
+References: <1470809784-11516-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1470809784-11516-2-git-send-email-iamjoonsoo.kim@lge.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <95ddb202-d37a-a086-d2ba-53f046b88e54@suse.cz>
+Date: Thu, 11 Aug 2016 11:38:50 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20160810175940.GA12039@arbab-laptop.austin.ibm.com>
+In-Reply-To: <1470809784-11516-2-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Reza Arbab <arbab@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Paul Mackerras <paulus@ozlabs.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org
+To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Wed, Aug 10, 2016 at 12:59:40PM -0500, Reza Arbab wrote:
-> On Thu, Aug 04, 2016 at 10:24:04AM +0100, Mel Gorman wrote:
-> >[    1.713998] Unable to handle kernel paging request for data at address 0xff7a10000
-> >[    1.714164] Faulting instruction address: 0xc000000000270cd0
-> >[    1.714304] Oops: Kernel access of bad area, sig: 11 [#1]
-> >[    1.714414] SMP NR_CPUS=2048 NUMA PowerNV
-> >[    1.714530] Modules linked in:
-> >[    1.714647] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 4.7.0-kvm+ #118
-> >[    1.714786] task: c000000ff0680010 task.stack: c000000ff0704000
-> >[    1.714926] NIP: c000000000270cd0 LR: c000000000270ce8 CTR: 0000000000000000
-> >[    1.715093] REGS: c000000ff0707900 TRAP: 0300   Not tainted  (4.7.0-kvm+)
-> >[    1.715232] MSR: 9000000102009033 <SF,HV,VEC,EE,ME,IR,DR,RI,LE,TM[E]>  CR: 846b6824  XER: 20000000
-> >[    1.715748] CFAR: c000000000008768 DAR: 0000000ff7a10000 DSISR: 42000000 SOFTE: 1
-> >GPR00: c000000000270d08 c000000ff0707b80 c0000000011fb200 0000000000000000
-> >GPR04: 0000000000000800 0000000000000000 0000000000000000 0000000000000000
-> >GPR08: ffffffffffffffff 0000000000000000 0000000ff7a10000 c00000000122aae0
-> >GPR12: c000000000a1e440 c00000000fb80000 c00000000000c188 0000000000000000
-> >GPR16: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
-> >GPR20: 0000000000000000 0000000000000000 0000000000000000 c000000000cecad0
-> >GPR24: c000000000d035b8 c000000000d6cd18 c000000000d6cd18 c000001fffa86300
-> >GPR28: 0000000000000000 c000001fffa96300 c000000001230034 c00000000122eb18
-> >[    1.717484] NIP [c000000000270cd0] refresh_zone_stat_thresholds+0x80/0x240
-> >[    1.717568] LR [c000000000270ce8] refresh_zone_stat_thresholds+0x98/0x240
-> >[    1.717648] Call Trace:
-> >[    1.717687] [c000000ff0707b80] [c000000000270d08] refresh_zone_stat_thresholds+0xb8/0x240 (unreliable)
-> 
-> I've been investigating node hotplug. That path is also going to require
-> initialization of per_cpu_nodestats. This worked for me:
-> 
+On 08/10/2016 08:16 AM, js1304@gmail.com wrote:
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>
+> We can make code clean by moving decision condition
+> for set_page_guard() into set_page_guard() itself. It will
+> help code readability. There is no functional change.
+>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Fix looks ok. Can you add a proper changelog to it including an example
-oops or do you need me to do it?
-
--- 
-Mel Gorman
-SUSE Labs
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
