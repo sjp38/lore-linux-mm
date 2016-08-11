@@ -1,109 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 522C36B0005
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 04:12:02 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id l4so10408319wml.0
-        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 01:12:02 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id 204si1824131wmj.131.2016.08.11.01.12.00
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B415A6B0005
+	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 05:28:11 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id l4so1658732wml.0
+        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 02:28:11 -0700 (PDT)
+Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
+        by mx.google.com with ESMTPS id p71si2098624wmf.51.2016.08.11.02.28.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Aug 2016 01:12:01 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id i5so1529224wmg.2
-        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 01:12:00 -0700 (PDT)
-Date: Thu, 11 Aug 2016 10:11:59 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH/RFC] mm, oom: Fix uninitialized ret in
- task_will_free_mem()
-Message-ID: <20160811081158.GB6908@dhcp22.suse.cz>
-References: <1470255599-24841-1-git-send-email-geert@linux-m68k.org>
- <178c5e9b-b92d-b62b-40a9-ee98b10d6bce@I-love.SAKURA.ne.jp>
- <20160804144649.7ac4727ad0d93097c4055610@linux-foundation.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 11 Aug 2016 02:28:10 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id D7ACE98CF3
+	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 09:28:09 +0000 (UTC)
+Date: Thu, 11 Aug 2016 10:28:08 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: mm: Initialise per_cpu_nodestats for all online pgdats at boot
+Message-ID: <20160811092808.GD8119@techsingularity.net>
+References: <20160804092404.GI2799@techsingularity.net>
+ <20160810175940.GA12039@arbab-laptop.austin.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20160804144649.7ac4727ad0d93097c4055610@linux-foundation.org>
+In-Reply-To: <20160810175940.GA12039@arbab-laptop.austin.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Geert Uytterhoeven <geert@linux-m68k.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Reza Arbab <arbab@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Paul Mackerras <paulus@ozlabs.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org
 
-On Thu 04-08-16 14:46:49, Andrew Morton wrote:
-> On Thu, 4 Aug 2016 21:28:13 +0900 Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> wrote:
+On Wed, Aug 10, 2016 at 12:59:40PM -0500, Reza Arbab wrote:
+> On Thu, Aug 04, 2016 at 10:24:04AM +0100, Mel Gorman wrote:
+> >[    1.713998] Unable to handle kernel paging request for data at address 0xff7a10000
+> >[    1.714164] Faulting instruction address: 0xc000000000270cd0
+> >[    1.714304] Oops: Kernel access of bad area, sig: 11 [#1]
+> >[    1.714414] SMP NR_CPUS=2048 NUMA PowerNV
+> >[    1.714530] Modules linked in:
+> >[    1.714647] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 4.7.0-kvm+ #118
+> >[    1.714786] task: c000000ff0680010 task.stack: c000000ff0704000
+> >[    1.714926] NIP: c000000000270cd0 LR: c000000000270ce8 CTR: 0000000000000000
+> >[    1.715093] REGS: c000000ff0707900 TRAP: 0300   Not tainted  (4.7.0-kvm+)
+> >[    1.715232] MSR: 9000000102009033 <SF,HV,VEC,EE,ME,IR,DR,RI,LE,TM[E]>  CR: 846b6824  XER: 20000000
+> >[    1.715748] CFAR: c000000000008768 DAR: 0000000ff7a10000 DSISR: 42000000 SOFTE: 1
+> >GPR00: c000000000270d08 c000000ff0707b80 c0000000011fb200 0000000000000000
+> >GPR04: 0000000000000800 0000000000000000 0000000000000000 0000000000000000
+> >GPR08: ffffffffffffffff 0000000000000000 0000000ff7a10000 c00000000122aae0
+> >GPR12: c000000000a1e440 c00000000fb80000 c00000000000c188 0000000000000000
+> >GPR16: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+> >GPR20: 0000000000000000 0000000000000000 0000000000000000 c000000000cecad0
+> >GPR24: c000000000d035b8 c000000000d6cd18 c000000000d6cd18 c000001fffa86300
+> >GPR28: 0000000000000000 c000001fffa96300 c000000001230034 c00000000122eb18
+> >[    1.717484] NIP [c000000000270cd0] refresh_zone_stat_thresholds+0x80/0x240
+> >[    1.717568] LR [c000000000270ce8] refresh_zone_stat_thresholds+0x98/0x240
+> >[    1.717648] Call Trace:
+> >[    1.717687] [c000000ff0707b80] [c000000000270d08] refresh_zone_stat_thresholds+0xb8/0x240 (unreliable)
 > 
-> > > 
-> > > Fixes: 1af8bb43269563e4 ("mm, oom: fortify task_will_free_mem()")
-> > > Signed-off-by: Geert Uytterhoeven <geert@linux-m68k.org>
-> > > ---
-> > > Untested. I'm not familiar with the code, hence the default value of
-> > > true was deducted from the logic in the loop (return false as soon as
-> > > __task_will_free_mem() has returned false).
-> > 
-> > I think ret = true is correct. Andrew, please send to linux.git.
+> I've been investigating node hotplug. That path is also going to require
+> initialization of per_cpu_nodestats. This worked for me:
 > 
-> task_will_free_mem() is too hard to understand.
-> 
-> We're examining task "A":
-> 
-> : 	for_each_process(p) {
-> : 		if (!process_shares_mm(p, mm))
-> : 			continue;
-> : 		if (same_thread_group(task, p))
-> : 			continue;
-> 
-> So here, we've found a process `p' which shares A's mm and which does
-> not share A's thread group.
-> 
-> : 		ret = __task_will_free_mem(p);
-> 
-> And here we check to see if killing `p' would free up memory.
-> 
-> : 		if (!ret)
-> : 			break;
-> 
-> If killing `p' will not free memory then give up the scan of all
-> processes because <reasons>, and we decide that killing `A' will
-> not free memory either, because some other task is holding onto
-> A's memory anyway.
-> 
-> : 	}
-> 
-> And if no task is found to be sharing A's mm while not sharing A's
-> thread group then fall through and decide to kill A.  In which case the
-> patch to return `true' is correct.
-> 
-> Correctish? 
 
-Yes this is more or less correct. task_will_free_mem is a bit misnomer
-but I couldn't come up with something better when reworking it and so
-I kept the original name. task_will_free_mem basically says that the
-task is dying and we hope it will free some memory so it doesn't make
-much sense to send it SIGKILL.
-
-> Maybe.  Can we please get some comments in there to
-> demystify the decision-making?
- 
-Does this help?
----
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 908c097c8b47..ce02db7f8661 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -803,8 +803,9 @@ static bool task_will_free_mem(struct task_struct *task)
- 		return true;
- 
- 	/*
--	 * This is really pessimistic but we do not have any reliable way
--	 * to check that external processes share with our mm
-+	 * Make sure that all tasks which share the mm with the given tasks
-+	 * are dying as well to make sure that a) nobody pins its mm and 
-+	 * b) the task is also reapable by the oom reaper.
- 	 */
- 	rcu_read_lock();
- 	for_each_process(p) {
+Fix looks ok. Can you add a proper changelog to it including an example
+oops or do you need me to do it?
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
