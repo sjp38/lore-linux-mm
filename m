@@ -1,55 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C85A66B0005
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 11:26:28 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id l4so1689166wml.0
-        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 08:26:28 -0700 (PDT)
-Received: from mail-wm0-x22a.google.com (mail-wm0-x22a.google.com. [2a00:1450:400c:c09::22a])
-        by mx.google.com with ESMTPS id r8si2918894wjf.267.2016.08.11.08.26.27
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 434AD6B0005
+	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 11:31:49 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id q62so14848626oih.0
+        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 08:31:49 -0700 (PDT)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0096.outbound.protection.outlook.com. [104.47.2.96])
+        by mx.google.com with ESMTPS id p45si2044128otd.217.2016.08.11.08.31.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Aug 2016 08:26:27 -0700 (PDT)
-Received: by mail-wm0-x22a.google.com with SMTP id i5so3365080wmg.0
-        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 08:26:27 -0700 (PDT)
-From: Alexander Potapenko <glider@google.com>
-Subject: [PATCH] kasan: remove the unnecessary WARN_ONCE from quarantine.c
-Date: Thu, 11 Aug 2016 17:26:22 +0200
-Message-Id: <1470929182-101413-1-git-send-email-glider@google.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 11 Aug 2016 08:31:47 -0700 (PDT)
+Subject: Re: [PATCH] kasan: remove the unnecessary WARN_ONCE from quarantine.c
+References: <1470929182-101413-1-git-send-email-glider@google.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <28ad8d12-f987-5538-2323-49aca7a11ce1@virtuozzo.com>
+Date: Thu, 11 Aug 2016 18:32:58 +0300
+MIME-Version: 1.0
+In-Reply-To: <1470929182-101413-1-git-send-email-glider@google.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dvyukov@google.com, kcc@google.com, aryabinin@virtuozzo.com, adech.fo@gmail.com, cl@linux.com, akpm@linux-foundation.org, rostedt@goodmis.org, js1304@gmail.com, iamjoonsoo.kim@lge.com, kuthonuzo.luruo@hpe.com
+To: Alexander Potapenko <glider@google.com>, dvyukov@google.com, kcc@google.com, adech.fo@gmail.com, cl@linux.com, akpm@linux-foundation.org, rostedt@goodmis.org, js1304@gmail.com, iamjoonsoo.kim@lge.com, kuthonuzo.luruo@hpe.com
 Cc: kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-It's quite unlikely that the user will so little memory that the
-per-CPU quarantines won't fit into the given fraction of the available
-memory. Even in that case he won't be able to do anything with the
-information given in the warning.
 
-Signed-off-by: Alexander Potapenko <glider@google.com>
----
- mm/kasan/quarantine.c | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
 
-diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
-index b6728a3..baabaad 100644
---- a/mm/kasan/quarantine.c
-+++ b/mm/kasan/quarantine.c
-@@ -217,11 +217,8 @@ void quarantine_reduce(void)
- 	new_quarantine_size = (READ_ONCE(totalram_pages) << PAGE_SHIFT) /
- 		QUARANTINE_FRACTION;
- 	percpu_quarantines = QUARANTINE_PERCPU_SIZE * num_online_cpus();
--	if (WARN_ONCE(new_quarantine_size < percpu_quarantines,
--		"Too little memory, disabling global KASAN quarantine.\n"))
--		new_quarantine_size = 0;
--	else
--		new_quarantine_size -= percpu_quarantines;
-+	new_quarantine_size = (new_quarantine_size < percpu_quarantines) ?
-+		0 : new_quarantine_size - percpu_quarantines;
- 	WRITE_ONCE(quarantine_size, new_quarantine_size);
- 
- 	last = global_quarantine.head;
--- 
-2.8.0.rc3.226.g39d4020
+On 08/11/2016 06:26 PM, Alexander Potapenko wrote:
+> It's quite unlikely that the user will so little memory that the
+> per-CPU quarantines won't fit into the given fraction of the available
+> memory. Even in that case he won't be able to do anything with the
+> information given in the warning.
+> 
+> Signed-off-by: Alexander Potapenko <glider@google.com>
+
+Acked-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
