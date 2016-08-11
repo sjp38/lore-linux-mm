@@ -1,82 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CC6D6B0253
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 19:13:42 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id o124so17912460pfg.1
-        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 16:13:42 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 19si5401440pft.165.2016.08.11.16.13.37
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E9A3C6B0253
+	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 19:46:53 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id h186so18679637pfg.2
+        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 16:46:53 -0700 (PDT)
+Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com. [2607:f8b0:400e:c03::231])
+        by mx.google.com with ESMTPS id db4si5545262pad.90.2016.08.11.16.46.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Aug 2016 16:13:40 -0700 (PDT)
-Date: Thu, 11 Aug 2016 16:13:35 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/3] mem-hotplug: introduce movablenode option
-Message-Id: <20160811161335.8599521d14927394f1208fc7@linux-foundation.org>
-In-Reply-To: <57A325CA.9050707@huawei.com>
-References: <57A325CA.9050707@huawei.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 11 Aug 2016 16:46:53 -0700 (PDT)
+Received: by mail-pa0-x231.google.com with SMTP id fi15so2941682pac.1
+        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 16:46:53 -0700 (PDT)
+Date: Fri, 12 Aug 2016 09:47:13 +1000
+From: Balbir Singh <bsingharora@gmail.com>
+Subject: Re: [RFC][PATCH] cgroup_threadgroup_rwsem - affects scalability and
+ OOM
+Message-ID: <20160811234713.GA22218@350D>
+Reply-To: bsingharora@gmail.com
+References: <4717ef90-ca86-4a34-c63a-94b8b4bfaaec@gmail.com>
+ <20160810194306.GP25053@mtj.duckdns.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160810194306.GP25053@mtj.duckdns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: Balbir Singh <bsingharora@gmail.com>, cgroups@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu, 4 Aug 2016 19:23:54 +0800 Xishi Qiu <qiuxishi@huawei.com> wrote:
-
-> This patch introduces a new boot option movablenode.
+On Wed, Aug 10, 2016 at 03:43:06PM -0400, Tejun Heo wrote:
+> Hello,
 > 
-> To support memory hotplug, boot option "movable_node" is needed. And to
-> support debug memory hotplug, boot option "movable_node" and "movablenode"
-> are both needed.
-> 
-> e.g. movable_node movablenode=1,2,4
-
-I have some naming concerns.  "movable_node" and "movablenode" is just
-confusing and ugly.
-
-Can we just use the one parameter?   eg,
-
-	vmlinux movable_node
-
-or
-
-	vmlinux movable_node=1,2,4
-
-if not that, then how about "movable_node" and "movable_nodes"?  Then
-every instance of "movablenode" in the patch itself should become
-"movable_nodes" to be consistent with the command line parameter.
-
-> It means node 1,2,4 will be set to movable nodes, the other nodes are
-> unmovable nodes. Usually movable nodes are parsed from SRAT table which
-> offered by BIOS, so this boot option is used for debug.
-> 
+> Edited subject and description and applied the patch to
+> cgroup/for-4.8-fixes w/ stable cc'd.
 >
-> ---
->  Documentation/kernel-parameters.txt |  4 ++++
->  arch/x86/mm/srat.c                  | 36 ++++++++++++++++++++++++++++++++++++
->  2 files changed, 40 insertions(+)
+
+Thanks, Found a typo below.. small nit
+ 
+> Thanks.
+> ------ 8< ------
+<snip>
+> This patch moves the threadgroup_change_begin from before
+> cgroup_fork() to just before cgroup_canfork().  There is no nee to
+							     ^ need
+> worry about threadgroup changes till the task is actually added to the
+> threadgroup.  This avoids having to call reclaim with
+> cgroup_threadgroup_rwsem held.
 > 
-> diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-> index 82b42c9..f8726f8 100644
-> --- a/Documentation/kernel-parameters.txt
-> +++ b/Documentation/kernel-parameters.txt
-> @@ -2319,6 +2319,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
->  	movable_node	[KNL,X86] Boot-time switch to enable the effects
->  			of CONFIG_MOVABLE_NODE=y. See mm/Kconfig for details.
->  
-> +	movablenode=	[KNL,X86] Boot-time switch to set which node is
-> +			movable node.
-> +			Format: <movable nid>,...,<movable nid>
-
-I think the docs should emphasize that this option disables the usual
-SRAT-driven allocation and replaces it with manual allocation.
-
-Also, can we please have more details in the patch changelog?  Why do we
-*need* this?  Just for debugging?  Normally people will just use
-SRAT-based allocation so normal users won't use this?  If so, why is
-this debugging feature considered useful enough to add to the kernel?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
