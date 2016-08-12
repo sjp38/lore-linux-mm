@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 441BF828F3
-	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 14:47:16 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id ag5so5793979pad.2
-        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 11:47:16 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 29E9B828F3
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 14:47:19 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id h186so6540271pfg.2
+        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 11:47:19 -0700 (PDT)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id t78si10108463pfi.19.2016.08.12.11.39.03
+        by mx.google.com with ESMTP id sj4si10055422pab.213.2016.08.12.11.39.01
         for <linux-mm@kvack.org>;
-        Fri, 12 Aug 2016 11:39:03 -0700 (PDT)
+        Fri, 12 Aug 2016 11:39:01 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 40/41] mm, fs, ext4: expand use of page_mapping() and page_to_pgoff()
-Date: Fri, 12 Aug 2016 21:38:23 +0300
-Message-Id: <1471027104-115213-41-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 26/41] truncate: make truncate_inode_pages_range() aware about huge pages
+Date: Fri, 12 Aug 2016 21:38:09 +0300
+Message-Id: <1471027104-115213-27-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1471027104-115213-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1471027104-115213-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,233 +19,178 @@ List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-With huge pages in page cache we see tail pages in more code paths.
-This patch replaces direct access to struct page fields with macros
-which can handle tail pages properly.
+As with shmem_undo_range(), truncate_inode_pages_range() removes huge
+pages, if it fully within range.
+
+Partial truncate of huge pages zero out this part of THP.
+
+Unlike with shmem, it doesn't prevent us having holes in the middle of
+huge page we still can skip writeback not touched buffers.
+
+With memory-mapped IO we would loose holes in some cases when we have
+THP in page cache, since we cannot track access on 4k level in this
+case.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- fs/buffer.c         |  2 +-
- fs/ext4/inode.c     |  4 ++--
- mm/filemap.c        | 26 ++++++++++++++------------
- mm/memory.c         |  4 ++--
- mm/page-writeback.c |  2 +-
- mm/truncate.c       |  5 +++--
- 6 files changed, 23 insertions(+), 20 deletions(-)
+ fs/buffer.c   |  2 +-
+ mm/truncate.c | 95 ++++++++++++++++++++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 88 insertions(+), 9 deletions(-)
 
 diff --git a/fs/buffer.c b/fs/buffer.c
-index 20898b051044..56323862dad3 100644
+index e53808e790e2..20898b051044 100644
 --- a/fs/buffer.c
 +++ b/fs/buffer.c
-@@ -630,7 +630,7 @@ static void __set_page_dirty(struct page *page, struct address_space *mapping,
- 	unsigned long flags;
- 
- 	spin_lock_irqsave(&mapping->tree_lock, flags);
--	if (page->mapping) {	/* Race with truncate? */
-+	if (page_mapping(page)) {	/* Race with truncate? */
- 		WARN_ON_ONCE(warn && !PageUptodate(page));
- 		account_page_dirtied(page, mapping);
- 		radix_tree_tag_set(&mapping->page_tree,
-diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index cd8d03559896..e9bfffbf22ed 100644
---- a/fs/ext4/inode.c
-+++ b/fs/ext4/inode.c
-@@ -1223,7 +1223,7 @@ retry_journal:
- 	}
- 
- 	lock_page(page);
--	if (page->mapping != mapping) {
-+	if (page_mapping(page) != mapping) {
- 		/* The page got truncated from under us */
- 		unlock_page(page);
- 		put_page(page);
-@@ -2962,7 +2962,7 @@ retry_journal:
- 	}
- 
- 	lock_page(page);
--	if (page->mapping != mapping) {
-+	if (page_mapping(page) != mapping) {
- 		/* The page got truncated from under us */
- 		unlock_page(page);
- 		put_page(page);
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 71c0bfdcab05..1514192086c3 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -369,7 +369,7 @@ static int __filemap_fdatawait_range(struct address_space *mapping,
- 			struct page *page = pvec.pages[i];
- 
- 			/* until radix tree lookup accepts end_index */
--			if (page->index > end)
-+			if (page_to_pgoff(page) > end)
- 				continue;
- 
- 			page = compound_head(page);
-@@ -1307,12 +1307,12 @@ repeat:
- 		}
- 
- 		/* Has the page been truncated? */
--		if (unlikely(page->mapping != mapping)) {
-+		if (unlikely(page_mapping(page) != mapping)) {
- 			unlock_page(page);
- 			put_page(page);
- 			goto repeat;
- 		}
--		VM_BUG_ON_PAGE(page->index != offset, page);
-+		VM_BUG_ON_PAGE(page_to_pgoff(page) != offset, page);
- 	}
- 
- 	if (page && (fgp_flags & FGP_ACCESSED))
-@@ -1606,7 +1606,8 @@ repeat:
- 		 * otherwise we can get both false positives and false
- 		 * negatives, which is just confusing to the caller.
- 		 */
--		if (page->mapping == NULL || page_to_pgoff(page) != index) {
-+		if (page_mapping(page) == NULL ||
-+				page_to_pgoff(page) != index) {
- 			put_page(page);
- 			break;
- 		}
-@@ -1907,7 +1908,7 @@ find_page:
- 			if (!trylock_page(page))
- 				goto page_not_up_to_date;
- 			/* Did it get truncated before we got the lock? */
--			if (!page->mapping)
-+			if (page_mapping(page))
- 				goto page_not_up_to_date_locked;
- 			if (!mapping->a_ops->is_partially_uptodate(page,
- 							offset, iter->count))
-@@ -1987,7 +1988,7 @@ page_not_up_to_date:
- 
- page_not_up_to_date_locked:
- 		/* Did it get truncated before we got the lock? */
--		if (!page->mapping) {
-+		if (!page_mapping(page)) {
- 			unlock_page(page);
- 			put_page(page);
- 			continue;
-@@ -2023,7 +2024,7 @@ readpage:
- 			if (unlikely(error))
- 				goto readpage_error;
- 			if (!PageUptodate(page)) {
--				if (page->mapping == NULL) {
-+				if (page_mapping(page) == NULL) {
- 					/*
- 					 * invalidate_mapping_pages got it
- 					 */
-@@ -2324,12 +2325,12 @@ retry_find:
- 	}
- 
- 	/* Did it get truncated? */
--	if (unlikely(page->mapping != mapping)) {
-+	if (unlikely(page_mapping(page) != mapping)) {
- 		unlock_page(page);
- 		put_page(page);
- 		goto retry_find;
- 	}
--	VM_BUG_ON_PAGE(page->index != offset, page);
-+	VM_BUG_ON_PAGE(page_to_pgoff(page) != offset, page);
- 
+@@ -1534,7 +1534,7 @@ void block_invalidatepage(struct page *page, unsigned int offset,
  	/*
- 	 * We have a locked page in the page cache, now we need to check
-@@ -2505,7 +2506,7 @@ int filemap_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- 	sb_start_pagefault(inode->i_sb);
- 	file_update_time(vma->vm_file);
- 	lock_page(page);
--	if (page->mapping != inode->i_mapping) {
-+	if (page_mapping(page) != inode->i_mapping) {
- 		unlock_page(page);
- 		ret = VM_FAULT_NOPAGE;
- 		goto out;
-@@ -2654,7 +2655,7 @@ filler:
- 	lock_page(page);
+ 	 * Check for overflow
+ 	 */
+-	BUG_ON(stop > PAGE_SIZE || stop < length);
++	BUG_ON(stop > hpage_size(page) || stop < length);
  
- 	/* Case c or d, restart the operation */
--	if (!page->mapping) {
-+	if (!page_mapping(page)) {
- 		unlock_page(page);
- 		put_page(page);
- 		goto repeat;
-@@ -3110,12 +3111,13 @@ EXPORT_SYMBOL(generic_file_write_iter);
-  */
- int try_to_release_page(struct page *page, gfp_t gfp_mask)
- {
--	struct address_space * const mapping = page->mapping;
-+	struct address_space * const mapping = page_mapping(page);
- 
- 	BUG_ON(!PageLocked(page));
- 	if (PageWriteback(page))
- 		return 0;
- 
-+	page = compound_head(page);
- 	if (mapping && mapping->a_ops->releasepage)
- 		return mapping->a_ops->releasepage(page, gfp_mask);
- 	return try_to_free_buffers(page);
-diff --git a/mm/memory.c b/mm/memory.c
-index 5b7f0ce44a27..24d012571d32 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2052,7 +2052,7 @@ static int do_page_mkwrite(struct vm_area_struct *vma, struct page *page,
- 		return ret;
- 	if (unlikely(!(ret & VM_FAULT_LOCKED))) {
- 		lock_page(page);
--		if (!page->mapping) {
-+		if (!page_mapping(page)) {
- 			unlock_page(page);
- 			return 0; /* retry */
- 		}
-@@ -2100,7 +2100,7 @@ static inline int wp_page_reuse(struct fault_env *fe, pte_t orig_pte,
- 
- 		dirtied = set_page_dirty(page);
- 		VM_BUG_ON_PAGE(PageAnon(page), page);
--		mapping = page->mapping;
-+		mapping = page_mapping(page);
- 		unlock_page(page);
- 		put_page(page);
- 
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 6390c9488e29..3bfa158aa784 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -2878,7 +2878,7 @@ EXPORT_SYMBOL(mapping_tagged);
-  */
- void wait_for_stable_page(struct page *page)
- {
--	if (bdi_cap_stable_pages_required(inode_to_bdi(page->mapping->host)))
-+	if (bdi_cap_stable_pages_required(inode_to_bdi(page_mapping(page)->host)))
- 		wait_on_page_writeback(page);
- }
- EXPORT_SYMBOL_GPL(wait_for_stable_page);
+ 	head = page_buffers(page);
+ 	bh = head;
 diff --git a/mm/truncate.c b/mm/truncate.c
-index 6a445278aaaf..87b47de58b50 100644
+index ce904e4b1708..9c339e6255f2 100644
 --- a/mm/truncate.c
 +++ b/mm/truncate.c
-@@ -627,6 +627,7 @@ invalidate_complete_page2(struct address_space *mapping, struct page *page)
+@@ -90,7 +90,7 @@ void do_invalidatepage(struct page *page, unsigned int offset,
  {
- 	unsigned long flags;
+ 	void (*invalidatepage)(struct page *, unsigned int, unsigned int);
  
-+	page = compound_head(page);
- 	if (page->mapping != mapping)
- 		return 0;
+-	invalidatepage = page->mapping->a_ops->invalidatepage;
++	invalidatepage = page_mapping(page)->a_ops->invalidatepage;
+ #ifdef CONFIG_BLOCK
+ 	if (!invalidatepage)
+ 		invalidatepage = block_invalidatepage;
+@@ -116,7 +116,7 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
+ 		return -EIO;
  
-@@ -655,7 +656,7 @@ static int do_launder_page(struct address_space *mapping, struct page *page)
- {
- 	if (!PageDirty(page))
- 		return 0;
--	if (page->mapping != mapping || mapping->a_ops->launder_page == NULL)
-+	if (page_mapping(page) != mapping || mapping->a_ops->launder_page == NULL)
- 		return 0;
- 	return mapping->a_ops->launder_page(page);
- }
-@@ -703,7 +704,7 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
+ 	if (page_has_private(page))
+-		do_invalidatepage(page, 0, PAGE_SIZE);
++		do_invalidatepage(page, 0, hpage_size(page));
  
- 			lock_page(page);
- 			WARN_ON(page_to_pgoff(page) != index);
--			if (page->mapping != mapping) {
-+			if (page_mapping(page) != mapping) {
+ 	/*
+ 	 * Some filesystems seem to re-dirty the page even after
+@@ -288,6 +288,36 @@ void truncate_inode_pages_range(struct address_space *mapping,
  				unlock_page(page);
  				continue;
  			}
++
++			if (PageTransTail(page)) {
++				/* Middle of THP: zero out the page */
++				clear_highpage(page);
++				if (page_has_private(page)) {
++					int off = page - compound_head(page);
++					do_invalidatepage(compound_head(page),
++							off * PAGE_SIZE,
++							PAGE_SIZE);
++				}
++				unlock_page(page);
++				continue;
++			} else if (PageTransHuge(page)) {
++				if (index == round_down(end, HPAGE_PMD_NR)) {
++					/*
++					 * Range ends in the middle of THP:
++					 * zero out the page
++					 */
++					clear_highpage(page);
++					if (page_has_private(page)) {
++						do_invalidatepage(page, 0,
++								PAGE_SIZE);
++					}
++					unlock_page(page);
++					continue;
++				}
++				index += HPAGE_PMD_NR - 1;
++				i += HPAGE_PMD_NR - 1;
++			}
++
+ 			truncate_inode_page(mapping, page);
+ 			unlock_page(page);
+ 		}
+@@ -309,9 +339,12 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 			wait_on_page_writeback(page);
+ 			zero_user_segment(page, partial_start, top);
+ 			cleancache_invalidate_page(mapping, page);
+-			if (page_has_private(page))
+-				do_invalidatepage(page, partial_start,
+-						  top - partial_start);
++			if (page_has_private(page)) {
++				int off = page - compound_head(page);
++				do_invalidatepage(compound_head(page),
++						off * PAGE_SIZE + partial_start,
++						top - partial_start);
++			}
+ 			unlock_page(page);
+ 			put_page(page);
+ 		}
+@@ -322,9 +355,12 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 			wait_on_page_writeback(page);
+ 			zero_user_segment(page, 0, partial_end);
+ 			cleancache_invalidate_page(mapping, page);
+-			if (page_has_private(page))
+-				do_invalidatepage(page, 0,
+-						  partial_end);
++			if (page_has_private(page)) {
++				int off = page - compound_head(page);
++				do_invalidatepage(compound_head(page),
++						off * PAGE_SIZE,
++						partial_end);
++			}
+ 			unlock_page(page);
+ 			put_page(page);
+ 		}
+@@ -373,6 +409,49 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 			lock_page(page);
+ 			WARN_ON(page_to_pgoff(page) != index);
+ 			wait_on_page_writeback(page);
++
++			if (PageTransTail(page)) {
++				/* Middle of THP: zero out the page */
++				clear_highpage(page);
++				if (page_has_private(page)) {
++					int off = page - compound_head(page);
++					do_invalidatepage(compound_head(page),
++							off * PAGE_SIZE,
++							PAGE_SIZE);
++				}
++				unlock_page(page);
++				/*
++				 * Partial thp truncate due 'start' in middle
++				 * of THP: don't need to look on these pages
++				 * again on !pvec.nr restart.
++				 */
++				if (index != round_down(end, HPAGE_PMD_NR))
++					start++;
++				continue;
++			} else if (PageTransHuge(page)) {
++				if (index == round_down(end, HPAGE_PMD_NR)) {
++					/*
++					 * Range ends in the middle of THP:
++					 * zero out the page
++					 */
++					clear_highpage(page);
++					if (page_has_private(page)) {
++						do_invalidatepage(page, 0,
++								PAGE_SIZE);
++					}
++					unlock_page(page);
++					/*
++					 * Partial thp truncate due 'end' in
++					 * middle of THP: don't need to look on
++					 * these pages again restart.
++					 */
++					start++;
++					continue;
++				}
++				index += HPAGE_PMD_NR - 1;
++				i += HPAGE_PMD_NR - 1;
++			}
++
+ 			truncate_inode_page(mapping, page);
+ 			unlock_page(page);
+ 		}
 -- 
 2.8.1
 
