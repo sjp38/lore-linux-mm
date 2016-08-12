@@ -1,103 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 015296B0253
-	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 08:32:47 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id l4so7173525wml.0
-        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 05:32:46 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B29576B0253
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 09:07:30 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 1so18319453wmz.2
+        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 06:07:30 -0700 (PDT)
 Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id q126si2235018wme.10.2016.08.12.05.32.45
+        by mx.google.com with ESMTPS id j6si7044447wjy.133.2016.08.12.06.07.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Aug 2016 05:32:45 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id i5so2604131wmg.2
-        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 05:32:45 -0700 (PDT)
-Date: Fri, 12 Aug 2016 14:32:42 +0200
+        Fri, 12 Aug 2016 06:07:29 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id i5so2762555wmg.2
+        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 06:07:29 -0700 (PDT)
+Date: Fri, 12 Aug 2016 15:07:27 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [dm-devel] [RFC PATCH 2/2] mm, mempool: do not throttle
- PF_LESS_THROTTLE tasks
-Message-ID: <20160812123242.GH3639@dhcp22.suse.cz>
-References: <20160722091558.GF794@dhcp22.suse.cz>
- <878twt5i1j.fsf@notabene.neil.brown.name>
- <20160725083247.GD9401@dhcp22.suse.cz>
- <87lh0n4ufs.fsf@notabene.neil.brown.name>
- <20160727182411.GE21859@dhcp22.suse.cz>
- <87eg6e4vhc.fsf@notabene.neil.brown.name>
- <20160728071711.GB31860@dhcp22.suse.cz>
- <alpine.LRH.2.02.1608030844470.15274@file01.intranet.prod.int.rdu2.redhat.com>
- <20160803143419.GC1490@dhcp22.suse.cz>
- <alpine.LRH.2.02.1608041446430.21662@file01.intranet.prod.int.rdu2.redhat.com>
+Subject: Re: + mm-page_owner-align-with-pageblock_nr-pages.patch added to -mm
+ tree
+Message-ID: <20160812130727.GI3639@dhcp22.suse.cz>
+References: <578e7aae.YqKq+z5DSrpTUvhb%akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1608041446430.21662@file01.intranet.prod.int.rdu2.redhat.com>
+In-Reply-To: <578e7aae.YqKq+z5DSrpTUvhb%akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>, NeilBrown <neilb@suse.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "dm-devel@redhat.com David Rientjes" <rientjes@google.com>, Ondrej Kozina <okozina@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: akpm@linux-foundation.org
+Cc: zhongjiang@huawei.com, mm-commits@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>
 
-On Thu 04-08-16 14:49:41, Mikulas Patocka wrote:
+On Tue 19-07-16 12:08:30, Andrew Morton wrote:
+> From: zhong jiang <zhongjiang@huawei.com>
+> Subject: mm/page_owner: align with pageblock_nr pages
 > 
+> When pfn_valid(pfn) return false, pfn should be align with
+> pageblock_nr_pages other than MAX_ORDER_NR_PAGES in init_pages_in_zone,
+> because the skipped 2M may be valid pfn, as a result, early allocated
+> count will not be accurate.
 > 
-> On Wed, 3 Aug 2016, Michal Hocko wrote:
-> 
-> > On Wed 03-08-16 08:53:25, Mikulas Patocka wrote:
-> > > 
-> > > 
-> > > On Thu, 28 Jul 2016, Michal Hocko wrote:
-> > > 
-> > > > > >> I think we'd end up with cleaner code if we removed the cute-hacks.  And
-> > > > > >> we'd be able to use 6 more GFP flags!!  (though I do wonder if we really
-> > > > > >> need all those 26).
-> > > > > >
-> > > > > > Well, maybe we are able to remove those hacks, I wouldn't definitely
-> > > > > > be opposed.  But right now I am not even convinced that the mempool
-> > > > > > specific gfp flags is the right way to go.
-> > > > > 
-> > > > > I'm not suggesting a mempool-specific gfp flag.  I'm suggesting a
-> > > > > transient-allocation gfp flag, which would be quite useful for mempool.
-> > > > > 
-> > > > > Can you give more details on why using a gfp flag isn't your first choice
-> > > > > for guiding what happens when the system is trying to get a free page
-> > > > > :-?
-> > > > 
-> > > > If we get rid of throttle_vm_writeout then I guess it might turn out to
-> > > > be unnecessary. There are other places which will still throttle but I
-> > > > believe those should be kept regardless of who is doing the allocation
-> > > > because they are helping the LRU scanning sane. I might be wrong here
-> > > > and bailing out from the reclaim rather than waiting would turn out
-> > > > better for some users but I would like to see whether the first approach
-> > > > works reasonably well.
-> > > 
-> > > If we are swapping to a dm-crypt device, the dm-crypt device is congested 
-> > > and the underlying block device is not congested, we should not throttle 
-> > > mempool allocations made from the dm-crypt workqueue. Not even a little 
-> > > bit.
-> > 
-> > But the device congestion is not the only condition required for the
-> > throttling. The pgdat has also be marked congested which means that the
-> > LRU page scanner bumped into dirty/writeback/pg_reclaim pages at the
-> > tail of the LRU. That should only happen if we are rotating LRUs too
-> > quickly. AFAIU the reclaim shouldn't allow free ticket scanning in that
-> > situation.
-> 
-> The obvious problem here is that mempool allocations should sleep in 
-> mempool_alloc() on &pool->wait (until someone returns some entries into 
-> the mempool), they should not sleep inside the page allocator.
+> Link: http://lkml.kernel.org/r/1468938136-24228-1-git-send-email-zhongjiang@huawei.com
+> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 
-I agree that mempool_alloc should _primarily_ sleep on their own
-throttling mechanism. I am not questioning that. I am just saying that
-the page allocator has its own throttling which it relies on and that
-cannot be just ignored because that might have other undesirable side
-effects. So if the right approach is really to never throttle certain
-requests then we have to bail out from a congested nodes/zones as soon
-as the congestion is detected.
+So I can still see this in the mmomt tree. We have discussed that
+briefly and I am not sure this is an improvement or just replaces
+a confused code by a differently confused one. See
+http://lkml.kernel.org/r/8a4e54f2-23ed-f20f-c0da-e9412f52b606@suse.cz
 
-Now, I would like to see that something like that is _really_ necessary.
-I believe that we should simply start with easier part and get rid of
-throttle_vm_writeout because that seems like a left over from the past.
-If that turns out unsatisfactory and we have clear picture when the
-throttling is harmful/suboptimal then we can move on with a more complex
-solution. Does this sound like a way forward?
+What we haven't heard of yet is whether this patch actually fixes any
+real problem. If not I would prefer not to make this kind of changes and
+rather rework the function and co. to work with all the supported memory
+models with different possible holes.
+
+> ---
+> 
+>  mm/page_owner.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff -puN mm/page_owner.c~mm-page_owner-align-with-pageblock_nr-pages mm/page_owner.c
+> --- a/mm/page_owner.c~mm-page_owner-align-with-pageblock_nr-pages
+> +++ a/mm/page_owner.c
+> @@ -417,7 +417,7 @@ static void init_pages_in_zone(pg_data_t
+>  	 */
+>  	for (; pfn < end_pfn; ) {
+>  		if (!pfn_valid(pfn)) {
+> -			pfn = ALIGN(pfn + 1, MAX_ORDER_NR_PAGES);
+> +			pfn = ALIGN(pfn + 1, pageblock_nr_pages);
+>  			continue;
+>  		}
+>  
+> _
+> 
+> Patches currently in -mm which might be from zhongjiang@huawei.com are
+> 
+> mm-update-the-comment-in-__isolate_free_page.patch
+> mm-page_owner-align-with-pageblock_nr-pages.patch
 
 -- 
 Michal Hocko
