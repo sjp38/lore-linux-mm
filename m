@@ -1,85 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C6716B0253
-	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 09:43:16 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id x130so40358972ite.3
-        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 06:43:16 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0091.outbound.protection.outlook.com. [104.47.2.91])
-        by mx.google.com with ESMTPS id h9si4478709oib.31.2016.08.12.06.43.14
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 80FA76B0253
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 09:50:33 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id x130so40811545ite.3
+        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 06:50:33 -0700 (PDT)
+Received: from devils.ext.ti.com (devils.ext.ti.com. [198.47.26.153])
+        by mx.google.com with ESMTPS id e47si4493546ote.49.2016.08.12.06.50.32
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 12 Aug 2016 06:43:14 -0700 (PDT)
-Subject: Re: userfaultfd: unexpected behavior with MODE_MISSING | MODE_WP
- regions
-References: <ef90a2b0-eff4-2269-4a93-35f23ec8b1af@virtuozzo.com>
- <20160811171726.xlna3ni4dp2ed4a4@redhat.com>
-From: Evgeny Yakovlev <eyakovlev@virtuozzo.com>
-Message-ID: <9696fafa-dfcf-052a-e916-013508303dc2@virtuozzo.com>
-Date: Fri, 12 Aug 2016 16:43:05 +0300
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 12 Aug 2016 06:50:32 -0700 (PDT)
+Subject: Re: kmemleak: Cannot insert 0xff7f1000 into the object search tree
+ (overlaps existing)
+References: <7f50c137-5c6a-0882-3704-ae9bb7552c30@ti.com>
+ <20160811155423.GC18366@e104818-lin.cambridge.arm.com>
+ <920709c7-2d5b-ea67-5f1c-4197ef30e3b2@ti.com>
+ <20160811170812.GF18366@e104818-lin.cambridge.arm.com>
+From: Grygorii Strashko <grygorii.strashko@ti.com>
+Message-ID: <36e978d3-65e2-9cf7-133e-015793002f70@ti.com>
+Date: Fri, 12 Aug 2016 16:50:25 +0300
 MIME-Version: 1.0
-In-Reply-To: <20160811171726.xlna3ni4dp2ed4a4@redhat.com>
+In-Reply-To: <20160811170812.GF18366@e104818-lin.cambridge.arm.com>
 Content-Type: text/plain; charset="windows-1252"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: linux-mm@kvack.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Vignesh R <vigneshr@ti.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-omap@vger.kernel.org" <linux-omap@vger.kernel.org>
 
-
-Hello Andrea,
-
-On 11.08.2016 20:17, Andrea Arcangeli wrote:
-> Hello Evgeny,
+On 08/11/2016 08:08 PM, Catalin Marinas wrote:
+> On Thu, Aug 11, 2016 at 07:48:12PM +0300, Grygorii Strashko wrote:
+>> On 08/11/2016 06:54 PM, Catalin Marinas wrote:
+>>> On Thu, Aug 11, 2016 at 05:20:51PM +0530, Vignesh R wrote:
+>>>> I see the below message from kmemleak when booting linux-next on AM335x
+>>>> GP EVM and DRA7 EVM
+>>>
+>>> Can you also reproduce it with 4.8-rc1?
+>>>
+>>>> [    0.803934] kmemleak: Cannot insert 0xff7f1000 into the object search tree (overlaps existing)
+>>>> [    0.803950] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 4.8.0-rc1-next-20160809 #497
+>>>> [    0.803958] Hardware name: Generic DRA72X (Flattened Device Tree)
+>>>> [    0.803979] [<c0110104>] (unwind_backtrace) from [<c010c24c>] (show_stack+0x10/0x14)
+>>>> [    0.803994] [<c010c24c>] (show_stack) from [<c0490df0>] (dump_stack+0xac/0xe0)
+>>>> [    0.804010] [<c0490df0>] (dump_stack) from [<c0296f88>] (create_object+0x214/0x278)
+>>>> [    0.804025] [<c0296f88>] (create_object) from [<c07c770c>] (kmemleak_alloc_percpu+0x54/0xc0)
+>>>> [    0.804038] [<c07c770c>] (kmemleak_alloc_percpu) from [<c025fb08>] (pcpu_alloc+0x368/0x5fc)
+>>>> [    0.804052] [<c025fb08>] (pcpu_alloc) from [<c0b1bfbc>] (crash_notes_memory_init+0x10/0x40)
+>>>> [    0.804064] [<c0b1bfbc>] (crash_notes_memory_init) from [<c010188c>] (do_one_initcall+0x3c/0x178)
+>>>> [    0.804075] [<c010188c>] (do_one_initcall) from [<c0b00e98>] (kernel_init_freeable+0x1fc/0x2c8)
+>>>> [    0.804086] [<c0b00e98>] (kernel_init_freeable) from [<c07c66b0>] (kernel_init+0x8/0x114)
+>>>> [    0.804098] [<c07c66b0>] (kernel_init) from [<c0107910>] (ret_from_fork+0x14/0x24)
+>>>
+>>> This is the allocation stack trace, going via pcpu_alloc().
+>>>
+>>>> [    0.804106] kmemleak: Kernel memory leak detector disabled
+>>>> [    0.804113] kmemleak: Object 0xfe800000 (size 16777216):
+>>>> [    0.804121] kmemleak:   comm "swapper/0", pid 0, jiffies 4294937296
+>>>> [    0.804127] kmemleak:   min_count = -1
+>>>> [    0.804132] kmemleak:   count = 0
+>>>> [    0.804138] kmemleak:   flags = 0x5
+>>>> [    0.804143] kmemleak:   checksum = 0
+>>>> [    0.804149] kmemleak:   backtrace:
+>>>> [    0.804155]      [<c0b26a90>] cma_declare_contiguous+0x16c/0x214
+>>>> [    0.804170]      [<c0b3c9c0>] dma_contiguous_reserve_area+0x30/0x64
+>>>> [    0.804183]      [<c0b3ca74>] dma_contiguous_reserve+0x80/0x94
+>>>> [    0.804195]      [<c0b06810>] arm_memblock_init+0x130/0x184
+>>>> [    0.804207]      [<c0b04214>] setup_arch+0x590/0xc08
+>>>> [    0.804217]      [<c0b00940>] start_kernel+0x58/0x3b4
+>>>> [    0.804227]      [<8000807c>] 0x8000807c
+>>>> [    0.804237]      [<ffffffff>] 0xffffffff
+>>>
+>>> This seems to be the original object that was allocated via
+>>> cma_declare_contiguous(): 16MB range from 0xfe800000 to 0xff800000.
+>>> Since the pointer returned by pcpu_alloc is 0xff7f1000 falls in the 16MB
+>>> CMA range, kmemleak gets confused (it doesn't allow overlapping
+>>> objects).
+>>>
+>>> So what I think goes wrong is that the kmemleak_alloc(__va(found)) call
+>>> in memblock_alloc_range_nid() doesn't get the right value for the VA of
+>>> the CMA block. The memblock_alloc_range() call in
+>>> cma_declare_contiguous() asks for memory above high_memory, hence on a
+>>> 32-bit architecture with highmem enabled, __va() use is not really
+>>> valid, returning the wrong address. The existing kmemleak object is
+>>> bogus, it shouldn't have been created in the first place.
+>>>
+>>> Now I'm trying to figure out how to differentiate between lowmem
+>>> memblocks and highmem ones. Ignoring the kmemleak_alloc() calls
+>>> altogether in mm/memblock.c is probably not an option as it would lead
+>>> to lots of false positives.
+>>
+>> But cma_declare_contiguous() calls -
+>> 		/*
+>> 		 * kmemleak scans/reads tracked objects for pointers to other
+>> 		 * objects but this address isn't mapped and accessible
+>> 		 */
+>> 		kmemleak_ignore(phys_to_virt(addr));
+>>
+>> Does it means above code is incorrect also?
 >
-> On Thu, Aug 11, 2016 at 04:51:30PM +0300, Evgeny Yakovlev wrote:
->>    * 1. First fault is expected UFFD_PAGEFAULT_FLAG_WRITE set which we
->> resolve
->>    * with zeropage
-> What if you resolve it with bzero(4096);UFFDIO_COPY? Does the problem
-> go away?
-
-Yes, i don't see additional WP fault now, only expected missing write fault.
-
-> If the zeropage is mapped by UFFDIO_ZEROPAGE, there's no way to turn
-> that into a writable zeropage ever again because
-> userfaultfd_writeprotect is basically a no-vma-mangling mmap_sem-read
-> mprotect and it can't trigger faults. Instead a fault in do_wp_page is
-> required to get rid of the zeropage and copy it off.
-
-Maybe i am missing something but why do we then get WP faults on that 
-page right after we UFFDIO_ZEROPAGE it? We never call writeprotect on 
-zeropaged page and still get a WP fault on it which we can't resolve 
-properly.
-
-> If the problem goes away if you s/UFFDIO_ZEROPAGE/bzero(4096);
-> UFFDIO_COPY/ as I would expect, there would be two ways to solve it:
+> Yes, as long as the phys_to_virt() use is invalid. You may get away with
+> this, depending on the SoC. Also, kmemleak_ignore() here is meant to
+> tell kmemleak not to bother with scanning or reporting such memory since
+> it is not meant for pointers but it still keeps track of it. The only
+> way to remove it from kmemleak is replace this with kmemleak_free(). But
+> That's more of a hack since phys_to_virt(addr) is still invalid.
 >
-> 1) forbid UFFDIO_ZEROPAGE and not return the UFFDIO_ZEROPAGE ioctl in
->     uffdio_register.ioctls, if UFFDIO_REGISTER is called with
->     uffdio_register.mode = ...WP|..MISSING so userland is aware it
->     can't use that.
+>> It's a little bit strange that this can be seen only now, because
+>> commit 95b0e655f9 ("ARM: mm: don't limit default CMA region only to low memor")
+>> is pretty old.
 >
-> 2) teach UFFDIO_WRITEPROTECT not just to mangle pagetables but also
->     trigger a write fault on any zeropage if it's called with
->     uffdio_writeprotect.mode without UFFDIO_WRITEPROTECT_MODE_WP being
->     set. This will require a bit more work to fix.
+> You might want to double check my scenario above but I guess we've been
+> lucky. So either some configuration changed and arm_dma_limit >
+> arm_lowmem_limit or the random VA for the CMA memory didn't overlap with
+> any other block.
 >
-> The latter would increase performance if not all zeropages needs to be
-> turned writable.
->
-> Feedback welcome on what solution would you prefer.
 
-Our use case is as follows. We have a huge region and most of it we need 
-to be writable. Most of the time we just gradually resolve missing 
-faults as they appear. We only enable write protection on some selective 
-already present pages to have a way to track attempted page modification 
-for a short period of time. We register initial region as MISSING | WP 
-so that we don't have to register a new page-sized region each time we 
-need to write-protect a single page inside a region.
+Thanks a  lot for explanation.
 
->
-> Thanks,
-> Andrea
+
+-- 
+regards,
+-grygorii
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
