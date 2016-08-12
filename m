@@ -1,75 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 339746B0261
-	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 14:38:48 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id le9so5584205pab.0
-        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 11:38:48 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id k84si10104810pfa.56.2016.08.12.11.38.43
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 285CA6B0262
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 14:38:50 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id h186so6197025pfg.2
+        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 11:38:50 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id xm1si10113688pab.3.2016.08.12.11.38.43
         for <linux-mm@kvack.org>;
         Fri, 12 Aug 2016 11:38:43 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 06/41] radix-tree: Handle multiorder entries being deleted by replace_clear_tags
-Date: Fri, 12 Aug 2016 21:37:49 +0300
-Message-Id: <1471027104-115213-7-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 09/41] page-flags: relax page flag policy for few flags
+Date: Fri, 12 Aug 2016 21:37:52 +0300
+Message-Id: <1471027104-115213-10-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1471027104-115213-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1471027104-115213-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-From: Matthew Wilcox <willy@infradead.org>
+These flags are in use for filesystems with backing storage: PG_error,
+PG_writeback and PG_readahead.
 
-radix_tree_replace_clear_tags() can be called with NULL as the replacement
-value; in this case we need to delete sibling entries which point to
-the slot.
-
-Signed-off-by: Matthew Wilcox <willy@infradead.org>
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- lib/radix-tree.c | 11 ++++++++++-
- 1 file changed, 10 insertions(+), 1 deletion(-)
+ include/linux/page-flags.h | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
 
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index e49f32f7c537..89092c4011b8 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -1799,17 +1799,23 @@ void *radix_tree_delete(struct radix_tree_root *root, unsigned long index)
- }
- EXPORT_SYMBOL(radix_tree_delete);
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 74e4dda91238..a2bef9a41bcf 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -253,7 +253,7 @@ static inline int TestClearPage##uname(struct page *page) { return 0; }
+ 	TESTSETFLAG_FALSE(uname) TESTCLEARFLAG_FALSE(uname)
  
-+/*
-+ * If the caller passes NULL for @entry, it must take care to adjust
-+ * node->count.  See page_cache_tree_delete() for an example.
-+ */
- struct radix_tree_node *radix_tree_replace_clear_tags(
- 			struct radix_tree_root *root,
- 			unsigned long index, void *entry)
- {
- 	struct radix_tree_node *node;
- 	void **slot;
-+	unsigned int offset;
+ __PAGEFLAG(Locked, locked, PF_NO_TAIL)
+-PAGEFLAG(Error, error, PF_NO_COMPOUND) TESTCLEARFLAG(Error, error, PF_NO_COMPOUND)
++PAGEFLAG(Error, error, PF_NO_TAIL) TESTCLEARFLAG(Error, error, PF_NO_TAIL)
+ PAGEFLAG(Referenced, referenced, PF_HEAD)
+ 	TESTCLEARFLAG(Referenced, referenced, PF_HEAD)
+ 	__SETPAGEFLAG(Referenced, referenced, PF_HEAD)
+@@ -293,15 +293,15 @@ PAGEFLAG(OwnerPriv1, owner_priv_1, PF_ANY)
+  * Only test-and-set exist for PG_writeback.  The unconditional operators are
+  * risky: they bypass page accounting.
+  */
+-TESTPAGEFLAG(Writeback, writeback, PF_NO_COMPOUND)
+-	TESTSCFLAG(Writeback, writeback, PF_NO_COMPOUND)
++TESTPAGEFLAG(Writeback, writeback, PF_NO_TAIL)
++	TESTSCFLAG(Writeback, writeback, PF_NO_TAIL)
+ PAGEFLAG(MappedToDisk, mappedtodisk, PF_NO_TAIL)
  
- 	__radix_tree_lookup(root, index, &node, &slot);
+ /* PG_readahead is only used for reads; PG_reclaim is only for writes */
+ PAGEFLAG(Reclaim, reclaim, PF_NO_TAIL)
+ 	TESTCLEARFLAG(Reclaim, reclaim, PF_NO_TAIL)
+-PAGEFLAG(Readahead, reclaim, PF_NO_COMPOUND)
+-	TESTCLEARFLAG(Readahead, reclaim, PF_NO_COMPOUND)
++PAGEFLAG(Readahead, reclaim, PF_NO_TAIL)
++	TESTCLEARFLAG(Readahead, reclaim, PF_NO_TAIL)
  
- 	if (node) {
--		unsigned int tag, offset = get_slot_offset(node, slot);
-+		unsigned int tag;
-+		offset = get_slot_offset(node, slot);
- 		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
- 			node_tag_clear(root, node, tag, offset);
- 	} else {
-@@ -1818,6 +1824,9 @@ struct radix_tree_node *radix_tree_replace_clear_tags(
- 	}
- 
- 	radix_tree_replace_slot(slot, entry);
-+	if (!entry && node)
-+		delete_sibling_entries(node, node_to_entry(slot), offset);
-+
- 	return node;
- }
- 
+ #ifdef CONFIG_HIGHMEM
+ /*
 -- 
 2.8.1
 
