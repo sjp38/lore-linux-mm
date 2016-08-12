@@ -1,79 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E6CFC6B025E
-	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 10:27:38 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id i64so43610046ith.2
-        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 07:27:38 -0700 (PDT)
-Received: from mail-pa0-x243.google.com (mail-pa0-x243.google.com. [2607:f8b0:400e:c03::243])
-        by mx.google.com with ESMTPS id 86si8770408iok.173.2016.08.12.07.27.38
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B3D06B0253
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 10:42:01 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id o80so1972947wme.1
+        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 07:42:01 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id s7si2693827wme.118.2016.08.12.07.41.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Aug 2016 07:27:38 -0700 (PDT)
-Received: by mail-pa0-x243.google.com with SMTP id cf3so1563673pad.2
-        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 07:27:38 -0700 (PDT)
-From: Ronit Halder <ronit.crj@gmail.com>
-Subject: [RFC 4/4] Enable memory allocation through sysfs interface
-Date: Fri, 12 Aug 2016 19:56:52 +0530
-Message-Id: <20160812142652.6299-1-ronit.crj@gmail.com>
-In-Reply-To: <20160812141838.5973-1-ronit.crj@gmail.com>
-References: <20160812141838.5973-1-ronit.crj@gmail.com>
+        Fri, 12 Aug 2016 07:41:59 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id i138so3233330wmf.3
+        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 07:41:59 -0700 (PDT)
+Date: Fri, 12 Aug 2016 16:41:57 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 09/10] vhost, mm: make sure that oom_reaper doesn't reap
+ memory read by vhost
+Message-ID: <20160812144157.GL3639@dhcp22.suse.cz>
+References: <1469734954-31247-1-git-send-email-mhocko@kernel.org>
+ <1469734954-31247-10-git-send-email-mhocko@kernel.org>
+ <20160728233359-mutt-send-email-mst@kernel.org>
+ <20160729060422.GA5504@dhcp22.suse.cz>
+ <20160729161039-mutt-send-email-mst@kernel.org>
+ <20160729133529.GE8031@dhcp22.suse.cz>
+ <20160729205620-mutt-send-email-mst@kernel.org>
+ <20160731094438.GA24353@dhcp22.suse.cz>
+ <20160812094236.GF3639@dhcp22.suse.cz>
+ <20160812132140.GA776@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160812132140.GA776@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, bp@suse.de, dyoung@redhat.com, jroedel@suse.de, krzysiek@podlesie.net, msalter@redhat.com, ebiederm@xmission.com, akpm@linux-foundation.org, bhe@redhat.com, vgoyal@redhat.com, mnfhuang@gmail.com, kexec@lists.infradead.org, kirill.shutemov@linux.intel.com, mchehab@osg.samsung.com, aarcange@redhat.com, vdavydov@parallels.com, dan.j.williams@intel.com, jack@suse.cz, linux-mm@kvack.org, Ronit Halder <ronit.crj@gmail.com>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, "Michael S. Tsirkin" <mst@redhat.com>
 
-Modify the sysfs entry "kernel/kexec_crash_size" to allocate or
-release memory at run time. The memory size will be written to
-the entry in MB. If the user uses high memory (in x86_64). Then
-size will be only set for high memory. The low memory will be
-allocated automatically. If the size set is zero, the both the
-allocated region in low and high memory will be released.
+On Fri 12-08-16 15:21:41, Oleg Nesterov wrote:
+> On 08/12, Michal Hocko wrote:
+[...]
+> There is a more interesting case when another 3rd thread can trigger
+> a fault and populate this page before __get_user_mm() calls _get_user().
+> But even in this case I think we are fine.
 
-Signed-off-by: Ronit Halder <ronit.crj@gmail.com>
+All the threads should be killed/exiting so they shouldn't access that
+memory. My assumption is that the exit path doesn't touch that memory.
+If any of threads was in the middle of the page fault or g-u-p while
+writing to that address then it should be OK because it would be just
+a matter of SIGKILL timing.  I might be wrong here and in that case
+__get_user_mm wouldn't be sufficient of course.
 
----
- kernel/ksysfs.c | 23 ++++++++++++++++++++++-
- 1 file changed, 22 insertions(+), 1 deletion(-)
+> Whats really interesting is that I still fail to understand do we really
+> need this hack, iiuc you are not sure too, and Michael didn't bother to
+> explain why a bogus zero from anon memory is worse than other problems
+> caused by SIGKKILL from oom-kill.c.
 
-diff --git a/kernel/ksysfs.c b/kernel/ksysfs.c
-index e83b264..4cc286d 100644
---- a/kernel/ksysfs.c
-+++ b/kernel/ksysfs.c
-@@ -116,10 +116,31 @@ static ssize_t kexec_crash_size_store(struct kobject *kobj,
- {
- 	unsigned long cnt;
- 	int ret;
-+	int size;
- 
- 	if (kstrtoul(buf, 0, &cnt))
- 		return -EINVAL;
--
-+#ifdef CONFIG_KEXEC_CMA
-+#ifdef CONFIG_X86
-+	size = cnt << 20;
-+	if (cnt == 0) {
-+		crash_free_memory_low();
-+		ret = crash_free_memory(crash_get_memory_size());
-+	} else if (cnt > 0) {
-+		if (!crash_get_memory_size_low() && crash_alloc_memory_low())
-+			return -ENOMEM;
-+		ret = crash_free_memory(crash_get_memory_size());
-+		if (ret)
-+			return ret;
-+		ret = crash_alloc_memory(size);
-+		if (ret)
-+			return ret;
-+	} else {
-+		return -EINVAL;
-+	}
-+	return count;
-+#endif
-+#endif
- 	ret = crash_shrink_memory(cnt);
- 	return ret < 0 ? ret : count;
- }
+Yes, I admit that I am not familiar with the vhost memory usage model so
+I can only speculate. But the mere fact that the mm is bound to a device
+fd which can be passed over to a different process makes me worried.
+This means that the mm is basically isolated from the original process
+until the last fd is closed which is under control of the process which
+holds it. The mm can still be access during that time from the vhost
+worker. And I guess this is exactly where the problem lies.
 -- 
-2.9.0.GIT
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
