@@ -1,67 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 820326B0253
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 23:09:31 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id l4so3626341wml.0
-        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 20:09:31 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ea8si5133316wjb.92.2016.08.11.20.09.29
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EC686B0253
+	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 23:52:34 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id 63so27648224pfx.0
+        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 20:52:34 -0700 (PDT)
+Received: from mail-pa0-x242.google.com (mail-pa0-x242.google.com. [2607:f8b0:400e:c03::242])
+        by mx.google.com with ESMTPS id h5si6614577pfj.2.2016.08.11.20.52.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 11 Aug 2016 20:09:30 -0700 (PDT)
-Subject: Re: [PATCH 1/3] Add a new field to struct shrinker
-References: <85a9712f3853db5d9bc14810b287c23776235f01.1468051281.git.janani.rvchndrn@gmail.com>
- <20160711063730.GA5284@dhcp22.suse.cz>
- <1468246371.13253.63.camel@surriel.com>
- <20160711143342.GN1811@dhcp22.suse.cz>
- <F072D3E2-0514-4A25-868E-2104610EC14A@gmail.com>
- <20160720145405.GP11249@dhcp22.suse.cz>
- <5e6e4f2d-ae94-130e-198d-fa402a9eef50@suse.de>
- <20160728054947.GL12670@dastard> <20160728102513.GA2799@techsingularity.net>
- <20160729001340.GM12670@dastard> <20160729130005.GE2799@techsingularity.net>
-From: Tony Jones <tonyj@suse.de>
-Message-ID: <15d2252f-8bb9-287b-0006-ef42bc8efd27@suse.de>
-Date: Thu, 11 Aug 2016 20:09:25 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Aug 2016 20:52:33 -0700 (PDT)
+Received: by mail-pa0-x242.google.com with SMTP id cf3so752207pad.2
+        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 20:52:33 -0700 (PDT)
+Subject: Re: [PATCH] mm: Add the ram_latent_entropy kernel parameter
+References: <20160810222805.GA13733@www.outflux.net>
+From: Balbir Singh <bsingharora@gmail.com>
+Message-ID: <99df3a39-ecf1-90a0-2649-fa0bda270ceb@gmail.com>
+Date: Fri, 12 Aug 2016 13:52:21 +1000
 MIME-Version: 1.0
-In-Reply-To: <20160729130005.GE2799@techsingularity.net>
+In-Reply-To: <20160810222805.GA13733@www.outflux.net>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>, Dave Chinner <david@fromorbit.com>
-Cc: Janani Ravichandran <janani.rvchndrn@gmail.com>, Rik van Riel <riel@surriel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Emese Revfy <re.emese@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Jonathan Corbet <corbet@lwn.net>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, linux-doc@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
-On 07/29/2016 06:00 AM, Mel Gorman wrote:
-> On Fri, Jul 29, 2016 at 10:13:40AM +1000, Dave Chinner wrote:
->> On Thu, Jul 28, 2016 at 11:25:13AM +0100, Mel Gorman wrote:
->>> On Thu, Jul 28, 2016 at 03:49:47PM +1000, Dave Chinner wrote:
->>>> Seems you're all missing the obvious.
->>>>
->>>> Add a tracepoint for a shrinker callback that includes a "name"
->>>> field, have the shrinker callback fill it out appropriately. e.g
->>>> in the superblock shrinker:
->>>>
->>>> 	trace_shrinker_callback(shrinker, shrink_control, sb->s_type->name);
->>>>
->>>
->>> That misses capturing the latency of the call unless there is a begin/end
->>> tracepoint.
->>
->> Sure, but I didn't see that in the email talking about how to add a
->> name. Even if it is a requirement, it's not necessary as we've
->> already got shrinker runtime measurements from the
->> trace_mm_shrink_slab_start and trace_mm_shrink_slab_end trace
->> points. With the above callback event, shrinker call runtime is
->> simply the time between the calls to the same shrinker within
->> mm_shrink_slab start/end trace points.
->>
+
+
+On 11/08/16 08:28, Kees Cook wrote:
+> From: Emese Revfy <re.emese@gmail.com>
 > 
-> Fair point. It's not that hard to correlate them.
+> When "ram_latent_entropy" is passed on the kernel command line, entropy
+> will be extracted from up to the first 4GB of RAM while the runtime memory
+> allocator is being initialized. This entropy isn't cryptographically
+> secure, but does help provide additional unpredictability on otherwise
+> low-entropy systems.
+> 
+> Based on work created by the PaX Team.
+> 
+> Signed-off-by: Emese Revfy <re.emese@gmail.com>
+> [kees: renamed parameter, dropped relationship with plugin, updated log]
+> Signed-off-by: Kees Cook <keescook@chromium.org>
+> ---
+> This patch has been extracted from the latent_entropy gcc plugin, as
+> suggested by Linus: https://lkml.org/lkml/2016/8/8/840
+> ---
+>  Documentation/kernel-parameters.txt |  5 +++++
+>  mm/page_alloc.c                     | 21 +++++++++++++++++++++
+>  2 files changed, 26 insertions(+)
+> 
+> diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+> index 46c030a49186..9d054984370f 100644
+> --- a/Documentation/kernel-parameters.txt
+> +++ b/Documentation/kernel-parameters.txt
+> @@ -3245,6 +3245,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+>  	raid=		[HW,RAID]
+>  			See Documentation/md.txt.
+>  
+> +	ram_latent_entropy
+> +			Enable a very simple form of latent entropy extraction
+> +			from the first 4GB of memory as the bootmem allocator
+> +			passes the memory pages to the buddy allocator.
+> +
+>  	ramdisk_size=	[RAM] Sizes of RAM disks in kilobytes
+>  			See Documentation/blockdev/ramdisk.txt.
+>  
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index fb975cec3518..1de94f0ff29d 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -64,6 +64,7 @@
+>  #include <linux/page_owner.h>
+>  #include <linux/kthread.h>
+>  #include <linux/memcontrol.h>
+> +#include <linux/random.h>
+>  
+>  #include <asm/sections.h>
+>  #include <asm/tlbflush.h>
+> @@ -1236,6 +1237,15 @@ static void __free_pages_ok(struct page *page, unsigned int order)
+>  	local_irq_restore(flags);
+>  }
+>  
+> +bool __meminitdata ram_latent_entropy;
+> +
+> +static int __init setup_ram_latent_entropy(char *str)
+> +{
+> +	ram_latent_entropy = true;
+> +	return 0;
+> +}
+> +early_param("ram_latent_entropy", setup_ram_latent_entropy);
+> +
+>  static void __init __free_pages_boot_core(struct page *page, unsigned int order)
+>  {
+>  	unsigned int nr_pages = 1 << order;
+> @@ -1251,6 +1261,17 @@ static void __init __free_pages_boot_core(struct page *page, unsigned int order)
+>  	__ClearPageReserved(p);
+>  	set_page_count(p, 0);
+>  
+> +	if (ram_latent_entropy && !PageHighMem(page) &&
+> +		page_to_pfn(page) < 0x100000) {
+> +		u64 hash = 0;
+> +		size_t index, end = PAGE_SIZE * nr_pages / sizeof(hash);
+> +		const u64 *data = lowmem_page_address(page);
+> +
+> +		for (index = 0; index < end; index++)
+> +			hash ^= hash + data[index];
 
-True but the scan_objects callback is only called if we have >batch_size objects.
+Won't the hash be the same across boots? Is this entropy addition for
+KASLR, since it is so early in boot?q
 
-It's possible to accumulate quite some time without calling the callback and being able to obtain 
-the s_type->name.   So this time all gets associated with just super_cache_scan.
+> +		add_device_randomness((const void *)&hash, sizeof(hash));
+> +	}
+> +
+>  	page_zone(page)->managed_pages += nr_pages;
+>  	set_page_refcounted(page);
+>  	__free_pages(page, order);
+> 
+
+
+Balbir Singh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
