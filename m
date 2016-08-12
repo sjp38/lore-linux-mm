@@ -1,78 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A15096B0253
-	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 05:41:16 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 1so12551926wmz.2
-        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 02:41:16 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CA98D6B025E
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 05:42:42 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id u81so1779700wmu.3
+        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 02:42:42 -0700 (PDT)
 Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id x2si6291543wjm.38.2016.08.12.02.41.15
+        by mx.google.com with ESMTPS id h11si1601054wmd.58.2016.08.12.02.42.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Aug 2016 02:41:15 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id q128so1861307wma.1
-        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 02:41:15 -0700 (PDT)
-Date: Fri, 12 Aug 2016 11:41:13 +0200
+        Fri, 12 Aug 2016 02:42:38 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id o80so1873311wme.0
+        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 02:42:38 -0700 (PDT)
+Date: Fri, 12 Aug 2016 11:42:36 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] kernel/fork: fix CLONE_CHILD_CLEARTID regression in
- nscd
-Message-ID: <20160812094113.GE3639@dhcp22.suse.cz>
-References: <1470039287-14643-1-git-send-email-mhocko@kernel.org>
- <20160803210804.GA11549@redhat.com>
+Subject: Re: [PATCH 09/10] vhost, mm: make sure that oom_reaper doesn't reap
+ memory read by vhost
+Message-ID: <20160812094236.GF3639@dhcp22.suse.cz>
+References: <1469734954-31247-1-git-send-email-mhocko@kernel.org>
+ <1469734954-31247-10-git-send-email-mhocko@kernel.org>
+ <20160728233359-mutt-send-email-mst@kernel.org>
+ <20160729060422.GA5504@dhcp22.suse.cz>
+ <20160729161039-mutt-send-email-mst@kernel.org>
+ <20160729133529.GE8031@dhcp22.suse.cz>
+ <20160729205620-mutt-send-email-mst@kernel.org>
+ <20160731094438.GA24353@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160803210804.GA11549@redhat.com>
+In-Reply-To: <20160731094438.GA24353@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, William Preston <wpreston@suse.com>, Roland McGrath <roland@hack.frob.com>, Andreas Schwab <schwab@suse.com>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, "Michael S. Tsirkin" <mst@redhat.com>
 
-On Wed 03-08-16 23:08:04, Oleg Nesterov wrote:
-> sorry for delay, I am travelling till the end of the week.
+Sorry to bother you Paul but I would be really greatful if you could
+comment on this, please!
 
-Same here...
-
-> On 08/01, Michal Hocko wrote:
-> >
-> > fec1d0115240 ("[PATCH] Disable CLONE_CHILD_CLEARTID for abnormal exit")
+On Sun 31-07-16 11:44:38, Michal Hocko wrote:
+> On Fri 29-07-16 20:57:44, Michael S. Tsirkin wrote:
+> > On Fri, Jul 29, 2016 at 03:35:29PM +0200, Michal Hocko wrote:
+> > > On Fri 29-07-16 16:14:10, Michael S. Tsirkin wrote:
+> > > > On Fri, Jul 29, 2016 at 08:04:22AM +0200, Michal Hocko wrote:
+> > > > > On Thu 28-07-16 23:41:53, Michael S. Tsirkin wrote:
+> > > > > > On Thu, Jul 28, 2016 at 09:42:33PM +0200, Michal Hocko wrote:
+> > > [...]
+> > > > > > > and the reader would hit a page fault
+> > > > > > > +	 * if it stumbled over a reaped memory.
+> > > > > > 
+> > > > > > This last point I don't get. flag read could bypass data read
+> > > > > > if that happens data read could happen after unmap
+> > > > > > yes it might get a PF but you handle that, correct?
+> > > > > 
+> > > > > The point I've tried to make is that if the reader really page faults
+> > > > > then get_user will imply the full barrier already. If get_user didn't
+> > > > > page fault then the state of the flag is not really important because
+> > > > > the reaper shouldn't have touched it. Does it make more sense now or
+> > > > > I've missed your question?
+> > > > 
+> > > > Can task flag read happen before the get_user pagefault?
+> > > 
+> > > Do you mean?
+> > > 
+> > > get_user_mm()
+> > >   temp = false <- test_bit(MMF_UNSTABLE, &mm->flags)
+> > >   ret = __get_user(x, ptr)
+> > >   #PF
+> > >   if (!ret && temp) # misses the flag
+> > > 
+> > > The code is basically doing
+> > > 
+> > >   if (!__get_user() && test_bit(MMF_UNSTABLE, &mm->flags))
+> > > 
+> > > so test_bit part of the conditional cannot be evaluated before
+> > > __get_user() part is done. Compiler cannot reorder two depending
+> > > subconditions AFAIK.
+> > 
+> > But maybe the CPU can.
 > 
-> almost 10 years ago ;)
-
-Yes, it's been a while... I guess nscd doesn't enable persistent host
-caching by default. I just know that our customer wanted to enable this
-feature to find out it doesn't work properly. At least that is my
-understanding.
-
-> > has caused a subtle regression in nscd which uses CLONE_CHILD_CLEARTID
-> > to clear the nscd_certainly_running flag in the shared databases, so
-> > that the clients are notified when nscd is restarted.
+> Are you sure? How does that differ from
+> 	if (ptr && ptr->something)
+> construct?
 > 
-> So iiuc with this patch nscd_certainly_running should be cleared even if
-> ncsd was killed by !sig_kernel_coredump() signal, right?
-
-Yes.
-
-> > We should also check for vfork because
-> > this is killable since d68b46fe16ad ("vfork: make it killable").
+> Let's CC Paul. Just to describe the situation. We have the following
+> situation:
 > 
-> Hmm, why? Can't understand... In any case this check doesn't look right, the
-> comment says "a killed vfork parent" while tsk->vfork_done != NULL means it
-> is a vforked child.
+> #define __get_user_mm(mm, x, ptr)				\
+> ({								\
+> 	int ___gu_err = __get_user(x, ptr);			\
+> 	if (!___gu_err && test_bit(MMF_UNSTABLE, &mm->flags))	\
+> 		___gu_err = -EFAULT;				\
+> 	___gu_err;						\
+> })
 > 
-> So if we want this change, why we can't simply do
+> and the oom reaper doing:
 > 
-> 	-	if (!(tsk->flags & PF_SIGNALED) &&
-> 	+	if (!(tsk->signal->flags & SIGNAL_GROUP_COREDUMP) &&
+> 	set_bit(MMF_UNSTABLE, &mm->flags);
 > 
-> ?
-
-This is what I had initially. But then the comment above the check made
-me worried that the parent of vforked child might get confused if the
-flag is cleared. I might have completely misunderstood the point of the
-comment though. So if you believe that vfork_done check is incorrect I
-can drop it. It shouldn't have any effect on the nscd usecase AFAIU.
-
-Thanks!
+> 	for (vma = mm->mmap ; vma; vma = vma->vm_next) {
+> 		unmap_page_range
+> 
+> I assume that write memory barrier between set_bit and unmap_page_range
+> is not really needed because unmapping should already imply the memory
+> barrier. A read memory barrier between __get_user and test_bit shouldn't
+> be really needed because we can tolerate a stale value if __get_user
+> didn't #PF because we haven't unmapped that address obviously. If we
+> unmapped it then __get_user would #PF and that should imply a full
+> memory barrier as well. Now the question is whether a CPU can speculate
+> and read the flag before we issue the #PF.
 
 -- 
 Michal Hocko
