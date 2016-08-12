@@ -1,125 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 80FA76B0253
-	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 09:50:33 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id x130so40811545ite.3
-        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 06:50:33 -0700 (PDT)
-Received: from devils.ext.ti.com (devils.ext.ti.com. [198.47.26.153])
-        by mx.google.com with ESMTPS id e47si4493546ote.49.2016.08.12.06.50.32
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D78766B0253
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 10:19:49 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id o124so50743381pfg.1
+        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 07:19:49 -0700 (PDT)
+Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com. [2607:f8b0:400e:c03::230])
+        by mx.google.com with ESMTPS id sl8si9131888pab.264.2016.08.12.07.19.48
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 12 Aug 2016 06:50:32 -0700 (PDT)
-Subject: Re: kmemleak: Cannot insert 0xff7f1000 into the object search tree
- (overlaps existing)
-References: <7f50c137-5c6a-0882-3704-ae9bb7552c30@ti.com>
- <20160811155423.GC18366@e104818-lin.cambridge.arm.com>
- <920709c7-2d5b-ea67-5f1c-4197ef30e3b2@ti.com>
- <20160811170812.GF18366@e104818-lin.cambridge.arm.com>
-From: Grygorii Strashko <grygorii.strashko@ti.com>
-Message-ID: <36e978d3-65e2-9cf7-133e-015793002f70@ti.com>
-Date: Fri, 12 Aug 2016 16:50:25 +0300
-MIME-Version: 1.0
-In-Reply-To: <20160811170812.GF18366@e104818-lin.cambridge.arm.com>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 12 Aug 2016 07:19:48 -0700 (PDT)
+Received: by mail-pa0-x230.google.com with SMTP id pp5so9100928pac.3
+        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 07:19:48 -0700 (PDT)
+From: Ronit Halder <ronit.crj@gmail.com>
+Subject: [RFC 0/4] Kexec: Enable run time memory resrvation of crash kernel
+Date: Fri, 12 Aug 2016 19:48:38 +0530
+Message-Id: <20160812141838.5973-1-ronit.crj@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Vignesh R <vigneshr@ti.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-omap@vger.kernel.org" <linux-omap@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, bp@suse.de, dyoung@redhat.com, jroedel@suse.de, krzysiek@podlesie.net, msalter@redhat.com, ebiederm@xmission.com, akpm@linux-foundation.org, bhe@redhat.com, vgoyal@redhat.com, mnfhuang@gmail.com, kexec@lists.infradead.org, kirill.shutemov@linux.intel.com, mchehab@osg.samsung.com, aarcange@redhat.com, vdavydov@parallels.com, dan.j.williams@intel.com, jack@suse.cz, linux-mm@kvack.org, Ronit Halder <ronit.crj@gmail.com>
 
-On 08/11/2016 08:08 PM, Catalin Marinas wrote:
-> On Thu, Aug 11, 2016 at 07:48:12PM +0300, Grygorii Strashko wrote:
->> On 08/11/2016 06:54 PM, Catalin Marinas wrote:
->>> On Thu, Aug 11, 2016 at 05:20:51PM +0530, Vignesh R wrote:
->>>> I see the below message from kmemleak when booting linux-next on AM335x
->>>> GP EVM and DRA7 EVM
->>>
->>> Can you also reproduce it with 4.8-rc1?
->>>
->>>> [    0.803934] kmemleak: Cannot insert 0xff7f1000 into the object search tree (overlaps existing)
->>>> [    0.803950] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 4.8.0-rc1-next-20160809 #497
->>>> [    0.803958] Hardware name: Generic DRA72X (Flattened Device Tree)
->>>> [    0.803979] [<c0110104>] (unwind_backtrace) from [<c010c24c>] (show_stack+0x10/0x14)
->>>> [    0.803994] [<c010c24c>] (show_stack) from [<c0490df0>] (dump_stack+0xac/0xe0)
->>>> [    0.804010] [<c0490df0>] (dump_stack) from [<c0296f88>] (create_object+0x214/0x278)
->>>> [    0.804025] [<c0296f88>] (create_object) from [<c07c770c>] (kmemleak_alloc_percpu+0x54/0xc0)
->>>> [    0.804038] [<c07c770c>] (kmemleak_alloc_percpu) from [<c025fb08>] (pcpu_alloc+0x368/0x5fc)
->>>> [    0.804052] [<c025fb08>] (pcpu_alloc) from [<c0b1bfbc>] (crash_notes_memory_init+0x10/0x40)
->>>> [    0.804064] [<c0b1bfbc>] (crash_notes_memory_init) from [<c010188c>] (do_one_initcall+0x3c/0x178)
->>>> [    0.804075] [<c010188c>] (do_one_initcall) from [<c0b00e98>] (kernel_init_freeable+0x1fc/0x2c8)
->>>> [    0.804086] [<c0b00e98>] (kernel_init_freeable) from [<c07c66b0>] (kernel_init+0x8/0x114)
->>>> [    0.804098] [<c07c66b0>] (kernel_init) from [<c0107910>] (ret_from_fork+0x14/0x24)
->>>
->>> This is the allocation stack trace, going via pcpu_alloc().
->>>
->>>> [    0.804106] kmemleak: Kernel memory leak detector disabled
->>>> [    0.804113] kmemleak: Object 0xfe800000 (size 16777216):
->>>> [    0.804121] kmemleak:   comm "swapper/0", pid 0, jiffies 4294937296
->>>> [    0.804127] kmemleak:   min_count = -1
->>>> [    0.804132] kmemleak:   count = 0
->>>> [    0.804138] kmemleak:   flags = 0x5
->>>> [    0.804143] kmemleak:   checksum = 0
->>>> [    0.804149] kmemleak:   backtrace:
->>>> [    0.804155]      [<c0b26a90>] cma_declare_contiguous+0x16c/0x214
->>>> [    0.804170]      [<c0b3c9c0>] dma_contiguous_reserve_area+0x30/0x64
->>>> [    0.804183]      [<c0b3ca74>] dma_contiguous_reserve+0x80/0x94
->>>> [    0.804195]      [<c0b06810>] arm_memblock_init+0x130/0x184
->>>> [    0.804207]      [<c0b04214>] setup_arch+0x590/0xc08
->>>> [    0.804217]      [<c0b00940>] start_kernel+0x58/0x3b4
->>>> [    0.804227]      [<8000807c>] 0x8000807c
->>>> [    0.804237]      [<ffffffff>] 0xffffffff
->>>
->>> This seems to be the original object that was allocated via
->>> cma_declare_contiguous(): 16MB range from 0xfe800000 to 0xff800000.
->>> Since the pointer returned by pcpu_alloc is 0xff7f1000 falls in the 16MB
->>> CMA range, kmemleak gets confused (it doesn't allow overlapping
->>> objects).
->>>
->>> So what I think goes wrong is that the kmemleak_alloc(__va(found)) call
->>> in memblock_alloc_range_nid() doesn't get the right value for the VA of
->>> the CMA block. The memblock_alloc_range() call in
->>> cma_declare_contiguous() asks for memory above high_memory, hence on a
->>> 32-bit architecture with highmem enabled, __va() use is not really
->>> valid, returning the wrong address. The existing kmemleak object is
->>> bogus, it shouldn't have been created in the first place.
->>>
->>> Now I'm trying to figure out how to differentiate between lowmem
->>> memblocks and highmem ones. Ignoring the kmemleak_alloc() calls
->>> altogether in mm/memblock.c is probably not an option as it would lead
->>> to lots of false positives.
->>
->> But cma_declare_contiguous() calls -
->> 		/*
->> 		 * kmemleak scans/reads tracked objects for pointers to other
->> 		 * objects but this address isn't mapped and accessible
->> 		 */
->> 		kmemleak_ignore(phys_to_virt(addr));
->>
->> Does it means above code is incorrect also?
->
-> Yes, as long as the phys_to_virt() use is invalid. You may get away with
-> this, depending on the SoC. Also, kmemleak_ignore() here is meant to
-> tell kmemleak not to bother with scanning or reporting such memory since
-> it is not meant for pointers but it still keeps track of it. The only
-> way to remove it from kmemleak is replace this with kmemleak_free(). But
-> That's more of a hack since phys_to_virt(addr) is still invalid.
->
->> It's a little bit strange that this can be seen only now, because
->> commit 95b0e655f9 ("ARM: mm: don't limit default CMA region only to low memor")
->> is pretty old.
->
-> You might want to double check my scenario above but I guess we've been
-> lucky. So either some configuration changed and arm_dma_limit >
-> arm_lowmem_limit or the random VA for the CMA memory didn't overlap with
-> any other block.
->
+Currenty linux kernel reserves memory at the boot time for crash kernel.
+It will be very useful if we can reserve memory in run time. The user can 
+reserve the memory whenerver needed instead of reserving at the boot time.
 
-Thanks a  lot for explanation.
+It is possible to reserve memory for crash kernel at the run time using
+CMA (Contiguous Memory Allocator). CMA is capable of allocating big chunk 
+of memory. At the boot time we will create one (if only low memory is used)
+or two (if we use both high memory in case of x86_64) CMA areas of size 
+given in "crashkernel" boot time command line parameter. This memory in CMA
+areas can be used as movable pages (used for disk caches, process pages
+etc) if not allocated. Then the user can reserve or free memory from those
+CMA areas using "/sys/kernel/kexec_crash_size" sysfs entry. If the user
+uses high memory it will automatically at least 256MB low memory
+(needed for swiotlb and DMA buffers) when the user allocates memory using
+mentioned sysfs enrty. In case of high memory reservation the user controls
+the size of reserved region in high memory with
+"/sys/kernel/kexec_crash_size" entry. If the size set is zero then the 
+memory allocated in low memory will automatically be freed.
 
+As the pages under CMA area (when not allocated by CMA) can only be used by
+movable pages. The pages won't be used for DMA. So, after allocating pages
+from CMA area for loading the crash kernel, there won't be any chance of
+DMA on the memory.
+
+Thus is a prototype patch. Please share your opinions on my approach. This
+patch is only for x86 and x86_64. Please note, this patch is only a
+prototype just to explain my approach and get the review. This patch is on
+kernel version v4.4.11.
+
+CMA depends on page migration and only uses movable pages. But, the movable
+pages become unmovable momentarily for pinning. The CMA fails for this
+reason. I don't have any solution for that right now. This approach will
+work when the this problems with CMA will be fixed. The patch is enabled
+by a kernel configuration option CONFIG_KEXEC_CMA.
+
+Ronit Halder (4):
+  Creating one or two CMA area at Boot time
+  Functions for memory reservation and release
+  Adding a new kernel configuration to enable the feature
+  Enable memory allocation through sysfs interface
+
+ arch/x86/kernel/setup.c | 44 ++++++++++++++++++++++++--
+ include/linux/kexec.h   | 11 ++++++-
+ kernel/kexec_core.c     | 83 +++++++++++++++++++++++++++++++++++++++++++++++++
+ kernel/ksysfs.c         | 23 +++++++++++++-
+ mm/Kconfig              |  6 ++++
+ 5 files changed, 162 insertions(+), 5 deletions(-)
 
 -- 
-regards,
--grygorii
+2.9.0.GIT
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
