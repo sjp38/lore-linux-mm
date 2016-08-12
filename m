@@ -1,21 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B3D06B0253
-	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 10:42:01 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id o80so1972947wme.1
-        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 07:42:01 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id s7si2693827wme.118.2016.08.12.07.41.59
+Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 41EA16B0253
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 11:57:36 -0400 (EDT)
+Received: by mail-ua0-f197.google.com with SMTP id m60so1864161uam.3
+        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 08:57:36 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id rz2si7659283wjb.87.2016.08.12.08.57.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Aug 2016 07:41:59 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id i138so3233330wmf.3
-        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 07:41:59 -0700 (PDT)
-Date: Fri, 12 Aug 2016 16:41:57 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 09/10] vhost, mm: make sure that oom_reaper doesn't reap
+        Fri, 12 Aug 2016 08:57:35 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u7CFsx66103102
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 11:57:33 -0400
+Received: from e35.co.us.ibm.com (e35.co.us.ibm.com [32.97.110.153])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 24ru31fcg8-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 11:57:33 -0400
+Received: from localhost
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Fri, 12 Aug 2016 09:57:32 -0600
+Date: Fri, 12 Aug 2016 08:57:34 -0700
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH 09/10] vhost, mm: make sure that oom_reaper doesn't	reap
  memory read by vhost
-Message-ID: <20160812144157.GL3639@dhcp22.suse.cz>
+Reply-To: paulmck@linux.vnet.ibm.com
 References: <1469734954-31247-1-git-send-email-mhocko@kernel.org>
  <1469734954-31247-10-git-send-email-mhocko@kernel.org>
  <20160728233359-mutt-send-email-mst@kernel.org>
@@ -30,40 +39,67 @@ MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 In-Reply-To: <20160812132140.GA776@redhat.com>
+Message-Id: <20160812155734.GT3482@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Oleg Nesterov <oleg@redhat.com>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, "Michael S. Tsirkin" <mst@redhat.com>
 
-On Fri 12-08-16 15:21:41, Oleg Nesterov wrote:
+On Fri, Aug 12, 2016 at 03:21:41PM +0200, Oleg Nesterov wrote:
 > On 08/12, Michal Hocko wrote:
-[...]
+> >
+> > > Let's CC Paul. Just to describe the situation. We have the following
+> > > situation:
+> > >
+> > > #define __get_user_mm(mm, x, ptr)				\
+> > > ({								\
+> > > 	int ___gu_err = __get_user(x, ptr);			\
+> > > 	if (!___gu_err && test_bit(MMF_UNSTABLE, &mm->flags))	\
+> > > 		___gu_err = -EFAULT;				\
+> > > 	___gu_err;						\
+> > > })
+> > >
+> > > and the oom reaper doing:
+> > >
+> > > 	set_bit(MMF_UNSTABLE, &mm->flags);
+> > >
+> > > 	for (vma = mm->mmap ; vma; vma = vma->vm_next) {
+> > > 		unmap_page_range
+> > >
+> > > I assume that write memory barrier between set_bit and unmap_page_range
+> > > is not really needed because unmapping should already imply the memory
+> > > barrier.
+> 
+> Well, I leave this to Paul, but...
+> 
+> I think it is not needed because we can rely on pte locking. We do
+> not care if anything is re-ordered UNLESS __get_user() above actually
+> triggers a fault and re-populates the page which was already unmapped
+> by __oom_reap_task(), and in the latter case __get_user_mm() can't
+> miss MMF_UNSTABLE simply because __get_user() and unmap_page_range()
+> need to lock/unlock the same ptlock_ptr().
+> 
+> So we only need the compiler barrier to ensure that __get_user_mm()
+> won't read MMF_UNSTABLE before __get_user(). But since __get_user()
+> is function, it is not needed too.
+> 
 > There is a more interesting case when another 3rd thread can trigger
 > a fault and populate this page before __get_user_mm() calls _get_user().
 > But even in this case I think we are fine.
 
-All the threads should be killed/exiting so they shouldn't access that
-memory. My assumption is that the exit path doesn't touch that memory.
-If any of threads was in the middle of the page fault or g-u-p while
-writing to that address then it should be OK because it would be just
-a matter of SIGKILL timing.  I might be wrong here and in that case
-__get_user_mm wouldn't be sufficient of course.
+Hmmm...  What source tree are you guys looking at?  I am seeing some
+of the above being macros rather than functions and others not being
+present at all...
+
+							Thanx, Paul
 
 > Whats really interesting is that I still fail to understand do we really
 > need this hack, iiuc you are not sure too, and Michael didn't bother to
 > explain why a bogus zero from anon memory is worse than other problems
 > caused by SIGKKILL from oom-kill.c.
-
-Yes, I admit that I am not familiar with the vhost memory usage model so
-I can only speculate. But the mere fact that the mm is bound to a device
-fd which can be passed over to a different process makes me worried.
-This means that the mm is basically isolated from the original process
-until the last fd is closed which is under control of the process which
-holds it. The mm can still be access during that time from the vhost
-worker. And I guess this is exactly where the problem lies.
--- 
-Michal Hocko
-SUSE Labs
+> 
+> Oleg.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
