@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E21A828F3
-	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 14:44:51 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id ag5so5706856pad.2
-        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 11:44:51 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id t78si10108463pfi.19.2016.08.12.11.39.00
+	by kanga.kvack.org (Postfix) with ESMTP id 05EFA828F3
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 14:45:00 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id ez1so5830346pab.1
+        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 11:44:59 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id r71si10080971pfa.279.2016.08.12.11.38.52
         for <linux-mm@kvack.org>;
-        Fri, 12 Aug 2016 11:39:00 -0700 (PDT)
+        Fri, 12 Aug 2016 11:38:52 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 15/41] filemap: handle huge pages in do_generic_file_read()
-Date: Fri, 12 Aug 2016 21:37:58 +0300
-Message-Id: <1471027104-115213-16-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 34/41] ext4: handle huge pages in ext4_da_write_end()
+Date: Fri, 12 Aug 2016 21:38:17 +0300
+Message-Id: <1471027104-115213-35-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1471027104-115213-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1471027104-115213-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,47 +19,47 @@ List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Most of work happans on head page. Only when we need to do copy data to
-userspace we find relevant subpage.
-
-We are still limited by PAGE_SIZE per iteration. Lifting this limitation
-would require some more work.
+Call ext4_da_should_update_i_disksize() for head page with offset
+relative to head page.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/filemap.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ fs/ext4/inode.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index ae1d996fa089..9d7d70b265d4 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1860,6 +1860,7 @@ find_page:
- 			if (unlikely(page == NULL))
- 				goto no_cached_page;
- 		}
-+		page = compound_head(page);
- 		if (PageReadahead(page)) {
- 			page_cache_async_readahead(mapping,
- 					ra, filp, page,
-@@ -1936,7 +1937,8 @@ page_ok:
- 		 * now we can copy it to user space...
- 		 */
+diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+index 1c325f62e766..0133f6fc4bb8 100644
+--- a/fs/ext4/inode.c
++++ b/fs/ext4/inode.c
+@@ -3006,7 +3006,6 @@ static int ext4_da_write_end(struct file *file,
+ 	int ret = 0, ret2;
+ 	handle_t *handle = ext4_journal_current_handle();
+ 	loff_t new_i_size;
+-	unsigned long start, end;
+ 	int write_mode = (int)(unsigned long)fsdata;
  
--		ret = copy_page_to_iter(page, offset, nr, iter);
-+		ret = copy_page_to_iter(page + index - page->index, offset,
-+				nr, iter);
- 		offset += ret;
- 		index += offset >> PAGE_SHIFT;
- 		offset &= ~PAGE_MASK;
-@@ -2356,6 +2358,7 @@ page_not_uptodate:
- 	 * because there really aren't any performance issues here
- 	 * and we need to check for errors.
+ 	if (write_mode == FALL_BACK_TO_NONDELALLOC)
+@@ -3014,8 +3013,6 @@ static int ext4_da_write_end(struct file *file,
+ 				      len, copied, page, fsdata);
+ 
+ 	trace_ext4_da_write_end(inode, pos, len, copied);
+-	start = pos & (PAGE_SIZE - 1);
+-	end = start + copied - 1;
+ 
+ 	/*
+ 	 * generic_write_end() will run mark_inode_dirty() if i_size
+@@ -3024,8 +3021,10 @@ static int ext4_da_write_end(struct file *file,
  	 */
-+	page = compound_head(page);
- 	ClearPageError(page);
- 	error = mapping->a_ops->readpage(file, page);
- 	if (!error) {
+ 	new_i_size = pos + copied;
+ 	if (copied && new_i_size > EXT4_I(inode)->i_disksize) {
++		struct page *head = compound_head(page);
++		unsigned long end = (pos & ~hpage_mask(head)) + copied - 1;
+ 		if (ext4_has_inline_data(inode) ||
+-		    ext4_da_should_update_i_disksize(page, end)) {
++		    ext4_da_should_update_i_disksize(head, end)) {
+ 			ext4_update_i_disksize(inode, new_i_size);
+ 			/* We need to mark inode dirty even if
+ 			 * new_i_size is less that inode->i_size
 -- 
 2.8.1
 
