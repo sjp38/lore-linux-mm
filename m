@@ -1,77 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F18826B0253
-	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 09:21:54 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id 93so45050835qtg.1
-        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 06:21:54 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x128si3255773qkd.192.2016.08.12.06.21.53
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C6716B0253
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 09:43:16 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id x130so40358972ite.3
+        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 06:43:16 -0700 (PDT)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0091.outbound.protection.outlook.com. [104.47.2.91])
+        by mx.google.com with ESMTPS id h9si4478709oib.31.2016.08.12.06.43.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Aug 2016 06:21:53 -0700 (PDT)
-Date: Fri, 12 Aug 2016 15:21:41 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 09/10] vhost, mm: make sure that oom_reaper doesn't
-	reap memory read by vhost
-Message-ID: <20160812132140.GA776@redhat.com>
-References: <1469734954-31247-1-git-send-email-mhocko@kernel.org> <1469734954-31247-10-git-send-email-mhocko@kernel.org> <20160728233359-mutt-send-email-mst@kernel.org> <20160729060422.GA5504@dhcp22.suse.cz> <20160729161039-mutt-send-email-mst@kernel.org> <20160729133529.GE8031@dhcp22.suse.cz> <20160729205620-mutt-send-email-mst@kernel.org> <20160731094438.GA24353@dhcp22.suse.cz> <20160812094236.GF3639@dhcp22.suse.cz>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 12 Aug 2016 06:43:14 -0700 (PDT)
+Subject: Re: userfaultfd: unexpected behavior with MODE_MISSING | MODE_WP
+ regions
+References: <ef90a2b0-eff4-2269-4a93-35f23ec8b1af@virtuozzo.com>
+ <20160811171726.xlna3ni4dp2ed4a4@redhat.com>
+From: Evgeny Yakovlev <eyakovlev@virtuozzo.com>
+Message-ID: <9696fafa-dfcf-052a-e916-013508303dc2@virtuozzo.com>
+Date: Fri, 12 Aug 2016 16:43:05 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160812094236.GF3639@dhcp22.suse.cz>
+In-Reply-To: <20160811171726.xlna3ni4dp2ed4a4@redhat.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, "Michael S. Tsirkin" <mst@redhat.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: linux-mm@kvack.org, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-On 08/12, Michal Hocko wrote:
+
+Hello Andrea,
+
+On 11.08.2016 20:17, Andrea Arcangeli wrote:
+> Hello Evgeny,
 >
-> > Let's CC Paul. Just to describe the situation. We have the following
-> > situation:
-> >
-> > #define __get_user_mm(mm, x, ptr)				\
-> > ({								\
-> > 	int ___gu_err = __get_user(x, ptr);			\
-> > 	if (!___gu_err && test_bit(MMF_UNSTABLE, &mm->flags))	\
-> > 		___gu_err = -EFAULT;				\
-> > 	___gu_err;						\
-> > })
-> >
-> > and the oom reaper doing:
-> >
-> > 	set_bit(MMF_UNSTABLE, &mm->flags);
-> >
-> > 	for (vma = mm->mmap ; vma; vma = vma->vm_next) {
-> > 		unmap_page_range
-> >
-> > I assume that write memory barrier between set_bit and unmap_page_range
-> > is not really needed because unmapping should already imply the memory
-> > barrier.
+> On Thu, Aug 11, 2016 at 04:51:30PM +0300, Evgeny Yakovlev wrote:
+>>    * 1. First fault is expected UFFD_PAGEFAULT_FLAG_WRITE set which we
+>> resolve
+>>    * with zeropage
+> What if you resolve it with bzero(4096);UFFDIO_COPY? Does the problem
+> go away?
 
-Well, I leave this to Paul, but...
+Yes, i don't see additional WP fault now, only expected missing write fault.
 
-I think it is not needed because we can rely on pte locking. We do
-not care if anything is re-ordered UNLESS __get_user() above actually
-triggers a fault and re-populates the page which was already unmapped
-by __oom_reap_task(), and in the latter case __get_user_mm() can't
-miss MMF_UNSTABLE simply because __get_user() and unmap_page_range()
-need to lock/unlock the same ptlock_ptr().
+> If the zeropage is mapped by UFFDIO_ZEROPAGE, there's no way to turn
+> that into a writable zeropage ever again because
+> userfaultfd_writeprotect is basically a no-vma-mangling mmap_sem-read
+> mprotect and it can't trigger faults. Instead a fault in do_wp_page is
+> required to get rid of the zeropage and copy it off.
 
-So we only need the compiler barrier to ensure that __get_user_mm()
-won't read MMF_UNSTABLE before __get_user(). But since __get_user()
-is function, it is not needed too.
+Maybe i am missing something but why do we then get WP faults on that 
+page right after we UFFDIO_ZEROPAGE it? We never call writeprotect on 
+zeropaged page and still get a WP fault on it which we can't resolve 
+properly.
 
-There is a more interesting case when another 3rd thread can trigger
-a fault and populate this page before __get_user_mm() calls _get_user().
-But even in this case I think we are fine.
+> If the problem goes away if you s/UFFDIO_ZEROPAGE/bzero(4096);
+> UFFDIO_COPY/ as I would expect, there would be two ways to solve it:
+>
+> 1) forbid UFFDIO_ZEROPAGE and not return the UFFDIO_ZEROPAGE ioctl in
+>     uffdio_register.ioctls, if UFFDIO_REGISTER is called with
+>     uffdio_register.mode = ...WP|..MISSING so userland is aware it
+>     can't use that.
+>
+> 2) teach UFFDIO_WRITEPROTECT not just to mangle pagetables but also
+>     trigger a write fault on any zeropage if it's called with
+>     uffdio_writeprotect.mode without UFFDIO_WRITEPROTECT_MODE_WP being
+>     set. This will require a bit more work to fix.
+>
+> The latter would increase performance if not all zeropages needs to be
+> turned writable.
+>
+> Feedback welcome on what solution would you prefer.
 
+Our use case is as follows. We have a huge region and most of it we need 
+to be writable. Most of the time we just gradually resolve missing 
+faults as they appear. We only enable write protection on some selective 
+already present pages to have a way to track attempted page modification 
+for a short period of time. We register initial region as MISSING | WP 
+so that we don't have to register a new page-sized region each time we 
+need to write-protect a single page inside a region.
 
-Whats really interesting is that I still fail to understand do we really
-need this hack, iiuc you are not sure too, and Michael didn't bother to
-explain why a bogus zero from anon memory is worse than other problems
-caused by SIGKKILL from oom-kill.c.
-
-Oleg.
+>
+> Thanks,
+> Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
