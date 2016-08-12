@@ -1,24 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 276656B0253
-	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 21:43:41 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 63so23448735pfx.0
-        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 18:43:41 -0700 (PDT)
-Received: from mail-pa0-x244.google.com (mail-pa0-x244.google.com. [2607:f8b0:400e:c03::244])
-        by mx.google.com with ESMTPS id c83si5990080pfd.268.2016.08.11.18.43.40
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B0A36B0253
+	for <linux-mm@kvack.org>; Thu, 11 Aug 2016 21:50:54 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id ag5so20068784pad.2
+        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 18:50:54 -0700 (PDT)
+Received: from mail-pa0-x241.google.com (mail-pa0-x241.google.com. [2607:f8b0:400e:c03::241])
+        by mx.google.com with ESMTPS id g2si6029529pfa.278.2016.08.11.18.50.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Aug 2016 18:43:40 -0700 (PDT)
-Received: by mail-pa0-x244.google.com with SMTP id vy10so607469pac.0
-        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 18:43:40 -0700 (PDT)
-Subject: Re: [PATCH 2/4] powerpc/mm: create numa nodes for hotplug memory
+        Thu, 11 Aug 2016 18:50:53 -0700 (PDT)
+Received: by mail-pa0-x241.google.com with SMTP id vy10so616320pac.0
+        for <linux-mm@kvack.org>; Thu, 11 Aug 2016 18:50:52 -0700 (PDT)
+Subject: Re: [PATCH 3/4] powerpc/mm: allow memory hotplug into a memoryless
+ node
 References: <1470680843-28702-1-git-send-email-arbab@linux.vnet.ibm.com>
- <1470680843-28702-3-git-send-email-arbab@linux.vnet.ibm.com>
+ <1470680843-28702-4-git-send-email-arbab@linux.vnet.ibm.com>
 From: Balbir Singh <bsingharora@gmail.com>
-Message-ID: <7ddeb774-1eb7-5529-912c-eb767b8623ce@gmail.com>
-Date: Fri, 12 Aug 2016 11:43:32 +1000
+Message-ID: <7d943111-d243-ffb3-ff5f-6d712c268e67@gmail.com>
+Date: Fri, 12 Aug 2016 11:50:43 +1000
 MIME-Version: 1.0
-In-Reply-To: <1470680843-28702-3-git-send-email-arbab@linux.vnet.ibm.com>
+In-Reply-To: <1470680843-28702-4-git-send-email-arbab@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -28,17 +29,28 @@ To: Reza Arbab <arbab@linux.vnet.ibm.com>, Rob Herring <robh+dt@kernel.org>, Mar
 
 
 On 09/08/16 04:27, Reza Arbab wrote:
-> When scanning the device tree to initialize the system NUMA topology,
-> process dt elements with compatible id "ibm,hotplug-aperture" to create
-> memoryless numa nodes.
-> 
-> These nodes will be filled when hotplug occurs within the associated
-> address range.
+> Remove the check which prevents us from hotplugging into an empty node.
 > 
 > Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
 > ---
+>  arch/powerpc/mm/numa.c | 13 +------------
+>  1 file changed, 1 insertion(+), 12 deletions(-)
+> 
+> diff --git a/arch/powerpc/mm/numa.c b/arch/powerpc/mm/numa.c
+> index 80d067d..bc70c4f 100644
+> --- a/arch/powerpc/mm/numa.c
+> +++ b/arch/powerpc/mm/numa.c
+> @@ -1127,7 +1127,7 @@ static int hot_add_node_scn_to_nid(unsigned long scn_addr)
+>  int hot_add_scn_to_nid(unsigned long scn_addr)
+>  {
+>  	struct device_node *memory = NULL;
+> -	int nid, found = 0;
+> +	int nid;
+>  
 
-Looks good to me
+Do we want to do this only for ibm,hotplug-aperture compatible ranges?
+
+I'm OK either ways
 
 Acked-by: Balbir Singh <bsingharora@gmail.com>
 
