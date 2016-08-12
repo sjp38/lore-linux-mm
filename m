@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 05EFA828F3
-	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 14:45:00 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id ez1so5830346pab.1
-        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 11:44:59 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id r71si10080971pfa.279.2016.08.12.11.38.52
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 32A49828F3
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 14:45:01 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id w128so6359666pfd.3
+        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 11:45:01 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id t78si10108463pfi.19.2016.08.12.11.39.00
         for <linux-mm@kvack.org>;
-        Fri, 12 Aug 2016 11:38:52 -0700 (PDT)
+        Fri, 12 Aug 2016 11:39:00 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 34/41] ext4: handle huge pages in ext4_da_write_end()
-Date: Fri, 12 Aug 2016 21:38:17 +0300
-Message-Id: <1471027104-115213-35-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 21/41] thp: introduce hpage_size() and hpage_mask()
+Date: Fri, 12 Aug 2016 21:38:04 +0300
+Message-Id: <1471027104-115213-22-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1471027104-115213-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1471027104-115213-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,47 +19,49 @@ List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Call ext4_da_should_update_i_disksize() for head page with offset
-relative to head page.
+Introduce new helpers which return size/mask of the page:
+HPAGE_PMD_SIZE/HPAGE_PMD_MASK if the page is PageTransHuge() and
+PAGE_SIZE/PAGE_MASK otherwise.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- fs/ext4/inode.c | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ include/linux/huge_mm.h | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
 
-diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index 1c325f62e766..0133f6fc4bb8 100644
---- a/fs/ext4/inode.c
-+++ b/fs/ext4/inode.c
-@@ -3006,7 +3006,6 @@ static int ext4_da_write_end(struct file *file,
- 	int ret = 0, ret2;
- 	handle_t *handle = ext4_journal_current_handle();
- 	loff_t new_i_size;
--	unsigned long start, end;
- 	int write_mode = (int)(unsigned long)fsdata;
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index 6f14de45b5ce..de2789b4402c 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -138,6 +138,20 @@ static inline int hpage_nr_pages(struct page *page)
+ 	return 1;
+ }
  
- 	if (write_mode == FALL_BACK_TO_NONDELALLOC)
-@@ -3014,8 +3013,6 @@ static int ext4_da_write_end(struct file *file,
- 				      len, copied, page, fsdata);
++static inline int hpage_size(struct page *page)
++{
++	if (unlikely(PageTransHuge(page)))
++		return HPAGE_PMD_SIZE;
++	return PAGE_SIZE;
++}
++
++static inline unsigned long hpage_mask(struct page *page)
++{
++	if (unlikely(PageTransHuge(page)))
++		return HPAGE_PMD_MASK;
++	return PAGE_MASK;
++}
++
+ extern int do_huge_pmd_numa_page(struct fault_env *fe, pmd_t orig_pmd);
  
- 	trace_ext4_da_write_end(inode, pos, len, copied);
--	start = pos & (PAGE_SIZE - 1);
--	end = start + copied - 1;
+ extern struct page *huge_zero_page;
+@@ -163,6 +177,8 @@ void put_huge_zero_page(void);
+ #define HPAGE_PMD_SIZE ({ BUILD_BUG(); 0; })
  
- 	/*
- 	 * generic_write_end() will run mark_inode_dirty() if i_size
-@@ -3024,8 +3021,10 @@ static int ext4_da_write_end(struct file *file,
- 	 */
- 	new_i_size = pos + copied;
- 	if (copied && new_i_size > EXT4_I(inode)->i_disksize) {
-+		struct page *head = compound_head(page);
-+		unsigned long end = (pos & ~hpage_mask(head)) + copied - 1;
- 		if (ext4_has_inline_data(inode) ||
--		    ext4_da_should_update_i_disksize(page, end)) {
-+		    ext4_da_should_update_i_disksize(head, end)) {
- 			ext4_update_i_disksize(inode, new_i_size);
- 			/* We need to mark inode dirty even if
- 			 * new_i_size is less that inode->i_size
+ #define hpage_nr_pages(x) 1
++#define hpage_size(x) PAGE_SIZE
++#define hpage_mask(x) PAGE_MASK
+ 
+ #define transparent_hugepage_enabled(__vma) 0
+ 
 -- 
 2.8.1
 
