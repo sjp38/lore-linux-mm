@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DD9E8828F3
-	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 14:47:08 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id pp5so5746065pac.3
-        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 11:47:08 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id ul1si10052419pac.252.2016.08.12.11.39.01
+	by kanga.kvack.org (Postfix) with ESMTP id 1A5F2828F3
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 14:47:11 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id pp5so5747474pac.3
+        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 11:47:11 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id g63si10072765pfg.227.2016.08.12.11.38.53
         for <linux-mm@kvack.org>;
-        Fri, 12 Aug 2016 11:39:01 -0700 (PDT)
+        Fri, 12 Aug 2016 11:38:53 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 23/41] fs: make block_read_full_page() be able to read huge page
-Date: Fri, 12 Aug 2016 21:38:06 +0300
-Message-Id: <1471027104-115213-24-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 41/41] ext4, vfs: add huge= mount option
+Date: Fri, 12 Aug 2016 21:38:24 +0300
+Message-Id: <1471027104-115213-42-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1471027104-115213-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1471027104-115213-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,135 +19,157 @@ List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-The approach is straight-forward: for compound pages we read out whole
-huge page.
+The same four values as in tmpfs case.
 
-For huge page we cannot have array of buffer head pointers on stack --
-it's 4096 pointers on x86-64 -- 'arr' is allocated with kmalloc() for
-huge pages.
+Encyption code is not yet ready to handle huge page, so we disable huge
+pages support if the inode has EXT4_INODE_ENCRYPT.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- fs/buffer.c                 | 22 +++++++++++++++++-----
- include/linux/buffer_head.h |  9 +++++----
- include/linux/page-flags.h  |  2 +-
- 3 files changed, 23 insertions(+), 10 deletions(-)
+ fs/ext4/ext4.h  |  5 +++++
+ fs/ext4/inode.c | 26 +++++++++++++++++++++-----
+ fs/ext4/super.c | 26 ++++++++++++++++++++++++++
+ 3 files changed, 52 insertions(+), 5 deletions(-)
 
-diff --git a/fs/buffer.c b/fs/buffer.c
-index 9c8eb9b6db6a..2739f5dae690 100644
---- a/fs/buffer.c
-+++ b/fs/buffer.c
-@@ -870,7 +870,7 @@ struct buffer_head *alloc_page_buffers(struct page *page, unsigned long size,
- 
- try_again:
- 	head = NULL;
--	offset = PAGE_SIZE;
-+	offset = hpage_size(page);
- 	while ((offset -= size) >= 0) {
- 		bh = alloc_buffer_head(GFP_NOFS);
- 		if (!bh)
-@@ -1466,7 +1466,7 @@ void set_bh_page(struct buffer_head *bh,
- 		struct page *page, unsigned long offset)
+diff --git a/fs/ext4/ext4.h b/fs/ext4/ext4.h
+index ea31931386ec..feece2d1f646 100644
+--- a/fs/ext4/ext4.h
++++ b/fs/ext4/ext4.h
+@@ -1123,6 +1123,11 @@ struct ext4_inode_info {
+ #define EXT4_MOUNT_DIOREAD_NOLOCK	0x400000 /* Enable support for dio read nolocking */
+ #define EXT4_MOUNT_JOURNAL_CHECKSUM	0x800000 /* Journal checksums */
+ #define EXT4_MOUNT_JOURNAL_ASYNC_COMMIT	0x1000000 /* Journal Async Commit */
++#define EXT4_MOUNT_HUGE_MODE		0x6000000 /* Huge support mode: */
++#define EXT4_MOUNT_HUGE_NEVER		0x0000000
++#define EXT4_MOUNT_HUGE_ALWAYS		0x2000000
++#define EXT4_MOUNT_HUGE_WITHIN_SIZE	0x4000000
++#define EXT4_MOUNT_HUGE_ADVISE		0x6000000
+ #define EXT4_MOUNT_DELALLOC		0x8000000 /* Delalloc support */
+ #define EXT4_MOUNT_DATA_ERR_ABORT	0x10000000 /* Abort on file data write */
+ #define EXT4_MOUNT_BLOCK_VALIDITY	0x20000000 /* Block validity checking */
+diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+index e9bfffbf22ed..828b882521ca 100644
+--- a/fs/ext4/inode.c
++++ b/fs/ext4/inode.c
+@@ -4370,7 +4370,7 @@ int ext4_get_inode_loc(struct inode *inode, struct ext4_iloc *iloc)
+ void ext4_set_inode_flags(struct inode *inode)
  {
- 	bh->b_page = page;
--	BUG_ON(offset >= PAGE_SIZE);
-+	BUG_ON(offset >= hpage_size(page));
- 	if (PageHighMem(page))
- 		/*
- 		 * This catches illegal uses and preserves the offset:
-@@ -2239,11 +2239,13 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
- {
- 	struct inode *inode = page->mapping->host;
- 	sector_t iblock, lblock;
--	struct buffer_head *bh, *head, *arr[MAX_BUF_PER_PAGE];
-+	struct buffer_head *arr_on_stack[MAX_BUF_PER_PAGE];
-+	struct buffer_head *bh, *head, **arr = arr_on_stack;
- 	unsigned int blocksize, bbits;
- 	int nr, i;
- 	int fully_mapped = 1;
+ 	unsigned int flags = EXT4_I(inode)->i_flags;
+-	unsigned int new_fl = 0;
++	unsigned int mask, new_fl = 0;
  
-+	VM_BUG_ON_PAGE(PageTail(page), page);
- 	head = create_page_buffers(page, inode, 0);
- 	blocksize = head->b_size;
- 	bbits = block_size_bits(blocksize);
-@@ -2254,6 +2256,11 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
- 	nr = 0;
- 	i = 0;
- 
-+	if (PageTransHuge(page)) {
-+		arr = kmalloc(sizeof(struct buffer_head *) * HPAGE_PMD_NR *
-+				MAX_BUF_PER_PAGE, GFP_NOFS);
+ 	if (flags & EXT4_SYNC_FL)
+ 		new_fl |= S_SYNC;
+@@ -4382,10 +4382,26 @@ void ext4_set_inode_flags(struct inode *inode)
+ 		new_fl |= S_NOATIME;
+ 	if (flags & EXT4_DIRSYNC_FL)
+ 		new_fl |= S_DIRSYNC;
+-	if (test_opt(inode->i_sb, DAX) && S_ISREG(inode->i_mode))
+-		new_fl |= S_DAX;
+-	inode_set_flags(inode, new_fl,
+-			S_SYNC|S_APPEND|S_IMMUTABLE|S_NOATIME|S_DIRSYNC|S_DAX);
++	if (S_ISREG(inode->i_mode) && !ext4_encrypted_inode(inode)) {
++		if (test_opt(inode->i_sb, DAX))
++			new_fl |= S_DAX;
++		switch (test_opt(inode->i_sb, HUGE_MODE)) {
++		case EXT4_MOUNT_HUGE_NEVER:
++			break;
++		case EXT4_MOUNT_HUGE_ALWAYS:
++			new_fl |= S_HUGE_ALWAYS;
++			break;
++		case EXT4_MOUNT_HUGE_WITHIN_SIZE:
++			new_fl |= S_HUGE_WITHIN_SIZE;
++			break;
++		case EXT4_MOUNT_HUGE_ADVISE:
++			new_fl |= S_HUGE_ADVISE;
++			break;
++		}
 +	}
-+
- 	do {
- 		if (buffer_uptodate(bh))
- 			continue;
-@@ -2269,7 +2276,9 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
- 					SetPageError(page);
- 			}
- 			if (!buffer_mapped(bh)) {
--				zero_user(page, i * blocksize, blocksize);
-+				zero_user(page + (i * blocksize / PAGE_SIZE),
-+						i * blocksize % PAGE_SIZE,
-+						blocksize);
- 				if (!err)
- 					set_buffer_uptodate(bh);
- 				continue;
-@@ -2295,7 +2304,7 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
- 		if (!PageError(page))
- 			SetPageUptodate(page);
- 		unlock_page(page);
--		return 0;
-+		goto out;
- 	}
- 
- 	/* Stage two: lock the buffers */
-@@ -2317,6 +2326,9 @@ int block_read_full_page(struct page *page, get_block_t *get_block)
- 		else
- 			submit_bh(REQ_OP_READ, 0, bh);
- 	}
-+out:
-+	if (arr != arr_on_stack)
-+		kfree(arr);
- 	return 0;
- }
- EXPORT_SYMBOL(block_read_full_page);
-diff --git a/include/linux/buffer_head.h b/include/linux/buffer_head.h
-index 006a8a42acfb..194a85822d5f 100644
---- a/include/linux/buffer_head.h
-+++ b/include/linux/buffer_head.h
-@@ -131,13 +131,14 @@ BUFFER_FNS(Meta, meta)
- BUFFER_FNS(Prio, prio)
- BUFFER_FNS(Defer_Completion, defer_completion)
- 
--#define bh_offset(bh)		((unsigned long)(bh)->b_data & ~PAGE_MASK)
-+#define bh_offset(bh)	((unsigned long)(bh)->b_data & ~hpage_mask(bh->b_page))
- 
- /* If we *know* page->private refers to buffer_heads */
--#define page_buffers(page)					\
-+#define page_buffers(__page)					\
- 	({							\
--		BUG_ON(!PagePrivate(page));			\
--		((struct buffer_head *)page_private(page));	\
-+		struct page *p = compound_head(__page);		\
-+		BUG_ON(!PagePrivate(p));			\
-+		((struct buffer_head *)page_private(p));	\
- 	})
- #define page_has_buffers(page)	PagePrivate(page)
- 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index a2bef9a41bcf..20b7684e9298 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -730,7 +730,7 @@ static inline void ClearPageSlabPfmemalloc(struct page *page)
-  */
- static inline int page_has_private(struct page *page)
- {
--	return !!(page->flags & PAGE_FLAGS_PRIVATE);
-+	return !!(compound_head(page)->flags & PAGE_FLAGS_PRIVATE);
++	mask = S_SYNC | S_APPEND | S_IMMUTABLE | S_NOATIME |
++		S_DIRSYNC | S_DAX | S_HUGE_MODE;
++	inode_set_flags(inode, new_fl, mask);
  }
  
- #undef PF_ANY
+ /* Propagate flags from i_flags to EXT4_I(inode)->i_flags */
+diff --git a/fs/ext4/super.c b/fs/ext4/super.c
+index 1c593aa0218e..7140e28f95ec 100644
+--- a/fs/ext4/super.c
++++ b/fs/ext4/super.c
+@@ -1123,6 +1123,7 @@ static int ext4_set_context(struct inode *inode, const void *ctx, size_t len,
+ 			ext4_set_inode_flag(inode, EXT4_INODE_ENCRYPT);
+ 			ext4_clear_inode_state(inode,
+ 					EXT4_STATE_MAY_INLINE_DATA);
++			ext4_set_inode_flags(inode);
+ 		}
+ 		return res;
+ 	}
+@@ -1137,6 +1138,7 @@ static int ext4_set_context(struct inode *inode, const void *ctx, size_t len,
+ 			len, 0);
+ 	if (!res) {
+ 		ext4_set_inode_flag(inode, EXT4_INODE_ENCRYPT);
++		ext4_set_inode_flags(inode);
+ 		res = ext4_mark_inode_dirty(handle, inode);
+ 		if (res)
+ 			EXT4_ERROR_INODE(inode, "Failed to mark inode dirty");
+@@ -1275,6 +1277,7 @@ enum {
+ 	Opt_dioread_nolock, Opt_dioread_lock,
+ 	Opt_discard, Opt_nodiscard, Opt_init_itable, Opt_noinit_itable,
+ 	Opt_max_dir_size_kb, Opt_nojournal_checksum,
++	Opt_huge_never, Opt_huge_always, Opt_huge_within_size, Opt_huge_advise,
+ };
+ 
+ static const match_table_t tokens = {
+@@ -1354,6 +1357,10 @@ static const match_table_t tokens = {
+ 	{Opt_init_itable, "init_itable"},
+ 	{Opt_noinit_itable, "noinit_itable"},
+ 	{Opt_max_dir_size_kb, "max_dir_size_kb=%u"},
++	{Opt_huge_never, "huge=never"},
++	{Opt_huge_always, "huge=always"},
++	{Opt_huge_within_size, "huge=within_size"},
++	{Opt_huge_advise, "huge=advise"},
+ 	{Opt_test_dummy_encryption, "test_dummy_encryption"},
+ 	{Opt_removed, "check=none"},	/* mount option from ext2/3 */
+ 	{Opt_removed, "nocheck"},	/* mount option from ext2/3 */
+@@ -1472,6 +1479,11 @@ static int clear_qf_name(struct super_block *sb, int qtype)
+ #define MOPT_NO_EXT3	0x0200
+ #define MOPT_EXT4_ONLY	(MOPT_NO_EXT2 | MOPT_NO_EXT3)
+ #define MOPT_STRING	0x0400
++#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
++#define MOPT_HUGE	0x1000
++#else
++#define MOPT_HUGE	MOPT_NOSUPPORT
++#endif
+ 
+ static const struct mount_opts {
+ 	int	token;
+@@ -1556,6 +1568,10 @@ static const struct mount_opts {
+ 	{Opt_jqfmt_vfsv0, QFMT_VFS_V0, MOPT_QFMT},
+ 	{Opt_jqfmt_vfsv1, QFMT_VFS_V1, MOPT_QFMT},
+ 	{Opt_max_dir_size_kb, 0, MOPT_GTE0},
++	{Opt_huge_never, EXT4_MOUNT_HUGE_NEVER, MOPT_HUGE},
++	{Opt_huge_always, EXT4_MOUNT_HUGE_ALWAYS, MOPT_HUGE},
++	{Opt_huge_within_size, EXT4_MOUNT_HUGE_WITHIN_SIZE, MOPT_HUGE},
++	{Opt_huge_advise, EXT4_MOUNT_HUGE_ADVISE, MOPT_HUGE},
+ 	{Opt_test_dummy_encryption, 0, MOPT_GTE0},
+ 	{Opt_err, 0, 0}
+ };
+@@ -1637,6 +1653,16 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
+ 		} else
+ 			return -1;
+ 	}
++	if (MOPT_HUGE != MOPT_NOSUPPORT && m->flags & MOPT_HUGE) {
++		sbi->s_mount_opt &= ~EXT4_MOUNT_HUGE_MODE;
++		sbi->s_mount_opt |= m->mount_opt;
++		if (m->mount_opt) {
++			ext4_msg(sb, KERN_WARNING, "Warning: "
++					"Support of huge pages is EXPERIMENTAL,"
++					" use at your own risk");
++		}
++		return 1;
++	}
+ 	if (m->flags & MOPT_CLEAR_ERR)
+ 		clear_opt(sb, ERRORS_MASK);
+ 	if (token == Opt_noquota && sb_any_quota_loaded(sb)) {
 -- 
 2.8.1
 
