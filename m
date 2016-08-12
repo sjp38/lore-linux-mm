@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 79100828FF
-	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 14:39:05 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id w128so6128814pfd.3
-        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 11:39:05 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id b64si10109475pfa.51.2016.08.12.11.38.48
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 64BEC828FF
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 14:39:07 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id pp5so5463773pac.3
+        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 11:39:07 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id k84si10104810pfa.56.2016.08.12.11.38.48
         for <linux-mm@kvack.org>;
         Fri, 12 Aug 2016 11:38:48 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 22/41] thp: do not threat slab pages as huge in hpage_{nr_pages,size,mask}
-Date: Fri, 12 Aug 2016 21:38:05 +0300
-Message-Id: <1471027104-115213-23-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 19/41] block: define BIO_MAX_PAGES to HPAGE_PMD_NR if huge page cache enabled
+Date: Fri, 12 Aug 2016 21:38:02 +0300
+Message-Id: <1471027104-115213-20-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1471027104-115213-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1471027104-115213-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,47 +19,30 @@ List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Slab pages can be compound, but we shouldn't threat them as THP for
-pupose of hpage_* helpers, otherwise it would lead to confusing results.
-
-For instance, ext4 uses slab pages for journal pages and we shouldn't
-confuse them with THPs. The easiest way is to exclude them in hpage_*
-helpers.
+We are going to do IO a huge page a time. So we need BIO_MAX_PAGES to be
+at least HPAGE_PMD_NR. For x86-64, it's 512 pages.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/huge_mm.h | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ include/linux/bio.h | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index de2789b4402c..5c5466ba37df 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -133,21 +133,21 @@ static inline spinlock_t *pmd_trans_huge_lock(pmd_t *pmd,
- }
- static inline int hpage_nr_pages(struct page *page)
- {
--	if (unlikely(PageTransHuge(page)))
-+	if (unlikely(!PageSlab(page) && PageTransHuge(page)))
- 		return HPAGE_PMD_NR;
- 	return 1;
- }
+diff --git a/include/linux/bio.h b/include/linux/bio.h
+index 583c10810e32..c7104a77e0db 100644
+--- a/include/linux/bio.h
++++ b/include/linux/bio.h
+@@ -40,7 +40,11 @@
+ #define BIO_BUG_ON
+ #endif
  
- static inline int hpage_size(struct page *page)
- {
--	if (unlikely(PageTransHuge(page)))
-+	if (unlikely(!PageSlab(page) && PageTransHuge(page)))
- 		return HPAGE_PMD_SIZE;
- 	return PAGE_SIZE;
- }
++#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
++#define BIO_MAX_PAGES		(HPAGE_PMD_NR > 256 ? HPAGE_PMD_NR : 256)
++#else
+ #define BIO_MAX_PAGES		256
++#endif
  
- static inline unsigned long hpage_mask(struct page *page)
- {
--	if (unlikely(PageTransHuge(page)))
-+	if (unlikely(!PageSlab(page) && PageTransHuge(page)))
- 		return HPAGE_PMD_MASK;
- 	return PAGE_MASK;
- }
+ #define bio_prio(bio)			(bio)->bi_ioprio
+ #define bio_set_prio(bio, prio)		((bio)->bi_ioprio = prio)
 -- 
 2.8.1
 
