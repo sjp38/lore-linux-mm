@@ -1,56 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 57D9A6B0253
-	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 20:15:07 -0400 (EDT)
-Received: by mail-yw0-f197.google.com with SMTP id i184so4059505ywb.1
-        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 17:15:07 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o10si6315257qtb.120.2016.08.12.17.15.06
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Aug 2016 17:15:06 -0700 (PDT)
-Date: Sat, 13 Aug 2016 03:15:00 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH 09/10] vhost, mm: make sure that oom_reaper doesn't reap
- memory read by vhost
-Message-ID: <20160813001500.yvmv67cram3bp7ug@redhat.com>
-References: <1469734954-31247-1-git-send-email-mhocko@kernel.org>
- <1469734954-31247-10-git-send-email-mhocko@kernel.org>
- <20160728233359-mutt-send-email-mst@kernel.org>
- <20160729060422.GA5504@dhcp22.suse.cz>
- <20160729161039-mutt-send-email-mst@kernel.org>
- <20160729133529.GE8031@dhcp22.suse.cz>
- <20160729205620-mutt-send-email-mst@kernel.org>
- <20160731094438.GA24353@dhcp22.suse.cz>
- <20160812094236.GF3639@dhcp22.suse.cz>
- <20160812132140.GA776@redhat.com>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AB256B0253
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 21:43:03 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id w128so6504088pfd.3
+        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 18:43:03 -0700 (PDT)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id qg8si11777110pac.135.2016.08.12.18.43.01
+        for <linux-mm@kvack.org>;
+        Fri, 12 Aug 2016 18:43:02 -0700 (PDT)
+Date: Sat, 13 Aug 2016 11:42:59 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: 4.7.0, cp -al causes OOM
+Message-ID: <20160813014259.GB16044@dastard>
+References: <201608120901.41463.a.miskiewicz@gmail.com>
+ <20160812074340.GC3639@dhcp22.suse.cz>
+ <20160812074455.GD3639@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160812132140.GA776@redhat.com>
+In-Reply-To: <20160812074455.GD3639@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: arekm@maven.pl, linux-ext4@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Aug 12, 2016 at 03:21:41PM +0200, Oleg Nesterov wrote:
-> Whats really interesting is that I still fail to understand do we really
-> need this hack, iiuc you are not sure too, and Michael didn't bother to
-> explain why a bogus zero from anon memory is worse than other problems
-> caused by SIGKKILL from oom-kill.c.
+On Fri, Aug 12, 2016 at 09:44:55AM +0200, Michal Hocko wrote:
+> > [...]
+> > 
+> > > [114824.060378] Mem-Info:
+> > > [114824.060403] active_anon:170168 inactive_anon:170168 isolated_anon:0
+> > >                  active_file:192892 inactive_file:133384 isolated_file:0
+> > 
+> > LRU 32%
+> > 
+> > >                  unevictable:0 dirty:37109 writeback:1 unstable:0
+> > >                  slab_reclaimable:1176088 slab_unreclaimable:109598
+> > 
+> > slab 61%
+> > 
+> > [...]
+> > 
+> > That being said it is really unusual to see such a large kernel memory
+> > foot print. The slab memory consumption grows but it doesn't seem to be
+> > a memory leak at first glance.
 
-vhost thread will die, but vcpu thread is going on.  If it's memory is
-corrupted because vhost read 0 and uses that as an array index, it can
-do things like corrupt the disk, so it can't be restarted.
+>From discussions on #xfs, it's the ext4 inode slab that is consuming
+most of this memory. Which, of course, is expected when running
+a workload that is creating millions of lots of hardlinks.
 
-But I really wish we didn't need this special-casing.  Can't PTEs be
-made invalid on oom instead of pointing them at the zero page? And then
-won't memory accesses trigger pagefaults instead of returning 0? That
-would make regular copy_from_user machinery do the right thing,
-making vhost stop running as appropriate.
+AFAICT, the difference between XFS and ext4 in this case is that XFS
+throttles direct reclaim to the synchronous inode reclaim rate in
+its custom inode cache shrinker. This is necessary because when we
+are dirtying large numbers of inodes, memory reclaim encounters
+those dirty inodes and can't reclaim them immediately. i.e. it takes
+IO to reclaim them, just like it does for dirty pages.
 
+However, we throttle the rate at which we dirty pages to prevent
+filling memory with unreclaimable dirty pages as that causes
+spurious OOM situations to occur. The same spurious OOM situations
+occur when memory is full of dirty inodes, and so allocation rate
+throttling is needed for large scale inode cache intersive workloads
+like this as well....
+
+Cheers,
+
+Dave.
 -- 
-MST
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
