@@ -1,52 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DF596B0253
-	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 19:19:54 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id 93so2279033qtg.1
-        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 16:19:54 -0700 (PDT)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id m68si4401967wma.37.2016.08.12.16.19.47
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 57D9A6B0253
+	for <linux-mm@kvack.org>; Fri, 12 Aug 2016 20:15:07 -0400 (EDT)
+Received: by mail-yw0-f197.google.com with SMTP id i184so4059505ywb.1
+        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 17:15:07 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o10si6315257qtb.120.2016.08.12.17.15.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Aug 2016 16:19:48 -0700 (PDT)
-Received: by mail-wm0-x241.google.com with SMTP id i138so102923wmf.3
-        for <linux-mm@kvack.org>; Fri, 12 Aug 2016 16:19:47 -0700 (PDT)
-Date: Sat, 13 Aug 2016 02:19:44 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv2, 00/41] ext4: support of huge pages
-Message-ID: <20160812231944.GA5260@node.shutemov.name>
-References: <1471027104-115213-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20160812203440.GD30280@thunk.org>
+        Fri, 12 Aug 2016 17:15:06 -0700 (PDT)
+Date: Sat, 13 Aug 2016 03:15:00 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH 09/10] vhost, mm: make sure that oom_reaper doesn't reap
+ memory read by vhost
+Message-ID: <20160813001500.yvmv67cram3bp7ug@redhat.com>
+References: <1469734954-31247-1-git-send-email-mhocko@kernel.org>
+ <1469734954-31247-10-git-send-email-mhocko@kernel.org>
+ <20160728233359-mutt-send-email-mst@kernel.org>
+ <20160729060422.GA5504@dhcp22.suse.cz>
+ <20160729161039-mutt-send-email-mst@kernel.org>
+ <20160729133529.GE8031@dhcp22.suse.cz>
+ <20160729205620-mutt-send-email-mst@kernel.org>
+ <20160731094438.GA24353@dhcp22.suse.cz>
+ <20160812094236.GF3639@dhcp22.suse.cz>
+ <20160812132140.GA776@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160812203440.GD30280@thunk.org>
+In-Reply-To: <20160812132140.GA776@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Michal Hocko <mhocko@kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>
 
-On Fri, Aug 12, 2016 at 04:34:40PM -0400, Theodore Ts'o wrote:
-> On Fri, Aug 12, 2016 at 09:37:43PM +0300, Kirill A. Shutemov wrote:
-> > Here's stabilized version of my patchset which intended to bring huge pages
-> > to ext4.
-> 
-> So this patch is more about mm level changes than it is about the file
-> system, and I didn't see any comments from the linux-mm peanut gallery
-> (unless the linux-ext4 list got removed from the cc list, or some such).
-> 
-> I haven't had time to take a close look at the ext4 changes, and I'll
-> try to carve out some time to do that
+On Fri, Aug 12, 2016 at 03:21:41PM +0200, Oleg Nesterov wrote:
+> Whats really interesting is that I still fail to understand do we really
+> need this hack, iiuc you are not sure too, and Michael didn't bother to
+> explain why a bogus zero from anon memory is worse than other problems
+> caused by SIGKKILL from oom-kill.c.
 
-I would appreciate it.
+vhost thread will die, but vcpu thread is going on.  If it's memory is
+corrupted because vhost read 0 and uses that as an array index, it can
+do things like corrupt the disk, so it can't be restarted.
 
-> --- but has anyone from the mm
-> side of the world taken a look at these patches?
-
-Not yet. I had hard time obtaining review on similar-sized patchsets
-before :-/
+But I really wish we didn't need this special-casing.  Can't PTEs be
+made invalid on oom instead of pointing them at the zero page? And then
+won't memory accesses trigger pagefaults instead of returning 0? That
+would make regular copy_from_user machinery do the right thing,
+making vhost stop running as appropriate.
 
 -- 
- Kirill A. Shutemov
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
