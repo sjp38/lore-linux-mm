@@ -1,72 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BB8A06B0005
-	for <linux-mm@kvack.org>; Mon, 15 Aug 2016 05:49:15 -0400 (EDT)
-Received: by mail-yb0-f198.google.com with SMTP id x37so46177777ybh.3
-        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 02:49:15 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id fg10si19135905wjb.215.2016.08.15.02.49.14
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Aug 2016 02:49:14 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id i5so10218292wmg.2
-        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 02:49:14 -0700 (PDT)
-Date: Mon, 15 Aug 2016 11:49:12 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 09/10] vhost, mm: make sure that oom_reaper doesn't reap
- memory read by vhost
-Message-ID: <20160815094912.GB3360@dhcp22.suse.cz>
-References: <20160729161039-mutt-send-email-mst@kernel.org>
- <20160729133529.GE8031@dhcp22.suse.cz>
- <20160729205620-mutt-send-email-mst@kernel.org>
- <20160731094438.GA24353@dhcp22.suse.cz>
- <20160812094236.GF3639@dhcp22.suse.cz>
- <20160812132140.GA776@redhat.com>
- <20160813001500.yvmv67cram3bp7ug@redhat.com>
- <20160814084151.GA9248@dhcp22.suse.cz>
- <20160814165720.wcvejj7h6k7zz72a@redhat.com>
- <20160815020525-mutt-send-email-mst@kernel.org>
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D987D6B0005
+	for <linux-mm@kvack.org>; Mon, 15 Aug 2016 06:47:56 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id pp5so98678809pac.3
+        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 03:47:56 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id g63si26158973pfg.227.2016.08.15.03.47.55
+        for <linux-mm@kvack.org>;
+        Mon, 15 Aug 2016 03:47:55 -0700 (PDT)
+Date: Mon, 15 Aug 2016 11:47:52 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [PATCH] arm64: Introduce execute-only page access permissions
+Message-ID: <20160815104751.GC22320@e104818-lin.cambridge.arm.com>
+References: <1470937490-7375-1-git-send-email-catalin.marinas@arm.com>
+ <CAGXu5jJTuJ+k948BU4rDGF=tHv54TR0JQVTbcVvzp=NtfQrL9Q@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160815020525-mutt-send-email-mst@kernel.org>
+In-Reply-To: <CAGXu5jJTuJ+k948BU4rDGF=tHv54TR0JQVTbcVvzp=NtfQrL9Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Oleg Nesterov <oleg@redhat.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>
+To: Kees Cook <keescook@chromium.org>
+Cc: Linux-MM <linux-mm@kvack.org>, Will Deacon <will.deacon@arm.com>, LKML <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Mon 15-08-16 02:06:31, Michael S. Tsirkin wrote:
-[...]
-> So fundamentally, won't the following make copy to/from user
-> return EFAULT?  If yes, vhost is already prepared to handle that.
+On Fri, Aug 12, 2016 at 11:23:03AM -0700, Kees Cook wrote:
+> On Thu, Aug 11, 2016 at 10:44 AM, Catalin Marinas
+> <catalin.marinas@arm.com> wrote:
+> > The ARMv8 architecture allows execute-only user permissions by clearing
+> > the PTE_UXN and PTE_USER bits. However, the kernel running on a CPU
+> > implementation without User Access Override (ARMv8.2 onwards) can still
+> > access such page, so execute-only page permission does not protect
+> > against read(2)/write(2) etc. accesses. Systems requiring such
+> > protection must enable features like SECCOMP.
 > 
-> 
-> diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-> index dc80230..e5dbee5 100644
-> --- a/arch/x86/mm/fault.c
-> +++ b/arch/x86/mm/fault.c
-> @@ -1309,6 +1309,11 @@ retry:
->  		might_sleep();
->  	}
->  
-> +	if (unlikely(test_bit(MMF_UNSTABLE, &mm->flags))) {
-> +		bad_area(regs, error_code, address);
-> +		return;
-> +	}
-> +
->  	vma = find_vma(mm, address);
->  	if (unlikely(!vma)) {
->  		bad_area(regs, error_code, address);
+> So, UAO CPUs will bypass this protection in userspace if using
+> read/write on a memory-mapped file?
 
-This would be racy but even if we did the check _after_ the #PF is
-handled then I am not very happy to touch the #PF path which is quite
-hot for something as rare as OOM and which only has one user which needs
-a special handling. That is the primary reason why I prefer the specific
-API.
+It's the other way around. CPUs prior to ARMv8.2 (when UAO was
+introduced) or with the CONFIG_ARM64_UAO disabled can still access
+user execute-only memory regions while running in kernel mode via the
+copy_*_user, (get|put)_user etc. routines. So a way user can bypass this
+protection is by using such address as argument to read/write file
+operations.
+
+I don't think mmap() is an issue since such region is already mapped, so
+it would require mprotect(). As for the latter, it would most likely be
+restricted (probably together with read/write) SECCOMP.
+
+> I'm just trying to make sure I understand the bypass scenario. And is
+> this something that can be fixed? If we add exec-only, I feel like it
+> shouldn't have corner case surprises. :)
+
+I think we need better understanding of the usage scenarios for
+exec-only. IIUC (from those who first asked me for this feature), it is
+an additional protection on top of ASLR to prevent an untrusted entity
+from scanning the memory for ROP/JOP gadgets. An instrumented compiler
+would avoid generating the literal pool in the same section as the
+executable code, thus allowing the instructions to be mapped as
+executable-only. It's not clear to me how such untrusted code ends up
+scanning the memory, maybe relying on other pre-existent bugs (buffer
+under/overflows). I assume if such code is allowed to do system calls,
+all bets are off already.
 
 -- 
-Michal Hocko
-SUSE Labs
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
