@@ -1,46 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 03EAD828F3
-	for <linux-mm@kvack.org>; Mon, 15 Aug 2016 15:10:08 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id w128so131758200pfd.3
-        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 12:10:07 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id p4si19115744paz.202.2016.08.15.12.09.55
-        for <linux-mm@kvack.org>;
-        Mon, 15 Aug 2016 12:09:55 -0700 (PDT)
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH 7/7] dax: remove "depends on BROKEN" from FS_DAX_PMD
-Date: Mon, 15 Aug 2016 13:09:18 -0600
-Message-Id: <20160815190918.20672-8-ross.zwisler@linux.intel.com>
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CE9A6B0038
+	for <linux-mm@kvack.org>; Mon, 15 Aug 2016 16:21:49 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id e70so179590665ioi.3
+        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 13:21:49 -0700 (PDT)
+Received: from mail-oi0-x235.google.com (mail-oi0-x235.google.com. [2607:f8b0:4003:c06::235])
+        by mx.google.com with ESMTPS id k8si1192030oif.292.2016.08.15.13.21.48
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 15 Aug 2016 13:21:48 -0700 (PDT)
+Received: by mail-oi0-x235.google.com with SMTP id 4so73820084oih.2
+        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 13:21:48 -0700 (PDT)
+MIME-Version: 1.0
 In-Reply-To: <20160815190918.20672-1-ross.zwisler@linux.intel.com>
 References: <20160815190918.20672-1-ross.zwisler@linux.intel.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 15 Aug 2016 13:21:47 -0700
+Message-ID: <CAPcyv4j_eh8Rcozb40JeiPwvbPoMY2sCt+yTewZ-MZzUkBbj-Q@mail.gmail.com>
+Subject: Re: [PATCH 0/7] re-enable DAX PMD support
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
 
-Now that DAX PMD faults are once again working and are now participating in
-DAX's radix tree locking scheme, allow their config option to be enabled.
+On Mon, Aug 15, 2016 at 12:09 PM, Ross Zwisler
+<ross.zwisler@linux.intel.com> wrote:
+> DAX PMDs have been disabled since Jan Kara introduced DAX radix tree based
+> locking.  This series allows DAX PMDs to participate in the DAX radix tree
+> based locking scheme so that they can be re-enabled.
 
-Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
----
- fs/Kconfig | 1 -
- 1 file changed, 1 deletion(-)
+Looks good to me.
 
-diff --git a/fs/Kconfig b/fs/Kconfig
-index 2bc7ad7..b6f0fce 100644
---- a/fs/Kconfig
-+++ b/fs/Kconfig
-@@ -55,7 +55,6 @@ config FS_DAX_PMD
- 	depends on FS_DAX
- 	depends on ZONE_DEVICE
- 	depends on TRANSPARENT_HUGEPAGE
--	depends on BROKEN
- 
- endif # BLOCK
- 
--- 
-2.9.0
+> This series restores DAX PMD functionality back to what it was before it
+> was disabled.  There is still a known issue between DAX PMDs and hole
+> punch, which I am currently working on and which I plan to address with a
+> separate series.
+
+Perhaps we should hold off on applying patch 6 and 7 until after the
+hole-punch fix is ready?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
