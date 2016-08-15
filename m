@@ -1,89 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BB2656B025F
-	for <linux-mm@kvack.org>; Mon, 15 Aug 2016 12:15:17 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id 101so126623196qtb.0
-        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 09:15:17 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g23si14177848qtb.82.2016.08.15.09.15.16
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 39C106B0005
+	for <linux-mm@kvack.org>; Mon, 15 Aug 2016 13:45:12 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id i140so131252950qke.0
+        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 10:45:12 -0700 (PDT)
+Received: from mail-wm0-x233.google.com (mail-wm0-x233.google.com. [2a00:1450:400c:c09::233])
+        by mx.google.com with ESMTPS id a62si16296122wmc.78.2016.08.15.10.45.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Aug 2016 09:15:17 -0700 (PDT)
-Date: Mon, 15 Aug 2016 12:15:13 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: [dm-devel] [RFC PATCH 2/2] mm, mempool: do not throttle
- PF_LESS_THROTTLE tasks
-In-Reply-To: <20160814103409.GC9248@dhcp22.suse.cz>
-Message-ID: <alpine.LRH.2.02.1608151211280.13026@file01.intranet.prod.int.rdu2.redhat.com>
-References: <20160725083247.GD9401@dhcp22.suse.cz> <87lh0n4ufs.fsf@notabene.neil.brown.name> <20160727182411.GE21859@dhcp22.suse.cz> <87eg6e4vhc.fsf@notabene.neil.brown.name> <20160728071711.GB31860@dhcp22.suse.cz> <alpine.LRH.2.02.1608030844470.15274@file01.intranet.prod.int.rdu2.redhat.com>
- <20160803143419.GC1490@dhcp22.suse.cz> <alpine.LRH.2.02.1608041446430.21662@file01.intranet.prod.int.rdu2.redhat.com> <20160812123242.GH3639@dhcp22.suse.cz> <alpine.LRH.2.02.1608131323550.3291@file01.intranet.prod.int.rdu2.redhat.com>
- <20160814103409.GC9248@dhcp22.suse.cz>
+        Mon, 15 Aug 2016 10:45:11 -0700 (PDT)
+Received: by mail-wm0-x233.google.com with SMTP id i5so117601781wmg.0
+        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 10:45:10 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20160815104751.GC22320@e104818-lin.cambridge.arm.com>
+References: <1470937490-7375-1-git-send-email-catalin.marinas@arm.com>
+ <CAGXu5jJTuJ+k948BU4rDGF=tHv54TR0JQVTbcVvzp=NtfQrL9Q@mail.gmail.com> <20160815104751.GC22320@e104818-lin.cambridge.arm.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Mon, 15 Aug 2016 10:45:09 -0700
+Message-ID: <CAGXu5jJTeta2OnL8KKHesG_HdeCvcXtaqjAir1cUvyfivaQeuQ@mail.gmail.com>
+Subject: Re: [PATCH] arm64: Introduce execute-only page access permissions
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>, NeilBrown <neilb@suse.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "dm-devel@redhat.com David Rientjes" <rientjes@google.com>, Ondrej Kozina <okozina@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Linux-MM <linux-mm@kvack.org>, Will Deacon <will.deacon@arm.com>, LKML <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
+On Mon, Aug 15, 2016 at 3:47 AM, Catalin Marinas
+<catalin.marinas@arm.com> wrote:
+> On Fri, Aug 12, 2016 at 11:23:03AM -0700, Kees Cook wrote:
+>> On Thu, Aug 11, 2016 at 10:44 AM, Catalin Marinas
+>> <catalin.marinas@arm.com> wrote:
+>> > The ARMv8 architecture allows execute-only user permissions by clearing
+>> > the PTE_UXN and PTE_USER bits. However, the kernel running on a CPU
+>> > implementation without User Access Override (ARMv8.2 onwards) can still
+>> > access such page, so execute-only page permission does not protect
+>> > against read(2)/write(2) etc. accesses. Systems requiring such
+>> > protection must enable features like SECCOMP.
+>>
+>> So, UAO CPUs will bypass this protection in userspace if using
+>> read/write on a memory-mapped file?
+>
+> It's the other way around. CPUs prior to ARMv8.2 (when UAO was
+> introduced) or with the CONFIG_ARM64_UAO disabled can still access
+> user execute-only memory regions while running in kernel mode via the
+> copy_*_user, (get|put)_user etc. routines. So a way user can bypass this
+> protection is by using such address as argument to read/write file
+> operations.
 
+Ah, okay. So exec-only for _userspace_ will always work, but exec-only
+for _kernel_ will only work on ARMv8.2 with CONFIG_ARM64_UAO?
 
-On Sun, 14 Aug 2016, Michal Hocko wrote:
+> I don't think mmap() is an issue since such region is already mapped, so
+> it would require mprotect(). As for the latter, it would most likely be
+> restricted (probably together with read/write) SECCOMP.
+>
+>> I'm just trying to make sure I understand the bypass scenario. And is
+>> this something that can be fixed? If we add exec-only, I feel like it
+>> shouldn't have corner case surprises. :)
+>
+> I think we need better understanding of the usage scenarios for
+> exec-only. IIUC (from those who first asked me for this feature), it is
+> an additional protection on top of ASLR to prevent an untrusted entity
+> from scanning the memory for ROP/JOP gadgets. An instrumented compiler
+> would avoid generating the literal pool in the same section as the
+> executable code, thus allowing the instructions to be mapped as
+> executable-only. It's not clear to me how such untrusted code ends up
+> scanning the memory, maybe relying on other pre-existent bugs (buffer
+> under/overflows). I assume if such code is allowed to do system calls,
+> all bets are off already.
 
-> On Sat 13-08-16 13:34:29, Mikulas Patocka wrote:
-> > 
-> > 
-> > On Fri, 12 Aug 2016, Michal Hocko wrote:
-> > 
-> > > On Thu 04-08-16 14:49:41, Mikulas Patocka wrote:
-> > > 
-> > > > On Wed, 3 Aug 2016, Michal Hocko wrote:
-> > > > 
-> > > > > But the device congestion is not the only condition required for the
-> > > > > throttling. The pgdat has also be marked congested which means that the
-> > > > > LRU page scanner bumped into dirty/writeback/pg_reclaim pages at the
-> > > > > tail of the LRU. That should only happen if we are rotating LRUs too
-> > > > > quickly. AFAIU the reclaim shouldn't allow free ticket scanning in that
-> > > > > situation.
-> > > > 
-> > > > The obvious problem here is that mempool allocations should sleep in 
-> > > > mempool_alloc() on &pool->wait (until someone returns some entries into 
-> > > > the mempool), they should not sleep inside the page allocator.
-> > > 
-> > > I agree that mempool_alloc should _primarily_ sleep on their own
-> > > throttling mechanism. I am not questioning that. I am just saying that
-> > > the page allocator has its own throttling which it relies on and that
-> > > cannot be just ignored because that might have other undesirable side
-> > > effects. So if the right approach is really to never throttle certain
-> > > requests then we have to bail out from a congested nodes/zones as soon
-> > > as the congestion is detected.
-> > > 
-> > > Now, I would like to see that something like that is _really_ necessary.
-> > 
-> > Currently, it is not a problem - device mapper reports the device as 
-> > congested only if the underlying physical disks are congested.
-> > 
-> > But once we change it so that device mapper reports congested state on its 
-> > own (when it has too many bios in progress), this starts being a problem.
-> 
-> OK, can we wait until it starts becoming a real problem and solve it
-> appropriately then?
+Yeah, the "block gadget scanning" tends to be the largest reason for
+this. That kind of scanning is usually the result of a wild buffer
+read of some kind. It's obviously most useful for "unknown" builds,
+but still has value even for Distro-style kernels since they're
+updated so regularly that automated attacks must keep an ever-growing
+mapping of kernels to target.
 
-I don't like the idea to deliberately introduce some code that triggers 
-this bug into device mapper, then wait until some user hits the bug and 
-then fix the bug.
+-Kees
 
-If the VM throttles mempool allocations when the swap device is congested 
-- than I won't report the device as congested in the device mapper.
-
-Mikulas
-
-> I will repost the patch which removes thottle_vm_pageout in the meantime
-> as it doesn't seem to be needed anymore.
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
-> 
+-- 
+Kees Cook
+Nexus Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
