@@ -1,79 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C6B7E6B0005
-	for <linux-mm@kvack.org>; Mon, 15 Aug 2016 11:00:28 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id i64so173296182ith.2
-        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 08:00:28 -0700 (PDT)
-Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00089.outbound.protection.outlook.com. [40.107.0.89])
-        by mx.google.com with ESMTPS id l14si11308674otd.171.2016.08.15.08.00.26
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EAD1A6B025F
+	for <linux-mm@kvack.org>; Mon, 15 Aug 2016 11:01:25 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id 101so122790036qtb.0
+        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 08:01:25 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ss6si20418101wjb.7.2016.08.15.08.01.24
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 15 Aug 2016 08:00:27 -0700 (PDT)
-Subject: Re: [PATCH v14 04/14] task_isolation: add initial support
-References: <1470774596-17341-1-git-send-email-cmetcalf@mellanox.com>
- <1470774596-17341-5-git-send-email-cmetcalf@mellanox.com>
- <20160811181132.GD4214@lerouge>
- <alpine.DEB.2.20.1608111349190.1644@east.gentwo.org>
-From: Chris Metcalf <cmetcalf@mellanox.com>
-Message-ID: <c675d2b6-c380-2a3f-6d49-b5e8b48eae1f@mellanox.com>
-Date: Mon, 15 Aug 2016 10:59:55 -0400
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 15 Aug 2016 08:01:24 -0700 (PDT)
+Date: Mon, 15 Aug 2016 17:01:23 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: OOM killer changes
+Message-ID: <20160815150123.GG3360@dhcp22.suse.cz>
+References: <d8116023-dcd4-8763-af77-f2889f84cdb6@Quantum.com>
+ <20160801200926.GF31957@dhcp22.suse.cz>
+ <3c022d92-9c96-9022-8496-aa8738fb7358@quantum.com>
+ <20160801202616.GG31957@dhcp22.suse.cz>
+ <b91f97ee-c369-43be-c934-f84b96260ead@Quantum.com>
+ <27bd5116-f489-252c-f257-97be00786629@Quantum.com>
+ <20160802071010.GB12403@dhcp22.suse.cz>
+ <ccad54a2-be1e-44cf-b9c8-d6b34af4901d@quantum.com>
+ <6cb37d4a-d2dd-6c2f-a65d-51474103bf86@Quantum.com>
+ <d1f63745-b9e3-b699-8a5a-08f06c72b392@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1608111349190.1644@east.gentwo.org>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <d1f63745-b9e3-b699-8a5a-08f06c72b392@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>, Frederic Weisbecker <fweisbec@gmail.com>
-Cc: Gilad Ben Yossef <giladb@mellanox.com>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van
- Riel <riel@redhat.com>, Tejun Heo <tj@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Viresh Kumar <viresh.kumar@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 8/11/2016 2:50 PM, Christoph Lameter wrote:
-> On Thu, 11 Aug 2016, Frederic Weisbecker wrote:
->
->> Do we need to quiesce vmstat everytime before entering userspace?
->> I thought that vmstat only need to be offlined once and for all?
-> Once is sufficient after disabling the tick.
+On Mon 15-08-16 11:16:36, Vlastimil Babka wrote:
+> On 08/15/2016 06:48 AM, Ralf-Peter Rohbeck wrote:
+> > On 02.08.2016 12:25, Ralf-Peter Rohbeck wrote:
+> >>
+> > Took me a little longer than expected due to work. The failure wouldn't 
+> > happen for a while and so I started a couple of scripts and let them 
+> > run. When I checked today the server didn't respond on the network and 
+> > sure enough it had killed everything. This is with 4.7.0 with the config 
+> > based on Debian 4.7-rc7.
+> > 
+> > trace_pipe got a little big (5GB) so I uploaded the logs to 
+> > https://filebin.net/box0wycfouvhl6sr/OOM_4.7.0.tar.bz2. before_btrfs is 
+> > before the btrfs filesystems were mounted.
+> > I did run a btrfs balance because it creates IO load and I needed to 
+> > balance anyway. Maybe that's what caused it?
+> 
+> pgmigrate_success        46738962
+> pgmigrate_fail          135649772
+> compact_migrate_scanned 309726659
+> compact_free_scanned   9715615169
+> compact_isolated        229689596
+> compact_stall 4777
+> compact_fail 3068
+> compact_success 1709
+> compact_daemon_wake 207834
+> 
+> The migration failures are quite enormous. Very quick analysis of the
+> trace seems to confirm that these are mostly "real", as opposed to result
+> of failure to isolate free pages for migration targets, although the free
+> scanner spent a lot of time:
+> 
+> > grep "nr_failed=32" -B1 trace_pipe.log | grep isolate_freepages.*nr_taken=0 | wc -l
+> 3246
+> 
+> So is it one of the cases where fs is unable to migrate dirty/writeback pages?
 
-It's true that task_isolation_enter() is called every time before
-returning to user space while task isolation is enabled.
+It smells that way. Now we should find out why and what can we do about
+that. I suspect that try_to_release_page is not able to release the page
+for migration. Btrfs doesn't seem to have migratepage for page cache
+pages so it should go via fallback_migrate_page.
 
-But once we enter the kernel again after returning from the initial
-prctl() -- assuming we are in NOSIG mode so doing so is legal in the
-first place -- almost anything can happen, certainly including
-restarting the tick.  Thus, we have to make sure that normal quiescing
-happens again before we return to userspace.
-
-For vmstat, you're right that it's somewhat heavyweight to do the
-quiesce, and if we don't need it, it's wasted time on the return path.
-So I will add a guard call to the new vmstat_idle() before invoking
-quiet_vmstat_sync().  This slows down the path where it turns out we
-do need to quieten vmstat, but not by too much.
-
-The LRU quiesce is quite light-weight.  We just check pagevec_count()
-on a handful of pagevec's, confirm they are all zero, and return
-without further work.  So for that one, adding a separate
-lru_add_drain_needed() guard test would just be wasted effort.
-
-The thing to remember is that this is only relevant if the user has
-explicitly requested the NOSIG behavior from task isolation, which we
-don't really expect to be the default - we are implicitly encouraging
-use of the default semantics of "you can't enter the kernel again
-until you turn off isolation".
-
-> > +	if (!tick_nohz_tick_stopped())
-> > +		set_tsk_need_resched(current);
-> > Again, that won't help
-
-It won't be better than spinning in a loop if there aren't any other
-schedulable processes, but it won't be worse either.  If there is
-another schedulable process, we at least will schedule it sooner than
-if we just sat in a busy loop and waited for the scheduler to kick
-us. But there's nothing else we can do anyway if we want to maintain
-the guarantee that the dyn tick is stopped before return to userspace.
-
+The following diff should tell us whether this is really the case. Just
+open trace_pipe and see whether this path really triggered.
+---
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 72c09dea6526..120e2e5fcbea 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -729,8 +729,10 @@ static int fallback_migrate_page(struct address_space *mapping,
+ 	 * We must have no buffers or drop them.
+ 	 */
+ 	if (page_has_private(page) &&
+-	    !try_to_release_page(page, GFP_KERNEL))
++	    !try_to_release_page(page, GFP_KERNEL)) {
++		trace_printk("try_to_release_page failed for a_ops:%pS\n", page->a_ops);
+ 		return -EAGAIN;
++	}
+ 
+ 	return migrate_page(mapping, newpage, page, mode);
+ }
 -- 
-Chris Metcalf, Mellanox Technologies
-http://www.mellanox.com
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
