@@ -1,55 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E0D0A6B0038
-	for <linux-mm@kvack.org>; Mon, 15 Aug 2016 17:14:15 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id j124so198785463ith.1
-        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 14:14:15 -0700 (PDT)
-Received: from mail-oi0-x22d.google.com (mail-oi0-x22d.google.com. [2607:f8b0:4003:c06::22d])
-        by mx.google.com with ESMTPS id d9si1295511oih.228.2016.08.15.14.14.15
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A1BD6B0038
+	for <linux-mm@kvack.org>; Mon, 15 Aug 2016 17:46:11 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id ez1so122032835pab.1
+        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 14:46:11 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id uq4si28407595pac.274.2016.08.15.14.46.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Aug 2016 14:14:15 -0700 (PDT)
-Received: by mail-oi0-x22d.google.com with SMTP id l203so75357760oib.1
-        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 14:14:15 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20160815211106.GA31566@linux.intel.com>
-References: <20160815190918.20672-1-ross.zwisler@linux.intel.com>
- <CAPcyv4j_eh8Rcozb40JeiPwvbPoMY2sCt+yTewZ-MZzUkBbj-Q@mail.gmail.com> <20160815211106.GA31566@linux.intel.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 15 Aug 2016 14:14:14 -0700
-Message-ID: <CAPcyv4i+XHZSN_3T_vcrv+sOkEMQzuTKRo4WBFcPxN=TzSk9iw@mail.gmail.com>
-Subject: Re: [PATCH 0/7] re-enable DAX PMD support
-Content-Type: text/plain; charset=UTF-8
+        Mon, 15 Aug 2016 14:46:10 -0700 (PDT)
+Date: Mon, 15 Aug 2016 14:46:07 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [mmotm:master 70/106] arch/x86/kernel/process.c:511:9: error:
+ implicit declaration of function 'randomize_page'
+Message-Id: <20160815144607.1a6c05709668b3ecd61e55da@linux-foundation.org>
+In-Reply-To: <65DEA104-339F-4EB0-9E98-8959D28BA245@lakedaemon.net>
+References: <201608120949.AtRXkB4G%fengguang.wu@intel.com>
+	<65DEA104-339F-4EB0-9E98-8959D28BA245@lakedaemon.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
+To: Jason Cooper <jason@lakedaemon.net>
+Cc: kbuild test robot <fengguang.wu@intel.com>, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Mon, Aug 15, 2016 at 2:11 PM, Ross Zwisler
-<ross.zwisler@linux.intel.com> wrote:
-> On Mon, Aug 15, 2016 at 01:21:47PM -0700, Dan Williams wrote:
->> On Mon, Aug 15, 2016 at 12:09 PM, Ross Zwisler
->> <ross.zwisler@linux.intel.com> wrote:
->> > DAX PMDs have been disabled since Jan Kara introduced DAX radix tree based
->> > locking.  This series allows DAX PMDs to participate in the DAX radix tree
->> > based locking scheme so that they can be re-enabled.
->>
->> Looks good to me.
->>
->> > This series restores DAX PMD functionality back to what it was before it
->> > was disabled.  There is still a known issue between DAX PMDs and hole
->> > punch, which I am currently working on and which I plan to address with a
->> > separate series.
->>
->> Perhaps we should hold off on applying patch 6 and 7 until after the
->> hole-punch fix is ready?
->
-> Sure, I'm cool with holding off on patch 7 (the Kconfig change) until after
-> the hole punch fix is ready.
->
-> I don't see a reason to hold off on patch 6, though?  It stands on it's own,
-> implements the correct locking, and doesn't break anything.
+On Thu, 11 Aug 2016 21:31:15 -0400 Jason Cooper <jason@lakedaemon.net> wrote:
 
-Whoops, I just meant 7.
+> Andrew, 
+> 
+> I think you have v1 and v2 of the randomize page patches in your stack. Could you drop v1 please?
+> 
+
+I have the v1 series and a series of deltas which turn that into v2.
+
+I also see a v3 on the lists so I'm all confused.  Please triple-check
+linux-next versus your latest version.
+
+I can't reproduced this build error.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
