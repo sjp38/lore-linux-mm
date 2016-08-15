@@ -1,38 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BB916B025F
-	for <linux-mm@kvack.org>; Mon, 15 Aug 2016 15:09:34 -0400 (EDT)
-Received: by mail-ua0-f200.google.com with SMTP id 65so141086279uay.1
-        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 12:09:34 -0700 (PDT)
-Received: from out2-smtp.messagingengine.com (out2-smtp.messagingengine.com. [66.111.4.26])
-        by mx.google.com with ESMTPS id z187si5748374qke.305.2016.08.15.12.09.32
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 15 Aug 2016 12:09:33 -0700 (PDT)
-Date: Mon, 15 Aug 2016 21:09:44 +0200
-From: Greg KH <greg@kroah.com>
-Subject: Re: [PATCH stable-4.4 1/3] mm: memcontrol: fix cgroup creation
- failure after many small jobs
-Message-ID: <20160815190944.GA22108@kroah.com>
-References: <1471273606-15392-1-git-send-email-mhocko@kernel.org>
- <1471273606-15392-2-git-send-email-mhocko@kernel.org>
- <20160815153516.GJ3360@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160815153516.GJ3360@dhcp22.suse.cz>
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 920116B0261
+	for <linux-mm@kvack.org>; Mon, 15 Aug 2016 15:09:54 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id pp5so116345612pac.3
+        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 12:09:54 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id p4si19115744paz.202.2016.08.15.12.09.53
+        for <linux-mm@kvack.org>;
+        Mon, 15 Aug 2016 12:09:53 -0700 (PDT)
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: [PATCH 0/7] re-enable DAX PMD support
+Date: Mon, 15 Aug 2016 13:09:11 -0600
+Message-Id: <20160815190918.20672-1-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Stable tree <stable@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Nikolay Borisov <kernel@kyup.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: linux-kernel@vger.kernel.org
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-On Mon, Aug 15, 2016 at 05:35:17PM +0200, Michal Hocko wrote:
-> Updated patch
+DAX PMDs have been disabled since Jan Kara introduced DAX radix tree based
+locking.  This series allows DAX PMDs to participate in the DAX radix tree
+based locking scheme so that they can be re-enabled.
 
-Thanks for this, and the updated patch series, I've now replaced the
-previous versions with this series.
+This series restores DAX PMD functionality back to what it was before it
+was disabled.  There is still a known issue between DAX PMDs and hole
+punch, which I am currently working on and which I plan to address with a
+separate series.
 
-greg k-h
+Ross Zwisler (7):
+  ext2: tell DAX the size of allocation holes
+  ext4: tell DAX the size of allocation holes
+  dax: remove buffer_size_valid()
+  dax: rename 'ret' to 'entry' in grab_mapping_entry
+  dax: lock based on slot instead of [mapping, index]
+  dax: re-enable DAX PMD support
+  dax: remove "depends on BROKEN" from FS_DAX_PMD
+
+ fs/Kconfig          |   1 -
+ fs/dax.c            | 301 ++++++++++++++++++++++++++--------------------------
+ fs/ext2/inode.c     |   6 ++
+ fs/ext4/inode.c     |   3 +
+ include/linux/dax.h |  30 +++++-
+ mm/filemap.c        |   7 +-
+ 6 files changed, 191 insertions(+), 157 deletions(-)
+
+-- 
+2.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
