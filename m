@@ -1,96 +1,219 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EA1A76B0262
-	for <linux-mm@kvack.org>; Mon, 15 Aug 2016 23:06:32 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id j67so183198986oih.3
-        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 20:06:32 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id z201si19122186itb.24.2016.08.15.20.06.31
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CFC746B0038
+	for <linux-mm@kvack.org>; Tue, 16 Aug 2016 00:13:07 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id o124so152662996pfg.1
+        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 21:13:07 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id r73si30004594pfi.287.2016.08.15.21.13.06
         for <linux-mm@kvack.org>;
-        Mon, 15 Aug 2016 20:06:32 -0700 (PDT)
-Date: Tue, 16 Aug 2016 12:12:22 +0900
+        Mon, 15 Aug 2016 21:13:06 -0700 (PDT)
+Date: Tue, 16 Aug 2016 13:18:56 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: OOM killer changes
-Message-ID: <20160816031222.GC16913@js1304-P5Q-DELUXE>
-References: <d8116023-dcd4-8763-af77-f2889f84cdb6@Quantum.com>
- <20160801200926.GF31957@dhcp22.suse.cz>
- <3c022d92-9c96-9022-8496-aa8738fb7358@quantum.com>
- <20160801202616.GG31957@dhcp22.suse.cz>
- <b91f97ee-c369-43be-c934-f84b96260ead@Quantum.com>
- <27bd5116-f489-252c-f257-97be00786629@Quantum.com>
- <20160802071010.GB12403@dhcp22.suse.cz>
- <ccad54a2-be1e-44cf-b9c8-d6b34af4901d@quantum.com>
- <6cb37d4a-d2dd-6c2f-a65d-51474103bf86@Quantum.com>
- <d1f63745-b9e3-b699-8a5a-08f06c72b392@suse.cz>
+Subject: Re: [RFC] can we use vmalloc to alloc thread stack if compaction
+ failed
+Message-ID: <20160816041855.GA17448@js1304-P5Q-DELUXE>
+References: <5799B741.8090506@huawei.com>
+ <20160728075856.GE31860@dhcp22.suse.cz>
+ <5799C612.1050502@huawei.com>
+ <20160728094327.GB1000@dhcp22.suse.cz>
+ <5799E394.4060200@huawei.com>
+ <CALCETrXB_bXULwezi=YyztFqq_6iigrwRynikYcPUmuEgoWV7g@mail.gmail.com>
+ <20160729030146.GA31867@js1304-P5Q-DELUXE>
+ <CALCETrV++O=ynMKYwdhG-AksnVXX6hBpBxtXfNaa_dhVLMu2Tg@mail.gmail.com>
+ <20160801053051.GA8623@js1304-P5Q-DELUXE>
+ <CALCETrU4bsYYZmxDDp-DpBBhVjSc8Xx3sc9cUnsnOLGcXr9edA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <d1f63745-b9e3-b699-8a5a-08f06c72b392@suse.cz>
+In-Reply-To: <CALCETrU4bsYYZmxDDp-DpBBhVjSc8Xx3sc9cUnsnOLGcXr9edA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Andy Lutomirski <luto@kernel.org>, Xishi Qiu <qiuxishi@huawei.com>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Yisheng Xie <xieyisheng1@huawei.com>
 
-On Mon, Aug 15, 2016 at 11:16:36AM +0200, Vlastimil Babka wrote:
-> On 08/15/2016 06:48 AM, Ralf-Peter Rohbeck wrote:
-> > On 02.08.2016 12:25, Ralf-Peter Rohbeck wrote:
+On Wed, Aug 10, 2016 at 04:59:39AM -0700, Andy Lutomirski wrote:
+> On Sun, Jul 31, 2016 at 10:30 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> > On Fri, Jul 29, 2016 at 12:47:38PM -0700, Andy Lutomirski wrote:
+> >> ---------- Forwarded message ----------
+> >> From: "Joonsoo Kim" <iamjoonsoo.kim@lge.com>
+> >> Date: Jul 28, 2016 7:57 PM
+> >> Subject: Re: [RFC] can we use vmalloc to alloc thread stack if compaction failed
+> >> To: "Andy Lutomirski" <luto@kernel.org>
+> >> Cc: "Xishi Qiu" <qiuxishi@huawei.com>, "Michal Hocko"
+> >> <mhocko@kernel.org>, "Tejun Heo" <tj@kernel.org>, "Ingo Molnar"
+> >> <mingo@kernel.org>, "Peter Zijlstra" <peterz@infradead.org>, "LKML"
+> >> <linux-kernel@vger.kernel.org>, "Linux MM" <linux-mm@kvack.org>,
+> >> "Yisheng Xie" <xieyisheng1@huawei.com>
 > >>
-> > Took me a little longer than expected due to work. The failure wouldn't 
-> > happen for a while and so I started a couple of scripts and let them 
-> > run. When I checked today the server didn't respond on the network and 
-> > sure enough it had killed everything. This is with 4.7.0 with the config 
-> > based on Debian 4.7-rc7.
-> > 
-> > trace_pipe got a little big (5GB) so I uploaded the logs to 
-> > https://filebin.net/box0wycfouvhl6sr/OOM_4.7.0.tar.bz2. before_btrfs is 
-> > before the btrfs filesystems were mounted.
-> > I did run a btrfs balance because it creates IO load and I needed to 
-> > balance anyway. Maybe that's what caused it?
+> >> > On Thu, Jul 28, 2016 at 08:07:51AM -0700, Andy Lutomirski wrote:
+> >> > > On Thu, Jul 28, 2016 at 3:51 AM, Xishi Qiu <qiuxishi@huawei.com> wrote:
+> >> > > > On 2016/7/28 17:43, Michal Hocko wrote:
+> >> > > >
+> >> > > >> On Thu 28-07-16 16:45:06, Xishi Qiu wrote:
+> >> > > >>> On 2016/7/28 15:58, Michal Hocko wrote:
+> >> > > >>>
+> >> > > >>>> On Thu 28-07-16 15:41:53, Xishi Qiu wrote:
+> >> > > >>>>> On 2016/7/28 15:20, Michal Hocko wrote:
+> >> > > >>>>>
+> >> > > >>>>>> On Thu 28-07-16 15:08:26, Xishi Qiu wrote:
+> >> > > >>>>>>> Usually THREAD_SIZE_ORDER is 2, it means we need to alloc 16kb continuous
+> >> > > >>>>>>> physical memory during fork a new process.
+> >> > > >>>>>>>
+> >> > > >>>>>>> If the system's memory is very small, especially the smart phone, maybe there
+> >> > > >>>>>>> is only 1G memory. So the free memory is very small and compaction is not
+> >> > > >>>>>>> always success in slowpath(__alloc_pages_slowpath), then alloc thread stack
+> >> > > >>>>>>> may be failed for memory fragment.
+> >> > > >>>>>>
+> >> > > >>>>>> Well, with the current implementation of the page allocator those
+> >> > > >>>>>> requests will not fail in most cases. The oom killer would be invoked in
+> >> > > >>>>>> order to free up some memory.
+> >> > > >>>>>>
+> >> > > >>>>>
+> >> > > >>>>> Hi Michal,
+> >> > > >>>>>
+> >> > > >>>>> Yes, it success in most cases, but I did have seen this problem in some
+> >> > > >>>>> stress-test.
+> >> > > >>>>>
+> >> > > >>>>> DMA free:470628kB, but alloc 2 order block failed during fork a new process.
+> >> > > >>>>> There are so many memory fragments and the large block may be soon taken by
+> >> > > >>>>> others after compact because of stress-test.
+> >> > > >>>>>
+> >> > > >>>>> --- dmesg messages ---
+> >> > > >>>>> 07-13 08:41:51.341 <4>[309805.658142s][pid:1361,cpu5,sManagerService]sManagerService: page allocation failure: order:2, mode:0x2000d1
+> >> > > >>>>
+> >> > > >>>> Yes but this is __GFP_DMA allocation. I guess you have already reported
+> >> > > >>>> this failure and you've been told that this is quite unexpected for the
+> >> > > >>>> kernel stack allocation. It is your out-of-tree patch which just makes
+> >> > > >>>> things worse because DMA restricted allocations are considered "lowmem"
+> >> > > >>>> and so they do not invoke OOM killer and do not retry like regular
+> >> > > >>>> GFP_KERNEL allocations.
+> >> > > >>>
+> >> > > >>> Hi Michal,
+> >> > > >>>
+> >> > > >>> Yes, we add GFP_DMA, but I don't think this is the key for the problem.
+> >> > > >>
+> >> > > >> You are restricting the allocation request to a single zone which is
+> >> > > >> definitely not good. Look at how many larger order pages are available
+> >> > > >> in the Normal zone.
+> >> > > >>
+> >> > > >>> If we do oom-killer, maybe we will get a large block later, but there
+> >> > > >>> is enough free memory before oom(although most of them are fragments).
+> >> > > >>
+> >> > > >> Killing a task is of course the last resort action. It would give you
+> >> > > >> larger order blocks used for the victims thread.
+> >> > > >>
+> >> > > >>> I wonder if we can alloc success without kill any process in this situation.
+> >> > > >>
+> >> > > >> Sure it would be preferable to compact that memory but that might be
+> >> > > >> hard with your restriction in place. Consider that DMA zone would tend
+> >> > > >> to be less movable than normal zones as users would have to pin it for
+> >> > > >> DMA. Your DMA is really large so this might turn out to just happen to
+> >> > > >> work but note that the primary problem here is that you put a zone
+> >> > > >> restriction for your allocations.
+> >> > > >>
+> >> > > >>> Maybe use vmalloc is a good way, but I don't know the influence.
+> >> > > >>
+> >> > > >> You can have a look at vmalloc patches posted by Andy. They are not that
+> >> > > >> trivial.
+> >> > > >>
+> >> > > >
+> >> > > > Hi Michal,
+> >> > > >
+> >> > > > Thank you for your comment, could you give me the link?
+> >> > > >
+> >> > >
+> >> > > I've been keeping it mostly up to date in this branch:
+> >> > >
+> >> > > https://git.kernel.org/cgit/linux/kernel/git/luto/linux.git/log/?h=x86/vmap_stack
+> >> > >
+> >> > > It's currently out of sync due to a bunch of the patches being queued
+> >> > > elsewhere for the merge window.
+> >> >
+> >> > Hello, Andy.
+> >> >
+> >> > I have some questions about it.
+> >> >
+> >> > IIUC, to turn on HAVE_ARCH_VMAP_STACK on different architecture, there
+> >> > is nothing to be done in architecture side if the architecture doesn't
+> >> > support lazily faults in top-level paging entries for the vmalloc
+> >> > area. Is my understanding is correct?
+> >> >
+> >>
+> >> There should be nothing fundamental that needs to be done.  On the
+> >> other hand, it might be good to make sure the arch code can print a
+> >> clean stack trace on stack overflow.
+> >>
+> >> If it's helpful, I just pushed out anew
+> >
+> > You mean that you can turn on HAVE_ARCH_VMAP_STACK on the other arch? It
+> > would be helpful. :)
+> >
+> >>
+> >> > And, I'd like to know how you search problematic places using kernel
+> >> > stack for DMA.
+> >> >
+> >>
+> >> I did some searching for problematic sg_init_buf calls using
+> >> Coccinelle.  I'm not very good at Coccinelle, so I may have missed
+> >> something.
+> >
+> > I'm also not familiar with Coccinelle. Could you share your .cocci
+> > script? I can think of following one but there would be a better way.
+> >
+> > virtual report
+> >
+> > @stack_var depends on report@
+> > type T1;
+> > expression E1, E2;
+> > identifier I1;
+> > @@
+> > (
+> > * T1 I1;
+> > )
+> > ...
+> > (
+> > * sg_init_one(E1, &I1, E2)
+> > |
+> > * sg_set_buf(E1, &I1, E2)
+> > )
+> >
+> > @stack_arr depends on report@
+> > type T1;
+> > expression E1, E2, E3;
+> > identifier I1;
+> > @@
+> > (
+> > * T1 I1[E1];
+> > )
+> > ...
+> > (
+> > * sg_init_one(E2, I1, E3)
+> > |
+> > * sg_set_buf(E2, I1, E3)
+> > )
+> >
+> >
 > 
-> pgmigrate_success        46738962
-> pgmigrate_fail          135649772
-> compact_migrate_scanned 309726659
-> compact_free_scanned   9715615169
-> compact_isolated        229689596
-> compact_stall 4777
-> compact_fail 3068
-> compact_success 1709
-> compact_daemon_wake 207834
+> $ cat sgstack.cocci
+> @@
+> local idexpression S;
+> expression A, B;
+> @@
 > 
-> The migration failures are quite enormous. Very quick analysis of the
-> trace seems to confirm that these are mostly "real", as opposed to result
-> of failure to isolate free pages for migration targets, although the free
-> scanner spent a lot of time:
+> (
+> * sg_init_one(A, &S, B)
+> |
+> * virt_to_phys(&S)
+> 
+> 
+> not very inspiring.  I barely understand Coccinelle syntax, and sadly
+> I find the manual nearly incomprehensible.  I can read the grammar,
+> but that doesn't mean I know what the various declarations do.
 
-I don't think that main reason of OOM is 'real' migration failure.
-If it is the case, compaction would find next migratable pages and
-eventually some of pages would be migrated successfully.
-
-pagetypeinfo shows that there are too many unmovable pageblock.
-Freepage scanner don't scan those pageblocks so there is a large
-possibility that it cannot find freepages even if the system has many
-freepages. I think that this is the root cause of the problem.
-
-It's better to check that following work-around help the problem.
+Thanks for sharing it.
 
 Thanks.
-
------------->8-----------
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 9affb29..965eddd 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1082,10 +1082,6 @@ static void isolate_freepages(struct compact_control *cc)
-                if (!page)
-                        continue;
- 
--               /* Check the block is suitable for migration */
--               if (!suitable_migration_target(page))
--                       continue;
--
-                /* If isolation recently failed, do not retry */
-                if (!isolation_suitable(cc, page))
-                        continue;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
