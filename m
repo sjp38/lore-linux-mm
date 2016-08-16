@@ -1,49 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AB1756B0038
-	for <linux-mm@kvack.org>; Tue, 16 Aug 2016 05:03:38 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id ez1so142986598pab.1
-        for <linux-mm@kvack.org>; Tue, 16 Aug 2016 02:03:38 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id gk9si31243031pac.182.2016.08.16.02.03.35
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 027F16B0038
+	for <linux-mm@kvack.org>; Tue, 16 Aug 2016 05:10:30 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id i27so163173736qte.3
+        for <linux-mm@kvack.org>; Tue, 16 Aug 2016 02:10:29 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id kj1si24433949wjb.67.2016.08.16.02.10.28
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 16 Aug 2016 02:03:37 -0700 (PDT)
-Message-ID: <57B2D556.5030201@huawei.com>
-Date: Tue, 16 Aug 2016 16:56:54 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        Tue, 16 Aug 2016 02:10:28 -0700 (PDT)
+Date: Tue, 16 Aug 2016 11:10:25 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 1/7] ext2: tell DAX the size of allocation holes
+Message-ID: <20160816091025.GA27284@quack2.suse.cz>
+References: <20160815190918.20672-1-ross.zwisler@linux.intel.com>
+ <20160815190918.20672-2-ross.zwisler@linux.intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/3] mm: fix set pageblock migratetype in deferred struct
- page init
-References: <57A325CA.9050707@huawei.com> <57A3260F.4050709@huawei.com> <20160816084132.GA17417@dhcp22.suse.cz>
-In-Reply-To: <20160816084132.GA17417@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160815190918.20672-2-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H.
- Peter Anvin" <hpa@zytor.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-On 2016/8/16 16:41, Michal Hocko wrote:
-
-> On Thu 04-08-16 19:25:03, Xishi Qiu wrote:
->> MAX_ORDER_NR_PAGES is usually 4M, and a pageblock is usually 2M, so we only
->> set one pageblock's migratetype in deferred_free_range() if pfn is aligned
->> to MAX_ORDER_NR_PAGES.
+On Mon 15-08-16 13:09:12, Ross Zwisler wrote:
+> When DAX calls ext2_get_block() and the file offset points to a hole we
+> currently don't set bh_result->b_size.  When we re-enable PMD faults DAX
+> will need bh_result->b_size to tell it the size of the hole so it can
+> decide whether to fault in a 4 KiB zero page or a 2 MiB zero page.
 > 
-> Do I read the changelog correctly and the bug causes leaking unmovable
-> allocations into movable zones?
+> For ext2 we always want DAX to use 4 KiB zero pages, so we just tell DAX
+> that all holes are 4 KiB in size.
+> 
+> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> ---
+>  fs/ext2/inode.c | 6 ++++++
+>  1 file changed, 6 insertions(+)
+> 
+> diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
+> index d5c7d09..c6d9763 100644
+> --- a/fs/ext2/inode.c
+> +++ b/fs/ext2/inode.c
+> @@ -773,6 +773,12 @@ int ext2_get_block(struct inode *inode, sector_t iblock, struct buffer_head *bh_
+>  	if (ret > 0) {
+>  		bh_result->b_size = (ret << inode->i_blkbits);
+>  		ret = 0;
+> +	} else if (ret == 0 && IS_DAX(inode)) {
 
-Hi Michal,
+I'd just drop the IS_DAX() check and set
 
-This bug will cause uninitialized migratetype, you can see from
-"cat /proc/pagetypeinfo", almost half blocks are Unmovable.
+	bh_result->b_size = 1 << inode->i_blkbits;
 
-Also this bug missed to free the last block pages, it cause memory leaking.
+IMO it's better to have things consistent between DAX & !DAX whenever
+possible.
 
-Thanks,
-Xishi Qiu
+								Honza
+
+> +		/*
+> +		 * We have hit a hole.  Tell DAX it is 4k in size so that it
+> +		 * uses PTE faults.
+> +		 */
+> +		bh_result->b_size = PAGE_SIZE;
+>  	}
+>  	return ret;
+>  
+> -- 
+> 2.9.0
+> 
+> 
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
