@@ -1,79 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4ABA76B0038
-	for <linux-mm@kvack.org>; Tue, 16 Aug 2016 06:12:05 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id f123so157555553ywd.2
-        for <linux-mm@kvack.org>; Tue, 16 Aug 2016 03:12:05 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id n2si20503252wjh.243.2016.08.16.03.12.04
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 665726B025E
+	for <linux-mm@kvack.org>; Tue, 16 Aug 2016 06:12:11 -0400 (EDT)
+Received: by mail-ua0-f199.google.com with SMTP id 65so174937934uay.1
+        for <linux-mm@kvack.org>; Tue, 16 Aug 2016 03:12:11 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id fc10si24638648wjc.189.2016.08.16.03.12.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 16 Aug 2016 03:12:04 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id q128so15548621wma.1
-        for <linux-mm@kvack.org>; Tue, 16 Aug 2016 03:12:04 -0700 (PDT)
-Date: Tue, 16 Aug 2016 12:12:02 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 0/6] Reduce memory waste by page extension user
-Message-ID: <20160816101202.GD17417@dhcp22.suse.cz>
-References: <1471315879-32294-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20160816095300.GC17417@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 16 Aug 2016 03:12:10 -0700 (PDT)
+Subject: Re: [PATCH 1/3] mm: fix set pageblock migratetype in deferred struct
+ page init
+References: <57A325CA.9050707@huawei.com> <57A3260F.4050709@huawei.com>
+ <20160816084132.GA17417@dhcp22.suse.cz> <57B2D556.5030201@huawei.com>
+ <20160816092345.GB17417@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <e9b1213e-6d77-372f-d335-3b98a40378e8@suse.cz>
+Date: Tue, 16 Aug 2016 12:12:07 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160816095300.GC17417@dhcp22.suse.cz>
+In-Reply-To: <20160816092345.GB17417@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: js1304@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Michal Hocko <mhocko@kernel.org>, Xishi Qiu <qiuxishi@huawei.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 16-08-16 11:53:00, Michal Hocko wrote:
-> On Tue 16-08-16 11:51:13, Joonsoo Kim wrote:
-> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > 
-> > v2:
-> > Fix rebase mistake (per Vlastimil)
-> > Rename some variable/function to prevent confusion (per Vlastimil)
-> > Fix header dependency (per Sergey)
-> > 
-> > This patchset tries to reduce memory waste by page extension user.
-> > 
-> > First case is architecture supported debug_pagealloc. It doesn't
-> > requires additional memory if guard page isn't used. 8 bytes per
-> > page will be saved in this case.
-> > 
-> > Second case is related to page owner feature. Until now, if page_ext
-> > users want to use it's own fields on page_ext, fields should be
-> > defined in struct page_ext by hard-coding. It has a following problem.
-> > 
-> > struct page_ext {
-> >  #ifdef CONFIG_A
-> > 	int a;
-> >  #endif
-> >  #ifdef CONFIG_B
-> > 	int b;
-> >  #endif
-> > };
-> > 
-> > Assume that kernel is built with both CONFIG_A and CONFIG_B.
-> > Even if we enable feature A and doesn't enable feature B at runtime,
-> > each entry of struct page_ext takes two int rather than one int.
-> > It's undesirable waste so this patch tries to reduce it. By this patchset,
-> > we can save 20 bytes per page dedicated for page owner feature
-> > in some configurations.
-> 
-> FWIW I like this. I have only glanced over those patches so I do not
-> feel comfortable to give my a-b but the approach is sensible and the
-> memory savings are really attractive. Page owner is a really great
-> debugging feauture so enabling it makes a lot of sense on production
-> servers where the memory wasting is a no-go.
+On 08/16/2016 11:23 AM, Michal Hocko wrote:
+> On Tue 16-08-16 16:56:54, Xishi Qiu wrote:
+>> On 2016/8/16 16:41, Michal Hocko wrote:
+>>
+>>> On Thu 04-08-16 19:25:03, Xishi Qiu wrote:
+>>>> MAX_ORDER_NR_PAGES is usually 4M, and a pageblock is usually 2M, so we only
+>>>> set one pageblock's migratetype in deferred_free_range() if pfn is aligned
+>>>> to MAX_ORDER_NR_PAGES.
+>>>
+>>> Do I read the changelog correctly and the bug causes leaking unmovable
+>>> allocations into movable zones?
+>>
+>> Hi Michal,
+>>
+>> This bug will cause uninitialized migratetype, you can see from
+>> "cat /proc/pagetypeinfo", almost half blocks are Unmovable.
+>
+> Please add that information to the changelog. Leaking unmovable
+> allocations to the movable zones defeats the whole purpose of the
+> movable zone so I guess we really want to mark this for stable.
 
-OK, I have missed that page_ext is only allocated if there is at least
-one feature which requires it enabled. So normally there shouldn't be
-too much of wasted memory. Anyway allocating per feature makes a lot of
-sense regardless.
--- 
-Michal Hocko
-SUSE Labs
+Note that it's not as severe. Pageblock migratetype is just heuristic 
+against fragmentation. It should not allow unmovable allocations from 
+movable zones (although I can't find what really does govern it).
+
+> AFAICS it should also note:
+> Fixes: ac5d2539b238 ("mm: meminit: reduce number of times pageblocks are set during struct page init")
+> and stable 4.2+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
