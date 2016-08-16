@@ -1,24 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D47EF6B025F
-	for <linux-mm@kvack.org>; Tue, 16 Aug 2016 02:11:23 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id 101so157584510qtb.0
-        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 23:11:23 -0700 (PDT)
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4047E6B0038
+	for <linux-mm@kvack.org>; Tue, 16 Aug 2016 02:15:39 -0400 (EDT)
+Received: by mail-ua0-f199.google.com with SMTP id r91so165704693uar.0
+        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 23:15:39 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ew17si23728070wjd.262.2016.08.15.23.11.22
+        by mx.google.com with ESMTPS id h195si19124092wmg.66.2016.08.15.23.15.38
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 15 Aug 2016 23:11:22 -0700 (PDT)
-Subject: Re: [PATCH v6 04/11] mm, compaction: don't recheck watermarks after
- COMPACT_SUCCESS
+        Mon, 15 Aug 2016 23:15:38 -0700 (PDT)
+Subject: Re: [PATCH v6 08/11] mm, compaction: create compact_gap wrapper
 References: <20160810091226.6709-1-vbabka@suse.cz>
- <20160810091226.6709-5-vbabka@suse.cz>
- <20160816061200.GD17448@js1304-P5Q-DELUXE>
+ <20160810091226.6709-9-vbabka@suse.cz>
+ <20160816061518.GE17448@js1304-P5Q-DELUXE>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <7cd558df-d815-2e05-6a24-d1e1c87f184f@suse.cz>
-Date: Tue, 16 Aug 2016 08:11:21 +0200
+Message-ID: <656fea7f-753d-df56-744a-50b90f9a3842@suse.cz>
+Date: Tue, 16 Aug 2016 08:15:36 +0200
 MIME-Version: 1.0
-In-Reply-To: <20160816061200.GD17448@js1304-P5Q-DELUXE>
+In-Reply-To: <20160816061518.GE17448@js1304-P5Q-DELUXE>
 Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -26,31 +25,44 @@ List-ID: <linux-mm.kvack.org>
 To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 08/16/2016 08:12 AM, Joonsoo Kim wrote:
-> On Wed, Aug 10, 2016 at 11:12:19AM +0200, Vlastimil Babka wrote:
->> Joonsoo has reminded me that in a later patch changing watermark checks
->> throughout compaction I forgot to update checks in try_to_compact_pages() and
->> compactd_do_work(). Closer inspection however shows that they are redundant now
->> that compact_zone() reliably reports success with COMPACT_SUCCESS, as they just
->> repeat (a subset) of checks that have just passed. So instead of checking
->> watermarks again, just test the return value.
+On 08/16/2016 08:15 AM, Joonsoo Kim wrote:
+> On Wed, Aug 10, 2016 at 11:12:23AM +0200, Vlastimil Babka wrote:
+>> --- a/include/linux/compaction.h
+>> +++ b/include/linux/compaction.h
+>> @@ -58,6 +58,22 @@ enum compact_result {
+>>
+>>  struct alloc_context; /* in mm/internal.h */
+>>
+>> +/*
+>> + * Number of free order-0 pages that should be available above given watermark
+>> + * to make sure compaction has reasonable chance of not running out of free
+>> + * pages that it needs to isolate as migration target during its work.
+>> + */
+>> +static inline unsigned long compact_gap(unsigned int order)
+>> +{
+>> +	/*
+>> +	 * Although all the isolations for migration are temporary, compaction
+>> +	 * may have up to 1 << order pages on its list and then try to split
+>> +	 * an (order - 1) free page. At that point, a gap of 1 << order might
+>> +	 * not be enough, so it's safer to require twice that amount.
+>> +	 */
+>> +	return 2UL << order;
+>> +}
 >
-> In fact, it's not redundant. Even if try_to_compact_pages() returns
-> !COMPACT_SUCCESS, watermark check could return true.
+> I agree with this wrapper function but there is a question.
+>
+> Could you elaborate more on this code comment? Freescanner could keep
+> COMPACT_CLUSTER_MAX freepages on the list. It's not associated with
+> requested order at least for now. Why compact_gap is 2UL << order in
+> this case?
 
-Right, I meant they are redundant in the SUCCESS case.
+It's true that for high enough order, COMPACT_CLUSTER_MAX might be more 
+limiting than 1 << order. But then it also helps to have more free pages 
+for probability of compaction success, so I don't think it's worth 
+complicating the compact_gap() formula.
 
-> __compact_finished() calls find_suitable_fallback() and it's slightly
-> different with watermark check. Anyway, I don't think it is a big
-> problem.
-
-I agree. It might be even better for long-term fragmentation that we 
-e.g. try another zone instead of taking page from the "unsuitable 
-fallback". If that's not successful, and the allocation is important 
-enough there will later eventually be another watermark check permitting 
-the unsuitable fallback.
-
-Thanks.
+> Thanks.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
