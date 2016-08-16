@@ -1,57 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E81A86B0038
-	for <linux-mm@kvack.org>; Tue, 16 Aug 2016 02:40:44 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id p18so191284737oic.0
-        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 23:40:44 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id y140si4230193iof.226.2016.08.15.23.40.43
-        for <linux-mm@kvack.org>;
-        Mon, 15 Aug 2016 23:40:44 -0700 (PDT)
-Date: Tue, 16 Aug 2016 15:46:31 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v6 10/11] mm, compaction: require only min watermarks for
- non-costly orders
-Message-ID: <20160816064630.GH17448@js1304-P5Q-DELUXE>
-References: <20160810091226.6709-1-vbabka@suse.cz>
- <20160810091226.6709-11-vbabka@suse.cz>
- <20160816061636.GF17448@js1304-P5Q-DELUXE>
- <484d17e5-7294-4724-f5f9-0a15167d47ee@suse.cz>
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DF9D6B0038
+	for <linux-mm@kvack.org>; Tue, 16 Aug 2016 03:21:50 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id i27so159245016qte.3
+        for <linux-mm@kvack.org>; Tue, 16 Aug 2016 00:21:50 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c3si23987078wjv.231.2016.08.16.00.21.49
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 16 Aug 2016 00:21:49 -0700 (PDT)
+Subject: Re: [PATCH v2 3/6] mm/page_owner: move page_owner specific function
+ to page_owner.c
+References: <1471315879-32294-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1471315879-32294-4-git-send-email-iamjoonsoo.kim@lge.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <b926de74-95ca-1d61-9aab-d35a6e9d12c8@suse.cz>
+Date: Tue, 16 Aug 2016 09:21:46 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <484d17e5-7294-4724-f5f9-0a15167d47ee@suse.cz>
+In-Reply-To: <1471315879-32294-4-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
+Cc: Minchan Kim <minchan@kernel.org>, Michal Hocko <mhocko@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Tue, Aug 16, 2016 at 08:36:12AM +0200, Vlastimil Babka wrote:
-> On 08/16/2016 08:16 AM, Joonsoo Kim wrote:
-> >On Wed, Aug 10, 2016 at 11:12:25AM +0200, Vlastimil Babka wrote:
-> >>diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> >>index 621e4211ce16..a5c0f914ec00 100644
-> >>--- a/mm/page_alloc.c
-> >>+++ b/mm/page_alloc.c
-> >>@@ -2492,7 +2492,7 @@ int __isolate_free_page(struct page *page, unsigned int order)
-> >>
-> >> 	if (!is_migrate_isolate(mt)) {
-> >> 		/* Obey watermarks as if the page was being allocated */
-> >>-		watermark = low_wmark_pages(zone) + (1 << order);
-> >>+		watermark = min_wmark_pages(zone) + (1UL << order);
-> >
-> >This '1 << order' also needs some comment. Why can't we use
-> >compact_gap() in this case?
-> 
-> This is just short-cutting the high-order watermark check to check
-> only order-0, because we already know the high-order page exists.
-> We can't use compact_gap() as that's too high to use for a single
-> allocation watermark, since we can be already holding some free
-> pages on the list. So it would defeat the gap purpose.
+On 08/16/2016 04:51 AM, js1304@gmail.com wrote:
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>
+> There is no reason that page_owner specific function resides on vmstat.c.
+>
+> Reviewed-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Oops. I missed that. Thanks for clarifying it.
-
-Thanks.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
