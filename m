@@ -1,86 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 251C26B0038
-	for <linux-mm@kvack.org>; Tue, 16 Aug 2016 02:31:17 -0400 (EDT)
-Received: by mail-yb0-f197.google.com with SMTP id n8so134436633ybn.2
-        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 23:31:17 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id bu7si23829110wjc.65.2016.08.15.23.31.15
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 15 Aug 2016 23:31:16 -0700 (PDT)
-Subject: Re: [PATCH v6 06/11] mm, compaction: more reliably increase direct
- compaction priority
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0496A6B0038
+	for <linux-mm@kvack.org>; Tue, 16 Aug 2016 02:35:16 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id o124so157173177pfg.1
+        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 23:35:15 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id f84si30584159pfj.40.2016.08.15.23.35.14
+        for <linux-mm@kvack.org>;
+        Mon, 15 Aug 2016 23:35:15 -0700 (PDT)
+Date: Tue, 16 Aug 2016 15:41:04 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v6 08/11] mm, compaction: create compact_gap wrapper
+Message-ID: <20160816064104.GG17448@js1304-P5Q-DELUXE>
 References: <20160810091226.6709-1-vbabka@suse.cz>
- <20160810091226.6709-7-vbabka@suse.cz>
- <20160816060737.GC17448@js1304-P5Q-DELUXE>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <d32f4619-e7a8-863a-bf94-4cbc0b452630@suse.cz>
-Date: Tue, 16 Aug 2016 08:31:13 +0200
+ <20160810091226.6709-9-vbabka@suse.cz>
+ <20160816061518.GE17448@js1304-P5Q-DELUXE>
+ <656fea7f-753d-df56-744a-50b90f9a3842@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20160816060737.GC17448@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <656fea7f-753d-df56-744a-50b90f9a3842@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Vlastimil Babka <vbabka@suse.cz>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 08/16/2016 08:07 AM, Joonsoo Kim wrote:
->> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
->> ---
->>  mm/page_alloc.c | 18 +++++++++++-------
->>  1 file changed, 11 insertions(+), 7 deletions(-)
->>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index fb975cec3518..b28517b918b0 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -3155,13 +3155,8 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
->>  	 * so it doesn't really make much sense to retry except when the
->>  	 * failure could be caused by insufficient priority
->>  	 */
->> -	if (compaction_failed(compact_result)) {
->> -		if (*compact_priority > MIN_COMPACT_PRIORITY) {
->> -			(*compact_priority)--;
->> -			return true;
->> -		}
->> -		return false;
->> -	}
->> +	if (compaction_failed(compact_result))
->> +		goto check_priority;
->>
->>  	/*
->>  	 * make sure the compaction wasn't deferred or didn't bail out early
->> @@ -3185,6 +3180,15 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
->>  	if (compaction_retries <= max_retries)
->>  		return true;
->>
->> +	/*
->> +	 * Make sure there is at least one attempt at the highest priority
->> +	 * if we exhausted all retries at the lower priorities
->> +	 */
->> +check_priority:
->> +	if (*compact_priority > MIN_COMPACT_PRIORITY) {
->> +		(*compact_priority)--;
->> +		return true;
->> +	}
->>  	return false;
->
-> The only difference that this patch makes is increasing priority when
-> COMPACT_PARTIAL(COMPACTION_SUCCESS) returns. In that case, we can
+On Tue, Aug 16, 2016 at 08:15:36AM +0200, Vlastimil Babka wrote:
+> On 08/16/2016 08:15 AM, Joonsoo Kim wrote:
+> >On Wed, Aug 10, 2016 at 11:12:23AM +0200, Vlastimil Babka wrote:
+> >>--- a/include/linux/compaction.h
+> >>+++ b/include/linux/compaction.h
+> >>@@ -58,6 +58,22 @@ enum compact_result {
+> >>
+> >> struct alloc_context; /* in mm/internal.h */
+> >>
+> >>+/*
+> >>+ * Number of free order-0 pages that should be available above given watermark
+> >>+ * to make sure compaction has reasonable chance of not running out of free
+> >>+ * pages that it needs to isolate as migration target during its work.
+> >>+ */
+> >>+static inline unsigned long compact_gap(unsigned int order)
+> >>+{
+> >>+	/*
+> >>+	 * Although all the isolations for migration are temporary, compaction
+> >>+	 * may have up to 1 << order pages on its list and then try to split
+> >>+	 * an (order - 1) free page. At that point, a gap of 1 << order might
+> >>+	 * not be enough, so it's safer to require twice that amount.
+> >>+	 */
+> >>+	return 2UL << order;
+> >>+}
+> >
+> >I agree with this wrapper function but there is a question.
+> >
+> >Could you elaborate more on this code comment? Freescanner could keep
+> >COMPACT_CLUSTER_MAX freepages on the list. It's not associated with
+> >requested order at least for now. Why compact_gap is 2UL << order in
+> >this case?
+> 
+> It's true that for high enough order, COMPACT_CLUSTER_MAX might be
+> more limiting than 1 << order. But then it also helps to have more
 
-Hm it's true that I adjusted this patch from the previous version, 
-before realizing that PARTIAL is now SUCCESS.
+AFAIK, regardless of order, migration scanner isolates
+COMPACT_CLUSTER_MAX pages. And, freepage scanner isolates
+more than nr_migratepages freepages.
 
-> usually allocate high-order freepage so we would not enter here. Am I
-> missing something? Is it really needed behaviour change?
+> free pages for probability of compaction success, so I don't think
+> it's worth complicating the compact_gap() formula.
 
-It will likely be rare when this triggers, when compaction success 
-doesn't lead to allocation success due to parallel allocation activity.
+I agree that it's not worth complicating the compact_gap() formula but
+it would be better to fix the comment?
 
-> Thanks.
->
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
