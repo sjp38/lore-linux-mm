@@ -1,71 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 90DA06B0038
-	for <linux-mm@kvack.org>; Tue, 16 Aug 2016 02:09:28 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id 4so188269009oih.2
-        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 23:09:28 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id w204si20029774ita.47.2016.08.15.23.09.27
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 757976B025E
+	for <linux-mm@kvack.org>; Tue, 16 Aug 2016 02:10:47 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id m130so205419104ioa.1
+        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 23:10:47 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id n138si20035509ita.22.2016.08.15.23.10.46
         for <linux-mm@kvack.org>;
-        Mon, 15 Aug 2016 23:09:28 -0700 (PDT)
-Date: Tue, 16 Aug 2016 15:15:18 +0900
+        Mon, 15 Aug 2016 23:10:46 -0700 (PDT)
+Date: Tue, 16 Aug 2016 15:16:36 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v6 08/11] mm, compaction: create compact_gap wrapper
-Message-ID: <20160816061518.GE17448@js1304-P5Q-DELUXE>
+Subject: Re: [PATCH v6 10/11] mm, compaction: require only min watermarks for
+ non-costly orders
+Message-ID: <20160816061636.GF17448@js1304-P5Q-DELUXE>
 References: <20160810091226.6709-1-vbabka@suse.cz>
- <20160810091226.6709-9-vbabka@suse.cz>
+ <20160810091226.6709-11-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160810091226.6709-9-vbabka@suse.cz>
+In-Reply-To: <20160810091226.6709-11-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Aug 10, 2016 at 11:12:23AM +0200, Vlastimil Babka wrote:
-> Compaction uses a watermark gap of (2UL << order) pages at various places and
-> it's not immediately obvious why. Abstract it through a compact_gap() wrapper
-> to create a single place with a thorough explanation.
+On Wed, Aug 10, 2016 at 11:12:25AM +0200, Vlastimil Babka wrote:
+> The __compaction_suitable() function checks the low watermark plus a
+> compact_gap() gap to decide if there's enough free memory to perform
+> compaction. Then __isolate_free_page uses low watermark check to decide if
+> particular free page can be isolated. In the latter case, using low watermark
+> is needlessly pessimistic, as the free page isolations are only temporary. For
+> __compaction_suitable() the higher watermark makes sense for high-order
+> allocations where more freepages increase the chance of success, and we can
+> typically fail with some order-0 fallback when the system is struggling to
+> reach that watermark. But for low-order allocation, forming the page should not
+> be that hard. So using low watermark here might just prevent compaction from
+> even trying, and eventually lead to OOM killer even if we are above min
+> watermarks.
+> 
+> So after this patch, we use min watermark for non-costly orders in
+> __compaction_suitable(), and for all orders in __isolate_free_page().
 > 
 > Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 > Acked-by: Michal Hocko <mhocko@suse.com>
 > ---
->  include/linux/compaction.h | 16 ++++++++++++++++
->  mm/compaction.c            |  7 +++----
->  mm/vmscan.c                |  6 +++---
->  3 files changed, 22 insertions(+), 7 deletions(-)
+>  mm/compaction.c | 6 +++++-
+>  mm/page_alloc.c | 2 +-
+>  2 files changed, 6 insertions(+), 2 deletions(-)
 > 
-> diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-> index a1fba9994728..e7f0d34a90fe 100644
-> --- a/include/linux/compaction.h
-> +++ b/include/linux/compaction.h
-> @@ -58,6 +58,22 @@ enum compact_result {
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 80eaf9fff114..0bba270f97ad 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -1399,10 +1399,14 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
+>  	 * isolation. We however do use the direct compactor's classzone_idx to
+>  	 * skip over zones where lowmem reserves would prevent allocation even
+>  	 * if compaction succeeds.
+> +	 * For costly orders, we require low watermark instead of min for
+> +	 * compaction to proceed to increase its chances.
+>  	 * ALLOC_CMA is used, as pages in CMA pageblocks are considered
+>  	 * suitable migration targets
+>  	 */
+> -	watermark = low_wmark_pages(zone) + compact_gap(order);
+> +	watermark = (order > PAGE_ALLOC_COSTLY_ORDER) ?
+> +				low_wmark_pages(zone) : min_wmark_pages(zone);
+> +	watermark += compact_gap(order);
+>  	if (!__zone_watermark_ok(zone, 0, watermark, classzone_idx,
+>  						ALLOC_CMA, wmark_target))
+>  		return COMPACT_SKIPPED;
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 621e4211ce16..a5c0f914ec00 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2492,7 +2492,7 @@ int __isolate_free_page(struct page *page, unsigned int order)
 >  
->  struct alloc_context; /* in mm/internal.h */
->  
-> +/*
-> + * Number of free order-0 pages that should be available above given watermark
-> + * to make sure compaction has reasonable chance of not running out of free
-> + * pages that it needs to isolate as migration target during its work.
-> + */
-> +static inline unsigned long compact_gap(unsigned int order)
-> +{
-> +	/*
-> +	 * Although all the isolations for migration are temporary, compaction
-> +	 * may have up to 1 << order pages on its list and then try to split
-> +	 * an (order - 1) free page. At that point, a gap of 1 << order might
-> +	 * not be enough, so it's safer to require twice that amount.
-> +	 */
-> +	return 2UL << order;
-> +}
+>  	if (!is_migrate_isolate(mt)) {
+>  		/* Obey watermarks as if the page was being allocated */
+> -		watermark = low_wmark_pages(zone) + (1 << order);
+> +		watermark = min_wmark_pages(zone) + (1UL << order);
 
-I agree with this wrapper function but there is a question.
-
-Could you elaborate more on this code comment? Freescanner could keep
-COMPACT_CLUSTER_MAX freepages on the list. It's not associated with
-requested order at least for now. Why compact_gap is 2UL << order in
-this case?
+This '1 << order' also needs some comment. Why can't we use
+compact_gap() in this case?
 
 Thanks.
 
