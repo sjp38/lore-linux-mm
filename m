@@ -1,99 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C6DFB6B0038
-	for <linux-mm@kvack.org>; Tue, 16 Aug 2016 02:06:11 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id q83so53136254iod.0
-        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 23:06:11 -0700 (PDT)
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 90DA06B0038
+	for <linux-mm@kvack.org>; Tue, 16 Aug 2016 02:09:28 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id 4so188269009oih.2
+        for <linux-mm@kvack.org>; Mon, 15 Aug 2016 23:09:28 -0700 (PDT)
 Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id d64si4063209iod.240.2016.08.15.23.06.10
+        by mx.google.com with ESMTP id w204si20029774ita.47.2016.08.15.23.09.27
         for <linux-mm@kvack.org>;
-        Mon, 15 Aug 2016 23:06:11 -0700 (PDT)
-Date: Tue, 16 Aug 2016 15:12:01 +0900
+        Mon, 15 Aug 2016 23:09:28 -0700 (PDT)
+Date: Tue, 16 Aug 2016 15:15:18 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v6 04/11] mm, compaction: don't recheck watermarks after
- COMPACT_SUCCESS
-Message-ID: <20160816061200.GD17448@js1304-P5Q-DELUXE>
+Subject: Re: [PATCH v6 08/11] mm, compaction: create compact_gap wrapper
+Message-ID: <20160816061518.GE17448@js1304-P5Q-DELUXE>
 References: <20160810091226.6709-1-vbabka@suse.cz>
- <20160810091226.6709-5-vbabka@suse.cz>
+ <20160810091226.6709-9-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160810091226.6709-5-vbabka@suse.cz>
+In-Reply-To: <20160810091226.6709-9-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Aug 10, 2016 at 11:12:19AM +0200, Vlastimil Babka wrote:
-> Joonsoo has reminded me that in a later patch changing watermark checks
-> throughout compaction I forgot to update checks in try_to_compact_pages() and
-> compactd_do_work(). Closer inspection however shows that they are redundant now
-> that compact_zone() reliably reports success with COMPACT_SUCCESS, as they just
-> repeat (a subset) of checks that have just passed. So instead of checking
-> watermarks again, just test the return value.
+On Wed, Aug 10, 2016 at 11:12:23AM +0200, Vlastimil Babka wrote:
+> Compaction uses a watermark gap of (2UL << order) pages at various places and
+> it's not immediately obvious why. Abstract it through a compact_gap() wrapper
+> to create a single place with a thorough explanation.
+> 
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  include/linux/compaction.h | 16 ++++++++++++++++
+>  mm/compaction.c            |  7 +++----
+>  mm/vmscan.c                |  6 +++---
+>  3 files changed, 22 insertions(+), 7 deletions(-)
+> 
+> diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+> index a1fba9994728..e7f0d34a90fe 100644
+> --- a/include/linux/compaction.h
+> +++ b/include/linux/compaction.h
+> @@ -58,6 +58,22 @@ enum compact_result {
+>  
+>  struct alloc_context; /* in mm/internal.h */
+>  
+> +/*
+> + * Number of free order-0 pages that should be available above given watermark
+> + * to make sure compaction has reasonable chance of not running out of free
+> + * pages that it needs to isolate as migration target during its work.
+> + */
+> +static inline unsigned long compact_gap(unsigned int order)
+> +{
+> +	/*
+> +	 * Although all the isolations for migration are temporary, compaction
+> +	 * may have up to 1 << order pages on its list and then try to split
+> +	 * an (order - 1) free page. At that point, a gap of 1 << order might
+> +	 * not be enough, so it's safer to require twice that amount.
+> +	 */
+> +	return 2UL << order;
+> +}
 
-In fact, it's not redundant. Even if try_to_compact_pages() returns
-!COMPACT_SUCCESS, watermark check could return true.
-__compact_finished() calls find_suitable_fallback() and it's slightly
-different with watermark check. Anyway, I don't think it is a big
-problem.
+I agree with this wrapper function but there is a question.
+
+Could you elaborate more on this code comment? Freescanner could keep
+COMPACT_CLUSTER_MAX freepages on the list. It's not associated with
+requested order at least for now. Why compact_gap is 2UL << order in
+this case?
 
 Thanks.
-
-
-> 
-> Also remove the stray "bool success" variable from kcompactd_do_work().
-> 
-> Reported-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> ---
->  mm/compaction.c | 11 +++--------
->  1 file changed, 3 insertions(+), 8 deletions(-)
-> 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index c355bf0d8599..a144f58f7193 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -1698,9 +1698,8 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
->  					alloc_flags, ac_classzone_idx(ac));
->  		rc = max(status, rc);
->  
-> -		/* If a normal allocation would succeed, stop compacting */
-> -		if (zone_watermark_ok(zone, order, low_wmark_pages(zone),
-> -					ac_classzone_idx(ac), alloc_flags)) {
-> +		/* The allocation should succeed, stop compacting */
-> +		if (status == COMPACT_SUCCESS) {
->  			/*
->  			 * We think the allocation will succeed in this zone,
->  			 * but it is not certain, hence the false. The caller
-> @@ -1873,8 +1872,6 @@ static void kcompactd_do_work(pg_data_t *pgdat)
->  		.ignore_skip_hint = true,
->  
->  	};
-> -	bool success = false;
-> -
->  	trace_mm_compaction_kcompactd_wake(pgdat->node_id, cc.order,
->  							cc.classzone_idx);
->  	count_vm_event(KCOMPACTD_WAKE);
-> @@ -1903,9 +1900,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
->  			return;
->  		status = compact_zone(zone, &cc);
->  
-> -		if (zone_watermark_ok(zone, cc.order, low_wmark_pages(zone),
-> -						cc.classzone_idx, 0)) {
-> -			success = true;
-> +		if (status == COMPACT_SUCCESS) {
->  			compaction_defer_reset(zone, cc.order, false);
->  		} else if (status == COMPACT_PARTIAL_SKIPPED || status == COMPACT_COMPLETE) {
->  			/*
-> -- 
-> 2.9.2
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
