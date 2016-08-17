@@ -1,51 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F35C6B0038
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 15:03:59 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id h186so242873898pfg.2
-        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 12:03:59 -0700 (PDT)
-Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
-        by mx.google.com with ESMTPS id bf8si479750pad.59.2016.08.17.12.03.58
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DF2DA6B0038
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 15:18:10 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id 63so246127532pfx.0
+        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 12:18:10 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id xq3si494451pac.194.2016.08.17.12.18.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Aug 2016 12:03:58 -0700 (PDT)
-Received: by mail-pf0-x244.google.com with SMTP id i6so8629965pfe.0
-        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 12:03:58 -0700 (PDT)
-Message-ID: <1471460636.29842.20.camel@edumazet-glaptop3.roam.corp.google.com>
-Subject: Re: [PATCH v3] mm/slab: Improve performance of gathering slabinfo
- stats
-From: Eric Dumazet <eric.dumazet@gmail.com>
-Date: Wed, 17 Aug 2016 12:03:56 -0700
-In-Reply-To: <1471458050-29622-1-git-send-email-aruna.ramakrishna@oracle.com>
-References: <1471458050-29622-1-git-send-email-aruna.ramakrishna@oracle.com>
-Content-Type: text/plain; charset="UTF-8"
+        Wed, 17 Aug 2016 12:18:10 -0700 (PDT)
+Date: Wed, 17 Aug 2016 12:18:08 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [lkp] [mm]  122708b1b9: PANIC: early exception
+Message-Id: <20160817121808.bf31e27382554bf532368c38@linux-foundation.org>
+In-Reply-To: <20160817161028.GE20762@e104818-lin.cambridge.arm.com>
+References: <1471360856-16916-1-git-send-email-catalin.marinas@arm.com>
+	<20160817155141.GC3544@yexl-desktop>
+	<20160817161028.GE20762@e104818-lin.cambridge.arm.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aruna Ramakrishna <aruna.ramakrishna@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Kravetz <mike.kravetz@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: kernel test robot <xiaolong.ye@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vignesh R <vigneshr@ti.com>, lkp@01.org
 
-On Wed, 2016-08-17 at 11:20 -0700, Aruna Ramakrishna wrote:
-]
-> -		list_for_each_entry(page, &n->slabs_full, lru) {
-> -			if (page->active != cachep->num && !error)
-> -				error = "slabs_full accounting error";
-> -			active_objs += cachep->num;
-> -			active_slabs++;
-> -		}
+On Wed, 17 Aug 2016 17:10:28 +0100 Catalin Marinas <catalin.marinas@arm.com> wrote:
 
-Since you only removed this loop, you could track only number of
-full_slabs.
+> On Wed, Aug 17, 2016 at 11:51:41PM +0800, kernel test robot wrote:
+> > FYI, we noticed the following commit:
+> > 
+> > https://github.com/0day-ci/linux Catalin-Marinas/mm-kmemleak-Avoid-using-__va-on-addresses-that-don-t-have-a-lowmem-mapping/20160816-232733
+> > commit 122708b1b91eb3d253baf86a263ead0f1f5cac78 ("mm: kmemleak: Avoid using __va() on addresses that don't have a lowmem mapping")
+> > 
+> > in testcase: boot
+> > 
+> > on test machine: 1 threads qemu-system-i386 -enable-kvm with 320M memory
+> > 
+> > caused below changes:
+> > 
+> > +--------------------------------+------------+------------+
+> > |                                | 304bec1b1d | 122708b1b9 |
+> > +--------------------------------+------------+------------+
+> > | boot_successes                 | 3          | 0          |
+> > | boot_failures                  | 5          | 8          |
+> > | invoked_oom-killer:gfp_mask=0x | 1          |            |
+> > | Mem-Info                       | 1          |            |
+> > | BUG:kernel_test_crashed        | 4          |            |
+> > | PANIC:early_exception          | 0          | 8          |
+> > | EIP_is_at__phys_addr           | 0          | 8          |
+> > | BUG:kernel_hang_in_boot_stage  | 0          | 2          |
+> > | BUG:kernel_boot_hang           | 0          | 6          |
+> > +--------------------------------+------------+------------+
+> 
+> Please disregard this patch. I posted v2 here:
+> 
+> http://lkml.kernel.org/g/1471426130-21330-1-git-send-email-catalin.marinas@arm.com
+> 
+> (and I'm eager to see the kbuild/kernel test robot results ;))
 
-This would avoid messing with n->num_slabs all over the places in fast
-path.
-
-Please also update slab_out_of_memory()
-
-
-
-
+I don't see how the v1->v2 changes could fix a panic?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
