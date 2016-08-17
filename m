@@ -1,243 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 117CA6B0261
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 07:44:41 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id ag5so196713747pad.2
-        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 04:44:41 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id zd5si37461834pac.155.2016.08.17.04.44.39
-        for <linux-mm@kvack.org>;
-        Wed, 17 Aug 2016 04:44:40 -0700 (PDT)
-Subject: Re: [PATCH v11 0/7] Make cpuid <-> nodeid mapping persistent
-References: <1470645476-16605-1-git-send-email-douly.fnst@cn.fujitsu.com>
-From: Dou Liyang <douly.fnst@cn.fujitsu.com>
-Message-ID: <e6d67c93-8dd6-af59-9075-104f098ed250@cn.fujitsu.com>
-Date: Wed, 17 Aug 2016 19:44:36 +0800
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5539D6B0038
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 08:13:46 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id n128so188046315ith.3
+        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 05:13:46 -0700 (PDT)
+Received: from mail-it0-x241.google.com (mail-it0-x241.google.com. [2607:f8b0:4001:c0b::241])
+        by mx.google.com with ESMTPS id p5si27172123ita.109.2016.08.17.05.13.45
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Aug 2016 05:13:45 -0700 (PDT)
+Received: by mail-it0-x241.google.com with SMTP id d65so8837331ith.0
+        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 05:13:45 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1470645476-16605-1-git-send-email-douly.fnst@cn.fujitsu.com>
-Content-Type: text/plain; charset="gbk"; format=flowed
-Content-Transfer-Encoding: 7bit
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Date: Wed, 17 Aug 2016 14:13:44 +0200
+Message-ID: <CAMuHMdU+j50GFT=DUWsx_dz1VJJ5zY2EVJi4cX4ZhVVLRMyjCA@mail.gmail.com>
+Subject: usercopy: kernel memory exposure attempt detected
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux.com, tj@kernel.org, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, len.brown@intel.com, lenb@kernel.org, tglx@linutronix.de, chen.tang@easystack.cn, rafael@kernel.org
-Cc: x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Kees Cook <keescook@chromium.org>, Al Viro <viro@zeniv.linux.org.uk>
+Cc: Linux MM <linux-mm@kvack.org>, "open list:NFS, SUNRPC, AND..." <linux-nfs@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Ping ...
-May I ask for some community attention to this series?
-My purpose is fixing the memory allocation failure sometimes
-when hot-plugging it.
+Hi Kees, Al,
 
-Thanks in advance.
-dou
+Saw this when using NFS root on r8a7791/koelsch, using a tree based on
+renesas-drivers-2016-08-16-v4.8-rc2:
 
-At 08/08/2016 04:37 PM, Dou Liyang wrote:
-> [Problem]
->
-> cpuid <-> nodeid mapping is firstly established at boot time. And workqueue caches
-> the mapping in wq_numa_possible_cpumask in wq_numa_init() at boot time.
->
-> When doing node online/offline, cpuid <-> nodeid mapping is established/destroyed,
-> which means, cpuid <-> nodeid mapping will change if node hotplug happens. But
-> workqueue does not update wq_numa_possible_cpumask.
->
-> So here is the problem:
->
-> Assume we have the following cpuid <-> nodeid in the beginning:
->
->   Node | CPU
-> ------------------------
-> node 0 |  0-14, 60-74
-> node 1 | 15-29, 75-89
-> node 2 | 30-44, 90-104
-> node 3 | 45-59, 105-119
->
-> and we hot-remove node2 and node3, it becomes:
->
->   Node | CPU
-> ------------------------
-> node 0 |  0-14, 60-74
-> node 1 | 15-29, 75-89
->
-> and we hot-add node4 and node5, it becomes:
->
->   Node | CPU
-> ------------------------
-> node 0 |  0-14, 60-74
-> node 1 | 15-29, 75-89
-> node 4 | 30-59
-> node 5 | 90-119
->
-> But in wq_numa_possible_cpumask, cpu30 is still mapped to node2, and the like.
->
-> When a pool workqueue is initialized, if its cpumask belongs to a node, its
-> pool->node will be mapped to that node. And memory used by this workqueue will
-> also be allocated on that node.
->
-> static struct worker_pool *get_unbound_pool(const struct workqueue_attrs *attrs){
-> ...
->         /* if cpumask is contained inside a NUMA node, we belong to that node */
->         if (wq_numa_enabled) {
->                 for_each_node(node) {
->                         if (cpumask_subset(pool->attrs->cpumask,
->                                            wq_numa_possible_cpumask[node])) {
->                                 pool->node = node;
->                                 break;
->                         }
->                 }
->         }
->
-> Since wq_numa_possible_cpumask is not updated, it could be mapped to an offline node,
-> which will lead to memory allocation failure:
->
->  SLUB: Unable to allocate memory on node 2 (gfp=0x80d0)
->   cache: kmalloc-192, object size: 192, buffer size: 192, default order: 1, min order: 0
->   node 0: slabs: 6172, objs: 259224, free: 245741
->   node 1: slabs: 3261, objs: 136962, free: 127656
->
-> It happens here:
->
-> create_worker(struct worker_pool *pool)
->  |--> worker = alloc_worker(pool->node);
->
-> static struct worker *alloc_worker(int node)
-> {
->         struct worker *worker;
->
->         worker = kzalloc_node(sizeof(*worker), GFP_KERNEL, node); --> Here, useing the wrong node.
->
->         ......
->
->         return worker;
-> }
->
->
-> [Solution]
->
-> There are four mappings in the kernel:
-> 1. nodeid (logical node id)   <->   pxm
-> 2. apicid (physical cpu id)   <->   nodeid
-> 3. cpuid (logical cpu id)     <->   apicid
-> 4. cpuid (logical cpu id)     <->   nodeid
->
-> 1. pxm (proximity domain) is provided by ACPI firmware in SRAT, and nodeid <-> pxm
->    mapping is setup at boot time. This mapping is persistent, won't change.
->
-> 2. apicid <-> nodeid mapping is setup using info in 1. The mapping is setup at boot
->    time and CPU hotadd time, and cleared at CPU hotremove time. This mapping is also
->    persistent.
->
-> 3. cpuid <-> apicid mapping is setup at boot time and CPU hotadd time. cpuid is
->    allocated, lower ids first, and released at CPU hotremove time, reused for other
->    hotadded CPUs. So this mapping is not persistent.
->
-> 4. cpuid <-> nodeid mapping is also setup at boot time and CPU hotadd time, and
->    cleared at CPU hotremove time. As a result of 3, this mapping is not persistent.
->
-> To fix this problem, we establish cpuid <-> nodeid mapping for all the possible
-> cpus at boot time, and make it persistent. And according to init_cpu_to_node(),
-> cpuid <-> nodeid mapping is based on apicid <-> nodeid mapping and cpuid <-> apicid
-> mapping. So the key point is obtaining all cpus' apicid.
->
-> apicid can be obtained by _MAT (Multiple APIC Table Entry) method or found in
-> MADT (Multiple APIC Description Table). So we finish the job in the following steps:
->
-> 1. Enable apic registeration flow to handle both enabled and disabled cpus.
->    This is done by introducing an extra parameter to generic_processor_info to let the
->    caller control if disabled cpus are ignored.
->
-> 2. Introduce a new array storing all possible cpuid <-> apicid mapping. And also modify
->    the way cpuid is calculated. Establish all possible cpuid <-> apicid mapping when
->    registering local apic. Store the mapping in this array.
->
-> 3. Enable _MAT and MADT relative apis to return non-presnet or disabled cpus' apicid.
->    This is also done by introducing an extra parameter to these apis to let the caller
->    control if disabled cpus are ignored.
->
-> 4. Establish all possible cpuid <-> nodeid mapping.
->    This is done via an additional acpi namespace walk for processors.
->
->
-> For previous discussion, please refer to:
-> https://lkml.org/lkml/2015/2/27/145
-> https://lkml.org/lkml/2015/3/25/989
-> https://lkml.org/lkml/2015/5/14/244
-> https://lkml.org/lkml/2015/7/7/200
-> https://lkml.org/lkml/2015/9/27/209
-> https://lkml.org/lkml/2016/5/19/212
-> https://lkml.org/lkml/2016/7/19/181
-> https://lkml.org/lkml/2016/7/25/99
-> https://lkml.org/lkml/2016/7/26/52
->
-> Change log v10 -> v11:
-> 1. Reduce the number of repeat judgment of online/offline
-> 2. Seperate out the functionality in the enable or disable situation
->
-> Change log v9 -> v10:
-> 1. Providing an empty definition of acpi_set_processor_mapping() for
-> CONFIG_ACPI_HOTPLUG_CPU unset. In patch 5.
-> 2. Fix auto build test ERROR on ia64/next. In patch 5.
-> 3. Fix some comment.
->
-> Change log v8 -> v9:
-> 1. Providing an empty definition of acpi_set_processor_mapping() for
-> CONFIG_ACPI_HOTPLUG_CPU unset.
->
-> Change log v7 -> v8:
-> 1. Provide the mechanism to validate processors in the ACPI tables.
-> 2. Provide the interface to validate the proc_id when setting the mapping.
->
-> Change log v6 -> v7:
-> 1. Fix arm64 build failure.
->
-> Change log v5 -> v6:
-> 1. Define func acpi_map_cpu2node() for x86 and ia64 respectively.
->
-> Change log v4 -> v5:
-> 1. Remove useless code in patch 1.
-> 2. Small improvement of commit message.
->
-> Change log v3 -> v4:
-> 1. Fix the kernel panic at boot time. The cause is that I tried to build zonelists
->    before per cpu areas were initialized.
->
-> Change log v2 -> v3:
-> 1. Online memory-less nodes at boot time to map cpus of memory-less nodes.
-> 2. Build zonelists for memory-less nodes so that memory allocator will fall
->    back to proper nodes automatically.
->
-> Change log v1 -> v2:
-> 1. Split code movement and actual changes. Add patch 1.
-> 2. Synchronize best near online node record when node hotplug happens. In patch 2.
-> 3. Fix some comment.
->
-> Dou Liyang (2):
->   acpi: Provide the mechanism to validate processors in the ACPI tables
->   acpi: Provide the interface to validate the proc_id
->
-> Gu Zheng (4):
->   x86, acpi, cpu-hotplug: Enable acpi to register all possible cpus at
->     boot time.
->   x86, acpi, cpu-hotplug: Introduce cpuid_to_apicid[] array to store
->     persistent cpuid <-> apicid mapping.
->   x86, acpi, cpu-hotplug: Enable MADT APIs to return disabled apicid.
->   x86, acpi, cpu-hotplug: Set persistent cpuid <-> nodeid mapping when
->     booting.
->
-> Tang Chen (1):
->   x86, memhp, numa: Online memory-less nodes at boot time.
->
->  arch/ia64/kernel/acpi.c       |   3 +-
->  arch/x86/include/asm/mpspec.h |   1 +
->  arch/x86/kernel/acpi/boot.c   |  11 ++--
->  arch/x86/kernel/apic/apic.c   |  77 +++++++++++++++++++++++--
->  arch/x86/mm/numa.c            |  27 +++++----
->  drivers/acpi/acpi_processor.c | 105 +++++++++++++++++++++++++++++++++-
->  drivers/acpi/bus.c            |   1 +
->  drivers/acpi/processor_core.c | 128 +++++++++++++++++++++++++++++++++++-------
->  include/linux/acpi.h          |   6 ++
->  9 files changed, 309 insertions(+), 50 deletions(-)
->
+usercopy: kernel memory exposure attempt detected from c01ff000
+(<kernel text>) (4096 bytes)
+------------[ cut here ]------------
+kernel BUG at mm/usercopy.c:75!
+Internal error: Oops - BUG: 0 [#1] SMP ARM
+Modules linked in:
+CPU: 1 PID: 1636 Comm: exim4 Not tainted
+4.8.0-rc2-koelsch-00407-g7a4ab698caefa57a-dirty #2901
+Hardware name: Generic R8A7791 (Flattened Device Tree)
+task: eeae7100 task.stack: eeace000
+PC is at __check_object_size+0x2d0/0x390
+LR is at __check_object_size+0x2d0/0x390
+pc : [<c02d33fc>]    lr : [<c02d33fc>]    psr: 600f0013
+sp : eeacfe28  ip : 00000000  fp : c0200000
+r10: b6f9c000  r9 : eeacff0c  r8 : 00000001
+r7 : c0e05444  r6 : c01fffff  r5 : 00001000  r4 : c01ff000
+r3 : 00000001  r2 : 2ed71000  r1 : ef9b43f0  r0 : 0000005c
+Flags: nZCv  IRQs on  FIQs on  Mode SVC_32  ISA ARM  Segment user
+Control: 30c5387d  Table: 6dcd62c0  DAC: 55555555
+Process exim4 (pid: 1636, stack limit = 0xeeace210)
+Stack: (0xeeacfe28 to 0xeead0000)
+fe20:                   c095c004 00001000 00000002 ef9fcc80 eeacfe38 00001000
+fe40: c01ff000 00001000 00000000 eeacff14 eeacff0c b6f9c000 ef22d4ac c03eea60
+fe60: 00000001 00000000 00000000 ee78bf00 eeacff28 ef9fcfe0 00001000 c029c914
+fe80: 00000004 00000001 00000000 eeacff14 00000000 ef22d3b8 00001000 00000000
+fea0: ee78bf88 00000002 ef22d3b8 c06afb3c 00000000 c038a9c8 c0c4b780 c02a0cd8
+fec0: effce060 eeacff28 ef22d3b8 00000000 eeacff14 c0206ce4 eeace000 00000000
+fee0: 00000000 c0387698 c0387644 00000000 ee78bf00 eeacff88 00001000 c02d5550
+ff00: 00001000 c06afb3c 00000001 b6f9c000 00001000 00000000 00000000 00001000
+ff20: eeacff0c 00000001 ee78bf00 00000000 00001000 00000000 00000000 00000000
+ff40: 00000000 00000000 ef365e38 00001000 ee78bf00 b6f9c000 eeacff88 c02d6080
+ff60: ee78bf00 b6f9c000 00001000 ee78bf00 ee78bf00 00001000 b6f9c000 c0206ce4
+ff80: eeace000 c02d6cd8 00001000 00000000 00001000 7f723250 b6c2bbfc 00003fdf
+ffa0: 00000003 c0206b40 7f723250 b6c2bbfc 00000004 b6f9c000 00001000 00000000
+ffc0: 7f723250 b6c2bbfc 00003fdf 00000003 7f71efdf 0000000a 7f71efc0 00000000
+ffe0: 00000000 be80f4ac b6b90817 b6bcadd6 400f0030 00000004 30133e52 60547340
+[<c02d33fc>] (__check_object_size) from [<c03eea60>]
+(copy_page_to_iter+0x114/0x1f0)
+[<c03eea60>] (copy_page_to_iter) from [<c029c914>]
+(generic_file_read_iter+0x3a0/0x7e8)
+[<c029c914>] (generic_file_read_iter) from [<c0387698>]
+(nfs_file_read+0x54/0x98)
+[<c0387698>] (nfs_file_read) from [<c02d5550>] (__vfs_read+0xdc/0x104)
+[<c02d5550>] (__vfs_read) from [<c02d6080>] (vfs_read+0x94/0x100)
+[<c02d6080>] (vfs_read) from [<c02d6cd8>] (SyS_read+0x40/0x80)
+[<c02d6cd8>] (SyS_read) from [<c0206b40>] (ret_fast_syscall+0x0/0x34)
+Code: e88d0021 e1a03004 e59f00b0 ebff176b (e7f001f2)
 
+Despite the BUG(), the system continues working.
+
+Gr{oetje,eeting}s,
+
+                        Geert
+
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+                                -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
