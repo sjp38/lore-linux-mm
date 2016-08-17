@@ -1,138 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B2D36B025E
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 01:17:39 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id w128so209490408pfd.3
-        for <linux-mm@kvack.org>; Tue, 16 Aug 2016 22:17:39 -0700 (PDT)
-Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
-        by mx.google.com with ESMTPS id z86si35854650pfd.171.2016.08.16.22.17.37
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D6BC6B0260
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 01:17:41 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id le9so184320506pab.0
+        for <linux-mm@kvack.org>; Tue, 16 Aug 2016 22:17:41 -0700 (PDT)
+Received: from mailout3.samsung.com (mailout3.samsung.com. [203.254.224.33])
+        by mx.google.com with ESMTPS id p11si35815356pao.78.2016.08.16.22.17.39
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 16 Aug 2016 22:17:37 -0700 (PDT)
+        Tue, 16 Aug 2016 22:17:40 -0700 (PDT)
 Received: from epcpsbgr1.samsung.com
  (u141.gpu120.samsung.co.kr [203.254.230.141])
- by mailout2.samsung.com (Oracle Communications Messaging Server 7.0.5.31.0
+ by mailout3.samsung.com (Oracle Communications Messaging Server 7.0.5.31.0
  64bit (built May  5 2014))
- with ESMTP id <0OC100N5VG1CI2E0@mailout2.samsung.com> for linux-mm@kvack.org;
- Wed, 17 Aug 2016 14:17:36 +0900 (KST)
+ with ESMTP id <0OC100FOTG1ATXB0@mailout3.samsung.com> for linux-mm@kvack.org;
+ Wed, 17 Aug 2016 14:17:34 +0900 (KST)
 From: Daeho Jeong <daeho.jeong@samsung.com>
-Subject: [RFC 2/3] cfq: add cfq_find_async_wb_req
-Date: Wed, 17 Aug 2016 14:20:44 +0900
-Message-id: <1471411245-5186-3-git-send-email-daeho.jeong@samsung.com>
-In-reply-to: <1471411245-5186-1-git-send-email-daeho.jeong@samsung.com>
-References: <1471411245-5186-1-git-send-email-daeho.jeong@samsung.com>
+Subject: [RFC 0/3] Add the feature of boosting urgent asynchronous writeback I/O
+Date: Wed, 17 Aug 2016 14:20:42 +0900
+Message-id: <1471411245-5186-1-git-send-email-daeho.jeong@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk, tytso@mit.edu, adilger.kernel@dilger.ca, jack@suse.com, linux-block@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org
 Cc: Daeho Jeong <daeho.jeong@samsung.com>
 
-Implemented a function to find asynchronous writeback I/O with a
-specified sector number and remove the found I/O from the queue
-and return that to the caller.
+This is the draft version of the feature to boost urgent async
+writeback I/O and this is developed based on kernel 4.7.
 
-Signed-off-by: Daeho Jeong <daeho.jeong@samsung.com>
----
- block/cfq-iosched.c      |   29 +++++++++++++++++++++++++++++
- block/elevator.c         |   24 ++++++++++++++++++++++++
- include/linux/elevator.h |    3 +++
- 3 files changed, 56 insertions(+)
+We can experience an unexpected dalay when we execute fsync() in the
+situation of that tons of async I/O are being flushed out in the system
+and, by this kind of fsync() delay, mobile users can see the
+application's hiccups frequently.
 
-diff --git a/block/cfq-iosched.c b/block/cfq-iosched.c
-index 4a34978..69355e2 100644
---- a/block/cfq-iosched.c
-+++ b/block/cfq-iosched.c
-@@ -2524,6 +2524,32 @@ static void cfq_remove_request(struct request *rq)
- 	}
- }
- 
-+#ifdef CONFIG_BOOST_URGENT_ASYNC_WB
-+static struct request *
-+cfq_find_async_wb_req(struct request_queue *q, sector_t sector)
-+{
-+	struct cfq_data *cfqd = q->elevator->elevator_data;
-+	struct cfq_queue *cfqq;
-+	struct request *found_req = NULL;
-+	int i;
-+
-+	for (i = 0; i < IOPRIO_BE_NR; i++) {
-+		cfqq = cfqd->root_group->async_cfqq[1][i];
-+		if (cfqq) {
-+			if (cfqq->queued[0])
-+				found_req = elv_rb_find_incl(&cfqq->sort_list,
-+							      sector);
-+			if (found_req) {
-+				cfq_remove_request(found_req);
-+				return found_req;
-+			}
-+		}
-+	}
-+
-+	return NULL;
-+}
-+#endif
-+
- static int cfq_merge(struct request_queue *q, struct request **req,
- 		     struct bio *bio)
- {
-@@ -4735,6 +4761,9 @@ static struct elevator_type iosched_cfq = {
- 		.elevator_add_req_fn =		cfq_insert_request,
- 		.elevator_activate_req_fn =	cfq_activate_request,
- 		.elevator_deactivate_req_fn =	cfq_deactivate_request,
-+#ifdef CONFIG_BOOST_URGENT_ASYNC_WB
-+		.elevator_find_async_wb_req_fn = cfq_find_async_wb_req,
-+#endif
- 		.elevator_completed_req_fn =	cfq_completed_request,
- 		.elevator_former_req_fn =	elv_rb_former_request,
- 		.elevator_latter_req_fn =	elv_rb_latter_request,
-diff --git a/block/elevator.c b/block/elevator.c
-index e4081ce..d34267a 100644
---- a/block/elevator.c
-+++ b/block/elevator.c
-@@ -343,6 +343,30 @@ struct request *elv_rb_find(struct rb_root *root, sector_t sector)
- }
- EXPORT_SYMBOL(elv_rb_find);
- 
-+#ifdef CONFIG_BOOST_URGENT_ASYNC_WB
-+struct request *elv_rb_find_incl(struct rb_root *root, sector_t sector)
-+{
-+	struct rb_node *n = root->rb_node;
-+	struct request *rq;
-+
-+	while (n) {
-+		rq = rb_entry(n, struct request, rb_node);
-+
-+		if (sector < blk_rq_pos(rq))
-+			n = n->rb_left;
-+		else if (sector > blk_rq_pos(rq)) {
-+			if (sector < blk_rq_pos(rq) + blk_rq_sectors(rq))
-+				return rq;
-+			n = n->rb_right;
-+		} else
-+			return rq;
-+	}
-+
-+	return NULL;
-+}
-+EXPORT_SYMBOL(elv_rb_find_incl);
-+#endif
-+
- /*
-  * Insert rq into dispatch queue of q.  Queue lock must be held on
-  * entry.  rq is sort instead into the dispatch queue. To be used by
-diff --git a/include/linux/elevator.h b/include/linux/elevator.h
-index 08ce155..efc202a 100644
---- a/include/linux/elevator.h
-+++ b/include/linux/elevator.h
-@@ -183,6 +183,9 @@ extern struct request *elv_rb_latter_request(struct request_queue *, struct requ
- extern void elv_rb_add(struct rb_root *, struct request *);
- extern void elv_rb_del(struct rb_root *, struct request *);
- extern struct request *elv_rb_find(struct rb_root *, sector_t);
-+#ifdef CONFIG_BOOST_URGENT_ASYNC_WB
-+extern struct request *elv_rb_find_incl(struct rb_root *, sector_t);
-+#endif
- 
- /*
-  * Return values from elevator merger
+To finish the fsync() operation, fsync() normally flushes out the
+previous buffered data of the file as sync I/O, however, if there are
+too many dirty pages in the page cache, the buffered data can be
+flushed out as async I/O with other dirty pages by kworker before
+fsync() directly flushes out that, and fysnc() might wait until all the
+asynchronously issued I/Os are done.
+
+To minimize this kind of delay, we convert async I/Os whose completion
+are waited by other processes into sync I/Os for better responsiveness.
+
+We made two micro benchmarks using fsync() and evaluated the effect of
+this feature on the mobile device having four 2.3GHz Exynos M1 ARM
+cores and four 1.6GHz Cortex-A53 ARM cores, 4GB RAM and 32GB UFS
+storage.
+
+The first benchmark is iterating that 4KB data write() and holding on
+for 100ms for giving more chances for kworker to flush the buffered
+data and executing fsync(), 100 times with the intensive background I/O.
+(Its total execution time is 1.06s without the background I/O.)
+
+                        <before opt.>   =>      <after opt.>
+fsync exec. time(sec.)  0.289489                0.031048
+                        0.282681                0.031255
+                        0.290374                0.034004
+                        0.235380                0.026512
+                        (...)                   (...)
+                        0.230488                0.044029
+                        0.337035                0.054402
+                        0.377575                0.025746
+Total exec. time(sec.)  21.78                   3.24 (85.1% decreased)
+
+The second one is iterating that 8MB data write() and fsync(), 50 times
+with the intensive background I/O.
+(Its total execution time is 5.23s without the background I/O.)
+
+                        <before opt.>   =>      <after opt.>
+fsync exec. time(sec.)  0.258374                0.125503
+                        0.311217                0.127392
+                        0.255543                0.117327
+                        0.237811                0.154037
+                        (...)                   (...)
+                        0.205052                0.131991
+                        0.206469                0.107791
+                        0.263619                0.155979
+Total exec. time(sec.)  14.61                   11.28 (22.8% decreased)
+
+Daeho Jeong (3):
+  block, mm: add support for boosting urgent asynchronous writeback io
+  cfq: add cfq_find_async_wb_req
+  ext4: tag asynchronous writeback io
+
+ block/Kconfig.iosched          |    9 +++
+ block/blk-core.c               |   28 ++++++++
+ block/cfq-iosched.c            |   29 +++++++++
+ block/elevator.c               |  141 ++++++++++++++++++++++++++++++++++++++++
+ fs/ext4/page-io.c              |   11 ++++
+ include/linux/blk_types.h      |    3 +
+ include/linux/elevator.h       |   13 ++++
+ include/linux/page-flags.h     |   12 ++++
+ include/linux/pagemap.h        |   12 ++++
+ include/trace/events/mmflags.h |   10 ++-
+ mm/filemap.c                   |   39 +++++++++++
+ 11 files changed, 306 insertions(+), 1 deletion(-)
+
 -- 
 1.7.9.5
 
