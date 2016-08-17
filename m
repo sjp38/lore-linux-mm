@@ -1,90 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F6B36B025E
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 13:21:14 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id l4so15852539wml.0
-        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 10:21:14 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s8si31109960wjo.13.2016.08.17.10.21.12
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 17 Aug 2016 10:21:13 -0700 (PDT)
-Date: Wed, 17 Aug 2016 19:21:11 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 0/7] re-enable DAX PMD support
-Message-ID: <20160817172111.GA30584@quack2.suse.cz>
-References: <20160815190918.20672-1-ross.zwisler@linux.intel.com>
- <CAPcyv4j_eh8Rcozb40JeiPwvbPoMY2sCt+yTewZ-MZzUkBbj-Q@mail.gmail.com>
- <20160815211106.GA31566@linux.intel.com>
- <CAPcyv4i+XHZSN_3T_vcrv+sOkEMQzuTKRo4WBFcPxN=TzSk9iw@mail.gmail.com>
- <20160817162124.GA16779@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160817162124.GA16779@linux.intel.com>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id ADB556B025F
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 13:25:22 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id o124so241198711pfg.1
+        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 10:25:22 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTP id gc14si99223pac.142.2016.08.17.10.25.21
+        for <linux-mm@kvack.org>;
+        Wed, 17 Aug 2016 10:25:21 -0700 (PDT)
+Message-ID: <1471454696.2888.94.camel@linux.intel.com>
+Subject: Re: [RFC 00/11] THP swap: Delay splitting THP during swapping out
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Date: Wed, 17 Aug 2016 10:24:56 -0700
+In-Reply-To: <20160817050743.GB5372@bbox>
+References: <1470760673-12420-1-git-send-email-ying.huang@intel.com>
+	 <20160817005905.GA5372@bbox> <87inv0kv3r.fsf@yhuang-mobile.sh.intel.com>
+	 <20160817050743.GB5372@bbox>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
+To: Minchan Kim <minchan@kernel.org>, "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, "Kirill A
+ . Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 17-08-16 10:21:24, Ross Zwisler wrote:
-> On Mon, Aug 15, 2016 at 02:14:14PM -0700, Dan Williams wrote:
-> > On Mon, Aug 15, 2016 at 2:11 PM, Ross Zwisler
-> > <ross.zwisler@linux.intel.com> wrote:
-> > > On Mon, Aug 15, 2016 at 01:21:47PM -0700, Dan Williams wrote:
-> > >> On Mon, Aug 15, 2016 at 12:09 PM, Ross Zwisler
-> > >> <ross.zwisler@linux.intel.com> wrote:
-> > >> > DAX PMDs have been disabled since Jan Kara introduced DAX radix tree based
-> > >> > locking.  This series allows DAX PMDs to participate in the DAX radix tree
-> > >> > based locking scheme so that they can be re-enabled.
-> > >>
-> > >> Looks good to me.
-> > >>
-> > >> > This series restores DAX PMD functionality back to what it was before it
-> > >> > was disabled.  There is still a known issue between DAX PMDs and hole
-> > >> > punch, which I am currently working on and which I plan to address with a
-> > >> > separate series.
-> > >>
-> > >> Perhaps we should hold off on applying patch 6 and 7 until after the
-> > >> hole-punch fix is ready?
-> > >
-> > > Sure, I'm cool with holding off on patch 7 (the Kconfig change) until after
-> > > the hole punch fix is ready.
-> > >
-> > > I don't see a reason to hold off on patch 6, though?  It stands on it's own,
-> > > implements the correct locking, and doesn't break anything.
+On Wed, 2016-08-17 at 14:07 +0900, Minchan Kim wrote:
+> On Tue, Aug 16, 2016 at 07:06:00PM -0700, Huang, Ying wrote:
 > > 
-> > Whoops, I just meant 7.
+> >A 
+> > > 
+> > > I think Tim and me discussed about that a few weeks ago.
+> > I work closely with Tim on swap optimization.A A This patchset is the part
+> > of our swap optimization plan.
+> > 
+> > > 
+> > > Please search below topics.
+> > > 
+> > > [1] mm: Batch page reclamation under shink_page_list
+> > > [2] mm: Cleanup - Reorganize the shrink_page_list code into smaller functions
+> > > 
+> > > It's different with yours which focused on THP swapping while the suggestion
+> > > would be more general if we can do so it's worth to try it, I think.
+> > I think the general optimization above will benefit both normal pages
+> > and THP at least for now.A A And I think there are no hard conflict
+> > between those two patchsets.
+> If we could do general optimzation, I guess THP swap without splitting
+> would be more straight forward.
 > 
-> Well, it looks like the hole punch case is much improved since I tested it
-> last!  :)  I used to be able to generate a few different kernel BUGs when hole
-> punching DAX PMDs, but those have apparently been fixed in the mm layer since
-> I was last testing, which admittedly was quite a long time ago (February?).
+> If we can reclaim batch a certain of pages all at once, it helps we can
+> do scan_swap_map(si, SWAP_HAS_CACHE, nr_pages). The nr_pages could be
+> greater or less than 512 pages. With that, scan_swap_map effectively
+> search empty swap slots from scan_map or free cluser list.
+> Then, needed part from your patchset is to just delay splitting of THP.
 > 
-> The only issue I was able to find with DAX PMD hole punching was that ext4
-> wasn't properly doing a writeback before the hole was unmapped and the radix
-> tree entries were removed.  This issue applies equally to the 4k case, so I've
-> submitted a bug fix for v4.8:
+> > 
+> > 
+> > The THP swap has more opportunity to be optimized, because we can batch
+> > 512 operations together more easily.A A For full THP swap support, unmap a
+> > THP could be more efficient with only one swap count operation instead
+> > of 512, so do many other operations, such as add/remove from swap cache
+> > with multi-order radix tree etc.A A And it will help memory fragmentation.
+> > THP can be kept after swapping out/in, need not to rebuild THP via
+> > khugepaged.
+> It seems you increased cluster size to 512 and search a empty cluster
+> for a THP swap. With that approach, I have a concern that once clusters
+> will be fragmented, THP swap support doesn't take benefit at all.
 > 
-> https://lists.01.org/pipermail/linux-nvdimm/2016-August/006621.html
+> Why do we need a empty cluster for swapping out 512 pages?
+> IOW, below case could work for the goal.
 > 
-> With that applied, I don't know of any more issues related to DAX PMDs and
-> hole punch.  I've tested ext4 and XFS (ext2 doesn't support hole punch), and
-> they both properly do a writeback of all affected PMDs, fully unmap all
-> affected PMDs, and remove the radix tree entries.  I've tested that new page
-> faults for addresses previously covered by the old PMDs generate new page
-> faults, and 4k pages are now faulted in because the block allocator no longer
-> has 2MiB contiguous allocations.
+> A : Allocated slot
+> F : Free slot
 > 
-> One question (probably for Jan): should the above ext4 fix be marked for
-> stable?
+> cluster AA A A cluster B
+> AAAAFFFFA A -A A FFFFAAAA
+> 
+> That's one of the reason I suggested batch reclaim work first and
+> support THP swap based on it. With that, scan_swap_map can be aware of nr_pages
+> and selects right clusters.
+> 
+> With the approach, justfication of THP swap support would be easier, too.
+> IOW, I'm not sure how only THP swap support is valuable in real workload.
+> 
+> Anyways, that's just my two cents.
 
-Yes, probably it should be.
+Minchan,
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Scanning for contiguous slots that span clusters may take quite a
+long time under fragmentation, and may eventually fail. A In that case the addition scan
+time overhead may go to waste and defeat the purpose of fast swapping of large page.
+
+The empty cluster lookup on the other hand is very fast.
+We treat the empty cluster available case as an opportunity for fast path
+swap out of large page. A Otherwise, we'll revert to the current
+slow path behavior of breaking into normal pages so there's no
+regression, and we may get speed up. A We can be considerably faster when a lot of large
+pages are used. A 
+
+
+> 
+> > 
+> > 
+> > But not all pages are huge, so normal pages swap optimization is
+> > necessary and good anyway.
+> > 
+
+Yes, optimizing the normal swap pages is still an important goal
+for us. A THP swap optimization is complementary component. A 
+
+We have seen system with THP spend significant cpu cycles breaking up the
+pages on swap out and then compacting the pages for THP again after
+swap in. A So if we can avoid this, that will be helpful.
+
+Thanks for your valuable comments.
+
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
