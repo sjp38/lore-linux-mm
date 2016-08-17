@@ -1,71 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E8D26B0261
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 05:29:12 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id u81so186017wmu.3
-        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 02:29:12 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id p71si24726774wmf.51.2016.08.17.02.29.11
+	by kanga.kvack.org (Postfix) with ESMTP id E44986B0038
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 05:33:26 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 1so332167wmz.2
+        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 02:33:26 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s2si29351737wjc.195.2016.08.17.02.33.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Aug 2016 02:29:11 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id q128so22017252wma.1
-        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 02:29:11 -0700 (PDT)
-Date: Wed, 17 Aug 2016 11:29:09 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, oom: report compaction/migration stats for higher
- order requests
-Message-ID: <20160817092909.GA20703@dhcp22.suse.cz>
-References: <201608120901.41463.a.miskiewicz@gmail.com>
- <201608161318.25412.a.miskiewicz@gmail.com>
- <20160816141007.GF17417@dhcp22.suse.cz>
- <201608171034.54940.arekm@maven.pl>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 17 Aug 2016 02:33:25 -0700 (PDT)
+Date: Wed, 17 Aug 2016 11:33:23 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: OOM killer changes
+Message-ID: <20160817093323.GB20703@dhcp22.suse.cz>
+References: <ccad54a2-be1e-44cf-b9c8-d6b34af4901d@quantum.com>
+ <6cb37d4a-d2dd-6c2f-a65d-51474103bf86@Quantum.com>
+ <d1f63745-b9e3-b699-8a5a-08f06c72b392@suse.cz>
+ <20160815150123.GG3360@dhcp22.suse.cz>
+ <1b8ee89d-a851-06f0-6bcc-62fef9e7e7cc@Quantum.com>
+ <20160816073246.GC5001@dhcp22.suse.cz>
+ <20160816074316.GD5001@dhcp22.suse.cz>
+ <6a22f206-e0e7-67c9-c067-73a55b6fbb41@Quantum.com>
+ <a61f01eb-7077-07dd-665a-5125a1f8ef37@suse.cz>
+ <0325d79b-186b-7d61-2759-686f8afff0e9@Quantum.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <201608171034.54940.arekm@maven.pl>
+In-Reply-To: <0325d79b-186b-7d61-2759-686f8afff0e9@Quantum.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arkadiusz =?utf-8?Q?Mi=C5=9Bkiewicz?= <arekm@maven.pl>
-Cc: linux-ext4@vger.kernel.org, linux-mm@kvack.org
+To: Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed 17-08-16 10:34:54, Arkadiusz MiA?kiewicz wrote:
+On Wed 17-08-16 02:28:35, Ralf-Peter Rohbeck wrote:
+> On 17.08.2016 02:23, Vlastimil Babka wrote:
 [...]
-> With "[PATCH] mm, oom: report compaction/migration stats for higher order 
-> requests" patch:
-> https://ixion.pld-linux.org/~arekm/p2/ext4/log-20160817.txt
+> > 4.8.0-rc2 is not "linux-next". What Michal meant is the linux-next git
+> > (there's no tarball on kernel.org for it):
+> > git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
 > 
-> Didn't count much - all counters are 0
-> compaction_stall:0 compaction_fail:0 compact_migrate_scanned:0 
-> compact_free_scanned:0 compact_isolated:0 pgmigrate_success:0 pgmigrate_fail:0
+> Hmm. I added linux-next git, fetched it etc but apparently I didn't check
+> out the right branch. Do you want next-20160817?
 
-Dohh, COMPACTION counters are events and those are different than other
-counters we have. They only have per-cpu representation and so we would
-have to do 
-+       for_each_online_cpu(cpu) {
-+               struct vm_event_state *this = &per_cpu(vm_event_states, cpu);
-+               ret += this->event[item];
-+       }
+Yes this one should be OK. It contains Vlastimil's patches.
 
-which is really nasty because, strictly speaking, we would have to do
-{get,put}_online_cpus around that loop and that uses locking and we do
-not want to possibly block in this path just because something is in the
-middle of the hotplug. So let's scratch that patch for now and sorry I
-haven't realized that earlier.
- 
-> two processes were killed by OOM (rm and cp), the rest of rm/cp didn't finish 
-> and I'm interrupting it to try that next patch:
-> 
-> > Could you try to test with
-> > patch from
-> > http://lkml.kernel.org/r/20160816031222.GC16913@js1304-P5Q-DELUXE please?
-> > Ideally on top of linux-next. You can add both the compaction counters
-> > patch in the oom report and high order atomic reserves patch on top.
-> 
-> Uhm, was going to use it on top of 4.7.[01] first.
-
-OK
+Thanks!
 -- 
 Michal Hocko
 SUSE Labs
