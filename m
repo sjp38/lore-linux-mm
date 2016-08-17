@@ -1,53 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E44986B0038
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 05:33:26 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id 1so332167wmz.2
-        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 02:33:26 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 6B3256B025E
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 06:02:05 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 1so1323577wmz.2
+        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 03:02:05 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s2si29351737wjc.195.2016.08.17.02.33.25
+        by mx.google.com with ESMTPS id y135si24818695wmc.71.2016.08.17.03.01.57
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 17 Aug 2016 02:33:25 -0700 (PDT)
-Date: Wed, 17 Aug 2016 11:33:23 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: OOM killer changes
-Message-ID: <20160817093323.GB20703@dhcp22.suse.cz>
-References: <ccad54a2-be1e-44cf-b9c8-d6b34af4901d@quantum.com>
- <6cb37d4a-d2dd-6c2f-a65d-51474103bf86@Quantum.com>
- <d1f63745-b9e3-b699-8a5a-08f06c72b392@suse.cz>
- <20160815150123.GG3360@dhcp22.suse.cz>
- <1b8ee89d-a851-06f0-6bcc-62fef9e7e7cc@Quantum.com>
- <20160816073246.GC5001@dhcp22.suse.cz>
- <20160816074316.GD5001@dhcp22.suse.cz>
- <6a22f206-e0e7-67c9-c067-73a55b6fbb41@Quantum.com>
- <a61f01eb-7077-07dd-665a-5125a1f8ef37@suse.cz>
- <0325d79b-186b-7d61-2759-686f8afff0e9@Quantum.com>
+        Wed, 17 Aug 2016 03:01:58 -0700 (PDT)
+Date: Wed, 17 Aug 2016 12:01:56 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] do_generic_file_read(): Fail immediately if killed
+Message-ID: <20160817100156.GA6254@quack2.suse.cz>
+References: <63068e8e-8bee-b208-8441-a3c39a9d9eb6@sandisk.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <0325d79b-186b-7d61-2759-686f8afff0e9@Quantum.com>
+In-Reply-To: <63068e8e-8bee-b208-8441-a3c39a9d9eb6@sandisk.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Bart Van Assche <bart.vanassche@sandisk.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-On Wed 17-08-16 02:28:35, Ralf-Peter Rohbeck wrote:
-> On 17.08.2016 02:23, Vlastimil Babka wrote:
-[...]
-> > 4.8.0-rc2 is not "linux-next". What Michal meant is the linux-next git
-> > (there's no tarball on kernel.org for it):
-> > git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
+On Tue 16-08-16 17:00:43, Bart Van Assche wrote:
+> If a fatal signal has been received, fail immediately instead of
+> trying to read more data.
 > 
-> Hmm. I added linux-next git, fetched it etc but apparently I didn't check
-> out the right branch. Do you want next-20160817?
+> See also commit ebded02788b5 ("mm: filemap: avoid unnecessary
+> calls to lock_page when waiting for IO to complete during a read")
+> 
+> Signed-off-by: Bart Van Assche <bart.vanassche@sandisk.com>
+> Cc: Mel Gorman <mgorman@techsingularity.net>
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Oleg Nesterov <oleg@redhat.com>
 
-Yes this one should be OK. It contains Vlastimil's patches.
+The patch looks good to me. You can add:
 
-Thanks!
+Reviewed-by: Jan Kara <jack@suse.cz>
+
+BTW: Did you see some real world impact of the change? If yes, it would be
+good to describe in the changelog.
+
+								Honza
+> ---
+>  mm/filemap.c | 4 +++-
+>  1 file changed, 3 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index 2a9e84f6..bd8ab63 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -1721,7 +1721,9 @@ find_page:
+>  			 * wait_on_page_locked is used to avoid unnecessarily
+>  			 * serialisations and why it's safe.
+>  			 */
+> -			wait_on_page_locked_killable(page);
+> +			error = wait_on_page_locked_killable(page);
+> +			if (unlikely(error))
+> +				goto readpage_error;
+>  			if (PageUptodate(page))
+>  				goto page_ok;
+>  
+> -- 
+> 2.9.2
+> 
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
