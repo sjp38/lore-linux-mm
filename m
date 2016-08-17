@@ -1,121 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id ADB556B025F
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 13:25:22 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id o124so241198711pfg.1
-        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 10:25:22 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTP id gc14si99223pac.142.2016.08.17.10.25.21
-        for <linux-mm@kvack.org>;
-        Wed, 17 Aug 2016 10:25:21 -0700 (PDT)
-Message-ID: <1471454696.2888.94.camel@linux.intel.com>
-Subject: Re: [RFC 00/11] THP swap: Delay splitting THP during swapping out
-From: Tim Chen <tim.c.chen@linux.intel.com>
-Date: Wed, 17 Aug 2016 10:24:56 -0700
-In-Reply-To: <20160817050743.GB5372@bbox>
-References: <1470760673-12420-1-git-send-email-ying.huang@intel.com>
-	 <20160817005905.GA5372@bbox> <87inv0kv3r.fsf@yhuang-mobile.sh.intel.com>
-	 <20160817050743.GB5372@bbox>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EFA916B0038
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 14:21:27 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id j124so359420310ith.1
+        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 11:21:27 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id 84si12850503iot.178.2016.08.17.11.21.27
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Aug 2016 11:21:27 -0700 (PDT)
+From: Aruna Ramakrishna <aruna.ramakrishna@oracle.com>
+Subject: [PATCH v3] mm/slab: Improve performance of gathering slabinfo stats
+Date: Wed, 17 Aug 2016 11:20:50 -0700
+Message-Id: <1471458050-29622-1-git-send-email-aruna.ramakrishna@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, "Kirill A
- . Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, 2016-08-17 at 14:07 +0900, Minchan Kim wrote:
-> On Tue, Aug 16, 2016 at 07:06:00PM -0700, Huang, Ying wrote:
-> > 
-> >A 
-> > > 
-> > > I think Tim and me discussed about that a few weeks ago.
-> > I work closely with Tim on swap optimization.A A This patchset is the part
-> > of our swap optimization plan.
-> > 
-> > > 
-> > > Please search below topics.
-> > > 
-> > > [1] mm: Batch page reclamation under shink_page_list
-> > > [2] mm: Cleanup - Reorganize the shrink_page_list code into smaller functions
-> > > 
-> > > It's different with yours which focused on THP swapping while the suggestion
-> > > would be more general if we can do so it's worth to try it, I think.
-> > I think the general optimization above will benefit both normal pages
-> > and THP at least for now.A A And I think there are no hard conflict
-> > between those two patchsets.
-> If we could do general optimzation, I guess THP swap without splitting
-> would be more straight forward.
-> 
-> If we can reclaim batch a certain of pages all at once, it helps we can
-> do scan_swap_map(si, SWAP_HAS_CACHE, nr_pages). The nr_pages could be
-> greater or less than 512 pages. With that, scan_swap_map effectively
-> search empty swap slots from scan_map or free cluser list.
-> Then, needed part from your patchset is to just delay splitting of THP.
-> 
-> > 
-> > 
-> > The THP swap has more opportunity to be optimized, because we can batch
-> > 512 operations together more easily.A A For full THP swap support, unmap a
-> > THP could be more efficient with only one swap count operation instead
-> > of 512, so do many other operations, such as add/remove from swap cache
-> > with multi-order radix tree etc.A A And it will help memory fragmentation.
-> > THP can be kept after swapping out/in, need not to rebuild THP via
-> > khugepaged.
-> It seems you increased cluster size to 512 and search a empty cluster
-> for a THP swap. With that approach, I have a concern that once clusters
-> will be fragmented, THP swap support doesn't take benefit at all.
-> 
-> Why do we need a empty cluster for swapping out 512 pages?
-> IOW, below case could work for the goal.
-> 
-> A : Allocated slot
-> F : Free slot
-> 
-> cluster AA A A cluster B
-> AAAAFFFFA A -A A FFFFAAAA
-> 
-> That's one of the reason I suggested batch reclaim work first and
-> support THP swap based on it. With that, scan_swap_map can be aware of nr_pages
-> and selects right clusters.
-> 
-> With the approach, justfication of THP swap support would be easier, too.
-> IOW, I'm not sure how only THP swap support is valuable in real workload.
-> 
-> Anyways, that's just my two cents.
+On large systems, when some slab caches grow to millions of objects (and
+many gigabytes), running 'cat /proc/slabinfo' can take up to 1-2 seconds.
+During this time, interrupts are disabled while walking the slab lists
+(slabs_full, slabs_partial, and slabs_free) for each node, and this
+sometimes causes timeouts in other drivers (for instance, Infiniband).
 
-Minchan,
+This patch optimizes 'cat /proc/slabinfo' by maintaining a counter for
+total number of allocated slabs per node, per cache. This counter is
+updated when a slab is created or destroyed. This enables us to skip
+traversing the slabs_full list while gathering slabinfo statistics, and
+since slabs_full tends to be the biggest list when the cache is large, it
+results in a dramatic performance improvement. Getting slabinfo statistics
+now only requires walking the slabs_free and slabs_partial lists, and
+those lists are usually much smaller than slabs_full. We tested this after
+growing the dentry cache to 70GB, and the performance improved from 2s to
+5ms.
 
-Scanning for contiguous slots that span clusters may take quite a
-long time under fragmentation, and may eventually fail. A In that case the addition scan
-time overhead may go to waste and defeat the purpose of fast swapping of large page.
+Signed-off-by: Aruna Ramakrishna <aruna.ramakrishna@oracle.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+---
+Note: this has been tested only on x86_64.
 
-The empty cluster lookup on the other hand is very fast.
-We treat the empty cluster available case as an opportunity for fast path
-swap out of large page. A Otherwise, we'll revert to the current
-slow path behavior of breaking into normal pages so there's no
-regression, and we may get speed up. A We can be considerably faster when a lot of large
-pages are used. A 
+ mm/slab.c | 26 +++++++++++++++++---------
+ mm/slab.h |  1 +
+ 2 files changed, 18 insertions(+), 9 deletions(-)
 
-
-> 
-> > 
-> > 
-> > But not all pages are huge, so normal pages swap optimization is
-> > necessary and good anyway.
-> > 
-
-Yes, optimizing the normal swap pages is still an important goal
-for us. A THP swap optimization is complementary component. A 
-
-We have seen system with THP spend significant cpu cycles breaking up the
-pages on swap out and then compacting the pages for THP again after
-swap in. A So if we can avoid this, that will be helpful.
-
-Thanks for your valuable comments.
-
-Tim
+diff --git a/mm/slab.c b/mm/slab.c
+index b672710..3da34fe 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -233,6 +233,7 @@ static void kmem_cache_node_init(struct kmem_cache_node *parent)
+ 	spin_lock_init(&parent->list_lock);
+ 	parent->free_objects = 0;
+ 	parent->free_touched = 0;
++	parent->num_slabs = 0;
+ }
+ 
+ #define MAKE_LIST(cachep, listp, slab, nodeid)				\
+@@ -2326,6 +2327,7 @@ static int drain_freelist(struct kmem_cache *cache,
+ 
+ 		page = list_entry(p, struct page, lru);
+ 		list_del(&page->lru);
++		n->num_slabs--;
+ 		/*
+ 		 * Safe to drop the lock. The slab is no longer linked
+ 		 * to the cache.
+@@ -2764,6 +2766,8 @@ static void cache_grow_end(struct kmem_cache *cachep, struct page *page)
+ 		list_add_tail(&page->lru, &(n->slabs_free));
+ 	else
+ 		fixup_slab_list(cachep, n, page, &list);
++
++	n->num_slabs++;
+ 	STATS_INC_GROWN(cachep);
+ 	n->free_objects += cachep->num - page->active;
+ 	spin_unlock(&n->list_lock);
+@@ -3455,6 +3459,7 @@ static void free_block(struct kmem_cache *cachep, void **objpp,
+ 
+ 		page = list_last_entry(&n->slabs_free, struct page, lru);
+ 		list_move(&page->lru, list);
++		n->num_slabs--;
+ 	}
+ }
+ 
+@@ -4111,6 +4116,8 @@ void get_slabinfo(struct kmem_cache *cachep, struct slabinfo *sinfo)
+ 	unsigned long num_objs;
+ 	unsigned long active_slabs = 0;
+ 	unsigned long num_slabs, free_objects = 0, shared_avail = 0;
++	unsigned long num_slabs_partial = 0, num_slabs_free = 0;
++	unsigned long num_slabs_full = 0;
+ 	const char *name;
+ 	char *error = NULL;
+ 	int node;
+@@ -4123,33 +4130,34 @@ void get_slabinfo(struct kmem_cache *cachep, struct slabinfo *sinfo)
+ 		check_irq_on();
+ 		spin_lock_irq(&n->list_lock);
+ 
+-		list_for_each_entry(page, &n->slabs_full, lru) {
+-			if (page->active != cachep->num && !error)
+-				error = "slabs_full accounting error";
+-			active_objs += cachep->num;
+-			active_slabs++;
+-		}
++		num_slabs += n->num_slabs;
++
+ 		list_for_each_entry(page, &n->slabs_partial, lru) {
+ 			if (page->active == cachep->num && !error)
+ 				error = "slabs_partial accounting error";
+ 			if (!page->active && !error)
+ 				error = "slabs_partial accounting error";
+ 			active_objs += page->active;
+-			active_slabs++;
++			num_slabs_partial++;
+ 		}
++
+ 		list_for_each_entry(page, &n->slabs_free, lru) {
+ 			if (page->active && !error)
+ 				error = "slabs_free accounting error";
+-			num_slabs++;
++			num_slabs_free++;
+ 		}
++
+ 		free_objects += n->free_objects;
+ 		if (n->shared)
+ 			shared_avail += n->shared->avail;
+ 
+ 		spin_unlock_irq(&n->list_lock);
+ 	}
+-	num_slabs += active_slabs;
+ 	num_objs = num_slabs * cachep->num;
++	active_slabs = num_slabs - num_slabs_free;
++	num_slabs_full = num_slabs - (num_slabs_partial + num_slabs_free);
++	active_objs += (num_slabs_full * cachep->num);
++
+ 	if (num_objs - active_objs != free_objects && !error)
+ 		error = "free_objects accounting error";
+ 
+diff --git a/mm/slab.h b/mm/slab.h
+index 9653f2e..bc05fdc 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -432,6 +432,7 @@ struct kmem_cache_node {
+ 	struct list_head slabs_partial;	/* partial list first, better asm code */
+ 	struct list_head slabs_full;
+ 	struct list_head slabs_free;
++	unsigned long num_slabs;
+ 	unsigned long free_objects;
+ 	unsigned int free_limit;
+ 	unsigned int colour_next;	/* Per-node cache coloring */
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
