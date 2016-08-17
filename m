@@ -1,108 +1,243 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 24F4C6B025E
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 07:43:24 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 1so4562417wmz.2
-        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 04:43:24 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id 9si29864755wjg.16.2016.08.17.04.43.22
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Aug 2016 04:43:23 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id i138so23101151wmf.3
-        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 04:43:22 -0700 (PDT)
-Date: Wed, 17 Aug 2016 13:43:21 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: mm: kswapd struggles reclaiming the pages on 64GB server
-Message-ID: <20160817114320.GA20719@dhcp22.suse.cz>
-References: <CAK-uSPo9Nc-1HaURvwstOGYGuMEx4CXhPRv+cZevYLZX6URzYw@mail.gmail.com>
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 117CA6B0261
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 07:44:41 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id ag5so196713747pad.2
+        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 04:44:41 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id zd5si37461834pac.155.2016.08.17.04.44.39
+        for <linux-mm@kvack.org>;
+        Wed, 17 Aug 2016 04:44:40 -0700 (PDT)
+Subject: Re: [PATCH v11 0/7] Make cpuid <-> nodeid mapping persistent
+References: <1470645476-16605-1-git-send-email-douly.fnst@cn.fujitsu.com>
+From: Dou Liyang <douly.fnst@cn.fujitsu.com>
+Message-ID: <e6d67c93-8dd6-af59-9075-104f098ed250@cn.fujitsu.com>
+Date: Wed, 17 Aug 2016 19:44:36 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAK-uSPo9Nc-1HaURvwstOGYGuMEx4CXhPRv+cZevYLZX6URzYw@mail.gmail.com>
+In-Reply-To: <1470645476-16605-1-git-send-email-douly.fnst@cn.fujitsu.com>
+Content-Type: text/plain; charset="gbk"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andriy Tkachuk <andriy.tkachuk@seagate.com>
-Cc: linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>
+To: cl@linux.com, tj@kernel.org, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, len.brown@intel.com, lenb@kernel.org, tglx@linutronix.de, chen.tang@easystack.cn, rafael@kernel.org
+Cc: x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-[CCing linux-mm and Johannes]
+Ping ...
+May I ask for some community attention to this series?
+My purpose is fixing the memory allocation failure sometimes
+when hot-plugging it.
 
-On Fri 12-08-16 21:52:20, Andriy Tkachuk wrote:
-> Hi,
-> 
-> our user-space application uses large amount of anon pages (private
-> mapping of the large file, more than 64GB RAM available in the system)
-> which are rarely accessible and are supposed to be swapped out.
-> Instead, we see that most of these pages are kept in memory while the
-> system suffers from the lack of free memory and overall performance
-> (especially the disk I/O, vm.swappiness=100 does not help it). kswapd
-> scans millions of pages per second but reclames hundreds per sec only.
+Thanks in advance.
+dou
 
-I haven't looked at your numbers deeply but this smells like the long
-standing problem/limitation we have. We are trying really hard to not
-swap out and rather reclaim the page cache because the swap refault
-tends to be more disruptive in many case. Not all, though, and trashing
-like behavior you see is cetainly undesirable.
+At 08/08/2016 04:37 PM, Dou Liyang wrote:
+> [Problem]
+>
+> cpuid <-> nodeid mapping is firstly established at boot time. And workqueue caches
+> the mapping in wq_numa_possible_cpumask in wq_numa_init() at boot time.
+>
+> When doing node online/offline, cpuid <-> nodeid mapping is established/destroyed,
+> which means, cpuid <-> nodeid mapping will change if node hotplug happens. But
+> workqueue does not update wq_numa_possible_cpumask.
+>
+> So here is the problem:
+>
+> Assume we have the following cpuid <-> nodeid in the beginning:
+>
+>   Node | CPU
+> ------------------------
+> node 0 |  0-14, 60-74
+> node 1 | 15-29, 75-89
+> node 2 | 30-44, 90-104
+> node 3 | 45-59, 105-119
+>
+> and we hot-remove node2 and node3, it becomes:
+>
+>   Node | CPU
+> ------------------------
+> node 0 |  0-14, 60-74
+> node 1 | 15-29, 75-89
+>
+> and we hot-add node4 and node5, it becomes:
+>
+>   Node | CPU
+> ------------------------
+> node 0 |  0-14, 60-74
+> node 1 | 15-29, 75-89
+> node 4 | 30-59
+> node 5 | 90-119
+>
+> But in wq_numa_possible_cpumask, cpu30 is still mapped to node2, and the like.
+>
+> When a pool workqueue is initialized, if its cpumask belongs to a node, its
+> pool->node will be mapped to that node. And memory used by this workqueue will
+> also be allocated on that node.
+>
+> static struct worker_pool *get_unbound_pool(const struct workqueue_attrs *attrs){
+> ...
+>         /* if cpumask is contained inside a NUMA node, we belong to that node */
+>         if (wq_numa_enabled) {
+>                 for_each_node(node) {
+>                         if (cpumask_subset(pool->attrs->cpumask,
+>                                            wq_numa_possible_cpumask[node])) {
+>                                 pool->node = node;
+>                                 break;
+>                         }
+>                 }
+>         }
+>
+> Since wq_numa_possible_cpumask is not updated, it could be mapped to an offline node,
+> which will lead to memory allocation failure:
+>
+>  SLUB: Unable to allocate memory on node 2 (gfp=0x80d0)
+>   cache: kmalloc-192, object size: 192, buffer size: 192, default order: 1, min order: 0
+>   node 0: slabs: 6172, objs: 259224, free: 245741
+>   node 1: slabs: 3261, objs: 136962, free: 127656
+>
+> It happens here:
+>
+> create_worker(struct worker_pool *pool)
+>  |--> worker = alloc_worker(pool->node);
+>
+> static struct worker *alloc_worker(int node)
+> {
+>         struct worker *worker;
+>
+>         worker = kzalloc_node(sizeof(*worker), GFP_KERNEL, node); --> Here, useing the wrong node.
+>
+>         ......
+>
+>         return worker;
+> }
+>
+>
+> [Solution]
+>
+> There are four mappings in the kernel:
+> 1. nodeid (logical node id)   <->   pxm
+> 2. apicid (physical cpu id)   <->   nodeid
+> 3. cpuid (logical cpu id)     <->   apicid
+> 4. cpuid (logical cpu id)     <->   nodeid
+>
+> 1. pxm (proximity domain) is provided by ACPI firmware in SRAT, and nodeid <-> pxm
+>    mapping is setup at boot time. This mapping is persistent, won't change.
+>
+> 2. apicid <-> nodeid mapping is setup using info in 1. The mapping is setup at boot
+>    time and CPU hotadd time, and cleared at CPU hotremove time. This mapping is also
+>    persistent.
+>
+> 3. cpuid <-> apicid mapping is setup at boot time and CPU hotadd time. cpuid is
+>    allocated, lower ids first, and released at CPU hotremove time, reused for other
+>    hotadded CPUs. So this mapping is not persistent.
+>
+> 4. cpuid <-> nodeid mapping is also setup at boot time and CPU hotadd time, and
+>    cleared at CPU hotremove time. As a result of 3, this mapping is not persistent.
+>
+> To fix this problem, we establish cpuid <-> nodeid mapping for all the possible
+> cpus at boot time, and make it persistent. And according to init_cpu_to_node(),
+> cpuid <-> nodeid mapping is based on apicid <-> nodeid mapping and cpuid <-> apicid
+> mapping. So the key point is obtaining all cpus' apicid.
+>
+> apicid can be obtained by _MAT (Multiple APIC Table Entry) method or found in
+> MADT (Multiple APIC Description Table). So we finish the job in the following steps:
+>
+> 1. Enable apic registeration flow to handle both enabled and disabled cpus.
+>    This is done by introducing an extra parameter to generic_processor_info to let the
+>    caller control if disabled cpus are ignored.
+>
+> 2. Introduce a new array storing all possible cpuid <-> apicid mapping. And also modify
+>    the way cpuid is calculated. Establish all possible cpuid <-> apicid mapping when
+>    registering local apic. Store the mapping in this array.
+>
+> 3. Enable _MAT and MADT relative apis to return non-presnet or disabled cpus' apicid.
+>    This is also done by introducing an extra parameter to these apis to let the caller
+>    control if disabled cpus are ignored.
+>
+> 4. Establish all possible cpuid <-> nodeid mapping.
+>    This is done via an additional acpi namespace walk for processors.
+>
+>
+> For previous discussion, please refer to:
+> https://lkml.org/lkml/2015/2/27/145
+> https://lkml.org/lkml/2015/3/25/989
+> https://lkml.org/lkml/2015/5/14/244
+> https://lkml.org/lkml/2015/7/7/200
+> https://lkml.org/lkml/2015/9/27/209
+> https://lkml.org/lkml/2016/5/19/212
+> https://lkml.org/lkml/2016/7/19/181
+> https://lkml.org/lkml/2016/7/25/99
+> https://lkml.org/lkml/2016/7/26/52
+>
+> Change log v10 -> v11:
+> 1. Reduce the number of repeat judgment of online/offline
+> 2. Seperate out the functionality in the enable or disable situation
+>
+> Change log v9 -> v10:
+> 1. Providing an empty definition of acpi_set_processor_mapping() for
+> CONFIG_ACPI_HOTPLUG_CPU unset. In patch 5.
+> 2. Fix auto build test ERROR on ia64/next. In patch 5.
+> 3. Fix some comment.
+>
+> Change log v8 -> v9:
+> 1. Providing an empty definition of acpi_set_processor_mapping() for
+> CONFIG_ACPI_HOTPLUG_CPU unset.
+>
+> Change log v7 -> v8:
+> 1. Provide the mechanism to validate processors in the ACPI tables.
+> 2. Provide the interface to validate the proc_id when setting the mapping.
+>
+> Change log v6 -> v7:
+> 1. Fix arm64 build failure.
+>
+> Change log v5 -> v6:
+> 1. Define func acpi_map_cpu2node() for x86 and ia64 respectively.
+>
+> Change log v4 -> v5:
+> 1. Remove useless code in patch 1.
+> 2. Small improvement of commit message.
+>
+> Change log v3 -> v4:
+> 1. Fix the kernel panic at boot time. The cause is that I tried to build zonelists
+>    before per cpu areas were initialized.
+>
+> Change log v2 -> v3:
+> 1. Online memory-less nodes at boot time to map cpus of memory-less nodes.
+> 2. Build zonelists for memory-less nodes so that memory allocator will fall
+>    back to proper nodes automatically.
+>
+> Change log v1 -> v2:
+> 1. Split code movement and actual changes. Add patch 1.
+> 2. Synchronize best near online node record when node hotplug happens. In patch 2.
+> 3. Fix some comment.
+>
+> Dou Liyang (2):
+>   acpi: Provide the mechanism to validate processors in the ACPI tables
+>   acpi: Provide the interface to validate the proc_id
+>
+> Gu Zheng (4):
+>   x86, acpi, cpu-hotplug: Enable acpi to register all possible cpus at
+>     boot time.
+>   x86, acpi, cpu-hotplug: Introduce cpuid_to_apicid[] array to store
+>     persistent cpuid <-> apicid mapping.
+>   x86, acpi, cpu-hotplug: Enable MADT APIs to return disabled apicid.
+>   x86, acpi, cpu-hotplug: Set persistent cpuid <-> nodeid mapping when
+>     booting.
+>
+> Tang Chen (1):
+>   x86, memhp, numa: Online memory-less nodes at boot time.
+>
+>  arch/ia64/kernel/acpi.c       |   3 +-
+>  arch/x86/include/asm/mpspec.h |   1 +
+>  arch/x86/kernel/acpi/boot.c   |  11 ++--
+>  arch/x86/kernel/apic/apic.c   |  77 +++++++++++++++++++++++--
+>  arch/x86/mm/numa.c            |  27 +++++----
+>  drivers/acpi/acpi_processor.c | 105 +++++++++++++++++++++++++++++++++-
+>  drivers/acpi/bus.c            |   1 +
+>  drivers/acpi/processor_core.c | 128 +++++++++++++++++++++++++++++++++++-------
+>  include/linux/acpi.h          |   6 ++
+>  9 files changed, 309 insertions(+), 50 deletions(-)
+>
 
-Johannes has been looking into that area recently. Have a look at
-http://lkml.kernel.org/r/20160606194836.3624-1-hannes@cmpxchg.org
-
-> Here are the 5 secs interval snapshots of some counters:
-> 
-> $ egrep 'Cached|nr_.*active_anon|pgsteal_.*_normal|pgscan_kswapd_normal|pgrefill_normal|nr_vmscan_write|nr_swap|pgact'
-> proc-*-0616-1605[345]* | sed 's/:/ /' | sort -sk 2,2
-> proc-meminfo-0616-160539.txt Cached:           347936 kB
-> proc-meminfo-0616-160549.txt Cached:           316316 kB
-> proc-meminfo-0616-160559.txt Cached:           322264 kB
-> proc-meminfo-0616-160539.txt SwapCached:      2853064 kB
-> proc-meminfo-0616-160549.txt SwapCached:      2853168 kB
-> proc-meminfo-0616-160559.txt SwapCached:      2853280 kB
-> proc-vmstat-0616-160535.txt nr_active_anon 14508616
-> proc-vmstat-0616-160545.txt nr_active_anon 14513725
-> proc-vmstat-0616-160555.txt nr_active_anon 14515197
-> proc-vmstat-0616-160535.txt nr_inactive_anon 747407
-> proc-vmstat-0616-160545.txt nr_inactive_anon 744846
-> proc-vmstat-0616-160555.txt nr_inactive_anon 744509
-> proc-vmstat-0616-160535.txt nr_vmscan_write 5589095
-> proc-vmstat-0616-160545.txt nr_vmscan_write 5589097
-> proc-vmstat-0616-160555.txt nr_vmscan_write 5589097
-> proc-vmstat-0616-160535.txt pgactivate 246016824
-> proc-vmstat-0616-160545.txt pgactivate 246033242
-> proc-vmstat-0616-160555.txt pgactivate 246042064
-> proc-vmstat-0616-160535.txt pgrefill_normal 22763262
-> proc-vmstat-0616-160545.txt pgrefill_normal 22768020
-> proc-vmstat-0616-160555.txt pgrefill_normal 22768178
-> proc-vmstat-0616-160535.txt pgscan_kswapd_normal 111985367420
-> proc-vmstat-0616-160545.txt pgscan_kswapd_normal 111996845554
-> proc-vmstat-0616-160555.txt pgscan_kswapd_normal 112028276639
-> proc-vmstat-0616-160535.txt pgsteal_direct_normal 344064
-> proc-vmstat-0616-160545.txt pgsteal_direct_normal 344064
-> proc-vmstat-0616-160555.txt pgsteal_direct_normal 344064
-> proc-vmstat-0616-160535.txt pgsteal_kswapd_normal 53817848
-> proc-vmstat-0616-160545.txt pgsteal_kswapd_normal 53818626
-> proc-vmstat-0616-160555.txt pgsteal_kswapd_normal 53818637
-> 
-> The pgrefill_normal and pgactivate counters show that only few
-> hundreds/sec pages move from active to inactive and vice versa lists -
-> that is comparable with what was reclaimed. So it looks like kswapd
-> scans the pages from inactive list mostly in kind of a loop and does
-> not even have a chance to look at the pages from the active list
-> (where most of the application's anon pages are located).
-> 
-> The kernel version: linux-3.10.0-229.14.1.el7.
-> 
-> Any ideas? Would be be useful to change inactive_ratio dynamically in
-> such a cases so that more pages could be moved from active to inactive
-> list and get a chance to be reclaimed? (Note: when application is
-> restarted - the problem disappears for a while (days) until the
-> correspondent number of privately mapped pages are dirtied again.)
-> 
-> Thank you,
->    Andriy
-
--- 
-Michal Hocko
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
