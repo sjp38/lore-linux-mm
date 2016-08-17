@@ -1,62 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 46B976B0253
-	for <linux-mm@kvack.org>; Tue, 16 Aug 2016 18:52:40 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id h186so195539665pfg.2
-        for <linux-mm@kvack.org>; Tue, 16 Aug 2016 15:52:40 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id xp2si34196242pab.19.2016.08.16.15.52.39
-        for <linux-mm@kvack.org>;
-        Tue, 16 Aug 2016 15:52:39 -0700 (PDT)
-Date: Tue, 16 Aug 2016 16:52:27 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH 1/7] ext2: tell DAX the size of allocation holes
-Message-ID: <20160816225227.GA632@linux.intel.com>
-References: <20160815190918.20672-1-ross.zwisler@linux.intel.com>
- <20160815190918.20672-2-ross.zwisler@linux.intel.com>
- <20160816091025.GA27284@quack2.suse.cz>
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D51286B0253
+	for <linux-mm@kvack.org>; Tue, 16 Aug 2016 20:00:53 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id j124so292407684ith.1
+        for <linux-mm@kvack.org>; Tue, 16 Aug 2016 17:00:53 -0700 (PDT)
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0057.outbound.protection.outlook.com. [104.47.41.57])
+        by mx.google.com with ESMTPS id w140si5155412oia.247.2016.08.16.17.00.53
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 16 Aug 2016 17:00:53 -0700 (PDT)
+From: Bart Van Assche <bart.vanassche@sandisk.com>
+Subject: [PATCH] do_generic_file_read(): Fail immediately if killed
+Message-ID: <63068e8e-8bee-b208-8441-a3c39a9d9eb6@sandisk.com>
+Date: Tue, 16 Aug 2016 17:00:43 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160816091025.GA27284@quack2.suse.cz>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-On Tue, Aug 16, 2016 at 11:10:25AM +0200, Jan Kara wrote:
-> On Mon 15-08-16 13:09:12, Ross Zwisler wrote:
-> > When DAX calls ext2_get_block() and the file offset points to a hole we
-> > currently don't set bh_result->b_size.  When we re-enable PMD faults DAX
-> > will need bh_result->b_size to tell it the size of the hole so it can
-> > decide whether to fault in a 4 KiB zero page or a 2 MiB zero page.
-> > 
-> > For ext2 we always want DAX to use 4 KiB zero pages, so we just tell DAX
-> > that all holes are 4 KiB in size.
-> > 
-> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> > ---
-> >  fs/ext2/inode.c | 6 ++++++
-> >  1 file changed, 6 insertions(+)
-> > 
-> > diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
-> > index d5c7d09..c6d9763 100644
-> > --- a/fs/ext2/inode.c
-> > +++ b/fs/ext2/inode.c
-> > @@ -773,6 +773,12 @@ int ext2_get_block(struct inode *inode, sector_t iblock, struct buffer_head *bh_
-> >  	if (ret > 0) {
-> >  		bh_result->b_size = (ret << inode->i_blkbits);
-> >  		ret = 0;
-> > +	} else if (ret == 0 && IS_DAX(inode)) {
-> 
-> I'd just drop the IS_DAX() check and set
-> 
-> 	bh_result->b_size = 1 << inode->i_blkbits;
-> 
-> IMO it's better to have things consistent between DAX & !DAX whenever
-> possible.
+If a fatal signal has been received, fail immediately instead of
+trying to read more data.
 
-Agreed, this is better.  Fixed for v2, thanks!
+See also commit ebded02788b5 ("mm: filemap: avoid unnecessary
+calls to lock_page when waiting for IO to complete during a read")
+
+Signed-off-by: Bart Van Assche <bart.vanassche@sandisk.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Oleg Nesterov <oleg@redhat.com>
+---
+ mm/filemap.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 2a9e84f6..bd8ab63 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1721,7 +1721,9 @@ find_page:
+ 			 * wait_on_page_locked is used to avoid unnecessarily
+ 			 * serialisations and why it's safe.
+ 			 */
+-			wait_on_page_locked_killable(page);
++			error = wait_on_page_locked_killable(page);
++			if (unlikely(error))
++				goto readpage_error;
+ 			if (PageUptodate(page))
+ 				goto page_ok;
+ 
+-- 
+2.9.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
