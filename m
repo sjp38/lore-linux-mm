@@ -1,60 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F86C6B0038
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 03:13:51 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id m130so276654112ioa.1
-        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 00:13:51 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id 193si10894148itq.42.2016.08.17.00.13.50
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DC94A6B0038
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 03:43:49 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id g124so220808238qkd.1
+        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 00:43:49 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 201si24401921wmb.59.2016.08.17.00.43.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Aug 2016 00:13:50 -0700 (PDT)
-From: aruna.ramakrishna@oracle.com
-Subject: Re: [PATCH v2] mm/slab: Improve performance of gathering slabinfo
- stats
-References: <1470337273-6700-1-git-send-email-aruna.ramakrishna@oracle.com>
- <CAAmzW4On7FWc37fQJOsDQOEOVXqK3ue+uiB0ZOFM9R5e-Jj3WQ@mail.gmail.com>
- <alpine.DEB.2.20.1608050919410.27772@east.gentwo.org>
- <20160816030314.GB16913@js1304-P5Q-DELUXE>
- <alpine.DEB.2.20.1608161052080.7887@east.gentwo.org>
-Message-ID: <57B40EA5.9040600@oracle.com>
-Date: Wed, 17 Aug 2016 00:13:41 -0700
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 17 Aug 2016 00:43:48 -0700 (PDT)
+Subject: Re: OOM killer changes
+References: <3c022d92-9c96-9022-8496-aa8738fb7358@quantum.com>
+ <20160801202616.GG31957@dhcp22.suse.cz>
+ <b91f97ee-c369-43be-c934-f84b96260ead@Quantum.com>
+ <27bd5116-f489-252c-f257-97be00786629@Quantum.com>
+ <20160802071010.GB12403@dhcp22.suse.cz>
+ <ccad54a2-be1e-44cf-b9c8-d6b34af4901d@quantum.com>
+ <6cb37d4a-d2dd-6c2f-a65d-51474103bf86@Quantum.com>
+ <d1f63745-b9e3-b699-8a5a-08f06c72b392@suse.cz>
+ <20160815150123.GG3360@dhcp22.suse.cz>
+ <1b8ee89d-a851-06f0-6bcc-62fef9e7e7cc@Quantum.com>
+ <20160816073246.GC5001@dhcp22.suse.cz>
+ <57621ed5-f517-29c8-983c-da2257c0b4a6@Quantum.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <5d141376-0fd9-a13a-87c6-16676d5d7730@suse.cz>
+Date: Wed, 17 Aug 2016 09:43:47 +0200
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1608161052080.7887@east.gentwo.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+In-Reply-To: <57621ed5-f517-29c8-983c-da2257c0b4a6@Quantum.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Michal Hocko <mhocko@suse.cz>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
+On 08/17/2016 02:26 AM, Ralf-Peter Rohbeck wrote:
+> No it wasn't yet in the last run. That OOM happened while I compiled the 
+> last change.
 
-On 08/16/2016 08:52 AM, Christoph Lameter wrote:
->
-> On Tue, 16 Aug 2016, Joonsoo Kim wrote:
->
->> In SLUB, nr_slabs is manipulated without holding a lock so atomic
->> operation should be used.
->
-> It could be moved under the node lock.
->
+You mean those pr_infos?
 
-Christoph, Joonsoo,
+>From those we've got:
 
-I agree that nr_slabs could be common between SLAB and SLUB, but I think 
-that should be a separate patch, since converting nr_slabs to unsigned 
-long for SLUB will cause quite a bit of change in mm/slub.c that is not 
-related to adding counters to SLAB.
+Aug 16 17:14:26 fs kernel: [ 1817.044778] XXX: compaction_failed
+Aug 16 17:15:37 fs kernel: [ 1888.387817] XXX: compaction_failed
+Aug 16 17:17:32 fs kernel: [ 2002.879726] XXX: compaction_failed
 
-I'll send out an updated slab counters patch with Joonsoo's suggested 
-fix tomorrow (nr_slabs will be unsigned long for SLAB only, and there 
-will be a separate definition for SLUB), and once that's in, I'll create 
-a new patch that makes nr_slabs common for SLAB and SLUB, and also 
-converts total_objects to unsigned long. Maybe it can include some more 
-cleanup too. Does that sound acceptable?
+e.g. none of the "XXX: no zone suitable for compaction" lines
 
-Thanks,
-Aruna
+I think my series in mmotm tree could help here.
+
+> I ran another test with the trace_printk: See attached. Again I ran only 
+> a kernel compilation.
+
+so, the trace_printk didn't hit that many times:
+
+grep try_to_release trace_pipe.log | wc -l
+52
+
+and vmstat_after shows:
+
+pgmigrate_success 851
+pgmigrate_fail 817
+compact_migrate_scanned 567689
+compact_free_scanned 50744242
+compact_isolated 19196
+compact_stall 876
+compact_fail 801
+compact_success 75
+
+pagetype_after:
+
+Number of blocks type     Unmovable      Movable  Reclaimable   HighAtomic      Isolate 
+Node 0, zone      DMA            1            7            0            0            0 
+Node 0, zone    DMA32          883           91           42            0            0 
+Node 0, zone   Normal         2750          207          115            0            0 
+
+So while btrfs migrate failures could be real, in this run it was rather the free
+scanner struggling due to unmovable blocks, as Joonsoo suggested.
+
+> Ralf-Peter
+> 
+> On 16.08.2016 00:32, Michal Hocko wrote:
+>> On Mon 15-08-16 11:42:11, Ralf-Peter Rohbeck wrote:
+>>> This time the OOM killer hit much quicker. No btrfs balance, just compiling
+>>> the kernel with the new change did it.
+>>> Much smaller logs so I'm attaching them.
+>> Just to clarify. You have added the trace_printk for
+>> try_to_release_page, right? (after fixing it of course). If yes there is
+>> no single mention of that path failing which would support Joonsoo's
+>> theory... Could you try with his patch?
+> 
+> 
+> ----------------------------------------------------------------------
+> The information contained in this transmission may be confidential. Any disclosure, copying, or further distribution of confidential information is not permitted unless such privilege is explicitly granted in writing by Quantum. Quantum reserves the right to have electronic communications, including email and attachments, sent across its networks filtered through anti virus and spam software programs and retain such messages in order to comply with applicable data security and retention requirements. Quantum is not responsible for the proper and complete transmission of the substance of this communication or for any delay in its receipt.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
