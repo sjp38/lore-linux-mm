@@ -1,74 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B3256B025E
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 06:02:05 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id 1so1323577wmz.2
-        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 03:02:05 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y135si24818695wmc.71.2016.08.17.03.01.57
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C3B986B0261
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 06:03:30 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id d65so320767814ith.0
+        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 03:03:30 -0700 (PDT)
+Received: from mailout3.samsung.com (mailout3.samsung.com. [203.254.224.33])
+        by mx.google.com with ESMTPS id x187si6151456oig.153.2016.08.17.03.03.29
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 17 Aug 2016 03:01:58 -0700 (PDT)
-Date: Wed, 17 Aug 2016 12:01:56 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] do_generic_file_read(): Fail immediately if killed
-Message-ID: <20160817100156.GA6254@quack2.suse.cz>
-References: <63068e8e-8bee-b208-8441-a3c39a9d9eb6@sandisk.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <63068e8e-8bee-b208-8441-a3c39a9d9eb6@sandisk.com>
+        Wed, 17 Aug 2016 03:03:30 -0700 (PDT)
+Received: from epcas5p1.samsung.com (unknown [182.195.41.39])
+ by mailout3.samsung.com
+ (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
+ with ESMTP id <0OC1016GDT9SQL90@mailout3.samsung.com> for linux-mm@kvack.org;
+ Wed, 17 Aug 2016 19:03:28 +0900 (KST)
+Message-id: <1585895702.34969.1471428208265.JavaMail.weblogic@epwas3e2>
+MIME-version: 1.0
+Subject: =?UTF-8?B?W1BBVENIIDAvNF0genN3YXA6IE9wdGltaXplIGNvbXByZXNz?=
+ =?UTF-8?B?ZWQgcG9vbCBtZW1vcnkgdXRpbGl6YXRpb24=?=
+Reply-to: srividya.dr@samsung.com
+From: =?UTF-8?B?U3JpdmlkeWEgRGVzaXJlZGR5?= <srividya.dr@samsung.com>
+Date: Wed, 17 Aug 2016 10:03:28 +0000
+Content-type: multipart/related;
+ boundary="----=_Part_34968_1701394101.1471428208264"
+References: 
+ <CGME20160817100328epcms5p2521a3ce1725a2cc4f2da82e2e1b79f33@epcms5p2>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bart Van Assche <bart.vanassche@sandisk.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: sjenning@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: =?UTF-8?B?RGluYWthciBSZWRkeSBQYXRoaXJlZGR5?= <dinakar.p@samsung.com>, =?UTF-8?B?U1VORUVMIEtVTUFSIFNVUklNQU5J?= <suneel@samsung.com>, =?UTF-8?B?6rmA7KO87ZuI?= <juhunkim@samsung.com>
 
-On Tue 16-08-16 17:00:43, Bart Van Assche wrote:
-> If a fatal signal has been received, fail immediately instead of
-> trying to read more data.
-> 
-> See also commit ebded02788b5 ("mm: filemap: avoid unnecessary
-> calls to lock_page when waiting for IO to complete during a read")
-> 
-> Signed-off-by: Bart Van Assche <bart.vanassche@sandisk.com>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Oleg Nesterov <oleg@redhat.com>
+------=_Part_34968_1701394101.1471428208264
+Content-Transfer-Encoding: base64
+Content-Type: text/plain; charset="utf-8"
 
-The patch looks good to me. You can add:
-
-Reviewed-by: Jan Kara <jack@suse.cz>
-
-BTW: Did you see some real world impact of the change? If yes, it would be
-good to describe in the changelog.
-
-								Honza
-> ---
->  mm/filemap.c | 4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index 2a9e84f6..bd8ab63 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -1721,7 +1721,9 @@ find_page:
->  			 * wait_on_page_locked is used to avoid unnecessarily
->  			 * serialisations and why it's safe.
->  			 */
-> -			wait_on_page_locked_killable(page);
-> +			error = wait_on_page_locked_killable(page);
-> +			if (unlikely(error))
-> +				goto readpage_error;
->  			if (PageUptodate(page))
->  				goto page_ok;
->  
-> -- 
-> 2.9.2
-> 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+VGhpcyBzZXJpZXMgb2YgcGF0Y2hlcyBvcHRpbWl6ZSB0aGUgbWVtb3J5IHV0aWxpemVkIGJ5IHpz
+d2FwIGZvciBzdG9yaW5nDQp0aGUgc3dhcHBlZCBvdXQgcGFnZXMuDQoNClpzd2FwIGlzIGEgY2Fj
+aGUgd2hpY2ggY29tcHJlc3NlcyB0aGUgcGFnZXMgdGhhdCBhcmUgYmVpbmcgc3dhcHBlZCBvdXQN
+CmFuZCBzdG9yZXMgdGhlbSBpbnRvIGEgZHluYW1pY2FsbHkgYWxsb2NhdGVkIFJBTS1iYXNlZCBt
+ZW1vcnkgcG9vbC4NCkV4cGVyaW1lbnRzIGhhdmUgc2hvd24gdGhhdCBhcm91bmQgMTAtMTUlIG9m
+IHBhZ2VzIHN0b3JlZCBpbiB6c3dhcCBhcmUNCmR1cGxpY2F0ZXMgd2hpY2ggcmVzdWx0cyBpbiAx
+MC0xMiUgbW9yZSBSQU0gcmVxdWlyZWQgdG8gc3RvcmUgdGhlc2UNCmR1cGxpY2F0ZSBjb21wcmVz
+c2VkIHBhZ2VzLiBBcm91bmQgMTAtMjAlIG9mIHBhZ2VzIHN0b3JlZCBpbiB6c3dhcA0KYXJlIHpl
+cm8tZmlsbGVkIHBhZ2VzLCBidXQgdGhlc2UgcGFnZXMgYXJlIGhhbmRsZWQgYXMgbm9ybWFsIHBh
+Z2VzIGJ5DQpjb21wcmVzc2luZyBhbmQgYWxsb2NhdGluZyBtZW1vcnkgaW4gdGhlIHBvb2wuDQoN
+ClRoZSBmb2xsb3dpbmcgcGF0Y2gtc2V0IG9wdGltaXplcyBtZW1vcnkgdXRpbGl6ZWQgYnkgenN3
+YXAgYnkgYXZvaWRpbmcgdGhlDQpzdG9yYWdlIG9mIGR1cGxpY2F0ZSBwYWdlcyBhbmQgemVyby1m
+aWxsZWQgcGFnZXMgaW4genN3YXAgY29tcHJlc3NlZCBtZW1vcnkNCnBvb2wuDQoNClBhdGNoIDEv
+NDogenN3YXA6IFNoYXJlIHpwb29sIG1lbW9yeSBvZiBkdXBsaWNhdGUgcGFnZXMNClRoaXMgcGF0
+Y2ggc2hhcmVzIGNvbXByZXNzZWQgcG9vbCBtZW1vcnkgb2YgdGhlIGR1cGxpY2F0ZSBwYWdlcy4g
+V2hlbiBhIG5ldw0KcGFnZSBpcyByZXF1ZXN0ZWQgZm9yIHN3YXAtb3V0IHRvIHpzd2FwOyBzZWFy
+Y2ggZm9yIGFuIGlkZW50aWNhbCBwYWdlIGluDQp0aGUgcGFnZXMgYWxyZWFkeSBzdG9yZWQgaW4g
+enN3YXAuIElmIGFuIGlkZW50aWNhbCBwYWdlIGlzIGZvdW5kIHRoZW4gc2hhcmUNCnRoZSBjb21w
+cmVzc2VkIHBhZ2UgZGF0YSBvZiB0aGUgaWRlbnRpY2FsIHBhZ2Ugd2l0aCB0aGUgbmV3IHBhZ2Uu
+IFRoaXMNCmF2b2lkcyBhbGxvY2F0aW9uIG9mIG1lbW9yeSBpbiB0aGUgY29tcHJlc3NlZCBwb29s
+IGZvciBhIGR1cGxpY2F0ZSBwYWdlLg0KVGhpcyBmZWF0dXJlIGlzIHRlc3RlZCBvbiBkZXZpY2Vz
+IHdpdGggMUdCLCAyR0IgYW5kIDNHQiBSQU0gYnkgZXhlY3V0aW5nDQpwZXJmb3JtYW5jZSB0ZXN0
+IGF0IGxvdyBtZW1vcnkgY29uZGl0aW9ucy4gQXJvdW5kIDE1LTIwJSBvZiB0aGUgcGFnZXMNCnN3
+YXBwZWQgYXJlIGR1cGxpY2F0ZSBvZiB0aGUgcGFnZXMgZXhpc3RpbmcgaW4genN3YXAsIHJlc3Vs
+dGluZyBpbiAxNSUNCnNhdmluZyBvZiB6c3dhcCBtZW1vcnkgcG9vbCB3aGVuIGNvbXBhcmVkIHRv
+IHRoZSBiYXNlbGluZSB2ZXJzaW9uLg0KDQpUZXN0IFBhcmFtZXRlcnMgICAgICAgICBCYXNlbGlu
+ZSAgICBXaXRoIHBhdGNoICBJbXByb3ZlbWVudA0KVG90YWwgUkFNICAgICAgICAgICAgICAgICAg
+IDk1NU1CICAgICAgIDk1NU1CDQpBdmFpbGFibGUgUkFNICAgICAgICAgICAgIDI1NE1CICAgICAg
+IDI2OU1CICAgICAgIDE1TUINCkF2Zy4gQXBwIGVudHJ5IHRpbWUgICAgIDIuNDY5c2VjICAgIDIu
+MjA3c2VjICAgIDclDQpBdmcuIEFwcCBjbG9zZSB0aW1lICAgICAxLjE1MXNlYyAgICAxLjA4NXNl
+YyAgICA2JQ0KQXBwcyBsYXVuY2hlZCBpbiAxc2VjICAgNSAgICAgICAgICAgICAxMiAgICAgICAg
+ICAgICA3DQoNClRoZXJlIGlzIGxpdHRsZSBvdmVyaGVhZCBpbiB6c3dhcCBzdG9yZSBmdW5jdGlv
+biBkdWUgdG8gdGhlIHNlYXJjaA0Kb3BlcmF0aW9uIGZvciBmaW5kaW5nIGR1cGxpY2F0ZSBwYWdl
+cy4gSG93ZXZlciwgaWYgZHVwbGljYXRlIHBhZ2UgaXMNCmZvdW5kIGl0IHNhdmVzIHRoZSBjb21w
+cmVzc2lvbiBhbmQgYWxsb2NhdGlvbiB0aW1lIG9mIHRoZSBwYWdlLiBUaGUgYXZlcmFnZQ0Kb3Zl
+cmhlYWQgcGVyIHpzd2FwX2Zyb250c3dhcF9zdG9yZSgpIGZ1bmN0aW9uIGNhbGwgaW4gdGhlIGV4
+cGVyaW1lbnRhbA0KZGV2aWNlIGlzIDl1cy4gVGhlcmUgaXMgbm8gb3ZlcmhlYWQgaW4gY2FzZSBv
+ZiB6c3dhcF9mcm9udHN3YXBfbG9hZCgpDQpvcGVyYXRpb24uDQoNClBhdGNoIDIvNDogenN3YXA6
+IEVuYWJsZS9kaXNhYmxlIHNoYXJpbmcgb2YgZHVwbGljYXRlIHBhZ2VzIGF0IHJ1bnRpbWUNClRo
+aXMgcGF0Y2ggYWRkcyBhIG1vZHVsZSBwYXJhbWV0ZXIgdG8gZW5hYmxlIG9yIGRpc2FibGUgdGhl
+IHNoYXJpbmcgb2YNCmR1cGxpY2F0ZSB6c3dhcCBwYWdlcyBhdCBydW50aW1lLg0KDQpQYXRjaCAz
+LzQ6IHpzd2FwOiBaZXJvLWZpbGxlZCBwYWdlcyBoYW5kbGluZw0KVGhpcyBwYXRjaCBjaGVja3Mg
+aWYgYSBwYWdlIHRvIGJlIHN0b3JlZCBpbiB6c3dhcCBpcyBhIHplcm8tZmlsbGVkIHBhZ2UNCihp
+LmUuIGNvbnRlbnRzIG9mIHRoZSBwYWdlIGFyZSBhbGwgemVyb3MpLiBJZiBzdWNoIHBhZ2UgaXMg
+Zm91bmQsDQpjb21wcmVzc2lvbiBhbmQgYWxsb2NhdGlvbiBvZiBtZW1vcnkgZm9yIHRoZSBjb21w
+cmVzc2VkIHBhZ2UgaXMgYXZvaWRlZA0KYW5kIGluc3RlYWQgdGhlIHBhZ2UgaXMganVzdCBtYXJr
+ZWQgYXMgemVyby1maWxsZWQgcGFnZS4NCkFsdGhvdWdoLCBjb21wcmVzc2VkIHNpemUgb2YgYSB6
+ZXJvLWZpbGxlZCBwYWdlIHVzaW5nIExaTyBjb21wcmVzc29yIGlzDQp2ZXJ5IGxlc3MgKDUyIGJ5
+dGVzIGluY2x1ZGluZyB6c3dhcF9oZWFkZXIpLCB0aGlzIHBhdGNoIHNhdmVzIGNvbXByZXNzaW9u
+DQphbmQgYWxsb2NhdGlvbiB0aW1lIGR1cmluZyBzdG9yZSBvcGVyYXRpb24gYW5kIGRlY29tcHJl
+c3Npb24gdGltZSBkdXJpbmcNCnpzd2FwIGxvYWQgb3BlcmF0aW9uIGZvciB6ZXJvLWZpbGxlZCBw
+YWdlcy4gRXhwZXJpbWVudHMgaGF2ZSBzaG93biB0aGF0DQphcm91bmQgMTAtMjAlIG9mIHBhZ2Vz
+IHN0b3JlZCBpbiB6c3dhcCBhcmUgemVyby1maWxsZWQuDQoNClBhdGNoIDQvNDogVXBkYXRlIGRv
+Y3VtZW50IHdpdGggc2hhcmluZyBvZiBkdXBsaWNhdGUgcGFnZXMgZmVhdHVyZQ0KSW4gdGhpcyBw
+YXRjaCB6c3dhcCBkb2N1bWVudCBpcyB1cGRhdGVkIHdpdGggaW5mb3JtYXRpb24gb24gc2hhcmlu
+ZyBvZg0KZHVwbGljYXRlIHN3YXAgcGFnZXMgZmVhdHVyZS4NCg0KRG9jdW1lbnRhdGlvbi92bS96
+c3dhcC50eHQgfCAgIDE4ICsrKw0KbW0venN3YXAuYyAgICAgICAgICAgICAgICAgfCAgMzE1ICsr
+KysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrLS0tDQoyIGZpbGVzIGNoYW5n
+ZWQsIDMxNiBpbnNlcnRpb25zKCspLCAxNyBkZWxldGlvbnMoLSk=
+------=_Part_34968_1701394101.1471428208264--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
