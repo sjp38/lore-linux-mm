@@ -1,77 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E04C6B0038
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 16:36:25 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id pp5so217000681pac.3
-        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 13:36:25 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id e17si826118pag.66.2016.08.17.13.36.24
-        for <linux-mm@kvack.org>;
-        Wed, 17 Aug 2016 13:36:24 -0700 (PDT)
-Date: Wed, 17 Aug 2016 21:36:19 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [lkp] [mm]  122708b1b9: PANIC: early exception
-Message-ID: <20160817203618.GA16393@MBP.local>
-References: <1471360856-16916-1-git-send-email-catalin.marinas@arm.com>
- <20160817155141.GC3544@yexl-desktop>
- <20160817161028.GE20762@e104818-lin.cambridge.arm.com>
- <20160817121808.bf31e27382554bf532368c38@linux-foundation.org>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B0866B0038
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 18:29:25 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id o124so3234145pfg.1
+        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 15:29:25 -0700 (PDT)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id v7si1275902pal.10.2016.08.17.15.29.24
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Aug 2016 15:29:24 -0700 (PDT)
+Received: by mail-pa0-x22b.google.com with SMTP id ti13so465498pac.0
+        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 15:29:24 -0700 (PDT)
+Date: Wed, 17 Aug 2016 15:29:22 -0700
+From: Kees Cook <keescook@chromium.org>
+Subject: [PATCH] usercopy: Skip multi-page bounds checking on SLOB
+Message-ID: <20160817222921.GA25148@www.outflux.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160817121808.bf31e27382554bf532368c38@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kernel test robot <xiaolong.ye@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vignesh R <vigneshr@ti.com>, lkp@01.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Laura Abbott <labbott@fedoraproject.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xiaolong.ye@intel.com
 
-On Wed, Aug 17, 2016 at 12:18:08PM -0700, Andrew Morton wrote:
-> On Wed, 17 Aug 2016 17:10:28 +0100 Catalin Marinas <catalin.marinas@arm.com> wrote:
-> > On Wed, Aug 17, 2016 at 11:51:41PM +0800, kernel test robot wrote:
-> > > FYI, we noticed the following commit:
-> > > 
-> > > https://github.com/0day-ci/linux Catalin-Marinas/mm-kmemleak-Avoid-using-__va-on-addresses-that-don-t-have-a-lowmem-mapping/20160816-232733
-> > > commit 122708b1b91eb3d253baf86a263ead0f1f5cac78 ("mm: kmemleak: Avoid using __va() on addresses that don't have a lowmem mapping")
-> > > 
-> > > in testcase: boot
-> > > 
-> > > on test machine: 1 threads qemu-system-i386 -enable-kvm with 320M memory
-> > > 
-> > > caused below changes:
-> > > 
-> > > +--------------------------------+------------+------------+
-> > > |                                | 304bec1b1d | 122708b1b9 |
-> > > +--------------------------------+------------+------------+
-> > > | boot_successes                 | 3          | 0          |
-> > > | boot_failures                  | 5          | 8          |
-> > > | invoked_oom-killer:gfp_mask=0x | 1          |            |
-> > > | Mem-Info                       | 1          |            |
-> > > | BUG:kernel_test_crashed        | 4          |            |
-> > > | PANIC:early_exception          | 0          | 8          |
-> > > | EIP_is_at__phys_addr           | 0          | 8          |
-> > > | BUG:kernel_hang_in_boot_stage  | 0          | 2          |
-> > > | BUG:kernel_boot_hang           | 0          | 6          |
-> > > +--------------------------------+------------+------------+
-> > 
-> > Please disregard this patch. I posted v2 here:
-> > 
-> > http://lkml.kernel.org/g/1471426130-21330-1-git-send-email-catalin.marinas@arm.com
-> > 
-> > (and I'm eager to see the kbuild/kernel test robot results ;))
-> 
-> I don't see how the v1->v2 changes could fix a panic?
+When an allocator does not mark all allocations as PageSlab, or does not
+mark multipage allocations with __GFP_COMP, hardened usercopy cannot
+correctly validate the allocation. SLOB lacks this, so short-circuit
+the checking for the allocators that aren't marked with
+CONFIG_HAVE_HARDENED_USERCOPY_ALLOCATOR. This also updates the config
+help and corrects a typo in the usercopy comments.
 
-This particular panic is avoided (rather than fixed) in v2 because the
-config used above has kmemleak disabled, hence there is no
-__pa(high_memory) call.
+Reported-by: xiaolong.ye@intel.com
+Signed-off-by: Kees Cook <keescook@chromium.org>
+---
+ mm/usercopy.c    | 11 ++++++++++-
+ security/Kconfig |  5 +++--
+ 2 files changed, 13 insertions(+), 3 deletions(-)
 
-But you are right, it is likely to trigger once kmemleak is enabled, I
-think because __pa(high_memory) use isn't valid. I need to reproduce it
-tomorrow (UK time) but a workaround is to test against __pa(high_memory
-- 1) or (max_low_pfn << PAGE_SHIFT).
+diff --git a/mm/usercopy.c b/mm/usercopy.c
+index 8ebae91a6b55..855944b05cc7 100644
+--- a/mm/usercopy.c
++++ b/mm/usercopy.c
+@@ -172,6 +172,15 @@ static inline const char *check_heap_object(const void *ptr, unsigned long n,
+ 		return NULL;
+ 	}
+ 
++#ifndef CONFIG_HAVE_HARDENED_USERCOPY_ALLOCATOR
++	/*
++	 * If the allocator isn't marking multi-page allocations as
++	 * either __GFP_COMP or PageSlab, we cannot correctly perform
++	 * bounds checking of multi-page allocations, so we stop here.
++	 */
++	return NULL;
++#endif
++
+ 	/* Allow kernel data region (if not marked as Reserved). */
+ 	if (ptr >= (const void *)_sdata && end <= (const void *)_edata)
+ 		return NULL;
+@@ -192,7 +201,7 @@ static inline const char *check_heap_object(const void *ptr, unsigned long n,
+ 		return NULL;
+ 
+ 	/*
+-	 * Reject if range is entirely either Reserved (i.e. special or
++	 * Allow if range is entirely either Reserved (i.e. special or
+ 	 * device memory), or CMA. Otherwise, reject since the object spans
+ 	 * several independently allocated pages.
+ 	 */
+diff --git a/security/Kconfig b/security/Kconfig
+index df28f2b6f3e1..08dce0327d5b 100644
+--- a/security/Kconfig
++++ b/security/Kconfig
+@@ -122,8 +122,9 @@ config HAVE_HARDENED_USERCOPY_ALLOCATOR
+ 	bool
+ 	help
+ 	  The heap allocator implements __check_heap_object() for
+-	  validating memory ranges against heap object sizes in
+-	  support of CONFIG_HARDENED_USERCOPY.
++	  validating memory ranges against heap object sizes in support
++	  of CONFIG_HARDENED_USERCOPY. It must mark all managed pages as
++	  PageSlab(), or set __GFP_COMP for multi-page allocations.
+ 
+ config HAVE_ARCH_HARDENED_USERCOPY
+ 	bool
+-- 
+2.7.4
+
 
 -- 
-Catalin
+Kees Cook
+Nexus Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
