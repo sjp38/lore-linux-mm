@@ -1,270 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F9846B025F
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 05:28:56 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id le9so192173717pab.0
-        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 02:28:56 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id u65si16076685pfk.116.2016.08.17.02.28.55
-        for <linux-mm@kvack.org>;
-        Wed, 17 Aug 2016 02:28:55 -0700 (PDT)
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: [PATCH v2] mm: kmemleak: Avoid using __va() on addresses that don't have a lowmem mapping
-Date: Wed, 17 Aug 2016 10:28:50 +0100
-Message-Id: <1471426130-21330-1-git-send-email-catalin.marinas@arm.com>
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E8D26B0261
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 05:29:12 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id u81so186017wmu.3
+        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 02:29:12 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id p71si24726774wmf.51.2016.08.17.02.29.11
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Aug 2016 02:29:11 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id q128so22017252wma.1
+        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 02:29:11 -0700 (PDT)
+Date: Wed, 17 Aug 2016 11:29:09 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, oom: report compaction/migration stats for higher
+ order requests
+Message-ID: <20160817092909.GA20703@dhcp22.suse.cz>
+References: <201608120901.41463.a.miskiewicz@gmail.com>
+ <201608161318.25412.a.miskiewicz@gmail.com>
+ <20160816141007.GF17417@dhcp22.suse.cz>
+ <201608171034.54940.arekm@maven.pl>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <201608171034.54940.arekm@maven.pl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Vignesh R <vigneshr@ti.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Arkadiusz =?utf-8?Q?Mi=C5=9Bkiewicz?= <arekm@maven.pl>
+Cc: linux-ext4@vger.kernel.org, linux-mm@kvack.org
 
-Some of the kmemleak_*() callbacks in memblock, bootmem, CMA convert a
-physical address to a virtual one using __va(). However, such physical
-addresses may sometimes be located in highmem and using __va() is
-incorrect, leading to inconsistent object tracking in kmemleak.
+On Wed 17-08-16 10:34:54, Arkadiusz MiA?kiewicz wrote:
+[...]
+> With "[PATCH] mm, oom: report compaction/migration stats for higher order 
+> requests" patch:
+> https://ixion.pld-linux.org/~arekm/p2/ext4/log-20160817.txt
+> 
+> Didn't count much - all counters are 0
+> compaction_stall:0 compaction_fail:0 compact_migrate_scanned:0 
+> compact_free_scanned:0 compact_isolated:0 pgmigrate_success:0 pgmigrate_fail:0
 
-The following functions have been added to the kmemleak API and they
-take a physical address as the object pointer. They only perform the
-corresponding action if the address has a lowmem mapping:
+Dohh, COMPACTION counters are events and those are different than other
+counters we have. They only have per-cpu representation and so we would
+have to do 
++       for_each_online_cpu(cpu) {
++               struct vm_event_state *this = &per_cpu(vm_event_states, cpu);
++               ret += this->event[item];
++       }
 
-kmemleak_alloc_phys
-kmemleak_free_part_phys
-kmemleak_not_leak_phys
-kmemleak_ignore_phys
+which is really nasty because, strictly speaking, we would have to do
+{get,put}_online_cpus around that loop and that uses locking and we do
+not want to possibly block in this path just because something is in the
+middle of the hotplug. So let's scratch that patch for now and sorry I
+haven't realized that earlier.
+ 
+> two processes were killed by OOM (rm and cp), the rest of rm/cp didn't finish 
+> and I'm interrupting it to try that next patch:
+> 
+> > Could you try to test with
+> > patch from
+> > http://lkml.kernel.org/r/20160816031222.GC16913@js1304-P5Q-DELUXE please?
+> > Ideally on top of linux-next. You can add both the compaction counters
+> > patch in the oom report and high order atomic reserves patch on top.
+> 
+> Uhm, was going to use it on top of 4.7.[01] first.
 
-The affected calling places have been updated to use the new kmemleak
-API.
-
-Reported-by: Vignesh R <vigneshr@ti.com>
-Cc: Vignesh R <vigneshr@ti.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
----
-
-v1 -> v2:
-  Moved the kmemleak_*_phys() functions out of line to avoid including
-  linux/mm.h in linux/kmemleak.h and cause build errors on several platforms
-
-Vignesh, I removed your tested/acked tags since this patch has been modified
-slightly. Could you please give it another try? Thank you.
-
- Documentation/kmemleak.txt |  9 +++++++++
- include/linux/kmemleak.h   | 18 ++++++++++++++++++
- mm/bootmem.c               |  6 +++---
- mm/cma.c                   |  2 +-
- mm/kmemleak.c              | 45 +++++++++++++++++++++++++++++++++++++++++++++
- mm/memblock.c              |  8 ++++----
- mm/nobootmem.c             |  2 +-
- 7 files changed, 81 insertions(+), 9 deletions(-)
-
-diff --git a/Documentation/kmemleak.txt b/Documentation/kmemleak.txt
-index 18e24abb3ecf..35e1a8891e3a 100644
---- a/Documentation/kmemleak.txt
-+++ b/Documentation/kmemleak.txt
-@@ -155,6 +155,15 @@ kmemleak_erase		 - erase an old value in a pointer variable
- kmemleak_alloc_recursive - as kmemleak_alloc but checks the recursiveness
- kmemleak_free_recursive	 - as kmemleak_free but checks the recursiveness
- 
-+The following functions take a physical address as the object pointer
-+and only perform the corresponding action if the address has a lowmem
-+mapping:
-+
-+kmemleak_alloc_phys
-+kmemleak_free_part_phys
-+kmemleak_not_leak_phys
-+kmemleak_ignore_phys
-+
- Dealing with false positives/negatives
- --------------------------------------
- 
-diff --git a/include/linux/kmemleak.h b/include/linux/kmemleak.h
-index 4894c6888bc6..1c2a32829620 100644
---- a/include/linux/kmemleak.h
-+++ b/include/linux/kmemleak.h
-@@ -38,6 +38,11 @@ extern void kmemleak_not_leak(const void *ptr) __ref;
- extern void kmemleak_ignore(const void *ptr) __ref;
- extern void kmemleak_scan_area(const void *ptr, size_t size, gfp_t gfp) __ref;
- extern void kmemleak_no_scan(const void *ptr) __ref;
-+extern void kmemleak_alloc_phys(phys_addr_t phys, size_t size, int min_count,
-+				gfp_t gfp) __ref;
-+extern void kmemleak_free_part_phys(phys_addr_t phys, size_t size) __ref;
-+extern void kmemleak_not_leak_phys(phys_addr_t phys) __ref;
-+extern void kmemleak_ignore_phys(phys_addr_t phys) __ref;
- 
- static inline void kmemleak_alloc_recursive(const void *ptr, size_t size,
- 					    int min_count, unsigned long flags,
-@@ -106,6 +111,19 @@ static inline void kmemleak_erase(void **ptr)
- static inline void kmemleak_no_scan(const void *ptr)
- {
- }
-+static inline void kmemleak_alloc_phys(phys_addr_t phys, size_t size,
-+				       int min_count, gfp_t gfp)
-+{
-+}
-+static inline void kmemleak_free_part_phys(phys_addr_t phys, size_t size)
-+{
-+}
-+static inline void kmemleak_not_leak_phys(phys_addr_t phys)
-+{
-+}
-+static inline void kmemleak_ignore_phys(phys_addr_t phys)
-+{
-+}
- 
- #endif	/* CONFIG_DEBUG_KMEMLEAK */
- 
-diff --git a/mm/bootmem.c b/mm/bootmem.c
-index 0aa7dda52402..80f1d70bad2d 100644
---- a/mm/bootmem.c
-+++ b/mm/bootmem.c
-@@ -158,7 +158,7 @@ void __init free_bootmem_late(unsigned long physaddr, unsigned long size)
- {
- 	unsigned long cursor, end;
- 
--	kmemleak_free_part(__va(physaddr), size);
-+	kmemleak_free_part_phys(physaddr, size);
- 
- 	cursor = PFN_UP(physaddr);
- 	end = PFN_DOWN(physaddr + size);
-@@ -402,7 +402,7 @@ void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
- {
- 	unsigned long start, end;
- 
--	kmemleak_free_part(__va(physaddr), size);
-+	kmemleak_free_part_phys(physaddr, size);
- 
- 	start = PFN_UP(physaddr);
- 	end = PFN_DOWN(physaddr + size);
-@@ -423,7 +423,7 @@ void __init free_bootmem(unsigned long physaddr, unsigned long size)
- {
- 	unsigned long start, end;
- 
--	kmemleak_free_part(__va(physaddr), size);
-+	kmemleak_free_part_phys(physaddr, size);
- 
- 	start = PFN_UP(physaddr);
- 	end = PFN_DOWN(physaddr + size);
-diff --git a/mm/cma.c b/mm/cma.c
-index bd0e1412475e..384c2cb51b56 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -336,7 +336,7 @@ int __init cma_declare_contiguous(phys_addr_t base,
- 		 * kmemleak scans/reads tracked objects for pointers to other
- 		 * objects but this address isn't mapped and accessible
- 		 */
--		kmemleak_ignore(phys_to_virt(addr));
-+		kmemleak_ignore_phys(addr);
- 		base = addr;
- 	}
- 
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 086292f7c59d..4a717788998b 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -1121,6 +1121,51 @@ void __ref kmemleak_no_scan(const void *ptr)
- }
- EXPORT_SYMBOL(kmemleak_no_scan);
- 
-+/**
-+ * kmemleak_alloc_phys - similar to kmemleak_alloc but taking a physical
-+ *			 address argument
-+ */
-+void __ref kmemleak_alloc_phys(phys_addr_t phys, size_t size, int min_count,
-+			       gfp_t gfp)
-+{
-+	if (!IS_ENABLED(CONFIG_HIGHMEM) || phys < __pa(high_memory))
-+		kmemleak_alloc(__va(phys), size, min_count, gfp);
-+}
-+EXPORT_SYMBOL(kmemleak_alloc_phys);
-+
-+/**
-+ * kmemleak_free_part_phys - similar to kmemleak_free_part but taking a
-+ *			     physical address argument
-+ */
-+void __ref kmemleak_free_part_phys(phys_addr_t phys, size_t size)
-+{
-+	if (!IS_ENABLED(CONFIG_HIGHMEM) || phys < __pa(high_memory))
-+		kmemleak_free_part(__va(phys), size);
-+}
-+EXPORT_SYMBOL(kmemleak_free_part_phys);
-+
-+/**
-+ * kmemleak_not_leak_phys - similar to kmemleak_not_leak but taking a physical
-+ *			    address argument
-+ */
-+void __ref kmemleak_not_leak_phys(phys_addr_t phys)
-+{
-+	if (!IS_ENABLED(CONFIG_HIGHMEM) || phys < __pa(high_memory))
-+		kmemleak_not_leak(__va(phys));
-+}
-+EXPORT_SYMBOL(kmemleak_not_leak_phys);
-+
-+/**
-+ * kmemleak_ignore_phys - similar to kmemleak_ignore but taking a physical
-+ *			  address argument
-+ */
-+void __ref kmemleak_ignore_phys(phys_addr_t phys)
-+{
-+	if (!IS_ENABLED(CONFIG_HIGHMEM) || phys < __pa(high_memory))
-+		kmemleak_ignore(__va(phys));
-+}
-+EXPORT_SYMBOL(kmemleak_ignore_phys);
-+
- /*
-  * Update an object's checksum and return true if it was modified.
-  */
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 483197ef613f..30ecea7b45d1 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -723,7 +723,7 @@ int __init_memblock memblock_free(phys_addr_t base, phys_addr_t size)
- 		     (unsigned long long)base + size - 1,
- 		     (void *)_RET_IP_);
- 
--	kmemleak_free_part(__va(base), size);
-+	kmemleak_free_part_phys(base, size);
- 	return memblock_remove_range(&memblock.reserved, base, size);
- }
- 
-@@ -1152,7 +1152,7 @@ static phys_addr_t __init memblock_alloc_range_nid(phys_addr_t size,
- 		 * The min_count is set to 0 so that memblock allocations are
- 		 * never reported as leaks.
- 		 */
--		kmemleak_alloc(__va(found), size, 0, 0);
-+		kmemleak_alloc_phys(found, size, 0, 0);
- 		return found;
- 	}
- 	return 0;
-@@ -1399,7 +1399,7 @@ void __init __memblock_free_early(phys_addr_t base, phys_addr_t size)
- 	memblock_dbg("%s: [%#016llx-%#016llx] %pF\n",
- 		     __func__, (u64)base, (u64)base + size - 1,
- 		     (void *)_RET_IP_);
--	kmemleak_free_part(__va(base), size);
-+	kmemleak_free_part_phys(base, size);
- 	memblock_remove_range(&memblock.reserved, base, size);
- }
- 
-@@ -1419,7 +1419,7 @@ void __init __memblock_free_late(phys_addr_t base, phys_addr_t size)
- 	memblock_dbg("%s: [%#016llx-%#016llx] %pF\n",
- 		     __func__, (u64)base, (u64)base + size - 1,
- 		     (void *)_RET_IP_);
--	kmemleak_free_part(__va(base), size);
-+	kmemleak_free_part_phys(base, size);
- 	cursor = PFN_UP(base);
- 	end = PFN_DOWN(base + size);
- 
-diff --git a/mm/nobootmem.c b/mm/nobootmem.c
-index bd05a70f44b9..a056d31dff7e 100644
---- a/mm/nobootmem.c
-+++ b/mm/nobootmem.c
-@@ -81,7 +81,7 @@ void __init free_bootmem_late(unsigned long addr, unsigned long size)
- {
- 	unsigned long cursor, end;
- 
--	kmemleak_free_part(__va(addr), size);
-+	kmemleak_free_part_phys(addr, size);
- 
- 	cursor = PFN_UP(addr);
- 	end = PFN_DOWN(addr + size);
+OK
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
