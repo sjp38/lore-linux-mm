@@ -1,76 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F0C76B0263
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 06:20:25 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id d65so321888859ith.0
-        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 03:20:25 -0700 (PDT)
-Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
-        by mx.google.com with ESMTPS id g130si2950417itb.19.2016.08.17.03.20.22
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 988736B0038
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 06:57:17 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id u81so2998772wmu.3
+        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 03:57:17 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id uc1si29686885wjc.93.2016.08.17.03.57.14
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 17 Aug 2016 03:20:22 -0700 (PDT)
-Received: from epcas5p2.samsung.com (unknown [182.195.41.40])
- by mailout1.samsung.com
- (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0OC101D56U1XFC80@mailout1.samsung.com> for linux-mm@kvack.org;
- Wed, 17 Aug 2016 19:20:21 +0900 (KST)
-Message-id: <321887668.35242.1471429219430.JavaMail.weblogic@epwas3e2>
-MIME-version: 1.0
-Subject: =?UTF-8?B?W1BBVENIIDQvNF0genN3YXA6IFVwZGF0ZSBkb2N1bWVudCB3?=
- =?UTF-8?B?aXRoIHNoYXJpbmcgb2YgZHVwbGljYXRlIHBhZ2VzIGZlYXR1?= =?UTF-8?B?cmU=?=
-Reply-to: srividya.dr@samsung.com
-From: =?UTF-8?B?U3JpdmlkeWEgRGVzaXJlZGR5?= <srividya.dr@samsung.com>
-Date: Wed, 17 Aug 2016 10:20:19 +0000
-Content-type: multipart/related;
- boundary="----=_Part_35241_1335759858.1471429219430"
-References: 
- <CGME20160817102019epcms5p18927843404d9e880c1b916461993bd3b@epcms5p1>
+        Wed, 17 Aug 2016 03:57:14 -0700 (PDT)
+Date: Wed, 17 Aug 2016 12:57:11 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] mm, oom: report compaction/migration stats for higher
+ order requests
+Message-ID: <20160817105711.GA6656@quack2.suse.cz>
+References: <201608120901.41463.a.miskiewicz@gmail.com>
+ <20160814125327.GF9248@dhcp22.suse.cz>
+ <20160815085129.GA3360@dhcp22.suse.cz>
+ <201608161318.25412.a.miskiewicz@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201608161318.25412.a.miskiewicz@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sjenning@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, corbet@lwn.net, akpm@linux-foundation.org, ddstreet@ieee.org, linux-doc@vger.kernel.org
-Cc: =?UTF-8?B?U3JpdmlkeWEgRGVzaXJlZGR5?= <srividya.dr@samsung.com>, =?UTF-8?B?RGluYWthciBSZWRkeSBQYXRoaXJlZGR5?= <dinakar.p@samsung.com>, =?UTF-8?B?7IOk656A?= <sharan.allur@samsung.com>, =?UTF-8?B?U1VORUVMIEtVTUFSIFNVUklNQU5J?= <suneel@samsung.com>, =?UTF-8?B?6rmA7KO87ZuI?= <juhunkim@samsung.com>
+To: arekm@maven.pl
+Cc: Michal Hocko <mhocko@kernel.org>, linux-ext4@vger.kernel.org, linux-mm@kvack.org
 
-------=_Part_35241_1335759858.1471429219430
-Content-Transfer-Encoding: base64
-Content-Type: text/plain; charset="utf-8"
+On Tue 16-08-16 13:18:25, Arkadiusz Miskiewicz wrote:
+> On Monday 15 of August 2016, Michal Hocko wrote:
+> > [Fixing up linux-mm]
+> > 
+> > Ups I had a c&p error in the previous patch. Here is an updated patch.
+> 
+> 
+> Going to apply this patch now and report again. I mean time what I have is a 
+> 
+>  while (true); do echo "XX date"; date; echo "XX SLAB"; cat /proc/slabinfo ; 
+> echo "XX VMSTAT"; cat /proc/vmstat ; echo "XX free"; free; echo "XX DMESG"; 
+> dmesg -T | tail -n 50; /bin/sleep 60;done 2>&1 | tee log
+> 
+> loop gathering some data while few OOM conditions happened.
+> 
+> I was doing "rm -rf copyX; cp -al original copyX" 10x in parallel.
+> 
+> https://ixion.pld-linux.org/~arekm/p2/ext4/log-20160816.txt
 
-RnJvbTogU3JpdmlkeWEgRGVzaXJlZGR5IDxzcml2aWR5YS5kckBzYW1zdW5nLmNvbT4NCkRhdGU6
-IFdlZCwgMTcgQXVnIDIwMTYgMTQ6MzQ6NDEgKzA1MzANClN1YmplY3Q6IFtQQVRDSCA0LzRdIHpz
-d2FwOiBVcGRhdGUgZG9jdW1lbnQgd2l0aCBzaGFyaW5nIG9mIGR1cGxpY2F0ZSBwYWdlcw0KIGZl
-YXR1cmUNCg0KVXBkYXRlZCB6c3dhcCBkb2N1bWVudCB3aXRoIGRldGFpbHMgb24gdGhlIHNoYXJp
-bmcgb2YgZHVwbGljYXRlIHN3YXAgcGFnZXMNCmZlYXR1cmUuIFRoZSB1c2FnZSBvZiB6c3dhcC5z
-YW1lX3BhZ2Vfc2hhcmluZyBtb2R1bGUgcGFyYW1ldGVyIGlzDQpleHBsYWluZWQuDQoNClNpZ25l
-ZC1vZmYtYnk6IFNyaXZpZHlhIERlc2lyZWRkeSA8c3JpdmlkeWEuZHJAc2Ftc3VuZy5jb20+DQot
-LS0NCiBEb2N1bWVudGF0aW9uL3ZtL3pzd2FwLnR4dCB8ICAgMTggKysrKysrKysrKysrKysrKysr
-DQogMSBmaWxlIGNoYW5nZWQsIDE4IGluc2VydGlvbnMoKykNCg0KZGlmZiAtLWdpdCBhL0RvY3Vt
-ZW50YXRpb24vdm0venN3YXAudHh0IGIvRG9jdW1lbnRhdGlvbi92bS96c3dhcC50eHQNCmluZGV4
-IDg5ZmZmN2QuLmNmMTE4MDcgMTAwNjQ0DQotLS0gYS9Eb2N1bWVudGF0aW9uL3ZtL3pzd2FwLnR4
-dA0KKysrIGIvRG9jdW1lbnRhdGlvbi92bS96c3dhcC50eHQNCkBAIC05OCw1ICs5OCwyMyBAQCBy
-ZXF1ZXN0IGlzIG1hZGUgZm9yIGEgcGFnZSBpbiBhbiBvbGQgenBvb2wsIGl0IGlzIHVuY29tcHJl
-c3NlZCB1c2luZyBpdHMNCiBvcmlnaW5hbCBjb21wcmVzc29yLiAgT25jZSBhbGwgcGFnZXMgYXJl
-IHJlbW92ZWQgZnJvbSBhbiBvbGQgenBvb2wsIHRoZSB6cG9vbA0KIGFuZCBpdHMgY29tcHJlc3Nv
-ciBhcmUgZnJlZWQuDQogDQorU29tZSBvZiB0aGUgcGFnZXMgc3dhcHBlZCB0byB6c3dhcCBoYXZl
-IHNhbWUgY29udGVudCBhcyB0aGF0IG9mIHBhZ2VzIGFscmVhZHkNCitzdG9yZWQgaW4genN3YXAu
-IFRoZXNlIHBhZ2VzIGFyZSBjb21wcmVzc2VkIGFuZCBzdG9yZWQgaW4gdGhlIHpwb29sIG1lbW9y
-eS4NCitTYW1lIHBhZ2Ugc2hhcmluZyBmZWF0dXJlIGVuYWJsZXMgdGhlIGR1cGxpY2F0ZSBwYWdl
-cyB0byBzaGFyZSBzYW1lIGNvbXByZXNzZWQNCit6cG9vbCBtZW1vcnkuIFRoaXMgaGVscHMgaW4g
-cmVkdWNpbmcgdGhlIHpwb29sIG1lbW9yeSBhbGxvY2F0ZWQgYnkgenN3YXAgdG8NCitzdG9yZSBj
-b21wcmVzc2VkIHBhZ2VzLg0KKw0KK1NhbWUgcGFnZSBzaGFyaW5nIGZlYXR1cmUgaXMgZGlzYWJs
-ZWQgYnkgZGVmYXVsdCBhbmQgY2FuIGJlIGVuYWJsZWQgYXQgYm9vdA0KK3RpbWUgYnkgc2V0dGlu
-ZyB0aGUgInNhbWVfcGFnZV9zaGFyaW5nIiBhdHRyaWJ1dGUgdG8gMSBhdCBib290IHRpbWUuIGll
-Og0KK3pzd2FwLnNhbWVfcGFnZV9zaGFyaW5nPTEuIEl0IGNhbiBhbHNvIGJlIGVuYWJsZWQgYW5k
-IGRpc2FibGVkIGF0IHJ1bnRpbWUNCit1c2luZyB0aGUgc3lzZnMgInNhbWVfcGFnZV9zaGFyaW5n
-IiBhdHRyaWJ1dGUsIGUuZy4NCisNCitlY2hvIDEgPiAvc3lzL21vZHVsZS96c3dhcC9wYXJhbWV0
-ZXJzL3NhbWVfcGFnZV9zaGFyaW5nDQorDQorV2hlbiB6c3dhcCBzYW1lIHBhZ2Ugc2hhcmluZyBp
-cyBkaXNhYmxlZCBhdCBydW50aW1lIGl0IHdpbGwgc3RvcCBzaGFyaW5nIHRoZQ0KK25ldyBkdXBs
-aWNhdGUgcGFnZXMgdGhhdCBhcmUgYmVpbmcgc3dhcHBlZCBvdXQuIEhvd2V2ZXIsIHRoZSBleGlz
-dGluZyBkdXBsaWNhdGUNCitwYWdlcyB3aWxsIGtlZXAgc2hhcmluZyB0aGUgY29tcHJlc3NlZCBt
-ZW1vcnkgcG9vbCB1bnRpbCB0aGV5IGFyZSBzd2FwcGVkIGluIG9yDQoraW52YWxpZGF0ZWQuDQor
-DQogQSBkZWJ1Z2ZzIGludGVyZmFjZSBpcyBwcm92aWRlZCBmb3IgdmFyaW91cyBzdGF0aXN0aWMg
-YWJvdXQgcG9vbCBzaXplLCBudW1iZXINCiBvZiBwYWdlcyBzdG9yZWQsIGFuZCB2YXJpb3VzIGNv
-dW50ZXJzIGZvciB0aGUgcmVhc29ucyBwYWdlcyBhcmUgcmVqZWN0ZWQuDQotLSANCjEuNy45LjUN
-Cg0K
-------=_Part_35241_1335759858.1471429219430--
+Just one more debug idea to add on top of what Michal said: Can you enable
+mm_shrink_slab_start and mm_shrink_slab_end tracepoints (via
+/sys/kernel/debug/tracing/events/vmscan/mm_shrink_slab_{start,end}/enable)
+and gather output from /sys/kernel/debug/tracing/trace_pipe while the copy
+is running?
+
+Because your slab caches seem to contain a lot of dentries as well (even
+more than inodes in terms of numbers) so it may be that OOM is declared too
+early before slab shrinkers can actually catch up...
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
