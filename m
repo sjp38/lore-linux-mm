@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C5C46B0038
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 05:20:35 -0400 (EDT)
-Received: by mail-ua0-f199.google.com with SMTP id 65so233423131uay.1
-        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 02:20:35 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k125si24727817wmg.9.2016.08.17.02.20.34
+Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 337DB6B025F
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 05:21:39 -0400 (EDT)
+Received: by mail-ua0-f197.google.com with SMTP id u13so233225286uau.2
+        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 02:21:39 -0700 (PDT)
+Received: from mx04-000ceb01.pphosted.com (mx0b-000ceb01.pphosted.com. [67.231.152.126])
+        by mx.google.com with ESMTPS id c3si29328131wjv.231.2016.08.17.02.21.37
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 17 Aug 2016 02:20:34 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Aug 2016 02:21:37 -0700 (PDT)
 Subject: Re: OOM killer changes
 References: <d8116023-dcd4-8763-af77-f2889f84cdb6@Quantum.com>
  <20160801200926.GF31957@dhcp22.suse.cz>
@@ -23,31 +23,42 @@ References: <d8116023-dcd4-8763-af77-f2889f84cdb6@Quantum.com>
  <20160816031222.GC16913@js1304-P5Q-DELUXE>
  <ef85bac4-cbaa-8def-bf76-11741301dc87@Quantum.com>
  <8db47fdf-2d6a-d234-479e-6cc81be98655@suse.cz>
- <a8e202e8-1906-c57a-b392-d1353b9190b6@Quantum.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <082f48bf-dacd-b65d-7e48-8c56b1a9f805@suse.cz>
-Date: Wed, 17 Aug 2016 11:20:31 +0200
+ <CAAmzW4M0gmhn1Nub=kB-4gfxviCunmWYEMhj-uVfX+k5pVtmeA@mail.gmail.com>
+From: Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>
+Message-ID: <d26d6f3a-e6be-4bf2-151f-f585aa5fdfb7@Quantum.com>
+Date: Wed, 17 Aug 2016 02:21:30 -0700
 MIME-Version: 1.0
-In-Reply-To: <a8e202e8-1906-c57a-b392-d1353b9190b6@Quantum.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAAmzW4M0gmhn1Nub=kB-4gfxviCunmWYEMhj-uVfX+k5pVtmeA@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Joonsoo Kim <js1304@gmail.com>, Vlastimil Babka <vbabka@suse.cz>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 08/17/2016 11:11 AM, Ralf-Peter Rohbeck wrote:
-> On 17.08.2016 00:56, Vlastimil Babka wrote:
->> And I really wonder how did all those unmovable pageblocks happen.
->> AFAICS zoneinfo shows that most of memory is occupied by file lru pages.
->> These should be movable.
+On 17.08.2016 01:16, Joonsoo Kim wrote:
 >
-> Is it the pressure on the page cache? Don't forget that I write to some
-> disk drives (recently, 2) at media speed with dd if=/dev/zero bs=4M
-> of=/dev/SDX.
+> Free scanner start at 0x27fe00 but actual scan happens at 0x186a00.
+> And, although log is snipped, compaction fails because it doesn't find
+> any freepage.
+>
+> It skips half of pageblocks in that zone. It would be due to
+> migratetype or skipbit.
+> Both Vlastimil's recent patches and my work-around should be applied to solve
+> this problem.
+>
+> Other part of trace looks like that my work-around isn't applied.
+> Could you confirm
+> that?
+>
+> Thanks.
+Your patch was in my last 4.7 run with the output in 
+OOM_4.7.0_p3.tar.bz2 but not in _p2.
 
-Hmm page cache should be movable. But maybe it's different for writing 
-to devices and not filesystems.
+Ralf-Peter
+
+----------------------------------------------------------------------
+The information contained in this transmission may be confidential. Any disclosure, copying, or further distribution of confidential information is not permitted unless such privilege is explicitly granted in writing by Quantum. Quantum reserves the right to have electronic communications, including email and attachments, sent across its networks filtered through anti virus and spam software programs and retain such messages in order to comply with applicable data security and retention requirements. Quantum is not responsible for the proper and complete transmission of the substance of this communication or for any delay in its receipt.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
