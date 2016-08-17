@@ -1,94 +1,193 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B0866B0038
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 18:29:25 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id o124so3234145pfg.1
-        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 15:29:25 -0700 (PDT)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id v7si1275902pal.10.2016.08.17.15.29.24
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 929C76B0038
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 19:31:07 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id 4so7043611oih.2
+        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 16:31:07 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id 5si13542054iox.239.2016.08.17.16.31.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Aug 2016 15:29:24 -0700 (PDT)
-Received: by mail-pa0-x22b.google.com with SMTP id ti13so465498pac.0
-        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 15:29:24 -0700 (PDT)
-Date: Wed, 17 Aug 2016 15:29:22 -0700
-From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH] usercopy: Skip multi-page bounds checking on SLOB
-Message-ID: <20160817222921.GA25148@www.outflux.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+        Wed, 17 Aug 2016 16:31:06 -0700 (PDT)
+From: Aruna Ramakrishna <aruna.ramakrishna@oracle.com>
+Subject: [PATCH v4] mm/slab: Improve performance of gathering slabinfo stats
+Date: Wed, 17 Aug 2016 16:30:50 -0700
+Message-Id: <1471476650-6370-1-git-send-email-aruna.ramakrishna@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Laura Abbott <labbott@fedoraproject.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xiaolong.ye@intel.com
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
 
-When an allocator does not mark all allocations as PageSlab, or does not
-mark multipage allocations with __GFP_COMP, hardened usercopy cannot
-correctly validate the allocation. SLOB lacks this, so short-circuit
-the checking for the allocators that aren't marked with
-CONFIG_HAVE_HARDENED_USERCOPY_ALLOCATOR. This also updates the config
-help and corrects a typo in the usercopy comments.
+On large systems, when some slab caches grow to millions of objects (and
+many gigabytes), running 'cat /proc/slabinfo' can take up to 1-2 seconds.
+During this time, interrupts are disabled while walking the slab lists
+(slabs_full, slabs_partial, and slabs_free) for each node, and this
+sometimes causes timeouts in other drivers (for instance, Infiniband).
 
-Reported-by: xiaolong.ye@intel.com
-Signed-off-by: Kees Cook <keescook@chromium.org>
+This patch optimizes 'cat /proc/slabinfo' by maintaining a counter for
+total number of allocated slabs per node, per cache. This counter is
+updated when a slab is created or destroyed. This enables us to skip
+traversing the slabs_full list while gathering slabinfo statistics, and
+since slabs_full tends to be the biggest list when the cache is large, it
+results in a dramatic performance improvement. Getting slabinfo statistics
+now only requires walking the slabs_free and slabs_partial lists, and
+those lists are usually much smaller than slabs_full. We tested this after
+growing the dentry cache to 70GB, and the performance improved from 2s to
+5ms.
+
+Signed-off-by: Aruna Ramakrishna <aruna.ramakrishna@oracle.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
 ---
- mm/usercopy.c    | 11 ++++++++++-
- security/Kconfig |  5 +++--
- 2 files changed, 13 insertions(+), 3 deletions(-)
+Note: this has been tested only on x86_64.
 
-diff --git a/mm/usercopy.c b/mm/usercopy.c
-index 8ebae91a6b55..855944b05cc7 100644
---- a/mm/usercopy.c
-+++ b/mm/usercopy.c
-@@ -172,6 +172,15 @@ static inline const char *check_heap_object(const void *ptr, unsigned long n,
- 		return NULL;
- 	}
+ mm/slab.c | 43 +++++++++++++++++++++++++++----------------
+ mm/slab.h |  1 +
+ 2 files changed, 28 insertions(+), 16 deletions(-)
+
+diff --git a/mm/slab.c b/mm/slab.c
+index b672710..042017e 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -233,6 +233,7 @@ static void kmem_cache_node_init(struct kmem_cache_node *parent)
+ 	spin_lock_init(&parent->list_lock);
+ 	parent->free_objects = 0;
+ 	parent->free_touched = 0;
++	parent->num_slabs = 0;
+ }
  
-+#ifndef CONFIG_HAVE_HARDENED_USERCOPY_ALLOCATOR
-+	/*
-+	 * If the allocator isn't marking multi-page allocations as
-+	 * either __GFP_COMP or PageSlab, we cannot correctly perform
-+	 * bounds checking of multi-page allocations, so we stop here.
-+	 */
-+	return NULL;
-+#endif
+ #define MAKE_LIST(cachep, listp, slab, nodeid)				\
+@@ -1394,24 +1395,27 @@ slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
+ 	for_each_kmem_cache_node(cachep, node, n) {
+ 		unsigned long active_objs = 0, num_objs = 0, free_objects = 0;
+ 		unsigned long active_slabs = 0, num_slabs = 0;
++		unsigned long num_slabs_partial = 0, num_slabs_free = 0;
++		unsigned long num_slabs_full;
+ 
+ 		spin_lock_irqsave(&n->list_lock, flags);
+-		list_for_each_entry(page, &n->slabs_full, lru) {
+-			active_objs += cachep->num;
+-			active_slabs++;
+-		}
++		num_slabs = n->num_slabs;
+ 		list_for_each_entry(page, &n->slabs_partial, lru) {
+ 			active_objs += page->active;
+-			active_slabs++;
++			num_slabs_partial++;
+ 		}
+ 		list_for_each_entry(page, &n->slabs_free, lru)
+-			num_slabs++;
++			num_slabs_free++;
+ 
+ 		free_objects += n->free_objects;
+ 		spin_unlock_irqrestore(&n->list_lock, flags);
+ 
+-		num_slabs += active_slabs;
+ 		num_objs = num_slabs * cachep->num;
++		active_slabs = num_slabs - num_slabs_free;
++		num_slabs_full = num_slabs -
++			(num_slabs_partial + num_slabs_free);
++		active_objs += (num_slabs_full * cachep->num);
 +
- 	/* Allow kernel data region (if not marked as Reserved). */
- 	if (ptr >= (const void *)_sdata && end <= (const void *)_edata)
- 		return NULL;
-@@ -192,7 +201,7 @@ static inline const char *check_heap_object(const void *ptr, unsigned long n,
- 		return NULL;
+ 		pr_warn("  node %d: slabs: %ld/%ld, objs: %ld/%ld, free: %ld\n",
+ 			node, active_slabs, num_slabs, active_objs, num_objs,
+ 			free_objects);
+@@ -2326,6 +2330,7 @@ static int drain_freelist(struct kmem_cache *cache,
  
- 	/*
--	 * Reject if range is entirely either Reserved (i.e. special or
-+	 * Allow if range is entirely either Reserved (i.e. special or
- 	 * device memory), or CMA. Otherwise, reject since the object spans
- 	 * several independently allocated pages.
- 	 */
-diff --git a/security/Kconfig b/security/Kconfig
-index df28f2b6f3e1..08dce0327d5b 100644
---- a/security/Kconfig
-+++ b/security/Kconfig
-@@ -122,8 +122,9 @@ config HAVE_HARDENED_USERCOPY_ALLOCATOR
- 	bool
- 	help
- 	  The heap allocator implements __check_heap_object() for
--	  validating memory ranges against heap object sizes in
--	  support of CONFIG_HARDENED_USERCOPY.
-+	  validating memory ranges against heap object sizes in support
-+	  of CONFIG_HARDENED_USERCOPY. It must mark all managed pages as
-+	  PageSlab(), or set __GFP_COMP for multi-page allocations.
+ 		page = list_entry(p, struct page, lru);
+ 		list_del(&page->lru);
++		n->num_slabs--;
+ 		/*
+ 		 * Safe to drop the lock. The slab is no longer linked
+ 		 * to the cache.
+@@ -2764,6 +2769,8 @@ static void cache_grow_end(struct kmem_cache *cachep, struct page *page)
+ 		list_add_tail(&page->lru, &(n->slabs_free));
+ 	else
+ 		fixup_slab_list(cachep, n, page, &list);
++
++	n->num_slabs++;
+ 	STATS_INC_GROWN(cachep);
+ 	n->free_objects += cachep->num - page->active;
+ 	spin_unlock(&n->list_lock);
+@@ -3455,6 +3462,7 @@ static void free_block(struct kmem_cache *cachep, void **objpp,
  
- config HAVE_ARCH_HARDENED_USERCOPY
- 	bool
+ 		page = list_last_entry(&n->slabs_free, struct page, lru);
+ 		list_move(&page->lru, list);
++		n->num_slabs--;
+ 	}
+ }
+ 
+@@ -4111,6 +4119,8 @@ void get_slabinfo(struct kmem_cache *cachep, struct slabinfo *sinfo)
+ 	unsigned long num_objs;
+ 	unsigned long active_slabs = 0;
+ 	unsigned long num_slabs, free_objects = 0, shared_avail = 0;
++	unsigned long num_slabs_partial = 0, num_slabs_free = 0;
++	unsigned long num_slabs_full = 0;
+ 	const char *name;
+ 	char *error = NULL;
+ 	int node;
+@@ -4123,33 +4133,34 @@ void get_slabinfo(struct kmem_cache *cachep, struct slabinfo *sinfo)
+ 		check_irq_on();
+ 		spin_lock_irq(&n->list_lock);
+ 
+-		list_for_each_entry(page, &n->slabs_full, lru) {
+-			if (page->active != cachep->num && !error)
+-				error = "slabs_full accounting error";
+-			active_objs += cachep->num;
+-			active_slabs++;
+-		}
++		num_slabs += n->num_slabs;
++
+ 		list_for_each_entry(page, &n->slabs_partial, lru) {
+ 			if (page->active == cachep->num && !error)
+ 				error = "slabs_partial accounting error";
+ 			if (!page->active && !error)
+ 				error = "slabs_partial accounting error";
+ 			active_objs += page->active;
+-			active_slabs++;
++			num_slabs_partial++;
+ 		}
++
+ 		list_for_each_entry(page, &n->slabs_free, lru) {
+ 			if (page->active && !error)
+ 				error = "slabs_free accounting error";
+-			num_slabs++;
++			num_slabs_free++;
+ 		}
++
+ 		free_objects += n->free_objects;
+ 		if (n->shared)
+ 			shared_avail += n->shared->avail;
+ 
+ 		spin_unlock_irq(&n->list_lock);
+ 	}
+-	num_slabs += active_slabs;
+ 	num_objs = num_slabs * cachep->num;
++	active_slabs = num_slabs - num_slabs_free;
++	num_slabs_full = num_slabs - (num_slabs_partial + num_slabs_free);
++	active_objs += (num_slabs_full * cachep->num);
++
+ 	if (num_objs - active_objs != free_objects && !error)
+ 		error = "free_objects accounting error";
+ 
+diff --git a/mm/slab.h b/mm/slab.h
+index 9653f2e..bc05fdc 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -432,6 +432,7 @@ struct kmem_cache_node {
+ 	struct list_head slabs_partial;	/* partial list first, better asm code */
+ 	struct list_head slabs_full;
+ 	struct list_head slabs_free;
++	unsigned long num_slabs;
+ 	unsigned long free_objects;
+ 	unsigned int free_limit;
+ 	unsigned int colour_next;	/* Per-node cache coloring */
 -- 
-2.7.4
-
-
--- 
-Kees Cook
-Nexus Security
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
