@@ -1,63 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DA74F83094
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2016 10:15:55 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id u81so16995816wmu.3
-        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 07:15:55 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id tg15si2072023wjb.292.2016.08.18.07.15.54
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 719D083094
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2016 10:22:01 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id 4so48655240oih.2
+        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 07:22:01 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v7si3188178ita.38.2016.08.18.07.22.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 18 Aug 2016 07:15:54 -0700 (PDT)
-Date: Thu, 18 Aug 2016 16:15:50 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 5/7] dax: lock based on slot instead of [mapping, index]
-Message-ID: <20160818141550.GA2382@quack2.suse.cz>
-References: <20160815190918.20672-1-ross.zwisler@linux.intel.com>
- <20160815190918.20672-6-ross.zwisler@linux.intel.com>
- <20160816092816.GE27284@quack2.suse.cz>
- <20160817202556.GA13009@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160817202556.GA13009@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 Aug 2016 07:22:00 -0700 (PDT)
+Message-ID: <1471530118.2581.13.camel@redhat.com>
+Subject: Re: [PATCH] usercopy: Skip multi-page bounds checking on SLOB
+From: Rik van Riel <riel@redhat.com>
+Date: Thu, 18 Aug 2016 10:21:58 -0400
+In-Reply-To: <20160817222921.GA25148@www.outflux.net>
+References: <20160817222921.GA25148@www.outflux.net>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
+To: Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Laura Abbott <labbott@fedoraproject.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xiaolong.ye@intel.com
 
-On Wed 17-08-16 14:25:56, Ross Zwisler wrote:
-> On Tue, Aug 16, 2016 at 11:28:16AM +0200, Jan Kara wrote:
-> > On Mon 15-08-16 13:09:16, Ross Zwisler wrote:
-> > > DAX radix tree locking currently locks entries based on the unique
-> > > combination of the 'mapping' pointer and the pgoff_t 'index' for the entry.
-> > > This works for PTEs, but as we move to PMDs we will need to have all the
-> > > offsets within the range covered by the PMD to map to the same bit lock.
-> > > To accomplish this, lock based on the 'slot' pointer in the radix tree
-> > > instead of [mapping, index].
-> > 
-> > I'm not convinced this is safe. What makes the slot pointer still valid
-> > after you drop tree_lock? At least radix_tree_shrink() or
-> > radix_tree_expand() could move your slot without letting the waiter know
-> > and he would be never woken.
-> > 
-> > 								Honza
+On Wed, 2016-08-17 at 15:29 -0700, Kees Cook wrote:
+> When an allocator does not mark all allocations as PageSlab, or does
+> not
+> mark multipage allocations with __GFP_COMP, hardened usercopy cannot
+> correctly validate the allocation. SLOB lacks this, so short-circuit
+> the checking for the allocators that aren't marked with
+> CONFIG_HAVE_HARDENED_USERCOPY_ALLOCATOR. This also updates the config
+> help and corrects a typo in the usercopy comments.
 > 
-> Yep, you're right, thanks for catching that.
-> 
-> Given that we can't rely on 'slot' being stable, my next idea is to use a
-> combination of [mapping, index], but tweak 'index' so that it's always the
-> beginning of the entry.  So for 4k entries we'd leave it alone, but for 2MiB
-> entries we'd mask it down to the appropriate 2MiB barrier.
-> 
-> Let me hack on that for a bit, unless you've a better idea.
+> Reported-by: xiaolong.ye@intel.com
+> Signed-off-by: Kees Cook <keescook@chromium.org>
 
-No, that's what I'd do as well.
+There may still be some subsystems that do not
+go through kmalloc for multi-page allocations,
+and also do not use __GFP_COMP
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+I do not know whether there are, but if they exist
+those would still trip up the same way SLOB got
+tripped up before your patch.
+
+One big question I have for Linus is, do we want
+to allow code that does a higher order allocation,
+and then frees part of it in smaller orders, or
+individual pages, and keeps using the remainder?
+
+>From both a hardening and a simple stability
+point of view, allowing memory to be allocated
+in one size, and freed in another, seems like
+it could be asking for bugs.
+
+If we decide we do not want to allow that,
+we can just do the __GFP_COMP markings
+unconditionally, and show a big fat warning
+when memory gets freed in a different size
+than it was allocated.
+
+Is that something we want to do?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
