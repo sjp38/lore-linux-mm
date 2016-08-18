@@ -1,90 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5ECDB82F5F
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2016 05:03:17 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id u81so11489800wmu.3
-        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 02:03:17 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id d77si1344471wmh.91.2016.08.18.02.03.16
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 33B596B0268
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2016 05:10:40 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id p85so8370185lfg.3
+        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 02:10:40 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id 204si29098765wmk.76.2016.08.18.02.10.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Aug 2016 02:03:16 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id i138so4172048wmf.3
-        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 02:03:16 -0700 (PDT)
-Date: Thu, 18 Aug 2016 11:03:14 +0200
+        Thu, 18 Aug 2016 02:10:38 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id i138so4220392wmf.3
+        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 02:10:38 -0700 (PDT)
+Date: Thu, 18 Aug 2016 11:10:37 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v6 04/11] mm, compaction: don't recheck watermarks after
- COMPACT_SUCCESS
-Message-ID: <20160818090314.GE30162@dhcp22.suse.cz>
+Subject: Re: [PATCH v6 06/11] mm, compaction: more reliably increase direct
+ compaction priority
+Message-ID: <20160818091036.GF30162@dhcp22.suse.cz>
 References: <20160810091226.6709-1-vbabka@suse.cz>
- <20160810091226.6709-5-vbabka@suse.cz>
+ <20160810091226.6709-7-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160810091226.6709-5-vbabka@suse.cz>
+In-Reply-To: <20160810091226.6709-7-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 10-08-16 11:12:19, Vlastimil Babka wrote:
-> Joonsoo has reminded me that in a later patch changing watermark checks
-> throughout compaction I forgot to update checks in try_to_compact_pages() and
-> compactd_do_work(). Closer inspection however shows that they are redundant now
-> that compact_zone() reliably reports success with COMPACT_SUCCESS, as they just
-> repeat (a subset) of checks that have just passed. So instead of checking
-> watermarks again, just test the return value.
-
-the less watermark checks we do the better because they just increase a
-probability of subtle and hard to explain corner cases.
-
-> Also remove the stray "bool success" variable from kcompactd_do_work().
+On Wed 10-08-16 11:12:21, Vlastimil Babka wrote:
+> During reclaim/compaction loop, compaction priority can be increased by the
+> should_compact_retry() function, but the current code is not optimal. Priority
+> is only increased when compaction_failed() is true, which means that compaction
+> has scanned the whole zone. This may not happen even after multiple attempts
+> with a lower priority due to parallel activity, so we might needlessly
+> struggle on the lower priorities and possibly run out of compaction retry
+> attempts in the process.
 > 
-> Reported-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> After this patch we are guaranteed at least one attempt at the highest
+> compaction priority even if we exhaust all retries at the lower priorities.
+
+I expect we will tend to do some special handling at the highest
+priority so guaranteeing at least one run with that prio seems sensible to me. The only
+question is whether we really want to enforce the highest priority for
+costly orders as well. I think we want to reserve the highest (maybe add
+one more) prio for !costly orders as those invoke the OOM killer and the
+failure are quite disruptive.
+
 > Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
 > ---
->  mm/compaction.c | 11 +++--------
->  1 file changed, 3 insertions(+), 8 deletions(-)
+>  mm/page_alloc.c | 18 +++++++++++-------
+>  1 file changed, 11 insertions(+), 7 deletions(-)
 > 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index c355bf0d8599..a144f58f7193 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -1698,9 +1698,8 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
->  					alloc_flags, ac_classzone_idx(ac));
->  		rc = max(status, rc);
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index fb975cec3518..b28517b918b0 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3155,13 +3155,8 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
+>  	 * so it doesn't really make much sense to retry except when the
+>  	 * failure could be caused by insufficient priority
+>  	 */
+> -	if (compaction_failed(compact_result)) {
+> -		if (*compact_priority > MIN_COMPACT_PRIORITY) {
+> -			(*compact_priority)--;
+> -			return true;
+> -		}
+> -		return false;
+> -	}
+> +	if (compaction_failed(compact_result))
+> +		goto check_priority;
 >  
-> -		/* If a normal allocation would succeed, stop compacting */
-> -		if (zone_watermark_ok(zone, order, low_wmark_pages(zone),
-> -					ac_classzone_idx(ac), alloc_flags)) {
-> +		/* The allocation should succeed, stop compacting */
-> +		if (status == COMPACT_SUCCESS) {
->  			/*
->  			 * We think the allocation will succeed in this zone,
->  			 * but it is not certain, hence the false. The caller
-> @@ -1873,8 +1872,6 @@ static void kcompactd_do_work(pg_data_t *pgdat)
->  		.ignore_skip_hint = true,
+>  	/*
+>  	 * make sure the compaction wasn't deferred or didn't bail out early
+> @@ -3185,6 +3180,15 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
+>  	if (compaction_retries <= max_retries)
+>  		return true;
 >  
->  	};
-> -	bool success = false;
-> -
->  	trace_mm_compaction_kcompactd_wake(pgdat->node_id, cc.order,
->  							cc.classzone_idx);
->  	count_vm_event(KCOMPACTD_WAKE);
-> @@ -1903,9 +1900,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
->  			return;
->  		status = compact_zone(zone, &cc);
->  
-> -		if (zone_watermark_ok(zone, cc.order, low_wmark_pages(zone),
-> -						cc.classzone_idx, 0)) {
-> -			success = true;
-> +		if (status == COMPACT_SUCCESS) {
->  			compaction_defer_reset(zone, cc.order, false);
->  		} else if (status == COMPACT_PARTIAL_SKIPPED || status == COMPACT_COMPLETE) {
->  			/*
+> +	/*
+> +	 * Make sure there is at least one attempt at the highest priority
+> +	 * if we exhausted all retries at the lower priorities
+> +	 */
+> +check_priority:
+> +	if (*compact_priority > MIN_COMPACT_PRIORITY) {
+> +		(*compact_priority)--;
+> +		return true;
+> +	}
+>  	return false;
+>  }
+>  #else
 > -- 
 > 2.9.2
 > 
