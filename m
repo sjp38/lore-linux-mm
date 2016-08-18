@@ -1,59 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D92156B0038
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 19:37:25 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id i140so5566060qke.0
-        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 16:37:25 -0700 (PDT)
-Received: from mx04-000ceb01.pphosted.com (mx0b-000ceb01.pphosted.com. [67.231.152.126])
-        by mx.google.com with ESMTPS id t81si580754wmf.1.2016.08.17.16.37.24
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 17 Aug 2016 16:37:25 -0700 (PDT)
-Subject: Re: OOM killer changes
-References: <ccad54a2-be1e-44cf-b9c8-d6b34af4901d@quantum.com>
- <6cb37d4a-d2dd-6c2f-a65d-51474103bf86@Quantum.com>
- <d1f63745-b9e3-b699-8a5a-08f06c72b392@suse.cz>
- <20160815150123.GG3360@dhcp22.suse.cz>
- <1b8ee89d-a851-06f0-6bcc-62fef9e7e7cc@Quantum.com>
- <20160816073246.GC5001@dhcp22.suse.cz> <20160816074316.GD5001@dhcp22.suse.cz>
- <6a22f206-e0e7-67c9-c067-73a55b6fbb41@Quantum.com>
- <a61f01eb-7077-07dd-665a-5125a1f8ef37@suse.cz>
- <0325d79b-186b-7d61-2759-686f8afff0e9@Quantum.com>
- <20160817093323.GB20703@dhcp22.suse.cz>
-From: Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>
-Message-ID: <8008b7de-9728-a93c-e3d7-30d4ebeba65a@Quantum.com>
-Date: Wed, 17 Aug 2016 16:37:19 -0700
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CDC356B0038
+	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 21:06:02 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id ag5so8048626pad.2
+        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 18:06:02 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id t3si40378622pfd.290.2016.08.17.18.06.01
+        for <linux-mm@kvack.org>;
+        Wed, 17 Aug 2016 18:06:01 -0700 (PDT)
+From: "Li, Liang Z" <liang.z.li@intel.com>
+Subject: RE: [PATCH v3 kernel 0/7] Extend virtio-balloon for fast
+ (de)inflating & fast live migration
+Date: Thu, 18 Aug 2016 01:05:53 +0000
+Message-ID: <F2CBF3009FA73547804AE4C663CAB28E04220EDA@shsmsx102.ccr.corp.intel.com>
+References: <1470638134-24149-1-git-send-email-liang.z.li@intel.com>
+In-Reply-To: <1470638134-24149-1-git-send-email-liang.z.li@intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20160817093323.GB20703@dhcp22.suse.cz>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Vlastimil Babka <vbabka@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "quintela@redhat.com" <quintela@redhat.com>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On 17.08.2016 02:33, Michal Hocko wrote:
-> On Wed 17-08-16 02:28:35, Ralf-Peter Rohbeck wrote:
->> On 17.08.2016 02:23, Vlastimil Babka wrote:
-> [...]
->>> 4.8.0-rc2 is not "linux-next". What Michal meant is the linux-next git
->>> (there's no tarball on kernel.org for it):
->>> git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
->> Hmm. I added linux-next git, fetched it etc but apparently I didn't check
->> out the right branch. Do you want next-20160817?
-> Yes this one should be OK. It contains Vlastimil's patches.
->
-> Thanks!
+Hi Michael,
 
-This has been working so far. I built a kernel successfully, with dd 
-writing to two drives. There were a number of messages in the trace pipe 
-but compaction/migration always succeeded it seems.
-I'll run the big torture test overnight.
+Could you help to review this version when you have time?=20
 
-Ralf-Peter
+Thanks!
+Liang
 
-----------------------------------------------------------------------
-The information contained in this transmission may be confidential. Any disclosure, copying, or further distribution of confidential information is not permitted unless such privilege is explicitly granted in writing by Quantum. Quantum reserves the right to have electronic communications, including email and attachments, sent across its networks filtered through anti virus and spam software programs and retain such messages in order to comply with applicable data security and retention requirements. Quantum is not responsible for the proper and complete transmission of the substance of this communication or for any delay in its receipt.
+> -----Original Message-----
+> From: Li, Liang Z
+> Sent: Monday, August 08, 2016 2:35 PM
+> To: linux-kernel@vger.kernel.org
+> Cc: virtualization@lists.linux-foundation.org; linux-mm@kvack.org; virtio=
+-
+> dev@lists.oasis-open.org; kvm@vger.kernel.org; qemu-devel@nongnu.org;
+> quintela@redhat.com; dgilbert@redhat.com; Hansen, Dave; Li, Liang Z
+> Subject: [PATCH v3 kernel 0/7] Extend virtio-balloon for fast (de)inflati=
+ng &
+> fast live migration
+>=20
+> This patch set contains two parts of changes to the virtio-balloon.
+>=20
+> One is the change for speeding up the inflating & deflating process, the =
+main
+> idea of this optimization is to use bitmap to send the page information t=
+o
+> host instead of the PFNs, to reduce the overhead of virtio data transmiss=
+ion,
+> address translation and madvise(). This can help to improve the performan=
+ce
+> by about 85%.
+>=20
+> Another change is for speeding up live migration. By skipping process gue=
+st's
+> free pages in the first round of data copy, to reduce needless data proce=
+ssing,
+> this can help to save quite a lot of CPU cycles and network bandwidth. We
+> put guest's free page information in bitmap and send it to host with the =
+virt
+> queue of virtio-balloon. For an idle 8GB guest, this can help to shorten =
+the
+> total live migration time from 2Sec to about 500ms in the 10Gbps network
+> environment.
+>=20
+> Dave Hansen suggested a new scheme to encode the data structure,
+> because of additional complexity, it's not implemented in v3.
+>=20
+> Changes from v2 to v3:
+>     * Change the name of 'free page' to 'unused page'.
+>     * Use the scatter & gather bitmap instead of a 1MB page bitmap.
+>     * Fix overwriting the page bitmap after kicking.
+>     * Some of MST's comments for v2.
+>=20
+> Changes from v1 to v2:
+>     * Abandon the patch for dropping page cache.
+>     * Put some structures to uapi head file.
+>     * Use a new way to determine the page bitmap size.
+>     * Use a unified way to send the free page information with the bitmap
+>     * Address the issues referred in MST's comments
+>=20
+>=20
+> Liang Li (7):
+>   virtio-balloon: rework deflate to add page to a list
+>   virtio-balloon: define new feature bit and page bitmap head
+>   mm: add a function to get the max pfn
+>   virtio-balloon: speed up inflate/deflate process
+>   mm: add the related functions to get unused page
+>   virtio-balloon: define feature bit and head for misc virt queue
+>   virtio-balloon: tell host vm's unused page info
+>=20
+>  drivers/virtio/virtio_balloon.c     | 390
+> ++++++++++++++++++++++++++++++++----
+>  include/linux/mm.h                  |   3 +
+>  include/uapi/linux/virtio_balloon.h |  41 ++++
+>  mm/page_alloc.c                     |  94 +++++++++
+>  4 files changed, 485 insertions(+), 43 deletions(-)
+>=20
+> --
+> 1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
