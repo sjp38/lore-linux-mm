@@ -1,69 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C03A6B026E
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2016 05:48:48 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id e7so9092079lfe.0
-        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 02:48:48 -0700 (PDT)
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D0B7282F5F
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2016 07:31:38 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id p85so10653033lfg.3
+        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 04:31:38 -0700 (PDT)
 Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id e126si29238107wmd.17.2016.08.18.02.48.47
+        by mx.google.com with ESMTPS id x17si29586439wma.104.2016.08.18.04.31.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Aug 2016 02:48:47 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id o80so4545275wme.0
-        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 02:48:47 -0700 (PDT)
-Date: Thu, 18 Aug 2016 11:48:45 +0200
+        Thu, 18 Aug 2016 04:31:37 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id q128so5213541wma.1
+        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 04:31:36 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v6 06/11] mm, compaction: more reliably increase direct
- compaction priority
-Message-ID: <20160818094844.GG30162@dhcp22.suse.cz>
-References: <20160810091226.6709-1-vbabka@suse.cz>
- <20160810091226.6709-7-vbabka@suse.cz>
- <20160818091036.GF30162@dhcp22.suse.cz>
- <1f761527-ed12-ba16-0565-c64d14e200eb@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1f761527-ed12-ba16-0565-c64d14e200eb@suse.cz>
+Subject: [PATCH] proc, smaps: reduce printing overhead
+Date: Thu, 18 Aug 2016 13:31:28 +0200
+Message-Id: <1471519888-13829-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Jann Horn <jann@thejh.net>, Michal Hocko <mhocko@suse.com>
 
-On Thu 18-08-16 11:44:00, Vlastimil Babka wrote:
-> On 08/18/2016 11:10 AM, Michal Hocko wrote:
-> > On Wed 10-08-16 11:12:21, Vlastimil Babka wrote:
-> > > During reclaim/compaction loop, compaction priority can be increased by the
-> > > should_compact_retry() function, but the current code is not optimal. Priority
-> > > is only increased when compaction_failed() is true, which means that compaction
-> > > has scanned the whole zone. This may not happen even after multiple attempts
-> > > with a lower priority due to parallel activity, so we might needlessly
-> > > struggle on the lower priorities and possibly run out of compaction retry
-> > > attempts in the process.
-> > > 
-> > > After this patch we are guaranteed at least one attempt at the highest
-> > > compaction priority even if we exhaust all retries at the lower priorities.
-> > 
-> > I expect we will tend to do some special handling at the highest
-> > priority so guaranteeing at least one run with that prio seems sensible to me. The only
-> > question is whether we really want to enforce the highest priority for
-> > costly orders as well. I think we want to reserve the highest (maybe add
-> > one more) prio for !costly orders as those invoke the OOM killer and the
-> > failure are quite disruptive.
-> 
-> Costly orders are already ruled out of reaching the highest priority unless
-> they are __GFP_REPEAT, so I assumed that if they are allocations with
-> __GFP_REPEAT, they really would like to succeed, so let them use the highest
-> priority.
+From: Michal Hocko <mhocko@suse.com>
 
-But even when __GFP_REPEAT is set then we do not want to be too
-aggressive. E.g. hugetlb pages are better to fail than the cause
-excessive reclaim or cause some long term fragmentation issues which
-might be a result of the skipped heuristics. costly orders are IMHO
-simply second class citizens even with they ask to try harder with
-__GFP_REPEAT.
+seq_printf (used by show_smap) can be pretty expensive when dumping a
+lot of numbers.  Say we would like to get Rss and Pss from a particular
+process.  In order to measure a pathological case let's generate as many
+mappings as possible:
+
+$ cat max_mmap.c
+int main()
+{
+	while (mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_ANON|MAP_SHARED|MAP_POPULATE, -1, 0) != MAP_FAILED)
+		;
+
+	printf("pid:%d\n", getpid());
+	pause();
+	return 0;
+}
+
+$ awk '/^Rss/{rss+=$2} /^Pss/{pss+=$2} END {printf "rss:%d pss:%d\n", rss, pss}' /proc/$pid/smaps
+
+would do a trick. The whole runtime is in the kernel space which is not
+that that unexpected because smaps is not the cheapest one (we have to
+do rmap walk etc.).
+
+        Command being timed: "awk /^Rss/{rss+=$2} /^Pss/{pss+=$2} END {printf "rss:%d pss:%d\n", rss, pss} /proc/3050/smaps"
+        User time (seconds): 0.01
+        System time (seconds): 0.44
+        Percent of CPU this job got: 99%
+        Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.47
+
+But the perf says:
+    22.55%  awk      [kernel.kallsyms]  [k] format_decode
+    14.65%  awk      [kernel.kallsyms]  [k] vsnprintf
+     6.40%  awk      [kernel.kallsyms]  [k] number
+     2.53%  awk      [kernel.kallsyms]  [k] shmem_mapping
+     2.53%  awk      [kernel.kallsyms]  [k] show_smap
+     1.81%  awk      [kernel.kallsyms]  [k] lock_acquire
+
+we are spending most of the time actually generating the output which is
+quite lame. Let's replace seq_printf by seq_puts and seq_put_decimal_ull.
+This will give us:
+        Command being timed: "awk /^Rss/{rss+=$2} /^Pss/{pss+=$2} END {printf "rss:%d pss:%d\n", rss, pss} /proc/3067/smaps"
+        User time (seconds): 0.00
+        System time (seconds): 0.41
+        Percent of CPU this job got: 99%
+        Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.42
+
+which will give us ~7% improvement. Perf says:
+    28.87%  awk      [kernel.kallsyms]  [k] seq_puts
+     5.30%  awk      [kernel.kallsyms]  [k] vsnprintf
+     4.54%  awk      [kernel.kallsyms]  [k] format_decode
+     3.73%  awk      [kernel.kallsyms]  [k] show_smap
+     2.56%  awk      [kernel.kallsyms]  [k] shmem_mapping
+     1.92%  awk      [kernel.kallsyms]  [k] number
+     1.80%  awk      [kernel.kallsyms]  [k] lock_acquire
+     1.75%  awk      [kernel.kallsyms]  [k] print_name_value_kb
+
+Reported-by: Jann Horn <jann@thejh.net>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+ fs/proc/task_mmu.c | 63 ++++++++++++++++++++++--------------------------------
+ 1 file changed, 25 insertions(+), 38 deletions(-)
+
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 187d84ef9de9..41c24c0811da 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -721,6 +721,13 @@ void __weak arch_show_smap(struct seq_file *m, struct vm_area_struct *vma)
+ {
+ }
+ 
++static void print_name_value_kb(struct seq_file *m, const char *name, unsigned long val)
++{
++	seq_puts(m, name);
++	seq_put_decimal_ull(m, 0, val);
++	seq_puts(m, " kB\n");
++}
++
+ static int show_smap(struct seq_file *m, void *v, int is_pid)
+ {
+ 	struct vm_area_struct *vma = v;
+@@ -765,45 +772,25 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
+ 
+ 	show_map_vma(m, vma, is_pid);
+ 
+-	seq_printf(m,
+-		   "Size:           %8lu kB\n"
+-		   "Rss:            %8lu kB\n"
+-		   "Pss:            %8lu kB\n"
+-		   "Shared_Clean:   %8lu kB\n"
+-		   "Shared_Dirty:   %8lu kB\n"
+-		   "Private_Clean:  %8lu kB\n"
+-		   "Private_Dirty:  %8lu kB\n"
+-		   "Referenced:     %8lu kB\n"
+-		   "Anonymous:      %8lu kB\n"
+-		   "AnonHugePages:  %8lu kB\n"
+-		   "ShmemPmdMapped: %8lu kB\n"
+-		   "Shared_Hugetlb: %8lu kB\n"
+-		   "Private_Hugetlb: %7lu kB\n"
+-		   "Swap:           %8lu kB\n"
+-		   "SwapPss:        %8lu kB\n"
+-		   "KernelPageSize: %8lu kB\n"
+-		   "MMUPageSize:    %8lu kB\n"
+-		   "Locked:         %8lu kB\n",
+-		   (vma->vm_end - vma->vm_start) >> 10,
+-		   mss.resident >> 10,
+-		   (unsigned long)(mss.pss >> (10 + PSS_SHIFT)),
+-		   mss.shared_clean  >> 10,
+-		   mss.shared_dirty  >> 10,
+-		   mss.private_clean >> 10,
+-		   mss.private_dirty >> 10,
+-		   mss.referenced >> 10,
+-		   mss.anonymous >> 10,
+-		   mss.anonymous_thp >> 10,
+-		   mss.shmem_thp >> 10,
+-		   mss.shared_hugetlb >> 10,
+-		   mss.private_hugetlb >> 10,
+-		   mss.swap >> 10,
+-		   (unsigned long)(mss.swap_pss >> (10 + PSS_SHIFT)),
+-		   vma_kernel_pagesize(vma) >> 10,
+-		   vma_mmu_pagesize(vma) >> 10,
+-		   (vma->vm_flags & VM_LOCKED) ?
++	print_name_value_kb(m, "Size:           ", (vma->vm_end - vma->vm_start) >> 10);
++	print_name_value_kb(m, "Rss:            ", mss.resident >> 10);
++	print_name_value_kb(m, "Pss:            ", (unsigned long)(mss.pss >> (10 + PSS_SHIFT)));
++	print_name_value_kb(m, "Shared_Clean:   ", mss.shared_clean  >> 10);
++	print_name_value_kb(m, "Shared_Dirty:   ", mss.shared_dirty  >> 10);
++	print_name_value_kb(m, "Private_Clean:  ", mss.private_clean >> 10);
++	print_name_value_kb(m, "Private_Dirty:  ", mss.private_dirty >> 10);
++	print_name_value_kb(m, "Referenced:     ", mss.referenced >> 10);
++	print_name_value_kb(m, "Anonymous:      ", mss.anonymous >> 10);
++	print_name_value_kb(m, "AnonHugePages:  ", mss.anonymous_thp >> 10);
++	print_name_value_kb(m, "ShmemPmdMapped: ", mss.shmem_thp >> 10);
++	print_name_value_kb(m, "Shared_Hugetlb: ", mss.shared_hugetlb >> 10);
++	print_name_value_kb(m, "Private_Hugetlb: ", mss.private_hugetlb >> 10);
++	print_name_value_kb(m, "Swap:           ", mss.swap >> 10);
++	print_name_value_kb(m, "SwapPss:        ", (unsigned long)(mss.swap_pss >> (10 + PSS_SHIFT)));
++	print_name_value_kb(m, "KernelPageSize: ", vma_kernel_pagesize(vma) >> 10);
++	print_name_value_kb(m, "MMUPageSize:    ", vma_mmu_pagesize(vma) >> 10);
++	print_name_value_kb(m, "Locked:         ", (vma->vm_flags & VM_LOCKED) ?
+ 			(unsigned long)(mss.pss >> (10 + PSS_SHIFT)) : 0);
+-
+ 	arch_show_smap(m, vma);
+ 	show_smap_vma_flags(m, vma);
+ 	m_cache_vma(m, vma);
 -- 
-Michal Hocko
-SUSE Labs
+2.8.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
