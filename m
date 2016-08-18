@@ -1,147 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9408882F5F
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2016 04:39:36 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id w128so25218821pfd.3
-        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 01:39:36 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id a189si1456397pfa.80.2016.08.18.01.39.34
-        for <linux-mm@kvack.org>;
-        Thu, 18 Aug 2016 01:39:35 -0700 (PDT)
-Date: Thu, 18 Aug 2016 17:39:55 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC 00/11] THP swap: Delay splitting THP during swapping out
-Message-ID: <20160818083955.GA12296@bbox>
-References: <1470760673-12420-1-git-send-email-ying.huang@intel.com>
- <20160817005905.GA5372@bbox>
- <87inv0kv3r.fsf@yhuang-mobile.sh.intel.com>
- <20160817050743.GB5372@bbox>
- <1471454696.2888.94.camel@linux.intel.com>
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C6B682F5F
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2016 05:01:15 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 1so11621679wmz.2
+        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 02:01:15 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id lw6si967380wjb.138.2016.08.18.02.01.12
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 Aug 2016 02:01:13 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id q128so4191791wma.1
+        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 02:01:12 -0700 (PDT)
+Date: Thu, 18 Aug 2016 11:01:11 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v6 03/11] mm, compaction: rename COMPACT_PARTIAL to
+ COMPACT_SUCCESS
+Message-ID: <20160818090110.GD30162@dhcp22.suse.cz>
+References: <20160810091226.6709-1-vbabka@suse.cz>
+ <20160810091226.6709-4-vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1471454696.2888.94.camel@linux.intel.com>
+In-Reply-To: <20160810091226.6709-4-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Tim,
+On Wed 10-08-16 11:12:18, Vlastimil Babka wrote:
+> COMPACT_PARTIAL has historically meant that compaction returned after doing
+> some work without fully compacting a zone. It however didn't distinguish if
+> compaction terminated because it succeeded in creating the requested high-order
+> page. This has changed recently and now we only return COMPACT_PARTIAL when
+> compaction thinks it succeeded, or the high-order watermark check in
+> compaction_suitable() passes and no compaction needs to be done.
+> 
+> So at this point we can make the return value clearer by renaming it to
+> COMPACT_SUCCESS. The next patch will remove some redundant tests for success
+> where compaction just returned COMPACT_SUCCESS.
+> 
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 
-On Wed, Aug 17, 2016 at 10:24:56AM -0700, Tim Chen wrote:
-> On Wed, 2016-08-17 at 14:07 +0900, Minchan Kim wrote:
-> > On Tue, Aug 16, 2016 at 07:06:00PM -0700, Huang, Ying wrote:
-> > > 
-> > > 
-> > > > 
-> > > > I think Tim and me discussed about that a few weeks ago.
-> > > I work closely with Tim on swap optimization.  This patchset is the part
-> > > of our swap optimization plan.
-> > > 
-> > > > 
-> > > > Please search below topics.
-> > > > 
-> > > > [1] mm: Batch page reclamation under shink_page_list
-> > > > [2] mm: Cleanup - Reorganize the shrink_page_list code into smaller functions
-> > > > 
-> > > > It's different with yours which focused on THP swapping while the suggestion
-> > > > would be more general if we can do so it's worth to try it, I think.
-> > > I think the general optimization above will benefit both normal pages
-> > > and THP at least for now.  And I think there are no hard conflict
-> > > between those two patchsets.
-> > If we could do general optimzation, I guess THP swap without splitting
-> > would be more straight forward.
-> > 
-> > If we can reclaim batch a certain of pages all at once, it helps we can
-> > do scan_swap_map(si, SWAP_HAS_CACHE, nr_pages). The nr_pages could be
-> > greater or less than 512 pages. With that, scan_swap_map effectively
-> > search empty swap slots from scan_map or free cluser list.
-> > Then, needed part from your patchset is to just delay splitting of THP.
-> > 
-> > > 
-> > > 
-> > > The THP swap has more opportunity to be optimized, because we can batch
-> > > 512 operations together more easily.  For full THP swap support, unmap a
-> > > THP could be more efficient with only one swap count operation instead
-> > > of 512, so do many other operations, such as add/remove from swap cache
-> > > with multi-order radix tree etc.  And it will help memory fragmentation.
-> > > THP can be kept after swapping out/in, need not to rebuild THP via
-> > > khugepaged.
-> > It seems you increased cluster size to 512 and search a empty cluster
-> > for a THP swap. With that approach, I have a concern that once clusters
-> > will be fragmented, THP swap support doesn't take benefit at all.
-> > 
-> > Why do we need a empty cluster for swapping out 512 pages?
-> > IOW, below case could work for the goal.
-> > 
-> > A : Allocated slot
-> > F : Free slot
-> > 
-> > cluster A   cluster B
-> > AAAAFFFF  -  FFFFAAAA
-> > 
-> > That's one of the reason I suggested batch reclaim work first and
-> > support THP swap based on it. With that, scan_swap_map can be aware of nr_pages
-> > and selects right clusters.
-> > 
-> > With the approach, justfication of THP swap support would be easier, too.
-> > IOW, I'm not sure how only THP swap support is valuable in real workload.
-> > 
-> > Anyways, that's just my two cents.
-> 
-> Minchan,
-> 
-> Scanning for contiguous slots that span clusters may take quite a
-> long time under fragmentation, and may eventually fail.  In that case the addition scan
-> time overhead may go to waste and defeat the purpose of fast swapping of large page.
-> 
-> The empty cluster lookup on the other hand is very fast.
-> We treat the empty cluster available case as an opportunity for fast path
-> swap out of large page.  Otherwise, we'll revert to the current
-> slow path behavior of breaking into normal pages so there's no
-> regression, and we may get speed up.  We can be considerably faster when a lot of large
-> pages are used.  
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-I didn't mean we should search scan_swap_map firstly without peeking
-free cluster but what I wanted was we might abstract it into
-scan_swap_map.
-
-For example, if nr_pages is greather than the size of cluster, we can
-get empty cluster first and nr_pages - sizeof(cluster) for other free
-cluster or scanning of current CPU per-cpu cluster. If we cannot find
-used slot during scanning, we can bail out simply. Then, although we
-fail to get all* contiguous slots, we get a certain of contiguous slots
-so it would be benefit for seq write and lock batching point of view
-at the cost of a little scanning. And it's not specific to THP algorighm.
-
-My point is that once we optimize normal page batch for swap, THP
-swap support would be more straight forward. But I should admit I didn't
-look into code in detail so it might have clear hurdle to implement it
-so I will rely on you guys's decision whether which one is more urgent/
-benefit/making good code quality for the goal.
-
-Thanks.
-
+> ---
+>  include/linux/compaction.h        |  8 ++++----
+>  include/trace/events/compaction.h |  2 +-
+>  mm/compaction.c                   | 12 ++++++------
+>  mm/vmscan.c                       |  2 +-
+>  4 files changed, 12 insertions(+), 12 deletions(-)
 > 
+> diff --git a/include/linux/compaction.h b/include/linux/compaction.h
+> index 1bb58581301c..e88c037afe47 100644
+> --- a/include/linux/compaction.h
+> +++ b/include/linux/compaction.h
+> @@ -49,10 +49,10 @@ enum compact_result {
+>  	COMPACT_CONTENDED,
+>  
+>  	/*
+> -	 * direct compaction partially compacted a zone and there might be
+> -	 * suitable pages
+> +	 * direct compaction terminated after concluding that the allocation
+> +	 * should now succeed
+>  	 */
+> -	COMPACT_PARTIAL,
+> +	COMPACT_SUCCESS,
+>  };
+>  
+>  struct alloc_context; /* in mm/internal.h */
+> @@ -88,7 +88,7 @@ static inline bool compaction_made_progress(enum compact_result result)
+>  	 * that the compaction successfully isolated and migrated some
+>  	 * pageblocks.
+>  	 */
+> -	if (result == COMPACT_PARTIAL)
+> +	if (result == COMPACT_SUCCESS)
+>  		return true;
+>  
+>  	return false;
+> diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
+> index c2ba402ab256..cbdb90b6b308 100644
+> --- a/include/trace/events/compaction.h
+> +++ b/include/trace/events/compaction.h
+> @@ -13,7 +13,7 @@
+>  	EM( COMPACT_SKIPPED,		"skipped")		\
+>  	EM( COMPACT_DEFERRED,		"deferred")		\
+>  	EM( COMPACT_CONTINUE,		"continue")		\
+> -	EM( COMPACT_PARTIAL,		"partial")		\
+> +	EM( COMPACT_SUCCESS,		"success")		\
+>  	EM( COMPACT_PARTIAL_SKIPPED,	"partial_skipped")	\
+>  	EM( COMPACT_COMPLETE,		"complete")		\
+>  	EM( COMPACT_NO_SUITABLE_PAGE,	"no_suitable_page")	\
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 328bdfeece2d..c355bf0d8599 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -1329,13 +1329,13 @@ static enum compact_result __compact_finished(struct zone *zone, struct compact_
+>  
+>  		/* Job done if page is free of the right migratetype */
+>  		if (!list_empty(&area->free_list[migratetype]))
+> -			return COMPACT_PARTIAL;
+> +			return COMPACT_SUCCESS;
+>  
+>  #ifdef CONFIG_CMA
+>  		/* MIGRATE_MOVABLE can fallback on MIGRATE_CMA */
+>  		if (migratetype == MIGRATE_MOVABLE &&
+>  			!list_empty(&area->free_list[MIGRATE_CMA]))
+> -			return COMPACT_PARTIAL;
+> +			return COMPACT_SUCCESS;
+>  #endif
+>  		/*
+>  		 * Job done if allocation would steal freepages from
+> @@ -1343,7 +1343,7 @@ static enum compact_result __compact_finished(struct zone *zone, struct compact_
+>  		 */
+>  		if (find_suitable_fallback(area, order, migratetype,
+>  						true, &can_steal) != -1)
+> -			return COMPACT_PARTIAL;
+> +			return COMPACT_SUCCESS;
+>  	}
+>  
+>  	return COMPACT_NO_SUITABLE_PAGE;
+> @@ -1367,7 +1367,7 @@ static enum compact_result compact_finished(struct zone *zone,
+>   * compaction_suitable: Is this suitable to run compaction on this zone now?
+>   * Returns
+>   *   COMPACT_SKIPPED  - If there are too few free pages for compaction
+> - *   COMPACT_PARTIAL  - If the allocation would succeed without compaction
+> + *   COMPACT_SUCCESS  - If the allocation would succeed without compaction
+>   *   COMPACT_CONTINUE - If compaction should run now
+>   */
+>  static enum compact_result __compaction_suitable(struct zone *zone, int order,
+> @@ -1388,7 +1388,7 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
+>  	 */
+>  	if (zone_watermark_ok(zone, order, watermark, classzone_idx,
+>  								alloc_flags))
+> -		return COMPACT_PARTIAL;
+> +		return COMPACT_SUCCESS;
+>  
+>  	/*
+>  	 * Watermarks for order-0 must be met for compaction. Note the 2UL.
+> @@ -1477,7 +1477,7 @@ static enum compact_result compact_zone(struct zone *zone, struct compact_contro
+>  	ret = compaction_suitable(zone, cc->order, cc->alloc_flags,
+>  							cc->classzone_idx);
+>  	/* Compaction is likely to fail */
+> -	if (ret == COMPACT_PARTIAL || ret == COMPACT_SKIPPED)
+> +	if (ret == COMPACT_SUCCESS || ret == COMPACT_SKIPPED)
+>  		return ret;
+>  
+>  	/* huh, compaction_suitable is returning something unexpected */
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 374d95d04178..c84784765d3a 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2514,7 +2514,7 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
+>  			continue;
+>  
+>  		switch (compaction_suitable(zone, sc->order, 0, sc->reclaim_idx)) {
+> -		case COMPACT_PARTIAL:
+> +		case COMPACT_SUCCESS:
+>  		case COMPACT_CONTINUE:
+>  			return false;
+>  		default:
+> -- 
+> 2.9.2
 > 
-> > 
-> > > 
-> > > 
-> > > But not all pages are huge, so normal pages swap optimization is
-> > > necessary and good anyway.
-> > > 
-> 
-> Yes, optimizing the normal swap pages is still an important goal
-> for us.  THP swap optimization is complementary component.  
-> 
-> We have seen system with THP spend significant cpu cycles breaking up the
-> pages on swap out and then compacting the pages for THP again after
-> swap in.  So if we can avoid this, that will be helpful.
-> 
-> Thanks for your valuable comments.
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Thanks for good works.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
