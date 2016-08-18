@@ -1,107 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CDC356B0038
-	for <linux-mm@kvack.org>; Wed, 17 Aug 2016 21:06:02 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id ag5so8048626pad.2
-        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 18:06:02 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id t3si40378622pfd.290.2016.08.17.18.06.01
-        for <linux-mm@kvack.org>;
-        Wed, 17 Aug 2016 18:06:01 -0700 (PDT)
-From: "Li, Liang Z" <liang.z.li@intel.com>
-Subject: RE: [PATCH v3 kernel 0/7] Extend virtio-balloon for fast
- (de)inflating & fast live migration
-Date: Thu, 18 Aug 2016 01:05:53 +0000
-Message-ID: <F2CBF3009FA73547804AE4C663CAB28E04220EDA@shsmsx102.ccr.corp.intel.com>
-References: <1470638134-24149-1-git-send-email-liang.z.li@intel.com>
-In-Reply-To: <1470638134-24149-1-git-send-email-liang.z.li@intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A0986B0253
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2016 01:35:23 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id le9so16310106pab.0
+        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 22:35:23 -0700 (PDT)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id x20si595805pal.165.2016.08.17.22.35.22
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 17 Aug 2016 22:35:22 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id i6so1110630pfe.0
+        for <linux-mm@kvack.org>; Wed, 17 Aug 2016 22:35:22 -0700 (PDT)
+Date: Thu, 18 Aug 2016 01:33:45 -0400
+From: Janani Ravichandran <janani.rvchndrn@gmail.com>
+Subject: [PATCH v2 0/2] Get callbacks/names of shrinkers from tracepoints
+Message-ID: <cover.1471496832.git.janani.rvchndrn@gmail.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "quintela@redhat.com" <quintela@redhat.com>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: riel@surriel.com, akpm@linux-foundation.org, vdavydov@virtuozzo.com, mhocko@suse.com, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, bywxiaobai@163.com
 
-Hi Michael,
+Currently, it is not possible to know which shrinkers are being run.
+Even though the callbacks are printed using %pF in tracepoints 
+mm_shrink_slab_start and mm_shrink_slab_end, they are not visible to
+userspace tools like perf.
 
-Could you help to review this version when you have time?=20
+To address this, this patchset
+1. Enables the display of names of shrinker callbacks in tracepoints
+mm_shrink_slab_start and mm_shrink_slab_end.
+2. Adds a new tracepoint in the callback of the superblock shrinker to
+get specific names of superblock types.
 
-Thanks!
-Liang
+Changes since v1 at https://lkml.org/lkml/2016/7/9/33:
+1. This patchset does not introduce a new variable to hold names of
+shrinkers, unlike v1. It makes mm_shrink_slab_start and
+mm_shrink_slab_end print names of callbacks instead.
+2. It also adds a new tracepoint for superblock shrinkers to display
+more specific name information, which v1 did not do.
 
-> -----Original Message-----
-> From: Li, Liang Z
-> Sent: Monday, August 08, 2016 2:35 PM
-> To: linux-kernel@vger.kernel.org
-> Cc: virtualization@lists.linux-foundation.org; linux-mm@kvack.org; virtio=
--
-> dev@lists.oasis-open.org; kvm@vger.kernel.org; qemu-devel@nongnu.org;
-> quintela@redhat.com; dgilbert@redhat.com; Hansen, Dave; Li, Liang Z
-> Subject: [PATCH v3 kernel 0/7] Extend virtio-balloon for fast (de)inflati=
-ng &
-> fast live migration
->=20
-> This patch set contains two parts of changes to the virtio-balloon.
->=20
-> One is the change for speeding up the inflating & deflating process, the =
-main
-> idea of this optimization is to use bitmap to send the page information t=
-o
-> host instead of the PFNs, to reduce the overhead of virtio data transmiss=
-ion,
-> address translation and madvise(). This can help to improve the performan=
-ce
-> by about 85%.
->=20
-> Another change is for speeding up live migration. By skipping process gue=
-st's
-> free pages in the first round of data copy, to reduce needless data proce=
-ssing,
-> this can help to save quite a lot of CPU cycles and network bandwidth. We
-> put guest's free page information in bitmap and send it to host with the =
-virt
-> queue of virtio-balloon. For an idle 8GB guest, this can help to shorten =
-the
-> total live migration time from 2Sec to about 500ms in the 10Gbps network
-> environment.
->=20
-> Dave Hansen suggested a new scheme to encode the data structure,
-> because of additional complexity, it's not implemented in v3.
->=20
-> Changes from v2 to v3:
->     * Change the name of 'free page' to 'unused page'.
->     * Use the scatter & gather bitmap instead of a 1MB page bitmap.
->     * Fix overwriting the page bitmap after kicking.
->     * Some of MST's comments for v2.
->=20
-> Changes from v1 to v2:
->     * Abandon the patch for dropping page cache.
->     * Put some structures to uapi head file.
->     * Use a new way to determine the page bitmap size.
->     * Use a unified way to send the free page information with the bitmap
->     * Address the issues referred in MST's comments
->=20
->=20
-> Liang Li (7):
->   virtio-balloon: rework deflate to add page to a list
->   virtio-balloon: define new feature bit and page bitmap head
->   mm: add a function to get the max pfn
->   virtio-balloon: speed up inflate/deflate process
->   mm: add the related functions to get unused page
->   virtio-balloon: define feature bit and head for misc virt queue
->   virtio-balloon: tell host vm's unused page info
->=20
->  drivers/virtio/virtio_balloon.c     | 390
-> ++++++++++++++++++++++++++++++++----
->  include/linux/mm.h                  |   3 +
->  include/uapi/linux/virtio_balloon.h |  41 ++++
->  mm/page_alloc.c                     |  94 +++++++++
->  4 files changed, 485 insertions(+), 43 deletions(-)
->=20
-> --
-> 1.8.3.1
+Thanks to Dave Chinner and Tony Jones for their suggestions.
+
+Janani Ravichandran (2):
+  include: trace: Display names of shrinker callbacks
+  fs: super.c: Add tracepoint to get name of superblock shrinker
+
+ fs/super.c                    |  2 ++
+ include/trace/events/vmscan.h | 39 +++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 39 insertions(+), 2 deletions(-)
+
+-- 
+2.7.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
