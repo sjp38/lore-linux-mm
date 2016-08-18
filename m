@@ -1,172 +1,190 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D0B7282F5F
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2016 07:31:38 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id p85so10653033lfg.3
-        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 04:31:38 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 83ABF82F5F
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2016 07:52:24 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id o80so14616017wme.1
+        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 04:52:24 -0700 (PDT)
 Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id x17si29586439wma.104.2016.08.18.04.31.36
+        by mx.google.com with ESMTPS id sn9si1541685wjb.45.2016.08.18.04.52.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 18 Aug 2016 04:31:37 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id q128so5213541wma.1
-        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 04:31:36 -0700 (PDT)
+        Thu, 18 Aug 2016 04:52:21 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id i138so5245843wmf.3
+        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 04:52:21 -0700 (PDT)
+Date: Thu, 18 Aug 2016 13:52:19 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] proc, smaps: reduce printing overhead
-Date: Thu, 18 Aug 2016 13:31:28 +0200
-Message-Id: <1471519888-13829-1-git-send-email-mhocko@kernel.org>
+Subject: Re: [PATCH v3] mm/slab: Improve performance of gathering slabinfo
+ stats
+Message-ID: <20160818115218.GJ30162@dhcp22.suse.cz>
+References: <1471458050-29622-1-git-send-email-aruna.ramakrishna@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1471458050-29622-1-git-send-email-aruna.ramakrishna@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Jann Horn <jann@thejh.net>, Michal Hocko <mhocko@suse.com>
+To: Aruna Ramakrishna <aruna.ramakrishna@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Kravetz <mike.kravetz@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
 
-From: Michal Hocko <mhocko@suse.com>
+On Wed 17-08-16 11:20:50, Aruna Ramakrishna wrote:
+> On large systems, when some slab caches grow to millions of objects (and
+> many gigabytes), running 'cat /proc/slabinfo' can take up to 1-2 seconds.
+> During this time, interrupts are disabled while walking the slab lists
+> (slabs_full, slabs_partial, and slabs_free) for each node, and this
+> sometimes causes timeouts in other drivers (for instance, Infiniband).
+> 
+> This patch optimizes 'cat /proc/slabinfo' by maintaining a counter for
+> total number of allocated slabs per node, per cache. This counter is
+> updated when a slab is created or destroyed. This enables us to skip
+> traversing the slabs_full list while gathering slabinfo statistics, and
+> since slabs_full tends to be the biggest list when the cache is large, it
+> results in a dramatic performance improvement. Getting slabinfo statistics
+> now only requires walking the slabs_free and slabs_partial lists, and
+> those lists are usually much smaller than slabs_full. We tested this after
+> growing the dentry cache to 70GB, and the performance improved from 2s to
+> 5ms.
 
-seq_printf (used by show_smap) can be pretty expensive when dumping a
-lot of numbers.  Say we would like to get Rss and Pss from a particular
-process.  In order to measure a pathological case let's generate as many
-mappings as possible:
+I am not opposing the patch (to be honest it is quite neat) but this
+is buggering me for quite some time. Sorry for hijacking this email
+thread but I couldn't resist. Why are we trying to optimize SLAB and
+slowly converge it to SLUB feature-wise. I always thought that SLAB
+should remain stable and time challenged solution which works reasonably
+well for many/most workloads, while SLUB is an optimized implementation
+which experiment with slightly different concepts that might boost the
+performance considerably but might also surprise from time to time. If
+this is not the case then why do we have both of them in the kernel. It
+is a lot of code and some features need tweaking both while only one
+gets testing coverage. So this is mainly a question for maintainers. Why
+do we maintain both and what is the purpose of them.
 
-$ cat max_mmap.c
-int main()
-{
-	while (mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_ANON|MAP_SHARED|MAP_POPULATE, -1, 0) != MAP_FAILED)
-		;
+> Signed-off-by: Aruna Ramakrishna <aruna.ramakrishna@oracle.com>
+> Cc: Mike Kravetz <mike.kravetz@oracle.com>
+> Cc: Christoph Lameter <cl@linux.com>
+> Cc: Pekka Enberg <penberg@kernel.org>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> Note: this has been tested only on x86_64.
+> 
+>  mm/slab.c | 26 +++++++++++++++++---------
+>  mm/slab.h |  1 +
+>  2 files changed, 18 insertions(+), 9 deletions(-)
+> 
+> diff --git a/mm/slab.c b/mm/slab.c
+> index b672710..3da34fe 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -233,6 +233,7 @@ static void kmem_cache_node_init(struct kmem_cache_node *parent)
+>  	spin_lock_init(&parent->list_lock);
+>  	parent->free_objects = 0;
+>  	parent->free_touched = 0;
+> +	parent->num_slabs = 0;
+>  }
+>  
+>  #define MAKE_LIST(cachep, listp, slab, nodeid)				\
+> @@ -2326,6 +2327,7 @@ static int drain_freelist(struct kmem_cache *cache,
+>  
+>  		page = list_entry(p, struct page, lru);
+>  		list_del(&page->lru);
+> +		n->num_slabs--;
+>  		/*
+>  		 * Safe to drop the lock. The slab is no longer linked
+>  		 * to the cache.
+> @@ -2764,6 +2766,8 @@ static void cache_grow_end(struct kmem_cache *cachep, struct page *page)
+>  		list_add_tail(&page->lru, &(n->slabs_free));
+>  	else
+>  		fixup_slab_list(cachep, n, page, &list);
+> +
+> +	n->num_slabs++;
+>  	STATS_INC_GROWN(cachep);
+>  	n->free_objects += cachep->num - page->active;
+>  	spin_unlock(&n->list_lock);
+> @@ -3455,6 +3459,7 @@ static void free_block(struct kmem_cache *cachep, void **objpp,
+>  
+>  		page = list_last_entry(&n->slabs_free, struct page, lru);
+>  		list_move(&page->lru, list);
+> +		n->num_slabs--;
+>  	}
+>  }
+>  
+> @@ -4111,6 +4116,8 @@ void get_slabinfo(struct kmem_cache *cachep, struct slabinfo *sinfo)
+>  	unsigned long num_objs;
+>  	unsigned long active_slabs = 0;
+>  	unsigned long num_slabs, free_objects = 0, shared_avail = 0;
+> +	unsigned long num_slabs_partial = 0, num_slabs_free = 0;
+> +	unsigned long num_slabs_full = 0;
+>  	const char *name;
+>  	char *error = NULL;
+>  	int node;
+> @@ -4123,33 +4130,34 @@ void get_slabinfo(struct kmem_cache *cachep, struct slabinfo *sinfo)
+>  		check_irq_on();
+>  		spin_lock_irq(&n->list_lock);
+>  
+> -		list_for_each_entry(page, &n->slabs_full, lru) {
+> -			if (page->active != cachep->num && !error)
+> -				error = "slabs_full accounting error";
+> -			active_objs += cachep->num;
+> -			active_slabs++;
+> -		}
+> +		num_slabs += n->num_slabs;
+> +
+>  		list_for_each_entry(page, &n->slabs_partial, lru) {
+>  			if (page->active == cachep->num && !error)
+>  				error = "slabs_partial accounting error";
+>  			if (!page->active && !error)
+>  				error = "slabs_partial accounting error";
+>  			active_objs += page->active;
+> -			active_slabs++;
+> +			num_slabs_partial++;
+>  		}
+> +
+>  		list_for_each_entry(page, &n->slabs_free, lru) {
+>  			if (page->active && !error)
+>  				error = "slabs_free accounting error";
+> -			num_slabs++;
+> +			num_slabs_free++;
+>  		}
+> +
+>  		free_objects += n->free_objects;
+>  		if (n->shared)
+>  			shared_avail += n->shared->avail;
+>  
+>  		spin_unlock_irq(&n->list_lock);
+>  	}
+> -	num_slabs += active_slabs;
+>  	num_objs = num_slabs * cachep->num;
+> +	active_slabs = num_slabs - num_slabs_free;
+> +	num_slabs_full = num_slabs - (num_slabs_partial + num_slabs_free);
+> +	active_objs += (num_slabs_full * cachep->num);
+> +
+>  	if (num_objs - active_objs != free_objects && !error)
+>  		error = "free_objects accounting error";
+>  
+> diff --git a/mm/slab.h b/mm/slab.h
+> index 9653f2e..bc05fdc 100644
+> --- a/mm/slab.h
+> +++ b/mm/slab.h
+> @@ -432,6 +432,7 @@ struct kmem_cache_node {
+>  	struct list_head slabs_partial;	/* partial list first, better asm code */
+>  	struct list_head slabs_full;
+>  	struct list_head slabs_free;
+> +	unsigned long num_slabs;
+>  	unsigned long free_objects;
+>  	unsigned int free_limit;
+>  	unsigned int colour_next;	/* Per-node cache coloring */
+> -- 
+> 1.8.3.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-	printf("pid:%d\n", getpid());
-	pause();
-	return 0;
-}
-
-$ awk '/^Rss/{rss+=$2} /^Pss/{pss+=$2} END {printf "rss:%d pss:%d\n", rss, pss}' /proc/$pid/smaps
-
-would do a trick. The whole runtime is in the kernel space which is not
-that that unexpected because smaps is not the cheapest one (we have to
-do rmap walk etc.).
-
-        Command being timed: "awk /^Rss/{rss+=$2} /^Pss/{pss+=$2} END {printf "rss:%d pss:%d\n", rss, pss} /proc/3050/smaps"
-        User time (seconds): 0.01
-        System time (seconds): 0.44
-        Percent of CPU this job got: 99%
-        Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.47
-
-But the perf says:
-    22.55%  awk      [kernel.kallsyms]  [k] format_decode
-    14.65%  awk      [kernel.kallsyms]  [k] vsnprintf
-     6.40%  awk      [kernel.kallsyms]  [k] number
-     2.53%  awk      [kernel.kallsyms]  [k] shmem_mapping
-     2.53%  awk      [kernel.kallsyms]  [k] show_smap
-     1.81%  awk      [kernel.kallsyms]  [k] lock_acquire
-
-we are spending most of the time actually generating the output which is
-quite lame. Let's replace seq_printf by seq_puts and seq_put_decimal_ull.
-This will give us:
-        Command being timed: "awk /^Rss/{rss+=$2} /^Pss/{pss+=$2} END {printf "rss:%d pss:%d\n", rss, pss} /proc/3067/smaps"
-        User time (seconds): 0.00
-        System time (seconds): 0.41
-        Percent of CPU this job got: 99%
-        Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.42
-
-which will give us ~7% improvement. Perf says:
-    28.87%  awk      [kernel.kallsyms]  [k] seq_puts
-     5.30%  awk      [kernel.kallsyms]  [k] vsnprintf
-     4.54%  awk      [kernel.kallsyms]  [k] format_decode
-     3.73%  awk      [kernel.kallsyms]  [k] show_smap
-     2.56%  awk      [kernel.kallsyms]  [k] shmem_mapping
-     1.92%  awk      [kernel.kallsyms]  [k] number
-     1.80%  awk      [kernel.kallsyms]  [k] lock_acquire
-     1.75%  awk      [kernel.kallsyms]  [k] print_name_value_kb
-
-Reported-by: Jann Horn <jann@thejh.net>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- fs/proc/task_mmu.c | 63 ++++++++++++++++++++++--------------------------------
- 1 file changed, 25 insertions(+), 38 deletions(-)
-
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 187d84ef9de9..41c24c0811da 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -721,6 +721,13 @@ void __weak arch_show_smap(struct seq_file *m, struct vm_area_struct *vma)
- {
- }
- 
-+static void print_name_value_kb(struct seq_file *m, const char *name, unsigned long val)
-+{
-+	seq_puts(m, name);
-+	seq_put_decimal_ull(m, 0, val);
-+	seq_puts(m, " kB\n");
-+}
-+
- static int show_smap(struct seq_file *m, void *v, int is_pid)
- {
- 	struct vm_area_struct *vma = v;
-@@ -765,45 +772,25 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
- 
- 	show_map_vma(m, vma, is_pid);
- 
--	seq_printf(m,
--		   "Size:           %8lu kB\n"
--		   "Rss:            %8lu kB\n"
--		   "Pss:            %8lu kB\n"
--		   "Shared_Clean:   %8lu kB\n"
--		   "Shared_Dirty:   %8lu kB\n"
--		   "Private_Clean:  %8lu kB\n"
--		   "Private_Dirty:  %8lu kB\n"
--		   "Referenced:     %8lu kB\n"
--		   "Anonymous:      %8lu kB\n"
--		   "AnonHugePages:  %8lu kB\n"
--		   "ShmemPmdMapped: %8lu kB\n"
--		   "Shared_Hugetlb: %8lu kB\n"
--		   "Private_Hugetlb: %7lu kB\n"
--		   "Swap:           %8lu kB\n"
--		   "SwapPss:        %8lu kB\n"
--		   "KernelPageSize: %8lu kB\n"
--		   "MMUPageSize:    %8lu kB\n"
--		   "Locked:         %8lu kB\n",
--		   (vma->vm_end - vma->vm_start) >> 10,
--		   mss.resident >> 10,
--		   (unsigned long)(mss.pss >> (10 + PSS_SHIFT)),
--		   mss.shared_clean  >> 10,
--		   mss.shared_dirty  >> 10,
--		   mss.private_clean >> 10,
--		   mss.private_dirty >> 10,
--		   mss.referenced >> 10,
--		   mss.anonymous >> 10,
--		   mss.anonymous_thp >> 10,
--		   mss.shmem_thp >> 10,
--		   mss.shared_hugetlb >> 10,
--		   mss.private_hugetlb >> 10,
--		   mss.swap >> 10,
--		   (unsigned long)(mss.swap_pss >> (10 + PSS_SHIFT)),
--		   vma_kernel_pagesize(vma) >> 10,
--		   vma_mmu_pagesize(vma) >> 10,
--		   (vma->vm_flags & VM_LOCKED) ?
-+	print_name_value_kb(m, "Size:           ", (vma->vm_end - vma->vm_start) >> 10);
-+	print_name_value_kb(m, "Rss:            ", mss.resident >> 10);
-+	print_name_value_kb(m, "Pss:            ", (unsigned long)(mss.pss >> (10 + PSS_SHIFT)));
-+	print_name_value_kb(m, "Shared_Clean:   ", mss.shared_clean  >> 10);
-+	print_name_value_kb(m, "Shared_Dirty:   ", mss.shared_dirty  >> 10);
-+	print_name_value_kb(m, "Private_Clean:  ", mss.private_clean >> 10);
-+	print_name_value_kb(m, "Private_Dirty:  ", mss.private_dirty >> 10);
-+	print_name_value_kb(m, "Referenced:     ", mss.referenced >> 10);
-+	print_name_value_kb(m, "Anonymous:      ", mss.anonymous >> 10);
-+	print_name_value_kb(m, "AnonHugePages:  ", mss.anonymous_thp >> 10);
-+	print_name_value_kb(m, "ShmemPmdMapped: ", mss.shmem_thp >> 10);
-+	print_name_value_kb(m, "Shared_Hugetlb: ", mss.shared_hugetlb >> 10);
-+	print_name_value_kb(m, "Private_Hugetlb: ", mss.private_hugetlb >> 10);
-+	print_name_value_kb(m, "Swap:           ", mss.swap >> 10);
-+	print_name_value_kb(m, "SwapPss:        ", (unsigned long)(mss.swap_pss >> (10 + PSS_SHIFT)));
-+	print_name_value_kb(m, "KernelPageSize: ", vma_kernel_pagesize(vma) >> 10);
-+	print_name_value_kb(m, "MMUPageSize:    ", vma_mmu_pagesize(vma) >> 10);
-+	print_name_value_kb(m, "Locked:         ", (vma->vm_flags & VM_LOCKED) ?
- 			(unsigned long)(mss.pss >> (10 + PSS_SHIFT)) : 0);
--
- 	arch_show_smap(m, vma);
- 	show_smap_vma_flags(m, vma);
- 	m_cache_vma(m, vma);
 -- 
-2.8.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
