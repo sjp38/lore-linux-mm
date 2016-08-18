@@ -1,68 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 43A1283092
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2016 09:22:43 -0400 (EDT)
-Received: by mail-yb0-f199.google.com with SMTP id x37so35276324ybh.3
-        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 06:22:43 -0700 (PDT)
-Received: from shelob.surriel.com (shelob.surriel.com. [2002:4a5c:3b41:1:216:3eff:fe57:7f4])
-        by mx.google.com with ESMTPS id q43si1213775qta.58.2016.08.18.06.22.41
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4081B83094
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2016 09:26:09 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id e70so53354188ioi.3
+        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 06:26:09 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0161.hostedemail.com. [216.40.44.161])
+        by mx.google.com with ESMTPS id w2si5040557ita.105.2016.08.18.06.26.08
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 18 Aug 2016 06:22:42 -0700 (PDT)
-Message-ID: <1471526527.2581.2.camel@surriel.com>
-Subject: Re: [PATCH v2 2/2] fs: super.c: Add tracepoint to get name of
- superblock shrinker
-From: Rik van Riel <riel@surriel.com>
-Date: Thu, 18 Aug 2016 09:22:07 -0400
-In-Reply-To: <20160818063239.GO2356@ZenIV.linux.org.uk>
-References: <cover.1471496832.git.janani.rvchndrn@gmail.com>
- <600943d0701ae15596c36194684453fef9ee075e.1471496833.git.janani.rvchndrn@gmail.com>
-	 <20160818063239.GO2356@ZenIV.linux.org.uk>
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 Aug 2016 06:26:08 -0700 (PDT)
+Message-ID: <1471526765.4319.31.camel@perches.com>
+Subject: Re: [PATCH] proc, smaps: reduce printing overhead
+From: Joe Perches <joe@perches.com>
+Date: Thu, 18 Aug 2016 06:26:05 -0700
+In-Reply-To: <1471519888-13829-1-git-send-email-mhocko@kernel.org>
+References: <1471519888-13829-1-git-send-email-mhocko@kernel.org>
+Content-Type: text/plain; charset="ISO-8859-1"
 Mime-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Al Viro <viro@ZenIV.linux.org.uk>, Janani Ravichandran <janani.rvchndrn@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, vdavydov@virtuozzo.com, mhocko@suse.com, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, bywxiaobai@163.com
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Jann Horn <jann@thejh.net>, Michal Hocko <mhocko@suse.com>
 
-On Thu, 2016-08-18 at 07:32 +0100, Al Viro wrote:
-> On Thu, Aug 18, 2016 at 02:09:31AM -0400, Janani Ravichandran wrote:
->=20
-> > =C2=A0static LIST_HEAD(super_blocks);
-> > @@ -64,6 +65,7 @@ static unsigned long super_cache_scan(struct
-> > shrinker *shrink,
-> > =C2=A0	long	inodes;
-> > =C2=A0
-> > =C2=A0	sb =3D container_of(shrink, struct super_block, s_shrink);
-> > +	trace_mm_shrinker_callback(shrink, sb->s_type->name);
->=20
-> IOW, we are (should that patch be accepted) obliged to keep the
-> function in
-> question and the guts of struct shrinker indefinitely.
->=20
-> NAK.=C2=A0=C2=A0Keep your debugging patches in your tree and maintain the=
-m
-> yourself.
-> And if a change in the kernel data structures breaks them (and your
-> userland
-> code relying on those), it's your problem.
->=20
-> Tracepoints are very nice for local debugging/data collection/etc.
-> patches.
->=20
+On Thu, 2016-08-18 at 13:31 +0200, Michal Hocko wrote:
 
-The issue is that production systems often need
-debugging, and when there are performance issues
-we need some way to gather all the necessary info,
-without rebooting the production system into a
-special debug kernel.
+[]
 
-This is not an ABI that userspace can rely on,
-and should not be considered as such. Any
-performance tracing/debugging scripts can be
-easily changed to match the kernel running on
-the system in question.
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+[]
+> @@ -721,6 +721,13 @@ void __weak arch_show_smap(struct seq_file *m, struct vm_area_struct *vma)
+>  {
+>  }
+>  
+> +static void print_name_value_kb(struct seq_file *m, const char *name, unsigned long val)
+> +{
+> +	seq_puts(m, name);
+> +	seq_put_decimal_ull(m, 0, val);
+> +	seq_puts(m, " kB\n");
+> +}
+
+The seq_put_decimal_ull function has different arguments
+in -next, the separator is changed to const char *.
+
+$ git log --stat -p -1 49f87a2773000ced0c850639975f43134de48342 -- fs/seq_file.c
+
+Maybe this change in fs/proc/meminfo.c should be
+made into a public function.
+
+$ git log --stat -p -1  5e27340c20516104c38668e597b3200f339fc64d
+
+static void show_val_kb(struct seq_file *m, const char *s, unsigned long num)
++{
++       char v[32];
++       static const char blanks[7] = {' ', ' ', ' ', ' ',' ', ' ', ' '};
++       int len;
++
++       len = num_to_str(v, sizeof(v), num << (PAGE_SHIFT - 10));
++
++       seq_write(m, s, 16);
++
++       if (len > 0) {
++               if (len < 8)
++                       seq_write(m, blanks, 8 - len);
++
++               seq_write(m, v, len);
++       }
++       seq_write(m, " kB\n", 4);
++}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
