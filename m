@@ -1,61 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 13B1F8308B
-	for <linux-mm@kvack.org>; Thu, 18 Aug 2016 08:07:06 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id x131so59371251ite.0
-        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 05:07:06 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id y129si897023oie.222.2016.08.18.05.07.04
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F82E6B026A
+	for <linux-mm@kvack.org>; Thu, 18 Aug 2016 08:13:53 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id u81so14728338wmu.3
+        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 05:13:53 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id fq8si1600279wjc.159.2016.08.18.05.13.51
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 18 Aug 2016 05:07:05 -0700 (PDT)
-From: Xie Yisheng <xieyisheng1@huawei.com>
-Subject: [RFC PATCH] arm64/hugetlb enable gigantic hugepage
-Date: Thu, 18 Aug 2016 20:05:29 +0800
-Message-ID: <1471521929-9207-1-git-send-email-xieyisheng1@huawei.com>
+        Thu, 18 Aug 2016 05:13:51 -0700 (PDT)
+Subject: Re: [PATCH v6 08/11] mm, compaction: create compact_gap wrapper
+References: <20160810091226.6709-1-vbabka@suse.cz>
+ <20160810091226.6709-9-vbabka@suse.cz>
+ <20160816061518.GE17448@js1304-P5Q-DELUXE>
+ <656fea7f-753d-df56-744a-50b90f9a3842@suse.cz>
+ <20160816064104.GG17448@js1304-P5Q-DELUXE>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <7b6aed1f-fdf8-2063-9ff4-bbe4de712d37@suse.cz>
+Date: Thu, 18 Aug 2016 14:13:49 +0200
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20160816064104.GG17448@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: guohanjun@huawei.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-As we know, arm64 also support gigantic hugepage eg. 1G.
-So I try to use this function by adding hugepagesz=1G
-in kernel parameters, with CONFIG_CMA=y.
-However, when:
-echo xx > /sys/kernel/mm/hugepages/hugepages-1048576kB/
-          nr_hugepages
-it failed with the info:
--bash: echo: write error: Invalid argument
+On 08/16/2016 08:41 AM, Joonsoo Kim wrote:
+>> free pages for probability of compaction success, so I don't think
+>> it's worth complicating the compact_gap() formula.
+> 
+> I agree that it's not worth complicating the compact_gap() formula but
+> it would be better to fix the comment?
 
-This patch make gigantic hugepage can be used on arm64,
-when CONFIG_CMA=y or other related configs is enable.
+OK, Andrew can you add this -fix?
+Thanks.
 
-Signed-off-by: Xie Yisheng <xieyisheng1@huawei.com>
----
- mm/hugetlb.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 87e11d8..b4d8048 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1022,7 +1022,8 @@ static int hstate_next_node_to_free(struct hstate *h, nodemask_t *nodes_allowed)
- 		((node = hstate_next_node_to_free(hs, mask)) || 1);	\
- 		nr_nodes--)
- 
--#if (defined(CONFIG_X86_64) || defined(CONFIG_S390)) && \
-+#if (defined(CONFIG_X86_64) || defined(CONFIG_S390) || \
-+	defined(CONFIG_ARM64)) && \
- 	((defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || \
- 	defined(CONFIG_CMA))
- static void destroy_compound_gigantic_page(struct page *page,
--- 
-1.7.12.4
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+----8<----
