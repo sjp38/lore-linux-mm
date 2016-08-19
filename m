@@ -1,52 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FD796B0069
-	for <linux-mm@kvack.org>; Fri, 19 Aug 2016 12:02:19 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 63so55394531pfx.0
-        for <linux-mm@kvack.org>; Fri, 19 Aug 2016 09:02:19 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id i29si5669810pfa.172.2016.08.19.09.02.18
-        for <linux-mm@kvack.org>;
-        Fri, 19 Aug 2016 09:02:18 -0700 (PDT)
-From: James Morse <james.morse@arm.com>
-Subject: [PATCH] mm: pagewalk: Fix the comment for test_walk
-Date: Fri, 19 Aug 2016 17:01:58 +0100
-Message-Id: <1471622518-21980-1-git-send-email-james.morse@arm.com>
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D93F6B0069
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2016 13:43:19 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id q83so147829750iod.0
+        for <linux-mm@kvack.org>; Fri, 19 Aug 2016 10:43:19 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0157.hostedemail.com. [216.40.44.157])
+        by mx.google.com with ESMTPS id n70si5826035ith.121.2016.08.19.10.43.18
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 19 Aug 2016 10:43:18 -0700 (PDT)
+Message-ID: <1471628595.3893.23.camel@perches.com>
+Subject: Re: [PATCH 0/2] fs, proc: optimize smaps output formatting
+From: Joe Perches <joe@perches.com>
+Date: Fri, 19 Aug 2016 10:43:15 -0700
+In-Reply-To: <1471601580-17999-1-git-send-email-mhocko@kernel.org>
+References: <1471519888-13829-1-git-send-email-mhocko@kernel.org>
+	 <1471601580-17999-1-git-send-email-mhocko@kernel.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, James Morse <james.morse@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Jann Horn <jann@thejh.net>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Modify the comment describing struct mm_walk->test_walk()s behaviour
-to match the comment on walk_page_test() and the behaviour of
-walk_page_vma().
+On Fri, 2016-08-19 at 12:12 +0200, Michal Hocko wrote:
+> Hi,
+> this is rebased on top of next-20160818. Joe has pointed out that
+> meminfo is using a similar trick so I have extracted guts of what we
+> have already and made it more generic to be usable for smaps as well
+> (patch 1). The second patch then replaces seq_printf with seq_write
+> and show_val_kb which should have smaller overhead and my measuring (in
+> kvm) shows quite a nice improvements. I hope kvm is not playing tricks
+> on me but I didn't get to test on a real HW.
 
-Fixes: fafaa4264eba4 "pagewalk: improve vma handling"
-Signed-off-by: James Morse <james.morse@arm.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
- include/linux/mm.h | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 08ed53eeedd5..9a347068c0b3 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1197,10 +1197,10 @@ void unmap_vmas(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
-  * @pte_hole: if set, called for each hole at all levels
-  * @hugetlb_entry: if set, called for each hugetlb entry
-  * @test_walk: caller specific callback function to determine whether
-- *             we walk over the current vma or not. A positive returned
-+ *             we walk over the current vma or not. Returning 0
-  *             value means "do page table walk over the current vma,"
-  *             and a negative one means "abort current page table walk
-- *             right now." 0 means "skip the current vma."
-+ *             right now." 1 means "skip the current vma."
-  * @mm:        mm_struct representing the target process of page table walk
-  * @vma:       vma currently walked (NULL if walking outside vmas)
-  * @private:   private data for callbacks' usage
--- 
-2.8.0.rc3
+Hi Michal.
+
+A few comments:
+
+For the first patch:
+
+I think this isn't worth the expansion in object size (x86-64 defconfig)
+
+$ size fs/proc/meminfo.o*
+   text	   data	    bss	    dec	    hex	filename
+   2698	      8	      0	   2706	    a92	fs/proc/meminfo.o.new
+   2142	      8	      0	   2150	    866	fs/proc/meminfo.o.old
+
+Creating a new static in task_mmu would be smaller and faster code.
+
+There are only 3 other uses of %8lu in fs/proc/task_nommu.c and
+those use bytes not kB.
+
+There are a few other likely not performance sensitive similar
+uses in <arch>/mm
+
+$ git grep -E "seq_printf.*%8lu kB" arch
+arch/x86/mm/pageattr.c:	seq_printf(m, "DirectMap4k:    %8lu kB\n",
+arch/x86/mm/pageattr.c:	seq_printf(m, "DirectMap2M:    %8lu kB\n",
+arch/x86/mm/pageattr.c:	seq_printf(m, "DirectMap4M:    %8lu kB\n",
+arch/x86/mm/pageattr.c:		seq_printf(m, "DirectMap1G:    %8lu kB\n",
+arch/s390/mm/pageattr.c:	seq_printf(m, "DirectMap4k:    %8lu kB\n",
+arch/s390/mm/pageattr.c:	seq_printf(m, "DirectMap1M:    %8lu kB\n",
+arch/s390/mm/pageattr.c:	seq_printf(m, "DirectMap2G:    %8lu kB\n",
+
+For the second patch:
+
+seq_show starts with a PAGE_SIZE buffer and if that buffer isn't
+big enough, seq_show redoes the entire output done to that point
+into a new buffer << 1 until the buffer is big enough to hold
+the output.
+
+So I expect this case of multiple pages / megabytes worth of smap
+output (40MB in your pathological case) would be rather faster if
+single_open_size was used appropriately for expected output size.
+
+And this would definitely be faster if seq_has_overflowed() was
+used somewhere in the iteration loop.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
