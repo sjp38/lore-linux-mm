@@ -1,67 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1223E6B025E
-	for <linux-mm@kvack.org>; Fri, 19 Aug 2016 09:25:15 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id k135so31452750lfb.2
-        for <linux-mm@kvack.org>; Fri, 19 Aug 2016 06:25:15 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id ch18si6314638wjb.75.2016.08.19.06.25.13
+	by kanga.kvack.org (Postfix) with ESMTP id 100A56B025E
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2016 09:30:04 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id 33so31518677lfw.1
+        for <linux-mm@kvack.org>; Fri, 19 Aug 2016 06:30:03 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q197si3985446wmb.145.2016.08.19.06.30.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Aug 2016 06:25:13 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id q128so3440222wma.1
-        for <linux-mm@kvack.org>; Fri, 19 Aug 2016 06:25:13 -0700 (PDT)
-Date: Fri, 19 Aug 2016 15:25:11 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] kernel/fork: fix CLONE_CHILD_CLEARTID regression in
- nscd
-Message-ID: <20160819132511.GH32619@dhcp22.suse.cz>
-References: <1470039287-14643-1-git-send-email-mhocko@kernel.org>
- <20160803210804.GA11549@redhat.com>
- <20160812094113.GE3639@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 19 Aug 2016 06:30:02 -0700 (PDT)
+Subject: Re: [PATCH v4 4/5] mm/cma: remove MIGRATE_CMA
+References: <1470724759-855-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1470724759-855-5-git-send-email-iamjoonsoo.kim@lge.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <1f79f242-b51a-f9c8-848d-f12ee378dde5@suse.cz>
+Date: Fri, 19 Aug 2016 15:29:59 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160812094113.GE3639@dhcp22.suse.cz>
+In-Reply-To: <1470724759-855-5-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, William Preston <wpreston@suse.com>, Roland McGrath <roland@hack.frob.com>, Andreas Schwab <schwab@suse.com>
+To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Fri 12-08-16 11:41:13, Michal Hocko wrote:
-> On Wed 03-08-16 23:08:04, Oleg Nesterov wrote:
-> > sorry for delay, I am travelling till the end of the week.
-> 
-> Same here...
-> 
-> > On 08/01, Michal Hocko wrote:
-[...]
-> > > We should also check for vfork because
-> > > this is killable since d68b46fe16ad ("vfork: make it killable").
-> > 
-> > Hmm, why? Can't understand... In any case this check doesn't look right, the
-> > comment says "a killed vfork parent" while tsk->vfork_done != NULL means it
-> > is a vforked child.
-> > 
-> > So if we want this change, why we can't simply do
-> > 
-> > 	-	if (!(tsk->flags & PF_SIGNALED) &&
-> > 	+	if (!(tsk->signal->flags & SIGNAL_GROUP_COREDUMP) &&
-> > 
-> > ?
-> 
-> This is what I had initially. But then the comment above the check made
-> me worried that the parent of vforked child might get confused if the
-> flag is cleared. I might have completely misunderstood the point of the
-> comment though. So if you believe that vfork_done check is incorrect I
-> can drop it. It shouldn't have any effect on the nscd usecase AFAIU.
+On 08/09/2016 08:39 AM, js1304@gmail.com wrote:
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>
+> Now, all reserved pages for CMA region are belong to the ZONE_CMA
+> and there is no other type of pages. Therefore, we don't need to
+> use MIGRATE_CMA to distinguish and handle differently for CMA pages
+> and ordinary pages. Remove MIGRATE_CMA.
+>
+> Unfortunately, this patch make free CMA counter incorrect because
+> we count it when pages are on the MIGRATE_CMA. It will be fixed
+> by next patch. I can squash next patch here but it makes changes
+> complicated and hard to review so I separate that.
+>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-So should I drop the vfork check and repost or we do not care about this
-"regression" and declare nscd broken because it relies on a behavior
-which is not in fact guaranteed by the kernel?
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
