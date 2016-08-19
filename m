@@ -1,65 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 07A2A82F5F
-	for <linux-mm@kvack.org>; Fri, 19 Aug 2016 01:51:51 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id ag5so65267864pad.2
-        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 22:51:51 -0700 (PDT)
-Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
-        by mx.google.com with ESMTPS id u79si3311372pfj.150.2016.08.18.22.51.50
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A7BC66B0038
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2016 02:27:36 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id l4so11267716wml.0
+        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 23:27:36 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f1si2670971wmi.89.2016.08.18.23.27.34
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 18 Aug 2016 22:51:50 -0700 (PDT)
-Received: from epcas5p1.samsung.com (unknown [182.195.41.39])
- by mailout4.samsung.com
- (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0OC501AHX6YCAW00@mailout4.samsung.com> for linux-mm@kvack.org;
- Fri, 19 Aug 2016 14:51:49 +0900 (KST)
-Message-id: <1267599031.7838.1471585908108.JavaMail.weblogic@epwas3p2>
-MIME-version: 1.0
-Subject: =?UTF-8?B?IFtQQVRDSCAzLzRdIHpzd2FwOiBaZXJvLWZpbGxlZCBwYWdl?=
- =?UTF-8?B?cyBoYW5kbGluZw==?=
-Reply-to: srividya.dr@samsung.com
-From: =?UTF-8?B?U3JpdmlkeWEgRGVzaXJlZGR5?= <srividya.dr@samsung.com>
-Date: Fri, 19 Aug 2016 05:51:48 +0000
-Content-type: multipart/related;
- boundary="----=_Part_7837_345446296.1471585908107"
-References: 
- <CGME20160817101819epcms5p25ad7d8a53c761ffff62993ca4d4bf129@epcms5p1>
+        Thu, 18 Aug 2016 23:27:35 -0700 (PDT)
+Subject: Re: OOM killer changes
+References: <ccad54a2-be1e-44cf-b9c8-d6b34af4901d@quantum.com>
+ <6cb37d4a-d2dd-6c2f-a65d-51474103bf86@Quantum.com>
+ <d1f63745-b9e3-b699-8a5a-08f06c72b392@suse.cz>
+ <20160815150123.GG3360@dhcp22.suse.cz>
+ <1b8ee89d-a851-06f0-6bcc-62fef9e7e7cc@Quantum.com>
+ <20160816073246.GC5001@dhcp22.suse.cz> <20160816074316.GD5001@dhcp22.suse.cz>
+ <6a22f206-e0e7-67c9-c067-73a55b6fbb41@Quantum.com>
+ <a61f01eb-7077-07dd-665a-5125a1f8ef37@suse.cz>
+ <0325d79b-186b-7d61-2759-686f8afff0e9@Quantum.com>
+ <20160817093323.GB20703@dhcp22.suse.cz>
+ <8008b7de-9728-a93c-e3d7-30d4ebeba65a@Quantum.com>
+ <0606328a-1b14-0bc9-51cb-36621e3e8758@suse.cz>
+ <e867d795-224f-5029-48c9-9ce515c0b75f@Quantum.com>
+ <f050bc92-d2f1-80cc-f450-c5a57eaf82f0@suse.cz>
+ <ea18e6b3-9d47-b154-5e12-face50578302@Quantum.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <f7a9ea9d-bb88-bfd6-e340-3a933559305a@suse.cz>
+Date: Fri, 19 Aug 2016 08:27:34 +0200
+MIME-Version: 1.0
+In-Reply-To: <ea18e6b3-9d47-b154-5e12-face50578302@Quantum.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: penberg@kernel.org
-Cc: =?UTF-8?B?U3JpdmlkeWEgRGVzaXJlZGR5?= <srividya.dr@samsung.com>, sjenning@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, =?UTF-8?B?RGluYWthciBSZWRkeSBQYXRoaXJlZGR5?= <dinakar.p@samsung.com>, =?UTF-8?B?7IOk656A?= <sharan.allur@samsung.com>, =?UTF-8?B?U1VORUVMIEtVTUFSIFNVUklNQU5J?= <suneel@samsung.com>, =?UTF-8?B?6rmA7KO87ZuI?= <juhunkim@samsung.com>
+To: Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Michal Hocko <mhocko@suse.cz>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-------=_Part_7837_345446296.1471585908107
-Content-Transfer-Encoding: base64
-Content-Type: text/plain; charset="utf-8"
+On 08/19/2016 04:42 AM, Ralf-Peter Rohbeck wrote:
+> On 18.08.2016 13:12, Vlastimil Babka wrote:
+>> On 18.8.2016 22:01, Ralf-Peter Rohbeck wrote:
+>>> On 17.08.2016 23:57, Vlastimil Babka wrote:
+>>>> Vlastimil
+>>> Yes, that change was in my test with linux-next-20160817. Here's the diff:
+>>>
+>>> diff --git a/mm/compaction.c b/mm/compaction.c
+>>> index f94ae67..60a9ca2 100644
+>>> --- a/mm/compaction.c
+>>> +++ b/mm/compaction.c
+>>> @@ -1083,8 +1083,10 @@ static void isolate_freepages(struct
+>>> compact_control *cc)
+>>>                           continue;
+>>>
+>>>                   /* Check the block is suitable for migration */
+>>> +/*
+>>>                   if (!suitable_migration_target(page))
+>>>                           continue;
+>>> +*/
+>> OK, could you please also try if uncommenting the above still works without OOM?
+>> Or just plain linux-next-20160817, I guess we don't need the printk's to test
+>> this difference.
+>>
+>> Thanks a lot!
+>> Vlastimil
+>>
+> With the two lines back in I had OOMs again. See the attached logs.
 
-T24gMTcgQXVndXN0IDIwMTYgYXQgMTc6NTUsIFBla2thIEVuYmVyZyA8cGVuYmVyZ0BrZXJuZWwu
-b3JnPiB3cm90ZToNCj4gT24gV2VkLCBBdWcgMTcsIDIwMTYgYXQgMToxOCBQTSwgU3JpdmlkeWEg
-RGVzaXJlZGR5DQo+IDxzcml2aWR5YS5kckBzYW1zdW5nLmNvbT4gd3JvdGU6DQo+PiBAQCAtMTMx
-NCw2ICsxMzQ3LDEzIEBAIHN0YXRpYyBpbnQgenN3YXBfZnJvbnRzd2FwX2xvYWQodW5zaWduZWQg
-dHlwZSwgcGdvZmZfdCBvZmZzZXQsDQo+PiAgICAgICAgIH0NCj4+ICAgICAgICAgc3Bpbl91bmxv
-Y2soJnRyZWUtPmxvY2spOw0KPj4NCj4+ICsgICAgICAgaWYgKGVudHJ5LT56ZXJvZmxhZykgew0K
-Pj4gKyAgICAgICAgICAgICAgIGRzdCA9IGttYXBfYXRvbWljKHBhZ2UpOw0KPj4gKyAgICAgICAg
-ICAgICAgIG1lbXNldChkc3QsIDAsIFBBR0VfU0laRSk7DQo+PiArICAgICAgICAgICAgICAga3Vu
-bWFwX2F0b21pYyhkc3QpOw0KPj4gKyAgICAgICAgICAgICAgIGdvdG8gZnJlZWVudHJ5Ow0KPj4g
-KyAgICAgICB9DQo+DQo+IERvbid0IHdlIG5lZWQgdGhlIHNhbWUgdGhpbmcgaW4genN3YXBfd3Jp
-dGViYWNrX2VudHJ5KCkgZm9yIHRoZQ0KPiBaU1dBUF9TV0FQQ0FDSEVfTkVXIGNhc2U/DQoNClpl
-cm8tZmlsbGVkIHBhZ2VzIGFyZSBub3QgY29tcHJlc3NlZCBhbmQgc3RvcmVkIGluIHRoZSB6cG9v
-bCBtZW1vcnkuDQpacG9vbCBoYW5kbGUgd2lsbCBub3QgYmUgY3JlYXRlZCBmb3IgemVyby1maWxs
-ZWQgcGFnZXMsIGhlbmNlIHRoZXkNCmNhbiBub3QgYmUgcGlja2VkIGZvciBldmljdGlvbi93cml0
-ZWJhY2sgdG8gdGhlIHN3YXAgZGV2aWNlLg0KDQotIFNyaXZpZHlhDQo+DQo+PiArDQo+PiAgICAg
-ICAgIC8qIGRlY29tcHJlc3MgKi8NCj4+ICAgICAgICAgZGxlbiA9IFBBR0VfU0laRTsNCj4+ICAg
-ICAgICAgc3JjID0gKHU4ICopenBvb2xfbWFwX2hhbmRsZShlbnRyeS0+cG9vbC0+enBvb2wsIGVu
-dHJ5LT56aGFuZGxlLT5oYW5kbGUsDQo+PiBAQCAtMTMyNyw2ICsxMzY3LDcgQEAgc3RhdGljIGlu
-dCB6c3dhcF9mcm9udHN3YXBfbG9hZCh1bnNpZ25lZCB0eXBlLCBwZ29mZl90IG9mZnNldCwNCj4+
-ICAgICAgICAgenBvb2xfdW5tYXBfaGFuZGxlKGVudHJ5LT5wb29sLT56cG9vbCwgZW50cnktPnpo
-YW5kbGUtPmhhbmRsZSk7DQo+PiAgICAgICAgIEJVR19PTihyZXQpOw0KPg0KPiAtIFBla2thDQo=
+Thanks for the confirmation.
 
-------=_Part_7837_345446296.1471585908107--
+We however shouldn't disable the heuristic completely, so here's a compromise
+patch hooking into the new compaction priorities. Can you please test on top of
+linux-next?
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-----8<-----
