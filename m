@@ -1,235 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A2066B0038
-	for <linux-mm@kvack.org>; Fri, 19 Aug 2016 02:47:32 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id j67so100320718oih.3
-        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 23:47:32 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id z205si3011971itc.76.2016.08.18.23.47.30
-        for <linux-mm@kvack.org>;
-        Thu, 18 Aug 2016 23:47:31 -0700 (PDT)
-Date: Fri, 19 Aug 2016 15:47:48 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC 00/11] THP swap: Delay splitting THP during swapping out
-Message-ID: <20160819064748.GA15150@bbox>
-References: <1470760673-12420-1-git-send-email-ying.huang@intel.com>
- <20160817005905.GA5372@bbox>
- <87inv0kv3r.fsf@yhuang-mobile.sh.intel.com>
- <20160817050743.GB5372@bbox>
- <1471454696.2888.94.camel@linux.intel.com>
- <20160818083955.GA12296@bbox>
- <8760qyq9jv.fsf@yhuang-mobile.sh.intel.com>
- <20160819004908.GC12296@bbox>
- <87vayxpgmq.fsf@yhuang-mobile.sh.intel.com>
- <20160819064426.GA15064@bbox>
-MIME-Version: 1.0
-In-Reply-To: <20160819064426.GA15064@bbox>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B20346B0038
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2016 03:10:10 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id e7so25764022lfe.0
+        for <linux-mm@kvack.org>; Fri, 19 Aug 2016 00:10:10 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n76si2786116wmd.127.2016.08.19.00.10.06
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 19 Aug 2016 00:10:06 -0700 (PDT)
+From: Jiri Slaby <jslaby@suse.cz>
+Subject: [PATCH 3.12 001/100] x86/mm: Add barriers and document switch_mm()-vs-flush synchronization
+Date: Fri, 19 Aug 2016 09:08:23 +0200
+Message-Id: <aa8f21d06e61b029341c51b17edd68ba15fe0e47.1471589700.git.jslaby@suse.cz>
+In-Reply-To: <cover.1471589700.git.jslaby@suse.cz>
+References: <cover.1471589700.git.jslaby@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: stable@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Charles Williams <ciwillia@brocade.com>, Jiri Slaby <jslaby@suse.cz>
 
-On Fri, Aug 19, 2016 at 03:44:26PM +0900, Minchan Kim wrote:
-> On Thu, Aug 18, 2016 at 08:44:13PM -0700, Huang, Ying wrote:
-> > Minchan Kim <minchan@kernel.org> writes:
-> > 
-> > > Hi Huang,
-> > >
-> > > On Thu, Aug 18, 2016 at 10:19:32AM -0700, Huang, Ying wrote:
-> > >> Minchan Kim <minchan@kernel.org> writes:
-> > >> 
-> > >> > Hi Tim,
-> > >> >
-> > >> > On Wed, Aug 17, 2016 at 10:24:56AM -0700, Tim Chen wrote:
-> > >> >> On Wed, 2016-08-17 at 14:07 +0900, Minchan Kim wrote:
-> > >> >> > On Tue, Aug 16, 2016 at 07:06:00PM -0700, Huang, Ying wrote:
-> > >> >> > > 
-> > >> >> > >
-> > >> >> > > > 
-> > >> >> > > > I think Tim and me discussed about that a few weeks ago.
-> > >> >> > > I work closely with Tim on swap optimization.?This patchset is the part
-> > >> >> > > of our swap optimization plan.
-> > >> >> > > 
-> > >> >> > > > 
-> > >> >> > > > Please search below topics.
-> > >> >> > > > 
-> > >> >> > > > [1] mm: Batch page reclamation under shink_page_list
-> > >> >> > > > [2] mm: Cleanup - Reorganize the shrink_page_list code into smaller functions
-> > >> >> > > > 
-> > >> >> > > > It's different with yours which focused on THP swapping while the suggestion
-> > >> >> > > > would be more general if we can do so it's worth to try it, I think.
-> > >> >> > > I think the general optimization above will benefit both normal pages
-> > >> >> > > and THP at least for now.?And I think there are no hard conflict
-> > >> >> > > between those two patchsets.
-> > >> >> > If we could do general optimzation, I guess THP swap without splitting
-> > >> >> > would be more straight forward.
-> > >> >> > 
-> > >> >> > If we can reclaim batch a certain of pages all at once, it helps we can
-> > >> >> > do scan_swap_map(si, SWAP_HAS_CACHE, nr_pages). The nr_pages could be
-> > >> >> > greater or less than 512 pages. With that, scan_swap_map effectively
-> > >> >> > search empty swap slots from scan_map or free cluser list.
-> > >> >> > Then, needed part from your patchset is to just delay splitting of THP.
-> > >> >> > 
-> > >> >> > > 
-> > >> >> > > 
-> > >> >> > > The THP swap has more opportunity to be optimized, because we can batch
-> > >> >> > > 512 operations together more easily.?For full THP swap support, unmap a
-> > >> >> > > THP could be more efficient with only one swap count operation instead
-> > >> >> > > of 512, so do many other operations, such as add/remove from swap cache
-> > >> >> > > with multi-order radix tree etc.?And it will help memory fragmentation.
-> > >> >> > > THP can be kept after swapping out/in, need not to rebuild THP via
-> > >> >> > > khugepaged.
-> > >> >> > It seems you increased cluster size to 512 and search a empty cluster
-> > >> >> > for a THP swap. With that approach, I have a concern that once clusters
-> > >> >> > will be fragmented, THP swap support doesn't take benefit at all.
-> > >> >> > 
-> > >> >> > Why do we need a empty cluster for swapping out 512 pages?
-> > >> >> > IOW, below case could work for the goal.
-> > >> >> > 
-> > >> >> > A : Allocated slot
-> > >> >> > F : Free slot
-> > >> >> > 
-> > >> >> > cluster A?cluster B
-> > >> >> > AAAAFFFF?-?FFFFAAAA
-> > >> >> > 
-> > >> >> > That's one of the reason I suggested batch reclaim work first and
-> > >> >> > support THP swap based on it. With that, scan_swap_map can be aware of nr_pages
-> > >> >> > and selects right clusters.
-> > >> >> > 
-> > >> >> > With the approach, justfication of THP swap support would be easier, too.
-> > >> >> > IOW, I'm not sure how only THP swap support is valuable in real workload.
-> > >> >> > 
-> > >> >> > Anyways, that's just my two cents.
-> > >> >> 
-> > >> >> Minchan,
-> > >> >> 
-> > >> >> Scanning for contiguous slots that span clusters may take quite a
-> > >> >> long time under fragmentation, and may eventually fail. In that case the addition scan
-> > >> >> time overhead may go to waste and defeat the purpose of fast swapping of large page.
-> > >> >> 
-> > >> >> The empty cluster lookup on the other hand is very fast.
-> > >> >> We treat the empty cluster available case as an opportunity for fast path
-> > >> >> swap out of large page. Otherwise, we'll revert to the current
-> > >> >> slow path behavior of breaking into normal pages so there's no
-> > >> >> regression, and we may get speed up. We can be considerably faster when a lot of large
-> > >> >> pages are used. 
-> > >> >
-> > >> > I didn't mean we should search scan_swap_map firstly without peeking
-> > >> > free cluster but what I wanted was we might abstract it into
-> > >> > scan_swap_map.
-> > >> >
-> > >> > For example, if nr_pages is greather than the size of cluster, we can
-> > >> > get empty cluster first and nr_pages - sizeof(cluster) for other free
-> > >> > cluster or scanning of current CPU per-cpu cluster. If we cannot find
-> > >> > used slot during scanning, we can bail out simply. Then, although we
-> > >> > fail to get all* contiguous slots, we get a certain of contiguous slots
-> > >> > so it would be benefit for seq write and lock batching point of view
-> > >> > at the cost of a little scanning. And it's not specific to THP algorighm.
-> > >> 
-> > >> Firstly, if my understanding were correct, to batch the normal pages
-> > >> swapping out, the swap slots need not to be continuous.  But for the THP
-> > >> swap support, we need the continuous swap slots.  So I think the
-> > >> requirements are quite different between them.
-> > >
-> > > Hmm, I don't understand.
-> > >
-> > > Let's think about swap slot management layer point of view.
-> > > It doesn't need to take care of that a amount of batch request is caused
-> > > by a thp page or multiple normal pages.
-> > >
-> > > A matter is just that VM now asks multiple swap slots for seveal LRU-order
-> > > pages so swap slot management tries to allocate several slots in a lock.
-> > > Sure, it would be great if slots are consecutive fully because it means
-> > > it's fast big sequential write as well as readahead together ideally.
-> > > However, it would be better even if we didn't get consecutive slots because
-> > > we get muliple slots all at once by batch.
-> > >
-> > > It's not a THP specific requirement, I think.
-> > > Currenlty, SWAP_CLUSTER_MAX might be too small to get a benefit by
-> > > normal page batch but it could be changed later once we implement batching
-> > > logic nicely.
-> > 
-> > Consecutive or not may influence the performance of the swap slots
-> > allocation function greatly.  For example, there is some non-consecutive
-> > swap slots at the begin of the swap space, and some consecutive swap
-> > slots at the end of the swap space.  If the consecutive swap slots are
-> > needed, the function may need to scan from the begin to the end.  If
-> > non-consecutive swap slots are required, just return the swap slots at
-> > the begin of the swap space.
-> 
-> Don't get me wrong. I never said consecutive swap slot allocation is
-> not important and should scan swap_map fully for searching consecutive
-> swap slot.
-> 
-> Both multiple normal page swap and a THP swap, consecutive swap slot
-> allocation is important so that it's a same requirement so I want to
-> abstract it regardless of THP swap.
-> 
-> > 
-> > >> And with the current design of the swap space management, it is quite
-> > >> hard to implement allocating nr_pages continuous free swap slots.  To
-> > >> reduce the contention of sis->lock, even to scan one free swap slot, the
-> > >> sis->lock is unlocked during scanning.  When we scan nr_pages free swap
-> > >> slots, and there are no nr_pages continuous free swap slots, we need to
-> > >> scan from sis->lowest_bit to sis->highest_bit, and record the largest
-> > >> continuous free swap slots.  But when we lock sis->lock again to check,
-> > >> some swap slot inside the largest continuous free swap slots we found
-> > >> may be allocated by other processes.  So we may end up with a much
-> > >> smaller number of swap slots or we need to startover again.  So I think
-> > >> the simpler solution is to
-> > >> 
-> > >> - When a whole cluster is requested (for the THP), try to allocate a
-> > >>   free cluster.  Give up if there are no free clusters.
-> > >
-> > > One thing I'm afraid that it would consume free clusters very fast
-> > > if adjacent pages around a faulted one doesn't have same hottness/
-> > > lifetime. Once it happens, we can't get benefit any more.
-> > > IMO, it's too conservative and might be worse for the fragment point
-> > > of view.
-> > 
-> > It is possible.  But I think we should start from the simple solution
-> > firstly.  Instead of jumping to the perfect solution directly.
-> > Especially when the simple solution is a subset of the perfect solution.
-> > Do you agree?
-> 
-> If simple solution works well and is hard to prove it's not bad than as-is,
-> I agree. But my concern is about that it would consume free clusters so fast
-> that it can affect badly for other workload.
-> 
-> > 
-> > There are some other difficulties not to use the swap cluster to hold
-> > the THP swapped out for the full THP swap support (without splitting).
-> > 
-> > The THP could be mapped in both PMD and PTE.  After the THP is swapped
-> > out.  There may be swap entry in PMD and PTE too.  If a non-head PTE is
-> > accessed, how do we know where is the first swap slot for the THP, so
-> > that we can swap in the whole THP?
-> 
-> You mean you want to swapin 2M pages all at once? Hmm, I'm not sure
-> it's a good idea. We don't have any evidence 512 pages have same time
-> locality. They were just LRU in-order due to split implementation,
-> not time locality. A thing we can bet is any processes sharing the THP
-> doesn't touch a subpage in 512 pages so it's really *cold*.
-> For such cold 512 page swap-in, I am really not sure.
-> 
-> > 
-> > We can have a flag in cluster_info->flag to mark whether the swap
-> > cluster backing a THP.  So swap in readahead can avoid to read ahead the
-> > THP, or it can read ahead the whole THP instead of just several
-> > sub-pages of the THP.
-> > 
-> > And if we use one swap cluster for each THP, we can use cluster_info->data
-> > to hold compound map number.  That is very convenient.
-> 
-> Huang,
-> 
-> If you think my points are enough valid, just continue your work
+From: Andy Lutomirski <luto@kernel.org>
 
-  If you don't think
+3.12-stable review patch.  If anyone has any objections, please let me know.
 
-Oops, typo.
+===============
+
+commit 71b3c126e61177eb693423f2e18a1914205b165e upstream.
+
+When switch_mm() activates a new PGD, it also sets a bit that
+tells other CPUs that the PGD is in use so that TLB flush IPIs
+will be sent.  In order for that to work correctly, the bit
+needs to be visible prior to loading the PGD and therefore
+starting to fill the local TLB.
+
+Document all the barriers that make this work correctly and add
+a couple that were missing.
+
+Signed-off-by: Andy Lutomirski <luto@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andy Lutomirski <luto@amacapital.net>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-mm@kvack.org
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Cc: Charles (Chas) Williams <ciwillia@brocade.com>
+Signed-off-by: Jiri Slaby <jslaby@suse.cz>
+---
+ arch/x86/include/asm/mmu_context.h | 32 +++++++++++++++++++++++++++++++-
+ arch/x86/mm/tlb.c                  | 28 +++++++++++++++++++++++++---
+ 2 files changed, 56 insertions(+), 4 deletions(-)
+
+diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
+index 86fef96f4eca..20cf2c4e1872 100644
+--- a/arch/x86/include/asm/mmu_context.h
++++ b/arch/x86/include/asm/mmu_context.h
+@@ -86,7 +86,32 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+ #endif
+ 		cpumask_set_cpu(cpu, mm_cpumask(next));
+ 
+-		/* Re-load page tables */
++		/*
++		 * Re-load page tables.
++		 *
++		 * This logic has an ordering constraint:
++		 *
++		 *  CPU 0: Write to a PTE for 'next'
++		 *  CPU 0: load bit 1 in mm_cpumask.  if nonzero, send IPI.
++		 *  CPU 1: set bit 1 in next's mm_cpumask
++		 *  CPU 1: load from the PTE that CPU 0 writes (implicit)
++		 *
++		 * We need to prevent an outcome in which CPU 1 observes
++		 * the new PTE value and CPU 0 observes bit 1 clear in
++		 * mm_cpumask.  (If that occurs, then the IPI will never
++		 * be sent, and CPU 0's TLB will contain a stale entry.)
++		 *
++		 * The bad outcome can occur if either CPU's load is
++		 * reordered before that CPU's store, so both CPUs much
++		 * execute full barriers to prevent this from happening.
++		 *
++		 * Thus, switch_mm needs a full barrier between the
++		 * store to mm_cpumask and any operation that could load
++		 * from next->pgd.  This barrier synchronizes with
++		 * remote TLB flushers.  Fortunately, load_cr3 is
++		 * serializing and thus acts as a full barrier.
++		 *
++		 */
+ 		load_cr3(next->pgd);
+ 
+ 		/* Stop flush ipis for the previous mm */
+@@ -109,10 +134,15 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+ 			 * schedule, protecting us from simultaneous changes.
+ 			 */
+ 			cpumask_set_cpu(cpu, mm_cpumask(next));
++
+ 			/*
+ 			 * We were in lazy tlb mode and leave_mm disabled
+ 			 * tlb flush IPI delivery. We must reload CR3
+ 			 * to make sure to use no freed page tables.
++			 *
++			 * As above, this is a barrier that forces
++			 * TLB repopulation to be ordered after the
++			 * store to mm_cpumask.
+ 			 */
+ 			load_cr3(next->pgd);
+ 			load_mm_ldt(next);
+diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+index dd8dda167a24..fc042eeb6e6c 100644
+--- a/arch/x86/mm/tlb.c
++++ b/arch/x86/mm/tlb.c
+@@ -152,6 +152,8 @@ void flush_tlb_current_task(void)
+ 	preempt_disable();
+ 
+ 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
++
++	/* This is an implicit full barrier that synchronizes with switch_mm. */
+ 	local_flush_tlb();
+ 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
+ 		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
+@@ -166,11 +168,19 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+ 	unsigned long nr_base_pages;
+ 
+ 	preempt_disable();
+-	if (current->active_mm != mm)
++	if (current->active_mm != mm) {
++		/* Synchronize with switch_mm. */
++		smp_mb();
++
+ 		goto flush_all;
++	}
+ 
+ 	if (!current->mm) {
+ 		leave_mm(smp_processor_id());
++
++		/* Synchronize with switch_mm. */
++		smp_mb();
++
+ 		goto flush_all;
+ 	}
+ 
+@@ -191,6 +201,10 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+ 	act_entries = mm->total_vm > act_entries ? act_entries : mm->total_vm;
+ 	nr_base_pages = (end - start) >> PAGE_SHIFT;
+ 
++	/*
++	 * Both branches below are implicit full barriers (MOV to CR or
++	 * INVLPG) that synchronize with switch_mm.
++	 */
+ 	/* tlb_flushall_shift is on balance point, details in commit log */
+ 	if (nr_base_pages > act_entries) {
+ 		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+@@ -222,10 +236,18 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)
+ 	preempt_disable();
+ 
+ 	if (current->active_mm == mm) {
+-		if (current->mm)
++		if (current->mm) {
++			/*
++			 * Implicit full barrier (INVLPG) that synchronizes
++			 * with switch_mm.
++			 */
+ 			__flush_tlb_one(start);
+-		else
++		} else {
+ 			leave_mm(smp_processor_id());
++
++			/* Synchronize with switch_mm. */
++			smp_mb();
++		}
+ 	}
+ 
+ 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
+-- 
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
