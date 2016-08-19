@@ -1,69 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F9CC6B0038
-	for <linux-mm@kvack.org>; Fri, 19 Aug 2016 05:57:10 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id le9so73489741pab.0
-        for <linux-mm@kvack.org>; Fri, 19 Aug 2016 02:57:10 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id n8si7581576pay.18.2016.08.19.02.57.08
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E8A16B0038
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2016 06:13:10 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id u81so14804988wmu.3
+        for <linux-mm@kvack.org>; Fri, 19 Aug 2016 03:13:10 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id u1si5685897wju.85.2016.08.19.03.13.08
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 19 Aug 2016 02:57:09 -0700 (PDT)
-Subject: Re: [RFC PATCH] arm64/hugetlb enable gigantic hugepage
-References: <1471521929-9207-1-git-send-email-xieyisheng1@huawei.com>
-From: Yisheng Xie <xieyisheng1@huawei.com>
-Message-ID: <68b492dc-06ea-dd33-2197-1f4b71d36072@huawei.com>
-Date: Fri, 19 Aug 2016 17:49:38 +0800
-MIME-Version: 1.0
-In-Reply-To: <1471521929-9207-1-git-send-email-xieyisheng1@huawei.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 19 Aug 2016 03:13:08 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id q128so2821490wma.1
+        for <linux-mm@kvack.org>; Fri, 19 Aug 2016 03:13:08 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH 0/2] fs, proc: optimize smaps output formatting
+Date: Fri, 19 Aug 2016 12:12:58 +0200
+Message-Id: <1471601580-17999-1-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1471519888-13829-1-git-send-email-mhocko@kernel.org>
+References: <1471519888-13829-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: guohanjun@huawei.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, will.deacon@arm.com, mhocko@suse.com, dave.hansen@intel.com, sudeep.holla@arm.com, catalin.marinas@arm.com, mark.rutland@arm.com, robh+dt@kernel.org, linux-arm-kernel@lists.infradead.org, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com, hillf.zj@alibaba-inc.com, dingel@linux.vnet.ibm.com, sfr@canb.auug.org.au, kirill.shutemov@linux.intel.comsudeep.holla@arm.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Joe Perches <joe@perches.com>, Jann Horn <jann@thejh.net>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-add more,
+Hi,
+this is rebased on top of next-20160818. Joe has pointed out that
+meminfo is using a similar trick so I have extracted guts of what we
+have already and made it more generic to be usable for smaps as well
+(patch 1). The second patch then replaces seq_printf with seq_write
+and show_val_kb which should have smaller overhead and my measuring (in
+kvm) shows quite a nice improvements. I hope kvm is not playing tricks
+on me but I didn't get to test on a real HW.
 
-hi all,
-Could anyone do me a favor and give some comments?
+Michal Hocko (2):
+      proc, meminfo: abstract show_val_kb
+      proc, smaps: reduce printing overhead
 
-Thanks
-Xie Yisheng
-
-On 2016/8/18 20:05, Xie Yisheng wrote:
-> As we know, arm64 also support gigantic hugepage eg. 1G.
-> So I try to use this function by adding hugepagesz=1G
-> in kernel parameters, with CONFIG_CMA=y.
-> However, when:
-> echo xx > /sys/kernel/mm/hugepages/hugepages-1048576kB/
->           nr_hugepages
-> it failed with the info:
-> -bash: echo: write error: Invalid argument
-> 
-> This patch make gigantic hugepage can be used on arm64,
-> when CONFIG_CMA=y or other related configs is enable.
-> 
-> Signed-off-by: Xie Yisheng <xieyisheng1@huawei.com>
-> ---
->  mm/hugetlb.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 87e11d8..b4d8048 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1022,7 +1022,8 @@ static int hstate_next_node_to_free(struct hstate *h, nodemask_t *nodes_allowed)
->  		((node = hstate_next_node_to_free(hs, mask)) || 1);	\
->  		nr_nodes--)
->  
-> -#if (defined(CONFIG_X86_64) || defined(CONFIG_S390)) && \
-> +#if (defined(CONFIG_X86_64) || defined(CONFIG_S390) || \
-> +	defined(CONFIG_ARM64)) && \
->  	((defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || \
->  	defined(CONFIG_CMA))
->  static void destroy_compound_gigantic_page(struct page *page,
-> 
+ fs/proc/internal.h | 17 ++++++++++
+ fs/proc/meminfo.c  | 93 ++++++++++++++++++++++++++----------------------------
+ fs/proc/task_mmu.c | 58 +++++++++++-----------------------
+ 3 files changed, 81 insertions(+), 87 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
