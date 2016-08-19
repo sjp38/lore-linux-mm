@@ -1,63 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BB78F6B0038
-	for <linux-mm@kvack.org>; Fri, 19 Aug 2016 06:31:43 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id e7so28916795lfe.0
-        for <linux-mm@kvack.org>; Fri, 19 Aug 2016 03:31:43 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id en19si5747422wjb.128.2016.08.19.03.31.42
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 43EAC6B0038
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2016 07:12:30 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id j124so77621247ith.1
+        for <linux-mm@kvack.org>; Fri, 19 Aug 2016 04:12:30 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id 76si3653311oib.99.2016.08.19.04.12.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Aug 2016 03:31:42 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id i138so2863425wmf.3
-        for <linux-mm@kvack.org>; Fri, 19 Aug 2016 03:31:42 -0700 (PDT)
-Date: Fri, 19 Aug 2016 12:31:41 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] usercopy: Skip multi-page bounds checking on SLOB
-Message-ID: <20160819103140.GB32632@dhcp22.suse.cz>
-References: <20160817222921.GA25148@www.outflux.net>
- <1471530118.2581.13.camel@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 19 Aug 2016 04:12:29 -0700 (PDT)
+Subject: Re: [RFC PATCH] arm64/hugetlb enable gigantic hugepage
+References: <1471521929-9207-1-git-send-email-xieyisheng1@huawei.com>
+ <20160819102551.GA32632@dhcp22.suse.cz>
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Message-ID: <bfb23f62-4308-0ca1-e7ed-e8c686a946ea@huawei.com>
+Date: Fri, 19 Aug 2016 19:08:51 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1471530118.2581.13.camel@redhat.com>
+In-Reply-To: <20160819102551.GA32632@dhcp22.suse.cz>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Laura Abbott <labbott@fedoraproject.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, xiaolong.ye@intel.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, guohanjun@huawei.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 18-08-16 10:21:58, Rik van Riel wrote:
-> On Wed, 2016-08-17 at 15:29 -0700, Kees Cook wrote:
-> > When an allocator does not mark all allocations as PageSlab, or does
-> > not
-> > mark multipage allocations with __GFP_COMP, hardened usercopy cannot
-> > correctly validate the allocation. SLOB lacks this, so short-circuit
-> > the checking for the allocators that aren't marked with
-> > CONFIG_HAVE_HARDENED_USERCOPY_ALLOCATOR. This also updates the config
-> > help and corrects a typo in the usercopy comments.
-> > 
-> > Reported-by: xiaolong.ye@intel.com
-> > Signed-off-by: Kees Cook <keescook@chromium.org>
-> 
-> There may still be some subsystems that do not
-> go through kmalloc for multi-page allocations,
-> and also do not use __GFP_COMP
-> 
-> I do not know whether there are, but if they exist
-> those would still trip up the same way SLOB got
-> tripped up before your patch.
-> 
-> One big question I have for Linus is, do we want
-> to allow code that does a higher order allocation,
-> and then frees part of it in smaller orders, or
-> individual pages, and keeps using the remainder?
 
-We even have an API for that alloc_pages_exact. I do not think anybody
-uses that for copying from/to userspace but this pattern is not all that
-rare.
--- 
-Michal Hocko
-SUSE Labs
+
+On 2016/8/19 18:25, Michal Hocko wrote:
+> On Thu 18-08-16 20:05:29, Xie Yisheng wrote:
+>> As we know, arm64 also support gigantic hugepage eg. 1G.
+> 
+> Well, I do not know that. How can I check?
+> 
+Hi Michal,
+Thank you for your reply.
+Maybe you can check the setup_hugepagesz()
+in ./arch/arm64/hugetlbpage.c
+    if (ps == PMD_SIZE) {
+        hugetlb_add_hstate(PMD_SHIFT - PAGE_SHIFT);
+    } else if (ps == PUD_SIZE) {
+        hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
+    } else if (ps == (PAGE_SIZE * CONT_PTES)) {
+        hugetlb_add_hstate(CONT_PTE_SHIFT);
+    } else if (ps == (PMD_SIZE * CONT_PMDS)) {
+        hugetlb_add_hstate((PMD_SHIFT + CONT_PMD_SHIFT) - PAGE_SHIFT);
+    } else {
+        hugetlb_bad_size();
+        pr_err("hugepagesz: Unsupported page size %lu K\n", ps >> 10);
+        return 0;
+    }
+
+I think all of the supported hugepage size on arm64 should be listed here,
+just as what X86_64 do. Therefore, I also a litter confuse about why not
+enable it in hugetlb.c, though I have do some sanity test about 1G hugetlb
+on arm64 and didn't find any bug.
+
+Do I miss something?
+
+Thanks
+Xie Yisheng
+
+> Anyway to the patch
+> [...]
+>> index 87e11d8..b4d8048 100644
+>> --- a/mm/hugetlb.c
+>> +++ b/mm/hugetlb.c
+>> @@ -1022,7 +1022,8 @@ static int hstate_next_node_to_free(struct hstate *h, nodemask_t *nodes_allowed)
+>>  		((node = hstate_next_node_to_free(hs, mask)) || 1);	\
+>>  		nr_nodes--)
+>>  
+>> -#if (defined(CONFIG_X86_64) || defined(CONFIG_S390)) && \
+>> +#if (defined(CONFIG_X86_64) || defined(CONFIG_S390) || \
+>> +	defined(CONFIG_ARM64)) && \
+>>  	((defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || \
+>>  	defined(CONFIG_CMA))
+> 
+> this ifdef is getting pretty unwieldy. For one thing I think that
+> respective archs should enable ARCH_HAVE_GIGANTIC_PAGES.
+
+I couldn't agree more about it, and will send another version, soon.
+
+> 
+>>  static void destroy_compound_gigantic_page(struct page *page,
+>> -- 
+>> 1.7.12.4
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
