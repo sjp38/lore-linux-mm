@@ -1,184 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D1A96B0038
-	for <linux-mm@kvack.org>; Fri, 19 Aug 2016 10:54:03 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id o80so19640185wme.1
-        for <linux-mm@kvack.org>; Fri, 19 Aug 2016 07:54:03 -0700 (PDT)
-Received: from outbound-smtp03.blacknight.com (outbound-smtp03.blacknight.com. [81.17.249.16])
-        by mx.google.com with ESMTPS id v7si6581925wjm.289.2016.08.19.07.54.01
+Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C298F6B0253
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2016 11:33:05 -0400 (EDT)
+Received: by mail-yb0-f200.google.com with SMTP id x37so101706286ybh.3
+        for <linux-mm@kvack.org>; Fri, 19 Aug 2016 08:33:05 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p135si4883227qka.197.2016.08.19.08.33.04
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 19 Aug 2016 07:54:02 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 8F20D99586
-	for <linux-mm@kvack.org>; Fri, 19 Aug 2016 14:54:01 +0000 (UTC)
-Date: Fri, 19 Aug 2016 15:53:59 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 19 Aug 2016 08:33:04 -0700 (PDT)
+Date: Fri, 19 Aug 2016 17:32:59 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: [PATCH 00/34] Move LRU page reclaim from zones to nodes v9
-Message-ID: <20160819145359.GO8119@techsingularity.net>
+Message-ID: <20160819153259.nszkbsk7dnfzfv5i@redhat.com>
 References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
  <20160819131200.kyqmfcabttkjvhe2@redhat.com>
+ <20160819145359.GO8119@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160819131200.kyqmfcabttkjvhe2@redhat.com>
+In-Reply-To: <20160819145359.GO8119@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
+To: Mel Gorman <mgorman@techsingularity.net>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Aug 19, 2016 at 03:12:00PM +0200, Andrea Arcangeli wrote:
-> Hello Mel,
+On Fri, Aug 19, 2016 at 03:53:59PM +0100, Mel Gorman wrote:
+> Compaction is not the same as LRU management.
+
+Sure but compaction is invoked by reclaim and if reclaim is node-wide,
+it makes more sense if compaction would be node-wide as well.
+
+Otherwise what you compact? Just the higher zone, or all of them?
+
+> That is not guaranteed. At the time of migration, it is unknown if the
+> original allocation had addressing limitations or not. I did not audit
+> the address-limited allocations to see if any of them allow migration.
 > 
-> On Fri, Jul 08, 2016 at 10:34:36AM +0100, Mel Gorman wrote:
-> > Minor changes this time
-> > 
-> > Changelog since v8
-> > This is the latest version of a series that moves LRUs from the zones to
-> 
-> I'm afraid this is a bit incomplete...
-> 
+> The filesystems would be the ones that need careful auditing. There are
+> some places that add lowmem pages to the LRU but far less obvious if any
+> of them would successfully migrate.
 
-Compaction is not the same as LRU management.
+True but that's a tradeoff. This whole patchset is about optimizing
+the common case of allocations from the highest possible
+classzone_idx, as if a system has no older hardware, the lowmem
+classzone_idx allocations practically never happens.
 
-> I had troubles in rebasing the compaction-enabled zone_reclaim feature
-> (now node_reclaim) to the node model.
+If that tradeoff is valid, retaining migrability of memory allocated
+not with the highest classzone_idx is an optimization that goes in the
+opposite direction.
 
-I'm not familiar with this although from the name, I can guess what it's
-doing -- migrating pages from lowmem instead of reclaiming.
+Retaining such "optimization" means increasing the likelihood of
+succeeding high order allocations from lower zones yes, but it screws
+with the main concept of:
 
-> That is because compaction is
-> still zone based, and so I would need to do a loop of compaction calls
-> (for each zone in the node), but what's the point? Movable memory can
-> always go anywhere, can't it?
+     reclaim node wide at high order -> failure to allocate -> compaction node wide
 
-That is not guaranteed. At the time of migration, it is unknown if the
-original allocation had addressing limitations or not. I did not audit
-the address-limited allocations to see if any of them allow migration.
+So if the tradeoff works for reclaim_node I don't see why we should
+"optimize" for the opposite case in compaction.
 
-The filesystems would be the ones that need careful auditing. There are
-some places that add lowmem pages to the LRU but far less obvious if any
-of them would successfully migrate.
+> That is likely true as long as migration is always towards higher address.
 
-I'm not familiar with the specifics of the series you're working on but
-as compaction was zone-based, you'd have to loop across the zones whether
-the LRU is node or zone based. Even if cross-zone compaction was allowed,
-it does not make a difference how the LRUs are managed.
+Well with a node-wide LRU we got rid of any "towards higher address"
+bias. So why to worry about these concepts for high order allocations
+provided by compaction, if order 0 allocations provided purely by
+shrink_node won't care at all about such a concept any longer?
 
-Historically, the possibility that pages being compacted were address-limited
-was the first reason didn't compact across zones. The other was that it
-could introduce page aging problems. For example, migrating DMA32 to a
-small NORMAL potentially allowed the page to be reclaimed prematurely by
-reclaim. That is less of a concern with node-lru.
+It sounds backwards to even worry about "towards higher address" in
+compaction which is only relevant to provide high order allocations,
+when the zero order 4kb allocations will not care at all to go
+"towards higher address" anymore.
 
-> So it would be better to compact across
-> the whole node without care of the zone boundaries.
+> An audit of all additions to the LRU that are address-limited allocations
+> is required to determine if any of those pages can migrate.
 
-That is likely true as long as migration is always towards higher address.
+Agreed.
 
-> Then if the
-> classzone_idx passed to compaction is not for the highest classzone,
-> it'll do zone_reclaim and focus itself on the lower zones (but it can
-> still cross the zone boundaries among those lower zones).
-> 
-> No matter how I tweak my code it doesn't make much sense to do a
-> manual loop and leave compaction unable to cross zone boundaries. Is
-> anybody working to complete this work to make compaction work on node
-> basis instead of zone basis?
+Either that or the pageblock needs to be marked with the classzone_idx
+that it can tolerate. And a per-allocation-classzone highpfn,lowpfn
+markers needs to be added, instead of being global.
 
-Not that I'm aware of but compaction across zones is not directly related
-to LRU management.
+> I'm not sure I understand. The zone allocation preference has the same
+> meaning as it always had.
 
-> Or am I missing something for why
-> compaction scan "lowpfn, highpfn" starting positions cannot possibly
-> cross zone boundaries?
-> 
+What I mean is zonelist is like:
 
-An audit of all additions to the LRU that are address-limited allocations
-is required to determine if any of those pages can migrate.
+=n
 
-> I'm also uncertain what's the meaning now of zonelist_order=z (default
-> setting) considering it'll always behave like zone_order=n
-> anyway...
+	[ node0->zone0, node0->zone1, node1->zone0, node1->zone1 ]
 
-I'm not sure I understand. The zone allocation preference has the same
-meaning as it always had.
+or:
 
->  On the same lines, I'm also uncertain of the meaning of the
-> zonelist in the first place and why it's not a "nodelist +
-> classzone_idx". Why is there still a zonelist_order=z default setting
+=z
 
-On 64-bit, the default order is NODE. Are you using 32-bit NUMA systems?
+	[ node0->zone0, node1->zone0, node0->zone1, node1->zone1 ]
 
-> and a zonelist_order option in the first place, and a zonelist instead
-> of a nodelist?
-> 
+So why to call in order (first case above):
 
-The zonelist ordering is still required to satisfy address-limited allocation
-requests. If it wasn't, free pages could be managed on a per-node basis.
+1  shrink_node(node0->zone0->node, allocation_classzone_idx /* to limit */)
+2  shrink_node(node0->zone1->node, allocation_classzone_idx /* to limit */)
+3  shrink_node(node1->zone0->node, allocation_classzone_idx /* to limit */)
+4  shrink_node(node1->zone1->node, allocation_classzone_idx /* to limit */)
 
-> I use zonelist_order=n on my NUMA systems and I always liked the LRU
-> to be per-node (despite it uses more CPU when you allocate from a
-> lower classzone as you need to skip the pages of the higher zones not
-> contained in the classzone_idx). So to be clear I'm not against this
-> work (I tend to believe there are more pros than cons), but to port
-> some code to the node model in the right way, I'd need to do too much
-> work myself on the compaction side.
-> 
+When in fact 1 and 2 are doing the exact same thing? And 3, 4 are
+doing the same thing as well? All it matters is the classzone_idx, the
+zonelist looks irrelevant and an unnecessary repetition.
 
-Compaction working across zones would be nice to have unconditionally.
-It's ortogonal to whether LRUs are managed per-node or not.
+It's possible I missed something in the code, perhaps I misunderstand
+how shrink_node is invoked through the zonelist.
 
-> Also note, the main security left that allows this change to work
-> stable is in the lowmem reserve ratio feature in the page allocator
-> that prevents lower classzones to be completely filled by non movable
-> allocations from higher classzones (i.e. pagetables). As there's no
-> priority anymore to start shrinking from the higher zone of the
-> classzone_idx of the allocation (especially effective logic if using
-> zonelist_order=z which happens to be the default, even though I almost
-> always use zonelist_order=n which in fact already behaved much closer
-> to the new behavior). The removal of the bias against the highest zone
-> to me is the biggest cons in terms of stability in the corner cases,
-> overall but I believe the security of the lowmem reserve ratio should
-> suffice.
-> 
+This zonelist vs nodelist issue however is orthogonal to the
+per-zone vs per-node compaction issue discussed earlier.
 
-It's expected that the lowmem reserve ratio will suffice with the corner
-case of lowmem-restricted allocations potentially having to sacn more.
+> On 64-bit, the default order is NODE. Are you using 32-bit NUMA systems?
 
-> I also expect this work to make negligible difference for those
-> systems where DMA32 and DMA zones don't exist or are tiny, as the
-> node:zone relation is practically already 1:1 there. I believe this
-> actually will help more in systems where the DMA32 zone is relevant if
-> compared to the total memory size (as long as there are not too many
-> DMA32 allocations from pci32 devices, and the zone exists just in
-> case, for an lowmem allocation once in a while). So this isn't a
-> change for the long run, it'll be more noticeable on low end systems
-> or highmem 32bit systems, and it's going to be a noop if you've got a
-> terabytes of RAM (perhaps some pointer dereference is avoided, but
-> that difference should get not measurable).
-> 
+Ah that changed in 3.16 but my grub cmdlines didn't change since
+then... Good that the default is =n for 64bit indeed.
 
-32-bit systems with large highmem zones are expected to be a rarity. It
-was a different story 10 years ago. A system with terabytes of RAM is
-not going to be 32-bit.
+> The zonelist ordering is still required to satisfy address-limited allocation
+> requests. If it wasn't, free pages could be managed on a per-node basis.
 
-> On a side note the compaction enabled node_reclaim that makes
-> node_reclaim fully effective with THP on, works better with
-> zonelist_order=z too, so it should work even better with the node
-> model that practically makes zonelist_order=z impossible to achieve
-> any longer (which also shows it was a bad default and it was good idea
-> to manually set it to =n :). It's just the compaction zone model that
-> forces me to write a for-each-zone loop that isn't ideal and it would
-> defeat the purpose of the node model as far as compaction is concerned.
-> 
+But you pass the node, not the zone, to the shrink_node function, the
+whole point I'm making is that the "address-limiting" is provided by
+the classzone_idx alone with your change, not by the zonelist anymore.
 
-Compacting across zones was/is a problem regardless of how the LRU is
-managed.
+static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
 
--- 
-Mel Gorman
-SUSE Labs
+There's no zone pointer in "scan control". There's the reclaim_idx
+(aka classzone_idx, would have been more clear to call it
+classzone_idx).
+
+Then when isolating you do:
+
+		if (page_zonenum(page) > sc->reclaim_idx) {
+
+Confirming the limiting factor comes from reclaim_idx
+(i.e. allocation_classzone_idx).
+
+Again I may be missing something in the code...
+
+> Compacting across zones was/is a problem regardless of how the LRU is
+> managed.
+
+It is a separate problem to make it work, but wanting to making
+compaction work node-wide is very much a side effect of shrink_node
+not going serially into zones but going node-wide at all times. Hence
+it doesn't make sense anymore to only compact a single zone before
+invoking shrink_node again.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
