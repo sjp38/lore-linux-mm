@@ -1,112 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B659C82F5F
-	for <linux-mm@kvack.org>; Fri, 19 Aug 2016 01:34:34 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id 4so96510961oih.2
-        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 22:34:34 -0700 (PDT)
-Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
-        by mx.google.com with ESMTPS id j17si2767268itj.15.2016.08.18.22.34.33
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C64FF82F5F
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2016 01:48:11 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id 4so97005156oih.2
+        for <linux-mm@kvack.org>; Thu, 18 Aug 2016 22:48:11 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id z68si2818245itd.12.2016.08.18.22.48.11
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 18 Aug 2016 22:34:33 -0700 (PDT)
-Received: from epcas5p2.samsung.com (unknown [182.195.41.40])
- by mailout1.samsung.com
- (Oracle Communications Messaging Server 7.0.5.31.0 64bit (built May  5 2014))
- with ESMTP id <0OC500QUR65K0O40@mailout1.samsung.com> for linux-mm@kvack.org;
- Fri, 19 Aug 2016 14:34:32 +0900 (KST)
-Message-id: <1341407574.7551.1471584870761.JavaMail.weblogic@epwas3p2>
-MIME-version: 1.0
-Subject: =?UTF-8?B?W1BBVENIIDAvNF0genN3YXA6IE9wdGltaXplIGNvbXByZXNz?=
- =?UTF-8?B?ZWQgcG9vbCBtZW1vcnkgdXRpbGl6YXRpb24=?=
-Reply-to: srividya.dr@samsung.com
-From: =?UTF-8?B?U3JpdmlkeWEgRGVzaXJlZGR5?= <srividya.dr@samsung.com>
-Date: Fri, 19 Aug 2016 05:34:30 +0000
-Content-type: multipart/related;
- boundary="----=_Part_7550_1288544446.1471584870761"
-References: 
- <CGME20160819053430epcms5p1287860bbf6376d25e569e5069fae0759@epcms5p1>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 18 Aug 2016 22:48:11 -0700 (PDT)
+Subject: Re: [PATCH v3] mm/slab: Improve performance of gathering slabinfo
+ stats
+References: <1471458050-29622-1-git-send-email-aruna.ramakrishna@oracle.com>
+ <20160818115218.GJ30162@dhcp22.suse.cz>
+From: aruna.ramakrishna@oracle.com
+Message-ID: <57B69D8F.5000101@oracle.com>
+Date: Thu, 18 Aug 2016 22:47:59 -0700
+MIME-Version: 1.0
+In-Reply-To: <20160818115218.GJ30162@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: penberg@kernel.org
-Cc: =?UTF-8?B?U3JpdmlkeWEgRGVzaXJlZGR5?= <srividya.dr@samsung.com>, sjenning@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, =?UTF-8?B?RGluYWthciBSZWRkeSBQYXRoaXJlZGR5?= <dinakar.p@samsung.com>, =?UTF-8?B?U1VORUVMIEtVTUFSIFNVUklNQU5J?= <suneel@samsung.com>, =?UTF-8?B?6rmA7KO87ZuI?= <juhunkim@samsung.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Kravetz <mike.kravetz@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
 
-------=_Part_7550_1288544446.1471584870761
-Content-Transfer-Encoding: base64
-Content-Type: text/plain; charset="utf-8"
+On 08/18/2016 04:52 AM, Michal Hocko wrote:
+> I am not opposing the patch (to be honest it is quite neat) but this
+> is buggering me for quite some time. Sorry for hijacking this email
+> thread but I couldn't resist. Why are we trying to optimize SLAB and
+> slowly converge it to SLUB feature-wise. I always thought that SLAB
+> should remain stable and time challenged solution which works reasonably
+> well for many/most workloads, while SLUB is an optimized implementation
+> which experiment with slightly different concepts that might boost the
+> performance considerably but might also surprise from time to time. If
+> this is not the case then why do we have both of them in the kernel. It
+> is a lot of code and some features need tweaking both while only one
+> gets testing coverage. So this is mainly a question for maintainers. Why
+> do we maintain both and what is the purpose of them.
 
-T24gMTcgQXVndXN0IDIwMTYgYXQgMTg6MDgsIFBla2thIEVuYmVyZyA8cGVuYmVyZ0BrZXJuZWwu
-b3JnPiB3cm90ZToNCj4gT24gV2VkLCBBdWcgMTcsIDIwMTYgYXQgMTowMyBQTSwgU3JpdmlkeWEg
-RGVzaXJlZGR5DQo+IDxzcml2aWR5YS5kckBzYW1zdW5nLmNvbT4gd3JvdGU6DQo+PiBUaGlzIHNl
-cmllcyBvZiBwYXRjaGVzIG9wdGltaXplIHRoZSBtZW1vcnkgdXRpbGl6ZWQgYnkgenN3YXAgZm9y
-IHN0b3JpbmcNCj4+IHRoZSBzd2FwcGVkIG91dCBwYWdlcy4NCj4+DQo+PiBac3dhcCBpcyBhIGNh
-Y2hlIHdoaWNoIGNvbXByZXNzZXMgdGhlIHBhZ2VzIHRoYXQgYXJlIGJlaW5nIHN3YXBwZWQgb3V0
-DQo+PiBhbmQgc3RvcmVzIHRoZW0gaW50byBhIGR5bmFtaWNhbGx5IGFsbG9jYXRlZCBSQU0tYmFz
-ZWQgbWVtb3J5IHBvb2wuDQo+PiBFeHBlcmltZW50cyBoYXZlIHNob3duIHRoYXQgYXJvdW5kIDEw
-LTE1JSBvZiBwYWdlcyBzdG9yZWQgaW4genN3YXAgYXJlDQo+PiBkdXBsaWNhdGVzIHdoaWNoIHJl
-c3VsdHMgaW4gMTAtMTIlIG1vcmUgUkFNIHJlcXVpcmVkIHRvIHN0b3JlIHRoZXNlDQo+PiBkdXBs
-aWNhdGUgY29tcHJlc3NlZCBwYWdlcy4gQXJvdW5kIDEwLTIwJSBvZiBwYWdlcyBzdG9yZWQgaW4g
-enN3YXANCj4+IGFyZSB6ZXJvLWZpbGxlZCBwYWdlcywgYnV0IHRoZXNlIHBhZ2VzIGFyZSBoYW5k
-bGVkIGFzIG5vcm1hbCBwYWdlcyBieQ0KPj4gY29tcHJlc3NpbmcgYW5kIGFsbG9jYXRpbmcgbWVt
-b3J5IGluIHRoZSBwb29sLg0KPj4NCj4+IFRoZSBmb2xsb3dpbmcgcGF0Y2gtc2V0IG9wdGltaXpl
-cyBtZW1vcnkgdXRpbGl6ZWQgYnkgenN3YXAgYnkgYXZvaWRpbmcgdGhlDQo+PiBzdG9yYWdlIG9m
-IGR1cGxpY2F0ZSBwYWdlcyBhbmQgemVyby1maWxsZWQgcGFnZXMgaW4genN3YXAgY29tcHJlc3Nl
-ZCBtZW1vcnkNCj4+IHBvb2wuDQo+Pg0KPj4gUGF0Y2ggMS80OiB6c3dhcDogU2hhcmUgenBvb2wg
-bWVtb3J5IG9mIGR1cGxpY2F0ZSBwYWdlcw0KPj4gVGhpcyBwYXRjaCBzaGFyZXMgY29tcHJlc3Nl
-ZCBwb29sIG1lbW9yeSBvZiB0aGUgZHVwbGljYXRlIHBhZ2VzLiBXaGVuIGEgbmV3DQo+PiBwYWdl
-IGlzIHJlcXVlc3RlZCBmb3Igc3dhcC1vdXQgdG8genN3YXA7IHNlYXJjaCBmb3IgYW4gaWRlbnRp
-Y2FsIHBhZ2UgaW4NCj4+IHRoZSBwYWdlcyBhbHJlYWR5IHN0b3JlZCBpbiB6c3dhcC4gSWYgYW4g
-aWRlbnRpY2FsIHBhZ2UgaXMgZm91bmQgdGhlbiBzaGFyZQ0KPj4gdGhlIGNvbXByZXNzZWQgcGFn
-ZSBkYXRhIG9mIHRoZSBpZGVudGljYWwgcGFnZSB3aXRoIHRoZSBuZXcgcGFnZS4gVGhpcw0KPj4g
-YXZvaWRzIGFsbG9jYXRpb24gb2YgbWVtb3J5IGluIHRoZSBjb21wcmVzc2VkIHBvb2wgZm9yIGEg
-ZHVwbGljYXRlIHBhZ2UuDQo+PiBUaGlzIGZlYXR1cmUgaXMgdGVzdGVkIG9uIGRldmljZXMgd2l0
-aCAxR0IsIDJHQiBhbmQgM0dCIFJBTSBieSBleGVjdXRpbmcNCj4+IHBlcmZvcm1hbmNlIHRlc3Qg
-YXQgbG93IG1lbW9yeSBjb25kaXRpb25zLiBBcm91bmQgMTUtMjAlIG9mIHRoZSBwYWdlcw0KPj4g
-c3dhcHBlZCBhcmUgZHVwbGljYXRlIG9mIHRoZSBwYWdlcyBleGlzdGluZyBpbiB6c3dhcCwgcmVz
-dWx0aW5nIGluIDE1JQ0KPj4gc2F2aW5nIG9mIHpzd2FwIG1lbW9yeSBwb29sIHdoZW4gY29tcGFy
-ZWQgdG8gdGhlIGJhc2VsaW5lIHZlcnNpb24uDQo+Pg0KPj4gVGVzdCBQYXJhbWV0ZXJzICAgICAg
-ICAgQmFzZWxpbmUgICAgV2l0aCBwYXRjaCAgSW1wcm92ZW1lbnQNCj4+IFRvdGFsIFJBTSAgICAg
-ICAgICAgICAgICAgICA5NTVNQiAgICAgICA5NTVNQg0KPj4gQXZhaWxhYmxlIFJBTSAgICAgICAg
-ICAgICAyNTRNQiAgICAgICAyNjlNQiAgICAgICAxNU1CDQo+PiBBdmcuIEFwcCBlbnRyeSB0aW1l
-ICAgICAyLjQ2OXNlYyAgICAyLjIwN3NlYyAgICA3JQ0KPj4gQXZnLiBBcHAgY2xvc2UgdGltZSAg
-ICAgMS4xNTFzZWMgICAgMS4wODVzZWMgICAgNiUNCj4+IEFwcHMgbGF1bmNoZWQgaW4gMXNlYyAg
-IDUgICAgICAgICAgICAgMTIgICAgICAgICAgICAgNw0KPj4NCj4+IFRoZXJlIGlzIGxpdHRsZSBv
-dmVyaGVhZCBpbiB6c3dhcCBzdG9yZSBmdW5jdGlvbiBkdWUgdG8gdGhlIHNlYXJjaA0KPj4gb3Bl
-cmF0aW9uIGZvciBmaW5kaW5nIGR1cGxpY2F0ZSBwYWdlcy4gSG93ZXZlciwgaWYgZHVwbGljYXRl
-IHBhZ2UgaXMNCj4+IGZvdW5kIGl0IHNhdmVzIHRoZSBjb21wcmVzc2lvbiBhbmQgYWxsb2NhdGlv
-biB0aW1lIG9mIHRoZSBwYWdlLiBUaGUgYXZlcmFnZQ0KPj4gb3ZlcmhlYWQgcGVyIHpzd2FwX2Zy
-b250c3dhcF9zdG9yZSgpIGZ1bmN0aW9uIGNhbGwgaW4gdGhlIGV4cGVyaW1lbnRhbA0KPj4gZGV2
-aWNlIGlzIDl1cy4gVGhlcmUgaXMgbm8gb3ZlcmhlYWQgaW4gY2FzZSBvZiB6c3dhcF9mcm9udHN3
-YXBfbG9hZCgpDQo+PiBvcGVyYXRpb24uDQo+Pg0KPj4gUGF0Y2ggMi80OiB6c3dhcDogRW5hYmxl
-L2Rpc2FibGUgc2hhcmluZyBvZiBkdXBsaWNhdGUgcGFnZXMgYXQgcnVudGltZQ0KPj4gVGhpcyBw
-YXRjaCBhZGRzIGEgbW9kdWxlIHBhcmFtZXRlciB0byBlbmFibGUgb3IgZGlzYWJsZSB0aGUgc2hh
-cmluZyBvZg0KPj4gZHVwbGljYXRlIHpzd2FwIHBhZ2VzIGF0IHJ1bnRpbWUuDQo+Pg0KPj4gUGF0
-Y2ggMy80OiB6c3dhcDogWmVyby1maWxsZWQgcGFnZXMgaGFuZGxpbmcNCj4+IFRoaXMgcGF0Y2gg
-Y2hlY2tzIGlmIGEgcGFnZSB0byBiZSBzdG9yZWQgaW4genN3YXAgaXMgYSB6ZXJvLWZpbGxlZCBw
-YWdlDQo+PiAoaS5lLiBjb250ZW50cyBvZiB0aGUgcGFnZSBhcmUgYWxsIHplcm9zKS4gSWYgc3Vj
-aCBwYWdlIGlzIGZvdW5kLA0KPj4gY29tcHJlc3Npb24gYW5kIGFsbG9jYXRpb24gb2YgbWVtb3J5
-IGZvciB0aGUgY29tcHJlc3NlZCBwYWdlIGlzIGF2b2lkZWQNCj4+IGFuZCBpbnN0ZWFkIHRoZSBw
-YWdlIGlzIGp1c3QgbWFya2VkIGFzIHplcm8tZmlsbGVkIHBhZ2UuDQo+PiBBbHRob3VnaCwgY29t
-cHJlc3NlZCBzaXplIG9mIGEgemVyby1maWxsZWQgcGFnZSB1c2luZyBMWk8gY29tcHJlc3NvciBp
-cw0KPj4gdmVyeSBsZXNzICg1MiBieXRlcyBpbmNsdWRpbmcgenN3YXBfaGVhZGVyKSwgdGhpcyBw
-YXRjaCBzYXZlcyBjb21wcmVzc2lvbg0KPj4gYW5kIGFsbG9jYXRpb24gdGltZSBkdXJpbmcgc3Rv
-cmUgb3BlcmF0aW9uIGFuZCBkZWNvbXByZXNzaW9uIHRpbWUgZHVyaW5nDQo+PiB6c3dhcCBsb2Fk
-IG9wZXJhdGlvbiBmb3IgemVyby1maWxsZWQgcGFnZXMuIEV4cGVyaW1lbnRzIGhhdmUgc2hvd24g
-dGhhdA0KPj4gYXJvdW5kIDEwLTIwJSBvZiBwYWdlcyBzdG9yZWQgaW4genN3YXAgYXJlIHplcm8t
-ZmlsbGVkLg0KPg0KPiBBcmVuJ3QgemVyby1maWxsZWQgcGFnZXMgYWxyZWFkeSBoYW5kbGVkIGJ5
-IHBhdGNoIDEvNCBhcyB0aGVpcg0KPiBjb250ZW50cyBtYXRjaD8gU28gdGhlIG92ZXJhbGwgbWVt
-b3J5IHNhdmluZyBpcyA1MiBieXRlcz8NCj4NCj4gLSBQZWtrYQ0KDQpUaGFua3MgZm9yIHRoZSBx
-dWljayByZXBseS4NCg0KWmVyby1maWxsZWQgcGFnZXMgY2FuIGFsc28gYmUgaGFuZGxlZCBieSBw
-YXRjaCAxLzQuIEl0IHBlcmZvcm1zDQpzZWFyY2hpbmcgb2YgYSBkdXBsaWNhdGUgcGFnZSBhbW9u
-ZyBleGlzdGluZyBzdG9yZWQgcGFnZXMgaW4genN3YXAuDQpJdHMgYmVlbiBvYnNlcnZlZCB0aGF0
-IGF2ZXJhZ2Ugc2VhcmNoIHRpbWUgdG8gaWRlbnRpZnkgZHVwbGljYXRlIHplcm8NCmZpbGxlZCBw
-YWdlcyh1c2luZyBwYXRjaCAxLzQpIGlzIGFsbW9zdCB0aHJpY2UgY29tcGFyZWQgdG8gY2hlY2tp
-bmcNCmFsbCBwYWdlcyBmb3IgemVyby1maWxsZWQuIA0KDQpBbHNvLCBpbiBjYXNlIG9mIHBhdGNo
-IDEvNCwgdGhlIHpzd2FwX2Zyb250c3dhcF9sb2FkKCkgb3BlcmF0aW9uIHJlcXVpcmVzDQp0aGUg
-Y29tcHJlc3NlZCB6ZXJvLWZpbGxlZCBwYWdlIHRvIGJlIGRlY29tcHJlc3NlZC4genN3YXBfZnJv
-bnRzd2FwX2xvYWQoKQ0KZnVuY3Rpb24gaW4gcGF0Y2ggMy80IGp1c3QgZmlsbHMgdGhlIHBhZ2Ug
-d2l0aCB6ZXJvcyB3aGlsZSBsb2FkaW5nIGENCnplcm8tZmlsbGVkIHBhZ2UgYW5kIGlzIGZhc3Rl
-ciB0aGFuIGRlY29tcHJlc3Npb24uDQoNCi0gU3JpdmlkeWE=
-------=_Part_7550_1288544446.1471584870761--
+Michal,
+
+Speaking about this patch specifically - I'm not trying to optimize SLAB 
+or make it more similar to SLUB. This patch is a bug fix for an issue 
+where the slowness of 'cat /proc/slabinfo' caused timeouts in other 
+drivers. While optimizing that flow, it became apparent (as Christoph 
+pointed out) that one could converge this patch to SLUB's current 
+implementation. Though I have not done that in this patch (because that 
+warrants a separate patch), I think it makes sense to converge where 
+appropriate, since they both do share some common data structures and 
+code already.
+
+Thanks,
+Aruna
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
