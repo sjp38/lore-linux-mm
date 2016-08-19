@@ -1,107 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8498F6B0069
-	for <linux-mm@kvack.org>; Fri, 19 Aug 2016 14:00:15 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id u81so22261860wmu.3
-        for <linux-mm@kvack.org>; Fri, 19 Aug 2016 11:00:15 -0700 (PDT)
-Received: from mail-wm0-x235.google.com (mail-wm0-x235.google.com. [2a00:1450:400c:c09::235])
-        by mx.google.com with ESMTPS id z14si7309991wjw.111.2016.08.19.11.00.13
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D6AE6B0038
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2016 15:07:08 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id ez1so93514771pab.1
+        for <linux-mm@kvack.org>; Fri, 19 Aug 2016 12:07:08 -0700 (PDT)
+Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
+        by mx.google.com with ESMTPS id y15si6292622pfb.247.2016.08.19.12.07.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Aug 2016 11:00:14 -0700 (PDT)
-Received: by mail-wm0-x235.google.com with SMTP id o80so52127324wme.1
-        for <linux-mm@kvack.org>; Fri, 19 Aug 2016 11:00:13 -0700 (PDT)
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 19 Aug 2016 12:07:06 -0700 (PDT)
+From: zijun_hu <zijun_hu@zoho.com>
+Subject: [RESEND PATCH 1/1] mm/vmalloc: fix align value calculation error
+Message-ID: <6a29a2c9-9c76-3493-f8e3-4b97700c7c82@zoho.com>
+Date: Sat, 20 Aug 2016 03:05:44 +0800
 MIME-Version: 1.0
-In-Reply-To: <1471543363.2581.30.camel@redhat.com>
-References: <20160817222921.GA25148@www.outflux.net> <1471530118.2581.13.camel@redhat.com>
- <CA+55aFxYHn+4jJP89Pv=mKSKeKR+zkuJbZc8TSj6kORDUD1Qqw@mail.gmail.com> <1471543363.2581.30.camel@redhat.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Fri, 19 Aug 2016 11:00:12 -0700
-Message-ID: <CAGXu5jLFbgEVhzpNNiSBAT-QoMYamx9o3dYqTJHhDihEtmuReA@mail.gmail.com>
-Subject: Re: [PATCH] usercopy: Skip multi-page bounds checking on SLOB
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Laura Abbott <labbott@fedoraproject.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, kernel test robot <xiaolong.ye@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: torvalds@linux-foundation.org, sfr@canb.auug.org.au, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Aug 18, 2016 at 11:02 AM, Rik van Riel <riel@redhat.com> wrote:
-> On Thu, 2016-08-18 at 10:42 -0700, Linus Torvalds wrote:
->> On Thu, Aug 18, 2016 at 7:21 AM, Rik van Riel <riel@redhat.com>
->> wrote:
->> >
->> > One big question I have for Linus is, do we want
->> > to allow code that does a higher order allocation,
->> > and then frees part of it in smaller orders, or
->> > individual pages, and keeps using the remainder?
->>
->> Yes. We've even had people do that, afaik. IOW, if you know you're
->> going to allocate 16 pages, you can try to do an order-4 allocation
->> and just use the 16 pages directly (but still as individual pages),
->> and avoid extra allocation costs (and to perhaps get better access
->> patterns if the allocation succeeds etc etc).
->>
->> That sounds odd, but it actually makes sense when you have the order-
->> 4
->> allocation as a optimistic path (and fall back to doing smaller
->> orders
->> when a big-order allocation fails). To make that *purely* just an
->> optimization, you need to let the user then treat that order-4
->> allocation as individual pages, and free them one by one etc.
->>
->> So I'm not sure anybody actually does that, but the buddy allocator
->> was partly designed for that case.
->
-> That makes sense.  With that in mind,
-> it would probably be better to just drop
-> all of the multi-page bounds checking
-> from the usercopy code, not conditionally
-> on SLOB.
->
-> Alternatively, we could turn the
-> __GFP_COMP flag into its negative, and
-> set it only on the code paths that do
-> what Linus describes (if anyone does
-> it).
->
-> A WARN_ON_ONCE in the page freeing code
-> could catch these cases, and point people
-> at exactly what to do if they trigger the
-> warning.
->
-> I am unclear no how to exclude legitimate
-> usercopies that are larger than PAGE_SIZE
-> from triggering warnings/errors, if we
-> cannot identify every buffer where larger
-> copies are legitimately going.
->
-> Having people rewrite their usercopy code
-> into loops that automatically avoids
-> triggering page crossing or >PAGE_SIZE
-> checks would be counterproductive, since
-> that might just opens up new attack surface.
+From: zijun_hu <zijun_hu@htc.com>
 
-Yeah, I agree: we want to have centralized bounds checking and if we
-offload >PAGE_SIZE copies to the callers, we're asking for a world of
-hurt.
+it causes double align requirement for __get_vm_area_node() if parameter
+size is power of 2 and VM_IOREMAP is set in parameter flags, for example
+size=0x10000 -> fls_long(0x10000)=17 -> align=0x20000
 
-One thing I'm expecting to add in the future is a const-sized
-copy_*_user API. This will give us a way to make exceptions to
-non-whitelisted slab entries, given that the bounds are const at
-compile time. It would behave more like get/put_user in that regard,
-but could still handle small exceptions to allocations that would have
-been otherwise disallowed (in the forthcoming
-HARDENED_USERCOPY_WHITELIST series).
+get_count_order_long() is implemented and used instead of fls_long() for
+fixing the bug, for example
+size=0x10000 -> get_count_order_long(0x10000)=16 -> align=0x10000
 
-If we encounter another case of a multi-page false positive, we can
-just entirely drop that check. For now, let's keep this removed for
-SLOB only, and move forward.
+Andrew Morton help to names the function get_count_order_long and place it
+near its counterpart get_count_order()
 
--Kees
+Signed-off-by: zijun_hu <zijun_hu@htc.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+ Hi Andrew,
 
+ please help to replace the following 6 patch series by this
+ patch to make commit logs clear kindly, this patch is resulted
+ from rebasing the 6 patch series into one, it maybe an alternative
+ for you to rebasing them manually
+ 
+ as we known, the 6 patch series fix the same issue together
+ they are applied in mmotm and linux-next tree currently, not
+ yet mainline
+
+ the 6 patch series are listed as follows
+ mm-vmalloc-fix-align-value-calculation-error.patch
+ mm-vmalloc-fix-align-value-calculation-error-fix.patch
+ mm-vmalloc-fix-align-value-calculation-error-v2.patch
+ mm-vmalloc-fix-align-value-calculation-error-v2-fix.patch
+ mm-vmalloc-fix-align-value-calculation-error-v2-fix-fix.patch
+ mm-vmalloc-fix-align-value-calculation-error-v2-fix-fix-fix.patch
+
+ include/linux/bitops.h | 36 ++++++++++++++++++++++++++----------
+ mm/vmalloc.c           |  8 ++++----
+ 2 files changed, 30 insertions(+), 14 deletions(-)
+
+diff --git a/include/linux/bitops.h b/include/linux/bitops.h
+index 299e76b59fe9..a83c822c35c2 100644
+--- a/include/linux/bitops.h
++++ b/include/linux/bitops.h
+@@ -65,16 +65,6 @@ static inline int get_bitmask_order(unsigned int count)
+ 	return order;	/* We could be slightly more clever with -1 here... */
+ }
+ 
+-static inline int get_count_order(unsigned int count)
+-{
+-	int order;
+-
+-	order = fls(count) - 1;
+-	if (count & (count - 1))
+-		order++;
+-	return order;
+-}
+-
+ static __always_inline unsigned long hweight_long(unsigned long w)
+ {
+ 	return sizeof(w) == 4 ? hweight32(w) : hweight64(w);
+@@ -191,6 +181,32 @@ static inline unsigned fls_long(unsigned long l)
+ 	return fls64(l);
+ }
+ 
++static inline int get_count_order(unsigned int count)
++{
++	int order;
++
++	order = fls(count) - 1;
++	if (count & (count - 1))
++		order++;
++	return order;
++}
++
++/**
++ * get_count_order_long - get order after rounding @l up to power of 2
++ * @l: parameter
++ *
++ * it is same as get_count_order() but with long type parameter
++ */
++static inline int get_count_order_long(unsigned long l)
++{
++	if (l == 0UL)
++		return -1;
++	else if (l & (l - 1UL))
++		return (int)fls_long(l);
++	else
++		return (int)fls_long(l) - 1;
++}
++
+ /**
+  * __ffs64 - find first set bit in a 64 bit word
+  * @word: The 64 bit word
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 91f44e78c516..80660a0f989b 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1359,14 +1359,14 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
+ 	struct vm_struct *area;
+ 
+ 	BUG_ON(in_interrupt());
+-	if (flags & VM_IOREMAP)
+-		align = 1ul << clamp_t(int, fls_long(size),
+-				       PAGE_SHIFT, IOREMAP_MAX_ORDER);
+-
+ 	size = PAGE_ALIGN(size);
+ 	if (unlikely(!size))
+ 		return NULL;
+ 
++	if (flags & VM_IOREMAP)
++		align = 1ul << clamp_t(int, get_count_order_long(size),
++				       PAGE_SHIFT, IOREMAP_MAX_ORDER);
++
+ 	area = kzalloc_node(sizeof(*area), gfp_mask & GFP_RECLAIM_MASK, node);
+ 	if (unlikely(!area))
+ 		return NULL;
 -- 
-Kees Cook
-Nexus Security
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
