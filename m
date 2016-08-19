@@ -1,236 +1,302 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 835806B0038
-	for <linux-mm@kvack.org>; Fri, 19 Aug 2016 18:40:32 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id ag5so100215311pad.2
-        for <linux-mm@kvack.org>; Fri, 19 Aug 2016 15:40:32 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id l85si7169488pfk.122.2016.08.19.15.40.31
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 19 Aug 2016 15:40:31 -0700 (PDT)
-Date: Fri, 19 Aug 2016 15:40:30 -0700
-From: akpm@linux-foundation.org
-Subject: mmotm 2016-08-19-15-39 uploaded
-Message-ID: <57b78ade.uh9bbdvXIBPH6KA2%akpm@linux-foundation.org>
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DB0086B0038
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2016 19:43:39 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id ez1so102030779pab.1
+        for <linux-mm@kvack.org>; Fri, 19 Aug 2016 16:43:39 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id e17si10586989pag.66.2016.08.19.16.43.38
+        for <linux-mm@kvack.org>;
+        Fri, 19 Aug 2016 16:43:38 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [RFC 00/11] THP swap: Delay splitting THP during swapping out
+References: <1470760673-12420-1-git-send-email-ying.huang@intel.com>
+	<20160817005905.GA5372@bbox>
+	<87inv0kv3r.fsf@yhuang-mobile.sh.intel.com>
+	<20160817050743.GB5372@bbox>
+	<1471454696.2888.94.camel@linux.intel.com>
+	<20160818083955.GA12296@bbox>
+	<8760qyq9jv.fsf@yhuang-mobile.sh.intel.com>
+	<20160819004908.GC12296@bbox>
+	<87vayxpgmq.fsf@yhuang-mobile.sh.intel.com>
+	<20160819064426.GA15064@bbox>
+Date: Fri, 19 Aug 2016 16:43:35 -0700
+In-Reply-To: <20160819064426.GA15064@bbox> (Minchan Kim's message of "Fri, 19
+	Aug 2016 15:44:26 +0900")
+Message-ID: <87r39kpbo8.fsf@yhuang-mobile.sh.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, broonie@kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The mm-of-the-moment snapshot 2016-08-19-15-39 has been uploaded to
+Minchan Kim <minchan@kernel.org> writes:
 
-   http://www.ozlabs.org/~akpm/mmotm/
+> On Thu, Aug 18, 2016 at 08:44:13PM -0700, Huang, Ying wrote:
+>> Minchan Kim <minchan@kernel.org> writes:
+>> 
+>> > Hi Huang,
+>> >
+>> > On Thu, Aug 18, 2016 at 10:19:32AM -0700, Huang, Ying wrote:
+>> >> Minchan Kim <minchan@kernel.org> writes:
+>> >> 
+>> >> > Hi Tim,
+>> >> >
+>> >> > On Wed, Aug 17, 2016 at 10:24:56AM -0700, Tim Chen wrote:
+>> >> >> On Wed, 2016-08-17 at 14:07 +0900, Minchan Kim wrote:
+>> >> >> > On Tue, Aug 16, 2016 at 07:06:00PM -0700, Huang, Ying wrote:
+>> >> >> > > 
+>> >> >> > >
+>> >> >> > > > 
+>> >> >> > > > I think Tim and me discussed about that a few weeks ago.
+>> >> >> > > I work closely with Tim on swap optimization.?This patchset is the part
+>> >> >> > > of our swap optimization plan.
+>> >> >> > > 
+>> >> >> > > > 
+>> >> >> > > > Please search below topics.
+>> >> >> > > > 
+>> >> >> > > > [1] mm: Batch page reclamation under shink_page_list
+>> >> >> > > > [2] mm: Cleanup - Reorganize the shrink_page_list code into smaller functions
+>> >> >> > > > 
+>> >> >> > > > It's different with yours which focused on THP swapping while the suggestion
+>> >> >> > > > would be more general if we can do so it's worth to try it, I think.
+>> >> >> > > I think the general optimization above will benefit both normal pages
+>> >> >> > > and THP at least for now.?And I think there are no hard conflict
+>> >> >> > > between those two patchsets.
+>> >> >> > If we could do general optimzation, I guess THP swap without splitting
+>> >> >> > would be more straight forward.
+>> >> >> > 
+>> >> >> > If we can reclaim batch a certain of pages all at once, it helps we can
+>> >> >> > do scan_swap_map(si, SWAP_HAS_CACHE, nr_pages). The nr_pages could be
+>> >> >> > greater or less than 512 pages. With that, scan_swap_map effectively
+>> >> >> > search empty swap slots from scan_map or free cluser list.
+>> >> >> > Then, needed part from your patchset is to just delay splitting of THP.
+>> >> >> > 
+>> >> >> > > 
+>> >> >> > > 
+>> >> >> > > The THP swap has more opportunity to be optimized, because we can batch
+>> >> >> > > 512 operations together more easily.?For full THP swap support, unmap a
+>> >> >> > > THP could be more efficient with only one swap count operation instead
+>> >> >> > > of 512, so do many other operations, such as add/remove from swap cache
+>> >> >> > > with multi-order radix tree etc.?And it will help memory fragmentation.
+>> >> >> > > THP can be kept after swapping out/in, need not to rebuild THP via
+>> >> >> > > khugepaged.
+>> >> >> > It seems you increased cluster size to 512 and search a empty cluster
+>> >> >> > for a THP swap. With that approach, I have a concern that once clusters
+>> >> >> > will be fragmented, THP swap support doesn't take benefit at all.
+>> >> >> > 
+>> >> >> > Why do we need a empty cluster for swapping out 512 pages?
+>> >> >> > IOW, below case could work for the goal.
+>> >> >> > 
+>> >> >> > A : Allocated slot
+>> >> >> > F : Free slot
+>> >> >> > 
+>> >> >> > cluster A?cluster B
+>> >> >> > AAAAFFFF?-?FFFFAAAA
+>> >> >> > 
+>> >> >> > That's one of the reason I suggested batch reclaim work first and
+>> >> >> > support THP swap based on it. With that, scan_swap_map can be aware of nr_pages
+>> >> >> > and selects right clusters.
+>> >> >> > 
+>> >> >> > With the approach, justfication of THP swap support would be easier, too.
+>> >> >> > IOW, I'm not sure how only THP swap support is valuable in real workload.
+>> >> >> > 
+>> >> >> > Anyways, that's just my two cents.
+>> >> >> 
+>> >> >> Minchan,
+>> >> >> 
+>> >> >> Scanning for contiguous slots that span clusters may take quite a
+>> >> >> long time under fragmentation, and may eventually fail. In that case the addition scan
+>> >> >> time overhead may go to waste and defeat the purpose of fast swapping of large page.
+>> >> >> 
+>> >> >> The empty cluster lookup on the other hand is very fast.
+>> >> >> We treat the empty cluster available case as an opportunity for fast path
+>> >> >> swap out of large page. Otherwise, we'll revert to the current
+>> >> >> slow path behavior of breaking into normal pages so there's no
+>> >> >> regression, and we may get speed up. We can be considerably faster when a lot of large
+>> >> >> pages are used. 
+>> >> >
+>> >> > I didn't mean we should search scan_swap_map firstly without peeking
+>> >> > free cluster but what I wanted was we might abstract it into
+>> >> > scan_swap_map.
+>> >> >
+>> >> > For example, if nr_pages is greather than the size of cluster, we can
+>> >> > get empty cluster first and nr_pages - sizeof(cluster) for other free
+>> >> > cluster or scanning of current CPU per-cpu cluster. If we cannot find
+>> >> > used slot during scanning, we can bail out simply. Then, although we
+>> >> > fail to get all* contiguous slots, we get a certain of contiguous slots
+>> >> > so it would be benefit for seq write and lock batching point of view
+>> >> > at the cost of a little scanning. And it's not specific to THP algorighm.
+>> >> 
+>> >> Firstly, if my understanding were correct, to batch the normal pages
+>> >> swapping out, the swap slots need not to be continuous.  But for the THP
+>> >> swap support, we need the continuous swap slots.  So I think the
+>> >> requirements are quite different between them.
+>> >
+>> > Hmm, I don't understand.
+>> >
+>> > Let's think about swap slot management layer point of view.
+>> > It doesn't need to take care of that a amount of batch request is caused
+>> > by a thp page or multiple normal pages.
+>> >
+>> > A matter is just that VM now asks multiple swap slots for seveal LRU-order
+>> > pages so swap slot management tries to allocate several slots in a lock.
+>> > Sure, it would be great if slots are consecutive fully because it means
+>> > it's fast big sequential write as well as readahead together ideally.
+>> > However, it would be better even if we didn't get consecutive slots because
+>> > we get muliple slots all at once by batch.
+>> >
+>> > It's not a THP specific requirement, I think.
+>> > Currenlty, SWAP_CLUSTER_MAX might be too small to get a benefit by
+>> > normal page batch but it could be changed later once we implement batching
+>> > logic nicely.
+>> 
+>> Consecutive or not may influence the performance of the swap slots
+>> allocation function greatly.  For example, there is some non-consecutive
+>> swap slots at the begin of the swap space, and some consecutive swap
+>> slots at the end of the swap space.  If the consecutive swap slots are
+>> needed, the function may need to scan from the begin to the end.  If
+>> non-consecutive swap slots are required, just return the swap slots at
+>> the begin of the swap space.
+>
+> Don't get me wrong. I never said consecutive swap slot allocation is
+> not important and should scan swap_map fully for searching consecutive
+> swap slot.
 
-mmotm-readme.txt says
+Sorry, I am confused.  For multiple normal page swapping,
+Non-consecutive allocation is important or not?  If both consecutive and
+non-consecutive allocation are important, how to balance between them?
+Restrict the scanning number?
 
-README for mm-of-the-moment:
+For the THP swap, consecutive is mandatory.  We need to add a parameter
+to specify that at least so that the allocator can try harder and use
+free cluster directly?
 
-http://www.ozlabs.org/~akpm/mmotm/
+For multiple normal pages swapping, exactly consecutive swap slots
+allocation isn't so important.  Just nearby enough should be OK for
+them.  For example in the same swap cluster, so that it can be processed
+in lower level disk hardware with high efficiency (same disk segment
+etc.).
 
-This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-more than once a week.
+> Both multiple normal page swap and a THP swap, consecutive swap slot
+> allocation is important so that it's a same requirement so I want to
+> abstract it regardless of THP swap.
+>
+>> 
+>> >> And with the current design of the swap space management, it is quite
+>> >> hard to implement allocating nr_pages continuous free swap slots.  To
+>> >> reduce the contention of sis->lock, even to scan one free swap slot, the
+>> >> sis->lock is unlocked during scanning.  When we scan nr_pages free swap
+>> >> slots, and there are no nr_pages continuous free swap slots, we need to
+>> >> scan from sis->lowest_bit to sis->highest_bit, and record the largest
+>> >> continuous free swap slots.  But when we lock sis->lock again to check,
+>> >> some swap slot inside the largest continuous free swap slots we found
+>> >> may be allocated by other processes.  So we may end up with a much
+>> >> smaller number of swap slots or we need to startover again.  So I think
+>> >> the simpler solution is to
+>> >> 
+>> >> - When a whole cluster is requested (for the THP), try to allocate a
+>> >>   free cluster.  Give up if there are no free clusters.
+>> >
+>> > One thing I'm afraid that it would consume free clusters very fast
+>> > if adjacent pages around a faulted one doesn't have same hottness/
+>> > lifetime. Once it happens, we can't get benefit any more.
+>> > IMO, it's too conservative and might be worse for the fragment point
+>> > of view.
+>> 
+>> It is possible.  But I think we should start from the simple solution
+>> firstly.  Instead of jumping to the perfect solution directly.
+>> Especially when the simple solution is a subset of the perfect solution.
+>> Do you agree?
+>
+> If simple solution works well and is hard to prove it's not bad than as-is,
+> I agree. But my concern is about that it would consume free clusters so fast
+> that it can affect badly for other workload.
 
-You will need quilt to apply these patches to the latest Linus release (4.x
-or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
-http://ozlabs.org/~akpm/mmotm/series
+If we allocate consecutive swap slots other than free clusters for the
+THP, the free clusters will be consumed quickly too.  Because not all
+sub-pages may be freed together.  The swap space will become fragmented
+anyway.  The situation may be better a little, but I don't think there
+will be huge difference here.  There may be situations that 2
+consecutive non-free clusters to have 512 consecutive swap slots, but I
+don't think that will be many.
 
-The file broken-out.tar.gz contains two datestamp files: .DATE and
-.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
-followed by the base kernel version against which this patch series is to
-be applied.
+I think we need some other ways to deal with fragmented swap problem.
+For example, one way is to have a list for not fully used cluster list
+and use that for per_cpu cluster too.  Another way is starting to
+reclaim swap space during swapping in if the swap space becomes
+fragmented.  And swapping in 2M page together and free the cluster
+backing it could be a good way to help fragmentation.
 
-This tree is partially included in linux-next.  To see which patches are
-included in linux-next, consult the `series' file.  Only the patches
-within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
-linux-next.
+And I think, my change here will not trigger regression.  For swapping
+out the THP, current code has almost the same behavior as for free
+clusters with my code.  The percpu cluster will be used up, then next
+free cluster is used.  So for each THP, one free cluster will be
+consumed.
 
-A git tree which contains the memory management portion of this tree is
-maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-by Michal Hocko.  It contains the patches which are between the
-"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
-file, http://www.ozlabs.org/~akpm/mmotm/series.
+>> There are some other difficulties not to use the swap cluster to hold
+>> the THP swapped out for the full THP swap support (without splitting).
+>> 
+>> The THP could be mapped in both PMD and PTE.  After the THP is swapped
+>> out.  There may be swap entry in PMD and PTE too.  If a non-head PTE is
+>> accessed, how do we know where is the first swap slot for the THP, so
+>> that we can swap in the whole THP?
+>
+> You mean you want to swapin 2M pages all at once? Hmm, I'm not sure
+> it's a good idea. We don't have any evidence 512 pages have same time
+> locality. They were just LRU in-order due to split implementation,
+> not time locality. A thing we can bet is any processes sharing the THP
+> doesn't touch a subpage in 512 pages so it's really *cold*.
+> For such cold 512 page swap-in, I am really not sure.
 
+On a system with /sys/kernel/mm/transparent_hugepage/enabled set to
+always, most anonymous pages could be THP.  It could be helpful to swap
+out/in THP together.  Do you think so?  And because it is 2M sequential
+read, the performance is good.  Only more memory may be needed, but you
+use more memory if you use THP anyway.
 
-A full copy of the full kernel tree with the linux-next and mmotm patches
-already applied is available through git within an hour of the mmotm
-release.  Individual mmotm releases are tagged.  The master branch always
-points to the latest release, so it's constantly rebasing.
+My point is, this depends on the workload.  Swapping out/in THP could
+benefit quite some workloads.  We may provide a choice for the users to
+turn off it when necessary.  But I don't think we should make it
+impossible at all.  Do you agree?
+ 
+>> We can have a flag in cluster_info->flag to mark whether the swap
+>> cluster backing a THP.  So swap in readahead can avoid to read ahead the
+>> THP, or it can read ahead the whole THP instead of just several
+>> sub-pages of the THP.
+>> 
+>> And if we use one swap cluster for each THP, we can use cluster_info->data
+>> to hold compound map number.  That is very convenient.
+>
+> Huang,
+>
+> If you think my points are enough valid, just continue your work
+> regardless of my comment. I don't want to waste your time if it helps
+> your workload really. And I will defer the decision to other MM people.
 
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
+I think your comments are good for me.  Thanks a lot for your comments.
+We may have some different idea about requirement.  But I think the
+discussion is good.  If I give up swapping in 2M THP as a whole.  You
+solution looks good for me now.  We can use cluster_info->data to
+accelerate scanning, and we can give up scanning after some trying to
+avoid too much lock contention.
 
-To develop on top of mmotm git:
+> What I just wanted is to make swap batch for normal pages first and
+> then support THP swap based upon it because normal page batching would
+> more general optimization for us and I thought it will make your work
+> more simple.
 
-  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-  $ git remote update mmotm
-  $ git checkout -b topic mmotm/master
-  <make changes, commit>
-  $ git send-email mmotm/master.. [...]
+The problem is that swapping in 2M THP requirement makes it hard for the
+THP swap support to use the swap allocation mechanism for normal pages
+swapping batching.  But there may be some other places that the THP swap
+can take advantage of.  So I think it may be more reasonable for the
+normal pages swapping optimization go firstly.  But we can discuss the
+basic design of the THP swapping.  Do you agree?  For example, whether
+supporting swapping in 2M THP as a whole?  If so, how to do it?
 
-To rebase a branch with older patches to a new mmotm release:
-
-  $ git remote update mmotm
-  $ git rebase --onto mmotm/master <topic base> topic
-
-
-
-
-The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
-contains daily snapshots of the -mm tree.  It is updated more frequently
-than mmotm, and is untested.
-
-A git copy of this tree is available at
-
-	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
-
-and use of this tree is similar to
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
-
-
-This mmotm tree contains the following patches against 4.8-rc2:
-(patches marked "*" will be included in linux-next)
-
-  origin.patch
-  arch-alpha-kernel-systblss-remove-debug-check.patch
-  i-need-old-gcc.patch
-* byteswap-dont-use-__builtin_bswap-with-sparse.patch
-* get_maintainer-quiet-noisy-implicit-f-vcs_file_exists-checking.patch
-* sysctl-handle-error-writing-uint_max-to-u32-fields.patch
-* sysctl-handle-error-writing-uint_max-to-u32-fields-checkpatch-fixes.patch
-* sysctl-handle-error-writing-uint_max-to-u32-fields-checkpatch-fixes-checkpatch-fixes.patch
-* stackdepot-fix-mempolicy-use-after-free.patch
-* soft_dirty-fix-soft_dirty-during-thp-split.patch
-* mm-page_alloc-replace-set_dma_reserve-to-set_memory_reserve.patch
-* fadump-register-the-memory-reserved-by-fadump.patch
-* mm-slab-improve-performance-of-gathering-slabinfo-stats.patch
-* kthread-rename-probe_kthread_data-to-kthread_probe_data.patch
-* kthread-kthread-worker-api-cleanup.patch
-* kthread-smpboot-do-not-park-in-kthread_create_on_cpu.patch
-* kthread-allow-to-call-__kthread_create_on_node-with-va_list-args.patch
-* kthread-add-kthread_create_worker.patch
-* kthread-add-kthread_destroy_worker.patch
-* kthread-detect-when-a-kthread-work-is-used-by-more-workers.patch
-* kthread-initial-support-for-delayed-kthread-work.patch
-* kthread-allow-to-cancel-kthread-work.patch
-* kthread-allow-to-modify-delayed-kthread-work.patch
-* kthread-better-support-freezable-kthread-workers.patch
-* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
-* kbuild-simpler-generation-of-assembly-constants.patch
-* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
-* kernel-watchdog-use-nmi-registers-snapshot-in-hardlockup-handler.patch
-  mm.patch
-* mm-oom-deduplicate-victim-selection-code-for-memcg-and-global-oom.patch
-* mm-zsmalloc-add-trace-events-for-zs_compact.patch
-* mm-zsmalloc-add-per-class-compact-trace-event.patch
-* mm-vmalloc-fix-align-value-calculation-error.patch
-* mm-vmalloc-fix-align-value-calculation-error-fix.patch
-* mm-vmalloc-fix-align-value-calculation-error-v2.patch
-* mm-vmalloc-fix-align-value-calculation-error-v2-fix.patch
-* mm-vmalloc-fix-align-value-calculation-error-v2-fix-fix.patch
-* mm-vmalloc-fix-align-value-calculation-error-v2-fix-fix-fix.patch
-* mm-memcontrol-add-sanity-checks-for-memcg-idref-on-get-put.patch
-* mm-oom_killc-fix-task_will_free_mem-comment.patch
-* mm-compaction-make-whole_zone-flag-ignore-cached-scanner-positions.patch
-* mm-compaction-make-whole_zone-flag-ignore-cached-scanner-positions-checkpatch-fixes.patch
-* mm-compaction-cleanup-unused-functions.patch
-* mm-compaction-rename-compact_partial-to-compact_success.patch
-* mm-compaction-dont-recheck-watermarks-after-compact_success.patch
-* mm-compaction-add-the-ultimate-direct-compaction-priority.patch
-* mm-compaction-add-the-ultimate-direct-compaction-priority-fix.patch
-* mm-compaction-more-reliably-increase-direct-compaction-priority.patch
-* mm-compaction-use-correct-watermark-when-checking-compaction-success.patch
-* mm-compaction-create-compact_gap-wrapper.patch
-* mm-compaction-create-compact_gap-wrapper-fix.patch
-* mm-compaction-use-proper-alloc_flags-in-__compaction_suitable.patch
-* mm-compaction-require-only-min-watermarks-for-non-costly-orders.patch
-* mm-compaction-require-only-min-watermarks-for-non-costly-orders-fix.patch
-* mm-vmscan-make-compaction_ready-more-accurate-and-readable.patch
-* mem-hotplug-fix-node-spanned-pages-when-we-have-a-movable-node.patch
-* mm-fix-set-pageblock-migratetype-in-deferred-struct-page-init.patch
-* mm-vmscan-get-rid-of-throttle_vm_writeout.patch
-* mm-debug_pagealloc-clean-up-guard-page-handling-code.patch
-* mm-debug_pagealloc-dont-allocate-page_ext-if-we-dont-use-guard-page.patch
-* mm-page_owner-move-page_owner-specific-function-to-page_ownerc.patch
-* mm-page_ext-rename-offset-to-index.patch
-* mm-page_ext-support-extra-space-allocation-by-page_ext-user.patch
-* mm-page_owner-dont-define-fields-on-struct-page_ext-by-hard-coding.patch
-* do_generic_file_read-fail-immediately-if-killed.patch
-* mm-kmemleak-avoid-using-__va-on-addresses-that-dont-have-a-lowmem-mapping.patch
-* mm-pagewalk-fix-the-comment-for-test_walk.patch
-* mm-page_owner-align-with-pageblock_nr-pages.patch
-* mm-walk-the-zone-in-pageblock_nr_pages-steps.patch
-* proc-much-faster-proc-vmstat.patch
-* proc-faster-proc-status.patch
-* seq-proc-modify-seq_put_decimal_ll-to-take-a-const-char-not-char.patch
-* seq-proc-modify-seq_put_decimal_ll-to-take-a-const-char-not-char-fix.patch
-* meminfo-break-apart-a-very-long-seq_printf-with-ifdefs.patch
-* proc-relax-proc-tid-timerslack_ns-capability-requirements.patch
-* proc-add-lsm-hook-checks-to-proc-tid-timerslack_ns.patch
-* min-max-remove-sparse-warnings-when-theyre-nested.patch
-* cred-simpler-1d-supplementary-groups.patch
-* console-dont-prefer-first-registered-if-dt-specifies-stdout-path.patch
-* radix-tree-slot-can-be-null-in-radix_tree_next_slot.patch
-* radix-tree-tests-add-iteration-test.patch
-* radix-tree-tests-properly-initialize-mutex.patch
-* lib-add-crc64-ecma-module.patch
-* compat-remove-compat_printk.patch
-* autofs-fix-typos-in-documentation-filesystems-autofs4txt.patch
-* autofs-drop-unnecessary-extern-in-autofs_ih.patch
-* autofs-test-autofs-versions-first-on-sb-initialization.patch
-* autofs-fix-autofs4_fill_super-error-exit-handling.patch
-* autofs-add-warn_on1-for-non-dir-link-inode-case.patch
-* autofs-remove-ino-free-in-autofs4_dir_symlink.patch
-* autofs-use-autofs4_free_ino-to-kfree-dentry-data.patch
-* autofs-remove-obsolete-sb-fields.patch
-* autofs-dont-fail-to-free_dev_ioctlparam.patch
-* autofs-remove-autofs_devid_len.patch
-* autofs-fix-documentation-regarding-devid-on-ioctl.patch
-* autofs-update-struct-autofs_dev_ioctl-in-documentation.patch
-* autofs-fix-pr_debug-message.patch
-* autofs-fix-dev-ioctl-number-range-check.patch
-* autofs-add-autofs_dev_ioctl_version-for-autofs_dev_ioctl_version_cmd.patch
-* autofs-fix-print-format-for-ioctl-warning-message.patch
-* autofs-move-inclusion-of-linux-limitsh-to-uapi.patch
-* autofs4-move-linux-auto_dev-ioctlh-to-uapi-linux.patch
-* kdump-vmcoreinfo-report-actual-value-of-phys_base.patch
-* rapidio-rio_cm-use-memdup_user-instead-of-duplicating-code.patch
-* random-simplify-api-for-random-address-requests.patch
-* x86-use-simpler-api-for-random-address-requests.patch
-* arm-use-simpler-api-for-random-address-requests.patch
-* arm64-use-simpler-api-for-random-address-requests.patch
-* tile-use-simpler-api-for-random-address-requests.patch
-* unicore32-use-simpler-api-for-random-address-requests.patch
-* random-remove-unused-randomize_range.patch
-* dma-mapping-introduce-the-dma_attr_no_warn-attribute.patch
-* powerpc-implement-the-dma_attr_no_warn-attribute.patch
-* nvme-use-the-dma_attr_no_warn-attribute.patch
-* x86-panic-replace-smp_send_stop-with-kdump-friendly-version-in-panic-path.patch
-* mips-panic-replace-smp_send_stop-with-kdump-friendly-version-in-panic-path.patch
-* relay-use-per-cpu-constructs-for-the-relay-channel-buffer-pointers.patch
-* config-android-remove-config_ipv6_privacy.patch
-* ipc-semc-fix-complex_count-vs-simple-op-race.patch
-* ipc-msg-implement-lockless-pipelined-wakeups.patch
-* ipc-msg-batch-queue-sender-wakeups.patch
-* ipc-msg-make-ss_wakeup-kill-arg-boolean.patch
-* ipc-msg-lockless-security-checks-for-msgsnd.patch
-* ipc-msg-avoid-waking-sender-upon-full-queue.patch
-* ipc-msg-avoid-waking-sender-upon-full-queue-checkpatch-fixes.patch
-  linux-next.patch
-  linux-next-git-rejects.patch
-* drivers-net-wireless-intel-iwlwifi-dvm-calibc-fix-min-warning.patch
-* include-linux-mlx5-deviceh-kill-build_bug_ons.patch
-* kdump-vmcoreinfo-report-memory-sections-virtual-addresses.patch
-  mm-add-strictlimit-knob-v2.patch
-  make-sure-nobodys-leaking-resources.patch
-  releasing-resources-with-children.patch
-  make-frame_pointer-default=y.patch
-  kernel-forkc-export-kernel_thread-to-modules.patch
-  mutex-subsystem-synchro-test-module.patch
-  slab-leaks3-default-y.patch
-  add-debugging-aid-for-memory-initialisation-problems.patch
-  workaround-for-a-pci-restoring-bug.patch
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
