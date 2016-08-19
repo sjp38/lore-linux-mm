@@ -1,39 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C260F6B0253
-	for <linux-mm@kvack.org>; Fri, 19 Aug 2016 09:12:26 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id u81so17671344wmu.3
-        for <linux-mm@kvack.org>; Fri, 19 Aug 2016 06:12:26 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a64si3954743wmc.86.2016.08.19.06.12.23
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 170786B0038
+	for <linux-mm@kvack.org>; Fri, 19 Aug 2016 09:14:52 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id f14so128105163ioj.2
+        for <linux-mm@kvack.org>; Fri, 19 Aug 2016 06:14:52 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0105.outbound.protection.outlook.com. [104.47.0.105])
+        by mx.google.com with ESMTPS id g3si3984366oia.8.2016.08.19.06.14.50
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 19 Aug 2016 06:12:23 -0700 (PDT)
-Subject: Re: [PATCH v4 3/5] mm/cma: remove ALLOC_CMA
-References: <1470724759-855-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1470724759-855-4-git-send-email-iamjoonsoo.kim@lge.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <2c33b4f8-b347-9554-f2b9-4c582130ab2d@suse.cz>
-Date: Fri, 19 Aug 2016 15:12:19 +0200
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 19 Aug 2016 06:14:50 -0700 (PDT)
+Subject: Re: [PATCH 1/1] soft_dirty: fix soft_dirty during THP split
+References: <1471610515-30229-1-git-send-email-aarcange@redhat.com>
+ <1471610515-30229-2-git-send-email-aarcange@redhat.com>
+From: Pavel Emelyanov <xemul@virtuozzo.com>
+Message-ID: <57B706E6.70507@virtuozzo.com>
+Date: Fri, 19 Aug 2016 16:17:26 +0300
 MIME-Version: 1.0
-In-Reply-To: <1470724759-855-4-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <1471610515-30229-2-git-send-email-aarcange@redhat.com>
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Andrea Arcangeli <aarcange@redhat.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 
-On 08/09/2016 08:39 AM, js1304@gmail.com wrote:
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->
-> Now, all reserved pages for CMA region are belong to the ZONE_CMA
-> and it only serves for GFP_HIGHUSER_MOVABLE. Therefore, we don't need to
-> consider ALLOC_CMA at all.
->
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On 08/19/2016 03:41 PM, Andrea Arcangeli wrote:
+> Transfer the soft_dirty from pmd to pte during THP splits.
+> 
+> This fix avoids losing the soft_dirty bit and avoids userland memory
+> corruption in the checkpoint.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Nasty :( Thanks for catching this!
+
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+
+Acked-by: Pavel Emelyanov <xemul@virtuozzo.com>
+
+> ---
+>  mm/huge_memory.c | 7 ++++++-
+>  1 file changed, 6 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index b9570b5..cb95a83 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -1512,7 +1512,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+>  	struct page *page;
+>  	pgtable_t pgtable;
+>  	pmd_t _pmd;
+> -	bool young, write, dirty;
+> +	bool young, write, dirty, soft_dirty;
+>  	unsigned long addr;
+>  	int i;
+>  
+> @@ -1546,6 +1546,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+>  	write = pmd_write(*pmd);
+>  	young = pmd_young(*pmd);
+>  	dirty = pmd_dirty(*pmd);
+> +	soft_dirty = pmd_soft_dirty(*pmd);
+>  
+>  	pmdp_huge_split_prepare(vma, haddr, pmd);
+>  	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
+> @@ -1562,6 +1563,8 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+>  			swp_entry_t swp_entry;
+>  			swp_entry = make_migration_entry(page + i, write);
+>  			entry = swp_entry_to_pte(swp_entry);
+> +			if (soft_dirty)
+> +				entry = pte_swp_mksoft_dirty(entry);
+>  		} else {
+>  			entry = mk_pte(page + i, vma->vm_page_prot);
+>  			entry = maybe_mkwrite(entry, vma);
+> @@ -1569,6 +1572,8 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+>  				entry = pte_wrprotect(entry);
+>  			if (!young)
+>  				entry = pte_mkold(entry);
+> +			if (soft_dirty)
+> +				entry = pte_mksoft_dirty(entry);
+>  		}
+>  		if (dirty)
+>  			SetPageDirty(page + i);
+> .
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
