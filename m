@@ -1,164 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A3236B0253
-	for <linux-mm@kvack.org>; Sat, 20 Aug 2016 04:00:25 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id q83so181792982iod.0
-        for <linux-mm@kvack.org>; Sat, 20 Aug 2016 01:00:25 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0103.hostedemail.com. [216.40.44.103])
-        by mx.google.com with ESMTPS id l66si11295976iof.252.2016.08.20.01.00.25
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 20 Aug 2016 01:00:25 -0700 (PDT)
-From: Joe Perches <joe@perches.com>
-Subject: [PATCH 2/2] proc: task_mmu: Reduce output processing cpu time
-Date: Sat, 20 Aug 2016 01:00:17 -0700
-Message-Id: <2c1ea0d8f35fa5ddea477369b273d6d91c5bf2e2.1471679737.git.joe@perches.com>
-In-Reply-To: <20160820072927.GA23645@dhcp22.suse.cz>
-References: <20160820072927.GA23645@dhcp22.suse.cz>
-In-Reply-To: <cover.1471679737.git.joe@perches.com>
-References: <cover.1471679737.git.joe@perches.com>
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C01A66B0069
+	for <linux-mm@kvack.org>; Sun, 21 Aug 2016 11:34:13 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id u81so45634633wmu.3
+        for <linux-mm@kvack.org>; Sun, 21 Aug 2016 08:34:13 -0700 (PDT)
+Received: from 1wt.eu (wtarreau.pck.nerim.net. [62.212.114.60])
+        by mx.google.com with ESMTP id 190si12319001wmm.89.2016.08.21.08.34.11
+        for <linux-mm@kvack.org>;
+        Sun, 21 Aug 2016 08:34:12 -0700 (PDT)
+From: Willy Tarreau <w@1wt.eu>
+Subject: [PATCH 3.10 037/180] x86/mm: Add barriers and document switch_mm()-vs-flush synchronization
+Date: Sun, 21 Aug 2016 17:29:27 +0200
+Message-Id: <1471793510-13022-38-git-send-email-w@1wt.eu>
+In-Reply-To: <1471793510-13022-1-git-send-email-w@1wt.eu>
+References: <1471793510-13022-1-git-send-email-w@1wt.eu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jann Horn <jann@thejh.net>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, stable@vger.kernel.org
+Cc: Andy Lutomirski <luto@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Luis Henriques <luis.henriques@canonical.com>, Charles Williams <ciwillia@brocade.com>, Willy Tarreau <w@1wt.eu>
 
-Use the new __seq_open_private_buffer to estimate the final
-output /proc/<pid>/smaps filesize to reduce the number of
-reallocations of overflowed buffers.
+From: Andy Lutomirski <luto@kernel.org>
 
-Use a simpler single-line function to emit various values in kB.
+commit 71b3c126e61177eb693423f2e18a1914205b165e upstream.
 
-Signed-off-by: Joe Perches <joe@perches.com>
+When switch_mm() activates a new PGD, it also sets a bit that
+tells other CPUs that the PGD is in use so that TLB flush IPIs
+will be sent.  In order for that to work correctly, the bit
+needs to be visible prior to loading the PGD and therefore
+starting to fill the local TLB.
+
+Document all the barriers that make this work correctly and add
+a couple that were missing.
+
+CVE-2016-2069
+
+Signed-off-by: Andy Lutomirski <luto@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andy Lutomirski <luto@amacapital.net>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-mm@kvack.org
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+[ luis: backported to 3.16:
+  - dropped N/A comment in flush_tlb_mm_range()
+  - adjusted context ]
+Signed-off-by: Luis Henriques <luis.henriques@canonical.com>
+[ciwillia@brocade.com: backported to 3.10: adjusted context]
+Signed-off-by: Charles (Chas) Williams <ciwillia@brocade.com>
+Signed-off-by: Willy Tarreau <w@1wt.eu>
 ---
- fs/proc/task_mmu.c | 94 ++++++++++++++++++++++++++++--------------------------
- 1 file changed, 48 insertions(+), 46 deletions(-)
+ arch/x86/include/asm/mmu_context.h | 32 +++++++++++++++++++++++++++++++-
+ arch/x86/mm/tlb.c                  | 24 +++++++++++++++++++++---
+ 2 files changed, 52 insertions(+), 4 deletions(-)
 
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 187d84e..170509b 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -224,19 +224,21 @@ static void m_stop(struct seq_file *m, void *v)
- static int proc_maps_open(struct inode *inode, struct file *file,
- 			const struct seq_operations *ops, int psize)
- {
--	struct proc_maps_private *priv = __seq_open_private(file, ops, psize);
-+	struct proc_maps_private *priv;
-+	struct mm_struct *mm;
-+
-+	mm = proc_mem_open(inode, PTRACE_MODE_READ);
-+	if (IS_ERR(mm))
-+		return PTR_ERR(mm);
+diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
+index be12c53..c0d2f6b 100644
+--- a/arch/x86/include/asm/mmu_context.h
++++ b/arch/x86/include/asm/mmu_context.h
+@@ -42,7 +42,32 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+ #endif
+ 		cpumask_set_cpu(cpu, mm_cpumask(next));
  
-+	priv = __seq_open_private_bufsize(file, ops, psize,
-+					  mm && mm->map_count ?
-+					  mm->map_count * 0x300 : PAGE_SIZE);
- 	if (!priv)
- 		return -ENOMEM;
+-		/* Re-load page tables */
++		/*
++		 * Re-load page tables.
++		 *
++		 * This logic has an ordering constraint:
++		 *
++		 *  CPU 0: Write to a PTE for 'next'
++		 *  CPU 0: load bit 1 in mm_cpumask.  if nonzero, send IPI.
++		 *  CPU 1: set bit 1 in next's mm_cpumask
++		 *  CPU 1: load from the PTE that CPU 0 writes (implicit)
++		 *
++		 * We need to prevent an outcome in which CPU 1 observes
++		 * the new PTE value and CPU 0 observes bit 1 clear in
++		 * mm_cpumask.  (If that occurs, then the IPI will never
++		 * be sent, and CPU 0's TLB will contain a stale entry.)
++		 *
++		 * The bad outcome can occur if either CPU's load is
++		 * reordered before that CPU's store, so both CPUs much
++		 * execute full barriers to prevent this from happening.
++		 *
++		 * Thus, switch_mm needs a full barrier between the
++		 * store to mm_cpumask and any operation that could load
++		 * from next->pgd.  This barrier synchronizes with
++		 * remote TLB flushers.  Fortunately, load_cr3 is
++		 * serializing and thus acts as a full barrier.
++		 *
++		 */
+ 		load_cr3(next->pgd);
  
- 	priv->inode = inode;
--	priv->mm = proc_mem_open(inode, PTRACE_MODE_READ);
--	if (IS_ERR(priv->mm)) {
--		int err = PTR_ERR(priv->mm);
--
--		seq_release_private(inode, file);
--		return err;
--	}
-+	priv->mm = mm;
+ 		/* Stop flush ipis for the previous mm */
+@@ -65,10 +90,15 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+ 			 * schedule, protecting us from simultaneous changes.
+ 			 */
+ 			cpumask_set_cpu(cpu, mm_cpumask(next));
++
+ 			/*
+ 			 * We were in lazy tlb mode and leave_mm disabled
+ 			 * tlb flush IPI delivery. We must reload CR3
+ 			 * to make sure to use no freed page tables.
++			 *
++			 * As above, this is a barrier that forces
++			 * TLB repopulation to be ordered after the
++			 * store to mm_cpumask.
+ 			 */
+ 			load_cr3(next->pgd);
+ 			load_LDT_nolock(&next->context);
+diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+index 282375f..c26b610 100644
+--- a/arch/x86/mm/tlb.c
++++ b/arch/x86/mm/tlb.c
+@@ -149,7 +149,9 @@ void flush_tlb_current_task(void)
  
- 	return 0;
- }
-@@ -721,6 +723,25 @@ void __weak arch_show_smap(struct seq_file *m, struct vm_area_struct *vma)
- {
- }
+ 	preempt_disable();
  
-+static void show_val_kb(struct seq_file *m, const char *s, unsigned long num)
-+{
-+	char v[32];
-+	static const char blanks[7] = {' ', ' ', ' ', ' ',' ', ' ', ' '};
-+	int len;
++	/* This is an implicit full barrier that synchronizes with switch_mm. */
+ 	local_flush_tlb();
 +
-+	len = num_to_str(v, sizeof(v), num >> 10);
+ 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
+ 		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
+ 	preempt_enable();
+@@ -188,11 +190,19 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+ 	unsigned act_entries, tlb_entries = 0;
+ 
+ 	preempt_disable();
+-	if (current->active_mm != mm)
++	if (current->active_mm != mm) {
++		/* Synchronize with switch_mm. */
++		smp_mb();
 +
-+	seq_write(m, s, 16);
-+
-+	if (len > 0) {
-+		if (len < 8)
-+			seq_write(m, blanks, 8 - len);
-+
-+		seq_write(m, v, len);
+ 		goto flush_all;
 +	}
-+	seq_write(m, " kB\n", 4);
-+}
+ 
+ 	if (!current->mm) {
+ 		leave_mm(smp_processor_id());
 +
- static int show_smap(struct seq_file *m, void *v, int is_pid)
- {
- 	struct vm_area_struct *vma = v;
-@@ -765,44 +786,25 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
++		/* Synchronize with switch_mm. */
++		smp_mb();
++
+ 		goto flush_all;
+ 	}
  
- 	show_map_vma(m, vma, is_pid);
+@@ -242,10 +252,18 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)
+ 	preempt_disable();
  
--	seq_printf(m,
--		   "Size:           %8lu kB\n"
--		   "Rss:            %8lu kB\n"
--		   "Pss:            %8lu kB\n"
--		   "Shared_Clean:   %8lu kB\n"
--		   "Shared_Dirty:   %8lu kB\n"
--		   "Private_Clean:  %8lu kB\n"
--		   "Private_Dirty:  %8lu kB\n"
--		   "Referenced:     %8lu kB\n"
--		   "Anonymous:      %8lu kB\n"
--		   "AnonHugePages:  %8lu kB\n"
--		   "ShmemPmdMapped: %8lu kB\n"
--		   "Shared_Hugetlb: %8lu kB\n"
--		   "Private_Hugetlb: %7lu kB\n"
--		   "Swap:           %8lu kB\n"
--		   "SwapPss:        %8lu kB\n"
--		   "KernelPageSize: %8lu kB\n"
--		   "MMUPageSize:    %8lu kB\n"
--		   "Locked:         %8lu kB\n",
--		   (vma->vm_end - vma->vm_start) >> 10,
--		   mss.resident >> 10,
--		   (unsigned long)(mss.pss >> (10 + PSS_SHIFT)),
--		   mss.shared_clean  >> 10,
--		   mss.shared_dirty  >> 10,
--		   mss.private_clean >> 10,
--		   mss.private_dirty >> 10,
--		   mss.referenced >> 10,
--		   mss.anonymous >> 10,
--		   mss.anonymous_thp >> 10,
--		   mss.shmem_thp >> 10,
--		   mss.shared_hugetlb >> 10,
--		   mss.private_hugetlb >> 10,
--		   mss.swap >> 10,
--		   (unsigned long)(mss.swap_pss >> (10 + PSS_SHIFT)),
--		   vma_kernel_pagesize(vma) >> 10,
--		   vma_mmu_pagesize(vma) >> 10,
--		   (vma->vm_flags & VM_LOCKED) ?
--			(unsigned long)(mss.pss >> (10 + PSS_SHIFT)) : 0);
-+	show_val_kb(m, "Size:           ", vma->vm_end - vma->vm_start);
-+	show_val_kb(m, "Rss:            ", mss.resident);
-+	show_val_kb(m, "Pss:            ", mss.pss >> PSS_SHIFT);
-+	show_val_kb(m, "Shared_Clean:   ", mss.shared_clean);
-+	show_val_kb(m, "Shared_Dirty:   ", mss.shared_dirty);
-+	show_val_kb(m, "Private_Clean:  ", mss.private_clean);
-+	show_val_kb(m, "Private_Dirty:  ", mss.private_dirty);
-+	show_val_kb(m, "Referenced:     ", mss.referenced);
-+	show_val_kb(m, "Anonymous:      ", mss.anonymous);
-+	show_val_kb(m, "AnonHugePages:  ", mss.anonymous_thp);
-+	show_val_kb(m, "ShmemPmdMapped: ", mss.shmem_thp);
-+	show_val_kb(m, "Shared_Hugetlb: ", mss.shared_hugetlb);
-+	seq_printf(m, "Private_Hugetlb: %7lu kB\n",  mss.private_hugetlb >> 10);
-+	show_val_kb(m, "Swap:           ", mss.swap);
-+	show_val_kb(m, "SwapPss:        ", mss.swap_pss >> PSS_SHIFT);
-+	show_val_kb(m, "KernelPageSize: ", vma_kernel_pagesize(vma));
-+	show_val_kb(m, "MMUPageSize:    ", vma_mmu_pagesize(vma));
-+	show_val_kb(m, "Locked:         ",
-+		    vma->vm_flags & VM_LOCKED ? mss.pss >> PSS_SHIFT : 0);
+ 	if (current->active_mm == mm) {
+-		if (current->mm)
++		if (current->mm) {
++			/*
++			 * Implicit full barrier (INVLPG) that synchronizes
++			 * with switch_mm.
++			 */
+ 			__flush_tlb_one(start);
+-		else
++		} else {
+ 			leave_mm(smp_processor_id());
++
++			/* Synchronize with switch_mm. */
++			smp_mb();
++		}
+ 	}
  
- 	arch_show_smap(m, vma);
- 	show_smap_vma_flags(m, vma);
+ 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
 -- 
-2.8.0.rc4.16.g56331f8
+2.8.0.rc2.1.gbe9624a
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
