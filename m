@@ -1,77 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 953C66B0069
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 04:04:01 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id l4so55670550wml.0
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 01:04:01 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id b6si17362803wji.156.2016.08.22.01.04.00
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 748EA6B0069
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 04:27:50 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id j67so295727686oih.3
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 01:27:50 -0700 (PDT)
+Received: from xiaomi.com (outboundhk.mxmail.xiaomi.com. [207.226.244.122])
+        by mx.google.com with ESMTPS id k187si15188439ith.4.2016.08.22.01.27.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Aug 2016 01:04:00 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id o80so12236888wme.0
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 01:04:00 -0700 (PDT)
-Date: Mon, 22 Aug 2016 10:03:58 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH v2 2/2] arm64 Kconfig: Select gigantic page
-Message-ID: <20160822080358.GF13596@dhcp22.suse.cz>
-References: <1471834603-27053-1-git-send-email-xieyisheng1@huawei.com>
- <1471834603-27053-3-git-send-email-xieyisheng1@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 22 Aug 2016 01:27:49 -0700 (PDT)
+From: Hui Zhu <zhuhui@xiaomi.com>
+Subject: [RFC 0/4] ZRAM: make it just store the high compression rate page
+Date: Mon, 22 Aug 2016 16:25:05 +0800
+Message-ID: <1471854309-30414-1-git-send-email-zhuhui@xiaomi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1471834603-27053-3-git-send-email-xieyisheng1@huawei.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xie Yisheng <xieyisheng1@huawei.com>
-Cc: akpm@linux-foundation.org, guohanjun@huawei.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, will.deacon@arm.com, dave.hansen@intel.com, sudeep.holla@arm.com, catalin.marinas@arm.com, mark.rutland@arm.com, robh+dt@kernel.org, linux-arm-kernel@lists.infradead.org, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com
+To: minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, hughd@google.com, rostedt@goodmis.org, mingo@redhat.com, peterz@infradead.org, acme@kernel.org, alexander.shishkin@linux.intel.com, akpm@linux-foundation.org, mhocko@suse.com, hannes@cmpxchg.org, mgorman@techsingularity.net, vbabka@suse.cz, zhuhui@xiaomi.com, redkoi@virtuozzo.com, luto@kernel.org, kirill.shutemov@linux.intel.com, geliangtang@163.com, baiyaowei@cmss.chinamobile.com, dan.j.williams@intel.com, vdavydov@virtuozzo.com, aarcange@redhat.com, dvlasenk@redhat.com, jmarchan@redhat.com, koct9i@gmail.com, yang.shi@linaro.org, dave.hansen@linux.intel.com, vkuznets@redhat.com, vitalywool@gmail.com, ross.zwisler@linux.intel.com, tglx@linutronix.de, kwapulinski.piotr@gmail.com, axboe@fb.com, mchristi@redhat.com, joe@perches.com, namit@vmware.com, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: teawater@gmail.com
 
-On Mon 22-08-16 10:56:43, Xie Yisheng wrote:
-> Arm64 supports gigantic page after
-> commit 084bd29810a5 ("ARM64: mm: HugeTLB support.")
-> however, it got broken by 
-> commit 944d9fec8d7a ("hugetlb: add support for gigantic page
-> allocation at runtime")
-> 
-> This patch selects ARCH_HAS_GIGANTIC_PAGE to make this
-> function can be used again.
+Current ZRAM just can store all pages even if the compression rate
+of a page is really low.  So the compression rate of ZRAM is out of
+control when it is running.
+In my part, I did some test and record with ZRAM.  The compression rate
+is about 40%.
 
-I haven't double checked that the above commit really broke it but if
-that is the case then
- 
-Fixes: 944d9fec8d7a ("hugetlb: add support for gigantic page allocation at runtime")
+This series of patches make ZRAM can just store the page that the
+compressed size is smaller than a value.
+With these patches, I set the value to 2048 and did the same test with
+before.  The compression rate is about 20%.  The times of lowmemorykiller
+also decreased.
 
-would be nice as well I guess. I do not think that marking it for stable
-is really necessary considering how long it's been broken and nobody has
-noticed...
+Hui Zhu (4):
+vmscan.c: shrink_page_list: unmap anon pages after pageout
+Add non-swap page flag to mark a page will not swap
+ZRAM: do not swap the pages that compressed size bigger than non_swap
+vmscan.c: zram: add non swap support for shmem file pages
 
-> Signed-off-by: Xie Yisheng <xieyisheng1@huawei.com>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  arch/arm64/Kconfig | 1 +
->  1 file changed, 1 insertion(+)
-> 
-> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-> index bc3f00f..92217f6 100644
-> --- a/arch/arm64/Kconfig
-> +++ b/arch/arm64/Kconfig
-> @@ -9,6 +9,7 @@ config ARM64
->  	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
->  	select ARCH_HAS_ELF_RANDOMIZE
->  	select ARCH_HAS_GCOV_PROFILE_ALL
-> +	select ARCH_HAS_GIGANTIC_PAGE
->  	select ARCH_HAS_KCOV
->  	select ARCH_HAS_SG_CHAIN
->  	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
-> -- 
-> 1.7.12.4
-> 
-
--- 
-Michal Hocko
-SUSE Labs
+ drivers/block/zram/Kconfig     |   11 +++
+ drivers/block/zram/zram_drv.c  |   38 +++++++++++
+ drivers/block/zram/zram_drv.h  |    4 +
+ fs/proc/meminfo.c              |    6 +
+ include/linux/mm_inline.h      |   20 +++++
+ include/linux/mmzone.h         |    3 
+ include/linux/page-flags.h     |    8 ++
+ include/linux/rmap.h           |    5 +
+ include/linux/shmem_fs.h       |    6 +
+ include/trace/events/mmflags.h |    9 ++
+ kernel/events/uprobes.c        |   16 ++++
+ mm/Kconfig                     |    9 ++
+ mm/memory.c                    |   34 ++++++++++
+ mm/migrate.c                   |    4 +
+ mm/mprotect.c                  |    8 ++
+ mm/page_io.c                   |   11 ++-
+ mm/rmap.c                      |   23 ++++++
+ mm/shmem.c                     |   77 +++++++++++++++++-----
+ mm/vmscan.c                    |  139 +++++++++++++++++++++++++++++++++++------
+ 19 files changed, 387 insertions(+), 44 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
