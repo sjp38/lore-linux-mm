@@ -1,415 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FB596B027C
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 18:39:16 -0400 (EDT)
-Received: by mail-ua0-f197.google.com with SMTP id r91so265324126uar.0
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 15:39:16 -0700 (PDT)
-Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0041.outbound.protection.outlook.com. [104.47.33.41])
-        by mx.google.com with ESMTPS id z24si240393qtb.68.2016.08.22.15.39.15
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 879646B0264
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 19:22:19 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id f6so6486695ith.2
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 16:22:19 -0700 (PDT)
+Received: from NAM02-CY1-obe.outbound.protection.outlook.com (mail-cys01nam02on0081.outbound.protection.outlook.com. [104.47.37.81])
+        by mx.google.com with ESMTPS id v19si143038otv.265.2016.08.22.16.22.18
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 22 Aug 2016 15:39:15 -0700 (PDT)
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Subject: [RFC PATCH v2 20/20] x86: Add support to make use of Secure Memory
- Encryption
-Date: Mon, 22 Aug 2016 17:39:08 -0500
-Message-ID: <20160822223908.29880.50365.stgit@tlendack-t1.amdoffice.net>
-In-Reply-To: <20160822223529.29880.50884.stgit@tlendack-t1.amdoffice.net>
-References: <20160822223529.29880.50884.stgit@tlendack-t1.amdoffice.net>
+        Mon, 22 Aug 2016 16:22:18 -0700 (PDT)
+Subject: [RFC PATCH v1 00/28] x86: Secure Encrypted Virtualization (AMD)
+From: Brijesh Singh <brijesh.singh@amd.com>
+Date: Mon, 22 Aug 2016 19:21:52 -0400
+Message-ID: <147190811185.9268.8427842212955719186.stgit@brijesh-build-machine>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org
-Cc: Radim =?utf-8?b?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek
- Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy
- Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linus.walleij@linaro.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, mingo@redhat.com, labbott@fedoraproject.org--to=linux-efi, msalter@redhat.com, ross.zwisler@linux.intel.com, bp@suse.de, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, devel@linuxdriverproject.org, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, simon.guinot@sequanux.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, linux-crypto@vger.kernel.org, pbonzini@redhat.com, akpm@linux-foundation.org, davem@davemloft.net
 
-This patch adds the support to check if SME has been enabled and if the
-mem_encrypt=on command line option is set. If both of these conditions
-are true, then the encryption mask is set and the kernel is encrypted
-"in place."
+This RFC series provides support for AMD's new Secure Encrypted 
+Virtualization (SEV) feature. This RFC is build upon Secure Memory 
+Encryption (SME) RFC.
 
-Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+SEV is an extension to the AMD-V architecture which supports running 
+multiple VMs under the control of a hypervisor. When enabled, SEV 
+hardware tags all code and data with its VM ASID which indicates which 
+VM the data originated from or is intended for. This tag is kept with 
+the data at all times when inside the SOC, and prevents that data from 
+being used by anyone other than the owner. While the tag protects VM 
+data inside the SOC, AES with 128 bit encryption protects data outside 
+the SOC. When data leaves or enters the SOC, it is encrypted/decrypted 
+respectively by hardware with a key based on the associated tag.
+
+SEV guest VMs have the concept of private and shared memory.  Private memory
+is encrypted with the  guest-specific key, while shared memory may be encrypted
+with hypervisor key.  Certain types of memory (namely instruction pages and
+guest page tables) are always treated as private memory by the hardware.
+For data memory, SEV guest VMs can choose which pages they would like to
+be private. The choice is done using the standard CPU page tables using
+the C-bit, and is fully controlled by the guest. Due to security reasons
+all the DMA operations inside the  guest must be performed on shared pages
+(C-bit clear).  Note that since C-bit is only controllable by the guest OS
+when it is operating in 64-bit or 32-bit PAE mode, in all other modes the
+SEV hardware forces the C-bit to a 1.
+
+SEV is designed to protect guest VMs from a benign but vulnerable
+(i.e. not fully malicious) hypervisor. In particular, it reduces the attack
+surface of guest VMs and can prevent certain types of VM-escape bugs
+(e.g. hypervisor read-anywhere) from being used to steal guest data.
+
+The RFC series also includes a crypto driver (psp.ko) which communicates
+with SEV firmware that runs within the AMD secure processor provides a
+secure key management interfaces. The hypervisor uses this interface to 
+enable SEV for secure guest and perform common hypervisor activities
+such as launching, running, snapshotting , migrating and debugging a 
+guest. A new ioctl (KVM_SEV_ISSUE_CMD) is introduced which will enable
+Qemu to send commands to the SEV firmware during guest life cycle.
+
+The RFC series also includes patches required in guest OS to enable SEV 
+feature. A guest OS can check SEV support by calling KVM_FEATURE cpuid 
+instruction.
+
+The following links provide additional details:
+
+AMD Memory Encryption whitepaper:
+ 
+http://amd-dev.wpengine.netdna-cdn.com/wordpress/media/2013/12/AMD_Memory_Encryption_Whitepaper_v7-Public.pdf
+
+AMD64 Architecture Programmer's Manual:
+    http://support.amd.com/TechDocs/24593.pdf
+    SME is section 7.10
+    SEV is section 15.34
+
+Secure Encrypted Virutualization Key Management:
+http://support.amd.com/TechDocs/55766_SEV-KM API_Spec.pdf
+
 ---
- Documentation/kernel-parameters.txt |    3 
- arch/x86/kernel/asm-offsets.c       |    2 
- arch/x86/kernel/mem_encrypt.S       |  302 +++++++++++++++++++++++++++++++++++
- arch/x86/mm/mem_encrypt.c           |    2 
- 4 files changed, 309 insertions(+)
 
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index 46c030a..a1986c8 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -2268,6 +2268,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 			memory contents and reserves bad memory
- 			regions that are detected.
- 
-+	mem_encrypt=on	[X86_64] Enable memory encryption on processors
-+			that support this feature.
-+
- 	meye.*=		[HW] Set MotionEye Camera parameters
- 			See Documentation/video4linux/meye.txt.
- 
-diff --git a/arch/x86/kernel/asm-offsets.c b/arch/x86/kernel/asm-offsets.c
-index 2bd5c6f..e485ada 100644
---- a/arch/x86/kernel/asm-offsets.c
-+++ b/arch/x86/kernel/asm-offsets.c
-@@ -85,6 +85,8 @@ void common(void) {
- 	OFFSET(BP_init_size, boot_params, hdr.init_size);
- 	OFFSET(BP_pref_address, boot_params, hdr.pref_address);
- 	OFFSET(BP_code32_start, boot_params, hdr.code32_start);
-+	OFFSET(BP_cmd_line_ptr, boot_params, hdr.cmd_line_ptr);
-+	OFFSET(BP_ext_cmd_line_ptr, boot_params, ext_cmd_line_ptr);
- 
- 	BLANK();
- 	DEFINE(PTREGS_SIZE, sizeof(struct pt_regs));
-diff --git a/arch/x86/kernel/mem_encrypt.S b/arch/x86/kernel/mem_encrypt.S
-index f2e0536..bf9f6a9 100644
---- a/arch/x86/kernel/mem_encrypt.S
-+++ b/arch/x86/kernel/mem_encrypt.S
-@@ -12,13 +12,230 @@
- 
- #include <linux/linkage.h>
- 
-+#include <asm/processor-flags.h>
-+#include <asm/pgtable.h>
-+#include <asm/page.h>
-+#include <asm/msr.h>
-+#include <asm/asm-offsets.h>
-+
- 	.text
- 	.code64
- ENTRY(sme_enable)
-+#ifdef CONFIG_AMD_MEM_ENCRYPT
-+	/* Check for AMD processor */
-+	xorl	%eax, %eax
-+	cpuid
-+	cmpl    $0x68747541, %ebx	# AuthenticAMD
-+	jne     .Lmem_encrypt_exit
-+	cmpl    $0x69746e65, %edx
-+	jne     .Lmem_encrypt_exit
-+	cmpl    $0x444d4163, %ecx
-+	jne     .Lmem_encrypt_exit
-+
-+	/* Check for memory encryption leaf */
-+	movl	$0x80000000, %eax
-+	cpuid
-+	cmpl	$0x8000001f, %eax
-+	jb	.Lmem_encrypt_exit
-+
-+	/*
-+	 * Check for memory encryption feature:
-+	 *   CPUID Fn8000_001F[EAX] - Bit 0
-+	 *     Secure Memory Encryption support
-+	 *   CPUID Fn8000_001F[EBX] - Bits 5:0
-+	 *     Pagetable bit position used to indicate encryption
-+	 *   CPUID Fn8000_001F[EBX] - Bits 11:6
-+	 *     Reduction in physical address space (in bits) when enabled
-+	 */
-+	movl	$0x8000001f, %eax
-+	cpuid
-+	bt	$0, %eax
-+	jnc	.Lmem_encrypt_exit
-+
-+	/* Check if BIOS/UEFI has allowed memory encryption */
-+	movl	$MSR_K8_SYSCFG, %ecx
-+	rdmsr
-+	bt	$MSR_K8_SYSCFG_MEM_ENCRYPT_BIT, %eax
-+	jnc	.Lmem_encrypt_exit
-+
-+	/* Check for the mem_encrypt=on command line option */
-+	push	%rsi			/* Save RSI (real_mode_data) */
-+	push	%rbx			/* Save CPUID information */
-+	movl	BP_ext_cmd_line_ptr(%rsi), %ecx
-+	shlq	$32, %rcx
-+	movl	BP_cmd_line_ptr(%rsi), %edi
-+	addq	%rcx, %rdi
-+	leaq	mem_encrypt_enable_option(%rip), %rsi
-+	call	cmdline_find_option_bool
-+	pop	%rbx			/* Restore CPUID information */
-+	pop	%rsi			/* Restore RSI (real_mode_data) */
-+	testl	%eax, %eax
-+	jz	.Lno_mem_encrypt
-+
-+	/* Set memory encryption mask */
-+	movl	%ebx, %ecx
-+	andl	$0x3f, %ecx
-+	bts	%ecx, sme_me_mask(%rip)
-+
-+.Lno_mem_encrypt:
-+	/*
-+	 * BIOS/UEFI has allowed memory encryption so we need to set
-+	 * the amount of physical address space reduction even if
-+	 * the user decides not to use memory encryption.
-+	 */
-+	movl	%ebx, %ecx
-+	shrl	$6, %ecx
-+	andl	$0x3f, %ecx
-+	movb	%cl, sme_me_loss(%rip)
-+
-+.Lmem_encrypt_exit:
-+#endif	/* CONFIG_AMD_MEM_ENCRYPT */
-+
- 	ret
- ENDPROC(sme_enable)
- 
- ENTRY(sme_encrypt_kernel)
-+#ifdef CONFIG_AMD_MEM_ENCRYPT
-+	/* If SME is not active then no need to encrypt the kernel */
-+	cmpq	$0, sme_me_mask(%rip)
-+	jz	.Lencrypt_exit
-+
-+	/*
-+	 * Encrypt the kernel.
-+	 * Pagetables for performing kernel encryption:
-+	 *   0x0000000000 - 0x00FFFFFFFF will map just the memory occupied by
-+	 *				 the kernel as encrypted memory
-+	 *   0x8000000000 - 0x80FFFFFFFF will map all memory as write-protected,
-+	 *				 non-encrypted
-+	 *
-+	 * The use of write-protected memory will prevent any of the
-+	 * non-encrypted memory from being cached.
-+	 *
-+	 * 0x00... and 0x80... represent the first and second PGD entries.
-+	 *
-+	 * This collection of entries will be created in an area outside
-+	 * of the area that is being encrypted (outside the kernel) and
-+	 * requires 11 4K pages:
-+	 *   1 - PGD
-+	 *   2 - PUDs (1 for each mapping)
-+	 *   8 - PMDs (4 for each mapping)
-+	 */
-+	leaq	_end(%rip), %rdi
-+	addq	$~PMD_PAGE_MASK, %rdi
-+	andq	$PMD_PAGE_MASK, %rdi	/* RDI points to the new PGD */
-+
-+	/* Clear the pagetable memory */
-+	movq	%rdi, %rbx		/* Save pointer to PGD */
-+	movl	$(4096 * 11), %ecx
-+	xorl	%eax, %eax
-+	rep	stosb
-+	movq	%rbx, %rdi		/* Restore pointer to PGD */
-+
-+	/* Set up PGD entries for the two mappings */
-+	leaq	(0x1000 + 0x03)(%rdi), %rbx	/* PUD for encrypted kernel */
-+	movq	%rbx, (%rdi)
-+	leaq	(0x2000 + 0x03)(%rdi), %rbx	/* PUD for unencrypted kernel */
-+	movq	%rbx, 8(%rdi)
-+
-+	/* Set up PUD entries (4 per mapping) for the two mappings */
-+	leaq	(0x3000 + 0x03)(%rdi), %rbx	/* PMD for encrypted kernel */
-+	leaq	(0x7000 + 0x03)(%rdi), %rdx	/* PMD for unencrypted kernel */
-+	xorq	%rcx, %rcx
-+1:
-+	/* Populate the PUD entries in each mapping */
-+	movq	%rbx, 0x1000(%rdi, %rcx, 8)
-+	movq	%rdx, 0x2000(%rdi, %rcx, 8)
-+	addq	$0x1000, %rbx
-+	addq	$0x1000, %rdx
-+	incq	%rcx
-+	cmpq	$4, %rcx
-+	jb	1b
-+
-+	/*
-+	 * Set up PMD entries (4GB worth) for the two mappings.
-+	 *   For the encrypted kernel mapping, when R11 is above RDX
-+	 *   and below RDI then we know we are in the kernel and we
-+	 *   set the encryption mask for that PMD entry.
-+	 *
-+	 *   The use of _PAGE_PAT and _PAGE_PWT will provide for the
-+	 *   write-protected mapping.
-+	 */
-+	movq	sme_me_mask(%rip), %r10
-+	movq	$__PAGE_KERNEL_LARGE_EXEC, %r11
-+	andq	$~_PAGE_GLOBAL, %r11
-+	movq	%r11, %r12
-+	andq	$~_PAGE_CACHE_MASK, %r12
-+	orq	$(_PAGE_PAT | _PAGE_PWT), %r12	/* PA5 index */
-+	xorq	%rcx, %rcx
-+	leaq	_text(%rip), %rdx	/* RDX points to start of kernel */
-+1:
-+	/* Populate the PMD entries in each mapping */
-+	movq	%r11, 0x3000(%rdi, %rcx, 8)
-+	movq	%r12, 0x7000(%rdi, %rcx, 8)
-+
-+	/*
-+	 * Check if we are in the kernel range, and if so, set the
-+	 * memory encryption mask.
-+	 */
-+	cmpq	%r11, %rdx
-+	jae	2f
-+	cmpq	%r11, %rdi
-+	jbe	2f
-+	orq	%r10, 0x3000(%rdi, %rcx, 8)
-+2:
-+	addq	$PMD_SIZE, %r11
-+	addq	$PMD_SIZE, %r12
-+	incq	%rcx
-+	cmpq	$2048, %rcx
-+	jb	1b
-+
-+	/*
-+	 * Set up a one page stack in the non-encrypted memory area.
-+	 *   Set RAX to point to the next page in memory after all the
-+	 *   page tables. The stack grows from the bottom so point to
-+	 *   the end of the page.
-+	 */
-+	leaq	(4096 * 11)(%rdi), %rax
-+	addq	$PAGE_SIZE, %rax
-+	movq	%rsp, %rbp
-+	movq	%rax, %rsp
-+	push	%rbp			/* Save original stack pointer */
-+
-+	push	%rsi			/* Save RSI (real mode data) */
-+
-+	/*
-+	 * Copy encryption routine into safe memory
-+	 *   - RAX points to the page after all the page tables and stack
-+	 *     where the routine will copied
-+	 *   - RDI points to the PGD table
-+	 *   - Setup registers for call
-+	 * and then call it
-+	 */
-+	movq	%rdi, %rbx
-+
-+	leaq	.Lencrypt_start(%rip), %rsi
-+	movq	%rax, %rdi
-+	movq	$(.Lencrypt_stop - .Lencrypt_start), %rcx
-+	rep	movsb
-+
-+	leaq	_text(%rip), %rsi	/* Kernel start */
-+	movq	%rbx, %rcx		/* New PGD start */
-+	subq	%rsi, %rcx		/* Size of area to encrypt */
-+
-+	movq	%rsi, %rdi		/* Encrypted kernel space start */
-+	movq	$1, %rsi
-+	shlq	$PGDIR_SHIFT, %rsi
-+	addq	%rdi, %rsi		/* Non-encrypted kernel start */
-+
-+	/* Call the encryption routine */
-+	call	*%rax
-+
-+	pop	%rsi			/* Restore RSI (real mode data ) */
-+
-+	pop	%rsp			/* Restore original stack pointer */
-+.Lencrypt_exit:
-+#endif	/* CONFIG_AMD_MEM_ENCRYPT */
-+
- 	ret
- ENDPROC(sme_encrypt_kernel)
- 
-@@ -28,6 +245,87 @@ ENTRY(sme_get_me_loss)
- 	ret
- ENDPROC(sme_get_me_loss)
- 
-+#ifdef CONFIG_AMD_MEM_ENCRYPT
-+/*
-+ * Routine used to encrypt kernel.
-+ *   This routine must be run outside of the kernel proper since
-+ *   the kernel will be encrypted during the process. So this
-+ *   routine is defined here and then copied to an area outside
-+ *   of the kernel where it will remain and run un-encrypted
-+ *   during execution.
-+ *
-+ *   On entry the registers must be:
-+ *   - RAX points to this routine
-+ *   - RBX points to new PGD to use
-+ *   - RCX contains the kernel length
-+ *   - RSI points to the non-encrypted kernel space
-+ *   - RDI points to the encrypted kernel space
-+ *
-+ * The kernel will be encrypted by copying from the non-encrypted
-+ * kernel space to a temporary buffer and then copying from the
-+ * temporary buffer back to the encrypted kernel space. The physical
-+ * addresses of the two kernel space mappings are the same which
-+ * results in the kernel being encrypted "in place".
-+ */
-+.Lencrypt_start:
-+	/* Enable the new page tables */
-+	mov	%rbx, %cr3
-+
-+	/* Flush any global TLBs */
-+	mov	%cr4, %rbx
-+	andq	$~X86_CR4_PGE, %rbx
-+	mov	%rbx, %cr4
-+	orq	$X86_CR4_PGE, %rbx
-+	mov	%rbx, %cr4
-+
-+	/* Set the PAT register PA5 entry to write-protect */
-+	push	%rax
-+	push	%rcx
-+	movl	$MSR_IA32_CR_PAT, %ecx
-+	rdmsr
-+	push	%rdx			/* Save original PAT value */
-+	andl	$0xffff00ff, %edx	/* Clear PA5 */
-+	orl	$0x00000500, %edx	/* Set PA5 to WP */
-+	wrmsr
-+	pop	%rdx			/* RDX contains original PAT value */
-+	pop	%rcx
-+	pop	%rax
-+
-+	movq	%rsi, %r10		/* Save source address */
-+	movq	%rdi, %r11		/* Save destination address */
-+	movq	%rcx, %r12		/* Save length */
-+	addq	$PAGE_SIZE, %rax	/* RAX now points to temp copy page */
-+
-+	wbinvd				/* Invalidate any cache entries */
-+
-+	/* Copy/encrypt 2MB at a time */
-+1:
-+	movq	%r10, %rsi
-+	movq	%rax, %rdi
-+	movq	$PMD_PAGE_SIZE, %rcx
-+	rep	movsb
-+
-+	movq	%rax, %rsi
-+	movq	%r11, %rdi
-+	movq	$PMD_PAGE_SIZE, %rcx
-+	rep	movsb
-+
-+	addq	$PMD_PAGE_SIZE, %r10
-+	addq	$PMD_PAGE_SIZE, %r11
-+	subq	$PMD_PAGE_SIZE, %r12
-+	jnz	1b
-+
-+	/* Restore PAT register */
-+	push	%rdx
-+	movl	$MSR_IA32_CR_PAT, %ecx
-+	rdmsr
-+	pop	%rdx
-+	wrmsr
-+
-+	ret
-+.Lencrypt_stop:
-+#endif	/* CONFIG_AMD_MEM_ENCRYPT */
-+
- 	.data
- 	.align 16
- ENTRY(sme_me_mask)
-@@ -35,3 +333,7 @@ ENTRY(sme_me_mask)
- sme_me_loss:
- 	.byte	0x00
- 	.align	8
-+
-+mem_encrypt_enable_option:
-+	.asciz "mem_encrypt=on"
-+	.align	8
-diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
-index 2f28d87..1154353 100644
---- a/arch/x86/mm/mem_encrypt.c
-+++ b/arch/x86/mm/mem_encrypt.c
-@@ -183,6 +183,8 @@ void __init mem_encrypt_init(void)
- 
- 	/* Make SWIOTLB use an unencrypted DMA area */
- 	swiotlb_clear_encryption();
-+
-+	pr_info("memory encryption active\n");
- }
- 
- unsigned long amd_iommu_get_me_mask(void)
+TODO:
+- send qemu/seabios RFC's on respective mailing list
+- integrate the psp driver with CCP driver (they share the PCI id's)
+- add SEV guest migration command support
+- add SEV snapshotting command support
+- determine how to do ioremap of physical memory with mem encryption enabled
+  (e.g acpi tables)
+- determine how to share the guest memory with hypervisor for to support
+  pvclock driver
+
+Brijesh Singh (11):
+      crypto: add AMD Platform Security Processor driver
+      KVM: SVM: prepare to reserve asid for SEV guest
+      KVM: SVM: prepare for SEV guest management API support
+      KVM: introduce KVM_SEV_ISSUE_CMD ioctl
+      KVM: SVM: add SEV launch start command
+      KVM: SVM: add SEV launch update command
+      KVM: SVM: add SEV_LAUNCH_FINISH command
+      KVM: SVM: add KVM_SEV_GUEST_STATUS command
+      KVM: SVM: add KVM_SEV_DEBUG_DECRYPT command
+      KVM: SVM: add KVM_SEV_DEBUG_ENCRYPT command
+      KVM: SVM: add command to query SEV API version
+
+Tom Lendacky (17):
+      kvm: svm: Add support for additional SVM NPF error codes
+      kvm: svm: Add kvm_fast_pio_in support
+      kvm: svm: Use the hardware provided GPA instead of page walk
+      x86: Secure Encrypted Virtualization (SEV) support
+      KVM: SVM: prepare for new bit definition in nested_ctl
+      KVM: SVM: Add SEV feature definitions to KVM
+      x86: Do not encrypt memory areas if SEV is enabled
+      Access BOOT related data encrypted with SEV active
+      x86/efi: Access EFI data as encrypted when SEV is active
+      x86: Change early_ioremap to early_memremap for BOOT data
+      x86: Don't decrypt trampoline area if SEV is active
+      x86: DMA support for SEV memory encryption
+      iommu/amd: AMD IOMMU support for SEV
+      x86: Don't set the SME MSR bit when SEV is active
+      x86: Unroll string I/O when SEV is active
+      x86: Add support to determine if running with SEV enabled
+      KVM: SVM: Enable SEV by setting the SEV_ENABLE cpu feature
+
+
+ arch/x86/boot/compressed/Makefile      |    2 
+ arch/x86/boot/compressed/head_64.S     |   19 +
+ arch/x86/boot/compressed/mem_encrypt.S |  123 ++++
+ arch/x86/include/asm/io.h              |   26 +
+ arch/x86/include/asm/kvm_emulate.h     |    3 
+ arch/x86/include/asm/kvm_host.h        |   27 +
+ arch/x86/include/asm/mem_encrypt.h     |    3 
+ arch/x86/include/asm/svm.h             |    3 
+ arch/x86/include/uapi/asm/hyperv.h     |    4 
+ arch/x86/include/uapi/asm/kvm_para.h   |    4 
+ arch/x86/kernel/acpi/boot.c            |    4 
+ arch/x86/kernel/head64.c               |    4 
+ arch/x86/kernel/mem_encrypt.S          |   44 ++
+ arch/x86/kernel/mpparse.c              |   10 
+ arch/x86/kernel/setup.c                |    7 
+ arch/x86/kernel/x8664_ksyms_64.c       |    1 
+ arch/x86/kvm/cpuid.c                   |    4 
+ arch/x86/kvm/mmu.c                     |   20 +
+ arch/x86/kvm/svm.c                     |  906 ++++++++++++++++++++++++++++++++
+ arch/x86/kvm/x86.c                     |   73 +++
+ arch/x86/mm/ioremap.c                  |    7 
+ arch/x86/mm/mem_encrypt.c              |   50 ++
+ arch/x86/platform/efi/efi_64.c         |   14 
+ arch/x86/realmode/init.c               |   11 
+ drivers/crypto/Kconfig                 |   11 
+ drivers/crypto/Makefile                |    1 
+ drivers/crypto/psp/Kconfig             |    8 
+ drivers/crypto/psp/Makefile            |    3 
+ drivers/crypto/psp/psp-dev.c           |  220 ++++++++
+ drivers/crypto/psp/psp-dev.h           |   95 +++
+ drivers/crypto/psp/psp-ops.c           |  454 ++++++++++++++++
+ drivers/crypto/psp/psp-pci.c           |  376 +++++++++++++
+ drivers/sfi/sfi_core.c                 |    6 
+ include/linux/ccp-psp.h                |  833 +++++++++++++++++++++++++++++
+ include/uapi/linux/Kbuild              |    1 
+ include/uapi/linux/ccp-psp.h           |  182 ++++++
+ include/uapi/linux/kvm.h               |  125 ++++
+ 37 files changed, 3643 insertions(+), 41 deletions(-)
+ create mode 100644 arch/x86/boot/compressed/mem_encrypt.S
+ create mode 100644 drivers/crypto/psp/Kconfig
+ create mode 100644 drivers/crypto/psp/Makefile
+ create mode 100644 drivers/crypto/psp/psp-dev.c
+ create mode 100644 drivers/crypto/psp/psp-dev.h
+ create mode 100644 drivers/crypto/psp/psp-ops.c
+ create mode 100644 drivers/crypto/psp/psp-pci.c
+ create mode 100644 include/linux/ccp-psp.h
+ create mode 100644 include/uapi/linux/ccp-psp.h
+
+-- 
+
+Brijesh Singh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
