@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BFB16B0267
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 19:25:22 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id c189so37959673oia.1
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 16:25:22 -0700 (PDT)
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0069.outbound.protection.outlook.com. [104.47.41.69])
-        by mx.google.com with ESMTPS id n2si156867otn.138.2016.08.22.16.25.21
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CB8C86B0270
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 19:25:37 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id e63so1019111ith.1
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 16:25:37 -0700 (PDT)
+Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0050.outbound.protection.outlook.com. [104.47.40.50])
+        by mx.google.com with ESMTPS id o91si140311oik.236.2016.08.22.16.25.36
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 22 Aug 2016 16:25:21 -0700 (PDT)
-Subject: [RFC PATCH v1 08/28] Access BOOT related data encrypted with SEV
- active
+        Mon, 22 Aug 2016 16:25:37 -0700 (PDT)
+Subject: [RFC PATCH v1 09/28] x86/efi: Access EFI data as encrypted when SEV
+ is active
 From: Brijesh Singh <brijesh.singh@amd.com>
-Date: Mon, 22 Aug 2016 19:25:14 -0400
-Message-ID: <147190831414.9523.1885664762210149209.stgit@brijesh-build-machine>
+Date: Mon, 22 Aug 2016 19:25:25 -0400
+Message-ID: <147190832511.9523.10850626471583956499.stgit@brijesh-build-machine>
 In-Reply-To: <147190820782.9523.4967724730957229273.stgit@brijesh-build-machine>
 References: <147190820782.9523.4967724730957229273.stgit@brijesh-build-machine>
 MIME-Version: 1.0
@@ -25,35 +25,68 @@ To: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, brijesh.singh@amd.com,
 
 From: Tom Lendacky <thomas.lendacky@amd.com>
 
-When Secure Encrypted Virtualization (SEV) is active, BOOT data (such as
-EFI related data) is encrypted and needs to be access as such. Update the
-architecture override in early_memremap to keep the encryption attribute
-when mapping this data.
+EFI data is encrypted when the kernel is run under SEV. Update the
+page table references to be sure the EFI memory areas are accessed
+encrypted.
 
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- arch/x86/mm/ioremap.c |    7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ arch/x86/platform/efi/efi_64.c |   14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
 
-diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
-index e3bdc5a..2ea6deb 100644
---- a/arch/x86/mm/ioremap.c
-+++ b/arch/x86/mm/ioremap.c
-@@ -429,10 +429,11 @@ pgprot_t __init early_memremap_pgprot_adjust(resource_size_t phys_addr,
- 					     pgprot_t prot)
- {
- 	/*
--	 * If memory encryption is enabled and BOOT_DATA is being mapped
--	 * then remove the encryption bit.
-+	 * If memory encryption is enabled, we are not running with
-+	 * SEV active and BOOT_DATA is being mapped then remove the
-+	 * encryption bit
- 	 */
--	if (_PAGE_ENC && (owner == BOOT_DATA))
-+	if (_PAGE_ENC && !sev_active && (owner == BOOT_DATA))
- 		prot = __pgprot(pgprot_val(prot) & ~_PAGE_ENC);
+diff --git a/arch/x86/platform/efi/efi_64.c b/arch/x86/platform/efi/efi_64.c
+index 0871ea4..98363f3 100644
+--- a/arch/x86/platform/efi/efi_64.c
++++ b/arch/x86/platform/efi/efi_64.c
+@@ -213,7 +213,7 @@ void efi_sync_low_kernel_mappings(void)
  
- 	return prot;
+ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
+ {
+-	unsigned long pfn, text;
++	unsigned long pfn, text, flags;
+ 	efi_memory_desc_t *md;
+ 	struct page *page;
+ 	unsigned npages;
+@@ -230,6 +230,10 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
+ 	efi_scratch.efi_pgt = (pgd_t *)__sme_pa(efi_pgd);
+ 	pgd = efi_pgd;
+ 
++	flags = _PAGE_NX | _PAGE_RW;
++	if (sev_active)
++		flags |= _PAGE_ENC;
++
+ 	/*
+ 	 * It can happen that the physical address of new_memmap lands in memory
+ 	 * which is not mapped in the EFI page table. Therefore we need to go
+@@ -237,7 +241,7 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
+ 	 * phys_efi_set_virtual_address_map().
+ 	 */
+ 	pfn = pa_memmap >> PAGE_SHIFT;
+-	if (kernel_map_pages_in_pgd(pgd, pfn, pa_memmap, num_pages, _PAGE_NX | _PAGE_RW)) {
++	if (kernel_map_pages_in_pgd(pgd, pfn, pa_memmap, num_pages, flags)) {
+ 		pr_err("Error ident-mapping new memmap (0x%lx)!\n", pa_memmap);
+ 		return 1;
+ 	}
+@@ -302,6 +306,9 @@ static void __init __map_region(efi_memory_desc_t *md, u64 va)
+ 	if (!(md->attribute & EFI_MEMORY_WB))
+ 		flags |= _PAGE_PCD;
+ 
++	if (sev_active)
++		flags |= _PAGE_ENC;
++
+ 	pfn = md->phys_addr >> PAGE_SHIFT;
+ 	if (kernel_map_pages_in_pgd(pgd, pfn, va, md->num_pages, flags))
+ 		pr_warn("Error mapping PA 0x%llx -> VA 0x%llx!\n",
+@@ -426,6 +433,9 @@ void __init efi_runtime_update_mappings(void)
+ 			(md->type != EFI_RUNTIME_SERVICES_CODE))
+ 			pf |= _PAGE_RW;
+ 
++		if (sev_active)
++			pf |= _PAGE_ENC;
++
+ 		/* Update the 1:1 mapping */
+ 		pfn = md->phys_addr >> PAGE_SHIFT;
+ 		if (kernel_map_pages_in_pgd(pgd, pfn, md->phys_addr, md->num_pages, pf))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
