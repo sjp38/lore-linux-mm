@@ -1,18 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FB226B0264
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 19:24:05 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id i144so32031867oib.0
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 16:24:05 -0700 (PDT)
-Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0040.outbound.protection.outlook.com. [104.47.38.40])
-        by mx.google.com with ESMTPS id s187si132072ois.291.2016.08.22.16.24.04
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 436806B0266
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 19:24:17 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id j124so611416ith.3
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 16:24:17 -0700 (PDT)
+Received: from NAM02-CY1-obe.outbound.protection.outlook.com (mail-cys01nam02on0046.outbound.protection.outlook.com. [104.47.37.46])
+        by mx.google.com with ESMTPS id y129si140807oie.222.2016.08.22.16.24.16
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 22 Aug 2016 16:24:05 -0700 (PDT)
-Subject: [RFC PATCH v1 02/28] kvm: svm: Add kvm_fast_pio_in support
+        Mon, 22 Aug 2016 16:24:16 -0700 (PDT)
+Subject: [RFC PATCH v1 03/28] kvm: svm: Use the hardware provided GPA
+ instead of page walk
 From: Brijesh Singh <brijesh.singh@amd.com>
-Date: Mon, 22 Aug 2016 19:23:54 -0400
-Message-ID: <147190823395.9523.16184607551630730040.stgit@brijesh-build-machine>
+Date: Mon, 22 Aug 2016 19:24:07 -0400
+Message-ID: <147190824754.9523.13923968456167130181.stgit@brijesh-build-machine>
 In-Reply-To: <147190820782.9523.4967724730957229273.stgit@brijesh-build-machine>
 References: <147190820782.9523.4967724730957229273.stgit@brijesh-build-machine>
 MIME-Version: 1.0
@@ -24,105 +25,100 @@ To: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, brijesh.singh@amd.com,
 
 From: Tom Lendacky <thomas.lendacky@amd.com>
 
-Update the I/O interception support to add the kvm_fast_pio_in function
-to speed up the in instruction similar to the out instruction.
+When a guest causes a NPF which requires emulation, KVM sometimes walks
+the guest page tables to translate the GVA to a GPA. This is unnecessary
+most of the time on AMD hardware since the hardware provides the GPA in
+EXITINFO2.
+
+The only exception cases involve string operations involving rep or
+operations that use two memory locations. With rep, the GPA will only be
+the value of the initial NPF and with dual memory locations we won't know
+which memory address was translated into EXITINFO2.
 
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- arch/x86/include/asm/kvm_host.h |    1 +
- arch/x86/kvm/svm.c              |    5 +++--
- arch/x86/kvm/x86.c              |   43 +++++++++++++++++++++++++++++++++++++++
- 3 files changed, 47 insertions(+), 2 deletions(-)
+ arch/x86/include/asm/kvm_emulate.h |    3 +++
+ arch/x86/include/asm/kvm_host.h    |    3 +++
+ arch/x86/kvm/svm.c                 |    2 ++
+ arch/x86/kvm/x86.c                 |   17 ++++++++++++++++-
+ 4 files changed, 24 insertions(+), 1 deletion(-)
 
+diff --git a/arch/x86/include/asm/kvm_emulate.h b/arch/x86/include/asm/kvm_emulate.h
+index e9cd7be..2d1ac09 100644
+--- a/arch/x86/include/asm/kvm_emulate.h
++++ b/arch/x86/include/asm/kvm_emulate.h
+@@ -344,6 +344,9 @@ struct x86_emulate_ctxt {
+ 	struct read_cache mem_read;
+ };
+ 
++/* String operation identifier (matches the definition in emulate.c) */
++#define CTXT_STRING_OP	(1 << 13)
++
+ /* Repeat String Operation Prefix */
+ #define REPE_PREFIX	0xf3
+ #define REPNE_PREFIX	0xf2
 diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
-index 3f05d36..c38f878 100644
+index c38f878..b1dd673 100644
 --- a/arch/x86/include/asm/kvm_host.h
 +++ b/arch/x86/include/asm/kvm_host.h
-@@ -1133,6 +1133,7 @@ int kvm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr);
- struct x86_emulate_ctxt;
+@@ -667,6 +667,9 @@ struct kvm_vcpu_arch {
  
- int kvm_fast_pio_out(struct kvm_vcpu *vcpu, int size, unsigned short port);
-+int kvm_fast_pio_in(struct kvm_vcpu *vcpu, int size, unsigned short port);
- void kvm_emulate_cpuid(struct kvm_vcpu *vcpu);
- int kvm_emulate_halt(struct kvm_vcpu *vcpu);
- int kvm_vcpu_halt(struct kvm_vcpu *vcpu);
+ 	int pending_ioapic_eoi;
+ 	int pending_external_vector;
++
++	/* GPA available (AMD only) */
++	bool gpa_available;
+ };
+ 
+ struct kvm_lpage_info {
 diff --git a/arch/x86/kvm/svm.c b/arch/x86/kvm/svm.c
-index d8b9c8c..fd5a9a8 100644
+index fd5a9a8..9b2de7c 100644
 --- a/arch/x86/kvm/svm.c
 +++ b/arch/x86/kvm/svm.c
-@@ -2131,7 +2131,7 @@ static int io_interception(struct vcpu_svm *svm)
- 	++svm->vcpu.stat.io_exits;
- 	string = (io_info & SVM_IOIO_STR_MASK) != 0;
- 	in = (io_info & SVM_IOIO_TYPE_MASK) != 0;
--	if (string || in)
-+	if (string)
- 		return emulate_instruction(vcpu, 0) == EMULATE_DONE;
+@@ -4055,6 +4055,8 @@ static int handle_exit(struct kvm_vcpu *vcpu)
  
- 	port = io_info >> 16;
-@@ -2139,7 +2139,8 @@ static int io_interception(struct vcpu_svm *svm)
- 	svm->next_rip = svm->vmcb->control.exit_info_2;
- 	skip_emulated_instruction(&svm->vcpu);
+ 	trace_kvm_exit(exit_code, vcpu, KVM_ISA_SVM);
  
--	return kvm_fast_pio_out(vcpu, size, port);
-+	return in ? kvm_fast_pio_in(vcpu, size, port)
-+		  : kvm_fast_pio_out(vcpu, size, port);
- }
- 
- static int nmi_interception(struct vcpu_svm *svm)
++	vcpu->arch.gpa_available = (exit_code == SVM_EXIT_NPF);
++
+ 	if (!is_cr_intercept(svm, INTERCEPT_CR0_WRITE))
+ 		vcpu->arch.cr0 = svm->vmcb->save.cr0;
+ 	if (npt_enabled)
 diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index d432894..78295b0 100644
+index 78295b0..d6f2f4b 100644
 --- a/arch/x86/kvm/x86.c
 +++ b/arch/x86/kvm/x86.c
-@@ -5579,6 +5579,49 @@ int kvm_fast_pio_out(struct kvm_vcpu *vcpu, int size, unsigned short port)
- }
- EXPORT_SYMBOL_GPL(kvm_fast_pio_out);
+@@ -4382,7 +4382,19 @@ static int vcpu_mmio_gva_to_gpa(struct kvm_vcpu *vcpu, unsigned long gva,
+ 		return 1;
+ 	}
  
-+static int complete_fast_pio_in(struct kvm_vcpu *vcpu)
-+{
-+	unsigned long val;
-+
-+	/* We should only ever be called with arch.pio.count equal to 1 */
-+	BUG_ON(vcpu->arch.pio.count != 1);
-+
-+	/* For size less than 4 we merge, else we zero extend */
-+	val = (vcpu->arch.pio.size < 4) ? kvm_register_read(vcpu, VCPU_REGS_RAX)
-+					: 0;
-+
+-	*gpa = vcpu->arch.walk_mmu->gva_to_gpa(vcpu, gva, access, exception);
 +	/*
-+	 * Since vcpu->arch.pio.count == 1 let emulator_pio_in_emulated perform
-+	 * the copy and tracing
++	 * If the exit was due to a NPF we may already have a GPA.
++	 * If the GPA is present, use it to avoid the GVA to GPA table
++	 * walk. Note, this cannot be used on string operations since
++	 * string operation using rep will only have the initial GPA
++	 * from when the NPF occurred.
 +	 */
-+	emulator_pio_in_emulated(&vcpu->arch.emulate_ctxt, vcpu->arch.pio.size,
-+				 vcpu->arch.pio.port, &val, 1);
-+	kvm_register_write(vcpu, VCPU_REGS_RAX, val);
++	if (vcpu->arch.gpa_available &&
++	    !(vcpu->arch.emulate_ctxt.d & CTXT_STRING_OP))
++		*gpa = exception->address;
++	else
++		*gpa = vcpu->arch.walk_mmu->gva_to_gpa(vcpu, gva, access,
++						       exception);
+ 
+ 	if (*gpa == UNMAPPED_GVA)
+ 		return -1;
+@@ -5504,6 +5516,9 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
+ 	}
+ 
+ restart:
++	/* Save the faulting GPA (cr2) in the address field */
++	ctxt->exception.address = cr2;
 +
-+	return 1;
-+}
-+
-+int kvm_fast_pio_in(struct kvm_vcpu *vcpu, int size, unsigned short port)
-+{
-+	unsigned long val;
-+	int ret;
-+
-+	/* For size less than 4 we merge, else we zero extend */
-+	val = (size < 4) ? kvm_register_read(vcpu, VCPU_REGS_RAX) : 0;
-+
-+	ret = emulator_pio_in_emulated(&vcpu->arch.emulate_ctxt, size, port,
-+				       &val, 1);
-+	if (ret) {
-+		kvm_register_write(vcpu, VCPU_REGS_RAX, val);
-+		return ret;
-+	}
-+
-+	vcpu->arch.complete_userspace_io = complete_fast_pio_in;
-+
-+	return 0;
-+}
-+EXPORT_SYMBOL_GPL(kvm_fast_pio_in);
-+
- static int kvmclock_cpu_down_prep(unsigned int cpu)
- {
- 	__this_cpu_write(cpu_tsc_khz, 0);
+ 	r = x86_emulate_insn(ctxt);
+ 
+ 	if (r == EMULATION_INTERCEPTED)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
