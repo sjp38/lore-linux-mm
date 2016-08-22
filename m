@@ -1,68 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C2ED6B0069
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 07:20:39 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id o80so59425087wme.1
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 04:20:39 -0700 (PDT)
-Received: from mail.ud10.udmedia.de (ud10.udmedia.de. [194.117.254.50])
-        by mx.google.com with ESMTPS id k10si15814321wmh.11.2016.08.22.04.20.38
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C9EEC6B0069
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 07:43:54 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id h186so191114561pfg.2
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 04:43:54 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id p186si22491168pfg.281.2016.08.22.04.43.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Aug 2016 04:20:38 -0700 (PDT)
-Date: Mon, 22 Aug 2016 13:20:36 +0200
-From: Markus Trippelsdorf <markus@trippelsdorf.de>
-Subject: Re: OOM detection regressions since 4.7
-Message-ID: <20160822112036.GA305@x4>
-References: <20160822093249.GA14916@dhcp22.suse.cz>
- <20160822101614.GA314@x4>
- <20160822105653.GI13596@dhcp22.suse.cz>
- <20160822110113.GB314@x4>
- <20160822111344.GJ13596@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 22 Aug 2016 04:43:54 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 2/2] arm64 Kconfig: Select gigantic page
+References: <1471834603-27053-1-git-send-email-xieyisheng1@huawei.com>
+ <1471834603-27053-3-git-send-email-xieyisheng1@huawei.com>
+ <20160822080358.GF13596@dhcp22.suse.cz>
+ <20160822100045.GA26494@e104818-lin.cambridge.arm.com>
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Message-ID: <b5f1f756-4698-4c32-1c30-97b1ccf2b4a6@huawei.com>
+Date: Mon, 22 Aug 2016 19:33:46 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160822111344.GJ13596@dhcp22.suse.cz>
+In-Reply-To: <20160822100045.GA26494@e104818-lin.cambridge.arm.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, greg@suse.cz, Linus Torvalds <torvalds@linux-foundation.org>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Jiri Slaby <jslaby@suse.com>, Olaf Hering <olaf@aepfle.de>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Catalin Marinas <catalin.marinas@arm.com>, Michal Hocko <mhocko@kernel.org>
+Cc: mark.rutland@arm.com, linux-mm@kvack.org, sudeep.holla@arm.com, will.deacon@arm.com, linux-kernel@vger.kernel.org, dave.hansen@intel.com, robh+dt@kernel.org, guohanjun@huawei.com, akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, linux-arm-kernel@lists.infradead.org, mike.kravetz@oracle.com
 
-On 2016.08.22 at 13:13 +0200, Michal Hocko wrote:
-> On Mon 22-08-16 13:01:13, Markus Trippelsdorf wrote:
-> > On 2016.08.22 at 12:56 +0200, Michal Hocko wrote:
-> > > On Mon 22-08-16 12:16:14, Markus Trippelsdorf wrote:
-> > > > On 2016.08.22 at 11:32 +0200, Michal Hocko wrote:
-> > > > > [1] http://lkml.kernel.org/r/20160731051121.GB307@x4
-> > > > 
-> > > > For the report [1] above:
-> > > > 
-> > > > markus@x4 linux % cat .config | grep CONFIG_COMPACTION
-> > > > # CONFIG_COMPACTION is not set
-> > > 
-> > > Hmm, without compaction and a heavy fragmentation then I am afraid we
-> > > cannot really do much. What is the reason to disable compaction in the
-> > > first place?
-> > 
-> > I don't recall. Must have been some issue in the past. I will re-enable
-> > the option.
+
+
+On 2016/8/22 18:00, Catalin Marinas wrote:
+> On Mon, Aug 22, 2016 at 10:03:58AM +0200, Michal Hocko wrote:
+>> On Mon 22-08-16 10:56:43, Xie Yisheng wrote:
+>>> Arm64 supports gigantic page after
+>>> commit 084bd29810a5 ("ARM64: mm: HugeTLB support.")
+>>> however, it got broken by 
+>>> commit 944d9fec8d7a ("hugetlb: add support for gigantic page
+>>> allocation at runtime")
+>>>
+>>> This patch selects ARCH_HAS_GIGANTIC_PAGE to make this
+>>> function can be used again.
+>>
+>> I haven't double checked that the above commit really broke it but if
+>> that is the case then
+>>  
+>> Fixes: 944d9fec8d7a ("hugetlb: add support for gigantic page allocation at runtime")
+>>
+>> would be nice as well I guess. I do not think that marking it for stable
+>> is really necessary considering how long it's been broken and nobody has
+>> noticed...
 > 
-> Well, without the compaction there is no source of high order pages at
-> all. You can only reclaim and hope that some of the reclaimed pages will
-> find its buddy on the list and form the higher order page. This can take
-> for ever. We used to have the lumpy reclaim and that could help but this
-> is long gone.
+> I'm not sure that commit broke it. The gigantic functionality introduced
+> by the above commit was under an #ifdef CONFIG_X86_64. Prior
+> to that we had a VM_BUG_ON(hstate_is_gigantic(h)).
 > 
-> I do not think we can really sanely optimize for high-order heavy loads
-> without COMPACTION sanely. At least not without reintroducing lumpy
-> reclaim or something similar. To be honest I am even not sure which
-> configurations should disable compaction - except for really highly
-> controlled !mmu or other one purpose systems.
+Hi Catalin and Michal ,
+Thank you for your reply.
+Before that commit gigantic pages can only be allocated at boottime and
+can't be freed. That why we had VM_BUG_ON(hstate_is_gigantic(h)) in
+function update_and_free_page() Prior to that.
 
-I now recall. It was an issue with CONFIG_TRANSPARENT_HUGEPAGE, so I
-disabled that option. This then de-selected CONFIG_COMPACTION...
+Anyway, it should not just add #ifdef CONFIG_X86_64 for arm64 already
+supported 1G hugepage before that commit. Right?
 
--- 
-Markus
+Please let me know if I miss something.
+
+Thanks
+Xie Yisheng.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
