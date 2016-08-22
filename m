@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CB8C86B0270
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 19:25:37 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id e63so1019111ith.1
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 16:25:37 -0700 (PDT)
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0050.outbound.protection.outlook.com. [104.47.40.50])
-        by mx.google.com with ESMTPS id o91si140311oik.236.2016.08.22.16.25.36
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F1906B0273
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 19:25:50 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id ez1so233361123pab.1
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 16:25:50 -0700 (PDT)
+Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0040.outbound.protection.outlook.com. [104.47.40.40])
+        by mx.google.com with ESMTPS id b2si511421pfg.14.2016.08.22.16.25.49
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 22 Aug 2016 16:25:37 -0700 (PDT)
-Subject: [RFC PATCH v1 09/28] x86/efi: Access EFI data as encrypted when SEV
- is active
+        Mon, 22 Aug 2016 16:25:49 -0700 (PDT)
+Subject: [RFC PATCH v1 10/28] x86: Change early_ioremap to early_memremap
+ for BOOT data
 From: Brijesh Singh <brijesh.singh@amd.com>
-Date: Mon, 22 Aug 2016 19:25:25 -0400
-Message-ID: <147190832511.9523.10850626471583956499.stgit@brijesh-build-machine>
+Date: Mon, 22 Aug 2016 19:25:38 -0400
+Message-ID: <147190833861.9523.18034166650487702869.stgit@brijesh-build-machine>
 In-Reply-To: <147190820782.9523.4967724730957229273.stgit@brijesh-build-machine>
 References: <147190820782.9523.4967724730957229273.stgit@brijesh-build-machine>
 MIME-Version: 1.0
@@ -25,68 +25,104 @@ To: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, brijesh.singh@amd.com,
 
 From: Tom Lendacky <thomas.lendacky@amd.com>
 
-EFI data is encrypted when the kernel is run under SEV. Update the
-page table references to be sure the EFI memory areas are accessed
-encrypted.
-
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- arch/x86/platform/efi/efi_64.c |   14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ arch/x86/kernel/acpi/boot.c |    4 ++--
+ arch/x86/kernel/mpparse.c   |   10 +++++-----
+ drivers/sfi/sfi_core.c      |    6 +++---
+ 3 files changed, 10 insertions(+), 10 deletions(-)
 
-diff --git a/arch/x86/platform/efi/efi_64.c b/arch/x86/platform/efi/efi_64.c
-index 0871ea4..98363f3 100644
---- a/arch/x86/platform/efi/efi_64.c
-+++ b/arch/x86/platform/efi/efi_64.c
-@@ -213,7 +213,7 @@ void efi_sync_low_kernel_mappings(void)
+diff --git a/arch/x86/kernel/acpi/boot.c b/arch/x86/kernel/acpi/boot.c
+index 1ad5fe2..4622ea2 100644
+--- a/arch/x86/kernel/acpi/boot.c
++++ b/arch/x86/kernel/acpi/boot.c
+@@ -120,7 +120,7 @@ char *__init __acpi_map_table(unsigned long phys, unsigned long size)
+ 	if (!phys || !size)
+ 		return NULL;
  
- int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
- {
--	unsigned long pfn, text;
-+	unsigned long pfn, text, flags;
- 	efi_memory_desc_t *md;
- 	struct page *page;
- 	unsigned npages;
-@@ -230,6 +230,10 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
- 	efi_scratch.efi_pgt = (pgd_t *)__sme_pa(efi_pgd);
- 	pgd = efi_pgd;
+-	return early_ioremap(phys, size);
++	return early_memremap(phys, size, BOOT_DATA);
+ }
  
-+	flags = _PAGE_NX | _PAGE_RW;
-+	if (sev_active)
-+		flags |= _PAGE_ENC;
-+
+ void __init __acpi_unmap_table(char *map, unsigned long size)
+@@ -128,7 +128,7 @@ void __init __acpi_unmap_table(char *map, unsigned long size)
+ 	if (!map || !size)
+ 		return;
+ 
+-	early_iounmap(map, size);
++	early_memunmap(map, size);
+ }
+ 
+ #ifdef CONFIG_X86_LOCAL_APIC
+diff --git a/arch/x86/kernel/mpparse.c b/arch/x86/kernel/mpparse.c
+index 0f8d204..04def9f 100644
+--- a/arch/x86/kernel/mpparse.c
++++ b/arch/x86/kernel/mpparse.c
+@@ -436,9 +436,9 @@ static unsigned long __init get_mpc_size(unsigned long physptr)
+ 	struct mpc_table *mpc;
+ 	unsigned long size;
+ 
+-	mpc = early_ioremap(physptr, PAGE_SIZE);
++	mpc = early_memremap(physptr, PAGE_SIZE, BOOT_DATA);
+ 	size = mpc->length;
+-	early_iounmap(mpc, PAGE_SIZE);
++	early_memunmap(mpc, PAGE_SIZE);
+ 	apic_printk(APIC_VERBOSE, "  mpc: %lx-%lx\n", physptr, physptr + size);
+ 
+ 	return size;
+@@ -450,7 +450,7 @@ static int __init check_physptr(struct mpf_intel *mpf, unsigned int early)
+ 	unsigned long size;
+ 
+ 	size = get_mpc_size(mpf->physptr);
+-	mpc = early_ioremap(mpf->physptr, size);
++	mpc = early_memremap(mpf->physptr, size, BOOT_DATA);
  	/*
- 	 * It can happen that the physical address of new_memmap lands in memory
- 	 * which is not mapped in the EFI page table. Therefore we need to go
-@@ -237,7 +241,7 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
- 	 * phys_efi_set_virtual_address_map().
- 	 */
- 	pfn = pa_memmap >> PAGE_SHIFT;
--	if (kernel_map_pages_in_pgd(pgd, pfn, pa_memmap, num_pages, _PAGE_NX | _PAGE_RW)) {
-+	if (kernel_map_pages_in_pgd(pgd, pfn, pa_memmap, num_pages, flags)) {
- 		pr_err("Error ident-mapping new memmap (0x%lx)!\n", pa_memmap);
- 		return 1;
+ 	 * Read the physical hardware table.  Anything here will
+ 	 * override the defaults.
+@@ -461,10 +461,10 @@ static int __init check_physptr(struct mpf_intel *mpf, unsigned int early)
+ #endif
+ 		pr_err("BIOS bug, MP table errors detected!...\n");
+ 		pr_cont("... disabling SMP support. (tell your hw vendor)\n");
+-		early_iounmap(mpc, size);
++		early_memunmap(mpc, size);
+ 		return -1;
  	}
-@@ -302,6 +306,9 @@ static void __init __map_region(efi_memory_desc_t *md, u64 va)
- 	if (!(md->attribute & EFI_MEMORY_WB))
- 		flags |= _PAGE_PCD;
+-	early_iounmap(mpc, size);
++	early_memunmap(mpc, size);
  
-+	if (sev_active)
-+		flags |= _PAGE_ENC;
-+
- 	pfn = md->phys_addr >> PAGE_SHIFT;
- 	if (kernel_map_pages_in_pgd(pgd, pfn, va, md->num_pages, flags))
- 		pr_warn("Error mapping PA 0x%llx -> VA 0x%llx!\n",
-@@ -426,6 +433,9 @@ void __init efi_runtime_update_mappings(void)
- 			(md->type != EFI_RUNTIME_SERVICES_CODE))
- 			pf |= _PAGE_RW;
+ 	if (early)
+ 		return -1;
+diff --git a/drivers/sfi/sfi_core.c b/drivers/sfi/sfi_core.c
+index 296db7a..3078d35 100644
+--- a/drivers/sfi/sfi_core.c
++++ b/drivers/sfi/sfi_core.c
+@@ -92,7 +92,7 @@ static struct sfi_table_simple *syst_va __read_mostly;
+ static u32 sfi_use_ioremap __read_mostly;
  
-+		if (sev_active)
-+			pf |= _PAGE_ENC;
-+
- 		/* Update the 1:1 mapping */
- 		pfn = md->phys_addr >> PAGE_SHIFT;
- 		if (kernel_map_pages_in_pgd(pgd, pfn, md->phys_addr, md->num_pages, pf))
+ /*
+- * sfi_un/map_memory calls early_ioremap/iounmap which is a __init function
++ * sfi_un/map_memory calls early_memremap/memunmap which is a __init function
+  * and introduces section mismatch. So use __ref to make it calm.
+  */
+ static void __iomem * __ref sfi_map_memory(u64 phys, u32 size)
+@@ -103,7 +103,7 @@ static void __iomem * __ref sfi_map_memory(u64 phys, u32 size)
+ 	if (sfi_use_ioremap)
+ 		return ioremap_cache(phys, size);
+ 	else
+-		return early_ioremap(phys, size);
++		return early_memremap(phys, size, BOOT_DATA);
+ }
+ 
+ static void __ref sfi_unmap_memory(void __iomem *virt, u32 size)
+@@ -114,7 +114,7 @@ static void __ref sfi_unmap_memory(void __iomem *virt, u32 size)
+ 	if (sfi_use_ioremap)
+ 		iounmap(virt);
+ 	else
+-		early_iounmap(virt, size);
++		early_memunmap(virt, size);
+ }
+ 
+ static void sfi_print_table_header(unsigned long long pa,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
