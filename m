@@ -1,126 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BDD746B0069
-	for <linux-mm@kvack.org>; Sun, 21 Aug 2016 17:19:55 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id k135so61934798lfb.2
-        for <linux-mm@kvack.org>; Sun, 21 Aug 2016 14:19:55 -0700 (PDT)
-Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
-        by mx.google.com with ESMTPS id l189si7085873lfe.252.2016.08.21.14.19.53
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 13F006B0069
+	for <linux-mm@kvack.org>; Sun, 21 Aug 2016 23:00:43 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id pp5so189933497pac.3
+        for <linux-mm@kvack.org>; Sun, 21 Aug 2016 20:00:43 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id b2si20126476pfg.14.2016.08.21.20.00.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 21 Aug 2016 14:19:53 -0700 (PDT)
-Received: by mail-lf0-x244.google.com with SMTP id l89so5329362lfi.2
-        for <linux-mm@kvack.org>; Sun, 21 Aug 2016 14:19:53 -0700 (PDT)
-From: Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>
-Reply-To: arekm@maven.pl
-Subject: Re: [PATCH] mm, oom: report compaction/migration stats for higher order requests
-Date: Sun, 21 Aug 2016 23:19:50 +0200
-References: <201608120901.41463.a.miskiewicz@gmail.com> <201608182049.42261.a.miskiewicz@gmail.com> <809abac0-961d-9cc1-ce6b-3227ffc791c7@suse.cz>
-In-Reply-To: <809abac0-961d-9cc1-ce6b-3227ffc791c7@suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 21 Aug 2016 20:00:42 -0700 (PDT)
+From: Xie Yisheng <xieyisheng1@huawei.com>
+Subject: [RFC PATCH v2 2/2] arm64 Kconfig: Select gigantic page
+Date: Mon, 22 Aug 2016 10:56:43 +0800
+Message-ID: <1471834603-27053-3-git-send-email-xieyisheng1@huawei.com>
+In-Reply-To: <1471834603-27053-1-git-send-email-xieyisheng1@huawei.com>
+References: <1471834603-27053-1-git-send-email-xieyisheng1@huawei.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="utf-8"
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <201608212319.51001.a.miskiewicz@gmail.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-ext4@vger.kernel.org, linux-mm@kvack.org, Jan Kara <jack@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: akpm@linux-foundation.org, mhocko@kernel.org
+Cc: guohanjun@huawei.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, will.deacon@arm.com, mhocko@suse.com, dave.hansen@intel.com, sudeep.holla@arm.com, catalin.marinas@arm.com, mark.rutland@arm.com, robh+dt@kernel.org, linux-arm-kernel@lists.infradead.org, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com
 
-On Friday 19 of August 2016, Vlastimil Babka wrote:
-> On 08/18/2016 08:49 PM, Arkadiusz Miskiewicz wrote:
-> > On Wednesday 17 of August 2016, Michal Hocko wrote:
-> >> On Wed 17-08-16 10:34:54, Arkadiusz Mi=C5=9Bkiewicz wrote:
-> >> [...]
-> >>=20
-> >>> With "[PATCH] mm, oom: report compaction/migration stats for higher
-> >>> order requests" patch:
-> >>> https://ixion.pld-linux.org/~arekm/p2/ext4/log-20160817.txt
-> >>>=20
-> >>> Didn't count much - all counters are 0
-> >>> compaction_stall:0 compaction_fail:0 compact_migrate_scanned:0
-> >>> compact_free_scanned:0 compact_isolated:0 pgmigrate_success:0
-> >>> pgmigrate_fail:0
-> >>=20
-> >> Dohh, COMPACTION counters are events and those are different than other
-> >> counters we have. They only have per-cpu representation and so we would
-> >> have to do
-> >> +       for_each_online_cpu(cpu) {
-> >> +               struct vm_event_state *this =3D &per_cpu(vm_event_stat=
-es,
-> >> cpu); +               ret +=3D this->event[item];
-> >> +       }
-> >>=20
-> >> which is really nasty because, strictly speaking, we would have to do
-> >> {get,put}_online_cpus around that loop and that uses locking and we do
-> >> not want to possibly block in this path just because something is in t=
-he
-> >> middle of the hotplug. So let's scratch that patch for now and sorry I
-> >> haven't realized that earlier.
-> >>=20
-> >>> two processes were killed by OOM (rm and cp), the rest of rm/cp didn't
-> >>> finish
-> >>>=20
-> >>> and I'm interrupting it to try that next patch:
-> >>>> Could you try to test with
-> >>>> patch from
-> >>>> http://lkml.kernel.org/r/20160816031222.GC16913@js1304-P5Q-DELUXE
-> >>>> please? Ideally on top of linux-next. You can add both the compaction
-> >>>> counters patch in the oom report and high order atomic reserves patch
-> >>>> on top.
-> >>>=20
-> >>> Uhm, was going to use it on top of 4.7.[01] first.
-> >>=20
-> >> OK
-> >=20
-> > So with=20
-> > http://lkml.kernel.org/r/20160816031222.GC16913@js1304-P5Q-DELUXE OOM no
-> > longer happens (all 10x rm/cp processes finished).
->=20
-> Is it on top of 4.7 then?=20
+Arm64 supports gigantic page after
+commit 084bd29810a5 ("ARM64: mm: HugeTLB support.")
+however, it got broken by 
+commit 944d9fec8d7a ("hugetlb: add support for gigantic page
+allocation at runtime")
 
-Yes, it was on top of 4.7.0.
+This patch selects ARCH_HAS_GIGANTIC_PAGE to make this
+function can be used again.
 
-> That's a bit different from the other reporter
-> who needed both linux-next and this patch to avoid OOM.
-> In any case the proper solution should restrict this disabled heuristic
-> to highest compaction priority, which needs the patches from linux-next
-> anyway.
->=20
-> So can you please also try linux-next with the patch from
-> http://marc.info/?l=3Dlinux-mm&m=3D147158805719821 ?
+Signed-off-by: Xie Yisheng <xieyisheng1@huawei.com>
+---
+ arch/arm64/Kconfig | 1 +
+ 1 file changed, 1 insertion(+)
 
-https://ixion.pld-linux.org/~arekm/p2/ext4/log-20160819.txt
-https://ixion.pld-linux.org/~arekm/p2/ext4/log-trace_pipe-20160819.txt.gz
-
-rm/cp -al x10 succeeded without any OOM
-
-so the question is - which solution is "the one" for stable/4.7.x ?
-
-Thanks
-
->=20
-> Thanks!
->=20
-> > https://ixion.pld-linux.org/~arekm/p2/ext4/log-20160818.txt
-> >=20
-> > On Wednesday 17 of August 2016, Jan Kara wrote:
-> >> Just one more debug idea to add on top of what Michal said: Can you
-> >> enable mm_shrink_slab_start and mm_shrink_slab_end tracepoints (via
-> >> /sys/kernel/debug/tracing/events/vmscan/mm_shrink_slab_{start,end}/ena=
-bl
-> >> e) and gather output from /sys/kernel/debug/tracing/trace_pipe while t=
-he
-> >> copy is running?
-> >=20
-> > Here it is:
-> >=20
-> > https://ixion.pld-linux.org/~arekm/p2/ext4/log-trace_pipe-20160818.txt.=
-gz
-
-
-=2D-=20
-Arkadiusz Mi=C5=9Bkiewicz, arekm / ( maven.pl | pld-linux.org )
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index bc3f00f..92217f6 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -9,6 +9,7 @@ config ARM64
+ 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
+ 	select ARCH_HAS_ELF_RANDOMIZE
+ 	select ARCH_HAS_GCOV_PROFILE_ALL
++	select ARCH_HAS_GIGANTIC_PAGE
+ 	select ARCH_HAS_KCOV
+ 	select ARCH_HAS_SG_CHAIN
+ 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
+-- 
+1.7.12.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
