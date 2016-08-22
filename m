@@ -1,63 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4463A6B025E
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 06:16:18 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 1so58118541wmz.2
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 03:16:18 -0700 (PDT)
-Received: from mail.ud10.udmedia.de (ud10.udmedia.de. [194.117.254.50])
-        by mx.google.com with ESMTPS id eb3si17793489wjb.247.2016.08.22.03.16.16
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Aug 2016 03:16:16 -0700 (PDT)
-Date: Mon, 22 Aug 2016 12:16:14 +0200
-From: Markus Trippelsdorf <markus@trippelsdorf.de>
-Subject: Re: OOM detection regressions since 4.7
-Message-ID: <20160822101614.GA314@x4>
-References: <20160822093249.GA14916@dhcp22.suse.cz>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 01E086B025E
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 06:21:34 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 63so189713639pfx.0
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 03:21:33 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id zr3si25268295pac.131.2016.08.22.03.21.33
+        for <linux-mm@kvack.org>;
+        Mon, 22 Aug 2016 03:21:33 -0700 (PDT)
+Date: Mon, 22 Aug 2016 11:21:27 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [RFC PATCH v2 2/2] arm64 Kconfig: Select gigantic page
+Message-ID: <20160822102127.GB26494@e104818-lin.cambridge.arm.com>
+References: <1471834603-27053-1-git-send-email-xieyisheng1@huawei.com>
+ <1471834603-27053-3-git-send-email-xieyisheng1@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160822093249.GA14916@dhcp22.suse.cz>
+In-Reply-To: <1471834603-27053-3-git-send-email-xieyisheng1@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, greg@suse.cz, Linus Torvalds <torvalds@linux-foundation.org>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Jiri Slaby <jslaby@suse.com>, Olaf Hering <olaf@aepfle.de>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Xie Yisheng <xieyisheng1@huawei.com>
+Cc: akpm@linux-foundation.org, mhocko@kernel.org, mark.rutland@arm.com, mhocko@suse.com, linux-mm@kvack.org, sudeep.holla@arm.com, will.deacon@arm.com, linux-kernel@vger.kernel.org, dave.hansen@intel.com, robh+dt@kernel.org, guohanjun@huawei.com, n-horiguchi@ah.jp.nec.com, linux-arm-kernel@lists.infradead.org, mike.kravetz@oracle.com
 
-On 2016.08.22 at 11:32 +0200, Michal Hocko wrote:
-> there have been multiple reports [1][2][3][4][5] about pre-mature OOM
-> killer invocations since 4.7 which contains oom detection rework. All of
-> them were for order-2 (kernel stack) alloaction requests failing because
-> of a high fragmentation and compaction failing to make any forward
-> progress. While investigating this we have found out that the compaction
-> just gives up too early. Vlastimil has been working on compaction
-> improvement for quite some time and his series [6] is already sitting
-> in mmotm tree. This already helps a lot because it drops some heuristics
-> which are more aimed at lower latencies for high orders rather than
-> reliability. Joonsoo has then identified further problem with too many
-> blocks being marked as unmovable [7] and Vlastimil has prepared a patch
-> on top of his series [8] which is also in the mmotm tree now.
+On Mon, Aug 22, 2016 at 10:56:43AM +0800, Xie Yisheng wrote:
+> Arm64 supports gigantic page after
+> commit 084bd29810a5 ("ARM64: mm: HugeTLB support.")
+> however, it got broken by 
+> commit 944d9fec8d7a ("hugetlb: add support for gigantic page
+> allocation at runtime")
 > 
-> That being said, the regression is real and should be fixed for 4.7
-> stable users. [6][8] was reported to help and ooms are no longer
-> reproducible. I know we are quite late (rc3) in 4.8 but I would vote
-> for mergeing those patches and have them in 4.8. For 4.7 I would go
-> with a partial revert of the detection rework for high order requests
-> (see patch below). This patch is really trivial. If those compaction
-> improvements are just too large for 4.8 then we can use the same patch
-> as for 4.7 stable for now and revert it in 4.9 after compaction changes
-> are merged.
+> This patch selects ARCH_HAS_GIGANTIC_PAGE to make this
+> function can be used again.
 > 
-> Thoughts?
+> Signed-off-by: Xie Yisheng <xieyisheng1@huawei.com>
+> ---
+>  arch/arm64/Kconfig | 1 +
+>  1 file changed, 1 insertion(+)
 > 
-> [1] http://lkml.kernel.org/r/20160731051121.GB307@x4
+> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+> index bc3f00f..92217f6 100644
+> --- a/arch/arm64/Kconfig
+> +++ b/arch/arm64/Kconfig
+> @@ -9,6 +9,7 @@ config ARM64
+>  	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
+>  	select ARCH_HAS_ELF_RANDOMIZE
+>  	select ARCH_HAS_GCOV_PROFILE_ALL
+> +	select ARCH_HAS_GIGANTIC_PAGE
 
-For the report [1] above:
-
-markus@x4 linux % cat .config | grep CONFIG_COMPACTION
-# CONFIG_COMPACTION is not set
-
--- 
-Markus
+Acked-by: Catalin Marinas <catalin.marinas@arm.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
