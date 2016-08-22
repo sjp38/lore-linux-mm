@@ -1,71 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A2B996B0069
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 08:09:40 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id p85so73077191lfg.3
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 05:09:40 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id w192si15937886wmd.82.2016.08.22.05.09.38
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E124D6B0069
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 09:03:14 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 1so61286302wmz.2
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 06:03:14 -0700 (PDT)
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com. [74.125.82.53])
+        by mx.google.com with ESMTPS id r125si16119038wmr.63.2016.08.22.06.03.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Aug 2016 05:09:39 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id i138so13131902wmf.3
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 05:09:38 -0700 (PDT)
-Date: Mon, 22 Aug 2016 14:09:37 +0200
+        Mon, 22 Aug 2016 06:03:13 -0700 (PDT)
+Received: by mail-wm0-f53.google.com with SMTP id o80so142835636wme.1
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 06:03:13 -0700 (PDT)
+Date: Mon, 22 Aug 2016 15:03:11 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] proc: task_mmu: Reduce output processing cpu time
-Message-ID: <20160822120937.GK13596@dhcp22.suse.cz>
-References: <cover.1471679737.git.joe@perches.com>
- <2c1ea0d8f35fa5ddea477369b273d6d91c5bf2e2.1471679737.git.joe@perches.com>
- <20160822072414.GB13596@dhcp22.suse.cz>
- <1471852859.3746.42.camel@perches.com>
- <1471854614.3746.46.camel@perches.com>
+Subject: Re: [PATCH 09/10] vhost, mm: make sure that oom_reaper doesn't reap
+ memory read by vhost
+Message-ID: <20160822130311.GL13596@dhcp22.suse.cz>
+References: <1469734954-31247-1-git-send-email-mhocko@kernel.org>
+ <1469734954-31247-10-git-send-email-mhocko@kernel.org>
+ <20160728233359-mutt-send-email-mst@kernel.org>
+ <20160729060422.GA5504@dhcp22.suse.cz>
+ <20160729161039-mutt-send-email-mst@kernel.org>
+ <20160729133529.GE8031@dhcp22.suse.cz>
+ <20160729205620-mutt-send-email-mst@kernel.org>
+ <20160731094438.GA24353@dhcp22.suse.cz>
+ <20160812094236.GF3639@dhcp22.suse.cz>
+ <20160812132140.GA776@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1471854614.3746.46.camel@perches.com>
+In-Reply-To: <20160812132140.GA776@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joe Perches <joe@perches.com>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jann Horn <jann@thejh.net>, linux-mm@kvack.org
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, "Michael S. Tsirkin" <mst@redhat.com>
 
-On Mon 22-08-16 01:30:14, Joe Perches wrote:
-> On Mon, 2016-08-22 at 01:00 -0700, Joe Perches wrote:
-> > On Mon, 2016-08-22 at 09:24 +0200, Michal Hocko wrote:
-> > > On Sat 20-08-16 01:00:17, Joe Perches wrote:
-> []
-> > > > static int proc_maps_open(struct inode *inode, struct file *file,
-> > > >  			const struct seq_operations *ops, int psize)
-> > > >  {
-> > > > -	struct proc_maps_private *priv = __seq_open_private(file, ops, psize);
-> > > > +	struct proc_maps_private *priv;
-> > > > +	struct mm_struct *mm;
-> > > > +
-> > > > +	mm = proc_mem_open(inode, PTRACE_MODE_READ);
-> > > > +	if (IS_ERR(mm))
-> > > > +		return PTR_ERR(mm);
-> > > >  
-> > > > +	priv = __seq_open_private_bufsize(file, ops, psize,
-> > > > +					  mm && mm->map_count ?
-> > > > +					  mm->map_count * 0x300 : PAGE_SIZE);
-> > > NAK to this!
-> > > 
-> > > Seriously, this just gives any random user access to user
-> > > defined amount of memory which not accounted, not reclaimable and a
-> > > potential consumer of any higher order blocks.
-> > I completely disagree here with your rationale here.
-> 
-> And with further review and your comment above, I withdraw this patch.
+On Fri 12-08-16 15:21:41, Oleg Nesterov wrote:
+[...]
+> Whats really interesting is that I still fail to understand do we really
+> need this hack, iiuc you are not sure too, and Michael didn't bother to
+> explain why a bogus zero from anon memory is worse than other problems
+> caused by SIGKKILL from oom-kill.c.
 
-So you've made me look into that code. I can imagine how it is easy to
-to get confused here. The important part is that m->count is reset after
-each ->show(). So traverse() same as seq_read only grows the buffer if
-a single show doesn't fit in.
+OK, so I've extended the changelog to clarify this some more, hopefully.
+"
+vhost driver relies on copy_from_user/get_user from a kernel thread.
+This makes it impossible to reap the memory of an oom victim which
+shares the mm with the vhost kernel thread because it could see a zero
+page unexpectedly and theoretically make an incorrect decision visible
+outside of the killed task context. To quote Michael S. Tsirkin:
+: Getting an error from __get_user and friends is handled gracefully.
+: Getting zero instead of a real value will cause userspace
+: memory corruption.
 
-That being said, should I repost my rebased patches or do you plan to
-repost your patch? I do not want spam people with another version if
-you do not like it.
+The vhost kernel thread is bound to an open fd of the vhost device which
+is not tight to the mm owner life cycle in theory. The fd can be 
+inherited or passed over to another process which means that we really
+have to be careful about unexpected memory corruption because unlike for
+normal oom victims the result will be visible outside of the oom victim
+context.
+
+Make sure that each place which can read from userspace is annotated
+properly and it uses copy_from_user_mm, __get_user_mm resp.
+copy_from_iter_mm. Each will get the target mm as an argument and it
+performs a pessimistic check to rule out that the oom_reaper could
+possibly unmap the particular page. __oom_reap_task then just needs to
+mark the mm as unstable before it unmaps any page.
+
+An alternative approach would require to hook into the page fault path
+and trigger EFAULT path from there but I do not like to add any code
+to all users while there is a single use_mm() consumer which suffers 
+from this problem. 
+
+This is a preparatory patch without any functional changes because
+the oom reaper doesn't touch mm shared with kthreads yet.
+"
+
+Does it help? Are there any other concerns or I can repost the series
+and ask Andrew to pick it for mmotm tree?
 -- 
 Michal Hocko
 SUSE Labs
