@@ -1,73 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C9EEC6B0069
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 07:43:54 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id h186so191114561pfg.2
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 04:43:54 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id p186si22491168pfg.281.2016.08.22.04.43.51
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A2B996B0069
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 08:09:40 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id p85so73077191lfg.3
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 05:09:40 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id w192si15937886wmd.82.2016.08.22.05.09.38
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 22 Aug 2016 04:43:54 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 2/2] arm64 Kconfig: Select gigantic page
-References: <1471834603-27053-1-git-send-email-xieyisheng1@huawei.com>
- <1471834603-27053-3-git-send-email-xieyisheng1@huawei.com>
- <20160822080358.GF13596@dhcp22.suse.cz>
- <20160822100045.GA26494@e104818-lin.cambridge.arm.com>
-From: Yisheng Xie <xieyisheng1@huawei.com>
-Message-ID: <b5f1f756-4698-4c32-1c30-97b1ccf2b4a6@huawei.com>
-Date: Mon, 22 Aug 2016 19:33:46 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 22 Aug 2016 05:09:39 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id i138so13131902wmf.3
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 05:09:38 -0700 (PDT)
+Date: Mon, 22 Aug 2016 14:09:37 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 2/2] proc: task_mmu: Reduce output processing cpu time
+Message-ID: <20160822120937.GK13596@dhcp22.suse.cz>
+References: <cover.1471679737.git.joe@perches.com>
+ <2c1ea0d8f35fa5ddea477369b273d6d91c5bf2e2.1471679737.git.joe@perches.com>
+ <20160822072414.GB13596@dhcp22.suse.cz>
+ <1471852859.3746.42.camel@perches.com>
+ <1471854614.3746.46.camel@perches.com>
 MIME-Version: 1.0
-In-Reply-To: <20160822100045.GA26494@e104818-lin.cambridge.arm.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1471854614.3746.46.camel@perches.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>, Michal Hocko <mhocko@kernel.org>
-Cc: mark.rutland@arm.com, linux-mm@kvack.org, sudeep.holla@arm.com, will.deacon@arm.com, linux-kernel@vger.kernel.org, dave.hansen@intel.com, robh+dt@kernel.org, guohanjun@huawei.com, akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, linux-arm-kernel@lists.infradead.org, mike.kravetz@oracle.com
+To: Joe Perches <joe@perches.com>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Jann Horn <jann@thejh.net>, linux-mm@kvack.org
 
-
-
-On 2016/8/22 18:00, Catalin Marinas wrote:
-> On Mon, Aug 22, 2016 at 10:03:58AM +0200, Michal Hocko wrote:
->> On Mon 22-08-16 10:56:43, Xie Yisheng wrote:
->>> Arm64 supports gigantic page after
->>> commit 084bd29810a5 ("ARM64: mm: HugeTLB support.")
->>> however, it got broken by 
->>> commit 944d9fec8d7a ("hugetlb: add support for gigantic page
->>> allocation at runtime")
->>>
->>> This patch selects ARCH_HAS_GIGANTIC_PAGE to make this
->>> function can be used again.
->>
->> I haven't double checked that the above commit really broke it but if
->> that is the case then
->>  
->> Fixes: 944d9fec8d7a ("hugetlb: add support for gigantic page allocation at runtime")
->>
->> would be nice as well I guess. I do not think that marking it for stable
->> is really necessary considering how long it's been broken and nobody has
->> noticed...
+On Mon 22-08-16 01:30:14, Joe Perches wrote:
+> On Mon, 2016-08-22 at 01:00 -0700, Joe Perches wrote:
+> > On Mon, 2016-08-22 at 09:24 +0200, Michal Hocko wrote:
+> > > On Sat 20-08-16 01:00:17, Joe Perches wrote:
+> []
+> > > > static int proc_maps_open(struct inode *inode, struct file *file,
+> > > >  			const struct seq_operations *ops, int psize)
+> > > >  {
+> > > > -	struct proc_maps_private *priv = __seq_open_private(file, ops, psize);
+> > > > +	struct proc_maps_private *priv;
+> > > > +	struct mm_struct *mm;
+> > > > +
+> > > > +	mm = proc_mem_open(inode, PTRACE_MODE_READ);
+> > > > +	if (IS_ERR(mm))
+> > > > +		return PTR_ERR(mm);
+> > > >  
+> > > > +	priv = __seq_open_private_bufsize(file, ops, psize,
+> > > > +					  mm && mm->map_count ?
+> > > > +					  mm->map_count * 0x300 : PAGE_SIZE);
+> > > NAK to this!
+> > > 
+> > > Seriously, this just gives any random user access to user
+> > > defined amount of memory which not accounted, not reclaimable and a
+> > > potential consumer of any higher order blocks.
+> > I completely disagree here with your rationale here.
 > 
-> I'm not sure that commit broke it. The gigantic functionality introduced
-> by the above commit was under an #ifdef CONFIG_X86_64. Prior
-> to that we had a VM_BUG_ON(hstate_is_gigantic(h)).
-> 
-Hi Catalin and Michal ,
-Thank you for your reply.
-Before that commit gigantic pages can only be allocated at boottime and
-can't be freed. That why we had VM_BUG_ON(hstate_is_gigantic(h)) in
-function update_and_free_page() Prior to that.
+> And with further review and your comment above, I withdraw this patch.
 
-Anyway, it should not just add #ifdef CONFIG_X86_64 for arm64 already
-supported 1G hugepage before that commit. Right?
+So you've made me look into that code. I can imagine how it is easy to
+to get confused here. The important part is that m->count is reset after
+each ->show(). So traverse() same as seq_read only grows the buffer if
+a single show doesn't fit in.
 
-Please let me know if I miss something.
-
-Thanks
-Xie Yisheng.
-
-
+That being said, should I repost my rebased patches or do you plan to
+repost your patch? I do not want spam people with another version if
+you do not like it.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
