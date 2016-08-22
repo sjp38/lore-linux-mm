@@ -1,72 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 32E616B0069
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 07:01:04 -0400 (EDT)
-Received: by mail-yb0-f200.google.com with SMTP id g67so234964370ybi.0
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 04:01:04 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id c68si13480135qke.294.2016.08.22.04.01.01
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0219B6B025E
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 07:01:17 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id l4so59012671wml.0
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 04:01:16 -0700 (PDT)
+Received: from mail.ud10.udmedia.de (ud10.udmedia.de. [194.117.254.50])
+        by mx.google.com with ESMTPS id h130si15659357wme.36.2016.08.22.04.01.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 22 Aug 2016 04:01:03 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 1/2] mm/hugetlb: Introduce ARCH_HAS_GIGANTIC_PAGE
-References: <1471834603-27053-1-git-send-email-xieyisheng1@huawei.com>
- <1471834603-27053-2-git-send-email-xieyisheng1@huawei.com>
- <20160822080101.GE13596@dhcp22.suse.cz>
-From: Yisheng Xie <xieyisheng1@huawei.com>
-Message-ID: <32ed1cea-df4b-a170-2d6f-0a4e05ee8405@huawei.com>
-Date: Mon, 22 Aug 2016 18:37:58 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 22 Aug 2016 04:01:16 -0700 (PDT)
+Date: Mon, 22 Aug 2016 13:01:13 +0200
+From: Markus Trippelsdorf <markus@trippelsdorf.de>
+Subject: Re: OOM detection regressions since 4.7
+Message-ID: <20160822110113.GB314@x4>
+References: <20160822093249.GA14916@dhcp22.suse.cz>
+ <20160822101614.GA314@x4>
+ <20160822105653.GI13596@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20160822080101.GE13596@dhcp22.suse.cz>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160822105653.GI13596@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, guohanjun@huawei.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, will.deacon@arm.com, dave.hansen@intel.com, sudeep.holla@arm.com, catalin.marinas@arm.com, mark.rutland@arm.com, robh+dt@kernel.org, linux-arm-kernel@lists.infradead.org, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, greg@suse.cz, Linus Torvalds <torvalds@linux-foundation.org>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Jiri Slaby <jslaby@suse.com>, Olaf Hering <olaf@aepfle.de>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-
-
-On 2016/8/22 16:01, Michal Hocko wrote:
-> On Mon 22-08-16 10:56:42, Xie Yisheng wrote:
->>  
->> +config ARCH_HAS_GIGANTIC_PAGE
->> +	depends on HUGETLB_PAGE
->> +	bool
->> +
+On 2016.08.22 at 12:56 +0200, Michal Hocko wrote:
+> On Mon 22-08-16 12:16:14, Markus Trippelsdorf wrote:
+> > On 2016.08.22 at 11:32 +0200, Michal Hocko wrote:
+> > > [1] http://lkml.kernel.org/r/20160731051121.GB307@x4
+> > 
+> > For the report [1] above:
+> > 
+> > markus@x4 linux % cat .config | grep CONFIG_COMPACTION
+> > # CONFIG_COMPACTION is not set
 > 
-> but is this really necessary? The code where we use
-> ARCH_HAS_GIGANTIC_PAGE already depends on HUGETLB_PAGE.
-> 
-Hi Michal,
-Thank you for your reply.
-That right, it's no need to depends on HUGETLB_PAGE here.
+> Hmm, without compaction and a heavy fragmentation then I am afraid we
+> cannot really do much. What is the reason to disable compaction in the
+> first place?
 
-I will send v3 soon.
+I don't recall. Must have been some issue in the past. I will re-enable
+the option.
 
-Thanks
-Xie Yisheng
-> Other than that looks good to me and a nice simplification.
-> 
->>  source "fs/configfs/Kconfig"
->>  source "fs/efivarfs/Kconfig"
->>  
->> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->> index 87e11d8..8488dcc 100644
->> --- a/mm/hugetlb.c
->> +++ b/mm/hugetlb.c
->> @@ -1022,7 +1022,7 @@ static int hstate_next_node_to_free(struct hstate *h, nodemask_t *nodes_allowed)
->>  		((node = hstate_next_node_to_free(hs, mask)) || 1);	\
->>  		nr_nodes--)
->>  
->> -#if (defined(CONFIG_X86_64) || defined(CONFIG_S390)) && \
->> +#if defined(CONFIG_ARCH_HAS_GIGANTIC_PAGE) && \
->>  	((defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || \
->>  	defined(CONFIG_CMA))
->>  static void destroy_compound_gigantic_page(struct page *page,
->> -- 
->> 1.7.12.4
-> 
+-- 
+Markus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
