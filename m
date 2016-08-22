@@ -1,18 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 81D4F6B026B
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 19:25:00 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id e63so960762ith.1
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 16:25:00 -0700 (PDT)
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0066.outbound.protection.outlook.com. [104.47.41.66])
-        by mx.google.com with ESMTPS id v34si145596otd.289.2016.08.22.16.24.59
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F0C46B026D
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 19:25:15 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id f6so6761687ith.2
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 16:25:15 -0700 (PDT)
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0082.outbound.protection.outlook.com. [104.47.34.82])
+        by mx.google.com with ESMTPS id 188si162472oid.1.2016.08.22.16.25.14
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 22 Aug 2016 16:24:59 -0700 (PDT)
-Subject: [RFC PATCH v1 06/28] KVM: SVM: Add SEV feature definitions to KVM
+        Mon, 22 Aug 2016 16:25:15 -0700 (PDT)
+Subject: [RFC PATCH v1 07/28] x86: Do not encrypt memory areas if SEV is
+ enabled
 From: Brijesh Singh <brijesh.singh@amd.com>
-Date: Mon, 22 Aug 2016 19:24:46 -0400
-Message-ID: <147190828659.9523.13390615310993962670.stgit@brijesh-build-machine>
+Date: Mon, 22 Aug 2016 19:24:59 -0400
+Message-ID: <147190829935.9523.3097284272847092359.stgit@brijesh-build-machine>
 In-Reply-To: <147190820782.9523.4967724730957229273.stgit@brijesh-build-machine>
 References: <147190820782.9523.4967724730957229273.stgit@brijesh-build-machine>
 MIME-Version: 1.0
@@ -24,43 +25,57 @@ To: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, brijesh.singh@amd.com,
 
 From: Tom Lendacky <thomas.lendacky@amd.com>
 
-Define a new KVM cpu feature for Secure Encrypted Virtualization (SEV).
-The kernel will check for the presence of this feature to determine if
-it is running with SEV active.
-
-Define the SEV enable bit for the VMCB control structure. The hypervisor
-will use this bit to enable SEV in the guest.
+When running under SEV, some memory areas that were originally not
+encrypted under SME are already encrypted. In these situations do not
+attempt to encrypt them.
 
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- arch/x86/include/asm/svm.h           |    1 +
- arch/x86/include/uapi/asm/kvm_para.h |    1 +
- 2 files changed, 2 insertions(+)
+ arch/x86/kernel/head64.c |    4 ++--
+ arch/x86/kernel/setup.c  |    7 ++++---
+ 2 files changed, 6 insertions(+), 5 deletions(-)
 
-diff --git a/arch/x86/include/asm/svm.h b/arch/x86/include/asm/svm.h
-index 2aca535..fba2a7b 100644
---- a/arch/x86/include/asm/svm.h
-+++ b/arch/x86/include/asm/svm.h
-@@ -137,6 +137,7 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
- #define SVM_VM_CR_SVM_DIS_MASK  0x0010ULL
+diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
+index 358d7bc..4a15def 100644
+--- a/arch/x86/kernel/head64.c
++++ b/arch/x86/kernel/head64.c
+@@ -114,7 +114,7 @@ static void __init create_unencrypted_mapping(void *address, unsigned long size)
+ 	unsigned long physaddr = (unsigned long)address - __PAGE_OFFSET;
+ 	pmdval_t pmd_flags, pmd;
  
- #define SVM_NESTED_CTL_NP_ENABLE	BIT(0)
-+#define SVM_NESTED_CTL_SEV_ENABLE	BIT(1)
+-	if (!sme_me_mask)
++	if (!sme_me_mask || sev_active)
+ 		return;
  
- struct __attribute__ ((__packed__)) vmcb_seg {
- 	u16 selector;
-diff --git a/arch/x86/include/uapi/asm/kvm_para.h b/arch/x86/include/uapi/asm/kvm_para.h
-index 94dc8ca..67dd610f 100644
---- a/arch/x86/include/uapi/asm/kvm_para.h
-+++ b/arch/x86/include/uapi/asm/kvm_para.h
-@@ -24,6 +24,7 @@
- #define KVM_FEATURE_STEAL_TIME		5
- #define KVM_FEATURE_PV_EOI		6
- #define KVM_FEATURE_PV_UNHALT		7
-+#define KVM_FEATURE_SEV			8
+ 	/* Clear the encryption mask from the early_pmd_flags */
+@@ -165,7 +165,7 @@ static void __init __clear_mapping(unsigned long address)
  
- /* The last 8 bits are used to indicate how to interpret the flags field
-  * in pvclock structure. If no bits are set, all flags are ignored.
+ static void __init clear_mapping(void *address, unsigned long size)
+ {
+-	if (!sme_me_mask)
++	if (!sme_me_mask || sev_active)
+ 		return;
+ 
+ 	do {
+diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+index cec8a63..9c10383 100644
+--- a/arch/x86/kernel/setup.c
++++ b/arch/x86/kernel/setup.c
+@@ -380,10 +380,11 @@ static void __init reserve_initrd(void)
+ 
+ 	/*
+ 	 * This memory is marked encrypted by the kernel but the ramdisk
+-	 * was loaded in the clear by the bootloader, so make sure that
+-	 * the ramdisk image is encrypted.
++	 * was loaded in the clear by the bootloader (unless SEV is active),
++	 * so make sure that the ramdisk image is encrypted.
+ 	 */
+-	sme_early_mem_enc(ramdisk_image, ramdisk_end - ramdisk_image);
++	if (!sev_active)
++		sme_early_mem_enc(ramdisk_image, ramdisk_end - ramdisk_image);
+ 
+ 	initrd_start = 0;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
