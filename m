@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 436806B0266
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 19:24:17 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id j124so611416ith.3
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 16:24:17 -0700 (PDT)
-Received: from NAM02-CY1-obe.outbound.protection.outlook.com (mail-cys01nam02on0046.outbound.protection.outlook.com. [104.47.37.46])
-        by mx.google.com with ESMTPS id y129si140807oie.222.2016.08.22.16.24.16
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A17176B0269
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 19:24:30 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id c189so37894597oia.1
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 16:24:30 -0700 (PDT)
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0043.outbound.protection.outlook.com. [104.47.34.43])
+        by mx.google.com with ESMTPS id w56si156643otw.124.2016.08.22.16.24.29
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 22 Aug 2016 16:24:16 -0700 (PDT)
-Subject: [RFC PATCH v1 03/28] kvm: svm: Use the hardware provided GPA
- instead of page walk
+        Mon, 22 Aug 2016 16:24:29 -0700 (PDT)
+Subject: [RFC PATCH v1 04/28] x86: Secure Encrypted Virtualization (SEV)
+ support
 From: Brijesh Singh <brijesh.singh@amd.com>
-Date: Mon, 22 Aug 2016 19:24:07 -0400
-Message-ID: <147190824754.9523.13923968456167130181.stgit@brijesh-build-machine>
+Date: Mon, 22 Aug 2016 19:24:19 -0400
+Message-ID: <147190825949.9523.11406635622434950066.stgit@brijesh-build-machine>
 In-Reply-To: <147190820782.9523.4967724730957229273.stgit@brijesh-build-machine>
 References: <147190820782.9523.4967724730957229273.stgit@brijesh-build-machine>
 MIME-Version: 1.0
@@ -25,100 +25,74 @@ To: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, brijesh.singh@amd.com,
 
 From: Tom Lendacky <thomas.lendacky@amd.com>
 
-When a guest causes a NPF which requires emulation, KVM sometimes walks
-the guest page tables to translate the GVA to a GPA. This is unnecessary
-most of the time on AMD hardware since the hardware provides the GPA in
-EXITINFO2.
-
-The only exception cases involve string operations involving rep or
-operations that use two memory locations. With rep, the GPA will only be
-the value of the initial NPF and with dual memory locations we won't know
-which memory address was translated into EXITINFO2.
+Provide support for Secure Encyrpted Virtualization (SEV). This initial
+support defines the SEV active flag in order for the kernel to determine
+if it is running with SEV active or not.
 
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- arch/x86/include/asm/kvm_emulate.h |    3 +++
- arch/x86/include/asm/kvm_host.h    |    3 +++
- arch/x86/kvm/svm.c                 |    2 ++
- arch/x86/kvm/x86.c                 |   17 ++++++++++++++++-
- 4 files changed, 24 insertions(+), 1 deletion(-)
+ arch/x86/include/asm/mem_encrypt.h |    3 +++
+ arch/x86/kernel/mem_encrypt.S      |    8 ++++++++
+ arch/x86/kernel/x8664_ksyms_64.c   |    1 +
+ 3 files changed, 12 insertions(+)
 
-diff --git a/arch/x86/include/asm/kvm_emulate.h b/arch/x86/include/asm/kvm_emulate.h
-index e9cd7be..2d1ac09 100644
---- a/arch/x86/include/asm/kvm_emulate.h
-+++ b/arch/x86/include/asm/kvm_emulate.h
-@@ -344,6 +344,9 @@ struct x86_emulate_ctxt {
- 	struct read_cache mem_read;
- };
+diff --git a/arch/x86/include/asm/mem_encrypt.h b/arch/x86/include/asm/mem_encrypt.h
+index e395729..9c592d1 100644
+--- a/arch/x86/include/asm/mem_encrypt.h
++++ b/arch/x86/include/asm/mem_encrypt.h
+@@ -20,6 +20,7 @@
+ #ifdef CONFIG_AMD_MEM_ENCRYPT
  
-+/* String operation identifier (matches the definition in emulate.c) */
-+#define CTXT_STRING_OP	(1 << 13)
+ extern unsigned long sme_me_mask;
++extern unsigned int sev_active;
+ 
+ u8 sme_get_me_loss(void);
+ 
+@@ -50,6 +51,8 @@ void swiotlb_set_mem_dec(void *vaddr, unsigned long size);
+ 
+ #define sme_me_mask		0UL
+ 
++#define sev_active		0
 +
- /* Repeat String Operation Prefix */
- #define REPE_PREFIX	0xf3
- #define REPNE_PREFIX	0xf2
-diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
-index c38f878..b1dd673 100644
---- a/arch/x86/include/asm/kvm_host.h
-+++ b/arch/x86/include/asm/kvm_host.h
-@@ -667,6 +667,9 @@ struct kvm_vcpu_arch {
+ static inline u8 sme_get_me_loss(void)
+ {
+ 	return 0;
+diff --git a/arch/x86/kernel/mem_encrypt.S b/arch/x86/kernel/mem_encrypt.S
+index bf9f6a9..6a8cd18 100644
+--- a/arch/x86/kernel/mem_encrypt.S
++++ b/arch/x86/kernel/mem_encrypt.S
+@@ -96,6 +96,10 @@ ENDPROC(sme_enable)
  
- 	int pending_ioapic_eoi;
- 	int pending_external_vector;
+ ENTRY(sme_encrypt_kernel)
+ #ifdef CONFIG_AMD_MEM_ENCRYPT
++	/* If SEV is active then the kernel is already encrypted */
++	cmpl	$0, sev_active(%rip)
++	jnz	.Lencrypt_exit
 +
-+	/* GPA available (AMD only) */
-+	bool gpa_available;
- };
+ 	/* If SME is not active then no need to encrypt the kernel */
+ 	cmpq	$0, sme_me_mask(%rip)
+ 	jz	.Lencrypt_exit
+@@ -334,6 +338,10 @@ sme_me_loss:
+ 	.byte	0x00
+ 	.align	8
  
- struct kvm_lpage_info {
-diff --git a/arch/x86/kvm/svm.c b/arch/x86/kvm/svm.c
-index fd5a9a8..9b2de7c 100644
---- a/arch/x86/kvm/svm.c
-+++ b/arch/x86/kvm/svm.c
-@@ -4055,6 +4055,8 @@ static int handle_exit(struct kvm_vcpu *vcpu)
- 
- 	trace_kvm_exit(exit_code, vcpu, KVM_ISA_SVM);
- 
-+	vcpu->arch.gpa_available = (exit_code == SVM_EXIT_NPF);
++ENTRY(sev_active)
++	.word	0x00000000
++	.align	8
 +
- 	if (!is_cr_intercept(svm, INTERCEPT_CR0_WRITE))
- 		vcpu->arch.cr0 = svm->vmcb->save.cr0;
- 	if (npt_enabled)
-diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index 78295b0..d6f2f4b 100644
---- a/arch/x86/kvm/x86.c
-+++ b/arch/x86/kvm/x86.c
-@@ -4382,7 +4382,19 @@ static int vcpu_mmio_gva_to_gpa(struct kvm_vcpu *vcpu, unsigned long gva,
- 		return 1;
- 	}
- 
--	*gpa = vcpu->arch.walk_mmu->gva_to_gpa(vcpu, gva, access, exception);
-+	/*
-+	 * If the exit was due to a NPF we may already have a GPA.
-+	 * If the GPA is present, use it to avoid the GVA to GPA table
-+	 * walk. Note, this cannot be used on string operations since
-+	 * string operation using rep will only have the initial GPA
-+	 * from when the NPF occurred.
-+	 */
-+	if (vcpu->arch.gpa_available &&
-+	    !(vcpu->arch.emulate_ctxt.d & CTXT_STRING_OP))
-+		*gpa = exception->address;
-+	else
-+		*gpa = vcpu->arch.walk_mmu->gva_to_gpa(vcpu, gva, access,
-+						       exception);
- 
- 	if (*gpa == UNMAPPED_GVA)
- 		return -1;
-@@ -5504,6 +5516,9 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
- 	}
- 
- restart:
-+	/* Save the faulting GPA (cr2) in the address field */
-+	ctxt->exception.address = cr2;
-+
- 	r = x86_emulate_insn(ctxt);
- 
- 	if (r == EMULATION_INTERCEPTED)
+ mem_encrypt_enable_option:
+ 	.asciz "mem_encrypt=on"
+ 	.align	8
+diff --git a/arch/x86/kernel/x8664_ksyms_64.c b/arch/x86/kernel/x8664_ksyms_64.c
+index 651c4c8..14bfc0b 100644
+--- a/arch/x86/kernel/x8664_ksyms_64.c
++++ b/arch/x86/kernel/x8664_ksyms_64.c
+@@ -88,4 +88,5 @@ EXPORT_SYMBOL(___preempt_schedule_notrace);
+ #ifdef CONFIG_AMD_MEM_ENCRYPT
+ EXPORT_SYMBOL_GPL(sme_me_mask);
+ EXPORT_SYMBOL_GPL(sme_get_me_loss);
++EXPORT_SYMBOL_GPL(sev_active);
+ #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
