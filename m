@@ -1,71 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C204A6B0069
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 06:56:55 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id o80so58967882wme.1
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 03:56:55 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id i2si15686378wmd.60.2016.08.22.03.56.54
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 21A6D6B0253
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 06:59:32 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id 93so176165692qtg.1
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 03:59:32 -0700 (PDT)
+Received: from mail-yb0-f169.google.com (mail-yb0-f169.google.com. [209.85.213.169])
+        by mx.google.com with ESMTPS id f128si3736034ywc.48.2016.08.22.03.59.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Aug 2016 03:56:54 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id o80so12885539wme.0
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 03:56:54 -0700 (PDT)
-Date: Mon, 22 Aug 2016 12:56:53 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: OOM detection regressions since 4.7
-Message-ID: <20160822105653.GI13596@dhcp22.suse.cz>
-References: <20160822093249.GA14916@dhcp22.suse.cz>
- <20160822101614.GA314@x4>
+        Mon, 22 Aug 2016 03:59:31 -0700 (PDT)
+Received: by mail-yb0-f169.google.com with SMTP id b96so927146ybi.0
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 03:59:31 -0700 (PDT)
+Date: Mon, 22 Aug 2016 16:29:25 +0530
+From: Pratyush Anand <panand@redhat.com>
+Subject: Re: [RFC 0/4] Kexec: Enable run time memory resrvation of crash
+ kernel
+Message-ID: <20160822105925.GA17255@localhost.localdomain>
+References: <20160812141838.5973-1-ronit.crj@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160822101614.GA314@x4>
+In-Reply-To: <20160812141838.5973-1-ronit.crj@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Markus Trippelsdorf <markus@trippelsdorf.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, greg@suse.cz, Linus Torvalds <torvalds@linux-foundation.org>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Jiri Slaby <jslaby@suse.com>, Olaf Hering <olaf@aepfle.de>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Ronit Halder <ronit.crj@gmail.com>
+Cc: linux-kernel@vger.kernel.org, tglx@linutronix.de, mingo@redhat.com, hpa@zytor.com, bp@suse.de, dyoung@redhat.com, jroedel@suse.de, krzysiek@podlesie.net, msalter@redhat.com, ebiederm@xmission.com, akpm@linux-foundation.org, bhe@redhat.com, vgoyal@redhat.com, mnfhuang@gmail.com, kexec@lists.infradead.org, kirill.shutemov@linux.intel.com, mchehab@osg.samsung.com, aarcange@redhat.com, vdavydov@parallels.com, dan.j.williams@intel.com, jack@suse.cz, linux-mm@kvack.org
 
-On Mon 22-08-16 12:16:14, Markus Trippelsdorf wrote:
-> On 2016.08.22 at 11:32 +0200, Michal Hocko wrote:
-> > there have been multiple reports [1][2][3][4][5] about pre-mature OOM
-> > killer invocations since 4.7 which contains oom detection rework. All of
-> > them were for order-2 (kernel stack) alloaction requests failing because
-> > of a high fragmentation and compaction failing to make any forward
-> > progress. While investigating this we have found out that the compaction
-> > just gives up too early. Vlastimil has been working on compaction
-> > improvement for quite some time and his series [6] is already sitting
-> > in mmotm tree. This already helps a lot because it drops some heuristics
-> > which are more aimed at lower latencies for high orders rather than
-> > reliability. Joonsoo has then identified further problem with too many
-> > blocks being marked as unmovable [7] and Vlastimil has prepared a patch
-> > on top of his series [8] which is also in the mmotm tree now.
-> > 
-> > That being said, the regression is real and should be fixed for 4.7
-> > stable users. [6][8] was reported to help and ooms are no longer
-> > reproducible. I know we are quite late (rc3) in 4.8 but I would vote
-> > for mergeing those patches and have them in 4.8. For 4.7 I would go
-> > with a partial revert of the detection rework for high order requests
-> > (see patch below). This patch is really trivial. If those compaction
-> > improvements are just too large for 4.8 then we can use the same patch
-> > as for 4.7 stable for now and revert it in 4.9 after compaction changes
-> > are merged.
-> > 
-> > Thoughts?
-> > 
-> > [1] http://lkml.kernel.org/r/20160731051121.GB307@x4
+On 12/08/2016:07:48:38 PM, Ronit Halder wrote:
+> Currenty linux kernel reserves memory at the boot time for crash kernel.
+> It will be very useful if we can reserve memory in run time. The user can 
+> reserve the memory whenerver needed instead of reserving at the boot time.
 > 
-> For the report [1] above:
-> 
-> markus@x4 linux % cat .config | grep CONFIG_COMPACTION
-> # CONFIG_COMPACTION is not set
+> It is possible to reserve memory for crash kernel at the run time using
+> CMA (Contiguous Memory Allocator). CMA is capable of allocating big chunk 
+> of memory. At the boot time we will create one (if only low memory is used)
+> or two (if we use both high memory in case of x86_64) CMA areas of size 
+> given in "crashkernel" boot time command line parameter. This memory in CMA
+> areas can be used as movable pages (used for disk caches, process pages
+> etc) if not allocated. Then the user can reserve or free memory from those
+> CMA areas using "/sys/kernel/kexec_crash_size" sysfs entry. If the user
 
-Hmm, without compaction and a heavy fragmentation then I am afraid we
-cannot really do much. What is the reason to disable compaction in the
-first place?
--- 
-Michal Hocko
-SUSE Labs
+But the cma_alloc() is not a guaranteed allocation function, whereas memblock
+api will guarantee that crashkerenel memory is available. 
+More over, most of the system starts kdump service at boot time, so not sure if
+it could be useful enough. Lets see what other says....
+
+> usee high memory it will automatically at least 256MB low memory
+> (needed for swiotlb and DMA buffers) when the user allocates memory using
+> mentioned sysfs enrty. In case of high memory reservation the user controls
+> the size of reserved region in high memory with
+> "/sys/kernel/kexec_crash_size" entry. If the size set is zero then the 
+> memory allocated in low memory will automatically be freed.
+> 
+> As the pages under CMA area (when not allocated by CMA) can only be used by
+> movable pages. The pages won't be used for DMA. So, after allocating pages
+> from CMA area for loading the crash kernel, there won't be any chance of
+> DMA on the memory.
+> 
+> Thus is a prototype patch. Please share your opinions on my approach. This
+> patch is only for x86 and x86_64. Please note, this patch is only a
+> prototype just to explain my approach and get the review. This patch is on
+> kernel version v4.4.11.
+> 
+> CMA depends on page migration and only uses movable pages. But, the movable
+> pages become unmovable momentarily for pinning. The CMA fails for this
+> reason. I don't have any solution for that right now. This approach will
+> work when the this problems with CMA will be fixed. The patch is enabled
+> by a kernel configuration option CONFIG_KEXEC_CMA.
+> 
+> Ronit Halder (4):
+>   Creating one or two CMA area at Boot time
+>   Functions for memory reservation and release
+>   Adding a new kernel configuration to enable the feature
+>   Enable memory allocation through sysfs interface
+> 
+>  arch/x86/kernel/setup.c | 44 ++++++++++++++++++++++++--
+>  include/linux/kexec.h   | 11 ++++++-
+>  kernel/kexec_core.c     | 83 +++++++++++++++++++++++++++++++++++++++++++++++++
+>  kernel/ksysfs.c         | 23 +++++++++++++-
+>  mm/Kconfig              |  6 ++++
+>  5 files changed, 162 insertions(+), 5 deletions(-)
+
+~Pratyush
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
