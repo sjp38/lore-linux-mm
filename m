@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 792B382F66
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 19:28:26 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id i144so32299579oib.0
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 16:28:26 -0700 (PDT)
-Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0083.outbound.protection.outlook.com. [104.47.38.83])
-        by mx.google.com with ESMTPS id q125si162685oig.39.2016.08.22.16.28.25
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 18EA782F66
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 19:28:42 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id j124so1007058ith.3
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 16:28:42 -0700 (PDT)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0078.outbound.protection.outlook.com. [104.47.38.78])
+        by mx.google.com with ESMTPS id u22si152653ota.258.2016.08.22.16.28.41
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 22 Aug 2016 16:28:25 -0700 (PDT)
-Subject: [RFC PATCH v1 21/28] KVM: introduce KVM_SEV_ISSUE_CMD ioctl
+        Mon, 22 Aug 2016 16:28:41 -0700 (PDT)
+Subject: [RFC PATCH v1 22/28] KVM: SVM: add SEV launch start command
 From: Brijesh Singh <brijesh.singh@amd.com>
-Date: Mon, 22 Aug 2016 19:28:17 -0400
-Message-ID: <147190849706.9523.17127624683768628621.stgit@brijesh-build-machine>
+Date: Mon, 22 Aug 2016 19:28:28 -0400
+Message-ID: <147190850830.9523.15876380749386321765.stgit@brijesh-build-machine>
 In-Reply-To: <147190820782.9523.4967724730957229273.stgit@brijesh-build-machine>
 References: <147190820782.9523.4967724730957229273.stgit@brijesh-build-machine>
 MIME-Version: 1.0
@@ -22,210 +22,262 @@ Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, brijesh.singh@amd.com, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linus.walleij@linaro.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, bp@suse.de, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, devel@linuxdriverproject.org, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, linux-crypto@vger.kernel.org, pbonzini@redhat.com, akpm@linux-foundation.org, davem@davemloft.net
 
-The ioctl will be used by qemu to issue the Secure Encrypted
-Virtualization (SEV) guest commands to transition a guest into
-into SEV-enabled mode.
+The command initate the process to launch this guest into
+SEV-enabled mode.
 
-a typical usage:
+For more information on command structure see [1], section 6.1
 
-struct kvm_sev_launch_start start;
-struct kvm_sev_issue_cmd data;
-
-data.cmd = KVM_SEV_LAUNCH_START;
-data.opaque = &start;
-
-ret = ioctl(fd, KVM_SEV_ISSUE_CMD, &data);
-
-On SEV command failure, data.ret_code will contain the firmware error code.
+[1] http://support.amd.com/TechDocs/55766_SEV-KM%20API_Spec.pdf
 
 Signed-off-by: Brijesh Singh <brijesh.singh@amd.com>
 ---
- arch/x86/include/asm/kvm_host.h |    3 +
- arch/x86/kvm/x86.c              |   13 ++++
- include/uapi/linux/kvm.h        |  125 +++++++++++++++++++++++++++++++++++++++
- 3 files changed, 141 insertions(+)
+ arch/x86/kvm/svm.c |  212 +++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 209 insertions(+), 3 deletions(-)
 
-diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
-index 9b885fc..a94e37d 100644
---- a/arch/x86/include/asm/kvm_host.h
-+++ b/arch/x86/include/asm/kvm_host.h
-@@ -1040,6 +1040,9 @@ struct kvm_x86_ops {
- 	void (*cancel_hv_timer)(struct kvm_vcpu *vcpu);
+diff --git a/arch/x86/kvm/svm.c b/arch/x86/kvm/svm.c
+index dcee635..0b6da4a 100644
+--- a/arch/x86/kvm/svm.c
++++ b/arch/x86/kvm/svm.c
+@@ -265,6 +265,9 @@ static unsigned long *sev_asid_bitmap;
  
- 	void (*setup_mce)(struct kvm_vcpu *vcpu);
+ static int sev_asid_new(void);
+ static void sev_asid_free(int asid);
++static void sev_deactivate_handle(unsigned int handle);
++static void sev_decommission_handle(unsigned int handle);
++static int sev_activate_asid(unsigned int handle, int asid, int *psp_ret);
+ 
+ static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
+ static void svm_flush_tlb(struct kvm_vcpu *vcpu);
+@@ -1645,9 +1648,18 @@ static void sev_uninit_vcpu(struct vcpu_svm *svm)
+ 
+ 	svm_sev_unref();
+ 
+-	for_each_possible_cpu(cpu) {
+-		sd = per_cpu(svm_data, cpu);
+-		sd->sev_vmcb[asid] = NULL;
++	/* when reference count reaches to zero then free SEV asid and
++	 * deactivate psp handle
++	 */
++	if (!svm_sev_ref_count()) {
++		sev_deactivate_handle(svm_sev_handle());
++		sev_decommission_handle(svm_sev_handle());
++		sev_asid_free(svm_sev_asid());
 +
-+	int (*sev_issue_cmd)(struct kvm *kvm,
-+			     struct kvm_sev_issue_cmd __user *argp);
- };
- 
- struct kvm_arch_async_pf {
-diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index d6f2f4b..0c0adad 100644
---- a/arch/x86/kvm/x86.c
-+++ b/arch/x86/kvm/x86.c
-@@ -3820,6 +3820,15 @@ split_irqchip_unlock:
- 	return r;
++		for_each_possible_cpu(cpu) {
++			sd = per_cpu(svm_data, cpu);
++			sd->sev_vmcb[asid] = NULL;
++		}
+ 	}
  }
  
-+static int kvm_vm_ioctl_sev_issue_cmd(struct kvm *kvm,
-+				      struct kvm_sev_issue_cmd __user *argp)
+@@ -5196,6 +5208,198 @@ static void sev_asid_free(int asid)
+ 	clear_bit(asid, sev_asid_bitmap);
+ }
+ 
++static void sev_decommission_handle(unsigned int handle)
 +{
-+	if (kvm_x86_ops->sev_issue_cmd)
-+		return kvm_x86_ops->sev_issue_cmd(kvm, argp);
++	int ret, psp_ret;
++	struct psp_data_decommission *decommission;
 +
-+	return -ENOTTY;
++	decommission = kzalloc(sizeof(*decommission), GFP_KERNEL);
++	if (!decommission)
++		return;
++
++	decommission->hdr.buffer_len = sizeof(*decommission);
++	decommission->handle = handle;
++	ret = psp_guest_decommission(decommission, &psp_ret);
++	if (ret)
++		printk(KERN_ERR "SEV: DECOMISSION ret=%d (%#010x)\n",
++				ret, psp_ret);
++
++	kfree(decommission);
 +}
 +
- long kvm_arch_vm_ioctl(struct file *filp,
- 		       unsigned int ioctl, unsigned long arg)
- {
-@@ -4085,6 +4094,10 @@ long kvm_arch_vm_ioctl(struct file *filp,
- 		r = kvm_vm_ioctl_enable_cap(kvm, &cap);
- 		break;
- 	}
-+	case KVM_SEV_ISSUE_CMD: {
-+		r = kvm_vm_ioctl_sev_issue_cmd(kvm, argp);
++static void sev_deactivate_handle(unsigned int handle)
++{
++	int ret, psp_ret;
++	struct psp_data_deactivate *deactivate;
++
++	deactivate = kzalloc(sizeof(*deactivate), GFP_KERNEL);
++	if (!deactivate)
++		return;
++
++	deactivate->hdr.buffer_len = sizeof(*deactivate);
++	deactivate->handle = handle;
++	ret = psp_guest_deactivate(deactivate, &psp_ret);
++	if (ret) {
++		printk(KERN_ERR "SEV: DEACTIVATE ret=%d (%#010x)\n",
++				ret, psp_ret);
++		goto buffer_free;
++	}
++
++	wbinvd_on_all_cpus();
++
++	ret = psp_guest_df_flush(&psp_ret);
++	if (ret)
++		printk(KERN_ERR "SEV: DF_FLUSH ret=%d (%#010x)\n",
++				ret, psp_ret);
++
++buffer_free:
++	kfree(deactivate);
++}
++
++static int sev_activate_asid(unsigned int handle, int asid, int *psp_ret)
++{
++	int ret;
++	struct psp_data_activate *activate;
++
++	wbinvd_on_all_cpus();
++
++	ret = psp_guest_df_flush(psp_ret);
++	if (ret) {
++		printk(KERN_ERR "SEV: DF_FLUSH ret=%d (%#010x)\n",
++				ret, *psp_ret);
++		return ret;
++	}
++
++	activate = kzalloc(sizeof(*activate), GFP_KERNEL);
++	if (!activate)
++		return -ENOMEM;
++
++	activate->hdr.buffer_len = sizeof(*activate);
++	activate->handle = handle;
++	activate->asid   = asid;
++	ret = psp_guest_activate(activate, psp_ret);
++	if (ret)
++		printk(KERN_ERR "SEV: ACTIVATE ret=%d (%#010x)\n",
++				ret, *psp_ret);
++	kfree(activate);
++	return ret;
++}
++
++static int sev_pre_start(struct kvm *kvm, int *asid)
++{
++	int ret;
++
++	/* If guest has active psp handle then deactivate before calling
++	 * launch start.
++	 */
++	if (kvm_sev_guest()) {
++		sev_deactivate_handle(kvm_sev_handle());
++		sev_decommission_handle(kvm_sev_handle());
++		*asid = kvm->arch.sev_info.asid;  /* reuse the asid */
++		ret = 0;
++	} else {
++		/* Allocate new asid for this launch */
++		ret = sev_asid_new();
++		if (ret < 0) {
++			printk(KERN_ERR "SEV: failed to allocate asid\n");
++			return ret;
++		}
++		*asid = ret;
++		ret = 0;
++	}
++
++	return ret;
++}
++
++static int sev_post_start(struct kvm *kvm, int asid, int handle, int *psp_ret)
++{
++	int ret;
++
++	/* activate asid */
++	ret = sev_activate_asid(handle, asid, psp_ret);
++	if (ret)
++		return ret;
++
++	kvm->arch.sev_info.handle = handle;
++	kvm->arch.sev_info.asid = asid;
++
++	return 0;
++}
++
++static int sev_launch_start(struct kvm *kvm,
++			    struct kvm_sev_launch_start __user *arg,
++			    int *psp_ret)
++{
++	int ret, asid;
++	struct kvm_sev_launch_start params;
++	struct psp_data_launch_start *start;
++
++	/* Get parameter from the user */
++	if (copy_from_user(&params, arg, sizeof(*arg)))
++		return -EFAULT;
++
++	start = kzalloc(sizeof(*start), GFP_KERNEL);
++	if (!start)
++		return -ENOMEM;
++
++	ret = sev_pre_start(kvm, &asid);
++	if (ret)
++		goto err_1;
++
++	start->hdr.buffer_len = sizeof(*start);
++	start->flags  = params.flags;
++	start->policy = params.policy;
++	start->handle = params.handle;
++	memcpy(start->nonce, &params.nonce, sizeof(start->nonce));
++	memcpy(start->dh_pub_qx, &params.dh_pub_qx, sizeof(start->dh_pub_qx));
++	memcpy(start->dh_pub_qy, &params.dh_pub_qy, sizeof(start->dh_pub_qy));
++
++	/* launch start */
++	ret = psp_guest_launch_start(start, psp_ret);
++	if (ret) {
++		printk(KERN_ERR "SEV: LAUNCH_START ret=%d (%#010x)\n",
++			ret, *psp_ret);
++		goto err_2;
++	}
++
++	ret = sev_post_start(kvm, asid, start->handle, psp_ret);
++	if (ret)
++		goto err_2;
++
++	kfree(start);
++	return 0;
++
++err_2:
++	sev_asid_free(asid);
++err_1:
++	kfree(start);
++	return ret;
++}
++
++static int amd_sev_issue_cmd(struct kvm *kvm,
++			     struct kvm_sev_issue_cmd __user *user_data)
++{
++	int r = -ENOTTY;
++	struct kvm_sev_issue_cmd arg;
++
++	if (copy_from_user(&arg, user_data, sizeof(struct kvm_sev_issue_cmd)))
++		return -EFAULT;
++
++	switch (arg.cmd) {
++	case KVM_SEV_LAUNCH_START: {
++		r = sev_launch_start(kvm, (void *)arg.opaque,
++					&arg.ret_code);
 +		break;
 +	}
- 	default:
- 		r = kvm_vm_ioctl_assigned_device(kvm, ioctl, arg);
- 	}
-diff --git a/include/uapi/linux/kvm.h b/include/uapi/linux/kvm.h
-index 300ef25..72c18c3 100644
---- a/include/uapi/linux/kvm.h
-+++ b/include/uapi/linux/kvm.h
-@@ -1274,6 +1274,131 @@ struct kvm_s390_ucas_mapping {
- /* Available with KVM_CAP_X86_SMM */
- #define KVM_SMI                   _IO(KVMIO,   0xb7)
++	default:
++		break;
++	}
++
++	if (copy_to_user(user_data, &arg, sizeof(struct kvm_sev_issue_cmd)))
++		r = -EFAULT;
++	return r;
++}
++
+ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
+ 	.cpu_has_kvm_support = has_svm,
+ 	.disabled_by_bios = is_disabled,
+@@ -5313,6 +5517,8 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
  
-+/* Secure Encrypted Virtualization mode */
-+enum sev_cmd {
-+	KVM_SEV_LAUNCH_START = 0,
-+	KVM_SEV_LAUNCH_UPDATE,
-+	KVM_SEV_LAUNCH_FINISH,
-+	KVM_SEV_GUEST_STATUS,
-+	KVM_SEV_DBG_DECRYPT,
-+	KVM_SEV_DBG_ENCRYPT,
-+	KVM_SEV_RECEIVE_START,
-+	KVM_SEV_RECEIVE_UPDATE,
-+	KVM_SEV_RECEIVE_FINISH,
-+	KVM_SEV_SEND_START,
-+	KVM_SEV_SEND_UPDATE,
-+	KVM_SEV_SEND_FINISH,
-+	KVM_SEV_API_VERSION,
-+	KVM_SEV_NR_MAX,
-+};
+ 	.pmu_ops = &amd_pmu_ops,
+ 	.deliver_posted_interrupt = svm_deliver_avic_intr,
 +
-+struct kvm_sev_issue_cmd {
-+	__u32 cmd;
-+	__u64 opaque;
-+	__u32 ret_code;
-+};
-+
-+struct kvm_sev_launch_start {
-+	__u32 handle;
-+	__u32 flags;
-+	__u32 policy;
-+	__u8 nonce[16];
-+	__u8 dh_pub_qx[32];
-+	__u8 dh_pub_qy[32];
-+};
-+
-+struct kvm_sev_launch_update {
-+	__u64	address;
-+	__u32	length;
-+};
-+
-+struct kvm_sev_launch_finish {
-+	__u32 vcpu_count;
-+	__u32 vcpu_length;
-+	__u64 vcpu_mask_addr;
-+	__u32 vcpu_mask_length;
-+	__u8  measurement[32];
-+};
-+
-+struct kvm_sev_guest_status {
-+	__u32 policy;
-+	__u32 state;
-+};
-+
-+struct kvm_sev_dbg_decrypt {
-+	__u64 src_addr;
-+	__u64 dst_addr;
-+	__u32 length;
-+};
-+
-+struct kvm_sev_dbg_encrypt {
-+	__u64 src_addr;
-+	__u64 dst_addr;
-+	__u32 length;
-+};
-+
-+struct kvm_sev_receive_start {
-+	__u32 handle;
-+	__u32 flags;
-+	__u32 policy;
-+	__u8 policy_meas[32];
-+	__u8 wrapped_tek[24];
-+	__u8 wrapped_tik[24];
-+	__u8 ten[16];
-+	__u8 dh_pub_qx[32];
-+	__u8 dh_pub_qy[32];
-+	__u8 nonce[16];
-+};
-+
-+struct kvm_sev_receive_update {
-+	__u8 iv[16];
-+	__u64 address;
-+	__u32 length;
-+};
-+
-+struct kvm_sev_receive_finish {
-+	__u8 measurement[32];
-+};
-+
-+struct kvm_sev_send_start {
-+	__u8 nonce[16];
-+	__u32 policy;
-+	__u8 policy_meas[32];
-+	__u8 wrapped_tek[24];
-+	__u8 wrapped_tik[24];
-+	__u8 ten[16];
-+	__u8 iv[16];
-+	__u32 flags;
-+	__u8 api_major;
-+	__u8 api_minor;
-+	__u32 serial;
-+	__u8 dh_pub_qx[32];
-+	__u8 dh_pub_qy[32];
-+	__u8 pek_sig_r[32];
-+	__u8 pek_sig_s[32];
-+	__u8 cek_sig_r[32];
-+	__u8 cek_sig_s[32];
-+	__u8 cek_pub_qx[32];
-+	__u8 cek_pub_qy[32];
-+	__u8 ask_sig_r[32];
-+	__u8 ask_sig_s[32];
-+	__u32 ncerts;
-+	__u32 cert_length;
-+	__u64 certs_addr;
-+};
-+
-+struct kvm_sev_send_update {
-+	__u32 length;
-+	__u64 src_addr;
-+	__u64 dst_addr;
-+};
-+
-+struct kvm_sev_send_finish {
-+	__u8 measurement[32];
-+};
-+
-+#define KVM_SEV_ISSUE_CMD	_IOWR(KVMIO, 0xb8, struct kvm_sev_issue_cmd)
-+
- #define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
- #define KVM_DEV_ASSIGN_PCI_2_3		(1 << 1)
- #define KVM_DEV_ASSIGN_MASK_INTX	(1 << 2)
++	.sev_issue_cmd = amd_sev_issue_cmd,
+ };
+ 
+ static int __init svm_init(void)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
