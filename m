@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 63B516B0276
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 19:26:37 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id f6so6876841ith.2
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 16:26:37 -0700 (PDT)
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0086.outbound.protection.outlook.com. [104.47.41.86])
-        by mx.google.com with ESMTPS id d80si140976oib.258.2016.08.22.16.26.36
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 75A696B0279
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 19:26:50 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id j124so851883ith.3
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 16:26:50 -0700 (PDT)
+Received: from NAM02-CY1-obe.outbound.protection.outlook.com (mail-cys01nam02on0086.outbound.protection.outlook.com. [104.47.37.86])
+        by mx.google.com with ESMTPS id u10si168482ota.11.2016.08.22.16.26.49
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 22 Aug 2016 16:26:36 -0700 (PDT)
-Subject: [RFC PATCH v1 14/28] x86: Don't set the SME MSR bit when SEV is
- active
+        Mon, 22 Aug 2016 16:26:49 -0700 (PDT)
+Subject: [RFC PATCH v1 15/28] x86: Unroll string I/O when SEV is active
 From: Brijesh Singh <brijesh.singh@amd.com>
-Date: Mon, 22 Aug 2016 19:26:28 -0400
-Message-ID: <147190838870.9523.7536164067495140361.stgit@brijesh-build-machine>
+Date: Mon, 22 Aug 2016 19:26:40 -0400
+Message-ID: <147190840032.9523.7491479364800390492.stgit@brijesh-build-machine>
 In-Reply-To: <147190820782.9523.4967724730957229273.stgit@brijesh-build-machine>
 References: <147190820782.9523.4967724730957229273.stgit@brijesh-build-machine>
 MIME-Version: 1.0
@@ -25,27 +24,56 @@ To: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, brijesh.singh@amd.com,
 
 From: Tom Lendacky <thomas.lendacky@amd.com>
 
-When SEV is active the virtual machine cannot set the MSR for SME, so
-don't set the trampoline flag for SME.
+Secure Encrypted Virtualization (SEV) does not support string I/O, so
+unroll the string I/O operation into a loop operating on one element at
+a time.
 
 Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 ---
- arch/x86/realmode/init.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ arch/x86/include/asm/io.h |   26 ++++++++++++++++++++++----
+ 1 file changed, 22 insertions(+), 4 deletions(-)
 
-diff --git a/arch/x86/realmode/init.c b/arch/x86/realmode/init.c
-index f3207e5..391d8ba 100644
---- a/arch/x86/realmode/init.c
-+++ b/arch/x86/realmode/init.c
-@@ -102,7 +102,7 @@ static void __init setup_real_mode(void)
- 	*trampoline_cr4_features = mmu_cr4_features;
+diff --git a/arch/x86/include/asm/io.h b/arch/x86/include/asm/io.h
+index de25aad..130b3e2 100644
+--- a/arch/x86/include/asm/io.h
++++ b/arch/x86/include/asm/io.h
+@@ -303,14 +303,32 @@ static inline unsigned type in##bwl##_p(int port)			\
+ 									\
+ static inline void outs##bwl(int port, const void *addr, unsigned long count) \
+ {									\
+-	asm volatile("rep; outs" #bwl					\
+-		     : "+S"(addr), "+c"(count) : "d"(port));		\
++	if (sev_active) {						\
++		unsigned type *value = (unsigned type *)addr;		\
++		while (count) {						\
++			out##bwl(*value, port);				\
++			value++;					\
++			count--;					\
++		}							\
++	} else {							\
++		asm volatile("rep; outs" #bwl				\
++			     : "+S"(addr), "+c"(count) : "d"(port));	\
++	}								\
+ }									\
+ 									\
+ static inline void ins##bwl(int port, void *addr, unsigned long count)	\
+ {									\
+-	asm volatile("rep; ins" #bwl					\
+-		     : "+D"(addr), "+c"(count) : "d"(port));		\
++	if (sev_active) {						\
++		unsigned type *value = (unsigned type *)addr;		\
++		while (count) {						\
++			*value = in##bwl(port);				\
++			value++;					\
++			count--;					\
++		}							\
++	} else {							\
++		asm volatile("rep; ins" #bwl				\
++			     : "+D"(addr), "+c"(count) : "d"(port));	\
++	}								\
+ }
  
- 	trampoline_header->flags = 0;
--	if (sme_me_mask)
-+	if (sme_me_mask && !sev_active)
- 		trampoline_header->flags |= TH_FLAGS_SME_ENABLE;
- 
- 	trampoline_pgd = (u64 *) __va(real_mode_header->trampoline_pgd);
+ BUILDIO(b, b, char)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
