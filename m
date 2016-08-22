@@ -1,54 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 01E086B025E
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 06:21:34 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 63so189713639pfx.0
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 03:21:33 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id zr3si25268295pac.131.2016.08.22.03.21.33
-        for <linux-mm@kvack.org>;
-        Mon, 22 Aug 2016 03:21:33 -0700 (PDT)
-Date: Mon, 22 Aug 2016 11:21:27 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [RFC PATCH v2 2/2] arm64 Kconfig: Select gigantic page
-Message-ID: <20160822102127.GB26494@e104818-lin.cambridge.arm.com>
-References: <1471834603-27053-1-git-send-email-xieyisheng1@huawei.com>
- <1471834603-27053-3-git-send-email-xieyisheng1@huawei.com>
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 124A66B0069
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 06:54:44 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id o80so58931475wme.1
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 03:54:44 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id d206si15627140wmf.111.2016.08.22.03.54.42
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 22 Aug 2016 03:54:42 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id i5so12869802wmg.2
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 03:54:42 -0700 (PDT)
+Date: Mon, 22 Aug 2016 12:54:41 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: OOM detection regressions since 4.7
+Message-ID: <20160822105441.GH13596@dhcp22.suse.cz>
+References: <20160822093249.GA14916@dhcp22.suse.cz>
+ <20160822093707.GG13596@dhcp22.suse.cz>
+ <20160822100528.GB11890@kroah.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1471834603-27053-3-git-send-email-xieyisheng1@huawei.com>
+In-Reply-To: <20160822100528.GB11890@kroah.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xie Yisheng <xieyisheng1@huawei.com>
-Cc: akpm@linux-foundation.org, mhocko@kernel.org, mark.rutland@arm.com, mhocko@suse.com, linux-mm@kvack.org, sudeep.holla@arm.com, will.deacon@arm.com, linux-kernel@vger.kernel.org, dave.hansen@intel.com, robh+dt@kernel.org, guohanjun@huawei.com, n-horiguchi@ah.jp.nec.com, linux-arm-kernel@lists.infradead.org, mike.kravetz@oracle.com
+To: Greg KH <gregkh@linuxfoundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Markus Trippelsdorf <markus@trippelsdorf.de>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Jiri Slaby <jslaby@suse.com>, Olaf Hering <olaf@aepfle.de>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Aug 22, 2016 at 10:56:43AM +0800, Xie Yisheng wrote:
-> Arm64 supports gigantic page after
-> commit 084bd29810a5 ("ARM64: mm: HugeTLB support.")
-> however, it got broken by 
-> commit 944d9fec8d7a ("hugetlb: add support for gigantic page
-> allocation at runtime")
+On Mon 22-08-16 06:05:28, Greg KH wrote:
+> On Mon, Aug 22, 2016 at 11:37:07AM +0200, Michal Hocko wrote:
+[...]
+> > > From 899b738538de41295839dca2090a774bdd17acd2 Mon Sep 17 00:00:00 2001
+> > > From: Michal Hocko <mhocko@suse.com>
+> > > Date: Mon, 22 Aug 2016 10:52:06 +0200
+> > > Subject: [PATCH] mm, oom: prevent pre-mature OOM killer invocation for high
+> > >  order request
+> > > 
+> > > There have been several reports about pre-mature OOM killer invocation
+> > > in 4.7 kernel when order-2 allocation request (for the kernel stack)
+> > > invoked OOM killer even during basic workloads (light IO or even kernel
+> > > compile on some filesystems). In all reported cases the memory is
+> > > fragmented and there are no order-2+ pages available. There is usually
+> > > a large amount of slab memory (usually dentries/inodes) and further
+> > > debugging has shown that there are way too many unmovable blocks which
+> > > are skipped during the compaction. Multiple reporters have confirmed that
+> > > the current linux-next which includes [1] and [2] helped and OOMs are
+> > > not reproducible anymore. A simpler fix for the stable is to simply
+> > > ignore the compaction feedback and retry as long as there is a reclaim
+> > > progress for high order requests which we used to do before. We already
+> > > do that for CONFING_COMPACTION=n so let's reuse the same code when
+> > > compaction is enabled as well.
+> > > 
+> > > [1] http://lkml.kernel.org/r/20160810091226.6709-1-vbabka@suse.cz
+> > > [2] http://lkml.kernel.org/r/f7a9ea9d-bb88-bfd6-e340-3a933559305a@suse.cz
+> > > 
+> > > Fixes: 0a0337e0d1d1 ("mm, oom: rework oom detection")
+> > > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > > ---
+> > >  mm/page_alloc.c | 50 ++------------------------------------------------
+> > >  1 file changed, 2 insertions(+), 48 deletions(-)
 > 
-> This patch selects ARCH_HAS_GIGANTIC_PAGE to make this
-> function can be used again.
-> 
-> Signed-off-by: Xie Yisheng <xieyisheng1@huawei.com>
-> ---
->  arch/arm64/Kconfig | 1 +
->  1 file changed, 1 insertion(+)
-> 
-> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-> index bc3f00f..92217f6 100644
-> --- a/arch/arm64/Kconfig
-> +++ b/arch/arm64/Kconfig
-> @@ -9,6 +9,7 @@ config ARM64
->  	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
->  	select ARCH_HAS_ELF_RANDOMIZE
->  	select ARCH_HAS_GCOV_PROFILE_ALL
-> +	select ARCH_HAS_GIGANTIC_PAGE
+> So, if this goes into Linus's tree, can you let stable@vger.kernel.org
+> know about it so we can add it to the 4.7-stable tree?  Otherwise
+> there's not much I can do here now, right?
 
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+My plan would be actually to not push this to Linus because we have a
+proper fix for Linus tree. It is just that the fix is quite large and I
+felt like the stable should get the most simple fix possible, which is
+this partial revert. So, what I am trying to tell is to push a non-linus
+patch to stable as it is simpler.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
