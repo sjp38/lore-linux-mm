@@ -1,196 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2720D83098
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 19:36:00 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id pp5so233653594pac.3
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 16:36:00 -0700 (PDT)
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0044.outbound.protection.outlook.com. [104.47.40.44])
-        by mx.google.com with ESMTPS id z185si510347pfz.64.2016.08.22.16.28.55
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 22 Aug 2016 16:28:56 -0700 (PDT)
-Subject: [RFC PATCH v1 23/28] KVM: SVM: add SEV launch update command
-From: Brijesh Singh <brijesh.singh@amd.com>
-Date: Mon, 22 Aug 2016 19:28:44 -0400
-Message-ID: <147190852423.9523.11936794196855765674.stgit@brijesh-build-machine>
-In-Reply-To: <147190820782.9523.4967724730957229273.stgit@brijesh-build-machine>
-References: <147190820782.9523.4967724730957229273.stgit@brijesh-build-machine>
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 797D86B0261
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 21:40:10 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id u191so44743615oie.3
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 18:40:10 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id m191si1337692ith.42.2016.08.22.18.40.08
+        for <linux-mm@kvack.org>;
+        Mon, 22 Aug 2016 18:40:09 -0700 (PDT)
+Date: Tue, 23 Aug 2016 10:44:42 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v4 2/5] mm/cma: populate ZONE_CMA
+Message-ID: <20160823014442.GA17039@js1304-P5Q-DELUXE>
+References: <1470724759-855-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1470724759-855-3-git-send-email-iamjoonsoo.kim@lge.com>
+ <28520ca3-4bdc-daa5-4b6f-a67309c8c2d3@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <28520ca3-4bdc-daa5-4b6f-a67309c8c2d3@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, brijesh.singh@amd.com, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linus.walleij@linaro.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, bp@suse.de, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, devel@linuxdriverproject.org, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, linux-crypto@vger.kernel.org, pbonzini@redhat.com, akpm@linux-foundation.org, davem@davemloft.net
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The command is used for encrypting guest memory region.
+On Fri, Aug 19, 2016 at 01:20:13PM +0200, Vlastimil Babka wrote:
+> On 08/09/2016 08:39 AM, js1304@gmail.com wrote:
+> >From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> >
+> >Until now, reserved pages for CMA are managed in the ordinary zones
+> >where page's pfn are belong to. This approach has numorous problems
+> >and fixing them isn't easy. (It is mentioned on previous patch.)
+> >To fix this situation, ZONE_CMA is introduced in previous patch, but,
+> >not yet populated. This patch implement population of ZONE_CMA
+> >by stealing reserved pages from the ordinary zones.
+> >
+> >Unlike previous implementation that kernel allocation request with
+> >__GFP_MOVABLE could be serviced from CMA region, allocation request only
+> >with GFP_HIGHUSER_MOVABLE can be serviced from CMA region in the new
+> >approach. This is an inevitable design decision to use the zone
+> >implementation because ZONE_CMA could contain highmem. Due to this
+> >decision, ZONE_CMA will work like as ZONE_HIGHMEM or ZONE_MOVABLE.
+> >
+> >I don't think it would be a problem because most of file cache pages
+> >and anonymous pages are requested with GFP_HIGHUSER_MOVABLE. It could
+> >be proved by the fact that there are many systems with ZONE_HIGHMEM and
+> >they work fine. Notable disadvantage is that we cannot use these pages
+> >for blockdev file cache page, because it usually has __GFP_MOVABLE but
+> >not __GFP_HIGHMEM and __GFP_USER. But, in this case, there is pros and
+> >cons. In my experience, blockdev file cache pages are one of the top
+> >reason that causes cma_alloc() to fail temporarily. So, we can get more
+> >guarantee of cma_alloc() success by discarding that case.
+> >
+> >Implementation itself is very easy to understand. Steal when cma area is
+> >initialized and recalculate various per zone stat/threshold.
+> >
+> >Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> 
+> [...]
+> 
+> >@@ -145,6 +145,28 @@ err:
+> > static int __init cma_init_reserved_areas(void)
+> > {
+> > 	int i;
+> >+	struct zone *zone;
+> >+	unsigned long start_pfn = UINT_MAX, end_pfn = 0;
+> >+
+> >+	if (!cma_area_count)
+> >+		return 0;
+> >+
+> >+	for (i = 0; i < cma_area_count; i++) {
+> >+		if (start_pfn > cma_areas[i].base_pfn)
+> >+			start_pfn = cma_areas[i].base_pfn;
+> >+		if (end_pfn < cma_areas[i].base_pfn + cma_areas[i].count)
+> >+			end_pfn = cma_areas[i].base_pfn + cma_areas[i].count;
+> >+	}
+> >+
+> >+	for_each_populated_zone(zone) {
+> >+		if (!is_zone_cma(zone))
+> >+			continue;
+> >+
+> >+		/* ZONE_CMA doesn't need to exceed CMA region */
+> >+		zone->zone_start_pfn = max(zone->zone_start_pfn, start_pfn);
+> >+		zone->spanned_pages = min(zone_end_pfn(zone), end_pfn) -
+> >+					zone->zone_start_pfn;
+> 
+> Hmm is this a dead code? for_each_populated_zone() will skip zones
+> where zone->present_pages is 0, which is AFAICS the result for
+> ZONE_CMA
+> after it's initialized by calculate_node_totalpages() (after Patch 1/5).
+> The present_pages seem to be only increased later in this function
+> by cma_activate_area() -> init_cma_reserved_pageblock().
 
-For more information see [1], section 6.2
+You're right. I will replace for_each_populated_zone() with for_each_zone().
 
-[1] http://support.amd.com/TechDocs/55766_SEV-KM%20API_Spec.pdf
+> 
+> >+	}
+> >
+> > 	for (i = 0; i < cma_area_count; i++) {
+> > 		int ret = cma_activate_area(&cma_areas[i]);
+> >@@ -153,6 +175,24 @@ static int __init cma_init_reserved_areas(void)
+> > 			return ret;
+> > 	}
+> >
+> 
+> [...]
+> 
+> >diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> >index f6c4358..352096e 100644
+> >--- a/mm/page_alloc.c
+> >+++ b/mm/page_alloc.c
+> >@@ -1600,16 +1600,38 @@ void __init page_alloc_init_late(void)
+> > }
+> >
+> > #ifdef CONFIG_CMA
+> >+static void __init adjust_present_page_count(struct page *page, long count)
+> >+{
+> >+	struct zone *zone = page_zone(page);
+> >+
+> >+	/* We don't need to hold a lock since it is boot-up process */
+> >+	zone->present_pages += count;
+> >+}
+> >+
+> > /* Free whole pageblock and set its migration type to MIGRATE_CMA. */
+> > void __init init_cma_reserved_pageblock(struct page *page)
+> > {
+> > 	unsigned i = pageblock_nr_pages;
+> >+	unsigned long pfn = page_to_pfn(page);
+> > 	struct page *p = page;
+> >+	int nid = page_to_nid(page);
+> >+
+> >+	/*
+> >+	 * ZONE_CMA will steal present pages from other zones by changing
+> >+	 * page links so page_zone() is changed. Before that,
+> >+	 * we need to adjust previous zone's page count first.
+> >+	 */
+> >+	adjust_present_page_count(page, -pageblock_nr_pages);
+> 
+> So in previous version I said this (and you replied):
+> 
+> >>> Ideally, zone's start_pfn and spanned_pages should be also adjusted
+> >>> if we stole from the beginning/end (which I suppose should be quite
+> >>> common?).
+> >
+> >It would be possible. Maybe, there is a reason I didn't do that but I
+> >don't remember it. I will think more.
+> 
+> What's the outcome? :) Is stealing from beginning/end of zone common
+> for CMA? Are we losing zone->contiguous and add iterations to
+> compaction scanner needlessly?
 
-Signed-off-by: Brijesh Singh <brijesh.singh@amd.com>
----
- arch/x86/kvm/svm.c |  126 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 126 insertions(+)
+Yes. I have thought it and my conclusion is:
 
-diff --git a/arch/x86/kvm/svm.c b/arch/x86/kvm/svm.c
-index 0b6da4a..c78bdc6 100644
---- a/arch/x86/kvm/svm.c
-+++ b/arch/x86/kvm/svm.c
-@@ -35,6 +35,8 @@
- #include <linux/trace_events.h>
- #include <linux/slab.h>
- #include <linux/ccp-psp.h>
-+#include <linux/pagemap.h>
-+#include <linux/swap.h>
- 
- #include <asm/apic.h>
- #include <asm/perf_event.h>
-@@ -263,6 +265,8 @@ static unsigned long *sev_asid_bitmap;
- #define svm_sev_guest()		(svm->vcpu.kvm->arch.sev_info.handle)
- #define svm_sev_ref_count()	(svm->vcpu.kvm->arch.sev_info.ref_count)
- 
-+#define __sev_page_pa(x) ((page_to_pfn(x) << PAGE_SHIFT) | sme_me_mask)
-+
- static int sev_asid_new(void);
- static void sev_asid_free(int asid);
- static void sev_deactivate_handle(unsigned int handle);
-@@ -5376,6 +5380,123 @@ err_1:
- 	return ret;
- }
- 
-+static int sev_pre_update(struct page **pages, unsigned long uaddr, int npages)
-+{
-+	int pinned;
-+
-+	/* pin the user virtual address */
-+	down_read(&current->mm->mmap_sem);
-+	pinned = get_user_pages(uaddr, npages, 1, 0, pages, NULL);
-+	up_read(&current->mm->mmap_sem);
-+	if (pinned != npages) {
-+		printk(KERN_ERR "SEV: failed to pin  %d pages (got %d)\n",
-+				npages, pinned);
-+		goto err;
-+	}
-+
-+	return 0;
-+err:
-+	if (pinned > 0)
-+		release_pages(pages, pinned, 0);
-+	return 1;
-+}
-+
-+static int sev_launch_update(struct kvm *kvm,
-+			     struct kvm_sev_launch_update __user *arg,
-+			     int *psp_ret)
-+{
-+	int first, last;
-+	struct page **inpages;
-+	int ret, nr_pages;
-+	unsigned long uaddr, ulen;
-+	int i, buffer_len, len, offset;
-+	struct kvm_sev_launch_update params;
-+	struct psp_data_launch_update *update;
-+
-+	/* Get the parameters from the user */
-+	if (copy_from_user(&params, arg, sizeof(*arg)))
-+		return -EFAULT;
-+
-+	uaddr = params.address;
-+	ulen = params.length;
-+
-+	/* Get number of pages */
-+	first = (uaddr & PAGE_MASK) >> PAGE_SHIFT;
-+	last = ((uaddr + ulen - 1) & PAGE_MASK) >> PAGE_SHIFT;
-+	nr_pages = (last - first + 1);
-+
-+	/* allocate the buffers */
-+	buffer_len = sizeof(*update);
-+	update = kzalloc(buffer_len, GFP_KERNEL);
-+	if (!update)
-+		return -ENOMEM;
-+
-+	ret = -ENOMEM;
-+	inpages = kzalloc(nr_pages * sizeof(struct page *), GFP_KERNEL);
-+	if (!inpages)
-+		goto err_1;
-+
-+	ret = sev_pre_update(inpages, uaddr, nr_pages);
-+	if (ret)
-+		goto err_2;
-+
-+	/* the array of pages returned by get_user_pages() is a page-aligned
-+	 * memory. Since the user buffer is probably not page-aligned, we need
-+	 * to calculate the offset within a page for first update entry.
-+	 */
-+	offset = uaddr & (PAGE_SIZE - 1);
-+	len = min_t(size_t, (PAGE_SIZE - offset), ulen);
-+	ulen -= len;
-+
-+	/* update first page -
-+	 * special care need to be taken for the first page because we might
-+	 * be dealing with offset within the page
-+	 */
-+	update->hdr.buffer_len = buffer_len;
-+	update->handle = kvm_sev_handle();
-+	update->length = len;
-+	update->address = __sev_page_pa(inpages[0]) + offset;
-+	clflush_cache_range(page_address(inpages[0]), PAGE_SIZE);
-+	ret = psp_guest_launch_update(update, 5, psp_ret);
-+	if (ret) {
-+		printk(KERN_ERR "SEV: LAUNCH_UPDATE addr %#llx len %d "
-+				"ret=%d (%#010x)\n", update->address,
-+				update->length, ret, *psp_ret);
-+		goto err_3;
-+	}
-+
-+	/* update remaining pages */
-+	for (i = 1; i < nr_pages; i++) {
-+
-+		len = min_t(size_t, PAGE_SIZE, ulen);
-+		ulen -= len;
-+		update->length = len;
-+		update->address = __sev_page_pa(inpages[i]);
-+		clflush_cache_range(page_address(inpages[i]), PAGE_SIZE);
-+
-+		ret = psp_guest_launch_update(update, 5, psp_ret);
-+		if (ret) {
-+			printk(KERN_ERR "SEV: LAUNCH_UPDATE addr %#llx len %d "
-+				"ret=%d (%#010x)\n", update->address,
-+				update->length, ret, *psp_ret);
-+			goto err_3;
-+		}
-+	}
-+
-+err_3:
-+	/* mark pages dirty */
-+	for (i = 0; i < nr_pages; i++) {
-+		set_page_dirty_lock(inpages[i]);
-+		mark_page_accessed(inpages[i]);
-+	}
-+	release_pages(inpages, nr_pages, 0);
-+err_2:
-+	kfree(inpages);
-+err_1:
-+	kfree(update);
-+	return ret;
-+}
-+ 
- static int amd_sev_issue_cmd(struct kvm *kvm,
- 			     struct kvm_sev_issue_cmd __user *user_data)
- {
-@@ -5391,6 +5512,11 @@ static int amd_sev_issue_cmd(struct kvm *kvm,
- 					&arg.ret_code);
- 		break;
- 	}
-+	case KVM_SEV_LAUNCH_UPDATE: {
-+		r = sev_launch_update(kvm, (void *)arg.opaque,
-+					&arg.ret_code);
-+		break;
-+	}
- 	default:
- 		break;
- 	}
+It is possible but I don't want to make code more complex at this
+moment. We can simply do it later.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
