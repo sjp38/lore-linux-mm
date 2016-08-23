@@ -1,65 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 01F986B0069
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2016 04:38:33 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id e7so92189546lfe.0
-        for <linux-mm@kvack.org>; Tue, 23 Aug 2016 01:38:32 -0700 (PDT)
-Received: from mail.ud10.udmedia.de (ud10.udmedia.de. [194.117.254.50])
-        by mx.google.com with ESMTPS id fx15si2020625wjc.291.2016.08.23.01.38.31
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E17D6B0069
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2016 04:48:51 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id n6so227545029qtn.2
+        for <linux-mm@kvack.org>; Tue, 23 Aug 2016 01:48:51 -0700 (PDT)
+Received: from mx6-phx2.redhat.com (mx6-phx2.redhat.com. [209.132.183.39])
+        by mx.google.com with ESMTPS id 63si1506094qkd.218.2016.08.23.01.48.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Aug 2016 01:38:31 -0700 (PDT)
-Date: Tue, 23 Aug 2016 10:38:30 +0200
-From: Markus Trippelsdorf <markus@trippelsdorf.de>
-Subject: Re: [PATCH] mm: clarify COMPACTION Kconfig text
-Message-ID: <20160823083830.GC15849@x4>
-References: <1471939757-29789-1-git-send-email-mhocko@kernel.org>
+        Tue, 23 Aug 2016 01:48:51 -0700 (PDT)
+Date: Tue, 23 Aug 2016 04:48:40 -0400 (EDT)
+From: Pankaj Gupta <pagupta@redhat.com>
+Message-ID: <529861221.2662345.1471942120576.JavaMail.zimbra@redhat.com>
+In-Reply-To: <20160819140026.GN8119@techsingularity.net>
+References: <1471608918-5101-1-git-send-email-pagupta@redhat.com> <20160819124508.GM8119@techsingularity.net> <945408416.2306040.1471612041111.JavaMail.zimbra@redhat.com> <20160819140026.GN8119@techsingularity.net>
+Subject: Re: [PATCH] mm: Add WARN_ON for possibility of infinite loop if
+ empty lists in free_pcppages_bulk'
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1471939757-29789-1-git-send-email-mhocko@kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <js1304@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, vbabka@suse.cz, riel@redhat.com, hannes@cmpxchg.org, iamjoonsoo kim <iamjoonsoo.kim@lge.com>, kirill shutemov <kirill.shutemov@linux.intel.com>, izumi taku <izumi.taku@jp.fujitsu.com>
 
-On 2016.08.23 at 10:09 +0200, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+
+> > > > While debugging issue in realtime kernel i found a scenario
+> > > > which resulted in infinite loop resulting because of empty pcp->lists
+> > > > and valid 'to_free' value. This patch is to add 'WARN_ON' in function
+> > > > 'free_pcppages_bulk' if there is possibility of infinite loop because
+> > > > of any bug in code.
+> > > > 
+> > > 
+> > > What was the bug that allowed this situation to occur? It would imply
+> > > the pcp count was somehow out of sync.
+> > 
+> > Yes pcp count was out of sync. It was a bug in the downstream code.
 > 
-> The current wording of the COMPACTION Kconfig help text doesn't
-> emphasise that disabling COMPACTION might cripple the page allocator
-> which relies on the compaction quite heavily for high order requests and
-> an unexpected OOM can happen with the lack of compaction. Make sure
-> we are vocal about that.
+> If the bug is not in the mainline code, I think it would be inappropriate
+> to add unnecessary code to a relatively hot path. At most, it should be
+> a VM_BUG_ON but the soft lockup should be clear enough.
 
-Just a few nitpicks inline below:
+yes 'VM_BUG_ON' is right thing here. This could help in realtime kernel where
+'free_pcppages_bulk' is divided into two functions 'isolate_pcp_pages' and 
+'free_pcppages_bulk' where 'isolate_pcp_pages' isolate the 'batch/count' number
+of pages and 'free_pcppages_bulk' just free these pages.
 
->  mm/Kconfig | 9 ++++++++-
->  1 file changed, 8 insertions(+), 1 deletion(-)
+I was just thinking if there is any possibility of out of sync with count and temporary
+list this might help. But looking more at the code does not seems like there is any 
+chance until any other potential bug somewhere else in code result this scenario.
+
+I will drop this patch.
+
+Thanks for the review.
+
 > 
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index 78a23c5c302d..0dff2f05b6d1 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -262,7 +262,14 @@ config COMPACTION
->  	select MIGRATION
->  	depends on MMU
->  	help
-> -	  Allows the compaction of memory for the allocation of huge pages.
-> +          Compaction is the only memory management component to form
-> +          high order (larger physically contiguous) memory blocks
-> +          reliably. Page allocator relies on the compaction heavily and
-                       The page allo...      on compaction    
-> +          the lack of the feature can lead to unexpected OOM killer
-> +          invocation for high order memory requests. You shouldnm't
-             invocations                                    shouldn't  
-> +          disable this option unless there is really a strong reason for
-                                              really is      
-> +          it and then we are really interested to hear about that at
-                            would be    
-
--- 
-Markus
+> --
+> Mel Gorman
+> SUSE Labs
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
