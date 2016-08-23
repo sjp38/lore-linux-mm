@@ -1,46 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EF256B0069
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2016 03:45:46 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id p85so90916822lfg.3
-        for <linux-mm@kvack.org>; Tue, 23 Aug 2016 00:45:46 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q126si19858886wme.10.2016.08.23.00.45.44
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 84DD36B0069
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2016 03:48:56 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id u81so78373132wmu.3
+        for <linux-mm@kvack.org>; Tue, 23 Aug 2016 00:48:56 -0700 (PDT)
+Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com. [74.125.82.46])
+        by mx.google.com with ESMTPS id y135si19803760wmc.71.2016.08.23.00.48.55
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 23 Aug 2016 00:45:44 -0700 (PDT)
-Date: Tue, 23 Aug 2016 09:45:42 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: OOM killer changes
-Message-ID: <20160823074542.GC23577@dhcp22.suse.cz>
-References: <a61f01eb-7077-07dd-665a-5125a1f8ef37@suse.cz>
- <0325d79b-186b-7d61-2759-686f8afff0e9@Quantum.com>
- <20160817093323.GB20703@dhcp22.suse.cz>
- <8008b7de-9728-a93c-e3d7-30d4ebeba65a@Quantum.com>
- <0606328a-1b14-0bc9-51cb-36621e3e8758@suse.cz>
- <e867d795-224f-5029-48c9-9ce515c0b75f@Quantum.com>
- <f050bc92-d2f1-80cc-f450-c5a57eaf82f0@suse.cz>
- <ea18e6b3-9d47-b154-5e12-face50578302@Quantum.com>
- <f7a9ea9d-bb88-bfd6-e340-3a933559305a@suse.cz>
- <20160823050252.GD17039@js1304-P5Q-DELUXE>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Aug 2016 00:48:55 -0700 (PDT)
+Received: by mail-wm0-f46.google.com with SMTP id o80so180884689wme.1
+        for <linux-mm@kvack.org>; Tue, 23 Aug 2016 00:48:55 -0700 (PDT)
+Date: Tue, 23 Aug 2016 09:48:53 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: OOM detection regressions since 4.7
+Message-ID: <20160823074853.GD23577@dhcp22.suse.cz>
+References: <20160822093249.GA14916@dhcp22.suse.cz>
+ <20160823045245.GC17039@js1304-P5Q-DELUXE>
+ <20160823073318.GA23577@dhcp22.suse.cz>
+ <20160823074014.GB15849@x4>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160823050252.GD17039@js1304-P5Q-DELUXE>
+In-Reply-To: <20160823074014.GB15849@x4>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Markus Trippelsdorf <markus@trippelsdorf.de>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, greg@suse.cz, Linus Torvalds <torvalds@linux-foundation.org>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Jiri Slaby <jslaby@suse.com>, Olaf Hering <olaf@aepfle.de>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 23-08-16 14:02:52, Joonsoo Kim wrote:
-[...]
-> How about introducing one more priority (last priority) to allow scanning
-> unmovable/reclaimable pageblock? If we don't reach that priority,
-> long-term fragmentation can be avoided.
+On Tue 23-08-16 09:40:14, Markus Trippelsdorf wrote:
+> On 2016.08.23 at 09:33 +0200, Michal Hocko wrote:
+> > On Tue 23-08-16 13:52:45, Joonsoo Kim wrote:
+> > [...]
+> > > Hello, Michal.
+> > > 
+> > > I agree with partial revert but revert should be a different form.
+> > > Below change try to reuse should_compact_retry() version for
+> > > !CONFIG_COMPACTION but it turned out that it also causes regression in
+> > > Markus report [1].
+> > 
+> > I would argue that CONFIG_COMPACTION=n behaves so arbitrary for high
+> > order workloads that calling any change in that behavior a regression
+> > is little bit exaggerated. Disabling compaction should have a very
+> > strong reason. I haven't heard any so far. I am even wondering whether
+> > there is a legitimate reason for that these days.
+> 
+> BTW, the current config description:
+> 
+>   CONFIG_COMPACTION:
+>   Allows the compaction of memory for the allocation of huge pages. 
+> 
+> doesn't make it clear to the user that this is an essential feature.
 
-I have already suggested that. We would reach that priority only for
-!costly orders. Vlastimil already has plans to cook up a patch for that
-but he is on vacation...
+Yes I plan to send a clarification patch.
 -- 
 Michal Hocko
 SUSE Labs
