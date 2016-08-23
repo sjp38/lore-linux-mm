@@ -1,80 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 57D316B0261
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 22:06:51 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id n128so5185273ith.1
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 19:06:51 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id a136si1440962ita.55.2016.08.22.19.06.48
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B94FE6B0069
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 22:21:27 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id i144so43471196oib.0
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 19:21:27 -0700 (PDT)
+Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
+        by mx.google.com with ESMTP id l63si19566238ita.38.2016.08.22.19.21.25
         for <linux-mm@kvack.org>;
-        Mon, 22 Aug 2016 19:06:49 -0700 (PDT)
-Date: Tue, 23 Aug 2016 11:13:03 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v3] mm/slab: Improve performance of gathering slabinfo
- stats
-Message-ID: <20160823021303.GB17039@js1304-P5Q-DELUXE>
-References: <1471458050-29622-1-git-send-email-aruna.ramakrishna@oracle.com>
- <20160818115218.GJ30162@dhcp22.suse.cz>
+        Mon, 22 Aug 2016 19:21:26 -0700 (PDT)
+Date: Tue, 23 Aug 2016 12:20:56 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: 4.7.0, cp -al causes OOM
+Message-ID: <20160823022056.GK22388@dastard>
+References: <201608120901.41463.a.miskiewicz@gmail.com>
+ <20160812074340.GC3639@dhcp22.suse.cz>
+ <20160812074455.GD3639@dhcp22.suse.cz>
+ <20160813014259.GB16044@dastard>
+ <20160814105048.GD9248@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160818115218.GJ30162@dhcp22.suse.cz>
+In-Reply-To: <20160814105048.GD9248@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Aruna Ramakrishna <aruna.ramakrishna@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Kravetz <mike.kravetz@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: arekm@maven.pl, linux-ext4@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Aug 18, 2016 at 01:52:19PM +0200, Michal Hocko wrote:
-> On Wed 17-08-16 11:20:50, Aruna Ramakrishna wrote:
-> > On large systems, when some slab caches grow to millions of objects (and
-> > many gigabytes), running 'cat /proc/slabinfo' can take up to 1-2 seconds.
-> > During this time, interrupts are disabled while walking the slab lists
-> > (slabs_full, slabs_partial, and slabs_free) for each node, and this
-> > sometimes causes timeouts in other drivers (for instance, Infiniband).
-> > 
-> > This patch optimizes 'cat /proc/slabinfo' by maintaining a counter for
-> > total number of allocated slabs per node, per cache. This counter is
-> > updated when a slab is created or destroyed. This enables us to skip
-> > traversing the slabs_full list while gathering slabinfo statistics, and
-> > since slabs_full tends to be the biggest list when the cache is large, it
-> > results in a dramatic performance improvement. Getting slabinfo statistics
-> > now only requires walking the slabs_free and slabs_partial lists, and
-> > those lists are usually much smaller than slabs_full. We tested this after
-> > growing the dentry cache to 70GB, and the performance improved from 2s to
-> > 5ms.
+On Sun, Aug 14, 2016 at 12:50:49PM +0200, Michal Hocko wrote:
+> On Sat 13-08-16 11:42:59, Dave Chinner wrote:
+> > On Fri, Aug 12, 2016 at 09:44:55AM +0200, Michal Hocko wrote:
+> > However, we throttle the rate at which we dirty pages to prevent
+> > filling memory with unreclaimable dirty pages as that causes
+> > spurious OOM situations to occur. The same spurious OOM situations
+> > occur when memory is full of dirty inodes, and so allocation rate
+> > throttling is needed for large scale inode cache intersive workloads
+> > like this as well....
 > 
-> I am not opposing the patch (to be honest it is quite neat) but this
-> is buggering me for quite some time. Sorry for hijacking this email
-> thread but I couldn't resist. Why are we trying to optimize SLAB and
-> slowly converge it to SLUB feature-wise. I always thought that SLAB
-> should remain stable and time challenged solution which works reasonably
-> well for many/most workloads, while SLUB is an optimized implementation
-> which experiment with slightly different concepts that might boost the
-> performance considerably but might also surprise from time to time. If
-> this is not the case then why do we have both of them in the kernel. It
-> is a lot of code and some features need tweaking both while only one
-> gets testing coverage. So this is mainly a question for maintainers. Why
-> do we maintain both and what is the purpose of them.
+> Is there any generic way to do this throttling or every fs has to
+> implement its own way?
 
-I don't know full history about it since I joined kernel communitiy
-recently(?). Christoph would be a better candidate for this topic.
-Anyway,
+tl;dr: no obvious generic way - every filesystem has different
+reclaim requirements and behaviour.
 
-AFAIK, first plan at the time when SLUB is introduced was to remove
-SLAB if SLUB beats SLAB completely. But, there are fundamental
-differences in implementation detail so they cannot beat each other
-for all the workloads. It is similar with filesystem case that various
-filesystems exist for it's own workload.
+Keep in mind that the inode cache shrinker tries to avoid dirty
+inodes on the LRU, so it never blocks on known dirty inodes. Hence
+if the LRU is full of dirty inodes, it won't reclaim any inodes, and
+it won't block waiting for inodes to come clean. This feeds back to
+the shrinker infrastructure in tht total number of inodes freed by a
+shrinker pass (i.e. scanned vs freed ratio).
 
-Then, second plan was started. It is commonizing the code as much
-as possible to develope new feature and maintain the code easily. The
-code goes this direction, although it is slow. If it is achieved, we
-don't need to worry about maintanance overhead.
+XFS is quite different. It only marks inodes as having dirty pages,
+never as being metadata dirty. We don't even implement
+->write_inode, because it is never correct for the VFS to write an
+XFS inode directly. Hence, for XFS, VFS reclaim only skips inodes
+that are still waiting for dirty page writeback to complete. These
+inodes can't be immediately reclaimed, anyway, and page reclaim
+should block on them if we are hitting near-OOM conditions in the
+first place.
 
-Anyway, we cannot remove one without regression so we don't remove one
-until now. In this case, there is no point to stop improving one.
+Hence, for XFS, inodes that are just metadata dirty (as is the case
+of rm -rf, or cp -al), the VFS only sees clean inodes and so
+immediately evicts them. XFS inode reclaim is aware of the dirty
+status of inodes marked for reclaim, and optimises for it being a
+common case.
 
-Thanks.
+When the XFS inode shrinker is run from the superblock shrinker, it
+first kicks background reclaim threads - that's where most of the
+XFS inode reclaim occurs. It runs async, lockless, non-blocking, and
+scans the inode cache in IO-optimal order, enabling reclaim to scan,
+clean and reclaim hundreds of thousands of dirty inodes per second.
+
+Meanwhile, after kicking background reclaim, the XFS inode shrinker
+picks up a "shrinker reclaim cursor" and starts off from where that
+points to. It then cleans and blocking on any dirty inodes it
+encounters before reclaiming them; clean inodes are immediately
+reclaimed without blocking. This is what throttles memory
+reclaim - if background reclaim is keeping up, the shrinker will only
+see clean inodes and so it will be fast and non-blocking. If background
+reclaim is not keeping up, the shrinker will encounter dirty inodes
+and hence it blocks dropping the direct reclaim rate to that at
+which inodes are being cleaned. When background reclaim catches up,
+the shrinker stops throttling on IO....
+
+Further to that, direct reclaim can trigger massive shrinker
+concurrency. This happens when lots of processes are all hitting the
+memory allocator and we are low on memory. If we allow all of these
+direct reclaimers to issue IO to clean dirty inodes, reclaim turns
+into small random write IO and the reclaim rate tanks. Badly.  OOM
+occurs pretty much as soon as this happens. To avoid this, we use
+reclaim cursors, and have a limited number of them available.  The
+shrinker first has to get a reclaim cursor (which is how it knows
+where to start reclaim from), and if none are available the shrinker
+will block waiting for a cursor. This forms the high level direct
+reclaim concurrency control, and it allows the background reclaim
+threads to have priority access to the reclaim queues. Hence even
+under extreme memory pressure, we get fast, efficient dirty inode
+reclaim behaviour rather than overwhelming the IO subsystem and
+tanking....
+
+I'm not sure there's anything generic you can get from this; it's
+all based around avoiding using the generic VFS dirty inode tracking
+to begin with...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
