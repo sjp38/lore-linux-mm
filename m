@@ -1,71 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 933846B0038
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2016 12:03:41 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id p85so100126159lfg.3
-        for <linux-mm@kvack.org>; Tue, 23 Aug 2016 09:03:41 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 895E56B0038
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2016 12:12:40 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id o80so88596669wme.1
+        for <linux-mm@kvack.org>; Tue, 23 Aug 2016 09:12:40 -0700 (PDT)
 Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id m12si3728352wjq.88.2016.08.23.09.03.40
+        by mx.google.com with ESMTPS id 17si21769316wmg.21.2016.08.23.09.12.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Aug 2016 09:03:40 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id i138so18699048wmf.3
-        for <linux-mm@kvack.org>; Tue, 23 Aug 2016 09:03:40 -0700 (PDT)
-Date: Tue, 23 Aug 2016 18:03:37 +0200
+        Tue, 23 Aug 2016 09:12:39 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id i138so18728816wmf.3
+        for <linux-mm@kvack.org>; Tue, 23 Aug 2016 09:12:39 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] kernel/fork: fix CLONE_CHILD_CLEARTID regression in
- nscd
-Message-ID: <20160823160337.GA25099@dhcp22.suse.cz>
-References: <1470039287-14643-1-git-send-email-mhocko@kernel.org>
- <20160803210804.GA11549@redhat.com>
- <20160812094113.GE3639@dhcp22.suse.cz>
- <20160819132511.GH32619@dhcp22.suse.cz>
- <20160823152711.GA4067@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160823152711.GA4067@redhat.com>
+Subject: [PATCH v2] kernel/fork: fix CLONE_CHILD_CLEARTID regression in nscd
+Date: Tue, 23 Aug 2016 18:12:29 +0200
+Message-Id: <1471968749-26173-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, William Preston <wpreston@suse.com>, Roland McGrath <roland@hack.frob.com>, Andreas Schwab <schwab@suse.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Roland McGrath <roland@hack.frob.com>, Oleg Nesterov <oleg@redhat.com>, Andreas Schwab <schwab@suse.com>, William Preston <wpreston@suse.com>
 
-On Tue 23-08-16 17:27:11, Oleg Nesterov wrote:
-> On 08/19, Michal Hocko wrote:
-[...]
-> > or we do not care about this
-> > "regression"
-> 
-> Honestly, I do not know ;) Personally, I am always scared when it comes
-> to the subtle changes like this, you can never know what can be broken.
+From: Michal Hocko <mhocko@suse.com>
 
-If _you_ are scarred (after so many years of permanent exposure to this
-code) then try to imagine how I am scarred when touching anything in
-this area...
+fec1d0115240 ("[PATCH] Disable CLONE_CHILD_CLEARTID for abnormal exit")
+has caused a subtle regression in nscd which uses CLONE_CHILD_CLEARTID
+to clear the nscd_certainly_running flag in the shared databases, so
+that the clients are notified when nscd is restarted.  Now, when nscd
+uses a non-persistent database, clients that have it mapped keep
+thinking the database is being updated by nscd, when in fact nscd has
+created a new (anonymous) one (for non-persistent databases it uses an
+unlinked file as backend).
 
-> And note that it can be broken 10 years later, like it happened with
-> nscd ;)
-> 
-> But if you send the s/PF_SIGNALED/SIGNAL_GROUP_COREDUMP/ change I will
-> ack it ;)
+The original proposal for the CLONE_CHILD_CLEARTID change claimed
+(https://lkml.org/lkml/2006/10/25/233):
+"
+The NPTL library uses the CLONE_CHILD_CLEARTID flag on clone() syscalls
+on behalf of pthread_create() library calls.  This feature is used to
+request that the kernel clear the thread-id in user space (at an address
+provided in the syscall) when the thread disassociates itself from the
+address space, which is done in mm_release().
 
-OK, I will repost
+Unfortunately, when a multi-threaded process incurs a core dump (such as
+from a SIGSEGV), the core-dumping thread sends SIGKILL signals to all of
+the other threads, which then proceed to clear their user-space tids
+before synchronizing in exit_mm() with the start of core dumping.  This
+misrepresents the state of process's address space at the time of the
+SIGSEGV and makes it more difficult for someone to debug NPTL and glibc
+problems (misleading him/her to conclude that the threads had gone away
+before the fault).
 
-> Even if it won't really fix this nscd problem (imo), because
-> I guess nscd wants to reset ->clear_child_tid even if the signal was
-> sig_kernel_coredump().
+The fix below is to simply avoid the CLONE_CHILD_CLEARTID action if a
+core dump has been initiated.
+"
 
-Come on, have you ever seen this fine piece of software crashing?
-But more seriously, I wouldn't give a damn because nscd is usually the
-first thing I disable on my systems but there seem to be people who
-would like to use this persistence thingy and even service restart will
-break it. So I think we should plug this hole.
+The resulting patch from Roland (https://lkml.org/lkml/2006/10/26/269)
+seems to have a larger scope than the original patch asked for. It seems
+that limitting the scope of the check to core dumping should work for
+SIGSEGV issue describe above.
 
-Anyway thanks for your review and feedback. As always it is really
-appreciated!
+[Changelog partly based on Andreas' description]
+Fixes: fec1d0115240 ("[PATCH] Disable CLONE_CHILD_CLEARTID for abnormal exit")
+Tested-by:  William Preston <wpreston@suse.com>
+Cc: Roland McGrath <roland@hack.frob.com>
+Cc: Oleg Nesterov <oleg@redhat.com>
+Cc: Andreas Schwab <schwab@suse.com>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+
+Hi,
+the previous version of this patch was sent http://lkml.kernel.org/r/1470039287-14643-1-git-send-email-mhocko@kernel.org
+I have dropped the vfork check which Oleg didn't like. It shouldn't
+have caused any change for the nscd testing so I am keeping William's
+tested-by.
+
+ kernel/fork.c | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 52e725d4a866..b89f0eb99f0a 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -913,14 +913,11 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
+ 	deactivate_mm(tsk, mm);
+ 
+ 	/*
+-	 * If we're exiting normally, clear a user-space tid field if
+-	 * requested.  We leave this alone when dying by signal, to leave
+-	 * the value intact in a core dump, and to save the unnecessary
+-	 * trouble, say, a killed vfork parent shouldn't touch this mm.
+-	 * Userland only wants this done for a sys_exit.
++	 * Signal userspace if we're not exiting with a core dump
++	 * or a killed vfork parent which shouldn't touch this mm.
+ 	 */
+ 	if (tsk->clear_child_tid) {
+-		if (!(tsk->flags & PF_SIGNALED) &&
++		if (!(tsk->signal->flags & SIGNAL_GROUP_COREDUMP) &&
+ 		    atomic_read(&mm->mm_users) > 1) {
+ 			/*
+ 			 * We don't check the error code - if userspace has
 -- 
-Michal Hocko
-SUSE Labs
+2.8.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
