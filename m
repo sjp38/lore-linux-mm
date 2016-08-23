@@ -1,54 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 30AB06B0069
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2016 03:55:58 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id l4so79002524wml.0
-        for <linux-mm@kvack.org>; Tue, 23 Aug 2016 00:55:58 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id eo1si1895082wjb.236.2016.08.23.00.55.56
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B45166B0069
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2016 04:04:07 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 63so244265508pfx.0
+        for <linux-mm@kvack.org>; Tue, 23 Aug 2016 01:04:07 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id 19si2744649pft.165.2016.08.23.01.04.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Aug 2016 00:55:57 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id o80so16902315wme.0
-        for <linux-mm@kvack.org>; Tue, 23 Aug 2016 00:55:56 -0700 (PDT)
-Date: Tue, 23 Aug 2016 09:55:55 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 09/10] vhost, mm: make sure that oom_reaper doesn't reap
- memory read by vhost
-Message-ID: <20160823075555.GE23577@dhcp22.suse.cz>
-References: <20160728233359-mutt-send-email-mst@kernel.org>
- <20160729060422.GA5504@dhcp22.suse.cz>
- <20160729161039-mutt-send-email-mst@kernel.org>
- <20160729133529.GE8031@dhcp22.suse.cz>
- <20160729205620-mutt-send-email-mst@kernel.org>
- <20160731094438.GA24353@dhcp22.suse.cz>
- <20160812094236.GF3639@dhcp22.suse.cz>
- <20160812132140.GA776@redhat.com>
- <20160822130311.GL13596@dhcp22.suse.cz>
- <20160822210123.5k6zwdrkhrwjw5vv@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160822210123.5k6zwdrkhrwjw5vv@redhat.com>
+        Tue, 23 Aug 2016 01:04:06 -0700 (PDT)
+Message-ID: <1471939443.3696.2.camel@linux.intel.com>
+Subject: Re: [PATCH] io-mapping.h: s/PAGE_KERNEL_IO/PAGE_KERNEL/
+From: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+Date: Tue, 23 Aug 2016 11:04:03 +0300
+In-Reply-To: <20160823072253.26977-1-chris@chris-wilson.co.uk>
+References: <20160823072253.26977-1-chris@chris-wilson.co.uk>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Oleg Nesterov <oleg@redhat.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>
+To: Chris Wilson <chris@chris-wilson.co.uk>, intel-gfx@lists.freedesktop.org
+Cc: Daniel Vetter <daniel.vetter@ffwll.ch>, linux-mm@kvack.org
 
-On Tue 23-08-16 00:01:23, Michael S. Tsirkin wrote:
-[...]
-> Actually, vhost net calls out to tun which does regular copy_from_iter.
-> Returning 0 there will cause corrupted packets in the network: not a
-> huge deal, but ugly.  And I don't think we want to annotate run and
-> macvtap as well.
+On ti, 2016-08-23 at 08:22 +0100, Chris Wilson wrote:
+> PAGE_KERNEL_IO is an x86-ism. Though it is used to define the pgprot_t
+> used for the iomapped region, it itself is just PAGE_KERNEL. On all
+> other arches, PAGE_KERNEL_IO is undefined so in a general header we must
+> refrain from using it.
+> 
 
-Hmm, OK, I wasn't aware of that path and being consistent here matters.
-If the vhost driver can interact with other subsystems then there is
-really no other option than hooking into the page fault path. Ohh well.
+There is;
 
+#define __PAGE_KERNEL_IOA A A A A A A A A A A (__PAGE_KERNEL)
+
+So no functional change, but will compile on all archs.
+
+Reviewed-by: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+
+Regards, Joonas
 -- 
-Michal Hocko
-SUSE Labs
+Joonas Lahtinen
+Open Source Technology Center
+Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
