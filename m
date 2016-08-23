@@ -1,123 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3156D6B0261
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 22:01:16 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id o80so74270497wme.1
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 19:01:16 -0700 (PDT)
-Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
-        by mx.google.com with ESMTPS id z83si1342242wmc.126.2016.08.22.19.01.14
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Aug 2016 19:01:14 -0700 (PDT)
-Received: by mail-wm0-x232.google.com with SMTP id i5so172086785wmg.0
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 19:01:14 -0700 (PDT)
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 57D316B0261
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 22:06:51 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id n128so5185273ith.1
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 19:06:51 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id a136si1440962ita.55.2016.08.22.19.06.48
+        for <linux-mm@kvack.org>;
+        Mon, 22 Aug 2016 19:06:49 -0700 (PDT)
+Date: Tue, 23 Aug 2016 11:13:03 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v3] mm/slab: Improve performance of gathering slabinfo
+ stats
+Message-ID: <20160823021303.GB17039@js1304-P5Q-DELUXE>
+References: <1471458050-29622-1-git-send-email-aruna.ramakrishna@oracle.com>
+ <20160818115218.GJ30162@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <a6fefe6183906e4d08e4cfbcb55156fcd63f3e29.1471884716.git.jpoimboe@redhat.com>
-References: <a6fefe6183906e4d08e4cfbcb55156fcd63f3e29.1471884716.git.jpoimboe@redhat.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Mon, 22 Aug 2016 19:01:13 -0700
-Message-ID: <CAGXu5jKk076fF5jjyXP27vhX4wYsvK0XJi+MfuqDUtuPsqWd8A@mail.gmail.com>
-Subject: Re: [PATCH] mm: fix overlap check in hardened usercopy
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160818115218.GJ30162@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josh Poimboeuf <jpoimboe@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Aruna Ramakrishna <aruna.ramakrishna@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Kravetz <mike.kravetz@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, Aug 22, 2016 at 9:53 AM, Josh Poimboeuf <jpoimboe@redhat.com> wrote:
-> When running with a local patch which moves the '_stext' symbol to the
-> very beginning of the kernel text area, I got the following panic with
-> CONFIG_HARDENED_USERCOPY:
->
->   usercopy: kernel memory exposure attempt detected from ffff88103dfff000 (<linear kernel text>) (4096 bytes)
->   ------------[ cut here ]------------
->   kernel BUG at mm/usercopy.c:79!
->   invalid opcode: 0000 [#1] SMP
->   ...
->   CPU: 0 PID: 4800 Comm: cp Not tainted 4.8.0-rc3.after+ #1
->   Hardware name: Dell Inc. PowerEdge R720/0X3D66, BIOS 2.5.4 01/22/2016
->   task: ffff880817444140 task.stack: ffff880816274000
->   RIP: 0010:[<ffffffff8121c796>] __check_object_size+0x76/0x413
->   RSP: 0018:ffff880816277c40 EFLAGS: 00010246
->   RAX: 000000000000006b RBX: ffff88103dfff000 RCX: 0000000000000000
->   RDX: 0000000000000000 RSI: ffff88081f80dfa8 RDI: ffff88081f80dfa8
->   RBP: ffff880816277c90 R08: 000000000000054c R09: 0000000000000000
->   R10: 0000000000000005 R11: 0000000000000006 R12: 0000000000001000
->   R13: ffff88103e000000 R14: ffff88103dffffff R15: 0000000000000001
->   FS:  00007fb9d1750800(0000) GS:ffff88081f800000(0000) knlGS:0000000000000000
->   CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
->   CR2: 00000000021d2000 CR3: 000000081a08f000 CR4: 00000000001406f0
->   Stack:
->    ffff880816277cc8 0000000000010000 000000043de07000 0000000000000000
->    0000000000001000 ffff880816277e60 0000000000001000 ffff880816277e28
->    000000000000c000 0000000000001000 ffff880816277ce8 ffffffff8136c3a6
->   Call Trace:
->    [<ffffffff8136c3a6>] copy_page_to_iter_iovec+0xa6/0x1c0
->    [<ffffffff8136e766>] copy_page_to_iter+0x16/0x90
->    [<ffffffff811970e3>] generic_file_read_iter+0x3e3/0x7c0
->    [<ffffffffa06a738d>] ? xfs_file_buffered_aio_write+0xad/0x260 [xfs]
->    [<ffffffff816e6262>] ? down_read+0x12/0x40
->    [<ffffffffa06a61b1>] xfs_file_buffered_aio_read+0x51/0xc0 [xfs]
->    [<ffffffffa06a6692>] xfs_file_read_iter+0x62/0xb0 [xfs]
->    [<ffffffff812224cf>] __vfs_read+0xdf/0x130
->    [<ffffffff81222c9e>] vfs_read+0x8e/0x140
->    [<ffffffff81224195>] SyS_read+0x55/0xc0
->    [<ffffffff81003a47>] do_syscall_64+0x67/0x160
->    [<ffffffff816e8421>] entry_SYSCALL64_slow_path+0x25/0x25
->   RIP: 0033:[<00007fb9d0c33c00>] 0x7fb9d0c33c00
->   RSP: 002b:00007ffc9c262f28 EFLAGS: 00000246 ORIG_RAX: 0000000000000000
->   RAX: ffffffffffffffda RBX: fffffffffff8ffff RCX: 00007fb9d0c33c00
->   RDX: 0000000000010000 RSI: 00000000021c3000 RDI: 0000000000000004
->   RBP: 00000000021c3000 R08: 0000000000000000 R09: 00007ffc9c264d6c
->   R10: 00007ffc9c262c50 R11: 0000000000000246 R12: 0000000000010000
->   R13: 00007ffc9c2630b0 R14: 0000000000000004 R15: 0000000000010000
->   Code: 81 48 0f 44 d0 48 c7 c6 90 4d a3 81 48 c7 c0 bb b3 a2 81 48 0f 44 f0 4d 89 e1 48 89 d9 48 c7 c7 68 16 a3 81 31 c0 e8 f4 57 f7 ff <0f> 0b 48 8d 90 00 40 00 00 48 39 d3 0f 83 22 01 00 00 48 39 c3
->   RIP  [<ffffffff8121c796>] __check_object_size+0x76/0x413
->    RSP <ffff880816277c40>
->
-> The checked object's range [ffff88103dfff000, ffff88103e000000) is
-> valid, so there shouldn't have been a BUG.  The hardened usercopy code
-> got confused because the range's ending address is the same as the
-> kernel's text starting address at 0xffff88103e000000.  The overlap check
-> is slightly off.
->
-> Fixes: f5509cc18daa ("mm: Hardened usercopy")
-> Signed-off-by: Josh Poimboeuf <jpoimboe@redhat.com>
+On Thu, Aug 18, 2016 at 01:52:19PM +0200, Michal Hocko wrote:
+> On Wed 17-08-16 11:20:50, Aruna Ramakrishna wrote:
+> > On large systems, when some slab caches grow to millions of objects (and
+> > many gigabytes), running 'cat /proc/slabinfo' can take up to 1-2 seconds.
+> > During this time, interrupts are disabled while walking the slab lists
+> > (slabs_full, slabs_partial, and slabs_free) for each node, and this
+> > sometimes causes timeouts in other drivers (for instance, Infiniband).
+> > 
+> > This patch optimizes 'cat /proc/slabinfo' by maintaining a counter for
+> > total number of allocated slabs per node, per cache. This counter is
+> > updated when a slab is created or destroyed. This enables us to skip
+> > traversing the slabs_full list while gathering slabinfo statistics, and
+> > since slabs_full tends to be the biggest list when the cache is large, it
+> > results in a dramatic performance improvement. Getting slabinfo statistics
+> > now only requires walking the slabs_free and slabs_partial lists, and
+> > those lists are usually much smaller than slabs_full. We tested this after
+> > growing the dentry cache to 70GB, and the performance improved from 2s to
+> > 5ms.
+> 
+> I am not opposing the patch (to be honest it is quite neat) but this
+> is buggering me for quite some time. Sorry for hijacking this email
+> thread but I couldn't resist. Why are we trying to optimize SLAB and
+> slowly converge it to SLUB feature-wise. I always thought that SLAB
+> should remain stable and time challenged solution which works reasonably
+> well for many/most workloads, while SLUB is an optimized implementation
+> which experiment with slightly different concepts that might boost the
+> performance considerably but might also surprise from time to time. If
+> this is not the case then why do we have both of them in the kernel. It
+> is a lot of code and some features need tweaking both while only one
+> gets testing coverage. So this is mainly a question for maintainers. Why
+> do we maintain both and what is the purpose of them.
 
-Ah! Excellent! I bet this is exactly the same thing that Geert saw.
-Both are the start of kernel memory and would be intermittent
-depending on allocation ordering.
+I don't know full history about it since I joined kernel communitiy
+recently(?). Christoph would be a better candidate for this topic.
+Anyway,
 
-Thanks! I'll get this applied.
+AFAIK, first plan at the time when SLUB is introduced was to remove
+SLAB if SLUB beats SLAB completely. But, there are fundamental
+differences in implementation detail so they cannot beat each other
+for all the workloads. It is similar with filesystem case that various
+filesystems exist for it's own workload.
 
--Kees
+Then, second plan was started. It is commonizing the code as much
+as possible to develope new feature and maintain the code easily. The
+code goes this direction, although it is slow. If it is achieved, we
+don't need to worry about maintanance overhead.
 
-> ---
->  mm/usercopy.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/mm/usercopy.c b/mm/usercopy.c
-> index 8ebae91..6b1c20f 100644
-> --- a/mm/usercopy.c
-> +++ b/mm/usercopy.c
-> @@ -83,7 +83,7 @@ static bool overlaps(const void *ptr, unsigned long n, unsigned long low,
->         unsigned long check_high = check_low + n;
->
->         /* Does not overlap if entirely above or entirely below. */
-> -       if (check_low >= high || check_high < low)
-> +       if (check_low >= high || check_high <= low)
->                 return false;
->
->         return true;
-> --
-> 2.7.4
->
+Anyway, we cannot remove one without regression so we don't remove one
+until now. In this case, there is no point to stop improving one.
 
-
-
--- 
-Kees Cook
-Nexus Security
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
