@@ -1,161 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 797D86B0261
-	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 21:40:10 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id u191so44743615oie.3
-        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 18:40:10 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id m191si1337692ith.42.2016.08.22.18.40.08
-        for <linux-mm@kvack.org>;
-        Mon, 22 Aug 2016 18:40:09 -0700 (PDT)
-Date: Tue, 23 Aug 2016 10:44:42 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v4 2/5] mm/cma: populate ZONE_CMA
-Message-ID: <20160823014442.GA17039@js1304-P5Q-DELUXE>
-References: <1470724759-855-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1470724759-855-3-git-send-email-iamjoonsoo.kim@lge.com>
- <28520ca3-4bdc-daa5-4b6f-a67309c8c2d3@suse.cz>
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3156D6B0261
+	for <linux-mm@kvack.org>; Mon, 22 Aug 2016 22:01:16 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id o80so74270497wme.1
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 19:01:16 -0700 (PDT)
+Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
+        by mx.google.com with ESMTPS id z83si1342242wmc.126.2016.08.22.19.01.14
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 22 Aug 2016 19:01:14 -0700 (PDT)
+Received: by mail-wm0-x232.google.com with SMTP id i5so172086785wmg.0
+        for <linux-mm@kvack.org>; Mon, 22 Aug 2016 19:01:14 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <28520ca3-4bdc-daa5-4b6f-a67309c8c2d3@suse.cz>
+In-Reply-To: <a6fefe6183906e4d08e4cfbcb55156fcd63f3e29.1471884716.git.jpoimboe@redhat.com>
+References: <a6fefe6183906e4d08e4cfbcb55156fcd63f3e29.1471884716.git.jpoimboe@redhat.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Mon, 22 Aug 2016 19:01:13 -0700
+Message-ID: <CAGXu5jKk076fF5jjyXP27vhX4wYsvK0XJi+MfuqDUtuPsqWd8A@mail.gmail.com>
+Subject: Re: [PATCH] mm: fix overlap check in hardened usercopy
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Josh Poimboeuf <jpoimboe@redhat.com>, Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Fri, Aug 19, 2016 at 01:20:13PM +0200, Vlastimil Babka wrote:
-> On 08/09/2016 08:39 AM, js1304@gmail.com wrote:
-> >From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> >
-> >Until now, reserved pages for CMA are managed in the ordinary zones
-> >where page's pfn are belong to. This approach has numorous problems
-> >and fixing them isn't easy. (It is mentioned on previous patch.)
-> >To fix this situation, ZONE_CMA is introduced in previous patch, but,
-> >not yet populated. This patch implement population of ZONE_CMA
-> >by stealing reserved pages from the ordinary zones.
-> >
-> >Unlike previous implementation that kernel allocation request with
-> >__GFP_MOVABLE could be serviced from CMA region, allocation request only
-> >with GFP_HIGHUSER_MOVABLE can be serviced from CMA region in the new
-> >approach. This is an inevitable design decision to use the zone
-> >implementation because ZONE_CMA could contain highmem. Due to this
-> >decision, ZONE_CMA will work like as ZONE_HIGHMEM or ZONE_MOVABLE.
-> >
-> >I don't think it would be a problem because most of file cache pages
-> >and anonymous pages are requested with GFP_HIGHUSER_MOVABLE. It could
-> >be proved by the fact that there are many systems with ZONE_HIGHMEM and
-> >they work fine. Notable disadvantage is that we cannot use these pages
-> >for blockdev file cache page, because it usually has __GFP_MOVABLE but
-> >not __GFP_HIGHMEM and __GFP_USER. But, in this case, there is pros and
-> >cons. In my experience, blockdev file cache pages are one of the top
-> >reason that causes cma_alloc() to fail temporarily. So, we can get more
-> >guarantee of cma_alloc() success by discarding that case.
-> >
-> >Implementation itself is very easy to understand. Steal when cma area is
-> >initialized and recalculate various per zone stat/threshold.
-> >
-> >Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> 
-> [...]
-> 
-> >@@ -145,6 +145,28 @@ err:
-> > static int __init cma_init_reserved_areas(void)
-> > {
-> > 	int i;
-> >+	struct zone *zone;
-> >+	unsigned long start_pfn = UINT_MAX, end_pfn = 0;
-> >+
-> >+	if (!cma_area_count)
-> >+		return 0;
-> >+
-> >+	for (i = 0; i < cma_area_count; i++) {
-> >+		if (start_pfn > cma_areas[i].base_pfn)
-> >+			start_pfn = cma_areas[i].base_pfn;
-> >+		if (end_pfn < cma_areas[i].base_pfn + cma_areas[i].count)
-> >+			end_pfn = cma_areas[i].base_pfn + cma_areas[i].count;
-> >+	}
-> >+
-> >+	for_each_populated_zone(zone) {
-> >+		if (!is_zone_cma(zone))
-> >+			continue;
-> >+
-> >+		/* ZONE_CMA doesn't need to exceed CMA region */
-> >+		zone->zone_start_pfn = max(zone->zone_start_pfn, start_pfn);
-> >+		zone->spanned_pages = min(zone_end_pfn(zone), end_pfn) -
-> >+					zone->zone_start_pfn;
-> 
-> Hmm is this a dead code? for_each_populated_zone() will skip zones
-> where zone->present_pages is 0, which is AFAICS the result for
-> ZONE_CMA
-> after it's initialized by calculate_node_totalpages() (after Patch 1/5).
-> The present_pages seem to be only increased later in this function
-> by cma_activate_area() -> init_cma_reserved_pageblock().
+On Mon, Aug 22, 2016 at 9:53 AM, Josh Poimboeuf <jpoimboe@redhat.com> wrote:
+> When running with a local patch which moves the '_stext' symbol to the
+> very beginning of the kernel text area, I got the following panic with
+> CONFIG_HARDENED_USERCOPY:
+>
+>   usercopy: kernel memory exposure attempt detected from ffff88103dfff000 (<linear kernel text>) (4096 bytes)
+>   ------------[ cut here ]------------
+>   kernel BUG at mm/usercopy.c:79!
+>   invalid opcode: 0000 [#1] SMP
+>   ...
+>   CPU: 0 PID: 4800 Comm: cp Not tainted 4.8.0-rc3.after+ #1
+>   Hardware name: Dell Inc. PowerEdge R720/0X3D66, BIOS 2.5.4 01/22/2016
+>   task: ffff880817444140 task.stack: ffff880816274000
+>   RIP: 0010:[<ffffffff8121c796>] __check_object_size+0x76/0x413
+>   RSP: 0018:ffff880816277c40 EFLAGS: 00010246
+>   RAX: 000000000000006b RBX: ffff88103dfff000 RCX: 0000000000000000
+>   RDX: 0000000000000000 RSI: ffff88081f80dfa8 RDI: ffff88081f80dfa8
+>   RBP: ffff880816277c90 R08: 000000000000054c R09: 0000000000000000
+>   R10: 0000000000000005 R11: 0000000000000006 R12: 0000000000001000
+>   R13: ffff88103e000000 R14: ffff88103dffffff R15: 0000000000000001
+>   FS:  00007fb9d1750800(0000) GS:ffff88081f800000(0000) knlGS:0000000000000000
+>   CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+>   CR2: 00000000021d2000 CR3: 000000081a08f000 CR4: 00000000001406f0
+>   Stack:
+>    ffff880816277cc8 0000000000010000 000000043de07000 0000000000000000
+>    0000000000001000 ffff880816277e60 0000000000001000 ffff880816277e28
+>    000000000000c000 0000000000001000 ffff880816277ce8 ffffffff8136c3a6
+>   Call Trace:
+>    [<ffffffff8136c3a6>] copy_page_to_iter_iovec+0xa6/0x1c0
+>    [<ffffffff8136e766>] copy_page_to_iter+0x16/0x90
+>    [<ffffffff811970e3>] generic_file_read_iter+0x3e3/0x7c0
+>    [<ffffffffa06a738d>] ? xfs_file_buffered_aio_write+0xad/0x260 [xfs]
+>    [<ffffffff816e6262>] ? down_read+0x12/0x40
+>    [<ffffffffa06a61b1>] xfs_file_buffered_aio_read+0x51/0xc0 [xfs]
+>    [<ffffffffa06a6692>] xfs_file_read_iter+0x62/0xb0 [xfs]
+>    [<ffffffff812224cf>] __vfs_read+0xdf/0x130
+>    [<ffffffff81222c9e>] vfs_read+0x8e/0x140
+>    [<ffffffff81224195>] SyS_read+0x55/0xc0
+>    [<ffffffff81003a47>] do_syscall_64+0x67/0x160
+>    [<ffffffff816e8421>] entry_SYSCALL64_slow_path+0x25/0x25
+>   RIP: 0033:[<00007fb9d0c33c00>] 0x7fb9d0c33c00
+>   RSP: 002b:00007ffc9c262f28 EFLAGS: 00000246 ORIG_RAX: 0000000000000000
+>   RAX: ffffffffffffffda RBX: fffffffffff8ffff RCX: 00007fb9d0c33c00
+>   RDX: 0000000000010000 RSI: 00000000021c3000 RDI: 0000000000000004
+>   RBP: 00000000021c3000 R08: 0000000000000000 R09: 00007ffc9c264d6c
+>   R10: 00007ffc9c262c50 R11: 0000000000000246 R12: 0000000000010000
+>   R13: 00007ffc9c2630b0 R14: 0000000000000004 R15: 0000000000010000
+>   Code: 81 48 0f 44 d0 48 c7 c6 90 4d a3 81 48 c7 c0 bb b3 a2 81 48 0f 44 f0 4d 89 e1 48 89 d9 48 c7 c7 68 16 a3 81 31 c0 e8 f4 57 f7 ff <0f> 0b 48 8d 90 00 40 00 00 48 39 d3 0f 83 22 01 00 00 48 39 c3
+>   RIP  [<ffffffff8121c796>] __check_object_size+0x76/0x413
+>    RSP <ffff880816277c40>
+>
+> The checked object's range [ffff88103dfff000, ffff88103e000000) is
+> valid, so there shouldn't have been a BUG.  The hardened usercopy code
+> got confused because the range's ending address is the same as the
+> kernel's text starting address at 0xffff88103e000000.  The overlap check
+> is slightly off.
+>
+> Fixes: f5509cc18daa ("mm: Hardened usercopy")
+> Signed-off-by: Josh Poimboeuf <jpoimboe@redhat.com>
 
-You're right. I will replace for_each_populated_zone() with for_each_zone().
+Ah! Excellent! I bet this is exactly the same thing that Geert saw.
+Both are the start of kernel memory and would be intermittent
+depending on allocation ordering.
 
-> 
-> >+	}
-> >
-> > 	for (i = 0; i < cma_area_count; i++) {
-> > 		int ret = cma_activate_area(&cma_areas[i]);
-> >@@ -153,6 +175,24 @@ static int __init cma_init_reserved_areas(void)
-> > 			return ret;
-> > 	}
-> >
-> 
-> [...]
-> 
-> >diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> >index f6c4358..352096e 100644
-> >--- a/mm/page_alloc.c
-> >+++ b/mm/page_alloc.c
-> >@@ -1600,16 +1600,38 @@ void __init page_alloc_init_late(void)
-> > }
-> >
-> > #ifdef CONFIG_CMA
-> >+static void __init adjust_present_page_count(struct page *page, long count)
-> >+{
-> >+	struct zone *zone = page_zone(page);
-> >+
-> >+	/* We don't need to hold a lock since it is boot-up process */
-> >+	zone->present_pages += count;
-> >+}
-> >+
-> > /* Free whole pageblock and set its migration type to MIGRATE_CMA. */
-> > void __init init_cma_reserved_pageblock(struct page *page)
-> > {
-> > 	unsigned i = pageblock_nr_pages;
-> >+	unsigned long pfn = page_to_pfn(page);
-> > 	struct page *p = page;
-> >+	int nid = page_to_nid(page);
-> >+
-> >+	/*
-> >+	 * ZONE_CMA will steal present pages from other zones by changing
-> >+	 * page links so page_zone() is changed. Before that,
-> >+	 * we need to adjust previous zone's page count first.
-> >+	 */
-> >+	adjust_present_page_count(page, -pageblock_nr_pages);
-> 
-> So in previous version I said this (and you replied):
-> 
-> >>> Ideally, zone's start_pfn and spanned_pages should be also adjusted
-> >>> if we stole from the beginning/end (which I suppose should be quite
-> >>> common?).
-> >
-> >It would be possible. Maybe, there is a reason I didn't do that but I
-> >don't remember it. I will think more.
-> 
-> What's the outcome? :) Is stealing from beginning/end of zone common
-> for CMA? Are we losing zone->contiguous and add iterations to
-> compaction scanner needlessly?
+Thanks! I'll get this applied.
 
-Yes. I have thought it and my conclusion is:
+-Kees
 
-It is possible but I don't want to make code more complex at this
-moment. We can simply do it later.
+> ---
+>  mm/usercopy.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+>
+> diff --git a/mm/usercopy.c b/mm/usercopy.c
+> index 8ebae91..6b1c20f 100644
+> --- a/mm/usercopy.c
+> +++ b/mm/usercopy.c
+> @@ -83,7 +83,7 @@ static bool overlaps(const void *ptr, unsigned long n, unsigned long low,
+>         unsigned long check_high = check_low + n;
+>
+>         /* Does not overlap if entirely above or entirely below. */
+> -       if (check_low >= high || check_high < low)
+> +       if (check_low >= high || check_high <= low)
+>                 return false;
+>
+>         return true;
+> --
+> 2.7.4
+>
 
-Thanks.
+
+
+-- 
+Kees Cook
+Nexus Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
