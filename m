@@ -1,56 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A6246B0038
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2016 12:33:00 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id 93so249135444qtg.1
-        for <linux-mm@kvack.org>; Tue, 23 Aug 2016 09:33:00 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p102si1194959qkh.193.2016.08.23.09.32.59
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EF936B0253
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2016 12:33:02 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id p85so100591617lfg.3
+        for <linux-mm@kvack.org>; Tue, 23 Aug 2016 09:33:02 -0700 (PDT)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id x8si21864227wme.6.2016.08.23.09.33.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Aug 2016 09:32:59 -0700 (PDT)
-Date: Tue, 23 Aug 2016 18:32:34 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH v2] kernel/fork: fix CLONE_CHILD_CLEARTID regression in
-	nscd
-Message-ID: <20160823163233.GA7123@redhat.com>
-References: <1471968749-26173-1-git-send-email-mhocko@kernel.org>
+        Tue, 23 Aug 2016 09:33:00 -0700 (PDT)
+Received: by mail-wm0-x241.google.com with SMTP id o80so18866556wme.0
+        for <linux-mm@kvack.org>; Tue, 23 Aug 2016 09:33:00 -0700 (PDT)
+Date: Tue, 23 Aug 2016 18:32:57 +0200
+From: Daniel Vetter <daniel@ffwll.ch>
+Subject: Re: [PATCH v2] io-mapping.h: s/PAGE_KERNEL_IO/PAGE_KERNEL/
+Message-ID: <20160823163257.GP10980@phenom.ffwll.local>
+References: <CAKMK7uFjtbsareLBGjCWvypybNRVROpkrD-oCDxvnj8B+EkDgQ@mail.gmail.com>
+ <20160823155024.22379-1-chris@chris-wilson.co.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1471968749-26173-1-git-send-email-mhocko@kernel.org>
+In-Reply-To: <20160823155024.22379-1-chris@chris-wilson.co.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Roland McGrath <roland@hack.frob.com>, Andreas Schwab <schwab@suse.com>, William Preston <wpreston@suse.com>
+To: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, Daniel Vetter <daniel.vetter@ffwll.ch>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, linux-mm@kvack.org
 
-On 08/23, Michal Hocko wrote:
->
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -913,14 +913,11 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
->  	deactivate_mm(tsk, mm);
+On Tue, Aug 23, 2016 at 04:50:24PM +0100, Chris Wilson wrote:
+> PAGE_KERNEL_IO is an x86-ism. Though it is used to define the pgprot_t
+> used for the iomapped region, it itself is just PAGE_KERNEL. On all
+> other arches, PAGE_KERNEL_IO is undefined so in a general header we must
+> refrain from using it.
+> 
+> v2: include pgtable for pgprot_combine()
+> 
+> Reported-by: Stephen Rothwell <sfr@canb.auug.org.au>
+> Fixes: cafaf14a5d8f ("io-mapping: Always create a struct to hold metadata about the io-mapping")
+> Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+> Cc: Daniel Vetter <daniel.vetter@ffwll.ch>
+> Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+> Cc: linux-mm@kvack.org
+
+This one seems to have worked out, applied to dinq.
+
+Thanks, Daniel
+
+> ---
+>  include/linux/io-mapping.h | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/include/linux/io-mapping.h b/include/linux/io-mapping.h
+> index b4c4b5c4216d..a87dd7fffc0a 100644
+> --- a/include/linux/io-mapping.h
+> +++ b/include/linux/io-mapping.h
+> @@ -112,7 +112,7 @@ io_mapping_unmap(void __iomem *vaddr)
+>  #else
 >  
->  	/*
-> -	 * If we're exiting normally, clear a user-space tid field if
-> -	 * requested.  We leave this alone when dying by signal, to leave
-> -	 * the value intact in a core dump, and to save the unnecessary
-> -	 * trouble, say, a killed vfork parent shouldn't touch this mm.
-> -	 * Userland only wants this done for a sys_exit.
-> +	 * Signal userspace if we're not exiting with a core dump
-> +	 * or a killed vfork parent which shouldn't touch this mm.
+>  #include <linux/uaccess.h>
+> -#include <asm/pgtable_types.h>
+> +#include <asm/pgtable.h>
+>  
+>  /* Create the io_mapping object*/
+>  static inline struct io_mapping *
+> @@ -123,7 +123,7 @@ io_mapping_init_wc(struct io_mapping *iomap,
+>  	iomap->base = base;
+>  	iomap->size = size;
+>  	iomap->iomem = ioremap_wc(base, size);
+> -	iomap->prot = pgprot_writecombine(PAGE_KERNEL_IO);
+> +	iomap->prot = pgprot_writecombine(PAGE_KERNEL);
+>  
+>  	return iomap;
+>  }
+> -- 
+> 2.9.3
+> 
 
-Well. ACK, but the comment looks wrong...
-
-The "killed vfork parent ..." part should be removed, as you pointed
-out this is no longer true.
-
-OTOH, to me it would be better to not remove the "leave the value
-intact in a core dump" part, otherwise the " we're not exiting with
-a core dump" looks pointless because SIGNAL_GROUP_COREDUMP is self-
-documenting.
-
-Oleg.
+-- 
+Daniel Vetter
+Software Engineer, Intel Corporation
+http://blog.ffwll.ch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
