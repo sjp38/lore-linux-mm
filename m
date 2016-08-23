@@ -1,58 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 84DD36B0069
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2016 03:48:56 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id u81so78373132wmu.3
-        for <linux-mm@kvack.org>; Tue, 23 Aug 2016 00:48:56 -0700 (PDT)
-Received: from mail-wm0-f46.google.com (mail-wm0-f46.google.com. [74.125.82.46])
-        by mx.google.com with ESMTPS id y135si19803760wmc.71.2016.08.23.00.48.55
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 30AB06B0069
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2016 03:55:58 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id l4so79002524wml.0
+        for <linux-mm@kvack.org>; Tue, 23 Aug 2016 00:55:58 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id eo1si1895082wjb.236.2016.08.23.00.55.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Aug 2016 00:48:55 -0700 (PDT)
-Received: by mail-wm0-f46.google.com with SMTP id o80so180884689wme.1
-        for <linux-mm@kvack.org>; Tue, 23 Aug 2016 00:48:55 -0700 (PDT)
-Date: Tue, 23 Aug 2016 09:48:53 +0200
+        Tue, 23 Aug 2016 00:55:57 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id o80so16902315wme.0
+        for <linux-mm@kvack.org>; Tue, 23 Aug 2016 00:55:56 -0700 (PDT)
+Date: Tue, 23 Aug 2016 09:55:55 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: OOM detection regressions since 4.7
-Message-ID: <20160823074853.GD23577@dhcp22.suse.cz>
-References: <20160822093249.GA14916@dhcp22.suse.cz>
- <20160823045245.GC17039@js1304-P5Q-DELUXE>
- <20160823073318.GA23577@dhcp22.suse.cz>
- <20160823074014.GB15849@x4>
+Subject: Re: [PATCH 09/10] vhost, mm: make sure that oom_reaper doesn't reap
+ memory read by vhost
+Message-ID: <20160823075555.GE23577@dhcp22.suse.cz>
+References: <20160728233359-mutt-send-email-mst@kernel.org>
+ <20160729060422.GA5504@dhcp22.suse.cz>
+ <20160729161039-mutt-send-email-mst@kernel.org>
+ <20160729133529.GE8031@dhcp22.suse.cz>
+ <20160729205620-mutt-send-email-mst@kernel.org>
+ <20160731094438.GA24353@dhcp22.suse.cz>
+ <20160812094236.GF3639@dhcp22.suse.cz>
+ <20160812132140.GA776@redhat.com>
+ <20160822130311.GL13596@dhcp22.suse.cz>
+ <20160822210123.5k6zwdrkhrwjw5vv@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160823074014.GB15849@x4>
+In-Reply-To: <20160822210123.5k6zwdrkhrwjw5vv@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Markus Trippelsdorf <markus@trippelsdorf.de>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, greg@suse.cz, Linus Torvalds <torvalds@linux-foundation.org>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Jiri Slaby <jslaby@suse.com>, Olaf Hering <olaf@aepfle.de>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Oleg Nesterov <oleg@redhat.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>
 
-On Tue 23-08-16 09:40:14, Markus Trippelsdorf wrote:
-> On 2016.08.23 at 09:33 +0200, Michal Hocko wrote:
-> > On Tue 23-08-16 13:52:45, Joonsoo Kim wrote:
-> > [...]
-> > > Hello, Michal.
-> > > 
-> > > I agree with partial revert but revert should be a different form.
-> > > Below change try to reuse should_compact_retry() version for
-> > > !CONFIG_COMPACTION but it turned out that it also causes regression in
-> > > Markus report [1].
-> > 
-> > I would argue that CONFIG_COMPACTION=n behaves so arbitrary for high
-> > order workloads that calling any change in that behavior a regression
-> > is little bit exaggerated. Disabling compaction should have a very
-> > strong reason. I haven't heard any so far. I am even wondering whether
-> > there is a legitimate reason for that these days.
-> 
-> BTW, the current config description:
-> 
->   CONFIG_COMPACTION:
->   Allows the compaction of memory for the allocation of huge pages. 
-> 
-> doesn't make it clear to the user that this is an essential feature.
+On Tue 23-08-16 00:01:23, Michael S. Tsirkin wrote:
+[...]
+> Actually, vhost net calls out to tun which does regular copy_from_iter.
+> Returning 0 there will cause corrupted packets in the network: not a
+> huge deal, but ugly.  And I don't think we want to annotate run and
+> macvtap as well.
 
-Yes I plan to send a clarification patch.
+Hmm, OK, I wasn't aware of that path and being consistent here matters.
+If the vhost driver can interact with other subsystems then there is
+really no other option than hooking into the page fault path. Ohh well.
+
 -- 
 Michal Hocko
 SUSE Labs
