@@ -1,287 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5235C6B0038
-	for <linux-mm@kvack.org>; Wed, 24 Aug 2016 15:36:24 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id ag5so43336663pad.2
-        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 12:36:24 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id a73si11034176pfc.20.2016.08.24.12.36.23
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 50E646B0038
+	for <linux-mm@kvack.org>; Wed, 24 Aug 2016 16:37:26 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id ag5so45723442pad.2
+        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 13:37:26 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id ik5si11256961pac.111.2016.08.24.13.37.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Aug 2016 12:36:23 -0700 (PDT)
-From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH] mm, swap: Add swap_cluster_list
-Date: Wed, 24 Aug 2016 12:35:56 -0700
-Message-Id: <1472067356-16004-1-git-send-email-ying.huang@intel.com>
+        Wed, 24 Aug 2016 13:37:25 -0700 (PDT)
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: [PATCH] mm: silently skip readahead for DAX inodes
+Date: Wed, 24 Aug 2016 14:37:12 -0600
+Message-Id: <20160824203712.4580-1-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>
+To: linux-kernel@vger.kernel.org
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jan Kara <jack@suse.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Jeff Moyer <jmoyer@redhat.com>, stable@vger.kernel.org
 
-From: Huang Ying <ying.huang@intel.com>
+For DAX inodes we need to be careful to never have page cache pages in the
+mapping->page_tree.  This radix tree should be composed only of DAX
+exceptional entries and zero pages.
 
-This is a code clean up patch without functionality changes.  The
-swap_cluster_list data structure and its operations are introduced to
-provide some better encapsulation for the free cluster and discard
-cluster list operations.  This avoid some code duplication, improved
-the code readability, and reduced the total line number.
+ltp's readahead02 test was triggering a warning because we were trying to
+insert a DAX exceptional entry but found that a page cache page had already
+been inserted into the tree.  This page was being inserted into the radix
+tree in response to a readahead(2) call.
 
-Cc: Tim Chen <tim.c.chen@intel.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
-Acked-by: Minchan Kim <minchan@kernel.org>
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Readahead doesn't make sense for DAX inodes, but we don't want it to report
+a failure either.  Instead, we just return success and don't do any work.
+
+Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+Reported-by: Jeff Moyer <jmoyer@redhat.com>
+Cc: stable@vger.kernel.org
 ---
- include/linux/swap.h |  11 +++--
- mm/swapfile.c        | 131 ++++++++++++++++++++++++---------------------------
- 2 files changed, 68 insertions(+), 74 deletions(-)
+ mm/readahead.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index b17cc48..ed41bec 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -191,6 +191,11 @@ struct percpu_cluster {
- 	unsigned int next; /* Likely next allocation offset */
- };
- 
-+struct swap_cluster_list {
-+	struct swap_cluster_info head;
-+	struct swap_cluster_info tail;
-+};
-+
- /*
-  * The in-memory structure used to track swap areas.
+diff --git a/mm/readahead.c b/mm/readahead.c
+index 65ec288..a9ba1be 100644
+--- a/mm/readahead.c
++++ b/mm/readahead.c
+@@ -8,6 +8,7 @@
   */
-@@ -203,8 +208,7 @@ struct swap_info_struct {
- 	unsigned int	max;		/* extent of the swap_map */
- 	unsigned char *swap_map;	/* vmalloc'ed array of usage counts */
- 	struct swap_cluster_info *cluster_info; /* cluster info. Only for SSD */
--	struct swap_cluster_info free_cluster_head; /* free cluster list head */
--	struct swap_cluster_info free_cluster_tail; /* free cluster list tail */
-+	struct swap_cluster_list free_clusters; /* free clusters list */
- 	unsigned int lowest_bit;	/* index of first free in swap_map */
- 	unsigned int highest_bit;	/* index of last free in swap_map */
- 	unsigned int pages;		/* total of usable pages of swap */
-@@ -235,8 +239,7 @@ struct swap_info_struct {
- 					 * first.
- 					 */
- 	struct work_struct discard_work; /* discard worker */
--	struct swap_cluster_info discard_cluster_head; /* list head of discard clusters */
--	struct swap_cluster_info discard_cluster_tail; /* list tail of discard clusters */
-+	struct swap_cluster_list discard_clusters; /* discard clusters list */
- };
  
- /* linux/mm/workingset.c */
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 78cfa29..f9892a3 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -257,6 +257,52 @@ static inline void cluster_set_null(struct swap_cluster_info *info)
- 	info->data = 0;
+ #include <linux/kernel.h>
++#include <linux/dax.h>
+ #include <linux/gfp.h>
+ #include <linux/export.h>
+ #include <linux/blkdev.h>
+@@ -544,6 +545,9 @@ do_readahead(struct address_space *mapping, struct file *filp,
+ 	if (!mapping || !mapping->a_ops)
+ 		return -EINVAL;
+ 
++	if (dax_mapping(mapping))
++		return 0;
++
+ 	return force_page_cache_readahead(mapping, filp, index, nr);
  }
  
-+static inline bool cluster_list_empty(struct swap_cluster_list *list)
-+{
-+	return cluster_is_null(&list->head);
-+}
-+
-+static inline unsigned int cluster_list_first(struct swap_cluster_list *list)
-+{
-+	return cluster_next(&list->head);
-+}
-+
-+static void cluster_list_init(struct swap_cluster_list *list)
-+{
-+	cluster_set_null(&list->head);
-+	cluster_set_null(&list->tail);
-+}
-+
-+static void cluster_list_add_tail(struct swap_cluster_list *list,
-+				  struct swap_cluster_info *ci,
-+				  unsigned int idx)
-+{
-+	if (cluster_list_empty(list)) {
-+		cluster_set_next_flag(&list->head, idx, 0);
-+		cluster_set_next_flag(&list->tail, idx, 0);
-+	} else {
-+		unsigned int tail = cluster_next(&list->tail);
-+		cluster_set_next(&ci[tail], idx);
-+		cluster_set_next_flag(&list->tail, idx, 0);
-+	}
-+}
-+
-+static unsigned int cluster_list_del_first(struct swap_cluster_list *list,
-+					   struct swap_cluster_info *ci)
-+{
-+	unsigned int idx;
-+
-+	idx = cluster_next(&list->head);
-+	if (cluster_next(&list->tail) == idx) {
-+		cluster_set_null(&list->head);
-+		cluster_set_null(&list->tail);
-+	} else
-+		cluster_set_next_flag(&list->head,
-+				      cluster_next(&ci[idx]), 0);
-+
-+	return idx;
-+}
-+
- /* Add a cluster to discard list and schedule it to do discard */
- static void swap_cluster_schedule_discard(struct swap_info_struct *si,
- 		unsigned int idx)
-@@ -270,17 +316,7 @@ static void swap_cluster_schedule_discard(struct swap_info_struct *si,
- 	memset(si->swap_map + idx * SWAPFILE_CLUSTER,
- 			SWAP_MAP_BAD, SWAPFILE_CLUSTER);
- 
--	if (cluster_is_null(&si->discard_cluster_head)) {
--		cluster_set_next_flag(&si->discard_cluster_head,
--						idx, 0);
--		cluster_set_next_flag(&si->discard_cluster_tail,
--						idx, 0);
--	} else {
--		unsigned int tail = cluster_next(&si->discard_cluster_tail);
--		cluster_set_next(&si->cluster_info[tail], idx);
--		cluster_set_next_flag(&si->discard_cluster_tail,
--						idx, 0);
--	}
-+	cluster_list_add_tail(&si->discard_clusters, si->cluster_info, idx);
- 
- 	schedule_work(&si->discard_work);
- }
-@@ -296,15 +332,8 @@ static void swap_do_scheduled_discard(struct swap_info_struct *si)
- 
- 	info = si->cluster_info;
- 
--	while (!cluster_is_null(&si->discard_cluster_head)) {
--		idx = cluster_next(&si->discard_cluster_head);
--
--		cluster_set_next_flag(&si->discard_cluster_head,
--						cluster_next(&info[idx]), 0);
--		if (cluster_next(&si->discard_cluster_tail) == idx) {
--			cluster_set_null(&si->discard_cluster_head);
--			cluster_set_null(&si->discard_cluster_tail);
--		}
-+	while (!cluster_list_empty(&si->discard_clusters)) {
-+		idx = cluster_list_del_first(&si->discard_clusters, info);
- 		spin_unlock(&si->lock);
- 
- 		discard_swap_cluster(si, idx * SWAPFILE_CLUSTER,
-@@ -312,19 +341,7 @@ static void swap_do_scheduled_discard(struct swap_info_struct *si)
- 
- 		spin_lock(&si->lock);
- 		cluster_set_flag(&info[idx], CLUSTER_FLAG_FREE);
--		if (cluster_is_null(&si->free_cluster_head)) {
--			cluster_set_next_flag(&si->free_cluster_head,
--						idx, 0);
--			cluster_set_next_flag(&si->free_cluster_tail,
--						idx, 0);
--		} else {
--			unsigned int tail;
--
--			tail = cluster_next(&si->free_cluster_tail);
--			cluster_set_next(&info[tail], idx);
--			cluster_set_next_flag(&si->free_cluster_tail,
--						idx, 0);
--		}
-+		cluster_list_add_tail(&si->free_clusters, info, idx);
- 		memset(si->swap_map + idx * SWAPFILE_CLUSTER,
- 				0, SWAPFILE_CLUSTER);
- 	}
-@@ -353,13 +370,8 @@ static void inc_cluster_info_page(struct swap_info_struct *p,
- 	if (!cluster_info)
- 		return;
- 	if (cluster_is_free(&cluster_info[idx])) {
--		VM_BUG_ON(cluster_next(&p->free_cluster_head) != idx);
--		cluster_set_next_flag(&p->free_cluster_head,
--			cluster_next(&cluster_info[idx]), 0);
--		if (cluster_next(&p->free_cluster_tail) == idx) {
--			cluster_set_null(&p->free_cluster_tail);
--			cluster_set_null(&p->free_cluster_head);
--		}
-+		VM_BUG_ON(cluster_list_first(&p->free_clusters) != idx);
-+		cluster_list_del_first(&p->free_clusters, cluster_info);
- 		cluster_set_count_flag(&cluster_info[idx], 0, 0);
- 	}
- 
-@@ -398,14 +410,7 @@ static void dec_cluster_info_page(struct swap_info_struct *p,
- 		}
- 
- 		cluster_set_flag(&cluster_info[idx], CLUSTER_FLAG_FREE);
--		if (cluster_is_null(&p->free_cluster_head)) {
--			cluster_set_next_flag(&p->free_cluster_head, idx, 0);
--			cluster_set_next_flag(&p->free_cluster_tail, idx, 0);
--		} else {
--			unsigned int tail = cluster_next(&p->free_cluster_tail);
--			cluster_set_next(&cluster_info[tail], idx);
--			cluster_set_next_flag(&p->free_cluster_tail, idx, 0);
--		}
-+		cluster_list_add_tail(&p->free_clusters, cluster_info, idx);
- 	}
- }
- 
-@@ -421,8 +426,8 @@ scan_swap_map_ssd_cluster_conflict(struct swap_info_struct *si,
- 	bool conflict;
- 
- 	offset /= SWAPFILE_CLUSTER;
--	conflict = !cluster_is_null(&si->free_cluster_head) &&
--		offset != cluster_next(&si->free_cluster_head) &&
-+	conflict = !cluster_list_empty(&si->free_clusters) &&
-+		offset != cluster_list_first(&si->free_clusters) &&
- 		cluster_is_free(&si->cluster_info[offset]);
- 
- 	if (!conflict)
-@@ -447,11 +452,11 @@ static void scan_swap_map_try_ssd_cluster(struct swap_info_struct *si,
- new_cluster:
- 	cluster = this_cpu_ptr(si->percpu_cluster);
- 	if (cluster_is_null(&cluster->index)) {
--		if (!cluster_is_null(&si->free_cluster_head)) {
--			cluster->index = si->free_cluster_head;
-+		if (!cluster_list_empty(&si->free_clusters)) {
-+			cluster->index = si->free_clusters.head;
- 			cluster->next = cluster_next(&cluster->index) *
- 					SWAPFILE_CLUSTER;
--		} else if (!cluster_is_null(&si->discard_cluster_head)) {
-+		} else if (!cluster_list_empty(&si->discard_clusters)) {
- 			/*
- 			 * we don't have free cluster but have some clusters in
- 			 * discarding, do discard now and reclaim them
-@@ -2292,10 +2297,8 @@ static int setup_swap_map_and_extents(struct swap_info_struct *p,
- 
- 	nr_good_pages = maxpages - 1;	/* omit header page */
- 
--	cluster_set_null(&p->free_cluster_head);
--	cluster_set_null(&p->free_cluster_tail);
--	cluster_set_null(&p->discard_cluster_head);
--	cluster_set_null(&p->discard_cluster_tail);
-+	cluster_list_init(&p->free_clusters);
-+	cluster_list_init(&p->discard_clusters);
- 
- 	for (i = 0; i < swap_header->info.nr_badpages; i++) {
- 		unsigned int page_nr = swap_header->info.badpages[i];
-@@ -2341,19 +2344,7 @@ static int setup_swap_map_and_extents(struct swap_info_struct *p,
- 	for (i = 0; i < nr_clusters; i++) {
- 		if (!cluster_count(&cluster_info[idx])) {
- 			cluster_set_flag(&cluster_info[idx], CLUSTER_FLAG_FREE);
--			if (cluster_is_null(&p->free_cluster_head)) {
--				cluster_set_next_flag(&p->free_cluster_head,
--								idx, 0);
--				cluster_set_next_flag(&p->free_cluster_tail,
--								idx, 0);
--			} else {
--				unsigned int tail;
--
--				tail = cluster_next(&p->free_cluster_tail);
--				cluster_set_next(&cluster_info[tail], idx);
--				cluster_set_next_flag(&p->free_cluster_tail,
--								idx, 0);
--			}
-+			cluster_list_add_tail(&p->free_clusters, cluster_info, idx);
- 		}
- 		idx++;
- 		if (idx == nr_clusters)
 -- 
-2.8.1
+2.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
