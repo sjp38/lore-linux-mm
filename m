@@ -1,76 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FDFA6B0038
-	for <linux-mm@kvack.org>; Wed, 24 Aug 2016 04:10:27 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id e7so6028322lfe.0
-        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 01:10:26 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id e73si7857878wma.8.2016.08.24.01.10.25
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AFAA6B0038
+	for <linux-mm@kvack.org>; Wed, 24 Aug 2016 04:21:03 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id u81so7738259wmu.3
+        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 01:21:03 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p145si7837814wme.109.2016.08.24.01.21.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Aug 2016 01:10:25 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id o80so1478128wme.0
-        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 01:10:25 -0700 (PDT)
-Date: Wed, 24 Aug 2016 10:10:24 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] kernel/fork: fix CLONE_CHILD_CLEARTID regression in
- nscd
-Message-ID: <20160824081023.GE31179@dhcp22.suse.cz>
-References: <1471968749-26173-1-git-send-email-mhocko@kernel.org>
- <20160823163233.GA7123@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 24 Aug 2016 01:21:02 -0700 (PDT)
+Date: Wed, 24 Aug 2016 09:20:57 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: what is the purpose of SLAB and SLUB (was: Re: [PATCH v3]
+ mm/slab: Improve performance of gathering slabinfo) stats
+Message-ID: <20160824082057.GT2693@suse.de>
+References: <1471458050-29622-1-git-send-email-aruna.ramakrishna@oracle.com>
+ <20160818115218.GJ30162@dhcp22.suse.cz>
+ <20160823021303.GB17039@js1304-P5Q-DELUXE>
+ <20160823153807.GN23577@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20160823163233.GA7123@redhat.com>
+In-Reply-To: <20160823153807.GN23577@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Roland McGrath <roland@hack.frob.com>, Andreas Schwab <schwab@suse.com>, William Preston <wpreston@suse.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Aruna Ramakrishna <aruna.ramakrishna@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Kravetz <mike.kravetz@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>
 
-On Tue 23-08-16 18:32:34, Oleg Nesterov wrote:
-> On 08/23, Michal Hocko wrote:
-> >
-> > --- a/kernel/fork.c
-> > +++ b/kernel/fork.c
-> > @@ -913,14 +913,11 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
-> >  	deactivate_mm(tsk, mm);
-> >  
-> >  	/*
-> > -	 * If we're exiting normally, clear a user-space tid field if
-> > -	 * requested.  We leave this alone when dying by signal, to leave
-> > -	 * the value intact in a core dump, and to save the unnecessary
-> > -	 * trouble, say, a killed vfork parent shouldn't touch this mm.
-> > -	 * Userland only wants this done for a sys_exit.
-> > +	 * Signal userspace if we're not exiting with a core dump
-> > +	 * or a killed vfork parent which shouldn't touch this mm.
-> 
-> Well. ACK, but the comment looks wrong...
-> 
-> The "killed vfork parent ..." part should be removed, as you pointed
-> out this is no longer true.
-> 
-> OTOH, to me it would be better to not remove the "leave the value
-> intact in a core dump" part, otherwise the " we're not exiting with
-> a core dump" looks pointless because SIGNAL_GROUP_COREDUMP is self-
-> documenting.
+On Tue, Aug 23, 2016 at 05:38:08PM +0200, Michal Hocko wrote:
+> Do we have any documentation/study about which particular workloads
+> benefit from which allocator? It seems that most users will use whatever
+> the default or what their distribution uses. E.g. SLES kernel use SLAB
+> because this is what we used to have for ages and there was no strong
+> reason to change that default.
 
-Sounds better?
-diff --git a/kernel/fork.c b/kernel/fork.c
-index b89f0eb99f0a..ddde5849df81 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -914,7 +914,8 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
- 
- 	/*
- 	 * Signal userspace if we're not exiting with a core dump
--	 * or a killed vfork parent which shouldn't touch this mm.
-+	 * because we want to leave the value intact for debugging
-+	 * purposes.
- 	 */
- 	if (tsk->clear_child_tid) {
- 		if (!(tsk->signal->flags & SIGNAL_GROUP_COREDUMP) &&
+Yes, with the downside that a reliance on high-orders contended on the
+zone lock which would not scale and could degrade over time. If there
+were multiple compelling reasons then it would have been an easier
+switch.
+
+I did prototype high-order pcp caching up to PAGE_ALLOC_COSTLY_ORDER
+but it pushed the size of per_cpu_pages over a cache line which could
+be problematic in itself. I never finished off the work as fixing the
+allocator for SLUB was not a priority. The prototype no longer applies as
+it conflicts with the removal of the fair zone allocation policy.
+
+If/when I get back to the page allocator, the priority would be a bulk
+API for faster allocs of batches of order-0 pages instead of allocating
+a large page and splitting.
+
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
