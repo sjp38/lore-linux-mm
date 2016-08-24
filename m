@@ -1,80 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 109C66B0038
-	for <linux-mm@kvack.org>; Wed, 24 Aug 2016 00:31:48 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id g62so3959366ith.3
-        for <linux-mm@kvack.org>; Tue, 23 Aug 2016 21:31:48 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id 80si4930610otg.252.2016.08.23.21.31.38
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A4D46B0038
+	for <linux-mm@kvack.org>; Wed, 24 Aug 2016 02:07:08 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id u81so5646776wmu.3
+        for <linux-mm@kvack.org>; Tue, 23 Aug 2016 23:07:08 -0700 (PDT)
+Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
+        by mx.google.com with ESMTPS id z6si24820397wmg.146.2016.08.23.23.07.07
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 23 Aug 2016 21:31:42 -0700 (PDT)
-Message-ID: <57BD2156.3070202@huawei.com>
-Date: Wed, 24 Aug 2016 12:23:50 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Aug 2016 23:07:07 -0700 (PDT)
+Date: Wed, 24 Aug 2016 07:06:57 +0100
+From: Chris Wilson <chris@chris-wilson.co.uk>
+Subject: Re: [PATCH] io-mapping: Fixup for different names of writecombine
+Message-ID: <20160824060657.GA13362@nuc-i3427.alporthouse.com>
+References: <20160823202233.4681-1-daniel.vetter@ffwll.ch>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: page should be aligned with max_order
-References: <1471961400-1536-1-git-send-email-zhongjiang@huawei.com> <f7690e60-33d4-5fd9-f542-f62a97fef8d2@suse.cz>
-In-Reply-To: <f7690e60-33d4-5fd9-f542-f62a97fef8d2@suse.cz>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160823202233.4681-1-daniel.vetter@ffwll.ch>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Daniel Vetter <daniel.vetter@ffwll.ch>
+Cc: Intel Graphics Development <intel-gfx@lists.freedesktop.org>, Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, linux-mm@kvack.org, Daniel Vetter <daniel.vetter@intel.com>
 
-On 2016/8/24 0:56, Vlastimil Babka wrote:
-> On 23.8.2016 16:10, zhongjiang wrote:
->> From: zhong jiang <zhongjiang@huawei.com>
->>
->> At present, page aligned with MAX_ORDER make no sense.
-> Is it a bug that manifests... how?
-  it is not bug.  Just a little confused.
-  According to the commit da2041 (mm/page_alloc: prevent merging between isolated and other pageblocks)
-  it prevent the mix between the isolate and other page block.  because it will lead to other blocks
-  account increase in the end when mixed block is freed. is it right ?
+On Tue, Aug 23, 2016 at 10:22:33PM +0200, Daniel Vetter wrote:
+> Somehow architectures can't agree on this. And for good measure make
+> sure we have a fallback which should work everywhere (fingers
+> crossed).
+> 
+> This is to fix a compile fail on microblaze in gpiolib-of.c, which
+> misguidedly includes io-mapping.h (instead of screaming at whichever
+> achitecture doesn't correctly pull in asm/io.h from linux/io.h).
+> 
+> Not tested since there's no reasonable way to get at microblaze
+> toolchains :(
+> 
+> Fixes: ac96b5566926 ("io-mapping.h: s/PAGE_KERNEL_IO/PAGE_KERNEL/")
+> Cc: Chris Wilson <chris@chris-wilson.co.uk>
+> Cc: Daniel Vetter <daniel.vetter@ffwll.ch>
+> Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+> Cc: linux-mm@kvack.org
+> Signed-off-by: Daniel Vetter <daniel.vetter@intel.com>
 
-  In addtion, The changelog points to buddies can be left unmerged can be  fixed by change the max_order to MAX_ORDER.
-  how does it work ?  or I miss the point you want to  express. because I do not think that the change can solve the issue.
-> Does it make more sense with max_order? why?
-  I think we should limit the page_idx to two pageblock size. so it can merge the pageblock.
-> I think we could just drop the page_idx masking and use pfn directly.
-> __find_buddy_index() only looks at the 1 << order bit. Then there are operations
-> such as (buddy_idx & page_idx) and (combined_idx - page_idx),
-> none of these should care about the bits higher than MAX_ORDER/max_order as the
-> subtraction cancels them out. That's also why the "mistake" you point out
-> doesn't result in a bug IMHO.
-  yes , I agree. 
+As mentioned I'm looking at reducing the number of unused includes of
+io-mapping.h, discussion in progress over at gpio/mlx4.
 
-  Thanks
-   zhongjiang
->> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
->> ---
->>  mm/page_alloc.c | 2 +-
->>  1 file changed, 1 insertion(+), 1 deletion(-)
->>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index ff726f94..a178b1d 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -786,7 +786,7 @@ static inline void __free_one_page(struct page *page,
->>  	if (likely(!is_migrate_isolate(migratetype)))
->>  		__mod_zone_freepage_state(zone, 1 << order, migratetype);
->>  
->> -	page_idx = pfn & ((1 << MAX_ORDER) - 1);
->> +	page_idx = pfn & ((1 << max_order) - 1);
->>  
->>  	VM_BUG_ON_PAGE(page_idx & ((1 << order) - 1), page);
->>  	VM_BUG_ON_PAGE(bad_range(zone, page), page);
->>
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
->
+On the positive side, this does at least mean the WC pgprot mess is
+hidden away in the header!
 
+Reviewed-by: Chris Wilson <chris@chris-wilson.co.uk>
+-Chris
+
+-- 
+Chris Wilson, Intel Open Source Technology Centre
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
