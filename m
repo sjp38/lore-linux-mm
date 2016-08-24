@@ -1,84 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 224736B0038
-	for <linux-mm@kvack.org>; Tue, 23 Aug 2016 18:13:28 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id w128so279773309pfd.3
-        for <linux-mm@kvack.org>; Tue, 23 Aug 2016 15:13:28 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id hm6si5740071pac.254.2016.08.23.15.04.32
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Aug 2016 15:04:32 -0700 (PDT)
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v2 4/9] dax: remove buffer_size_valid()
-Date: Tue, 23 Aug 2016 16:04:14 -0600
-Message-Id: <20160823220419.11717-5-ross.zwisler@linux.intel.com>
-In-Reply-To: <20160823220419.11717-1-ross.zwisler@linux.intel.com>
-References: <20160823220419.11717-1-ross.zwisler@linux.intel.com>
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B76516B0038
+	for <linux-mm@kvack.org>; Tue, 23 Aug 2016 21:08:31 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id f6so9251656ith.0
+        for <linux-mm@kvack.org>; Tue, 23 Aug 2016 18:08:31 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id y12si7616817iod.45.2016.08.23.18.08.19
+        for <linux-mm@kvack.org>;
+        Tue, 23 Aug 2016 18:08:20 -0700 (PDT)
+Date: Wed, 24 Aug 2016 10:04:15 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC 0/4] ZRAM: make it just store the high compression rate page
+Message-ID: <20160824010415.GB27022@bbox>
+References: <1471854309-30414-1-git-send-email-zhuhui@xiaomi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1471854309-30414-1-git-send-email-zhuhui@xiaomi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Matthew Wilcox <mawilcox@microsoft.com>
+To: Hui Zhu <zhuhui@xiaomi.com>
+Cc: ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, hughd@google.com, rostedt@goodmis.org, mingo@redhat.com, peterz@infradead.org, acme@kernel.org, alexander.shishkin@linux.intel.com, akpm@linux-foundation.org, mhocko@suse.com, hannes@cmpxchg.org, mgorman@techsingularity.net, vbabka@suse.cz, redkoi@virtuozzo.com, luto@kernel.org, kirill.shutemov@linux.intel.com, geliangtang@163.com, baiyaowei@cmss.chinamobile.com, dan.j.williams@intel.com, vdavydov@virtuozzo.com, aarcange@redhat.com, dvlasenk@redhat.com, jmarchan@redhat.com, koct9i@gmail.com, yang.shi@linaro.org, dave.hansen@linux.intel.com, vkuznets@redhat.com, vitalywool@gmail.com, ross.zwisler@linux.intel.com, tglx@linutronix.de, kwapulinski.piotr@gmail.com, axboe@fb.com, mchristi@redhat.com, joe@perches.com, namit@vmware.com, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, teawater@gmail.com
 
-Now that all our supported filesystems (ext2, ext4 and XFS) all properly
-set bh.b_size when we call get_block() for a hole, rely on that value and
-remove the buffer_size_valid() sanity check.
+Hi Hui,
 
-Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-Reviewed-by: Jan Kara <jack@suse.cz>
----
- fs/dax.c | 22 +---------------------
- 1 file changed, 1 insertion(+), 21 deletions(-)
+On Mon, Aug 22, 2016 at 04:25:05PM +0800, Hui Zhu wrote:
+> Current ZRAM just can store all pages even if the compression rate
+> of a page is really low.  So the compression rate of ZRAM is out of
+> control when it is running.
+> In my part, I did some test and record with ZRAM.  The compression rate
+> is about 40%.
+> 
+> This series of patches make ZRAM can just store the page that the
+> compressed size is smaller than a value.
+> With these patches, I set the value to 2048 and did the same test with
+> before.  The compression rate is about 20%.  The times of lowmemorykiller
+> also decreased.
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 993dc6f..8030f93 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -121,19 +121,6 @@ static bool buffer_written(struct buffer_head *bh)
- 	return buffer_mapped(bh) && !buffer_unwritten(bh);
- }
- 
--/*
-- * When ext4 encounters a hole, it returns without modifying the buffer_head
-- * which means that we can't trust b_size.  To cope with this, we set b_state
-- * to 0 before calling get_block and, if any bit is set, we know we can trust
-- * b_size.  Unfortunate, really, since ext4 knows precisely how long a hole is
-- * and would save us time calling get_block repeatedly.
-- */
--static bool buffer_size_valid(struct buffer_head *bh)
--{
--	return bh->b_state != 0;
--}
--
--
- static sector_t to_sector(const struct buffer_head *bh,
- 		const struct inode *inode)
- {
-@@ -175,8 +162,6 @@ static ssize_t dax_io(struct inode *inode, struct iov_iter *iter,
- 				rc = get_block(inode, block, bh, rw == WRITE);
- 				if (rc)
- 					break;
--				if (!buffer_size_valid(bh))
--					bh->b_size = 1 << blkbits;
- 				bh_max = pos - first + bh->b_size;
- 				bdev = bh->b_bdev;
- 				/*
-@@ -1010,12 +995,7 @@ int dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
- 
- 	bdev = bh.b_bdev;
- 
--	/*
--	 * If the filesystem isn't willing to tell us the length of a hole,
--	 * just fall back to PTEs.  Calling get_block 512 times in a loop
--	 * would be silly.
--	 */
--	if (!buffer_size_valid(&bh) || bh.b_size < PMD_SIZE) {
-+	if (bh.b_size < PMD_SIZE) {
- 		dax_pmd_dbg(&bh, address, "allocated block too small");
- 		return VM_FAULT_FALLBACK;
- 	}
--- 
-2.9.0
+I have an interest about the feature for a long time but didn't work on it
+because I didn't have a good idea to implment it with generic approach
+without layer violation. I will look into this after handling urgent works.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
