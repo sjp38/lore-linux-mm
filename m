@@ -1,57 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EF426B0038
-	for <linux-mm@kvack.org>; Wed, 24 Aug 2016 08:03:00 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id u191so50517060oie.3
-        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 05:03:00 -0700 (PDT)
-Received: from NAM02-CY1-obe.outbound.protection.outlook.com (mail-cys01nam02on0066.outbound.protection.outlook.com. [104.47.37.66])
-        by mx.google.com with ESMTPS id x132si6351091oig.71.2016.08.24.05.02.46
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C3D26B0038
+	for <linux-mm@kvack.org>; Wed, 24 Aug 2016 08:16:34 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id l4so12019561wml.0
+        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 05:16:34 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id 16si26160823wmb.72.2016.08.24.05.16.32
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 24 Aug 2016 05:02:46 -0700 (PDT)
-Subject: Re: [RFC PATCH v1 18/28] crypto: add AMD Platform Security Processor
- driver
-References: <147190820782.9523.4967724730957229273.stgit@brijesh-build-machine>
- <147190844204.9523.14931918358168729826.stgit@brijesh-build-machine>
- <20160823071458.GC392@gondor.apana.org.au>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <a5180201-7a44-2148-26ba-4e06bbfd4e3a@amd.com>
-Date: Wed, 24 Aug 2016 07:02:26 -0500
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Aug 2016 05:16:33 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id i138so2383166wmf.3
+        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 05:16:32 -0700 (PDT)
+Date: Wed, 24 Aug 2016 14:16:31 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm: memcontrol: avoid unused function warning
+Message-ID: <20160824121630.GG31179@dhcp22.suse.cz>
+References: <20160824113733.2776701-1-arnd@arndb.de>
 MIME-Version: 1.0
-In-Reply-To: <20160823071458.GC392@gondor.apana.org.au>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160824113733.2776701-1-arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Herbert Xu <herbert@gondor.apana.org.au>, Brijesh Singh <brijesh.singh@amd.com>
-Cc: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linus.walleij@linaro.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, bp@suse.de, dyoung@redhat.com, jroedel@suse.de, keescook@chromium.org, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, devel@linuxdriverproject.org, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, linux-crypto@vger.kernel.org, pbonzini@redhat.com, akpm@linux-foundation.org, davem@davemloft.net
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-
-
-On 08/23/2016 02:14 AM, Herbert Xu wrote:
-> On Mon, Aug 22, 2016 at 07:27:22PM -0400, Brijesh Singh wrote:
->> The driver to communicate with Secure Encrypted Virtualization (SEV)
->> firmware running within the AMD secure processor providing a secure key
->> management interface for SEV guests.
->>
->> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
->> Signed-off-by: Brijesh Singh <brijesh.singh@amd.com>
+On Wed 24-08-16 12:23:00, Arnd Bergmann wrote:
+> A bugfix in v4.8-rc2 introduced a harmless warning when CONFIG_MEMCG_SWAP
+> is disabled but CONFIG_MEMCG is enabled:
 > 
-> This driver doesn't seem to hook into the Crypto API at all, is
-> there any reason why it should be in drivers/crypto?
-
-Yes, this needs to be cleaned up.  The PSP and the CCP share the same
-PCI id, so this has to be integrated with the CCP. It could either
-be moved into the drivers/crypto/ccp directory or both the psp and
-ccp device specific support can be moved somewhere else leaving just
-the ccp crypto API related files in drivers/crypto/ccp.
-
-Thanks,
-Tom
-
+> mm/memcontrol.c:4085:27: error: 'mem_cgroup_id_get_online' defined but not used [-Werror=unused-function]
+>  static struct mem_cgroup *mem_cgroup_id_get_online(struct mem_cgroup *memcg)
 > 
-> Thanks,
+> This moves the function inside of the #ifdef block that hides the
+> calling function, to avoid the warning.
 > 
+> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+> Fixes: 1f47b61fb407 ("mm: memcontrol: fix swap counter leak on swapout from offline cgroup")
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> Acked-by: Vladimir Davydov <vdavydov@virtuozzo.com>
+
+Thanks a lot for respinning this Arnd!
+
+> ---
+>  mm/memcontrol.c | 36 ++++++++++++++++++------------------
+>  1 file changed, 18 insertions(+), 18 deletions(-)
+> 
+> This is the alternative to the original patch, as suggested by Michal Hocko.
+> Andrew, please pick whichever version you like better.
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 2ff0289ad061..9a6a51a7c416 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4082,24 +4082,6 @@ static void mem_cgroup_id_get_many(struct mem_cgroup *memcg, unsigned int n)
+>  	atomic_add(n, &memcg->id.ref);
+>  }
+>  
+> -static struct mem_cgroup *mem_cgroup_id_get_online(struct mem_cgroup *memcg)
+> -{
+> -	while (!atomic_inc_not_zero(&memcg->id.ref)) {
+> -		/*
+> -		 * The root cgroup cannot be destroyed, so it's refcount must
+> -		 * always be >= 1.
+> -		 */
+> -		if (WARN_ON_ONCE(memcg == root_mem_cgroup)) {
+> -			VM_BUG_ON(1);
+> -			break;
+> -		}
+> -		memcg = parent_mem_cgroup(memcg);
+> -		if (!memcg)
+> -			memcg = root_mem_cgroup;
+> -	}
+> -	return memcg;
+> -}
+> -
+>  static void mem_cgroup_id_put_many(struct mem_cgroup *memcg, unsigned int n)
+>  {
+>  	if (atomic_sub_and_test(n, &memcg->id.ref)) {
+> @@ -5821,6 +5803,24 @@ static int __init mem_cgroup_init(void)
+>  subsys_initcall(mem_cgroup_init);
+>  
+>  #ifdef CONFIG_MEMCG_SWAP
+> +static struct mem_cgroup *mem_cgroup_id_get_online(struct mem_cgroup *memcg)
+> +{
+> +	while (!atomic_inc_not_zero(&memcg->id.ref)) {
+> +		/*
+> +		 * The root cgroup cannot be destroyed, so it's refcount must
+> +		 * always be >= 1.
+> +		 */
+> +		if (WARN_ON_ONCE(memcg == root_mem_cgroup)) {
+> +			VM_BUG_ON(1);
+> +			break;
+> +		}
+> +		memcg = parent_mem_cgroup(memcg);
+> +		if (!memcg)
+> +			memcg = root_mem_cgroup;
+> +	}
+> +	return memcg;
+> +}
+> +
+>  /**
+>   * mem_cgroup_swapout - transfer a memsw charge to swap
+>   * @page: page whose memsw charge to transfer
+> -- 
+> 2.9.0
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
