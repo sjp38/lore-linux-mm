@@ -1,63 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D9656B025E
-	for <linux-mm@kvack.org>; Wed, 24 Aug 2016 16:42:14 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id w128so52233689pfd.3
-        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 13:42:14 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id j8si11267480paj.168.2016.08.24.13.42.13
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FB556B0261
+	for <linux-mm@kvack.org>; Wed, 24 Aug 2016 16:47:25 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id i184so51400616ywb.1
+        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 13:47:25 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w126si2873763yba.109.2016.08.24.13.47.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Aug 2016 13:42:13 -0700 (PDT)
-Date: Wed, 24 Aug 2016 13:42:12 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: silently skip readahead for DAX inodes
-Message-Id: <20160824134212.e9b50aa36523fbfcbcfe2f55@linux-foundation.org>
-In-Reply-To: <20160824203712.4580-1-ross.zwisler@linux.intel.com>
-References: <20160824203712.4580-1-ross.zwisler@linux.intel.com>
+        Wed, 24 Aug 2016 13:47:25 -0700 (PDT)
+Message-ID: <1472071627.2751.33.camel@redhat.com>
+Subject: Re: [PATCH] mm, swap: Add swap_cluster_list
+From: Rik van Riel <riel@redhat.com>
+Date: Wed, 24 Aug 2016 16:47:07 -0400
+In-Reply-To: <1472067356-16004-1-git-send-email-ying.huang@intel.com>
+References: <1472067356-16004-1-git-send-email-ying.huang@intel.com>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jan Kara <jack@suse.com>, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, Jeff Moyer <jmoyer@redhat.com>, stable@vger.kernel.org
+To: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>
 
-On Wed, 24 Aug 2016 14:37:12 -0600 Ross Zwisler <ross.zwisler@linux.intel.com> wrote:
+On Wed, 2016-08-24 at 12:35 -0700, Huang, Ying wrote:
+> From: Huang Ying <ying.huang@intel.com>
+> 
+> This is a code clean up patch without functionality changes.A A The
+> swap_cluster_list data structure and its operations are introduced to
+> provide some better encapsulation for the free cluster and discard
+> cluster list operations.A A This avoid some code duplication, improved
+> the code readability, and reduced the total line number.
+> 
+> Cc: Tim Chen <tim.c.chen@intel.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Shaohua Li <shli@kernel.org>
+> Cc: Rik van Riel <riel@redhat.com>
+> Acked-by: Minchan Kim <minchan@kernel.org>
+> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+> 
 
-> For DAX inodes we need to be careful to never have page cache pages in the
-> mapping->page_tree.  This radix tree should be composed only of DAX
-> exceptional entries and zero pages.
-> 
-> ltp's readahead02 test was triggering a warning because we were trying to
-> insert a DAX exceptional entry but found that a page cache page had already
-> been inserted into the tree.  This page was being inserted into the radix
-> tree in response to a readahead(2) call.
-> 
-> Readahead doesn't make sense for DAX inodes, but we don't want it to report
-> a failure either.  Instead, we just return success and don't do any work.
-> 
-> --- a/mm/readahead.c
-> +++ b/mm/readahead.c
-> @@ -8,6 +8,7 @@
->   */
->  
->  #include <linux/kernel.h>
-> +#include <linux/dax.h>
->  #include <linux/gfp.h>
->  #include <linux/export.h>
->  #include <linux/blkdev.h>
-> @@ -544,6 +545,9 @@ do_readahead(struct address_space *mapping, struct file *filp,
->  	if (!mapping || !mapping->a_ops)
->  		return -EINVAL;
->  
-> +	if (dax_mapping(mapping))
-> +		return 0;
-> +
-
-Please don't force readers to go spend minutes putzing around in the
-git tree trying to understand your code.
-/* these things considered useful! */
+Acked-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
