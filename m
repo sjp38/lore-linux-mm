@@ -1,46 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FB556B0261
-	for <linux-mm@kvack.org>; Wed, 24 Aug 2016 16:47:25 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id i184so51400616ywb.1
-        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 13:47:25 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w126si2873763yba.109.2016.08.24.13.47.24
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id ED9F56B0263
+	for <linux-mm@kvack.org>; Wed, 24 Aug 2016 17:14:20 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 63so54089236pfx.0
+        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 14:14:20 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id xe10si11390690pab.50.2016.08.24.14.14.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Aug 2016 13:47:25 -0700 (PDT)
-Message-ID: <1472071627.2751.33.camel@redhat.com>
-Subject: Re: [PATCH] mm, swap: Add swap_cluster_list
-From: Rik van Riel <riel@redhat.com>
-Date: Wed, 24 Aug 2016 16:47:07 -0400
-In-Reply-To: <1472067356-16004-1-git-send-email-ying.huang@intel.com>
-References: <1472067356-16004-1-git-send-email-ying.huang@intel.com>
-Content-Type: text/plain; charset="UTF-8"
+        Wed, 24 Aug 2016 14:14:20 -0700 (PDT)
+Date: Wed, 24 Aug 2016 14:14:18 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [wrecked]
+ mm-compaction-more-reliably-increase-direct-compaction-priority.patch
+ removed from -mm tree
+Message-Id: <20160824141418.b266d5a0bddf9170181f8627@linux-foundation.org>
+In-Reply-To: <20160824070859.GC31179@dhcp22.suse.cz>
+References: <57bcb948./5Xz5gcuIQjtLmuG%akpm@linux-foundation.org>
+	<20160824070859.GC31179@dhcp22.suse.cz>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: vbabka@suse.cz, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, riel@redhat.com, rientjes@google.com, linux-mm@kvack.org
 
-On Wed, 2016-08-24 at 12:35 -0700, Huang, Ying wrote:
-> From: Huang Ying <ying.huang@intel.com>
-> 
-> This is a code clean up patch without functionality changes.A A The
-> swap_cluster_list data structure and its operations are introduced to
-> provide some better encapsulation for the free cluster and discard
-> cluster list operations.A A This avoid some code duplication, improved
-> the code readability, and reduced the total line number.
-> 
-> Cc: Tim Chen <tim.c.chen@intel.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Shaohua Li <shli@kernel.org>
-> Cc: Rik van Riel <riel@redhat.com>
-> Acked-by: Minchan Kim <minchan@kernel.org>
-> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-> 
+On Wed, 24 Aug 2016 09:08:59 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 
-Acked-by: Rik van Riel <riel@redhat.com>
+> Hi Andrew,
+> I guess the reason this patch has been dropped is due to
+> mm-oom-prevent-pre-mature-oom-killer-invocation-for-high-order-request.patch.
+
+Yes.  And I think we're still waiting testing feedback from the
+reporters on
+mm-oom-prevent-pre-mature-oom-killer-invocation-for-high-order-request.patch?
+
+> I guess we will wait for the above patch to get to Linus, revert it in mmotm
+> and re-apply
+> mm-compaction-more-reliably-increase-direct-compaction-priority.patch
+> again, right?
+
+I suppose so.  We can leave
+mm-oom-prevent-pre-mature-oom-killer-invocation-for-high-order-request.patch
+in place in mainline for 4.8 so it can be respectably backported into
+-stable.
+
+And we may as well fold
+mm-compaction-more-reliably-increase-direct-compaction-priority.patch
+into the patch which re-adds should_compact_retry()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
