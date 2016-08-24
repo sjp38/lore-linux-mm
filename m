@@ -1,54 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id ED9F56B0263
-	for <linux-mm@kvack.org>; Wed, 24 Aug 2016 17:14:20 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 63so54089236pfx.0
-        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 14:14:20 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id xe10si11390690pab.50.2016.08.24.14.14.20
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 87C096B0265
+	for <linux-mm@kvack.org>; Wed, 24 Aug 2016 18:15:22 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id ag5so49340943pad.2
+        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 15:15:22 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id s126si11653653pfb.16.2016.08.24.15.15.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Aug 2016 14:14:20 -0700 (PDT)
-Date: Wed, 24 Aug 2016 14:14:18 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [wrecked]
- mm-compaction-more-reliably-increase-direct-compaction-priority.patch
- removed from -mm tree
-Message-Id: <20160824141418.b266d5a0bddf9170181f8627@linux-foundation.org>
-In-Reply-To: <20160824070859.GC31179@dhcp22.suse.cz>
-References: <57bcb948./5Xz5gcuIQjtLmuG%akpm@linux-foundation.org>
-	<20160824070859.GC31179@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 24 Aug 2016 15:15:21 -0700 (PDT)
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: [PATCH v2] mm: silently skip readahead for DAX inodes
+Date: Wed, 24 Aug 2016 16:14:29 -0600
+Message-Id: <20160824221429.21158-1-ross.zwisler@linux.intel.com>
+In-Reply-To: <20160824134212.e9b50aa36523fbfcbcfe2f55@linux-foundation.org>
+References: <20160824134212.e9b50aa36523fbfcbcfe2f55@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: vbabka@suse.cz, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, riel@redhat.com, rientjes@google.com, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jan Kara <jack@suse.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Jeff Moyer <jmoyer@redhat.com>
 
-On Wed, 24 Aug 2016 09:08:59 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+For DAX inodes we need to be careful to never have page cache pages in the
+mapping->page_tree.  This radix tree should be composed only of DAX
+exceptional entries and zero pages.
 
-> Hi Andrew,
-> I guess the reason this patch has been dropped is due to
-> mm-oom-prevent-pre-mature-oom-killer-invocation-for-high-order-request.patch.
+ltp's readahead02 test was triggering a warning because we were trying to
+insert a DAX exceptional entry but found that a page cache page had
+already been inserted into the tree.  This page was being inserted into the
+radix tree in response to a readahead(2) call.
 
-Yes.  And I think we're still waiting testing feedback from the
-reporters on
-mm-oom-prevent-pre-mature-oom-killer-invocation-for-high-order-request.patch?
+Readahead doesn't make sense for DAX inodes, but we don't want it to report
+a failure either.  Instead, we just return success and don't do any work.
 
-> I guess we will wait for the above patch to get to Linus, revert it in mmotm
-> and re-apply
-> mm-compaction-more-reliably-increase-direct-compaction-priority.patch
-> again, right?
+Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+Reported-by: Jeff Moyer <jmoyer@redhat.com>
+---
 
-I suppose so.  We can leave
-mm-oom-prevent-pre-mature-oom-killer-invocation-for-high-order-request.patch
-in place in mainline for 4.8 so it can be respectably backported into
--stable.
+Changes from v1:
+ - Added a comment so readers don't have to go putzing around in the git
+   tree to understand why we're doing what we're doing. :)  (akpm)
 
-And we may as well fold
-mm-compaction-more-reliably-increase-direct-compaction-priority.patch
-into the patch which re-adds should_compact_retry()?
+---
+ mm/readahead.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/mm/readahead.c b/mm/readahead.c
+index 65ec288..c8a955b 100644
+--- a/mm/readahead.c
++++ b/mm/readahead.c
+@@ -8,6 +8,7 @@
+  */
+ 
+ #include <linux/kernel.h>
++#include <linux/dax.h>
+ #include <linux/gfp.h>
+ #include <linux/export.h>
+ #include <linux/blkdev.h>
+@@ -544,6 +545,14 @@ do_readahead(struct address_space *mapping, struct file *filp,
+ 	if (!mapping || !mapping->a_ops)
+ 		return -EINVAL;
+ 
++	/*
++	 * Readahead doesn't make sense for DAX inodes, but we don't want it
++	 * to report a failure either.  Instead, we just return success and
++	 * don't do any work.
++	 */
++	if (dax_mapping(mapping))
++		return 0;
++
+ 	return force_page_cache_readahead(mapping, filp, index, nr);
+ }
+ 
+-- 
+2.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
