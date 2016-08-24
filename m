@@ -1,172 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C339D6B0038
-	for <linux-mm@kvack.org>; Wed, 24 Aug 2016 12:12:31 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id ez1so35307628pab.1
-        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 09:12:31 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id p28si10260229pfk.183.2016.08.24.09.12.24
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CA5156B0038
+	for <linux-mm@kvack.org>; Wed, 24 Aug 2016 12:43:03 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id e7so14925798lfe.0
+        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 09:43:03 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id yv8si9190058wjc.147.2016.08.24.09.43.02
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 24 Aug 2016 09:12:25 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [RFC] mm: Don't use radix tree writeback tags for pages in swap cache
-References: <1470759443-9229-1-git-send-email-ying.huang@intel.com>
-	<57AA061B.2050002@intel.com>
-	<87oa51513n.fsf@yhuang-mobile.sh.intel.com>
-Date: Wed, 24 Aug 2016 09:12:19 -0700
-In-Reply-To: <87oa51513n.fsf@yhuang-mobile.sh.intel.com> (Ying Huang's message
-	of "Tue, 9 Aug 2016 10:00:28 -0700")
-Message-ID: <87shtudu3g.fsf@yhuang-mobile.sh.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Aug 2016 09:43:02 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id o80so3383293wme.0
+        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 09:43:02 -0700 (PDT)
+Date: Wed, 24 Aug 2016 18:42:54 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 09/10] vhost, mm: make sure that oom_reaper doesn't reap
+ memory read by vhost
+Message-ID: <20160824164254.GA24047@dhcp22.suse.cz>
+References: <20160729161039-mutt-send-email-mst@kernel.org>
+ <20160729133529.GE8031@dhcp22.suse.cz>
+ <20160729205620-mutt-send-email-mst@kernel.org>
+ <20160731094438.GA24353@dhcp22.suse.cz>
+ <20160812094236.GF3639@dhcp22.suse.cz>
+ <20160812132140.GA776@redhat.com>
+ <20160822130311.GL13596@dhcp22.suse.cz>
+ <20160822210123.5k6zwdrkhrwjw5vv@redhat.com>
+ <20160823075555.GE23577@dhcp22.suse.cz>
+ <20160823090655.GA23583@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: multipart/mixed; boundary="n8g4imXOkfNTN/H1"
+Content-Disposition: inline
+In-Reply-To: <20160823090655.GA23583@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, tim.c.chen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Tejun Heo <tj@kernel.org>, Wu Fengguang <fengguang.wu@intel.com>, "Huang, Ying" <ying.huang@intel.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Oleg Nesterov <oleg@redhat.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>
 
-"Huang, Ying" <ying.huang@intel.com> writes:
 
-> Hi, Dave,
->
-> Dave Hansen <dave.hansen@intel.com> writes:
->
->> On 08/09/2016 09:17 AM, Huang, Ying wrote:
->>> File pages uses a set of radix tags (DIRTY, TOWRITE, WRITEBACK) to
->>> accelerate finding the pages with the specific tag in the the radix tree
->>> during writing back an inode.  But for anonymous pages in swap cache,
->>> there are no inode based writeback.  So there is no need to find the
->>> pages with some writeback tags in the radix tree.  It is no necessary to
->>> touch radix tree writeback tags for pages in swap cache.
->>
->> Seems simple enough.  Do we do any of this unnecessary work for the
->> other radix tree tags?  If so, maybe we should just fix this once and
->> for all.  Could we, for instance, WARN_ONCE() in radix_tree_tag_set() if
->> it sees a swap mapping get handed in there?
->
-> Good idea!  I will do that and try to catch other places if any.
+--n8g4imXOkfNTN/H1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-I tested all (18) anonymous pages related test cases in vm-scalability
-with a debug patch to WARN_ONCE for all swap mapping tag operations.
-There are no other tag operations for swap mapping caught.  Below is the
-patch I used for debugging.
+On Tue 23-08-16 11:06:55, Michal Hocko wrote:
+> On Tue 23-08-16 09:55:55, Michal Hocko wrote:
+> > On Tue 23-08-16 00:01:23, Michael S. Tsirkin wrote:
+> > [...]
+> > > Actually, vhost net calls out to tun which does regular copy_from_iter.
+> > > Returning 0 there will cause corrupted packets in the network: not a
+> > > huge deal, but ugly.  And I don't think we want to annotate run and
+> > > macvtap as well.
+> > 
+> > Hmm, OK, I wasn't aware of that path and being consistent here matters.
+> > If the vhost driver can interact with other subsystems then there is
+> > really no other option than hooking into the page fault path. Ohh well.
+> 
+> Here is a completely untested patch just for sanity check.
 
-Best Regards,
-Huang, Ying
+OK, so I've tested the patch and it seems to work as expected. I didn't
+know how to configure vhost so I've just hacked up a quick kernel thread
+which picks on a task (I am always selecting a first task which is the
+OOM_SCORE_ADJ_MAX because that would be the selected victim - see the
+code attached) and then read through its address space in a loop. The
+oom victim then just mmaps and poppulates a private anon mapping which
+causes the oom killer. It properly notices that the memor could have
+been reaped.
+[  628.559374] Out of memory: Kill process 3193 (oom_victim) score 1868 or sacrifice child
+[  628.561713] Killed process 3193 (oom_victim) total-vm:1052540kB, anon-rss:782964kB, file-rss:12kB, shmem-rss:0kB
+[  628.568120] Found a dead vma: ret:-14vma ffff88003c697000 start 00007f9227b33000 end 00007f9267b33000
+next ffff88003d80d8a0 prev ffff88003d80d228 mm ffff88003d97b200
+prot 8000000000000025 anon_vma ffff88003dbbc000 vm_ops           (null)
+pgoff 7f9227b33 file           (null) private_data           (null)
+flags: 0x100073(read|write|mayread|maywrite|mayexec|account)
+[  628.595684] oom_reaper: reaped process 3193 (oom_victim), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
+[  673.366282] Waiting for kthread to stop
+[  673.367487] Done
 
------------------------------------------>
-    dbg: find all tag operations for swap cache
+Are there any objections or suggestions to the apporach?
+-- 
+Michal Hocko
+SUSE Labs
 
-diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-index 4c45105..9a239ec 100644
---- a/include/linux/radix-tree.h
-+++ b/include/linux/radix-tree.h
-@@ -106,16 +106,24 @@ struct radix_tree_node {
- 
- /* root tags are stored in gfp_mask, shifted by __GFP_BITS_SHIFT */
- struct radix_tree_root {
-+	bool			swap;
- 	gfp_t			gfp_mask;
- 	struct radix_tree_node	__rcu *rnode;
- };
- 
- #define RADIX_TREE_INIT(mask)	{					\
-+	.swap = false,							\
- 	.gfp_mask = (mask),						\
- 	.rnode = NULL,							\
- }
- 
--#define RADIX_TREE(name, mask) \
-+#define RADIX_TREE_INIT_SWAP(mask)	{				\
-+	.swap = true,							\
-+	.gfp_mask = (mask),						\
-+	.rnode = NULL,							\
-+}
-+
-+#define RADIX_TREE(name, mask)					\
- 	struct radix_tree_root name = RADIX_TREE_INIT(mask)
- 
- #define INIT_RADIX_TREE(root, mask)					\
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index 1b7bf73..51677bf 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -765,6 +765,8 @@ void *radix_tree_tag_set(struct radix_tree_root *root,
- 	struct radix_tree_node *node, *parent;
- 	unsigned long maxindex;
- 
-+	WARN_ON_ONCE(root->swap);
-+
- 	radix_tree_load_root(root, &node, &maxindex);
- 	BUG_ON(index > maxindex);
- 
-@@ -828,6 +830,8 @@ void *radix_tree_tag_clear(struct radix_tree_root *root,
- 	unsigned long maxindex;
- 	int uninitialized_var(offset);
- 
-+	WARN_ON_ONCE(root->swap);
-+
- 	radix_tree_load_root(root, &node, &maxindex);
- 	if (index > maxindex)
- 		return NULL;
-@@ -867,6 +871,8 @@ int radix_tree_tag_get(struct radix_tree_root *root,
- 	struct radix_tree_node *node, *parent;
- 	unsigned long maxindex;
- 
-+	WARN_ON_ONCE(root->swap);
-+
- 	if (!root_tag_get(root, tag))
- 		return 0;
- 
-@@ -1050,6 +1056,8 @@ unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
- 	unsigned long tagged = 0;
- 	unsigned long index = *first_indexp;
- 
-+	WARN_ON_ONCE(root->swap);
-+
- 	radix_tree_load_root(root, &child, &maxindex);
- 	last_index = min(last_index, maxindex);
- 	if (index > last_index)
-@@ -1240,6 +1248,8 @@ radix_tree_gang_lookup_tag(struct radix_tree_root *root, void **results,
- 	void **slot;
- 	unsigned int ret = 0;
- 
-+	WARN_ON_ONCE(root->swap);
-+
- 	if (unlikely(!max_items))
- 		return 0;
- 
-@@ -1281,6 +1291,8 @@ radix_tree_gang_lookup_tag_slot(struct radix_tree_root *root, void ***results,
- 	void **slot;
- 	unsigned int ret = 0;
- 
-+	WARN_ON_ONCE(root->swap);
-+
- 	if (unlikely(!max_items))
- 		return 0;
- 
-@@ -1590,6 +1602,8 @@ struct radix_tree_node *radix_tree_replace_clear_tags(
- 	struct radix_tree_node *node;
- 	void **slot;
- 
-+	WARN_ON_ONCE(root->swap);
-+
- 	__radix_tree_lookup(root, index, &node, &slot);
- 
- 	if (node) {
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index c8310a3..0059653 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -34,7 +34,7 @@ static const struct address_space_operations swap_aops = {
- 
- struct address_space swapper_spaces[MAX_SWAPFILES] = {
- 	[0 ... MAX_SWAPFILES - 1] = {
--		.page_tree	= RADIX_TREE_INIT(GFP_ATOMIC|__GFP_NOWARN),
-+		.page_tree	= RADIX_TREE_INIT_SWAP(GFP_ATOMIC|__GFP_NOWARN),
- 		.i_mmap_writable = ATOMIC_INIT(0),
- 		.a_ops		= &swap_aops,
- 	}
+--n8g4imXOkfNTN/H1
+Content-Type: text/x-csrc; charset=us-ascii
+Content-Disposition: attachment; filename="oom_reaper_test.c"
+
+#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/printk.h>
+#include <linux/sched.h>
+#include <linux/mmu_context.h>
+#include <linux/mm_types.h>
+#include <linux/mm.h>
+#include <linux/kthread.h>
+#include <linux/oom.h>
+
+struct task_struct *th = NULL;
+
+static int read_vma(struct vm_area_struct *vma)
+{
+	unsigned long addr;
+	for (addr = vma->vm_start; addr < vma->vm_end; addr += PAGE_SIZE) {
+		char __user *ptr = (char __user *)addr;
+		int ret;
+		char c;
+
+		if ((ret = get_user(c, ptr)) < 0 && test_bit(MMF_UNSTABLE, &vma->vm_mm->flags)) {
+			pr_info("Found a dead vma: ret:%d", ret);
+			dump_vma(vma);
+			return 1;
+		}
+	}
+	return 0;
+}
+
+static int scan_memory(void *data)
+{
+	struct task_struct *victim = data;
+	struct mm_struct *mm;
+	int reported = 0;
+
+	pr_info("Starting with pid:%d %s\n", victim->pid, victim->comm);
+	mm = get_task_mm(victim);
+	if (!mm) {
+		pr_info("Failed to get mm\n");
+		return 1;
+	}
+	use_mm(mm);
+	mmput(mm);
+
+	while (!kthread_should_stop()) {
+		struct vm_area_struct *vma = mm->mmap;
+		
+		if (!reported && test_bit(MMF_UNSTABLE, &mm->flags)) {
+			pr_info("mm is unstable\n");
+			reported = 1;
+		}
+		for (; vma; vma = vma->vm_next) {
+			if (!(vma->vm_flags & VM_MAYREAD))
+				continue;
+			if (read_vma(vma))
+				goto out;
+		}
+		schedule_timeout_idle(HZ);
+	}
+out:
+	unuse_mm(mm);
+	while (!kthread_should_stop()) {
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		if (kthread_should_stop())
+			break;
+		schedule();
+	}
+	return 0;
+}
+static int __init mymodule_init(void)
+{
+	struct task_struct *p, *victim = NULL;
+
+	rcu_read_lock();
+	for_each_process(p) {
+		if (p->signal->oom_score_adj == OOM_SCORE_ADJ_MAX) {
+			get_task_struct(p);
+			victim = p;
+			break;
+		}
+	}
+	rcu_read_unlock();
+	if (!victim) {
+		pr_info("No potential victim found\n");
+		return 1;
+	}
+
+	th = kthread_run(scan_memory, victim, "scan_memory");
+	return 0;
+}
+
+static void __exit mymodule_exit(void)
+{
+	if (!th)
+		return;
+
+	pr_info("Waiting for kthread to stop\n");
+	kthread_stop(th);
+	put_task_struct(th);
+	pr_info("Done\n");
+}
+
+module_init(mymodule_init);
+module_exit(mymodule_exit);
+
+MODULE_LICENSE("GPL");
+
+--n8g4imXOkfNTN/H1--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
