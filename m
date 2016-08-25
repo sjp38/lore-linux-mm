@@ -1,275 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 33D3283090
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 18:20:20 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id ag5so98750140pad.2
-        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 15:20:20 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id i8si17563364pat.21.2016.08.25.15.20.18
+	by kanga.kvack.org (Postfix) with ESMTP id 547E983090
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 18:34:57 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id le9so99584146pab.0
+        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 15:34:57 -0700 (PDT)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com. [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id o10si17604146paw.74.2016.08.25.15.34.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Aug 2016 15:20:18 -0700 (PDT)
-Date: Thu, 25 Aug 2016 15:20:17 -0700
-From: akpm@linux-foundation.org
-Subject: mmotm 2016-08-25-15-19 uploaded
-Message-ID: <57bf6f21.kSVdKFfGcyX5HYxj%akpm@linux-foundation.org>
+        Thu, 25 Aug 2016 15:34:56 -0700 (PDT)
+Received: by mail-pa0-x22b.google.com with SMTP id hb8so20715213pac.2
+        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 15:34:56 -0700 (PDT)
+Date: Thu, 25 Aug 2016 15:34:54 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm: clarify COMPACTION Kconfig text
+In-Reply-To: <20160825065424.GA4230@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1608251524140.48031@chino.kir.corp.google.com>
+References: <1471939757-29789-1-git-send-email-mhocko@kernel.org> <alpine.DEB.2.10.1608241750220.98155@chino.kir.corp.google.com> <20160825065424.GA4230@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, broonie@kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <js1304@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Markus Trippelsdorf <markus@trippelsdorf.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-The mm-of-the-moment snapshot 2016-08-25-15-19 has been uploaded to
+On Thu, 25 Aug 2016, Michal Hocko wrote:
 
-   http://www.ozlabs.org/~akpm/mmotm/
+> > I don't believe it has been an issue in the past for any archs that
+> > don't use thp.
+> 
+> Well, fragmentation is a real problem and order-0 reclaim will be never
+> anywhere close to reliably provide higher order pages. Well, reclaiming
+> a lot of memory can increase the probability of a success but that
+> can quite often lead to over reclaim and long stalls. There are other
+> sources of high order requests than THP so this is not about THP at all
+> IMHO.
+> 
 
-mmotm-readme.txt says
+Would it be possible to list the high-order allocations you are concerned 
+about other than thp that doesn't have fallback behavior like skbuff and 
+slub allocations?  struct task_struct is an order-1 allocation and there 
+may be order-1 slab bucket usage, but what is higher order or requires 
+aggressive compaction to allocate?  Surely you're not suggesting that 
+order-0 reclaim cannot form order-1 memory.  I am concerned about kernels 
+that require a small memory footprint and cannot enable all of 
+CONFIG_COMPACTION and CONFIG_MIGRATION.  Embedded devices are not a 
+negligible minority of kernels.
 
-README for mm-of-the-moment:
+> > , CONFIG_MIGRATION.  Migration has a 
+> > dependency of NUMA or memory hot-remove (not all popular).  Compaction can 
+> > defragment memory within single zone without reliance on NUMA.
+> 
+> I am not sure I am following you here.
+> MIGRATION depends on (NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION || CMA) && MMU
+>  
 
-http://www.ozlabs.org/~akpm/mmotm/
-
-This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-more than once a week.
-
-You will need quilt to apply these patches to the latest Linus release (4.x
-or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
-http://ozlabs.org/~akpm/mmotm/series
-
-The file broken-out.tar.gz contains two datestamp files: .DATE and
-.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
-followed by the base kernel version against which this patch series is to
-be applied.
-
-This tree is partially included in linux-next.  To see which patches are
-included in linux-next, consult the `series' file.  Only the patches
-within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
-linux-next.
-
-A git tree which contains the memory management portion of this tree is
-maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-by Michal Hocko.  It contains the patches which are between the
-"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
-file, http://www.ozlabs.org/~akpm/mmotm/series.
-
-
-A full copy of the full kernel tree with the linux-next and mmotm patches
-already applied is available through git within an hour of the mmotm
-release.  Individual mmotm releases are tagged.  The master branch always
-points to the latest release, so it's constantly rebasing.
-
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
-
-To develop on top of mmotm git:
-
-  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-  $ git remote update mmotm
-  $ git checkout -b topic mmotm/master
-  <make changes, commit>
-  $ git send-email mmotm/master.. [...]
-
-To rebase a branch with older patches to a new mmotm release:
-
-  $ git remote update mmotm
-  $ git rebase --onto mmotm/master <topic base> topic
-
-
-
-
-The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
-contains daily snapshots of the -mm tree.  It is updated more frequently
-than mmotm, and is untested.
-
-A git copy of this tree is available at
-
-	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
-
-and use of this tree is similar to
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
-
-
-This mmotm tree contains the following patches against 4.8-rc3:
-(patches marked "*" will be included in linux-next)
-
-  origin.patch
-* byteswap-dont-use-__builtin_bswap-with-sparse.patch
-* get_maintainer-quiet-noisy-implicit-f-vcs_file_exists-checking.patch
-* sysctl-handle-error-writing-uint_max-to-u32-fields.patch
-* stackdepot-fix-mempolicy-use-after-free.patch
-* soft_dirty-fix-soft_dirty-during-thp-split.patch
-* printk-fix-parsing-of-brl=-option.patch
-* treewide-replace-config_enabled-with-is_enabled-2nd-round.patch
-* mm-clarify-compaction-kconfig-text.patch
-* mm-memcontrol-avoid-unused-function-warning.patch
-* fs-seq_file-fix-out-of-bounds-read.patch
-* dax-fix-device-dax-region-base.patch
-* mm-silently-skip-readahead-for-dax-inodes.patch
-  arch-alpha-kernel-systblss-remove-debug-check.patch
-  i-need-old-gcc.patch
-* mm-oom-prevent-pre-mature-oom-killer-invocation-for-high-order-request.patch
-* mm-page_alloc-replace-set_dma_reserve-to-set_memory_reserve.patch
-* fadump-register-the-memory-reserved-by-fadump.patch
-* mm-slab-improve-performance-of-gathering-slabinfo-stats.patch
-* kthread-rename-probe_kthread_data-to-kthread_probe_data.patch
-* kthread-kthread-worker-api-cleanup.patch
-* kthread-smpboot-do-not-park-in-kthread_create_on_cpu.patch
-* kthread-allow-to-call-__kthread_create_on_node-with-va_list-args.patch
-* kthread-add-kthread_create_worker.patch
-* kthread-add-kthread_destroy_worker.patch
-* kthread-detect-when-a-kthread-work-is-used-by-more-workers.patch
-* kthread-initial-support-for-delayed-kthread-work.patch
-* kthread-allow-to-cancel-kthread-work.patch
-* kthread-allow-to-modify-delayed-kthread-work.patch
-* kthread-better-support-freezable-kthread-workers.patch
-* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
-* kbuild-simpler-generation-of-assembly-constants.patch
-* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
-* kernel-watchdog-use-nmi-registers-snapshot-in-hardlockup-handler.patch
-  mm.patch
-* mm-oom-deduplicate-victim-selection-code-for-memcg-and-global-oom.patch
-* mm-zsmalloc-add-trace-events-for-zs_compact.patch
-* mm-zsmalloc-add-per-class-compact-trace-event.patch
-* mm-vmalloc-fix-align-value-calculation-error.patch
-* mm-vmalloc-fix-align-value-calculation-error-fix.patch
-* mm-vmalloc-fix-align-value-calculation-error-v2.patch
-* mm-vmalloc-fix-align-value-calculation-error-v2-fix.patch
-* mm-vmalloc-fix-align-value-calculation-error-v2-fix-fix.patch
-* mm-vmalloc-fix-align-value-calculation-error-v2-fix-fix-fix.patch
-* mm-memcontrol-add-sanity-checks-for-memcg-idref-on-get-put.patch
-* mm-oom_killc-fix-task_will_free_mem-comment.patch
-* mm-compaction-make-whole_zone-flag-ignore-cached-scanner-positions.patch
-* mm-compaction-make-whole_zone-flag-ignore-cached-scanner-positions-checkpatch-fixes.patch
-* mm-compaction-cleanup-unused-functions.patch
-* mm-compaction-rename-compact_partial-to-compact_success.patch
-* mm-compaction-dont-recheck-watermarks-after-compact_success.patch
-* mm-compaction-add-the-ultimate-direct-compaction-priority.patch
-* mm-compaction-add-the-ultimate-direct-compaction-priority-fix.patch
-* mm-compaction-use-correct-watermark-when-checking-compaction-success.patch
-* mm-compaction-create-compact_gap-wrapper.patch
-* mm-compaction-create-compact_gap-wrapper-fix.patch
-* mm-compaction-use-proper-alloc_flags-in-__compaction_suitable.patch
-* mm-compaction-require-only-min-watermarks-for-non-costly-orders.patch
-* mm-compaction-require-only-min-watermarks-for-non-costly-orders-fix.patch
-* mm-vmscan-make-compaction_ready-more-accurate-and-readable.patch
-* mem-hotplug-fix-node-spanned-pages-when-we-have-a-movable-node.patch
-* mm-fix-set-pageblock-migratetype-in-deferred-struct-page-init.patch
-* mm-vmscan-get-rid-of-throttle_vm_writeout.patch
-* mm-debug_pagealloc-clean-up-guard-page-handling-code.patch
-* mm-debug_pagealloc-dont-allocate-page_ext-if-we-dont-use-guard-page.patch
-* mm-page_owner-move-page_owner-specific-function-to-page_ownerc.patch
-* mm-page_ext-rename-offset-to-index.patch
-* mm-page_ext-support-extra-space-allocation-by-page_ext-user.patch
-* mm-page_owner-dont-define-fields-on-struct-page_ext-by-hard-coding.patch
-* do_generic_file_read-fail-immediately-if-killed.patch
-* mm-pagewalk-fix-the-comment-for-test_walk.patch
-* mm-unrig-vma-cache-hit-ratio.patch
-* mm-swap-add-swap_cluster_list.patch
-* mm-swap-add-swap_cluster_list-checkpatch-fixes.patch
-* mmoom_reaper-reduce-find_lock_task_mm-usage.patch
-* mmoom_reaper-do-not-attempt-to-reap-a-task-twice.patch
-* oom-keep-mm-of-the-killed-task-available.patch
-* kernel-oom-fix-potential-pgd_lock-deadlock-from-__mmdrop.patch
-* mm-oom-get-rid-of-signal_struct-oom_victims.patch
-* oom-suspend-fix-oom_killer_disable-vs-pm-suspend-properly.patch
-* mm-oom-enforce-exit_oom_victim-on-current-task.patch
-* mm-make-sure-that-kthreads-will-not-refault-oom-reaped-memory.patch
-* oom-oom_reaper-allow-to-reap-mm-shared-by-the-kthreads.patch
-* mm-page_owner-align-with-pageblock_nr-pages.patch
-* mm-walk-the-zone-in-pageblock_nr_pages-steps.patch
-* proc-much-faster-proc-vmstat.patch
-* proc-faster-proc-status.patch
-* seq-proc-modify-seq_put_decimal_ll-to-take-a-const-char-not-char.patch
-* seq-proc-modify-seq_put_decimal_ll-to-take-a-const-char-not-char-fix.patch
-* meminfo-break-apart-a-very-long-seq_printf-with-ifdefs.patch
-* proc-relax-proc-tid-timerslack_ns-capability-requirements.patch
-* proc-add-lsm-hook-checks-to-proc-tid-timerslack_ns.patch
-* min-max-remove-sparse-warnings-when-theyre-nested.patch
-* cred-simpler-1d-supplementary-groups.patch
-* console-dont-prefer-first-registered-if-dt-specifies-stdout-path.patch
-* radix-tree-slot-can-be-null-in-radix_tree_next_slot.patch
-* radix-tree-tests-add-iteration-test.patch
-* radix-tree-tests-properly-initialize-mutex.patch
-* lib-add-crc64-ecma-module.patch
-* compat-remove-compat_printk.patch
-* checkpatch-see-if-modified-files-are-marked-obsolete-in-maintainers.patch
-* checkpatch-look-for-symbolic-permissions-and-suggest-octal-instead.patch
-* autofs-fix-typos-in-documentation-filesystems-autofs4txt.patch
-* autofs-drop-unnecessary-extern-in-autofs_ih.patch
-* autofs-test-autofs-versions-first-on-sb-initialization.patch
-* autofs-fix-autofs4_fill_super-error-exit-handling.patch
-* autofs-add-warn_on1-for-non-dir-link-inode-case.patch
-* autofs-remove-ino-free-in-autofs4_dir_symlink.patch
-* autofs-use-autofs4_free_ino-to-kfree-dentry-data.patch
-* autofs-remove-obsolete-sb-fields.patch
-* autofs-dont-fail-to-free_dev_ioctlparam.patch
-* autofs-remove-autofs_devid_len.patch
-* autofs-fix-documentation-regarding-devid-on-ioctl.patch
-* autofs-update-struct-autofs_dev_ioctl-in-documentation.patch
-* autofs-fix-pr_debug-message.patch
-* autofs-fix-dev-ioctl-number-range-check.patch
-* autofs-add-autofs_dev_ioctl_version-for-autofs_dev_ioctl_version_cmd.patch
-* autofs-fix-print-format-for-ioctl-warning-message.patch
-* autofs-move-inclusion-of-linux-limitsh-to-uapi.patch
-* autofs4-move-linux-auto_dev-ioctlh-to-uapi-linux.patch
-* kexec_file-allow-arch-specific-memory-walking-for-kexec_add_buffer.patch
-* kexec_file-change-kexec_add_buffer-to-take-kexec_buf-as-argument.patch
-* kexec_file-factor-out-kexec_locate_mem_hole-from-kexec_add_buffer.patch
-* powerpc-factor-out-relocation-code-from-module_64c-to-elf_util_64c.patch
-* powerpc-factor-out-relocation-code-from-module_64c-to-elf_util_64c-checkpatch-fixes.patch
-* powerpc-generalize-elf64_apply_relocate_add.patch
-* powerpc-adapt-elf64_apply_relocate_add-for-kexec_file_load.patch
-* powerpc-adapt-elf64_apply_relocate_add-for-kexec_file_load-checkpatch-fixes.patch
-* powerpc-add-functions-to-read-elf-files-of-any-endianness.patch
-* powerpc-implement-kexec_file_load.patch
-* powerpc-add-code-to-work-with-device-trees-in-kexec_file_load.patch
-* powerpc-add-code-to-work-with-device-trees-in-kexec_file_load-checkpatch-fixes.patch
-* powerpc-add-support-for-loading-elf-kernels-with-kexec_file_load.patch
-* powerpc-add-purgatory-for-kexec_file_load-implementation.patch
-* powerpc-enable-config_kexec_file-in-powerpc-server-defconfigs.patch
-* kexec_file-add-buffer-hand-over-support-for-the-next-kernel.patch
-* powerpc-kexec_file-add-buffer-hand-over-support-for-the-next-kernel.patch
-* kexec_file-allow-skipping-checksum-calculation-for-some-segments.patch
-* kexec_file-add-mechanism-to-update-kexec-segments.patch
-* ima-demonstration-code-for-kexec-buffer-passing.patch
-* ima-demonstration-code-for-kexec-buffer-passing-checkpatch-fixes.patch
-* kdump-vmcoreinfo-report-actual-value-of-phys_base.patch
-* rapidio-rio_cm-use-memdup_user-instead-of-duplicating-code.patch
-* random-simplify-api-for-random-address-requests.patch
-* x86-use-simpler-api-for-random-address-requests.patch
-* arm-use-simpler-api-for-random-address-requests.patch
-* arm64-use-simpler-api-for-random-address-requests.patch
-* tile-use-simpler-api-for-random-address-requests.patch
-* unicore32-use-simpler-api-for-random-address-requests.patch
-* random-remove-unused-randomize_range.patch
-* dma-mapping-introduce-the-dma_attr_no_warn-attribute.patch
-* powerpc-implement-the-dma_attr_no_warn-attribute.patch
-* nvme-use-the-dma_attr_no_warn-attribute.patch
-* x86-panic-replace-smp_send_stop-with-kdump-friendly-version-in-panic-path.patch
-* mips-panic-replace-smp_send_stop-with-kdump-friendly-version-in-panic-path.patch
-* relay-use-per-cpu-constructs-for-the-relay-channel-buffer-pointers.patch
-* config-android-remove-config_ipv6_privacy.patch
-* ipc-semc-fix-complex_count-vs-simple-op-race.patch
-* ipc-msg-implement-lockless-pipelined-wakeups.patch
-* ipc-msg-batch-queue-sender-wakeups.patch
-* ipc-msg-make-ss_wakeup-kill-arg-boolean.patch
-* ipc-msg-lockless-security-checks-for-msgsnd.patch
-* ipc-msg-avoid-waking-sender-upon-full-queue.patch
-* ipc-msg-avoid-waking-sender-upon-full-queue-checkpatch-fixes.patch
-  linux-next.patch
-* drivers-net-wireless-intel-iwlwifi-dvm-calibc-fix-min-warning.patch
-* include-linux-mlx5-deviceh-kill-build_bug_ons.patch
-* kdump-vmcoreinfo-report-memory-sections-virtual-addresses.patch
-* mm-kmemleak-avoid-using-__va-on-addresses-that-dont-have-a-lowmem-mapping.patch
-  mm-add-strictlimit-knob-v2.patch
-  make-sure-nobodys-leaking-resources.patch
-  releasing-resources-with-children.patch
-  make-frame_pointer-default=y.patch
-  kernel-forkc-export-kernel_thread-to-modules.patch
-  mutex-subsystem-synchro-test-module.patch
-  slab-leaks3-default-y.patch
-  add-debugging-aid-for-memory-initialisation-problems.patch
-  workaround-for-a-pci-restoring-bug.patch
+Embedded device may be UMA and not care for memory hotplug or failure 
+handling and rely solely on order-0 and order-1 memory.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
