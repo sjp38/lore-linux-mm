@@ -1,78 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 869876B026A
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 03:22:24 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id u81so27617674wmu.3
-        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 00:22:24 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gf6si12495069wjb.72.2016.08.25.00.22.22
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 690B76B026B
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 03:32:10 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 1so27913862wmz.2
+        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 00:32:10 -0700 (PDT)
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com. [74.125.82.47])
+        by mx.google.com with ESMTPS id v20si12511987wju.50.2016.08.25.00.32.09
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 25 Aug 2016 00:22:23 -0700 (PDT)
-Date: Thu, 25 Aug 2016 09:22:20 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: OOM killer changes
-Message-ID: <20160825072219.GD4230@dhcp22.suse.cz>
-References: <8008b7de-9728-a93c-e3d7-30d4ebeba65a@Quantum.com>
- <0606328a-1b14-0bc9-51cb-36621e3e8758@suse.cz>
- <e867d795-224f-5029-48c9-9ce515c0b75f@Quantum.com>
- <f050bc92-d2f1-80cc-f450-c5a57eaf82f0@suse.cz>
- <ea18e6b3-9d47-b154-5e12-face50578302@Quantum.com>
- <f7a9ea9d-bb88-bfd6-e340-3a933559305a@suse.cz>
- <20160819073359.GA32619@dhcp22.suse.cz>
- <d443b884-87e7-1c93-8684-3a3a35759fb1@suse.cz>
- <20160819082639.GE32619@dhcp22.suse.cz>
- <a43170bc-4464-487f-140b-966f58f9bddf@Quantum.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 Aug 2016 00:32:09 -0700 (PDT)
+Received: by mail-wm0-f47.google.com with SMTP id o80so57496826wme.1
+        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 00:32:09 -0700 (PDT)
+Date: Thu, 25 Aug 2016 09:32:07 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: what is the purpose of SLAB and SLUB
+Message-ID: <20160825073207.GE4230@dhcp22.suse.cz>
+References: <1471458050-29622-1-git-send-email-aruna.ramakrishna@oracle.com>
+ <20160818115218.GJ30162@dhcp22.suse.cz>
+ <20160823021303.GB17039@js1304-P5Q-DELUXE>
+ <20160823153807.GN23577@dhcp22.suse.cz>
+ <8760qr8orh.fsf@tassilo.jf.intel.com>
+ <alpine.DEB.2.20.1608242302290.1837@east.gentwo.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <a43170bc-4464-487f-140b-966f58f9bddf@Quantum.com>
+In-Reply-To: <alpine.DEB.2.20.1608242302290.1837@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Aruna Ramakrishna <aruna.ramakrishna@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Kravetz <mike.kravetz@oracle.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Jiri Slaby <jslaby@suse.cz>
 
-On Wed 24-08-16 11:13:31, Ralf-Peter Rohbeck wrote:
-> On 19.08.2016 01:26, Michal Hocko wrote:
-[...]
-> > > diff --git a/mm/compaction.c b/mm/compaction.c
-> > > index ae4f40afcca1..3e35fce2cace 100644
-> > > --- a/mm/compaction.c
-> > > +++ b/mm/compaction.c
-> > > @@ -1644,8 +1644,8 @@ static enum compact_result compact_zone_order(struct zone *zone, int order,
-> > >   		.alloc_flags = alloc_flags,
-> > >   		.classzone_idx = classzone_idx,
-> > >   		.direct_compaction = true,
-> > > -		.whole_zone = (prio == COMPACT_PRIO_SYNC_FULL),
-> > > -		.ignore_skip_hint = (prio == COMPACT_PRIO_SYNC_FULL)
-> > > +		.whole_zone = (prio == MIN_COMPACT_PRIORITY),
-> > > +		.ignore_skip_hint = (prio == MIN_COMPACT_PRIORITY)
-> > >   	};
-> > >   	INIT_LIST_HEAD(&cc.freepages);
-> > >   	INIT_LIST_HEAD(&cc.migratepages);
-> > > @@ -1691,7 +1691,7 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
-> > >   								ac->nodemask) {
-> > >   		enum compact_result status;
-> > > -		if (prio > COMPACT_PRIO_SYNC_FULL
-> > > +		if (prio > MIN_COMPACT_PRIORITY
-> > >   					&& compaction_deferred(zone, order)) {
-> > >   			rc = max_t(enum compact_result, COMPACT_DEFERRED, rc);
-> > >   			continue;
-> > > -- 
-> > > 2.9.2
-> > > 
-> > > 
-> This change was in linux-next-20160823 so I ran it unmodified.
+On Wed 24-08-16 23:10:03, Christoph Lameter wrote:
+> On Tue, 23 Aug 2016, Andi Kleen wrote:
 > 
-> I did get an OOM, see attached.
+> > Why would you stop someone from working on SLAB if they want to?
+> >
+> > Forcibly enforcing a freeze on something can make sense if you're
+> > in charge of a team to conserve resources, but in Linux the situation is
+> > very different.
+> 
+> I agree and frankly having multiple allocators is something good.
+> Features that are good in one are copied to the other and enhanced in the
+> process. I think this has driven code development quite a bit.
+> 
+> Every allocator has a different basic approach to storage layout and
+> synchronization which determines performance in various usage scenarios.
+> The competition of seeing if the developer that is a fan of one can come
+> up with a way to make performance better or storage use more effective in
+> a situation where another shows better numbers is good.
 
-This patch shouldn't make any difference to the previous patch you were
-testing. Anyway I do not have the above linux-next tag so I cannot check
-what exactly was there. The current code in linux-next contains 
-http://lkml.kernel.org/r/20160823074339.GB23577@dhcp22.suse.cz so a
-different approach. Once that patch hits the Linus tree we will try to
-resurrect the compaction improvements series in linux-next and continue
-with the testing.
+I can completely see how having multiple allocators (schedulers etc...)
+can be good as a playground. But how are users supposed to chose when
+we do not help them with any documentation. Most benchmarks which are
+referred to (e.g. SLUB doesn't work so well with the networking
+workloads) might be really outdated and that just feeds the cargo cult.
+Look, I am not suggesting removing SLAB (or SLUB) I am just really
+looking to understand for their objectives and which users they target. 
+Because as of now, most users are using whatever is the default (SLUB
+for some and never documented reason) or what their distributions come
+up with. This means that we have quite a lot of code which only few
+people understand deeply. Some features which are added on top need much
+more testing to cover both allocators or we are risking subtle
+regressions.
+
+> There may be more creative ways of coming up with new ways of laying out
+> storage in the future and I would like to have the flexibility in the
+> kernel to explore those if necessary with additional variations.
+
+Flexibility is always good but there comes a maintenance burden. Both
+should be weighed properly.
+
+> The more common code we can isolate the easier it will become to just try
+> out a new layout and a new form of serialization to see if it provides
+> advantages.
+
+Sure, but even after attempts to make some code common we are still at
+$ wc -l mm/slab.c mm/slub.c 
+	4479 mm/slab.c
+	5727 mm/slub.c
+	10206 total
+
+quite a lot, don't you think?
+
 -- 
 Michal Hocko
 SUSE Labs
