@@ -1,99 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C06D8308D
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 02:54:28 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id o80so27327128wme.1
-        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 23:54:28 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id mn7si12376516wjc.177.2016.08.24.23.54.27
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BADFD8308D
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 03:11:06 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id l4so27614561wml.0
+        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 00:11:06 -0700 (PDT)
+Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com. [74.125.82.47])
+        by mx.google.com with ESMTPS id s2si12407247wjc.195.2016.08.25.00.11.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Aug 2016 23:54:27 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id i138so5965229wmf.3
-        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 23:54:27 -0700 (PDT)
-Date: Thu, 25 Aug 2016 08:54:25 +0200
+        Thu, 25 Aug 2016 00:11:05 -0700 (PDT)
+Received: by mail-wm0-f47.google.com with SMTP id o80so56733064wme.1
+        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 00:11:05 -0700 (PDT)
+Date: Thu, 25 Aug 2016 09:11:04 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: clarify COMPACTION Kconfig text
-Message-ID: <20160825065424.GA4230@dhcp22.suse.cz>
-References: <1471939757-29789-1-git-send-email-mhocko@kernel.org>
- <alpine.DEB.2.10.1608241750220.98155@chino.kir.corp.google.com>
+Subject: Re: OOM detection regressions since 4.7
+Message-ID: <20160825071103.GC4230@dhcp22.suse.cz>
+References: <20160822093249.GA14916@dhcp22.suse.cz>
+ <20160822093707.GG13596@dhcp22.suse.cz>
+ <20160822100528.GB11890@kroah.com>
+ <20160822105441.GH13596@dhcp22.suse.cz>
+ <20160822133114.GA15302@kroah.com>
+ <20160822134227.GM13596@dhcp22.suse.cz>
+ <20160822150517.62dc7cce74f1af6c1f204549@linux-foundation.org>
+ <20160823074339.GB23577@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1608241750220.98155@chino.kir.corp.google.com>
+In-Reply-To: <20160823074339.GB23577@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <js1304@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Markus Trippelsdorf <markus@trippelsdorf.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Markus Trippelsdorf <markus@trippelsdorf.de>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Jiri Slaby <jslaby@suse.com>, Olaf Hering <olaf@aepfle.de>
+Cc: Greg KH <gregkh@linuxfoundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 24-08-16 17:54:52, David Rientjes wrote:
-> On Tue, 23 Aug 2016, Michal Hocko wrote:
-> 
-> > From: Michal Hocko <mhocko@suse.com>
+On Tue 23-08-16 09:43:39, Michal Hocko wrote:
+> On Mon 22-08-16 15:05:17, Andrew Morton wrote:
+> > On Mon, 22 Aug 2016 15:42:28 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 > > 
-> > The current wording of the COMPACTION Kconfig help text doesn't
-> > emphasise that disabling COMPACTION might cripple the page allocator
-> > which relies on the compaction quite heavily for high order requests and
-> > an unexpected OOM can happen with the lack of compaction. Make sure
-> > we are vocal about that.
+> > > Of course, if Linus/Andrew doesn't like to take those compaction
+> > > improvements this late then I will ask to merge the partial revert to
+> > > Linus tree as well and then there is not much to discuss.
 > > 
+> > This sounds like the prudent option.  Can we get 4.8 working
+> > well-enough, backport that into 4.7.x and worry about the fancier stuff
+> > for 4.9?
 > 
-> Since when has this been an issue? 
-
-Well, pretty much since we have dropped the lumpy reclaim. 
-
-> I don't believe it has been an issue in the past for any archs that
-> don't use thp.
-
-Well, fragmentation is a real problem and order-0 reclaim will be never
-anywhere close to reliably provide higher order pages. Well, reclaiming
-a lot of memory can increase the probability of a success but that
-can quite often lead to over reclaim and long stalls. There are other
-sources of high order requests than THP so this is not about THP at all
-IMHO.
-
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> > ---
-> >  mm/Kconfig | 9 ++++++++-
-> >  1 file changed, 8 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/mm/Kconfig b/mm/Kconfig
-> > index 78a23c5c302d..0dff2f05b6d1 100644
-> > --- a/mm/Kconfig
-> > +++ b/mm/Kconfig
-> > @@ -262,7 +262,14 @@ config COMPACTION
-> >  	select MIGRATION
-> >  	depends on MMU
-> >  	help
-> > -	  Allows the compaction of memory for the allocation of huge pages.
-> > +          Compaction is the only memory management component to form
-> > +          high order (larger physically contiguous) memory blocks
-> > +          reliably. Page allocator relies on the compaction heavily and
-> > +          the lack of the feature can lead to unexpected OOM killer
-> > +          invocation for high order memory requests. You shouldnm't
-> > +          disable this option unless there is really a strong reason for
-> > +          it and then we are really interested to hear about that at
-> > +          linux-mm@kvack.org.
-> >  
-> >  #
-> >  # support for page migration
+> OK, fair enough.
 > 
-> This seems to strongly suggest that all kernels should be built with 
-> CONFIG_COMPACTION and its requirement
+> I would really appreciate if the original reporters could retest with
+> this patch on top of the current Linus tree.
 
-Yes. Do you see any reason why the compaction should be disabled and we
-should rely solely on order-0 reclaim?
-
-> , CONFIG_MIGRATION.  Migration has a 
-> dependency of NUMA or memory hot-remove (not all popular).  Compaction can 
-> defragment memory within single zone without reliance on NUMA.
-
-I am not sure I am following you here.
-MIGRATION depends on (NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION || CMA) && MMU
- 
-> This seems like a very bizarre requirement and I'm wondering where we 
-> regressed from this thp-only behavior.
-
+Any luck with the testing of this patch?
 -- 
 Michal Hocko
 SUSE Labs
