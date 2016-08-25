@@ -1,81 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1339F83093
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 12:43:32 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id o124so98665643pfg.1
-        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 09:43:32 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id pj6si16219210pac.250.2016.08.25.09.43.31
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D771883093
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 15:25:34 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id ag5so92383780pad.2
+        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 12:25:34 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id f66si16856679pfc.168.2016.08.25.12.25.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 25 Aug 2016 09:43:31 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 Aug 2016 12:25:33 -0700 (PDT)
+Date: Thu, 25 Aug 2016 13:25:31 -0600
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v2 RESEND] mm: silently skip readahead for DAX inodes
-Date: Thu, 25 Aug 2016 10:42:32 -0600
-Message-Id: <20160825164232.8989-1-ross.zwisler@linux.intel.com>
-In-Reply-To: <20160824221429.21158-1-ross.zwisler@linux.intel.com>
-References: <20160824221429.21158-1-ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v2 2/9] ext2: tell DAX the size of allocation holes
+Message-ID: <20160825192531.GA2607@linux.intel.com>
+References: <20160823220419.11717-1-ross.zwisler@linux.intel.com>
+ <20160823220419.11717-3-ross.zwisler@linux.intel.com>
+ <20160825075728.GA11235@infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160825075728.GA11235@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jan Kara <jack@suse.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Jeff Moyer <jmoyer@redhat.com>, stable@vger.kernel.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, linux-nvdimm@ml01.01.org, Matthew Wilcox <mawilcox@microsoft.com>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, Andreas Dilger <adilger.kernel@dilger.ca>, Alexander Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.com>, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org
 
-For DAX inodes we need to be careful to never have page cache pages in the
-mapping->page_tree.  This radix tree should be composed only of DAX
-exceptional entries and zero pages.
+On Thu, Aug 25, 2016 at 12:57:28AM -0700, Christoph Hellwig wrote:
+> Hi Ross,
+> 
+> can you take at my (fully working, but not fully cleaned up) version
+> of the iomap based DAX code here:
+> 
+> http://git.infradead.org/users/hch/vfs.git/shortlog/refs/heads/iomap-dax
+> 
+> By using iomap we don't even have the size hole problem and totally
+> get out of the reverse-engineer what buffer_heads are trying to tell
+> us business.  It also gets rid of the other warts of the DAX path
+> due to pretending to be like direct I/O, so this might be a better
+> way forward also for ext2/4.
 
-ltp's readahead02 test was triggering a warning because we were trying to
-insert a DAX exceptional entry but found that a page cache page had
-already been inserted into the tree.  This page was being inserted into the
-radix tree in response to a readahead(2) call.
-
-Readahead doesn't make sense for DAX inodes, but we don't want it to report
-a failure either.  Instead, we just return success and don't do any work.
-
-Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-Reported-by: Jeff Moyer <jmoyer@redhat.com>
-Cc: <stable@vger.kernel.org>    [4.5+]
----
-
-Changes from v1:
- - Added a comment so readers don't have to go putzing around in the git
-   tree to understand why we're doing what we're doing. :)  (akpm)
- - Resending, adding stable@vger.kernel.org.  Thank you, akpm, for the
-   catch.
-
----
- mm/readahead.c | 9 +++++++++
- 1 file changed, 9 insertions(+)
-
-diff --git a/mm/readahead.c b/mm/readahead.c
-index 65ec288..c8a955b 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -8,6 +8,7 @@
-  */
- 
- #include <linux/kernel.h>
-+#include <linux/dax.h>
- #include <linux/gfp.h>
- #include <linux/export.h>
- #include <linux/blkdev.h>
-@@ -544,6 +545,14 @@ do_readahead(struct address_space *mapping, struct file *filp,
- 	if (!mapping || !mapping->a_ops)
- 		return -EINVAL;
- 
-+	/*
-+	 * Readahead doesn't make sense for DAX inodes, but we don't want it
-+	 * to report a failure either.  Instead, we just return success and
-+	 * don't do any work.
-+	 */
-+	if (dax_mapping(mapping))
-+		return 0;
-+
- 	return force_page_cache_readahead(mapping, filp, index, nr);
- }
- 
--- 
-2.9.0
+Sure, I'll take a look.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
