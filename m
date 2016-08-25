@@ -1,52 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CC7D83093
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 07:45:22 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id e7so30427243lfe.0
-        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 04:45:22 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0050183093
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 09:06:31 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 1so34002843wmz.2
+        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 06:06:31 -0700 (PDT)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id k5si31226425wmc.122.2016.08.25.04.45.21
+        by mx.google.com with ESMTPS id a7si13597488wjk.240.2016.08.25.06.06.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 25 Aug 2016 04:45:21 -0700 (PDT)
-Date: Thu, 25 Aug 2016 13:44:34 +0200
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Subject: Re: [PATCH v6 20/20] thermal/intel_powerclamp: Convert the kthread
- to kthread worker API
-Message-ID: <20160825114434.m7rhladpllj54rtb@linutronix.de>
-References: <1460646879-617-1-git-send-email-pmladek@suse.com>
- <1460646879-617-21-git-send-email-pmladek@suse.com>
- <20160825083316.myqbas7d6gtv62c6@linutronix.de>
- <20160825113708.GH4866@pathway.suse.cz>
+        Thu, 25 Aug 2016 06:06:30 -0700 (PDT)
+Date: Thu, 25 Aug 2016 15:04:06 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [RFC PATCH v2 04/20] x86: Secure Memory Encryption (SME)
+ support
+In-Reply-To: <20160822223610.29880.21739.stgit@tlendack-t1.amdoffice.net>
+Message-ID: <alpine.DEB.2.20.1608251503340.5714@nanos>
+References: <20160822223529.29880.50884.stgit@tlendack-t1.amdoffice.net> <20160822223610.29880.21739.stgit@tlendack-t1.amdoffice.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20160825113708.GH4866@pathway.suse.cz>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Tejun Heo <tj@kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Josh Triplett <josh@joshtriplett.org>, Thomas Gleixner <tglx@linutronix.de>, Linus Torvalds <torvalds@linux-foundation.org>, Jiri Kosina <jkosina@suse.cz>, Borislav Petkov <bp@suse.de>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org, Zhang Rui <rui.zhang@intel.com>, Eduardo Valentin <edubezval@gmail.com>, Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-pm@vger.kernel.org
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, =?ISO-8859-2?Q?Radim_Kr=E8m=E1=F8?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>
 
-On 2016-08-25 13:37:08 [+0200], Petr Mladek wrote:
-> There were still some discussions about the kthread worker API.
-> Anyway, the needed kthread API changes are in Andrew's -mm tree now
-> and will be hopefully included in 4.9.
+On Mon, 22 Aug 2016, Tom Lendacky wrote:
 
-Thanks for the update.
+> Provide support for Secure Memory Encryption (SME). This initial support
+> defines the memory encryption mask as a variable for quick access and an
+> accessor for retrieving the number of physical addressing bits lost if
+> SME is enabled.
 
-> I did not want to send the patches using the API before the API
-> changes are upstream. But I could send the two intel_powerclamp
-> patches now if you are comfortable with having them on top of
-> the -mm tree or linux-next.
+What is the reason that this needs to live in assembly code?
+ 
+Thanks,
 
-I am refreshing my hotplug queue and stumbled over my old powerclamp
-patch. Please send them (offline) so I can have a look :) And I add a
-note for powerclaml to be v4.9 or so.
-
-> Best Regards,
-> Petr
-
-Sebastian
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
