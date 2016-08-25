@@ -1,86 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 690B76B026B
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 03:32:10 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id 1so27913862wmz.2
-        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 00:32:10 -0700 (PDT)
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com. [74.125.82.47])
-        by mx.google.com with ESMTPS id v20si12511987wju.50.2016.08.25.00.32.09
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F35A96B0270
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 03:36:50 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id e7so26079567lfe.0
+        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 00:36:50 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b73si13028753wmi.47.2016.08.25.00.36.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Aug 2016 00:32:09 -0700 (PDT)
-Received: by mail-wm0-f47.google.com with SMTP id o80so57496826wme.1
-        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 00:32:09 -0700 (PDT)
-Date: Thu, 25 Aug 2016 09:32:07 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: what is the purpose of SLAB and SLUB
-Message-ID: <20160825073207.GE4230@dhcp22.suse.cz>
-References: <1471458050-29622-1-git-send-email-aruna.ramakrishna@oracle.com>
- <20160818115218.GJ30162@dhcp22.suse.cz>
- <20160823021303.GB17039@js1304-P5Q-DELUXE>
- <20160823153807.GN23577@dhcp22.suse.cz>
- <8760qr8orh.fsf@tassilo.jf.intel.com>
- <alpine.DEB.2.20.1608242302290.1837@east.gentwo.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 25 Aug 2016 00:36:49 -0700 (PDT)
+Date: Thu, 25 Aug 2016 09:36:47 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [wrecked]
+ mm-compaction-more-reliably-increase-direct-compaction-priority.patch
+ removed from -mm tree
+Message-ID: <20160825073646.GF4230@dhcp22.suse.cz>
+References: <57bcb948./5Xz5gcuIQjtLmuG%akpm@linux-foundation.org>
+ <20160824070859.GC31179@dhcp22.suse.cz>
+ <20160824141418.b266d5a0bddf9170181f8627@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1608242302290.1837@east.gentwo.org>
+In-Reply-To: <20160824141418.b266d5a0bddf9170181f8627@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andi Kleen <andi@firstfloor.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Aruna Ramakrishna <aruna.ramakrishna@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Kravetz <mike.kravetz@oracle.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Jiri Slaby <jslaby@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: vbabka@suse.cz, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, riel@redhat.com, rientjes@google.com, linux-mm@kvack.org
 
-On Wed 24-08-16 23:10:03, Christoph Lameter wrote:
-> On Tue, 23 Aug 2016, Andi Kleen wrote:
+On Wed 24-08-16 14:14:18, Andrew Morton wrote:
+> On Wed, 24 Aug 2016 09:08:59 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 > 
-> > Why would you stop someone from working on SLAB if they want to?
-> >
-> > Forcibly enforcing a freeze on something can make sense if you're
-> > in charge of a team to conserve resources, but in Linux the situation is
-> > very different.
+> > Hi Andrew,
+> > I guess the reason this patch has been dropped is due to
+> > mm-oom-prevent-pre-mature-oom-killer-invocation-for-high-order-request.patch.
 > 
-> I agree and frankly having multiple allocators is something good.
-> Features that are good in one are copied to the other and enhanced in the
-> process. I think this has driven code development quite a bit.
+> Yes.  And I think we're still waiting testing feedback from the
+> reporters on
+> mm-oom-prevent-pre-mature-oom-killer-invocation-for-high-order-request.patch?
+
+yes
+ 
+> > I guess we will wait for the above patch to get to Linus, revert it in mmotm
+> > and re-apply
+> > mm-compaction-more-reliably-increase-direct-compaction-priority.patch
+> > again, right?
 > 
-> Every allocator has a different basic approach to storage layout and
-> synchronization which determines performance in various usage scenarios.
-> The competition of seeing if the developer that is a fan of one can come
-> up with a way to make performance better or storage use more effective in
-> a situation where another shows better numbers is good.
+> I suppose so.  We can leave
+> mm-oom-prevent-pre-mature-oom-killer-invocation-for-high-order-request.patch
+> in place in mainline for 4.8 so it can be respectably backported into
+> -stable.
+> 
+> And we may as well fold
+> mm-compaction-more-reliably-increase-direct-compaction-priority.patch
+> into the patch which re-adds should_compact_retry()?
 
-I can completely see how having multiple allocators (schedulers etc...)
-can be good as a playground. But how are users supposed to chose when
-we do not help them with any documentation. Most benchmarks which are
-referred to (e.g. SLUB doesn't work so well with the networking
-workloads) might be really outdated and that just feeds the cargo cult.
-Look, I am not suggesting removing SLAB (or SLUB) I am just really
-looking to understand for their objectives and which users they target. 
-Because as of now, most users are using whatever is the default (SLUB
-for some and never documented reason) or what their distributions come
-up with. This means that we have quite a lot of code which only few
-people understand deeply. Some features which are added on top need much
-more testing to cover both allocators or we are risking subtle
-regressions.
-
-> There may be more creative ways of coming up with new ways of laying out
-> storage in the future and I would like to have the flexibility in the
-> kernel to explore those if necessary with additional variations.
-
-Flexibility is always good but there comes a maintenance burden. Both
-should be weighed properly.
-
-> The more common code we can isolate the easier it will become to just try
-> out a new layout and a new form of serialization to see if it provides
-> advantages.
-
-Sure, but even after attempts to make some code common we are still at
-$ wc -l mm/slab.c mm/slub.c 
-	4479 mm/slab.c
-	5727 mm/slub.c
-	10206 total
-
-quite a lot, don't you think?
+I am not sure combining those two into a single patch would be better.
+It is true it would be bisect safe but those patches are not really
+related because there are other changes for the compaction improvements
+which already made a difference. This one is merely yet-another-change
+on top. Let me think about that, though.
 
 -- 
 Michal Hocko
