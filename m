@@ -1,77 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EBC6583093
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 06:03:45 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id l4so30744353wml.0
-        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 03:03:45 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id yo5si10921806wjb.176.2016.08.25.03.03.39
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C6A2783093
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 06:07:21 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id k135so28677401lfb.2
+        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 03:07:21 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id fg10si13004045wjb.215.2016.08.25.03.07.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Aug 2016 03:03:39 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id o80so6662675wme.0
-        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 03:03:39 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH v2 9/9] oom, oom_reaper: allow to reap mm shared by the kthreads
-Date: Thu, 25 Aug 2016 12:03:14 +0200
-Message-Id: <1472119394-11342-10-git-send-email-mhocko@kernel.org>
-In-Reply-To: <1472119394-11342-1-git-send-email-mhocko@kernel.org>
-References: <1472119394-11342-1-git-send-email-mhocko@kernel.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 25 Aug 2016 03:07:20 -0700 (PDT)
+Date: Thu, 25 Aug 2016 11:07:07 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: what is the purpose of SLAB and SLUB (was: Re: [PATCH v3]
+ mm/slab: Improve performance of gathering slabinfo) stats
+Message-ID: <20160825100707.GU2693@suse.de>
+References: <1471458050-29622-1-git-send-email-aruna.ramakrishna@oracle.com>
+ <20160818115218.GJ30162@dhcp22.suse.cz>
+ <20160823021303.GB17039@js1304-P5Q-DELUXE>
+ <20160823153807.GN23577@dhcp22.suse.cz>
+ <20160824082057.GT2693@suse.de>
+ <alpine.DEB.2.20.1608242240460.1837@east.gentwo.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1608242240460.1837@east.gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Oleg Nesterov <oleg@redhat.com>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@parallels.com>, Michal Hocko <mhocko@suse.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Aruna Ramakrishna <aruna.ramakrishna@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Kravetz <mike.kravetz@oracle.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>
 
-From: Michal Hocko <mhocko@suse.com>
+On Wed, Aug 24, 2016 at 11:01:43PM -0500, Christoph Lameter wrote:
+> On Wed, 24 Aug 2016, Mel Gorman wrote:
+> > If/when I get back to the page allocator, the priority would be a bulk
+> > API for faster allocs of batches of order-0 pages instead of allocating
+> > a large page and splitting.
+> >
+> 
+> OMG. Do we really want to continue this? There are billions of Linux
+> devices out there that require a reboot at least once a week. This is now
+> standard with certain Android phones. In our company we reboot all
+> machines every week because fragmentation degrades performance
+> significantly. We need to finally face up to it and deal with the issue
+> instead of continuing to produce more half ass-ed solutions.
+> 
 
-oom reaper was skipped for an mm which is shared with the kernel thread
-(aka use_mm()). The primary concern was that such a kthread might want
-to read from the userspace memory and see zero page as a result of the
-oom reaper action. This is no longer a problem after "mm: make sure that
-kthreads will not refault oom reaped memory" because any attempt to
-fault in when the MMF_UNSTABLE is set will result in SIGBUS and so the
-target user should see an error. This means that we can finally allow
-oom reaper also to tasks which share their mm with kthreads.
+Flipping the lid aside, there will always be a need for fast management
+of 4K pages. The primary use case is networking that sometimes uses
+high-order pages to avoid allocator overhead and amortise DMA setup.
+Userspace-mapped pages will always be 4K although fault-around may benefit
+from bulk allocating the pages. That is relatively low hanging fruit that
+would take a few weeks given a free schedule.
 
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/oom_kill.c | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+Dirty tracking of pages on a 4K boundary will always be required to avoid IO
+multiplier effects that cannot be side-stepped by increasing the fundamental
+unit of allocation.
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 5a3ba96c8338..10f686969fc4 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -902,13 +902,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
- 			continue;
- 		if (same_thread_group(p, victim))
- 			continue;
--		if (unlikely(p->flags & PF_KTHREAD) || is_global_init(p)) {
--			/*
--			 * We cannot use oom_reaper for the mm shared by this
--			 * process because it wouldn't get killed and so the
--			 * memory might be still used. Hide the mm from the oom
--			 * killer to guarantee OOM forward progress.
--			 */
-+		if (is_global_init(p)) {
- 			can_oom_reap = false;
- 			set_bit(MMF_OOM_SKIP, &mm->flags);
- 			pr_info("oom killer %d (%s) has mm pinned by %d (%s)\n",
-@@ -916,6 +910,12 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
- 					task_pid_nr(p), p->comm);
- 			continue;
- 		}
-+		/*
-+		 * No use_mm() user needs to read from the userspace so we are
-+		 * ok to reap it.
-+		 */
-+		if (unlikely(p->flags & PF_KTHREAD))
-+			continue;
- 		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
- 	}
- 	rcu_read_unlock();
+Batching of tree_lock during reclaim for large files and swapping is also
+relatively low hanging fruit that also is doable in a week or two.
+
+A high-order per-cpu cache for SLUB to reduce zone->lock contention is
+also relatively low hanging fruit with the caveat it makes per_cpu_pages
+larger than a cache line.
+
+If you want to rework the VM to use a larger fundamental unit, track
+sub-units where required and deal with the internal fragmentation issues
+then by all means go ahead and deal with it.
+ 
 -- 
-2.8.1
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
