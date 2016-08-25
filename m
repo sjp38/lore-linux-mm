@@ -1,74 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C6A2783093
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 06:07:21 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id k135so28677401lfb.2
-        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 03:07:21 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fg10si13004045wjb.215.2016.08.25.03.07.20
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 25 Aug 2016 03:07:20 -0700 (PDT)
-Date: Thu, 25 Aug 2016 11:07:07 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: what is the purpose of SLAB and SLUB (was: Re: [PATCH v3]
- mm/slab: Improve performance of gathering slabinfo) stats
-Message-ID: <20160825100707.GU2693@suse.de>
-References: <1471458050-29622-1-git-send-email-aruna.ramakrishna@oracle.com>
- <20160818115218.GJ30162@dhcp22.suse.cz>
- <20160823021303.GB17039@js1304-P5Q-DELUXE>
- <20160823153807.GN23577@dhcp22.suse.cz>
- <20160824082057.GT2693@suse.de>
- <alpine.DEB.2.20.1608242240460.1837@east.gentwo.org>
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8644383093
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 06:30:43 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id ez1so72870185pab.1
+        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 03:30:43 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id db4si14949024pad.90.2016.08.25.03.30.42
+        for <linux-mm@kvack.org>;
+        Thu, 25 Aug 2016 03:30:42 -0700 (PDT)
+Date: Thu, 25 Aug 2016 11:30:42 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH] arm64: Introduce execute-only page access permissions
+Message-ID: <20160825103042.GA12599@arm.com>
+References: <1470937490-7375-1-git-send-email-catalin.marinas@arm.com>
+ <CAGXu5jJTuJ+k948BU4rDGF=tHv54TR0JQVTbcVvzp=NtfQrL9Q@mail.gmail.com>
+ <20160815104751.GC22320@e104818-lin.cambridge.arm.com>
+ <CAGXu5jJTeta2OnL8KKHesG_HdeCvcXtaqjAir1cUvyfivaQeuQ@mail.gmail.com>
+ <20160816161824.GB7609@e104818-lin.cambridge.arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1608242240460.1837@east.gentwo.org>
+In-Reply-To: <20160816161824.GB7609@e104818-lin.cambridge.arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Aruna Ramakrishna <aruna.ramakrishna@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Kravetz <mike.kravetz@oracle.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Kees Cook <keescook@chromium.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Wed, Aug 24, 2016 at 11:01:43PM -0500, Christoph Lameter wrote:
-> On Wed, 24 Aug 2016, Mel Gorman wrote:
-> > If/when I get back to the page allocator, the priority would be a bulk
-> > API for faster allocs of batches of order-0 pages instead of allocating
-> > a large page and splitting.
-> >
+On Tue, Aug 16, 2016 at 05:18:24PM +0100, Catalin Marinas wrote:
+> On Mon, Aug 15, 2016 at 10:45:09AM -0700, Kees Cook wrote:
+> > On Mon, Aug 15, 2016 at 3:47 AM, Catalin Marinas
+> > <catalin.marinas@arm.com> wrote:
+> > > On Fri, Aug 12, 2016 at 11:23:03AM -0700, Kees Cook wrote:
+> > >> On Thu, Aug 11, 2016 at 10:44 AM, Catalin Marinas
+> > >> <catalin.marinas@arm.com> wrote:
+> > >> > The ARMv8 architecture allows execute-only user permissions by clearing
+> > >> > the PTE_UXN and PTE_USER bits. However, the kernel running on a CPU
+> > >> > implementation without User Access Override (ARMv8.2 onwards) can still
+> > >> > access such page, so execute-only page permission does not protect
+> > >> > against read(2)/write(2) etc. accesses. Systems requiring such
+> > >> > protection must enable features like SECCOMP.
+> > >>
+> > >> So, UAO CPUs will bypass this protection in userspace if using
+> > >> read/write on a memory-mapped file?
+> > >
+> > > It's the other way around. CPUs prior to ARMv8.2 (when UAO was
+> > > introduced) or with the CONFIG_ARM64_UAO disabled can still access
+> > > user execute-only memory regions while running in kernel mode via the
+> > > copy_*_user, (get|put)_user etc. routines. So a way user can bypass this
+> > > protection is by using such address as argument to read/write file
+> > > operations.
+> > 
+> > Ah, okay. So exec-only for _userspace_ will always work, but exec-only
+> > for _kernel_ will only work on ARMv8.2 with CONFIG_ARM64_UAO?
 > 
-> OMG. Do we really want to continue this? There are billions of Linux
-> devices out there that require a reboot at least once a week. This is now
-> standard with certain Android phones. In our company we reboot all
-> machines every week because fragmentation degrades performance
-> significantly. We need to finally face up to it and deal with the issue
-> instead of continuing to produce more half ass-ed solutions.
+> Yes (mostly). With UAO, we changed the user access routines in the
+> kernel to use the LDTR/STTR instructions which always behave
+> unprivileged even when executed in kernel mode (unless the UAO bit is
+> set to override this restriction, needed for set_fs(KERNEL_DS)).
 > 
+> Even with UAO, we still have two cases where the kernel cannot perform
+> unprivileged accesses (LDTR/STTR) since they don't have an exclusives
+> equivalent (LDXR/STXR). These are in-user futex atomic ops and the SWP
+> emulation for 32-bit binaries (armv8_deprecated.c). But these require
+> write permission, so they would always fault even when running in the
+> kernel. futex_atomic_cmpxchg_inatomic() is able to return the old value
+> without a write (if it differs from "oldval") but it doesn't look like
+> such value could leak to user space.
 
-Flipping the lid aside, there will always be a need for fast management
-of 4K pages. The primary use case is networking that sometimes uses
-high-order pages to avoid allocator overhead and amortise DMA setup.
-Userspace-mapped pages will always be 4K although fault-around may benefit
-from bulk allocating the pages. That is relatively low hanging fruit that
-would take a few weeks given a free schedule.
+If this was an issue, couldn't we add a dummy LDTR before the LDXR, and
+have the fixup handler return -EFAULT?
 
-Dirty tracking of pages on a 4K boundary will always be required to avoid IO
-multiplier effects that cannot be side-stepped by increasing the fundamental
-unit of allocation.
+Either way, this series looks technically fine to me:
 
-Batching of tree_lock during reclaim for large files and swapping is also
-relatively low hanging fruit that also is doable in a week or two.
+Reviewed-by: Will Deacon <will.deacon@arm.com>
 
-A high-order per-cpu cache for SLUB to reduce zone->lock contention is
-also relatively low hanging fruit with the caveat it makes per_cpu_pages
-larger than a cache line.
+but it would be good for some security-focussed person (Hi, Kees!) to
+comment on whether or not this is useful, given the caveats you've
+described. If it is, I can queue it for 4.9.
 
-If you want to rework the VM to use a larger fundamental unit, track
-sub-units where required and deal with the internal fragmentation issues
-then by all means go ahead and deal with it.
- 
--- 
-Mel Gorman
-SUSE Labs
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
