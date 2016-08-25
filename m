@@ -1,41 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C9ADB6B0274
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 03:57:32 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id o124so77385535pfg.1
-        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 00:57:32 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id p184si14249995pfb.299.2016.08.25.00.57.31
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 480D16B0272
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 04:26:12 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id f6so26939871ith.3
+        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 01:26:12 -0700 (PDT)
+Received: from mail-it0-x22f.google.com (mail-it0-x22f.google.com. [2607:f8b0:4001:c0b::22f])
+        by mx.google.com with ESMTPS id j18si16944111ioj.13.2016.08.25.01.26.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Aug 2016 00:57:32 -0700 (PDT)
-Date: Thu, 25 Aug 2016 00:57:28 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH v2 2/9] ext2: tell DAX the size of allocation holes
-Message-ID: <20160825075728.GA11235@infradead.org>
-References: <20160823220419.11717-1-ross.zwisler@linux.intel.com>
- <20160823220419.11717-3-ross.zwisler@linux.intel.com>
+        Thu, 25 Aug 2016 01:26:11 -0700 (PDT)
+Received: by mail-it0-x22f.google.com with SMTP id x131so258198461ite.0
+        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 01:26:11 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160823220419.11717-3-ross.zwisler@linux.intel.com>
+In-Reply-To: <20160825060957.GA568@swordfish>
+References: <1471854309-30414-1-git-send-email-zhuhui@xiaomi.com> <20160825060957.GA568@swordfish>
+From: Hui Zhu <teawater@gmail.com>
+Date: Thu, 25 Aug 2016 16:25:30 +0800
+Message-ID: <CANFwon3aXLz=EOdsArS5Ou4pMTr6nFuHfW1UKV6WGnCYNWk1kg@mail.gmail.com>
+Subject: Re: [RFC 0/4] ZRAM: make it just store the high compression rate page
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, linux-nvdimm@ml01.01.org, Matthew Wilcox <mawilcox@microsoft.com>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, Andreas Dilger <adilger.kernel@dilger.ca>, Alexander Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.com>, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Hui Zhu <zhuhui@xiaomi.com>, minchan@kernel.org, ngupta@vflare.org, Hugh Dickins <hughd@google.com>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, acme@kernel.org, alexander.shishkin@linux.intel.com, Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com, hannes@cmpxchg.org, mgorman@techsingularity.net, vbabka@suse.cz, redkoi@virtuozzo.com, luto@kernel.org, kirill.shutemov@linux.intel.com, geliangtang@163.com, baiyaowei@cmss.chinamobile.com, dan.j.williams@intel.com, vdavydov@virtuozzo.com, aarcange@redhat.com, dvlasenk@redhat.com, jmarchan@redhat.com, koct9i@gmail.com, yang.shi@linaro.org, dave.hansen@linux.intel.com, vkuznets@redhat.com, vitalywool@gmail.com, ross.zwisler@linux.intel.com, Thomas Gleixner <tglx@linutronix.de>, kwapulinski.piotr@gmail.com, axboe@fb.com, mchristi@redhat.com, Joe Perches <joe@perches.com>, namit@vmware.com, Rik van Riel <riel@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-Hi Ross,
+On Thu, Aug 25, 2016 at 2:09 PM, Sergey Senozhatsky
+<sergey.senozhatsky.work@gmail.com> wrote:
+> Hello,
+>
+> On (08/22/16 16:25), Hui Zhu wrote:
+>>
+>> Current ZRAM just can store all pages even if the compression rate
+>> of a page is really low.  So the compression rate of ZRAM is out of
+>> control when it is running.
+>> In my part, I did some test and record with ZRAM.  The compression rate
+>> is about 40%.
+>>
+>> This series of patches make ZRAM can just store the page that the
+>> compressed size is smaller than a value.
+>> With these patches, I set the value to 2048 and did the same test with
+>> before.  The compression rate is about 20%.  The times of lowmemorykiller
+>> also decreased.
+>
+> I haven't looked at the patches in details yet. can you educate me a bit?
+> is your test stable? why the number of lowmemorykill-s has decreased?
+> ... or am reading "The times of lowmemorykiller also decreased" wrong?
+>
+> suppose you have X pages that result in bad compression size (from zram
+> point of view). zram stores such pages uncompressed, IOW we have no memory
+> savings - swapped out page lands in zsmalloc PAGE_SIZE class. now you
+> don't try to store those pages in zsmalloc, but keep them as unevictable.
+> so the page still occupies PAGE_SIZE; no memory saving again. why did it
+> improve LMK?
 
-can you take at my (fully working, but not fully cleaned up) version
-of the iomap based DAX code here:
+No, zram will not save this page uncompressed with these patches.  It
+will set it as non-swap and kick back to shrink_page_list.
+Shrink_page_list will remove this page from swapcache and kick it to
+unevictable list.
+Then this page will not be swaped before it get write.
+That is why most of code are around vmscan.c.
 
-http://git.infradead.org/users/hch/vfs.git/shortlog/refs/heads/iomap-dax
+Thanks,
+Hui
 
-By using iomap we don't even have the size hole problem and totally
-get out of the reverse-engineer what buffer_heads are trying to tell
-us business.  It also gets rid of the other warts of the DAX path
-due to pretending to be like direct I/O, so this might be a better
-way forward also for ext2/4.
+>
+>         -ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
