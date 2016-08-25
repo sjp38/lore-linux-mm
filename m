@@ -1,62 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 138726B0268
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 03:17:43 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id o80so27710635wme.1
-        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 00:17:43 -0700 (PDT)
-Received: from mo6-p00-ob.smtp.rzone.de (mo6-p00-ob.smtp.rzone.de. [2a01:238:20a:202:5300::7])
-        by mx.google.com with ESMTPS id on9si12454660wjc.179.2016.08.25.00.17.41
+	by kanga.kvack.org (Postfix) with ESMTP id 869876B026A
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 03:22:24 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id u81so27617674wmu.3
+        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 00:22:24 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id gf6si12495069wjb.72.2016.08.25.00.22.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Aug 2016 00:17:41 -0700 (PDT)
-Date: Thu, 25 Aug 2016 09:17:28 +0200
-From: Olaf Hering <olaf@aepfle.de>
-Subject: Re: OOM detection regressions since 4.7
-Message-ID: <20160825071728.GA3169@aepfle.de>
-References: <20160822093249.GA14916@dhcp22.suse.cz>
- <20160822093707.GG13596@dhcp22.suse.cz>
- <20160822100528.GB11890@kroah.com>
- <20160822105441.GH13596@dhcp22.suse.cz>
- <20160822133114.GA15302@kroah.com>
- <20160822134227.GM13596@dhcp22.suse.cz>
- <20160822150517.62dc7cce74f1af6c1f204549@linux-foundation.org>
- <20160823074339.GB23577@dhcp22.suse.cz>
- <20160825071103.GC4230@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 25 Aug 2016 00:22:23 -0700 (PDT)
+Date: Thu, 25 Aug 2016 09:22:20 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: OOM killer changes
+Message-ID: <20160825072219.GD4230@dhcp22.suse.cz>
+References: <8008b7de-9728-a93c-e3d7-30d4ebeba65a@Quantum.com>
+ <0606328a-1b14-0bc9-51cb-36621e3e8758@suse.cz>
+ <e867d795-224f-5029-48c9-9ce515c0b75f@Quantum.com>
+ <f050bc92-d2f1-80cc-f450-c5a57eaf82f0@suse.cz>
+ <ea18e6b3-9d47-b154-5e12-face50578302@Quantum.com>
+ <f7a9ea9d-bb88-bfd6-e340-3a933559305a@suse.cz>
+ <20160819073359.GA32619@dhcp22.suse.cz>
+ <d443b884-87e7-1c93-8684-3a3a35759fb1@suse.cz>
+ <20160819082639.GE32619@dhcp22.suse.cz>
+ <a43170bc-4464-487f-140b-966f58f9bddf@Quantum.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="ZGiS0Q5IWpPtfppv"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160825071103.GC4230@dhcp22.suse.cz>
+In-Reply-To: <a43170bc-4464-487f-140b-966f58f9bddf@Quantum.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Markus Trippelsdorf <markus@trippelsdorf.de>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Jiri Slaby <jslaby@suse.com>, Greg KH <gregkh@linuxfoundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
+On Wed 24-08-16 11:13:31, Ralf-Peter Rohbeck wrote:
+> On 19.08.2016 01:26, Michal Hocko wrote:
+[...]
+> > > diff --git a/mm/compaction.c b/mm/compaction.c
+> > > index ae4f40afcca1..3e35fce2cace 100644
+> > > --- a/mm/compaction.c
+> > > +++ b/mm/compaction.c
+> > > @@ -1644,8 +1644,8 @@ static enum compact_result compact_zone_order(struct zone *zone, int order,
+> > >   		.alloc_flags = alloc_flags,
+> > >   		.classzone_idx = classzone_idx,
+> > >   		.direct_compaction = true,
+> > > -		.whole_zone = (prio == COMPACT_PRIO_SYNC_FULL),
+> > > -		.ignore_skip_hint = (prio == COMPACT_PRIO_SYNC_FULL)
+> > > +		.whole_zone = (prio == MIN_COMPACT_PRIORITY),
+> > > +		.ignore_skip_hint = (prio == MIN_COMPACT_PRIORITY)
+> > >   	};
+> > >   	INIT_LIST_HEAD(&cc.freepages);
+> > >   	INIT_LIST_HEAD(&cc.migratepages);
+> > > @@ -1691,7 +1691,7 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+> > >   								ac->nodemask) {
+> > >   		enum compact_result status;
+> > > -		if (prio > COMPACT_PRIO_SYNC_FULL
+> > > +		if (prio > MIN_COMPACT_PRIORITY
+> > >   					&& compaction_deferred(zone, order)) {
+> > >   			rc = max_t(enum compact_result, COMPACT_DEFERRED, rc);
+> > >   			continue;
+> > > -- 
+> > > 2.9.2
+> > > 
+> > > 
+> This change was in linux-next-20160823 so I ran it unmodified.
+> 
+> I did get an OOM, see attached.
 
---ZGiS0Q5IWpPtfppv
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-
-On Thu, Aug 25, Michal Hocko wrote:
-
-> Any luck with the testing of this patch?
-
-Not this week, sorry.
-
-Olaf
-
---ZGiS0Q5IWpPtfppv
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iEYEARECAAYFAle+m4QACgkQXUKg+qaYNn7J2QCfYGWwD+iOdRbSCZd82hTLWktl
-YFQAoJ8RMmvgISM8+QJMDauS3/P5cbYY
-=ey3U
------END PGP SIGNATURE-----
-
---ZGiS0Q5IWpPtfppv--
+This patch shouldn't make any difference to the previous patch you were
+testing. Anyway I do not have the above linux-next tag so I cannot check
+what exactly was there. The current code in linux-next contains 
+http://lkml.kernel.org/r/20160823074339.GB23577@dhcp22.suse.cz so a
+different approach. Once that patch hits the Linus tree we will try to
+resurrect the compaction improvements series in linux-next and continue
+with the testing.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
