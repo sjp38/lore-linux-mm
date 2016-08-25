@@ -1,40 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0050183093
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 09:06:31 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id 1so34002843wmz.2
-        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 06:06:31 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id a7si13597488wjk.240.2016.08.25.06.06.30
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F16FE83093
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 10:59:51 -0400 (EDT)
+Received: by mail-yw0-f197.google.com with SMTP id j12so88999465ywb.3
+        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 07:59:51 -0700 (PDT)
+Received: from mail-qk0-f171.google.com (mail-qk0-f171.google.com. [209.85.220.171])
+        by mx.google.com with ESMTPS id r3si10588414qkc.252.2016.08.25.07.59.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 25 Aug 2016 06:06:30 -0700 (PDT)
-Date: Thu, 25 Aug 2016 15:04:06 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [RFC PATCH v2 04/20] x86: Secure Memory Encryption (SME)
- support
-In-Reply-To: <20160822223610.29880.21739.stgit@tlendack-t1.amdoffice.net>
-Message-ID: <alpine.DEB.2.20.1608251503340.5714@nanos>
-References: <20160822223529.29880.50884.stgit@tlendack-t1.amdoffice.net> <20160822223610.29880.21739.stgit@tlendack-t1.amdoffice.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 Aug 2016 07:59:51 -0700 (PDT)
+Received: by mail-qk0-f171.google.com with SMTP id v123so48142455qkh.2
+        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 07:59:51 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20160803152409.GB8962@t510>
+References: <1469457565-22693-1-git-send-email-kwalker@redhat.com>
+ <20160725134732.b21912c54ef1ffe820ccdbca@linux-foundation.org> <20160803152409.GB8962@t510>
+From: Kyle Walker <kwalker@redhat.com>
+Date: Thu, 25 Aug 2016 10:59:45 -0400
+Message-ID: <CAEPKNT+0F=py9Zvg6f1BpJTAeeQJ4a8maiyY9cagQh7ouacehw@mail.gmail.com>
+Subject: Re: [PATCH] mm: Move readahead limit outside of readahead, and
+ advisory syscalls
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, =?ISO-8859-2?Q?Radim_Kr=E8m=E1=F8?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>
+To: Rafael Aquini <aquini@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Geliang Tang <geliangtang@163.com>, Vlastimil Babka <vbabka@suse.cz>, Roman Gushchin <klamm@yandex-team.ru>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Mon, 22 Aug 2016, Tom Lendacky wrote:
+On Wed, Aug 3, 2016 at 11:24 AM, Rafael Aquini <aquini@redhat.com> wrote:
+> IIRC one of the issues Linus had with previous attempts was because
+> they were utilizing/bringing back a node-memory state based heuristic.
+>
+> Since Kyle patch is using a global state counter for that matter,
+> I think that issue condition might now be sorted out.
 
-> Provide support for Secure Memory Encryption (SME). This initial support
-> defines the memory encryption mask as a variable for quick access and an
-> accessor for retrieving the number of physical addressing bits lost if
-> SME is enabled.
+It's been a few weeks since the last feedback. Are there any further
+questions or concerns I can help out with?
 
-What is the reason that this needs to live in assembly code?
- 
-Thanks,
-
-	tglx
+--
+Kyle Walker
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
