@@ -1,58 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EA8BA6B0264
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 02:09:50 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id ez1so64487022pab.1
-        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 23:09:50 -0700 (PDT)
-Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com. [2607:f8b0:400e:c03::232])
-        by mx.google.com with ESMTPS id g90si13776801pfa.13.2016.08.24.23.09.49
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C06D8308D
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 02:54:28 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id o80so27327128wme.1
+        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 23:54:28 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id mn7si12376516wjc.177.2016.08.24.23.54.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Aug 2016 23:09:50 -0700 (PDT)
-Received: by mail-pa0-x232.google.com with SMTP id ti13so13870629pac.0
-        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 23:09:49 -0700 (PDT)
-Date: Thu, 25 Aug 2016 15:09:57 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [RFC 0/4] ZRAM: make it just store the high compression rate page
-Message-ID: <20160825060957.GA568@swordfish>
-References: <1471854309-30414-1-git-send-email-zhuhui@xiaomi.com>
+        Wed, 24 Aug 2016 23:54:27 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id i138so5965229wmf.3
+        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 23:54:27 -0700 (PDT)
+Date: Thu, 25 Aug 2016 08:54:25 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: clarify COMPACTION Kconfig text
+Message-ID: <20160825065424.GA4230@dhcp22.suse.cz>
+References: <1471939757-29789-1-git-send-email-mhocko@kernel.org>
+ <alpine.DEB.2.10.1608241750220.98155@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1471854309-30414-1-git-send-email-zhuhui@xiaomi.com>
+In-Reply-To: <alpine.DEB.2.10.1608241750220.98155@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hui Zhu <zhuhui@xiaomi.com>
-Cc: minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, hughd@google.com, rostedt@goodmis.org, mingo@redhat.com, peterz@infradead.org, acme@kernel.org, alexander.shishkin@linux.intel.com, akpm@linux-foundation.org, mhocko@suse.com, hannes@cmpxchg.org, mgorman@techsingularity.net, vbabka@suse.cz, redkoi@virtuozzo.com, luto@kernel.org, kirill.shutemov@linux.intel.com, geliangtang@163.com, baiyaowei@cmss.chinamobile.com, dan.j.williams@intel.com, vdavydov@virtuozzo.com, aarcange@redhat.com, dvlasenk@redhat.com, jmarchan@redhat.com, koct9i@gmail.com, yang.shi@linaro.org, dave.hansen@linux.intel.com, vkuznets@redhat.com, vitalywool@gmail.com, ross.zwisler@linux.intel.com, tglx@linutronix.de, kwapulinski.piotr@gmail.com, axboe@fb.com, mchristi@redhat.com, joe@perches.com, namit@vmware.com, riel@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, teawater@gmail.com
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <js1304@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Markus Trippelsdorf <markus@trippelsdorf.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Hello,
-
-On (08/22/16 16:25), Hui Zhu wrote:
+On Wed 24-08-16 17:54:52, David Rientjes wrote:
+> On Tue, 23 Aug 2016, Michal Hocko wrote:
 > 
-> Current ZRAM just can store all pages even if the compression rate
-> of a page is really low.  So the compression rate of ZRAM is out of
-> control when it is running.
-> In my part, I did some test and record with ZRAM.  The compression rate
-> is about 40%.
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > The current wording of the COMPACTION Kconfig help text doesn't
+> > emphasise that disabling COMPACTION might cripple the page allocator
+> > which relies on the compaction quite heavily for high order requests and
+> > an unexpected OOM can happen with the lack of compaction. Make sure
+> > we are vocal about that.
+> > 
 > 
-> This series of patches make ZRAM can just store the page that the
-> compressed size is smaller than a value.
-> With these patches, I set the value to 2048 and did the same test with
-> before.  The compression rate is about 20%.  The times of lowmemorykiller
-> also decreased.
+> Since when has this been an issue? 
 
-I haven't looked at the patches in details yet. can you educate me a bit?
-is your test stable? why the number of lowmemorykill-s has decreased?
-... or am reading "The times of lowmemorykiller also decreased" wrong?
+Well, pretty much since we have dropped the lumpy reclaim. 
 
-suppose you have X pages that result in bad compression size (from zram
-point of view). zram stores such pages uncompressed, IOW we have no memory
-savings - swapped out page lands in zsmalloc PAGE_SIZE class. now you
-don't try to store those pages in zsmalloc, but keep them as unevictable.
-so the page still occupies PAGE_SIZE; no memory saving again. why did it
-improve LMK?
+> I don't believe it has been an issue in the past for any archs that
+> don't use thp.
 
-	-ss
+Well, fragmentation is a real problem and order-0 reclaim will be never
+anywhere close to reliably provide higher order pages. Well, reclaiming
+a lot of memory can increase the probability of a success but that
+can quite often lead to over reclaim and long stalls. There are other
+sources of high order requests than THP so this is not about THP at all
+IMHO.
+
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > ---
+> >  mm/Kconfig | 9 ++++++++-
+> >  1 file changed, 8 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/mm/Kconfig b/mm/Kconfig
+> > index 78a23c5c302d..0dff2f05b6d1 100644
+> > --- a/mm/Kconfig
+> > +++ b/mm/Kconfig
+> > @@ -262,7 +262,14 @@ config COMPACTION
+> >  	select MIGRATION
+> >  	depends on MMU
+> >  	help
+> > -	  Allows the compaction of memory for the allocation of huge pages.
+> > +          Compaction is the only memory management component to form
+> > +          high order (larger physically contiguous) memory blocks
+> > +          reliably. Page allocator relies on the compaction heavily and
+> > +          the lack of the feature can lead to unexpected OOM killer
+> > +          invocation for high order memory requests. You shouldnm't
+> > +          disable this option unless there is really a strong reason for
+> > +          it and then we are really interested to hear about that at
+> > +          linux-mm@kvack.org.
+> >  
+> >  #
+> >  # support for page migration
+> 
+> This seems to strongly suggest that all kernels should be built with 
+> CONFIG_COMPACTION and its requirement
+
+Yes. Do you see any reason why the compaction should be disabled and we
+should rely solely on order-0 reclaim?
+
+> , CONFIG_MIGRATION.  Migration has a 
+> dependency of NUMA or memory hot-remove (not all popular).  Compaction can 
+> defragment memory within single zone without reliance on NUMA.
+
+I am not sure I am following you here.
+MIGRATION depends on (NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION || CMA) && MMU
+ 
+> This seems like a very bizarre requirement and I'm wondering where we 
+> regressed from this thp-only behavior.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
