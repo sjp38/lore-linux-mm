@@ -1,76 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E414C6B0269
-	for <linux-mm@kvack.org>; Wed, 24 Aug 2016 20:54:55 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id o124so62147242pfg.1
-        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 17:54:55 -0700 (PDT)
-Received: from mail-pf0-x234.google.com (mail-pf0-x234.google.com. [2607:f8b0:400e:c00::234])
-        by mx.google.com with ESMTPS id to7si12239083pac.282.2016.08.24.17.54.54
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 51FD482F6B
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 00:02:53 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id f6so7217201ith.3
+        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 21:02:53 -0700 (PDT)
+Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [69.252.207.44])
+        by mx.google.com with ESMTPS id x83si15501720ioi.180.2016.08.24.21.02.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Aug 2016 17:54:54 -0700 (PDT)
-Received: by mail-pf0-x234.google.com with SMTP id y134so11950417pfg.0
-        for <linux-mm@kvack.org>; Wed, 24 Aug 2016 17:54:54 -0700 (PDT)
-Date: Wed, 24 Aug 2016 17:54:52 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: clarify COMPACTION Kconfig text
-In-Reply-To: <1471939757-29789-1-git-send-email-mhocko@kernel.org>
-Message-ID: <alpine.DEB.2.10.1608241750220.98155@chino.kir.corp.google.com>
-References: <1471939757-29789-1-git-send-email-mhocko@kernel.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Wed, 24 Aug 2016 21:02:46 -0700 (PDT)
+Date: Wed, 24 Aug 2016 23:01:43 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: what is the purpose of SLAB and SLUB (was: Re: [PATCH v3] mm/slab:
+ Improve performance of gathering slabinfo) stats
+In-Reply-To: <20160824082057.GT2693@suse.de>
+Message-ID: <alpine.DEB.2.20.1608242240460.1837@east.gentwo.org>
+References: <1471458050-29622-1-git-send-email-aruna.ramakrishna@oracle.com> <20160818115218.GJ30162@dhcp22.suse.cz> <20160823021303.GB17039@js1304-P5Q-DELUXE> <20160823153807.GN23577@dhcp22.suse.cz> <20160824082057.GT2693@suse.de>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <js1304@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Markus Trippelsdorf <markus@trippelsdorf.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Michal Hocko <mhocko@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Aruna Ramakrishna <aruna.ramakrishna@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Kravetz <mike.kravetz@oracle.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>
 
-On Tue, 23 Aug 2016, Michal Hocko wrote:
+On Wed, 24 Aug 2016, Mel Gorman wrote:
+> If/when I get back to the page allocator, the priority would be a bulk
+> API for faster allocs of batches of order-0 pages instead of allocating
+> a large page and splitting.
+>
 
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> The current wording of the COMPACTION Kconfig help text doesn't
-> emphasise that disabling COMPACTION might cripple the page allocator
-> which relies on the compaction quite heavily for high order requests and
-> an unexpected OOM can happen with the lack of compaction. Make sure
-> we are vocal about that.
-> 
+OMG. Do we really want to continue this? There are billions of Linux
+devices out there that require a reboot at least once a week. This is now
+standard with certain Android phones. In our company we reboot all
+machines every week because fragmentation degrades performance
+significantly. We need to finally face up to it and deal with the issue
+instead of continuing to produce more half ass-ed solutions.
 
-Since when has this been an issue?  I don't believe it has been an issue 
-in the past for any archs that don't use thp.
+Managing memory in 4K chunks is not reasonable if you have
+machines with terabytes of memory and thus billions of individual page
+structs to manage. I/O devices are throttling because they cannot manage
+so much meta data and we get grotesque devices.
 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  mm/Kconfig | 9 ++++++++-
->  1 file changed, 8 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index 78a23c5c302d..0dff2f05b6d1 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -262,7 +262,14 @@ config COMPACTION
->  	select MIGRATION
->  	depends on MMU
->  	help
-> -	  Allows the compaction of memory for the allocation of huge pages.
-> +          Compaction is the only memory management component to form
-> +          high order (larger physically contiguous) memory blocks
-> +          reliably. Page allocator relies on the compaction heavily and
-> +          the lack of the feature can lead to unexpected OOM killer
-> +          invocation for high order memory requests. You shouldnm't
-> +          disable this option unless there is really a strong reason for
-> +          it and then we are really interested to hear about that at
-> +          linux-mm@kvack.org.
->  
->  #
->  # support for page migration
+The kernel needs an effective way to handle large contiguous memory. It
+needs the ability to do effective defragmentation for that. And the way
+forward has been clear also for awhile. All objects must be either
+movable or be reclaimable so that things can be moved to allow contiguity
+to be restored.
 
-This seems to strongly suggest that all kernels should be built with 
-CONFIG_COMPACTION and its requirement, CONFIG_MIGRATION.  Migration has a 
-dependency of NUMA or memory hot-remove (not all popular).  Compaction can 
-defragment memory within single zone without reliance on NUMA.
 
-This seems like a very bizarre requirement and I'm wondering where we 
-regressed from this thp-only behavior.
+We have support for that for the page cache and interestingly enough for
+CMA now. So this is gradually developing because it is necessary. We need
+to go with that and provide a full fledged implementation in the kernel
+that allows effective handling of large objects in the page allocator and
+we need general logic in the kernel for effective handling of large
+sized chunks of memory.
+
+Lets stop churning tiny 4k segments in the world where even our cell
+phones have capacities measured in Gigabytes which certainly then already
+means millions of 4k objects whose management one by one is a drag on
+performance and makes operating system coding extremely complex. The core
+of Linux must support that for the future in which we will see even larger
+memory capacities.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
