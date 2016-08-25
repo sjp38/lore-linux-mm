@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 18CB383093
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 06:03:37 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id l4so30741336wml.0
-        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 03:03:37 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6632383093
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 06:03:39 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 1so30688818wmz.2
+        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 03:03:39 -0700 (PDT)
 Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id jk1si12982833wjb.221.2016.08.25.03.03.32
+        by mx.google.com with ESMTPS id v83si13480130wmv.78.2016.08.25.03.03.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Aug 2016 03:03:32 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id i138so6636126wmf.3
-        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 03:03:32 -0700 (PDT)
+        Thu, 25 Aug 2016 03:03:35 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id i5so6652699wmg.2
+        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 03:03:35 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH v2 5/9] mm, oom: get rid of signal_struct::oom_victims
-Date: Thu, 25 Aug 2016 12:03:10 +0200
-Message-Id: <1472119394-11342-6-git-send-email-mhocko@kernel.org>
+Subject: [PATCH v2 6/9] oom, suspend: fix oom_killer_disable vs. pm suspend properly
+Date: Thu, 25 Aug 2016 12:03:11 +0200
+Message-Id: <1472119394-11342-7-git-send-email-mhocko@kernel.org>
 In-Reply-To: <1472119394-11342-1-git-send-email-mhocko@kernel.org>
 References: <1472119394-11342-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -24,144 +24,171 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-lo
 
 From: Michal Hocko <mhocko@suse.com>
 
-After "oom: keep mm of the killed task available" we can safely
-detect an oom victim by checking task->signal->oom_mm so we do not need
-the signal_struct counter anymore so let's get rid of it.
+74070542099c ("oom, suspend: fix oom_reaper vs. oom_killer_disable
+race") has workaround an existing race between oom_killer_disable
+and oom_reaper by adding another round of try_to_freeze_tasks after
+the oom killer was disabled. This was the easiest thing to do for
+a late 4.7 fix. Let's fix it properly now.
 
-This alone wouldn't be sufficient for nommu archs because exit_oom_victim
-doesn't hide the process from the oom killer anymore. We can, however,
-mark the mm with a MMF flag in __mmput. We can reuse MMF_OOM_REAPED and
-rename it to a more generic MMF_OOM_SKIP.
+After "oom: keep mm of the killed task available" we no longer
+have to call exit_oom_victim from the oom reaper because we have stable
+mm available and hide the oom_reaped mm by MMF_OOM_SKIP flag. So
+let's remove exit_oom_victim and the race described in the above commit
+doesn't exist anymore if.
+
+Unfortunately this alone is not sufficient for the oom_killer_disable
+usecase because now we do not have any reliable way to reach
+exit_oom_victim (the victim might get stuck on a way to exit for an
+unbounded amount of time). OOM killer can cope with that by checking
+mm flags and move on to another victim but we cannot do the same
+for oom_killer_disable as we would lose the guarantee of no further
+interference of the victim with the rest of the system. What we can do
+instead is to cap the maximum time the oom_killer_disable waits for
+victims. The only current user of this function (pm suspend) already has
+a concept of timeout for back off so we can reuse the same value there.
+
+Let's drop set_freezable for the oom_reaper kthread because it is no
+longer needed as the reaper doesn't wake or thaw any processes.
 
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- include/linux/oom.h   |  5 +++++
- include/linux/sched.h |  3 +--
- kernel/fork.c         |  1 +
- mm/oom_kill.c         | 17 +++++++----------
- 4 files changed, 14 insertions(+), 12 deletions(-)
+ include/linux/oom.h    |  2 +-
+ kernel/power/process.c | 17 +++--------------
+ mm/oom_kill.c          | 40 ++++++++++++++++++++--------------------
+ 3 files changed, 24 insertions(+), 35 deletions(-)
 
 diff --git a/include/linux/oom.h b/include/linux/oom.h
-index 17946e5121b6..b61357d07170 100644
+index b61357d07170..0f1b9da108e4 100644
 --- a/include/linux/oom.h
 +++ b/include/linux/oom.h
-@@ -58,6 +58,11 @@ static inline bool oom_task_origin(const struct task_struct *p)
- 	return p->signal->oom_flag_origin;
- }
+@@ -74,7 +74,7 @@ extern void exit_oom_victim(struct task_struct *tsk);
+ extern int register_oom_notifier(struct notifier_block *nb);
+ extern int unregister_oom_notifier(struct notifier_block *nb);
  
-+static inline bool tsk_is_oom_victim(struct task_struct * tsk)
-+{
-+	return tsk->signal->oom_mm;
-+}
-+
- extern unsigned long oom_badness(struct task_struct *p,
- 		struct mem_cgroup *memcg, const nodemask_t *nodemask,
- 		unsigned long totalpages);
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index cccb575dc242..eda579f3283a 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -521,7 +521,7 @@ static inline int get_dumpable(struct mm_struct *mm)
+-extern bool oom_killer_disable(void);
++extern bool oom_killer_disable(signed long timeout);
+ extern void oom_killer_enable(void);
  
- #define MMF_HAS_UPROBES		19	/* has uprobes */
- #define MMF_RECALC_UPROBES	20	/* MMF_HAS_UPROBES can be wrong */
--#define MMF_OOM_REAPED		21	/* mm has been already reaped */
-+#define MMF_OOM_SKIP		21	/* mm is of no interest for the OOM killer */
+ extern struct task_struct *find_lock_task_mm(struct task_struct *p);
+diff --git a/kernel/power/process.c b/kernel/power/process.c
+index 0c2ee9761d57..2456f10c7326 100644
+--- a/kernel/power/process.c
++++ b/kernel/power/process.c
+@@ -141,23 +141,12 @@ int freeze_processes(void)
+ 	/*
+ 	 * Now that the whole userspace is frozen we need to disbale
+ 	 * the OOM killer to disallow any further interference with
+-	 * killable tasks.
++	 * killable tasks. There is no guarantee oom victims will
++	 * ever reach a point they go away we have to wait with a timeout.
+ 	 */
+-	if (!error && !oom_killer_disable())
++	if (!error && !oom_killer_disable(msecs_to_jiffies(freeze_timeout_msecs)))
+ 		error = -EBUSY;
  
- #define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK)
- 
-@@ -669,7 +669,6 @@ struct signal_struct {
- 	atomic_t		sigcnt;
- 	atomic_t		live;
- 	int			nr_threads;
--	atomic_t oom_victims; /* # of TIF_MEDIE threads in this thread group */
- 	struct list_head	thread_head;
- 
- 	wait_queue_head_t	wait_chldexit;	/* for wait4() */
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 136a2c6784cb..64624fb42f96 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -725,6 +725,7 @@ static inline void __mmput(struct mm_struct *mm)
- 	}
- 	if (mm->binfmt)
- 		module_put(mm->binfmt->module);
-+	set_bit(MMF_OOM_SKIP, &mm->flags);
- 	mmdrop(mm);
- }
- 
+-	/*
+-	 * There is a hard to fix race between oom_reaper kernel thread
+-	 * and oom_killer_disable. oom_reaper calls exit_oom_victim
+-	 * before the victim reaches exit_mm so try to freeze all the tasks
+-	 * again and catch such a left over task.
+-	 */
+-	if (!error) {
+-		pr_info("Double checking all user space processes after OOM killer disable... ");
+-		error = try_to_freeze_tasks(true);
+-		pr_cont("\n");
+-	}
+-
+ 	if (error)
+ 		thaw_processes();
+ 	return error;
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index f16ec0840a0e..e2a2c35dd493 100644
+index e2a2c35dd493..895a51fe8e18 100644
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -186,7 +186,7 @@ unsigned long oom_badness(struct task_struct *p, struct mem_cgroup *memcg,
- 	 */
- 	adj = (long)p->signal->oom_score_adj;
- 	if (adj == OOM_SCORE_ADJ_MIN ||
--			test_bit(MMF_OOM_REAPED, &p->mm->flags) ||
-+			test_bit(MMF_OOM_SKIP, &p->mm->flags) ||
- 			in_vfork(p)) {
- 		task_unlock(p);
- 		return 0;
-@@ -296,11 +296,11 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
+@@ -559,14 +559,7 @@ static void oom_reap_task(struct task_struct *tsk)
+ 	debug_show_all_locks();
+ 
+ done:
+-	/*
+-	 * Clear TIF_MEMDIE because the task shouldn't be sitting on a
+-	 * reasonably reclaimable memory anymore or it is not a good candidate
+-	 * for the oom victim right now because it cannot release its memory
+-	 * itself nor by the oom reaper.
+-	 */
+ 	tsk->oom_reaper_list = NULL;
+-	exit_oom_victim(tsk);
+ 
  	/*
- 	 * This task already has access to memory reserves and is being killed.
- 	 * Don't allow any other task to have access to the reserves unless
--	 * the task has MMF_OOM_REAPED because chances that it would release
-+	 * the task has MMF_OOM_SKIP because chances that it would release
- 	 * any memory is quite low.
- 	 */
--	if (!is_sysrq_oom(oc) && atomic_read(&task->signal->oom_victims)) {
--		if (test_bit(MMF_OOM_REAPED, &task->signal->oom_mm->flags))
-+	if (!is_sysrq_oom(oc) && tsk_is_oom_victim(task)) {
-+		if (test_bit(MMF_OOM_SKIP, &task->signal->oom_mm->flags))
- 			goto next;
- 		goto abort;
- 	}
-@@ -572,7 +572,7 @@ static void oom_reap_task(struct task_struct *tsk)
  	 * Hide this mm from OOM killer because it has been either reaped or
- 	 * somebody can't call up_write(mmap_sem).
- 	 */
--	set_bit(MMF_OOM_REAPED, &mm->flags);
-+	set_bit(MMF_OOM_SKIP, &mm->flags);
+@@ -580,8 +573,6 @@ static void oom_reap_task(struct task_struct *tsk)
  
- 	/* Drop a reference taken by wake_oom_reaper */
- 	put_task_struct(tsk);
-@@ -654,8 +654,6 @@ static void mark_oom_victim(struct task_struct *tsk)
- 	if (test_and_set_tsk_thread_flag(tsk, TIF_MEMDIE))
- 		return;
- 
--	atomic_inc(&tsk->signal->oom_victims);
--
- 	/* oom_mm is bound to the signal struct life time. */
- 	if (!cmpxchg(&tsk->signal->oom_mm, NULL, mm))
- 		atomic_inc(&tsk->signal->oom_mm->mm_count);
-@@ -677,7 +675,6 @@ void exit_oom_victim(struct task_struct *tsk)
+ static int oom_reaper(void *unused)
  {
- 	if (!test_and_clear_tsk_thread_flag(tsk, TIF_MEMDIE))
- 		return;
--	atomic_dec(&tsk->signal->oom_victims);
+-	set_freezable();
+-
+ 	while (true) {
+ 		struct task_struct *tsk = NULL;
  
- 	if (!atomic_dec_return(&oom_victims))
- 		wake_up_all(&oom_victims_wait);
-@@ -769,7 +766,7 @@ static bool task_will_free_mem(struct task_struct *task)
- 	 * This task has already been drained by the oom reaper so there are
- 	 * only small chances it will free some more
- 	 */
--	if (test_bit(MMF_OOM_REAPED, &mm->flags))
-+	if (test_bit(MMF_OOM_SKIP, &mm->flags))
- 		return false;
+@@ -681,10 +672,20 @@ void exit_oom_victim(struct task_struct *tsk)
+ }
  
- 	if (atomic_read(&mm->mm_users) <= 1)
-@@ -906,7 +903,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
- 			 * killer to guarantee OOM forward progress.
- 			 */
- 			can_oom_reap = false;
--			set_bit(MMF_OOM_REAPED, &mm->flags);
-+			set_bit(MMF_OOM_SKIP, &mm->flags);
- 			pr_info("oom killer %d (%s) has mm pinned by %d (%s)\n",
- 					task_pid_nr(victim), victim->comm,
- 					task_pid_nr(p), p->comm);
+ /**
++ * oom_killer_enable - enable OOM killer
++ */
++void oom_killer_enable(void)
++{
++	oom_killer_disabled = false;
++}
++
++/**
+  * oom_killer_disable - disable OOM killer
++ * @timeout: maximum timeout to wait for oom victims in jiffies
+  *
+  * Forces all page allocations to fail rather than trigger OOM killer.
+- * Will block and wait until all OOM victims are killed.
++ * Will block and wait until all OOM victims are killed or the given
++ * timeout expires.
+  *
+  * The function cannot be called when there are runnable user tasks because
+  * the userspace would see unexpected allocation failures as a result. Any
+@@ -693,8 +694,10 @@ void exit_oom_victim(struct task_struct *tsk)
+  * Returns true if successful and false if the OOM killer cannot be
+  * disabled.
+  */
+-bool oom_killer_disable(void)
++bool oom_killer_disable(signed long timeout)
+ {
++	signed long ret;
++
+ 	/*
+ 	 * Make sure to not race with an ongoing OOM killer. Check that the
+ 	 * current is not killed (possibly due to sharing the victim's memory).
+@@ -704,19 +707,16 @@ bool oom_killer_disable(void)
+ 	oom_killer_disabled = true;
+ 	mutex_unlock(&oom_lock);
+ 
+-	wait_event(oom_victims_wait, !atomic_read(&oom_victims));
++	ret = wait_event_interruptible_timeout(oom_victims_wait,
++			!atomic_read(&oom_victims), timeout);
++	if (ret <= 0) {
++		oom_killer_enable();
++		return false;
++	}
+ 
+ 	return true;
+ }
+ 
+-/**
+- * oom_killer_enable - enable OOM killer
+- */
+-void oom_killer_enable(void)
+-{
+-	oom_killer_disabled = false;
+-}
+-
+ static inline bool __task_will_free_mem(struct task_struct *task)
+ {
+ 	struct signal_struct *sig = task->signal;
 -- 
 2.8.1
 
