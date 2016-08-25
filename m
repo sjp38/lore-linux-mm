@@ -1,68 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F35A96B0270
-	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 03:36:50 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id e7so26079567lfe.0
-        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 00:36:50 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b73si13028753wmi.47.2016.08.25.00.36.49
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C9ADB6B0274
+	for <linux-mm@kvack.org>; Thu, 25 Aug 2016 03:57:32 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id o124so77385535pfg.1
+        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 00:57:32 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id p184si14249995pfb.299.2016.08.25.00.57.31
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 25 Aug 2016 00:36:49 -0700 (PDT)
-Date: Thu, 25 Aug 2016 09:36:47 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [wrecked]
- mm-compaction-more-reliably-increase-direct-compaction-priority.patch
- removed from -mm tree
-Message-ID: <20160825073646.GF4230@dhcp22.suse.cz>
-References: <57bcb948./5Xz5gcuIQjtLmuG%akpm@linux-foundation.org>
- <20160824070859.GC31179@dhcp22.suse.cz>
- <20160824141418.b266d5a0bddf9170181f8627@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 Aug 2016 00:57:32 -0700 (PDT)
+Date: Thu, 25 Aug 2016 00:57:28 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH v2 2/9] ext2: tell DAX the size of allocation holes
+Message-ID: <20160825075728.GA11235@infradead.org>
+References: <20160823220419.11717-1-ross.zwisler@linux.intel.com>
+ <20160823220419.11717-3-ross.zwisler@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160824141418.b266d5a0bddf9170181f8627@linux-foundation.org>
+In-Reply-To: <20160823220419.11717-3-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: vbabka@suse.cz, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, riel@redhat.com, rientjes@google.com, linux-mm@kvack.org
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, linux-nvdimm@ml01.01.org, Matthew Wilcox <mawilcox@microsoft.com>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, Andreas Dilger <adilger.kernel@dilger.ca>, Alexander Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.com>, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org
 
-On Wed 24-08-16 14:14:18, Andrew Morton wrote:
-> On Wed, 24 Aug 2016 09:08:59 +0200 Michal Hocko <mhocko@kernel.org> wrote:
-> 
-> > Hi Andrew,
-> > I guess the reason this patch has been dropped is due to
-> > mm-oom-prevent-pre-mature-oom-killer-invocation-for-high-order-request.patch.
-> 
-> Yes.  And I think we're still waiting testing feedback from the
-> reporters on
-> mm-oom-prevent-pre-mature-oom-killer-invocation-for-high-order-request.patch?
+Hi Ross,
 
-yes
- 
-> > I guess we will wait for the above patch to get to Linus, revert it in mmotm
-> > and re-apply
-> > mm-compaction-more-reliably-increase-direct-compaction-priority.patch
-> > again, right?
-> 
-> I suppose so.  We can leave
-> mm-oom-prevent-pre-mature-oom-killer-invocation-for-high-order-request.patch
-> in place in mainline for 4.8 so it can be respectably backported into
-> -stable.
-> 
-> And we may as well fold
-> mm-compaction-more-reliably-increase-direct-compaction-priority.patch
-> into the patch which re-adds should_compact_retry()?
+can you take at my (fully working, but not fully cleaned up) version
+of the iomap based DAX code here:
 
-I am not sure combining those two into a single patch would be better.
-It is true it would be bisect safe but those patches are not really
-related because there are other changes for the compaction improvements
-which already made a difference. This one is merely yet-another-change
-on top. Let me think about that, though.
+http://git.infradead.org/users/hch/vfs.git/shortlog/refs/heads/iomap-dax
 
--- 
-Michal Hocko
-SUSE Labs
+By using iomap we don't even have the size hole problem and totally
+get out of the reverse-engineer what buffer_heads are trying to tell
+us business.  It also gets rid of the other warts of the DAX path
+due to pretending to be like direct I/O, so this might be a better
+way forward also for ext2/4.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
