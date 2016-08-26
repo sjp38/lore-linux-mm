@@ -1,53 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DCD6830C9
-	for <linux-mm@kvack.org>; Fri, 26 Aug 2016 13:18:49 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id ez1so138137107pab.1
-        for <linux-mm@kvack.org>; Fri, 26 Aug 2016 10:18:49 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0136.outbound.protection.outlook.com. [104.47.0.136])
-        by mx.google.com with ESMTPS id t12si22116937pfj.221.2016.08.26.10.18.47
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 60A1A830BE
+	for <linux-mm@kvack.org>; Fri, 26 Aug 2016 16:17:34 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id i27so171193167qte.3
+        for <linux-mm@kvack.org>; Fri, 26 Aug 2016 13:17:34 -0700 (PDT)
+Received: from mx04-000ceb01.pphosted.com (mx0b-000ceb01.pphosted.com. [67.231.152.126])
+        by mx.google.com with ESMTPS id i52si15622201qti.20.2016.08.26.13.17.32
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 26 Aug 2016 10:18:48 -0700 (PDT)
-Subject: Re: [PATCHv3 6/6] x86/signal: add SA_{X32,IA32}_ABI sa_flags
-References: <20160826171317.3944-1-dsafonov@virtuozzo.com>
- <20160826171317.3944-7-dsafonov@virtuozzo.com>
-From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Message-ID: <8ae805a7-69c0-811f-0b16-8f1130ecbc10@virtuozzo.com>
-Date: Fri, 26 Aug 2016 20:16:33 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 Aug 2016 13:17:33 -0700 (PDT)
+Subject: Re: OOM detection regressions since 4.7
+References: <20160822093249.GA14916@dhcp22.suse.cz>
+ <20160822093707.GG13596@dhcp22.suse.cz> <20160822100528.GB11890@kroah.com>
+ <20160822105441.GH13596@dhcp22.suse.cz> <20160822133114.GA15302@kroah.com>
+ <20160822134227.GM13596@dhcp22.suse.cz>
+ <20160822150517.62dc7cce74f1af6c1f204549@linux-foundation.org>
+ <20160823074339.GB23577@dhcp22.suse.cz>
+ <5852cd26-e013-8313-30f0-68a92db02b8f@Quantum.com>
+ <20160826062556.GA16195@dhcp22.suse.cz>
+From: Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>
+Message-ID: <105b914b-7846-9be6-800e-a8740e9bef4f@Quantum.com>
+Date: Fri, 26 Aug 2016 13:17:19 -0700
 MIME-Version: 1.0
-In-Reply-To: <20160826171317.3944-7-dsafonov@virtuozzo.com>
+In-Reply-To: <20160826062556.GA16195@dhcp22.suse.cz>
 Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: 0x7f454c46@gmail.com, luto@kernel.org, oleg@redhat.com, tglx@linutronix.de, hpa@zytor.com, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, gorcunov@openvz.org, xemul@virtuozzo.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Markus Trippelsdorf <markus@trippelsdorf.de>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Jiri Slaby <jslaby@suse.com>, Olaf Hering <olaf@aepfle.de>, Greg KH <gregkh@linuxfoundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 08/26/2016 08:13 PM, Dmitry Safonov wrote:
-> Introduce new flags that defines which ABI to use on creating sigframe.
-> Those flags kernel will set according to sigaction syscall ABI,
-> which set handler for the signal being delivered.
+On 25.08.2016 23:26, Michal Hocko wrote:
+> On Thu 25-08-16 13:30:23, Ralf-Peter Rohbeck wrote:
+> [...]
+>> This worked for me for about 12 hours of my torture test. Logs are at
+>> https://urldefense.proofpoint.com/v2/url?u=https-3A__filebin.net_2rfah407nbhzs69e_OOM-5F4.8.0-2Drc2-5Fp1.tar.bz2&d=DQIBAg&c=8S5idjlO_n28Ko3lg6lskTMwneSC-WqZ5EBTEEvDlkg&r=yGQdEpZknbtYvR0TyhkCGu-ifLklIvXIf740poRFltQ&m=xBE9zOUuzzrfyIgW70g1kmSzqiGPNXjBnN_zvF4eStQ&s=jdGSxmrQNhIx4cjVDsyyAA0K83hANgWXu1aFBDh_1B4&e= .
+> Thanks! Can we add your
+> Tested-by: Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>
 >
-> So that will drop the dependency on TIF_IA32/TIF_X32 flags on signal deliver.
-> Those flags will be used only under CONFIG_COMPAT.
->
-> Similar way ARM uses sa_flags to differ in which mode deliver signal
-> for 26-bit applications (look at SA_THIRYTWO).
->
-> Cc: Andy Lutomirski <luto@kernel.org>
-> Cc: Oleg Nesterov <oleg@redhat.com>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: "H. Peter Anvin" <hpa@zytor.com>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: linux-mm@kvack.org
-> Cc: x86@kernel.org
-> Cc: Cyrill Gorcunov <gorcunov@openvz.org>
-> Cc: Pavel Emelyanov <xemul@virtuozzo.com>
-> Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
+> to the patch?
 
-Oh, accidentally missed this on patches preparation, excuses:
-Reviewed-by: Andy Lutomirski <luto@kernel.org>
+Sure.
+
+
+Ralf-Peter
+
+
+----------------------------------------------------------------------
+The information contained in this transmission may be confidential. Any disclosure, copying, or further distribution of confidential information is not permitted unless such privilege is explicitly granted in writing by Quantum. Quantum reserves the right to have electronic communications, including email and attachments, sent across its networks filtered through anti virus and spam software programs and retain such messages in order to comply with applicable data security and retention requirements. Quantum is not responsible for the proper and complete transmission of the substance of this communication or for any delay in its receipt.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
