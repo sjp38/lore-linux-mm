@@ -1,81 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 97C6A830BA
-	for <linux-mm@kvack.org>; Fri, 26 Aug 2016 02:44:16 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id l4so48619065wml.0
-        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 23:44:16 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id n128si18024707wma.39.2016.08.25.23.44.15
+	by kanga.kvack.org (Postfix) with ESMTP id 634CA830BA
+	for <linux-mm@kvack.org>; Fri, 26 Aug 2016 04:35:59 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id l4so50449133wml.0
+        for <linux-mm@kvack.org>; Fri, 26 Aug 2016 01:35:59 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j77si18427437wmd.76.2016.08.26.01.35.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Aug 2016 23:44:15 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id q128so10111357wma.1
-        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 23:44:15 -0700 (PDT)
-Date: Fri, 26 Aug 2016 08:44:13 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: clarify COMPACTION Kconfig text
-Message-ID: <20160826064406.GB16195@dhcp22.suse.cz>
-References: <1471939757-29789-1-git-send-email-mhocko@kernel.org>
- <alpine.DEB.2.10.1608241750220.98155@chino.kir.corp.google.com>
- <20160825065424.GA4230@dhcp22.suse.cz>
- <alpine.DEB.2.10.1608251524140.48031@chino.kir.corp.google.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 26 Aug 2016 01:35:57 -0700 (PDT)
+Date: Fri, 26 Aug 2016 10:35:54 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: OOM killer changes
+Message-ID: <20160826083553.GE16195@dhcp22.suse.cz>
+References: <e867d795-224f-5029-48c9-9ce515c0b75f@Quantum.com>
+ <f050bc92-d2f1-80cc-f450-c5a57eaf82f0@suse.cz>
+ <ea18e6b3-9d47-b154-5e12-face50578302@Quantum.com>
+ <f7a9ea9d-bb88-bfd6-e340-3a933559305a@suse.cz>
+ <20160819073359.GA32619@dhcp22.suse.cz>
+ <d443b884-87e7-1c93-8684-3a3a35759fb1@suse.cz>
+ <20160819082639.GE32619@dhcp22.suse.cz>
+ <a43170bc-4464-487f-140b-966f58f9bddf@Quantum.com>
+ <20160825072219.GD4230@dhcp22.suse.cz>
+ <2f897a0c-e27d-7ad7-dd0c-6b1e0d3fb2b4@Quantum.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1608251524140.48031@chino.kir.corp.google.com>
+In-Reply-To: <2f897a0c-e27d-7ad7-dd0c-6b1e0d3fb2b4@Quantum.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <js1304@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Markus Trippelsdorf <markus@trippelsdorf.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Thu 25-08-16 15:34:54, David Rientjes wrote:
-> On Thu, 25 Aug 2016, Michal Hocko wrote:
-> 
-> > > I don't believe it has been an issue in the past for any archs that
-> > > don't use thp.
-> > 
-> > Well, fragmentation is a real problem and order-0 reclaim will be never
-> > anywhere close to reliably provide higher order pages. Well, reclaiming
-> > a lot of memory can increase the probability of a success but that
-> > can quite often lead to over reclaim and long stalls. There are other
-> > sources of high order requests than THP so this is not about THP at all
-> > IMHO.
-> > 
-> 
-> Would it be possible to list the high-order allocations you are concerned 
-> about other than thp that doesn't have fallback behavior like skbuff and 
-> slub allocations?  struct task_struct is an order-1 allocation and there 
-> may be order-1 slab bucket usage, but what is higher order or requires 
-> aggressive compaction to allocate?
+On Thu 25-08-16 13:35:04, Ralf-Peter Rohbeck wrote:
+[...]
+> Sorry, the tag was next-20160823; I called the branch linux-next-20160823.
 
-kernel stacks (order-2 on many arches), some arches need higher order
-pages for page table allocations (at least the upper level AFAIR).
+Yeah that is the tag I was looking for but the linux-next is quite
+volatile and if you do not fetch the particular tag it won't exist in
+leter trees. Anyway, I have set up a branch oom-playground in my tree
+git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git which which
+is on top of the current up-to-date mmotm tree + revert of the quick
+workaround which you have already tested (thanks for that!) and with
+the Vlastimil's patch which was dropped due to workaround. AFAIU this
+is what you have previously tested without OOM but later on still
+managed to hit OOM again. Which would suggest we are still not there
+and need to investigate further. I have some ideas what to do but I
+would appreciate if we can confirm this status before we try new things.
 
-> Surely you're not suggesting that order-0 reclaim cannot form order-1
-> memory.
-
-I haven't seen fragmentation that bad that order-1 would be completely
-depleted so I wouldn't be all that worried about this. But order-2 can
-get depleted as our last oom reports show.
-
-> I am concerned about kernels that require a small memory footprint and
-> cannot enable all of CONFIG_COMPACTION and CONFIG_MIGRATION.  Embedded
-> devices are not a negligible minority of kernels.
-
-Fair enough. And nobody discourages them from disabling the
-compaction. I would expect that kernels for those machines are
-configured by people who know what they are doing. They have to be
-careful about disabling many other things already and carefully weight
-the missing functionality vs. code size savings. I also expect that
-workloads on those machines are also careful to not require large
-physically contiguous memory blocks very much. Otherwise they would have
-problems described by the help text.
-
-So I am not really sure what you are objecting to. I am not making
-COMPACTION on unconditionally. I just want to make sure that regular
-users do not think this is just a THP thing which is not true since the
-lumpy reclaim is gone. On my laptop I have more than 40 slab caches
-which have pagesperslab > 2.
+Thanks!
 -- 
 Michal Hocko
 SUSE Labs
