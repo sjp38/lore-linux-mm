@@ -1,154 +1,277 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E8DE1830BE
-	for <linux-mm@kvack.org>; Fri, 26 Aug 2016 12:30:14 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id p85so56445138lfg.3
-        for <linux-mm@kvack.org>; Fri, 26 Aug 2016 09:30:14 -0700 (PDT)
-Received: from bhuna.collabora.co.uk (bhuna.collabora.co.uk. [46.235.227.227])
-        by mx.google.com with ESMTPS id w6si38080975wmw.38.2016.08.26.09.30.12
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B0E67830BE
+	for <linux-mm@kvack.org>; Fri, 26 Aug 2016 13:12:41 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id ag5so138013391pad.2
+        for <linux-mm@kvack.org>; Fri, 26 Aug 2016 10:12:41 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id s81si22182678pfd.23.2016.08.26.10.12.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Aug 2016 09:30:13 -0700 (PDT)
-From: robert.foss@collabora.com
-Subject: [PATCH v1] mm, sysctl: Add sysctl for controlling VM_MAYEXEC taint
-Date: Fri, 26 Aug 2016 12:30:04 -0400
-Message-Id: <1472229004-9658-1-git-send-email-robert.foss@collabora.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 26 Aug 2016 10:12:40 -0700 (PDT)
+Date: Sat, 27 Aug 2016 01:17:05 +0800
+From: kbuild test robot <lkp@intel.com>
+Subject: Re: [PATCH v1] mm, sysctl: Add sysctl for controlling VM_MAYEXEC
+ taint
+Message-ID: <201608270104.7xTlu0Hk%fengguang.wu@intel.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="M9NhX3UHpAaciwkO"
+Content-Disposition: inline
+In-Reply-To: <1472229004-9658-1-git-send-email-robert.foss@collabora.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, vbabka@suse.cz, mhocko@suse.com, mingo@kernel.org, dave.hansen@linux.intel.com, hannes@cmpxchg.org, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, acme@redhat.com, keescook@chromium.org, mgorman@techsingularity.net, atomlin@redhat.com, hughd@google.com, dyoung@redhat.com, viro@zeniv.linux.org.uk, dcashman@google.com, w@1wt.eu, idryomov@gmail.com, yang.shi@linaro.org, wad@chromium.org, vkuznets@redhat.com, vdavydov@virtuozzo.com, vitalywool@gmail.com, oleg@redhat.com, gang.chen.5i5j@gmail.com, koct9i@gmail.com, aarcange@redhat.com, aryabinin@virtuozzo.com, kuleshovmail@gmail.com, minchan@kernel.org, mguzik@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, krasin@google.com, Roland McGrath <mcgrathr@chromium.org>, Mandeep Singh Baines <msb@chromium.org>, Ben Zhang <benzh@chromium.org>, Filipe Brandenburger <filbranden@chromium.org>
-Cc: Robert Foss <robert.foss@collabora.com>
+To: robert.foss@collabora.com
+Cc: kbuild-all@01.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, vbabka@suse.cz, mhocko@suse.com, mingo@kernel.org, dave.hansen@linux.intel.com, hannes@cmpxchg.org, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, acme@redhat.com, keescook@chromium.org, mgorman@techsingularity.net, atomlin@redhat.com, hughd@google.com, dyoung@redhat.com, viro@zeniv.linux.org.uk, dcashman@google.com, w@1wt.eu, idryomov@gmail.com, yang.shi@linaro.org, wad@chromium.org, vkuznets@redhat.com, vdavydov@virtuozzo.com, vitalywool@gmail.com, oleg@redhat.com, gang.chen.5i5j@gmail.com, koct9i@gmail.com, aarcange@redhat.com, aryabinin@virtuozzo.com, kuleshovmail@gmail.com, minchan@kernel.org, mguzik@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, krasin@google.com, Roland McGrath <mcgrathr@chromium.org>, Mandeep Singh Baines <msb@chromium.org>, Ben Zhang <benzh@chromium.org>, Filipe Brandenburger <filbranden@chromium.org>
 
-From: Will Drewry <wad@chromium.org>
 
-This patch proposes a sysctl knob that allows a privileged user to
-disable ~VM_MAYEXEC tainting when mapping in a vma from a MNT_NOEXEC
-mountpoint.  It does not alter the normal behavior resulting from
-attempting to directly mmap(PROT_EXEC) a vma (-EPERM) nor the behavior
-of any other subsystems checking MNT_NOEXEC.
+--M9NhX3UHpAaciwkO
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-It is motivated by a common /dev/shm, /tmp usecase. There are few
-facilities for creating a shared memory segment that can be remapped in
-the same process address space with different permissions.  Often, a
-file in /tmp provides this functionality.  However, on distributions
-that are more restrictive/paranoid, world-writeable directories are
-often mounted "noexec".  The only workaround to support software that
-needs this behavior is to either not use that software or remount /tmp
-exec.  (E.g., https://bugs.gentoo.org/350336?id=350336)  Given that
-the only recourse is using SysV IPC, the application programmer loses
-many of the useful ABI features that they get using a mmap'd file.
+Hi Will,
 
-With this patch, it would be possible to change the sysctl variable
-such that mprotect(PROT_EXEC) would succeed.  In cases like the example
-above, an additional userspace mmap-wrapper would be needed, but in
-other cases, like how code.google.com/p/nativeclient mmap()s then
-mprotect()s, the behavior would be unaffected.
+[auto build test ERROR on mmotm/master]
+[also build test ERROR on v4.8-rc3 next-20160825]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+[Suggest to use git(>=2.9.0) format-patch --base=<commit> (or --base=auto for convenience) to record what (public, well-known) commit your patch series was built on]
+[Check https://git-scm.com/docs/git-format-patch for more information]
 
-The tradeoff is a loss of defense in depth, but it seems reasonable when
-the alternative is frequently to disable the defense entirely.
+url:    https://github.com/0day-ci/linux/commits/robert-foss-collabora-com/mm-sysctl-Add-sysctl-for-controlling-VM_MAYEXEC-taint/20160827-003416
+base:   git://git.cmpxchg.org/linux-mmotm.git master
+config: sh-rsk7269_defconfig (attached as .config)
+compiler: sh4-linux-gnu-gcc (Debian 5.4.0-6) 5.4.0 20160609
+reproduce:
+        wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
+        chmod +x ~/bin/make.cross
+        # save the attached .config to linux build tree
+        make.cross ARCH=sh 
 
-(There are many other ways to approach this problem, but this seemed to
- be the most practical and feel the least like a hack or a major change.)
+All errors (new ones prefixed by >>):
 
-Signed-off-by: Will Drewry <wad@chromium.org>
-Signed-off-by: Robert Foss <robert.foss@collabora.com>
-Tested-by: Robert Foss <robert.foss@collabora.com>
+>> mm/util.c:433:46: error: 'CONFIG_MMAP_NOEXEC_TAINT' undeclared here (not in a function)
+    int sysctl_mmap_noexec_taint __read_mostly = CONFIG_MMAP_NOEXEC_TAINT;
+                                                 ^
+
+vim +/CONFIG_MMAP_NOEXEC_TAINT +433 mm/util.c
+
+   427	EXPORT_SYMBOL_GPL(__page_mapcount);
+   428	
+   429	int sysctl_overcommit_memory __read_mostly = OVERCOMMIT_GUESS;
+   430	int sysctl_overcommit_ratio __read_mostly = 50;
+   431	unsigned long sysctl_overcommit_kbytes __read_mostly;
+   432	int sysctl_max_map_count __read_mostly = DEFAULT_MAX_MAP_COUNT;
+ > 433	int sysctl_mmap_noexec_taint __read_mostly = CONFIG_MMAP_NOEXEC_TAINT;
+   434	unsigned long sysctl_user_reserve_kbytes __read_mostly = 1UL << 17; /* 128MB */
+   435	unsigned long sysctl_admin_reserve_kbytes __read_mostly = 1UL << 13; /* 8MB */
+   436	
+
 ---
- include/linux/mm.h |  2 ++
- kernel/sysctl.c    |  9 +++++++++
- mm/Kconfig         | 17 +++++++++++++++++
- mm/mmap.c          |  3 ++-
- mm/util.c          |  1 +
- 5 files changed, 31 insertions(+), 1 deletion(-)
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 08ed53e..e2090c5 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -108,6 +108,8 @@ extern int mmap_rnd_compat_bits __read_mostly;
- 
- extern int sysctl_max_map_count;
- 
-+extern int sysctl_mmap_noexec_taint;
-+
- extern unsigned long sysctl_user_reserve_kbytes;
- extern unsigned long sysctl_admin_reserve_kbytes;
- 
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index b43d0b2..ab1d714 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -1564,6 +1564,15 @@ static struct ctl_table vm_table[] = {
- 		.mode		= 0644,
- 		.proc_handler	= mmap_min_addr_handler,
- 	},
-+	{
-+		.procname	= "mmap_noexec_taint",
-+		.data		= &sysctl_mmap_noexec_taint,
-+		.maxlen		= sizeof(sysctl_mmap_noexec_taint),
-+		.mode		= 0644,
-+		.proc_handler	= proc_dointvec_minmax,
-+		.extra1		= &zero,
-+		.extra2		= &one,
-+	},
- #endif
- #ifdef CONFIG_NUMA
- 	{
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 78a23c5..08d9bc8 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -353,6 +353,23 @@ config DEFAULT_MMAP_MIN_ADDR
- 	  This value can be changed after boot using the
- 	  /proc/sys/vm/mmap_min_addr tunable.
- 
-+config MMAP_NOEXEC_TAINT
-+	int "Turns on tainting of mmap()d files from noexec mountpoints"
-+	depends on MMU
-+	default 1
-+	help
-+	  By default, the ability to change the protections of a virtual
-+	  memory area to allow execution depend on if the vma has the
-+	  VM_MAYEXEC flag.  When mapping regions from files, VM_MAYEXEC
-+	  will be unset if the containing mountpoint is mounted MNT_NOEXEC.
-+	  By setting the value to 0, any mmap()d region may be later
-+	  mprotect()d with PROT_EXEC.
-+
-+	  If unsure, keep the value set to 1.
-+
-+	  This value can be changed after boot using the
-+	  /proc/sys/vm/mmap_noexec_taint tunable.
-+
- config ARCH_SUPPORTS_MEMORY_FAILURE
- 	bool
- 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index ca9d91b..b8be093 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1246,7 +1246,8 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
- 			if (path_noexec(&file->f_path)) {
- 				if (vm_flags & VM_EXEC)
- 					return -EPERM;
--				vm_flags &= ~VM_MAYEXEC;
-+				if (sysctl_mmap_noexec_taint)
-+					vm_flags &= ~VM_MAYEXEC;
- 			}
- 
- 			if (!file->f_op->mmap)
-diff --git a/mm/util.c b/mm/util.c
-index 662cddf..701f0a3 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -430,6 +430,7 @@ int sysctl_overcommit_memory __read_mostly = OVERCOMMIT_GUESS;
- int sysctl_overcommit_ratio __read_mostly = 50;
- unsigned long sysctl_overcommit_kbytes __read_mostly;
- int sysctl_max_map_count __read_mostly = DEFAULT_MAX_MAP_COUNT;
-+int sysctl_mmap_noexec_taint __read_mostly = CONFIG_MMAP_NOEXEC_TAINT;
- unsigned long sysctl_user_reserve_kbytes __read_mostly = 1UL << 17; /* 128MB */
- unsigned long sysctl_admin_reserve_kbytes __read_mostly = 1UL << 13; /* 8MB */
- 
--- 
-2.7.4
+--M9NhX3UHpAaciwkO
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename=".config.gz"
+Content-Transfer-Encoding: base64
+
+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
++DgtjDZJOy7AzVANFiVT3aRW/wXoNLOniKYAAA==
+
+--M9NhX3UHpAaciwkO--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
