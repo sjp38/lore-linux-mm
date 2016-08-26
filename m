@@ -1,47 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B4BD76B026F
-	for <linux-mm@kvack.org>; Fri, 26 Aug 2016 02:26:04 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id o80so48320022wme.1
-        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 23:26:04 -0700 (PDT)
-Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com. [74.125.82.49])
-        by mx.google.com with ESMTPS id ww3si9287631wjb.172.2016.08.25.23.26.03
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 97C6A830BA
+	for <linux-mm@kvack.org>; Fri, 26 Aug 2016 02:44:16 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id l4so48619065wml.0
+        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 23:44:16 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id n128si18024707wma.39.2016.08.25.23.44.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Aug 2016 23:26:03 -0700 (PDT)
-Received: by mail-wm0-f49.google.com with SMTP id q128so265967099wma.1
-        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 23:26:03 -0700 (PDT)
-Date: Fri, 26 Aug 2016 08:26:01 +0200
+        Thu, 25 Aug 2016 23:44:15 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id q128so10111357wma.1
+        for <linux-mm@kvack.org>; Thu, 25 Aug 2016 23:44:15 -0700 (PDT)
+Date: Fri, 26 Aug 2016 08:44:13 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: OOM detection regressions since 4.7
-Message-ID: <20160826062556.GA16195@dhcp22.suse.cz>
-References: <20160822093249.GA14916@dhcp22.suse.cz>
- <20160822093707.GG13596@dhcp22.suse.cz>
- <20160822100528.GB11890@kroah.com>
- <20160822105441.GH13596@dhcp22.suse.cz>
- <20160822133114.GA15302@kroah.com>
- <20160822134227.GM13596@dhcp22.suse.cz>
- <20160822150517.62dc7cce74f1af6c1f204549@linux-foundation.org>
- <20160823074339.GB23577@dhcp22.suse.cz>
- <5852cd26-e013-8313-30f0-68a92db02b8f@Quantum.com>
+Subject: Re: [PATCH] mm: clarify COMPACTION Kconfig text
+Message-ID: <20160826064406.GB16195@dhcp22.suse.cz>
+References: <1471939757-29789-1-git-send-email-mhocko@kernel.org>
+ <alpine.DEB.2.10.1608241750220.98155@chino.kir.corp.google.com>
+ <20160825065424.GA4230@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1608251524140.48031@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5852cd26-e013-8313-30f0-68a92db02b8f@Quantum.com>
+In-Reply-To: <alpine.DEB.2.10.1608251524140.48031@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Markus Trippelsdorf <markus@trippelsdorf.de>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Jiri Slaby <jslaby@suse.com>, Olaf Hering <olaf@aepfle.de>, Greg KH <gregkh@linuxfoundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <js1304@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Markus Trippelsdorf <markus@trippelsdorf.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Thu 25-08-16 13:30:23, Ralf-Peter Rohbeck wrote:
-[...]
-> This worked for me for about 12 hours of my torture test. Logs are at
-> https://filebin.net/2rfah407nbhzs69e/OOM_4.8.0-rc2_p1.tar.bz2.
+On Thu 25-08-16 15:34:54, David Rientjes wrote:
+> On Thu, 25 Aug 2016, Michal Hocko wrote:
+> 
+> > > I don't believe it has been an issue in the past for any archs that
+> > > don't use thp.
+> > 
+> > Well, fragmentation is a real problem and order-0 reclaim will be never
+> > anywhere close to reliably provide higher order pages. Well, reclaiming
+> > a lot of memory can increase the probability of a success but that
+> > can quite often lead to over reclaim and long stalls. There are other
+> > sources of high order requests than THP so this is not about THP at all
+> > IMHO.
+> > 
+> 
+> Would it be possible to list the high-order allocations you are concerned 
+> about other than thp that doesn't have fallback behavior like skbuff and 
+> slub allocations?  struct task_struct is an order-1 allocation and there 
+> may be order-1 slab bucket usage, but what is higher order or requires 
+> aggressive compaction to allocate?
 
-Thanks! Can we add your
-Tested-by: Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>
+kernel stacks (order-2 on many arches), some arches need higher order
+pages for page table allocations (at least the upper level AFAIR).
 
-to the patch?
+> Surely you're not suggesting that order-0 reclaim cannot form order-1
+> memory.
+
+I haven't seen fragmentation that bad that order-1 would be completely
+depleted so I wouldn't be all that worried about this. But order-2 can
+get depleted as our last oom reports show.
+
+> I am concerned about kernels that require a small memory footprint and
+> cannot enable all of CONFIG_COMPACTION and CONFIG_MIGRATION.  Embedded
+> devices are not a negligible minority of kernels.
+
+Fair enough. And nobody discourages them from disabling the
+compaction. I would expect that kernels for those machines are
+configured by people who know what they are doing. They have to be
+careful about disabling many other things already and carefully weight
+the missing functionality vs. code size savings. I also expect that
+workloads on those machines are also careful to not require large
+physically contiguous memory blocks very much. Otherwise they would have
+problems described by the help text.
+
+So I am not really sure what you are objecting to. I am not making
+COMPACTION on unconditionally. I just want to make sure that regular
+users do not think this is just a THP thing which is not true since the
+lumpy reclaim is gone. On my laptop I have more than 40 slab caches
+which have pagesperslab > 2.
 -- 
 Michal Hocko
 SUSE Labs
