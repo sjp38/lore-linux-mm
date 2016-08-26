@@ -1,53 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 60A1A830BE
-	for <linux-mm@kvack.org>; Fri, 26 Aug 2016 16:17:34 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id i27so171193167qte.3
-        for <linux-mm@kvack.org>; Fri, 26 Aug 2016 13:17:34 -0700 (PDT)
-Received: from mx04-000ceb01.pphosted.com (mx0b-000ceb01.pphosted.com. [67.231.152.126])
-        by mx.google.com with ESMTPS id i52si15622201qti.20.2016.08.26.13.17.32
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DD68D830CB
+	for <linux-mm@kvack.org>; Fri, 26 Aug 2016 16:47:48 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id h186so166744547pfg.2
+        for <linux-mm@kvack.org>; Fri, 26 Aug 2016 13:47:48 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id yp6si22939017pac.253.2016.08.26.13.47.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Aug 2016 13:17:33 -0700 (PDT)
-Subject: Re: OOM detection regressions since 4.7
-References: <20160822093249.GA14916@dhcp22.suse.cz>
- <20160822093707.GG13596@dhcp22.suse.cz> <20160822100528.GB11890@kroah.com>
- <20160822105441.GH13596@dhcp22.suse.cz> <20160822133114.GA15302@kroah.com>
- <20160822134227.GM13596@dhcp22.suse.cz>
- <20160822150517.62dc7cce74f1af6c1f204549@linux-foundation.org>
- <20160823074339.GB23577@dhcp22.suse.cz>
- <5852cd26-e013-8313-30f0-68a92db02b8f@Quantum.com>
- <20160826062556.GA16195@dhcp22.suse.cz>
-From: Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>
-Message-ID: <105b914b-7846-9be6-800e-a8740e9bef4f@Quantum.com>
-Date: Fri, 26 Aug 2016 13:17:19 -0700
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 26 Aug 2016 13:47:47 -0700 (PDT)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: what is the purpose of SLAB and SLUB
+References: <1471458050-29622-1-git-send-email-aruna.ramakrishna@oracle.com>
+	<20160818115218.GJ30162@dhcp22.suse.cz>
+	<20160823021303.GB17039@js1304-P5Q-DELUXE>
+	<20160823153807.GN23577@dhcp22.suse.cz>
+	<20160824082057.GT2693@suse.de>
+	<alpine.DEB.2.20.1608242240460.1837@east.gentwo.org>
+	<20160825100707.GU2693@suse.de>
+	<alpine.DEB.2.20.1608251451070.10766@east.gentwo.org>
+Date: Fri, 26 Aug 2016 13:47:47 -0700
+In-Reply-To: <alpine.DEB.2.20.1608251451070.10766@east.gentwo.org> (Christoph
+	Lameter's message of "Thu, 25 Aug 2016 14:55:43 -0500 (CDT)")
+Message-ID: <87h9a71clo.fsf@tassilo.jf.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20160826062556.GA16195@dhcp22.suse.cz>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Markus Trippelsdorf <markus@trippelsdorf.de>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Jiri Slaby <jslaby@suse.com>, Olaf Hering <olaf@aepfle.de>, Greg KH <gregkh@linuxfoundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Aruna Ramakrishna <aruna.ramakrishna@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Kravetz <mike.kravetz@oracle.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>
 
-On 25.08.2016 23:26, Michal Hocko wrote:
-> On Thu 25-08-16 13:30:23, Ralf-Peter Rohbeck wrote:
-> [...]
->> This worked for me for about 12 hours of my torture test. Logs are at
->> https://urldefense.proofpoint.com/v2/url?u=https-3A__filebin.net_2rfah407nbhzs69e_OOM-5F4.8.0-2Drc2-5Fp1.tar.bz2&d=DQIBAg&c=8S5idjlO_n28Ko3lg6lskTMwneSC-WqZ5EBTEEvDlkg&r=yGQdEpZknbtYvR0TyhkCGu-ifLklIvXIf740poRFltQ&m=xBE9zOUuzzrfyIgW70g1kmSzqiGPNXjBnN_zvF4eStQ&s=jdGSxmrQNhIx4cjVDsyyAA0K83hANgWXu1aFBDh_1B4&e= .
-> Thanks! Can we add your
-> Tested-by: Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>
+Christoph Lameter <cl@linux.com> writes:
 >
-> to the patch?
+>> If you want to rework the VM to use a larger fundamental unit, track
+>> sub-units where required and deal with the internal fragmentation issues
+>> then by all means go ahead and deal with it.
+>
+> Hmmm... The time problem is always there. Tried various approaches over
+> the last decade. Could be a massive project. We really would need a
+> larger group of developers to effectively do this.
 
-Sure.
+I'm surprised that compactions is not able to fix the fragmentation.
+Is the problem that there are too many non movable objects around?
 
-
-Ralf-Peter
-
-
-----------------------------------------------------------------------
-The information contained in this transmission may be confidential. Any disclosure, copying, or further distribution of confidential information is not permitted unless such privilege is explicitly granted in writing by Quantum. Quantum reserves the right to have electronic communications, including email and attachments, sent across its networks filtered through anti virus and spam software programs and retain such messages in order to comply with applicable data security and retention requirements. Quantum is not responsible for the proper and complete transmission of the substance of this communication or for any delay in its receipt.
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
