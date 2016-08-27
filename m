@@ -1,20 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A002830CD
-	for <linux-mm@kvack.org>; Sat, 27 Aug 2016 10:14:44 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id 33so70377479lfw.1
-        for <linux-mm@kvack.org>; Sat, 27 Aug 2016 07:14:44 -0700 (PDT)
-Received: from mail-lf0-x236.google.com (mail-lf0-x236.google.com. [2a00:1450:4010:c07::236])
-        by mx.google.com with ESMTPS id n185si11524107lfd.352.2016.08.27.07.14.41
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CAF73830CD
+	for <linux-mm@kvack.org>; Sat, 27 Aug 2016 10:16:15 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id e7so70524062lfe.0
+        for <linux-mm@kvack.org>; Sat, 27 Aug 2016 07:16:15 -0700 (PDT)
+Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
+        by mx.google.com with ESMTPS id g6si11522182lfd.337.2016.08.27.07.16.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 27 Aug 2016 07:14:41 -0700 (PDT)
-Received: by mail-lf0-x236.google.com with SMTP id g62so74150009lfe.3
-        for <linux-mm@kvack.org>; Sat, 27 Aug 2016 07:14:41 -0700 (PDT)
-Subject: [PATCH RFC 1/4] lib/radix: add universal radix_tree_fill_range
+        Sat, 27 Aug 2016 07:16:14 -0700 (PDT)
+Received: by mail-lf0-x243.google.com with SMTP id 33so5059128lfw.3
+        for <linux-mm@kvack.org>; Sat, 27 Aug 2016 07:16:13 -0700 (PDT)
+Subject: [PATCH RFC 2/4] lib/radix-tree: remove sibling entries
 From: Konstantin Khlebnikov <koct9i@gmail.com>
-Date: Sat, 27 Aug 2016 17:14:34 +0300
-Message-ID: <147230727479.9957.1087787722571077339.stgit@zurg>
+Date: Sat, 27 Aug 2016 17:16:09 +0300
+Message-ID: <147230736246.10044.9648014093546992468.stgit@zurg>
+In-Reply-To: <147230727479.9957.1087787722571077339.stgit@zurg>
+References: <147230727479.9957.1087787722571077339.stgit@zurg>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
@@ -23,422 +25,489 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-This patch adds function for filling and truncating ranges of slots:
+Current implementation stores huge entry as "canonical" head entry with
+tail of "sibling" entries which points backward to the head. Iterator
+jumps back and forward when sees them. This complication is required for
+THP in page-cache because struct page can tell it start index and size.
 
-radix_tree_node *radix_tree_fill_range(root, start, end, item, flags)
+This patch removes support of sibling entries but keeps part that allows
+store data pointers in non-leaf slots. Huge pages will be stored as range
+of slots which points to the head page.
 
-It fills slots in range "begin".."end" with "item" and returns pointer
-to the last filled node. Filling with NULL truncates range.
-
-This is intended for managing transparent huge pages in page cache where
-all entries are aligned but this function can handle arbitrary unaligned
-ranges. Might be useful for PAT or VMA-like extent trees.
-
-By default filling range constructs shallow tree: entries are assigned
-directly inner slots if possible. In worst case any range requires only
-2 * RADIX_TREE_MAX_PATH nodes. If length is power of two and start index
-is aligned then all slots are always in single node and requires at most
-RADIX_TREE_MAX_PATH nodes.
-
-Function accepts several flags:
-
-RADIX_TREE_FILL_LEAVES  - build deep tree, insert entry into leaves.
-
-RADIX_TREE_FILL_OVERWRITE - overwrite instead of failing with -EEXIST.
-
-RADIX_TREE_FILL_ATOMIC - play well with concurrent RCU-protected lookup:
-fill new nodes with RADIX_TREE_RETRY before inserting them into the tree.
-At following iterations these slots are filled with @item or sub-nodes.
-
-RADIX_TREE_FILL_CLEAR_TAGS - also clears all tags.
-
-radix_tree_fill_range() returns pointer to the node which holds the last
-slot in range, NULL if this is root slot, or ERR_PTR in case of error.
-
-Thus, radix_tree_fill_range() can handle all operations required for THP:
-
-* Insert
-Fill range with pointer to head page.
-
-radix_tree_fill_range(root, index, index + nr_pages - 1, head_page,
-		      RADIX_TREE_FILL_ATOMIC)
-
-* Remove
-Fill range with NULL or shadow entry, returned value will be used for
-linking completely shadow nodes into slab shrinker.
-
-radix_tree_fill_range(root, index, index + nr_pages - 1, NULL,
-		      RADIX_TREE_FILL_OVERWRITE)
-
-* Merge
-Fill range with overwrite to replace 0-order pages with THP.
-
-radix_tree_fill_range(root, index, index + nr_pages - 1, head_page,
-		      RADIX_TREE_FILL_OVERWRITE | RADIX_TREE_FILL_ATOMIC)
-
-* Split
-Two passes: first fill leaves with head_page entry and then replace each
-slot with pointer to individual tail page. This could be done in single
-pass but makes radix_tree_fill_range much more complicated.
-
-radix_tree_fill_range(root, index, index + nr_pages - 1, head_page,
-		      RADIX_TREE_FILL_LEAVES | RADIX_TREE_FILL_OVERWRITE |
-		      RADIX_TREE_FILL_ATOMIC);
-radix_tree_for_each_slot(...)
-	radix_tree_replace_slot(slot, head + iter.index - head->index);
-
-
-Page lookup and iterator will return pointer to head page for any index.
-
-
-Code inside iterator loop could detect huge entry, handle all sub-pages
-and jump to next index using new helper function radix_tree_iter_jump():
-
-slot = radix_tree_iter_jump(&iter, page->index + hpage_nr_pages(page));
-
-This helper has builtin protection against overflows: jump to index = 0
-stops iterator. This uses existing logic in radix_tree_next_chunk():
-if iter.next_index is zero then iter.index must be zero too.
-
-
-Tags should be set only for last index of THP range: this way iterator
-will find them regardless of starting index.
-
-radix_tree_preload_range() pre-allocates nodes for filling range.
+This allows to simplify fast-path in radix_tree_next_chunk(): huge entry
+is reported as single-slot chunk for any index within range.
 
 Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
 ---
- include/linux/radix-tree.h |   46 ++++++++
- lib/radix-tree.c           |  245 ++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 291 insertions(+)
+ include/linux/radix-tree.h |   75 ++++-----------------
+ lib/radix-tree.c           |  158 +++++++++++++-------------------------------
+ 2 files changed, 60 insertions(+), 173 deletions(-)
 
 diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-index 4613bf35c311..af33e8d93ec3 100644
+index af33e8d93ec3..1721ddbf981d 100644
 --- a/include/linux/radix-tree.h
 +++ b/include/linux/radix-tree.h
-@@ -319,6 +319,35 @@ static inline void radix_tree_preload_end(void)
- 	preempt_enable();
+@@ -37,8 +37,8 @@
+  * 10 - exceptional entry
+  * 11 - this bit combination is currently unused/reserved
+  *
+- * The internal entry may be a pointer to the next level in the tree, a
+- * sibling entry, or an indicator that the entry in this slot has been moved
++ * The internal entry may be a pointer to the next level in the tree
++ * or an indicator that the entry in this slot has been moved
+  * to another location in the tree and the lookup should be restarted.  While
+  * NULL fits the 'data pointer' pattern, it means that there is no entry in
+  * the tree for this index (no matter what level of the tree it is found at).
+@@ -265,13 +265,7 @@ static inline void radix_tree_replace_slot(void **pslot, void *item)
+ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
+ 			unsigned order, struct radix_tree_node **nodep,
+ 			void ***slotp);
+-int __radix_tree_insert(struct radix_tree_root *, unsigned long index,
+-			unsigned order, void *);
+-static inline int radix_tree_insert(struct radix_tree_root *root,
+-			unsigned long index, void *entry)
+-{
+-	return __radix_tree_insert(root, index, 0, entry);
+-}
++int radix_tree_insert(struct radix_tree_root *, unsigned long index, void *);
+ void *__radix_tree_lookup(struct radix_tree_root *root, unsigned long index,
+ 			  struct radix_tree_node **nodep, void ***slotp);
+ void *radix_tree_lookup(struct radix_tree_root *, unsigned long);
+@@ -354,7 +348,6 @@ radix_tree_truncate_range(struct radix_tree_root *root,
+  * @index:	index of current slot
+  * @next_index:	one beyond the last index for this chunk
+  * @tags:	bit-mask for tag-iterating
+- * @shift:	shift for the node that holds our slots
+  *
+  * This radix tree iterator works in terms of "chunks" of slots.  A chunk is a
+  * subinterval of slots contained within one radix tree leaf node.  It is
+@@ -367,20 +360,8 @@ struct radix_tree_iter {
+ 	unsigned long	index;
+ 	unsigned long	next_index;
+ 	unsigned long	tags;
+-#ifdef CONFIG_RADIX_TREE_MULTIORDER
+-	unsigned int	shift;
+-#endif
+ };
+ 
+-static inline unsigned int iter_shift(struct radix_tree_iter *iter)
+-{
+-#ifdef CONFIG_RADIX_TREE_MULTIORDER
+-	return iter->shift;
+-#else
+-	return 0;
+-#endif
+-}
+-
+ #define RADIX_TREE_ITER_TAG_MASK	0x00FF	/* tag index in lower byte */
+ #define RADIX_TREE_ITER_TAGGED		0x0100	/* lookup tagged slots */
+ #define RADIX_TREE_ITER_CONTIG		0x0200	/* stop at first hole */
+@@ -441,12 +422,6 @@ void **radix_tree_iter_retry(struct radix_tree_iter *iter)
+ 	return NULL;
  }
  
-+#define RADIX_TREE_FILL_LEAVES		1 /* build full depth tree */
-+#define RADIX_TREE_FILL_OVERWRITE	2 /* overwrite non-empty slots */
-+#define RADIX_TREE_FILL_CLEAR_TAGS	4 /* clear all tags */
-+#define RADIX_TREE_FILL_ATOMIC		8 /* play well with rcu lookup */
-+
-+struct radix_tree_node *
-+radix_tree_fill_range(struct radix_tree_root *root, unsigned long start,
-+		      unsigned long end, void *item, unsigned int flags);
-+
-+int radix_tree_preload_range(gfp_t gfp_mask, unsigned long start,
-+			     unsigned long end, unsigned int flags);
-+
-+/**
-+ * radix_tree_truncate_range  - remove everything in range
-+ * @root:	radix tree root
-+ * @start:	first index
-+ * @end:	last index
-+ *
-+ * This function removes all items and tags within given range.
-+ */
-+static inline void
-+radix_tree_truncate_range(struct radix_tree_root *root,
-+			  unsigned long start, unsigned long end)
-+{
-+	radix_tree_fill_range(root, start, end, NULL,
-+			      RADIX_TREE_FILL_OVERWRITE |
-+			      RADIX_TREE_FILL_CLEAR_TAGS);
-+}
-+
+-static inline unsigned long
+-__radix_tree_iter_add(struct radix_tree_iter *iter, unsigned long slots)
+-{
+-	return iter->index + (slots << iter_shift(iter));
+-}
+-
  /**
-  * struct radix_tree_iter - radix tree iterator state
-  *
-@@ -435,6 +464,23 @@ void **radix_tree_iter_next(struct radix_tree_iter *iter)
+  * radix_tree_iter_next - resume iterating when the chunk may be invalid
+  * @iter:	iterator state
+@@ -458,7 +433,7 @@ __radix_tree_iter_add(struct radix_tree_iter *iter, unsigned long slots)
+ static inline __must_check
+ void **radix_tree_iter_next(struct radix_tree_iter *iter)
+ {
+-	iter->next_index = __radix_tree_iter_add(iter, 1);
++	iter->next_index = iter->index + 1;
+ 	iter->tags = 0;
+ 	return NULL;
+ }
+@@ -489,7 +464,7 @@ void **radix_tree_iter_jump(struct radix_tree_iter *iter, unsigned long index)
+ static __always_inline long
+ radix_tree_chunk_size(struct radix_tree_iter *iter)
+ {
+-	return (iter->next_index - iter->index) >> iter_shift(iter);
++	return iter->next_index - iter->index;
  }
  
- /**
-+ * radix_tree_iter_jump - restart iterating from given index if it non-zero
-+ * @iter:	iterator state
-+ * @index:	next index
-+ *
-+ * If index is zero when iterator will stop. This protects from endless loop
-+ * when index overflows after visiting last entry.
-+ */
-+static inline __must_check
-+void **radix_tree_iter_jump(struct radix_tree_iter *iter, unsigned long index)
-+{
-+	iter->index = index - 1;
-+	iter->next_index = index;
-+	iter->tags = 0;
-+	return NULL;
-+}
-+
-+/**
-  * radix_tree_chunk_size - get current chunk size
+ static inline struct radix_tree_node *entry_to_node(void *ptr)
+@@ -508,6 +483,9 @@ static inline struct radix_tree_node *entry_to_node(void *ptr)
+  * This function updates @iter->index in the case of a successful lookup.
+  * For tagged lookup it also eats @iter->tags.
   *
-  * @iter:	pointer to radix tree iterator
++ * Please keep this fast-path as small as possible. Complicated logic is hidden
++ * inside radix_tree_next_chunk() which prepares chunks for this funciton.
++ *
+  * There are several cases where 'slot' can be passed in as NULL to this
+  * function.  These cases result from the use of radix_tree_iter_next() or
+  * radix_tree_iter_retry().  In these cases we don't end up dereferencing
+@@ -520,49 +498,24 @@ static __always_inline void **
+ radix_tree_next_slot(void **slot, struct radix_tree_iter *iter, unsigned flags)
+ {
+ 	if (flags & RADIX_TREE_ITER_TAGGED) {
+-		void *canon = slot;
+-
+ 		iter->tags >>= 1;
+-		if (unlikely(!iter->tags))
+-			return NULL;
+-		while (IS_ENABLED(CONFIG_RADIX_TREE_MULTIORDER) &&
+-					radix_tree_is_internal_node(slot[1])) {
+-			if (entry_to_node(slot[1]) == canon) {
+-				iter->tags >>= 1;
+-				iter->index = __radix_tree_iter_add(iter, 1);
+-				slot++;
+-				continue;
+-			}
+-			iter->next_index = __radix_tree_iter_add(iter, 1);
+-			return NULL;
+-		}
+ 		if (likely(iter->tags & 1ul)) {
+-			iter->index = __radix_tree_iter_add(iter, 1);
++			iter->index++;
+ 			return slot + 1;
+ 		}
+-		if (!(flags & RADIX_TREE_ITER_CONTIG)) {
++		if (!(flags & RADIX_TREE_ITER_CONTIG) && likely(iter->tags)) {
+ 			unsigned offset = __ffs(iter->tags);
+ 
+ 			iter->tags >>= offset;
+-			iter->index = __radix_tree_iter_add(iter, offset + 1);
++			iter->index += offset + 1;
+ 			return slot + offset + 1;
+ 		}
+ 	} else {
+-		long count = radix_tree_chunk_size(iter);
+-		void *canon = slot;
++		long size = radix_tree_chunk_size(iter);
+ 
+-		while (--count > 0) {
++		while (--size > 0) {
+ 			slot++;
+-			iter->index = __radix_tree_iter_add(iter, 1);
+-
+-			if (IS_ENABLED(CONFIG_RADIX_TREE_MULTIORDER) &&
+-			    radix_tree_is_internal_node(*slot)) {
+-				if (entry_to_node(*slot) == canon)
+-					continue;
+-				iter->next_index = iter->index;
+-				break;
+-			}
+-
++			iter->index++;
+ 			if (likely(*slot))
+ 				return slot;
+ 			if (flags & RADIX_TREE_ITER_CONTIG) {
 diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index 1b7bf7314141..c46a60065a77 100644
+index c46a60065a77..234f1ddbd7a9 100644
 --- a/lib/radix-tree.c
 +++ b/lib/radix-tree.c
-@@ -36,6 +36,7 @@
- #include <linux/bitops.h>
- #include <linux/rcupdate.h>
- #include <linux/preempt.h>		/* in_interrupt() */
-+#include <linux/err.h>
+@@ -77,21 +77,6 @@ static inline void *node_to_entry(void *ptr)
  
+ #define RADIX_TREE_RETRY	node_to_entry(NULL)
  
- /* Number of nodes in fully populated tree of given height */
-@@ -1014,6 +1015,250 @@ void **radix_tree_next_chunk(struct radix_tree_root *root,
- EXPORT_SYMBOL(radix_tree_next_chunk);
+-#ifdef CONFIG_RADIX_TREE_MULTIORDER
+-/* Sibling slots point directly to another slot in the same node */
+-static inline bool is_sibling_entry(struct radix_tree_node *parent, void *node)
+-{
+-	void **ptr = node;
+-	return (parent->slots <= ptr) &&
+-			(ptr < parent->slots + RADIX_TREE_MAP_SIZE);
+-}
+-#else
+-static inline bool is_sibling_entry(struct radix_tree_node *parent, void *node)
+-{
+-	return false;
+-}
+-#endif
+-
+ static inline unsigned long get_slot_offset(struct radix_tree_node *parent,
+ 						 void **slot)
+ {
+@@ -104,16 +89,6 @@ static unsigned int radix_tree_descend(struct radix_tree_node *parent,
+ 	unsigned int offset = (index >> parent->shift) & RADIX_TREE_MAP_MASK;
+ 	void **entry = rcu_dereference_raw(parent->slots[offset]);
+ 
+-#ifdef CONFIG_RADIX_TREE_MULTIORDER
+-	if (radix_tree_is_internal_node(entry)) {
+-		unsigned long siboff = get_slot_offset(parent, entry);
+-		if (siboff < RADIX_TREE_MAP_SIZE) {
+-			offset = siboff;
+-			entry = rcu_dereference_raw(parent->slots[offset]);
+-		}
+-	}
+-#endif
+-
+ 	*nodep = (void *)entry;
+ 	return offset;
+ }
+@@ -232,12 +207,7 @@ static void dump_node(struct radix_tree_node *node, unsigned long index)
+ 		void *entry = node->slots[i];
+ 		if (!entry)
+ 			continue;
+-		if (is_sibling_entry(node, entry)) {
+-			pr_debug("radix sblng %p offset %ld val %p indices %ld-%ld\n",
+-					entry, i,
+-					*(void **)entry_to_node(entry),
+-					first, last);
+-		} else if (!radix_tree_is_internal_node(entry)) {
++		if (!radix_tree_is_internal_node(entry)) {
+ 			pr_debug("radix entry %p offset %ld indices %ld-%ld\n",
+ 					entry, i, first, last);
+ 		} else {
+@@ -596,25 +566,6 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
+ 		slot = &node->slots[offset];
+ 	}
+ 
+-#ifdef CONFIG_RADIX_TREE_MULTIORDER
+-	/* Insert pointers to the canonical entry */
+-	if (order > shift) {
+-		unsigned i, n = 1 << (order - shift);
+-		offset = offset & ~(n - 1);
+-		slot = &node->slots[offset];
+-		child = node_to_entry(slot);
+-		for (i = 0; i < n; i++) {
+-			if (slot[i])
+-				return -EEXIST;
+-		}
+-
+-		for (i = 1; i < n; i++) {
+-			rcu_assign_pointer(slot[i], child);
+-			node->count++;
+-		}
+-	}
+-#endif
+-
+ 	if (nodep)
+ 		*nodep = node;
+ 	if (slotp)
+@@ -623,16 +574,15 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
+ }
  
  /**
-+ * radix_tree_preload_range  - preload nodes for filling range.
-+ * @gfp_mask:
-+ * @start:	first index
-+ * @end:	last index
-+ * @flags:	RADIX_TREE_FILL_*
-+ */
-+int radix_tree_preload_range(gfp_t gfp_mask, unsigned long start,
-+			     unsigned long end, unsigned int flags)
-+{
-+	unsigned long length = end - start + 1;
-+	int nr_nodes, shift;
-+
-+	/* Preloading doesn't help anything with this gfp mask, skip it */
-+	if (!gfpflags_allow_blocking(gfp_mask)) {
-+		preempt_disable();
-+		return 0;
-+	}
-+
-+	/*
-+	 * For filling leaves tree must cover all indexes in range at all
-+	 * levels plus RADIX_TREE_MAX_PATH required for growing tree depth
-+	 * and only root node is shared for sure.
-+	 *
-+	 * If for aligned range we need RADIX_TREE_MAX_PATH for growing depth
-+	 * and RADIX_TREE_MAX_PATH for path where all slots will be.
-+	 *
-+	 * For arbitrary range we need again RADIX_TREE_MAX_PATH for growing
-+	 * depth and two RADIX_TREE_MAX_PATH chains for constructing arc of
-+	 * slots from leaf to root and back. Only root node is shared.
-+	 */
-+	if (flags & RADIX_TREE_FILL_LEAVES) {
-+		if (start > end)
-+			return -EINVAL;
-+		shift = 0;
-+		nr_nodes = RADIX_TREE_MAX_PATH - 1;
-+		do {
-+			shift += RADIX_TREE_MAP_SHIFT;
-+			nr_nodes += (end >> shift) - (start >> shift) + 1;
-+		} while (shift < RADIX_TREE_INDEX_BITS);
-+	} else if (is_power_of_2(length) && IS_ALIGNED(start, length))
-+		nr_nodes = RADIX_TREE_MAX_PATH * 2 - 1;
-+	else
-+		nr_nodes = RADIX_TREE_MAX_PATH * 3 - 2;
-+	return __radix_tree_preload(gfp_mask, nr_nodes);
-+}
-+EXPORT_SYMBOL(radix_tree_preload_range);
-+
-+/**
-+ * radix_tree_fill_range - fill range of slots
-+ * @root:	radix tree root
-+ * @start:	first index
-+ * @end:	last index
-+ * @item:	value for filling, NULL for removing
-+ * @flags:	RADIX_TREE_FILL_* flags
-+ * Returns:	pointer last node or NULL, ERR_PTR for errors
-+ *
-+ * By default builds shallow tree: assign entry to inner slots if possible.
-+ * In wost case range requires up to 2 * RADIX_TREE_MAX_PATH nodes plus
-+ * RADIX_TREE_MAX_PATH for extending tree depth.
-+ *
-+ * If length is 2^n and start aligned to it then all slots are in one node.
-+ *
-+ * This function cannot fill or cut part of bugger range if this require
-+ * spltting inner slots and insering new nodes: fails with -ERANGE.
-+ *
-+ * With flag RADIX_TREE_FILL_LEAVES builds deep tree and insert @item into
-+ * leaf slots. This requires much more nodes.
-+ *
-+ * With flag RADIX_TREE_FILL_OVERWRITE removes everything in range and cut
-+ * sub-tree if @item is NULL. Without that flag function undo all chandges
-+ * and fails with code -EEXIST if finds any populated slot.
-+ *
-+ * With flag RADIX_TREE_FILL_ATOMIC function plays well with rcu-protected
-+ * lookups: it fills new nodes with RADIX_TREE_RETRY before inserting them
-+ * into the tree: lookup will see either old entry, @item or retry entry.
-+ * At following iterations these slots are filled with @item or sub-nodes.
-+ *
-+ * With flag RADIX_TREE_FILL_CLEAR_TAGS also clears all tags.
-+ *
-+ * Function returns pointer to node which holds the last slot in range,
-+ * NULL if that was root slot, or ERR_PTR: -ENOMEM, -EEXIST, -ERANGE.
-+ */
-+struct radix_tree_node *
-+radix_tree_fill_range(struct radix_tree_root *root, unsigned long start,
-+		      unsigned long end, void *item, unsigned int flags)
-+{
-+	unsigned long index = start, maxindex;
-+	struct radix_tree_node *node, *child;
-+	int error, root_shift, shift, tag, offset;
+- *	__radix_tree_insert    -    insert into a radix tree
++ *	radix_tree_insert    -    insert into a radix tree
+  *	@root:		radix tree root
+  *	@index:		index key
+- *	@order:		key covers the 2^order indices around index
+  *	@item:		item to insert
+  *
+  *	Insert an item into the radix tree at position @index.
+  */
+-int __radix_tree_insert(struct radix_tree_root *root, unsigned long index,
+-			unsigned order, void *item)
++int radix_tree_insert(struct radix_tree_root *root, unsigned long index,
++		      void *item)
+ {
+ 	struct radix_tree_node *node;
+ 	void **slot;
+@@ -640,7 +590,7 @@ int __radix_tree_insert(struct radix_tree_root *root, unsigned long index,
+ 
+ 	BUG_ON(radix_tree_is_internal_node(item));
+ 
+-	error = __radix_tree_create(root, index, order, &node, &slot);
++	error = __radix_tree_create(root, index, 0, &node, &slot);
+ 	if (error)
+ 		return error;
+ 	if (*slot != NULL)
+@@ -659,7 +609,7 @@ int __radix_tree_insert(struct radix_tree_root *root, unsigned long index,
+ 
+ 	return 0;
+ }
+-EXPORT_SYMBOL(__radix_tree_insert);
++EXPORT_SYMBOL(radix_tree_insert);
+ 
+ /**
+  *	__radix_tree_lookup	-	lookup an item in a radix tree
+@@ -895,14 +845,6 @@ int radix_tree_tag_get(struct radix_tree_root *root,
+ }
+ EXPORT_SYMBOL(radix_tree_tag_get);
+ 
+-static inline void __set_iter_shift(struct radix_tree_iter *iter,
+-					unsigned int shift)
+-{
+-#ifdef CONFIG_RADIX_TREE_MULTIORDER
+-	iter->shift = shift;
+-#endif
+-}
+-
+ /**
+  * radix_tree_next_chunk - find next chunk of slots for iteration
+  *
+@@ -914,9 +856,10 @@ static inline void __set_iter_shift(struct radix_tree_iter *iter,
+ void **radix_tree_next_chunk(struct radix_tree_root *root,
+ 			     struct radix_tree_iter *iter, unsigned flags)
+ {
+-	unsigned tag = flags & RADIX_TREE_ITER_TAG_MASK;
+-	struct radix_tree_node *node, *child;
++	unsigned int shift, tag = flags & RADIX_TREE_ITER_TAG_MASK;
+ 	unsigned long index, offset, maxindex;
++	struct radix_tree_node *node;
 +	void *entry;
-+
-+	/* Sanity check */
-+	if (start > end)
-+		return ERR_PTR(-EINVAL);
-+
-+	/* Make sure the tree is high enough.  */
-+	root_shift = radix_tree_load_root(root, &node, &maxindex);
-+	if (end > maxindex) {
-+		error = radix_tree_extend(root, end, root_shift);
-+		if (error < 0)
-+			return ERR_PTR(error);
-+		root_shift = error;
-+	}
-+
-+	/* Special case: single slot tree */
-+	if (!root_shift) {
-+		if (node && (!(flags & RADIX_TREE_FILL_OVERWRITE)))
-+			return ERR_PTR(-EEXIST);
-+		if (flags & RADIX_TREE_FILL_CLEAR_TAGS)
-+			root_tag_clear_all(root);
-+		rcu_assign_pointer(root->rnode, item);
-+		return NULL;
-+	}
-+
-+next_node:
-+	node = NULL;
-+	offset = 0;
-+	entry = rcu_dereference_raw(root->rnode);
-+	shift = root_shift;
-+
-+	/* Descend to the index. Do at least one step. */
-+	do {
-+		child = entry_to_node(entry);
+ 
+ 	if ((flags & RADIX_TREE_ITER_TAGGED) && !root_tag_get(root, tag))
+ 		return NULL;
+@@ -934,28 +877,27 @@ void **radix_tree_next_chunk(struct radix_tree_root *root,
+ 	if (!index && iter->index)
+ 		return NULL;
+ 
+- restart:
+-	radix_tree_load_root(root, &child, &maxindex);
++restart:
++	shift = radix_tree_load_root(root, &node, &maxindex);
+ 	if (index > maxindex)
+ 		return NULL;
+-	if (!child)
+-		return NULL;
+ 
+-	if (!radix_tree_is_internal_node(child)) {
++	if (!maxindex) {
+ 		/* Single-slot tree */
+-		iter->index = index;
+-		iter->next_index = maxindex + 1;
+-		iter->tags = 1;
+-		__set_iter_shift(iter, 0);
++		iter->index = 0;
++		iter->next_index = 1;
++		iter->tags = 0;
+ 		return (void **)&root->rnode;
+ 	}
+ 
+-	do {
+-		node = entry_to_node(child);
+-		offset = radix_tree_descend(node, &child, index);
++	node = entry_to_node(node);
++	while (1) {
 +		shift -= RADIX_TREE_MAP_SHIFT;
-+		if (!child || !radix_tree_is_internal_node(entry)) {
-+			/* Entry wider than range */
-+			if (child) {
-+				error = -ERANGE;
-+				goto undo;
-+			}
-+			/* Hole wider tnan truncated range */
-+			if (!item)
-+				goto skip_node;
-+			child = radix_tree_node_alloc(root);
-+			if (!child) {
-+				error = -ENOMEM;
-+				goto undo;
-+			}
-+			child->shift = shift;
-+			child->offset = offset;
-+			child->parent = node;
-+			/* Populate range with retry entries. */
-+			if (flags & RADIX_TREE_FILL_ATOMIC) {
-+				int idx = (index >> shift) &
-+					   RADIX_TREE_MAP_MASK;
-+				int last = RADIX_TREE_MAP_SIZE;
-+
-+				if (end < (index | shift_maxindex(shift)))
-+					last = (end >> shift) &
-+						RADIX_TREE_MAP_MASK;
-+				for (; idx <= last; idx++)
-+					child->slots[idx] = RADIX_TREE_RETRY;
-+			}
-+			entry = node_to_entry(child);
-+			if (node) {
-+				rcu_assign_pointer(node->slots[offset], entry);
-+				node->count++;
-+			} else
-+				rcu_assign_pointer(root->rnode, entry);
-+		}
-+		node = child;
 +		offset = (index >> shift) & RADIX_TREE_MAP_MASK;
 +		entry = rcu_dereference_raw(node->slots[offset]);
+ 
+ 		if ((flags & RADIX_TREE_ITER_TAGGED) ?
+-				!tag_get(node, tag, offset) : !child) {
++				!tag_get(node, tag, offset) : !entry) {
+ 			/* Hole detected */
+ 			if (flags & RADIX_TREE_ITER_CONTIG)
+ 				return NULL;
+@@ -967,30 +909,42 @@ void **radix_tree_next_chunk(struct radix_tree_root *root,
+ 						offset + 1);
+ 			else
+ 				while (++offset	< RADIX_TREE_MAP_SIZE) {
+-					void *slot = node->slots[offset];
+-					if (is_sibling_entry(node, slot))
+-						continue;
+-					if (slot)
++					if (node->slots[offset])
+ 						break;
+ 				}
+-			index &= ~node_maxindex(node);
+-			index += offset << node->shift;
 +
-+		/* Stop if find leaf or slot inside range */
-+	} while ((flags & RADIX_TREE_FILL_LEAVES) ? shift :
-+			((index & ((1ul << shift) - 1)) ||
-+			 (index | ((1ul << shift) - 1)) > end));
++			index &= ~shift_maxindex(shift);
++			index += offset << shift;
+ 			/* Overflow after ~0UL */
+ 			if (!index)
+ 				return NULL;
+ 			if (offset == RADIX_TREE_MAP_SIZE)
+ 				goto restart;
+-			child = rcu_dereference_raw(node->slots[offset]);
++			entry = rcu_dereference_raw(node->slots[offset]);
+ 		}
+ 
+-		if ((child == NULL) || (child == RADIX_TREE_RETRY))
++		/* This is leaf-node */
++		if (!shift)
++			break;
 +
-+next_slot:
-+	/* NULL or retry entry */
-+	if (entry <= RADIX_TREE_RETRY)
-+		goto fill;
++		/* Non-leaf data entry */
++		if (!radix_tree_is_internal_node(entry)) {
++			/* Report as a single slot chunk */
++			iter->index = index;
++			iter->next_index = index + 1;
++			iter->tags = 0;
++			return node->slots + offset;
++		}
 +
-+	if (!(flags & RADIX_TREE_FILL_OVERWRITE)) {
-+		error = -EEXIST;
-+		goto undo;
++		node = entry_to_node(entry);
++		/* RADIX_TREE_RETRY */
++		if (!node)
+ 			goto restart;
+-	} while (radix_tree_is_internal_node(child));
 +	}
-+
-+	/* Cut sub-tree */
-+	if (unlikely(radix_tree_is_internal_node(entry))) {
-+		rcu_assign_pointer(node->slots[offset], item);
-+		child = entry_to_node(entry);
-+		offset = 0;
-+		do {
-+			entry = rcu_dereference_raw(child->slots[offset]);
-+			if (entry)
-+				child->count--;
-+			if (radix_tree_is_internal_node(entry)) {
-+				child = entry_to_node(entry);
-+				offset = 0;
-+			} else if (++offset == RADIX_TREE_MAP_SIZE) {
-+				offset = child->offset;
-+				entry = child->parent;
-+				WARN_ON_ONCE(child->count);
-+				radix_tree_node_free(child);
-+				child = entry;
-+			}
-+		} while (child != node);
-+	}
-+
-+	if (flags & RADIX_TREE_FILL_CLEAR_TAGS) {
-+		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
-+			node_tag_clear(root, node, tag, offset);
-+	}
-+
-+	/* Skip the rest if we're cleared class slot in node */
-+	if (!--node->count && !item && __radix_tree_delete_node(root, node))
-+		goto skip_node;
-+
-+
-+fill:
-+	rcu_assign_pointer(node->slots[offset], item);
-+	if (item)
-+		node->count++;
-+
-+	index += 1ul << shift;
-+	if (index - 1 == end)
-+		return node;
-+
-+	/* Next slot in this node and still in range */
-+	if (index + (1ul << shift) - 1 <= end &&
-+			++offset < RADIX_TREE_MAP_SIZE) {
-+		entry = rcu_dereference_raw(node->slots[offset]);
-+		goto next_slot;
-+	}
-+
-+	goto next_node;
-+
-+skip_node:
-+	index |= shift_maxindex(shift);
-+	if (index++ >= end)
-+		return node;
-+	goto next_node;
-+
-+undo:
-+	if (index > start)
-+		radix_tree_fill_range(root, start, index - 1, NULL,
-+				      RADIX_TREE_FILL_OVERWRITE);
-+	return ERR_PTR(error);
-+}
-+EXPORT_SYMBOL(radix_tree_fill_range);
-+
-+/**
-  * radix_tree_range_tag_if_tagged - for each item in given range set given
-  *				   tag if item has another tag set
-  * @root:		radix tree root
+ 
+ 	/* Update the iterator state */
+-	iter->index = (index &~ node_maxindex(node)) | (offset << node->shift);
+-	iter->next_index = (index | node_maxindex(node)) + 1;
+-	__set_iter_shift(iter, node->shift);
++	iter->index = index;
++	iter->next_index = (index | RADIX_TREE_MAP_MASK) + 1;
+ 
+ 	/* Construct iter->tags bit-mask from node->tags[tag] array */
+ 	if (flags & RADIX_TREE_ITER_TAGGED) {
+@@ -1319,7 +1273,6 @@ unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
+ 			goto next;
+ 		if (!tag_get(node, iftag, offset))
+ 			goto next;
+-		/* Sibling slots never have tags set on them */
+ 		if (radix_tree_is_internal_node(child)) {
+ 			node = entry_to_node(child);
+ 			continue;
+@@ -1341,7 +1294,7 @@ unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
+ 				break;
+ 			tag_set(parent, settag, offset);
+ 		}
+- next:
++next:
+ 		/* Go to next entry in node */
+ 		index = ((index >> node->shift) + 1) << node->shift;
+ 		/* Overflow can happen when last_index is ~0UL... */
+@@ -1357,8 +1310,6 @@ unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
+ 			node = node->parent;
+ 			offset = (index >> node->shift) & RADIX_TREE_MAP_MASK;
+ 		}
+-		if (is_sibling_entry(node, node->slots[offset]))
+-			goto next;
+ 		if (tagged >= nr_to_tag)
+ 			break;
+ 	}
+@@ -1574,8 +1525,6 @@ static unsigned long __locate(struct radix_tree_node *slot, void *item,
+ 				continue;
+ 			}
+ 			node = entry_to_node(node);
+-			if (is_sibling_entry(slot, node))
+-				continue;
+ 			slot = node;
+ 			break;
+ 		}
+@@ -1750,20 +1699,6 @@ bool __radix_tree_delete_node(struct radix_tree_root *root,
+ 	return deleted;
+ }
+ 
+-static inline void delete_sibling_entries(struct radix_tree_node *node,
+-					void *ptr, unsigned offset)
+-{
+-#ifdef CONFIG_RADIX_TREE_MULTIORDER
+-	int i;
+-	for (i = 1; offset + i < RADIX_TREE_MAP_SIZE; i++) {
+-		if (node->slots[offset + i] != ptr)
+-			break;
+-		node->slots[offset + i] = NULL;
+-		node->count--;
+-	}
+-#endif
+-}
+-
+ /**
+  *	radix_tree_delete_item    -    delete an item from a radix tree
+  *	@root:		radix tree root
+@@ -1803,7 +1738,6 @@ void *radix_tree_delete_item(struct radix_tree_root *root,
+ 	for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
+ 		node_tag_clear(root, node, tag, offset);
+ 
+-	delete_sibling_entries(node, node_to_entry(slot), offset);
+ 	node->slots[offset] = NULL;
+ 	node->count--;
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
