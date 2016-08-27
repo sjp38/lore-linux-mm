@@ -1,211 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F53B830CD
-	for <linux-mm@kvack.org>; Sat, 27 Aug 2016 10:17:02 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 1so13820039wmz.2
-        for <linux-mm@kvack.org>; Sat, 27 Aug 2016 07:17:02 -0700 (PDT)
-Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
-        by mx.google.com with ESMTPS id f37si11529878lfi.289.2016.08.27.07.17.00
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7169E830CD
+	for <linux-mm@kvack.org>; Sat, 27 Aug 2016 11:27:50 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id vd14so181777879pab.3
+        for <linux-mm@kvack.org>; Sat, 27 Aug 2016 08:27:50 -0700 (PDT)
+Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
+        by mx.google.com with ESMTPS id qf10si27854526pac.106.2016.08.27.08.27.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 27 Aug 2016 07:17:00 -0700 (PDT)
-Received: by mail-lf0-x244.google.com with SMTP id k135so5065837lfb.1
-        for <linux-mm@kvack.org>; Sat, 27 Aug 2016 07:17:00 -0700 (PDT)
-Subject: [PATCH RFC 4/4] testing/radix-tree: benchmark for iterator
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Date: Sat, 27 Aug 2016 17:16:56 +0300
-Message-ID: <147230740991.10108.1628935246693150784.stgit@zurg>
-In-Reply-To: <147230727479.9957.1087787722571077339.stgit@zurg>
-References: <147230727479.9957.1087787722571077339.stgit@zurg>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sat, 27 Aug 2016 08:27:49 -0700 (PDT)
+From: zijun_hu <zijun_hu@zoho.com>
+Subject: [PATCH 1/2] mm/nobootmem.c: make CONFIG_NO_BOOTMEM depend on
+ CONFIG_HAVE_MEMBLOCK
+Message-ID: <9e9ff2eb-c7e3-4790-9678-85548306e3ac@zoho.com>
+Date: Sat, 27 Aug 2016 23:27:46 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>, mingo@kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com
 
-This adds simple benchmark for iterator similar to one I've used for
-commit 78c1d78488a3 ("radix-tree: introduce bit-optimized iterator")
+From: zijun_hu <zijun_hu@htc.com>
 
-Building with make BENCHMARK=1 set radix tree order to 6 and adds -O2,
-this allows to get performance comparable to in kernel performance.
+this patch fixes the following bugs:
 
-Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
+ - no bootmem is implemented by memblock currently, but config option
+   CONFIG_NO_BOOTMEM doesn't depend on CONFIG_HAVE_MEMBLOCK
+
+ - the same ARCH_LOW_ADDRESS_LIMIT statements are duplicated between
+   header and relevant source
+
+ - don't ensure ARCH_LOW_ADDRESS_LIMIT perhaps defined by ARCH in
+   asm/processor.h is preferred over default in linux/bootmem.h
+   completely since the former header isn't included by the latter
+
+Signed-off-by: zijun_hu <zijun_hu@htc.com>
 ---
- tools/testing/radix-tree/Makefile       |    6 ++
- tools/testing/radix-tree/benchmark.c    |  101 +++++++++++++++++++++++++++++++
- tools/testing/radix-tree/linux/kernel.h |    4 +
- tools/testing/radix-tree/main.c         |    2 +
- tools/testing/radix-tree/test.h         |    1 
- 5 files changed, 113 insertions(+), 1 deletion(-)
- create mode 100644 tools/testing/radix-tree/benchmark.c
+ include/linux/bootmem.h | 13 +++++++------
+ mm/Kconfig              |  6 ++++--
+ mm/nobootmem.c          |  6 +-----
+ 3 files changed, 12 insertions(+), 13 deletions(-)
 
-diff --git a/tools/testing/radix-tree/Makefile b/tools/testing/radix-tree/Makefile
-index 6079ec142685..1594335d1ed6 100644
---- a/tools/testing/radix-tree/Makefile
-+++ b/tools/testing/radix-tree/Makefile
-@@ -4,7 +4,11 @@ LDFLAGS += -lpthread -lurcu
- TARGETS = main
- OFILES = main.o radix-tree.o linux.o test.o tag_check.o find_next_bit.o \
- 	 regression1.o regression2.o regression3.o multiorder.o \
--	 iteration_check.o
-+	 iteration_check.o benchmark.o
-+
-+ifdef BENCHMARK
-+	CFLAGS += -DBENCHMARK=1 -O2
-+endif
+diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
+index f9be32691718..95968236abc7 100644
+--- a/include/linux/bootmem.h
++++ b/include/linux/bootmem.h
+@@ -7,6 +7,7 @@
+ #include <linux/mmzone.h>
+ #include <linux/mm_types.h>
+ #include <asm/dma.h>
++#include <asm/processor.h>
  
- targets: $(TARGETS)
+ /*
+  *  simple boot-time physical memory area allocator.
+@@ -119,6 +120,10 @@ extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
+ #define BOOTMEM_LOW_LIMIT __pa(MAX_DMA_ADDRESS)
+ #endif
  
-diff --git a/tools/testing/radix-tree/benchmark.c b/tools/testing/radix-tree/benchmark.c
-new file mode 100644
-index 000000000000..05d46071bf37
---- /dev/null
-+++ b/tools/testing/radix-tree/benchmark.c
-@@ -0,0 +1,101 @@
-+/*
-+ * benchmark.c:
-+ * Author: Konstantin Khlebnikov <koct9i@gmail.com>
-+ *
-+ * This program is free software; you can redistribute it and/or modify it
-+ * under the terms and conditions of the GNU General Public License,
-+ * version 2, as published by the Free Software Foundation.
-+ *
-+ * This program is distributed in the hope it will be useful, but WITHOUT
-+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-+ * more details.
-+ */
-+#include <linux/radix-tree.h>
-+#include <linux/slab.h>
-+#include <linux/errno.h>
-+#include <time.h>
-+#include "test.h"
-+
-+#define NSEC_PER_SEC	1000000000L
-+
-+static long long benchmark_iter(struct radix_tree_root *root, bool tagged)
-+{
-+	volatile unsigned long sink = 0;
-+	struct radix_tree_iter iter;
-+	struct timespec start, finish;
-+	long long nsec;
-+	int l, loops = 1;
-+	void **slot;
-+
-+#ifdef BENCHMARK
-+again:
-+#endif
-+	clock_gettime(CLOCK_MONOTONIC, &start);
-+	for (l = 0; l < loops; l++) {
-+		if (tagged) {
-+			radix_tree_for_each_tagged(slot, root, &iter, 0, 0)
-+				sink ^= (unsigned long)slot;
-+		} else {
-+			radix_tree_for_each_slot(slot, root, &iter, 0)
-+				sink ^= (unsigned long)slot;
-+		}
-+	}
-+	clock_gettime(CLOCK_MONOTONIC, &finish);
-+
-+	nsec = (finish.tv_sec - start.tv_sec) * NSEC_PER_SEC +
-+	       (finish.tv_nsec - start.tv_nsec);
-+
-+#ifdef BENCHMARK
-+	if (loops == 1 && nsec * 5 < NSEC_PER_SEC) {
-+		loops = NSEC_PER_SEC / nsec / 4 + 1;
-+		goto again;
-+	}
++#ifndef ARCH_LOW_ADDRESS_LIMIT
++#define ARCH_LOW_ADDRESS_LIMIT  0xffffffffUL
 +#endif
 +
-+	nsec /= loops;
-+	return nsec;
-+}
-+
-+static void benchmark_size(unsigned long size, unsigned long step, int order)
-+{
-+	RADIX_TREE(tree, GFP_KERNEL);
-+	long long normal, tagged;
-+	unsigned long index;
-+
-+	for (index = 0 ; index < size ; index += step) {
-+		item_insert_order(&tree, index, order);
-+		radix_tree_tag_set(&tree, item_order_end(index, order), 0);
-+	}
-+
-+	tagged = benchmark_iter(&tree, true);
-+	normal = benchmark_iter(&tree, false);
-+
-+	printf("Size %ld, step %6ld, order %d tagged %10lld ns, normal %10lld ns\n",
-+		size, step, order, tagged, normal);
-+
-+	item_kill_tree(&tree);
-+}
-+
-+void benchmark(void)
-+{
-+	unsigned long size[] = {1 << 10, 1 << 20,
-+#ifdef BENCHMARK
-+		1 << 27,
-+#endif
-+		0};
-+	unsigned long step[] = {1, 2, 7, 15, 63, 64, 65,
-+				128, 256, 512, 12345, 0};
-+	int c, s;
-+
-+	printf("starting benchmarks\n");
-+	printf("RADIX_TREE_MAP_SHIFT = %d\n", RADIX_TREE_MAP_SHIFT);
-+
-+	for (c = 0; size[c]; c++)
-+		for (s = 0; step[s]; s++)
-+			benchmark_size(size[c], step[s], 0);
-+
-+	for (c = 0; size[c]; c++)
-+		for (s = 0; step[s]; s++)
-+			benchmark_size(size[c], step[s] << 9, 9);
-+}
-diff --git a/tools/testing/radix-tree/linux/kernel.h b/tools/testing/radix-tree/linux/kernel.h
-index 52714e86991b..ddabc495423f 100644
---- a/tools/testing/radix-tree/linux/kernel.h
-+++ b/tools/testing/radix-tree/linux/kernel.h
-@@ -10,7 +10,11 @@
- #include "../../include/linux/compiler.h"
- #include "../../../include/linux/kconfig.h"
+ #define alloc_bootmem(x) \
+ 	__alloc_bootmem(x, SMP_CACHE_BYTES, BOOTMEM_LOW_LIMIT)
+ #define alloc_bootmem_align(x, align) \
+@@ -148,7 +153,7 @@ extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
+ 	__alloc_bootmem_low_node(pgdat, x, PAGE_SIZE, 0)
  
-+#ifdef BENCHMARK
-+#define RADIX_TREE_MAP_SHIFT	6
-+#else
- #define RADIX_TREE_MAP_SHIFT	3
-+#endif
  
- #ifndef NULL
- #define NULL	0
-diff --git a/tools/testing/radix-tree/main.c b/tools/testing/radix-tree/main.c
-index daa9010693e8..6e9a02cb7b97 100644
---- a/tools/testing/radix-tree/main.c
-+++ b/tools/testing/radix-tree/main.c
-@@ -335,6 +335,8 @@ int main(int argc, char **argv)
- 	iteration_test();
- 	single_thread_tests(long_run);
+-#if defined(CONFIG_HAVE_MEMBLOCK) && defined(CONFIG_NO_BOOTMEM)
++#if defined(CONFIG_NO_BOOTMEM)
  
-+	benchmark();
-+
- 	sleep(1);
- 	printf("after sleep(1): %d allocated\n", nr_allocated);
- 	rcu_unregister_thread();
-diff --git a/tools/testing/radix-tree/test.h b/tools/testing/radix-tree/test.h
-index 93a6ce5e5a59..2529a622f1f2 100644
---- a/tools/testing/radix-tree/test.h
-+++ b/tools/testing/radix-tree/test.h
-@@ -31,6 +31,7 @@ void item_kill_tree(struct radix_tree_root *root);
- void tag_check(void);
- void multiorder_checks(void);
- void iteration_test(void);
-+void benchmark(void);
+ /* FIXME: use MEMBLOCK_ALLOC_* variants here */
+ #define BOOTMEM_ALLOC_ACCESSIBLE	0
+@@ -180,10 +185,6 @@ static inline void * __init memblock_virt_alloc_nopanic(
+ 						    NUMA_NO_NODE);
+ }
  
- struct item *
- item_tag_set(struct radix_tree_root *root, unsigned long index, int tag);
+-#ifndef ARCH_LOW_ADDRESS_LIMIT
+-#define ARCH_LOW_ADDRESS_LIMIT  0xffffffffUL
+-#endif
+-
+ static inline void * __init memblock_virt_alloc_low(
+ 					phys_addr_t size, phys_addr_t align)
+ {
+@@ -333,7 +334,7 @@ static inline void __init memblock_free_late(
+ {
+ 	free_bootmem_late(base, size);
+ }
+-#endif /* defined(CONFIG_HAVE_MEMBLOCK) && defined(CONFIG_NO_BOOTMEM) */
++#endif /* defined(CONFIG_NO_BOOTMEM) */
+ 
+ #ifdef CONFIG_HAVE_ARCH_ALLOC_REMAP
+ extern void *alloc_remap(int nid, unsigned long size);
+diff --git a/mm/Kconfig b/mm/Kconfig
+index be0ee11fa0d9..b7f19ff4b743 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -144,14 +144,16 @@ config ARCH_DISCARD_MEMBLOCK
+ 	bool
+ 
+ config NO_BOOTMEM
+-	bool
++	bool "No legacy boot memory"
++	depends on HAVE_MEMBLOCK
++	help
++	 NO_BOOTMEM is implemented by memblock
+ 
+ config MEMORY_ISOLATION
+ 	bool
+ 
+ config MOVABLE_NODE
+ 	bool "Enable to assign a node which has only movable memory"
+-	depends on HAVE_MEMBLOCK
+ 	depends on NO_BOOTMEM
+ 	depends on X86_64
+ 	depends on NUMA
+diff --git a/mm/nobootmem.c b/mm/nobootmem.c
+index bd05a70f44b9..1802c9bbe11a 100644
+--- a/mm/nobootmem.c
++++ b/mm/nobootmem.c
+@@ -11,15 +11,14 @@
+ #include <linux/init.h>
+ #include <linux/pfn.h>
+ #include <linux/slab.h>
+-#include <linux/bootmem.h>
+ #include <linux/export.h>
+ #include <linux/kmemleak.h>
+ #include <linux/range.h>
+ #include <linux/memblock.h>
++#include <linux/bootmem.h>
+ 
+ #include <asm/bug.h>
+ #include <asm/io.h>
+-#include <asm/processor.h>
+ 
+ #include "internal.h"
+ 
+@@ -395,9 +394,6 @@ void * __init __alloc_bootmem_node_high(pg_data_t *pgdat, unsigned long size,
+ 	return __alloc_bootmem_node(pgdat, size, align, goal);
+ }
+ 
+-#ifndef ARCH_LOW_ADDRESS_LIMIT
+-#define ARCH_LOW_ADDRESS_LIMIT	0xffffffffUL
+-#endif
+ 
+ /**
+  * __alloc_bootmem_low - allocate low boot memory
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
