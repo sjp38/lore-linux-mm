@@ -1,63 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 215336B02A0
-	for <linux-mm@kvack.org>; Fri, 26 Aug 2016 17:32:31 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id u81so4445798wmu.3
-        for <linux-mm@kvack.org>; Fri, 26 Aug 2016 14:32:31 -0700 (PDT)
-Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
-        by mx.google.com with ESMTPS id m18si10137961lfe.130.2016.08.26.14.32.29
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 25DED83090
+	for <linux-mm@kvack.org>; Sat, 27 Aug 2016 05:55:40 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id e7so68030205lfe.0
+        for <linux-mm@kvack.org>; Sat, 27 Aug 2016 02:55:40 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id a189si11194172lfa.229.2016.08.27.02.55.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Aug 2016 14:32:29 -0700 (PDT)
-Received: by mail-lf0-x241.google.com with SMTP id f93so4359940lfi.0
-        for <linux-mm@kvack.org>; Fri, 26 Aug 2016 14:32:29 -0700 (PDT)
-Date: Sat, 27 Aug 2016 00:32:27 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v1] mm, sysctl: Add sysctl for controlling VM_MAYEXEC
- taint
-Message-ID: <20160826213227.GA11393@node.shutemov.name>
-References: <1472229004-9658-1-git-send-email-robert.foss@collabora.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 27 Aug 2016 02:55:38 -0700 (PDT)
+Subject: Re: [RFC PATCH v3 0/2] arm64/hugetlb: enable gigantic page
+References: <1471872004-59365-1-git-send-email-xieyisheng1@huawei.com>
+ <20160826102617.GG13554@arm.com>
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Message-ID: <ec6fd8e5-37df-d212-0247-6f9454eafb8e@huawei.com>
+Date: Sat, 27 Aug 2016 17:45:45 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1472229004-9658-1-git-send-email-robert.foss@collabora.com>
+In-Reply-To: <20160826102617.GG13554@arm.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: robert.foss@collabora.com
-Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, vbabka@suse.cz, mhocko@suse.com, mingo@kernel.org, dave.hansen@linux.intel.com, hannes@cmpxchg.org, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, acme@redhat.com, keescook@chromium.org, mgorman@techsingularity.net, atomlin@redhat.com, hughd@google.com, dyoung@redhat.com, viro@zeniv.linux.org.uk, dcashman@google.com, w@1wt.eu, idryomov@gmail.com, yang.shi@linaro.org, wad@chromium.org, vkuznets@redhat.com, vdavydov@virtuozzo.com, vitalywool@gmail.com, oleg@redhat.com, gang.chen.5i5j@gmail.com, koct9i@gmail.com, aarcange@redhat.com, aryabinin@virtuozzo.com, kuleshovmail@gmail.com, minchan@kernel.org, mguzik@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, krasin@google.com, Roland McGrath <mcgrathr@chromium.org>, Mandeep Singh Baines <msb@chromium.org>, Ben Zhang <benzh@chromium.org>, Filipe Brandenburger <filbranden@chromium.org>
+To: Will Deacon <will.deacon@arm.com>
+Cc: akpm@linux-foundation.org, mhocko@kernel.org, guohanjun@huawei.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.com, dave.hansen@intel.com, sudeep.holla@arm.com, catalin.marinas@arm.com, mark.rutland@arm.com, robh+dt@kernel.org, linux-arm-kernel@lists.infradead.org, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com
 
-On Fri, Aug 26, 2016 at 12:30:04PM -0400, robert.foss@collabora.com wrote:
-> From: Will Drewry <wad@chromium.org>
+Hi Andrew,
+Can this patchset be merged? Or have any other comments?
+
+Thanks
+Xie Yisheng
+
+On 2016/8/26 18:26, Will Deacon wrote:
+> On Mon, Aug 22, 2016 at 09:20:02PM +0800, Xie Yisheng wrote:
+>>
+>> Xie Yisheng (2):
+>>   mm/hugetlb: Introduce ARCH_HAS_GIGANTIC_PAGE
+>>   arm64 Kconfig: Select gigantic page
+>>
 > 
-> This patch proposes a sysctl knob that allows a privileged user to
-> disable ~VM_MAYEXEC tainting when mapping in a vma from a MNT_NOEXEC
-> mountpoint.  It does not alter the normal behavior resulting from
-> attempting to directly mmap(PROT_EXEC) a vma (-EPERM) nor the behavior
-> of any other subsystems checking MNT_NOEXEC.
+> I assume you plan to merge this via -mm/akpm, given that Catalin has
+> acked the arm64 part?
+> 
+Yes, however, it seems still not merged right now.
 
-Wouldn't it be equal to remounting all filesystems without noexec from
-attacker POV? It's hardly a fence to make additional mprotect(PROT_EXEC)
-call, before starting executing code from such filesystems.
-
-If administrator of the system wants this, he can just mount filesystem
-without noexec, no new kernel code required. And it's more fine-grained
-than this.
-
-So, no, I don't think we should add knob like this. Unless I miss
-something.
-
-NAK.
-
-> It is motivated by a common /dev/shm, /tmp usecase. There are few
-> facilities for creating a shared memory segment that can be remapped in
-> the same process address space with different permissions.
-
-What about using memfd_create(2) for such cases? You'll get a file
-descriptor from in-kernel tmpfs (shm_mnt) which is not exposed to
-userspace for remount as noexec.
-
--- 
- Kirill A. Shutemov
+> Will
+> 
+> .
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
