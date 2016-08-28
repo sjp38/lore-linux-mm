@@ -1,330 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C7D79830D6
-	for <linux-mm@kvack.org>; Sun, 28 Aug 2016 06:42:43 -0400 (EDT)
-Received: by mail-ua0-f200.google.com with SMTP id m60so245626056uam.3
-        for <linux-mm@kvack.org>; Sun, 28 Aug 2016 03:42:43 -0700 (PDT)
-Received: from mail-qt0-x22a.google.com (mail-qt0-x22a.google.com. [2607:f8b0:400d:c0d::22a])
-        by mx.google.com with ESMTPS id c27si20230695qta.84.2016.08.28.03.42.42
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D873830D6
+	for <linux-mm@kvack.org>; Sun, 28 Aug 2016 08:55:27 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id w128so245701885pfd.3
+        for <linux-mm@kvack.org>; Sun, 28 Aug 2016 05:55:27 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id g63si33262700pfj.289.2016.08.28.05.55.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 28 Aug 2016 03:42:42 -0700 (PDT)
-Received: by mail-qt0-x22a.google.com with SMTP id w38so56808238qtb.0
-        for <linux-mm@kvack.org>; Sun, 28 Aug 2016 03:42:42 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 28 Aug 2016 05:55:26 -0700 (PDT)
+Date: Sun, 28 Aug 2016 20:54:59 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: core.c:undefined reference to `fpu_save'
+Message-ID: <201608282058.j437RFSe%fengguang.wu@intel.com>
 MIME-Version: 1.0
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Sun, 28 Aug 2016 12:42:21 +0200
-Message-ID: <CACT4Y+Z3gigBvhca9kRJFcjX0G70V_nRhbwKBU+yGoESBDKi9Q@mail.gmail.com>
-Subject: mm: use-after-free in collapse_huge_page
-Content-Type: text/plain; charset=UTF-8
+Content-Type: multipart/mixed; boundary="huq684BweRXVnRxX"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Vegard Nossum <vegard.nossum@oracle.com>, Sasha Levin <levinsasha928@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>
-Cc: syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>
-
-Hello,
-
-I've git the following use-after-free in collapse_huge_page while
-running syzkaller fuzzer. It is in khugepaged, so not reproducible. On
-commit 61c04572de404e52a655a36752e696bbcb483cf5 (Aug 25).
-
-==================================================================
-BUG: KASAN: use-after-free in collapse_huge_page+0x28b1/0x3500 at addr
-ffff88006c731388
-Read of size 8 by task khugepaged/1327
-CPU: 0 PID: 1327 Comm: khugepaged Not tainted 4.8.0-rc3+ #33
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
- ffffffff884b8280 ffff88003c207920 ffffffff82d1b239 ffffffff89ec1520
- fffffbfff1097050 ffff88003e94c700 ffff88006c731300 ffff88006c7313c0
- 0000000000000000 ffff88003c207b88 ffff88003c207948 ffffffff817da1fc
-Call Trace:
- [<ffffffff817da82e>] __asan_report_load8_noabort+0x3e/0x40
-mm/kasan/report.c:322
- [<ffffffff817ff651>] collapse_huge_page+0x28b1/0x3500 mm/khugepaged.c:1004
- [<     inline     >] khugepaged_scan_pmd mm/khugepaged.c:1205
- [<     inline     >] khugepaged_scan_mm_slot mm/khugepaged.c:1718
- [<     inline     >] khugepaged_do_scan mm/khugepaged.c:1799
- [<ffffffff8180206b>] khugepaged+0x1dcb/0x2b30 mm/khugepaged.c:1844
- [<ffffffff813e8ddf>] kthread+0x23f/0x2d0 drivers/block/aoe/aoecmd.c:1303
- [<ffffffff86c256cf>] ret_from_fork+0x1f/0x40 arch/x86/entry/entry_64.S:393
-Object at ffff88006c731300, in cache vm_area_struct size: 192
-Allocated:
-PID = 23069
- [<ffffffff8122b7d6>] save_stack_trace+0x26/0x50 arch/x86/kernel/stacktrace.c:67
- [<ffffffff817d95e6>] save_stack+0x46/0xd0 mm/kasan/kasan.c:479
- [<     inline     >] set_track mm/kasan/kasan.c:491
- [<ffffffff817d985d>] kasan_kmalloc+0xad/0xe0 mm/kasan/kasan.c:582
- [<ffffffff817d9d92>] kasan_slab_alloc+0x12/0x20 mm/kasan/kasan.c:521
- [<ffffffff817d4fcb>] kmem_cache_alloc+0x12b/0x710 mm/slab.c:3573
- [<     inline     >] kmem_cache_zalloc ./include/linux/slab.h:626
- [<ffffffff8177d1ed>] mmap_region+0x63d/0xfe0 mm/mmap.c:1486
- [<ffffffff8177e52d>] do_mmap+0x99d/0xbf0 mm/mmap.c:1297
- [<     inline     >] do_mmap_pgoff ./include/linux/mm.h:2044
- [<ffffffff81722a26>] vm_mmap_pgoff+0x156/0x1a0 mm/util.c:302
- [<     inline     >] SYSC_mmap_pgoff mm/mmap.c:1347
- [<ffffffff81777288>] SyS_mmap_pgoff+0x208/0x580 mm/mmap.c:1305
- [<     inline     >] SYSC_mmap arch/x86/kernel/sys_x86_64.c:95
- [<ffffffff8120cc36>] SyS_mmap+0x16/0x20 arch/x86/kernel/sys_x86_64.c:86
- [<ffffffff86c25480>] entry_SYSCALL_64_fastpath+0x23/0xc1
-arch/x86/entry/entry_64.S:207
-Freed:
-PID = 23069
- [<ffffffff8122b7d6>] save_stack_trace+0x26/0x50 arch/x86/kernel/stacktrace.c:67
- [<ffffffff817d95e6>] save_stack+0x46/0xd0 mm/kasan/kasan.c:479
- [<     inline     >] set_track mm/kasan/kasan.c:491
- [<ffffffff817d9e12>] kasan_slab_free+0x72/0xc0 mm/kasan/kasan.c:555
- [<     inline     >] __cache_free mm/slab.c:3515
- [<ffffffff817d6f96>] kmem_cache_free+0x76/0x300 mm/slab.c:3775
- [<ffffffff817727a2>] remove_vma+0x162/0x1b0 mm/mmap.c:168
- [<     inline     >] remove_vma_list mm/mmap.c:2286
- [<ffffffff81779017>] do_munmap+0x7c7/0xf00 mm/mmap.c:2509
- [<ffffffff8177cd02>] mmap_region+0x152/0xfe0 mm/mmap.c:1459
- [<ffffffff8177e52d>] do_mmap+0x99d/0xbf0 mm/mmap.c:1297
- [<     inline     >] do_mmap_pgoff ./include/linux/mm.h:2044
- [<ffffffff81722a26>] vm_mmap_pgoff+0x156/0x1a0 mm/util.c:302
- [<     inline     >] SYSC_mmap_pgoff mm/mmap.c:1347
- [<ffffffff81777288>] SyS_mmap_pgoff+0x208/0x580 mm/mmap.c:1305
- [<     inline     >] SYSC_mmap arch/x86/kernel/sys_x86_64.c:95
- [<ffffffff8120cc36>] SyS_mmap+0x16/0x20 arch/x86/kernel/sys_x86_64.c:86
- [<ffffffff86c25480>] entry_SYSCALL_64_fastpath+0x23/0xc1
-arch/x86/entry/entry_64.S:207
-Memory state around the buggy address:
- ffff88006c731280: 00 00 00 00 00 00 00 00 fc fc fc fc fc fc fc fc
- ffff88006c731300: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
->ffff88006c731380: fb fb fb fb fb fb fb fb fc fc fc fc fc fc fc fc
-                      ^
- ffff88006c731400: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
- ffff88006c731480: fb fb fb fb fb fb fb fb fc fc fc fc fc fc fc fc
-==================================================================
-Disabling lock debugging due to kernel taint
-==================================================================
-BUG: KASAN: use-after-free in pmdp_collapse_flush+0x146/0x160 at addr
-ffff88006c731350
-Read of size 8 by task khugepaged/1327
-CPU: 0 PID: 1327 Comm: khugepaged Tainted: G    B           4.8.0-rc3+ #33
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
- ffffffff884b8280 ffff88003c2078e0 ffffffff82d1b239 ffffffff00000000
- fffffbfff1097050 ffff88003e94c700 ffff88006c731300 ffff88006c7313c0
- 0000000020000000 ffff88003c207b88 ffff88003c207908 ffffffff817da1fc
-Call Trace:
- [<     inline     >] __dump_stack lib/dump_stack.c:15
- [<ffffffff82d1b239>] dump_stack+0x12e/0x185 lib/dump_stack.c:51
- [<ffffffff817da1fc>] kasan_object_err+0x1c/0x70 mm/kasan/report.c:154
- [<     inline     >] print_address_description mm/kasan/report.c:192
- [<ffffffff817da44e>] kasan_report_error+0x1ae/0x490 mm/kasan/report.c:281
- [<     inline     >] kasan_report mm/kasan/report.c:301
- [<ffffffff817da82e>] __asan_report_load8_noabort+0x3e/0x40
-mm/kasan/report.c:322
- [<ffffffff81799f86>] pmdp_collapse_flush+0x146/0x160 mm/pgtable-generic.c:186
- [<ffffffff817fde79>] collapse_huge_page+0x10d9/0x3500 mm/khugepaged.c:1019
- [<     inline     >] khugepaged_scan_pmd mm/khugepaged.c:1205
- [<     inline     >] khugepaged_scan_mm_slot mm/khugepaged.c:1718
- [<     inline     >] khugepaged_do_scan mm/khugepaged.c:1799
- [<ffffffff8180206b>] khugepaged+0x1dcb/0x2b30 mm/khugepaged.c:1844
- [<ffffffff813e8ddf>] kthread+0x23f/0x2d0 drivers/block/aoe/aoecmd.c:1303
- [<ffffffff86c256cf>] ret_from_fork+0x1f/0x40 arch/x86/entry/entry_64.S:393
-Object at ffff88006c731300, in cache vm_area_struct size: 192
-Allocated:
-PID = 23069
- [<ffffffff8122b7d6>] save_stack_trace+0x26/0x50 arch/x86/kernel/stacktrace.c:67
- [<ffffffff817d95e6>] save_stack+0x46/0xd0 mm/kasan/kasan.c:479
- [<     inline     >] set_track mm/kasan/kasan.c:491
- [<ffffffff817d985d>] kasan_kmalloc+0xad/0xe0 mm/kasan/kasan.c:582
- [<ffffffff817d9d92>] kasan_slab_alloc+0x12/0x20 mm/kasan/kasan.c:521
- [<ffffffff817d4fcb>] kmem_cache_alloc+0x12b/0x710 mm/slab.c:3573
- [<     inline     >] kmem_cache_zalloc ./include/linux/slab.h:626
- [<ffffffff8177d1ed>] mmap_region+0x63d/0xfe0 mm/mmap.c:1486
- [<ffffffff8177e52d>] do_mmap+0x99d/0xbf0 mm/mmap.c:1297
- [<     inline     >] do_mmap_pgoff ./include/linux/mm.h:2044
- [<ffffffff81722a26>] vm_mmap_pgoff+0x156/0x1a0 mm/util.c:302
- [<     inline     >] SYSC_mmap_pgoff mm/mmap.c:1347
- [<ffffffff81777288>] SyS_mmap_pgoff+0x208/0x580 mm/mmap.c:1305
- [<     inline     >] SYSC_mmap arch/x86/kernel/sys_x86_64.c:95
- [<ffffffff8120cc36>] SyS_mmap+0x16/0x20 arch/x86/kernel/sys_x86_64.c:86
- [<ffffffff86c25480>] entry_SYSCALL_64_fastpath+0x23/0xc1
-arch/x86/entry/entry_64.S:207
-Freed:
-PID = 23069
- [<ffffffff8122b7d6>] save_stack_trace+0x26/0x50 arch/x86/kernel/stacktrace.c:67
- [<ffffffff817d95e6>] save_stack+0x46/0xd0 mm/kasan/kasan.c:479
- [<     inline     >] set_track mm/kasan/kasan.c:491
- [<ffffffff817d9e12>] kasan_slab_free+0x72/0xc0 mm/kasan/kasan.c:555
- [<     inline     >] __cache_free mm/slab.c:3515
- [<ffffffff817d6f96>] kmem_cache_free+0x76/0x300 mm/slab.c:3775
- [<ffffffff817727a2>] remove_vma+0x162/0x1b0 mm/mmap.c:168
- [<     inline     >] remove_vma_list mm/mmap.c:2286
- [<ffffffff81779017>] do_munmap+0x7c7/0xf00 mm/mmap.c:2509
- [<ffffffff8177cd02>] mmap_region+0x152/0xfe0 mm/mmap.c:1459
- [<ffffffff8177e52d>] do_mmap+0x99d/0xbf0 mm/mmap.c:1297
- [<     inline     >] do_mmap_pgoff ./include/linux/mm.h:2044
- [<ffffffff81722a26>] vm_mmap_pgoff+0x156/0x1a0 mm/util.c:302
- [<     inline     >] SYSC_mmap_pgoff mm/mmap.c:1347
- [<ffffffff81777288>] SyS_mmap_pgoff+0x208/0x580 mm/mmap.c:1305
- [<     inline     >] SYSC_mmap arch/x86/kernel/sys_x86_64.c:95
- [<ffffffff8120cc36>] SyS_mmap+0x16/0x20 arch/x86/kernel/sys_x86_64.c:86
- [<ffffffff86c25480>] entry_SYSCALL_64_fastpath+0x23/0xc1
-arch/x86/entry/entry_64.S:207
-Memory state around the buggy address:
- ffff88006c731200: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
- ffff88006c731280: 00 00 00 00 00 00 00 00 fc fc fc fc fc fc fc fc
->ffff88006c731300: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-                                                 ^
- ffff88006c731380: fb fb fb fb fb fb fb fb fc fc fc fc fc fc fc fc
- ffff88006c731400: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-==================================================================
-==================================================================
-BUG: KASAN: use-after-free in pmdp_collapse_flush+0x137/0x160 at addr
-ffff88006c731340
-Read of size 8 by task khugepaged/1327
-CPU: 0 PID: 1327 Comm: khugepaged Tainted: G    B           4.8.0-rc3+ #33
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
- ffffffff884b8280 ffff88003c2078e0 ffffffff82d1b239 ffffffff00000000
- fffffbfff1097050 ffff88003e94c700 ffff88006c731300 ffff88006c7313c0
- 0000000020000000 ffff88003c207b88 ffff88003c207908 ffffffff817da1fc
-Call Trace:
- [<     inline     >] __dump_stack lib/dump_stack.c:15
- [<ffffffff82d1b239>] dump_stack+0x12e/0x185 lib/dump_stack.c:51
- [<ffffffff817da1fc>] kasan_object_err+0x1c/0x70 mm/kasan/report.c:154
- [<     inline     >] print_address_description mm/kasan/report.c:192
- [<ffffffff817da44e>] kasan_report_error+0x1ae/0x490 mm/kasan/report.c:281
- [<     inline     >] kasan_report mm/kasan/report.c:301
- [<ffffffff817da82e>] __asan_report_load8_noabort+0x3e/0x40
-mm/kasan/report.c:322
- [<ffffffff81799f77>] pmdp_collapse_flush+0x137/0x160 mm/pgtable-generic.c:186
- [<ffffffff817fde79>] collapse_huge_page+0x10d9/0x3500 mm/khugepaged.c:1019
- [<     inline     >] khugepaged_scan_pmd mm/khugepaged.c:1205
- [<     inline     >] khugepaged_scan_mm_slot mm/khugepaged.c:1718
- [<     inline     >] khugepaged_do_scan mm/khugepaged.c:1799
- [<ffffffff8180206b>] khugepaged+0x1dcb/0x2b30 mm/khugepaged.c:1844
- [<ffffffff813e8ddf>] kthread+0x23f/0x2d0 drivers/block/aoe/aoecmd.c:1303
- [<ffffffff86c256cf>] ret_from_fork+0x1f/0x40 arch/x86/entry/entry_64.S:393
-Object at ffff88006c731300, in cache vm_area_struct size: 192
-Allocated:
-PID = 23069
- [<ffffffff8122b7d6>] save_stack_trace+0x26/0x50 arch/x86/kernel/stacktrace.c:67
- [<ffffffff817d95e6>] save_stack+0x46/0xd0 mm/kasan/kasan.c:479
- [<     inline     >] set_track mm/kasan/kasan.c:491
- [<ffffffff817d985d>] kasan_kmalloc+0xad/0xe0 mm/kasan/kasan.c:582
- [<ffffffff817d9d92>] kasan_slab_alloc+0x12/0x20 mm/kasan/kasan.c:521
- [<ffffffff817d4fcb>] kmem_cache_alloc+0x12b/0x710 mm/slab.c:3573
- [<     inline     >] kmem_cache_zalloc ./include/linux/slab.h:626
- [<ffffffff8177d1ed>] mmap_region+0x63d/0xfe0 mm/mmap.c:1486
- [<ffffffff8177e52d>] do_mmap+0x99d/0xbf0 mm/mmap.c:1297
- [<     inline     >] do_mmap_pgoff ./include/linux/mm.h:2044
- [<ffffffff81722a26>] vm_mmap_pgoff+0x156/0x1a0 mm/util.c:302
- [<     inline     >] SYSC_mmap_pgoff mm/mmap.c:1347
- [<ffffffff81777288>] SyS_mmap_pgoff+0x208/0x580 mm/mmap.c:1305
- [<     inline     >] SYSC_mmap arch/x86/kernel/sys_x86_64.c:95
- [<ffffffff8120cc36>] SyS_mmap+0x16/0x20 arch/x86/kernel/sys_x86_64.c:86
- [<ffffffff86c25480>] entry_SYSCALL_64_fastpath+0x23/0xc1
-arch/x86/entry/entry_64.S:207
-Freed:
-PID = 23069
- [<ffffffff8122b7d6>] save_stack_trace+0x26/0x50 arch/x86/kernel/stacktrace.c:67
- [<ffffffff817d95e6>] save_stack+0x46/0xd0 mm/kasan/kasan.c:479
- [<     inline     >] set_track mm/kasan/kasan.c:491
- [<ffffffff817d9e12>] kasan_slab_free+0x72/0xc0 mm/kasan/kasan.c:555
- [<     inline     >] __cache_free mm/slab.c:3515
- [<ffffffff817d6f96>] kmem_cache_free+0x76/0x300 mm/slab.c:3775
- [<ffffffff817727a2>] remove_vma+0x162/0x1b0 mm/mmap.c:168
- [<     inline     >] remove_vma_list mm/mmap.c:2286
- [<ffffffff81779017>] do_munmap+0x7c7/0xf00 mm/mmap.c:2509
- [<ffffffff8177cd02>] mmap_region+0x152/0xfe0 mm/mmap.c:1459
- [<ffffffff8177e52d>] do_mmap+0x99d/0xbf0 mm/mmap.c:1297
- [<     inline     >] do_mmap_pgoff ./include/linux/mm.h:2044
- [<ffffffff81722a26>] vm_mmap_pgoff+0x156/0x1a0 mm/util.c:302
- [<     inline     >] SYSC_mmap_pgoff mm/mmap.c:1347
- [<ffffffff81777288>] SyS_mmap_pgoff+0x208/0x580 mm/mmap.c:1305
- [<     inline     >] SYSC_mmap arch/x86/kernel/sys_x86_64.c:95
- [<ffffffff8120cc36>] SyS_mmap+0x16/0x20 arch/x86/kernel/sys_x86_64.c:86
- [<ffffffff86c25480>] entry_SYSCALL_64_fastpath+0x23/0xc1
-arch/x86/entry/entry_64.S:207
-Memory state around the buggy address:
- ffff88006c731200: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
- ffff88006c731280: 00 00 00 00 00 00 00 00 fc fc fc fc fc fc fc fc
->ffff88006c731300: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-                                           ^
- ffff88006c731380: fb fb fb fb fb fb fb fb fc fc fc fc fc fc fc fc
- ffff88006c731400: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
-==================================================================
-==================================================================
-BUG: KASAN: use-after-free in collapse_huge_page+0x231c/0x3500 at addr
-ffff88006c731388
-Read of size 8 by task khugepaged/1327
-CPU: 0 PID: 1327 Comm: khugepaged Tainted: G    B           4.8.0-rc3+ #33
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
- ffffffff884b8280 ffff88003c207920 ffffffff82d1b239 ffffffff00000000
- fffffbfff1097050 ffff88003e94c700 ffff88006c731300 ffff88006c7313c0
- 0000000000000000 ffff88003c207b88 ffff88003c207948 ffffffff817da1fc
-Call Trace:
- [<     inline     >] __dump_stack lib/dump_stack.c:15
- [<ffffffff82d1b239>] dump_stack+0x12e/0x185 lib/dump_stack.c:51
- [<ffffffff817da1fc>] kasan_object_err+0x1c/0x70 mm/kasan/report.c:154
- [<     inline     >] print_address_description mm/kasan/report.c:192
- [<ffffffff817da44e>] kasan_report_error+0x1ae/0x490 mm/kasan/report.c:281
- [<     inline     >] kasan_report mm/kasan/report.c:301
- [<ffffffff817da82e>] __asan_report_load8_noabort+0x3e/0x40
-mm/kasan/report.c:322
- [<ffffffff817ff0bc>] collapse_huge_page+0x231c/0x3500 mm/khugepaged.c:1038
- [<     inline     >] khugepaged_scan_pmd mm/khugepaged.c:1205
- [<     inline     >] khugepaged_scan_mm_slot mm/khugepaged.c:1718
- [<     inline     >] khugepaged_do_scan mm/khugepaged.c:1799
- [<ffffffff8180206b>] khugepaged+0x1dcb/0x2b30 mm/khugepaged.c:1844
- [<ffffffff813e8ddf>] kthread+0x23f/0x2d0 drivers/block/aoe/aoecmd.c:1303
- [<ffffffff86c256cf>] ret_from_fork+0x1f/0x40 arch/x86/entry/entry_64.S:393
-Object at ffff88006c731300, in cache vm_area_struct size: 192
-Allocated:
-PID = 23069
- [<ffffffff8122b7d6>] save_stack_trace+0x26/0x50 arch/x86/kernel/stacktrace.c:67
- [<ffffffff817d95e6>] save_stack+0x46/0xd0 mm/kasan/kasan.c:479
- [<     inline     >] set_track mm/kasan/kasan.c:491
- [<ffffffff817d985d>] kasan_kmalloc+0xad/0xe0 mm/kasan/kasan.c:582
- [<ffffffff817d9d92>] kasan_slab_alloc+0x12/0x20 mm/kasan/kasan.c:521
- [<ffffffff817d4fcb>] kmem_cache_alloc+0x12b/0x710 mm/slab.c:3573
- [<     inline     >] kmem_cache_zalloc ./include/linux/slab.h:626
- [<ffffffff8177d1ed>] mmap_region+0x63d/0xfe0 mm/mmap.c:1486
- [<ffffffff8177e52d>] do_mmap+0x99d/0xbf0 mm/mmap.c:1297
- [<     inline     >] do_mmap_pgoff ./include/linux/mm.h:2044
- [<ffffffff81722a26>] vm_mmap_pgoff+0x156/0x1a0 mm/util.c:302
- [<     inline     >] SYSC_mmap_pgoff mm/mmap.c:1347
- [<ffffffff81777288>] SyS_mmap_pgoff+0x208/0x580 mm/mmap.c:1305
- [<     inline     >] SYSC_mmap arch/x86/kernel/sys_x86_64.c:95
- [<ffffffff8120cc36>] SyS_mmap+0x16/0x20 arch/x86/kernel/sys_x86_64.c:86
- [<ffffffff86c25480>] entry_SYSCALL_64_fastpath+0x23/0xc1
-arch/x86/entry/entry_64.S:207
-Freed:
-PID = 23069
- [<ffffffff8122b7d6>] save_stack_trace+0x26/0x50 arch/x86/kernel/stacktrace.c:67
- [<ffffffff817d95e6>] save_stack+0x46/0xd0 mm/kasan/kasan.c:479
- [<     inline     >] set_track mm/kasan/kasan.c:491
- [<ffffffff817d9e12>] kasan_slab_free+0x72/0xc0 mm/kasan/kasan.c:555
- [<     inline     >] __cache_free mm/slab.c:3515
- [<ffffffff817d6f96>] kmem_cache_free+0x76/0x300 mm/slab.c:3775
- [<ffffffff817727a2>] remove_vma+0x162/0x1b0 mm/mmap.c:168
- [<     inline     >] remove_vma_list mm/mmap.c:2286
- [<ffffffff81779017>] do_munmap+0x7c7/0xf00 mm/mmap.c:2509
- [<ffffffff8177cd02>] mmap_region+0x152/0xfe0 mm/mmap.c:1459
- [<ffffffff8177e52d>] do_mmap+0x99d/0xbf0 mm/mmap.c:1297
- [<     inline     >] do_mmap_pgoff ./include/linux/mm.h:2044
- [<ffffffff81722a26>] vm_mmap_pgoff+0x156/0x1a0 mm/util.c:302
- [<     inline     >] SYSC_mmap_pgoff mm/mmap.c:1347
- [<ffffffff81777288>] SyS_mmap_pgoff+0x208/0x580 mm/mmap.c:1305
- [<     inline     >] SYSC_mmap arch/x86/kernel/sys_x86_64.c:95
- [<ffffffff8120cc36>] SyS_mmap+0x16/0x20 arch/x86/kernel/sys_x86_64.c:86
- [<ffffffff86c25480>] entry_SYSCALL_64_fastpath+0x23/0xc1
-arch/x86/entry/entry_64.S:207
-Memory state around the buggy address:
- ffff88006c731280: 00 00 00 00 00 00 00 00 fc fc fc fc fc fc fc fc
- ffff88006c731300: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
->ffff88006c731380: fb fb fb fb fb fb fb fb fc fc fc fc fc fc fc fc
-                      ^
- ffff88006c731400: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
- ffff88006c731480: fb fb fb fb fb fb fb fb fc fc fc fc fc fc fc fc
-==================================================================
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
 
 
-For the record here is full crash log:
-https://gist.githubusercontent.com/dvyukov/9366a1585f95df0251b9310e4fe33bb1/raw/ad635fb9594a733a95cd6f6c82dffa847f62c2ea/gistfile1.txt
+--huq684BweRXVnRxX
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+
+Hi Andrew,
+
+It's probably a bug fix that unveils the link errors.
+
+tree:   https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git master
+head:   af56ff27eba54fceee5f5643e79bf6531f2e1739
+commit: c60f169202c7643991a8b4bfeea60e06843d5b5a arch/mn10300/kernel/fpu-nofpu.c: needs asm/elf.h
+date:   5 months ago
+config: mn10300-allnoconfig (attached as .config)
+compiler: am33_2.0-linux-gcc (GCC) 4.9.0
+reproduce:
+        wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
+        chmod +x ~/bin/make.cross
+        git checkout c60f169202c7643991a8b4bfeea60e06843d5b5a
+        # save the attached .config to linux build tree
+        make.cross ARCH=mn10300 
+
+All errors (new ones prefixed by >>):
+
+   kernel/built-in.o: In function `.L412':
+>> core.c:(.sched.text+0x257): undefined reference to `fpu_save'
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+
+--huq684BweRXVnRxX
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename=".config.gz"
+Content-Transfer-Encoding: base64
+
+H4sICOzdwlcAAy5jb25maWcArVtbk9s6jn4/v0Kb7ENSNUn6kmTm7FQ/UBRl8VgSFZGyu3tr
+S+W41d2u+DaWfU763y9ISm3JAp15mFQlsQUIJEEQ+ADCb39765HDfrOa7Rfz2XL54j1V62o3
+21cP3uNiWf3TC4SXCuWxgKuPwBwv1oefn1bry4vriwvv88cvHy+8cbVbV0uPbtaPi6cDvLzY
+rH97+xsVachHZZIa3puX9gFJrq/LK/j+1us+ufYWtbfe7L262vdIn8urLqkVmxRdEREfRQlL
+UBlpkRBEQj6VLClHLGU5p6XMeBoLOj7Os6VQEnM/J4qVAYvJ3ZAhmjIYXR0J3wpOxzGXnUck
+p1EZEVnyWIyuyuK6p4BIqCwuRiXNCmSiAQubT0bmm0/LxfdPq83DYVnVn/67SEnCypzFjEj2
+6ePc7MKb32AD3nojs5lLLeywPW6Jn4sxS0uRljLJjnPkKVclSycwWT1UwtXN9VVLpLmQsqQi
+yXjMbt68OU6+eVYqJhUye1AqiScsl1ykvfe6hJIUSuBLJ0WsQEFS6XXevHm33qyr9x0x8k5O
+eEbRnbeTBrsQ+V1JlCI0QvnCiKRBzFBaIRnsf5dkVMvzb159+F6/1PtqdVRtaxNALmUkpog5
+aStjE5YqCUQjSy1W1a7GxEX3ZQZviYDTrr2kQlO4a8qGjFL0MQFbkaXiCWh+sCowwE9qVv/w
+9jAlb7Z+8Or9bF97s/l8c1jvF+un49wUGLm22JJQKopU8XTULiinhSeHqwGWuxJo3aXA15Ld
+wiIVOmFF5FhqJpSqX5aKxLE2wkSkuIicMcOpckJxhbWTACfHSl8IfC5+weOg9Hl6hVsbH9sP
+uCmOclFkEqdFjI4zwVOl90aJHJ+lBL7AnBQjC1+JdlH47OMxHKeJOeV5gM+DliIDy+D3rAxF
+Xkr4gBzKiExYWfDg8uvRuu0Wdjc2gXPL4fDk+FpGTCWwt/r4ghuIcaY7GcqzHGMgyLsEV2tL
+LIkvRVzA1sIcT1zsK3OWg/rHjn3Ht9QHh1uGhWNqIQx4i1JYJlwL5qOUxCG+O+bIOmjGnzho
+fhae17IzcBIu8OfBhMPSG6G48vXOG9/tmBWM6ZM85337aJeT+CwIWND6kwZhZNXucbNbzdbz
+ymN/VmtwTARcFNWuCRyo9WBWwiSxOimNazpxdb3QRRTEQ3zjZUx8ZHYyLvyupctY+C77VQAx
+AqJICYGOh5wSxR1uKstFyGNwoq4TJywH6w49hmc+c+zAGZoR+PWzDwEf0M0o1X6FUiala3CD
+X4wDjYQYn+CaKQFFQwwuM5KDXbTB/qXnWcBPUz1dxSh4OAzRiaCIITSB5ZQsDo0rOw6UjRTx
+AWXEsK2xvHnFJQJcMhwbWciMpcH18YWGQKiyc+lOGAIkFRHLtYEECQEwSbLW1kZUTD58n9WA
+gH9Ys9vuNoCFbew7noEW0Gn+ZvNATY4zZnTYIgA9Yjs8ogfjVmQCom4uO+fFasfh2gFSIJIA
+0fKUGWhbFgbdalzSBXyGnjMSNPRzNPTdaa5DpuPlLrF5++geISrf9w+/UW82W8/qzXox95rE
+wbMo4hTDNlSQrm1Y+lfXF9e98DOkf8Ed0YDx62fMOhs22Glqv7CLywtsRG0URImE62gqjVw8
+QKBgv5VCAauCBn1i9DoYpCGrKMfDWZ8v4FIfnuCX47HU8B13sk9OSEpGgJDuAJeNXEwcMojz
+HGFcyOjIg2rQcspUiOyXs7byuPkyHFPFvvEpGQ/y9pAn1Wqze/GWs5fNYe9ttjplrY/GNWZ5
+yuIyJ4k9jSQIAJjJm4ufv1/YP0dLh+CSF5kCr6f9muFH+BqJAAnUibTLIdc9T4ya+0N/ufh7
+T6TGqdarliIMJVPAE4av5AwOWALzSkXaCxnt8wlAolSRHEeLDdd52ypy40HBu7Cr82dLQlwr
+/4Dtxr3jfQlawELPfXn1pXfI4Ml1n/VECi7mBsScAuko1xnM2XnnCkf6LX0aWFSGq5BS0gfa
+1vQat7bQmGVtkvPdAv4bGGHP4+gjodSdTC6GBt5nuPwVwxV25AxlmOTqOe4O2723q/51qOo9
+xMLFZrfYv3Smazj/97/+T9eJ2P94xFtu/qp23vqw+l7tPi2rPyGELtYPi/lsX0Em6T0vnp6B
+/irpndky87Te/837qr9pEfX+fSu9hD/pZv1hBanp7PuyssozEzPya83QMqvnynvcLEEEhGxv
+dYBZf6/0mrz9Bhl+/zxbw3jz2bJc7P5VPixqPcK79yb7hTHnz4tts0f/4RFacR+6y0x+scTX
+SlBa3JY05hYQAR76d2YGmwiWBh83u2aX+pM8kdrN3MHKTVHDDve5JYQxUQDljzanH4DPCZhG
++KXFVX0YpP2WpvE0FIYTg9hZDNE4UwY5QMomYcQ+aqduIB3dSeM2S2UhLiL/HpyiwWEw3dHN
+q89Mc1u7A+DV5hE8V6USkAPKHu7uH5bmaVut0nCyTMAt6lncfL74/evrAAwcD2Shpm4yTnoQ
+OWYkNSEMXdV9JgSOLe/9Ak+x7g2IFHSIsczWQx41e6pWkEZ1DvNRi0NvwH5W88PeGKdJw/a9
+F3zYz0Rp5I5jVEuWNOeOsGLzDFE4ii/2/YRLR6lP5CwoErwqkjI1WE1Q/bmAPDLYLf60ueOx
+Ygrg0z72xFAxhc0rIxZnDscfsIlKshDH6hCw04DEYH+uuGvEhzxPpiRntuiE48dpGQsSOCah
+d35qCj5nNRMwv4B/cz5xLsYwsEnuSD4gyS2jO9DFhEuBy3gtfYLRgyROHaL0gZQRrDqAZYch
+kh34h9p7MBvX25NE4SoSuC1CmpqJfGgSyaKeY+JBe8md9n547SWlsZAF7JXUSnAtTgKaxC33
+Cp0MYxC2E68+bLeb3b47HUspf7+mt18Hr6nq56yGwF3vd4eVKZHUz7MdJLP73Wxda1EepLKV
+B1Fovtjqj63pkyUEnJkXZiPiPS52q7/gNe9h89d6uZk9ePa+oeXVwGDpQYpjdsQelpYmKQ+R
+x8dXog2EJReRznYPmEAn/wbSc9ivGkKa3APE8JKjX3tHhUzed874UYc0wmtb9DY2wNtJbDA6
+ybiThbFosC+SSt7YVmdPXwGp5DrD71WV9LOgf3PVrH0LOctA1LEMnWbF0Jwi0KvZUf5JePqV
+njqkvmTAzy5JGGqfFMxqNgeTwU4MwEmXa3QVG4E0dtF4lvDS3tHgHiaaQrKWBgJ/3QXjwS85
+aYrCXyQI8iuKKt1xJyAdZiJhRfhKJB+MmWUSGzPLhhc4+llzhbsxV0rtW5aqMm8OSPTHKYGt
+TVgH6KTvujTyhZA5FflYoymD/iBuJZmuTgJ6rKsK8GLlzR4eFjo+AqY0UuuP3elNL3HnK6aA
+f2SRZbEj9TQMEG4YjgQsnUwclc2p8x4oYjkAIpQ2JYpGgcBqr1L6MKSU3DelV3uYdYGq9uRi
+uZhv1p4/m//YLmfGlR53WGK1Y59CjDsV5+/Aw843K6/eVvPFI8APkvikB64o4giSw3K/eDys
+53oPWofwMPR1SRgYEIDrS+myreQUv3/X745ZkjkwiCYn6uv17393kmXy5QK3BOLfftFlBNfU
+zNt3kjr2U5MVN80DX25LJSkJHNm6Zkwc/i1nowJSFgdySVjAiTFWzAWOdrPtszYE5HAG+dB3
+hLvZqvK+Hx4fwWsGQ68Z4tcIugYY6w6DMqYBNpnjrceIwDlVjutDUaRYBbAAAxcRhZyPKxXr
+GiCsuVMx1/Rm0P7D1xJ4RHuRq5DD63L9zICPhz7e1s+z55dad5948exFh5OhBevRwBHh2F5k
+hn5LGZ84rqJ8CGPByOFPiimu9iRxmBNLpLNylDJA5SzAfZO9YuE+B03ji4FoBIkgkU58fA4+
+k+I24JA5Oy6AC8cJMCmuzQCG8WSy2IF3wfZEv8YFaKkvtgHS892m3jzuvehlW+0+TLwnUz1C
+zgnY6+jk0quPV+R2sTYh68RyqHkoN4cd7vV0XSIuM0fxXUZNTYMmv2BIVIEXN185VILX4FnS
+MIC54JZEeOwL/JKYiyQpnJ4nr1abfaWRL7Z0qZhGkzB+rkt/w7e3q/rpVJ8SGN9Je9ci1gDv
+Ftv3x4CEQGhZpLfcndaAvNKx7izRaC/MmSOhulVOn29aeXCFOcw7m2KlGpIn5QhS0oTclmne
+vWjjma6o+wV+xgwsgZCVqlzELjQaJkjNBdxXtyVmkBy7/JsGYNktKa/+kSYaHeJOqccFDg83
+WYAR5VikxHC4R9QAixK8YJDQoXPv3suvABoB9MSOek6G/oWsH3abxUPv4KZBLjiON1Jn+iCV
+87nN351UiIs5ZXpPpXA0VOlbnhgA5DCi62S51/gImzxYuOEavLoAwG3NoQ8CpMaH/BaihaOx
+RF8068LoidvsSEiF4qEjAztD45ZWOrt2QnLm7W+FUMRNoQpfju5nCuXn0lEvC/XVnYMmIGRB
+tDshW2XO5s8n4EoOiqvWeOvq8LAx3a7IbpirE8fwhkYjHgc5w92VrhW46oC6twlH5AUglRgA
+Dxk5qhDmP7AThwBdIzVWYvtPcKY0HiqtabN5hnTGdjuYp9vdYr3/YZLCh1UFgWN4UwWoRl9Y
+xmJkrgfaQvjN52YzNqstqPeDaSqEfYFM0Yib2+c7rP5s6476jsBRdDPdIFOSp8Ca5YwC7HX0
+RlnWpJDKdtoh4SDMdROtlnZzeXHVuWuQKudZSSS4CVebmW6RMCMQibugIgUb1qlM4gtHt5Rd
+bYi23zBd45V26l2Ybd+RzNyE6E1PdBKLG9sJk9WbSB0ZuNWGaUg8WxUOhXacU0bG7Z2GA+bo
+SAvG2C+g9kTZqtrJ9XxQfT88PZ003uhjoSECS6XrBsiK1IyD+4++GFiiFKnLj1oxwv8DtHdu
+2+wdfCFd59VyTVxlL01sWpR5it5WmZuRzlja74WxaS7GptKSz005OqlmN1cioG8vBlx92NoT
+Gs3WT71jqeNOkYGUYRtXZwhNBD+W2v5dvOLyDS26dPYn1Q00YKUiw45Fj15OSFyw4z2eJWrw
+LQp1M7j5d3oVS7b7CWnw0F2cqFGPMGYswxIYrcajBXvv6iaPqf/mrQ776mcFH6r9/OPHj++H
+fq/9NcI5k9H9pa6LFMPRNCHJGGZ4hq2BErqiDY4iDnUfPy7W3MbCrit92XHa7n8idWzPzblx
++VkBGf8Vhzx3bA1Q4a7GT8tDcxawVHGCxELdco77nxzOl7MjXdoWSN1Qfs5//lKJpl/932I6
+39T+Tdq1ntECnETryHO3C2+1WbI8FzkcoD+Y+wLeXoKjPFa1+pcEgARUVe9PlKuXarYdULmj
+xqWrYWbRxljPKMc3jf9Ouj0dXz+/2jy+UXpCEbt1XqAaBo0S0lFzJ4xbnOEbA6NyJPyGwXSh
+45eWhp5HREamERZxifb3CYGgMu/9WsS8WQTOXwZIkmQnraXdwGPKfONR0Ot51t9xsONLci4q
+B0y3b+iWtibmuxcLaMU0Jyfmvn14+2PLFtX8cNKQ1IHfdw7wzWiRc3VXBgBdTVIPG+hwVi0v
+Cs7ajo+jQEKPRdJTav9nU/ldpvAw5POUABoYGoMNLIvvuxmgo93mAMen6uDw1x8fiV5jSQ5Z
+CuUKXx5QL7+6KKW6vAg4bo+azBU4IBf1Gq9BAAW/LIi5b95y/ZSL/sORPwa6cVcbadPO36gB
+9wrmlvD66vypv73XdnqGVPr0D/S8SF246/ZD2Ue6iNc0Q3WeB0mnwb3dvNYvIb8dfHVZegY8
+NHUCxSe99k4q8sCx9iDAg5Fu63L/JKVpxsJ1385M6h8xEd47+P8PAat9Olw6AAA=
+
+--huq684BweRXVnRxX--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
