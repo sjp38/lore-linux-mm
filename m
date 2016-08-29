@@ -1,111 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8409983102
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 11:31:59 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id e7so100650908lfe.0
-        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 08:31:59 -0700 (PDT)
-Received: from bhuna.collabora.co.uk (bhuna.collabora.co.uk. [46.235.227.227])
-        by mx.google.com with ESMTPS id 16si12305288wmb.72.2016.08.29.08.31.58
+Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D6EDC83102
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 11:35:54 -0400 (EDT)
+Received: by mail-ua0-f198.google.com with SMTP id 30so88628647uab.1
+        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 08:35:54 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u13si23602561qtu.141.2016.08.29.08.35.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Aug 2016 08:31:58 -0700 (PDT)
-Subject: Re: [PATCH v1] mm, sysctl: Add sysctl for controlling VM_MAYEXEC
- taint
-References: <1472229004-9658-1-git-send-email-robert.foss@collabora.com>
- <20160826213227.GA11393@node.shutemov.name>
- <CAAFS_9HiuMt=Xy=YXmvw0+kqcXw=8qXTx2-2bXaqPc_rjtRZgw@mail.gmail.com>
-From: Robert Foss <robert.foss@collabora.com>
-Message-ID: <160c3fc3-6d75-18d3-8575-98bb41e0543a@collabora.com>
-Date: Mon, 29 Aug 2016 11:31:50 -0400
+        Mon, 29 Aug 2016 08:35:52 -0700 (PDT)
+Date: Mon, 29 Aug 2016 17:35:48 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: mm: use-after-free in collapse_huge_page
+Message-ID: <20160829153548.pmwcup4q74hafwmu@redhat.com>
+References: <CACT4Y+Z3gigBvhca9kRJFcjX0G70V_nRhbwKBU+yGoESBDKi9Q@mail.gmail.com>
+ <20160829124233.GA40092@black.fi.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <CAAFS_9HiuMt=Xy=YXmvw0+kqcXw=8qXTx2-2bXaqPc_rjtRZgw@mail.gmail.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160829124233.GA40092@black.fi.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Drewry <wad@chromium.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, kirill.shutemov@linux.intel.com, vbabka@suse.cz, mhocko@suse.com, mingo@kernel.org, dave.hansen@linux.intel.com, hannes@cmpxchg.org, dan.j.williams@intel.com, iamjoonsoo.kim@lge.com, acme@redhat.com, Kees Cook <keescook@chromium.org>, mgorman@techsingularity.net, atomlin@redhat.com, Hugh Dickins <hughd@google.com>, dyoung@redhat.com, Al Viro <viro@zeniv.linux.org.uk>, Daniel Cashman <dcashman@google.com>, w@1wt.eu, idryomov@gmail.com, yang.shi@linaro.org, vkuznets@redhat.com, vdavydov@virtuozzo.com, vitalywool@gmail.com, oleg@redhat.com, gang.chen.5i5j@gmail.com, koct9i@gmail.com, aarcange@redhat.com, aryabinin@virtuozzo.com, kuleshovmail@gmail.com, minchan@kernel.org, mguzik@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ivan Krasin <krasin@google.com>, Roland McGrath <mcgrathr@chromium.org>, Mandeep Singh Baines <msb@chromium.org>, Ben Zhang <benzh@chromium.org>, Filipe Brandenburger <filbranden@chromium.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Vegard Nossum <vegard.nossum@oracle.com>, Sasha Levin <levinsasha928@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>
 
+Hello Kirill,
 
+On Mon, Aug 29, 2016 at 03:42:33PM +0300, Kirill A. Shutemov wrote:
+> @@ -898,13 +899,13 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
+>  		/* do_swap_page returns VM_FAULT_RETRY with released mmap_sem */
+>  		if (ret & VM_FAULT_RETRY) {
+>  			down_read(&mm->mmap_sem);
+> -			if (hugepage_vma_revalidate(mm, address)) {
+> +			if (hugepage_vma_revalidate(mm, address, &vma)) {
+>  				/* vma is no longer available, don't continue to swapin */
+>  				trace_mm_collapse_huge_page_swapin(mm, swapped_in, referenced, 0);
+>  				return false;
+>  			}
+>  			/* check if the pmd is still valid */
+> -			if (mm_find_pmd(mm, address) != pmd)
+> +			if (mm_find_pmd(mm, address) != pmd || vma != fe.vma)
+>  				return false;
+>  		}
+>  		if (ret & VM_FAULT_ERROR) {
 
-On 2016-08-29 11:25 AM, Will Drewry wrote:
->
->
-> On Fri, Aug 26, 2016 at 4:32 PM, Kirill A. Shutemov
-> <kirill@shutemov.name <mailto:kirill@shutemov.name>> wrote:
->
->     On Fri, Aug 26, 2016 at 12:30:04PM -0400, robert.foss@collabora.com
->     <mailto:robert.foss@collabora.com> wrote:
->     > From: Will Drewry <wad@chromium.org <mailto:wad@chromium.org>>
->     >
->     > This patch proposes a sysctl knob that allows a privileged user to
->     > disable ~VM_MAYEXEC tainting when mapping in a vma from a MNT_NOEXEC
->     > mountpoint.  It does not alter the normal behavior resulting from
->     > attempting to directly mmap(PROT_EXEC) a vma (-EPERM) nor the behavior
->     > of any other subsystems checking MNT_NOEXEC.
->
->     Wouldn't it be equal to remounting all filesystems without noexec from
->     attacker POV? It's hardly a fence to make additional mprotect(PROT_EXEC)
->     call, before starting executing code from such filesystems.
->
->     If administrator of the system wants this, he can just mount filesystem
->     without noexec, no new kernel code required. And it's more fine-grained
->     than this.
->
->     So, no, I don't think we should add knob like this. Unless I miss
->     something.
->
->
-> I don't believe this patch is necessary anymore (though, thank you
-> Robert for testing and re-sending!).
->
-> The primary offenders wrt to needing to mmap/mprotect a file in /dev/shm
-> was the older nvidia
-> driver (binary only iirc) and the Chrome Native Client code.
->
-> The reason why half-exec is an "ok" (half) mitigation is because it
-> blocks simple gadgets and other paths for using loadable libraries or
-> binaries (via glibc) as it disallows mmap(PROT_EXEC) even though it
-> allows mprotect(PROT_EXEC).  This stops ld in its tracks since it does
-> the obvious thing and uses mmap(PROT_EXEC).
->
-> I think time has marched on and this patch is now something I can toss
-> in the dustbin of history. Both Chrome's Native Client and an older
-> nvidia driver relied on creating-then-unlinking a file in tmpfs, but
-> there is now a better facility!
->
->
->     NAK.
->
->
-> Agreed - this is old and software that predicated it should be gone.. I
-> hope. :)
+You check if the vma changed if the mmap_sem was released by the
+VM_FAULT_RETRY case but not below:
 
-Splendid, patch dropped!
-Thanks Will and Kirill!
+	/*
+	 * Prevent all access to pagetables with the exception of
+	 * gup_fast later handled by the ptep_clear_flush and the VM
+> @@ -994,7 +995,7 @@ static void collapse_huge_page(struct mm_struct *mm,
+>  	 * handled by the anon_vma lock + PG_lock.
+>  	 */
+>  	down_write(&mm->mmap_sem);
+> -	result = hugepage_vma_revalidate(mm, address);
+> +	result = hugepage_vma_revalidate(mm, address, &vma);
+>  	if (result)
+>  		goto out;
+>  	/* check if the pmd is still valid */
+	if (mm_find_pmd(mm, address) != pmd)
+		goto out;
 
+Here you go ahead without care if the vma has changed as long as the
+"vma" pointer was updated to the new one, and the pmd is still present
+and stable (present and not huge) and all vma details matched as
+before.
 
-Rob.
+Either we care that the vma changed in both places or we don't in
+either of the two places.
 
->
->
->
->     > It is motivated by a common /dev/shm, /tmp usecase. There are few
->     > facilities for creating a shared memory segment that can be remapped in
->     > the same process address space with different permissions.
->
->     What about using memfd_create(2) for such cases? You'll get a file
->     descriptor from in-kernel tmpfs (shm_mnt) which is not exposed to
->     userspace for remount as noexec.
->
->
-> This is a relatively old patch ( https://lwn.net/Articles/455256/
-> <https://lwn.net/Articles/455256/> ) which predated memfd_create().
->  memfd_create() is the right solution to this problem!
->
->
-> Thanks again!
-> will
+The idea was that even if the vma changed it doesn't matter because
+it's still good to proceed for a collapse if all revalidation check
+pass.
+
+What we failed at, was in refreshing the pointer of the vma to the new
+one after the vma revalidation passed, so that the code that goes
+ahead uses the right vma pointer and not the stale one we got
+initially.
+
+Now it may give a perception that it is safer to check fa.vma != vma
+but in reality it is not, because the vma may be freed and reallocated
+in exactly the same address...
+
+So I think the vma != fe.vma check shall be removed because no matter
+what the safety of the vma revalidate cannot come from checking if the
+pointer has not changed and it must come from something else.
+
+Now reading __collapse_huge_page_swapin I noticed some other unrelated
+issues.
+
+		if (referenced < HPAGE_PMD_NR/2) {
+			trace_mm_collapse_huge_page_swapin(mm, swapped_in, referenced, 0);
+			return false;
+		}
+
+Referenced is not updated ever by __collapse_huge_page_swapin. In turn
+the above check would better be moved out of the loop, before we start
+to kmap the pte.
+
+Bigger issue is that leaving it where it is right now, we don't seem
+to unmap the pte as needed when the above "return false" above runs,
+which means we're leaking kmap_atomic entries, and that will also get
+fixed by moving the check before the loop starts and before the first
+pte_offset_map.
+
+swapped_in will showup zero instead of 1 in the tracing at all times
+but I doubt it makes any difference so I would move it out of the loop
+instead of adding a pte_unmap before returning, so it runs faster.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
