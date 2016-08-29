@@ -1,118 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E3781830F1
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 09:09:24 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 63so304319043pfx.0
-        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 06:09:24 -0700 (PDT)
-Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
-        by mx.google.com with ESMTPS id c7si39069101pax.281.2016.08.29.06.09.23
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5878E830F1
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 09:12:58 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id o1so314909674qkd.3
+        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 06:12:58 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id j198si6237115qke.170.2016.08.29.06.12.57
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 29 Aug 2016 06:09:23 -0700 (PDT)
-From: zijun_hu <zijun_hu@zoho.com>
-Subject: [PATCH 1/2] mm/nobootmem.c: remove duplicate macro
- ARCH_LOW_ADDRESS_LIMIT statements
-Message-ID: <e046aeaa-e160-6d9e-dc1b-e084c2fd999f@zoho.com>
-Date: Mon, 29 Aug 2016 21:09:06 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 Aug 2016 06:12:57 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u7TDC4nY007467
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 09:12:57 -0400
+Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com [202.81.31.147])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 253reg5u17-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 09:12:56 -0400
+Received: from localhost
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Mon, 29 Aug 2016 23:12:53 +1000
+Received: from d23relay07.au.ibm.com (d23relay07.au.ibm.com [9.190.26.37])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 192612BB0057
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 23:12:51 +1000 (EST)
+Received: from d23av05.au.ibm.com (d23av05.au.ibm.com [9.190.234.119])
+	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u7TDCpIu524550
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 23:12:51 +1000
+Received: from d23av05.au.ibm.com (localhost [127.0.0.1])
+	by d23av05.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u7TDCoGX018017
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 23:12:50 +1000
+Date: Mon, 29 Aug 2016 18:42:46 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH V2 2/2] fadump: Register the memory reserved by fadump
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <1470330729-6273-1-git-send-email-srikar@linux.vnet.ibm.com>
+ <1470330729-6273-2-git-send-email-srikar@linux.vnet.ibm.com>
+ <20160804140133.edf295b8263845e50c185fc2@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20160804140133.edf295b8263845e50c185fc2@linux-foundation.org>
+Message-Id: <20160829131246.GA2505@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, mingo@kernel.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org, Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@intel.com>, Balbir Singh <bsingharora@gmail.com>
 
-From: zijun_hu <zijun_hu@htc.com>
+* Andrew Morton <akpm@linux-foundation.org> [2016-08-04 14:01:33]:
 
-this patch fixes the following bugs:
+> > Register the memory reserved by fadump, so that the cache sizes are
+> > calculated based on the free memory (i.e Total memory - reserved
+> > memory).
+> 
+> Looks harmless enough to me.  I'll schedule the patches for 4.8.  But
+> it sounds like they should be backported into older kernels?
+> 
 
- - the same ARCH_LOW_ADDRESS_LIMIT statements are duplicated between
-   header and relevant source
+Based on the v2 feedback, I just posted a v3 at
+http://lkml.kernel.org/r/1472476010-4709-1-git-send-email-srikar@linux.vnet.ibm.com
+that tries to reduce the large system hash based on tha reserved memory.
+Hence please drop the v2 patches.
 
- - don't ensure ARCH_LOW_ADDRESS_LIMIT perhaps defined by ARCH in
-   asm/processor.h is preferred over default in linux/bootmem.h
-   completely since the former header isn't included by the latter
-
-Signed-off-by: zijun_hu <zijun_hu@htc.com>
----
- include/linux/bootmem.h |  9 +++++----
- mm/nobootmem.c          | 10 +++++-----
- 2 files changed, 10 insertions(+), 9 deletions(-)
-
-diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
-index f9be32691718..962164d36506 100644
---- a/include/linux/bootmem.h
-+++ b/include/linux/bootmem.h
-@@ -7,6 +7,7 @@
- #include <linux/mmzone.h>
- #include <linux/mm_types.h>
- #include <asm/dma.h>
-+#include <asm/processor.h>
- 
- /*
-  *  simple boot-time physical memory area allocator.
-@@ -119,6 +120,10 @@ extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
- #define BOOTMEM_LOW_LIMIT __pa(MAX_DMA_ADDRESS)
- #endif
- 
-+#ifndef ARCH_LOW_ADDRESS_LIMIT
-+#define ARCH_LOW_ADDRESS_LIMIT  0xffffffffUL
-+#endif
-+
- #define alloc_bootmem(x) \
- 	__alloc_bootmem(x, SMP_CACHE_BYTES, BOOTMEM_LOW_LIMIT)
- #define alloc_bootmem_align(x, align) \
-@@ -180,10 +185,6 @@ static inline void * __init memblock_virt_alloc_nopanic(
- 						    NUMA_NO_NODE);
- }
- 
--#ifndef ARCH_LOW_ADDRESS_LIMIT
--#define ARCH_LOW_ADDRESS_LIMIT  0xffffffffUL
--#endif
--
- static inline void * __init memblock_virt_alloc_low(
- 					phys_addr_t size, phys_addr_t align)
- {
-diff --git a/mm/nobootmem.c b/mm/nobootmem.c
-index bd05a70f44b9..490d46abddad 100644
---- a/mm/nobootmem.c
-+++ b/mm/nobootmem.c
-@@ -11,18 +11,21 @@
- #include <linux/init.h>
- #include <linux/pfn.h>
- #include <linux/slab.h>
--#include <linux/bootmem.h>
- #include <linux/export.h>
- #include <linux/kmemleak.h>
- #include <linux/range.h>
- #include <linux/memblock.h>
-+#include <linux/bootmem.h>
- 
- #include <asm/bug.h>
- #include <asm/io.h>
--#include <asm/processor.h>
- 
- #include "internal.h"
- 
-+#ifndef CONFIG_HAVE_MEMBLOCK
-+#error CONFIG_HAVE_MEMBLOCK not defined
-+#endif
-+
- #ifndef CONFIG_NEED_MULTIPLE_NODES
- struct pglist_data __refdata contig_page_data;
- EXPORT_SYMBOL(contig_page_data);
-@@ -395,9 +398,6 @@ void * __init __alloc_bootmem_node_high(pg_data_t *pgdat, unsigned long size,
- 	return __alloc_bootmem_node(pgdat, size, align, goal);
- }
- 
--#ifndef ARCH_LOW_ADDRESS_LIMIT
--#define ARCH_LOW_ADDRESS_LIMIT	0xffffffffUL
--#endif
- 
- /**
-  * __alloc_bootmem_low - allocate low boot memory
 -- 
-1.9.1
+Thanks and Regards
+Srikar Dronamraju
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
