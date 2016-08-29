@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9811A830F1
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 19:07:39 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id f128so6699730qkd.1
-        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 16:07:39 -0700 (PDT)
+Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D4B1883116
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 19:08:39 -0400 (EDT)
+Received: by mail-yb0-f199.google.com with SMTP id x93so6367116ybh.2
+        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 16:08:39 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id l67si10854106ywd.313.2016.08.29.16.07.38
+        by mx.google.com with ESMTPS id z63si10850243ywd.306.2016.08.29.16.08.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Aug 2016 16:07:38 -0700 (PDT)
-Date: Mon, 29 Aug 2016 16:07:37 -0700
+        Mon, 29 Aug 2016 16:08:39 -0700 (PDT)
+Date: Mon, 29 Aug 2016 16:08:37 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH v3 0/3] Account reserved memory when allocating system
  hash
-Message-Id: <20160829160737.819633db830d332dd669bcdf@linux-foundation.org>
+Message-Id: <20160829160837.497c6e8ead41f4558c0850e3@linux-foundation.org>
 In-Reply-To: <1472476010-4709-1-git-send-email-srikar@linux.vnet.ibm.com>
 References: <1472476010-4709-1-git-send-email-srikar@linux.vnet.ibm.com>
 Mime-Version: 1.0
@@ -55,15 +55,8 @@ On Mon, 29 Aug 2016 18:36:47 +0530 Srikar Dronamraju <srikar@linux.vnet.ibm.com>
 > 
 > This patchset solves this problem by accounting the size of reserved memory
 > when calculating the size of large system hashes.
-> 
-> While this patchset applies on v4.8-rc3, it cannot be tested on v4.8-rc3
-> because of http://lkml.kernel.org/r/20160829093844.GA2592@linux.vnet.ibm.com
-> However it has been tested on v4.7/v4.6 and v4.4
 
-That looks like a pretty serious regression.
-
-I'll grab the patchset anyway.  It will come good when we fix that kswapd
-thing.
+What's the priority on this, btw?  Not needed in earlier kernels?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
