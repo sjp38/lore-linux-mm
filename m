@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 37252830DE
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 01:07:58 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id h186so280936766pfg.2
-        for <linux-mm@kvack.org>; Sun, 28 Aug 2016 22:07:58 -0700 (PDT)
-Received: from mail-pa0-x244.google.com (mail-pa0-x244.google.com. [2607:f8b0:400e:c03::244])
-        by mx.google.com with ESMTPS id d62si37127697pfg.5.2016.08.28.22.07.56
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 12BEB830DE
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 01:08:02 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id ag5so248860025pad.2
+        for <linux-mm@kvack.org>; Sun, 28 Aug 2016 22:08:02 -0700 (PDT)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id 68si37122181pfr.68.2016.08.28.22.08.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 28 Aug 2016 22:07:57 -0700 (PDT)
-Received: by mail-pa0-x244.google.com with SMTP id cf3so8293992pad.2
-        for <linux-mm@kvack.org>; Sun, 28 Aug 2016 22:07:56 -0700 (PDT)
+        Sun, 28 Aug 2016 22:08:01 -0700 (PDT)
+Received: by mail-pf0-x242.google.com with SMTP id i6so8626678pfe.0
+        for <linux-mm@kvack.org>; Sun, 28 Aug 2016 22:08:00 -0700 (PDT)
 From: js1304@gmail.com
-Subject: [PATCH v5 3/6] mm/cma: populate ZONE_CMA
-Date: Mon, 29 Aug 2016 14:07:32 +0900
-Message-Id: <1472447255-10584-4-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v5 4/6] mm/cma: remove ALLOC_CMA
+Date: Mon, 29 Aug 2016 14:07:33 +0900
+Message-Id: <1472447255-10584-5-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1472447255-10584-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1472447255-10584-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,242 +24,132 @@ Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorma
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Until now, reserved pages for CMA are managed in the ordinary zones
-where page's pfn are belong to. This approach has numorous problems
-and fixing them isn't easy. (It is mentioned on previous patch.)
-To fix this situation, ZONE_CMA is introduced in previous patch, but,
-not yet populated. This patch implement population of ZONE_CMA
-by stealing reserved pages from the ordinary zones.
+Now, all reserved pages for CMA region are belong to the ZONE_CMA
+and it only serves for GFP_HIGHUSER_MOVABLE. Therefore, we don't need to
+consider ALLOC_CMA at all.
 
-Unlike previous implementation that kernel allocation request with
-__GFP_MOVABLE could be serviced from CMA region, allocation request only
-with GFP_HIGHUSER_MOVABLE can be serviced from CMA region in the new
-approach. This is an inevitable design decision to use the zone
-implementation because ZONE_CMA could contain highmem. Due to this
-decision, ZONE_CMA will work like as ZONE_HIGHMEM or ZONE_MOVABLE.
-
-I don't think it would be a problem because most of file cache pages
-and anonymous pages are requested with GFP_HIGHUSER_MOVABLE. It could
-be proved by the fact that there are many systems with ZONE_HIGHMEM and
-they work fine. Notable disadvantage is that we cannot use these pages
-for blockdev file cache page, because it usually has __GFP_MOVABLE but
-not __GFP_HIGHMEM and __GFP_USER. But, in this case, there is pros and
-cons. In my experience, blockdev file cache pages are one of the top
-reason that causes cma_alloc() to fail temporarily. So, we can get more
-guarantee of cma_alloc() success by discarding that case.
-
-Implementation itself is very easy to understand. Steal when cma area is
-initialized and recalculate various per zone stat/threshold.
-
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- include/linux/memory_hotplug.h |  3 ---
- include/linux/mm.h             |  1 +
- mm/cma.c                       | 56 ++++++++++++++++++++++++++++++++++++++----
- mm/internal.h                  |  3 +++
- mm/page_alloc.c                | 29 +++++++++++++++++++---
- 5 files changed, 80 insertions(+), 12 deletions(-)
+ mm/compaction.c |  4 +---
+ mm/internal.h   |  1 -
+ mm/page_alloc.c | 28 +++-------------------------
+ 3 files changed, 4 insertions(+), 29 deletions(-)
 
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 01033fa..ea5af47 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -198,9 +198,6 @@ void put_online_mems(void);
- void mem_hotplug_begin(void);
- void mem_hotplug_done(void);
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 29f6c49..4532905 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1401,14 +1401,12 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
+ 	 * if compaction succeeds.
+ 	 * For costly orders, we require low watermark instead of min for
+ 	 * compaction to proceed to increase its chances.
+-	 * ALLOC_CMA is used, as pages in CMA pageblocks are considered
+-	 * suitable migration targets
+ 	 */
+ 	watermark = (order > PAGE_ALLOC_COSTLY_ORDER) ?
+ 				low_wmark_pages(zone) : min_wmark_pages(zone);
+ 	watermark += compact_gap(order);
+ 	if (!__zone_watermark_ok(zone, 0, watermark, classzone_idx,
+-						ALLOC_CMA, wmark_target))
++						0, wmark_target))
+ 		return COMPACT_SKIPPED;
  
--extern void set_zone_contiguous(struct zone *zone);
--extern void clear_zone_contiguous(struct zone *zone);
--
- #else /* ! CONFIG_MEMORY_HOTPLUG */
- /*
-  * Stub functions for when hotplug is off
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 9d85402..f45e0e4 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1933,6 +1933,7 @@ extern void setup_per_cpu_pageset(void);
- 
- extern void zone_pcp_update(struct zone *zone);
- extern void zone_pcp_reset(struct zone *zone);
-+extern void setup_zone_pageset(struct zone *zone);
- 
- /* page_alloc.c */
- extern int min_free_kbytes;
-diff --git a/mm/cma.c b/mm/cma.c
-index 384c2cb..d69bdf7 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -38,6 +38,7 @@
- #include <trace/events/cma.h>
- 
- #include "cma.h"
-+#include "internal.h"
- 
- struct cma cma_areas[MAX_CMA_AREAS];
- unsigned cma_area_count;
-@@ -116,10 +117,9 @@ static int __init cma_activate_area(struct cma *cma)
- 		for (j = pageblock_nr_pages; j; --j, pfn++) {
- 			WARN_ON_ONCE(!pfn_valid(pfn));
- 			/*
--			 * alloc_contig_range requires the pfn range
--			 * specified to be in the same zone. Make this
--			 * simple by forcing the entire CMA resv range
--			 * to be in the same zone.
-+			 * In init_cma_reserved_pageblock(), present_pages is
-+			 * adjusted with assumption that all pages come from
-+			 * a single zone. It could be fixed but not yet done.
- 			 */
- 			if (page_zone(pfn_to_page(pfn)) != zone)
- 				goto err;
-@@ -145,6 +145,28 @@ err:
- static int __init cma_init_reserved_areas(void)
- {
- 	int i;
-+	struct zone *zone;
-+	unsigned long start_pfn = UINT_MAX, end_pfn = 0;
-+
-+	if (!cma_area_count)
-+		return 0;
-+
-+	for (i = 0; i < cma_area_count; i++) {
-+		if (start_pfn > cma_areas[i].base_pfn)
-+			start_pfn = cma_areas[i].base_pfn;
-+		if (end_pfn < cma_areas[i].base_pfn + cma_areas[i].count)
-+			end_pfn = cma_areas[i].base_pfn + cma_areas[i].count;
-+	}
-+
-+	for_each_zone(zone) {
-+		if (!is_zone_cma(zone))
-+			continue;
-+
-+		/* ZONE_CMA doesn't need to exceed CMA region */
-+		zone->zone_start_pfn = max(zone->zone_start_pfn, start_pfn);
-+		zone->spanned_pages = min(zone_end_pfn(zone), end_pfn) -
-+					zone->zone_start_pfn;
-+	}
- 
- 	for (i = 0; i < cma_area_count; i++) {
- 		int ret = cma_activate_area(&cma_areas[i]);
-@@ -153,9 +175,33 @@ static int __init cma_init_reserved_areas(void)
- 			return ret;
- 	}
- 
-+	/*
-+	 * Reserved pages for ZONE_CMA are now activated and this would change
-+	 * ZONE_CMA's managed page counter and other zone's present counter.
-+	 * We need to re-calculate various zone information that depends on
-+	 * this initialization.
-+	 */
-+	build_all_zonelists(NULL, NULL);
-+	for_each_populated_zone(zone) {
-+		zone_pcp_update(zone);
-+		set_zone_contiguous(zone);
-+	}
-+
-+	/*
-+	 * We need to re-init per zone wmark by calling
-+	 * init_per_zone_wmark_min() but doesn't call here because it is
-+	 * registered on core_initcall and it will be called later than us.
-+	 */
-+	for_each_populated_zone(zone) {
-+		if (!is_zone_cma(zone))
-+			continue;
-+
-+		setup_zone_pageset(zone);
-+	}
-+
- 	return 0;
- }
--core_initcall(cma_init_reserved_areas);
-+pure_initcall(cma_init_reserved_areas);
- 
- /**
-  * cma_init_reserved_mem() - create custom contiguous area from reserved memory
+ 	/*
 diff --git a/mm/internal.h b/mm/internal.h
-index 5214bf8..3d3f052 100644
+index 3d3f052..01d06bb 100644
 --- a/mm/internal.h
 +++ b/mm/internal.h
-@@ -156,6 +156,9 @@ extern void post_alloc_hook(struct page *page, unsigned int order,
- 					gfp_t gfp_flags);
- extern int user_min_free_kbytes;
+@@ -466,7 +466,6 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+ #define ALLOC_HARDER		0x10 /* try to alloc harder */
+ #define ALLOC_HIGH		0x20 /* __GFP_HIGH set */
+ #define ALLOC_CPUSET		0x40 /* check for correct cpuset */
+-#define ALLOC_CMA		0x80 /* allow allocations from CMA areas */
  
-+extern void set_zone_contiguous(struct zone *zone);
-+extern void clear_zone_contiguous(struct zone *zone);
-+
- #if defined CONFIG_COMPACTION || defined CONFIG_CMA
- 
- /*
+ enum ttu_flags;
+ struct tlbflush_unmap_batch;
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 34db275..91fb172 100644
+index 91fb172..16ba1fe 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1610,16 +1610,38 @@ void __init page_alloc_init_late(void)
- }
+@@ -2565,7 +2565,7 @@ int __isolate_free_page(struct page *page, unsigned int order)
+ 		 * exists.
+ 		 */
+ 		watermark = min_wmark_pages(zone) + (1UL << order);
+-		if (!zone_watermark_ok(zone, 0, watermark, 0, ALLOC_CMA))
++		if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
+ 			return 0;
+ 
+ 		__mod_zone_freepage_state(zone, -(1UL << order), mt);
+@@ -2808,12 +2808,6 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
+ 	else
+ 		min -= min / 4;
+ 
+-#ifdef CONFIG_CMA
+-	/* If allocation can't use CMA areas don't use free CMA pages */
+-	if (!(alloc_flags & ALLOC_CMA))
+-		free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
+-#endif
+-
+ 	/*
+ 	 * Check watermarks for an order-0 allocation request. If these
+ 	 * are not met, then a high-order request also cannot go ahead
+@@ -2843,10 +2837,8 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
+ 		}
  
  #ifdef CONFIG_CMA
-+static void __init adjust_present_page_count(struct page *page, long count)
-+{
-+	struct zone *zone = page_zone(page);
-+
-+	/* We don't need to hold a lock since it is boot-up process */
-+	zone->present_pages += count;
-+}
-+
- /* Free whole pageblock and set its migration type to MIGRATE_CMA. */
- void __init init_cma_reserved_pageblock(struct page *page)
- {
- 	unsigned i = pageblock_nr_pages;
-+	unsigned long pfn = page_to_pfn(page);
- 	struct page *p = page;
-+	int nid = page_to_nid(page);
-+
-+	/*
-+	 * ZONE_CMA will steal present pages from other zones by changing
-+	 * page links so page_zone() is changed. Before that,
-+	 * we need to adjust previous zone's page count first.
-+	 */
-+	adjust_present_page_count(page, -pageblock_nr_pages);
- 
- 	do {
- 		__ClearPageReserved(p);
- 		set_page_count(p, 0);
--	} while (++p, --i);
-+
-+		/* Steal pages from other zones */
-+		set_page_links(p, ZONE_CMA, nid, pfn);
-+	} while (++p, ++pfn, --i);
-+
-+	adjust_present_page_count(page, pageblock_nr_pages);
- 
- 	set_pageblock_migratetype(page, MIGRATE_CMA);
- 
-@@ -4824,7 +4846,6 @@ static void build_zonelists(pg_data_t *pgdat)
-  */
- static void setup_pageset(struct per_cpu_pageset *p, unsigned long batch);
- static DEFINE_PER_CPU(struct per_cpu_pageset, boot_pageset);
--static void setup_zone_pageset(struct zone *zone);
- 
- /*
-  * Global mutex to protect against size modification of zonelists
-@@ -5254,7 +5275,7 @@ static void __meminit zone_pageset_init(struct zone *zone, int cpu)
- 	pageset_set_high_and_batch(zone, pcp);
- }
- 
--static void __meminit setup_zone_pageset(struct zone *zone)
-+void __meminit setup_zone_pageset(struct zone *zone)
- {
- 	int cpu;
- 	zone->pageset = alloc_percpu(struct per_cpu_pageset);
-@@ -7433,7 +7454,7 @@ void free_contig_range(unsigned long pfn, unsigned nr_pages)
- }
+-		if ((alloc_flags & ALLOC_CMA) &&
+-		    !list_empty(&area->free_list[MIGRATE_CMA])) {
++		if (!list_empty(&area->free_list[MIGRATE_CMA]))
+ 			return true;
+-		}
  #endif
+ 	}
+ 	return false;
+@@ -2863,13 +2855,6 @@ static inline bool zone_watermark_fast(struct zone *z, unsigned int order,
+ 		unsigned long mark, int classzone_idx, unsigned int alloc_flags)
+ {
+ 	long free_pages = zone_page_state(z, NR_FREE_PAGES);
+-	long cma_pages = 0;
+-
+-#ifdef CONFIG_CMA
+-	/* If allocation can't use CMA areas don't use free CMA pages */
+-	if (!(alloc_flags & ALLOC_CMA))
+-		cma_pages = zone_page_state(z, NR_FREE_CMA_PAGES);
+-#endif
  
--#ifdef CONFIG_MEMORY_HOTPLUG
-+#if defined CONFIG_MEMORY_HOTPLUG || defined CONFIG_CMA
- /*
-  * The zone indicated has a new number of managed_pages; batch sizes and percpu
-  * page high values need to be recalulated.
+ 	/*
+ 	 * Fast check for order-0 only. If this fails then the reserves
+@@ -2878,7 +2863,7 @@ static inline bool zone_watermark_fast(struct zone *z, unsigned int order,
+ 	 * the caller is !atomic then it'll uselessly search the free
+ 	 * list. That corner case is then slower but it is harmless.
+ 	 */
+-	if (!order && (free_pages - cma_pages) > mark + z->lowmem_reserve[classzone_idx])
++	if (!order && free_pages > mark + z->lowmem_reserve[classzone_idx])
+ 		return true;
+ 
+ 	return __zone_watermark_ok(z, order, mark, classzone_idx, alloc_flags,
+@@ -3355,10 +3340,6 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
+ 	} else if (unlikely(rt_task(current)) && !in_interrupt())
+ 		alloc_flags |= ALLOC_HARDER;
+ 
+-#ifdef CONFIG_CMA
+-	if (gfpflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
+-		alloc_flags |= ALLOC_CMA;
+-#endif
+ 	return alloc_flags;
+ }
+ 
+@@ -3727,9 +3708,6 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 	if (unlikely(!zonelist->_zonerefs->zone))
+ 		return NULL;
+ 
+-	if (IS_ENABLED(CONFIG_CMA) && ac.migratetype == MIGRATE_MOVABLE)
+-		alloc_flags |= ALLOC_CMA;
+-
+ retry_cpuset:
+ 	cpuset_mems_cookie = read_mems_allowed_begin();
+ 
 -- 
 1.9.1
 
