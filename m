@@ -1,85 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BDFB782F64
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 15:12:12 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id f128so1088467ith.3
-        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 12:12:12 -0700 (PDT)
-Received: from g4t3425.houston.hpe.com (g4t3425.houston.hpe.com. [15.241.140.78])
-        by mx.google.com with ESMTPS id x64si25676880oix.208.2016.08.29.12.12.11
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3222B82F64
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 15:34:23 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id 15so3008884ita.1
+        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 12:34:23 -0700 (PDT)
+Received: from mail-oi0-x229.google.com (mail-oi0-x229.google.com. [2607:f8b0:4003:c06::229])
+        by mx.google.com with ESMTPS id j47si25760737otd.90.2016.08.29.12.34.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Aug 2016 12:12:11 -0700 (PDT)
-From: Toshi Kani <toshi.kani@hpe.com>
-Subject: [PATCH v4 RESEND 2/2] ext2/4, xfs: call thp_get_unmapped_area() for pmd mappings
-Date: Mon, 29 Aug 2016 13:11:21 -0600
-Message-Id: <1472497881-9323-3-git-send-email-toshi.kani@hpe.com>
-In-Reply-To: <1472497881-9323-1-git-send-email-toshi.kani@hpe.com>
-References: <1472497881-9323-1-git-send-email-toshi.kani@hpe.com>
+        Mon, 29 Aug 2016 12:34:22 -0700 (PDT)
+Received: by mail-oi0-x229.google.com with SMTP id j203so64124900oih.2
+        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 12:34:22 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1472497881-9323-2-git-send-email-toshi.kani@hpe.com>
+References: <1472497881-9323-1-git-send-email-toshi.kani@hpe.com> <1472497881-9323-2-git-send-email-toshi.kani@hpe.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 29 Aug 2016 12:34:21 -0700
+Message-ID: <CAPcyv4hJ1DrCkBCwqm02e1D85wtSPwUaSG2S84JaDJwFWA_4hA@mail.gmail.com>
+Subject: Re: [PATCH v4 RESEND 1/2] thp, dax: add thp_get_unmapped_area for pmd mappings
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: dan.j.williams@intel.com, mawilcox@microsoft.com, ross.zwisler@linux.intel.com, kirill.shutemov@linux.intel.com, david@fromorbit.com, jack@suse.cz, tytso@mit.edu, adilger.kernel@dilger.ca, mike.kravetz@oracle.com, toshi.kani@hpe.com, linux-nvdimm@lists.01.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Toshi Kani <toshi.kani@hpe.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, david <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, mike.kravetz@oracle.com, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-To support DAX pmd mappings with unmodified applications,
-filesystems need to align an mmap address by the pmd size.
+On Mon, Aug 29, 2016 at 12:11 PM, Toshi Kani <toshi.kani@hpe.com> wrote:
+> When CONFIG_FS_DAX_PMD is set, DAX supports mmap() using pmd page
+> size.  This feature relies on both mmap virtual address and FS
+> block (i.e. physical address) to be aligned by the pmd page size.
+> Users can use mkfs options to specify FS to align block allocations.
+> However, aligning mmap address requires code changes to existing
+> applications for providing a pmd-aligned address to mmap().
+>
+> For instance, fio with "ioengine=mmap" performs I/Os with mmap() [1].
+> It calls mmap() with a NULL address, which needs to be changed to
+> provide a pmd-aligned address for testing with DAX pmd mappings.
+> Changing all applications that call mmap() with NULL is undesirable.
+>
+> Add thp_get_unmapped_area(), which can be called by filesystem's
+> get_unmapped_area to align an mmap address by the pmd size for
+> a DAX file.  It calls the default handler, mm->get_unmapped_area(),
+> to find a range and then aligns it for a DAX file.
+>
+> The patch is based on Matthew Wilcox's change that allows adding
+> support of the pud page size easily.
+>
+> [1]: https://github.com/axboe/fio/blob/master/engines/mmap.c
+> Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Matthew Wilcox <mawilcox@microsoft.com>
+> Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Dave Chinner <david@fromorbit.com>
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: Theodore Ts'o <tytso@mit.edu>
+> Cc: Andreas Dilger <adilger.kernel@dilger.ca>
+> Cc: Mike Kravetz <mike.kravetz@oracle.com>
+> ---
 
-Call thp_get_unmapped_area() from f_op->get_unmapped_area.
+Reviewed-by: Dan Williams <dan.j.williams@intel.com>
 
-Note, there is no change in behavior for a non-DAX file.
+...with one minor nit:
 
-Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Dave Chinner <david@fromorbit.com>
-Cc: Jan Kara <jack@suse.cz>
-Cc: Theodore Ts'o <tytso@mit.edu>
-Cc: Andreas Dilger <adilger.kernel@dilger.ca>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>
----
- fs/ext2/file.c    |    1 +
- fs/ext4/file.c    |    1 +
- fs/xfs/xfs_file.c |    1 +
- 3 files changed, 3 insertions(+)
 
-diff --git a/fs/ext2/file.c b/fs/ext2/file.c
-index 5efeefe..d86831c 100644
---- a/fs/ext2/file.c
-+++ b/fs/ext2/file.c
-@@ -172,6 +172,7 @@ const struct file_operations ext2_file_operations = {
- 	.open		= dquot_file_open,
- 	.release	= ext2_release_file,
- 	.fsync		= ext2_fsync,
-+	.get_unmapped_area = thp_get_unmapped_area,
- 	.splice_read	= generic_file_splice_read,
- 	.splice_write	= iter_file_splice_write,
- };
-diff --git a/fs/ext4/file.c b/fs/ext4/file.c
-index 261ac37..28f542b 100644
---- a/fs/ext4/file.c
-+++ b/fs/ext4/file.c
-@@ -703,6 +703,7 @@ const struct file_operations ext4_file_operations = {
- 	.open		= ext4_file_open,
- 	.release	= ext4_release_file,
- 	.fsync		= ext4_sync_file,
-+	.get_unmapped_area = thp_get_unmapped_area,
- 	.splice_read	= generic_file_splice_read,
- 	.splice_write	= iter_file_splice_write,
- 	.fallocate	= ext4_fallocate,
-diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
-index e612a02..7f71bb8 100644
---- a/fs/xfs/xfs_file.c
-+++ b/fs/xfs/xfs_file.c
-@@ -1662,6 +1662,7 @@ const struct file_operations xfs_file_operations = {
- 	.open		= xfs_file_open,
- 	.release	= xfs_file_release,
- 	.fsync		= xfs_file_fsync,
-+	.get_unmapped_area = thp_get_unmapped_area,
- 	.fallocate	= xfs_file_fallocate,
- };
- 
+>  include/linux/huge_mm.h |    7 +++++++
+>  mm/huge_memory.c        |   43 +++++++++++++++++++++++++++++++++++++++++++
+>  2 files changed, 50 insertions(+)
+>
+> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+> index 6f14de4..4fca526 100644
+> --- a/include/linux/huge_mm.h
+> +++ b/include/linux/huge_mm.h
+> @@ -87,6 +87,10 @@ extern bool is_vma_temporary_stack(struct vm_area_struct *vma);
+>
+>  extern unsigned long transparent_hugepage_flags;
+>
+> +extern unsigned long thp_get_unmapped_area(struct file *filp,
+> +               unsigned long addr, unsigned long len, unsigned long pgoff,
+> +               unsigned long flags);
+> +
+>  extern void prep_transhuge_page(struct page *page);
+>  extern void free_transhuge_page(struct page *page);
+>
+> @@ -169,6 +173,9 @@ void put_huge_zero_page(void);
+>  static inline void prep_transhuge_page(struct page *page) {}
+>
+>  #define transparent_hugepage_flags 0UL
+> +
+> +#define thp_get_unmapped_area  NULL
+
+Lets make this:
+
+static inline unsigned long thp_get_unmapped_area(struct file *filp,
+               unsigned long addr, unsigned long len, unsigned long pgoff,
+               unsigned long flags)
+{
+    return 0;
+}
+
+...to get some type checking in the CONFIG_TRANSPARENT_HUGEPAGE=n case.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
