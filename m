@@ -1,272 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 809D383090
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 02:31:25 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id ez1so251054823pab.1
-        for <linux-mm@kvack.org>; Sun, 28 Aug 2016 23:31:25 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id o10si37523150paw.74.2016.08.28.23.31.24
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AA58F830E7
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 03:42:24 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id le9so254163961pab.0
+        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 00:42:24 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id x87si37791620pfa.79.2016.08.29.00.42.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 28 Aug 2016 23:31:24 -0700 (PDT)
-From: Aaron Lu <aaron.lu@intel.com>
-Subject: [PATCH] thp: reduce usage of huge zero page's atomic counter
-Message-ID: <b7e47f2c-8aac-156a-f627-a50db31220f8@intel.com>
-Date: Mon, 29 Aug 2016 14:31:20 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 Aug 2016 00:42:23 -0700 (PDT)
+Date: Mon, 29 Aug 2016 00:41:16 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH v2 2/9] ext2: tell DAX the size of allocation holes
+Message-ID: <20160829074116.GA16491@infradead.org>
+References: <20160823220419.11717-1-ross.zwisler@linux.intel.com>
+ <20160823220419.11717-3-ross.zwisler@linux.intel.com>
+ <20160825075728.GA11235@infradead.org>
+ <20160826212934.GA11265@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160826212934.GA11265@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux Memory Management List <linux-mm@kvack.org>
-Cc: "'Kirill A. Shutemov'" <kirill.shutemov@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-kernel@vger.kernel.org
+To: Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Andrew Morton <akpm@linux-foundation.org>, linux-nvdimm@ml01.01.org, Matthew Wilcox <mawilcox@microsoft.com>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, Andreas Dilger <adilger.kernel@dilger.ca>, Alexander Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.com>, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org
 
+On Fri, Aug 26, 2016 at 03:29:34PM -0600, Ross Zwisler wrote:
+> These changes don't remove the things in XFS needed by the old I/O and fault
+> paths (e.g.  xfs_get_blocks_direct() is still there an unchanged).  Is the
+> correct way forward to get buy-in from ext2/ext4 so that they also move to
+> supporting an iomap based I/O path (xfs_file_iomap_begin(),
+> xfs_iomap_write_direct(), etc?).  That would allow us to have parallel I/O and
+> fault paths for a while, then remove the old buffer_head based versions when
+> the three supported filesystems have moved to iomap.
+> 
+> If ext2 and ext4 don't choose to move to iomap, though, I don't think we want
+> to have a separate I/O & fault path for iomap/XFS.  That seems too painful,
+> and the old buffer_head version should continue to work, ugly as it may be.
 
-The global zero page is used to satisfy an anonymous read fault. If
-THP(Transparent HugePage) is enabled then the global huge zero page is used.
-The global huge zero page uses an atomic counter for reference counting
-and is allocated/freed dynamically according to its counter value.
+We're going to move forward killing buffer_heads in XFS.  I think ext4
+would dramatically benefit from this a well, as would ext2 (although I
+think all that DAX work in ext2 is a horrible idea to start with).
 
-CPU time spent on that counter will greatly increase if there are
-a lot of processes doing anonymous read faults. This patch proposes a
-way to reduce the access to the global counter so that the CPU load
-can be reduced accordingly.
+If I don't get buy-in for the iomap DAX work in the dax code we'll just
+have to keep it separate.  That buffer_head mess just isn't maintainable
+the long run.
 
-To do this, a new flag of the mm_struct is introduced: MMF_USED_HUGE_ZERO_PAGE.
-With this flag, the process only need to touch the global counter in
-two cases:
-1 The first time it uses the global huge zero page;
-2 The time when mm_user of its mm_struct reaches zero.
+> 1) In your mail above you say "It also gets rid of the other warts of the DAX
+>    path due to pretending to be like direct I/O".  I assume by this you mean
+>    the code in dax_do_io() around DIO_LOCKING, inode_dio_begin(), etc?
 
-Note that right now, the huge zero page is eligible to be freed as soon
-as its last use goes away.  With this patch, the page will not be
-eligible to be freed until the exit of the last process from which it
-was ever used.
+Yes.
 
-And with the use of mm_user, the kthread is not eligible to use huge
-zero page either. Since no kthread is using huge zero page today, there
-is no difference after applying this patch. But if that is not desired,
-I can change it to when mm_count reaches zero.
+>    Perhaps there are other things as well in XFS, but this is what I see in
+>    the DAX code.  If so, yep, this seems like a win.  I don't understand how
+>    DIO_LOCKING is relevant to the DAX I/O path, as we never mix buffered and
+>    direct access.
 
-Case used for test on Haswell EP:
-usemem -n 72 --readonly -j 0x200000 100G
-Which spawns 72 processes and each will mmap 100G anonymous space and
-then do read only access to that space sequentially with a step of 2MB.
+It's related to doing stupid copy and paste from direct I/O in the DAX
+code.
 
-perf report for base commit:
-    54.03%  usemem   [kernel.kallsyms]   [k] get_huge_zero_page
-perf report for this commit:
-     0.11%  usemem   [kernel.kallsyms]   [k] mm_get_huge_zero_page
+>    The comment in dax_do_io() for the inode_dio_begin() call says that it
+>    prevents the I/O from races with truncate.  Am I correct that we now get
+>    this protection via the xfs_rw_ilock()/xfs_rw_iunlock() calls in
+>    xfs_file_dax_write()?
 
-Signed-off-by: Aaron Lu <aaron.lu@intel.com>
----
- fs/dax.c                |  2 +-
- include/linux/huge_mm.h |  6 +++---
- include/linux/sched.h   |  1 +
- kernel/fork.c           |  1 +
- mm/huge_memory.c        | 36 +++++++++++++++++++++++++-----------
- mm/swap.c               |  4 +---
- mm/swap_state.c         |  4 +---
- 7 files changed, 33 insertions(+), 21 deletions(-)
+Yes, XFS always has a lock over reads that serializes with truncate.
+Currenrly it's the XFS i_iolock, but I'll remove that soon and use the
+VFS i_rwsem instead.  For ext2/4 we could go straight to i_rwsem in
+shared mode.
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 993dc6fe0416..226c0d5eedac 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -1034,7 +1034,7 @@ int dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
- 	if (!write && !buffer_mapped(&bh)) {
- 		spinlock_t *ptl;
- 		pmd_t entry;
--		struct page *zero_page = get_huge_zero_page();
-+		struct page *zero_page = mm_get_huge_zero_page(vma->vm_mm);
- 
- 		if (unlikely(!zero_page)) {
- 			dax_pmd_dbg(&bh, address, "no zero page");
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 6f14de45b5ce..10bcf58cc594 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -152,8 +152,8 @@ static inline bool is_huge_zero_pmd(pmd_t pmd)
- 	return is_huge_zero_page(pmd_page(pmd));
- }
- 
--struct page *get_huge_zero_page(void);
--void put_huge_zero_page(void);
-+struct page *mm_get_huge_zero_page(struct mm_struct *mm);
-+void mm_put_huge_zero_page(struct mm_struct *mm);
- 
- #define mk_huge_pmd(page, prot) pmd_mkhuge(mk_pmd(page, prot))
- 
-@@ -213,7 +213,7 @@ static inline bool is_huge_zero_page(struct page *page)
- 	return false;
- }
- 
--static inline void put_huge_zero_page(void)
-+static inline void mm_put_huge_zero_page(struct mm_struct *mm)
- {
- 	BUILD_BUG();
- }
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index d7e1e783cf01..02246a70b63c 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -523,6 +523,7 @@ static inline int get_dumpable(struct mm_struct *mm)
- #define MMF_RECALC_UPROBES	20	/* MMF_HAS_UPROBES can be wrong */
- #define MMF_OOM_REAPED		21	/* mm has been already reaped */
- #define MMF_OOM_NOT_REAPABLE	22	/* mm couldn't be reaped */
-+#define MMF_HUGE_ZERO_PAGE	23      /* mm has ever used the global huge zero page */
- 
- #define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK)
- 
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 52e725d4a866..372e02616b47 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -711,6 +711,7 @@ static inline void __mmput(struct mm_struct *mm)
- 	ksm_exit(mm);
- 	khugepaged_exit(mm); /* must run before exit_mmap */
- 	exit_mmap(mm);
-+	mm_put_huge_zero_page(mm);
- 	set_mm_exe_file(mm, NULL);
- 	if (!list_empty(&mm->mmlist)) {
- 		spin_lock(&mmlist_lock);
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 2db2112aa31e..d88bb1ec6fad 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -59,7 +59,7 @@ static struct shrinker deferred_split_shrinker;
- static atomic_t huge_zero_refcount;
- struct page *huge_zero_page __read_mostly;
- 
--struct page *get_huge_zero_page(void)
-+static struct page *get_huge_zero_page(void)
- {
- 	struct page *zero_page;
- retry:
-@@ -86,7 +86,7 @@ retry:
- 	return READ_ONCE(huge_zero_page);
- }
- 
--void put_huge_zero_page(void)
-+static void put_huge_zero_page(void)
- {
- 	/*
- 	 * Counter should never go to zero here. Only shrinker can put
-@@ -95,6 +95,26 @@ void put_huge_zero_page(void)
- 	BUG_ON(atomic_dec_and_test(&huge_zero_refcount));
- }
- 
-+struct page *mm_get_huge_zero_page(struct mm_struct *mm)
-+{
-+	if (test_bit(MMF_HUGE_ZERO_PAGE, &mm->flags))
-+		return READ_ONCE(huge_zero_page);
-+
-+	if (!get_huge_zero_page())
-+		return NULL;
-+
-+	if (test_and_set_bit(MMF_HUGE_ZERO_PAGE, &mm->flags))
-+		put_huge_zero_page();
-+
-+	return READ_ONCE(huge_zero_page);
-+}
-+
-+void mm_put_huge_zero_page(struct mm_struct *mm)
-+{
-+	if (test_bit(MMF_HUGE_ZERO_PAGE, &mm->flags))
-+		put_huge_zero_page();
-+}
-+
- static unsigned long shrink_huge_zero_page_count(struct shrinker *shrink,
- 					struct shrink_control *sc)
- {
-@@ -601,7 +621,7 @@ int do_huge_pmd_anonymous_page(struct fault_env *fe)
- 		pgtable = pte_alloc_one(vma->vm_mm, haddr);
- 		if (unlikely(!pgtable))
- 			return VM_FAULT_OOM;
--		zero_page = get_huge_zero_page();
-+		zero_page = mm_get_huge_zero_page(vma->vm_mm);
- 		if (unlikely(!zero_page)) {
- 			pte_free(vma->vm_mm, pgtable);
- 			count_vm_event(THP_FAULT_FALLBACK);
-@@ -623,10 +643,8 @@ int do_huge_pmd_anonymous_page(struct fault_env *fe)
- 			}
- 		} else
- 			spin_unlock(fe->ptl);
--		if (!set) {
-+		if (!set)
- 			pte_free(vma->vm_mm, pgtable);
--			put_huge_zero_page();
--		}
- 		return ret;
- 	}
- 	gfp = alloc_hugepage_direct_gfpmask(vma);
-@@ -780,7 +798,7 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 		 * since we already have a zero page to copy. It just takes a
- 		 * reference.
- 		 */
--		zero_page = get_huge_zero_page();
-+		zero_page = mm_get_huge_zero_page(dst_mm);
- 		set_huge_zero_page(pgtable, dst_mm, vma, addr, dst_pmd,
- 				zero_page);
- 		ret = 0;
-@@ -1038,7 +1056,6 @@ alloc:
- 		update_mmu_cache_pmd(vma, fe->address, fe->pmd);
- 		if (!page) {
- 			add_mm_counter(vma->vm_mm, MM_ANONPAGES, HPAGE_PMD_NR);
--			put_huge_zero_page();
- 		} else {
- 			VM_BUG_ON_PAGE(!PageHead(page), page);
- 			page_remove_rmap(page, true);
-@@ -1502,7 +1519,6 @@ static void __split_huge_zero_page_pmd(struct vm_area_struct *vma,
- 	}
- 	smp_wmb(); /* make pte visible before pmd */
- 	pmd_populate(mm, pmd, pgtable);
--	put_huge_zero_page();
- }
- 
- static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
-@@ -1525,8 +1541,6 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
- 
- 	if (!vma_is_anonymous(vma)) {
- 		_pmd = pmdp_huge_clear_flush_notify(vma, haddr, pmd);
--		if (is_huge_zero_pmd(_pmd))
--			put_huge_zero_page();
- 		if (vma_is_dax(vma))
- 			return;
- 		page = pmd_page(_pmd);
-diff --git a/mm/swap.c b/mm/swap.c
-index 75c63bb2a1da..4dcf852e1e6d 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -748,10 +748,8 @@ void release_pages(struct page **pages, int nr, bool cold)
- 			locked_pgdat = NULL;
- 		}
- 
--		if (is_huge_zero_page(page)) {
--			put_huge_zero_page();
-+		if (is_huge_zero_page(page))
- 			continue;
--		}
- 
- 		page = compound_head(page);
- 		if (!put_page_testzero(page))
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index c8310a37be3a..5ffd3ee26592 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -252,9 +252,7 @@ static inline void free_swap_cache(struct page *page)
- void free_page_and_swap_cache(struct page *page)
- {
- 	free_swap_cache(page);
--	if (is_huge_zero_page(page))
--		put_huge_zero_page();
--	else
-+	if (!is_huge_zero_page(page))
- 		put_page(page);
- }
- 
--- 
-2.5.5
+> 2) Just a nit, I noticed that you used "~(PAGE_SIZE - 1)" in several places in
+>    iomap_dax_actor() and iomap_dax_fault() instead of PAGE_MASK.  Was this
+>    intentional?
+
+Mostly because that's how I think.  I'm fine using PAGE_MASK, though.
+
+> 3) It's kind of weird having iomap_dax_fault() in fs/dax.c but having
+>    iomap_dax_actor() and iomap_dax_rw() in fs/iomap.c?  I'm guessing the
+>    latter is placed where it is because it uses iomap_apply(), which is local
+>    to fs/iomap.c?  Anyway, it would be nice if we could keep them together, if
+>    possible.
+
+It's still work in progress and could use a few cleanups.
+
+> 
+> 4) In iomap_dax_actor() you do this check:
+> 
+> 	WARN_ON_ONCE(iomap->type != IOMAP_MAPPED);
+> 
+>    If we hit this we should bail with -EIO, yea?  Otherwise we could write to
+>    unmapped space or something horrible.
+
+Fine with me.
+
+> 5) In iomap_dax_fault, I think the "I/O beyond the end of the file" check
+>    might have been broken.  Take for example an I/O to the second page of a
+>    file, where the file has size one page.  So:
+
+sure, I can fix this up.
+
+> 6) Regarding the "we don't even have the size hole problem" comment in your
+>    mail, the current PMD logic requires us to know the size of the hole.
+
+And a big part of the iomap interface is proper reporting of holes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
