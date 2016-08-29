@@ -1,74 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 63BE683090
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 07:14:34 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id h186so296611587pfg.2
-        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 04:14:34 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0118.outbound.protection.outlook.com. [104.47.0.118])
-        by mx.google.com with ESMTPS id y82si38716119pfd.118.2016.08.29.04.14.32
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2051F830E7
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 08:43:11 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id o124so302777454pfg.1
+        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 05:43:11 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id gg3si39021398pac.136.2016.08.29.05.43.10
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 29 Aug 2016 04:14:33 -0700 (PDT)
-Subject: Re: [PATCHv3 3/6] x86/arch_prctl/vdso: add ARCH_MAP_VDSO_*
-References: <201608280218.a8uP3eSS%fengguang.wu@intel.com>
-From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Message-ID: <5375a662-5541-5bde-1d03-e22665183598@virtuozzo.com>
-Date: Mon, 29 Aug 2016 14:12:19 +0300
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 29 Aug 2016 05:43:10 -0700 (PDT)
+Date: Mon, 29 Aug 2016 15:42:33 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: mm: use-after-free in collapse_huge_page
+Message-ID: <20160829124233.GA40092@black.fi.intel.com>
+References: <CACT4Y+Z3gigBvhca9kRJFcjX0G70V_nRhbwKBU+yGoESBDKi9Q@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <201608280218.a8uP3eSS%fengguang.wu@intel.com>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CACT4Y+Z3gigBvhca9kRJFcjX0G70V_nRhbwKBU+yGoESBDKi9Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <lkp@intel.com>
-Cc: kbuild-all@01.org, linux-kernel@vger.kernel.org, 0x7f454c46@gmail.com, luto@kernel.org, oleg@redhat.com, tglx@linutronix.de, hpa@zytor.com, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, gorcunov@openvz.org, xemul@virtuozzo.com
+To: Dmitry Vyukov <dvyukov@google.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Vegard Nossum <vegard.nossum@oracle.com>, Sasha Levin <levinsasha928@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>
 
-On 08/27/2016 09:09 PM, kbuild test robot wrote:
-> Hi Dmitry,
->
-> [auto build test ERROR on v4.8-rc3]
-> [also build test ERROR on next-20160825]
-> [cannot apply to tip/x86/core tip/x86/vdso linux/master]
-> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
-> [Suggest to use git(>=2.9.0) format-patch --base=<commit> (or --base=auto for convenience) to record what (public, well-known) commit your patch series was built on]
-> [Check https://git-scm.com/docs/git-format-patch for more information]
->
-> url:    https://github.com/0day-ci/linux/commits/Dmitry-Safonov/x86-32-bit-compatible-C-R-on-x86_64/20160827-011727
-> config: x86_64-randconfig-v0-08280034 (attached as .config)
-> compiler: gcc-6 (Debian 6.1.1-9) 6.1.1 20160705
-> reproduce:
->         # save the attached .config to linux build tree
->         make ARCH=x86_64
->
-> All errors (new ones prefixed by >>):
->
->    arch/x86/built-in.o: In function `do_arch_prctl':
->>> (.text+0x29865): undefined reference to `vdso_image_32'
->    arch/x86/built-in.o: In function `do_arch_prctl':
->    (.text+0x29877): undefined reference to `vdso_image_32'
->
-> ---
-> 0-DAY kernel test infrastructure                Open Source Technology Center
-> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
->
+On Sun, Aug 28, 2016 at 12:42:21PM +0200, Dmitry Vyukov wrote:
+> Hello,
+> 
+> I've git the following use-after-free in collapse_huge_page while
+> running syzkaller fuzzer. It is in khugepaged, so not reproducible. On
+> commit 61c04572de404e52a655a36752e696bbcb483cf5 (Aug 25).
+> 
+> ==================================================================
+> BUG: KASAN: use-after-free in collapse_huge_page+0x28b1/0x3500 at addr
+> ffff88006c731388
+> Read of size 8 by task khugepaged/1327
+> CPU: 0 PID: 1327 Comm: khugepaged Not tainted 4.8.0-rc3+ #33
+> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+>  ffffffff884b8280 ffff88003c207920 ffffffff82d1b239 ffffffff89ec1520
+>  fffffbfff1097050 ffff88003e94c700 ffff88006c731300 ffff88006c7313c0
+>  0000000000000000 ffff88003c207b88 ffff88003c207948 ffffffff817da1fc
+> Call Trace:
+>  [<ffffffff817da82e>] __asan_report_load8_noabort+0x3e/0x40
+> mm/kasan/report.c:322
+>  [<ffffffff817ff651>] collapse_huge_page+0x28b1/0x3500 mm/khugepaged.c:1004
 
-Right, that
-+#if defined CONFIG_X86_32 || defined CONFIG_COMPAT
-+	case ARCH_MAP_VDSO_32:
-+		return prctl_map_vdso(&vdso_image_32, addr);
-+#endif
+Okay, I think the patch below should do the trick. Build tested only.
 
-should be:
-#if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
-// ...
-
-will resend with this fixup.
-
--- 
-              Dmitry
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Andrea, Ebru, could you re-check if it's reasonable.
