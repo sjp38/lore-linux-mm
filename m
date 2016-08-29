@@ -1,49 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2051F830E7
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 08:43:11 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id o124so302777454pfg.1
-        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 05:43:11 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id gg3si39021398pac.136.2016.08.29.05.43.10
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BAA2830EF
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 08:57:46 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id 93so296279119qtg.1
+        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 05:57:46 -0700 (PDT)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id a66si9539746ywg.192.2016.08.29.05.57.44
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 29 Aug 2016 05:43:10 -0700 (PDT)
-Date: Mon, 29 Aug 2016 15:42:33 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: mm: use-after-free in collapse_huge_page
-Message-ID: <20160829124233.GA40092@black.fi.intel.com>
-References: <CACT4Y+Z3gigBvhca9kRJFcjX0G70V_nRhbwKBU+yGoESBDKi9Q@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 Aug 2016 05:57:45 -0700 (PDT)
+Date: Mon, 29 Aug 2016 08:57:41 -0400
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: [PATCH v2 2/9] ext2: tell DAX the size of allocation holes
+Message-ID: <20160829125741.cdnbb2uaditcmnw2@thunk.org>
+References: <20160823220419.11717-1-ross.zwisler@linux.intel.com>
+ <20160823220419.11717-3-ross.zwisler@linux.intel.com>
+ <20160825075728.GA11235@infradead.org>
+ <20160826212934.GA11265@linux.intel.com>
+ <20160829074116.GA16491@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CACT4Y+Z3gigBvhca9kRJFcjX0G70V_nRhbwKBU+yGoESBDKi9Q@mail.gmail.com>
+In-Reply-To: <20160829074116.GA16491@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Vegard Nossum <vegard.nossum@oracle.com>, Sasha Levin <levinsasha928@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-nvdimm@ml01.01.org, Matthew Wilcox <mawilcox@microsoft.com>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, Andreas Dilger <adilger.kernel@dilger.ca>, Alexander Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.com>, linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org
 
-On Sun, Aug 28, 2016 at 12:42:21PM +0200, Dmitry Vyukov wrote:
-> Hello,
+On Mon, Aug 29, 2016 at 12:41:16AM -0700, Christoph Hellwig wrote:
 > 
-> I've git the following use-after-free in collapse_huge_page while
-> running syzkaller fuzzer. It is in khugepaged, so not reproducible. On
-> commit 61c04572de404e52a655a36752e696bbcb483cf5 (Aug 25).
-> 
-> ==================================================================
-> BUG: KASAN: use-after-free in collapse_huge_page+0x28b1/0x3500 at addr
-> ffff88006c731388
-> Read of size 8 by task khugepaged/1327
-> CPU: 0 PID: 1327 Comm: khugepaged Not tainted 4.8.0-rc3+ #33
-> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
->  ffffffff884b8280 ffff88003c207920 ffffffff82d1b239 ffffffff89ec1520
->  fffffbfff1097050 ffff88003e94c700 ffff88006c731300 ffff88006c7313c0
->  0000000000000000 ffff88003c207b88 ffff88003c207948 ffffffff817da1fc
-> Call Trace:
->  [<ffffffff817da82e>] __asan_report_load8_noabort+0x3e/0x40
-> mm/kasan/report.c:322
->  [<ffffffff817ff651>] collapse_huge_page+0x28b1/0x3500 mm/khugepaged.c:1004
+> We're going to move forward killing buffer_heads in XFS.  I think ext4
+> would dramatically benefit from this a well, as would ext2 (although I
+> think all that DAX work in ext2 is a horrible idea to start with).
 
-Okay, I think the patch below should do the trick. Build tested only.
+It's been on my todo list.  The only reason why I haven't done it yet
+is because I knew you were working on a solution, and I didn't want to
+do things one way for buffered I/O, and a different way for Direct
+I/O, and disentangling the DIO code and the different assumptions of
+how different file systems interact with the DIO code is a *mess*.
 
-Andrea, Ebru, could you re-check if it's reasonable.
+It may have gotten better more recently, but a few years ago I took a
+look at it and backed slowly away.....
+
+						- Ted
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
