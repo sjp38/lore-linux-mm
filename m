@@ -1,70 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F47583102
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 12:02:31 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id k135so100978244lfb.2
-        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 09:02:31 -0700 (PDT)
-Received: from mo6-p00-ob.smtp.rzone.de (mo6-p00-ob.smtp.rzone.de. [2a01:238:20a:202:5300::6])
-        by mx.google.com with ESMTPS id es13si32737979wjb.44.2016.08.29.09.02.29
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 022F683102
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 12:34:01 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id ag5so276049232pad.2
+        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 09:34:00 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id rx9si4170113pab.57.2016.08.29.09.33.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Aug 2016 09:02:30 -0700 (PDT)
-Date: Mon, 29 Aug 2016 17:59:56 +0200
-From: Olaf Hering <olaf@aepfle.de>
-Subject: Re: OOM detection regressions since 4.7
-Message-ID: <20160829155956.GA31614@aepfle.de>
-References: <20160822100528.GB11890@kroah.com>
- <20160822105441.GH13596@dhcp22.suse.cz>
- <20160822133114.GA15302@kroah.com>
- <20160822134227.GM13596@dhcp22.suse.cz>
- <20160822150517.62dc7cce74f1af6c1f204549@linux-foundation.org>
- <20160823074339.GB23577@dhcp22.suse.cz>
- <20160825071103.GC4230@dhcp22.suse.cz>
- <20160825071728.GA3169@aepfle.de>
- <20160829145203.GA30660@aepfle.de>
- <20160829150703.GH2968@dhcp22.suse.cz>
+        Mon, 29 Aug 2016 09:34:00 -0700 (PDT)
+Date: Mon, 29 Aug 2016 18:33:52 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v15 04/13] task_isolation: add initial support
+Message-ID: <20160829163352.GV10153@twins.programming.kicks-ass.net>
+References: <1471382376-5443-1-git-send-email-cmetcalf@mellanox.com>
+ <1471382376-5443-5-git-send-email-cmetcalf@mellanox.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="sdtB3X0nJg68CQEu"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160829150703.GH2968@dhcp22.suse.cz>
+In-Reply-To: <1471382376-5443-5-git-send-email-cmetcalf@mellanox.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Markus Trippelsdorf <markus@trippelsdorf.de>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Jiri Slaby <jslaby@suse.com>, Greg KH <gregkh@linuxfoundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Chris Metcalf <cmetcalf@mellanox.com>
+Cc: Gilad Ben Yossef <giladb@mellanox.com>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Tejun Heo <tj@kernel.org>, Frederic Weisbecker <fweisbec@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Viresh Kumar <viresh.kumar@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
 
+On Tue, Aug 16, 2016 at 05:19:27PM -0400, Chris Metcalf wrote:
+> +	/*
+> +	 * Request rescheduling unless we are in full dynticks mode.
+> +	 * We would eventually get pre-empted without this, and if
+> +	 * there's another task waiting, it would run; but by
+> +	 * explicitly requesting the reschedule, we may reduce the
+> +	 * latency.  We could directly call schedule() here as well,
+> +	 * but since our caller is the standard place where schedule()
+> +	 * is called, we defer to the caller.
+> +	 *
+> +	 * A more substantive approach here would be to use a struct
+> +	 * completion here explicitly, and complete it when we shut
+> +	 * down dynticks, but since we presumably have nothing better
+> +	 * to do on this core anyway, just spinning seems plausible.
+> +	 */
+> +	if (!tick_nohz_tick_stopped())
+> +		set_tsk_need_resched(current);
 
---sdtB3X0nJg68CQEu
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-
-On Mon, Aug 29, Michal Hocko wrote:
-
-> On Mon 29-08-16 16:52:03, Olaf Hering wrote:
-> > I ran rc3 for a few hours on Friday amd FireFox was not killed.
-> > Now rc3 is running for a day with the usual workload and FireFox is
-> > still running.
-> Is the patch
-> (http://lkml.kernel.org/r/20160823074339.GB23577@dhcp22.suse.cz) applied?
-
-Yes.
-
-Tested-by: Olaf Hering <olaf@aepfle.de>
-
-Olaf
-
---sdtB3X0nJg68CQEu
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iEYEARECAAYFAlfEW/YACgkQXUKg+qaYNn4yVwCfWomaLpB0Rmm0AASZNzIAWTVj
-LjkAoOuVsFQhkSMaI3Mhs5JHWjX9UMKz
-=moh7
------END PGP SIGNATURE-----
-
---sdtB3X0nJg68CQEu--
+This is broken.. and it would be really good if you don't actually need
+to do this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
