@@ -1,77 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C2B6D830F1
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 18:50:23 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id k186so6171294qkb.0
-        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 15:50:23 -0700 (PDT)
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9811A830F1
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 19:07:39 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id f128so6699730qkd.1
+        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 16:07:39 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id g2si10821365ywg.191.2016.08.29.15.50.22
+        by mx.google.com with ESMTPS id l67si10854106ywd.313.2016.08.29.16.07.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Aug 2016 15:50:23 -0700 (PDT)
-Date: Mon, 29 Aug 2016 15:50:21 -0700
+        Mon, 29 Aug 2016 16:07:38 -0700 (PDT)
+Date: Mon, 29 Aug 2016 16:07:37 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] thp: reduce usage of huge zero page's atomic counter
-Message-Id: <20160829155021.2a85910c3d6b16a7f75ffccd@linux-foundation.org>
-In-Reply-To: <b7e47f2c-8aac-156a-f627-a50db31220f8@intel.com>
-References: <b7e47f2c-8aac-156a-f627-a50db31220f8@intel.com>
+Subject: Re: [PATCH v3 0/3] Account reserved memory when allocating system
+ hash
+Message-Id: <20160829160737.819633db830d332dd669bcdf@linux-foundation.org>
+In-Reply-To: <1472476010-4709-1-git-send-email-srikar@linux.vnet.ibm.com>
+References: <1472476010-4709-1-git-send-email-srikar@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, "'Kirill A. Shutemov'" <kirill.shutemov@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Huang Ying <ying.huang@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-kernel@vger.kernel.org
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org, Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>, Hari Bathini <hbathini@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@intel.com>, Balbir Singh <bsingharora@gmail.com>
 
-On Mon, 29 Aug 2016 14:31:20 +0800 Aaron Lu <aaron.lu@intel.com> wrote:
+On Mon, 29 Aug 2016 18:36:47 +0530 Srikar Dronamraju <srikar@linux.vnet.ibm.com> wrote:
 
+> Fadump kernel reserves large chunks of memory even before the pages are
+> initialised. This could mean memory that corresponds to several nodes might
+> fall in memblock reserved regions.
 > 
-> The global zero page is used to satisfy an anonymous read fault. If
-> THP(Transparent HugePage) is enabled then the global huge zero page is used.
-> The global huge zero page uses an atomic counter for reference counting
-> and is allocated/freed dynamically according to its counter value.
+> Kernels compiled with CONFIG_DEFERRED_STRUCT_PAGE_INIT will initialise
+> only certain size memory per node. The certain size takes into account
+> the dentry and inode cache sizes. However such a kernel when booting a
+> secondary kernel will not be able to allocate the required amount of
+> memory to suffice for the dentry and inode caches. This results in
+> crashes like the below on large systems such as 32 TB systems.
 > 
-> CPU time spent on that counter will greatly increase if there are
-> a lot of processes doing anonymous read faults. This patch proposes a
-> way to reduce the access to the global counter so that the CPU load
-> can be reduced accordingly.
+> Dentry cache hash table entries: 536870912 (order: 16, 4294967296 bytes)
+> vmalloc: allocation failure, allocated 4097114112 of 17179934720 bytes
+> swapper/0: page allocation failure: order:0, mode:0x2080020(GFP_ATOMIC)
+> CPU: 0 PID: 0 Comm: swapper/0 Not tainted 4.6-master+ #3
+> Call Trace:
+> [c00000000108fb10] [c0000000007fac88] dump_stack+0xb0/0xf0 (unreliable)
+> [c00000000108fb50] [c000000000235264] warn_alloc_failed+0x114/0x160
+> [c00000000108fbf0] [c000000000281484] __vmalloc_node_range+0x304/0x340
+> [c00000000108fca0] [c00000000028152c] __vmalloc+0x6c/0x90
+> [c00000000108fd40] [c000000000aecfb0]
+> alloc_large_system_hash+0x1b8/0x2c0
+> [c00000000108fe00] [c000000000af7240] inode_init+0x94/0xe4
+> [c00000000108fe80] [c000000000af6fec] vfs_caches_init+0x8c/0x13c
+> [c00000000108ff00] [c000000000ac4014] start_kernel+0x50c/0x578
+> [c00000000108ff90] [c000000000008c6c] start_here_common+0x20/0xa8
 > 
-> To do this, a new flag of the mm_struct is introduced: MMF_USED_HUGE_ZERO_PAGE.
-> With this flag, the process only need to touch the global counter in
-> two cases:
-> 1 The first time it uses the global huge zero page;
-> 2 The time when mm_user of its mm_struct reaches zero.
+> This patchset solves this problem by accounting the size of reserved memory
+> when calculating the size of large system hashes.
 > 
-> Note that right now, the huge zero page is eligible to be freed as soon
-> as its last use goes away.  With this patch, the page will not be
-> eligible to be freed until the exit of the last process from which it
-> was ever used.
-> 
-> And with the use of mm_user, the kthread is not eligible to use huge
-> zero page either. Since no kthread is using huge zero page today, there
-> is no difference after applying this patch. But if that is not desired,
-> I can change it to when mm_count reaches zero.
+> While this patchset applies on v4.8-rc3, it cannot be tested on v4.8-rc3
+> because of http://lkml.kernel.org/r/20160829093844.GA2592@linux.vnet.ibm.com
+> However it has been tested on v4.7/v4.6 and v4.4
 
-I suppose we could simply never free the zero huge page - if some
-process has used it in the past, others will probably use it in the
-future.  One wonders how useful this optimization is...
+That looks like a pretty serious regression.
 
-But the patch is simple enough.
-
-> Case used for test on Haswell EP:
-> usemem -n 72 --readonly -j 0x200000 100G
-> Which spawns 72 processes and each will mmap 100G anonymous space and
-> then do read only access to that space sequentially with a step of 2MB.
-> 
-> perf report for base commit:
->     54.03%  usemem   [kernel.kallsyms]   [k] get_huge_zero_page
-> perf report for this commit:
->      0.11%  usemem   [kernel.kallsyms]   [k] mm_get_huge_zero_page
-
-Does this mean that overall usemem runtime halved?
-
-Do we have any numbers for something which is more real-wordly?
-
+I'll grab the patchset anyway.  It will come good when we fix that kswapd
+thing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
