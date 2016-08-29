@@ -1,113 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D6EDC83102
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 11:35:54 -0400 (EDT)
-Received: by mail-ua0-f198.google.com with SMTP id 30so88628647uab.1
-        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 08:35:54 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u13si23602561qtu.141.2016.08.29.08.35.52
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F47583102
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 12:02:31 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id k135so100978244lfb.2
+        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 09:02:31 -0700 (PDT)
+Received: from mo6-p00-ob.smtp.rzone.de (mo6-p00-ob.smtp.rzone.de. [2a01:238:20a:202:5300::6])
+        by mx.google.com with ESMTPS id es13si32737979wjb.44.2016.08.29.09.02.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Aug 2016 08:35:52 -0700 (PDT)
-Date: Mon, 29 Aug 2016 17:35:48 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: mm: use-after-free in collapse_huge_page
-Message-ID: <20160829153548.pmwcup4q74hafwmu@redhat.com>
-References: <CACT4Y+Z3gigBvhca9kRJFcjX0G70V_nRhbwKBU+yGoESBDKi9Q@mail.gmail.com>
- <20160829124233.GA40092@black.fi.intel.com>
+        Mon, 29 Aug 2016 09:02:30 -0700 (PDT)
+Date: Mon, 29 Aug 2016 17:59:56 +0200
+From: Olaf Hering <olaf@aepfle.de>
+Subject: Re: OOM detection regressions since 4.7
+Message-ID: <20160829155956.GA31614@aepfle.de>
+References: <20160822100528.GB11890@kroah.com>
+ <20160822105441.GH13596@dhcp22.suse.cz>
+ <20160822133114.GA15302@kroah.com>
+ <20160822134227.GM13596@dhcp22.suse.cz>
+ <20160822150517.62dc7cce74f1af6c1f204549@linux-foundation.org>
+ <20160823074339.GB23577@dhcp22.suse.cz>
+ <20160825071103.GC4230@dhcp22.suse.cz>
+ <20160825071728.GA3169@aepfle.de>
+ <20160829145203.GA30660@aepfle.de>
+ <20160829150703.GH2968@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="sdtB3X0nJg68CQEu"
 Content-Disposition: inline
-In-Reply-To: <20160829124233.GA40092@black.fi.intel.com>
+In-Reply-To: <20160829150703.GH2968@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Vegard Nossum <vegard.nossum@oracle.com>, Sasha Levin <levinsasha928@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Markus Trippelsdorf <markus@trippelsdorf.de>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Jiri Slaby <jslaby@suse.com>, Greg KH <gregkh@linuxfoundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Hello Kirill,
 
-On Mon, Aug 29, 2016 at 03:42:33PM +0300, Kirill A. Shutemov wrote:
-> @@ -898,13 +899,13 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
->  		/* do_swap_page returns VM_FAULT_RETRY with released mmap_sem */
->  		if (ret & VM_FAULT_RETRY) {
->  			down_read(&mm->mmap_sem);
-> -			if (hugepage_vma_revalidate(mm, address)) {
-> +			if (hugepage_vma_revalidate(mm, address, &vma)) {
->  				/* vma is no longer available, don't continue to swapin */
->  				trace_mm_collapse_huge_page_swapin(mm, swapped_in, referenced, 0);
->  				return false;
->  			}
->  			/* check if the pmd is still valid */
-> -			if (mm_find_pmd(mm, address) != pmd)
-> +			if (mm_find_pmd(mm, address) != pmd || vma != fe.vma)
->  				return false;
->  		}
->  		if (ret & VM_FAULT_ERROR) {
+--sdtB3X0nJg68CQEu
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
 
-You check if the vma changed if the mmap_sem was released by the
-VM_FAULT_RETRY case but not below:
+On Mon, Aug 29, Michal Hocko wrote:
 
-	/*
-	 * Prevent all access to pagetables with the exception of
-	 * gup_fast later handled by the ptep_clear_flush and the VM
-> @@ -994,7 +995,7 @@ static void collapse_huge_page(struct mm_struct *mm,
->  	 * handled by the anon_vma lock + PG_lock.
->  	 */
->  	down_write(&mm->mmap_sem);
-> -	result = hugepage_vma_revalidate(mm, address);
-> +	result = hugepage_vma_revalidate(mm, address, &vma);
->  	if (result)
->  		goto out;
->  	/* check if the pmd is still valid */
-	if (mm_find_pmd(mm, address) != pmd)
-		goto out;
+> On Mon 29-08-16 16:52:03, Olaf Hering wrote:
+> > I ran rc3 for a few hours on Friday amd FireFox was not killed.
+> > Now rc3 is running for a day with the usual workload and FireFox is
+> > still running.
+> Is the patch
+> (http://lkml.kernel.org/r/20160823074339.GB23577@dhcp22.suse.cz) applied?
 
-Here you go ahead without care if the vma has changed as long as the
-"vma" pointer was updated to the new one, and the pmd is still present
-and stable (present and not huge) and all vma details matched as
-before.
+Yes.
 
-Either we care that the vma changed in both places or we don't in
-either of the two places.
+Tested-by: Olaf Hering <olaf@aepfle.de>
 
-The idea was that even if the vma changed it doesn't matter because
-it's still good to proceed for a collapse if all revalidation check
-pass.
+Olaf
 
-What we failed at, was in refreshing the pointer of the vma to the new
-one after the vma revalidation passed, so that the code that goes
-ahead uses the right vma pointer and not the stale one we got
-initially.
+--sdtB3X0nJg68CQEu
+Content-Type: application/pgp-signature; name="signature.asc"
 
-Now it may give a perception that it is safer to check fa.vma != vma
-but in reality it is not, because the vma may be freed and reallocated
-in exactly the same address...
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
 
-So I think the vma != fe.vma check shall be removed because no matter
-what the safety of the vma revalidate cannot come from checking if the
-pointer has not changed and it must come from something else.
+iEYEARECAAYFAlfEW/YACgkQXUKg+qaYNn4yVwCfWomaLpB0Rmm0AASZNzIAWTVj
+LjkAoOuVsFQhkSMaI3Mhs5JHWjX9UMKz
+=moh7
+-----END PGP SIGNATURE-----
 
-Now reading __collapse_huge_page_swapin I noticed some other unrelated
-issues.
-
-		if (referenced < HPAGE_PMD_NR/2) {
-			trace_mm_collapse_huge_page_swapin(mm, swapped_in, referenced, 0);
-			return false;
-		}
-
-Referenced is not updated ever by __collapse_huge_page_swapin. In turn
-the above check would better be moved out of the loop, before we start
-to kmap the pte.
-
-Bigger issue is that leaving it where it is right now, we don't seem
-to unmap the pte as needed when the above "return false" above runs,
-which means we're leaking kmap_atomic entries, and that will also get
-fixed by moving the check before the loop starts and before the first
-pte_offset_map.
-
-swapped_in will showup zero instead of 1 in the tracing at all times
-but I doubt it makes any difference so I would move it out of the loop
-instead of adding a pte_unmap before returning, so it runs faster.
+--sdtB3X0nJg68CQEu--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
