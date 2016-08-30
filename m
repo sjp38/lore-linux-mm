@@ -1,96 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 780036B0289
-	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 20:55:56 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id 33so2492567lfw.1
-        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 17:55:56 -0700 (PDT)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id 203si1831333wmh.93.2016.08.29.17.55.54
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 73C406B028B
+	for <linux-mm@kvack.org>; Mon, 29 Aug 2016 21:07:00 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id i2so12368770qke.2
+        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 18:07:00 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0225.hostedemail.com. [216.40.44.225])
+        by mx.google.com with ESMTPS id s31si25672502qtb.18.2016.08.29.18.06.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Aug 2016 17:55:54 -0700 (PDT)
-Received: by mail-wm0-x243.google.com with SMTP id i138so940997wmf.3
-        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 17:55:54 -0700 (PDT)
-Date: Tue, 30 Aug 2016 02:55:52 +0200
-From: Frederic Weisbecker <fweisbec@gmail.com>
-Subject: Re: [PATCH v14 04/14] task_isolation: add initial support
-Message-ID: <20160830005550.GB32720@lerouge>
-References: <1470774596-17341-1-git-send-email-cmetcalf@mellanox.com>
- <1470774596-17341-5-git-send-email-cmetcalf@mellanox.com>
- <20160811181132.GD4214@lerouge>
- <alpine.DEB.2.20.1608111349190.1644@east.gentwo.org>
- <c675d2b6-c380-2a3f-6d49-b5e8b48eae1f@mellanox.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <c675d2b6-c380-2a3f-6d49-b5e8b48eae1f@mellanox.com>
+        Mon, 29 Aug 2016 18:06:59 -0700 (PDT)
+Message-ID: <1472519215.5512.30.camel@perches.com>
+Subject: Re: [PATCH v4 resend] mm/slab: Improve performance of gathering
+ slabinfo stats
+From: Joe Perches <joe@perches.com>
+Date: Mon, 29 Aug 2016 18:06:55 -0700
+In-Reply-To: <1472517876-26814-1-git-send-email-aruna.ramakrishna@oracle.com>
+References: <1472517876-26814-1-git-send-email-aruna.ramakrishna@oracle.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Metcalf <cmetcalf@mellanox.com>
-Cc: Christoph Lameter <cl@linux.com>, Gilad Ben Yossef <giladb@mellanox.com>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Tejun Heo <tj@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Viresh Kumar <viresh.kumar@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Aruna Ramakrishna <aruna.ramakrishna@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, Aug 15, 2016 at 10:59:55AM -0400, Chris Metcalf wrote:
-> On 8/11/2016 2:50 PM, Christoph Lameter wrote:
-> >On Thu, 11 Aug 2016, Frederic Weisbecker wrote:
-> >
-> >>Do we need to quiesce vmstat everytime before entering userspace?
-> >>I thought that vmstat only need to be offlined once and for all?
-> >Once is sufficient after disabling the tick.
-> 
-> It's true that task_isolation_enter() is called every time before
-> returning to user space while task isolation is enabled.
-> 
-> But once we enter the kernel again after returning from the initial
-> prctl() -- assuming we are in NOSIG mode so doing so is legal in the
-> first place -- almost anything can happen, certainly including
-> restarting the tick.  Thus, we have to make sure that normal quiescing
-> happens again before we return to userspace.
+On Mon, 2016-08-29 at 17:44 -0700, Aruna Ramakrishna wrote:
+> This patch optimizes 'cat /proc/slabinfo' by maintaining a counter for
+> total number of allocated slabs per node, per cache.
+[]
+> We tested this after
+> growing the dentry cache to 70GB, and the performance improved from 2s to
+> 5ms.
 
-Yes but we need to sort out what needs to be called only once on prctl().
+Seems sensible, thanks.
 
-Once vmstat is quiesced, it's not going to need quiescing again even if we
-restart the tick.
+One completely trivial note:
+> diff --git a/mm/slab.c b/mm/slab.c
+[]
+> @@ -1394,24 +1395,27 @@ slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
+>  	for_each_kmem_cache_node(cachep, node, n) {
+>  		unsigned long active_objs = 0, num_objs = 0, free_objects = 0;
+>  		unsigned long active_slabs = 0, num_slabs = 0;
+> +		unsigned long num_slabs_partial = 0, num_slabs_free = 0;
+> +		unsigned long num_slabs_full;
+[]
+> +		num_slabs_full = num_slabs -
+> +			(num_slabs_partial + num_slabs_free);
 
-> 
-> For vmstat, you're right that it's somewhat heavyweight to do the
-> quiesce, and if we don't need it, it's wasted time on the return path.
-> So I will add a guard call to the new vmstat_idle() before invoking
-> quiet_vmstat_sync().  This slows down the path where it turns out we
-> do need to quieten vmstat, but not by too much.
+vs
 
-Why not do this on prctl() only?
+> @@ -4111,6 +4119,8 @@ void get_slabinfo(struct kmem_cache *cachep, struct slabinfo *sinfo)
+>  	unsigned long num_objs;
+>  	unsigned long active_slabs = 0;
+>  	unsigned long num_slabs, free_objects = 0, shared_avail = 0;
+> +	unsigned long num_slabs_partial = 0, num_slabs_free = 0;
+> +	unsigned long num_slabs_full = 0;
+[]
+> +	num_slabs_full = num_slabs - (num_slabs_partial + num_slabs_free);
 
-> The LRU quiesce is quite light-weight.  We just check pagevec_count()
-> on a handful of pagevec's, confirm they are all zero, and return
-> without further work.  So for that one, adding a separate
-> lru_add_drain_needed() guard test would just be wasted effort.
+It seems odd to have different initialization styles
+for num_slabs_full.  It seems the second one doesn't
+need to be initialized.
 
-Ok if this one is justified, like LRU may need update everytime we re-enter
-the kernel, then we can keep it (I can't tell, I don't know much about -mm).
+It'd also be nicer I think if the two declarations
+blocks had more similar layouts.
 
-> The thing to remember is that this is only relevant if the user has
-> explicitly requested the NOSIG behavior from task isolation, which we
-> don't really expect to be the default - we are implicitly encouraging
-> use of the default semantics of "you can't enter the kernel again
-> until you turn off isolation".
-
-That's right. Although NOSIG is the only thing we can afford as long as
-we drag around the 1Hz.
-
-> 
-> >> +	if (!tick_nohz_tick_stopped())
-> >> +		set_tsk_need_resched(current);
-> >> Again, that won't help
-> 
-> It won't be better than spinning in a loop if there aren't any other
-> schedulable processes, but it won't be worse either.  If there is
-> another schedulable process, we at least will schedule it sooner than
-> if we just sat in a busy loop and waited for the scheduler to kick
-> us. But there's nothing else we can do anyway if we want to maintain
-> the guarantee that the dyn tick is stopped before return to userspace.
-
-I don't think it helps either way. If reschedule is pending, the current
-task already has TIF_RESCHED set.
+Maybe in a follow-on patch.  Or not.  Your choice.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
