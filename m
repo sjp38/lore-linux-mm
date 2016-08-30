@@ -1,61 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E0D383096
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 08:41:04 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id w128so41775877pfd.3
-        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 05:41:04 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id g8si33847921pan.207.2016.08.30.05.41.02
+Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 48AAE82F64
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 09:19:13 -0400 (EDT)
+Received: by mail-yb0-f200.google.com with SMTP id d205so43457530ybh.0
+        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 06:19:13 -0700 (PDT)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0070.outbound.protection.outlook.com. [104.47.38.70])
+        by mx.google.com with ESMTPS id u3si19482829qkc.187.2016.08.30.06.19.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Aug 2016 05:41:03 -0700 (PDT)
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u7UCeuBx078818
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 08:41:02 -0400
-Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2558r4vbmw-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 08:41:02 -0400
-Received: from localhost
-	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 30 Aug 2016 08:40:57 -0400
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v5 2/6] mm/cma: introduce new zone, ZONE_CMA
-In-Reply-To: <87vayisfx3.fsf@linux.vnet.ibm.com>
-References: <1472447255-10584-1-git-send-email-iamjoonsoo.kim@lge.com> <1472447255-10584-3-git-send-email-iamjoonsoo.kim@lge.com> <87vayisfx3.fsf@linux.vnet.ibm.com>
-Date: Tue, 30 Aug 2016 18:10:46 +0530
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 30 Aug 2016 06:19:12 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 04/20] x86: Secure Memory Encryption (SME) support
+References: <20160822223529.29880.50884.stgit@tlendack-t1.amdoffice.net>
+ <20160822223610.29880.21739.stgit@tlendack-t1.amdoffice.net>
+ <alpine.DEB.2.20.1608251503340.5714@nanos>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <e296f12d-7c76-4690-17bd-0f721d739f07@amd.com>
+Date: Tue, 30 Aug 2016 08:19:00 -0500
 MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <87pooqsa41.fsf@linux.vnet.ibm.com>
+In-Reply-To: <alpine.DEB.2.20.1608251503340.5714@nanos>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>
 
-"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> writes:
+On 08/25/2016 08:04 AM, Thomas Gleixner wrote:
+> On Mon, 22 Aug 2016, Tom Lendacky wrote:
+> 
+>> Provide support for Secure Memory Encryption (SME). This initial support
+>> defines the memory encryption mask as a variable for quick access and an
+>> accessor for retrieving the number of physical addressing bits lost if
+>> SME is enabled.
+> 
+> What is the reason that this needs to live in assembly code?
 
-> ....
->
->>  static inline void check_highest_zone(enum zone_type k)
->>  {
->> -	if (k > policy_zone && k != ZONE_MOVABLE)
->> +	if (k > policy_zone && k != ZONE_MOVABLE && !is_zone_cma_idx(k))
->>  		policy_zone = k;
->>  }
->>
->
->
-> Should we apply policy to allocation from ZONE CMA ?. CMA reserve
-> happens early and may mostly come from one node. Do we want the
-> CMA allocation to fail if we use mbind(MPOL_BIND) with a node mask not
-> including that node on which CMA is reserved, considering CMA memory is
-> going to be used for special purpose.
+In later patches this code is expanded and deals with a lot of page
+table manipulation, cpuid/rdmsr instructions, etc. and so I thought it
+was best to do it this way.
 
-Looking at this again, I guess CMA alloc is not going to depend on
-memory policy, but this is for other movable allocation ?
+Thanks,
+Tom
 
--aneesh
+>  
+> Thanks,
+> 
+> 	tglx
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
