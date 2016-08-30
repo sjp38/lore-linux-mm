@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B03583096
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 07:00:31 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id o124so37648407pfg.1
-        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 04:00:31 -0700 (PDT)
-Received: from mail-pa0-x241.google.com (mail-pa0-x241.google.com. [2607:f8b0:400e:c03::241])
-        by mx.google.com with ESMTPS id 84si44736110pfk.97.2016.08.30.04.00.30
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 46A7383096
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 07:00:36 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id ez1so32263007pab.1
+        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 04:00:36 -0700 (PDT)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id d28si44756995pfb.283.2016.08.30.04.00.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Aug 2016 04:00:30 -0700 (PDT)
-Received: by mail-pa0-x241.google.com with SMTP id cf3so965731pad.2
-        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 04:00:30 -0700 (PDT)
+        Tue, 30 Aug 2016 04:00:35 -0700 (PDT)
+Received: by mail-pf0-x242.google.com with SMTP id i6so1007352pfe.0
+        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 04:00:35 -0700 (PDT)
 From: wei.guo.simon@gmail.com
-Subject: [PATCH 2/4] mm: mlock: avoid increase mm->locked_vm on mlock() when already mlock2(,MLOCK_ONFAULT)
-Date: Tue, 30 Aug 2016 18:59:39 +0800
-Message-Id: <1472554781-9835-3-git-send-email-wei.guo.simon@gmail.com>
+Subject: [PATCH 3/4] selftest: split mlock2_ funcs into separate mlock2.h
+Date: Tue, 30 Aug 2016 18:59:40 +0800
+Message-Id: <1472554781-9835-4-git-send-email-wei.guo.simon@gmail.com>
 In-Reply-To: <1472554781-9835-1-git-send-email-wei.guo.simon@gmail.com>
 References: <1472554781-9835-1-git-send-email-wei.guo.simon@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,49 +24,74 @@ Cc: Alexey Klimov <klimov.linux@gmail.com>, Andrew Morton <akpm@linux-foundation
 
 From: Simon Guo <wei.guo.simon@gmail.com>
 
-When one vma was with flag VM_LOCKED|VM_LOCKONFAULT (by invoking
-mlock2(,MLOCK_ONFAULT)), it can again be populated with mlock() with
-VM_LOCKED flag only.
-
-There is a hole in mlock_fixup() which increase mm->locked_vm twice even
-the two operations are on the same vma and both with VM_LOCKED flags.
-
-The issue can be reproduced by following code:
-mlock2(p, 1024 * 64, MLOCK_ONFAULT); //VM_LOCKED|VM_LOCKONFAULT
-mlock(p, 1024 * 64);  //VM_LOCKED
-Then check the increase VmLck field in /proc/pid/status(to 128k).
-
-When vma is set with different vm_flags, and the new vm_flags is with
-VM_LOCKED, it is not necessarily be a "new locked" vma.  This patch
-corrects this bug by prevent mm->locked_vm from increment when old
-vm_flags is already VM_LOCKED.
+To prepare mlock2.h whose functionality will be reused.
 
 Signed-off-by: Simon Guo <wei.guo.simon@gmail.com>
 ---
- mm/mlock.c | 3 +++
- 1 file changed, 3 insertions(+)
+ tools/testing/selftests/vm/mlock2-tests.c | 21 +--------------------
+ tools/testing/selftests/vm/mlock2.h       | 20 ++++++++++++++++++++
+ 2 files changed, 21 insertions(+), 20 deletions(-)
+ create mode 100644 tools/testing/selftests/vm/mlock2.h
 
-diff --git a/mm/mlock.c b/mm/mlock.c
-index 9283187..df29aad 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -516,6 +516,7 @@ static int mlock_fixup(struct vm_area_struct *vma, struct vm_area_struct **prev,
- 	int nr_pages;
- 	int ret = 0;
- 	int lock = !!(newflags & VM_LOCKED);
-+	vm_flags_t old_flags = vma->vm_flags;
+diff --git a/tools/testing/selftests/vm/mlock2-tests.c b/tools/testing/selftests/vm/mlock2-tests.c
+index 02ca5e0..7cb13ce 100644
+--- a/tools/testing/selftests/vm/mlock2-tests.c
++++ b/tools/testing/selftests/vm/mlock2-tests.c
+@@ -7,27 +7,8 @@
+ #include <string.h>
+ #include <sys/time.h>
+ #include <sys/resource.h>
+-#include <syscall.h>
+-#include <errno.h>
+ #include <stdbool.h>
+-
+-#ifndef MLOCK_ONFAULT
+-#define MLOCK_ONFAULT 1
+-#endif
+-
+-#ifndef MCL_ONFAULT
+-#define MCL_ONFAULT (MCL_FUTURE << 1)
+-#endif
+-
+-static int mlock2_(void *start, size_t len, int flags)
+-{
+-#ifdef __NR_mlock2
+-	return syscall(__NR_mlock2, start, len, flags);
+-#else
+-	errno = ENOSYS;
+-	return -1;
+-#endif
+-}
++#include "mlock2.h"
  
- 	if (newflags == vma->vm_flags || (vma->vm_flags & VM_SPECIAL) ||
- 	    is_vm_hugetlb_page(vma) || vma == get_gate_vma(current->mm))
-@@ -550,6 +551,8 @@ success:
- 	nr_pages = (end - start) >> PAGE_SHIFT;
- 	if (!lock)
- 		nr_pages = -nr_pages;
-+	else if (old_flags & VM_LOCKED)
-+		nr_pages = 0;
- 	mm->locked_vm += nr_pages;
- 
- 	/*
+ struct vm_boundaries {
+ 	unsigned long start;
+diff --git a/tools/testing/selftests/vm/mlock2.h b/tools/testing/selftests/vm/mlock2.h
+new file mode 100644
+index 0000000..b9c6d9f
+--- /dev/null
++++ b/tools/testing/selftests/vm/mlock2.h
+@@ -0,0 +1,20 @@
++#include <syscall.h>
++#include <errno.h>
++
++#ifndef MLOCK_ONFAULT
++#define MLOCK_ONFAULT 1
++#endif
++
++#ifndef MCL_ONFAULT
++#define MCL_ONFAULT (MCL_FUTURE << 1)
++#endif
++
++static int mlock2_(void *start, size_t len, int flags)
++{
++#ifdef __NR_mlock2
++	return syscall(__NR_mlock2, start, len, flags);
++#else
++	errno = ENOSYS;
++	return -1;
++#endif
++}
 -- 
 1.8.3.1
 
