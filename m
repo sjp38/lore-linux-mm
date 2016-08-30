@@ -1,51 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 42B6A8308E
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 03:59:58 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id w128so28973318pfd.3
-        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 00:59:58 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id c203si43994141pfb.235.2016.08.30.00.59.57
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DC498308F
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 04:21:19 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id g124so3023683qkd.2
+        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 01:21:19 -0700 (PDT)
+Received: from mail-ua0-x231.google.com (mail-ua0-x231.google.com. [2607:f8b0:400c:c08::231])
+        by mx.google.com with ESMTPS id j32si10759812uaj.250.2016.08.30.01.21.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Aug 2016 00:59:57 -0700 (PDT)
-Date: Tue, 30 Aug 2016 09:59:49 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v15 04/13] task_isolation: add initial support
-Message-ID: <20160830075949.GA10153@twins.programming.kicks-ass.net>
-References: <1471382376-5443-1-git-send-email-cmetcalf@mellanox.com>
- <1471382376-5443-5-git-send-email-cmetcalf@mellanox.com>
- <20160829163352.GV10153@twins.programming.kicks-ass.net>
- <fe4b8667-57d5-7767-657a-d89c8b62f8e3@mellanox.com>
- <20160829164809.GW10153@twins.programming.kicks-ass.net>
- <ccd4a21a-8de5-38f0-5e78-1ad999755b7a@mellanox.com>
+        Tue, 30 Aug 2016 01:21:18 -0700 (PDT)
+Received: by mail-ua0-x231.google.com with SMTP id m60so20099498uam.3
+        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 01:21:18 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ccd4a21a-8de5-38f0-5e78-1ad999755b7a@mellanox.com>
+In-Reply-To: <8737lnudq6.fsf@linux.vnet.ibm.com>
+References: <1472447255-10584-1-git-send-email-iamjoonsoo.kim@lge.com> <8737lnudq6.fsf@linux.vnet.ibm.com>
+From: Joonsoo Kim <js1304@gmail.com>
+Date: Tue, 30 Aug 2016 17:21:18 +0900
+Message-ID: <CAAmzW4MZdwn2-Pd_58B+vXKOyPybdfx4FPRvxNaADnDCryo7Ng@mail.gmail.com>
+Subject: Re: [PATCH v5 0/6] Introduce ZONE_CMA
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Metcalf <cmetcalf@mellanox.com>
-Cc: Gilad Ben Yossef <giladb@mellanox.com>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Tejun Heo <tj@kernel.org>, Frederic Weisbecker <fweisbec@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Viresh Kumar <viresh.kumar@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Mon, Aug 29, 2016 at 12:53:30PM -0400, Chris Metcalf wrote:
+2016-08-29 18:27 GMT+09:00 Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>:
+> js1304@gmail.com writes:
+>
+>> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>>
+>> Hello,
+>>
+>> Changes from v4
+>> o Rebase on next-20160825
+>> o Add general fix patch for lowmem reserve
+>> o Fix lowmem reserve ratio
+>> o Fix zone span optimizaion per Vlastimil
+>> o Fix pageset initialization
+>> o Change invocation timing on cma_init_reserved_areas()
+>
+> I don't see much information regarding how we interleave between
+> ZONE_CMA and other zones for movable allocation. Is that explained in
+> any of the patch ? The fair zone allocator got removed by
+> e6cbd7f2efb433d717af72aa8510a9db6f7a7e05
 
-> Would it be cleaner to just replace the set_tsk_need_resched() call
-> with something like:
-> 
->     set_current_state(TASK_INTERRUPTIBLE);
->     schedule();
->     __set_current_state(TASK_RUNNING);
-> 
-> or what would you recommend?
+Interleaving would not work since the fair zone allocator policy is removed.
+I don't think that it's a big problem because it is just matter of
+timing to fill
+up the memory. Eventually, memory on ZONE_CMA will be fully used in
+any case.
 
-That'll just get you to sleep _forever_...
-
-> Or, as I said, just doing a busy loop here while testing to see
-> if need_resched or signal had been set?
-
-Why do you care about need_resched() and or signals? How is that related
-to the tick being stopped or not?
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
