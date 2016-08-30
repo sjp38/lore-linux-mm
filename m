@@ -1,53 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D721D6B0038
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 10:57:46 -0400 (EDT)
-Received: by mail-ua0-f199.google.com with SMTP id j4so47838766uaj.2
-        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 07:57:46 -0700 (PDT)
-Received: from mail-ua0-x22b.google.com (mail-ua0-x22b.google.com. [2607:f8b0:400c:c08::22b])
-        by mx.google.com with ESMTPS id 91si3073934uat.193.2016.08.30.07.57.45
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F08206B0038
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 11:00:55 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id u81so17836173wmu.3
+        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 08:00:55 -0700 (PDT)
+Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
+        by mx.google.com with ESMTPS id p89si18067705wma.61.2016.08.30.08.00.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Aug 2016 07:57:46 -0700 (PDT)
-Received: by mail-ua0-x22b.google.com with SMTP id m60so37017431uam.3
-        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 07:57:45 -0700 (PDT)
+        Tue, 30 Aug 2016 08:00:54 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 2E5AD1C1CD9
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 16:00:54 +0100 (IST)
+Date: Tue, 30 Aug 2016 16:00:51 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 07/34] mm, vmscan: make kswapd reclaim in terms of nodes
+Message-ID: <20160830150051.GW8119@techsingularity.net>
+References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
+ <1467970510-21195-8-git-send-email-mgorman@techsingularity.net>
+ <20160829093844.GA2592@linux.vnet.ibm.com>
+ <20160830120728.GV8119@techsingularity.net>
+ <20160830142508.GA10514@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <e296f12d-7c76-4690-17bd-0f721d739f07@amd.com>
-References: <20160822223529.29880.50884.stgit@tlendack-t1.amdoffice.net>
- <20160822223610.29880.21739.stgit@tlendack-t1.amdoffice.net>
- <alpine.DEB.2.20.1608251503340.5714@nanos> <e296f12d-7c76-4690-17bd-0f721d739f07@amd.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Tue, 30 Aug 2016 07:57:25 -0700
-Message-ID: <CALCETrVoiM3bskfWrg4c8ttHr467Us9xdXuxw=T6Dkr0PFo18g@mail.gmail.com>
-Subject: Re: [RFC PATCH v2 04/20] x86: Secure Memory Encryption (SME) support
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20160830142508.GA10514@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: kasan-dev <kasan-dev@googlegroups.com>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Paolo Bonzini <pbonzini@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, iommu@lists.linux-foundation.org, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Jonathan Corbet <corbet@lwn.net>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, kvm list <kvm@vger.kernel.org>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>, Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org, Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>, Hari Bathini <hbathini@linux.vnet.ibm.com>
 
-On Aug 30, 2016 6:34 AM, "Tom Lendacky" <thomas.lendacky@amd.com> wrote:
->
-> On 08/25/2016 08:04 AM, Thomas Gleixner wrote:
-> > On Mon, 22 Aug 2016, Tom Lendacky wrote:
-> >
-> >> Provide support for Secure Memory Encryption (SME). This initial support
-> >> defines the memory encryption mask as a variable for quick access and an
-> >> accessor for retrieving the number of physical addressing bits lost if
-> >> SME is enabled.
-> >
-> > What is the reason that this needs to live in assembly code?
->
-> In later patches this code is expanded and deals with a lot of page
-> table manipulation, cpuid/rdmsr instructions, etc. and so I thought it
-> was best to do it this way.
+On Tue, Aug 30, 2016 at 07:55:08PM +0530, Srikar Dronamraju wrote:
+> > > 
+> > > This patch seems to hurt FA_DUMP functionality. This behaviour is not
+> > > seen on v4.7 but only after this patch.
+> > > 
+> > > So when a kernel on a multinode machine with memblock_reserve() such
+> > > that most of the nodes have zero available memory, kswapd seems to be
+> > > consuming 100% of the time.
+> > > 
+> > 
+> > Why is FA_DUMP specifically the trigger? If the nodes have zero available
+> > memory then is the zone_populated() check failing when FA_DUMP is enabled? If
+> > so, that would both allow kswapd to wake and stay awake.
+> > 
+> 
+> The trigger is memblock_reserve() for the complete node memory.  And
+> this is exactly what FA_DUMP does.  Here again the node has memory but
+> its all reserved so there is no free memory in the node.
+> 
+> Did you mean populated_zone() when you said zone_populated or have I
+> mistaken? populated_zone() does return 1 since it checks for
+> zone->present_pages.
+> 
 
-None of that sounds like it needs to be in asm, though.
+Yes, I meant populated_zone(). Using present pages may have hidden
+a long-lived corner case as it was unexpected that an entire node
+would be reserved. The old code happened to survive *probably* because
+pgdat_reclaimable would look false and kswapd checks for pgdat being
+balanced would happen to do the right thing in this case.
 
-I, at least, have a strong preference for minimizing the amount of asm
-in the low-level arch code.
+Can you check if something like this works?
 
---Andy
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index d572b78b65e1..cf64a5456cf6 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -830,7 +830,7 @@ unsigned long __init node_memmap_size_bytes(int, unsigned long, unsigned long);
+ 
+ static inline int populated_zone(struct zone *zone)
+ {
+-	return (!!zone->present_pages);
++	return (!!zone->managed_pages);
+ }
+ 
+ extern int movable_zone;
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
