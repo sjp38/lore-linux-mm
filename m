@@ -1,140 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DF4382F64
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 07:35:18 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id o80so13929060wme.1
-        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 04:35:17 -0700 (PDT)
-Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
-        by mx.google.com with ESMTPS id 103si17613277lfx.276.2016.08.30.04.35.16
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 12A1782F64
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 07:36:49 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id e7so11796723lfe.0
+        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 04:36:49 -0700 (PDT)
+Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
+        by mx.google.com with ESMTPS id s87si17611914lfi.87.2016.08.30.04.36.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Aug 2016 04:35:16 -0700 (PDT)
-Received: by mail-lf0-x241.google.com with SMTP id 33so823338lfw.3
-        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 04:35:16 -0700 (PDT)
-Date: Tue, 30 Aug 2016 14:35:13 +0300
+        Tue, 30 Aug 2016 04:36:47 -0700 (PDT)
+Received: by mail-lf0-x243.google.com with SMTP id k135so825956lfb.1
+        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 04:36:47 -0700 (PDT)
+Date: Tue, 30 Aug 2016 14:36:44 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 1/4] mm: mlock: check against vma for actual mlock() size
-Message-ID: <20160830113513.GA32187@node.shutemov.name>
+Subject: Re: [PATCH 2/4] mm: mlock: avoid increase mm->locked_vm on mlock()
+ when already mlock2(,MLOCK_ONFAULT)
+Message-ID: <20160830113644.GB32187@node.shutemov.name>
 References: <1472554781-9835-1-git-send-email-wei.guo.simon@gmail.com>
- <1472554781-9835-2-git-send-email-wei.guo.simon@gmail.com>
+ <1472554781-9835-3-git-send-email-wei.guo.simon@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1472554781-9835-2-git-send-email-wei.guo.simon@gmail.com>
+In-Reply-To: <1472554781-9835-3-git-send-email-wei.guo.simon@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: wei.guo.simon@gmail.com
 Cc: linux-mm@kvack.org, Alexey Klimov <klimov.linux@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Eric B Munson <emunson@akamai.com>, Geert Uytterhoeven <geert@linux-m68k.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-kselftest@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Shuah Khan <shuah@kernel.org>, Thierry Reding <treding@nvidia.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Tue, Aug 30, 2016 at 06:59:38PM +0800, wei.guo.simon@gmail.com wrote:
+On Tue, Aug 30, 2016 at 06:59:39PM +0800, wei.guo.simon@gmail.com wrote:
 > From: Simon Guo <wei.guo.simon@gmail.com>
 > 
-> In do_mlock(), the check against locked memory limitation
-> has a hole which will fail following cases at step 3):
-> 1) User has a memory chunk from addressA with 50k, and user
-> mem lock rlimit is 64k.
-> 2) mlock(addressA, 30k)
-> 3) mlock(addressA, 40k)
+> When one vma was with flag VM_LOCKED|VM_LOCKONFAULT (by invoking
+> mlock2(,MLOCK_ONFAULT)), it can again be populated with mlock() with
+> VM_LOCKED flag only.
 > 
-> The 3rd step should have been allowed since the 40k request
-> is intersected with the previous 30k at step 2), and the
-> 3rd step is actually for mlock on the extra 10k memory.
+> There is a hole in mlock_fixup() which increase mm->locked_vm twice even
+> the two operations are on the same vma and both with VM_LOCKED flags.
 > 
-> This patch checks vma to caculate the actual "new" mlock
-> size, if necessary, and ajust the logic to fix this issue.
+> The issue can be reproduced by following code:
+> mlock2(p, 1024 * 64, MLOCK_ONFAULT); //VM_LOCKED|VM_LOCKONFAULT
+> mlock(p, 1024 * 64);  //VM_LOCKED
+> Then check the increase VmLck field in /proc/pid/status(to 128k).
+> 
+> When vma is set with different vm_flags, and the new vm_flags is with
+> VM_LOCKED, it is not necessarily be a "new locked" vma.  This patch
+> corrects this bug by prevent mm->locked_vm from increment when old
+> vm_flags is already VM_LOCKED.
 > 
 > Signed-off-by: Simon Guo <wei.guo.simon@gmail.com>
 
-Looks reasonable to me. Few nitpicks below.
-
-> ---
->  mm/mlock.c | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
->  1 file changed, 49 insertions(+)
-> 
-> diff --git a/mm/mlock.c b/mm/mlock.c
-> index 14645be..9283187 100644
-> --- a/mm/mlock.c
-> +++ b/mm/mlock.c
-> @@ -617,6 +617,43 @@ static int apply_vma_lock_flags(unsigned long start, size_t len,
->  	return error;
->  }
->  
-> +/*
-> + * Go through vma areas and sum size of mlocked
-> + * vma pages, as return value.
-> + * Note deferred memory locking case(mlock2(,,MLOCK_ONFAULT)
-> + * is also counted.
-> + * Return value: previously mlocked page counts
-> + */
-> +static int count_mm_mlocked_page_nr(struct mm_struct *mm,
-> +		unsigned long start, size_t len)
-> +{
-> +	struct vm_area_struct *vma;
-> +	int count = 0;
-> +
-> +	if (mm == NULL)
-> +		mm = current->mm;
-> +
-> +	vma = find_vma(mm, start);
-> +	if (vma == NULL)
-> +		vma = mm->mmap;
-> +
-> +	for (; vma ; vma = vma->vm_next) {
-> +		if (start + len <=  vma->vm_start)
-> +			break;
-
-	for (; vma && start + len <= vma->vm_start; vma = vma->vm_next) {
-
-> +		if (vma->vm_flags && VM_LOCKED) {
-> +			if (start > vma->vm_start)
-> +				count -= (start - vma->vm_start);
-> +			if (start + len < vma->vm_end) {
-> +				count += start + len - vma->vm_start;
-> +				break;
-> +			}
-> +			count += vma->vm_end - vma->vm_start;
-> +		}
-> +	}
-> +
-> +	return (PAGE_ALIGN(count) >> PAGE_SHIFT);
-
-Redundant parenthesis.
-
-And do we need PAGE_ALIGN() here? Caller already aligned 'len', and vma
-boundaries are alinged.
-
-> +}
-> +
->  static __must_check int do_mlock(unsigned long start, size_t len, vm_flags_t flags)
->  {
->  	unsigned long locked;
-> @@ -639,6 +676,18 @@ static __must_check int do_mlock(unsigned long start, size_t len, vm_flags_t fla
->  		return -EINTR;
->  
->  	locked += current->mm->locked_vm;
-> +	if ((locked > lock_limit) && (!capable(CAP_IPC_LOCK))) {
-> +		/*
-> +		 * It is possible that the regions requested
-> +		 * intersect with previously mlocked areas,
-> +		 * that part area in "mm->locked_vm" should
-> +		 * not be counted to new mlock increment
-> +		 * count. So check and adjust locked count
-> +		 * if necessary.
-> +		 */
-> +		locked -= count_mm_mlocked_page_nr(current->mm,
-> +				start, len);
-> +	}
->  
->  	/* check against resource limits */
->  	if ((locked <= lock_limit) || capable(CAP_IPC_LOCK))
-> -- 
-> 1.8.3.1
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
 -- 
  Kirill A. Shutemov
