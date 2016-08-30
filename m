@@ -1,90 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C53806B0069
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 15:21:04 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id s207so86473451oie.0
-        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 12:21:04 -0700 (PDT)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id t8si29065021otf.11.2016.08.30.12.20.49
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3489E6B0069
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 15:32:17 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id s207so87435918oie.0
+        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 12:32:17 -0700 (PDT)
+Received: from resqmta-ch2-05v.sys.comcast.net (resqmta-ch2-05v.sys.comcast.net. [2001:558:fe21:29:69:252:207:37])
+        by mx.google.com with ESMTPS id v93si767024ioi.2.2016.08.30.12.32.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Aug 2016 12:20:49 -0700 (PDT)
-Received: by mail-pf0-x241.google.com with SMTP id y134so1555425pfg.3
-        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 12:20:49 -0700 (PDT)
-Subject: Re: [PATCH] mlock.2: document that is a bad idea to fork() after
- mlock()
-References: <20160830085911.5336-1-bigeasy@linutronix.de>
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Message-ID: <1f2afdf9-0fcc-fdb3-4ea3-e1770d4434f3@gmail.com>
-Date: Wed, 31 Aug 2016 07:20:40 +1200
-MIME-Version: 1.0
-In-Reply-To: <20160830085911.5336-1-bigeasy@linutronix.de>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        Tue, 30 Aug 2016 12:32:02 -0700 (PDT)
+Date: Tue, 30 Aug 2016 14:32:00 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: what is the purpose of SLAB and SLUB (was: Re: [PATCH v3] mm/slab:
+ Improve performance of gathering slabinfo) stats
+In-Reply-To: <20160830093955.GV2693@suse.de>
+Message-ID: <alpine.DEB.2.20.1608301425020.4627@east.gentwo.org>
+References: <1471458050-29622-1-git-send-email-aruna.ramakrishna@oracle.com> <20160818115218.GJ30162@dhcp22.suse.cz> <20160823021303.GB17039@js1304-P5Q-DELUXE> <20160823153807.GN23577@dhcp22.suse.cz> <20160824082057.GT2693@suse.de>
+ <alpine.DEB.2.20.1608242240460.1837@east.gentwo.org> <20160825100707.GU2693@suse.de> <alpine.DEB.2.20.1608251451070.10766@east.gentwo.org> <20160830093955.GV2693@suse.de>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Cc: mtk.manpages@gmail.com, linux-man@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-rt-users@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Michal Hocko <mhocko@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Aruna Ramakrishna <aruna.ramakrishna@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Kravetz <mike.kravetz@oracle.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>
 
-Hello Sebastian
+On Tue, 30 Aug 2016, Mel Gorman wrote:
 
-On 08/30/2016 08:59 PM, Sebastian Andrzej Siewior wrote:
-> fork() will remove the write PTE bit from the page table on each VMA
-> which will be copied via COW. A such such, the memory is available but
-> marked read only in the page table and will fault on write access.
-> This renders the previous mlock() operation almost useless because in a
-> multi threaded application the RT thread may block on mmap_sem while the
-> thread with low priority is holding the mmap_sem (for instance because
-> it is allocating memory which needs to be mapped in).
-> 
-> There is actually nothing we can do to mitigate the outcome. We could
-> add a warning to the kernel for people that are not yet aware of the
-> updated documentation.
-> 
-> Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+> > Userspace mapped pages can be hugepages as well as giant pages and that
+> > has been there for a long time. Intermediate sizes would be useful too in
+> > order to avoid having to keep lists of 4k pages around and continually
+> > scan them.
+> >
+>
+> Userspace pages cannot always be mapped as huge or giant. mprotect on a
+> 4K boundary is an obvious example.
 
-Thanks! Patch applied.
+Well if the pages are bigger then the boundaries will also be different.
+The problem is that we are trying to keep the 4k illustion alive. This
+causes churn in various subsystems. Implementation of a file cache
+with arbitrary page order is rather straightforward. See
+https://lkml.org/lkml/2007/4/19/261
 
-Cheers,
+There we run again against the problem of defragmentation. Avoiding decent
+garbage collection in the kernel causes no end of additional trouble. I
+think we need to face the issue and solve it. Then a lot of other
+workaround and complex things are no longer necesary.
 
-Michael
+> > > Dirty tracking of pages on a 4K boundary will always be required to avoid IO
+> > > multiplier effects that cannot be side-stepped by increasing the fundamental
+> > > unit of allocation.
+> >
+> > Huge pages cannot be dirtied?
+>
+> I didn't say that, I said they are required to avoid IO multiplier
+> effects. If a file is mapped as 2M or 1G then even a 1 byte write requires
+> 2M or 1G of IO to writeback.
 
-> ---
->  man2/mlock.2 | 14 ++++++++++++++
->  1 file changed, 14 insertions(+)
-> 
-> diff --git a/man2/mlock.2 b/man2/mlock.2
-> index e34bb3b4e045..27f80f6664ef 100644
-> --- a/man2/mlock.2
-> +++ b/man2/mlock.2
-> @@ -350,6 +350,20 @@ settings are not inherited by a child created via
->  and are cleared during an
->  .BR execve (2).
->  
-> +Note that
-> +.BR fork (2)
-> +will prepare the address space for a copy-on-write operation. The consequence
-> +is that any write access that follows will cause a page fault which in turn may
-> +cause high latencies for a real-time process. Therefore it is crucial not to
-> +invoke
-> +.BR fork (2)
-> +after the
-> +.BR mlockall ()
-> +or
-> +.BR mlock ()
-> +operation not even from thread which runs at a low priority within a process
-> +which also has a thread running at elevated priority.
-> +
->  The memory lock on an address range is automatically removed
->  if the address range is unmapped via
->  .BR munmap (2).
-> 
+There are numerous use cases that I know of where this would be
+acceptable. Some tuning would be required of course like a mininum period
+until writeback occurs.
 
+> > This is an issue of hardware support. On
+> > x867 you only have one size. I am pretty such that even intel would
+> > support other sizes if needed. The case has been repeatedly made that 64k
+> > pages f.e. would be useful to have on x86.
+> >
+>
+> 64K pages are not a universal win even on the arches that do support them.
 
--- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+There are always corner cases that regress with any kernel "enhancement".
+64k page size was a signicant improvement for many of the loads when I
+worked at SGI on Altix.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
