@@ -1,76 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B44438308D
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 05:40:09 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id l4so11780501wml.0
-        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 02:40:09 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id kr8si37072226wjc.226.2016.08.30.02.40.08
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CBBE82F64
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 06:35:44 -0400 (EDT)
+Received: by mail-yw0-f197.google.com with SMTP id j12so32118938ywb.3
+        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 03:35:44 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id j88si27001917qtd.51.2016.08.30.03.35.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 30 Aug 2016 02:40:08 -0700 (PDT)
-Date: Tue, 30 Aug 2016 10:39:55 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: what is the purpose of SLAB and SLUB (was: Re: [PATCH v3]
- mm/slab: Improve performance of gathering slabinfo) stats
-Message-ID: <20160830093955.GV2693@suse.de>
-References: <1471458050-29622-1-git-send-email-aruna.ramakrishna@oracle.com>
- <20160818115218.GJ30162@dhcp22.suse.cz>
- <20160823021303.GB17039@js1304-P5Q-DELUXE>
- <20160823153807.GN23577@dhcp22.suse.cz>
- <20160824082057.GT2693@suse.de>
- <alpine.DEB.2.20.1608242240460.1837@east.gentwo.org>
- <20160825100707.GU2693@suse.de>
- <alpine.DEB.2.20.1608251451070.10766@east.gentwo.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 Aug 2016 03:35:43 -0700 (PDT)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u7UAXe1p070201
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 06:35:43 -0400
+Received: from e35.co.us.ibm.com (e35.co.us.ibm.com [32.97.110.153])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 255364mae3-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 06:35:42 -0400
+Received: from localhost
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Tue, 30 Aug 2016 04:35:30 -0600
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v5 2/6] mm/cma: introduce new zone, ZONE_CMA
+In-Reply-To: <1472447255-10584-3-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1472447255-10584-1-git-send-email-iamjoonsoo.kim@lge.com> <1472447255-10584-3-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Tue, 30 Aug 2016 16:05:20 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1608251451070.10766@east.gentwo.org>
+Content-Type: text/plain
+Message-Id: <87vayisfx3.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Aruna Ramakrishna <aruna.ramakrishna@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mike Kravetz <mike.kravetz@oracle.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Jiri Slaby <jslaby@suse.cz>
+To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Thu, Aug 25, 2016 at 02:55:43PM -0500, Christoph Lameter wrote:
-> On Thu, 25 Aug 2016, Mel Gorman wrote:
-> 
-> > Flipping the lid aside, there will always be a need for fast management
-> > of 4K pages. The primary use case is networking that sometimes uses
-> > high-order pages to avoid allocator overhead and amortise DMA setup.
-> > Userspace-mapped pages will always be 4K although fault-around may benefit
-> > from bulk allocating the pages. That is relatively low hanging fruit that
-> > would take a few weeks given a free schedule.
-> 
-> Userspace mapped pages can be hugepages as well as giant pages and that
-> has been there for a long time. Intermediate sizes would be useful too in
-> order to avoid having to keep lists of 4k pages around and continually
-> scan them.
-> 
 
-Userspace pages cannot always be mapped as huge or giant. mprotect on a
-4K boundary is an obvious example.
+....
 
-> > Dirty tracking of pages on a 4K boundary will always be required to avoid IO
-> > multiplier effects that cannot be side-stepped by increasing the fundamental
-> > unit of allocation.
-> 
-> Huge pages cannot be dirtied?
+>  static inline void check_highest_zone(enum zone_type k)
+>  {
+> -	if (k > policy_zone && k != ZONE_MOVABLE)
+> +	if (k > policy_zone && k != ZONE_MOVABLE && !is_zone_cma_idx(k))
+>  		policy_zone = k;
+>  }
+>
 
-I didn't say that, I said they are required to avoid IO multiplier
-effects. If a file is mapped as 2M or 1G then even a 1 byte write requires
-2M or 1G of IO to writeback.
 
-> This is an issue of hardware support. On
-> x867 you only have one size. I am pretty such that even intel would
-> support other sizes if needed. The case has been repeatedly made that 64k
-> pages f.e. would be useful to have on x86.
-> 
+Should we apply policy to allocation from ZONE CMA ?. CMA reserve
+happens early and may mostly come from one node. Do we want the
+CMA allocation to fail if we use mbind(MPOL_BIND) with a node mask not
+including that node on which CMA is reserved, considering CMA memory is
+going to be used for special purpose.
 
-64K pages are not a universal win even on the arches that do support them.
-
--- 
-Mel Gorman
-SUSE Labs
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
