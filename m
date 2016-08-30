@@ -1,100 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CD6E6B0069
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 12:00:03 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id o124so53349256pfg.1
-        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 09:00:03 -0700 (PDT)
-Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
-        by mx.google.com with ESMTPS id d28si45834850pfb.283.2016.08.30.09.00.01
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F1686B0069
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 12:30:58 -0400 (EDT)
+Received: by mail-ua0-f200.google.com with SMTP id j4so53539931uaj.2
+        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 09:30:58 -0700 (PDT)
+Received: from mail-ua0-x232.google.com (mail-ua0-x232.google.com. [2607:f8b0:400c:c08::232])
+        by mx.google.com with ESMTPS id 85si3372920vkd.164.2016.08.30.09.30.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Aug 2016 09:00:01 -0700 (PDT)
-Received: by mail-pf0-x244.google.com with SMTP id h186so1364072pfg.2
-        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 09:00:01 -0700 (PDT)
-Date: Wed, 31 Aug 2016 00:59:19 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [PATCH] thp: reduce usage of huge zero page's atomic counter
-Message-ID: <20160830155919.GA482@swordfish>
-References: <b7e47f2c-8aac-156a-f627-a50db31220f8@intel.com>
+        Tue, 30 Aug 2016 09:30:57 -0700 (PDT)
+Received: by mail-ua0-x232.google.com with SMTP id l94so42278132ual.0
+        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 09:30:57 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <b7e47f2c-8aac-156a-f627-a50db31220f8@intel.com>
+In-Reply-To: <a321c8a7-fa9c-21f7-61f8-54a8f80763fe@mellanox.com>
+References: <1471382376-5443-1-git-send-email-cmetcalf@mellanox.com>
+ <1471382376-5443-5-git-send-email-cmetcalf@mellanox.com> <20160829163352.GV10153@twins.programming.kicks-ass.net>
+ <fe4b8667-57d5-7767-657a-d89c8b62f8e3@mellanox.com> <20160830075854.GZ10153@twins.programming.kicks-ass.net>
+ <a321c8a7-fa9c-21f7-61f8-54a8f80763fe@mellanox.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Tue, 30 Aug 2016 09:30:36 -0700
+Message-ID: <CALCETrWyKExm9Od3VJ2P9xbL23NPKScgxdQ4R1v5QdNuNXKjmA@mail.gmail.com>
+Subject: Re: [PATCH v15 04/13] task_isolation: add initial support
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, "'Kirill A. Shutemov'" <kirill.shutemov@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-kernel@vger.kernel.org
+To: Chris Metcalf <cmetcalf@mellanox.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Gilad Ben Yossef <giladb@mellanox.com>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Tejun Heo <tj@kernel.org>, Frederic Weisbecker <fweisbec@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Viresh Kumar <viresh.kumar@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Michal Hocko <mhocko@suse.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On (08/29/16 14:31), Aaron Lu wrote:
-> 
-> The global zero page is used to satisfy an anonymous read fault. If
-> THP(Transparent HugePage) is enabled then the global huge zero page is used.
-> The global huge zero page uses an atomic counter for reference counting
-> and is allocated/freed dynamically according to its counter value.
-> 
+On Tue, Aug 30, 2016 at 8:32 AM, Chris Metcalf <cmetcalf@mellanox.com> wrote:
+> On 8/30/2016 3:58 AM, Peter Zijlstra wrote:
+>>
+>> On Mon, Aug 29, 2016 at 12:40:32PM -0400, Chris Metcalf wrote:
+>>>
+>>> On 8/29/2016 12:33 PM, Peter Zijlstra wrote:
+>>>>
+>>>> On Tue, Aug 16, 2016 at 05:19:27PM -0400, Chris Metcalf wrote:
+>>>>>
+>>>>> +       /*
+>>>>> +        * Request rescheduling unless we are in full dynticks mode.
+>>>>> +        * We would eventually get pre-empted without this, and if
+>>>>> +        * there's another task waiting, it would run; but by
+>>>>> +        * explicitly requesting the reschedule, we may reduce the
+>>>>> +        * latency.  We could directly call schedule() here as well,
+>>>>> +        * but since our caller is the standard place where schedule()
+>>>>> +        * is called, we defer to the caller.
+>>>>> +        *
+>>>>> +        * A more substantive approach here would be to use a struct
+>>>>> +        * completion here explicitly, and complete it when we shut
+>>>>> +        * down dynticks, but since we presumably have nothing better
+>>>>> +        * to do on this core anyway, just spinning seems plausible.
+>>>>> +        */
+>>>>> +       if (!tick_nohz_tick_stopped())
+>>>>> +               set_tsk_need_resched(current);
+>>>>
+>>>> This is broken.. and it would be really good if you don't actually need
+>>>> to do this.
+>>>
+>>> Can you elaborate?  We clearly do want to wait until we are in full
+>>> dynticks mode before we return to userspace.
+>>>
+>>> We could do it just in the prctl() syscall only, but then we lose the
+>>> ability to implement the NOSIG mode, which can be a convenience.
+>>
+>> So this isn't spelled out anywhere. Why does this need to be in the
+>> return to user path?
+>
+>
+> I'm not sure where this should be spelled out, to be honest.  I guess
+> I can add some commentary to the commit message explaining this part.
+>
+> The basic idea is just that we don't want to be at risk from the
+> dyntick getting enabled.  Similarly, we don't want to be at risk of a
+> later global IPI due to lru_add_drain stuff, for example.  And, we may
+> want to add additional stuff, like catching kernel TLB flushes and
+> deferring them when a remote core is in userspace.  To do all of this
+> kind of stuff, we need to run in the return to user path so we are
+> late enough to guarantee no further kernel things will happen to
+> perturb our carefully-arranged isolation state that includes dyntick
+> off, per-cpu lru cache empty, etc etc.
 
-Hello,
-
-for !CONFIG_TRANSPARENT_HUGEPAGE configs mm_put_huge_zero_page() is BUILD_BUG(),
-which gives the following build error (mmots v4.8-rc4-mmots-2016-08-29-16-56)
-
-
-  CC      kernel/fork.o
-In file included from ./include/asm-generic/bug.h:4:0,
-                 from ./arch/x86/include/asm/bug.h:35,
-                 from ./include/linux/bug.h:4,
-                 from ./include/linux/mmdebug.h:4,
-                 from ./include/linux/gfp.h:4,
-                 from ./include/linux/slab.h:14,
-                 from kernel/fork.c:14:
-In function a??mm_put_huge_zero_pagea??,
-    inlined from a??__mmputa?? at kernel/fork.c:777:2,
-    inlined from a??mmput_async_fna?? at kernel/fork.c:806:2:
-./include/linux/compiler.h:495:38: error: call to a??__compiletime_assert_218a?? declared with attribute error: BUILD_BUG failed
-  _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
-                                      ^
-./include/linux/compiler.h:478:4: note: in definition of macro a??__compiletime_asserta??
-    prefix ## suffix();    \
-    ^~~~~~
-./include/linux/compiler.h:495:2: note: in expansion of macro a??_compiletime_asserta??
-  _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
-  ^~~~~~~~~~~~~~~~~~~
-./include/linux/bug.h:51:37: note: in expansion of macro a??compiletime_asserta??
- #define BUILD_BUG_ON_MSG(cond, msg) compiletime_assert(!(cond), msg)
-                                     ^~~~~~~~~~~~~~~~~~
-./include/linux/bug.h:85:21: note: in expansion of macro a??BUILD_BUG_ON_MSGa??
- #define BUILD_BUG() BUILD_BUG_ON_MSG(1, "BUILD_BUG failed")
-                     ^~~~~~~~~~~~~~~~
-./include/linux/huge_mm.h:218:2: note: in expansion of macro a??BUILD_BUGa??
-  BUILD_BUG();
-  ^~~~~~~~~
-In function a??mm_put_huge_zero_pagea??,
-    inlined from a??__mmputa?? at kernel/fork.c:777:2,
-    inlined from a??mmputa?? at kernel/fork.c:798:3:
-./include/linux/compiler.h:495:38: error: call to a??__compiletime_assert_218a?? declared with attribute error: BUILD_BUG failed
-  _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
-                                      ^
-./include/linux/compiler.h:478:4: note: in definition of macro a??__compiletime_asserta??
-    prefix ## suffix();    \
-    ^~~~~~
-./include/linux/compiler.h:495:2: note: in expansion of macro a??_compiletime_asserta??
-  _compiletime_assert(condition, msg, __compiletime_assert_, __LINE__)
-  ^~~~~~~~~~~~~~~~~~~
-./include/linux/bug.h:51:37: note: in expansion of macro a??compiletime_asserta??
- #define BUILD_BUG_ON_MSG(cond, msg) compiletime_assert(!(cond), msg)
-                                     ^~~~~~~~~~~~~~~~~~
-./include/linux/bug.h:85:21: note: in expansion of macro a??BUILD_BUG_ON_MSGa??
- #define BUILD_BUG() BUILD_BUG_ON_MSG(1, "BUILD_BUG failed")
-                     ^~~~~~~~~~~~~~~~
-./include/linux/huge_mm.h:218:2: note: in expansion of macro a??BUILD_BUGa??
-  BUILD_BUG();
-  ^~~~~~~~~
-make[1]: *** [scripts/Makefile.build:291: kernel/fork.o] Error 1
-make: *** [Makefile:968: kernel] Error 2
-
-
-	-ss
+None of the above should need to *loop*, though, AFAIK.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
