@@ -1,104 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 014158308B
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 02:46:10 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id w128so25752590pfd.3
-        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 23:46:10 -0700 (PDT)
-Received: from mail-pf0-x232.google.com (mail-pf0-x232.google.com. [2607:f8b0:400e:c00::232])
-        by mx.google.com with ESMTPS id b7si43623639pas.289.2016.08.29.23.46.10
+	by kanga.kvack.org (Postfix) with ESMTP id B7B128311E
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 02:48:37 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id 63so26428909pfx.0
+        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 23:48:37 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id n8si43652666pay.18.2016.08.29.23.48.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Aug 2016 23:46:10 -0700 (PDT)
-Received: by mail-pf0-x232.google.com with SMTP id h186so4679224pfg.3
-        for <linux-mm@kvack.org>; Mon, 29 Aug 2016 23:46:10 -0700 (PDT)
-From: AKASHI Takahiro <takahiro.akashi@linaro.org>
-Subject: [PATCH v25] 2/9] memblock: add memblock_cap_memory_range()
-Date: Tue, 30 Aug 2016 15:52:39 +0900
-Message-Id: <20160830065239.19558-1-takahiro.akashi@linaro.org>
-In-Reply-To: <20160830064941.19452-2-takahiro.akashi@linaro.org>
-References: <20160830064941.19452-2-takahiro.akashi@linaro.org>
+        Mon, 29 Aug 2016 23:48:36 -0700 (PDT)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u7U6hoTF125897
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 02:48:36 -0400
+Received: from e23smtp04.au.ibm.com (e23smtp04.au.ibm.com [202.81.31.146])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 255363c1q9-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 02:48:36 -0400
+Received: from localhost
+	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Tue, 30 Aug 2016 16:48:33 +1000
+Received: from d23relay10.au.ibm.com (d23relay10.au.ibm.com [9.190.26.77])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 79C782BB0057
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 16:48:31 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u7U6mVDJ54591610
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 16:48:31 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u7U6mVd4009112
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 16:48:31 +1000
+Date: Tue, 30 Aug 2016 12:17:07 +0530
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] thp: reduce usage of huge zero page's atomic counter
+References: <b7e47f2c-8aac-156a-f627-a50db31220f8@intel.com> <20160829155021.2a85910c3d6b16a7f75ffccd@linux-foundation.org> <36b76a95-5025-ac64-0862-b98b2ebdeaf7@intel.com> <20160829203916.6a2b45845e8fb0c356cac17d@linux-foundation.org> <57C50F29.4070309@linux.vnet.ibm.com> <0342377a-26b8-16b9-5817-1964fac0e12d@intel.com>
+In-Reply-To: <0342377a-26b8-16b9-5817-1964fac0e12d@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Message-Id: <57C52BEB.8020104@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: catalin.marinas@arm.com, will.deacon@arm.com
-Cc: james.morse@arm.com, geoff@infradead.org, bauerman@linux.vnet.ibm.com, dyoung@redhat.com, mark.rutland@arm.com, kexec@lists.infradead.org, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, AKASHI Takahiro <takahiro.akashi@linaro.org>
+To: Aaron Lu <aaron.lu@intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, "'Kirill A. Shutemov'" <kirill.shutemov@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Huang Ying <ying.huang@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Jerome Marchand <jmarchan@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-kernel@vger.kernel.org
 
-Crash dump kernel uses only a limited range of memory as System RAM.
-On arm64 implementation, a new device tree property,
-"linux,usable-memory-range," is used to notify crash dump kernel of
-this range.[1]
-But simply excluding all the other regions, whatever their memory types
-are, doesn't work, especially, on the systems with ACPI. Since some of
-such regions will be later mapped as "device memory" by ioremap()/
-acpi_os_ioremap(), it can cause errors like unalignment accesses.[2]
-This issue is akin to the one reported in [3].
+On 08/30/2016 11:24 AM, Aaron Lu wrote:
+> On 08/30/2016 12:44 PM, Anshuman Khandual wrote:
+>> > On 08/30/2016 09:09 AM, Andrew Morton wrote:
+>>> >> On Tue, 30 Aug 2016 11:09:15 +0800 Aaron Lu <aaron.lu@intel.com> wrote:
+>>> >>
+>>>>>> >>>>> Case used for test on Haswell EP:
+>>>>>> >>>>> usemem -n 72 --readonly -j 0x200000 100G
+>>>>>> >>>>> Which spawns 72 processes and each will mmap 100G anonymous space and
+>>>>>> >>>>> then do read only access to that space sequentially with a step of 2MB.
+>>>>>> >>>>>
+>>>>>> >>>>> perf report for base commit:
+>>>>>> >>>>>     54.03%  usemem   [kernel.kallsyms]   [k] get_huge_zero_page
+>>>>>> >>>>> perf report for this commit:
+>>>>>> >>>>>      0.11%  usemem   [kernel.kallsyms]   [k] mm_get_huge_zero_page
+>>>>> >>>>
+>>>>> >>>> Does this mean that overall usemem runtime halved?
+>>>> >>>
+>>>> >>> Sorry for the confusion, the above line is extracted from perf report.
+>>>> >>> It shows the percent of CPU cycles executed in a specific function.
+>>>> >>>
+>>>> >>> The above two perf lines are used to show get_huge_zero_page doesn't
+>>>> >>> consume that much CPU cycles after applying the patch.
+>>>> >>>
+>>>>> >>>>
+>>>>> >>>> Do we have any numbers for something which is more real-wordly?
+>>>> >>>
+>>>> >>> Unfortunately, no real world numbers.
+>>>> >>>
+>>>> >>> We think the global atomic counter could be an issue for performance
+>>>> >>> so I'm trying to solve the problem.
+>>> >>
+>>> >> So, umm, we don't actually know if the patch is useful to anyone?
+>> > 
+>> > On a POWER system it improves the CPU consumption of the above mentioned
+>> > function a little bit. Dont think its going to improve actual throughput
+>> > of the workload substantially.
+>> > 
+>> > 0.07%  usemem  [kernel.vmlinux]  [k] mm_get_huge_zero_page
+> I guess this is the base commit? But there shouldn't be the new
+> mm_get_huge_zero_page symbol before this patch. A typo perhaps?
 
-So this patch follows Chen's approach, and implements a new function,
-memblock_cap_memory_range(), which will exclude only the memory regions
-that are not marked "NOMAP" from memblock.memory.
-
-[1] http://lists.infradead.org/pipermail/linux-arm-kernel/2016-July/442817.html
-[2] http://lists.infradead.org/pipermail/linux-arm-kernel/2016-July/444165.html
-[3] http://lists.infradead.org/pipermail/linux-arm-kernel/2016-July/443356.html
-
-Signed-off-by: AKASHI Takahiro <takahiro.akashi@linaro.org>
----
- include/linux/memblock.h |  1 +
- mm/memblock.c            | 28 ++++++++++++++++++++++++++++
- 2 files changed, 29 insertions(+)
-
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 2925da2..8002f98 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -333,6 +333,7 @@ phys_addr_t memblock_start_of_DRAM(void);
- phys_addr_t memblock_end_of_DRAM(void);
- void memblock_enforce_memory_limit(phys_addr_t memory_limit);
- void memblock_mem_limit_remove_map(phys_addr_t limit);
-+void memblock_cap_memory_range(phys_addr_t base, phys_addr_t size);
- bool memblock_is_memory(phys_addr_t addr);
- int memblock_is_map_memory(phys_addr_t addr);
- int memblock_is_region_memory(phys_addr_t base, phys_addr_t size);
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 483197e..3eae109 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1539,6 +1539,34 @@ void __init memblock_mem_limit_remove_map(phys_addr_t limit)
- 			      (phys_addr_t)ULLONG_MAX);
- }
- 
-+void __init memblock_cap_memory_range(phys_addr_t base, phys_addr_t size)
-+{
-+	int start_rgn, end_rgn;
-+	int i, ret;
-+
-+	if (!size)
-+		return;
-+
-+	ret = memblock_isolate_range(&memblock.memory, base, size,
-+						&start_rgn, &end_rgn);
-+	if (ret)
-+		return;
-+
-+	/* remove all the MAP regions */
-+	for (i = memblock.memory.cnt - 1; i >= end_rgn; i--)
-+		if (!memblock_is_nomap(&memblock.memory.regions[i]))
-+			memblock_remove_region(&memblock.memory, i);
-+
-+	for (i = start_rgn - 1; i >= 0; i--)
-+		if (!memblock_is_nomap(&memblock.memory.regions[i]))
-+			memblock_remove_region(&memblock.memory, i);
-+
-+	/* truncate the reserved regions */
-+	memblock_remove_range(&memblock.reserved, 0, base);
-+	memblock_remove_range(&memblock.reserved,
-+			base + size, (phys_addr_t)ULLONG_MAX);
-+}
-+
- static int __init_memblock memblock_search(struct memblock_type *type, phys_addr_t addr)
- {
- 	unsigned int left = 0, right = type->cnt;
--- 
-2.9.0
+Yeah, sorry about that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
