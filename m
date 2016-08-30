@@ -1,144 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 15F9F6B025E
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 13:28:38 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id ez1so49213567pab.1
-        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 10:28:38 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id wv6si46048454pab.263.2016.08.30.10.28.36
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A003B6B0069
+	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 13:36:36 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id s207so77429910oie.0
+        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 10:36:36 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0067.outbound.protection.outlook.com. [104.47.1.67])
+        by mx.google.com with ESMTPS id f2si32058075otc.101.2016.08.30.10.36.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 30 Aug 2016 10:28:36 -0700 (PDT)
-From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -v2] mm: Don't use radix tree writeback tags for pages in swap cache
-Date: Tue, 30 Aug 2016 10:28:09 -0700
-Message-Id: <1472578089-5560-1-git-send-email-ying.huang@intel.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 30 Aug 2016 10:36:22 -0700 (PDT)
+Subject: Re: [PATCH v14 04/14] task_isolation: add initial support
+References: <1470774596-17341-1-git-send-email-cmetcalf@mellanox.com>
+ <1470774596-17341-5-git-send-email-cmetcalf@mellanox.com>
+ <20160811181132.GD4214@lerouge>
+ <alpine.DEB.2.20.1608111349190.1644@east.gentwo.org>
+ <c675d2b6-c380-2a3f-6d49-b5e8b48eae1f@mellanox.com>
+ <20160830005550.GB32720@lerouge>
+ <69cbe2bd-3d39-b3ae-2ebc-6399125fc782@mellanox.com>
+ <20160830171003.GA14200@lerouge>
+From: Chris Metcalf <cmetcalf@mellanox.com>
+Message-ID: <aea6b90e-4b43-302a-636f-36516f30f5d6@mellanox.com>
+Date: Tue, 30 Aug 2016 13:36:00 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20160830171003.GA14200@lerouge>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Tejun Heo <tj@kernel.org>, Wu Fengguang <fengguang.wu@intel.com>
+To: Frederic Weisbecker <fweisbec@gmail.com>
+Cc: Christoph Lameter <cl@linux.com>, Gilad Ben Yossef <giladb@mellanox.com>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, Peter
+ Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Tejun Heo <tj@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Viresh Kumar <viresh.kumar@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
 
-From: Huang Ying <ying.huang@intel.com>
+On 8/30/2016 1:10 PM, Frederic Weisbecker wrote:
+> On Tue, Aug 30, 2016 at 11:41:36AM -0400, Chris Metcalf wrote:
+>> On 8/29/2016 8:55 PM, Frederic Weisbecker wrote:
+>>> On Mon, Aug 15, 2016 at 10:59:55AM -0400, Chris Metcalf wrote:
+>>>> On 8/11/2016 2:50 PM, Christoph Lameter wrote:
+>>>>> On Thu, 11 Aug 2016, Frederic Weisbecker wrote:
+>>>>>
+>>>>>> Do we need to quiesce vmstat everytime before entering userspace?
+>>>>>> I thought that vmstat only need to be offlined once and for all?
+>>>>> Once is sufficient after disabling the tick.
+>>>> It's true that task_isolation_enter() is called every time before
+>>>> returning to user space while task isolation is enabled.
+>>>>
+>>>> But once we enter the kernel again after returning from the initial
+>>>> prctl() -- assuming we are in NOSIG mode so doing so is legal in the
+>>>> first place -- almost anything can happen, certainly including
+>>>> restarting the tick.  Thus, we have to make sure that normal quiescing
+>>>> happens again before we return to userspace.
+>>> Yes but we need to sort out what needs to be called only once on prctl().
+>>>
+>>> Once vmstat is quiesced, it's not going to need quiescing again even if we
+>>> restart the tick.
+>> That's true, but I really do like the idea of having a clean structure
+>> where we verify all our prerequisites in task_isolation_ready(), and
+>> have code to try to get things fixed up in task_isolation_enter().
+>> If we start moving some things here and some things there, it gets
+>> harder to manage.  I think by testing "!vmstat_idle()" in
+>> task_isolation_enter() we are avoiding any substantial overhead.
+> I think that making the code clearer on what needs to be done once for
+> all on prctl() and what needs to be done on all actual syscall return
+> is more important for readability.
 
-File pages use a set of radix tree tags (DIRTY, TOWRITE, WRITEBACK,
-etc.) to accelerate finding the pages with a specific tag in the radix
-tree during inode writeback.  But for anonymous pages in the swap
-cache, there is no inode writeback.  So there is no need to find the
-pages with some writeback tags in the radix tree.  It is not necessary
-to touch radix tree writeback tags for pages in the swap cache.
+We don't need to just do it on prctl(), though.  We also need to do
+it whenever we have been in the kernel for another reason, which
+can happen with NOSIG.  So we need to do this on the common return
+to userspace path no matter what, right?  Or am I missing something?
+It seems like if, for example, we do mmaps or page faults, then on return
+to userspace, some of those counters will have been incremented and
+we'll need to run the quiet_vmstat_sync() code.
 
-Per Rik van Riel's suggestion, a new flag AS_NO_WRITEBACK_TAGS is
-introduced for address spaces which don't need to update the writeback
-tags.  The flag is set for swap caches.  It may be used for DAX file
-systems, etc.
+>>>>>> +	if (!tick_nohz_tick_stopped())
+>>>>>> +		set_tsk_need_resched(current);
+>>>>>> Again, that won't help
+>>>> It won't be better than spinning in a loop if there aren't any other
+>>>> schedulable processes, but it won't be worse either.  If there is
+>>>> another schedulable process, we at least will schedule it sooner than
+>>>> if we just sat in a busy loop and waited for the scheduler to kick
+>>>> us. But there's nothing else we can do anyway if we want to maintain
+>>>> the guarantee that the dyn tick is stopped before return to userspace.
+>>> I don't think it helps either way. If reschedule is pending, the current
+>>> task already has TIF_RESCHED set.
+>> See the other thread with Peter Z for the longer discussion of this.
+>> At this point I'm leaning towards replacing the set_tsk_need_resched() with
+>>
+>>      set_current_state(TASK_INTERRUPTIBLE);
+>>      schedule();
+>>      __set_current_state(TASK_RUNNING);
+> I don't see how that helps. What will wake the thread up except a signal?
 
-With this patch, the swap out bandwidth improved 22.3% (from ~1.2GB/s to
-~ 1.48GBps) in the vm-scalability swap-w-seq test case with 8 processes.
-The test is done on a Xeon E5 v3 system.  The swap device used is a RAM
-simulated PMEM (persistent memory) device.  The improvement comes from
-the reduced contention on the swap cache radix tree lock.  To test
-sequential swapping out, the test case uses 8 processes, which
-sequentially allocate and write to the anonymous pages until RAM and
-part of the swap device is used up.
+The answer is that the scheduler will keep bringing us back to this
+point (either after running another runnable task if there is one,
+or else just returning to this point immediately without doing a
+context switch), and we will then go around the "prepare exit to
+userspace" loop and perhaps discover that enough time has gone
+by that the last dyntick interrupt has triggered and the kernel has
+quiesced the dynticks.  At that point we stop calling schedule()
+over and over and can return normally to userspace.
 
-Details of comparison is as follow,
+It's very counter-intuitive to burn cpu time intentionally in the kernel.
+I really don't see another way to resolve this, though.  I don't think
+it would be safe, for example, to just promote the next dyntick to
+running immediately (rather than waiting a few microseconds until
+it is scheduled to go off).
 
-base             base+patch
----------------- --------------------------
-         %stddev     %change         %stddev
-             \          |                \
-   2506952 A+-  2%     +28.1%    3212076 A+-  7%  vm-scalability.throughput
-   1207402 A+-  7%     +22.3%    1476578 A+-  6%  vmstat.swap.so
-     10.86 A+- 12%     -23.4%       8.31 A+- 16%  perf-profile.cycles-pp._raw_spin_lock_irq.__add_to_swap_cache.add_to_swap_cache.add_to_swap.shrink_page_list
-     10.82 A+- 13%     -33.1%       7.24 A+- 14%  perf-profile.cycles-pp._raw_spin_lock_irqsave.__remove_mapping.shrink_page_list.shrink_inactive_list.shrink_zone_memcg
-     10.36 A+- 11%    -100.0%       0.00 A+- -1%  perf-profile.cycles-pp._raw_spin_lock_irqsave.__test_set_page_writeback.bdev_write_page.__swap_writepage.swap_writepage
-     10.52 A+- 12%    -100.0%       0.00 A+- -1%  perf-profile.cycles-pp._raw_spin_lock_irqsave.test_clear_page_writeback.end_page_writeback.page_endio.pmem_rw_page
-
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: Wu Fengguang <fengguang.wu@intel.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
----
- include/linux/pagemap.h | 12 ++++++++++++
- mm/page-writeback.c     |  4 ++--
- mm/swap_state.c         |  2 ++
- 3 files changed, 16 insertions(+), 2 deletions(-)
-
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index 66a1260..2f5a65dd 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -25,6 +25,8 @@ enum mapping_flags {
- 	AS_MM_ALL_LOCKS	= __GFP_BITS_SHIFT + 2,	/* under mm_take_all_locks() */
- 	AS_UNEVICTABLE	= __GFP_BITS_SHIFT + 3,	/* e.g., ramdisk, SHM_LOCK */
- 	AS_EXITING	= __GFP_BITS_SHIFT + 4, /* final truncate in progress */
-+	/* writeback related tags are not used */
-+	AS_NO_WRITEBACK_TAGS = __GFP_BITS_SHIFT + 5,
- };
- 
- static inline void mapping_set_error(struct address_space *mapping, int error)
-@@ -64,6 +66,16 @@ static inline int mapping_exiting(struct address_space *mapping)
- 	return test_bit(AS_EXITING, &mapping->flags);
- }
- 
-+static inline void mapping_set_no_writeback_tags(struct address_space *mapping)
-+{
-+	set_bit(AS_NO_WRITEBACK_TAGS, &mapping->flags);
-+}
-+
-+static inline int mapping_use_writeback_tags(struct address_space *mapping)
-+{
-+	return !test_bit(AS_NO_WRITEBACK_TAGS, &mapping->flags);
-+}
-+
- static inline gfp_t mapping_gfp_mask(struct address_space * mapping)
- {
- 	return (__force gfp_t)mapping->flags & __GFP_BITS_MASK;
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 82e7252..67b7c8b 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -2728,7 +2728,7 @@ int test_clear_page_writeback(struct page *page)
- 	int ret;
- 
- 	lock_page_memcg(page);
--	if (mapping) {
-+	if (mapping && mapping_use_writeback_tags(mapping)) {
- 		struct inode *inode = mapping->host;
- 		struct backing_dev_info *bdi = inode_to_bdi(inode);
- 		unsigned long flags;
-@@ -2771,7 +2771,7 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
- 	int ret;
- 
- 	lock_page_memcg(page);
--	if (mapping) {
-+	if (mapping && mapping_use_writeback_tags(mapping)) {
- 		struct inode *inode = mapping->host;
- 		struct backing_dev_info *bdi = inode_to_bdi(inode);
- 		unsigned long flags;
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index c8310a3..268b819 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -37,6 +37,8 @@ struct address_space swapper_spaces[MAX_SWAPFILES] = {
- 		.page_tree	= RADIX_TREE_INIT(GFP_ATOMIC|__GFP_NOWARN),
- 		.i_mmap_writable = ATOMIC_INIT(0),
- 		.a_ops		= &swap_aops,
-+		/* swap cache doesn't use writeback related tags */
-+		.flags		= 1 << AS_NO_WRITEBACK_TAGS,
- 	}
- };
- 
 -- 
-2.8.1
+Chris Metcalf, Mellanox Technologies
+http://www.mellanox.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
