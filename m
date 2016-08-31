@@ -1,83 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D58236B025E
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 17:12:43 -0400 (EDT)
-Received: by mail-ua0-f199.google.com with SMTP id j4so132934233uaj.2
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 14:12:43 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id f75si931749ywb.114.2016.08.31.14.12.40
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AE5FF6B025E
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 17:28:46 -0400 (EDT)
+Received: by mail-yw0-f197.google.com with SMTP id f123so129062812ywd.2
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 14:28:46 -0700 (PDT)
+Received: from mail-it0-x244.google.com (mail-it0-x244.google.com. [2607:f8b0:4001:c0b::244])
+        by mx.google.com with ESMTPS id e5si30380648itd.85.2016.08.31.14.28.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Aug 2016 14:12:43 -0700 (PDT)
-Date: Wed, 31 Aug 2016 14:12:39 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/2] mm: Add sysfs interface to dump each node's
- zonelist information
-Message-Id: <20160831141239.9624b38201796007c2735029@linux-foundation.org>
-In-Reply-To: <1472613950-16867-2-git-send-email-khandual@linux.vnet.ibm.com>
-References: <1472613950-16867-1-git-send-email-khandual@linux.vnet.ibm.com>
-	<1472613950-16867-2-git-send-email-khandual@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Wed, 31 Aug 2016 14:28:45 -0700 (PDT)
+Received: by mail-it0-x244.google.com with SMTP id e124so3984757ith.1
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 14:28:45 -0700 (PDT)
+Subject: Re: [PATCH] mm:Avoid soft lockup due to possible attempt of double
+ locking object's lock in __delete_object
+References: <1472582112-9059-1-git-send-email-xerofoify@gmail.com>
+ <20160831075421.GA15732@e104818-lin.cambridge.arm.com>
+ <33981.1472677706@turing-police.cc.vt.edu>
+From: nick <xerofoify@gmail.com>
+Message-ID: <6b5d162b-c09d-85c0-752f-a18f35bbbb5c@gmail.com>
+Date: Wed, 31 Aug 2016 17:28:43 -0400
+MIME-Version: 1.0
+In-Reply-To: <33981.1472677706@turing-police.cc.vt.edu>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+To: Valdis.Kletnieks@vt.edu, Catalin Marinas <catalin.marinas@arm.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 31 Aug 2016 08:55:50 +0530 Anshuman Khandual <khandual@linux.vnet.ibm.com> wrote:
 
-> Each individual node in the system has a ZONELIST_FALLBACK zonelist
-> and a ZONELIST_NOFALLBACK zonelist. These zonelists decide fallback
-> order of zones during memory allocations. Sometimes it helps to dump
-> these zonelists to see the priority order of various zones in them.
-> This change just adds a sysfs interface for doing the same.
+
+On 2016-08-31 05:08 PM, Valdis.Kletnieks@vt.edu wrote:
+> On Wed, 31 Aug 2016 08:54:21 +0100, Catalin Marinas said:
+>> On Tue, Aug 30, 2016 at 02:35:12PM -0400, Nicholas Krause wrote:
+>>> This fixes a issue in the current locking logic of the function,
+>>> __delete_object where we are trying to attempt to lock the passed
+>>> object structure's spinlock again after being previously held
+>>> elsewhere by the kmemleak code. Fix this by instead of assuming
+>>> we are the only one contending for the object's lock their are
+>>> possible other users and create two branches, one where we get
+>>> the lock when calling spin_trylock_irqsave on the object's lock
+>>> and the other when the lock is held else where by kmemleak.
+>>
+>> Have you actually got a deadlock that requires this fix?
 > 
-> Example zonelist information from a KVM guest.
+> Almost certainly not, but that's never stopped Nicholas before.  He's a well-known
+> submitter of bad patches, usually totally incorrect, not even compile tested.
 > 
-> [NODE (0)]
->         ZONELIST_FALLBACK
->         (0) (node 0) (zone DMA c00000000140c000)
->         (1) (node 1) (zone DMA c000000100000000)
->         (2) (node 2) (zone DMA c000000200000000)
->         (3) (node 3) (zone DMA c000000300000000)
->         ZONELIST_NOFALLBACK
->         (0) (node 0) (zone DMA c00000000140c000)
-> [NODE (1)]
->         ZONELIST_FALLBACK
->         (0) (node 1) (zone DMA c000000100000000)
->         (1) (node 2) (zone DMA c000000200000000)
->         (2) (node 3) (zone DMA c000000300000000)
->         (3) (node 0) (zone DMA c00000000140c000)
->         ZONELIST_NOFALLBACK
->         (0) (node 1) (zone DMA c000000100000000)
-> [NODE (2)]
->         ZONELIST_FALLBACK
->         (0) (node 2) (zone DMA c000000200000000)
->         (1) (node 3) (zone DMA c000000300000000)
->         (2) (node 0) (zone DMA c00000000140c000)
->         (3) (node 1) (zone DMA c000000100000000)
->         ZONELIST_NOFALLBACK
->         (0) (node 2) (zone DMA c000000200000000)
-> [NODE (3)]
->         ZONELIST_FALLBACK
->         (0) (node 3) (zone DMA c000000300000000)
->         (1) (node 0) (zone DMA c00000000140c000)
->         (2) (node 1) (zone DMA c000000100000000)
->         (3) (node 2) (zone DMA c000000200000000)
->         ZONELIST_NOFALLBACK
->         (0) (node 3) (zone DMA c000000300000000)
-
-Can you please sell this a bit better?  Why does it "sometimes help"? 
-Why does the benefit of this patch to our users justify the overhead
-and cost?
-
-Please document the full path to the sysfs file(s) within the changelog.
-
-Please find somewhere in Documentation/ to document the new interface.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> He's infamous enough that he's not allowed to post to any list hosted at vger.
+>
+Valdis,
+Rather then argue since that will go nowhere. I am posing actual patches that have been tested on
+hardware. Yes I known that is surprising but it's true.
