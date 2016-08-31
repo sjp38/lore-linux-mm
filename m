@@ -1,96 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 59CB26B025E
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 11:17:25 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id ez1so95084414pab.1
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 08:17:25 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id u190si358993pfb.43.2016.08.31.08.17.24
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EB546B0260
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 11:17:34 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id k135so39109656lfb.2
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 08:17:33 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id x206si4450887wmg.67.2016.08.31.08.17.32
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 31 Aug 2016 08:17:24 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -v2] mm: Don't use radix tree writeback tags for pages in swap cache
-References: <1472578089-5560-1-git-send-email-ying.huang@intel.com>
-	<20160831091459.GY8119@techsingularity.net>
-Date: Wed, 31 Aug 2016 08:17:24 -0700
-In-Reply-To: <20160831091459.GY8119@techsingularity.net> (Mel Gorman's message
-	of "Wed, 31 Aug 2016 10:14:59 +0100")
-Message-ID: <87oa49m0hn.fsf@yhuang-mobile.sh.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 31 Aug 2016 08:17:32 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id i5so8097651wmg.2
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 08:17:32 -0700 (PDT)
+Date: Wed, 31 Aug 2016 17:17:30 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: memcontrol: Make the walk_page_range() limit obvious
+Message-ID: <20160831151730.GF21661@dhcp22.suse.cz>
+References: <1472655897-22532-1-git-send-email-james.morse@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1472655897-22532-1-git-send-email-james.morse@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Tejun Heo <tj@kernel.org>, Wu Fengguang <fengguang.wu@intel.com>
+To: James Morse <james.morse@arm.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Mel Gorman <mgorman@techsingularity.net> writes:
+On Wed 31-08-16 16:04:57, James Morse wrote:
+> Trying to walk all of virtual memory requires architecture specific
+> knowledge. On x86_64, addresses must be sign extended from bit 48,
+> whereas on arm64 the top VA_BITS of address space have their own set
+> of page tables.
+> 
+> mem_cgroup_count_precharge() and mem_cgroup_move_charge() both call
+> walk_page_range() on the range 0 to ~0UL, neither provide a pte_hole
+> callback, which causes the current implementation to skip non-vma regions.
+> 
+> As this call only expects to walk user address space, make it walk
+> 0 to  'highest_vm_end'.
+> 
+> Signed-off-by: James Morse <james.morse@arm.com>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> ---
+> This is in preparation for a RFC series that allows walk_page_range() to
+> walk kernel page tables too.
 
-> On Tue, Aug 30, 2016 at 10:28:09AM -0700, Huang, Ying wrote:
->> From: Huang Ying <ying.huang@intel.com>
->> 
->> File pages use a set of radix tree tags (DIRTY, TOWRITE, WRITEBACK,
->> etc.) to accelerate finding the pages with a specific tag in the radix
->> tree during inode writeback.  But for anonymous pages in the swap
->> cache, there is no inode writeback.  So there is no need to find the
->> pages with some writeback tags in the radix tree.  It is not necessary
->> to touch radix tree writeback tags for pages in the swap cache.
->> 
->> Per Rik van Riel's suggestion, a new flag AS_NO_WRITEBACK_TAGS is
->> introduced for address spaces which don't need to update the writeback
->> tags.  The flag is set for swap caches.  It may be used for DAX file
->> systems, etc.
->> 
->> With this patch, the swap out bandwidth improved 22.3% (from ~1.2GB/s to
->> ~ 1.48GBps) in the vm-scalability swap-w-seq test case with 8 processes.
->> The test is done on a Xeon E5 v3 system.  The swap device used is a RAM
->> simulated PMEM (persistent memory) device.  The improvement comes from
->> the reduced contention on the swap cache radix tree lock.  To test
->> sequential swapping out, the test case uses 8 processes, which
->> sequentially allocate and write to the anonymous pages until RAM and
->> part of the swap device is used up.
->> 
->> Details of comparison is as follow,
->> 
->> base             base+patch
->> ---------------- --------------------------
->>          %stddev     %change         %stddev
->>              \          |                \
->>    2506952 A+-  2%     +28.1%    3212076 A+-  7%  vm-scalability.throughput
->>    1207402 A+-  7%     +22.3%    1476578 A+-  6%  vmstat.swap.so
->>      10.86 A+- 12%     -23.4%       8.31 A+- 16%  perf-profile.cycles-pp._raw_spin_lock_irq.__add_to_swap_cache.add_to_swap_cache.add_to_swap.shrink_page_list
->>      10.82 A+- 13%     -33.1%       7.24 A+- 14%  perf-profile.cycles-pp._raw_spin_lock_irqsave.__remove_mapping.shrink_page_list.shrink_inactive_list.shrink_zone_memcg
->>      10.36 A+- 11%    -100.0%       0.00 A+- -1%  perf-profile.cycles-pp._raw_spin_lock_irqsave.__test_set_page_writeback.bdev_write_page.__swap_writepage.swap_writepage
->>      10.52 A+- 12%    -100.0%       0.00 A+- -1%  perf-profile.cycles-pp._raw_spin_lock_irqsave.test_clear_page_writeback.end_page_writeback.page_endio.pmem_rw_page
->> 
->
-> I didn't see anything wrong with the patch but it's worth highlighting
-> that this hunk means we are now out of GFP bits.
+OK, so do I get it right that this is only needed with that change?
+Because AFAICS walk_page_range will be bound to the last vma->vm_end
+right now. If this is the case this should be mentioned in the changelog
+because the above might confuse somebody to think this is a bug fix.
 
-Sorry, I don't know whether I understand your words.  It is something
-about,
+Other than that this seams reasonable to me.
 
-__GFP_BITS_SHIFT == 26
+> 
+>  mm/memcontrol.c | 6 ++++--
+>  1 file changed, 4 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 2ff0289ad061..bfd54b43beb9 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4712,7 +4712,8 @@ static unsigned long mem_cgroup_count_precharge(struct mm_struct *mm)
+>  		.mm = mm,
+>  	};
+>  	down_read(&mm->mmap_sem);
+> -	walk_page_range(0, ~0UL, &mem_cgroup_count_precharge_walk);
+> +	walk_page_range(0, mm->highest_vm_end,
+> +			&mem_cgroup_count_precharge_walk);
+>  	up_read(&mm->mmap_sem);
+>  
+>  	precharge = mc.precharge;
+> @@ -5000,7 +5001,8 @@ retry:
+>  	 * When we have consumed all precharges and failed in doing
+>  	 * additional charge, the page walk just aborts.
+>  	 */
+> -	walk_page_range(0, ~0UL, &mem_cgroup_move_charge_walk);
+> +	walk_page_range(0, mc.mm->highest_vm_end, &mem_cgroup_move_charge_walk);
+> +
+>  	up_read(&mc.mm->mmap_sem);
+>  	atomic_dec(&mc.from->moving_account);
+>  }
+> -- 
+> 2.8.0.rc3
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-So remainning bits in mapping_flags is 6.  And now the latest bit is
-used for the flag introduced in the patch?
-
-Best Regards,
-Huang, Ying
-
->> diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
->> index 66a1260..2f5a65dd 100644
->> --- a/include/linux/pagemap.h
->> +++ b/include/linux/pagemap.h
->> @@ -25,6 +25,8 @@ enum mapping_flags {
->>  	AS_MM_ALL_LOCKS	= __GFP_BITS_SHIFT + 2,	/* under mm_take_all_locks() */
->>  	AS_UNEVICTABLE	= __GFP_BITS_SHIFT + 3,	/* e.g., ramdisk, SHM_LOCK */
->>  	AS_EXITING	= __GFP_BITS_SHIFT + 4, /* final truncate in progress */
->> +	/* writeback related tags are not used */
->> +	AS_NO_WRITEBACK_TAGS = __GFP_BITS_SHIFT + 5,
->>  };
->>  
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
