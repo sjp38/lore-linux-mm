@@ -1,43 +1,46 @@
-From: Borislav Petkov <bp-Gina5bIWoIWzQB+pC5nmwQ@public.gmane.org>
-Subject: Re: [RFC PATCH v2 02/20] x86: Set the write-protect cache mode for
-	full PAT support
-Date: Thu, 25 Aug 2016 05:58:34 +0200
-Message-ID: <20160825035834.GB31573@nazgul.tnic>
-References: <20160822223529.29880.50884.stgit@tlendack-t1.amdoffice.net>
-	<20160822223550.29880.39409.stgit@tlendack-t1.amdoffice.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Return-path: <iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
-Content-Disposition: inline
-In-Reply-To: <20160822223550.29880.39409.stgit-qCXWGYdRb2BnqfbPTmsdiZQ+2ll4COg0XqFh9Ls21Oc@public.gmane.org>
-List-Unsubscribe: <https://lists.linuxfoundation.org/mailman/options/iommu>,
-	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=unsubscribe>
-List-Archive: <http://lists.linuxfoundation.org/pipermail/iommu/>
-List-Post: <mailto:iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
-List-Help: <mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=help>
-List-Subscribe: <https://lists.linuxfoundation.org/mailman/listinfo/iommu>,
-	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=subscribe>
-Sender: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
-Errors-To: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
-To: Tom Lendacky <thomas.lendacky-5C7GfCeVMHo@public.gmane.org>
-Cc: linux-efi-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, kvm-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, Matt Fleming <matt-mF/unelCI9GS6iBeEJttW/XRex20P6io@public.gmane.org>, x86-DgEjT+Ai2ygdnm+yROfE0A@public.gmane.org, linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org, Alexander Potapenko <glider-hpIqsD4AKlfQT0dZR+AlfA@public.gmane.org>, "H. Peter Anvin" <hpa-YMNOUZJC4hwAvxtiuMwx3w@public.gmane.org>, linux-arch-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, Jonathan Corbet <corbet-T1hC0tSOHrs@public.gmane.org>, linux-doc-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, kasan-dev-/JYPxA39Uh5TLH3MbocFFw@public.gmane.org, Ingo Molnar <mingo-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, Andrey Ryabinin <aryabinin-5HdwGun5lf+gSpxsJD1C4w@public.gmane.org>, Arnd Bergmann <arnd-r2nGTMty4D4@public.gmane.org>, Andy Lutomirski <luto-DgEjT+Ai2ygdnm+yROfE0A@public.gmane.org>, Thomas Gleixner <tglx-hfZtesqFncYOwBW4kG4KsQ@public.gmane.org>, Dmitry Vyukov <dvyukov-hpIqsD4AKlfQT0dZR+AlfA@public.gmane.org>, linux-kernel-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org, Paolo Bonzini <pbonzini-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: [PATCH] Update my e-mail address
+Date: Wed, 31 Aug 2016 15:01:26 +0300
+Message-ID: <1472644886-9933-1-git-send-email-vdavydov.dev@gmail.com>
+Return-path: <linux-kernel-owner@vger.kernel.org>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-Id: linux-mm.kvack.org
 
-On Mon, Aug 22, 2016 at 05:35:50PM -0500, Tom Lendacky wrote:
-> For processors that support PAT, set the write-protect cache mode
-> (_PAGE_CACHE_MODE_WP) entry to the actual write-protect value (x05).
-> 
-> Signed-off-by: Tom Lendacky <thomas.lendacky-5C7GfCeVMHo@public.gmane.org>
-> ---
->  arch/x86/mm/pat.c |    4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
+vdavydov@{parallels,virtuozzo}.com will bounce from now on.
 
-Acked-by: Borislav Petkov <bp-l3A5Bk7waGM@public.gmane.org>
+Signed-off-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+---
+ .mailmap    | 2 ++
+ MAINTAINERS | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)
 
+diff --git a/.mailmap b/.mailmap
+index b18912c5121e..de22daefd9da 100644
+--- a/.mailmap
++++ b/.mailmap
+@@ -159,6 +159,8 @@ Valdis Kletnieks <Valdis.Kletnieks@vt.edu>
+ Viresh Kumar <vireshk@kernel.org> <viresh.kumar@st.com>
+ Viresh Kumar <vireshk@kernel.org> <viresh.linux@gmail.com>
+ Viresh Kumar <vireshk@kernel.org> <viresh.kumar2@arm.com>
++Vladimir Davydov <vdavydov.dev@gmail.com> <vdavydov@virtuozzo.com>
++Vladimir Davydov <vdavydov.dev@gmail.com> <vdavydov@parallels.com>
+ Takashi YOSHII <takashi.yoshii.zj@renesas.com>
+ Yusuke Goda <goda.yusuke@renesas.com>
+ Gustavo Padovan <gustavo@las.ic.unicamp.br>
+diff --git a/MAINTAINERS b/MAINTAINERS
+index d8e81b1dde30..46a7d3093a49 100644
+--- a/MAINTAINERS
++++ b/MAINTAINERS
+@@ -3265,7 +3265,7 @@ F:	kernel/cpuset.c
+ CONTROL GROUP - MEMORY RESOURCE CONTROLLER (MEMCG)
+ M:	Johannes Weiner <hannes@cmpxchg.org>
+ M:	Michal Hocko <mhocko@kernel.org>
+-M:	Vladimir Davydov <vdavydov@virtuozzo.com>
++M:	Vladimir Davydov <vdavydov.dev@gmail.com>
+ L:	cgroups@vger.kernel.org
+ L:	linux-mm@kvack.org
+ S:	Maintained
 -- 
-Regards/Gruss,
-    Boris.
-
-ECO tip #101: Trim your mails when you reply.
---
+2.1.4
