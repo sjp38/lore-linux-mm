@@ -1,75 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 07B9C6B0260
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 10:08:59 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id l205so13933456oia.1
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 07:08:59 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0102.outbound.protection.outlook.com. [104.47.0.102])
-        by mx.google.com with ESMTPS id e37si51667otc.184.2016.08.31.07.01.59
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 43B256B0038
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 10:26:46 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id vd14so92928291pab.3
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 07:26:46 -0700 (PDT)
+Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
+        by mx.google.com with ESMTPS id wn3si167954pab.33.2016.08.31.07.26.45
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 31 Aug 2016 07:01:59 -0700 (PDT)
-From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Subject: [PATCHv4 5/6] x86/ptrace: down with test_thread_flag(TIF_IA32)
-Date: Wed, 31 Aug 2016 16:59:35 +0300
-Message-ID: <20160831135936.2281-6-dsafonov@virtuozzo.com>
-In-Reply-To: <20160831135936.2281-1-dsafonov@virtuozzo.com>
-References: <20160831135936.2281-1-dsafonov@virtuozzo.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 31 Aug 2016 07:26:45 -0700 (PDT)
+Received: by mail-pf0-x243.google.com with SMTP id i6so2860226pfe.0
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 07:26:45 -0700 (PDT)
+Message-ID: <1472653603.3889.0.camel@gmail.com>
+Subject: Re: [PATCH] Update my e-mail address
+From: Greg <gvrose8192@gmail.com>
+Date: Wed, 31 Aug 2016 07:26:43 -0700
+In-Reply-To: <1472644886-9933-1-git-send-email-vdavydov.dev@gmail.com>
+References: <1472644886-9933-1-git-send-email-vdavydov.dev@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: 0x7f454c46@gmail.com, luto@kernel.org, oleg@redhat.com, tglx@linutronix.de, hpa@zytor.com, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, gorcunov@openvz.org, xemul@virtuozzo.com, Dmitry Safonov <dsafonov@virtuozzo.com>, Pedro Alves <palves@redhat.com>
+To: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-As the task isn't executing at the moment of {GET,SET}REGS,
-return regset that corresponds to code selector, rather than
-value of TIF_IA32 flag.
-I.e. if we ptrace i386 elf binary that has just changed it's
-code selector to __USER_CS, than GET_REGS will return
-full x86_64 register set.
+On Wed, 2016-08-31 at 15:01 +0300, Vladimir Davydov wrote:
+> vdavydov@{parallels,virtuozzo}.com will bounce from now on.
+> 
+> Signed-off-by: Vladimir Davydov <vdavydov.dev@gmail.com>
 
-Note, that this will work only if application has changed it's CS.
-If the application does 32-bit syscall with __USER_CS, ptrace
-will still return 64-bit register set. Which might be still confusing
-for tools that expect TS_COMPACT to be exposed [1, 2].
+Shouldn't MAINTAINERS be in the subject line?
 
-So this this change should make PTRACE_GETREGSET more reliable and
-this will be another step to drop TIF_{IA32,X32} flags.
+- Greg
 
-[1]: https://sourceforge.net/p/strace/mailman/message/30471411/
-[2]: https://lkml.org/lkml/2012/1/18/320
+> ---
+>  .mailmap    | 2 ++
+>  MAINTAINERS | 2 +-
+>  2 files changed, 3 insertions(+), 1 deletion(-)
+> 
+> diff --git a/.mailmap b/.mailmap
+> index b18912c5121e..de22daefd9da 100644
+> --- a/.mailmap
+> +++ b/.mailmap
+> @@ -159,6 +159,8 @@ Valdis Kletnieks <Valdis.Kletnieks@vt.edu>
+>  Viresh Kumar <vireshk@kernel.org> <viresh.kumar@st.com>
+>  Viresh Kumar <vireshk@kernel.org> <viresh.linux@gmail.com>
+>  Viresh Kumar <vireshk@kernel.org> <viresh.kumar2@arm.com>
+> +Vladimir Davydov <vdavydov.dev@gmail.com> <vdavydov@virtuozzo.com>
+> +Vladimir Davydov <vdavydov.dev@gmail.com> <vdavydov@parallels.com>
+>  Takashi YOSHII <takashi.yoshii.zj@renesas.com>
+>  Yusuke Goda <goda.yusuke@renesas.com>
+>  Gustavo Padovan <gustavo@las.ic.unicamp.br>
+> diff --git a/MAINTAINERS b/MAINTAINERS
+> index d8e81b1dde30..46a7d3093a49 100644
+> --- a/MAINTAINERS
+> +++ b/MAINTAINERS
+> @@ -3265,7 +3265,7 @@ F:	kernel/cpuset.c
+>  CONTROL GROUP - MEMORY RESOURCE CONTROLLER (MEMCG)
+>  M:	Johannes Weiner <hannes@cmpxchg.org>
+>  M:	Michal Hocko <mhocko@kernel.org>
+> -M:	Vladimir Davydov <vdavydov@virtuozzo.com>
+> +M:	Vladimir Davydov <vdavydov.dev@gmail.com>
+>  L:	cgroups@vger.kernel.org
+>  L:	linux-mm@kvack.org
+>  S:	Maintained
 
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Oleg Nesterov <oleg@redhat.com>
-Cc: Pedro Alves <palves@redhat.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: linux-mm@kvack.org
-Cc: x86@kernel.org
-Cc: Cyrill Gorcunov <gorcunov@openvz.org>
-Cc: Pavel Emelyanov <xemul@virtuozzo.com>
-Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
----
- arch/x86/kernel/ptrace.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/arch/x86/kernel/ptrace.c b/arch/x86/kernel/ptrace.c
-index f79576a541ff..ad0bab8fc594 100644
---- a/arch/x86/kernel/ptrace.c
-+++ b/arch/x86/kernel/ptrace.c
-@@ -1358,7 +1358,7 @@ void update_regset_xstate_info(unsigned int size, u64 xstate_mask)
- const struct user_regset_view *task_user_regset_view(struct task_struct *task)
- {
- #ifdef CONFIG_IA32_EMULATION
--	if (test_tsk_thread_flag(task, TIF_IA32))
-+	if (!user_64bit_mode(task_pt_regs(task)))
- #endif
- #if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
- 		return &user_x86_32_view;
--- 
-2.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
