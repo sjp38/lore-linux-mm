@@ -1,59 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 06D216B0038
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 17:06:18 -0400 (EDT)
-Received: by mail-yb0-f199.google.com with SMTP id 18so7735257ybc.3
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 14:06:18 -0700 (PDT)
-Received: from mail-pf0-x230.google.com (mail-pf0-x230.google.com. [2607:f8b0:400e:c00::230])
-        by mx.google.com with ESMTPS id pv7si1534967pac.166.2016.08.31.14.06.17
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C5B66B0038
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 17:08:39 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id c67so18630799ywe.1
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 14:08:39 -0700 (PDT)
+Received: from omr2.cc.vt.edu (omr2.cc.ipv6.vt.edu. [2607:b400:92:8400:0:33:fb76:806e])
+        by mx.google.com with ESMTPS id d68si1379687qkb.79.2016.08.31.14.08.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Aug 2016 14:06:17 -0700 (PDT)
-Received: by mail-pf0-x230.google.com with SMTP id h186so23122728pfg.3
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 14:06:17 -0700 (PDT)
-Date: Wed, 31 Aug 2016 14:06:14 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RESEND PATCH v2] memory-hotplug: fix store_mem_state() return
- value
-In-Reply-To: <20160831132557.c5cf0985e3da5f2850a10b1d@linux-foundation.org>
-Message-ID: <alpine.DEB.2.10.1608311402520.33967@chino.kir.corp.google.com>
-References: <20160831150105.GB26702@kroah.com> <1472658241-32748-1-git-send-email-arbab@linux.vnet.ibm.com> <20160831132557.c5cf0985e3da5f2850a10b1d@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Wed, 31 Aug 2016 14:08:38 -0700 (PDT)
+Subject: Re: [PATCH] mm:Avoid soft lockup due to possible attempt of double locking object's lock in __delete_object
+From: Valdis.Kletnieks@vt.edu
+In-Reply-To: <20160831075421.GA15732@e104818-lin.cambridge.arm.com>
+References: <1472582112-9059-1-git-send-email-xerofoify@gmail.com>
+ <20160831075421.GA15732@e104818-lin.cambridge.arm.com>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_1472677706_2066P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Transfer-Encoding: 7bit
+Date: Wed, 31 Aug 2016 17:08:26 -0400
+Message-ID: <33981.1472677706@turing-police.cc.vt.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Reza Arbab <arbab@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vitaly Kuznetsov <vkuznets@redhat.com>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dan Williams <dan.j.williams@intel.com>, Xishi Qiu <qiuxishi@huawei.com>, David Vrabel <david.vrabel@citrix.com>, Chen Yucong <slaoub@gmail.com>, Andrew Banman <abanman@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Nicholas Krause <xerofoify@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 31 Aug 2016, Andrew Morton wrote:
+--==_Exmh_1472677706_2066P
+Content-Type: text/plain; charset=us-ascii
 
-> > Attempting to online memory which is already online will cause this:
-> > 
-> > 1. store_mem_state() called with buf="online"
-> > 2. device_online() returns 1 because device is already online
-> > 3. store_mem_state() returns 1
-> > 4. calling code interprets this as 1-byte buffer read
-> > 5. store_mem_state() called again with buf="nline"
-> > 6. store_mem_state() returns -EINVAL
-> > 
-> > Example:
-> > 
-> > $ cat /sys/devices/system/memory/memory0/state
-> > online
-> > $ echo online > /sys/devices/system/memory/memory0/state
-> > -bash: echo: write error: Invalid argument
-> > 
-> > Fix the return value of store_mem_state() so this doesn't happen.
-> 
-> So..  what *does* happen after the patch?  Is some sort of failure still
-> reported?  Or am I correct in believing that the operation will appear
-> to have succeeded?  If so, is that desirable?
-> 
+On Wed, 31 Aug 2016 08:54:21 +0100, Catalin Marinas said:
+> On Tue, Aug 30, 2016 at 02:35:12PM -0400, Nicholas Krause wrote:
+> > This fixes a issue in the current locking logic of the function,
+> > __delete_object where we are trying to attempt to lock the passed
+> > object structure's spinlock again after being previously held
+> > elsewhere by the kmemleak code. Fix this by instead of assuming
+> > we are the only one contending for the object's lock their are
+> > possible other users and create two branches, one where we get
+> > the lock when calling spin_trylock_irqsave on the object's lock
+> > and the other when the lock is held else where by kmemleak.
+>
+> Have you actually got a deadlock that requires this fix?
 
-It's not desirable, before commit 4f3549d72 this would have returned 
-EINVAL since __memory_block_change_state() does not see the state as 
-MEM_OFFLINE when the write is done.  The correct fix is for 
-store_mem_state() to return -EINVAL when device_online() returns non-zero.
+Almost certainly not, but that's never stopped Nicholas before.  He's a well-known
+submitter of bad patches, usually totally incorrect, not even compile tested.
+
+He's infamous enough that he's not allowed to post to any list hosted at vger.
+
+--==_Exmh_1472677706_2066P
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Comment: Exmh version 2.5 07/13/2001
+
+iQIVAwUBV8dHSgdmEQWDXROgAQIHSg/+NVg6jIsWvrJ9rciYZHHN1kDWgTIpKMf5
+/k+QfaQFwjbVez/0xyThM/yBhovrPWztg2ki9zdA3wqoAKRm2QhrzhWFDYx/COzW
+DTizXCbtbRkFdqXqGLRvYB+jruGPP2A7hzydNmPYRsg+PaTb7xwlr8lrhzJPqknA
+jNVvWclbZbXNoMDQVnyxJB/mGg82SfrosFzgymJ3A4ghy6nFT2OqGUEI+dlFJ4dJ
+MHnrXtOaWHLGroD6jOakyyXY6vxeU9woJSbde1dzNtLabQcVOcCW8wuE0lzRjEYB
+U6MfokZeO2eFj8xt8VeNaRzuv54R6H04IyY7GYirAEDzlVJ7vF73OcedVkdpCWaL
+Fo6v4uU6gnEx5reJ8ERucKbAoZrHcNObHnaAOruWwdItWn270N7p+KSThDpd1sWJ
+SJjQKb7EDSWvctgKYxFND64hNbKki8LH35jZtbu9Xz6oqXt6pT2zLSeCBJ6HSc4H
+2OVs1Js0l0i6XxCExqJufLK+GZ0WCD53znUJ/UlO+gBZjLTdSRJZ2ZVmcGSZm1yh
+Hk9nyHaMTxI0o+d+jyc0f6CvkBAntwctZw7VmBy7nFpcmbl+b9/heVl2VFko6kWc
+j1YNNS6UBwpPQYTCNW77N6S/xmUMsveHluldyXoYu/mi+79hXvShBmKV70gY6UR4
+sfDHud3xCJI=
+=8Wg2
+-----END PGP SIGNATURE-----
+
+--==_Exmh_1472677706_2066P--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
