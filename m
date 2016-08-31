@@ -1,158 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 65B046B0253
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 23:26:05 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id w128so80772272pfd.3
-        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 20:26:05 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id u190si48336664pfb.43.2016.08.30.20.26.04
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A1BE6B0038
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 00:14:44 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id o124so83133168pfg.1
+        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 21:14:44 -0700 (PDT)
+Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
+        by mx.google.com with ESMTPS id g87si48499814pfd.62.2016.08.30.21.14.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Aug 2016 20:26:04 -0700 (PDT)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u7V3Mibg109760
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 23:26:04 -0400
-Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 255hfj6gyq-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 30 Aug 2016 23:26:03 -0400
-Received: from localhost
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Wed, 31 Aug 2016 13:26:01 +1000
-Received: from d23relay06.au.ibm.com (d23relay06.au.ibm.com [9.185.63.219])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id DD19C2CE8046
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 13:25:57 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay06.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u7V3PvXj2818448
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 13:25:57 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u7V3PvtI004454
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 13:25:57 +1000
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Subject: [PATCH 2/2] mm: Add sysfs interface to dump each node's zonelist information
-Date: Wed, 31 Aug 2016 08:55:50 +0530
-In-Reply-To: <1472613950-16867-1-git-send-email-khandual@linux.vnet.ibm.com>
-References: <1472613950-16867-1-git-send-email-khandual@linux.vnet.ibm.com>
-Message-Id: <1472613950-16867-2-git-send-email-khandual@linux.vnet.ibm.com>
+        Tue, 30 Aug 2016 21:14:42 -0700 (PDT)
+Received: by mail-pf0-x243.google.com with SMTP id h186so2056592pfg.2
+        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 21:14:42 -0700 (PDT)
+Subject: Re: [RESEND][v2][PATCH] KVM: PPC: Book3S HV: Migrate pinned pages out
+ of CMA
+References: <20160714042536.GG18277@balbir.ozlabs.ibm.com>
+From: Alexey Kardashevskiy <aik@ozlabs.ru>
+Message-ID: <3ba0fa6c-bfe6-a395-9c32-db8d6261559d@ozlabs.ru>
+Date: Wed, 31 Aug 2016 14:14:35 +1000
+MIME-Version: 1.0
+In-Reply-To: <20160714042536.GG18277@balbir.ozlabs.ibm.com>
+Content-Type: text/plain; charset=koi8-r
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org
+To: bsingharora@gmail.com, linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, kvm@vger.kernel.org
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>
 
-Each individual node in the system has a ZONELIST_FALLBACK zonelist
-and a ZONELIST_NOFALLBACK zonelist. These zonelists decide fallback
-order of zones during memory allocations. Sometimes it helps to dump
-these zonelists to see the priority order of various zones in them.
-This change just adds a sysfs interface for doing the same.
+On 14/07/16 14:25, Balbir Singh wrote:
+> 
+> From: Balbir Singh <bsingharora@gmail.com>
+> Subject: [RESEND][v2][PATCH] KVM: PPC: Book3S HV: Migrate pinned pages out of CMA
+> 
+> When PCI Device pass-through is enabled via VFIO, KVM-PPC will
+> pin pages using get_user_pages_fast(). One of the downsides of
+> the pinning is that the page could be in CMA region. The CMA
+> region is used for other allocations like the hash page table.
+> Ideally we want the pinned pages to be from non CMA region.
+> 
+> This patch (currently only for KVM PPC with VFIO) forcefully
+> migrates the pages out (huge pages are omitted for the moment).
+> There are more efficient ways of doing this, but that might
+> be elaborate and might impact a larger audience beyond just
+> the kvm ppc implementation.
+> 
+> The magic is in new_iommu_non_cma_page() which allocates the
+> new page from a non CMA region.
+> 
+> I've tested the patches lightly at my end, but there might be bugs
+> For example if after lru_add_drain(), the page is not isolated
+> is this a BUG?
+> 
+> Previous discussion was at
+> http://permalink.gmane.org/gmane.linux.kernel.mm/136738
+> 
+> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> Cc: Michael Ellerman <mpe@ellerman.id.au>
+> Cc: Paul Mackerras <paulus@ozlabs.org>
+> Cc: Alexey Kardashevskiy <aik@ozlabs.ru>
+> 
+> Signed-off-by: Balbir Singh <bsingharora@gmail.com>
 
-Example zonelist information from a KVM guest.
 
-[NODE (0)]
-        ZONELIST_FALLBACK
-        (0) (node 0) (zone DMA c00000000140c000)
-        (1) (node 1) (zone DMA c000000100000000)
-        (2) (node 2) (zone DMA c000000200000000)
-        (3) (node 3) (zone DMA c000000300000000)
-        ZONELIST_NOFALLBACK
-        (0) (node 0) (zone DMA c00000000140c000)
-[NODE (1)]
-        ZONELIST_FALLBACK
-        (0) (node 1) (zone DMA c000000100000000)
-        (1) (node 2) (zone DMA c000000200000000)
-        (2) (node 3) (zone DMA c000000300000000)
-        (3) (node 0) (zone DMA c00000000140c000)
-        ZONELIST_NOFALLBACK
-        (0) (node 1) (zone DMA c000000100000000)
-[NODE (2)]
-        ZONELIST_FALLBACK
-        (0) (node 2) (zone DMA c000000200000000)
-        (1) (node 3) (zone DMA c000000300000000)
-        (2) (node 0) (zone DMA c00000000140c000)
-        (3) (node 1) (zone DMA c000000100000000)
-        ZONELIST_NOFALLBACK
-        (0) (node 2) (zone DMA c000000200000000)
-[NODE (3)]
-        ZONELIST_FALLBACK
-        (0) (node 3) (zone DMA c000000300000000)
-        (1) (node 0) (zone DMA c00000000140c000)
-        (2) (node 1) (zone DMA c000000100000000)
-        (3) (node 2) (zone DMA c000000200000000)
-        ZONELIST_NOFALLBACK
-        (0) (node 3) (zone DMA c000000300000000)
 
-Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
----
- drivers/base/memory.c | 46 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 46 insertions(+)
+Acked-by: Alexey Kardashevskiy <aik@ozlabs.ru>
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index dc75de9..8c9330a 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -442,7 +442,52 @@ print_block_size(struct device *dev, struct device_attribute *attr,
- 	return sprintf(buf, "%lx\n", get_memory_block_size());
- }
- 
-+static ssize_t dump_zonelist(char *buf, struct zonelist *zonelist)
-+{
-+	unsigned int i;
-+	ssize_t count = 0;
-+
-+	for (i = 0; zonelist->_zonerefs[i].zone; i++) {
-+		count += sprintf(buf + count,
-+			"\t\t(%d) (node %d) (%-10s %lx)\n", i,
-+			zonelist->_zonerefs[i].zone->zone_pgdat->node_id,
-+			zone_names[zonelist->_zonerefs[i].zone_idx],
-+			(unsigned long) zonelist->_zonerefs[i].zone);
-+	}
-+	return count;
-+}
-+
-+static ssize_t dump_zonelists(char *buf)
-+{
-+	struct zonelist *zonelist;
-+	unsigned int node;
-+	ssize_t count = 0;
-+
-+	for_each_online_node(node) {
-+		zonelist = &(NODE_DATA(node)->
-+				node_zonelists[ZONELIST_FALLBACK]);
-+		count += sprintf(buf + count, "[NODE (%d)]\n", node);
-+		count += sprintf(buf + count, "\tZONELIST_FALLBACK\n");
-+		count += dump_zonelist(buf + count, zonelist);
-+
-+		zonelist = &(NODE_DATA(node)->
-+				node_zonelists[ZONELIST_NOFALLBACK]);
-+		count += sprintf(buf + count, "\tZONELIST_NOFALLBACK\n");
-+		count += dump_zonelist(buf + count, zonelist);
-+	}
-+	return count;
-+}
-+
-+static ssize_t
-+print_system_zone_details(struct device *dev, struct device_attribute *attr,
-+		 char *buf)
-+{
-+	return dump_zonelists(buf);
-+}
-+
-+
- static DEVICE_ATTR(block_size_bytes, 0444, print_block_size, NULL);
-+static DEVICE_ATTR(system_zone_details, 0444, print_system_zone_details, NULL);
- 
- /*
-  * Memory auto online policy.
-@@ -783,6 +828,7 @@ static struct attribute *memory_root_attrs[] = {
- #endif
- 
- 	&dev_attr_block_size_bytes.attr,
-+	&dev_attr_system_zone_details.attr,
- 	&dev_attr_auto_online_blocks.attr,
- 	NULL
- };
+
+
+> ---
+>  arch/powerpc/include/asm/mmu_context.h |  1 +
+>  arch/powerpc/mm/mmu_context_iommu.c    | 80 ++++++++++++++++++++++++++++++++--
+>  2 files changed, 77 insertions(+), 4 deletions(-)
+> 
+> diff --git a/arch/powerpc/include/asm/mmu_context.h b/arch/powerpc/include/asm/mmu_context.h
+> index 9d2cd0c..475d1be 100644
+> --- a/arch/powerpc/include/asm/mmu_context.h
+> +++ b/arch/powerpc/include/asm/mmu_context.h
+> @@ -18,6 +18,7 @@ extern void destroy_context(struct mm_struct *mm);
+>  #ifdef CONFIG_SPAPR_TCE_IOMMU
+>  struct mm_iommu_table_group_mem_t;
+>  
+> +extern int isolate_lru_page(struct page *page);	/* from internal.h */
+>  extern bool mm_iommu_preregistered(void);
+>  extern long mm_iommu_get(unsigned long ua, unsigned long entries,
+>  		struct mm_iommu_table_group_mem_t **pmem);
+> diff --git a/arch/powerpc/mm/mmu_context_iommu.c b/arch/powerpc/mm/mmu_context_iommu.c
+> index da6a216..c18f742 100644
+> --- a/arch/powerpc/mm/mmu_context_iommu.c
+> +++ b/arch/powerpc/mm/mmu_context_iommu.c
+> @@ -15,6 +15,9 @@
+>  #include <linux/rculist.h>
+>  #include <linux/vmalloc.h>
+>  #include <linux/mutex.h>
+> +#include <linux/migrate.h>
+> +#include <linux/hugetlb.h>
+> +#include <linux/swap.h>
+>  #include <asm/mmu_context.h>
+>  
+>  static DEFINE_MUTEX(mem_list_mutex);
+> @@ -72,6 +75,54 @@ bool mm_iommu_preregistered(void)
+>  }
+>  EXPORT_SYMBOL_GPL(mm_iommu_preregistered);
+>  
+> +/*
+> + * Taken from alloc_migrate_target with changes to remove CMA allocations
+> + */
+> +struct page *new_iommu_non_cma_page(struct page *page, unsigned long private,
+> +					int **resultp)
+> +{
+> +	gfp_t gfp_mask = GFP_USER;
+> +	struct page *new_page;
+> +
+> +	if (PageHuge(page) || PageTransHuge(page) || PageCompound(page))
+> +		return NULL;
+> +
+> +	if (PageHighMem(page))
+> +		gfp_mask |= __GFP_HIGHMEM;
+> +
+> +	/*
+> +	 * We don't want the allocation to force an OOM if possibe
+> +	 */
+> +	new_page = alloc_page(gfp_mask | __GFP_NORETRY | __GFP_NOWARN);
+> +	return new_page;
+> +}
+> +
+> +static int mm_iommu_move_page_from_cma(struct page *page)
+> +{
+> +	int ret;
+> +	LIST_HEAD(cma_migrate_pages);
+> +
+> +	/* Ignore huge pages for now */
+> +	if (PageHuge(page) || PageTransHuge(page) || PageCompound(page))
+> +		return -EBUSY;
+> +
+> +	lru_add_drain();
+> +	ret = isolate_lru_page(page);
+> +	if (ret)
+> +		get_page(page); /* Potential BUG? */
+> +
+> +	list_add(&page->lru, &cma_migrate_pages);
+> +	put_page(page); /* Drop the gup reference */
+> +
+> +	ret = migrate_pages(&cma_migrate_pages, new_iommu_non_cma_page,
+> +				NULL, 0, MIGRATE_SYNC, MR_CMA);
+> +	if (ret) {
+> +		if (!list_empty(&cma_migrate_pages))
+> +			putback_movable_pages(&cma_migrate_pages);
+> +	}
+> +	return 0;
+> +}
+> +
+>  long mm_iommu_get(unsigned long ua, unsigned long entries,
+>  		struct mm_iommu_table_group_mem_t **pmem)
+>  {
+> @@ -124,15 +175,36 @@ long mm_iommu_get(unsigned long ua, unsigned long entries,
+>  	for (i = 0; i < entries; ++i) {
+>  		if (1 != get_user_pages_fast(ua + (i << PAGE_SHIFT),
+>  					1/* pages */, 1/* iswrite */, &page)) {
+> +			ret = -EFAULT;
+>  			for (j = 0; j < i; ++j)
+> -				put_page(pfn_to_page(
+> -						mem->hpas[j] >> PAGE_SHIFT));
+> +				put_page(pfn_to_page(mem->hpas[j] >>
+> +						PAGE_SHIFT));
+>  			vfree(mem->hpas);
+>  			kfree(mem);
+> -			ret = -EFAULT;
+>  			goto unlock_exit;
+>  		}
+> -
+> +		/*
+> +		 * If we get a page from the CMA zone, since we are going to
+> +		 * be pinning these entries, we might as well move them out
+> +		 * of the CMA zone if possible. NOTE: faulting in + migration
+> +		 * can be expensive. Batching can be considered later
+> +		 */
+> +		if (get_pageblock_migratetype(page) == MIGRATE_CMA) {
+> +			if (mm_iommu_move_page_from_cma(page))
+> +				goto populate;
+> +			if (1 != get_user_pages_fast(ua + (i << PAGE_SHIFT),
+> +						1/* pages */, 1/* iswrite */,
+> +						&page)) {
+> +				ret = -EFAULT;
+> +				for (j = 0; j < i; ++j)
+> +					put_page(pfn_to_page(mem->hpas[j] >>
+> +								PAGE_SHIFT));
+> +				vfree(mem->hpas);
+> +				kfree(mem);
+> +				goto unlock_exit;
+> +			}
+> +		}
+> +populate:
+>  		mem->hpas[i] = page_to_pfn(page) << PAGE_SHIFT;
+>  	}
+>  
+> 
+
+
 -- 
-1.9.3
+Alexey
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
