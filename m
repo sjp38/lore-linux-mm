@@ -1,260 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CB0356B025E
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 11:52:09 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id e124so19022965ith.3
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 08:52:09 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0102.outbound.protection.outlook.com. [104.47.0.102])
-        by mx.google.com with ESMTPS id e37si51667otc.184.2016.08.31.07.01.59
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D6A716B0038
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 13:33:34 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id g185so92093856ith.2
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 10:33:34 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id a19si715248qkb.55.2016.08.31.10.33.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 31 Aug 2016 07:02:00 -0700 (PDT)
-From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Subject: [PATCHv4 6/6] x86/signal: add SA_{X32,IA32}_ABI sa_flags
-Date: Wed, 31 Aug 2016 16:59:36 +0300
-Message-ID: <20160831135936.2281-7-dsafonov@virtuozzo.com>
-In-Reply-To: <20160831135936.2281-1-dsafonov@virtuozzo.com>
-References: <20160831135936.2281-1-dsafonov@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 31 Aug 2016 10:33:33 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.11/8.16.0.11) with SMTP id u7VHXHw9023415
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 13:33:33 -0400
+Received: from e23smtp09.au.ibm.com (e23smtp09.au.ibm.com [202.81.31.142])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 255q3sh7d2-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 13:33:32 -0400
+Received: from localhost
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
+	Thu, 1 Sep 2016 03:33:30 +1000
+Received: from d23relay09.au.ibm.com (d23relay09.au.ibm.com [9.185.63.181])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id AE7A12BB0054
+	for <linux-mm@kvack.org>; Thu,  1 Sep 2016 03:33:26 +1000 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u7VHXQHd2425338
+	for <linux-mm@kvack.org>; Thu, 1 Sep 2016 03:33:26 +1000
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u7VHXQ2Q012849
+	for <linux-mm@kvack.org>; Thu, 1 Sep 2016 03:33:26 +1000
+Date: Wed, 31 Aug 2016 23:03:20 +0530
+From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 07/34] mm, vmscan: make kswapd reclaim in terms of nodes
+Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <1467970510-21195-1-git-send-email-mgorman@techsingularity.net>
+ <1467970510-21195-8-git-send-email-mgorman@techsingularity.net>
+ <20160829093844.GA2592@linux.vnet.ibm.com>
+ <20160830120728.GV8119@techsingularity.net>
+ <20160830142508.GA10514@linux.vnet.ibm.com>
+ <20160830150051.GW8119@techsingularity.net>
+ <20160831060959.GA6787@linux.vnet.ibm.com>
+ <20160831084942.GX8119@techsingularity.net>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20160831084942.GX8119@techsingularity.net>
+Message-Id: <20160831173320.GA5851@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: 0x7f454c46@gmail.com, luto@kernel.org, oleg@redhat.com, tglx@linutronix.de, hpa@zytor.com, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, gorcunov@openvz.org, xemul@virtuozzo.com, Dmitry Safonov <dsafonov@virtuozzo.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@surriel.com>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>, Michael Ellerman <mpe@ellerman.id.au>, linuxppc-dev@lists.ozlabs.org, Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>, Hari Bathini <hbathini@linux.vnet.ibm.com>
 
-Introduce new flags that defines which ABI to use on creating sigframe.
-Those flags kernel will set according to sigaction syscall ABI,
-which set handler for the signal being delivered.
+> mm, vmscan: Only allocate and reclaim from zones with pages managed by the buddy allocator
+> 
+> Firmware Assisted Dump (FA_DUMP) on ppc64 reserves substantial amounts
+> of memory when booting a secondary kernel. Srikar Dronamraju reported that
+> multiple nodes may have no memory managed by the buddy allocator but still
+> return true for populated_zone().
+> 
+> Commit 1d82de618ddd ("mm, vmscan: make kswapd reclaim in terms of nodes")
+> was reported to cause kswapd to spin at 100% CPU usage when fadump was
+> enabled. The old code happened to deal with the situation of a populated
+> node with zero free pages by co-incidence but the current code tries to
+> reclaim populated zones without realising that is impossible.
+> 
+> We cannot just convert populated_zone() as many existing users really
+> need to check for present_pages. This patch introduces a managed_zone()
+> helper and uses it in the few cases where it is critical that the check
+> is made for managed pages -- zonelist constuction and page reclaim.
 
-So that will drop the dependency on TIF_IA32/TIF_X32 flags on signal deliver.
-Those flags will be used only under CONFIG_COMPAT.
+one nit
+s/constuction/construction/
 
-Similar way ARM uses sa_flags to differ in which mode deliver signal
-for 26-bit applications (look at SA_THIRYTWO).
+> 
 
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Oleg Nesterov <oleg@redhat.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: linux-mm@kvack.org
-Cc: x86@kernel.org
-Cc: Cyrill Gorcunov <gorcunov@openvz.org>
-Cc: Pavel Emelyanov <xemul@virtuozzo.com>
-Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
-Reviewed-by: Andy Lutomirski <luto@kernel.org>
----
- arch/x86/ia32/ia32_signal.c       |  2 +-
- arch/x86/include/asm/fpu/signal.h |  6 ++++++
- arch/x86/include/asm/signal.h     |  4 ++++
- arch/x86/kernel/signal.c          | 20 +++++++++++---------
- arch/x86/kernel/signal_compat.c   | 34 +++++++++++++++++++++++++++++++---
- kernel/signal.c                   |  7 +++++++
- 6 files changed, 60 insertions(+), 13 deletions(-)
+Verified that it works fine.
 
-diff --git a/arch/x86/ia32/ia32_signal.c b/arch/x86/ia32/ia32_signal.c
-index 2f29f4e407c3..cb13c0564ea7 100644
---- a/arch/x86/ia32/ia32_signal.c
-+++ b/arch/x86/ia32/ia32_signal.c
-@@ -378,7 +378,7 @@ int ia32_setup_rt_frame(int sig, struct ksignal *ksig,
- 		put_user_ex(*((u64 *)&code), (u64 __user *)frame->retcode);
- 	} put_user_catch(err);
- 
--	err |= copy_siginfo_to_user32(&frame->info, &ksig->info);
-+	err |= __copy_siginfo_to_user32(&frame->info, &ksig->info, false);
- 	err |= ia32_setup_sigcontext(&frame->uc.uc_mcontext, fpstate,
- 				     regs, set->sig[0]);
- 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
-diff --git a/arch/x86/include/asm/fpu/signal.h b/arch/x86/include/asm/fpu/signal.h
-index 0e970d00dfcd..20a1fbf7fe4e 100644
---- a/arch/x86/include/asm/fpu/signal.h
-+++ b/arch/x86/include/asm/fpu/signal.h
-@@ -19,6 +19,12 @@ int ia32_setup_frame(int sig, struct ksignal *ksig,
- # define ia32_setup_rt_frame	__setup_rt_frame
- #endif
- 
-+#ifdef CONFIG_COMPAT
-+int __copy_siginfo_to_user32(compat_siginfo_t __user *to,
-+		const siginfo_t *from, bool x32_ABI);
-+#endif
-+
-+
- extern void convert_from_fxsr(struct user_i387_ia32_struct *env,
- 			      struct task_struct *tsk);
- extern void convert_to_fxsr(struct task_struct *tsk,
-diff --git a/arch/x86/include/asm/signal.h b/arch/x86/include/asm/signal.h
-index dd1e7d6387ab..8af22be0fe61 100644
---- a/arch/x86/include/asm/signal.h
-+++ b/arch/x86/include/asm/signal.h
-@@ -23,6 +23,10 @@ typedef struct {
- 	unsigned long sig[_NSIG_WORDS];
- } sigset_t;
- 
-+/* non-uapi in-kernel SA_FLAGS for those indicates ABI for a signal frame */
-+#define SA_IA32_ABI	0x02000000u
-+#define SA_X32_ABI	0x01000000u
-+
- #ifndef CONFIG_COMPAT
- typedef sigset_t compat_sigset_t;
- #endif
-diff --git a/arch/x86/kernel/signal.c b/arch/x86/kernel/signal.c
-index 04cb3212db2d..b1a5d252d482 100644
---- a/arch/x86/kernel/signal.c
-+++ b/arch/x86/kernel/signal.c
-@@ -42,6 +42,7 @@
- #include <asm/syscalls.h>
- 
- #include <asm/sigframe.h>
-+#include <asm/signal.h>
- 
- #define COPY(x)			do {			\
- 	get_user_ex(regs->x, &sc->x);			\
-@@ -547,7 +548,7 @@ static int x32_setup_rt_frame(struct ksignal *ksig,
- 		return -EFAULT;
- 
- 	if (ksig->ka.sa.sa_flags & SA_SIGINFO) {
--		if (copy_siginfo_to_user32(&frame->info, &ksig->info))
-+		if (__copy_siginfo_to_user32(&frame->info, &ksig->info, true))
- 			return -EFAULT;
- 	}
- 
-@@ -660,20 +661,21 @@ badframe:
- 	return 0;
- }
- 
--static inline int is_ia32_compat_frame(void)
-+static inline int is_ia32_compat_frame(struct ksignal *ksig)
- {
- 	return IS_ENABLED(CONFIG_IA32_EMULATION) &&
--	       test_thread_flag(TIF_IA32);
-+		ksig->ka.sa.sa_flags & SA_IA32_ABI;
- }
- 
--static inline int is_ia32_frame(void)
-+static inline int is_ia32_frame(struct ksignal *ksig)
- {
--	return IS_ENABLED(CONFIG_X86_32) || is_ia32_compat_frame();
-+	return IS_ENABLED(CONFIG_X86_32) || is_ia32_compat_frame(ksig);
- }
- 
--static inline int is_x32_frame(void)
-+static inline int is_x32_frame(struct ksignal *ksig)
- {
--	return IS_ENABLED(CONFIG_X86_X32_ABI) && test_thread_flag(TIF_X32);
-+	return IS_ENABLED(CONFIG_X86_X32_ABI) &&
-+		ksig->ka.sa.sa_flags & SA_X32_ABI;
- }
- 
- static int
-@@ -684,12 +686,12 @@ setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
- 	compat_sigset_t *cset = (compat_sigset_t *) set;
- 
- 	/* Set up the stack frame */
--	if (is_ia32_frame()) {
-+	if (is_ia32_frame(ksig)) {
- 		if (ksig->ka.sa.sa_flags & SA_SIGINFO)
- 			return ia32_setup_rt_frame(usig, ksig, cset, regs);
- 		else
- 			return ia32_setup_frame(usig, ksig, cset, regs);
--	} else if (is_x32_frame()) {
-+	} else if (is_x32_frame(ksig)) {
- 		return x32_setup_rt_frame(ksig, cset, regs);
- 	} else {
- 		return __setup_rt_frame(ksig->sig, ksig, set, regs);
-diff --git a/arch/x86/kernel/signal_compat.c b/arch/x86/kernel/signal_compat.c
-index b44564bf86a8..40df33753bae 100644
---- a/arch/x86/kernel/signal_compat.c
-+++ b/arch/x86/kernel/signal_compat.c
-@@ -1,5 +1,6 @@
- #include <linux/compat.h>
- #include <linux/uaccess.h>
-+#include <linux/ptrace.h>
- 
- /*
-  * The compat_siginfo_t structure and handing code is very easy
-@@ -92,10 +93,31 @@ static inline void signal_compat_build_tests(void)
- 	/* any new si_fields should be added here */
- }
- 
--int copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from)
-+void sigaction_compat_abi(struct k_sigaction *act, struct k_sigaction *oact)
-+{
-+	/* Don't leak in-kernel non-uapi flags to user-space */
-+	if (oact)
-+		oact->sa.sa_flags &= ~(SA_IA32_ABI | SA_X32_ABI);
-+
-+	if (!act)
-+		return;
-+
-+	/* Don't let flags to be set from userspace */
-+	act->sa.sa_flags &= ~(SA_IA32_ABI | SA_X32_ABI);
-+
-+	if (user_64bit_mode(current_pt_regs()))
-+		return;
-+
-+	if (in_ia32_syscall())
-+		act->sa.sa_flags |= SA_IA32_ABI;
-+	if (in_x32_syscall())
-+		act->sa.sa_flags |= SA_X32_ABI;
-+}
-+
-+int __copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from,
-+		bool x32_ABI)
- {
- 	int err = 0;
--	bool ia32 = test_thread_flag(TIF_IA32);
- 
- 	signal_compat_build_tests();
- 
-@@ -146,7 +168,7 @@ int copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from)
- 				put_user_ex(from->si_arch, &to->si_arch);
- 				break;
- 			case __SI_CHLD >> 16:
--				if (ia32) {
-+				if (!x32_ABI) {
- 					put_user_ex(from->si_utime, &to->si_utime);
- 					put_user_ex(from->si_stime, &to->si_stime);
- 				} else {
-@@ -180,6 +202,12 @@ int copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from)
- 	return err;
- }
- 
-+/* from syscall's path, where we know the ABI */
-+int copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from)
-+{
-+	return __copy_siginfo_to_user32(to, from, in_x32_syscall());
-+}
-+
- int copy_siginfo_from_user32(siginfo_t *to, compat_siginfo_t __user *from)
- {
- 	int err = 0;
-diff --git a/kernel/signal.c b/kernel/signal.c
-index af21afc00d08..75761acc77cf 100644
---- a/kernel/signal.c
-+++ b/kernel/signal.c
-@@ -3044,6 +3044,11 @@ void kernel_sigaction(int sig, __sighandler_t action)
- }
- EXPORT_SYMBOL(kernel_sigaction);
- 
-+void __weak sigaction_compat_abi(struct k_sigaction *act,
-+		struct k_sigaction *oact)
-+{
-+}
-+
- int do_sigaction(int sig, struct k_sigaction *act, struct k_sigaction *oact)
- {
- 	struct task_struct *p = current, *t;
-@@ -3059,6 +3064,8 @@ int do_sigaction(int sig, struct k_sigaction *act, struct k_sigaction *oact)
- 	if (oact)
- 		*oact = *k;
- 
-+	sigaction_compat_abi(act, oact);
-+
- 	if (act) {
- 		sigdelsetmask(&act->sa.sa_mask,
- 			      sigmask(SIGKILL) | sigmask(SIGSTOP));
 -- 
-2.9.0
+Thanks and Regards
+Srikar Dronamraju
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
