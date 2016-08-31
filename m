@@ -1,111 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7281A82F64
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 17:36:10 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id g202so11791980pfb.3
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 14:36:10 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id b64si1687753pfa.51.2016.08.31.14.36.09
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 777556B0038
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 18:09:03 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id r203so19920067oif.2
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 15:09:03 -0700 (PDT)
+Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0135.outbound.protection.outlook.com. [104.47.33.135])
+        by mx.google.com with ESMTPS id 29si1612445qtr.34.2016.08.31.15.09.02
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 31 Aug 2016 14:36:09 -0700 (PDT)
-Date: Wed, 31 Aug 2016 15:36:07 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 31 Aug 2016 15:09:02 -0700 (PDT)
+From: "Kani, Toshimitsu" <toshi.kani@hpe.com>
 Subject: Re: [PATCH v2 0/9] re-enable DAX PMD support
-Message-ID: <20160831213607.GA6921@linux.intel.com>
+Date: Wed, 31 Aug 2016 22:08:59 +0000
+Message-ID: <1472681284.2092.30.camel@hpe.com>
 References: <20160823220419.11717-1-ross.zwisler@linux.intel.com>
- <20160830230150.GA12173@linux.intel.com>
- <1472674799.2092.19.camel@hpe.com>
+	 <20160830230150.GA12173@linux.intel.com> <1472674799.2092.19.camel@hpe.com>
+	 <20160831213607.GA6921@linux.intel.com>
+In-Reply-To: <20160831213607.GA6921@linux.intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <9CF8BC9D254DF144AF101EE6F7D0B3D0@NAMPRD84.PROD.OUTLOOK.COM>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1472674799.2092.19.camel@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kani, Toshimitsu" <toshi.kani@hpe.com>
-Cc: "ross.zwisler@linux.intel.com" <ross.zwisler@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "adilger.kernel@dilger.ca" <adilger.kernel@dilger.ca>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "jack@suse.com" <jack@suse.com>, "tytso@mit.edu" <tytso@mit.edu>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "david@fromorbit.com" <david@fromorbit.com>
+To: "ross.zwisler@linux.intel.com" <ross.zwisler@linux.intel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "adilger.kernel@dilger.ca" <adilger.kernel@dilger.ca>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "jack@suse.com" <jack@suse.com>, "tytso@mit.edu" <tytso@mit.edu>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>, "david@fromorbit.com" <david@fromorbit.com>
 
-On Wed, Aug 31, 2016 at 08:20:48PM +0000, Kani, Toshimitsu wrote:
-> On Tue, 2016-08-30 at 17:01 -0600, Ross Zwisler wrote:
-> > On Tue, Aug 23, 2016 at 04:04:10PM -0600, Ross Zwisler wrote:
-> > > 
-> > > DAX PMDs have been disabled since Jan Kara introduced DAX radix
-> > > tree based locking.  This series allows DAX PMDs to participate in
-> > > the DAX radix tree based locking scheme so that they can be re-
-> > > enabled.
-> > > 
-> > > Changes since v1:
-> > >  - PMD entry locking is now done based on the starting offset of
-> > > the PMD entry, rather than on the radix tree slot which was
-> > > unreliable. (Jan)
-> > >  - Fixed the one issue I could find with hole punch.  As far as I
-> > > can tell hole punch now works correctly for both PMD and PTE DAX
-> > > entries, 4k zero pages and huge zero pages.
-> > >  - Fixed the way that ext2 returns the size of holes in
-> > > ext2_get_block(). (Jan)
-> > >  - Made the 'wait_table' global variable static in respnse to a
-> > > sparse warning.
-> > >  - Fixed some more inconsitent usage between the names 'ret' and
-> > > 'entry' for radix tree entry variables.
-> > > 
-> > > Ross Zwisler (9):
-> > >   ext4: allow DAX writeback for hole punch
-> > >   ext2: tell DAX the size of allocation holes
-> > >   ext4: tell DAX the size of allocation holes
-> > >   dax: remove buffer_size_valid()
-> > >   dax: make 'wait_table' global variable static
-> > >   dax: consistent variable naming for DAX entries
-> > >   dax: coordinate locking for offsets in PMD range
-> > >   dax: re-enable DAX PMD support
-> > >   dax: remove "depends on BROKEN" from FS_DAX_PMD
-> > > 
-> > >  fs/Kconfig          |   1 -
-> > >  fs/dax.c            | 297 +++++++++++++++++++++++++++++-----------
-> > > ------------
-> > >  fs/ext2/inode.c     |   3 +
-> > >  fs/ext4/inode.c     |   7 +-
-> > >  include/linux/dax.h |  29 ++++-
-> > >  mm/filemap.c        |   6 +-
-> > >  6 files changed, 201 insertions(+), 142 deletions(-)
-> > > 
-> > > -- 
-> > > 2.9.0
-> > 
-> > Ping on this series?  Any objections or comments?
-> 
-> Hi Ross,
-> 
-> I am seeing a major performance loss in fio mmap test with this patch-
-> set applied.  This happens with or without my patches [1] applied on
-> top of yours.  Without my patches, dax_pmd_fault() falls back to the
-> pte handler since an mmap'ed address is not 2MB-aligned.
-> 
-> I have attached three test results.
->  o rc4.log - 4.8.0-rc4 (base)
->  o non-pmd.log - 4.8.0-rc4 + your patchset (fall back to pte)
->  o pmd.log - 4.8.0-rc4 + your patchset + my patchset (use pmd maps)
-> 
-> My test steps are as follows.
-> 
-> mkfs.ext4 -O bigalloc -C 2M /dev/pmem0
-> mount -o dax /dev/pmem0 /mnt/pmem0
-> numactl --preferred block:pmem0 --cpunodebind block:pmem0 fio test.fio
-> 
-> "test.fio"
-> ---
-> [global]
-> bs=4k
-> size=2G
-> directory=/mnt/pmem0
-> ioengine=mmap
-> [randrw]
-> rw=randrw
-> ---
-> 
-> Can you please take a look?
-
-Yep, thanks for the report.
+T24gV2VkLCAyMDE2LTA4LTMxIGF0IDE1OjM2IC0wNjAwLCBSb3NzIFp3aXNsZXIgd3JvdGU6DQo+
+IE9uIFdlZCwgQXVnIDMxLCAyMDE2IGF0IDA4OjIwOjQ4UE0gKzAwMDAsIEthbmksIFRvc2hpbWl0
+c3Ugd3JvdGU6DQo+ID4gDQo+ID4gT24gVHVlLCAyMDE2LTA4LTMwIGF0IDE3OjAxIC0wNjAwLCBS
+b3NzIFp3aXNsZXIgd3JvdGU6DQo+ID4gPiANCj4gPiA+IE9uIFR1ZSwgQXVnIDIzLCAyMDE2IGF0
+IDA0OjA0OjEwUE0gLTA2MDAsIFJvc3MgWndpc2xlciB3cm90ZToNCsKgOg0KPiA+ID4gDQo+ID4g
+PiBQaW5nIG9uIHRoaXMgc2VyaWVzP8KgwqBBbnkgb2JqZWN0aW9ucyBvciBjb21tZW50cz8NCj4g
+PiANCj4gPiBIaSBSb3NzLA0KPiA+IA0KPiA+IEkgYW0gc2VlaW5nIGEgbWFqb3IgcGVyZm9ybWFu
+Y2UgbG9zcyBpbiBmaW8gbW1hcCB0ZXN0IHdpdGggdGhpcw0KPiA+IHBhdGNoLXNldCBhcHBsaWVk
+LiDCoFRoaXMgaGFwcGVucyB3aXRoIG9yIHdpdGhvdXQgbXkgcGF0Y2hlcyBbMV0NCj4gPiBhcHBs
+aWVkIG9uIHRvcCBvZiB5b3Vycy4gwqBXaXRob3V0IG15IHBhdGNoZXMswqBkYXhfcG1kX2ZhdWx0
+KCkgZmFsbHMNCj4gPiBiYWNrIHRvIHRoZSBwdGUgaGFuZGxlciBzaW5jZSBhbiBtbWFwJ2VkIGFk
+ZHJlc3MgaXMgbm90IDJNQi0NCj4gPiBhbGlnbmVkLg0KPiA+IA0KPiA+IEkgaGF2ZSBhdHRhY2hl
+ZCB0aHJlZSB0ZXN0IHJlc3VsdHMuDQo+ID4gwqBvIHJjNC5sb2cgLSA0LjguMC1yYzQgKGJhc2Up
+DQo+ID4gwqBvIG5vbi1wbWQubG9nIC0gNC44LjAtcmM0ICsgeW91ciBwYXRjaHNldCAoZmFsbCBi
+YWNrIHRvIHB0ZSkNCj4gPiDCoG8gcG1kLmxvZyAtIDQuOC4wLXJjNCArIHlvdXIgcGF0Y2hzZXQg
+KyBteSBwYXRjaHNldCAodXNlIHBtZCBtYXBzKQ0KPiA+IA0KPiA+IE15IHRlc3Qgc3RlcHMgYXJl
+IGFzIGZvbGxvd3MuDQo+ID4gDQo+ID4gbWtmcy5leHQ0IC1PIGJpZ2FsbG9jIC1DIDJNIC9kZXYv
+cG1lbTANCj4gPiBtb3VudCAtbyBkYXggL2Rldi9wbWVtMCAvbW50L3BtZW0wDQo+ID4gbnVtYWN0
+bCAtLXByZWZlcnJlZCBibG9jazpwbWVtMCAtLWNwdW5vZGViaW5kIGJsb2NrOnBtZW0wIGZpbw0K
+PiA+IHRlc3QuZmlvDQo+ID4gDQo+ID4gInRlc3QuZmlvIg0KPiA+IC0tLQ0KPiA+IFtnbG9iYWxd
+DQo+ID4gYnM9NGsNCj4gPiBzaXplPTJHDQo+ID4gZGlyZWN0b3J5PS9tbnQvcG1lbTANCj4gPiBp
+b2VuZ2luZT1tbWFwDQo+ID4gW3JhbmRyd10NCj4gPiBydz1yYW5kcncNCj4gPiAtLS0NCj4gPiAN
+Cj4gPiBDYW4geW91IHBsZWFzZSB0YWtlIGEgbG9vaz8NCj4gDQo+IFllcCwgdGhhbmtzIGZvciB0
+aGUgcmVwb3J0Lg0KDQpJIGhhdmUgc29tZSBtb3JlIG9ic2VydmF0aW9ucy4gwqBJdCBzZWVtcyB0
+aGlzIGlzc3VlIGlzIHJlbGF0ZWQgd2l0aCBwbWQNCm1hcHBpbmdzIGFmdGVyIGFsbC4gwqBmaW8g
+Y3JlYXRlcyAicmFuZHJ3LjAuMCIgZmlsZS4gwqBJbiBteSBzZXR1cCwgYW4NCmluaXRpYWwgdGVz
+dCBydW4gY3JlYXRlcyBwbWQgbWFwcGluZ3MgYW5kIGhpdHMgdGhpcyBpc3N1ZS4gwqBTdWJzZXF1
+ZW50DQp0ZXN0IHJ1bnMgKGkuZS4gcmFuZHJ3LjAuMCBleGlzdHMpLCB3aXRob3V0IG15IHBhdGNo
+ZXMsIGZhbGwgYmFjayB0bw0KcHRlIG1hcHBpbmdzIGFuZCBkbyBub3QgaGl0IHRoaXMgaXNzdWUu
+IMKgV2l0aCBteSBwYXRjaGVzIGFwcGxpZWQsDQpzdWJzZXF1ZW50IHJ1bnMgc3RpbGwgY3JlYXRl
+IHBtZCBtYXBwaW5ncyBhbmQgaGl0IHRoaXMgaXNzdWUuDQoNClRoYW5rcywNCi1Ub3NoaSDCoA0K
+DQoNCg0KDQoNCg0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
