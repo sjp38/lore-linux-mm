@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 85D916B0038
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 09:24:46 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id i4so8576681oih.2
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 06:24:46 -0700 (PDT)
-Received: from mail-it0-x22d.google.com (mail-it0-x22d.google.com. [2607:f8b0:4001:c0b::22d])
-        by mx.google.com with ESMTPS id g18si12825778itb.67.2016.08.31.06.24.29
+	by kanga.kvack.org (Postfix) with ESMTP id BD74D6B025E
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 09:47:47 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id l205so12407486oia.1
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 06:47:47 -0700 (PDT)
+Received: from mail-it0-x241.google.com (mail-it0-x241.google.com. [2607:f8b0:4001:c0b::241])
+        by mx.google.com with ESMTPS id v13si26990689itb.79.2016.08.31.06.41.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Aug 2016 06:24:29 -0700 (PDT)
-Received: by mail-it0-x22d.google.com with SMTP id i184so7496241itf.1
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 06:24:29 -0700 (PDT)
+        Wed, 31 Aug 2016 06:41:25 -0700 (PDT)
+Received: by mail-it0-x241.google.com with SMTP id g185so499718ith.0
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 06:41:25 -0700 (PDT)
 Subject: Re: [PATCH] mm:Avoid soft lockup due to possible attempt of double
  locking object's lock in __delete_object
 References: <1472582112-9059-1-git-send-email-xerofoify@gmail.com>
  <20160831075421.GA15732@e104818-lin.cambridge.arm.com>
 From: nick <xerofoify@gmail.com>
-Message-ID: <e2e8b8fc-3deb-aa23-c54e-43f12dd0a941@gmail.com>
-Date: Wed, 31 Aug 2016 09:24:27 -0400
+Message-ID: <e646694e-05fc-49dd-0123-70138213eab5@gmail.com>
+Date: Wed, 31 Aug 2016 09:41:23 -0400
 MIME-Version: 1.0
 In-Reply-To: <20160831075421.GA15732@e104818-lin.cambridge.arm.com>
 Content-Type: text/plain; charset=windows-1252
@@ -42,8 +42,7 @@ On 2016-08-31 03:54 AM, Catalin Marinas wrote:
 > 
 > Have you actually got a deadlock that requires this fix?
 > 
-Yes I have got a deadlock that this does fix.
-Nick
+Yes it fixes when you run this test, https://github.com/linux-test-project/ltp/blob/master/testcases/kernel/syscalls/ipc/msgctl/msgctl10.c.
 >> --- a/mm/kmemleak.c
 >> +++ b/mm/kmemleak.c
 >> @@ -631,12 +631,19 @@ static void __delete_object(struct kmemleak_object *object)
@@ -75,6 +74,16 @@ Nick
 > accessing the memory (which could be vmalloc'ed for example, so freeing
 > would cause a page fault).
 > 
+That's the issue, right there. Your double locking in scan_object. If you look at the code:
+/*
+ * Once the object->lock is acquired, the corresponding memory block
+          * cannot be freed (the same lock is acquired in delete_object).
+*/
+That test case exposes that issue in the logic, what happens if we are running this on separate kernel threads what
+happens then ... deadlock. If you would like be to put the lock checking elsewhere that's fine but it does cause
+a deadlock.
+Regards,
+Nick  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
