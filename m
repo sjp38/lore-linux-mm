@@ -1,96 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0EB546B0260
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 11:17:34 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id k135so39109656lfb.2
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 08:17:33 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id x206si4450887wmg.67.2016.08.31.08.17.32
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C2776B025E
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 11:33:16 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id m11so20834854oif.0
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 08:33:16 -0700 (PDT)
+Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20101.outbound.protection.outlook.com. [40.107.2.101])
+        by mx.google.com with ESMTPS id d50si552950otc.100.2016.08.31.08.32.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Aug 2016 08:17:32 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id i5so8097651wmg.2
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 08:17:32 -0700 (PDT)
-Date: Wed, 31 Aug 2016 17:17:30 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: memcontrol: Make the walk_page_range() limit obvious
-Message-ID: <20160831151730.GF21661@dhcp22.suse.cz>
-References: <1472655897-22532-1-git-send-email-james.morse@arm.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 31 Aug 2016 08:32:59 -0700 (PDT)
+Subject: Re: [PATCHv3 3/6] x86/arch_prctl/vdso: add ARCH_MAP_VDSO_*
+References: <20160826171317.3944-1-dsafonov@virtuozzo.com>
+ <20160826171317.3944-4-dsafonov@virtuozzo.com>
+ <CALCETrW=TrX9YLVbQmGQQjFcCeguNz6f9LhQdEJg4qPdibKhhw@mail.gmail.com>
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Message-ID: <d13602e3-bc09-acdc-264b-2904293ad497@virtuozzo.com>
+Date: Wed, 31 Aug 2016 18:30:47 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1472655897-22532-1-git-send-email-james.morse@arm.com>
+In-Reply-To: <CALCETrW=TrX9YLVbQmGQQjFcCeguNz6f9LhQdEJg4qPdibKhhw@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Morse <james.morse@arm.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Safonov <0x7f454c46@gmail.com>, Andrew Lutomirski <luto@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter
+ Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@virtuozzo.com>
 
-On Wed 31-08-16 16:04:57, James Morse wrote:
-> Trying to walk all of virtual memory requires architecture specific
-> knowledge. On x86_64, addresses must be sign extended from bit 48,
-> whereas on arm64 the top VA_BITS of address space have their own set
-> of page tables.
-> 
-> mem_cgroup_count_precharge() and mem_cgroup_move_charge() both call
-> walk_page_range() on the range 0 to ~0UL, neither provide a pte_hole
-> callback, which causes the current implementation to skip non-vma regions.
-> 
-> As this call only expects to walk user address space, make it walk
-> 0 to  'highest_vm_end'.
-> 
-> Signed-off-by: James Morse <james.morse@arm.com>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> ---
-> This is in preparation for a RFC series that allows walk_page_range() to
-> walk kernel page tables too.
+On 08/31/2016 06:00 PM, Andy Lutomirski wrote:
+> On Fri, Aug 26, 2016 at 10:13 AM, Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
+>> Add API to change vdso blob type with arch_prctl.
+>> As this is usefull only by needs of CRIU, expose
+>> this interface under CONFIG_CHECKPOINT_RESTORE.
+>>
+>> Cc: Andy Lutomirski <luto@kernel.org>
+>> Cc: Oleg Nesterov <oleg@redhat.com>
+>> Cc: Thomas Gleixner <tglx@linutronix.de>
+>> Cc: "H. Peter Anvin" <hpa@zytor.com>
+>> Cc: Ingo Molnar <mingo@redhat.com>
+>> Cc: linux-mm@kvack.org
+>> Cc: x86@kernel.org
+>> Cc: Cyrill Gorcunov <gorcunov@openvz.org>
+>> Cc: Pavel Emelyanov <xemul@virtuozzo.com>
+>> Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
+>> ---
+>>  arch/x86/entry/vdso/vma.c         | 45 ++++++++++++++++++++++++++++++---------
+>>  arch/x86/include/asm/vdso.h       |  2 ++
+>>  arch/x86/include/uapi/asm/prctl.h |  6 ++++++
+>>  arch/x86/kernel/process_64.c      | 25 ++++++++++++++++++++++
+>>  4 files changed, 68 insertions(+), 10 deletions(-)
+>>
+>> diff --git a/arch/x86/entry/vdso/vma.c b/arch/x86/entry/vdso/vma.c
+>> index 5bcb25a9e573..dad2b2d8ff03 100644
+>> --- a/arch/x86/entry/vdso/vma.c
+>> +++ b/arch/x86/entry/vdso/vma.c
+>> @@ -176,6 +176,16 @@ static int vvar_fault(const struct vm_special_mapping *sm,
+>>         return VM_FAULT_SIGBUS;
+>>  }
+>>
+>> +static const struct vm_special_mapping vdso_mapping = {
+>> +       .name = "[vdso]",
+>> +       .fault = vdso_fault,
+>> +       .mremap = vdso_mremap,
+>> +};
+>> +static const struct vm_special_mapping vvar_mapping = {
+>> +       .name = "[vvar]",
+>> +       .fault = vvar_fault,
+>> +};
+>> +
+>>  /*
+>>   * Add vdso and vvar mappings to current process.
+>>   * @image          - blob to map
+>> @@ -188,16 +198,6 @@ static int map_vdso(const struct vdso_image *image, unsigned long addr)
+>>         unsigned long text_start;
+>>         int ret = 0;
+>>
+>> -       static const struct vm_special_mapping vdso_mapping = {
+>> -               .name = "[vdso]",
+>> -               .fault = vdso_fault,
+>> -               .mremap = vdso_mremap,
+>> -       };
+>> -       static const struct vm_special_mapping vvar_mapping = {
+>> -               .name = "[vvar]",
+>> -               .fault = vvar_fault,
+>> -       };
+>> -
+>>         if (down_write_killable(&mm->mmap_sem))
+>>                 return -EINTR;
+>>
+>> @@ -256,6 +256,31 @@ static int map_vdso_randomized(const struct vdso_image *image)
+>>         return map_vdso(image, addr);
+>>  }
+>>
+>> +int map_vdso_once(const struct vdso_image *image, unsigned long addr)
+>> +{
+>> +       struct mm_struct *mm = current->mm;
+>> +       struct vm_area_struct *vma;
+>> +
+>> +       down_write(&mm->mmap_sem);
+>> +       /*
+>> +        * Check if we have already mapped vdso blob - fail to prevent
+>> +        * abusing from userspace install_speciall_mapping, which may
+>> +        * not do accounting and rlimit right.
+>> +        * We could search vma near context.vdso, but it's a slowpath,
+>> +        * so let's explicitely check all VMAs to be completely sure.
+>> +        */
+>> +       for (vma = mm->mmap; vma; vma = vma->vm_next) {
+>> +               if (vma->vm_private_data == &vdso_mapping ||
+>> +                               vma->vm_private_data == &vvar_mapping) {
+>
+> Should probably also check that vm_ops == &special_mapping_vmops,
+> which means that maybe there should be a:
+>
+> static inline bool vma_is_special_mapping(const struct vm_area_struct
+> *vma, const struct vm_special_mapping &sm);
 
-OK, so do I get it right that this is only needed with that change?
-Because AFAICS walk_page_range will be bound to the last vma->vm_end
-right now. If this is the case this should be mentioned in the changelog
-because the above might confuse somebody to think this is a bug fix.
-
-Other than that this seams reasonable to me.
-
-> 
->  mm/memcontrol.c | 6 ++++--
->  1 file changed, 4 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 2ff0289ad061..bfd54b43beb9 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -4712,7 +4712,8 @@ static unsigned long mem_cgroup_count_precharge(struct mm_struct *mm)
->  		.mm = mm,
->  	};
->  	down_read(&mm->mmap_sem);
-> -	walk_page_range(0, ~0UL, &mem_cgroup_count_precharge_walk);
-> +	walk_page_range(0, mm->highest_vm_end,
-> +			&mem_cgroup_count_precharge_walk);
->  	up_read(&mm->mmap_sem);
->  
->  	precharge = mc.precharge;
-> @@ -5000,7 +5001,8 @@ retry:
->  	 * When we have consumed all precharges and failed in doing
->  	 * additional charge, the page walk just aborts.
->  	 */
-> -	walk_page_range(0, ~0UL, &mem_cgroup_move_charge_walk);
-> +	walk_page_range(0, mc.mm->highest_vm_end, &mem_cgroup_move_charge_walk);
-> +
->  	up_read(&mc.mm->mmap_sem);
->  	atomic_dec(&mc.from->moving_account);
->  }
-> -- 
-> 2.8.0.rc3
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Oh, I remember why I didn't do it also (except header changes):
+uprobes uses &special_mapping_vmops in inserted XOL area.
 
 -- 
-Michal Hocko
-SUSE Labs
+              Dmitry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
