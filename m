@@ -1,129 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C874682F66
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 10:02:01 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 63so106737158pfx.0
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 07:02:01 -0700 (PDT)
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0137.outbound.protection.outlook.com. [104.47.0.137])
-        by mx.google.com with ESMTPS id j21si36344pfj.191.2016.08.31.07.01.56
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C6A126B025E
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 10:05:13 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id p85so37487598lfg.3
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 07:05:13 -0700 (PDT)
+Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
+        by mx.google.com with ESMTPS id j66si4257431wma.45.2016.08.31.07.05.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 31 Aug 2016 07:01:57 -0700 (PDT)
-From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Subject: [PATCHv4 4/6] x86/coredump: use pr_reg size, rather that TIF_IA32 flag
-Date: Wed, 31 Aug 2016 16:59:34 +0300
-Message-ID: <20160831135936.2281-5-dsafonov@virtuozzo.com>
-In-Reply-To: <20160831135936.2281-1-dsafonov@virtuozzo.com>
-References: <20160831135936.2281-1-dsafonov@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 31 Aug 2016 07:05:12 -0700 (PDT)
+Received: by mail-wm0-x242.google.com with SMTP id d196so3750728wmd.1
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 07:05:12 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20160831135936.2281-4-dsafonov@virtuozzo.com>
+References: <20160831135936.2281-1-dsafonov@virtuozzo.com> <20160831135936.2281-4-dsafonov@virtuozzo.com>
+From: Dmitry Safonov <0x7f454c46@gmail.com>
+Date: Wed, 31 Aug 2016 17:04:52 +0300
+Message-ID: <CAJwJo6bh3fZXjOCZSGC4-=MHCs_2KrpGcEAibvNMZLE5_Wi=Eg@mail.gmail.com>
+Subject: Re: [PATCHv4 3/6] x86/arch_prctl/vdso: add ARCH_MAP_VDSO_*
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: 0x7f454c46@gmail.com, luto@kernel.org, oleg@redhat.com, tglx@linutronix.de, hpa@zytor.com, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, gorcunov@openvz.org, xemul@virtuozzo.com, Dmitry Safonov <dsafonov@virtuozzo.com>
+To: Dmitry Safonov <dsafonov@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>
+Cc: linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, X86 ML <x86@kernel.org>, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@virtuozzo.com>
 
-Killed PR_REG_SIZE and PR_REG_PTR macro as we can get regset size
-from regset view.
-I wish I could also kill PRSTATUS_SIZE nicely.
+Hi Andy,
+can I have your acks for 2-3 patches, or should I fix something else
+in those patches?
 
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Oleg Nesterov <oleg@redhat.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: linux-mm@kvack.org
-Cc: x86@kernel.org
-Cc: Cyrill Gorcunov <gorcunov@openvz.org>
-Cc: Pavel Emelyanov <xemul@virtuozzo.com>
-Suggested-by: Oleg Nesterov <oleg@redhat.com>
-Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
----
- arch/x86/include/asm/compat.h |  8 ++++----
- fs/binfmt_elf.c               | 23 ++++++++---------------
- 2 files changed, 12 insertions(+), 19 deletions(-)
+2016-08-31 16:59 GMT+03:00 Dmitry Safonov <dsafonov@virtuozzo.com>:
+> Add API to change vdso blob type with arch_prctl.
+> As this is usefull only by needs of CRIU, expose
+> this interface under CONFIG_CHECKPOINT_RESTORE.
+>
+> Cc: Andy Lutomirski <luto@kernel.org>
+> Cc: Oleg Nesterov <oleg@redhat.com>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: "H. Peter Anvin" <hpa@zytor.com>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: linux-mm@kvack.org
+> Cc: x86@kernel.org
+> Cc: Cyrill Gorcunov <gorcunov@openvz.org>
+> Cc: Pavel Emelyanov <xemul@virtuozzo.com>
+> Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
 
-diff --git a/arch/x86/include/asm/compat.h b/arch/x86/include/asm/compat.h
-index a18806165fe4..03d269bed941 100644
---- a/arch/x86/include/asm/compat.h
-+++ b/arch/x86/include/asm/compat.h
-@@ -275,10 +275,10 @@ struct compat_shmid64_ds {
- #ifdef CONFIG_X86_X32_ABI
- typedef struct user_regs_struct compat_elf_gregset_t;
- 
--#define PR_REG_SIZE(S) (test_thread_flag(TIF_IA32) ? 68 : 216)
--#define PRSTATUS_SIZE(S) (test_thread_flag(TIF_IA32) ? 144 : 296)
--#define SET_PR_FPVALID(S,V) \
--  do { *(int *) (((void *) &((S)->pr_reg)) + PR_REG_SIZE(0)) = (V); } \
-+/* Full regset -- prstatus on x32, otherwise on ia32 */
-+#define PRSTATUS_SIZE(S, R) (R != sizeof(S.pr_reg) ? 144 : 296)
-+#define SET_PR_FPVALID(S, V, R) \
-+  do { *(int *) (((void *) &((S)->pr_reg)) + R) = (V); } \
-   while (0)
- 
- #define COMPAT_USE_64BIT_TIME \
-diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
-index 7f6aff3f72eb..8533aaaba2d2 100644
---- a/fs/binfmt_elf.c
-+++ b/fs/binfmt_elf.c
-@@ -1624,20 +1624,12 @@ static void do_thread_regset_writeback(struct task_struct *task,
- 		regset->writeback(task, regset, 1);
- }
- 
--#ifndef PR_REG_SIZE
--#define PR_REG_SIZE(S) sizeof(S)
--#endif
--
- #ifndef PRSTATUS_SIZE
--#define PRSTATUS_SIZE(S) sizeof(S)
--#endif
--
--#ifndef PR_REG_PTR
--#define PR_REG_PTR(S) (&((S)->pr_reg))
-+#define PRSTATUS_SIZE(S, R) sizeof(S)
- #endif
- 
- #ifndef SET_PR_FPVALID
--#define SET_PR_FPVALID(S, V) ((S)->pr_fpvalid = (V))
-+#define SET_PR_FPVALID(S, V, R) ((S)->pr_fpvalid = (V))
- #endif
- 
- static int fill_thread_core_info(struct elf_thread_core_info *t,
-@@ -1645,6 +1637,7 @@ static int fill_thread_core_info(struct elf_thread_core_info *t,
- 				 long signr, size_t *total)
- {
- 	unsigned int i;
-+	unsigned int regset_size = view->regsets[0].n * view->regsets[0].size;
- 
- 	/*
- 	 * NT_PRSTATUS is the one special case, because the regset data
-@@ -1653,12 +1646,11 @@ static int fill_thread_core_info(struct elf_thread_core_info *t,
- 	 * We assume that regset 0 is NT_PRSTATUS.
- 	 */
- 	fill_prstatus(&t->prstatus, t->task, signr);
--	(void) view->regsets[0].get(t->task, &view->regsets[0],
--				    0, PR_REG_SIZE(t->prstatus.pr_reg),
--				    PR_REG_PTR(&t->prstatus), NULL);
-+	(void) view->regsets[0].get(t->task, &view->regsets[0], 0, regset_size,
-+				    &t->prstatus.pr_reg, NULL);
- 
- 	fill_note(&t->notes[0], "CORE", NT_PRSTATUS,
--		  PRSTATUS_SIZE(t->prstatus), &t->prstatus);
-+		  PRSTATUS_SIZE(t->prstatus, regset_size), &t->prstatus);
- 	*total += notesize(&t->notes[0]);
- 
- 	do_thread_regset_writeback(t->task, &view->regsets[0]);
-@@ -1688,7 +1680,8 @@ static int fill_thread_core_info(struct elf_thread_core_info *t,
- 						  regset->core_note_type,
- 						  size, data);
- 				else {
--					SET_PR_FPVALID(&t->prstatus, 1);
-+					SET_PR_FPVALID(&t->prstatus,
-+							1, regset_size);
- 					fill_note(&t->notes[i], "CORE",
- 						  NT_PRFPREG, size, data);
- 				}
--- 
-2.9.0
+Thanks,
+             Dmitry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
