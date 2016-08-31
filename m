@@ -1,61 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 13FC46B025E
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 11:08:32 -0400 (EDT)
-Received: by mail-ua0-f198.google.com with SMTP id i32so109144131uai.0
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 08:08:32 -0700 (PDT)
-Received: from mail-ua0-x22c.google.com (mail-ua0-x22c.google.com. [2607:f8b0:400c:c08::22c])
-        by mx.google.com with ESMTPS id w7si193223uaw.207.2016.08.31.08.08.30
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BAD3E6B0260
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 11:09:27 -0400 (EDT)
+Received: by mail-yw0-f199.google.com with SMTP id i184so105038758ywb.1
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 08:09:27 -0700 (PDT)
+Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0049.outbound.protection.outlook.com. [104.47.40.49])
+        by mx.google.com with ESMTPS id n187si17782554oif.79.2016.08.31.06.26.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Aug 2016 08:08:30 -0700 (PDT)
-Received: by mail-ua0-x22c.google.com with SMTP id l94so93775630ual.0
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 08:08:30 -0700 (PDT)
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 31 Aug 2016 06:26:16 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 04/20] x86: Secure Memory Encryption (SME) support
+References: <20160822223529.29880.50884.stgit@tlendack-t1.amdoffice.net>
+ <20160822223610.29880.21739.stgit@tlendack-t1.amdoffice.net>
+ <alpine.DEB.2.20.1608251503340.5714@nanos>
+ <e296f12d-7c76-4690-17bd-0f721d739f07@amd.com>
+ <CALCETrVoiM3bskfWrg4c8ttHr467Us9xdXuxw=T6Dkr0PFo18g@mail.gmail.com>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <386eadac-b6eb-747e-65e7-1ffa4cfd7210@amd.com>
+Date: Wed, 31 Aug 2016 08:26:01 -0500
 MIME-Version: 1.0
-In-Reply-To: <2ec4f6ff-ef2f-f864-e4cc-3b9a547b392b@virtuozzo.com>
-References: <20160831135936.2281-1-dsafonov@virtuozzo.com> <20160831135936.2281-4-dsafonov@virtuozzo.com>
- <CAJwJo6bh3fZXjOCZSGC4-=MHCs_2KrpGcEAibvNMZLE5_Wi=Eg@mail.gmail.com>
- <CALCETrVN3eF3YS7PgbsMPH8QMAfHZkMCXm7TPa1abQ4Ai+S-Tw@mail.gmail.com> <2ec4f6ff-ef2f-f864-e4cc-3b9a547b392b@virtuozzo.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Wed, 31 Aug 2016 08:08:10 -0700
-Message-ID: <CALCETrUvTC8DzYjv+bmScP7nDaBaZHkivAXmahC7zePzX3xypg@mail.gmail.com>
-Subject: Re: [PATCHv4 3/6] x86/arch_prctl/vdso: add ARCH_MAP_VDSO_*
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <CALCETrVoiM3bskfWrg4c8ttHr467Us9xdXuxw=T6Dkr0PFo18g@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Safonov <dsafonov@virtuozzo.com>
-Cc: Dmitry Safonov <0x7f454c46@gmail.com>, Andy Lutomirski <luto@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Oleg Nesterov <oleg@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@virtuozzo.com>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: kasan-dev <kasan-dev@googlegroups.com>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Paolo Bonzini <pbonzini@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, iommu@lists.linux-foundation.org, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Jonathan Corbet <corbet@lwn.net>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, "H. Peter
+ Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, kvm list <kvm@vger.kernel.org>
 
-On Wed, Aug 31, 2016 at 8:01 AM, Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
-> On 08/31/2016 05:56 PM, Andy Lutomirski wrote:
+On 08/30/2016 09:57 AM, Andy Lutomirski wrote:
+> On Aug 30, 2016 6:34 AM, "Tom Lendacky" <thomas.lendacky@amd.com> wrote:
 >>
->> On Wed, Aug 31, 2016 at 7:04 AM, Dmitry Safonov <0x7f454c46@gmail.com>
->> wrote:
+>> On 08/25/2016 08:04 AM, Thomas Gleixner wrote:
+>>> On Mon, 22 Aug 2016, Tom Lendacky wrote:
 >>>
->>> Hi Andy,
->>> can I have your acks for 2-3 patches, or should I fix something else
->>> in those patches?
+>>>> Provide support for Secure Memory Encryption (SME). This initial support
+>>>> defines the memory encryption mask as a variable for quick access and an
+>>>> accessor for retrieving the number of physical addressing bits lost if
+>>>> SME is enabled.
 >>>
->>> 2016-08-31 16:59 GMT+03:00 Dmitry Safonov <dsafonov@virtuozzo.com>:
->>>>
->>>> Add API to change vdso blob type with arch_prctl.
->>>> As this is usefull only by needs of CRIU, expose
->>>> this interface under CONFIG_CHECKPOINT_RESTORE.
+>>> What is the reason that this needs to live in assembly code?
 >>
->>
->>
->> I thought the vm_file stuff was still being iterated on.  Did I
->> misunderstand?
->
->
-> Yep, vm_file is being iterated, separately from vdso-map/compatible
-> patches.
+>> In later patches this code is expanded and deals with a lot of page
+>> table manipulation, cpuid/rdmsr instructions, etc. and so I thought it
+>> was best to do it this way.
+> 
+> None of that sounds like it needs to be in asm, though.
+> 
+> I, at least, have a strong preference for minimizing the amount of asm
+> in the low-level arch code.
 
-OK
+I can take a look at converting it over to C code.
 
--- 
-Andy Lutomirski
-AMA Capital Management, LLC
+Thanks,
+Tom
+
+> 
+> --Andy
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
