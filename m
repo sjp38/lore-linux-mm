@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A3CC6B0260
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 10:01:55 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 63so106731093pfx.0
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 07:01:55 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8927E6B0260
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 10:01:57 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 63so106733146pfx.0
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 07:01:57 -0700 (PDT)
 Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0120.outbound.protection.outlook.com. [104.47.0.120])
         by mx.google.com with ESMTPS id pk3si54880pab.101.2016.08.31.07.01.53
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 31 Aug 2016 07:01:53 -0700 (PDT)
+        Wed, 31 Aug 2016 07:01:54 -0700 (PDT)
 From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Subject: [PATCHv4 1/6] x86/vdso: unmap vdso blob on vvar mapping failure
-Date: Wed, 31 Aug 2016 16:59:31 +0300
-Message-ID: <20160831135936.2281-2-dsafonov@virtuozzo.com>
+Subject: [PATCHv4 2/6] x86/vdso: replace calculate_addr in map_vdso() with addr
+Date: Wed, 31 Aug 2016 16:59:32 +0300
+Message-ID: <20160831135936.2281-3-dsafonov@virtuozzo.com>
 In-Reply-To: <20160831135936.2281-1-dsafonov@virtuozzo.com>
 References: <20160831135936.2281-1-dsafonov@virtuozzo.com>
 MIME-Version: 1.0
@@ -22,8 +22,9 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: 0x7f454c46@gmail.com, luto@kernel.org, oleg@redhat.com, tglx@linutronix.de, hpa@zytor.com, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, gorcunov@openvz.org, xemul@virtuozzo.com, Dmitry Safonov <dsafonov@virtuozzo.com>
 
-If remapping of vDSO blob failed on vvar mapping,
-we need to unmap previously mapped vDSO blob.
+That will allow to specify address where to map vDSO blob.
+For the randomized vDSO mappings introduce map_vdso_randomized()
+which will simplify calls to map_vdso.
 
 Cc: Andy Lutomirski <luto@kernel.org>
 Cc: Oleg Nesterov <oleg@redhat.com>
@@ -35,32 +36,88 @@ Cc: x86@kernel.org
 Cc: Cyrill Gorcunov <gorcunov@openvz.org>
 Cc: Pavel Emelyanov <xemul@virtuozzo.com>
 Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
-Acked-by: Andy Lutomirski <luto@kernel.org>
 ---
- arch/x86/entry/vdso/vma.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ arch/x86/entry/vdso/vma.c | 30 +++++++++++++++++-------------
+ 1 file changed, 17 insertions(+), 13 deletions(-)
 
 diff --git a/arch/x86/entry/vdso/vma.c b/arch/x86/entry/vdso/vma.c
-index f840766659a8..3bab6ba3ffc5 100644
+index 3bab6ba3ffc5..5bcb25a9e573 100644
 --- a/arch/x86/entry/vdso/vma.c
 +++ b/arch/x86/entry/vdso/vma.c
-@@ -238,12 +238,14 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
+@@ -176,11 +176,16 @@ static int vvar_fault(const struct vm_special_mapping *sm,
+ 	return VM_FAULT_SIGBUS;
+ }
  
- 	if (IS_ERR(vma)) {
- 		ret = PTR_ERR(vma);
--		goto up_fail;
-+		do_munmap(mm, text_start, image->size);
- 	}
+-static int map_vdso(const struct vdso_image *image, bool calculate_addr)
++/*
++ * Add vdso and vvar mappings to current process.
++ * @image          - blob to map
++ * @addr           - request a specific address (zero to map at free addr)
++ */
++static int map_vdso(const struct vdso_image *image, unsigned long addr)
+ {
+ 	struct mm_struct *mm = current->mm;
+ 	struct vm_area_struct *vma;
+-	unsigned long addr, text_start;
++	unsigned long text_start;
+ 	int ret = 0;
  
- up_fail:
--	if (ret)
-+	if (ret) {
- 		current->mm->context.vdso = NULL;
-+		current->mm->context.vdso_image = NULL;
-+	}
+ 	static const struct vm_special_mapping vdso_mapping = {
+@@ -193,13 +198,6 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
+ 		.fault = vvar_fault,
+ 	};
  
- 	up_write(&mm->mmap_sem);
+-	if (calculate_addr) {
+-		addr = vdso_addr(current->mm->start_stack,
+-				 image->size - image->sym_vvar_start);
+-	} else {
+-		addr = 0;
+-	}
+-
+ 	if (down_write_killable(&mm->mmap_sem))
+ 		return -EINTR;
+ 
+@@ -251,13 +249,20 @@ up_fail:
  	return ret;
+ }
+ 
++static int map_vdso_randomized(const struct vdso_image *image)
++{
++	unsigned long addr = vdso_addr(current->mm->start_stack,
++				 image->size - image->sym_vvar_start);
++	return map_vdso(image, addr);
++}
++
+ #if defined(CONFIG_X86_32) || defined(CONFIG_IA32_EMULATION)
+ static int load_vdso32(void)
+ {
+ 	if (vdso32_enabled != 1)  /* Other values all mean "disabled" */
+ 		return 0;
+ 
+-	return map_vdso(&vdso_image_32, false);
++	return map_vdso(&vdso_image_32, 0);
+ }
+ #endif
+ 
+@@ -267,7 +272,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
+ 	if (!vdso64_enabled)
+ 		return 0;
+ 
+-	return map_vdso(&vdso_image_64, true);
++	return map_vdso_randomized(&vdso_image_64);
+ }
+ 
+ #ifdef CONFIG_COMPAT
+@@ -278,8 +283,7 @@ int compat_arch_setup_additional_pages(struct linux_binprm *bprm,
+ 	if (test_thread_flag(TIF_X32)) {
+ 		if (!vdso64_enabled)
+ 			return 0;
+-
+-		return map_vdso(&vdso_image_x32, true);
++		return map_vdso_randomized(&vdso_image_x32);
+ 	}
+ #endif
+ #ifdef CONFIG_IA32_EMULATION
 -- 
 2.9.0
 
