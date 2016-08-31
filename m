@@ -1,58 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 369AF6B025E
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 10:07:36 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id d196so18360259wmd.1
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 07:07:36 -0700 (PDT)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id ib1si49678wjb.248.2016.08.31.07.07.35
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 07B9C6B0260
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 10:08:59 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id l205so13933456oia.1
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 07:08:59 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0102.outbound.protection.outlook.com. [104.47.0.102])
+        by mx.google.com with ESMTPS id e37si51667otc.184.2016.08.31.07.01.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Aug 2016 07:07:35 -0700 (PDT)
-Received: by mail-wm0-x241.google.com with SMTP id d196so3759920wmd.1
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 07:07:35 -0700 (PDT)
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 31 Aug 2016 07:01:59 -0700 (PDT)
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Subject: [PATCHv4 5/6] x86/ptrace: down with test_thread_flag(TIF_IA32)
+Date: Wed, 31 Aug 2016 16:59:35 +0300
+Message-ID: <20160831135936.2281-6-dsafonov@virtuozzo.com>
+In-Reply-To: <20160831135936.2281-1-dsafonov@virtuozzo.com>
+References: <20160831135936.2281-1-dsafonov@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <20160831135936.2281-7-dsafonov@virtuozzo.com>
-References: <20160831135936.2281-1-dsafonov@virtuozzo.com> <20160831135936.2281-7-dsafonov@virtuozzo.com>
-From: Dmitry Safonov <0x7f454c46@gmail.com>
-Date: Wed, 31 Aug 2016 17:07:14 +0300
-Message-ID: <CAJwJo6YZEN75XB8YaMS26rbFAR0x77B-gfLKv37ib_eB_OLMBg@mail.gmail.com>
-Subject: Re: [PATCHv4 6/6] x86/signal: add SA_{X32,IA32}_ABI sa_flags
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Safonov <dsafonov@virtuozzo.com>, Oleg Nesterov <oleg@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, X86 ML <x86@kernel.org>, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@virtuozzo.com>
+To: linux-kernel@vger.kernel.org
+Cc: 0x7f454c46@gmail.com, luto@kernel.org, oleg@redhat.com, tglx@linutronix.de, hpa@zytor.com, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, gorcunov@openvz.org, xemul@virtuozzo.com, Dmitry Safonov <dsafonov@virtuozzo.com>, Pedro Alves <palves@redhat.com>
 
-Hi Oleg,
-can I have your acks or reviewed-by tags for 4-5-6 patches in the series,
-or there is something left to fix?
+As the task isn't executing at the moment of {GET,SET}REGS,
+return regset that corresponds to code selector, rather than
+value of TIF_IA32 flag.
+I.e. if we ptrace i386 elf binary that has just changed it's
+code selector to __USER_CS, than GET_REGS will return
+full x86_64 register set.
 
-2016-08-31 16:59 GMT+03:00 Dmitry Safonov <dsafonov@virtuozzo.com>:
-> Introduce new flags that defines which ABI to use on creating sigframe.
-> Those flags kernel will set according to sigaction syscall ABI,
-> which set handler for the signal being delivered.
->
-> So that will drop the dependency on TIF_IA32/TIF_X32 flags on signal deliver.
-> Those flags will be used only under CONFIG_COMPAT.
->
-> Similar way ARM uses sa_flags to differ in which mode deliver signal
-> for 26-bit applications (look at SA_THIRYTWO).
->
-> Cc: Andy Lutomirski <luto@kernel.org>
-> Cc: Oleg Nesterov <oleg@redhat.com>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: "H. Peter Anvin" <hpa@zytor.com>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: linux-mm@kvack.org
-> Cc: x86@kernel.org
-> Cc: Cyrill Gorcunov <gorcunov@openvz.org>
-> Cc: Pavel Emelyanov <xemul@virtuozzo.com>
-> Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
-> Reviewed-by: Andy Lutomirski <luto@kernel.org>
+Note, that this will work only if application has changed it's CS.
+If the application does 32-bit syscall with __USER_CS, ptrace
+will still return 64-bit register set. Which might be still confusing
+for tools that expect TS_COMPACT to be exposed [1, 2].
 
-Thanks,
-             Dmitry
+So this this change should make PTRACE_GETREGSET more reliable and
+this will be another step to drop TIF_{IA32,X32} flags.
+
+[1]: https://sourceforge.net/p/strace/mailman/message/30471411/
+[2]: https://lkml.org/lkml/2012/1/18/320
+
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Oleg Nesterov <oleg@redhat.com>
+Cc: Pedro Alves <palves@redhat.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: linux-mm@kvack.org
+Cc: x86@kernel.org
+Cc: Cyrill Gorcunov <gorcunov@openvz.org>
+Cc: Pavel Emelyanov <xemul@virtuozzo.com>
+Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
+---
+ arch/x86/kernel/ptrace.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/x86/kernel/ptrace.c b/arch/x86/kernel/ptrace.c
+index f79576a541ff..ad0bab8fc594 100644
+--- a/arch/x86/kernel/ptrace.c
++++ b/arch/x86/kernel/ptrace.c
+@@ -1358,7 +1358,7 @@ void update_regset_xstate_info(unsigned int size, u64 xstate_mask)
+ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
+ {
+ #ifdef CONFIG_IA32_EMULATION
+-	if (test_tsk_thread_flag(task, TIF_IA32))
++	if (!user_64bit_mode(task_pt_regs(task)))
+ #endif
+ #if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
+ 		return &user_x86_32_view;
+-- 
+2.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
