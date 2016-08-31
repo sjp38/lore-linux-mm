@@ -1,122 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 93B0F6B0038
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 02:28:23 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id o124so87645023pfg.1
-        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 23:28:23 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id kv2si49168221pab.145.2016.08.30.23.28.22
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 737986B0038
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 02:42:22 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id u81so30501550wmu.3
+        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 23:42:22 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id 18si42439140wjx.263.2016.08.30.23.42.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Aug 2016 23:28:22 -0700 (PDT)
-From: "Li, Liang Z" <liang.z.li@intel.com>
-Subject: RE: [PATCH v3 kernel 0/7] Extend virtio-balloon for fast
- (de)inflating & fast live migration
-Date: Wed, 31 Aug 2016 06:28:10 +0000
-Message-ID: <F2CBF3009FA73547804AE4C663CAB28E3A01BCFE@shsmsx102.ccr.corp.intel.com>
-References: <1470638134-24149-1-git-send-email-liang.z.li@intel.com>
- <F2CBF3009FA73547804AE4C663CAB28E04220EDA@shsmsx102.ccr.corp.intel.com>
-In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E04220EDA@shsmsx102.ccr.corp.intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Tue, 30 Aug 2016 23:42:21 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id i138so6066063wmf.3
+        for <linux-mm@kvack.org>; Tue, 30 Aug 2016 23:42:20 -0700 (PDT)
+Date: Wed, 31 Aug 2016 08:42:18 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] kernel/fork: fix CLONE_CHILD_CLEARTID regression in
+ nscd
+Message-ID: <20160831064218.GA19536@dhcp22.suse.cz>
+References: <1471968749-26173-1-git-send-email-mhocko@kernel.org>
+ <20160823163233.GA7123@redhat.com>
+ <20160824081023.GE31179@dhcp22.suse.cz>
+ <20160824153159.GA25033@redhat.com>
+ <20160824153716.GJ31179@dhcp22.suse.cz>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160824153716.GJ31179@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "'Michael S. Tsirkin'" <mst@redhat.com>
-Cc: "'virtualization@lists.linux-foundation.org'" <virtualization@lists.linux-foundation.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'virtio-dev@lists.oasis-open.org'" <virtio-dev@lists.oasis-open.org>, "'kvm@vger.kernel.org'" <kvm@vger.kernel.org>, "'qemu-devel@nongnu.org'" <qemu-devel@nongnu.org>, "'quintela@redhat.com'" <quintela@redhat.com>, "'dgilbert@redhat.com'" <dgilbert@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Roland McGrath <roland@hack.frob.com>, Andreas Schwab <schwab@suse.com>, William Preston <wpreston@suse.com>, Oleg Nesterov <oleg@redhat.com>
 
-Hi Michael,
+On Wed 24-08-16 17:37:16, Michal Hocko wrote:
+> On Wed 24-08-16 17:32:00, Oleg Nesterov wrote:
+> > On 08/24, Michal Hocko wrote:
+> > >
+> > > Sounds better?
+> > > diff --git a/kernel/fork.c b/kernel/fork.c
+> > > index b89f0eb99f0a..ddde5849df81 100644
+> > > --- a/kernel/fork.c
+> > > +++ b/kernel/fork.c
+> > > @@ -914,7 +914,8 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
+> > >  
+> > >  	/*
+> > >  	 * Signal userspace if we're not exiting with a core dump
+> > > -	 * or a killed vfork parent which shouldn't touch this mm.
+> > > +	 * because we want to leave the value intact for debugging
+> > > +	 * purposes.
+> > >  	 */
+> > >  	if (tsk->clear_child_tid) {
+> > >  		if (!(tsk->signal->flags & SIGNAL_GROUP_COREDUMP) &&
+> > 
+> > Yes, thanks Michal!
+> > 
+> > Acked-by: Oleg Nesterov <oleg@redhat.com>
+> 
+> OK, thanks.
 
-I know you are very busy. If you have time, could you help to take a look a=
-t this patch set?
+ping
 
-Thanks!
-Liang
+> ---
+> From 39cad7842660e0261c27f75702d49458a1f3cea1 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Mon, 30 May 2016 20:20:32 +0200
+> Subject: [PATCH] kernel/fork: fix CLONE_CHILD_CLEARTID regression in nscd
+> 
+> fec1d0115240 ("[PATCH] Disable CLONE_CHILD_CLEARTID for abnormal exit")
+> has caused a subtle regression in nscd which uses CLONE_CHILD_CLEARTID
+> to clear the nscd_certainly_running flag in the shared databases, so
+> that the clients are notified when nscd is restarted.  Now, when nscd
+> uses a non-persistent database, clients that have it mapped keep
+> thinking the database is being updated by nscd, when in fact nscd has
+> created a new (anonymous) one (for non-persistent databases it uses an
+> unlinked file as backend).
+> 
+> The original proposal for the CLONE_CHILD_CLEARTID change claimed
+> (https://lkml.org/lkml/2006/10/25/233):
+> "
+> The NPTL library uses the CLONE_CHILD_CLEARTID flag on clone() syscalls
+> on behalf of pthread_create() library calls.  This feature is used to
+> request that the kernel clear the thread-id in user space (at an address
+> provided in the syscall) when the thread disassociates itself from the
+> address space, which is done in mm_release().
+> 
+> Unfortunately, when a multi-threaded process incurs a core dump (such as
+> from a SIGSEGV), the core-dumping thread sends SIGKILL signals to all of
+> the other threads, which then proceed to clear their user-space tids
+> before synchronizing in exit_mm() with the start of core dumping.  This
+> misrepresents the state of process's address space at the time of the
+> SIGSEGV and makes it more difficult for someone to debug NPTL and glibc
+> problems (misleading him/her to conclude that the threads had gone away
+> before the fault).
+> 
+> The fix below is to simply avoid the CLONE_CHILD_CLEARTID action if a
+> core dump has been initiated.
+> "
+> 
+> The resulting patch from Roland (https://lkml.org/lkml/2006/10/26/269)
+> seems to have a larger scope than the original patch asked for. It seems
+> that limitting the scope of the check to core dumping should work for
+> SIGSEGV issue describe above.
+> 
+> [Changelog partly based on Andreas' description]
+> Fixes: fec1d0115240 ("[PATCH] Disable CLONE_CHILD_CLEARTID for abnormal exit")
+> Tested-by:  William Preston <wpreston@suse.com>
+> Cc: Roland McGrath <roland@hack.frob.com>
+> Cc: Andreas Schwab <schwab@suse.com>
+> Acked-by: Oleg Nesterov <oleg@redhat.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  kernel/fork.c | 10 ++++------
+>  1 file changed, 4 insertions(+), 6 deletions(-)
+> 
+> diff --git a/kernel/fork.c b/kernel/fork.c
+> index 52e725d4a866..ddde5849df81 100644
+> --- a/kernel/fork.c
+> +++ b/kernel/fork.c
+> @@ -913,14 +913,12 @@ void mm_release(struct task_struct *tsk, struct mm_struct *mm)
+>  	deactivate_mm(tsk, mm);
+>  
+>  	/*
+> -	 * If we're exiting normally, clear a user-space tid field if
+> -	 * requested.  We leave this alone when dying by signal, to leave
+> -	 * the value intact in a core dump, and to save the unnecessary
+> -	 * trouble, say, a killed vfork parent shouldn't touch this mm.
+> -	 * Userland only wants this done for a sys_exit.
+> +	 * Signal userspace if we're not exiting with a core dump
+> +	 * because we want to leave the value intact for debugging
+> +	 * purposes.
+>  	 */
+>  	if (tsk->clear_child_tid) {
+> -		if (!(tsk->flags & PF_SIGNALED) &&
+> +		if (!(tsk->signal->flags & SIGNAL_GROUP_COREDUMP) &&
+>  		    atomic_read(&mm->mm_users) > 1) {
+>  			/*
+>  			 * We don't check the error code - if userspace has
+> -- 
+> 2.8.1
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
 
-> -----Original Message-----
-> From: Li, Liang Z
-> Sent: Thursday, August 18, 2016 9:06 AM
-> To: Michael S. Tsirkin
-> Cc: virtualization@lists.linux-foundation.org; linux-mm@kvack.org; virtio=
--
-> dev@lists.oasis-open.org; kvm@vger.kernel.org; qemu-devel@nongnu.org;
-> quintela@redhat.com; dgilbert@redhat.com; Hansen, Dave; linux-
-> kernel@vger.kernel.org
-> Subject: RE: [PATCH v3 kernel 0/7] Extend virtio-balloon for fast (de)inf=
-lating
-> & fast live migration
->=20
-> Hi Michael,
->=20
-> Could you help to review this version when you have time?
->=20
-> Thanks!
-> Liang
->=20
-> > -----Original Message-----
-> > From: Li, Liang Z
-> > Sent: Monday, August 08, 2016 2:35 PM
-> > To: linux-kernel@vger.kernel.org
-> > Cc: virtualization@lists.linux-foundation.org; linux-mm@kvack.org;
-> > virtio- dev@lists.oasis-open.org; kvm@vger.kernel.org;
-> > qemu-devel@nongnu.org; quintela@redhat.com; dgilbert@redhat.com;
-> > Hansen, Dave; Li, Liang Z
-> > Subject: [PATCH v3 kernel 0/7] Extend virtio-balloon for fast
-> > (de)inflating & fast live migration
-> >
-> > This patch set contains two parts of changes to the virtio-balloon.
-> >
-> > One is the change for speeding up the inflating & deflating process,
-> > the main idea of this optimization is to use bitmap to send the page
-> > information to host instead of the PFNs, to reduce the overhead of
-> > virtio data transmission, address translation and madvise(). This can
-> > help to improve the performance by about 85%.
-> >
-> > Another change is for speeding up live migration. By skipping process
-> > guest's free pages in the first round of data copy, to reduce needless
-> > data processing, this can help to save quite a lot of CPU cycles and
-> > network bandwidth. We put guest's free page information in bitmap and
-> > send it to host with the virt queue of virtio-balloon. For an idle 8GB
-> > guest, this can help to shorten the total live migration time from
-> > 2Sec to about 500ms in the 10Gbps network environment.
-> >
-> > Dave Hansen suggested a new scheme to encode the data structure,
-> > because of additional complexity, it's not implemented in v3.
-> >
-> > Changes from v2 to v3:
-> >     * Change the name of 'free page' to 'unused page'.
-> >     * Use the scatter & gather bitmap instead of a 1MB page bitmap.
-> >     * Fix overwriting the page bitmap after kicking.
-> >     * Some of MST's comments for v2.
-> >
-> > Changes from v1 to v2:
-> >     * Abandon the patch for dropping page cache.
-> >     * Put some structures to uapi head file.
-> >     * Use a new way to determine the page bitmap size.
-> >     * Use a unified way to send the free page information with the bitm=
-ap
-> >     * Address the issues referred in MST's comments
-> >
-> >
-> > Liang Li (7):
-> >   virtio-balloon: rework deflate to add page to a list
-> >   virtio-balloon: define new feature bit and page bitmap head
-> >   mm: add a function to get the max pfn
-> >   virtio-balloon: speed up inflate/deflate process
-> >   mm: add the related functions to get unused page
-> >   virtio-balloon: define feature bit and head for misc virt queue
-> >   virtio-balloon: tell host vm's unused page info
-> >
-> >  drivers/virtio/virtio_balloon.c     | 390
-> > ++++++++++++++++++++++++++++++++----
-> >  include/linux/mm.h                  |   3 +
-> >  include/uapi/linux/virtio_balloon.h |  41 ++++
-> >  mm/page_alloc.c                     |  94 +++++++++
-> >  4 files changed, 485 insertions(+), 43 deletions(-)
-> >
-> > --
-> > 1.8.3.1
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
