@@ -1,60 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F77F6B025E
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 11:03:30 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id 63so109666096pfx.0
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 08:03:30 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id p63si258531pfp.244.2016.08.31.08.03.28
-        for <linux-mm@kvack.org>;
-        Wed, 31 Aug 2016 08:03:28 -0700 (PDT)
-From: James Morse <james.morse@arm.com>
-Subject: [PATCH] mm, proc: Make the task_mmu walk_page_range() limit in clear_refs_write() obvious
-Date: Wed, 31 Aug 2016 16:03:12 +0100
-Message-Id: <1472655792-22439-1-git-send-email-james.morse@arm.com>
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D43726B0260
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 11:03:50 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id p203so8745427oif.3
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 08:03:50 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0105.outbound.protection.outlook.com. [104.47.1.105])
+        by mx.google.com with ESMTPS id r47si368236otd.179.2016.08.31.08.03.28
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 31 Aug 2016 08:03:29 -0700 (PDT)
+Subject: Re: [PATCHv4 3/6] x86/arch_prctl/vdso: add ARCH_MAP_VDSO_*
+References: <20160831135936.2281-1-dsafonov@virtuozzo.com>
+ <20160831135936.2281-4-dsafonov@virtuozzo.com>
+ <CAJwJo6bh3fZXjOCZSGC4-=MHCs_2KrpGcEAibvNMZLE5_Wi=Eg@mail.gmail.com>
+ <CALCETrVN3eF3YS7PgbsMPH8QMAfHZkMCXm7TPa1abQ4Ai+S-Tw@mail.gmail.com>
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Message-ID: <2ec4f6ff-ef2f-f864-e4cc-3b9a547b392b@virtuozzo.com>
+Date: Wed, 31 Aug 2016 18:01:17 +0300
+MIME-Version: 1.0
+In-Reply-To: <CALCETrVN3eF3YS7PgbsMPH8QMAfHZkMCXm7TPa1abQ4Ai+S-Tw@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, James Morse <james.morse@arm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Andy Lutomirski <luto@amacapital.net>, Dmitry Safonov <0x7f454c46@gmail.com>
+Cc: Andy Lutomirski <luto@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Oleg Nesterov <oleg@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@virtuozzo.com>
 
-Trying to walk all of virtual memory requires architecture specific
-knowledge. On x86_64, addresses must be sign extended from bit 48,
-whereas on arm64 the top VA_BITS of address space have their own set
-of page tables.
+On 08/31/2016 05:56 PM, Andy Lutomirski wrote:
+> On Wed, Aug 31, 2016 at 7:04 AM, Dmitry Safonov <0x7f454c46@gmail.com> wrote:
+>> Hi Andy,
+>> can I have your acks for 2-3 patches, or should I fix something else
+>> in those patches?
+>>
+>> 2016-08-31 16:59 GMT+03:00 Dmitry Safonov <dsafonov@virtuozzo.com>:
+>>> Add API to change vdso blob type with arch_prctl.
+>>> As this is usefull only by needs of CRIU, expose
+>>> this interface under CONFIG_CHECKPOINT_RESTORE.
+>
+>
+> I thought the vm_file stuff was still being iterated on.  Did I misunderstand?
 
-clear_refs_write() calls walk_page_range() on the range 0 to ~0UL, it
-provides a test_walk() callback that only expects to be walking over
-VMAs. Currently walk_pmd_range() will skip memory regions that don't
-have a VMA, reporting them as a hole.
-
-As this call only expects to walk user address space, make it walk
-0 to  'highest_vm_end'.
-
-Signed-off-by: James Morse <james.morse@arm.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-
----
-This is in preparation for a RFC series that allows walk_page_range() to
-walk kernel page tables too.
-
- fs/proc/task_mmu.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 187d84ef9de9..1026b7862896 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -1068,7 +1068,7 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
- 			}
- 			mmu_notifier_invalidate_range_start(mm, 0, -1);
- 		}
--		walk_page_range(0, ~0UL, &clear_refs_walk);
-+		walk_page_range(0, mm->highest_vm_end, &clear_refs_walk);
- 		if (type == CLEAR_REFS_SOFT_DIRTY)
- 			mmu_notifier_invalidate_range_end(mm, 0, -1);
- 		flush_tlb_mm(mm);
--- 
-2.8.0.rc3
+Yep, vm_file is being iterated, separately from vdso-map/compatible
+patches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
