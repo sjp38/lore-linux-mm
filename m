@@ -1,56 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E5C6E6B0038
-	for <linux-mm@kvack.org>; Thu,  1 Sep 2016 05:13:50 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id e7so55982528lfe.0
-        for <linux-mm@kvack.org>; Thu, 01 Sep 2016 02:13:50 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D0406B0038
+	for <linux-mm@kvack.org>; Thu,  1 Sep 2016 05:51:17 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id m139so33717661wma.0
+        for <linux-mm@kvack.org>; Thu, 01 Sep 2016 02:51:17 -0700 (PDT)
 Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id e125si28505247wma.60.2016.09.01.02.13.49
+        by mx.google.com with ESMTPS id 8si9094891wmu.68.2016.09.01.02.51.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Sep 2016 02:13:49 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id w207so7434567wmw.0
-        for <linux-mm@kvack.org>; Thu, 01 Sep 2016 02:13:49 -0700 (PDT)
-Date: Thu, 1 Sep 2016 11:13:48 +0200
+        Thu, 01 Sep 2016 02:51:15 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id i138so11765099wmf.3
+        for <linux-mm@kvack.org>; Thu, 01 Sep 2016 02:51:15 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH -v2] mm: Don't use radix tree writeback tags for pages in
- swap cache
-Message-ID: <20160901091347.GC12147@dhcp22.suse.cz>
-References: <1472578089-5560-1-git-send-email-ying.huang@intel.com>
- <20160831091459.GY8119@techsingularity.net>
- <20160831143031.4e5a180f969ec6997637a96f@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160831143031.4e5a180f969ec6997637a96f@linux-foundation.org>
+Subject: [RFC 0/4] mm, oom: get rid of TIF_MEMDIE
+Date: Thu,  1 Sep 2016 11:51:00 +0200
+Message-Id: <1472723464-22866-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, "Huang, Ying" <ying.huang@intel.com>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Tejun Heo <tj@kernel.org>, Wu Fengguang <fengguang.wu@intel.com>
+To: linux-mm@kvack.org
+Cc: David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Oleg Nesterov <oleg@redhat.com>
 
-On Wed 31-08-16 14:30:31, Andrew Morton wrote:
-> On Wed, 31 Aug 2016 10:14:59 +0100 Mel Gorman <mgorman@techsingularity.net> wrote:
-> 
-> > >    2506952 __  2%     +28.1%    3212076 __  7%  vm-scalability.throughput
-> > >    1207402 __  7%     +22.3%    1476578 __  6%  vmstat.swap.so
-> > >      10.86 __ 12%     -23.4%       8.31 __ 16%  perf-profile.cycles-pp._raw_spin_lock_irq.__add_to_swap_cache.add_to_swap_cache.add_to_swap.shrink_page_list
-> > >      10.82 __ 13%     -33.1%       7.24 __ 14%  perf-profile.cycles-pp._raw_spin_lock_irqsave.__remove_mapping.shrink_page_list.shrink_inactive_list.shrink_zone_memcg
-> > >      10.36 __ 11%    -100.0%       0.00 __ -1%  perf-profile.cycles-pp._raw_spin_lock_irqsave.__test_set_page_writeback.bdev_write_page.__swap_writepage.swap_writepage
-> > >      10.52 __ 12%    -100.0%       0.00 __ -1%  perf-profile.cycles-pp._raw_spin_lock_irqsave.test_clear_page_writeback.end_page_writeback.page_endio.pmem_rw_page
-> > > 
-> > 
-> > I didn't see anything wrong with the patch but it's worth highlighting
-> > that this hunk means we are now out of GFP bits.
-> 
-> Well ugh.  What are we to do about that?
+Hi,
+this is an early RFC to see whether the approach I've taken is acceptable.
+The series is on top of the current mmotm tree (2016-08-31-16-06). I didn't
+get to test it so it might be completely broken.
 
-Can we simply give these AS_ flags their own word in mapping rather than
-squash them together with gfp flags and impose the restriction on the
-number of gfp flags. There was some demand for new gfp flags already and
-mapping flags were in the way.
--- 
-Michal Hocko
-SUSE Labs
+The primary point of this series is to get rid of TIF_MEMDIE finally.
+Recent changes in the oom proper allows for that finally, I believe. Now
+that all the oom victims are reapable we are no longer depending on
+ALLOC_NO_WATERMARKS because the memory held by the victim is reclaimed
+asynchronously. A partial access to memory reserves should be sufficient
+just to guarantee that the oom victim is not starved due to other
+memory consumers. This also means that we do not have to pretend to be
+conservative and give access to memory reserves only to one thread from
+the process at the time. This is patch 1.
+
+Patch 2 is a simple cleanup which turns TIF_MEMDIE users to tsk_is_oom_victim
+which is process rather than thread centric. None of those callers really
+requires to be thread aware AFAICS.
+
+The tricky part then is exit_oom_victim vs. oom_killer_disable because
+TIF_MEMDIE acted as a token there so we had a way to count threads from
+the process. It didn't work 100% reliably and had it own issues but we
+have to replace it with something which doesn't rely on counting threads
+but rather find a moment when all threads have reached steady state in
+do_exit. This is what patch 3 does and I would really appreciate if Oleg
+could double check my thinking there. I am also CCing Al on that one
+because I am moving exit_io_context up in do_exit right before exit_notify.
+
+The last patch just removes TIF_MEMDIE from the arch code because it is
+no longer needed anywhere.
+
+I would give it some more testing but I am leaving for couple of days
+and I wanted to check whether this is a sound way to go before that.
+
+I really appreciate any feedback.
+
+Michal Hocko (4):
+      mm, oom: do not rely on TIF_MEMDIE for memory reserves access
+      mm: replace TIF_MEMDIE checks by tsk_is_oom_victim
+      mm, oom: do not rely on TIF_MEMDIE for exit_oom_victim
+      arch: get rid of TIF_MEMDIE
+
+
+The diffstat looks quite promissing to me
+ arch/alpha/include/asm/thread_info.h      |  1 -
+ arch/arc/include/asm/thread_info.h        |  2 --
+ arch/arm/include/asm/thread_info.h        |  1 -
+ arch/arm64/include/asm/thread_info.h      |  1 -
+ arch/avr32/include/asm/thread_info.h      |  2 --
+ arch/blackfin/include/asm/thread_info.h   |  1 -
+ arch/c6x/include/asm/thread_info.h        |  1 -
+ arch/cris/include/asm/thread_info.h       |  1 -
+ arch/frv/include/asm/thread_info.h        |  1 -
+ arch/h8300/include/asm/thread_info.h      |  1 -
+ arch/hexagon/include/asm/thread_info.h    |  1 -
+ arch/ia64/include/asm/thread_info.h       |  1 -
+ arch/m32r/include/asm/thread_info.h       |  1 -
+ arch/m68k/include/asm/thread_info.h       |  1 -
+ arch/metag/include/asm/thread_info.h      |  1 -
+ arch/microblaze/include/asm/thread_info.h |  1 -
+ arch/mips/include/asm/thread_info.h       |  1 -
+ arch/mn10300/include/asm/thread_info.h    |  1 -
+ arch/nios2/include/asm/thread_info.h      |  1 -
+ arch/openrisc/include/asm/thread_info.h   |  1 -
+ arch/parisc/include/asm/thread_info.h     |  1 -
+ arch/powerpc/include/asm/thread_info.h    |  1 -
+ arch/s390/include/asm/thread_info.h       |  1 -
+ arch/score/include/asm/thread_info.h      |  1 -
+ arch/sh/include/asm/thread_info.h         |  1 -
+ arch/sparc/include/asm/thread_info_32.h   |  1 -
+ arch/sparc/include/asm/thread_info_64.h   |  1 -
+ arch/tile/include/asm/thread_info.h       |  2 --
+ arch/um/include/asm/thread_info.h         |  2 --
+ arch/unicore32/include/asm/thread_info.h  |  1 -
+ arch/x86/include/asm/thread_info.h        |  1 -
+ arch/xtensa/include/asm/thread_info.h     |  1 -
+ include/linux/sched.h                     |  2 +-
+ kernel/cpuset.c                           |  9 ++---
+ kernel/exit.c                             | 38 +++++++++++++++------
+ kernel/freezer.c                          |  3 +-
+ mm/internal.h                             | 11 ++++++
+ mm/memcontrol.c                           |  2 +-
+ mm/oom_kill.c                             | 42 +++++++++++++----------
+ mm/page_alloc.c                           | 57 +++++++++++++++++++++++++------
+ 40 files changed, 118 insertions(+), 82 deletions(-)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
