@@ -1,59 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 873D26B0038
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 20:18:02 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id vd14so124973113pab.3
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 17:18:02 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id z25si2301956pff.143.2016.08.31.17.18.01
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DE006B0038
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 20:25:02 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id i4so28816700oih.1
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 17:25:02 -0700 (PDT)
+Received: from tyo202.gate.nec.co.jp (TYO202.gate.nec.co.jp. [210.143.35.52])
+        by mx.google.com with ESMTPS id e11si2301412pal.229.2016.08.31.17.25.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Aug 2016 17:18:01 -0700 (PDT)
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u810G6ZJ120282
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 20:18:01 -0400
-Received: from e37.co.us.ibm.com (e37.co.us.ibm.com [32.97.110.158])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2569e20mws-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 20:18:01 -0400
-Received: from localhost
-	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Wed, 31 Aug 2016 18:18:00 -0600
-Date: Wed, 31 Aug 2016 19:17:51 -0500
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: Re: [RESEND PATCH v2] memory-hotplug: fix store_mem_state() return
- value
-References: <20160831150105.GB26702@kroah.com>
- <1472658241-32748-1-git-send-email-arbab@linux.vnet.ibm.com>
- <20160831132557.c5cf0985e3da5f2850a10b1d@linux-foundation.org>
- <alpine.DEB.2.10.1608311402520.33967@chino.kir.corp.google.com>
- <20160831233811.g6kf24fdhnfhn637@arbab-vm>
- <alpine.DEB.2.10.1608311652110.112811@chino.kir.corp.google.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 31 Aug 2016 17:25:01 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] mm, proc: Make the task_mmu walk_page_range() limit in
+ clear_refs_write() obvious
+Date: Thu, 1 Sep 2016 00:13:05 +0000
+Message-ID: <20160901001304.GA30002@hori1.linux.bs1.fc.nec.co.jp>
+References: <1472655792-22439-1-git-send-email-james.morse@arm.com>
+In-Reply-To: <1472655792-22439-1-git-send-email-james.morse@arm.com>
+Content-Language: ja-JP
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <6A6D8274BA0A764EAED676FEBD91FB8E@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1608311652110.112811@chino.kir.corp.google.com>
-Message-Id: <20160901001751.m3z2snlop2djzqgd@arbab-vm>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vitaly Kuznetsov <vkuznets@redhat.com>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dan Williams <dan.j.williams@intel.com>, Xishi Qiu <qiuxishi@huawei.com>, David Vrabel <david.vrabel@citrix.com>, Chen Yucong <slaoub@gmail.com>, Andrew Banman <abanman@sgi.com>, Seth Jennings <sjenning@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: James Morse <james.morse@arm.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, Aug 31, 2016 at 05:03:25PM -0700, David Rientjes wrote:
->Nope, the return value of changing state from online to online was
->established almost 11 years ago in commit 3947be1969a9.
+On Wed, Aug 31, 2016 at 04:03:12PM +0100, James Morse wrote:
+> Trying to walk all of virtual memory requires architecture specific
+> knowledge. On x86_64, addresses must be sign extended from bit 48,
+> whereas on arm64 the top VA_BITS of address space have their own set
+> of page tables.
+>=20
+> clear_refs_write() calls walk_page_range() on the range 0 to ~0UL, it
+> provides a test_walk() callback that only expects to be walking over
+> VMAs. Currently walk_pmd_range() will skip memory regions that don't
+> have a VMA, reporting them as a hole.
+>=20
+> As this call only expects to walk user address space, make it walk
+> 0 to  'highest_vm_end'.
+>=20
+> Signed-off-by: James Morse <james.morse@arm.com>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Fair enough. So if online-to-online is -EINVAL, 
+Makes sense to me.
 
-1. Shouldn't 'echo 1 > online' then also return -EINVAL?
-
-2. store_mem_state() still needs a tweak, right? It was only returning 
--EINVAL by accident, due to the convoluted sequence I listed in the 
-patch.
-
--- 
-Reza Arbab
+Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
