@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B36082F66
-	for <linux-mm@kvack.org>; Thu,  1 Sep 2016 02:57:01 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id o15so26247107pfi.1
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 23:57:01 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id t21si4105400pfj.215.2016.08.31.23.56.56
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 30BCE6B0038
+	for <linux-mm@kvack.org>; Thu,  1 Sep 2016 02:59:34 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id vd14so139898925pab.3
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 23:59:34 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id p27si4824213otd.148.2016.08.31.23.59.32
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 31 Aug 2016 23:57:00 -0700 (PDT)
+        Wed, 31 Aug 2016 23:59:33 -0700 (PDT)
 From: Zhen Lei <thunder.leizhen@huawei.com>
-Subject: [PATCH v8 16/16] arm64/numa: define numa_distance as array to simplify code
-Date: Thu, 1 Sep 2016 14:55:07 +0800
-Message-ID: <1472712907-12700-17-git-send-email-thunder.leizhen@huawei.com>
+Subject: [PATCH v8 08/16] arm64: numa: Use pr_fmt()
+Date: Thu, 1 Sep 2016 14:54:59 +0800
+Message-ID: <1472712907-12700-9-git-send-email-thunder.leizhen@huawei.com>
 In-Reply-To: <1472712907-12700-1-git-send-email-thunder.leizhen@huawei.com>
 References: <1472712907-12700-1-git-send-email-thunder.leizhen@huawei.com>
 MIME-Version: 1.0
@@ -24,152 +24,145 @@ To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>
 Cc: Zefan Li <lizefan@huawei.com>, Xinwei Hu <huxinwei@huawei.com>, Tianhong
  Ding <dingtianhong@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Zhen Lei <thunder.leizhen@huawei.com>
 
-1. MAX_NUMNODES is base on CONFIG_NODES_SHIFT, the default value of the
-   latter is very small now.
-2. Suppose the default value of MAX_NUMNODES is enlarged to 64, so the
-   size of numa_distance is 4K, it's still acceptable if run the Image
-   on other processors.
-3. It will make function __node_distance quicker than before.
+From: Kefeng Wang <wangkefeng.wang@huawei.com>
 
-Signed-off-by: Zhen Lei <thunder.leizhen@huawei.com>
+Use pr_fmt to prefix kernel output, and remove duplicated msg
+of NUMA turned off.
+
+Signed-off-by: Kefeng Wang <wangkefeng.wang@huawei.com>
 ---
- arch/arm64/include/asm/numa.h |  1 -
- arch/arm64/mm/numa.c          | 74 +++----------------------------------------
- 2 files changed, 5 insertions(+), 70 deletions(-)
-
-diff --git a/arch/arm64/include/asm/numa.h b/arch/arm64/include/asm/numa.h
-index 600887e..9b6cc38 100644
---- a/arch/arm64/include/asm/numa.h
-+++ b/arch/arm64/include/asm/numa.h
-@@ -32,7 +32,6 @@ static inline const struct cpumask *cpumask_of_node(int node)
- void __init arm64_numa_init(void);
- int __init numa_add_memblk(int nodeid, u64 start, u64 end);
- void __init numa_set_distance(int from, int to, int distance);
--void __init numa_free_distance(void);
- void __init early_map_cpu_to_node(unsigned int cpu, int nid);
- void numa_store_cpu_info(unsigned int cpu);
+ arch/arm64/mm/numa.c | 37 ++++++++++++++++++-------------------
+ 1 file changed, 18 insertions(+), 19 deletions(-)
 
 diff --git a/arch/arm64/mm/numa.c b/arch/arm64/mm/numa.c
-index ef7e336..15ff117 100644
+index d97c6e2..0e75b53 100644
 --- a/arch/arm64/mm/numa.c
 +++ b/arch/arm64/mm/numa.c
-@@ -33,8 +33,7 @@ EXPORT_SYMBOL(node_data);
- nodemask_t numa_nodes_parsed __initdata;
- static int cpu_to_node_map[NR_CPUS] = { [0 ... NR_CPUS-1] = NUMA_NO_NODE };
+@@ -17,6 +17,8 @@
+  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  */
 
--static int numa_distance_cnt;
--static u8 *numa_distance;
-+static u8 numa_distance[MAX_NUMNODES][MAX_NUMNODES];
- static bool numa_off;
++#define pr_fmt(fmt) "NUMA: " fmt
++
+ #include <linux/acpi.h>
+ #include <linux/bootmem.h>
+ #include <linux/memblock.h>
+@@ -38,10 +40,9 @@ static __init int numa_parse_early_param(char *opt)
+ {
+ 	if (!opt)
+ 		return -EINVAL;
+-	if (!strncmp(opt, "off", 3)) {
+-		pr_info("%s\n", "NUMA turned off");
++	if (!strncmp(opt, "off", 3))
+ 		numa_off = true;
+-	}
++
+ 	return 0;
+ }
+ early_param("numa", numa_parse_early_param);
+@@ -110,7 +111,7 @@ static void __init setup_node_to_cpumask_map(void)
+ 		set_cpu_numa_node(cpu, NUMA_NO_NODE);
 
- static __init int numa_parse_early_param(char *opt)
-@@ -245,59 +244,6 @@ static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
+ 	/* cpumask_of_node() will now work */
+-	pr_debug("NUMA: Node to cpumask map for %d nodes\n", nr_node_ids);
++	pr_debug("Node to cpumask map for %d nodes\n", nr_node_ids);
  }
 
- /**
-- * numa_free_distance
-- *
-- * The current table is freed.
-- */
--void __init numa_free_distance(void)
--{
--	size_t size;
--
--	if (!numa_distance)
--		return;
--
--	size = numa_distance_cnt * numa_distance_cnt *
--		sizeof(numa_distance[0]);
--
--	memblock_free(__pa(numa_distance), size);
--	numa_distance_cnt = 0;
--	numa_distance = NULL;
--}
--
--/**
-- *
-- * Create a new NUMA distance table.
-- *
-- */
--static int __init numa_alloc_distance(void)
--{
--	size_t size;
--	u64 phys;
--	int i, j;
--
--	size = nr_node_ids * nr_node_ids * sizeof(numa_distance[0]);
--	phys = memblock_find_in_range(0, PFN_PHYS(max_pfn),
--				      size, PAGE_SIZE);
--	if (WARN_ON(!phys))
--		return -ENOMEM;
--
--	memblock_reserve(phys, size);
--
--	numa_distance = __va(phys);
--	numa_distance_cnt = nr_node_ids;
--
--	/* fill with the default distances */
--	for (i = 0; i < numa_distance_cnt; i++)
--		for (j = 0; j < numa_distance_cnt; j++)
--			numa_distance[i * numa_distance_cnt + j] = i == j ?
--				LOCAL_DISTANCE : REMOTE_DISTANCE;
--
--	pr_debug("Initialized distance table, cnt=%d\n", numa_distance_cnt);
--
--	return 0;
--}
--
--/**
-  * numa_set_distance - Set inter node NUMA distance from node to node.
-  * @from: the 'from' node to set distance
-  * @to: the 'to'  node to set distance
-@@ -312,12 +258,7 @@ static int __init numa_alloc_distance(void)
-  */
+ /*
+@@ -145,13 +146,13 @@ int __init numa_add_memblk(int nid, u64 start, u64 end)
+
+ 	ret = memblock_set_node(start, (end - start), &memblock.memory, nid);
+ 	if (ret < 0) {
+-		pr_err("NUMA: memblock [0x%llx - 0x%llx] failed to add on node %d\n",
++		pr_err("memblock [0x%llx - 0x%llx] failed to add on node %d\n",
+ 			start, (end - 1), nid);
+ 		return ret;
+ 	}
+
+ 	node_set(nid, numa_nodes_parsed);
+-	pr_info("NUMA: Adding memblock [0x%llx - 0x%llx] on node %d\n",
++	pr_info("Adding memblock [0x%llx - 0x%llx] on node %d\n",
+ 			start, (end - 1), nid);
+ 	return ret;
+ }
+@@ -166,19 +167,18 @@ static void __init setup_node_data(int nid, u64 start_pfn, u64 end_pfn)
+ 	void *nd;
+ 	int tnid;
+
+-	pr_info("NUMA: Initmem setup node %d [mem %#010Lx-%#010Lx]\n",
+-			nid, start_pfn << PAGE_SHIFT,
+-			(end_pfn << PAGE_SHIFT) - 1);
++	pr_info("Initmem setup node %d [mem %#010Lx-%#010Lx]\n",
++		nid, start_pfn << PAGE_SHIFT, (end_pfn << PAGE_SHIFT) - 1);
+
+ 	nd_pa = memblock_alloc_try_nid(nd_size, SMP_CACHE_BYTES, nid);
+ 	nd = __va(nd_pa);
+
+ 	/* report and initialize */
+-	pr_info("NUMA: NODE_DATA [mem %#010Lx-%#010Lx]\n",
++	pr_info("NODE_DATA [mem %#010Lx-%#010Lx]\n",
+ 		nd_pa, nd_pa + nd_size - 1);
+ 	tnid = early_pfn_to_nid(nd_pa >> PAGE_SHIFT);
+ 	if (tnid != nid)
+-		pr_info("NUMA: NODE_DATA(%d) on node %d\n", nid, tnid);
++		pr_info("NODE_DATA(%d) on node %d\n", nid, tnid);
+
+ 	node_data[nid] = nd;
+ 	memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
+@@ -235,8 +235,7 @@ static int __init numa_alloc_distance(void)
+ 			numa_distance[i * numa_distance_cnt + j] = i == j ?
+ 				LOCAL_DISTANCE : REMOTE_DISTANCE;
+
+-	pr_debug("NUMA: Initialized distance table, cnt=%d\n",
+-			numa_distance_cnt);
++	pr_debug("Initialized distance table, cnt=%d\n", numa_distance_cnt);
+
+ 	return 0;
+ }
+@@ -257,20 +256,20 @@ static int __init numa_alloc_distance(void)
  void __init numa_set_distance(int from, int to, int distance)
  {
--	if (!numa_distance) {
--		pr_warn_once("Warning: distance table not allocated yet\n");
--		return;
--	}
--
--	if (from >= numa_distance_cnt || to >= numa_distance_cnt ||
-+	if (from >= MAX_NUMNODES || to >= MAX_NUMNODES ||
- 			from < 0 || to < 0) {
- 		pr_warn_once("Warning: node ids are out of bound, from=%d to=%d distance=%d\n",
- 			    from, to, distance);
-@@ -331,7 +272,7 @@ void __init numa_set_distance(int from, int to, int distance)
+ 	if (!numa_distance) {
+-		pr_warn_once("NUMA: Warning: distance table not allocated yet\n");
++		pr_warn_once("Warning: distance table not allocated yet\n");
  		return;
  	}
 
--	numa_distance[from * numa_distance_cnt + to] = distance;
-+	numa_distance[from][to] = distance;
- }
+ 	if (from >= numa_distance_cnt || to >= numa_distance_cnt ||
+ 			from < 0 || to < 0) {
+-		pr_warn_once("NUMA: Warning: node ids are out of bound, from=%d to=%d distance=%d\n",
++		pr_warn_once("Warning: node ids are out of bound, from=%d to=%d distance=%d\n",
+ 			    from, to, distance);
+ 		return;
+ 	}
 
- /**
-@@ -339,9 +280,9 @@ void __init numa_set_distance(int from, int to, int distance)
-  */
- int __node_distance(int from, int to)
- {
--	if (from >= numa_distance_cnt || to >= numa_distance_cnt)
-+	if (from >= MAX_NUMNODES || to >= MAX_NUMNODES)
- 		return from == to ? LOCAL_DISTANCE : REMOTE_DISTANCE;
--	return numa_distance[from * numa_distance_cnt + to];
-+	return numa_distance[from][to];
- }
- EXPORT_SYMBOL(__node_distance);
+ 	if ((u8)distance != distance ||
+ 	    (from == to && distance != LOCAL_DISTANCE)) {
+-		pr_warn_once("NUMA: Warning: invalid distance parameter, from=%d to=%d distance=%d\n",
++		pr_warn_once("Warning: invalid distance parameter, from=%d to=%d distance=%d\n",
+ 			     from, to, distance);
+ 		return;
+ 	}
+@@ -297,7 +296,7 @@ static int __init numa_register_nodes(void)
+ 	/* Check that valid nid is set to memblks */
+ 	for_each_memblock(memory, mblk)
+ 		if (mblk->nid == NUMA_NO_NODE || mblk->nid >= MAX_NUMNODES) {
+-			pr_warn("NUMA: Warning: invalid memblk node %d [mem %#010Lx-%#010Lx]\n",
++			pr_warn("Warning: invalid memblk node %d [mem %#010Lx-%#010Lx]\n",
+ 				mblk->nid, mblk->base,
+ 				mblk->base + mblk->size - 1);
+ 			return -EINVAL;
+@@ -369,8 +368,8 @@ static int __init dummy_numa_init(void)
 
-@@ -381,11 +322,6 @@ static int __init numa_init(int (*init_func)(void))
- 	nodes_clear(numa_nodes_parsed);
- 	nodes_clear(node_possible_map);
- 	nodes_clear(node_online_map);
--	numa_free_distance();
--
--	ret = numa_alloc_distance();
--	if (ret < 0)
--		return ret;
+ 	if (numa_off)
+ 		pr_info("NUMA disabled\n"); /* Forced off on command line. */
+-	pr_info("NUMA: Faking a node at [mem %#018Lx-%#018Lx]\n",
+-	       0LLU, PFN_PHYS(max_pfn) - 1);
++	pr_info("Faking a node at [mem %#018Lx-%#018Lx]\n",
++		0LLU, PFN_PHYS(max_pfn) - 1);
 
- 	ret = init_func();
- 	if (ret < 0)
+ 	for_each_memblock(memory, mblk) {
+ 		ret = numa_add_memblk(0, mblk->base, mblk->base + mblk->size);
 --
 2.5.0
 
