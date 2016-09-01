@@ -1,70 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B2026B0038
-	for <linux-mm@kvack.org>; Thu,  1 Sep 2016 01:46:45 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id 93so159039678qtg.1
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 22:46:45 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id j6si3778888pad.199.2016.08.31.22.46.44
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B03E6B0069
+	for <linux-mm@kvack.org>; Thu,  1 Sep 2016 01:47:36 -0400 (EDT)
+Received: by mail-yw0-f199.google.com with SMTP id c67so40740196ywe.1
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 22:47:36 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id q66si3024233qkb.116.2016.08.31.22.47.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Aug 2016 22:46:44 -0700 (PDT)
-From: "Li, Liang Z" <liang.z.li@intel.com>
-Subject: RE: [PATCH v3 kernel 0/7] Extend virtio-balloon for fast
- (de)inflating & fast live migration
-Date: Thu, 1 Sep 2016 05:46:40 +0000
-Message-ID: <F2CBF3009FA73547804AE4C663CAB28E3A01C59B@shsmsx102.ccr.corp.intel.com>
-References: <1470638134-24149-1-git-send-email-liang.z.li@intel.com>
- <CANRm+Cy=p8PKg8HqRp7apU0D9X=gpnrahtXRq+S+5Gq863VO8g@mail.gmail.com>
-In-Reply-To: <CANRm+Cy=p8PKg8HqRp7apU0D9X=gpnrahtXRq+S+5Gq863VO8g@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+        Wed, 31 Aug 2016 22:47:35 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u815gt4H143869
+	for <linux-mm@kvack.org>; Thu, 1 Sep 2016 01:47:35 -0400
+Received: from e32.co.us.ibm.com (e32.co.us.ibm.com [32.97.110.150])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 256bce0usx-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 01 Sep 2016 01:47:34 -0400
+Received: from localhost
+	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 31 Aug 2016 23:47:34 -0600
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v5 0/6] Introduce ZONE_CMA
+In-Reply-To: <20160831080300.GB22757@js1304-P5Q-DELUXE>
+References: <1472447255-10584-1-git-send-email-iamjoonsoo.kim@lge.com> <8737lnudq6.fsf@linux.vnet.ibm.com> <CAAmzW4MZdwn2-Pd_58B+vXKOyPybdfx4FPRvxNaADnDCryo7Ng@mail.gmail.com> <87shtmsfpy.fsf@linux.vnet.ibm.com> <20160831080300.GB22757@js1304-P5Q-DELUXE>
+Date: Thu, 01 Sep 2016 11:17:23 +0530
 MIME-Version: 1.0
+Content-Type: text/plain
+Message-Id: <87eg54rx1w.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wanpeng Li <kernellwp@gmail.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, kvm <kvm@vger.kernel.org>, "qemu-devel@nongnu.org Developers" <qemu-devel@nongnu.org>, "quintela@redhat.com" <quintela@redhat.com>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-PiBTdWJqZWN0OiBSZTogW1BBVENIIHYzIGtlcm5lbCAwLzddIEV4dGVuZCB2aXJ0aW8tYmFsbG9v
-biBmb3IgZmFzdCAoZGUpaW5mbGF0aW5nDQo+ICYgZmFzdCBsaXZlIG1pZ3JhdGlvbg0KPiANCj4g
-MjAxNi0wOC0wOCAxNDozNSBHTVQrMDg6MDAgTGlhbmcgTGkgPGxpYW5nLnoubGlAaW50ZWwuY29t
-PjoNCj4gPiBUaGlzIHBhdGNoIHNldCBjb250YWlucyB0d28gcGFydHMgb2YgY2hhbmdlcyB0byB0
-aGUgdmlydGlvLWJhbGxvb24uDQo+ID4NCj4gPiBPbmUgaXMgdGhlIGNoYW5nZSBmb3Igc3BlZWRp
-bmcgdXAgdGhlIGluZmxhdGluZyAmIGRlZmxhdGluZyBwcm9jZXNzLA0KPiA+IHRoZSBtYWluIGlk
-ZWEgb2YgdGhpcyBvcHRpbWl6YXRpb24gaXMgdG8gdXNlIGJpdG1hcCB0byBzZW5kIHRoZSBwYWdl
-DQo+ID4gaW5mb3JtYXRpb24gdG8gaG9zdCBpbnN0ZWFkIG9mIHRoZSBQRk5zLCB0byByZWR1Y2Ug
-dGhlIG92ZXJoZWFkIG9mDQo+ID4gdmlydGlvIGRhdGEgdHJhbnNtaXNzaW9uLCBhZGRyZXNzIHRy
-YW5zbGF0aW9uIGFuZCBtYWR2aXNlKCkuIFRoaXMgY2FuDQo+ID4gaGVscCB0byBpbXByb3ZlIHRo
-ZSBwZXJmb3JtYW5jZSBieSBhYm91dCA4NSUuDQo+ID4NCj4gPiBBbm90aGVyIGNoYW5nZSBpcyBm
-b3Igc3BlZWRpbmcgdXAgbGl2ZSBtaWdyYXRpb24uIEJ5IHNraXBwaW5nIHByb2Nlc3MNCj4gPiBn
-dWVzdCdzIGZyZWUgcGFnZXMgaW4gdGhlIGZpcnN0IHJvdW5kIG9mIGRhdGEgY29weSwgdG8gcmVk
-dWNlIG5lZWRsZXNzDQo+ID4gZGF0YSBwcm9jZXNzaW5nLCB0aGlzIGNhbiBoZWxwIHRvIHNhdmUg
-cXVpdGUgYSBsb3Qgb2YgQ1BVIGN5Y2xlcyBhbmQNCj4gPiBuZXR3b3JrIGJhbmR3aWR0aC4gV2Ug
-cHV0IGd1ZXN0J3MgZnJlZSBwYWdlIGluZm9ybWF0aW9uIGluIGJpdG1hcCBhbmQNCj4gPiBzZW5k
-IGl0IHRvIGhvc3Qgd2l0aCB0aGUgdmlydCBxdWV1ZSBvZiB2aXJ0aW8tYmFsbG9vbi4gRm9yIGFu
-IGlkbGUgOEdCDQo+ID4gZ3Vlc3QsIHRoaXMgY2FuIGhlbHAgdG8gc2hvcnRlbiB0aGUgdG90YWwg
-bGl2ZSBtaWdyYXRpb24gdGltZSBmcm9tDQo+ID4gMlNlYyB0byBhYm91dCA1MDBtcyBpbiB0aGUg
-MTBHYnBzIG5ldHdvcmsgZW52aXJvbm1lbnQuDQo+IA0KPiBJIGp1c3QgcmVhZCB0aGUgc2xpZGVz
-IG9mIHRoaXMgZmVhdHVyZSBmb3IgcmVjZW50IGt2bSBmb3J1bSwgdGhlIGNsb3VkDQo+IHByb3Zp
-ZGVycyBtb3JlIGNhcmUgYWJvdXQgbGl2ZSBtaWdyYXRpb24gZG93bnRpbWUgdG8gYXZvaWQgY3Vz
-dG9tZXJzJw0KPiBwZXJjZXB0aW9uIHRoYW4gdG90YWwgdGltZSwgaG93ZXZlciwgdGhpcyBmZWF0
-dXJlIHdpbGwgaW5jcmVhc2UgZG93bnRpbWUNCj4gd2hlbiBhY3F1aXJlIHRoZSBiZW5lZml0IG9m
-IHJlZHVjaW5nIHRvdGFsIHRpbWUsIG1heWJlIGl0IHdpbGwgYmUgbW9yZQ0KPiBhY2NlcHRhYmxl
-IGlmIHRoZXJlIGlzIG5vIGRvd25zaWRlIGZvciBkb3dudGltZS4NCj4gDQo+IFJlZ2FyZHMsDQo+
-IFdhbnBlbmcgTGkNCg0KSW4gdGhlb3J5LCB0aGVyZSBpcyBubyBmYWN0b3IgdGhhdCB3aWxsIGlu
-Y3JlYXNlIHRoZSBkb3dudGltZS4gVGhlcmUgaXMgbm8gYWRkaXRpb25hbCBvcGVyYXRpb24NCmFu
-ZCBubyBtb3JlIGRhdGEgY29weSBkdXJpbmcgdGhlIHN0b3AgYW5kIGNvcHkgc3RhZ2UuIEJ1dCBp
-biB0aGUgdGVzdCwgdGhlIGRvd250aW1lIGluY3JlYXNlcw0KYW5kIHRoaXMgY2FuIGJlIHJlcHJv
-ZHVjZWQuIEkgdGhpbmsgdGhlIGJ1c3kgbmV0d29yayBsaW5lIG1heWJlIHRoZSByZWFzb24gZm9y
-IHRoaXMuIFdpdGggdGhpcw0KIG9wdGltaXphdGlvbiwgYSBodWdlIGFtb3VudCBvZiBkYXRhIGlz
-IHdyaXR0ZW4gdG8gdGhlIHNvY2tldCBpbiBhIHNob3J0ZXIgdGltZSwgc28gc29tZSBvZiB0aGUg
-d3JpdGUNCm9wZXJhdGlvbiBtYXkgbmVlZCB0byB3YWl0LiBXaXRob3V0IHRoaXMgb3B0aW1pemF0
-aW9uLCB6ZXJvIHBhZ2UgY2hlY2tpbmcgdGFrZXMgbW9yZSB0aW1lLA0KdGhlIG5ldHdvcmsgaXMg
-bm90IHNvIGJ1c3kuDQoNCklmIHRoZSBndWVzdCBpcyBub3QgYW4gaWRsZSBvbmUsIEkgdGhpbmsg
-dGhlIGdhcCBvZiB0aGUgZG93bnRpbWUgd2lsbCBub3Qgc28gb2J2aW91cy4gIEFueXdheSwgdGhl
-DQpkb3dudGltZSBpcyBzdGlsbCBsZXNzIHRoYW4gdGhlICBtYXhfZG93bl90aW1lIHNldCBieSB0
-aGUgdXNlci4NCg0KVGhhbmtzIQ0KTGlhbmcNCg==
+Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
+
+> On Tue, Aug 30, 2016 at 04:09:37PM +0530, Aneesh Kumar K.V wrote:
+>> Joonsoo Kim <js1304@gmail.com> writes:
+>> 
+>> > 2016-08-29 18:27 GMT+09:00 Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>:
+>> >> js1304@gmail.com writes:
+>> >>
+>> >>> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>> >>>
+>> >>> Hello,
+>> >>>
+>> >>> Changes from v4
+>> >>> o Rebase on next-20160825
+>> >>> o Add general fix patch for lowmem reserve
+>> >>> o Fix lowmem reserve ratio
+>> >>> o Fix zone span optimizaion per Vlastimil
+>> >>> o Fix pageset initialization
+>> >>> o Change invocation timing on cma_init_reserved_areas()
+>> >>
+>> >> I don't see much information regarding how we interleave between
+>> >> ZONE_CMA and other zones for movable allocation. Is that explained in
+>> >> any of the patch ? The fair zone allocator got removed by
+>> >> e6cbd7f2efb433d717af72aa8510a9db6f7a7e05
+>> >
+>> > Interleaving would not work since the fair zone allocator policy is removed.
+>> > I don't think that it's a big problem because it is just matter of
+>> > timing to fill
+>> > up the memory. Eventually, memory on ZONE_CMA will be fully used in
+>> > any case.
+>> 
+>> Does that mean a CMA allocation will now be slower because in most case we
+>> will need to reclaim ? The zone list will now have ZONE_CMA in the
+>> beginning right ?
+>
+> ZONE_CMA will be used first but I don't think that CMA allocation will
+> be slower. In most case, memory would be fully used (usually
+> by page cache). So, we need reclaim or migration in any case.
+
+Considering that the upstream kernel doesn't allow migration of THP
+pages, this would mean that migrate will fail in most case if we have
+THP enabled and the THP allocation request got satisfied via ZONE_CMA.
+Isn't that going to be a problem ?
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
