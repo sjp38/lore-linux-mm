@@ -1,20 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E63096B025E
-	for <linux-mm@kvack.org>; Thu,  1 Sep 2016 02:56:31 -0400 (EDT)
-Received: by mail-ua0-f197.google.com with SMTP id j4so157464300uaj.2
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 23:56:31 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id o78si4075324pfi.291.2016.08.31.23.56.25
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D44E6B025E
+	for <linux-mm@kvack.org>; Thu,  1 Sep 2016 02:56:34 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id u81so54300398wmu.3
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 23:56:34 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id v5si723760wjv.113.2016.08.31.23.56.24
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Wed, 31 Aug 2016 23:56:27 -0700 (PDT)
 From: Zhen Lei <thunder.leizhen@huawei.com>
-Subject: [PATCH v8 07/16] of_numa: Use pr_fmt()
-Date: Thu, 1 Sep 2016 14:54:58 +0800
-Message-ID: <1472712907-12700-8-git-send-email-thunder.leizhen@huawei.com>
-In-Reply-To: <1472712907-12700-1-git-send-email-thunder.leizhen@huawei.com>
-References: <1472712907-12700-1-git-send-email-thunder.leizhen@huawei.com>
+Subject: [PATCH v8 00/16] fix some type infos and bugs for arm64/of numa
+Date: Thu, 1 Sep 2016 14:54:51 +0800
+Message-ID: <1472712907-12700-1-git-send-email-thunder.leizhen@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -24,98 +22,106 @@ To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>
 Cc: Zefan Li <lizefan@huawei.com>, Xinwei Hu <huxinwei@huawei.com>, Tianhong
  Ding <dingtianhong@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Zhen Lei <thunder.leizhen@huawei.com>
 
-From: Kefeng Wang <wangkefeng.wang@huawei.com>
+v7 -> v8:
+Updated patches according to Will Deacon's review comments, thanks.
 
-Use pr_fmt to prefix kernel output.
+The changed patches is: 3, 5, 8, 9, 10, 11, 12, 13, 15
+Patch 3 requires an ack from Rob Herring.
+Patch 10 requires an ack from linux-mm.
 
-Signed-off-by: Kefeng Wang <wangkefeng.wang@huawei.com>
-Acked-by: Rob Herring <robh@kernel.org>
----
- drivers/of/of_numa.c | 21 +++++++++++----------
- 1 file changed, 11 insertions(+), 10 deletions(-)
+Hi, Will:
+Something should still be clarified:
+Patch 5, I modified it according to my last reply. BTW, The last sentence
+         "srat_disabled() ? -EINVAL : 0" of arm64_acpi_numa_init should be moved
+         into acpi_numa_init, I think.
+         
+Patch 9, I still leave the code in arch/arm64.
+         1) the implementation of setup_per_cpu_areas on all platforms are different.
+         2) Although my implementation referred to PowerPC, but still something different.
 
-diff --git a/drivers/of/of_numa.c b/drivers/of/of_numa.c
-index 0d7459b..f63d4b0d 100644
---- a/drivers/of/of_numa.c
-+++ b/drivers/of/of_numa.c
-@@ -16,6 +16,8 @@
-  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+Patch 15, I modified the description again. Can you take a look at it? If this patch is
+	  dropped, the patch 14 should also be dropped.
+
+Patch 16, How many times the function node_distance to be called rely on the APP(need many tasks
+          to be scheduled), I have not prepared yet, so I give up this patch as your advise. 
+
+v6 -> v7:
+Fix a bug for this patch series when "numa=off" was set in bootargs, this
+modification only impact patch 12.
+
+Please refer https://lkml.org/lkml/2016/8/23/249 for more details.
+
+@@ -119,13 +115,13 @@ static void __init setup_node_to_cpumask_map(void)
   */
+ void numa_store_cpu_info(unsigned int cpu)
+ {
+-	map_cpu_to_node(cpu, numa_off ? 0 : cpu_to_node_map[cpu]);
++	map_cpu_to_node(cpu, cpu_to_node_map[cpu]);
+ }
 
-+#define pr_fmt(fmt) "OF: NUMA: " fmt
-+
- #include <linux/of.h>
- #include <linux/of_address.h>
- #include <linux/nodemask.h>
-@@ -49,10 +51,9 @@ static void __init of_numa_parse_cpu_nodes(void)
- 		if (r)
- 			continue;
+ void __init early_map_cpu_to_node(unsigned int cpu, int nid)
+ {
+ 	/* fallback to node 0 */
+-	if (nid < 0 || nid >= MAX_NUMNODES)
++	if (nid < 0 || nid >= MAX_NUMNODES || numa_off)
+ 		nid = 0;
 
--		pr_debug("NUMA: CPU on %u\n", nid);
-+		pr_debug("CPU on %u\n", nid);
- 		if (nid >= MAX_NUMNODES)
--			pr_warn("NUMA: Node id %u exceeds maximum value\n",
--				nid);
-+			pr_warn("Node id %u exceeds maximum value\n", nid);
- 		else
- 			node_set(nid, numa_nodes_parsed);
- 	}
-@@ -76,7 +77,7 @@ static int __init of_numa_parse_memory_nodes(void)
- 			continue;
+v5 -> v6:
+Move memblk nid check from arch/arm64/mm/numa.c into drivers/of/of_numa.c,
+because this check is arch independent.
 
- 		if (nid >= MAX_NUMNODES) {
--			pr_warn("NUMA: Node id %u exceeds maximum value\n", nid);
-+			pr_warn("Node id %u exceeds maximum value\n", nid);
- 			r = -EINVAL;
- 		}
+This modification only related to patch 3, but impacted the contents of patch 7 and 8,
+other patches have no change.
 
-@@ -85,7 +86,7 @@ static int __init of_numa_parse_memory_nodes(void)
+v4 -> v5:
+This version has no code changes, just add "Acked-by: Rob Herring <robh@kernel.org>"
+into patches 1, 2, 4, 6, 7, 13, 14. Because these patches rely on some acpi numa
+patches, and the latter had not been upstreamed in 4.7, but upstreamed in 4.8-rc1,
+so I resend my patches again.
 
- 		if (!i || r) {
- 			of_node_put(np);
--			pr_err("NUMA: bad property in memory node\n");
-+			pr_err("bad property in memory node\n");
- 			return r ? : -EINVAL;
- 		}
- 	}
-@@ -99,17 +100,17 @@ static int __init of_numa_parse_distance_map_v1(struct device_node *map)
- 	int entry_count;
- 	int i;
+v3 -> v4:
+1. Packed three patches of Kefeng Wang, patch6-8.
+2. Add 6 new patches(9-15) to enhance the numa on arm64.
 
--	pr_info("NUMA: parsing numa-distance-map-v1\n");
-+	pr_info("parsing numa-distance-map-v1\n");
+v2 -> v3:
+1. Adjust patch2 and patch5 according to Matthias Brugger's advice, to make the
+   patches looks more well. The final code have no change. 
 
- 	matrix = of_get_property(map, "distance-matrix", NULL);
- 	if (!matrix) {
--		pr_err("NUMA: No distance-matrix property in distance-map\n");
-+		pr_err("No distance-matrix property in distance-map\n");
- 		return -EINVAL;
- 	}
+v1 -> v2:
+1. Base on https://lkml.org/lkml/2016/5/24/679
+2. Rewrote of_numa_parse_memory_nodes according to Rob Herring's advice. So that it looks more clear.
+3. Rewrote patch 5 because some scenes were not considered before.
 
- 	entry_count = of_property_count_u32_elems(map, "distance-matrix");
- 	if (entry_count <= 0) {
--		pr_err("NUMA: Invalid distance-matrix\n");
-+		pr_err("Invalid distance-matrix\n");
- 		return -EINVAL;
- 	}
+Kefeng Wang (3):
+  of_numa: Use of_get_next_parent to simplify code
+  of_numa: Use pr_fmt()
+  arm64: numa: Use pr_fmt()
 
-@@ -124,7 +125,7 @@ static int __init of_numa_parse_distance_map_v1(struct device_node *map)
- 		matrix++;
+Zhen Lei (13):
+  of/numa: remove a duplicated pr_debug information
+  of/numa: fix a memory@ node can only contains one memory block
+  of/numa: add nid check for memory block
+  of/numa: remove a duplicated warning
+  arm64/numa: avoid inconsistent information to be printed
+  arm64/numa: support HAVE_SETUP_PER_CPU_AREA
+  mm/memblock: add a new function memblock_alloc_near_nid
+  arm64/numa: support HAVE_MEMORYLESS_NODES
+  arm64/numa: remove some useless code
+  arm64/numa: remove the limitation that cpu0 must bind to node0
+  of/numa: remove the constraint on the distances of node pairs
+  Documentation: remove the constraint on the distances of node pairs
+  arm64/numa: define numa_distance as array to simplify code
 
- 		numa_set_distance(nodea, nodeb, distance);
--		pr_debug("NUMA:  distance[node%d -> node%d] = %d\n",
-+		pr_debug("distance[node%d -> node%d] = %d\n",
- 			 nodea, nodeb, distance);
-
- 		/* Set default distance of node B->A same as A->B */
-@@ -171,7 +172,7 @@ int of_node_to_nid(struct device_node *device)
- 		np = of_get_next_parent(np);
- 	}
- 	if (np && r)
--		pr_warn("NUMA: Invalid \"numa-node-id\" property in node %s\n",
-+		pr_warn("Invalid \"numa-node-id\" property in node %s\n",
- 			np->name);
- 	of_node_put(np);
+ Documentation/devicetree/bindings/numa.txt |  12 +-
+ arch/arm64/Kconfig                         |  12 ++
+ arch/arm64/include/asm/numa.h              |   1 -
+ arch/arm64/kernel/acpi_numa.c              |   4 +-
+ arch/arm64/kernel/smp.c                    |   1 +
+ arch/arm64/mm/numa.c                       | 190 ++++++++++++++---------------
+ drivers/of/of_numa.c                       |  88 +++++++------
+ include/linux/memblock.h                   |   1 +
+ mm/memblock.c                              |  28 +++++
+ 9 files changed, 184 insertions(+), 153 deletions(-)
 
 --
 2.5.0
