@@ -1,83 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A9636B0038
-	for <linux-mm@kvack.org>; Thu,  1 Sep 2016 01:54:56 -0400 (EDT)
-Received: by mail-ua0-f200.google.com with SMTP id s91so30568803uas.3
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 22:54:55 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id eg8si3860652pac.40.2016.08.31.22.54.54
-        for <linux-mm@kvack.org>;
-        Wed, 31 Aug 2016 22:54:55 -0700 (PDT)
-Date: Thu, 1 Sep 2016 15:01:43 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v5 0/6] Introduce ZONE_CMA
-Message-ID: <20160901060142.GA25364@js1304-P5Q-DELUXE>
-References: <1472447255-10584-1-git-send-email-iamjoonsoo.kim@lge.com>
- <8737lnudq6.fsf@linux.vnet.ibm.com>
- <CAAmzW4MZdwn2-Pd_58B+vXKOyPybdfx4FPRvxNaADnDCryo7Ng@mail.gmail.com>
- <87shtmsfpy.fsf@linux.vnet.ibm.com>
- <20160831080300.GB22757@js1304-P5Q-DELUXE>
- <87eg54rx1w.fsf@linux.vnet.ibm.com>
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A5306B0038
+	for <linux-mm@kvack.org>; Thu,  1 Sep 2016 02:01:58 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id 33so52432668lfw.1
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 23:01:58 -0700 (PDT)
+Received: from mail-wm0-x22c.google.com (mail-wm0-x22c.google.com. [2a00:1450:400c:c09::22c])
+        by mx.google.com with ESMTPS id w127si8066112wmg.118.2016.08.31.23.01.56
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 31 Aug 2016 23:01:57 -0700 (PDT)
+Received: by mail-wm0-x22c.google.com with SMTP id c133so60659610wmd.1
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 23:01:56 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87eg54rx1w.fsf@linux.vnet.ibm.com>
+In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E3A01C59B@shsmsx102.ccr.corp.intel.com>
+References: <1470638134-24149-1-git-send-email-liang.z.li@intel.com>
+ <CANRm+Cy=p8PKg8HqRp7apU0D9X=gpnrahtXRq+S+5Gq863VO8g@mail.gmail.com> <F2CBF3009FA73547804AE4C663CAB28E3A01C59B@shsmsx102.ccr.corp.intel.com>
+From: Wanpeng Li <kernellwp@gmail.com>
+Date: Thu, 1 Sep 2016 14:01:56 +0800
+Message-ID: <CANRm+Cx-JzR-JhRwy9RShFGeC5SHw9HKesXnPyy9BiBmhQgiCQ@mail.gmail.com>
+Subject: Re: [PATCH v3 kernel 0/7] Extend virtio-balloon for fast
+ (de)inflating & fast live migration
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Li, Liang Z" <liang.z.li@intel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, kvm <kvm@vger.kernel.org>, "qemu-devel@nongnu.org Developers" <qemu-devel@nongnu.org>, "quintela@redhat.com" <quintela@redhat.com>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "Hansen, Dave" <dave.hansen@intel.com>
 
-On Thu, Sep 01, 2016 at 11:17:23AM +0530, Aneesh Kumar K.V wrote:
-> Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
-> 
-> > On Tue, Aug 30, 2016 at 04:09:37PM +0530, Aneesh Kumar K.V wrote:
-> >> Joonsoo Kim <js1304@gmail.com> writes:
-> >> 
-> >> > 2016-08-29 18:27 GMT+09:00 Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>:
-> >> >> js1304@gmail.com writes:
-> >> >>
-> >> >>> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> >> >>>
-> >> >>> Hello,
-> >> >>>
-> >> >>> Changes from v4
-> >> >>> o Rebase on next-20160825
-> >> >>> o Add general fix patch for lowmem reserve
-> >> >>> o Fix lowmem reserve ratio
-> >> >>> o Fix zone span optimizaion per Vlastimil
-> >> >>> o Fix pageset initialization
-> >> >>> o Change invocation timing on cma_init_reserved_areas()
-> >> >>
-> >> >> I don't see much information regarding how we interleave between
-> >> >> ZONE_CMA and other zones for movable allocation. Is that explained in
-> >> >> any of the patch ? The fair zone allocator got removed by
-> >> >> e6cbd7f2efb433d717af72aa8510a9db6f7a7e05
-> >> >
-> >> > Interleaving would not work since the fair zone allocator policy is removed.
-> >> > I don't think that it's a big problem because it is just matter of
-> >> > timing to fill
-> >> > up the memory. Eventually, memory on ZONE_CMA will be fully used in
-> >> > any case.
-> >> 
-> >> Does that mean a CMA allocation will now be slower because in most case we
-> >> will need to reclaim ? The zone list will now have ZONE_CMA in the
-> >> beginning right ?
-> >
-> > ZONE_CMA will be used first but I don't think that CMA allocation will
-> > be slower. In most case, memory would be fully used (usually
-> > by page cache). So, we need reclaim or migration in any case.
-> 
-> Considering that the upstream kernel doesn't allow migration of THP
-> pages, this would mean that migrate will fail in most case if we have
-> THP enabled and the THP allocation request got satisfied via ZONE_CMA.
-> Isn't that going to be a problem ?
+2016-09-01 13:46 GMT+08:00 Li, Liang Z <liang.z.li@intel.com>:
+>> Subject: Re: [PATCH v3 kernel 0/7] Extend virtio-balloon for fast (de)inflating
+>> & fast live migration
+>>
+>> 2016-08-08 14:35 GMT+08:00 Liang Li <liang.z.li@intel.com>:
+>> > This patch set contains two parts of changes to the virtio-balloon.
+>> >
+>> > One is the change for speeding up the inflating & deflating process,
+>> > the main idea of this optimization is to use bitmap to send the page
+>> > information to host instead of the PFNs, to reduce the overhead of
+>> > virtio data transmission, address translation and madvise(). This can
+>> > help to improve the performance by about 85%.
+>> >
+>> > Another change is for speeding up live migration. By skipping process
+>> > guest's free pages in the first round of data copy, to reduce needless
+>> > data processing, this can help to save quite a lot of CPU cycles and
+>> > network bandwidth. We put guest's free page information in bitmap and
+>> > send it to host with the virt queue of virtio-balloon. For an idle 8GB
+>> > guest, this can help to shorten the total live migration time from
+>> > 2Sec to about 500ms in the 10Gbps network environment.
+>>
+>> I just read the slides of this feature for recent kvm forum, the cloud
+>> providers more care about live migration downtime to avoid customers'
+>> perception than total time, however, this feature will increase downtime
+>> when acquire the benefit of reducing total time, maybe it will be more
+>> acceptable if there is no downside for downtime.
+>>
+>> Regards,
+>> Wanpeng Li
+>
+> In theory, there is no factor that will increase the downtime. There is no additional operation
+> and no more data copy during the stop and copy stage. But in the test, the downtime increases
+> and this can be reproduced. I think the busy network line maybe the reason for this. With this
+>  optimization, a huge amount of data is written to the socket in a shorter time, so some of the write
+> operation may need to wait. Without this optimization, zero page checking takes more time,
+> the network is not so busy.
+>
+> If the guest is not an idle one, I think the gap of the downtime will not so obvious.  Anyway, the
 
-I think that it is a separate problem. Once we restore utilization of
-CMA area, it would become a problem in any case. It is just hidden by
-utilization bug and should be handled separately. I guess that it's
-not that hard to fix that problem.
+http://www.linux-kvm.org/images/c/c3/03x06B-Liang_Li-Real_Time_and_Fast_Live_Migration_Update_for_NFV.pdf
+The slides show almost the similar percentage for the idle and the
+non-idle guests, they both increase  ~50% downtime.
 
-Thanks.
+Regards,
+Wanpeng Li
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
