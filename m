@@ -1,65 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D3396B0038
-	for <linux-mm@kvack.org>; Thu,  1 Sep 2016 16:37:20 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id 101so208143472qtb.0
-        for <linux-mm@kvack.org>; Thu, 01 Sep 2016 13:37:20 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 758B06B0038
+	for <linux-mm@kvack.org>; Thu,  1 Sep 2016 17:22:49 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id m89so34593056pfj.1
+        for <linux-mm@kvack.org>; Thu, 01 Sep 2016 14:22:49 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id u129si1851707pfu.78.2016.09.01.13.37.19
+        by mx.google.com with ESMTPS id zd5si7369676pac.155.2016.09.01.14.22.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Sep 2016 13:37:19 -0700 (PDT)
-Date: Thu, 1 Sep 2016 13:37:17 -0700
+        Thu, 01 Sep 2016 14:22:48 -0700 (PDT)
+Date: Thu, 1 Sep 2016 14:22:46 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3] memory-hotplug: fix store_mem_state() return value
-Message-Id: <20160901133717.8d753013cfbb640dd28c2783@linux-foundation.org>
-In-Reply-To: <1472743777-24266-1-git-send-email-arbab@linux.vnet.ibm.com>
-References: <1472743777-24266-1-git-send-email-arbab@linux.vnet.ibm.com>
+Subject: Re: [PATCH -v2 01/10] swap: Change SWAPFILE_CLUSTER to 512
+Message-Id: <20160901142246.631fe47a558bb7522f73c034@linux-foundation.org>
+In-Reply-To: <1472743023-4116-2-git-send-email-ying.huang@intel.com>
+References: <1472743023-4116-1-git-send-email-ying.huang@intel.com>
+	<1472743023-4116-2-git-send-email-ying.huang@intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Reza Arbab <arbab@linux.vnet.ibm.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vitaly Kuznetsov <vkuznets@redhat.com>, David Rientjes <rientjes@google.com>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dan Williams <dan.j.williams@intel.com>, Xishi Qiu <qiuxishi@huawei.com>, David Vrabel <david.vrabel@citrix.com>, Chen Yucong <slaoub@gmail.com>, Andrew Banman <abanman@sgi.com>, Seth Jennings <sjenning@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
 
-On Thu,  1 Sep 2016 10:29:37 -0500 Reza Arbab <arbab@linux.vnet.ibm.com> wrote:
+On Thu,  1 Sep 2016 08:16:54 -0700 "Huang, Ying" <ying.huang@intel.com> wrote:
 
-> If store_mem_state() is called to online memory which is already online,
-> it will return 1, the value it got from device_online().
+> From: Huang Ying <ying.huang@intel.com>
 > 
-> This is wrong because store_mem_state() is a device_attribute .store
-> function. Thus a non-negative return value represents input bytes read.
+> In this patch, the size of the swap cluster is changed to that of the
+> THP (Transparent Huge Page) on x86_64 architecture (512).  This is for
+> the THP swap support on x86_64.  Where one swap cluster will be used to
+> hold the contents of each THP swapped out.  And some information of the
+> swapped out THP (such as compound map count) will be recorded in the
+> swap_cluster_info data structure.
 > 
-> Set the return value to -EINVAL in this case.
+> In effect,  this will enlarge swap  cluster size by 2  times.  Which may
+> make  it harder  to find  a  free cluster  when the  swap space  becomes
+> fragmented.   So  that,  this  may  reduce  the  continuous  swap  space
+> allocation and sequential write in theory.  The performance test in 0day
+> show no regressions caused by this.
 > 
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -196,7 +196,7 @@ static void discard_swap_cluster(struct swap_info_struct *si,
+>  	}
+>  }
+>  
+> -#define SWAPFILE_CLUSTER	256
+> +#define SWAPFILE_CLUSTER	512
+>  #define LATENCY_LIMIT		256
+>  
 
-I actually made the mistake of reading this code.
-
-What the heck are the return value semantics of bus_type.online? 
-Sometimes 0, sometimes 1 and apparently sometimes -Efoo values.  What
-are these things trying to tell the caller and why is "1" ever useful
-and why doesn't anyone document anything.  grr.
-
-And now I don't understand this patch.  Because:
-
-static int memory_subsys_online(struct device *dev)
-{
-	struct memory_block *mem = to_memory_block(dev);
-	int ret;
-
-	if (mem->state == MEM_ONLINE)
-		return 0;
-
-Doesn't that "return 0" contradict the changelog?
-
-Also, is store_mem_state() the correct place to fix this?  Instead,
-should memory_block_change_state() detect an attempt to online
-already-online memory and itself return -EINVAL, and permit that to be
-propagated back?  Well, that depends on the bus_type.online rules which
-appear to be undocumented.  What is the bus implementation supposed to
-do when a request is made to online an already-online device?
-
+What happens to architectures which have different HPAGE_SIZE and/or
+PAGE_SIZE?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
