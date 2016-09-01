@@ -1,67 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6407A6B0069
-	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 20:26:13 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id i184so25110823itf.3
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 17:26:13 -0700 (PDT)
-Received: from tyo201.gate.nec.co.jp (TYO201.gate.nec.co.jp. [210.143.35.51])
-        by mx.google.com with ESMTPS id y6si2832123ota.280.2016.08.31.17.26.12
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 35B4E6B0038
+	for <linux-mm@kvack.org>; Wed, 31 Aug 2016 20:28:29 -0400 (EDT)
+Received: by mail-ua0-f200.google.com with SMTP id j4so142535927uaj.2
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 17:28:29 -0700 (PDT)
+Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com. [2607:f8b0:400e:c03::22a])
+        by mx.google.com with ESMTPS id kv2si2340068pab.145.2016.08.31.17.28.28
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 31 Aug 2016 17:26:12 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] mm: memcontrol: Make the walk_page_range() limit obvious
-Date: Thu, 1 Sep 2016 00:24:39 +0000
-Message-ID: <20160901002438.GB9620@hori1.linux.bs1.fc.nec.co.jp>
-References: <1472655897-22532-1-git-send-email-james.morse@arm.com>
- <20160831151730.GF21661@dhcp22.suse.cz>
-In-Reply-To: <20160831151730.GF21661@dhcp22.suse.cz>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <04683ED2C346F642AE6658F0EAE1963D@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 31 Aug 2016 17:28:28 -0700 (PDT)
+Received: by mail-pa0-x22a.google.com with SMTP id cy9so23513884pac.0
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 17:28:28 -0700 (PDT)
+Date: Wed, 31 Aug 2016 17:28:26 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RESEND PATCH v2] memory-hotplug: fix store_mem_state() return
+ value
+In-Reply-To: <20160901001751.m3z2snlop2djzqgd@arbab-vm>
+Message-ID: <alpine.DEB.2.10.1608311722080.24833@chino.kir.corp.google.com>
+References: <20160831150105.GB26702@kroah.com> <1472658241-32748-1-git-send-email-arbab@linux.vnet.ibm.com> <20160831132557.c5cf0985e3da5f2850a10b1d@linux-foundation.org> <alpine.DEB.2.10.1608311402520.33967@chino.kir.corp.google.com> <20160831233811.g6kf24fdhnfhn637@arbab-vm>
+ <alpine.DEB.2.10.1608311652110.112811@chino.kir.corp.google.com> <20160901001751.m3z2snlop2djzqgd@arbab-vm>
 MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: James Morse <james.morse@arm.com>, "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov@virtuozzo.com>
+To: Reza Arbab <arbab@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vitaly Kuznetsov <vkuznets@redhat.com>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dan Williams <dan.j.williams@intel.com>, Xishi Qiu <qiuxishi@huawei.com>, David Vrabel <david.vrabel@citrix.com>, Chen Yucong <slaoub@gmail.com>, Andrew Banman <abanman@sgi.com>, Seth Jennings <sjenning@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Aug 31, 2016 at 05:17:30PM +0200, Michal Hocko wrote:
-> On Wed 31-08-16 16:04:57, James Morse wrote:
-> > Trying to walk all of virtual memory requires architecture specific
-> > knowledge. On x86_64, addresses must be sign extended from bit 48,
-> > whereas on arm64 the top VA_BITS of address space have their own set
-> > of page tables.
-> >=20
-> > mem_cgroup_count_precharge() and mem_cgroup_move_charge() both call
-> > walk_page_range() on the range 0 to ~0UL, neither provide a pte_hole
-> > callback, which causes the current implementation to skip non-vma regio=
-ns.
-> >=20
-> > As this call only expects to walk user address space, make it walk
-> > 0 to  'highest_vm_end'.
-> >=20
-> > Signed-off-by: James Morse <james.morse@arm.com>
-> > Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > ---
-> > This is in preparation for a RFC series that allows walk_page_range() t=
-o
-> > walk kernel page tables too.
->=20
-> OK, so do I get it right that this is only needed with that change?
-> Because AFAICS walk_page_range will be bound to the last vma->vm_end
-> right now.
+On Wed, 31 Aug 2016, Reza Arbab wrote:
 
-I think this is correct, find_vma() in walk_page_range() does that.
+> > Nope, the return value of changing state from online to online was
+> > established almost 11 years ago in commit 3947be1969a9.
+> 
+> Fair enough. So if online-to-online is -EINVAL, 
 
-> If this is the case this should be mentioned in the changelog
-> because the above might confuse somebody to think this is a bug fix.
->=20
-> Other than that this seams reasonable to me.
+online-to-online for state is -EINVAL, it has been since 2005.
 
-I'm fine with this change.
+> 1. Shouldn't 'echo 1 > online' then also return -EINVAL?
+> 
 
-Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>=
+No, it's a different tunable.  There's no requirement that two different 
+tunables that do a similar thing have the same return values: the former 
+existed long before device_online() and still exists for backwards 
+compatibility.
+
+> 2. store_mem_state() still needs a tweak, right? It was only returning -EINVAL
+> by accident, due to the convoluted sequence I listed in the patch.
+> 
+
+Yes, absolutely.  It returning -EINVAL for "nline" is what is accidently 
+preserving it's backwards compatibility :)  Note that device_online() 
+returns 1 if already online and memory_subsys_online() returns 0 if online 
+in this case.  So we want store_mem_state() to return -EINVAL if 
+device_online() returns non-zero (this was in my first email).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
