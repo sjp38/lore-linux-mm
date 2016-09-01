@@ -1,35 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 44AF76B0038
-	for <linux-mm@kvack.org>; Thu,  1 Sep 2016 04:51:15 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id e7so55514274lfe.0
-        for <linux-mm@kvack.org>; Thu, 01 Sep 2016 01:51:15 -0700 (PDT)
-Received: from outbound-smtp06.blacknight.com (outbound-smtp06.blacknight.com. [81.17.249.39])
-        by mx.google.com with ESMTPS id aq5si4591069wjc.126.2016.09.01.01.51.13
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E5C6E6B0038
+	for <linux-mm@kvack.org>; Thu,  1 Sep 2016 05:13:50 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id e7so55982528lfe.0
+        for <linux-mm@kvack.org>; Thu, 01 Sep 2016 02:13:50 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id e125si28505247wma.60.2016.09.01.02.13.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 01 Sep 2016 01:51:13 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp06.blacknight.com (Postfix) with ESMTPS id DD9E49930D
-	for <linux-mm@kvack.org>; Thu,  1 Sep 2016 08:51:12 +0000 (UTC)
-Date: Thu, 1 Sep 2016 09:51:11 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 01 Sep 2016 02:13:49 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id w207so7434567wmw.0
+        for <linux-mm@kvack.org>; Thu, 01 Sep 2016 02:13:49 -0700 (PDT)
+Date: Thu, 1 Sep 2016 11:13:48 +0200
+From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH -v2] mm: Don't use radix tree writeback tags for pages in
  swap cache
-Message-ID: <20160901085111.GC8119@techsingularity.net>
+Message-ID: <20160901091347.GC12147@dhcp22.suse.cz>
 References: <1472578089-5560-1-git-send-email-ying.huang@intel.com>
  <20160831091459.GY8119@techsingularity.net>
  <20160831143031.4e5a180f969ec6997637a96f@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 In-Reply-To: <20160831143031.4e5a180f969ec6997637a96f@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Tejun Heo <tj@kernel.org>, Wu Fengguang <fengguang.wu@intel.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>, "Huang, Ying" <ying.huang@intel.com>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Tejun Heo <tj@kernel.org>, Wu Fengguang <fengguang.wu@intel.com>
 
-On Wed, Aug 31, 2016 at 02:30:31PM -0700, Andrew Morton wrote:
+On Wed 31-08-16 14:30:31, Andrew Morton wrote:
 > On Wed, 31 Aug 2016 10:14:59 +0100 Mel Gorman <mgorman@techsingularity.net> wrote:
 > 
 > > >    2506952 __  2%     +28.1%    3212076 __  7%  vm-scalability.throughput
@@ -44,18 +43,13 @@ On Wed, Aug 31, 2016 at 02:30:31PM -0700, Andrew Morton wrote:
 > > that this hunk means we are now out of GFP bits.
 > 
 > Well ugh.  What are we to do about that?
-> 
 
-It'll stop silent breakage so
-
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
-
-Whoever hits it will need to take similar steps we had to with page->flags
-by making some 64-bit only, removing flags or inferring the flag values
-from other sources.
-
+Can we simply give these AS_ flags their own word in mapping rather than
+squash them together with gfp flags and impose the restriction on the
+number of gfp flags. There was some demand for new gfp flags already and
+mapping flags were in the way.
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
