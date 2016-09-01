@@ -1,62 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AD2A36B0038
-	for <linux-mm@kvack.org>; Thu,  1 Sep 2016 13:32:53 -0400 (EDT)
-Received: by mail-ua0-f197.google.com with SMTP id j4so190835885uaj.2
-        for <linux-mm@kvack.org>; Thu, 01 Sep 2016 10:32:53 -0700 (PDT)
-Received: from sandeen.net (sandeen.net. [63.231.237.45])
-        by mx.google.com with ESMTP id o14si21068694itb.13.2016.09.01.10.32.52
-        for <linux-mm@kvack.org>;
-        Thu, 01 Sep 2016 10:32:52 -0700 (PDT)
-Subject: Re: [PATCH] fs:Fix kmemleak leak warning in getname_flags about
- working on unitialized memory
-References: <1470260896-31767-1-git-send-email-xerofoify@gmail.com>
- <df8dd6cd-245d-0673-0246-e514b2a67fc2@I-love.SAKURA.ne.jp>
- <20160804135712.GK2356@ZenIV.linux.org.uk>
- <f20e389d-2269-9aca-0fd5-019b7a042f9e@sandeen.net>
- <20160901171637.GO2356@ZenIV.linux.org.uk>
-From: Eric Sandeen <sandeen@sandeen.net>
-Message-ID: <4856a8c0-890d-da93-510d-d177b9133eb5@sandeen.net>
-Date: Thu, 1 Sep 2016 12:32:51 -0500
-MIME-Version: 1.0
-In-Reply-To: <20160901171637.GO2356@ZenIV.linux.org.uk>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 8bit
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D3396B0038
+	for <linux-mm@kvack.org>; Thu,  1 Sep 2016 16:37:20 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id 101so208143472qtb.0
+        for <linux-mm@kvack.org>; Thu, 01 Sep 2016 13:37:20 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id u129si1851707pfu.78.2016.09.01.13.37.19
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 01 Sep 2016 13:37:19 -0700 (PDT)
+Date: Thu, 1 Sep 2016 13:37:17 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3] memory-hotplug: fix store_mem_state() return value
+Message-Id: <20160901133717.8d753013cfbb640dd28c2783@linux-foundation.org>
+In-Reply-To: <1472743777-24266-1-git-send-email-arbab@linux.vnet.ibm.com>
+References: <1472743777-24266-1-git-send-email-arbab@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Al Viro <viro@ZenIV.linux.org.uk>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, msalter@redhat.com, kuleshovmail@gmail.com, david.vrabel@citrix.com, vbabka@suse.cz, ard.biesheuvel@linaro.org, jgross@suse.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Reza Arbab <arbab@linux.vnet.ibm.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vitaly Kuznetsov <vkuznets@redhat.com>, David Rientjes <rientjes@google.com>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dan Williams <dan.j.williams@intel.com>, Xishi Qiu <qiuxishi@huawei.com>, David Vrabel <david.vrabel@citrix.com>, Chen Yucong <slaoub@gmail.com>, Andrew Banman <abanman@sgi.com>, Seth Jennings <sjenning@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 9/1/16 12:16 PM, Al Viro wrote:
-> On Thu, Sep 01, 2016 at 08:10:44AM -0500, Eric Sandeen wrote:
->> On 8/4/16 8:57 AM, Al Viro wrote:
->>
->>> Don't feed the troll.  On all paths leading to that place we have
->>>         result->name = kname;
->>>         len = strncpy_from_user(kname, filename, EMBEDDED_NAME_MAX);
->>> or
->>>                 result->name = kname;
->>>                 len = strncpy_from_user(kname, filename, PATH_MAX);
->>> with failure exits taken if strncpy_from_user() returns an error, which means
->>> that the damn thing has already been copied into.
->>>
->>> FWIW, it looks a lot like buggered kmemcheck; as usual, he can't be bothered
->>> to mention which kernel version would it be (let alone how to reproduce it
->>> on the kernel in question), but IIRC davej had run into some instrumentation
->>> breakage lately.
->>
->> The original report is in https://bugzilla.kernel.org/show_bug.cgi?id=120651
->> if anyone is interested in it.
+On Thu,  1 Sep 2016 10:29:37 -0500 Reza Arbab <arbab@linux.vnet.ibm.com> wrote:
+
+> If store_mem_state() is called to online memory which is already online,
+> it will return 1, the value it got from device_online().
 > 
-> 	What the hell does that one have to getname_flags(), other than having
-> attracted the same... something on the edge of failing the Turing Test?
+> This is wrong because store_mem_state() is a device_attribute .store
+> function. Thus a non-negative return value represents input bytes read.
+> 
+> Set the return value to -EINVAL in this case.
+> 
 
-Sigh, pasted the wrong one, thus making things worse.
+I actually made the mistake of reading this code.
 
-I suppose reverse-engineering Nick is a fool's errand, only adding to the
-noise, sorry.  I'll stop.  ;)
+What the heck are the return value semantics of bus_type.online? 
+Sometimes 0, sometimes 1 and apparently sometimes -Efoo values.  What
+are these things trying to tell the caller and why is "1" ever useful
+and why doesn't anyone document anything.  grr.
 
--Eric
+And now I don't understand this patch.  Because:
+
+static int memory_subsys_online(struct device *dev)
+{
+	struct memory_block *mem = to_memory_block(dev);
+	int ret;
+
+	if (mem->state == MEM_ONLINE)
+		return 0;
+
+Doesn't that "return 0" contradict the changelog?
+
+Also, is store_mem_state() the correct place to fix this?  Instead,
+should memory_block_change_state() detect an attempt to online
+already-online memory and itself return -EINVAL, and permit that to be
+propagated back?  Well, that depends on the bus_type.online rules which
+appear to be undocumented.  What is the bus implementation supposed to
+do when a request is made to online an already-online device?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
