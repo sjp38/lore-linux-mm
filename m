@@ -1,57 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 483EB6B0038
-	for <linux-mm@kvack.org>; Thu,  1 Sep 2016 02:18:52 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id u81so53705644wmu.3
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 23:18:52 -0700 (PDT)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id gz2si4084132wjc.141.2016.08.31.23.18.50
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BE1F6B0038
+	for <linux-mm@kvack.org>; Thu,  1 Sep 2016 02:56:27 -0400 (EDT)
+Received: by mail-yw0-f199.google.com with SMTP id j12so150633458ywb.3
+        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 23:56:27 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id y129si4777027oie.222.2016.08.31.23.56.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Aug 2016 23:18:50 -0700 (PDT)
-Received: by mail-wm0-x244.google.com with SMTP id i138so10986454wmf.3
-        for <linux-mm@kvack.org>; Wed, 31 Aug 2016 23:18:50 -0700 (PDT)
-Date: Thu, 1 Sep 2016 08:18:46 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCHv4 0/6] x86: 32-bit compatible C/R on x86_64
-Message-ID: <20160901061846.GA22552@gmail.com>
-References: <20160831135936.2281-1-dsafonov@virtuozzo.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 31 Aug 2016 23:56:26 -0700 (PDT)
+From: Zhen Lei <thunder.leizhen@huawei.com>
+Subject: [PATCH v8 05/16] arm64/numa: avoid inconsistent information to be printed
+Date: Thu, 1 Sep 2016 14:54:56 +0800
+Message-ID: <1472712907-12700-6-git-send-email-thunder.leizhen@huawei.com>
+In-Reply-To: <1472712907-12700-1-git-send-email-thunder.leizhen@huawei.com>
+References: <1472712907-12700-1-git-send-email-thunder.leizhen@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160831135936.2281-1-dsafonov@virtuozzo.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Safonov <dsafonov@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, 0x7f454c46@gmail.com, tglx@linutronix.de, hpa@zytor.com, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, gorcunov@openvz.org, xemul@virtuozzo.com
+To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, linux-kernel <linux-kernel@vger.kernel.org>, Rob Herring <robh+dt@kernel.org>, Frank
+ Rowand <frowand.list@gmail.com>, devicetree <devicetree@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+Cc: Zefan Li <lizefan@huawei.com>, Xinwei Hu <huxinwei@huawei.com>, Tianhong
+ Ding <dingtianhong@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Zhen Lei <thunder.leizhen@huawei.com>
 
+numa_init may return error because of numa configuration error. So "No
+NUMA configuration found" is inaccurate. In fact, specific configuration
+error information should be immediately printed by the testing branch.
 
-* Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
+Signed-off-by: Zhen Lei <thunder.leizhen@huawei.com>
+---
+ arch/arm64/kernel/acpi_numa.c | 4 +++-
+ arch/arm64/mm/numa.c          | 6 +++---
+ 2 files changed, 6 insertions(+), 4 deletions(-)
 
-> Changes from v3:
-> - proper ifdefs around vdso_image_32
-> - missed Reviewed-by tag
+diff --git a/arch/arm64/kernel/acpi_numa.c b/arch/arm64/kernel/acpi_numa.c
+index f85149c..f01fab6 100644
+--- a/arch/arm64/kernel/acpi_numa.c
++++ b/arch/arm64/kernel/acpi_numa.c
+@@ -105,8 +105,10 @@ int __init arm64_acpi_numa_init(void)
+ 	int ret;
 
->  arch/x86/entry/vdso/vma.c         | 81 +++++++++++++++++++++++++++------------
->  arch/x86/ia32/ia32_signal.c       |  2 +-
->  arch/x86/include/asm/compat.h     |  8 ++--
->  arch/x86/include/asm/fpu/signal.h |  6 +++
->  arch/x86/include/asm/signal.h     |  4 ++
->  arch/x86/include/asm/vdso.h       |  2 +
->  arch/x86/include/uapi/asm/prctl.h |  6 +++
->  arch/x86/kernel/process_64.c      | 25 ++++++++++++
->  arch/x86/kernel/ptrace.c          |  2 +-
->  arch/x86/kernel/signal.c          | 20 +++++-----
->  arch/x86/kernel/signal_compat.c   | 34 ++++++++++++++--
->  fs/binfmt_elf.c                   | 23 ++++-------
->  kernel/signal.c                   |  7 ++++
->  13 files changed, 162 insertions(+), 58 deletions(-)
+ 	ret = acpi_numa_init();
+-	if (ret)
++	if (ret) {
++		pr_info("Failed to initialise from firmware\n");
+ 		return ret;
++	}
 
-Ok, this series looks good to me - does anyone have any objections?
+ 	return srat_disabled() ? -EINVAL : 0;
+ }
+diff --git a/arch/arm64/mm/numa.c b/arch/arm64/mm/numa.c
+index 5bb15ea..d97c6e2 100644
+--- a/arch/arm64/mm/numa.c
++++ b/arch/arm64/mm/numa.c
+@@ -335,8 +335,10 @@ static int __init numa_init(int (*init_func)(void))
+ 	if (ret < 0)
+ 		return ret;
 
-Thanks,
+-	if (nodes_empty(numa_nodes_parsed))
++	if (nodes_empty(numa_nodes_parsed)) {
++		pr_info("No NUMA configuration found\n");
+ 		return -EINVAL;
++	}
 
-	Ingo
+ 	ret = numa_register_nodes();
+ 	if (ret < 0)
+@@ -367,8 +369,6 @@ static int __init dummy_numa_init(void)
+
+ 	if (numa_off)
+ 		pr_info("NUMA disabled\n"); /* Forced off on command line. */
+-	else
+-		pr_info("No NUMA configuration found\n");
+ 	pr_info("NUMA: Faking a node at [mem %#018Lx-%#018Lx]\n",
+ 	       0LLU, PFN_PHYS(max_pfn) - 1);
+
+--
+2.5.0
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
