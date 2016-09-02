@@ -1,117 +1,261 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BB976B0038
-	for <linux-mm@kvack.org>; Fri,  2 Sep 2016 00:34:26 -0400 (EDT)
-Received: by mail-yb0-f197.google.com with SMTP id 18so100652035ybc.3
-        for <linux-mm@kvack.org>; Thu, 01 Sep 2016 21:34:26 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id 1si9265064pag.201.2016.09.01.21.34.25
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Sep 2016 21:34:25 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u824XVEn011563
-	for <linux-mm@kvack.org>; Fri, 2 Sep 2016 00:34:25 -0400
-Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com [202.81.31.140])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 256b4fapw3-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 02 Sep 2016 00:34:24 -0400
-Received: from localhost
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Fri, 2 Sep 2016 14:34:22 +1000
-Received: from d23relay07.au.ibm.com (d23relay07.au.ibm.com [9.190.26.37])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id B79A32CE8046
-	for <linux-mm@kvack.org>; Fri,  2 Sep 2016 14:34:18 +1000 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u824YIWk47120548
-	for <linux-mm@kvack.org>; Fri, 2 Sep 2016 14:34:18 +1000
-Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u824YIc1006005
-	for <linux-mm@kvack.org>; Fri, 2 Sep 2016 14:34:18 +1000
-Date: Fri, 02 Sep 2016 10:04:11 +0530
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 05F6F6B0038
+	for <linux-mm@kvack.org>; Fri,  2 Sep 2016 02:57:19 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id 192so21143763itm.1
+        for <linux-mm@kvack.org>; Thu, 01 Sep 2016 23:57:19 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id y5si9972309pax.43.2016.09.01.23.57.16
+        for <linux-mm@kvack.org>;
+        Thu, 01 Sep 2016 23:57:18 -0700 (PDT)
+Subject: Re: [PATCH v12 0/7] Make cpuid <-> nodeid mapping persistent
+References: <1472114120-3281-1-git-send-email-douly.fnst@cn.fujitsu.com>
+From: Dou Liyang <douly.fnst@cn.fujitsu.com>
+Message-ID: <5cdaa83f-142b-b9a0-6b7b-57c9162fc537@cn.fujitsu.com>
+Date: Fri, 2 Sep 2016 14:57:10 +0800
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] mm: Add sysfs interface to dump each node's zonelist
- information
-References: <1472613950-16867-1-git-send-email-khandual@linux.vnet.ibm.com> <1472613950-16867-2-git-send-email-khandual@linux.vnet.ibm.com> <20160831141239.9624b38201796007c2735029@linux-foundation.org>
-In-Reply-To: <20160831141239.9624b38201796007c2735029@linux-foundation.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <57C90143.2030403@linux.vnet.ibm.com>
+In-Reply-To: <1472114120-3281-1-git-send-email-douly.fnst@cn.fujitsu.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: cl@linux.com, tj@kernel.org, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, len.brown@intel.com, lenb@kernel.org, tglx@linutronix.de, chen.tang@easystack.cn, rafael@kernel.org
+Cc: x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 09/01/2016 02:42 AM, Andrew Morton wrote:
-> On Wed, 31 Aug 2016 08:55:50 +0530 Anshuman Khandual <khandual@linux.vnet.ibm.com> wrote:
-> 
->> Each individual node in the system has a ZONELIST_FALLBACK zonelist
->> and a ZONELIST_NOFALLBACK zonelist. These zonelists decide fallback
->> order of zones during memory allocations. Sometimes it helps to dump
->> these zonelists to see the priority order of various zones in them.
->> This change just adds a sysfs interface for doing the same.
->>
->> Example zonelist information from a KVM guest.
->>
->> [NODE (0)]
->>         ZONELIST_FALLBACK
->>         (0) (node 0) (zone DMA c00000000140c000)
->>         (1) (node 1) (zone DMA c000000100000000)
->>         (2) (node 2) (zone DMA c000000200000000)
->>         (3) (node 3) (zone DMA c000000300000000)
->>         ZONELIST_NOFALLBACK
->>         (0) (node 0) (zone DMA c00000000140c000)
->> [NODE (1)]
->>         ZONELIST_FALLBACK
->>         (0) (node 1) (zone DMA c000000100000000)
->>         (1) (node 2) (zone DMA c000000200000000)
->>         (2) (node 3) (zone DMA c000000300000000)
->>         (3) (node 0) (zone DMA c00000000140c000)
->>         ZONELIST_NOFALLBACK
->>         (0) (node 1) (zone DMA c000000100000000)
->> [NODE (2)]
->>         ZONELIST_FALLBACK
->>         (0) (node 2) (zone DMA c000000200000000)
->>         (1) (node 3) (zone DMA c000000300000000)
->>         (2) (node 0) (zone DMA c00000000140c000)
->>         (3) (node 1) (zone DMA c000000100000000)
->>         ZONELIST_NOFALLBACK
->>         (0) (node 2) (zone DMA c000000200000000)
->> [NODE (3)]
->>         ZONELIST_FALLBACK
->>         (0) (node 3) (zone DMA c000000300000000)
->>         (1) (node 0) (zone DMA c00000000140c000)
->>         (2) (node 1) (zone DMA c000000100000000)
->>         (3) (node 2) (zone DMA c000000200000000)
->>         ZONELIST_NOFALLBACK
->>         (0) (node 3) (zone DMA c000000300000000)
-> 
-> Can you please sell this a bit better?  Why does it "sometimes help"?
-> Why does the benefit of this patch to our users justify the overhead
-> and cost?
+Ping...
 
-On platforms which support memory hotplug into previously non existing
-(at boot) zones, this interface helps in visualizing which zonelists
-of the system, the new hot added memory ends up in. POWER is such a
-platform where all the memory detected during boot time remains with
-ZONE_DMA for good but then hot plug process can actually get new memory
-into ZONE_MOVABLE. So having a way to get the snapshot of the zonelists
-on the system after memory or node hot[un]plug is a good thing, IMHO.
+At 08/25/2016 04:35 PM, Dou Liyang wrote:
+> [Summary]
+>
+> Use ACPI tables: MADT, DSDT.
+> 1. Create cpuid in order based on Local Apic ID in MADT(apicid).
+> 2. Obtain the nodeid by the proc_id in DSDT.
+> 3. Make the cpuid <-> nodeid mapping persistent.
+>
+> The mapping relations:
+>
+> proc_id in DSDT <--> Processor ID in MADT(acpiid) <--> Local Apic ID in MADT(apicid)
+>         ^                                                        ^
+>         |                                                        |
+>         va??                                                       va??
+>    pxm in DSDT                                                 cpuid
+>         ^
+>         |
+>         v
+>      nodeid
+>
+> [Problem]
+>
+> cpuid <-> nodeid mapping is firstly established at boot time. And workqueue caches
+> the mapping in wq_numa_possible_cpumask in wq_numa_init() at boot time.
+>
+> When doing node online/offline, cpuid <-> nodeid mapping is established/destroyed,
+> which means, cpuid <-> nodeid mapping will change if node hotplug happens. But
+> workqueue does not update wq_numa_possible_cpumask.
+>
+> So here is the problem:
+>
+> Assume we have the following cpuid <-> nodeid in the beginning:
+>
+>   Node | CPU
+> ------------------------
+> node 0 |  0-14, 60-74
+> node 1 | 15-29, 75-89
+> node 2 | 30-44, 90-104
+> node 3 | 45-59, 105-119
+>
+> and we hot-remove node2 and node3, it becomes:
+>
+>   Node | CPU
+> ------------------------
+> node 0 |  0-14, 60-74
+> node 1 | 15-29, 75-89
+>
+> and we hot-add node4 and node5, it becomes:
+>
+>   Node | CPU
+> ------------------------
+> node 0 |  0-14, 60-74
+> node 1 | 15-29, 75-89
+> node 4 | 30-59
+> node 5 | 90-119
+>
+> But in wq_numa_possible_cpumask, cpu30 is still mapped to node2, and the like.
+>
+> When a pool workqueue is initialized, if its cpumask belongs to a node, its
+> pool->node will be mapped to that node. And memory used by this workqueue will
+> also be allocated on that node.
+>
+> static struct worker_pool *get_unbound_pool(const struct workqueue_attrs *attrs){
+> ...
+>         /* if cpumask is contained inside a NUMA node, we belong to that node */
+>         if (wq_numa_enabled) {
+>                 for_each_node(node) {
+>                         if (cpumask_subset(pool->attrs->cpumask,
+>                                            wq_numa_possible_cpumask[node])) {
+>                                 pool->node = node;
+>                                 break;
+>                         }
+>                 }
+>         }
+>
+> Since wq_numa_possible_cpumask is not updated, it could be mapped to an offline node,
+> which will lead to memory allocation failure:
+>
+>  SLUB: Unable to allocate memory on node 2 (gfp=0x80d0)
+>   cache: kmalloc-192, object size: 192, buffer size: 192, default order: 1, min order: 0
+>   node 0: slabs: 6172, objs: 259224, free: 245741
+>   node 1: slabs: 3261, objs: 136962, free: 127656
+>
+> It happens here:
+>
+> create_worker(struct worker_pool *pool)
+>  |--> worker = alloc_worker(pool->node);
+>
+> static struct worker *alloc_worker(int node)
+> {
+>         struct worker *worker;
+>
+>         worker = kzalloc_node(sizeof(*worker), GFP_KERNEL, node); --> Here, useing the wrong node.
+>
+>         ......
+>
+>         return worker;
+> }
+>
+>
+> [Solution]
+>
+> There are four mappings in the kernel:
+> 1. nodeid (logical node id)   <->   pxm
+> 2. apicid (physical cpu id)   <->   nodeid
+> 3. cpuid (logical cpu id)     <->   apicid
+> 4. cpuid (logical cpu id)     <->   nodeid
+>
+> 1. pxm (proximity domain) is provided by ACPI firmware in SRAT, and nodeid <-> pxm
+>    mapping is setup at boot time. This mapping is persistent, won't change.
+>
+> 2. apicid <-> nodeid mapping is setup using info in 1. The mapping is setup at boot
+>    time and CPU hotadd time, and cleared at CPU hotremove time. This mapping is also
+>    persistent.
+>
+> 3. cpuid <-> apicid mapping is setup at boot time and CPU hotadd time. cpuid is
+>    allocated, lower ids first, and released at CPU hotremove time, reused for other
+>    hotadded CPUs. So this mapping is not persistent.
+>
+> 4. cpuid <-> nodeid mapping is also setup at boot time and CPU hotadd time, and
+>    cleared at CPU hotremove time. As a result of 3, this mapping is not persistent.
+>
+> To fix this problem, we establish cpuid <-> nodeid mapping for all the possible
+> cpus at boot time, and make it persistent. And according to init_cpu_to_node(),
+> cpuid <-> nodeid mapping is based on apicid <-> nodeid mapping and cpuid <-> apicid
+> mapping. So the key point is obtaining all cpus' apicid.
+>
+> apicid can be obtained by _MAT (Multiple APIC Table Entry) method or found in
+> MADT (Multiple APIC Description Table). So we finish the job in the following steps:
+>
+> 1. Enable apic registeration flow to handle both enabled and disabled cpus.
+>    This is done by introducing an extra parameter to generic_processor_info to let the
+>    caller control if disabled cpus are ignored.
+>
+> 2. Introduce a new array storing all possible cpuid <-> apicid mapping. And also modify
+>    the way cpuid is calculated. Establish all possible cpuid <-> apicid mapping when
+>    registering local apic. Store the mapping in this array.
+>
+> 3. Enable _MAT and MADT relative apis to return non-presnet or disabled cpus' apicid.
+>    This is also done by introducing an extra parameter to these apis to let the caller
+>    control if disabled cpus are ignored.
+>
+> 4. Establish all possible cpuid <-> nodeid mapping.
+>    This is done via an additional acpi namespace walk for processors.
+>
+>
+> For previous discussion, please refer to:
+> https://lkml.org/lkml/2015/2/27/145
+> https://lkml.org/lkml/2015/3/25/989
+> https://lkml.org/lkml/2015/5/14/244
+> https://lkml.org/lkml/2015/7/7/200
+> https://lkml.org/lkml/2015/9/27/209
+> https://lkml.org/lkml/2016/5/19/212
+> https://lkml.org/lkml/2016/7/19/181
+> https://lkml.org/lkml/2016/7/25/99
+> https://lkml.org/lkml/2016/7/26/52
+> https://lkml.org/lkml/2016/8/8/96
+>
+> Change log v11 -> v12:
+> 1. Rebase
+> 2. Add a short summary
+>
+> Change log v10 -> v11:
+> 1. Reduce the number of repeat judgment of online/offline
+> 2. Seperate out the functionality in the enable or disable situation
+>
+> Change log v9 -> v10:
+> 1. Providing an empty definition of acpi_set_processor_mapping() for
+> CONFIG_ACPI_HOTPLUG_CPU unset. In patch 5.
+> 2. Fix auto build test ERROR on ia64/next. In patch 5.
+> 3. Fix some comment.
+>
+> Change log v8 -> v9:
+> 1. Providing an empty definition of acpi_set_processor_mapping() for
+> CONFIG_ACPI_HOTPLUG_CPU unset.
+>
+> Change log v7 -> v8:
+> 1. Provide the mechanism to validate processors in the ACPI tables.
+> 2. Provide the interface to validate the proc_id when setting the mapping.
+>
+> Change log v6 -> v7:
+> 1. Fix arm64 build failure.
+>
+> Change log v5 -> v6:
+> 1. Define func acpi_map_cpu2node() for x86 and ia64 respectively.
+>
+> Change log v4 -> v5:
+> 1. Remove useless code in patch 1.
+> 2. Small improvement of commit message.
+>
+> Change log v3 -> v4:
+> 1. Fix the kernel panic at boot time. The cause is that I tried to build zonelists
+>    before per cpu areas were initialized.
+>
+> Change log v2 -> v3:
+> 1. Online memory-less nodes at boot time to map cpus of memory-less nodes.
+> 2. Build zonelists for memory-less nodes so that memory allocator will fall
+>    back to proper nodes automatically.
+>
+> Change log v1 -> v2:
+> 1. Split code movement and actual changes. Add patch 1.
+> 2. Synchronize best near online node record when node hotplug happens. In patch 2.
+> 3. Fix some comment.
+>
+> Dou Liyang (2):
+>   acpi: Provide the mechanism to validate processors in the ACPI tables
+>   acpi: Provide the interface to validate the proc_id
+>
+> Gu Zheng (4):
+>   x86, acpi, cpu-hotplug: Enable acpi to register all possible cpus at
+>     boot time.
+>   x86, acpi, cpu-hotplug: Introduce cpuid_to_apicid[] array to store
+>     persistent cpuid <-> apicid mapping.
+>   x86, acpi, cpu-hotplug: Enable MADT APIs to return disabled apicid.
+>   x86, acpi, cpu-hotplug: Set persistent cpuid <-> nodeid mapping when
+>     booting.
+>
+> Tang Chen (1):
+>   x86, memhp, numa: Online memory-less nodes at boot time.
+>
+>  arch/ia64/kernel/acpi.c       |   3 +-
+>  arch/x86/include/asm/mpspec.h |   1 +
+>  arch/x86/kernel/acpi/boot.c   |  11 ++--
+>  arch/x86/kernel/apic/apic.c   |  77 +++++++++++++++++++++++--
+>  arch/x86/mm/numa.c            |  27 +++++----
+>  drivers/acpi/acpi_processor.c | 105 ++++++++++++++++++++++++++++++++-
+>  drivers/acpi/bus.c            |   1 +
+>  drivers/acpi/processor_core.c | 131 +++++++++++++++++++++++++++++++++++-------
+>  include/linux/acpi.h          |   6 ++
+>  9 files changed, 311 insertions(+), 51 deletions(-)
+>
 
-> 
-> Please document the full path to the sysfs file(s) within the changelog.
-
-Sure, will do.
-
-> 
-> Please find somewhere in Documentation/ to document the new interface.
-> 
-
-Sure, will create this following file describing the interface.
-
-Documentation/ABI/testing/sysfs-system-zone-details
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
