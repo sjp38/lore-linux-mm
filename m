@@ -1,261 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 05F6F6B0038
-	for <linux-mm@kvack.org>; Fri,  2 Sep 2016 02:57:19 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id 192so21143763itm.1
-        for <linux-mm@kvack.org>; Thu, 01 Sep 2016 23:57:19 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id y5si9972309pax.43.2016.09.01.23.57.16
-        for <linux-mm@kvack.org>;
-        Thu, 01 Sep 2016 23:57:18 -0700 (PDT)
-Subject: Re: [PATCH v12 0/7] Make cpuid <-> nodeid mapping persistent
-References: <1472114120-3281-1-git-send-email-douly.fnst@cn.fujitsu.com>
-From: Dou Liyang <douly.fnst@cn.fujitsu.com>
-Message-ID: <5cdaa83f-142b-b9a0-6b7b-57c9162fc537@cn.fujitsu.com>
-Date: Fri, 2 Sep 2016 14:57:10 +0800
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9602F6B0038
+	for <linux-mm@kvack.org>; Fri,  2 Sep 2016 05:00:41 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id k186so98473143qkb.3
+        for <linux-mm@kvack.org>; Fri, 02 Sep 2016 02:00:41 -0700 (PDT)
+Received: from mail-vk0-x232.google.com (mail-vk0-x232.google.com. [2607:f8b0:400c:c05::232])
+        by mx.google.com with ESMTPS id 129si4127004vkn.235.2016.09.02.02.00.40
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 02 Sep 2016 02:00:40 -0700 (PDT)
+Received: by mail-vk0-x232.google.com with SMTP id j189so8074623vkc.2
+        for <linux-mm@kvack.org>; Fri, 02 Sep 2016 02:00:40 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1472114120-3281-1-git-send-email-douly.fnst@cn.fujitsu.com>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 8bit
+From: Anand Kumar <anand.kumar@goibibo.com>
+Date: Fri, 2 Sep 2016 14:30:39 +0530
+Message-ID: <CAMobVyy7Lm++6OAjj8HAdGSLzSMsNneEN_nqL8Nfrg4miRv27g@mail.gmail.com>
+Subject: 
+Content-Type: multipart/alternative; boundary=001a11440b328817f2053b829032
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux.com, tj@kernel.org, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, len.brown@intel.com, lenb@kernel.org, tglx@linutronix.de, chen.tang@easystack.cn, rafael@kernel.org
-Cc: x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 
-Ping...
+--001a11440b328817f2053b829032
+Content-Type: text/plain; charset=UTF-8
 
-At 08/25/2016 04:35 PM, Dou Liyang wrote:
-> [Summary]
->
-> Use ACPI tables: MADT, DSDT.
-> 1. Create cpuid in order based on Local Apic ID in MADT(apicid).
-> 2. Obtain the nodeid by the proc_id in DSDT.
-> 3. Make the cpuid <-> nodeid mapping persistent.
->
-> The mapping relations:
->
-> proc_id in DSDT <--> Processor ID in MADT(acpiid) <--> Local Apic ID in MADT(apicid)
->         ^                                                        ^
->         |                                                        |
->         va??                                                       va??
->    pxm in DSDT                                                 cpuid
->         ^
->         |
->         v
->      nodeid
->
-> [Problem]
->
-> cpuid <-> nodeid mapping is firstly established at boot time. And workqueue caches
-> the mapping in wq_numa_possible_cpumask in wq_numa_init() at boot time.
->
-> When doing node online/offline, cpuid <-> nodeid mapping is established/destroyed,
-> which means, cpuid <-> nodeid mapping will change if node hotplug happens. But
-> workqueue does not update wq_numa_possible_cpumask.
->
-> So here is the problem:
->
-> Assume we have the following cpuid <-> nodeid in the beginning:
->
->   Node | CPU
-> ------------------------
-> node 0 |  0-14, 60-74
-> node 1 | 15-29, 75-89
-> node 2 | 30-44, 90-104
-> node 3 | 45-59, 105-119
->
-> and we hot-remove node2 and node3, it becomes:
->
->   Node | CPU
-> ------------------------
-> node 0 |  0-14, 60-74
-> node 1 | 15-29, 75-89
->
-> and we hot-add node4 and node5, it becomes:
->
->   Node | CPU
-> ------------------------
-> node 0 |  0-14, 60-74
-> node 1 | 15-29, 75-89
-> node 4 | 30-59
-> node 5 | 90-119
->
-> But in wq_numa_possible_cpumask, cpu30 is still mapped to node2, and the like.
->
-> When a pool workqueue is initialized, if its cpumask belongs to a node, its
-> pool->node will be mapped to that node. And memory used by this workqueue will
-> also be allocated on that node.
->
-> static struct worker_pool *get_unbound_pool(const struct workqueue_attrs *attrs){
-> ...
->         /* if cpumask is contained inside a NUMA node, we belong to that node */
->         if (wq_numa_enabled) {
->                 for_each_node(node) {
->                         if (cpumask_subset(pool->attrs->cpumask,
->                                            wq_numa_possible_cpumask[node])) {
->                                 pool->node = node;
->                                 break;
->                         }
->                 }
->         }
->
-> Since wq_numa_possible_cpumask is not updated, it could be mapped to an offline node,
-> which will lead to memory allocation failure:
->
->  SLUB: Unable to allocate memory on node 2 (gfp=0x80d0)
->   cache: kmalloc-192, object size: 192, buffer size: 192, default order: 1, min order: 0
->   node 0: slabs: 6172, objs: 259224, free: 245741
->   node 1: slabs: 3261, objs: 136962, free: 127656
->
-> It happens here:
->
-> create_worker(struct worker_pool *pool)
->  |--> worker = alloc_worker(pool->node);
->
-> static struct worker *alloc_worker(int node)
-> {
->         struct worker *worker;
->
->         worker = kzalloc_node(sizeof(*worker), GFP_KERNEL, node); --> Here, useing the wrong node.
->
->         ......
->
->         return worker;
-> }
->
->
-> [Solution]
->
-> There are four mappings in the kernel:
-> 1. nodeid (logical node id)   <->   pxm
-> 2. apicid (physical cpu id)   <->   nodeid
-> 3. cpuid (logical cpu id)     <->   apicid
-> 4. cpuid (logical cpu id)     <->   nodeid
->
-> 1. pxm (proximity domain) is provided by ACPI firmware in SRAT, and nodeid <-> pxm
->    mapping is setup at boot time. This mapping is persistent, won't change.
->
-> 2. apicid <-> nodeid mapping is setup using info in 1. The mapping is setup at boot
->    time and CPU hotadd time, and cleared at CPU hotremove time. This mapping is also
->    persistent.
->
-> 3. cpuid <-> apicid mapping is setup at boot time and CPU hotadd time. cpuid is
->    allocated, lower ids first, and released at CPU hotremove time, reused for other
->    hotadded CPUs. So this mapping is not persistent.
->
-> 4. cpuid <-> nodeid mapping is also setup at boot time and CPU hotadd time, and
->    cleared at CPU hotremove time. As a result of 3, this mapping is not persistent.
->
-> To fix this problem, we establish cpuid <-> nodeid mapping for all the possible
-> cpus at boot time, and make it persistent. And according to init_cpu_to_node(),
-> cpuid <-> nodeid mapping is based on apicid <-> nodeid mapping and cpuid <-> apicid
-> mapping. So the key point is obtaining all cpus' apicid.
->
-> apicid can be obtained by _MAT (Multiple APIC Table Entry) method or found in
-> MADT (Multiple APIC Description Table). So we finish the job in the following steps:
->
-> 1. Enable apic registeration flow to handle both enabled and disabled cpus.
->    This is done by introducing an extra parameter to generic_processor_info to let the
->    caller control if disabled cpus are ignored.
->
-> 2. Introduce a new array storing all possible cpuid <-> apicid mapping. And also modify
->    the way cpuid is calculated. Establish all possible cpuid <-> apicid mapping when
->    registering local apic. Store the mapping in this array.
->
-> 3. Enable _MAT and MADT relative apis to return non-presnet or disabled cpus' apicid.
->    This is also done by introducing an extra parameter to these apis to let the caller
->    control if disabled cpus are ignored.
->
-> 4. Establish all possible cpuid <-> nodeid mapping.
->    This is done via an additional acpi namespace walk for processors.
->
->
-> For previous discussion, please refer to:
-> https://lkml.org/lkml/2015/2/27/145
-> https://lkml.org/lkml/2015/3/25/989
-> https://lkml.org/lkml/2015/5/14/244
-> https://lkml.org/lkml/2015/7/7/200
-> https://lkml.org/lkml/2015/9/27/209
-> https://lkml.org/lkml/2016/5/19/212
-> https://lkml.org/lkml/2016/7/19/181
-> https://lkml.org/lkml/2016/7/25/99
-> https://lkml.org/lkml/2016/7/26/52
-> https://lkml.org/lkml/2016/8/8/96
->
-> Change log v11 -> v12:
-> 1. Rebase
-> 2. Add a short summary
->
-> Change log v10 -> v11:
-> 1. Reduce the number of repeat judgment of online/offline
-> 2. Seperate out the functionality in the enable or disable situation
->
-> Change log v9 -> v10:
-> 1. Providing an empty definition of acpi_set_processor_mapping() for
-> CONFIG_ACPI_HOTPLUG_CPU unset. In patch 5.
-> 2. Fix auto build test ERROR on ia64/next. In patch 5.
-> 3. Fix some comment.
->
-> Change log v8 -> v9:
-> 1. Providing an empty definition of acpi_set_processor_mapping() for
-> CONFIG_ACPI_HOTPLUG_CPU unset.
->
-> Change log v7 -> v8:
-> 1. Provide the mechanism to validate processors in the ACPI tables.
-> 2. Provide the interface to validate the proc_id when setting the mapping.
->
-> Change log v6 -> v7:
-> 1. Fix arm64 build failure.
->
-> Change log v5 -> v6:
-> 1. Define func acpi_map_cpu2node() for x86 and ia64 respectively.
->
-> Change log v4 -> v5:
-> 1. Remove useless code in patch 1.
-> 2. Small improvement of commit message.
->
-> Change log v3 -> v4:
-> 1. Fix the kernel panic at boot time. The cause is that I tried to build zonelists
->    before per cpu areas were initialized.
->
-> Change log v2 -> v3:
-> 1. Online memory-less nodes at boot time to map cpus of memory-less nodes.
-> 2. Build zonelists for memory-less nodes so that memory allocator will fall
->    back to proper nodes automatically.
->
-> Change log v1 -> v2:
-> 1. Split code movement and actual changes. Add patch 1.
-> 2. Synchronize best near online node record when node hotplug happens. In patch 2.
-> 3. Fix some comment.
->
-> Dou Liyang (2):
->   acpi: Provide the mechanism to validate processors in the ACPI tables
->   acpi: Provide the interface to validate the proc_id
->
-> Gu Zheng (4):
->   x86, acpi, cpu-hotplug: Enable acpi to register all possible cpus at
->     boot time.
->   x86, acpi, cpu-hotplug: Introduce cpuid_to_apicid[] array to store
->     persistent cpuid <-> apicid mapping.
->   x86, acpi, cpu-hotplug: Enable MADT APIs to return disabled apicid.
->   x86, acpi, cpu-hotplug: Set persistent cpuid <-> nodeid mapping when
->     booting.
->
-> Tang Chen (1):
->   x86, memhp, numa: Online memory-less nodes at boot time.
->
->  arch/ia64/kernel/acpi.c       |   3 +-
->  arch/x86/include/asm/mpspec.h |   1 +
->  arch/x86/kernel/acpi/boot.c   |  11 ++--
->  arch/x86/kernel/apic/apic.c   |  77 +++++++++++++++++++++++--
->  arch/x86/mm/numa.c            |  27 +++++----
->  drivers/acpi/acpi_processor.c | 105 ++++++++++++++++++++++++++++++++-
->  drivers/acpi/bus.c            |   1 +
->  drivers/acpi/processor_core.c | 131 +++++++++++++++++++++++++++++++++++-------
->  include/linux/acpi.h          |   6 ++
->  9 files changed, 311 insertions(+), 51 deletions(-)
->
+Hi,
+  I am trying to start cassandra service, and its start after 2-3 min its
+automatically killed, will you please help me on this.
 
+
+this is log what i get
+-----------------------------
+Sep  2 14:14:11 nmlgosocialcass02 kernel: TCP: TCP: Possible SYN flooding
+on port 9042. Sending cookies.  Check SNMP counters.
+Sep  2 14:16:57 nmlgosocialcass02 kernel: sd 0:1:0:0: [sda] Unhandled sense
+code
+Sep  2 14:16:57 nmlgosocialcass02 kernel: sd 0:1:0:0: [sda]
+Sep  2 14:16:57 nmlgosocialcass02 kernel: Result: hostbyte=DID_OK
+driverbyte=DRIVER_SENSE
+Sep  2 14:16:57 nmlgosocialcass02 kernel: sd 0:1:0:0: [sda]
+Sep  2 14:16:57 nmlgosocialcass02 kernel: Sense Key : Medium Error
+[current]
+Sep  2 14:16:57 nmlgosocialcass02 kernel: Info fld=0x141fc62c
+Sep  2 14:16:57 nmlgosocialcass02 kernel: sd 0:1:0:0: [sda]
+Sep  2 14:16:57 nmlgosocialcass02 kernel: Add. Sense: Unrecovered read error
+Sep  2 14:16:57 nmlgosocialcass02 kernel: sd 0:1:0:0: [sda] CDB:
+Sep  2 14:16:57 nmlgosocialcass02 kernel: Read(10): 28 00 28 3f 8c a8 00 00
+80 00
+Sep  2 14:16:57 nmlgosocialcass02 kernel: end_request: critical target
+error, dev sda, sector 675253416
+Sep  2 14:17:00 nmlgosocialcass02 kernel: sd 0:1:0:0: [sda] Unhandled sense
+code
+Sep  2 14:17:00 nmlgosocialcass02 kernel: sd 0:1:0:0: [sda]
+Sep  2 14:17:00 nmlgosocialcass02 kernel: Result: hostbyte=DID_OK
+driverbyte=DRIVER_SENSE
+Sep  2 14:17:00 nmlgosocialcass02 kernel: sd 0:1:0:0: [sda]
+Sep  2 14:17:00 nmlgosocialcass02 kernel: Sense Key : Medium Error
+[current]
+Sep  2 14:17:00 nmlgosocialcass02 kernel: Info fld=0x141fc62c
+Sep  2 14:17:00 nmlgosocialcass02 kernel: sd 0:1:0:0: [sda]
+Sep  2 14:17:00 nmlgosocialcass02 kernel: Add. Sense: Unrecovered read error
+Sep  2 14:17:00 nmlgosocialcass02 kernel: sd 0:1:0:0: [sda] CDB:
+Sep  2 14:17:00 nmlgosocialcass02 kernel: Read(10): 28 00 28 3f 8c a8 00 00
+08 00
+Sep  2 14:17:00 nmlgosocialcass02 kernel: end_request: critical target
+error, dev sda, sector 675253416
+Sep  2 14:17:23 nmlgosocialcass02 abrt[1957]: Saved core dump of pid 1330
+(/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.91-3.b14.el6_8.x86_64/jre/bin/java)
+to /var/spool/abrt/ccpp-2016-09-02-14:17:00-1330 (9570549760 bytes)
+Sep  2 14:17:23 nmlgosocialcass02 abrt[1957]: /var/spool/abrt is
+19120585808 bytes (more than 1535MiB), deleting
+'ccpp-2016-08-29-16:36:28-13346'
+Sep  2 14:17:23 nmlgosocialcass02 abrtd: Directory
+'ccpp-2016-09-02-14:17:00-1330' creation detected
+Sep  2 14:17:29 nmlgosocialcass02 kernel: nr_pdflush_threads exported in
+/proc is scheduled for removal
+Sep  2 14:17:29 nmlgosocialcass02 kernel: sysctl: The
+scan_unevictable_pages sysctl/node-interface has been disabled for lack of
+a legitimate use case.  If you have one, please send an email to
+linux-mm@kvack.org.
+Sep  2 14:17:29 nmlgosocialcass02 kernel: ip_tables: (C) 2000-2006
+Netfilter Core Team
+Sep  2 14:17:33 nmlgosocialcass02 abrtd: Generating core_backtrace
+Sep  2 14:17:36 nmlgosocialcass02 abrtd: New problem directory
+/var/spool/abrt/ccpp-2016-09-02-14:17:00-1330, processing
+Sep  2 14:17:36 nmlgosocialcass02 abrtd: Sending an email...
+Sep  2 14:17:36 nmlgosocialcass02 abrtd: Email was sent to: root@localhost
+
+--001a11440b328817f2053b829032
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div>Hi,<br></div>=C2=A0 I am trying to start cassandra se=
+rvice, and its start after 2-3 min its automatically killed, will you pleas=
+e help me on this.<br><div><div><div><div><br><br>this is log what i get<br=
+>-----------------------------<br>Sep=C2=A0 2 14:14:11 nmlgosocialcass02 ke=
+rnel: TCP: TCP: Possible SYN flooding on port 9042. Sending cookies.=C2=A0 =
+Check SNMP counters.<br>Sep=C2=A0 2 14:16:57 nmlgosocialcass02 kernel: sd 0=
+:1:0:0: [sda] Unhandled sense code<br>Sep=C2=A0 2 14:16:57 nmlgosocialcass0=
+2 kernel: sd 0:1:0:0: [sda]=C2=A0 <br>Sep=C2=A0 2 14:16:57 nmlgosocialcass0=
+2 kernel: Result: hostbyte=3DDID_OK driverbyte=3DDRIVER_SENSE<br>Sep=C2=A0 =
+2 14:16:57 nmlgosocialcass02 kernel: sd 0:1:0:0: [sda]=C2=A0 <br>Sep=C2=A0 =
+2 14:16:57 nmlgosocialcass02 kernel: Sense Key : Medium Error [current] <br=
+>Sep=C2=A0 2 14:16:57 nmlgosocialcass02 kernel: Info fld=3D0x141fc62c<br>Se=
+p=C2=A0 2 14:16:57 nmlgosocialcass02 kernel: sd 0:1:0:0: [sda]=C2=A0 <br>Se=
+p=C2=A0 2 14:16:57 nmlgosocialcass02 kernel: Add. Sense: Unrecovered read e=
+rror<br>Sep=C2=A0 2 14:16:57 nmlgosocialcass02 kernel: sd 0:1:0:0: [sda] CD=
+B: <br>Sep=C2=A0 2 14:16:57 nmlgosocialcass02 kernel: Read(10): 28 00 28 3f=
+ 8c a8 00 00 80 00<br>Sep=C2=A0 2 14:16:57 nmlgosocialcass02 kernel: end_re=
+quest: critical target error, dev sda, sector 675253416<br>Sep=C2=A0 2 14:1=
+7:00 nmlgosocialcass02 kernel: sd 0:1:0:0: [sda] Unhandled sense code<br>Se=
+p=C2=A0 2 14:17:00 nmlgosocialcass02 kernel: sd 0:1:0:0: [sda]=C2=A0 <br>Se=
+p=C2=A0 2 14:17:00 nmlgosocialcass02 kernel: Result: hostbyte=3DDID_OK driv=
+erbyte=3DDRIVER_SENSE<br>Sep=C2=A0 2 14:17:00 nmlgosocialcass02 kernel: sd =
+0:1:0:0: [sda]=C2=A0 <br>Sep=C2=A0 2 14:17:00 nmlgosocialcass02 kernel: Sen=
+se Key : Medium Error [current] <br>Sep=C2=A0 2 14:17:00 nmlgosocialcass02 =
+kernel: Info fld=3D0x141fc62c<br>Sep=C2=A0 2 14:17:00 nmlgosocialcass02 ker=
+nel: sd 0:1:0:0: [sda]=C2=A0 <br>Sep=C2=A0 2 14:17:00 nmlgosocialcass02 ker=
+nel: Add. Sense: Unrecovered read error<br>Sep=C2=A0 2 14:17:00 nmlgosocial=
+cass02 kernel: sd 0:1:0:0: [sda] CDB: <br>Sep=C2=A0 2 14:17:00 nmlgosocialc=
+ass02 kernel: Read(10): 28 00 28 3f 8c a8 00 00 08 00<br>Sep=C2=A0 2 14:17:=
+00 nmlgosocialcass02 kernel: end_request: critical target error, dev sda, s=
+ector 675253416<br>Sep=C2=A0 2 14:17:23 nmlgosocialcass02 abrt[1957]: Saved=
+ core dump of pid 1330 (/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.91-3.b14.el6_=
+8.x86_64/jre/bin/java) to /var/spool/abrt/ccpp-2016-09-02-14:17:00-1330 (95=
+70549760 bytes)<br>Sep=C2=A0 2 14:17:23 nmlgosocialcass02 abrt[1957]: /var/=
+spool/abrt is 19120585808 bytes (more than 1535MiB), deleting &#39;ccpp-201=
+6-08-29-16:36:28-13346&#39;<br>Sep=C2=A0 2 14:17:23 nmlgosocialcass02 abrtd=
+: Directory &#39;ccpp-2016-09-02-14:17:00-1330&#39; creation detected<br>Se=
+p=C2=A0 2 14:17:29 nmlgosocialcass02 kernel: nr_pdflush_threads exported in=
+ /proc is scheduled for removal<br>Sep=C2=A0 2 14:17:29 nmlgosocialcass02 k=
+ernel: sysctl: The scan_unevictable_pages sysctl/node-interface has been di=
+sabled for lack of a legitimate use case.=C2=A0 If you have one, please sen=
+d an email to <a href=3D"mailto:linux-mm@kvack.org">linux-mm@kvack.org</a>.=
+<br>Sep=C2=A0 2 14:17:29 nmlgosocialcass02 kernel: ip_tables: (C) 2000-2006=
+ Netfilter Core Team<br>Sep=C2=A0 2 14:17:33 nmlgosocialcass02 abrtd: Gener=
+ating core_backtrace<br>Sep=C2=A0 2 14:17:36 nmlgosocialcass02 abrtd: New p=
+roblem directory /var/spool/abrt/ccpp-2016-09-02-14:17:00-1330, processing<=
+br>Sep=C2=A0 2 14:17:36 nmlgosocialcass02 abrtd: Sending an email...<br>Sep=
+=C2=A0 2 14:17:36 nmlgosocialcass02 abrtd: Email was sent to: root@localhos=
+t<br><br></div></div></div></div></div>
+
+--001a11440b328817f2053b829032--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
