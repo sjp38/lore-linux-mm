@@ -1,49 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 68A136B0260
-	for <linux-mm@kvack.org>; Fri,  2 Sep 2016 07:40:00 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id i4so114789164oih.1
-        for <linux-mm@kvack.org>; Fri, 02 Sep 2016 04:40:00 -0700 (PDT)
-Received: from g9t5009.houston.hpe.com (g9t5009.houston.hpe.com. [15.241.48.73])
-        by mx.google.com with ESMTPS id y6si12534563ota.280.2016.09.02.04.39.59
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 24FFF6B0038
+	for <linux-mm@kvack.org>; Fri,  2 Sep 2016 08:44:59 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id u132so12588186lff.3
+        for <linux-mm@kvack.org>; Fri, 02 Sep 2016 05:44:59 -0700 (PDT)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id s21si3994582wmd.21.2016.09.02.05.44.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Sep 2016 04:39:59 -0700 (PDT)
-From: Juerg Haefliger <juerg.haefliger@hpe.com>
-Subject: [RFC PATCH v2 3/3] block: Always use a bounce buffer when XPFO is enabled
-Date: Fri,  2 Sep 2016 13:39:09 +0200
-Message-Id: <20160902113909.32631-4-juerg.haefliger@hpe.com>
-In-Reply-To: <20160902113909.32631-1-juerg.haefliger@hpe.com>
-References: <1456496467-14247-1-git-send-email-juerg.haefliger@hpe.com>
- <20160902113909.32631-1-juerg.haefliger@hpe.com>
+        Fri, 02 Sep 2016 05:44:57 -0700 (PDT)
+Received: by mail-wm0-x241.google.com with SMTP id c133so2730004wmd.2
+        for <linux-mm@kvack.org>; Fri, 02 Sep 2016 05:44:57 -0700 (PDT)
+From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Subject: [PATCH] mm, thp: fix leaking mapped pte in __collapse_huge_page_swapin()
+Date: Fri,  2 Sep 2016 15:44:36 +0300
+Message-Id: <1472820276-7831-1-git-send-email-ebru.akagunduz@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, linux-x86_64@vger.kernel.org
-Cc: juerg.haefliger@hpe.com, vpk@cs.columbia.edu
+To: linux-mm@kvack.org
+Cc: riel@redhat.com, aarcange@redhat.com, akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, Ebru Akagunduz <ebru.akagunduz@gmail.com>
 
-This is a temporary hack to prevent the use of bio_map_user_iov()
-which causes XPFO page faults.
+Currently, khugepaged does not let swapin, if there is no
+enough young pages in a THP. The problem is when a THP does
+not have enough young page, khugepaged leaks mapped ptes.
 
-Signed-off-by: Juerg Haefliger <juerg.haefliger@hpe.com>
+This patch prohibits leaking mapped ptes.
+
+Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Suggested-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- block/blk-map.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/khugepaged.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
 
-diff --git a/block/blk-map.c b/block/blk-map.c
-index b8657fa8dc9a..e889dbfee6fb 100644
---- a/block/blk-map.c
-+++ b/block/blk-map.c
-@@ -52,7 +52,7 @@ static int __blk_rq_map_user_iov(struct request *rq,
- 	struct bio *bio, *orig_bio;
- 	int ret;
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+index 79c52d0..f401e9d 100644
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -881,6 +881,11 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
+ 		.pmd = pmd,
+ 	};
  
--	if (copy)
-+	if (copy || IS_ENABLED(CONFIG_XPFO))
- 		bio = bio_copy_user_iov(q, map_data, iter, gfp_mask);
- 	else
- 		bio = bio_map_user_iov(q, iter, gfp_mask);
++	/* we only decide to swapin, if there is enough young ptes */
++	if (referenced < HPAGE_PMD_NR/2) {
++		trace_mm_collapse_huge_page_swapin(mm, swapped_in, referenced, 0);
++		return false;
++	}
+ 	fe.pte = pte_offset_map(pmd, address);
+ 	for (; fe.address < address + HPAGE_PMD_NR*PAGE_SIZE;
+ 			fe.pte++, fe.address += PAGE_SIZE) {
+@@ -888,11 +893,6 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
+ 		if (!is_swap_pte(pteval))
+ 			continue;
+ 		swapped_in++;
+-		/* we only decide to swapin, if there is enough young ptes */
+-		if (referenced < HPAGE_PMD_NR/2) {
+-			trace_mm_collapse_huge_page_swapin(mm, swapped_in, referenced, 0);
+-			return false;
+-		}
+ 		ret = do_swap_page(&fe, pteval);
+ 
+ 		/* do_swap_page returns VM_FAULT_RETRY with released mmap_sem */
 -- 
-2.9.3
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
