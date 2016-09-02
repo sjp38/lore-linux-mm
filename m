@@ -1,67 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D62916B0038
-	for <linux-mm@kvack.org>; Fri,  2 Sep 2016 09:52:42 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id i184so40869929itf.3
-        for <linux-mm@kvack.org>; Fri, 02 Sep 2016 06:52:42 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y132si5130084itf.9.2016.09.02.06.52.42
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 013BA6B0038
+	for <linux-mm@kvack.org>; Fri,  2 Sep 2016 10:04:18 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id 192so41360200itm.1
+        for <linux-mm@kvack.org>; Fri, 02 Sep 2016 07:04:17 -0700 (PDT)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0086.outbound.protection.outlook.com. [104.47.0.86])
+        by mx.google.com with ESMTPS id k126si2389404oif.49.2016.09.02.07.04.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Sep 2016 06:52:42 -0700 (PDT)
-Message-ID: <1472824355.32433.135.camel@redhat.com>
-Subject: Re: [PATCH] mm, thp: fix leaking mapped pte in
- __collapse_huge_page_swapin()
-From: Rik van Riel <riel@redhat.com>
-Date: Fri, 02 Sep 2016 09:52:35 -0400
-In-Reply-To: <1472820276-7831-1-git-send-email-ebru.akagunduz@gmail.com>
-References: <1472820276-7831-1-git-send-email-ebru.akagunduz@gmail.com>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-9RCdTANypk+wOtUruJmz"
-Mime-Version: 1.0
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 02 Sep 2016 07:04:09 -0700 (PDT)
+Subject: Re: [PATCH v15 04/13] task_isolation: add initial support
+References: <1471382376-5443-1-git-send-email-cmetcalf@mellanox.com>
+ <1471382376-5443-5-git-send-email-cmetcalf@mellanox.com>
+ <20160829163352.GV10153@twins.programming.kicks-ass.net>
+ <fe4b8667-57d5-7767-657a-d89c8b62f8e3@mellanox.com>
+ <20160830075854.GZ10153@twins.programming.kicks-ass.net>
+ <a321c8a7-fa9c-21f7-61f8-54a8f80763fe@mellanox.com>
+ <20160901100631.GQ10153@twins.programming.kicks-ass.net>
+From: Chris Metcalf <cmetcalf@mellanox.com>
+Message-ID: <ee883e4b-6f5a-6025-e505-76c6b8db4e76@mellanox.com>
+Date: Fri, 2 Sep 2016 10:03:52 -0400
+MIME-Version: 1.0
+In-Reply-To: <20160901100631.GQ10153@twins.programming.kicks-ass.net>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ebru Akagunduz <ebru.akagunduz@gmail.com>, linux-mm@kvack.org
-Cc: aarcange@redhat.com, akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Gilad Ben Yossef <giladb@mellanox.com>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Tejun Heo <tj@kernel.org>, Frederic Weisbecker <fweisbec@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Christoph Lameter <cl@linux.com>, Viresh Kumar <viresh.kumar@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
 
+On 9/1/2016 6:06 AM, Peter Zijlstra wrote:
+> On Tue, Aug 30, 2016 at 11:32:16AM -0400, Chris Metcalf wrote:
+>> On 8/30/2016 3:58 AM, Peter Zijlstra wrote:
+>>> What !? I really don't get this, what are you waiting for? Why is
+>>> rescheduling making things better.
+>> We need to wait for the last dyntick to fire before we can return to
+>> userspace.  There are plenty of options as to what we can do in the
+>> meanwhile.
+> Why not keep your _TIF_TASK_ISOLATION_FOO flag set and re-enter the
+> loop?
+>
+> I really don't see how setting TIF_NEED_RESCHED is helping anything.
 
---=-9RCdTANypk+wOtUruJmz
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Yes, I think I addressed that in an earlier reply to Frederic; and you're right,
+I don't think TIF_NEED_RESCHED or schedule() are the way to go.
 
-On Fri, 2016-09-02 at 15:44 +0300, Ebru Akagunduz wrote:
-> Currently, khugepaged does not let swapin, if there is no
-> enough young pages in a THP. The problem is when a THP does
-> not have enough young page, khugepaged leaks mapped ptes.
->=20
-> This patch prohibits leaking mapped ptes.
->=20
-> Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-> Suggested-by: Andrea Arcangeli <aarcange@redhat.com>
->=20
-Reviewed-by: Rik van Riel <riel@redhat.com>
+https://lkml.kernel.org/g/107bd666-dbcf-7fa5-ff9c-f79358899712@mellanox.com
 
---=20
+Any thoughts on the question of "just re-enter the loop" vs. schedule_timeout()?
 
-All Rights Reversed.
---=-9RCdTANypk+wOtUruJmz
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQEcBAABCAAGBQJXyYQkAAoJEM553pKExN6DUCEIAJDkldhHnze8Wkb/WsGfvGML
-rqKsx9u919DH18W7lZxfphrCw3OsO1nYUPjOsB7WFk6HHZsIHJPStKtodr/fplZj
-PzN0/cUkbtZQTcGqQ4Q6K//AzpvC5s3t2qUbE6Yj0HkY4jBwUgHvg66KTjOQ+BYN
-q9t6wodu3exxBQkGaGk4mbGBeVIHX4/R/lVer2sgKm3U9722iC9oDvQ7xg6kgD60
-oTU0nTSseDeAEgH5OEZhSTu8L/yvhdZTcEcVM+nyRNXmfQmBQXEOIwwbNIu/1ZsD
-fQNZjDLxUVWGo6R4otYWNtDhcsz5uDvUrkpUybcRy1TfP398BtHIDS8JbVsX9vI=
-=du7i
------END PGP SIGNATURE-----
-
---=-9RCdTANypk+wOtUruJmz--
+-- 
+Chris Metcalf, Mellanox Technologies
+http://www.mellanox.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
