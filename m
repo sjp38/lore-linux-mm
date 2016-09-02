@@ -1,67 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 24FFF6B0038
-	for <linux-mm@kvack.org>; Fri,  2 Sep 2016 08:44:59 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id u132so12588186lff.3
-        for <linux-mm@kvack.org>; Fri, 02 Sep 2016 05:44:59 -0700 (PDT)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id s21si3994582wmd.21.2016.09.02.05.44.57
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4729F6B0038
+	for <linux-mm@kvack.org>; Fri,  2 Sep 2016 08:50:39 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id u81so14405784wmu.3
+        for <linux-mm@kvack.org>; Fri, 02 Sep 2016 05:50:39 -0700 (PDT)
+Received: from mail-wm0-x22e.google.com (mail-wm0-x22e.google.com. [2a00:1450:400c:c09::22e])
+        by mx.google.com with ESMTPS id q9si11267043wjv.176.2016.09.02.05.50.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Sep 2016 05:44:57 -0700 (PDT)
-Received: by mail-wm0-x241.google.com with SMTP id c133so2730004wmd.2
-        for <linux-mm@kvack.org>; Fri, 02 Sep 2016 05:44:57 -0700 (PDT)
+        Fri, 02 Sep 2016 05:50:37 -0700 (PDT)
+Received: by mail-wm0-x22e.google.com with SMTP id v143so29717348wmv.0
+        for <linux-mm@kvack.org>; Fri, 02 Sep 2016 05:50:37 -0700 (PDT)
+Date: Fri, 2 Sep 2016 15:50:25 +0300
 From: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Subject: [PATCH] mm, thp: fix leaking mapped pte in __collapse_huge_page_swapin()
-Date: Fri,  2 Sep 2016 15:44:36 +0300
-Message-Id: <1472820276-7831-1-git-send-email-ebru.akagunduz@gmail.com>
+Subject: Re: mm: use-after-free in collapse_huge_page
+Message-ID: <20160902125025.GA5827@gmail.com>
+References: <CACT4Y+Z3gigBvhca9kRJFcjX0G70V_nRhbwKBU+yGoESBDKi9Q@mail.gmail.com>
+ <20160829124233.GA40092@black.fi.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160829124233.GA40092@black.fi.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: riel@redhat.com, aarcange@redhat.com, akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, Ebru Akagunduz <ebru.akagunduz@gmail.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: dvyukov@google.com, akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, vegard.nossum@oracle.com, levinsasha928@gmail.com, koct9i@gmail.com, ryabinin.a.a@gmail.com, gthelen@google.com, suleiman@google.com, hughd@google.com, rientjes@google.com, syzkaller@googlegroups.com, kcc@google.com, glider@google.com
 
-Currently, khugepaged does not let swapin, if there is no
-enough young pages in a THP. The problem is when a THP does
-not have enough young page, khugepaged leaks mapped ptes.
+>  
+> @@ -898,13 +899,13 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
+>  		/* do_swap_page returns VM_FAULT_RETRY with released mmap_sem */
+>  		if (ret & VM_FAULT_RETRY) {
+>  			down_read(&mm->mmap_sem);
+> -			if (hugepage_vma_revalidate(mm, address)) {
+> +			if (hugepage_vma_revalidate(mm, address, &vma)) {
+>  				/* vma is no longer available, don't continue to swapin */
+>  				trace_mm_collapse_huge_page_swapin(mm, swapped_in, referenced, 0);
+>  				return false;
+>  			}
+>  			/* check if the pmd is still valid */
+> -			if (mm_find_pmd(mm, address) != pmd)
+> +			if (mm_find_pmd(mm, address) != pmd || vma != fe.vma)
+>  				return false;
+>  		}
+>  		if (ret & VM_FAULT_ERROR) {
+> @@ -923,7 +924,6 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
+>  static void collapse_huge_page(struct mm_struct *mm,
+>  				   unsigned long address,
+>  				   struct page **hpage,
+> -				   struct vm_area_struct *vma,
+>  				   int node, int referenced)
+>  {
+>  	pmd_t *pmd, _pmd;
+> @@ -933,6 +933,7 @@ static void collapse_huge_page(struct mm_struct *mm,
+>  	spinlock_t *pmd_ptl, *pte_ptl;
+>  	int isolated = 0, result = 0;
+>  	struct mem_cgroup *memcg;
+> +	struct vm_area_struct *vma;
+>  	unsigned long mmun_start;	/* For mmu_notifiers */
+I could not realize, why we need to remove vma parameter and recreate it here?
+>  	unsigned long mmun_end;		/* For mmu_notifiers */
+>  	gfp_t gfp;
+> @@ -961,7 +962,7 @@ static void collapse_huge_page(struct mm_struct *mm,
+>  	}
+>  
+>  	down_read(&mm->mmap_sem);
+And without fe.vma check, this patch seems work for me.
 
-This patch prohibits leaking mapped ptes.
+Andrea, I've just sent a fix patch for leaking mapped ptes.
 
-Signed-off-by: Ebru Akagunduz <ebru.akagunduz@gmail.com>
-Suggested-by: Andrea Arcangeli <aarcange@redhat.com>
----
- mm/khugepaged.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
-
-diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-index 79c52d0..f401e9d 100644
---- a/mm/khugepaged.c
-+++ b/mm/khugepaged.c
-@@ -881,6 +881,11 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
- 		.pmd = pmd,
- 	};
- 
-+	/* we only decide to swapin, if there is enough young ptes */
-+	if (referenced < HPAGE_PMD_NR/2) {
-+		trace_mm_collapse_huge_page_swapin(mm, swapped_in, referenced, 0);
-+		return false;
-+	}
- 	fe.pte = pte_offset_map(pmd, address);
- 	for (; fe.address < address + HPAGE_PMD_NR*PAGE_SIZE;
- 			fe.pte++, fe.address += PAGE_SIZE) {
-@@ -888,11 +893,6 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
- 		if (!is_swap_pte(pteval))
- 			continue;
- 		swapped_in++;
--		/* we only decide to swapin, if there is enough young ptes */
--		if (referenced < HPAGE_PMD_NR/2) {
--			trace_mm_collapse_huge_page_swapin(mm, swapped_in, referenced, 0);
--			return false;
--		}
- 		ret = do_swap_page(&fe, pteval);
- 
- 		/* do_swap_page returns VM_FAULT_RETRY with released mmap_sem */
--- 
-1.9.1
+Kind regards,
+Ebru
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
