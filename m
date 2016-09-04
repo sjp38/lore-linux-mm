@@ -1,84 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B10FD6B0038
-	for <linux-mm@kvack.org>; Sat,  3 Sep 2016 11:31:08 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 1so32892221wmz.2
-        for <linux-mm@kvack.org>; Sat, 03 Sep 2016 08:31:08 -0700 (PDT)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id x6si9606055wmg.52.2016.09.03.08.31.07
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F6216B0038
+	for <linux-mm@kvack.org>; Sat,  3 Sep 2016 21:49:50 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id c184so77731239oia.1
+        for <linux-mm@kvack.org>; Sat, 03 Sep 2016 18:49:50 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id 91si1809083otx.234.2016.09.03.18.49.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 03 Sep 2016 08:31:07 -0700 (PDT)
-Received: by mail-wm0-x243.google.com with SMTP id i138so6773845wmf.3
-        for <linux-mm@kvack.org>; Sat, 03 Sep 2016 08:31:07 -0700 (PDT)
-Date: Sat, 3 Sep 2016 17:31:01 +0200
-From: Frederic Weisbecker <fweisbec@gmail.com>
-Subject: Re: [PATCH v14 04/14] task_isolation: add initial support
-Message-ID: <20160903153059.GA9589@lerouge>
-References: <1470774596-17341-1-git-send-email-cmetcalf@mellanox.com>
- <1470774596-17341-5-git-send-email-cmetcalf@mellanox.com>
- <20160811181132.GD4214@lerouge>
- <alpine.DEB.2.20.1608111349190.1644@east.gentwo.org>
- <c675d2b6-c380-2a3f-6d49-b5e8b48eae1f@mellanox.com>
- <20160830005550.GB32720@lerouge>
- <69cbe2bd-3d39-b3ae-2ebc-6399125fc782@mellanox.com>
- <20160830171003.GA14200@lerouge>
- <aea6b90e-4b43-302a-636f-36516f30f5d6@mellanox.com>
- <107bd666-dbcf-7fa5-ff9c-f79358899712@mellanox.com>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 03 Sep 2016 18:49:49 -0700 (PDT)
+Subject: Re: [RFC 1/4] mm, oom: do not rely on TIF_MEMDIE for memory reserves access
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1472723464-22866-1-git-send-email-mhocko@kernel.org>
+	<1472723464-22866-2-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1472723464-22866-2-git-send-email-mhocko@kernel.org>
+Message-Id: <201609041049.GIF51522.FOHLOJVSFOFMtQ@I-love.SAKURA.ne.jp>
+Date: Sun, 4 Sep 2016 10:49:42 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <107bd666-dbcf-7fa5-ff9c-f79358899712@mellanox.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Metcalf <cmetcalf@mellanox.com>
-Cc: Christoph Lameter <cl@linux.com>, Gilad Ben Yossef <giladb@mellanox.com>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Tejun Heo <tj@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Viresh Kumar <viresh.kumar@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org
+To: mhocko@kernel.org, linux-mm@kvack.org
+Cc: rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, mhocko@suse.com
 
-On Tue, Aug 30, 2016 at 02:17:27PM -0400, Chris Metcalf wrote:
-> On 8/30/2016 1:36 PM, Chris Metcalf wrote:
-> >>>See the other thread with Peter Z for the longer discussion of this.
-> >>>At this point I'm leaning towards replacing the set_tsk_need_resched() with
-> >>>
-> >>>     set_current_state(TASK_INTERRUPTIBLE);
-> >>>     schedule();
-> >>>     __set_current_state(TASK_RUNNING);
-> >>I don't see how that helps. What will wake the thread up except a signal?
-> >
-> >The answer is that the scheduler will keep bringing us back to this
-> >point (either after running another runnable task if there is one,
-> >or else just returning to this point immediately without doing a
-> >context switch), and we will then go around the "prepare exit to
-> >userspace" loop and perhaps discover that enough time has gone
-> >by that the last dyntick interrupt has triggered and the kernel has
-> >quiesced the dynticks.  At that point we stop calling schedule()
-> >over and over and can return normally to userspace.
-> 
-> Oops, you're right that if I set TASK_INTERRUPTIBLE, then if I call
-> schedule(), I never get control back.  So I don't want to do that.
-> 
-> I suppose I could do a schedule_timeout() here instead and try
-> to figure out how long to wait for the next dyntick.  But since we
-> don't expect anything else running on the core anyway, it seems
-> like we are probably working too hard at this point.  I don't think
-> it's worth it just to go into the idle task and (possibly) save some
-> power for a few microseconds.
-> 
-> The more I think about this, the more I think I am micro-optimizing
-> by trying to poke the scheduler prior to some external thing setting
-> need_resched, so I think the thing to do here is in fact, nothing.
+Michal Hocko wrote:
+> @@ -816,7 +816,8 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+>  
+>  	/*
+>  	 * If the task is already exiting, don't alarm the sysadmin or kill
+> -	 * its children or threads, just set TIF_MEMDIE so it can die quickly
+> +	 * its children or threads, just give it access to memory reserves
+> +	 * so it can die quickly
+>  	 */
+>  	task_lock(p);
+>  	if (task_will_free_mem(p)) {
+> @@ -876,9 +877,9 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+>  	mm = victim->mm;
+>  	atomic_inc(&mm->mm_count);
+>  	/*
+> -	 * We should send SIGKILL before setting TIF_MEMDIE in order to prevent
+> -	 * the OOM victim from depleting the memory reserves from the user
+> -	 * space under its control.
+> +	 * We should send SIGKILL before granting access to memory reserves
+> +	 * in order to prevent the OOM victim from depleting the memory
+> +	 * reserves from the user space under its control.
+>  	 */
 
-Exactly, I fear there is nothing you can do about that.
+Removing TIF_MEMDIE usage inside comments can be done as a clean up
+before this series.
 
-> I won't worry about rescheduling but will just continue going around
-> the prepare-exit-to-userspace loop until the last dyn tick fires.
 
-You mean waiting in prepare-exit-to-userspace until the last tick fires?
-I'm not sure it's a good idea either, this could take ages, it could as
-well never happen.
 
-I'd rather say that if we are in signal mode, fire such, otherwise just
-return to userspace. If there is a tick, it means that the environment is
-not suitable for isolation anyway.
+> @@ -3309,6 +3318,22 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
+>  	return alloc_flags;
+>  }
+>  
+> +static bool oom_reserves_allowed(struct task_struct *tsk)
+> +{
+> +	if (!tsk_is_oom_victim(tsk))
+> +		return false;
+> +
+> +	/*
+> +	 * !MMU doesn't have oom reaper so we shouldn't risk the memory reserves
+> +	 * depletion and shouldn't give access to memory reserves passed the
+> +	 * exit_mm
+> +	 */
+> +	if (!IS_ENABLED(CONFIG_MMU) && !tsk->mm)
+> +		return false;
+> +
+> +	return true;
+> +}
+> +
+
+Are you aware that you are trying to make !MMU kernel's allocations not only
+after returning exit_mm() but also from __mmput() from mmput() from exit_mm()
+fail without allowing access to memory reserves? The comment says only after
+returning exit_mm(), but this change is not.
+
+
+
+> @@ -3558,8 +3593,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  		goto nopage;
+>  	}
+>  
+> -	/* Avoid allocations with no watermarks from looping endlessly */
+> -	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
+> +	/* Avoid allocations for oom victims from looping endlessly */
+> +	if (tsk_is_oom_victim(current) && !(gfp_mask & __GFP_NOFAIL))
+>  		goto nopage;
+
+This change increases possibility of giving up without trying ALLOC_OOM
+(more allocation failure messages), for currently only one thread which
+remotely got TIF_MEMDIE when it was between gfp_to_alloc_flags() and
+test_thread_flag(TIF_MEMDIE) will give up without trying ALLOC_NO_WATERMARKS
+while all threads which remotely got current->signal->oom_mm when they were
+between gfp_to_alloc_flags() and test_thread_flag(TIF_MEMDIE) will give up
+without trying ALLOC_OOM. I think we should make sure that ALLOC_OOM is
+tried (by using a variable which remembers whether
+get_page_from_freelist(ALLOC_OOM) was tried).
+
+We are currently allowing TIF_MEMDIE threads try ALLOC_NO_WATERMARKS for
+once and give up without invoking the OOM killer. This change makes
+current->signal->oom_mm threads try ALLOC_OOM for once and give up without
+invoking the OOM killer. This means that allocations for cleanly cleaning
+up by oom victims might fail prematurely, but we don't want to scatter
+around __GFP_NOFAIL. Since there are reasonable chances of the parallel
+memory freeing, we don't need to give up without invoking the OOM killer
+again. I think that
+
+-	/* Avoid allocations with no watermarks from looping endlessly */
+-	if (test_thread_flag(TIF_MEMDIE) && !(gfp_mask & __GFP_NOFAIL))
++#ifndef CONFIG_MMU
++	/* Avoid allocations for oom victims from looping endlessly */
++	if (tsk_is_oom_victim(current) && !(gfp_mask & __GFP_NOFAIL))
++		goto nopage;
++#endif
+
+is possible.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
