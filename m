@@ -1,16 +1,16 @@
 From: Borislav Petkov <bp@alien8.de>
 Subject: Re: [RFC PATCH v2 07/20] x86: Provide general kernel support for
  memory encryption
-Date: Fri, 2 Sep 2016 20:14:47 +0200
-Message-ID: <20160902181447.GA25328@nazgul.tnic>
+Date: Mon, 5 Sep 2016 10:48:17 +0200
+Message-ID: <20160905084817.GB18856@pd.tnic>
 References: <20160822223529.29880.50884.stgit@tlendack-t1.amdoffice.net>
  <20160822223646.29880.28794.stgit@tlendack-t1.amdoffice.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=utf-8
-Return-path: <linux-doc-owner@vger.kernel.org>
+Return-path: <linux-kernel-owner@vger.kernel.org>
 Content-Disposition: inline
 In-Reply-To: <20160822223646.29880.28794.stgit@tlendack-t1.amdoffice.net>
-Sender: linux-doc-owner@vger.kernel.org
+Sender: linux-kernel-owner@vger.kernel.org
 To: Tom Lendacky <thomas.lendacky@amd.com>
 Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.>
 List-Id: linux-mm.kvack.org
@@ -33,48 +33,49 @@ On Mon, Aug 22, 2016 at 05:36:46PM -0500, Tom Lendacky wrote:
 
 ...
 
-> diff --git a/arch/x86/include/asm/mem_encrypt.h b/arch/x86/include/asm/mem_encrypt.h
-> index 747fc52..9f3e762 100644
-> --- a/arch/x86/include/asm/mem_encrypt.h
-> +++ b/arch/x86/include/asm/mem_encrypt.h
-> @@ -15,12 +15,21 @@
+> diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+> index f1218f5..a01f0e1 100644
+> --- a/arch/x86/include/asm/pgtable_types.h
+> +++ b/arch/x86/include/asm/pgtable_types.h
+> @@ -3,6 +3,7 @@
 >  
->  #ifndef __ASSEMBLY__
+>  #include <linux/const.h>
+>  #include <asm/page_types.h>
+> +#include <asm/mem_encrypt.h>
 >  
-> +#include <linux/init.h>
-> +
->  #ifdef CONFIG_AMD_MEM_ENCRYPT
+>  #define FIRST_USER_ADDRESS	0UL
 >  
->  extern unsigned long sme_me_mask;
+> @@ -121,9 +122,9 @@
 >  
->  u8 sme_get_me_loss(void);
+>  #define _PAGE_PROTNONE	(_AT(pteval_t, 1) << _PAGE_BIT_PROTNONE)
 >  
-> +void __init sme_early_init(void);
-> +
-> +#define __sme_pa(x)		(__pa((x)) | sme_me_mask)
-> +#define __sme_pa_nodebug(x)	(__pa_nodebug((x)) | sme_me_mask)
-> +
-> +#define __sme_va(x)		(__va((x) & ~sme_me_mask))
+> -#define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER |	\
+> +#define __PAGE_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER |	\
+>  			 _PAGE_ACCESSED | _PAGE_DIRTY)
 
-So I'm wondering: why not push the masking off of the SME mask into the
-__va() macro instead of defining a specific __sme_va() one?
+Hmm, so this naming looks confusing and error-prone: the only difference
+is a single "_".
 
-I mean, do you even see cases where __va() would need to have to
-sme_mask left in the virtual address?
+How about this instead:
 
-Because if not, you could mask it out in __va() so that all __va() users
-get the "clean" va, without the enc bits.
+#define _PAGE_TABLE_NO_ENC	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER |	\
+	  			 _PAGE_ACCESSED | _PAGE_DIRTY)
 
-Hmmm.
+#define _PAGE_TABLE (_PAGE_TABLE_NO_ENC | _PAGE_ENC)
 
-Btw, this patch is huuuge. It would be nice if you could split it, if
-possible...
+Or call it _PAGE_TABLE_BASE or whatever.
 
-Thanks.
+Ditto for __KERNPG_TABLE.
+
+This way you can differentiate between the two and use the _NO_ENC one
+to define _PAGE_TABLE. And it will be absolutely clear when you use the
+_NO_ENC one, what you mean and that you don't want to have the enc mask
+in the PTE.
+
+Should be less confusing IMO too.
 
 -- 
 Regards/Gruss,
     Boris.
 
 ECO tip #101: Trim your mails when you reply.
---
