@@ -1,146 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 15D1F6B0038
-	for <linux-mm@kvack.org>; Mon,  5 Sep 2016 04:38:00 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id 29so28097244lfv.2
-        for <linux-mm@kvack.org>; Mon, 05 Sep 2016 01:38:00 -0700 (PDT)
-Received: from mail-lf0-x22b.google.com (mail-lf0-x22b.google.com. [2a00:1450:4010:c07::22b])
-        by mx.google.com with ESMTPS id f88si10808530lji.23.2016.09.05.01.37.58
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DFFFD6B0038
+	for <linux-mm@kvack.org>; Mon,  5 Sep 2016 07:54:51 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id g185so49983704ith.3
+        for <linux-mm@kvack.org>; Mon, 05 Sep 2016 04:54:51 -0700 (PDT)
+Received: from g4t3427.houston.hpe.com (g4t3427.houston.hpe.com. [15.241.140.73])
+        by mx.google.com with ESMTPS id q17si1125788oic.133.2016.09.05.04.54.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Sep 2016 01:37:58 -0700 (PDT)
-Received: by mail-lf0-x22b.google.com with SMTP id p41so103494870lfi.1
-        for <linux-mm@kvack.org>; Mon, 05 Sep 2016 01:37:58 -0700 (PDT)
+        Mon, 05 Sep 2016 04:54:50 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 2/3] xpfo: Only put previous userspace pages into
+ the hot cache
+References: <1456496467-14247-1-git-send-email-juerg.haefliger@hpe.com>
+ <20160902113909.32631-1-juerg.haefliger@hpe.com>
+ <20160902113909.32631-3-juerg.haefliger@hpe.com> <57C9E37A.9070805@intel.com>
+From: Juerg Haefliger <juerg.haefliger@hpe.com>
+Message-ID: <e7a0789e-585c-839d-d8ea-95b1c9aef38a@hpe.com>
+Date: Mon, 5 Sep 2016 13:54:47 +0200
 MIME-Version: 1.0
-In-Reply-To: <57CCAE89.9080906@zoho.com>
-References: <CACT4Y+ZByeFG4bYEPPSKH9ZfGquj560EqxJAo0BfjrqMguFVTw@mail.gmail.com>
- <57CCAE89.9080906@zoho.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Mon, 5 Sep 2016 10:37:37 +0200
-Message-ID: <CACT4Y+Zi6PCtZnSWudh3d1PaE-k_gXaV-cT+kDhXb0g+oDqhhQ@mail.gmail.com>
-Subject: Re: mm: GPF in __insert_vmap_area
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <57C9E37A.9070805@intel.com>
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ protocol="application/pgp-signature";
+ boundary="feNkja7ck77XjJ8qB7LALqg0b3p8XSw7t"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zijun_hu <zijun_hu@zoho.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, zijun_hu@htc.com, syzkaller <syzkaller@googlegroups.com>
+To: Dave Hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, linux-x86_64@vger.kernel.org
+Cc: vpk@cs.columbia.edu
 
-On Mon, Sep 5, 2016 at 1:30 AM, zijun_hu <zijun_hu@zoho.com> wrote:
-> On 09/03/2016 08:15 PM, Dmitry Vyukov wrote:
->> Hello,
->>
->> While running syzkaller fuzzer I've got the following GPF:
->>
->> general protection fault: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN
->> Dumping ftrace buffer:
->>    (ftrace buffer empty)
->> Modules linked in:
->> CPU: 2 PID: 4268 Comm: syz-executor Not tainted 4.8.0-rc3-next-20160825+ #8
->> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
->> task: ffff88006a6527c0 task.stack: ffff880052630000
->> RIP: 0010:[<ffffffff82e1ccd6>]  [<ffffffff82e1ccd6>]
->> __list_add_valid+0x26/0xd0 lib/list_debug.c:23
->> RSP: 0018:ffff880052637a18  EFLAGS: 00010202
->> RAX: dffffc0000000000 RBX: 0000000000000000 RCX: ffffc90001c87000
->> RDX: 0000000000000001 RSI: ffff88001344cdb0 RDI: 0000000000000008
->> RBP: ffff880052637a30 R08: 0000000000000001 R09: 0000000000000000
->> R10: 0000000000000000 R11: ffffffff8a5deee0 R12: ffff88006cc47230
->> R13: ffff88001344cdb0 R14: ffff88006cc47230 R15: 0000000000000000
->> FS:  00007fbacc97e700(0000) GS:ffff88006d200000(0000) knlGS:0000000000000000
->> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
->> CR2: 0000000020de7000 CR3: 000000003c4d2000 CR4: 00000000000006e0
->> DR0: 000000000000001e DR1: 000000000000001e DR2: 0000000000000000
->> DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
->> Stack:
->>  ffff88006cc47200 ffff88001344cd98 ffff88006cc47200 ffff880052637a78
->>  ffffffff817bc6d1 ffff88006cc47208 ffffed000d988e41 ffff88006cc47208
->>  ffff88006cc3e680 ffffc900035b7000 ffffc900035a7000 ffff88006cc47200
->> Call Trace:
->>  [<     inline     >] __list_add_rcu include/linux/rculist.h:51
->>  [<     inline     >] list_add_rcu include/linux/rculist.h:78
->>  [<ffffffff817bc6d1>] __insert_vmap_area+0x1c1/0x3c0 mm/vmalloc.c:340
->>  [<ffffffff817bf544>] alloc_vmap_area+0x614/0x890 mm/vmalloc.c:458
->>  [<ffffffff817bf8a8>] __get_vm_area_node+0xe8/0x340 mm/vmalloc.c:1377
->>  [<ffffffff817c332a>] __vmalloc_node_range+0xaa/0x6d0 mm/vmalloc.c:1687
->>  [<     inline     >] __vmalloc_node mm/vmalloc.c:1736
->>  [<ffffffff817c39ab>] __vmalloc+0x5b/0x70 mm/vmalloc.c:1742
->>  [<ffffffff8166ae9c>] bpf_prog_alloc+0x3c/0x190 kernel/bpf/core.c:82
->>  [<ffffffff85c40ba9>] bpf_prog_create_from_user+0xa9/0x2c0
->> net/core/filter.c:1132
->>  [<     inline     >] seccomp_prepare_filter kernel/seccomp.c:373
->>  [<     inline     >] seccomp_prepare_user_filter kernel/seccomp.c:408
->>  [<     inline     >] seccomp_set_mode_filter kernel/seccomp.c:737
->>  [<ffffffff815d7687>] do_seccomp+0x317/0x1800 kernel/seccomp.c:787
->>  [<ffffffff815d8f84>] prctl_set_seccomp+0x34/0x60 kernel/seccomp.c:830
->>  [<     inline     >] SYSC_prctl kernel/sys.c:2157
->>  [<ffffffff813ccf8f>] SyS_prctl+0x82f/0xc80 kernel/sys.c:2075
->>  [<ffffffff86e10700>] entry_SYSCALL_64_fastpath+0x23/0xc1
->> Code: 00 00 00 00 00 55 48 b8 00 00 00 00 00 fc ff df 48 89 e5 41 54
->> 49 89 fc 48 8d 7a 08 53 48 89 d3 48 89 fa 48 83 ec 08 48 c1 ea 03 <80>
->> 3c 02 00 75 7c 48 8b 53 08 48 39 f2 75 37 48 89 f2 48 b8 00
->> RIP  [<ffffffff82e1ccd6>] __list_add_valid+0x26/0xd0 lib/list_debug.c:23
->>  RSP <ffff880052637a18>
->> ---[ end trace 983e625f02f00d9f ]---
->> Kernel panic - not syncing: Fatal exception
->>
->> On commit 0f98f121e1670eaa2a2fbb675e07d6ba7f0e146f of linux-next.
->> Unfortunately it is not reproducible.
->> The crashing line is:
->>         CHECK_DATA_CORRUPTION(next->prev != prev,
->>
->> It crashed on KASAN check at (%rax, %rdx), this address corresponds to
->> next address = 0x8. So next was ~NULL.
->>
-> Hi Dmitry
-> i am not sure for the real reason of the GPF panic
-> i have been browsing mm/vmalloc.c recently and have found several bugs perhaps
-> i hope it maybe help you
->
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index 91f44e7..1429ee6 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -321,10 +321,10 @@ static void __insert_vmap_area(struct vmap_area *va)
->
->                 parent = *p;
->                 tmp_va = rb_entry(parent, struct vmap_area, rb_node);
-> -               if (va->va_start < tmp_va->va_end)
-> -                       p = &(*p)->rb_left;
-> -               else if (va->va_end > tmp_va->va_start)
-> -                       p = &(*p)->rb_right;
-> +               if (va->va_end <= tmp_va->va_start)
-> +                       p = &parent->rb_left;
-> +               else if (va->va_start >= tmp_va->va_end)
-> +                       p = &parent->rb_right;
->                 else
->                         BUG();
->         }
-> @@ -432,6 +432,9 @@ nocache:
->
->                 if (!first)
->                         goto found;
-> +
-> +               if (addr > first->va_end)
-> +                       first = list_next_entry(first, list);
->         }
->
->         /* from the starting point, walk areas until a suitable hole is found */
-> @@ -594,7 +597,9 @@ static unsigned long lazy_max_pages(void)
->  {
->         unsigned int log;
->
-> -       log = fls(num_online_cpus());
-> +       log = num_online_cpus();
-> +       if (log > 1)
-> +               log = (unsigned int)get_count_order(log);
->
->         return log * (32UL * 1024 * 1024 / PAGE_SIZE);
->  }
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--feNkja7ck77XjJ8qB7LALqg0b3p8XSw7t
+Content-Type: multipart/mixed; boundary="HHOVQnPV2XNCXH9POK17P2Fj5EiJGnEta";
+ protected-headers="v1"
+From: Juerg Haefliger <juerg.haefliger@hpe.com>
+To: Dave Hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org,
+ linux-mm@kvack.org, kernel-hardening@lists.openwall.com,
+ linux-x86_64@vger.kernel.org
+Cc: vpk@cs.columbia.edu
+Message-ID: <e7a0789e-585c-839d-d8ea-95b1c9aef38a@hpe.com>
+Subject: Re: [RFC PATCH v2 2/3] xpfo: Only put previous userspace pages into
+ the hot cache
+References: <1456496467-14247-1-git-send-email-juerg.haefliger@hpe.com>
+ <20160902113909.32631-1-juerg.haefliger@hpe.com>
+ <20160902113909.32631-3-juerg.haefliger@hpe.com> <57C9E37A.9070805@intel.com>
+In-Reply-To: <57C9E37A.9070805@intel.com>
 
-Hi,
+--HHOVQnPV2XNCXH9POK17P2Fj5EiJGnEta
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: quoted-printable
 
-Unfortunately the bug is not reproducible, so I can't test your patches.
-However, if you see bugs in mm code, please mail these patches for review.
+On 09/02/2016 10:39 PM, Dave Hansen wrote:
+> On 09/02/2016 04:39 AM, Juerg Haefliger wrote:
+>> Allocating a page to userspace that was previously allocated to the
+>> kernel requires an expensive TLB shootdown. To minimize this, we only
+>> put non-kernel pages into the hot cache to favor their allocation.
+>=20
+> But kernel allocations do allocate from these pools, right?
+
+Yes.
+
+
+> Does this
+> just mean that kernel allocations usually have to pay the penalty to
+> convert a page?
+
+Only pages that are allocated for userspace (gfp & GFP_HIGHUSER =3D=3D GF=
+P_HIGHUSER) which were
+previously allocated for the kernel (gfp & GFP_HIGHUSER !=3D GFP_HIGHUSER=
+) have to pay the penalty.
+
+
+> So, what's the logic here?  You're assuming that order-0 kernel
+> allocations are more rare than allocations for userspace?
+
+The logic is to put reclaimed kernel pages into the cold cache to postpon=
+e their allocation as long
+as possible to minimize (potential) TLB flushes.
+
+=2E..Juerg
+
+
+
+--HHOVQnPV2XNCXH9POK17P2Fj5EiJGnEta--
+
+--feNkja7ck77XjJ8qB7LALqg0b3p8XSw7t
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBCAAGBQJXzV0HAAoJEHVMOpb5+LSM304QAINSMlOQKNAIRon29Uy318Sf
+J9Vfv3p2L/WIxrL6kKaHYkDqj+b0XnSVlWvnxNp1MX1qAOqeUSipfymvwNaYGuIV
+IJQeahOcJccupJMw1ILF+H1Rhxn+gBOc9I745omwO/CtlqYaYaXfCeIxI/R1Q9LQ
+yCtBPnbL4v1St7FnjDhZd3FdgiP+F98MAz8040FYq1cO+qWVDTyIRcpq4rPaAJNi
+8zcpLB+A34qjA2i3ZFV/ZNls2L4Buw4pYW1ZGnHxNTKKmbrYkZhBuxYuCNpfnyhB
+M00AnBKJQ7fqHKxCa64eo59rRTpYQ0Zd8KaKvVaZfZfbBaAg8Ir2UWNoBcPvE8ox
+D8TMhKlORMhHfnAE73DIlkENt1wYt2gGGScIJ+bL8nulJpqvNo5lPyTT3NHhrNZa
+prre5DzDQFvyv2SLx2P3MDqtyJ658hKx5own+82N99K5GuhC2++Xaq3/BpOC4rQI
+rEONoXhm0j63g2udCmkc1BIRSb+ZTaqzC1fxWoYH75nYEiIhGcgTQVJWXMx5DB/Y
+gvJJn/okC97zSXGk8zQtYIO2aDhUzRowYoy5bslzlR20hoNTWL9ctySE2OobqIdM
+WmWm/Hyq59cAMneimMv68+/RiWtxL2s5Q+8lci8uf18ollN1g/zp6H/1qOOMWvAr
+vqBZxyugEM72PbSEFv8Y
+=Jva/
+-----END PGP SIGNATURE-----
+
+--feNkja7ck77XjJ8qB7LALqg0b3p8XSw7t--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
