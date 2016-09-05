@@ -1,133 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CB6B6B026F
-	for <linux-mm@kvack.org>; Mon,  5 Sep 2016 12:47:36 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id vp2so61920409pab.3
-        for <linux-mm@kvack.org>; Mon, 05 Sep 2016 09:47:36 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id q3si29992002pae.284.2016.09.05.09.47.34
+Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 65FA56B0038
+	for <linux-mm@kvack.org>; Mon,  5 Sep 2016 13:02:14 -0400 (EDT)
+Received: by mail-ua0-f198.google.com with SMTP id i32so398922731uai.0
+        for <linux-mm@kvack.org>; Mon, 05 Sep 2016 10:02:14 -0700 (PDT)
+Received: from mail-ua0-x233.google.com (mail-ua0-x233.google.com. [2607:f8b0:400c:c08::233])
+        by mx.google.com with ESMTPS id 143si8836947vkp.77.2016.09.05.10.02.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Sep 2016 09:47:35 -0700 (PDT)
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.4 002/113] x86/mm: Disable preemption during CR3 read+write
-Date: Mon,  5 Sep 2016 18:43:25 +0200
-Message-Id: <20160905164349.313153214@linuxfoundation.org>
-In-Reply-To: <20160905164349.217621339@linuxfoundation.org>
-References: <20160905164349.217621339@linuxfoundation.org>
+        Mon, 05 Sep 2016 10:02:13 -0700 (PDT)
+Received: by mail-ua0-x233.google.com with SMTP id 49so46623798uat.3
+        for <linux-mm@kvack.org>; Mon, 05 Sep 2016 10:02:13 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <20160905133308.28234-4-dsafonov@virtuozzo.com>
+References: <20160905133308.28234-1-dsafonov@virtuozzo.com> <20160905133308.28234-4-dsafonov@virtuozzo.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Mon, 5 Sep 2016 10:01:52 -0700
+Message-ID: <CALCETrVZ+jArk-FW5AcxJ2Z+0KaxpZBymFFrg1WOfc2zJiSFPQ@mail.gmail.com>
+Subject: Re: [PATCHv5 3/6] x86/arch_prctl/vdso: add ARCH_MAP_VDSO_*
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, "Peter Zijlstra (Intel)" <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Borislav Petkov <bp@suse.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+To: Dmitry Safonov <dsafonov@virtuozzo.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Safonov <0x7f454c46@gmail.com>, Andrew Lutomirski <luto@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@virtuozzo.com>
 
-4.4-stable review patch.  If anyone has any objections, please let me know.
+On Mon, Sep 5, 2016 at 6:33 AM, Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
+> Add API to change vdso blob type with arch_prctl.
+> As this is usefull only by needs of CRIU, expose
+> this interface under CONFIG_CHECKPOINT_RESTORE.
 
-------------------
-
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-
-commit 5cf0791da5c162ebc14b01eb01631cfa7ed4fa6e upstream.
-
-There's a subtle preemption race on UP kernels:
-
-Usually current->mm (and therefore mm->pgd) stays the same during the
-lifetime of a task so it does not matter if a task gets preempted during
-the read and write of the CR3.
-
-But then, there is this scenario on x86-UP:
-
-TaskA is in do_exit() and exit_mm() sets current->mm = NULL followed by:
-
- -> mmput()
- -> exit_mmap()
- -> tlb_finish_mmu()
- -> tlb_flush_mmu()
- -> tlb_flush_mmu_tlbonly()
- -> tlb_flush()
- -> flush_tlb_mm_range()
- -> __flush_tlb_up()
- -> __flush_tlb()
- ->  __native_flush_tlb()
-
-At this point current->mm is NULL but current->active_mm still points to
-the "old" mm.
-
-Let's preempt taskA _after_ native_read_cr3() by taskB. TaskB has its
-own mm so CR3 has changed.
-
-Now preempt back to taskA. TaskA has no ->mm set so it borrows taskB's
-mm and so CR3 remains unchanged. Once taskA gets active it continues
-where it was interrupted and that means it writes its old CR3 value
-back. Everything is fine because userland won't need its memory
-anymore.
-
-Now the fun part:
-
-Let's preempt taskA one more time and get back to taskB. This
-time switch_mm() won't do a thing because oldmm (->active_mm)
-is the same as mm (as per context_switch()). So we remain
-with a bad CR3 / PGD and return to userland.
-
-The next thing that happens is handle_mm_fault() with an address for
-the execution of its code in userland. handle_mm_fault() realizes that
-it has a PTE with proper rights so it returns doing nothing. But the
-CPU looks at the wrong PGD and insists that something is wrong and
-faults again. And again. And one more timea?|
-
-This pagefault circle continues until the scheduler gets tired of it and
-puts another task on the CPU. It gets little difficult if the task is a
-RT task with a high priority. The system will either freeze or it gets
-fixed by the software watchdog thread which usually runs at RT-max prio.
-But waiting for the watchdog will increase the latency of the RT task
-which is no good.
-
-Fix this by disabling preemption across the critical code section.
-
-Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-Acked-by: Rik van Riel <riel@redhat.com>
 Acked-by: Andy Lutomirski <luto@kernel.org>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Borislav Petkov <bp@suse.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/1470404259-26290-1-git-send-email-bigeasy@linutronix.de
-[ Prettified the changelog. ]
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-
----
- arch/x86/include/asm/tlbflush.h |    7 +++++++
- 1 file changed, 7 insertions(+)
-
---- a/arch/x86/include/asm/tlbflush.h
-+++ b/arch/x86/include/asm/tlbflush.h
-@@ -86,7 +86,14 @@ static inline void cr4_set_bits_and_upda
- 
- static inline void __native_flush_tlb(void)
- {
-+	/*
-+	 * If current->mm == NULL then we borrow a mm which may change during a
-+	 * task switch and therefore we must not be preempted while we write CR3
-+	 * back:
-+	 */
-+	preempt_disable();
- 	native_write_cr3(native_read_cr3());
-+	preempt_enable();
- }
- 
- static inline void __native_flush_tlb_global_irq_disabled(void)
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
