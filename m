@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 465846B026E
-	for <linux-mm@kvack.org>; Mon,  5 Sep 2016 12:46:41 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id g202so309831229pfb.3
-        for <linux-mm@kvack.org>; Mon, 05 Sep 2016 09:46:41 -0700 (PDT)
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CB6B6B026F
+	for <linux-mm@kvack.org>; Mon,  5 Sep 2016 12:47:36 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id vp2so61920409pab.3
+        for <linux-mm@kvack.org>; Mon, 05 Sep 2016 09:47:36 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id wm4si30027990pab.235.2016.09.05.09.46.38
+        by mx.google.com with ESMTPS id q3si29992002pae.284.2016.09.05.09.47.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Sep 2016 09:46:39 -0700 (PDT)
+        Mon, 05 Sep 2016 09:47:35 -0700 (PDT)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.7 001/143] x86/mm: Disable preemption during CR3 read+write
-Date: Mon,  5 Sep 2016 18:42:57 +0200
-Message-Id: <20160905164430.652351752@linuxfoundation.org>
-In-Reply-To: <20160905164430.593075551@linuxfoundation.org>
-References: <20160905164430.593075551@linuxfoundation.org>
+Subject: [PATCH 4.4 002/113] x86/mm: Disable preemption during CR3 read+write
+Date: Mon,  5 Sep 2016 18:43:25 +0200
+Message-Id: <20160905164349.313153214@linuxfoundation.org>
+In-Reply-To: <20160905164349.217621339@linuxfoundation.org>
+References: <20160905164349.217621339@linuxfoundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -22,7 +22,7 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, "Peter Zijlstra (Intel)" <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Borislav Petkov <bp@suse.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-4.7-stable review patch.  If anyone has any objections, please let me know.
+4.4-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
@@ -112,7 +112,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 --- a/arch/x86/include/asm/tlbflush.h
 +++ b/arch/x86/include/asm/tlbflush.h
-@@ -135,7 +135,14 @@ static inline void cr4_set_bits_and_upda
+@@ -86,7 +86,14 @@ static inline void cr4_set_bits_and_upda
  
  static inline void __native_flush_tlb(void)
  {
