@@ -1,81 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 50E0682F64
-	for <linux-mm@kvack.org>; Mon,  5 Sep 2016 10:18:44 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id w12so9275560wmf.3
-        for <linux-mm@kvack.org>; Mon, 05 Sep 2016 07:18:44 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i89si17608998wmc.142.2016.09.05.07.18.42
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EC52B6B026E
+	for <linux-mm@kvack.org>; Mon,  5 Sep 2016 12:43:40 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id hi6so203818971pac.0
+        for <linux-mm@kvack.org>; Mon, 05 Sep 2016 09:43:40 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id i8si30057640pat.21.2016.09.05.09.43.40
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 05 Sep 2016 07:18:43 -0700 (PDT)
-Subject: Re: [PATCH] mem-hotplug: Don't clear the only node in new_node_page()
-References: <1473044391.4250.19.camel@TP420>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <d7393a3e-73a7-7923-bc32-d4dcbc6523f9@suse.cz>
-Date: Mon, 5 Sep 2016 16:18:29 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Sep 2016 09:43:40 -0700 (PDT)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 3.14 01/35] x86/mm: Disable preemption during CR3 read+write
+Date: Mon,  5 Sep 2016 18:43:02 +0200
+Message-Id: <20160905163958.749778862@linuxfoundation.org>
+In-Reply-To: <20160905163958.687259537@linuxfoundation.org>
+References: <20160905163958.687259537@linuxfoundation.org>
 MIME-Version: 1.0
-In-Reply-To: <1473044391.4250.19.camel@TP420>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zhong <zhong@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>
-Cc: jallen@linux.vnet.ibm.com, qiuxishi@huawei.com, iamjoonsoo.kim@lge.com, n-horiguchi@ah.jp.nec.com, rientjes@google.com, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, "Peter Zijlstra (Intel)" <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Borislav Petkov <bp@suse.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-On 09/05/2016 04:59 AM, Li Zhong wrote:
-> Commit 394e31d2c introduced new_node_page() for memory hotplug.
->
-> In new_node_page(), the nid is cleared before calling __alloc_pages_nodemask().
-> But if it is the only node of the system,
+3.14-stable review patch.  If anyone has any objections, please let me know.
 
-So the use case is that we are partially offlining the only online node?
+------------------
 
-> and the first round allocation fails,
-> it will not be able to get memory from an empty nodemask, and trigger oom.
+From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
 
-Hmm triggering OOM due to empty nodemask sounds like a wrong thing to do. CCing 
-some OOM experts for insight. Also OOM is skipped for __GFP_THISNODE 
-allocations, so we might also consider the same for nodemask-constrained 
-allocations?
+commit 5cf0791da5c162ebc14b01eb01631cfa7ed4fa6e upstream.
 
-> The patch checks whether it is the last node on the system, and if it is, then
-> don't clear the nid in the nodemask.
+There's a subtle preemption race on UP kernels:
 
-I'd rather see the allocation not OOM, and rely on the fallback in 
-new_node_page() that doesn't have nodemask. But I suspect it might also make 
-sense to treat empty nodemask as something unexpected and put some WARN_ON 
-(instead of OOM) in the allocator.
+Usually current->mm (and therefore mm->pgd) stays the same during the
+lifetime of a task so it does not matter if a task gets preempted during
+the read and write of the CR3.
 
-> Reported-by: John Allen <jallen@linux.vnet.ibm.com>
-> Signed-off-by: Li Zhong <zhong@linux.vnet.ibm.com>
+But then, there is this scenario on x86-UP:
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-Fixes: 394e31d2ceb4 ("mem-hotplug: alloc new page from a nearest neighbor node 
-when mem-offline")
+TaskA is in do_exit() and exit_mm() sets current->mm = NULL followed by:
 
-> ---
->  mm/memory_hotplug.c | 4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
->
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 41266dc..b58906b 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1567,7 +1567,9 @@ static struct page *new_node_page(struct page *page, unsigned long private,
->  		return alloc_huge_page_node(page_hstate(compound_head(page)),
->  					next_node_in(nid, nmask));
->
-> -	node_clear(nid, nmask);
-> +	if (nid != next_node_in(nid, nmask))
-> +		node_clear(nid, nmask);
-> +
->  	if (PageHighMem(page)
->  	    || (zone_idx(page_zone(page)) == ZONE_MOVABLE))
->  		gfp_mask |= __GFP_HIGHMEM;
->
->
->
+ -> mmput()
+ -> exit_mmap()
+ -> tlb_finish_mmu()
+ -> tlb_flush_mmu()
+ -> tlb_flush_mmu_tlbonly()
+ -> tlb_flush()
+ -> flush_tlb_mm_range()
+ -> __flush_tlb_up()
+ -> __flush_tlb()
+ ->  __native_flush_tlb()
+
+At this point current->mm is NULL but current->active_mm still points to
+the "old" mm.
+
+Let's preempt taskA _after_ native_read_cr3() by taskB. TaskB has its
+own mm so CR3 has changed.
+
+Now preempt back to taskA. TaskA has no ->mm set so it borrows taskB's
+mm and so CR3 remains unchanged. Once taskA gets active it continues
+where it was interrupted and that means it writes its old CR3 value
+back. Everything is fine because userland won't need its memory
+anymore.
+
+Now the fun part:
+
+Let's preempt taskA one more time and get back to taskB. This
+time switch_mm() won't do a thing because oldmm (->active_mm)
+is the same as mm (as per context_switch()). So we remain
+with a bad CR3 / PGD and return to userland.
+
+The next thing that happens is handle_mm_fault() with an address for
+the execution of its code in userland. handle_mm_fault() realizes that
+it has a PTE with proper rights so it returns doing nothing. But the
+CPU looks at the wrong PGD and insists that something is wrong and
+faults again. And again. And one more timea?|
+
+This pagefault circle continues until the scheduler gets tired of it and
+puts another task on the CPU. It gets little difficult if the task is a
+RT task with a high priority. The system will either freeze or it gets
+fixed by the software watchdog thread which usually runs at RT-max prio.
+But waiting for the watchdog will increase the latency of the RT task
+which is no good.
+
+Fix this by disabling preemption across the critical code section.
+
+Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Andy Lutomirski <luto@kernel.org>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Borislav Petkov <bp@suse.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-mm@kvack.org
+Link: http://lkml.kernel.org/r/1470404259-26290-1-git-send-email-bigeasy@linutronix.de
+[ Prettified the changelog. ]
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+---
+ arch/x86/include/asm/tlbflush.h |    7 +++++++
+ 1 file changed, 7 insertions(+)
+
+--- a/arch/x86/include/asm/tlbflush.h
++++ b/arch/x86/include/asm/tlbflush.h
+@@ -17,7 +17,14 @@
+ 
+ static inline void __native_flush_tlb(void)
+ {
++	/*
++	 * If current->mm == NULL then we borrow a mm which may change during a
++	 * task switch and therefore we must not be preempted while we write CR3
++	 * back:
++	 */
++	preempt_disable();
+ 	native_write_cr3(native_read_cr3());
++	preempt_enable();
+ }
+ 
+ static inline void __native_flush_tlb_global_irq_disabled(void)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
