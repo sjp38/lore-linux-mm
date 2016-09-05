@@ -1,111 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DFFFD6B0038
-	for <linux-mm@kvack.org>; Mon,  5 Sep 2016 07:54:51 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id g185so49983704ith.3
-        for <linux-mm@kvack.org>; Mon, 05 Sep 2016 04:54:51 -0700 (PDT)
-Received: from g4t3427.houston.hpe.com (g4t3427.houston.hpe.com. [15.241.140.73])
-        by mx.google.com with ESMTPS id q17si1125788oic.133.2016.09.05.04.54.50
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DA8786B025E
+	for <linux-mm@kvack.org>; Mon,  5 Sep 2016 09:35:23 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id c129so172015752oih.2
+        for <linux-mm@kvack.org>; Mon, 05 Sep 2016 06:35:23 -0700 (PDT)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0112.outbound.protection.outlook.com. [104.47.2.112])
+        by mx.google.com with ESMTPS id f3si657988oig.181.2016.09.05.06.35.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Sep 2016 04:54:50 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 2/3] xpfo: Only put previous userspace pages into
- the hot cache
-References: <1456496467-14247-1-git-send-email-juerg.haefliger@hpe.com>
- <20160902113909.32631-1-juerg.haefliger@hpe.com>
- <20160902113909.32631-3-juerg.haefliger@hpe.com> <57C9E37A.9070805@intel.com>
-From: Juerg Haefliger <juerg.haefliger@hpe.com>
-Message-ID: <e7a0789e-585c-839d-d8ea-95b1c9aef38a@hpe.com>
-Date: Mon, 5 Sep 2016 13:54:47 +0200
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 05 Sep 2016 06:35:22 -0700 (PDT)
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Subject: [PATCHv5 0/6] x86: 32-bit compatible C/R on x86_64
+Date: Mon, 5 Sep 2016 16:33:02 +0300
+Message-ID: <20160905133308.28234-1-dsafonov@virtuozzo.com>
 MIME-Version: 1.0
-In-Reply-To: <57C9E37A.9070805@intel.com>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="feNkja7ck77XjJ8qB7LALqg0b3p8XSw7t"
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, linux-x86_64@vger.kernel.org
-Cc: vpk@cs.columbia.edu
+To: linux-kernel@vger.kernel.org
+Cc: 0x7f454c46@gmail.com, luto@kernel.org, oleg@redhat.com, tglx@linutronix.de, hpa@zytor.com, mingo@redhat.com, linux-mm@kvack.org, x86@kernel.org, gorcunov@openvz.org, xemul@virtuozzo.com, Dmitry Safonov <dsafonov@virtuozzo.com>
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---feNkja7ck77XjJ8qB7LALqg0b3p8XSw7t
-Content-Type: multipart/mixed; boundary="HHOVQnPV2XNCXH9POK17P2Fj5EiJGnEta";
- protected-headers="v1"
-From: Juerg Haefliger <juerg.haefliger@hpe.com>
-To: Dave Hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org,
- linux-mm@kvack.org, kernel-hardening@lists.openwall.com,
- linux-x86_64@vger.kernel.org
-Cc: vpk@cs.columbia.edu
-Message-ID: <e7a0789e-585c-839d-d8ea-95b1c9aef38a@hpe.com>
-Subject: Re: [RFC PATCH v2 2/3] xpfo: Only put previous userspace pages into
- the hot cache
-References: <1456496467-14247-1-git-send-email-juerg.haefliger@hpe.com>
- <20160902113909.32631-1-juerg.haefliger@hpe.com>
- <20160902113909.32631-3-juerg.haefliger@hpe.com> <57C9E37A.9070805@intel.com>
-In-Reply-To: <57C9E37A.9070805@intel.com>
+Changes from v4:
+- check both vm_ops and vm_private_data to avoid (unlikely) confusion
+  with some other vma in map_vdso_once (as Andy noticed) - which would
+  lead to unable to use this API in that unlikely-case
+  (vm_private_data may be uninitialized and be the same as vvar_mapping
+  or vdso_mapping pointer) - so I introduced one-liner helper
+  vma_is_special_mapping().
 
---HHOVQnPV2XNCXH9POK17P2Fj5EiJGnEta
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+Changes from v3:
+- proper ifdefs around vdso_image_32
+- missed Reviewed-by tag
 
-On 09/02/2016 10:39 PM, Dave Hansen wrote:
-> On 09/02/2016 04:39 AM, Juerg Haefliger wrote:
->> Allocating a page to userspace that was previously allocated to the
->> kernel requires an expensive TLB shootdown. To minimize this, we only
->> put non-kernel pages into the hot cache to favor their allocation.
->=20
-> But kernel allocations do allocate from these pools, right?
+Changes from v2:
+- reworked map_vdso() part with Andy suggestions
+- int arch_prctl(ARCH_MAP_VDSO_*, addr) now returns size of mapped
+  vdso blob on success, which is handy for the following blob parsing
+  in userspace
+- disallowed two vDSO blobs mappings: as Andy noted,
+  __insert_special_mapping may not get all accounting right, which
+  may lead to abuse this API from userspace. Return -EEXIST if process
+  has mapped vdso blob - this will ensure that caller knows what it does.
 
-Yes.
+The following changes are available since v1:
+- killed PR_REG_SIZE macro as Oleg suggested
+- cleared SA_IA32_ABI|SA_X32_ABI from oact->sa.sa_flags in do_sigaction()
+  as noticed by Oleg
+- moved SA_IA32_ABI|SA_X32_ABI from uapi header as those flags shouldn't
+  be exposed to user-space
 
+I also reworked CRIU's patches to work with this patches set, rather than
+on first RFC that swapped TIF_IA32 with arch_prctl. By now it yet fails
+~10% of 32-bit tests of CRIU's test suite called ZDTM.
+The CRIU branch for this can be viewed on [6] and v3 patches to add
+this functionality have been sent to maillist [7].
 
-> Does this
-> just mean that kernel allocations usually have to pay the penalty to
-> convert a page?
+The patches set is based on [3] and while it's not yet applied -- it
+may make kbuild test robot unhappy.
 
-Only pages that are allocated for userspace (gfp & GFP_HIGHUSER =3D=3D GF=
-P_HIGHUSER) which were
-previously allocated for the kernel (gfp & GFP_HIGHUSER !=3D GFP_HIGHUSER=
-) have to pay the penalty.
+Description from v1 [5]:
 
+This patches set is an attempt to add checkpoint/restore
+for 32-bit tasks in compatibility mode on x86_64 hosts.
 
-> So, what's the logic here?  You're assuming that order-0 kernel
-> allocations are more rare than allocations for userspace?
+Restore in CRIU starts from one root restoring process, which
+reads info for all threads being restored from images files.
+This information is used further to find out which processes
+share some resources. Later shared resources are restored only
+by one process and all other inherit them.
+After that it calls clone() and new threads restore their
+properties in parallel. Those threads inherit all parent's
+mappings and fetch properties from those mappings
+(and do clone themself, if they have children/subthreads). [1]
+Then starts restorer blob's play, it's PIE binary, which
+unmaps all unneeded for restoring VMAs, maps new VMAs and
+finalize restoring with sigreturn syscall. [2]
 
-The logic is to put reclaimed kernel pages into the cold cache to postpon=
-e their allocation as long
-as possible to minimize (potential) TLB flushes.
+To restore of 32-bit task we need three things to do in running
+x86_64 restorer blob:
+a) set code selector to __USER32_CS (to run 32-bit code);
+b) remap vdso blob from 64-bit to 32-bit
+   This is primary needed because restore may happen on a different
+   kernel, which has different vDSO image than we had on dump.
+c) if 32-bit vDSO differ to dumped image, move it on free place
+   and add jump trampolines to that place.
+d) switch TIF_IA32 flag, so kernel would know that it deals with
+   compatible 32-bit application.
 
-=2E..Juerg
+>From all this:
+a) setting CS may be done from userspace, no patches needed;
+b) patches 1-3 add ability to map different vDSO blobs on x86 kernel;
+c) for remapping/moving 32-bit vDSO blob patches have been send earlier
+   and seems to be accepted [3]
+d) and for swapping TIF_IA32 flag discussion with Andy ended in conclusion
+   that it's better to remove this flag completely.
+   Patches 4-6 deletes usage of TIF_IA32 from ptrace, signal and coredump
+   code. This is rework/resend of RFC [4]
 
+[1] https://criu.org/Checkpoint/Restore#Restore
+[2] https://criu.org/Restorer_context
+[3] https://lkml.org/lkml/2016/6/28/489
+[4] https://lkml.org/lkml/2016/4/25/650
+[5] https://lkml.org/lkml/2016/6/1/425
+[6] https://github.com/0x7f454c46/criu/tree/compat-4
+[7] https://lists.openvz.org/pipermail/criu/2016-June/029788.html
 
+Dmitry Safonov (6):
+  x86/vdso: unmap vdso blob on vvar mapping failure
+  x86/vdso: replace calculate_addr in map_vdso() with addr
+  x86/arch_prctl/vdso: add ARCH_MAP_VDSO_*
+  x86/coredump: use pr_reg size, rather that TIF_IA32 flag
+  x86/ptrace: down with test_thread_flag(TIF_IA32)
+  x86/signal: add SA_{X32,IA32}_ABI sa_flags
 
---HHOVQnPV2XNCXH9POK17P2Fj5EiJGnEta--
+ arch/x86/entry/vdso/vma.c         | 81 +++++++++++++++++++++++++++------------
+ arch/x86/ia32/ia32_signal.c       |  2 +-
+ arch/x86/include/asm/compat.h     |  8 ++--
+ arch/x86/include/asm/fpu/signal.h |  6 +++
+ arch/x86/include/asm/signal.h     |  4 ++
+ arch/x86/include/asm/vdso.h       |  2 +
+ arch/x86/include/uapi/asm/prctl.h |  6 +++
+ arch/x86/kernel/process_64.c      | 25 ++++++++++++
+ arch/x86/kernel/ptrace.c          |  2 +-
+ arch/x86/kernel/signal.c          | 20 +++++-----
+ arch/x86/kernel/signal_compat.c   | 34 ++++++++++++++--
+ fs/binfmt_elf.c                   | 23 ++++-------
+ kernel/signal.c                   |  7 ++++
+ 13 files changed, 162 insertions(+), 58 deletions(-)
 
---feNkja7ck77XjJ8qB7LALqg0b3p8XSw7t
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQIcBAEBCAAGBQJXzV0HAAoJEHVMOpb5+LSM304QAINSMlOQKNAIRon29Uy318Sf
-J9Vfv3p2L/WIxrL6kKaHYkDqj+b0XnSVlWvnxNp1MX1qAOqeUSipfymvwNaYGuIV
-IJQeahOcJccupJMw1ILF+H1Rhxn+gBOc9I745omwO/CtlqYaYaXfCeIxI/R1Q9LQ
-yCtBPnbL4v1St7FnjDhZd3FdgiP+F98MAz8040FYq1cO+qWVDTyIRcpq4rPaAJNi
-8zcpLB+A34qjA2i3ZFV/ZNls2L4Buw4pYW1ZGnHxNTKKmbrYkZhBuxYuCNpfnyhB
-M00AnBKJQ7fqHKxCa64eo59rRTpYQ0Zd8KaKvVaZfZfbBaAg8Ir2UWNoBcPvE8ox
-D8TMhKlORMhHfnAE73DIlkENt1wYt2gGGScIJ+bL8nulJpqvNo5lPyTT3NHhrNZa
-prre5DzDQFvyv2SLx2P3MDqtyJ658hKx5own+82N99K5GuhC2++Xaq3/BpOC4rQI
-rEONoXhm0j63g2udCmkc1BIRSb+ZTaqzC1fxWoYH75nYEiIhGcgTQVJWXMx5DB/Y
-gvJJn/okC97zSXGk8zQtYIO2aDhUzRowYoy5bslzlR20hoNTWL9ctySE2OobqIdM
-WmWm/Hyq59cAMneimMv68+/RiWtxL2s5Q+8lci8uf18ollN1g/zp6H/1qOOMWvAr
-vqBZxyugEM72PbSEFv8Y
-=Jva/
------END PGP SIGNATURE-----
-
---feNkja7ck77XjJ8qB7LALqg0b3p8XSw7t--
+-- 
+2.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
