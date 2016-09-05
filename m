@@ -1,18 +1,27 @@
-From: Borislav Petkov <bp@alien8.de>
+From: Borislav Petkov <bp-Gina5bIWoIWzQB+pC5nmwQ@public.gmane.org>
 Subject: Re: [RFC PATCH v2 07/20] x86: Provide general kernel support for
- memory encryption
-Date: Mon, 5 Sep 2016 10:48:17 +0200
-Message-ID: <20160905084817.GB18856@pd.tnic>
+	memory encryption
+Date: Mon, 5 Sep 2016 17:22:12 +0200
+Message-ID: <20160905152211.GD18856@pd.tnic>
 References: <20160822223529.29880.50884.stgit@tlendack-t1.amdoffice.net>
- <20160822223646.29880.28794.stgit@tlendack-t1.amdoffice.net>
+	<20160822223646.29880.28794.stgit@tlendack-t1.amdoffice.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Return-path: <linux-kernel-owner@vger.kernel.org>
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Return-path: <iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
 Content-Disposition: inline
-In-Reply-To: <20160822223646.29880.28794.stgit@tlendack-t1.amdoffice.net>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.>
+In-Reply-To: <20160822223646.29880.28794.stgit-qCXWGYdRb2BnqfbPTmsdiZQ+2ll4COg0XqFh9Ls21Oc@public.gmane.org>
+List-Unsubscribe: <https://lists.linuxfoundation.org/mailman/options/iommu>,
+	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=unsubscribe>
+List-Archive: <http://lists.linuxfoundation.org/pipermail/iommu/>
+List-Post: <mailto:iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
+List-Help: <mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=help>
+List-Subscribe: <https://lists.linuxfoundation.org/mailman/listinfo/iommu>,
+	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=subscribe>
+Sender: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
+Errors-To: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
+To: Tom Lendacky <thomas.lendacky-5C7GfCeVMHo@public.gmane.org>
+Cc: linux-efi-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, kvm-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, Matt Fleming <matt-mF/unelCI9GS6iBeEJttW/XRex20P6io@public.gmane.org>, x86-DgEjT+Ai2ygdnm+yROfE0A@public.gmane.org, linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org, Alexander Potapenko <glider-hpIqsD4AKlfQT0dZR+AlfA@public.gmane.org>, "H. Peter Anvin" <hpa-YMNOUZJC4hwAvxtiuMwx3w@public.gmane.org>, linux-arch-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, Jonathan Corbet <corbet-T1hC0tSOHrs@public.gmane.org>, linux-doc-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, kasan-dev-/JYPxA39Uh5TLH3MbocFFw@public.gmane.org, Ingo Molnar <mingo-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, Andrey Ryabinin <aryabinin-5HdwGun5lf+gSpxsJD1C4w@public.gmane.org>, Arnd Bergmann <arnd-r2nGTMty4D4@public.gmane.org>, Andy Lutomirski <luto-DgEjT+Ai2ygdnm+yROfE0A@public.gmane.org>, Thomas Gleixner <tglx-hfZtesqFncYOwBW4kG4KsQ@public.gmane.org>, Dmitry Vyukov <dvyukov-hpIqsD4AKlfQT0dZR+AlfA@public.gmane.org>, linux-kernel-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org, Paolo Bonzini <pbonzini-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>
 List-Id: linux-mm.kvack.org
 
 On Mon, Aug 22, 2016 at 05:36:46PM -0500, Tom Lendacky wrote:
@@ -28,51 +37,37 @@ On Mon, Aug 22, 2016 at 05:36:46PM -0500, Tom Lendacky wrote:
 > - Provide an SME initialization routine to update the protection map with
 >   the memory encryption mask so that it is used by default
 > 
-> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
-> ---
+> Signed-off-by: Tom Lendacky <thomas.lendacky-5C7GfCeVMHo@public.gmane.org>
 
 ...
 
-> diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-> index f1218f5..a01f0e1 100644
-> --- a/arch/x86/include/asm/pgtable_types.h
-> +++ b/arch/x86/include/asm/pgtable_types.h
-> @@ -3,6 +3,7 @@
+> diff --git a/arch/x86/kernel/head_64.S b/arch/x86/kernel/head_64.S
+> index c98a559..30f7715 100644
+> --- a/arch/x86/kernel/head_64.S
+> +++ b/arch/x86/kernel/head_64.S
+> @@ -95,6 +95,13 @@ startup_64:
+>  	jnz	bad_address
 >  
->  #include <linux/const.h>
->  #include <asm/page_types.h>
-> +#include <asm/mem_encrypt.h>
+>  	/*
+> +	 * Enable memory encryption (if available). Add the memory encryption
+> +	 * mask to %rbp to include it in the the page table fixup.
+> +	 */
+> +	call	sme_enable
+> +	addq	sme_me_mask(%rip), %rbp
+> +
+> +	/*
+>  	 * Fixup the physical addresses in the page table
+>  	 */
+>  	addq	%rbp, early_level4_pgt + (L4_START_KERNEL*8)(%rip)
+> @@ -116,7 +123,8 @@ startup_64:
+>  	movq	%rdi, %rax
+>  	shrq	$PGDIR_SHIFT, %rax
 >  
->  #define FIRST_USER_ADDRESS	0UL
->  
-> @@ -121,9 +122,9 @@
->  
->  #define _PAGE_PROTNONE	(_AT(pteval_t, 1) << _PAGE_BIT_PROTNONE)
->  
-> -#define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER |	\
-> +#define __PAGE_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER |	\
->  			 _PAGE_ACCESSED | _PAGE_DIRTY)
+> -	leaq	(4096 + _KERNPG_TABLE)(%rbx), %rdx
+> +	leaq	(4096 + __KERNPG_TABLE)(%rbx), %rdx
+> +	addq	sme_me_mask(%rip), %rdx		/* Apply mem encryption mask */
 
-Hmm, so this naming looks confusing and error-prone: the only difference
-is a single "_".
-
-How about this instead:
-
-#define _PAGE_TABLE_NO_ENC	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER |	\
-	  			 _PAGE_ACCESSED | _PAGE_DIRTY)
-
-#define _PAGE_TABLE (_PAGE_TABLE_NO_ENC | _PAGE_ENC)
-
-Or call it _PAGE_TABLE_BASE or whatever.
-
-Ditto for __KERNPG_TABLE.
-
-This way you can differentiate between the two and use the _NO_ENC one
-to define _PAGE_TABLE. And it will be absolutely clear when you use the
-_NO_ENC one, what you mean and that you don't want to have the enc mask
-in the PTE.
-
-Should be less confusing IMO too.
+Please add comments over the line and not at the side...
 
 -- 
 Regards/Gruss,
