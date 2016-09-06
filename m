@@ -1,133 +1,199 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 534866B0038
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2016 04:15:44 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id ag5so423517691pad.2
-        for <linux-mm@kvack.org>; Tue, 06 Sep 2016 01:15:44 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id z1si27261192pab.287.2016.09.06.01.15.43
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A2476B0038
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2016 04:31:15 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id x187so205053942vkx.2
+        for <linux-mm@kvack.org>; Tue, 06 Sep 2016 01:31:15 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 98si16998077qks.30.2016.09.06.01.31.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Sep 2016 01:15:43 -0700 (PDT)
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u868CTfX144089
-	for <linux-mm@kvack.org>; Tue, 6 Sep 2016 04:15:42 -0400
-Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 259r1mxdsf-1
+        Tue, 06 Sep 2016 01:31:14 -0700 (PDT)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u868RT6m127227
+	for <linux-mm@kvack.org>; Tue, 6 Sep 2016 04:31:14 -0400
+Received: from e23smtp08.au.ibm.com (e23smtp08.au.ibm.com [202.81.31.141])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 259rhk63ef-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 06 Sep 2016 04:15:42 -0400
+	for <linux-mm@kvack.org>; Tue, 06 Sep 2016 04:31:14 -0400
 Received: from localhost
-	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <zhong@linux.vnet.ibm.com>;
-	Tue, 6 Sep 2016 04:15:41 -0400
-Content-Type: text/plain; charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 9.3 \(3124\))
-Subject: Re: [PATCH] mem-hotplug: Don't clear the only node in new_node_page()
-From: Li Zhong <zhong@linux.vnet.ibm.com>
-In-Reply-To: <d7393a3e-73a7-7923-bc32-d4dcbc6523f9@suse.cz>
-Date: Tue, 6 Sep 2016 16:13:24 +0800
-Content-Transfer-Encoding: quoted-printable
-References: <1473044391.4250.19.camel@TP420> <d7393a3e-73a7-7923-bc32-d4dcbc6523f9@suse.cz>
-Message-Id: <B1E0D42A-2F9D-4511-927B-962BC2FD13B3@linux.vnet.ibm.com>
+	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Tue, 6 Sep 2016 18:31:11 +1000
+Received: from d23relay07.au.ibm.com (d23relay07.au.ibm.com [9.190.26.37])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id D421D2CE8056
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2016 18:31:07 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u868V7373866944
+	for <linux-mm@kvack.org>; Tue, 6 Sep 2016 18:31:07 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u868V7Ms027818
+	for <linux-mm@kvack.org>; Tue, 6 Sep 2016 18:31:07 +1000
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Subject: [PATCH V3] mm: Add sysfs interface to dump each node's zonelist information
+Date: Tue,  6 Sep 2016 14:01:06 +0530
+In-Reply-To: <1473140072-24137-2-git-send-email-khandual@linux.vnet.ibm.com>
+References: <1473140072-24137-2-git-send-email-khandual@linux.vnet.ibm.com>
+Message-Id: <1473150666-3875-1-git-send-email-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm <linux-mm@kvack.org>, John Allen <jallen@linux.vnet.ibm.com>, qiuxishi@huawei.com, iamjoonsoo.kim@lge.com, n-horiguchi@ah.jp.nec.com, rientjes@google.com, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org
 
+Each individual node in the system has a ZONELIST_FALLBACK zonelist
+and a ZONELIST_NOFALLBACK zonelist. These zonelists decide fallback
+order of zones during memory allocations. Sometimes it helps to dump
+these zonelists to see the priority order of various zones in them.
 
-> On Sep 5, 2016, at 22:18, Vlastimil Babka <vbabka@suse.cz> wrote:
->=20
-> On 09/05/2016 04:59 AM, Li Zhong wrote:
->> Commit 394e31d2c introduced new_node_page() for memory hotplug.
->>=20
->> In new_node_page(), the nid is cleared before calling =
-__alloc_pages_nodemask().
->> But if it is the only node of the system,
->=20
-> So the use case is that we are partially offlining the only online =
-node?
+Particularly platforms which support memory hotplug into previously
+non existing zones (at boot), this interface helps in visualizing
+which all zonelists of the system at what priority level, the new
+hot added memory ends up in. POWER is such a platform where all the
+memory detected during boot time remains with ZONE_DMA for good but
+then hot plug process can actually get new memory into ZONE_MOVABLE.
+So having a way to get the snapshot of the zonelists on the system
+after memory or node hot[un]plug is desirable. This change adds one
+new sysfs interface (/sys/devices/system/memory/system_zone_details)
+which will fetch and dump this information.
 
-Yes.
->=20
->> and the first round allocation fails,
->> it will not be able to get memory from an empty nodemask, and trigger =
-oom.
->=20
-> Hmm triggering OOM due to empty nodemask sounds like a wrong thing to =
-do. CCing some OOM experts for insight. Also OOM is skipped for =
-__GFP_THISNODE allocations, so we might also consider the same for =
-nodemask-constrained allocations?
->=20
->> The patch checks whether it is the last node on the system, and if it =
-is, then
->> don't clear the nid in the nodemask.
->=20
-> I'd rather see the allocation not OOM, and rely on the fallback in =
-new_node_page() that doesn't have nodemask. But I suspect it might also =
-make sense to treat empty nodemask as something unexpected and put some =
-WARN_ON (instead of OOM) in the allocator.
+Example zonelist information from a KVM guest.
 
-I think it would be much easier to understand these kind of empty =
-nodemask allocation failure with this WARN_ON(), how about something =
-like this?
+[NODE (0)]
+        ZONELIST_FALLBACK
+        (0) (node 0) (zone DMA c00000000140c000)
+        (1) (node 1) (zone DMA c000000100000000)
+        (2) (node 2) (zone DMA c000000200000000)
+        (3) (node 3) (zone DMA c000000300000000)
+        ZONELIST_NOFALLBACK
+        (0) (node 0) (zone DMA c00000000140c000)
+[NODE (1)]
+        ZONELIST_FALLBACK
+        (0) (node 1) (zone DMA c000000100000000)
+        (1) (node 2) (zone DMA c000000200000000)
+        (2) (node 3) (zone DMA c000000300000000)
+        (3) (node 0) (zone DMA c00000000140c000)
+        ZONELIST_NOFALLBACK
+        (0) (node 1) (zone DMA c000000100000000)
+[NODE (2)]
+        ZONELIST_FALLBACK
+        (0) (node 2) (zone DMA c000000200000000)
+        (1) (node 3) (zone DMA c000000300000000)
+        (2) (node 0) (zone DMA c00000000140c000)
+        (3) (node 1) (zone DMA c000000100000000)
+        ZONELIST_NOFALLBACK
+        (0) (node 2) (zone DMA c000000200000000)
+[NODE (3)]
+        ZONELIST_FALLBACK
+        (0) (node 3) (zone DMA c000000300000000)
+        (1) (node 0) (zone DMA c00000000140c000)
+        (2) (node 1) (zone DMA c000000100000000)
+        (3) (node 2) (zone DMA c000000200000000)
+        ZONELIST_NOFALLBACK
+        (0) (node 3) (zone DMA c000000300000000)
 
-=3D=3D=3D
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a2214c6..57edf18 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3629,6 +3629,11 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned =
-int order,
-                .migratetype =3D gfpflags_to_migratetype(gfp_mask),
-        };
-=20
-+       if (nodemask && nodes_empty(*nodemask)) {
-+               WARN_ON(1);
-+               return NULL;
-+       }
+Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+---
+Changes in V3:
+- Moved all these new sysfs code inside CONFIG_NUMA
+
+Changes in V2:
+- Added more details into the commit message
+- Added sysfs interface file details into the commit message
+- Added ../ABI/testing/sysfs-system-zone-details file
+
+ .../ABI/testing/sysfs-system-zone-details          |  9 ++++
+ drivers/base/memory.c                              | 52 ++++++++++++++++++++++
+ 2 files changed, 61 insertions(+)
+ create mode 100644 Documentation/ABI/testing/sysfs-system-zone-details
+
+diff --git a/Documentation/ABI/testing/sysfs-system-zone-details b/Documentation/ABI/testing/sysfs-system-zone-details
+new file mode 100644
+index 0000000..9c13b2e
+--- /dev/null
++++ b/Documentation/ABI/testing/sysfs-system-zone-details
+@@ -0,0 +1,9 @@
++What:		/sys/devices/system/memory/system_zone_details
++Date:		Sep 2016
++KernelVersion:	4.8
++Contact:	khandual@linux.vnet.ibm.com
++Description:
++		This read only file dumps the zonelist and it's constituent
++		zones information for both ZONELIST_FALLBACK and ZONELIST_
++		NOFALLBACK zonelists for each online node of the system at
++		any given point of time.
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index dc75de9..65fd30e 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -442,7 +442,56 @@ print_block_size(struct device *dev, struct device_attribute *attr,
+ 	return sprintf(buf, "%lx\n", get_memory_block_size());
+ }
+ 
++#ifdef CONFIG_NUMA
++static ssize_t dump_zonelist(char *buf, struct zonelist *zonelist)
++{
++	unsigned int i;
++	ssize_t count = 0;
 +
-        if (cpusets_enabled()) {
-                alloc_mask |=3D __GFP_HARDWALL;
-                alloc_flags |=3D ALLOC_CPUSET;
-=3D=3D=3D
-
-If that=E2=80=99s ok, maybe I can send a separate patch for this?=20
-
-Thanks, Zhong
-
->=20
->> Reported-by: John Allen <jallen@linux.vnet.ibm.com>
->> Signed-off-by: Li Zhong <zhong@linux.vnet.ibm.com>
->=20
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> Fixes: 394e31d2ceb4 ("mem-hotplug: alloc new page from a nearest =
-neighbor node when mem-offline")
->=20
->> ---
->> mm/memory_hotplug.c | 4 +++-
->> 1 file changed, 3 insertions(+), 1 deletion(-)
->>=20
->> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->> index 41266dc..b58906b 100644
->> --- a/mm/memory_hotplug.c
->> +++ b/mm/memory_hotplug.c
->> @@ -1567,7 +1567,9 @@ static struct page *new_node_page(struct page =
-*page, unsigned long private,
->> 		return =
-alloc_huge_page_node(page_hstate(compound_head(page)),
->> 					next_node_in(nid, nmask));
->>=20
->> -	node_clear(nid, nmask);
->> +	if (nid !=3D next_node_in(nid, nmask))
->> +		node_clear(nid, nmask);
->> +
->> 	if (PageHighMem(page)
->> 	    || (zone_idx(page_zone(page)) =3D=3D ZONE_MOVABLE))
->> 		gfp_mask |=3D __GFP_HIGHMEM;
->>=20
->>=20
->>=20
->=20
++	for (i = 0; zonelist->_zonerefs[i].zone; i++) {
++		count += sprintf(buf + count,
++			"\t\t(%d) (node %d) (%-10s %lx)\n", i,
++			zonelist->_zonerefs[i].zone->zone_pgdat->node_id,
++			zone_names[zonelist->_zonerefs[i].zone_idx],
++			(unsigned long) zonelist->_zonerefs[i].zone);
++	}
++	return count;
++}
++
++static ssize_t dump_zonelists(char *buf)
++{
++	struct zonelist *zonelist;
++	unsigned int node;
++	ssize_t count = 0;
++
++	for_each_online_node(node) {
++		zonelist = &(NODE_DATA(node)->
++				node_zonelists[ZONELIST_FALLBACK]);
++		count += sprintf(buf + count, "[NODE (%d)]\n", node);
++		count += sprintf(buf + count, "\tZONELIST_FALLBACK\n");
++		count += dump_zonelist(buf + count, zonelist);
++
++		zonelist = &(NODE_DATA(node)->
++				node_zonelists[ZONELIST_NOFALLBACK]);
++		count += sprintf(buf + count, "\tZONELIST_NOFALLBACK\n");
++		count += dump_zonelist(buf + count, zonelist);
++	}
++	return count;
++}
++
++static ssize_t
++print_system_zone_details(struct device *dev, struct device_attribute *attr,
++		 char *buf)
++{
++	return dump_zonelists(buf);
++}
++#endif
++
++
+ static DEVICE_ATTR(block_size_bytes, 0444, print_block_size, NULL);
++#ifdef CONFIG_NUMA
++static DEVICE_ATTR(system_zone_details, 0444, print_system_zone_details, NULL);
++#endif
+ 
+ /*
+  * Memory auto online policy.
+@@ -783,6 +832,9 @@ static struct attribute *memory_root_attrs[] = {
+ #endif
+ 
+ 	&dev_attr_block_size_bytes.attr,
++#ifdef CONFIG_NUMA
++	&dev_attr_system_zone_details.attr,
++#endif
+ 	&dev_attr_auto_online_blocks.attr,
+ 	NULL
+ };
+-- 
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
