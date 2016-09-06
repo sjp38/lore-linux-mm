@@ -1,102 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C12482F64
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2016 09:53:24 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id 1so80468522wmz.2
-        for <linux-mm@kvack.org>; Tue, 06 Sep 2016 06:53:24 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 176836B0038
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2016 10:12:14 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id w12so29586833wmf.3
+        for <linux-mm@kvack.org>; Tue, 06 Sep 2016 07:12:14 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id jg8si10102888wjb.4.2016.09.06.06.53.20
+        by mx.google.com with ESMTPS id b3si10491364wjb.92.2016.09.06.07.12.12
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 06 Sep 2016 06:53:20 -0700 (PDT)
+        Tue, 06 Sep 2016 07:12:12 -0700 (PDT)
+Subject: Re: [PATCH] mem-hotplug: Don't clear the only node in new_node_page()
+References: <1473044391.4250.19.camel@TP420>
+ <d7393a3e-73a7-7923-bc32-d4dcbc6523f9@suse.cz>
+ <B1E0D42A-2F9D-4511-927B-962BC2FD13B3@linux.vnet.ibm.com>
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH 4/4] mm, compaction: make full priority ignore pageblock suitability
-Date: Tue,  6 Sep 2016 15:52:58 +0200
-Message-Id: <20160906135258.18335-5-vbabka@suse.cz>
-In-Reply-To: <20160906135258.18335-1-vbabka@suse.cz>
-References: <20160906135258.18335-1-vbabka@suse.cz>
+Message-ID: <3a661375-95d9-d1ff-c799-a0c5d9cec5e3@suse.cz>
+Date: Tue, 6 Sep 2016 16:12:02 +0200
+MIME-Version: 1.0
+In-Reply-To: <B1E0D42A-2F9D-4511-927B-962BC2FD13B3@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Olaf Hering <olaf@aepfle.de>
-Cc: linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.com>
+To: Li Zhong <zhong@linux.vnet.ibm.com>
+Cc: linux-mm <linux-mm@kvack.org>, John Allen <jallen@linux.vnet.ibm.com>, qiuxishi@huawei.com, iamjoonsoo.kim@lge.com, n-horiguchi@ah.jp.nec.com, rientjes@google.com, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-Several people have reported premature OOMs for order-2 allocations (stack)
-due to OOM rework in 4.7. In the scenario (parallel kernel build and dd writing
-to two drives) many pageblocks get marked as Unmovable and compaction free
-scanner struggles to isolate free pages. Joonsoo Kim pointed out that the free
-scanner skips pageblocks that are not movable to prevent filling them and
-forcing non-movable allocations to fallback to other pageblocks. Such heuristic
-makes sense to help prevent long-term fragmentation, but premature OOMs are
-relatively more urgent problem. As a compromise, this patch disables the
-heuristic only for the ultimate compaction priority.
+On 09/06/2016 10:13 AM, Li Zhong wrote:
+>
+>> On Sep 5, 2016, at 22:18, Vlastimil Babka <vbabka@suse.cz> wrote:
+>>
+>> On 09/05/2016 04:59 AM, Li Zhong wrote:
+>>> Commit 394e31d2c introduced new_node_page() for memory hotplug.
+>>>
+>>> In new_node_page(), the nid is cleared before calling __alloc_pages_nodemask().
+>>> But if it is the only node of the system,
+>>
+>> So the use case is that we are partially offlining the only online node?
+>
+> Yes.
+>>
+>>> and the first round allocation fails,
+>>> it will not be able to get memory from an empty nodemask, and trigger oom.
+>>
+>> Hmm triggering OOM due to empty nodemask sounds like a wrong thing to do. CCing some OOM experts for insight. Also OOM is skipped for __GFP_THISNODE allocations, so we might also consider the same for nodemask-constrained allocations?
+>>
+>>> The patch checks whether it is the last node on the system, and if it is, then
+>>> don't clear the nid in the nodemask.
+>>
+>> I'd rather see the allocation not OOM, and rely on the fallback in new_node_page() that doesn't have nodemask. But I suspect it might also make sense to treat empty nodemask as something unexpected and put some WARN_ON (instead of OOM) in the allocator.
+>
+> I think it would be much easier to understand these kind of empty nodemask allocation failure with this WARN_ON(), how about something like this?
+>
+> ===
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index a2214c6..57edf18 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3629,6 +3629,11 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+>                 .migratetype = gfpflags_to_migratetype(gfp_mask),
+>         };
+>
+> +       if (nodemask && nodes_empty(*nodemask)) {
+> +               WARN_ON(1);
+> +               return NULL;
+> +       }
+> +
+>         if (cpusets_enabled()) {
+>                 alloc_mask |= __GFP_HARDWALL;
+>                 alloc_flags |= ALLOC_CPUSET;
+> ===
+>
+> If thata??s ok, maybe I can send a separate patch for this?
 
-Reported-by: Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>
-Reported-by: Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>
-Reported-by: Olaf Hering <olaf@aepfle.de>
-Suggested-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Rik van Riel <riel@redhat.com>
----
- mm/compaction.c | 11 ++++++++---
- mm/internal.h   |  1 +
- 2 files changed, 9 insertions(+), 3 deletions(-)
+Something like that, but please not in the hotpath. I think the earliest 
+suitable place is in __alloc_pages_slowpath() after the 
+get_page_from_freelist() fails. And probably the best way would be to do 
+something like pr_warn("nodemask is empty") and then clear __GFP_NOWARN 
+from gfp_mask and goto nopage.
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 29f6c49dc9c2..86d4d0bbfc7c 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -997,8 +997,12 @@ isolate_migratepages_range(struct compact_control *cc, unsigned long start_pfn,
- #ifdef CONFIG_COMPACTION
- 
- /* Returns true if the page is within a block suitable for migration to */
--static bool suitable_migration_target(struct page *page)
-+static bool suitable_migration_target(struct compact_control *cc,
-+							struct page *page)
- {
-+	if (cc->ignore_block_suitable)
-+		return true;
-+
- 	/* If the page is a large free page, then disallow migration */
- 	if (PageBuddy(page)) {
- 		/*
-@@ -1083,7 +1087,7 @@ static void isolate_freepages(struct compact_control *cc)
- 			continue;
- 
- 		/* Check the block is suitable for migration */
--		if (!suitable_migration_target(page))
-+		if (!suitable_migration_target(cc, page))
- 			continue;
- 
- 		/* If isolation recently failed, do not retry */
-@@ -1656,7 +1660,8 @@ static enum compact_result compact_zone_order(struct zone *zone, int order,
- 		.classzone_idx = classzone_idx,
- 		.direct_compaction = true,
- 		.whole_zone = (prio == MIN_COMPACT_PRIORITY),
--		.ignore_skip_hint = (prio == MIN_COMPACT_PRIORITY)
-+		.ignore_skip_hint = (prio == MIN_COMPACT_PRIORITY),
-+		.ignore_block_suitable = (prio == MIN_COMPACT_PRIORITY)
- 	};
- 	INIT_LIST_HEAD(&cc.freepages);
- 	INIT_LIST_HEAD(&cc.migratepages);
-diff --git a/mm/internal.h b/mm/internal.h
-index 5214bf8e3171..537ac9951f5f 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -178,6 +178,7 @@ struct compact_control {
- 	unsigned long last_migrated_pfn;/* Not yet flushed page being freed */
- 	enum migrate_mode mode;		/* Async or sync migration mode */
- 	bool ignore_skip_hint;		/* Scan blocks even if marked skip */
-+	bool ignore_block_suitable;	/* Scan blocks considered unsuitable */
- 	bool direct_compaction;		/* False from kcompactd or /proc/... */
- 	bool whole_zone;		/* Whole zone should/has been scanned */
- 	int order;			/* order a direct compactor needs */
--- 
-2.9.3
+Thanks, Vlastimil
+
+> Thanks, Zhong
+>
+>>
+>>> Reported-by: John Allen <jallen@linux.vnet.ibm.com>
+>>> Signed-off-by: Li Zhong <zhong@linux.vnet.ibm.com>
+>>
+>> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+>> Fixes: 394e31d2ceb4 ("mem-hotplug: alloc new page from a nearest neighbor node when mem-offline")
+>>
+>>> ---
+>>> mm/memory_hotplug.c | 4 +++-
+>>> 1 file changed, 3 insertions(+), 1 deletion(-)
+>>>
+>>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>>> index 41266dc..b58906b 100644
+>>> --- a/mm/memory_hotplug.c
+>>> +++ b/mm/memory_hotplug.c
+>>> @@ -1567,7 +1567,9 @@ static struct page *new_node_page(struct page *page, unsigned long private,
+>>> 		return alloc_huge_page_node(page_hstate(compound_head(page)),
+>>> 					next_node_in(nid, nmask));
+>>>
+>>> -	node_clear(nid, nmask);
+>>> +	if (nid != next_node_in(nid, nmask))
+>>> +		node_clear(nid, nmask);
+>>> +
+>>> 	if (PageHighMem(page)
+>>> 	    || (zone_idx(page_zone(page)) == ZONE_MOVABLE))
+>>> 		gfp_mask |= __GFP_HIGHMEM;
+>>>
+>>>
+>>>
+>>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
