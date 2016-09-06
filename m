@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4123682F64
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2016 09:53:22 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id s64so36226490lfs.1
-        for <linux-mm@kvack.org>; Tue, 06 Sep 2016 06:53:22 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C12482F64
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2016 09:53:24 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 1so80468522wmz.2
+        for <linux-mm@kvack.org>; Tue, 06 Sep 2016 06:53:24 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m68si23515282wma.37.2016.09.06.06.53.17
+        by mx.google.com with ESMTPS id jg8si10102888wjb.4.2016.09.06.06.53.20
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 06 Sep 2016 06:53:17 -0700 (PDT)
+        Tue, 06 Sep 2016 06:53:20 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH 3/4] mm, compaction: restrict full priority to non-costly orders
-Date: Tue,  6 Sep 2016 15:52:57 +0200
-Message-Id: <20160906135258.18335-4-vbabka@suse.cz>
+Subject: [PATCH 4/4] mm, compaction: make full priority ignore pageblock suitability
+Date: Tue,  6 Sep 2016 15:52:58 +0200
+Message-Id: <20160906135258.18335-5-vbabka@suse.cz>
 In-Reply-To: <20160906135258.18335-1-vbabka@suse.cz>
 References: <20160906135258.18335-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,59 +20,81 @@ List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Olaf Hering <olaf@aepfle.de>
 Cc: linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.com>
 
-The new ultimate compaction priority disables some heuristics, which may result
-in excessive cost. This is fine for non-costly orders where we want to try hard
-before resulting for OOM, but might be disruptive for costly orders which do
-not trigger OOM and should generally have some fallback. Thus, we disable the
-full priority for costly orders.
+Several people have reported premature OOMs for order-2 allocations (stack)
+due to OOM rework in 4.7. In the scenario (parallel kernel build and dd writing
+to two drives) many pageblocks get marked as Unmovable and compaction free
+scanner struggles to isolate free pages. Joonsoo Kim pointed out that the free
+scanner skips pageblocks that are not movable to prevent filling them and
+forcing non-movable allocations to fallback to other pageblocks. Such heuristic
+makes sense to help prevent long-term fragmentation, but premature OOMs are
+relatively more urgent problem. As a compromise, this patch disables the
+heuristic only for the ultimate compaction priority.
 
-Suggested-by: Michal Hocko <mhocko@kernel.org>
+Reported-by: Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>
+Reported-by: Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>
+Reported-by: Olaf Hering <olaf@aepfle.de>
+Suggested-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Acked-by: Michal Hocko <mhocko@suse.com>
 Cc: Michal Hocko <mhocko@kernel.org>
 Cc: Mel Gorman <mgorman@techsingularity.net>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: David Rientjes <rientjes@google.com>
 Cc: Rik van Riel <riel@redhat.com>
 ---
- include/linux/compaction.h | 1 +
- mm/page_alloc.c            | 5 ++++-
- 2 files changed, 5 insertions(+), 1 deletion(-)
+ mm/compaction.c | 11 ++++++++---
+ mm/internal.h   |  1 +
+ 2 files changed, 9 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index 585d55cb0dc0..0d8415820fc3 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -9,6 +9,7 @@ enum compact_priority {
- 	COMPACT_PRIO_SYNC_FULL,
- 	MIN_COMPACT_PRIORITY = COMPACT_PRIO_SYNC_FULL,
- 	COMPACT_PRIO_SYNC_LIGHT,
-+	MIN_COMPACT_COSTLY_PRIORITY = COMPACT_PRIO_SYNC_LIGHT,
- 	DEF_COMPACT_PRIORITY = COMPACT_PRIO_SYNC_LIGHT,
- 	COMPACT_PRIO_ASYNC,
- 	INIT_COMPACT_PRIORITY = COMPACT_PRIO_ASYNC
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index f8bed910e3cf..ff60a2837c58 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3165,6 +3165,7 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
- 		     int compaction_retries)
- {
- 	int max_retries = MAX_COMPACT_RETRIES;
-+	int min_priority;
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 29f6c49dc9c2..86d4d0bbfc7c 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -997,8 +997,12 @@ isolate_migratepages_range(struct compact_control *cc, unsigned long start_pfn,
+ #ifdef CONFIG_COMPACTION
  
- 	if (!order)
- 		return false;
-@@ -3204,7 +3205,9 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
- 	 * if we exhausted all retries at the lower priorities
- 	 */
- check_priority:
--	if (*compact_priority > MIN_COMPACT_PRIORITY) {
-+	min_priority = (order > PAGE_ALLOC_COSTLY_ORDER) ?
-+			MIN_COMPACT_COSTLY_PRIORITY : MIN_COMPACT_PRIORITY;
-+	if (*compact_priority > min_priority) {
- 		(*compact_priority)--;
- 		return true;
- 	}
+ /* Returns true if the page is within a block suitable for migration to */
+-static bool suitable_migration_target(struct page *page)
++static bool suitable_migration_target(struct compact_control *cc,
++							struct page *page)
+ {
++	if (cc->ignore_block_suitable)
++		return true;
++
+ 	/* If the page is a large free page, then disallow migration */
+ 	if (PageBuddy(page)) {
+ 		/*
+@@ -1083,7 +1087,7 @@ static void isolate_freepages(struct compact_control *cc)
+ 			continue;
+ 
+ 		/* Check the block is suitable for migration */
+-		if (!suitable_migration_target(page))
++		if (!suitable_migration_target(cc, page))
+ 			continue;
+ 
+ 		/* If isolation recently failed, do not retry */
+@@ -1656,7 +1660,8 @@ static enum compact_result compact_zone_order(struct zone *zone, int order,
+ 		.classzone_idx = classzone_idx,
+ 		.direct_compaction = true,
+ 		.whole_zone = (prio == MIN_COMPACT_PRIORITY),
+-		.ignore_skip_hint = (prio == MIN_COMPACT_PRIORITY)
++		.ignore_skip_hint = (prio == MIN_COMPACT_PRIORITY),
++		.ignore_block_suitable = (prio == MIN_COMPACT_PRIORITY)
+ 	};
+ 	INIT_LIST_HEAD(&cc.freepages);
+ 	INIT_LIST_HEAD(&cc.migratepages);
+diff --git a/mm/internal.h b/mm/internal.h
+index 5214bf8e3171..537ac9951f5f 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -178,6 +178,7 @@ struct compact_control {
+ 	unsigned long last_migrated_pfn;/* Not yet flushed page being freed */
+ 	enum migrate_mode mode;		/* Async or sync migration mode */
+ 	bool ignore_skip_hint;		/* Scan blocks even if marked skip */
++	bool ignore_block_suitable;	/* Scan blocks considered unsuitable */
+ 	bool direct_compaction;		/* False from kcompactd or /proc/... */
+ 	bool whole_zone;		/* Whole zone should/has been scanned */
+ 	int order;			/* order a direct compactor needs */
 -- 
 2.9.3
 
