@@ -1,197 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 78F056B0038
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2016 03:47:01 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id g202so347918458pfb.3
-        for <linux-mm@kvack.org>; Tue, 06 Sep 2016 00:47:01 -0700 (PDT)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id ey9si33154176pab.188.2016.09.06.00.47.00
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 534866B0038
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2016 04:15:44 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id ag5so423517691pad.2
+        for <linux-mm@kvack.org>; Tue, 06 Sep 2016 01:15:44 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id z1si27261192pab.287.2016.09.06.01.15.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Sep 2016 00:47:00 -0700 (PDT)
-Received: by mail-pf0-x241.google.com with SMTP id g202so11002226pfb.1
-        for <linux-mm@kvack.org>; Tue, 06 Sep 2016 00:47:00 -0700 (PDT)
-Subject: Re: [RESEND][v2][PATCH] KVM: PPC: Book3S HV: Migrate pinned pages out
- of CMA
-References: <20160714042536.GG18277@balbir.ozlabs.ibm.com>
- <87vay9pogi.fsf@linux.vnet.ibm.com>
-From: Balbir Singh <bsingharora@gmail.com>
-Message-ID: <ff427d5f-4ce0-2a47-bf5a-04cd4641ff84@gmail.com>
-Date: Tue, 6 Sep 2016 17:46:53 +1000
-MIME-Version: 1.0
-In-Reply-To: <87vay9pogi.fsf@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        Tue, 06 Sep 2016 01:15:43 -0700 (PDT)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u868CTfX144089
+	for <linux-mm@kvack.org>; Tue, 6 Sep 2016 04:15:42 -0400
+Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 259r1mxdsf-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 06 Sep 2016 04:15:42 -0400
+Received: from localhost
+	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <zhong@linux.vnet.ibm.com>;
+	Tue, 6 Sep 2016 04:15:41 -0400
+Content-Type: text/plain; charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 9.3 \(3124\))
+Subject: Re: [PATCH] mem-hotplug: Don't clear the only node in new_node_page()
+From: Li Zhong <zhong@linux.vnet.ibm.com>
+In-Reply-To: <d7393a3e-73a7-7923-bc32-d4dcbc6523f9@suse.cz>
+Date: Tue, 6 Sep 2016 16:13:24 +0800
+Content-Transfer-Encoding: quoted-printable
+References: <1473044391.4250.19.camel@TP420> <d7393a3e-73a7-7923-bc32-d4dcbc6523f9@suse.cz>
+Message-Id: <B1E0D42A-2F9D-4511-927B-962BC2FD13B3@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, kvm@vger.kernel.org
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Alexey Kardashevskiy <aik@ozlabs.ru>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm <linux-mm@kvack.org>, John Allen <jallen@linux.vnet.ibm.com>, qiuxishi@huawei.com, iamjoonsoo.kim@lge.com, n-horiguchi@ah.jp.nec.com, rientjes@google.com, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
 
+> On Sep 5, 2016, at 22:18, Vlastimil Babka <vbabka@suse.cz> wrote:
+>=20
+> On 09/05/2016 04:59 AM, Li Zhong wrote:
+>> Commit 394e31d2c introduced new_node_page() for memory hotplug.
+>>=20
+>> In new_node_page(), the nid is cleared before calling =
+__alloc_pages_nodemask().
+>> But if it is the only node of the system,
+>=20
+> So the use case is that we are partially offlining the only online =
+node?
 
-On 06/09/16 15:49, Aneesh Kumar K.V wrote:
-> Balbir Singh <bsingharora@gmail.com> writes:
-> 
->> From: Balbir Singh <bsingharora@gmail.com>
->> Subject: [RESEND][v2][PATCH] KVM: PPC: Book3S HV: Migrate pinned pages out of CMA
->>
->> When PCI Device pass-through is enabled via VFIO, KVM-PPC will
->> pin pages using get_user_pages_fast(). One of the downsides of
->> the pinning is that the page could be in CMA region. The CMA
->> region is used for other allocations like the hash page table.
->> Ideally we want the pinned pages to be from non CMA region.
->>
->> This patch (currently only for KVM PPC with VFIO) forcefully
->> migrates the pages out (huge pages are omitted for the moment).
->> There are more efficient ways of doing this, but that might
->> be elaborate and might impact a larger audience beyond just
->> the kvm ppc implementation.
->>
->> The magic is in new_iommu_non_cma_page() which allocates the
->> new page from a non CMA region.
->>
->> I've tested the patches lightly at my end, but there might be bugs
->> For example if after lru_add_drain(), the page is not isolated
->> is this a BUG?
->>
->> Previous discussion was at
->> http://permalink.gmane.org/gmane.linux.kernel.mm/136738
->>
->> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
->> Cc: Michael Ellerman <mpe@ellerman.id.au>
->> Cc: Paul Mackerras <paulus@ozlabs.org>
->> Cc: Alexey Kardashevskiy <aik@ozlabs.ru>
->>
->> Signed-off-by: Balbir Singh <bsingharora@gmail.com>
+Yes.
+>=20
+>> and the first round allocation fails,
+>> it will not be able to get memory from an empty nodemask, and trigger =
+oom.
+>=20
+> Hmm triggering OOM due to empty nodemask sounds like a wrong thing to =
+do. CCing some OOM experts for insight. Also OOM is skipped for =
+__GFP_THISNODE allocations, so we might also consider the same for =
+nodemask-constrained allocations?
+>=20
+>> The patch checks whether it is the last node on the system, and if it =
+is, then
+>> don't clear the nid in the nodemask.
+>=20
+> I'd rather see the allocation not OOM, and rely on the fallback in =
+new_node_page() that doesn't have nodemask. But I suspect it might also =
+make sense to treat empty nodemask as something unexpected and put some =
+WARN_ON (instead of OOM) in the allocator.
+
+I think it would be much easier to understand these kind of empty =
+nodemask allocation failure with this WARN_ON(), how about something =
+like this?
+
+=3D=3D=3D
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index a2214c6..57edf18 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3629,6 +3629,11 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned =
+int order,
+                .migratetype =3D gfpflags_to_migratetype(gfp_mask),
+        };
+=20
++       if (nodemask && nodes_empty(*nodemask)) {
++               WARN_ON(1);
++               return NULL;
++       }
++
+        if (cpusets_enabled()) {
+                alloc_mask |=3D __GFP_HARDWALL;
+                alloc_flags |=3D ALLOC_CPUSET;
+=3D=3D=3D
+
+If that=E2=80=99s ok, maybe I can send a separate patch for this?=20
+
+Thanks, Zhong
+
+>=20
+>> Reported-by: John Allen <jallen@linux.vnet.ibm.com>
+>> Signed-off-by: Li Zhong <zhong@linux.vnet.ibm.com>
+>=20
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> Fixes: 394e31d2ceb4 ("mem-hotplug: alloc new page from a nearest =
+neighbor node when mem-offline")
+>=20
 >> ---
->>  arch/powerpc/include/asm/mmu_context.h |  1 +
->>  arch/powerpc/mm/mmu_context_iommu.c    | 80 ++++++++++++++++++++++++++++++++--
->>  2 files changed, 77 insertions(+), 4 deletions(-)
->>
->> diff --git a/arch/powerpc/include/asm/mmu_context.h b/arch/powerpc/include/asm/mmu_context.h
->> index 9d2cd0c..475d1be 100644
->> --- a/arch/powerpc/include/asm/mmu_context.h
->> +++ b/arch/powerpc/include/asm/mmu_context.h
->> @@ -18,6 +18,7 @@ extern void destroy_context(struct mm_struct *mm);
->>  #ifdef CONFIG_SPAPR_TCE_IOMMU
->>  struct mm_iommu_table_group_mem_t;
->>  
->> +extern int isolate_lru_page(struct page *page);	/* from internal.h */
->>  extern bool mm_iommu_preregistered(void);
->>  extern long mm_iommu_get(unsigned long ua, unsigned long entries,
->>  		struct mm_iommu_table_group_mem_t **pmem);
->> diff --git a/arch/powerpc/mm/mmu_context_iommu.c b/arch/powerpc/mm/mmu_context_iommu.c
->> index da6a216..c18f742 100644
->> --- a/arch/powerpc/mm/mmu_context_iommu.c
->> +++ b/arch/powerpc/mm/mmu_context_iommu.c
->> @@ -15,6 +15,9 @@
->>  #include <linux/rculist.h>
->>  #include <linux/vmalloc.h>
->>  #include <linux/mutex.h>
->> +#include <linux/migrate.h>
->> +#include <linux/hugetlb.h>
->> +#include <linux/swap.h>
->>  #include <asm/mmu_context.h>
->>  
->>  static DEFINE_MUTEX(mem_list_mutex);
->> @@ -72,6 +75,54 @@ bool mm_iommu_preregistered(void)
->>  }
->>  EXPORT_SYMBOL_GPL(mm_iommu_preregistered);
->>  
->> +/*
->> + * Taken from alloc_migrate_target with changes to remove CMA allocations
->> + */
->> +struct page *new_iommu_non_cma_page(struct page *page, unsigned long private,
->> +					int **resultp)
->> +{
->> +	gfp_t gfp_mask = GFP_USER;
->> +	struct page *new_page;
+>> mm/memory_hotplug.c | 4 +++-
+>> 1 file changed, 3 insertions(+), 1 deletion(-)
+>>=20
+>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>> index 41266dc..b58906b 100644
+>> --- a/mm/memory_hotplug.c
+>> +++ b/mm/memory_hotplug.c
+>> @@ -1567,7 +1567,9 @@ static struct page *new_node_page(struct page =
+*page, unsigned long private,
+>> 		return =
+alloc_huge_page_node(page_hstate(compound_head(page)),
+>> 					next_node_in(nid, nmask));
+>>=20
+>> -	node_clear(nid, nmask);
+>> +	if (nid !=3D next_node_in(nid, nmask))
+>> +		node_clear(nid, nmask);
 >> +
->> +	if (PageHuge(page) || PageTransHuge(page) || PageCompound(page))
->> +		return NULL;
-> 
-> Doesn't a PageCompound check cover all ?
-
-Yes, I was being overly conservative with the checks
-
-> 
-> 
->> +
->> +	if (PageHighMem(page))
->> +		gfp_mask |= __GFP_HIGHMEM;
->> +
->> +	/*
->> +	 * We don't want the allocation to force an OOM if possibe
->> +	 */
->> +	new_page = alloc_page(gfp_mask | __GFP_NORETRY | __GFP_NOWARN);
->> +	return new_page;
->> +}
->> +
->> +static int mm_iommu_move_page_from_cma(struct page *page)
->> +{
->> +	int ret;
->> +	LIST_HEAD(cma_migrate_pages);
->> +
->> +	/* Ignore huge pages for now */
->> +	if (PageHuge(page) || PageTransHuge(page) || PageCompound(page))
->> +		return -EBUSY;
->> +
->> +	lru_add_drain();
-> 
-> I guess I asked this last time. Shouldn't this be lru_add_drain_all() ?
-> What if the page is in other cpu's pagevec ?
-
-lru_add_drain_all() is too expensive for a per-page migration. This is best
-effort. If it is on the pagevec of another CPU, we skip it -- see v3
-
-> 
-> 
->> +	ret = isolate_lru_page(page);
->> +	if (ret)
->> +		get_page(page); /* Potential BUG? */
->> +
->> +	list_add(&page->lru, &cma_migrate_pages);
-> 
-> Is that correct ? if we failed the isolate_lru_page(), can we be sure we
-> are not on lru at all ? ie, what if the page was on other cpu pagevec ?
-> 
-> 
-
-Fixed in v3
-
->> +	put_page(page); /* Drop the gup reference */
->> +
-> 
-> Where is get user page (gup) here ? . I guess you mean drop the
-> reference taken above ?
-> 
-
-I say gup, because we'll do gup after this point if migration fails
-and that we reacquire the reference lost here.
-
-> 
->> +	ret = migrate_pages(&cma_migrate_pages, new_iommu_non_cma_page,
->> +				NULL, 0, MIGRATE_SYNC, MR_CMA);
->> +	if (ret) {
->> +		if (!list_empty(&cma_migrate_pages))
->> +			putback_movable_pages(&cma_migrate_pages);
->> +	}
->> +	return 0;
->> +}
->> +
-> 
-> I guess the plan was to not do it one page at a time and switch this to list
-> of pages which we need to migrate. Any reason why that is not tried ?
-> 
-
-Yes, it is a TODO. Here is my order of preference
-
-1. get this in
-2. Get THP migration in -- larger workset
-3. Do page aggregation for both 1 and 2
-
-
-Balbir Singh.
+>> 	if (PageHighMem(page)
+>> 	    || (zone_idx(page_zone(page)) =3D=3D ZONE_MOVABLE))
+>> 		gfp_mask |=3D __GFP_HIGHMEM;
+>>=20
+>>=20
+>>=20
+>=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
