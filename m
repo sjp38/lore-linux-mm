@@ -1,81 +1,188 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BC9F6B0038
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2016 01:34:46 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id f128so446770128qkd.1
-        for <linux-mm@kvack.org>; Mon, 05 Sep 2016 22:34:46 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id f205si20313856qkb.17.2016.09.05.22.34.45
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5ED576B0253
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2016 01:34:56 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id ez1so416773832pab.1
+        for <linux-mm@kvack.org>; Mon, 05 Sep 2016 22:34:56 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id v187si33560423pfb.258.2016.09.05.22.34.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Sep 2016 22:34:45 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u865X4tC133682
-	for <linux-mm@kvack.org>; Tue, 6 Sep 2016 01:34:45 -0400
-Received: from e23smtp02.au.ibm.com (e23smtp02.au.ibm.com [202.81.31.144])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 259n65w9a9-1
+        Mon, 05 Sep 2016 22:34:55 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u865X1mg089513
+	for <linux-mm@kvack.org>; Tue, 6 Sep 2016 01:34:53 -0400
+Received: from e23smtp03.au.ibm.com (e23smtp03.au.ibm.com [202.81.31.145])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 259d2rm1x7-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 06 Sep 2016 01:34:44 -0400
+	for <linux-mm@kvack.org>; Tue, 06 Sep 2016 01:34:53 -0400
 Received: from localhost
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Tue, 6 Sep 2016 15:34:41 +1000
-Received: from d23relay10.au.ibm.com (d23relay10.au.ibm.com [9.190.26.77])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id BB8A42CE8046
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2016 15:34:34 +1000 (EST)
+	Tue, 6 Sep 2016 15:34:49 +1000
+Received: from d23relay07.au.ibm.com (d23relay07.au.ibm.com [9.190.26.37])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id E7F4E3578053
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2016 15:34:35 +1000 (EST)
 Received: from d23av06.au.ibm.com (d23av06.au.ibm.com [9.190.235.151])
-	by d23relay10.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u865YYc753477380
-	for <linux-mm@kvack.org>; Tue, 6 Sep 2016 15:34:34 +1000
+	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u865YZoe4915580
+	for <linux-mm@kvack.org>; Tue, 6 Sep 2016 15:34:35 +1000
 Received: from d23av06.au.ibm.com (localhost [127.0.0.1])
-	by d23av06.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u865YYIG011707
-	for <linux-mm@kvack.org>; Tue, 6 Sep 2016 15:34:34 +1000
+	by d23av06.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u865YZcw011753
+	for <linux-mm@kvack.org>; Tue, 6 Sep 2016 15:34:35 +1000
 From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Subject: [PATCH V2 1/2] mm: Export definition of 'zone_names' array through mmzone.h
-Date: Tue,  6 Sep 2016 11:04:31 +0530
-Message-Id: <1473140072-24137-1-git-send-email-khandual@linux.vnet.ibm.com>
+Subject: [PATCH V2 2/2] mm: Add sysfs interface to dump each node's zonelist information
+Date: Tue,  6 Sep 2016 11:04:32 +0530
+In-Reply-To: <1473140072-24137-1-git-send-email-khandual@linux.vnet.ibm.com>
+References: <1473140072-24137-1-git-send-email-khandual@linux.vnet.ibm.com>
+Message-Id: <1473140072-24137-2-git-send-email-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: akpm@linux-foundation.org
 
-zone_names[] is used to identify any zone given it's index which
-can be used in many other places. So exporting the definition
-through include/linux/mmzone.h header for it's broader access.
+Each individual node in the system has a ZONELIST_FALLBACK zonelist
+and a ZONELIST_NOFALLBACK zonelist. These zonelists decide fallback
+order of zones during memory allocations. Sometimes it helps to dump
+these zonelists to see the priority order of various zones in them.
+
+Particularly platforms which support memory hotplug into previously
+non existing zones (at boot), this interface helps in visualizing
+which all zonelists of the system at what priority level, the new
+hot added memory ends up in. POWER is such a platform where all the
+memory detected during boot time remains with ZONE_DMA for good but
+then hot plug process can actually get new memory into ZONE_MOVABLE.
+So having a way to get the snapshot of the zonelists on the system
+after memory or node hot[un]plug is desirable. This change adds one
+new sysfs interface (/sys/devices/system/memory/system_zone_details)
+which will fetch and dump this information.
+
+Example zonelist information from a KVM guest.
+
+[NODE (0)]
+        ZONELIST_FALLBACK
+        (0) (node 0) (zone DMA c00000000140c000)
+        (1) (node 1) (zone DMA c000000100000000)
+        (2) (node 2) (zone DMA c000000200000000)
+        (3) (node 3) (zone DMA c000000300000000)
+        ZONELIST_NOFALLBACK
+        (0) (node 0) (zone DMA c00000000140c000)
+[NODE (1)]
+        ZONELIST_FALLBACK
+        (0) (node 1) (zone DMA c000000100000000)
+        (1) (node 2) (zone DMA c000000200000000)
+        (2) (node 3) (zone DMA c000000300000000)
+        (3) (node 0) (zone DMA c00000000140c000)
+        ZONELIST_NOFALLBACK
+        (0) (node 1) (zone DMA c000000100000000)
+[NODE (2)]
+        ZONELIST_FALLBACK
+        (0) (node 2) (zone DMA c000000200000000)
+        (1) (node 3) (zone DMA c000000300000000)
+        (2) (node 0) (zone DMA c00000000140c000)
+        (3) (node 1) (zone DMA c000000100000000)
+        ZONELIST_NOFALLBACK
+        (0) (node 2) (zone DMA c000000200000000)
+[NODE (3)]
+        ZONELIST_FALLBACK
+        (0) (node 3) (zone DMA c000000300000000)
+        (1) (node 0) (zone DMA c00000000140c000)
+        (2) (node 1) (zone DMA c000000100000000)
+        (3) (node 2) (zone DMA c000000200000000)
+        ZONELIST_NOFALLBACK
+        (0) (node 3) (zone DMA c000000300000000)
 
 Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 ---
 Changes in V2:
-- Removed the static and declared in mmzone.h per Andrew
+- Added more details into the commit message
+- Added sysfs interface file details into the commit message
+- Added ../ABI/testing/sysfs-system-zone-details file
 
- include/linux/mmzone.h | 1 +
- mm/page_alloc.c        | 2 +-
- 2 files changed, 2 insertions(+), 1 deletion(-)
+ .../ABI/testing/sysfs-system-zone-details          |  9 +++++
+ drivers/base/memory.c                              | 46 ++++++++++++++++++++++
+ 2 files changed, 55 insertions(+)
+ create mode 100644 Documentation/ABI/testing/sysfs-system-zone-details
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 7f2ae99..9943204 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -341,6 +341,7 @@ enum zone_type {
+diff --git a/Documentation/ABI/testing/sysfs-system-zone-details b/Documentation/ABI/testing/sysfs-system-zone-details
+new file mode 100644
+index 0000000..9c13b2e
+--- /dev/null
++++ b/Documentation/ABI/testing/sysfs-system-zone-details
+@@ -0,0 +1,9 @@
++What:		/sys/devices/system/memory/system_zone_details
++Date:		Sep 2016
++KernelVersion:	4.8
++Contact:	khandual@linux.vnet.ibm.com
++Description:
++		This read only file dumps the zonelist and it's constituent
++		zones information for both ZONELIST_FALLBACK and ZONELIST_
++		NOFALLBACK zonelists for each online node of the system at
++		any given point of time.
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index dc75de9..8c9330a 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -442,7 +442,52 @@ print_block_size(struct device *dev, struct device_attribute *attr,
+ 	return sprintf(buf, "%lx\n", get_memory_block_size());
+ }
  
- };
++static ssize_t dump_zonelist(char *buf, struct zonelist *zonelist)
++{
++	unsigned int i;
++	ssize_t count = 0;
++
++	for (i = 0; zonelist->_zonerefs[i].zone; i++) {
++		count += sprintf(buf + count,
++			"\t\t(%d) (node %d) (%-10s %lx)\n", i,
++			zonelist->_zonerefs[i].zone->zone_pgdat->node_id,
++			zone_names[zonelist->_zonerefs[i].zone_idx],
++			(unsigned long) zonelist->_zonerefs[i].zone);
++	}
++	return count;
++}
++
++static ssize_t dump_zonelists(char *buf)
++{
++	struct zonelist *zonelist;
++	unsigned int node;
++	ssize_t count = 0;
++
++	for_each_online_node(node) {
++		zonelist = &(NODE_DATA(node)->
++				node_zonelists[ZONELIST_FALLBACK]);
++		count += sprintf(buf + count, "[NODE (%d)]\n", node);
++		count += sprintf(buf + count, "\tZONELIST_FALLBACK\n");
++		count += dump_zonelist(buf + count, zonelist);
++
++		zonelist = &(NODE_DATA(node)->
++				node_zonelists[ZONELIST_NOFALLBACK]);
++		count += sprintf(buf + count, "\tZONELIST_NOFALLBACK\n");
++		count += dump_zonelist(buf + count, zonelist);
++	}
++	return count;
++}
++
++static ssize_t
++print_system_zone_details(struct device *dev, struct device_attribute *attr,
++		 char *buf)
++{
++	return dump_zonelists(buf);
++}
++
++
+ static DEVICE_ATTR(block_size_bytes, 0444, print_block_size, NULL);
++static DEVICE_ATTR(system_zone_details, 0444, print_system_zone_details, NULL);
  
-+extern char * const zone_names[];
- #ifndef __GENERATING_BOUNDS_H
- 
- struct zone {
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a2214c6..cb46bf8 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -207,7 +207,7 @@ int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
- 
- EXPORT_SYMBOL(totalram_pages);
- 
--static char * const zone_names[MAX_NR_ZONES] = {
-+char * const zone_names[MAX_NR_ZONES] = {
- #ifdef CONFIG_ZONE_DMA
- 	 "DMA",
+ /*
+  * Memory auto online policy.
+@@ -783,6 +828,7 @@ static struct attribute *memory_root_attrs[] = {
  #endif
+ 
+ 	&dev_attr_block_size_bytes.attr,
++	&dev_attr_system_zone_details.attr,
+ 	&dev_attr_auto_online_blocks.attr,
+ 	NULL
+ };
 -- 
 2.1.0
 
