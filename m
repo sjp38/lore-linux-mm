@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0323C6B025E
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2016 09:53:17 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id u132so83609898lff.3
-        for <linux-mm@kvack.org>; Tue, 06 Sep 2016 06:53:17 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EFE7C82F64
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2016 09:53:19 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id m139so80394006wma.0
+        for <linux-mm@kvack.org>; Tue, 06 Sep 2016 06:53:19 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l11si23526715wmg.37.2016.09.06.06.53.15
+        by mx.google.com with ESMTPS id gg6si22284413wjd.136.2016.09.06.06.53.16
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Tue, 06 Sep 2016 06:53:16 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH 1/4] Revert "mm, oom: prevent premature OOM killer invocation for high order request"
-Date: Tue,  6 Sep 2016 15:52:55 +0200
-Message-Id: <20160906135258.18335-2-vbabka@suse.cz>
+Subject: [PATCH 2/4] mm, compaction: more reliably increase direct compaction priority
+Date: Tue,  6 Sep 2016 15:52:56 +0200
+Message-Id: <20160906135258.18335-3-vbabka@suse.cz>
 In-Reply-To: <20160906135258.18335-1-vbabka@suse.cz>
 References: <20160906135258.18335-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,13 +20,16 @@ List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Olaf Hering <olaf@aepfle.de>
 Cc: linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.com>
 
-Commit 6b4e3181d7bd ("mm, oom: prevent premature OOM killer invocation for high
-order request") was intended as a quick fix of OOM regressions for 4.8 and
-stable 4.7.x kernels. For a better long-term solution, we still want to
-consider compaction feedback, which should be possible after some more
-improvements in the following patches.
+During reclaim/compaction loop, compaction priority can be increased by the
+should_compact_retry() function, but the current code is not optimal. Priority
+is only increased when compaction_failed() is true, which means that compaction
+has scanned the whole zone. This may not happen even after multiple attempts
+with a lower priority due to parallel activity, so we might needlessly
+struggle on the lower priorities and possibly run out of compaction retry
+attempts in the process.
 
-This reverts commit 6b4e3181d7bd5ca5ab6f45929e4a5ffa7ab4ab7f.
+After this patch we are guaranteed at least one attempt at the highest
+compaction priority even if we exhaust all retries at the lower priorities.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 Cc: Michal Hocko <mhocko@kernel.org>
@@ -35,85 +38,45 @@ Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: David Rientjes <rientjes@google.com>
 Cc: Rik van Riel <riel@redhat.com>
 ---
- mm/page_alloc.c | 51 +++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 49 insertions(+), 2 deletions(-)
+ mm/page_alloc.c | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index ee3997859f14..1df7694f4ec7 100644
+index 1df7694f4ec7..f8bed910e3cf 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -3158,6 +3158,54 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- 	return NULL;
- }
+@@ -3174,13 +3174,8 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
+ 	 * so it doesn't really make much sense to retry except when the
+ 	 * failure could be caused by insufficient priority
+ 	 */
+-	if (compaction_failed(compact_result)) {
+-		if (*compact_priority > MIN_COMPACT_PRIORITY) {
+-			(*compact_priority)--;
+-			return true;
+-		}
+-		return false;
+-	}
++	if (compaction_failed(compact_result))
++		goto check_priority;
  
-+static inline bool
-+should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
-+		     enum compact_result compact_result,
-+		     enum compact_priority *compact_priority,
-+		     int compaction_retries)
-+{
-+	int max_retries = MAX_COMPACT_RETRIES;
-+
-+	if (!order)
-+		return false;
-+
+ 	/*
+ 	 * make sure the compaction wasn't deferred or didn't bail out early
+@@ -3204,6 +3199,15 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
+ 	if (compaction_retries <= max_retries)
+ 		return true;
+ 
 +	/*
-+	 * compaction considers all the zone as desperately out of memory
-+	 * so it doesn't really make much sense to retry except when the
-+	 * failure could be caused by insufficient priority
++	 * Make sure there is at least one attempt at the highest priority
++	 * if we exhausted all retries at the lower priorities
 +	 */
-+	if (compaction_failed(compact_result)) {
-+		if (*compact_priority > MIN_COMPACT_PRIORITY) {
-+			(*compact_priority)--;
-+			return true;
-+		}
-+		return false;
-+	}
-+
-+	/*
-+	 * make sure the compaction wasn't deferred or didn't bail out early
-+	 * due to locks contention before we declare that we should give up.
-+	 * But do not retry if the given zonelist is not suitable for
-+	 * compaction.
-+	 */
-+	if (compaction_withdrawn(compact_result))
-+		return compaction_zonelist_suitable(ac, order, alloc_flags);
-+
-+	/*
-+	 * !costly requests are much more important than __GFP_REPEAT
-+	 * costly ones because they are de facto nofail and invoke OOM
-+	 * killer to move on while costly can fail and users are ready
-+	 * to cope with that. 1/4 retries is rather arbitrary but we
-+	 * would need much more detailed feedback from compaction to
-+	 * make a better decision.
-+	 */
-+	if (order > PAGE_ALLOC_COSTLY_ORDER)
-+		max_retries /= 4;
-+	if (compaction_retries <= max_retries)
++check_priority:
++	if (*compact_priority > MIN_COMPACT_PRIORITY) {
++		(*compact_priority)--;
 +		return true;
-+
-+	return false;
-+}
- #else
- static inline struct page *
- __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
-@@ -3168,8 +3216,6 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- 	return NULL;
- }
- 
--#endif /* CONFIG_COMPACTION */
--
- static inline bool
- should_compact_retry(struct alloc_context *ac, unsigned int order, int alloc_flags,
- 		     enum compact_result compact_result,
-@@ -3196,6 +3242,7 @@ should_compact_retry(struct alloc_context *ac, unsigned int order, int alloc_fla
- 	}
++	}
  	return false;
  }
-+#endif /* CONFIG_COMPACTION */
- 
- /* Perform direct synchronous page reclaim */
- static int
+ #else
 -- 
 2.9.3
 
