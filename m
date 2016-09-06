@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 525106B0253
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2016 12:52:44 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id vp2so119635137pab.3
-        for <linux-mm@kvack.org>; Tue, 06 Sep 2016 09:52:44 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id p69si18349922pfd.56.2016.09.06.09.52.38
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 569586B025E
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2016 12:52:53 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id ez1so445857982pab.1
+        for <linux-mm@kvack.org>; Tue, 06 Sep 2016 09:52:53 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id 62si36168094pfc.60.2016.09.06.09.52.45
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 06 Sep 2016 09:52:43 -0700 (PDT)
-Subject: [PATCH 3/5] mm: fix show_smap() for zone_device-pmd ranges
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Sep 2016 09:52:51 -0700 (PDT)
+Subject: [PATCH 5/5] mm: cleanup pfn_t usage in track_pfn_insert()
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 06 Sep 2016 09:49:36 -0700
-Message-ID: <147318057623.30325.10495460878595242707.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Tue, 06 Sep 2016 09:49:47 -0700
+Message-ID: <147318058712.30325.12749411762275637099.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <147318056046.30325.5100892122988191500.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <147318056046.30325.5100892122988191500.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -21,78 +21,75 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: linux-mm@kvack.org, Ross Zwisler <ross.zwisler@linux.intel.com>, akpm@linux-foundation.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-Attempting to dump /proc/<pid>/smaps for a process with pmd dax mappings
-currently results in the following VM_BUG_ONs:
+Now that track_pfn_insert() is no longer used in the DAX path, it no
+longer needs to comprehend pfn_t values.
 
- kernel BUG at mm/huge_memory.c:1105!
- task: ffff88045f16b140 task.stack: ffff88045be14000
- RIP: 0010:[<ffffffff81268f9b>]  [<ffffffff81268f9b>] follow_trans_huge_pmd+0x2cb/0x340
- [..]
- Call Trace:
-  [<ffffffff81306030>] smaps_pte_range+0xa0/0x4b0
-  [<ffffffff814c2755>] ? vsnprintf+0x255/0x4c0
-  [<ffffffff8123c46e>] __walk_page_range+0x1fe/0x4d0
-  [<ffffffff8123c8a2>] walk_page_vma+0x62/0x80
-  [<ffffffff81307656>] show_smap+0xa6/0x2b0
-
- kernel BUG at fs/proc/task_mmu.c:585!
- RIP: 0010:[<ffffffff81306469>]  [<ffffffff81306469>] smaps_pte_range+0x499/0x4b0
- Call Trace:
-  [<ffffffff814c2795>] ? vsnprintf+0x255/0x4c0
-  [<ffffffff8123c46e>] __walk_page_range+0x1fe/0x4d0
-  [<ffffffff8123c8a2>] walk_page_vma+0x62/0x80
-  [<ffffffff81307696>] show_smap+0xa6/0x2b0
-
-These locations are sanity checking page flags that must be set for an
-anonymous transparent huge page, but are not set for the zone_device
-pages associated with dax mappings.
-
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- fs/proc/task_mmu.c |    2 ++
- mm/huge_memory.c   |    4 ++--
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ arch/x86/mm/pat.c             |    4 ++--
+ include/asm-generic/pgtable.h |    4 ++--
+ mm/memory.c                   |    2 +-
+ 3 files changed, 5 insertions(+), 5 deletions(-)
 
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 187d84ef9de9..f6fa99eca515 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -581,6 +581,8 @@ static void smaps_pmd_entry(pmd_t *pmd, unsigned long addr,
- 		mss->anonymous_thp += HPAGE_PMD_SIZE;
- 	else if (PageSwapBacked(page))
- 		mss->shmem_thp += HPAGE_PMD_SIZE;
-+	else if (is_zone_device_page(page))
-+		/* pass */;
- 	else
- 		VM_BUG_ON_PAGE(1, page);
- 	smaps_account(mss, page, true, pmd_young(*pmd), pmd_dirty(*pmd));
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 2db2112aa31e..a6abd76baa72 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1078,7 +1078,7 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
- 		goto out;
+diff --git a/arch/x86/mm/pat.c b/arch/x86/mm/pat.c
+index ecb1b69c1651..e8aed3a30e29 100644
+--- a/arch/x86/mm/pat.c
++++ b/arch/x86/mm/pat.c
+@@ -971,7 +971,7 @@ int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
+ }
  
- 	page = pmd_page(*pmd);
--	VM_BUG_ON_PAGE(!PageHead(page), page);
-+	VM_BUG_ON_PAGE(!PageHead(page) && !is_zone_device_page(page), page);
- 	if (flags & FOLL_TOUCH)
- 		touch_pmd(vma, addr, pmd);
- 	if ((flags & FOLL_MLOCK) && (vma->vm_flags & VM_LOCKED)) {
-@@ -1116,7 +1116,7 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
- 	}
- skip_mlock:
- 	page += (addr & ~HPAGE_PMD_MASK) >> PAGE_SHIFT;
--	VM_BUG_ON_PAGE(!PageCompound(page), page);
-+	VM_BUG_ON_PAGE(!PageCompound(page) && !is_zone_device_page(page), page);
- 	if (flags & FOLL_GET)
- 		get_page(page);
+ int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
+-		     pfn_t pfn)
++		     unsigned long pfn)
+ {
+ 	enum page_cache_mode pcm;
  
+@@ -979,7 +979,7 @@ int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
+ 		return 0;
+ 
+ 	/* Set prot based on lookup */
+-	pcm = lookup_memtype(pfn_t_to_phys(pfn));
++	pcm = lookup_memtype(PFN_PHYS(pfn));
+ 	*prot = __pgprot((pgprot_val(*prot) & (~_PAGE_CACHE_MASK)) |
+ 			 cachemode2protval(pcm));
+ 
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index d4458b6dbfb4..f9a4f708227d 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -559,7 +559,7 @@ static inline int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
+  * by vm_insert_pfn().
+  */
+ static inline int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
+-				   pfn_t pfn)
++				   unsigned long pfn)
+ {
+ 	return 0;
+ }
+@@ -594,7 +594,7 @@ extern int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
+ 			   unsigned long pfn, unsigned long addr,
+ 			   unsigned long size);
+ extern int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
+-			    pfn_t pfn);
++			    unsigned long pfn);
+ extern int track_pfn_copy(struct vm_area_struct *vma);
+ extern void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
+ 			unsigned long size);
+diff --git a/mm/memory.c b/mm/memory.c
+index 83be99d9d8a1..5d4826a28e3f 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1637,7 +1637,7 @@ int vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
+ 
+ 	if (addr < vma->vm_start || addr >= vma->vm_end)
+ 		return -EFAULT;
+-	if (track_pfn_insert(vma, &pgprot, __pfn_to_pfn_t(pfn, PFN_DEV)))
++	if (track_pfn_insert(vma, &pgprot, pfn))
+ 		return -EINVAL;
+ 
+ 	ret = insert_pfn(vma, addr, __pfn_to_pfn_t(pfn, PFN_DEV), pgprot);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
