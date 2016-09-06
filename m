@@ -1,77 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C740A6B0038
-	for <linux-mm@kvack.org>; Mon,  5 Sep 2016 21:22:20 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id m139so68413405wma.0
-        for <linux-mm@kvack.org>; Mon, 05 Sep 2016 18:22:20 -0700 (PDT)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id v2si28195045wjh.115.2016.09.05.18.22.19
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 64FF16B0038
+	for <linux-mm@kvack.org>; Mon,  5 Sep 2016 21:56:02 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id k83so17121485pfa.2
+        for <linux-mm@kvack.org>; Mon, 05 Sep 2016 18:56:02 -0700 (PDT)
+Received: from mail-pa0-x244.google.com (mail-pa0-x244.google.com. [2607:f8b0:400e:c03::244])
+        by mx.google.com with ESMTPS id sq1si32426942pab.29.2016.09.05.18.56.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Sep 2016 18:22:19 -0700 (PDT)
-Received: by mail-wm0-x243.google.com with SMTP id w12so6516612wmf.1
-        for <linux-mm@kvack.org>; Mon, 05 Sep 2016 18:22:19 -0700 (PDT)
+        Mon, 05 Sep 2016 18:56:01 -0700 (PDT)
+Received: by mail-pa0-x244.google.com with SMTP id pp5so3650786pac.2
+        for <linux-mm@kvack.org>; Mon, 05 Sep 2016 18:56:01 -0700 (PDT)
+Subject: Re: [RESEND][v2][PATCH] KVM: PPC: Book3S HV: Migrate pinned pages out
+ of CMA
+References: <20160714042536.GG18277@balbir.ozlabs.ibm.com>
+ <3ba0fa6c-bfe6-a395-9c32-db8d6261559d@ozlabs.ru>
+From: Balbir Singh <bsingharora@gmail.com>
+Message-ID: <cf34d62d-164c-bc7b-5538-ebd3c22657a5@gmail.com>
+Date: Tue, 6 Sep 2016 11:55:54 +1000
 MIME-Version: 1.0
-In-Reply-To: <95a853538da28c64dfc877c60549ec79ed7a5d69.1452294700.git.luto@kernel.org>
-References: <cover.1452294700.git.luto@kernel.org> <95a853538da28c64dfc877c60549ec79ed7a5d69.1452294700.git.luto@kernel.org>
-From: Wanpeng Li <kernellwp@gmail.com>
-Date: Tue, 6 Sep 2016 09:22:18 +0800
-Message-ID: <CANRm+CycVgg2XYC=j0FsfE1ZyutSWMEHwVPpLfbFmtuTpTg5Xg@mail.gmail.com>
-Subject: Re: [RFC 05/13] x86/mm: Add barriers and document switch_mm-vs-flush synchronization
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <3ba0fa6c-bfe6-a395-9c32-db8d6261559d@ozlabs.ru>
+Content-Type: text/plain; charset=koi8-r
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: the arch/x86 maintainers <x86@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, stable@vger.kernel.org
+To: Alexey Kardashevskiy <aik@ozlabs.ru>, linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, kvm@vger.kernel.org
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>
 
-Hi Andy,
-2016-01-09 7:15 GMT+08:00 Andy Lutomirski <luto@kernel.org>:
-> When switch_mm activates a new pgd, it also sets a bit that tells
-> other CPUs that the pgd is in use so that tlb flush IPIs will be
-> sent.  In order for that to work correctly, the bit needs to be
-> visible prior to loading the pgd and therefore starting to fill the
-> local TLB.
->
-> Document all the barriers that make this work correctly and add a
-> couple that were missing.
->
-> Cc: stable@vger.kernel.org
-> Signed-off-by: Andy Lutomirski <luto@kernel.org>
-> ---
->  arch/x86/include/asm/mmu_context.h | 33 ++++++++++++++++++++++++++++++++-
->  arch/x86/mm/tlb.c                  | 29 ++++++++++++++++++++++++++---
->  2 files changed, 58 insertions(+), 4 deletions(-)
->
-> diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-> index 379cd3658799..1edc9cd198b8 100644
-> --- a/arch/x86/include/asm/mmu_context.h
-> +++ b/arch/x86/include/asm/mmu_context.h
-> @@ -116,8 +116,34 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
->  #endif
->                 cpumask_set_cpu(cpu, mm_cpumask(next));
->
-> -               /* Re-load page tables */
-> +               /*
-> +                * Re-load page tables.
-> +                *
-> +                * This logic has an ordering constraint:
-> +                *
-> +                *  CPU 0: Write to a PTE for 'next'
-> +                *  CPU 0: load bit 1 in mm_cpumask.  if nonzero, send IPI.
-> +                *  CPU 1: set bit 1 in next's mm_cpumask
-> +                *  CPU 1: load from the PTE that CPU 0 writes (implicit)
-> +                *
-> +                * We need to prevent an outcome in which CPU 1 observes
-> +                * the new PTE value and CPU 0 observes bit 1 clear in
-> +                * mm_cpumask.  (If that occurs, then the IPI will never
-> +                * be sent, and CPU 0's TLB will contain a stale entry.)
 
-I misunderstand this comments, CPU0 write to a PTE for 'next', and
-CPU0 observes bit 1 clear in mm_cpumask, so CPU0 won't kick IPI to
-CPU1, why CPU0's TLB will contain a stale entry instead of CPU1?
 
-Regards,
-Wanpeng Li
+On 31/08/16 14:14, Alexey Kardashevskiy wrote:
+> On 14/07/16 14:25, Balbir Singh wrote:
+>>
+>> From: Balbir Singh <bsingharora@gmail.com>
+>> Subject: [RESEND][v2][PATCH] KVM: PPC: Book3S HV: Migrate pinned pages out of CMA
+>>
+>> When PCI Device pass-through is enabled via VFIO, KVM-PPC will
+>> pin pages using get_user_pages_fast(). One of the downsides of
+>> the pinning is that the page could be in CMA region. The CMA
+>> region is used for other allocations like the hash page table.
+>> Ideally we want the pinned pages to be from non CMA region.
+>>
+>> This patch (currently only for KVM PPC with VFIO) forcefully
+>> migrates the pages out (huge pages are omitted for the moment).
+>> There are more efficient ways of doing this, but that might
+>> be elaborate and might impact a larger audience beyond just
+>> the kvm ppc implementation.
+>>
+>> The magic is in new_iommu_non_cma_page() which allocates the
+>> new page from a non CMA region.
+>>
+>> I've tested the patches lightly at my end, but there might be bugs
+>> For example if after lru_add_drain(), the page is not isolated
+>> is this a BUG?
+>>
+>> Previous discussion was at
+>> http://permalink.gmane.org/gmane.linux.kernel.mm/136738
+>>
+>> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+>> Cc: Michael Ellerman <mpe@ellerman.id.au>
+>> Cc: Paul Mackerras <paulus@ozlabs.org>
+>> Cc: Alexey Kardashevskiy <aik@ozlabs.ru>
+>>
+>> Signed-off-by: Balbir Singh <bsingharora@gmail.com>
+> 
+> 
+> 
+> Acked-by: Alexey Kardashevskiy <aik@ozlabs.ru>
+> 
+
+Thanks! I tested this patch against latest mainline and here are the test results
+
+
+System RAM - 64GB
+
+VM instance 1 - size 55GB
+
+Before patch - nr_free_cma after launch 8900
+After patch - nr_free_cma after launch 39500
+
+Balbir Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
