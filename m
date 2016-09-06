@@ -1,42 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D70E86B0038
-	for <linux-mm@kvack.org>; Tue,  6 Sep 2016 16:36:22 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id hi6so273772567pac.0
-        for <linux-mm@kvack.org>; Tue, 06 Sep 2016 13:36:22 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id j14si2269880pfk.232.2016.09.06.13.36.22
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A13026B0038
+	for <linux-mm@kvack.org>; Tue,  6 Sep 2016 17:03:44 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id 29so66117508lfv.2
+        for <linux-mm@kvack.org>; Tue, 06 Sep 2016 14:03:44 -0700 (PDT)
+Received: from mail-wm0-x231.google.com (mail-wm0-x231.google.com. [2a00:1450:400c:c09::231])
+        by mx.google.com with ESMTPS id jo2si32785139wjc.103.2016.09.06.14.03.42
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 06 Sep 2016 13:36:22 -0700 (PDT)
-Subject: Re: [PATCH V3] mm: Add sysfs interface to dump each node's zonelist
- information
-References: <1473140072-24137-2-git-send-email-khandual@linux.vnet.ibm.com>
- <1473150666-3875-1-git-send-email-khandual@linux.vnet.ibm.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <57CF28C5.3090006@intel.com>
-Date: Tue, 6 Sep 2016 13:36:21 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Sep 2016 14:03:43 -0700 (PDT)
+Received: by mail-wm0-x231.google.com with SMTP id i204so55067571wma.0
+        for <linux-mm@kvack.org>; Tue, 06 Sep 2016 14:03:42 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1473150666-3875-1-git-send-email-khandual@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CACT4Y+ZByeFG4bYEPPSKH9ZfGquj560EqxJAo0BfjrqMguFVTw@mail.gmail.com>
+References: <CACT4Y+ZByeFG4bYEPPSKH9ZfGquj560EqxJAo0BfjrqMguFVTw@mail.gmail.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Tue, 6 Sep 2016 17:03:41 -0400
+Message-ID: <CAGXu5jLxayCoaKFp13DbaoXgGAGuC7bYtpB8z0djUbF94i1ddg@mail.gmail.com>
+Subject: Re: mm: GPF in __insert_vmap_area
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, Kees Cook <kees@outflux.net>
+To: Daniel Borkmann <daniel@iogearbox.net>, Paul McKenney <paulmck@linux.vnet.ibm.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, zijun_hu@zoho.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, syzkaller <syzkaller@googlegroups.com>
 
-On 09/06/2016 01:31 AM, Anshuman Khandual wrote:
-> [NODE (0)]
->         ZONELIST_FALLBACK
->         (0) (node 0) (zone DMA c00000000140c000)
->         (1) (node 1) (zone DMA c000000100000000)
->         (2) (node 2) (zone DMA c000000200000000)
->         (3) (node 3) (zone DMA c000000300000000)
->         ZONELIST_NOFALLBACK
->         (0) (node 0) (zone DMA c00000000140c000)
+On Sat, Sep 3, 2016 at 8:15 AM, Dmitry Vyukov <dvyukov@google.com> wrote:
+> Hello,
+>
+> While running syzkaller fuzzer I've got the following GPF:
+>
+> general protection fault: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN
+> Dumping ftrace buffer:
+>    (ftrace buffer empty)
+> Modules linked in:
+> CPU: 2 PID: 4268 Comm: syz-executor Not tainted 4.8.0-rc3-next-20160825+ #8
+> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+> task: ffff88006a6527c0 task.stack: ffff880052630000
+> RIP: 0010:[<ffffffff82e1ccd6>]  [<ffffffff82e1ccd6>]
+> __list_add_valid+0x26/0xd0 lib/list_debug.c:23
+> RSP: 0018:ffff880052637a18  EFLAGS: 00010202
+> RAX: dffffc0000000000 RBX: 0000000000000000 RCX: ffffc90001c87000
+> RDX: 0000000000000001 RSI: ffff88001344cdb0 RDI: 0000000000000008
+> RBP: ffff880052637a30 R08: 0000000000000001 R09: 0000000000000000
+> R10: 0000000000000000 R11: ffffffff8a5deee0 R12: ffff88006cc47230
+> R13: ffff88001344cdb0 R14: ffff88006cc47230 R15: 0000000000000000
+> FS:  00007fbacc97e700(0000) GS:ffff88006d200000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 0000000020de7000 CR3: 000000003c4d2000 CR4: 00000000000006e0
+> DR0: 000000000000001e DR1: 000000000000001e DR2: 0000000000000000
+> DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
+> Stack:
+>  ffff88006cc47200 ffff88001344cd98 ffff88006cc47200 ffff880052637a78
+>  ffffffff817bc6d1 ffff88006cc47208 ffffed000d988e41 ffff88006cc47208
+>  ffff88006cc3e680 ffffc900035b7000 ffffc900035a7000 ffff88006cc47200
+> Call Trace:
+>  [<     inline     >] __list_add_rcu include/linux/rculist.h:51
+>  [<     inline     >] list_add_rcu include/linux/rculist.h:78
+>  [<ffffffff817bc6d1>] __insert_vmap_area+0x1c1/0x3c0 mm/vmalloc.c:340
+>  [<ffffffff817bf544>] alloc_vmap_area+0x614/0x890 mm/vmalloc.c:458
+>  [<ffffffff817bf8a8>] __get_vm_area_node+0xe8/0x340 mm/vmalloc.c:1377
+>  [<ffffffff817c332a>] __vmalloc_node_range+0xaa/0x6d0 mm/vmalloc.c:1687
+>  [<     inline     >] __vmalloc_node mm/vmalloc.c:1736
+>  [<ffffffff817c39ab>] __vmalloc+0x5b/0x70 mm/vmalloc.c:1742
+>  [<ffffffff8166ae9c>] bpf_prog_alloc+0x3c/0x190 kernel/bpf/core.c:82
+>  [<ffffffff85c40ba9>] bpf_prog_create_from_user+0xa9/0x2c0
+> net/core/filter.c:1132
+>  [<     inline     >] seccomp_prepare_filter kernel/seccomp.c:373
+>  [<     inline     >] seccomp_prepare_user_filter kernel/seccomp.c:408
+>  [<     inline     >] seccomp_set_mode_filter kernel/seccomp.c:737
+>  [<ffffffff815d7687>] do_seccomp+0x317/0x1800 kernel/seccomp.c:787
+>  [<ffffffff815d8f84>] prctl_set_seccomp+0x34/0x60 kernel/seccomp.c:830
+>  [<     inline     >] SYSC_prctl kernel/sys.c:2157
+>  [<ffffffff813ccf8f>] SyS_prctl+0x82f/0xc80 kernel/sys.c:2075
+>  [<ffffffff86e10700>] entry_SYSCALL_64_fastpath+0x23/0xc1
+> Code: 00 00 00 00 00 55 48 b8 00 00 00 00 00 fc ff df 48 89 e5 41 54
+> 49 89 fc 48 8d 7a 08 53 48 89 d3 48 89 fa 48 83 ec 08 48 c1 ea 03 <80>
+> 3c 02 00 75 7c 48 8b 53 08 48 39 f2 75 37 48 89 f2 48 b8 00
+> RIP  [<ffffffff82e1ccd6>] __list_add_valid+0x26/0xd0 lib/list_debug.c:23
+>  RSP <ffff880052637a18>
+> ---[ end trace 983e625f02f00d9f ]---
+> Kernel panic - not syncing: Fatal exception
+>
+> On commit 0f98f121e1670eaa2a2fbb675e07d6ba7f0e146f of linux-next.
+> Unfortunately it is not reproducible.
+> The crashing line is:
+>         CHECK_DATA_CORRUPTION(next->prev != prev,
+>
+> It crashed on KASAN check at (%rax, %rdx), this address corresponds to
+> next address = 0x8. So next was ~NULL.
 
-Don't we have some prohibition on dumping out kernel addresses like this
-so that attackers can't trivially defeat kernel layout randomization?
+Paul, the RCU torture tests passed with the CONFIG_DEBUG_LIST changes,
+IIRC, yes? I'd love to rule out some kind of race condition between
+the removal and add code for the checking.
+
+Daniel, IIRC there was some talk about RCU and BPF? Am I remembering
+that correctly? I'm having a hard time imagining how a list add could
+fail (maybe a race between two adds)?
+
+Hmmm
+
+-Kees
+
+-- 
+Kees Cook
+Nexus Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
