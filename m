@@ -1,8 +1,8 @@
 From: Borislav Petkov <bp-Gina5bIWoIWzQB+pC5nmwQ@public.gmane.org>
 Subject: Re: [RFC PATCH v2 07/20] x86: Provide general kernel support for
 	memory encryption
-Date: Mon, 5 Sep 2016 17:22:12 +0200
-Message-ID: <20160905152211.GD18856@pd.tnic>
+Date: Tue, 6 Sep 2016 11:31:13 +0200
+Message-ID: <20160906093113.GA18319@pd.tnic>
 References: <20160822223529.29880.50884.stgit@tlendack-t1.amdoffice.net>
 	<20160822223646.29880.28794.stgit@tlendack-t1.amdoffice.net>
 Mime-Version: 1.0
@@ -41,33 +41,50 @@ On Mon, Aug 22, 2016 at 05:36:46PM -0500, Tom Lendacky wrote:
 
 ...
 
-> diff --git a/arch/x86/kernel/head_64.S b/arch/x86/kernel/head_64.S
-> index c98a559..30f7715 100644
-> --- a/arch/x86/kernel/head_64.S
-> +++ b/arch/x86/kernel/head_64.S
-> @@ -95,6 +95,13 @@ startup_64:
->  	jnz	bad_address
+> diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
+> index 54a2372..88c7bae 100644
+> --- a/arch/x86/kernel/head64.c
+> +++ b/arch/x86/kernel/head64.c
+> @@ -28,6 +28,7 @@
+>  #include <asm/bootparam_utils.h>
+>  #include <asm/microcode.h>
+>  #include <asm/kasan.h>
+> +#include <asm/mem_encrypt.h>
 >  
->  	/*
-> +	 * Enable memory encryption (if available). Add the memory encryption
-> +	 * mask to %rbp to include it in the the page table fixup.
-> +	 */
-> +	call	sme_enable
-> +	addq	sme_me_mask(%rip), %rbp
+>  /*
+>   * Manage page tables very early on.
+> @@ -42,7 +43,7 @@ static void __init reset_early_page_tables(void)
+>  {
+>  	memset(early_level4_pgt, 0, sizeof(pgd_t)*(PTRS_PER_PGD-1));
+>  	next_early_pgt = 0;
+> -	write_cr3(__pa_nodebug(early_level4_pgt));
+> +	write_cr3(__sme_pa_nodebug(early_level4_pgt));
+>  }
+>  
+>  /* Create a new PMD entry */
+> @@ -54,7 +55,7 @@ int __init early_make_pgtable(unsigned long address)
+>  	pmdval_t pmd, *pmd_p;
+>  
+>  	/* Invalid address or early pgt is done ?  */
+> -	if (physaddr >= MAXMEM || read_cr3() != __pa_nodebug(early_level4_pgt))
+> +	if (physaddr >= MAXMEM || read_cr3() != __sme_pa_nodebug(early_level4_pgt))
+>  		return -1;
+>  
+>  again:
+> @@ -157,6 +158,11 @@ asmlinkage __visible void __init x86_64_start_kernel(char * real_mode_data)
+>  
+>  	clear_page(init_level4_pgt);
+>  
+> +	/* Update the early_pmd_flags with the memory encryption mask */
+> +	early_pmd_flags |= _PAGE_ENC;
 > +
-> +	/*
->  	 * Fixup the physical addresses in the page table
->  	 */
->  	addq	%rbp, early_level4_pgt + (L4_START_KERNEL*8)(%rip)
-> @@ -116,7 +123,8 @@ startup_64:
->  	movq	%rdi, %rax
->  	shrq	$PGDIR_SHIFT, %rax
->  
-> -	leaq	(4096 + _KERNPG_TABLE)(%rbx), %rdx
-> +	leaq	(4096 + __KERNPG_TABLE)(%rbx), %rdx
-> +	addq	sme_me_mask(%rip), %rdx		/* Apply mem encryption mask */
+> +	sme_early_init();
+> +
 
-Please add comments over the line and not at the side...
+So maybe this comes later but you're setting _PAGE_ENC unconditionally
+*before* sme_early_init().
+
+I think you should set it in sme_early_init() and iff SME is enabled.
 
 -- 
 Regards/Gruss,
