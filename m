@@ -1,919 +1,485 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CAEE26B0069
-	for <linux-mm@kvack.org>; Wed,  7 Sep 2016 19:33:52 -0400 (EDT)
-Received: by mail-ua0-f199.google.com with SMTP id 10so58674535ual.2
-        for <linux-mm@kvack.org>; Wed, 07 Sep 2016 16:33:52 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p4si7541853ywp.299.2016.09.07.12.18.48
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D33B16B0253
+	for <linux-mm@kvack.org>; Wed,  7 Sep 2016 19:33:59 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id k83so73486970pfa.2
+        for <linux-mm@kvack.org>; Wed, 07 Sep 2016 16:33:59 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id j12si36112599pat.285.2016.09.07.12.34.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Sep 2016 12:18:48 -0700 (PDT)
-Date: Wed, 7 Sep 2016 21:18:40 +0200
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [PATCH RFC 01/11] net/mlx5e: Single flow order-0 pages for
- Striding RQ
-Message-ID: <20160907211840.36c37ea0@redhat.com>
-In-Reply-To: <1473252152-11379-2-git-send-email-saeedm@mellanox.com>
-References: <1473252152-11379-1-git-send-email-saeedm@mellanox.com>
-	<1473252152-11379-2-git-send-email-saeedm@mellanox.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 07 Sep 2016 12:34:42 -0700 (PDT)
+Date: Thu, 8 Sep 2016 03:33:48 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [sashal-linux-stable-security:linux-3.10.y-security 204/1389]
+ ipc/shm.c:923:3: error: implicit declaration of function
+ 'shm_obtain_object_check'
+Message-ID: <201609080343.usNRsyaA%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/mixed; boundary="k+w/mQv8wyuph6w0"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Saeed Mahameed <saeedm@mellanox.com>
-Cc: iovisor-dev <iovisor-dev@lists.iovisor.org>, netdev@vger.kernel.org, Tariq Toukan <tariqt@mellanox.com>, Brenden Blanco <bblanco@plumgrid.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, Tom Herbert <tom@herbertland.com>, Martin KaFai Lau <kafai@fb.com>, Daniel Borkmann <daniel@iogearbox.net>, Eric Dumazet <edumazet@google.com>, Jamal Hadi Salim <jhs@mojatatu.com>, brouer@redhat.com, linux-mm <linux-mm@kvack.org>
+To: Davidlohr Bueso <davidlohr.bueso@hp.com>
+Cc: kbuild-all@01.org, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 
-On Wed,  7 Sep 2016 15:42:22 +0300 Saeed Mahameed <saeedm@mellanox.com> wrote:
+--k+w/mQv8wyuph6w0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-> From: Tariq Toukan <tariqt@mellanox.com>
-> 
-> To improve the memory consumption scheme, we omit the flow that
-> demands and splits high-order pages in Striding RQ, and stay
-> with a single Striding RQ flow that uses order-0 pages.
+Hi Davidlohr,
 
-Thanks you for doing this! MM-list people thanks you!
+FYI, the error/warning still remains.
 
-For others to understand what this means:  This driver was doing
-split_page() on high-order pages (for Striding RQ).  This was really bad
-because it will cause fragmenting the page-allocator, and depleting the
-high-order pages available quickly.
+tree:   https://git.kernel.org/pub/scm/linux/kernel/git/sashal/linux-stable-security.git linux-3.10.y-security
+head:   69c2f7bfd1c3f78cff79345a7d013684c2014325
+commit: fc3323c39215f276c710a0eaad6fbf78bafa4eac [204/1389] ipc,shm: shorten critical region for shmctl
+config: i386-randconfig-s1-201636 (attached as .config)
+compiler: gcc-4.9 (Debian 4.9.3-14) 4.9.3
+reproduce:
+        git checkout fc3323c39215f276c710a0eaad6fbf78bafa4eac
+        # save the attached .config to linux build tree
+        make ARCH=i386 
 
-(I've left rest of patch intact below, if some MM people should be
-interested in looking at the changes).
+All errors (new ones prefixed by >>):
 
-There is even a funny comment in split_page() relevant to this:
+   ipc/shm.c: In function 'SYSC_shmctl':
+>> ipc/shm.c:923:3: error: implicit declaration of function 'shm_obtain_object_check' [-Werror=implicit-function-declaration]
+      shp = shm_obtain_object_check(ns, shmid);
+      ^
+   ipc/shm.c:923:7: warning: assignment makes pointer from integer without a cast
+      shp = shm_obtain_object_check(ns, shmid);
+          ^
+   ipc/shm.c:966:3: error: implicit declaration of function 'ipc_unlock_object' [-Werror=implicit-function-declaration]
+      ipc_unlock_object(&shp->shm_perm);
+      ^
+   cc1: some warnings being treated as errors
 
-/* [...]
- * Note: this is probably too low level an operation for use in drivers.
- * Please consult with lkml before using this in your driver.
- */
+vim +/shm_obtain_object_check +923 ipc/shm.c
 
+   917		case SHM_LOCK:
+   918		case SHM_UNLOCK:
+   919		{
+   920			struct file *shm_file;
+   921	
+   922			rcu_read_lock();
+ > 923			shp = shm_obtain_object_check(ns, shmid);
+   924			if (IS_ERR(shp)) {
+   925				err = PTR_ERR(shp);
+   926				goto out_unlock1;
 
-> Moving to fragmented memory allows the use of larger MPWQEs,
-> which reduces the number of UMR posts and filler CQEs.
-> 
-> Moving to a single flow allows several optimizations that improve
-> performance, especially in production servers where we would
-> anyway fallback to order-0 allocations:
-> - inline functions that were called via function pointers.
-> - improve the UMR post process.
-> 
-> This patch alone is expected to give a slight performance reduction.
-> However, the new memory scheme gives the possibility to use a page-cache
-> of a fair size, that doesn't inflate the memory footprint, which will
-> dramatically fix the reduction and even give a huge gain.
-> 
-> We ran pktgen single-stream benchmarks, with iptables-raw-drop:
-> 
-> Single stride, 64 bytes:
-> * 4,739,057 - baseline
-> * 4,749,550 - this patch
-> no reduction
-> 
-> Larger packets, no page cross, 1024 bytes:
-> * 3,982,361 - baseline
-> * 3,845,682 - this patch
-> 3.5% reduction
-> 
-> Larger packets, every 3rd packet crosses a page, 1500 bytes:
-> * 3,731,189 - baseline
-> * 3,579,414 - this patch
-> 4% reduction
-> 
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
 
-Well, the reduction does not really matter than much, because your
-baseline benchmarks are from a freshly booted system, where you have
-not fragmented and depleted the high-order pages yet... ;-)
+--k+w/mQv8wyuph6w0
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename=".config.gz"
+Content-Transfer-Encoding: base64
 
+H4sICBJq0FcAAy5jb25maWcAjDzJdty2svt8RR/nLe5dxNZgK857Rws0CHYjTRI0ALa6veGR
+5XaiEw25Ujux//5VARwAsKhcbyxWFaZCzQD6xx9+XLCvx8f76+PtzfXd3ffFb4eHw9P18fB5
+8eX27vB/i0wtKmUXIpP2NRAXtw9fv725PX9/sTh/fXry+uT0YrE5PD0c7hb88eHL7W9fofHt
+48MPPwIxV1UuV+3F26W0i9vnxcPjcfF8OP7QwXfvL9rzs8vvwff4IStjdcOtVFWbCa4yoUek
+amzd2DZXumT28tXh7sv52U84qVc9BdN8De1y/3n56vrp5vc3395fvLlxs3x2S2g/H77476Fd
+ofgmE3VrmrpW2o5DGsv4xmrGxRS3ZlvRFsyKiu+tIhqXZTN+VEJkrVm1WcnaQlQrux5xK1EJ
+LXkrDUP8FLFsVlPg+krI1ToYz62+ZHs/s5q3ecZHrL4yomx3fL1iWdayYqW0tOty2i9nhVxq
+WBdwsmD7pP81My2vm1YDbkfhGF8DW2QFHJMfxUxr1gDHtFqKhJ1G2KZua6E9lRYs4WCPEuUS
+vnKpjW35uqk2M3Q1WwmazM9HLoWumJO3Whkjl0U6ZdOYWlRZiB5k/KOCZcKOnZ+Fgj6gWQP6
+43oh9KDr3MmMaVVtZQn8ykAFgHmyWk2m0VFmAqTBrYsVILeRIoFigUR+3Lcrky7UC0vL84IB
+8tVPX1Dxf3q+/uvw+afDzbdFDPj87RU9euN2Leh90DbYcwNa+ebu9tOb+8fPX+8Oz2/+p6lY
+KVBWBDPizetE7aT+0F4pHWzKspFFBpwQrdhZBtxujVcpZ1lWzkrdIRe//gmQvpFWG1G1sIWm
+rENbAswX1RZWgJMrpb08P+uRXMN2tlyVtYQtfRVaAlZshTYgETNgJ7yJ3G5AikTRrj7KmsYs
+AXNGo4qPocqHmN3HuRYqlMJgcELOkgmkrXB0UniHObyEhZkQQ4JMsKaw7VoZiwJw+epfD48P
+h38P7DR7s5V1ILsdAP/ntginCWond235oRGNIIbK16zKYqV0WkeQOg4OxpPpDMTP9KIFfy+e
+v356/v58PNyPokWQpzYbZDixZCHKrNUVjeHrUFYQkqmSySpcygj1ak+sCknAI3KwHHYN9jKL
+TIepmTYCiUYYR29nVANt2itm+TpTQYuN0z4D4s70dOKurdiKyhKsCJBekV8mKWFVLPu1MZag
+KxXamgy8UL9D9vb+8PRMbdL6I5p7qTLJQ+ZVCjESpIOUYIcmMWuwlGCzTIus0Cak8QFO3byx
+189/LI4wpcX1w+fF8/H6+Ly4vrl5/PpwvH34bZyblXzjfRnnqqms351ogx3DRzSxx0uToYxx
+ASYLCG3YQ4prt+fkoiwzG4hm7HQ5mjcLM+UqzGXfAi5SRi1EWVsEk4MAHEOmokDLWqqKngl0
+4ihdXEWJ9KaL376nELfSEVwo9Bg5KJnM7eXpz5GmNxBKeg8CAUnmJW/Op1YNRGVLEPmKTz3v
+FUNphZGtp/N/gecPVGqlVVObFOCVdgLNgQEfXWA78GSg30qSJSBBEBqZeC8Ub2uZdTiS1V23
+QIGiQW+Z6EyBk79E3ONuQMnyyWIcd0dozqRuY8w4mxzsApjrK5nZNT0ZG7all7QWfFMrWVmc
+ulV6RrvB7YDxA7Ug1tPIbIWMUxW4dBtPssNBGiJBmey+Fn5Iqh8vWRgOuFmH3YAjyzFWA43h
+YMTotWAMvaf0vdigKLgIRgfMdd+shI79ngUBis6S4AMAScwBkC7UGCeQzfl3R6zoHeBDtIqe
+x4X5FHN6V97rEqgMrABSukBPvKbK7DTIAX1DCAC5qF1g7uxE0EbZugjVqkt3TL3RbQ0JGSaI
+I1bsQG4DF9OPFm4Vjof/geWiIigAm30ZTLuHQBoVrLDWIJVRMBvZ+mSGJG+XECa3eUNOI2+s
+CDIuUatwcCNXFSvyQFqc9woBzu+GALMuRRmFTpIK52ou2w+N1JuAAy7/ykLN97sAI7ZpfOCA
+YKPabdmnLM7xdBWE+vD05fHp/vrh5rAQfx0ewJMy8KkcfSl4/NEjkZ136dB0iGFR29I3esnC
+maJZDtZ6lHRID5iF/GJDbpYp2HKmr0i+CkWRgf3OZZHEA8pDKX1y/O3xQVGkg7RVKf2WB2Ka
+Jmu/NmUNCeJSFGEHdiAbQyAczFVwQMRBstDMcYwx5iYm8lxyiVyGlC9qkXhT3CQMDiG8gNjl
+igUma6OFTWfsOpdg5UtWO8+bZkRkg9mewsUS3WAOmafmBvFu6g6xVmqTILGkw6zVaacIh28r
+V41qiHgZslUXnnaBe9JaixXYlyrzNaiOmS2rZULHC3I+tUyjD4dbX4E4C+Y9aIIr5Q52bUQb
+N4fUWBuhAW4bXUEQZGUuQ4lLjQBKJYUlOu5VWHcLzpoyzaXdLlAy3NWWtl4LDMuBLWWNta60
+h040fZXRVVFSdvp2PuOfwWWqmdaJMExsMYf1KVdfQyBWYARHy9KC2toJ84iMYEYWK0zuUOPW
+zUrEKylV1hQgzqhsokB2B0uBSLgCHQQeX0FWG2yDKjJ0I13B63yCYK4uOxRjuNr+9On6+fB5
+8Yc35H8+PX65vfPpz2BJkKyrFvxTTu71ZS1wUYGTgr2WVR5UXCBKLNEXhlrsHKdB4395mnAh
+ZYtPl2GDQ5XrUE1Fgn0LAtnt8nQMo/lQLiqigkZPIFd0BIB5ChWzVq4wCA1rsJw4lTCdGVMK
+x/v66fHm8Pz8+LQ4fv/Tp6hfDtfHr0+H53Bv+vIl7d1KqpqERUaxsyAfWGQdg62hGRKsQGBy
+aegYHwm8roAzLsDoZDPDeHxRhy4E4Trj52enu3TQ8zPQHWnotbhAXZXgznKNFUln34SmJBIi
+fr2VBgLbVSPC2gRoG9tKHWXfPWxanhnnJug0GOAYMW7Bd69gcm4wKviE8KWfyNC2cJBpm+m8
+/rm4MJAmGXKl2qVSNokQ4dPODVq+fX9BI969gLCGz+LKckfjLuIOezDYLSubUspoygNU0p11
+eDoi77FvaexmZmGbn2fg72k4141RdCpbuthKzFRTyitZYSmRz0ykQ5/TGWgJGehMvysBqdpq
+d/oCti1mtofvtdzN8nsrGT9v6SMTh5zhHYcwcKYVs4rePmeOvH95wcxoTEu7oytfTHoXkhSn
+8zhvpTBu4arex5YK3W8NkWVXQWjKGA2SHwO6+OLibQpW2xhSykqWTekKizkrZbGPJ+WsESS1
+pYmqTF2dEHN2UQhOmRvs0TS1X1YQM3Rgt7HR8W2PYWVGkIPusEZPES58KYVlZF9NySP4uhY2
+zW0cTJQNHsBCRBBlfFkpiaVV7kTQjPFBX83sanmTKudWFWA1md7TJtZTkZmdb++MbuqmkFX1
+rDCWXKQNsCaJUV7JafPQNYMd+1XM1Pi25Yz9tQokesmIycj3m8TrCvQGudxFdc5ScpApUB4C
+lMrQiIhkZQRjmOm0MY8SsKTDtpDLeaRguthT6B4R883oWZ6CrEjaaFYKTwjAE86eHgDuLeVr
+O9zF2yjp35amLiA0OacDiB59RvXYI0+DLMGdeas8N8Jennx7e+L/JXOId7dmaTpTr/eQbWaZ
+bq0vBCR4l2SSaHf+7gwqDINpO3EPIAe1BWwrKkacuLsMah7tbBd2rvQew+lQyGQB4RQr+gCv
+3bKiEZfD4um2A6v7aZWsahiVr4xT8yRBmtJj0qTaDwU2wcRpzdATnspIPm22jOOxCNzxN6ye
++F2RhkNSRzTv5gGBbcG6NC6u9nTBXou5lut+JmBw3XQ1WJJDKI61dbN09vYX9y+pqrlUkgrh
+5Er38+vFeV4S+wQGN2417rKPfCF+DasuGxNsTX9C7eTTH0Rm+vLtyS8X4TnVNMWmC+LuLkHH
+GWYtI+97RNdSNsFceCHAxmN8Ee0JqGltqUKgM04YULRLqfAOg9ZNHbMMSXA/MbYv+5mNhL55
+at8hhMELTerq8uJtFFqtOz8r50JQq6lMygkk8DBTkwQREnUquRR5UCyCD1CNpJTqKydzxxKu
+cIRFQtBxRSZ3H9vTk5OIzR/bs3cntCH/2J6fzKKgnxNyhEvApJnnWuM5MHk5Yyei0IVrZtau
+9kUFFqAJkoN1g4VqtO2nsWnXAqtWNraZyG8new5rYr1yvbmiGPR2FnXWFb+3mYkum/Ayc2UI
+EC/KQLpN92Y7sRVDbeLx78PT4v764fq3w/3h4eiqE4zXcvH4J94hjCoUXS2KDsDKVmNWW1JK
+gh2G08ZvF//mdIUgwIPvuBJ0XOCoBPfxdU4Vw4d+fAF0MgVGRX4OswTLIXR43c5BG2tBs+8j
+4FZmQiWwnFWTwTK6lORw8ownQw3ZQdKzrEuZgMZEgq1WGhyunbSya6FLcJAxlDcGMrU2M5lt
+8+7mVTzngGJ+C/zBaOvP99VWaC2zOSlolwVYBbyc1u4hCBy9hGdRXCP3q+MSD21srEMgbkkK
+4uerIEUAhUjhZmmSteNpOMkNyIPWKsUtV5qQnlrQObXJI3h/TWWRPx3+8/XwcPN98XxznZZm
+XfaoxYeZNFAm96p6WAvOwMoa/si03M7cGOhpV2rbFuBc4+sOzkqgUTIjJWRL0Cet6j62T6/y
+uLUsvz73hmPxL9i5xeF48/rfwaEhj+wA7u1KoeOcOehcqbL0n9NmmdRzKZYnYBV1nI843zQw
+vgALBgop3X0vk47Oq+XZCbDJHcTOTUHgdRaIemanOHeLDHHaXyjtrXd8y9HpBHrj+xDComNe
+AMiwUoGAWssEwIzM0sVJNZMTIzI56+kuSccnYQAMIofJV7stljiVMjludTgcA/+gAhLXFqJJ
+CPVbrUKT4FDulkkQ03P0oen3Wg+GY1SAQu6I8Sph3707OQ1MSQmp1DJmFwb4VOTh3Wwq8AHY
+2RA6ngmIOCrRi923Zl3zURA07EQmw/MZD3DJiFu6auzl+UmK7uRM71q7a909rHDeQyew1aJa
+gYUlJjUQxVZ8HKEp8WRI4mwnPVsj3/1MFzB7El6bdkdtVNjHxfvpyNhwJaozakXYJo4dnSET
+3w43X4/Xn+4O7g3Gwt2JOD4v3izE/de76z406jrDI7HS4uFekgGOiC72xms6tQwCwo7CcC3r
+9AiY4VallB1wPKLy4FLOVO6xTjsTwfpBwOnhJVgV5a8OZcUOkke1EfFVbtCLPnysDse/H5/+
+AFcWxIu9boCjF9GJDX6DHLJAOJpKRmdH+O1IqFQrD28S4Zd7OBGlMwjE8i9dSEKsacD4qEJy
+upDoaHzeO1Phc51glcBAGkEbd+AQJBOU95FVyBJZe/fNWXyiBHCWbSEPxUQB9ps8GwOiuqqj
+zuC7zdZ8CnTpZzICwjXTdP6GK5A1eYXdoyDQBEUvm10kF9ivbaoqdBEDfTj+2MlSK5YhA+hY
+AzjkOECHn7qmQxSzh7RaqY0U8xsk662lbCtuUcuCB0EOIEzMP9/DbP7r8E5UPDvmxumYdf/D
+pB2Ww7qqBz66mKXoOyCGdgRLIaiyuKMqtEqW6bQzHsvyugfHYzRZPaeq2Ab+XA1iHPJuQC7J
+KGNA82YZ+4oBcyWMvVKKcrwDzRr+Glcygo0N9WOE7yEzIeBbyKcM0Y+7k4+p/RRVUP1D/qkI
+WkiC1gRYFpDWKxm/7PGvOLp5jscrHULDAAQ/enTf9eWr379/urt+FQ5ZZu9MdMG73l7ExmJ7
+4U7H2YzRdATeUGFtNSetFZD4m6poN9uMZbHoXbSOE5GIXaDazerXxYsKiOOVsqaPWnzzf9bP
+i4k1C1omGvqd7D5Q0tkxYmWN1S/EOg53t32TsqxbrpFh4w7SXkSXlhFauVgQq8p4ozpBThaM
+QLTe9ylz+8TTJf60nfWEEwM+WmF8cIaFxJK5h2ehgXaoer13QSs43LKmr0wA6XB3K2zvgS/c
+BRlpeis1zdofnw4Y5EAMeDw8TZ7XTjqCv0BxN+MuTFD4TCJA56iUFd5ljJcfwHv2UEsPyXy9
+LPC7ITK39QxG6sjGRjiYs6tqVzNeNJqlnIkkgMj2q6fXUDEbsQS+XT0idhsdgpUQSFPpYYfH
+laadTdeI0BdmjGgLPb0kbq1/Ezk8Wtu5dOF5cfN4/+n24fB50b27pOQE4upO4qOmx+un3w7H
+uRaW6RU6bbWiJX0kAVhS03+ZPIc+/2tqSCcmlZcXyHvlJlRiJAIvVBp0sxE7IOO6+T2+JJew
+0EKONYjgP6/AN5hG//O0GOgnpq+de98DqO30QZes//e/sCA5OmrNnMV8O6ep8yhX4/ZnBFHs
+D0SQVvZiGsE7mxkvDeDDLqcXGCiqJrVmTttwnvckfcnMh0ZolglCH+vavqiQ6/Oz89kJgVVY
+FSJdpGZXvY7J+q+Ll3YiHG3cCzp8SLeFuv4GoUfE/vsE4eULG68Fy4SeEAwbFIOj/SF6dWyI
+dvWi4wS5lKWW2UoghVhOHfnIzIyH4bTPFfiYGTgGImDBucye57nbddUi2dn8O9qA6jza1BGc
+1pl6pM01j6+lRJi+1Tjj7uXL+vrmj+i1aN9s8hKlX7x7pkDP3vA438YmCJs0Cc4mLQy1XLWl
+oW3xQKCWv/KKUk1P0QX8Pv1t1yXjGOBHB7dzdGbN6BuGsy3wttbcTKYzmMPiuFFxLqOk0EaP
+1K273e8Kle9PfxmukTEb1Ijgo+WFDAS3h+CFWsnLaI8QVzByPYha6rOL92/jrjwMNjx9PVCc
+hWEIfvXHlAl0ex5OwYHIqovDiPB3SkwY0nk1juqCXrHlqgRprJSaiZ79Ow0UaBOllVvgRPv+
+5Oz0AykQmeAVWVcoiugEHT7pS6Kypou9zLKC9uS7s3ckvGA1+aJrrSqXTI1DCiFwRe/o28Ne
+RedeumacGiSrjHuzi79GMW7sEkSD4S2WLQVro0JDAM9YXNgdMRVd2g3bzhhSVYtqa64k+Jpx
+LluD7/7jCn+fnpQvBI6OIK34hAS1xmq7e35LzGX5oUjqxovj4fmYnIPiNtQbu5q5qN9VpOZM
+75qVEF248w9/vwGM+uG40Nefbx/xSczx8ebxLgiwGUhVYC/gC7ahZPjOZRtEEzCqVmVwyqLM
+8FMIbPcaJPOhW9Hnw1+3N4fF56fbv6LnkuVGmkD3L7AaHkhH/UHgGX1Q74FQiUdZC3zOSMEe
+Ir8W32rlGa1UAck6o05QOoI6/JWJDibqwMzsWRlOic9cV5c6o5+xLGeuEUB8stM1VQ28kvh7
+NeGrkx6CL18CKJ5V4FlHAop/o8CBTHgzvCOSwUkpz1doJiKPVBUO1OJzi1KR1xv6ZvhYXBQK
+L5ddMY0/HhQp2kCmxeqF4sRAxoXGd33c/yySqmbOk4PRvZeuyZsAI5V3RtTE/B18PGMVq2z5
+8mjIPsoLyKVn4X0Kabne1xba1bM4jn55Dmk3zp2P1r9Hz1lAiC/6qQyNelir3Y82kEsMaUr3
+S2hkBS8k61iP12icZTCP94fF37dPB0hmn3uTsMBLIABbXC/wN94WN48Px6fHu8X13W+PT7fH
+34Mf/Rj6LoUJHP8ALkT4YHAAj3tL9GPwOjImLsnhe9waKKuG1MYy/J0x99m1KFDqL98HQVy+
+keTTeY9A6cJ7jCrKQdG8/0I5D85kPgoFfk1+zwNh0B7UL7ZREl+yUt6bi3odZwo9BKvY1u6n
+b9B7PD4mCZ0/WY+KfwDn/xl7tu22bWV/RY/dDz3lRaSovVYfIJKSGPMWgZLovGi5idt4HTvO
+sp3d9Hz9mQFAEgAH8n5Ia80MrgQGg7lhC9JySlv8EbdP505D9f3dy2L7cP+IAfhPTz++PXwW
+F6rFL1DiX+qswUNGXmbk0ZONR8+UpuvhswIvGttMe5Th+Pu8RI7VMhAxp0QWMJdd1Zp8YoBd
+KoyooK8LHeroSvpuAFMrWtwWhwoYZG5nJ9qeRTSoqc8diYvaHb8KvOjARlJtGGOVMqRZjtUc
+Ey5h6UFFGlEEOj8dzMB8fsu1EEVyKsYcSu1RJZSh+DLsBcP8Ln+bboEKxnVPGwWrKsPjQxXW
+00yh4wbcsg4YUn7cbnVJI9UTnsEP64Z8/+fdj8c3wabgQv/843XxdP/0/PLP4u7l/m7x+vB/
+9/+eFhMW58LHIT+IcKMduvtP22dAc4w13dx25GQYVFpF/7gqKmgpxCRilNyDJMLhtkL30MQA
+H3LGf19Nfm3TbhuomroWvs3G0dJRVkkQrGwbkQJdWlqqG9A7TnpiKSzrk2S11tK1DAg/SJZz
+aN1gexpc9x8QzgOK+YtjYtRst5rcPMl4nEEJuu916/Lpq1vlCyyqqh5eP2vzOu2rvIb9xDGJ
+YVievIA+oVkWBREcP23jkCq7ChfQmY4Myo5VdYubhFLgbKoL44ao2+5Z7QprHGOnLy3pUcB3
+6FSXLg1bdrGthLxKNZ/ydRjwpWcILXI43OHmk9dp2fDjAVf7YcZmRrI98IWSshOzNuNrkABY
+qasqeRmsPS+0IYE3QYZv1QEmijzjxqJQm72/SmjffZ1kRbnwDwSif2tPEz72VRqHUaA3mHE/
+TgKilq6Aa126inyD/KTOH/S0JONfNlXrJdr9UP4WbPnJgiFb1rwxMWTrqAkWIIBc5DX8suVs
+vUyMuAcQgzr4ZJc8bcOLhFFTcWB6oEpg5reVv2FZAxU7XAI/8oZtludwC6oWrz++f39+eZsY
+mITDwgo0XjEBo2lACojRXOntjBZ4a5ys5uTrMO3jGfU67PtlrMlym5XvyaubBbMFvAkIu5Mf
+KxE+M3Kp7v7n3eui+Pb69vLjSSQuev0KZ9SXxdvL3bdXHPni8eEbXM2B6Tx8xz/19Hogs1BL
+FzkQfu+ZaMbQiHC32LY7tvjz4eXpb2hq8eX572+Pz3eD6U9TM6B2kKFc1BrOPoJv5Lrr7ACC
+f4Y6Ti7VU0W7g4pcJdmokuApLwZNxOyrIxL9CUyNMMCcuScQ6Tbgbo9mahX5GxcFML78dziJ
+LEzZ7Hby9iENM3meL/xwvVz8soV70Rn+/UvrtS4C5nj3p7qgUHDAcSOstAgoXlfh7QejbQef
+eesihBFWINzyfNNRXEHeMZDFmk5uSvswKTuaOrOUrubpQzPyj0eQSD6RcqiVS0HownLmSJXA
+0pMrncCpd2GgSvgL7jSORH55h4nOnJo5RIogjAP84fDCPBRN7bCgdkdHf3NHikL0Bi+aC62K
+Zoe01t1p5G8QjaxzVYG9yHdWIgyJdkUpa4l60qZaez9/uqtSBEVDFD4U1YW+Ik6FAw/OX4eN
+YlrPOhDXmm3o6FLqlq1MIEwPMeow8rcwqwTA3Cw2IOAr4qXu4HDpRDLcsKhRMdeuRvAJ7Tim
+8CNgVzRmiK1BdOqYI1wM8EXWrVZB5EgQDgSs2sDRwjLHbQ5J9s2h+ESKC6IFZk5dwexjTIwf
+k2d4Xk5DhXYBU8SWurOwQdH1mPbrcPu7H5N42aan48yIVgkRLfFjTR0qSAGMoBkPWNSkaIfp
+pOI2dS1dR/lWCBTHUCyhWbcVNAJzW1N3HYHf88LS/sitrxk1ML/1xdjwEnTAs2awUD+AdPDw
+xw98W4H//fD2+euCvXz++vB2/xnzMVFjUraxS3VKkjzue1rDblJ5MS3tzupSccgtncDXJPdD
+2jZrUQXhJfYvcUTMpDAxGA7oVWayIazrlNew/C9h6rjtaDQsY22X0xcSnQykH0e0sk5VORI8
+aCQ4APJiKflxBrcgc5VjjEC39uXQaVFAi6LSmpJu6Waw9Ga5JKrY1L1xq0iBCZFXkF1Ta74M
+WKzXywkACPlFc3pvHqBzOFgnWcrKPs/Ypd9V7N2vk+7zkhd0dlmdrDgcjq6pH2l4qimi4DAw
+LFiZ69zXqshyavJ0AuFgOSm2ykD7BawsY9YaGGBCS3a9boysz414lE0e/BedzntGaoAniu3x
+Q9Hxoy29KezeFWeh8EPulklI9Ml4dwRrEW/ip3arKnYb48dlf64MJ+Ld5rQ1LOb9jtKbI1iv
+Fn/adem9T4KoN2a1aB0B+x+q3MGO4E57yq9IngMZ0LC6cTPpga5IaXuORdOYDwMAfwmSD7Gh
+5Rhgl/Oh6HIQv4otLdnrVd8eqCN3m7Oy7h2LpGYdzyuHAUEjOxVZQfrHTjTNjREHur/s9BcT
+MAA6tT+Dit5yBv9ptX+EC56Z/P9jycKeDN37WCK7nNqWvyUX1KG73ODSmK7PYi5aBzB2tstJ
+Z2ONKDO6eIi9JbUitRI8zz+SC5wXpRnvz9N14F05rsdyjgSJ23d4IK+40XlepWt/Tbu15G2R
+0twCa1kvdV2e3kQnlr/ublSJq3GnOZIoGJV5ckA5LF4KLZU5jiwQAw2tldD7enRc0weCLt8f
+O23Jq9/UuA0y67NqZKfi3V6di0/0vXSbZVojWb7tDTlAAFyHFb/ZarZx4E1mYg0UWg4YwOE6
+jvjGPCLa/a00gEp9fFEsAOJ0YmFd4oU9FtKuJVVmAhSnNoEZOxXCw2Rv3EQ/IkdDIDmZJbpm
+OHBpARIQs9GD4A+MmGO6P2jtSV/udvuDlOeoZ5NWyarv7VJF2pZH7iijmI9qe1oYwn+DlY5S
+vIPDutdOGhDJYK/5nu+ndlXy7HJUtBVpo80PgnHOm6LbsNoI4hPwXesQ/VQrNzxZryOHZrAt
+SV/FtjX8KuEnPoxih2ppWFjypXxcRgPOg3oQWrUtaVRuVSitKR0CuDE8QhFgiBi207lGp3w4
+jeaZfUk1sIh03H95qcsRvNzr7y2hQypOzwFXbWYheMVMy6GAioAw/IvyPT9bjKvEh9U6xi/d
+vqjRPk4rN4oDaRlCu5PxGUSuiYoUn9pDwatoafCkrkx8h/mHZVUS+I6spoNHyv7MC0pPVJ3L
+5MZUEu0vmI+BPk42S/otHoBLuwaNPaQVd92iELmtyCxCqHpgOqsWvyfnBCMphIECCe5A6sUU
+XVv2s2oxzYTh838O6DO/OJfnYqsdfQDITpXxu7J+Y4FL04oVJ/JlszG1dXb/x4+//sLw/5lf
+yVDQ9tLXwaZjiYGSL4UUaJcHpnlMaZ+7oUgbtEYT0k6lD2K5jiMDEK6X0aAWevj7EX8ufsO/
+kPKdgYnqiZFpcHNowwakdky0VO8zGbwGoHTqD8RIY6NBzEX6JOn6p+x9dFnTaezQBb1nXGcA
+svQ8l9wG2GiGHXGxLxfiRJwIYqt+CYS/wpDO56GTWFdHHRf9F8WDtWeMFjDC5evJnAHh1CXc
+aCiEPar+SiXaDp8jhQ9jQ6Ko7yIQxHJSWLcuHHgu7gsSdy4vpJdChSVyjbcogEhlNOyU8wM6
+0pwHn8bNy/Pdlz8wZ5zli5Z/E7lT0O9OmfIWb8/Q2r2qAREz8fJsnlr7rKQ4K0C1r4G/0Nao
+ex7yrKQuwHxTGysRf49CA61MO1U9SM30uVHwzLh2SGPmt+8/3pym16Ju9Ywu4udlu8XcfMLH
++cnEoDVNejMaYJms9KZirY2pWHcoeoUR/Tm+3r884vd5wOd7/ryzHG1UMbR1QkMUgxUEH5pb
+oh/5iQQiU3zSZ2Pml2gUuMlvNw3TY9QHCEgHbRQlif7NLNya6PJE0t1sqGo/gli98shaP3aB
+H1Pn5khR3mClVFlbkqbw4pPqmedGbJeyeOnHNCZZ+gmBkZ+bQJRVEgYh2UtEhfSC1urtV2G0
+focopU6zCd0e/MAn+lbn584860YUBqugEf1qxZxVcN/fETXzrjmzM7sl64Yy8OGuD4l3FXm5
+GAn6zvXxMevsxWEJ0TbZFTzsMW7nJbVIRHymI/ZYEjTHdM/h3pZTChHVj0JPdC9hSdJWSez1
+l6aGEdlbWmBdSJat/KWhv9DhtusMRWJ4TknMpmK+6Uo28Lc+WQeR7Il7hKkfrpLw0p4PdsJO
+RVDBjoq8Gbg9hh7VLGuZK30HondtwOaFxHaHo6VTe/7KZzsXvDs09WXT1WT0rexEV8IFDkmI
+DnaYMLBqOseLDCOnhaOjVpTXCPvuA737h3PpjOlEr9ZxmzPbX8iiSCvfo/i3xOKjVsYXtEof
+xf+cxdt0G3lxCIugOs6O1XSbRKvlvM72XGEGlpZOtzV91UOD7xCg4r8xA7cFScbWXhTQu0Xg
+IhrXpvMDnWV9GdLbSyDe2V+ShthgacVCzyOWukKQLm/7u5cvws2t+K1ZoGCjneUcn/zVFBf4
+81Ik3jKwgfBf03FRgtMuCdKV79lwkHWMU1xB06Llge6EilCQlhFq0UrXnUnqE0DlkAfklKAo
+2+ABCod2IwxjhriRS3DHKpHrczZj6de7l7vPmG1g5jzedYZK8UQtZUyGt04ubXdrB2C0+GLz
+kH8Hg5PQwEnxDnUlVVXMgOpVjCCKzQmCK3fd1DKMg8xvWTefGv0xufqy0zO6i8f5VEYoG8pN
++21+upF5+qXn4v3Lw93j/GqgOpUEkeE4q4G1511FnqnGkbRGL2I5sBMUqXSG07wbi16+XpGi
+j6P+wIBRsX5F0RH14XJkGLO+pLAqg/ZIQnZ6ePDrnZ5n50EKr5+//YogoBSTK25jc7dQWRaO
+2ND3vNmwJLwnJr/aZpc9p6LFFIEZlakB57OrkB/4fF55mtZ9S7QvEUNd7m7AzG7yQ8aI9hQ3
++NCxHU69zS4mCsS6Wyi2fdzH87lDC6uq16r1kM77ckid84I4WEEy64FvIQ9tMGsAYNOSC4Np
+WMB+1Au5tBK3tlTvJTnBmvKbvj7uT6nySZzGonw2Z2PEzOaXPXCcUqcWUJBaiimH+xyD70PX
+OwslfXSpN2wEmhcW4IwJWbLGrkYIO83W8IvYn1U6V4ozngw3/azTXwQ9hOvYUI6zti2LlKyI
+N/WtfnJXZ+k4N6BFOmMhkOiBB8kqjH9K6MSceTpApiG0pG0S5n8nn7Ow0qt3KfxrKwtQGMKo
+AqHwgA+XFHVOukkiGXRp6jUCpJXBAA1V2E3wLpz55E8EeZk6Hm3Ec9OQPIzwOuy0uMup5y0n
+wSgYUivRwiyi91CO1p8AViZJlQbWH49vD98f73+CSIAjSL8+fKd83VUxl05hQIPIuI6WvjmI
+CfHTkO8ApYI8MZm4o1ZeyWdapPoGesiGsGRdcQOEmHnXeP1lAIJ0rUmbI5DplY6SJMbVTcOX
+wWbpAjoB8K/Pr29DdPQjilAz/ZGovPCjMLJbBGAcEsA+tDpcZasotggF7MKXSRLYEwi4xHfY
+q8SqT7wrSJ7SXuwSWZG3mQAj1It+afaxFm+gBvYyVWDo+zqhHEDFFy54FK2tGQNgHHp2dQBd
+x5SGHZGngplzCYD2MCbeENnNyU/GU/GCxbgYXv95fbt/WvzxYwqR/+UJvv3jP4v7pz/uv3y5
+/7L4TVH9CqLMZ9gz/7I3SwrL1m3LRoosx0fZhYHt6qPvNq3DEIJk+S7wXB9N8WXzG195YxXx
+jVB+mbMKO2fyr7Hqa3t2tX+8qDrSnRKRPWq9++FD5D/hlvINhENA/Sb3392Xu+9vrn03BbTO
+gXAP2+0tVMdQP3Ya5fzm7atkgaox7eubDeVlfmO8ZzJMSmHmK1LHIX0fVkj09bWXeHekM1zI
+ZYCGSDtIkyBBFvcOyYb0neWm+w5v3Y9CIK5ivJveFQbIorp7VcnsBjaZzV3YsagUYB31Ds4h
+VldQ9wKyU0n6MwDelDIQUlYr71KWmh4DoQ0+PFDf2tXD8g0c7vQT2mEFFfECqZ8A3/ICs7UO
+Tpuy2G5R7DYxPdpZzQ6Pu8D6BsP+n13pcdKHeGg1+/o1FbvVFmgXsQbblXkc9POHBj7+uHv8
+/Pz0tKh4teB8U4itQIgEAkcIbHpgBPwwZBiptuHF4vPjA0ZETh1FSpRahv3ftnx+JWxb8+GT
+ll/Lptu1SDEbIMJU89SwsFL4XJgQ4kaInKQzzkhTYupiTd6dMANHonBqoY79+QtzYty9Pb/M
+pY+uhd4+f/5fYjZggH6UJOPTzLqhU/rRideznKmLlQEUOB/w1i8P6FYADFe09vo/rnbEKp6c
+7ca37aWKA654ODYjh4lQUY65KjTgnErF4o/yMTIqc1MLMn7Lt9xuQGg5p9megJFFKaxJ3njS
+VDJ7xNPd9+9wsIsjWzH+fxsv1WPRIXnG1QNbUBZdsop9mk9LTTxIPY734+QYyWcCZd36FxCQ
+U5/Mhlne1r1451IXdMXw7n9+h3WhBmhMvwgkM44xbcYoM+SEDnpr7oXIH/azyhTckelAkaBC
+vLe/eu9H3gyIJjIL1rU8jtZ+YIHPVbJeG1p2OWhp1J3zCeDz8+kyy266hPT4kBVL2Xw2ASWc
+bOeczESkRm9/3qq8FI0NHB66f5rOgetfV35F3/pMVdoGIfeSGTgMk8SzoKtl7wt9gRKp1yui
+Tbmr0C8LT47rffrA6k+Xrhvz8KEbhrPE2ZjLs48qm9ln83/FBFfiIjc7DaGIlFiEpbrRE0eN
+mIwHy0TjIzrGP1cUQonWevP88e4/92bLIs5QPnxnDUNiuPVksI3HjnkJWVSi0NM327jyThvE
+PpW32KAIQmNyJkToG1OgIUJn38Lwkh5o9YhOtyI9HQwKfUWaCEe3ktxbEiPZfAxW0t40HHKo
+VcPnxVv9gWgdOo8vbtHf2/ka5HBWsCwdXm+knJyUBVnUYyiW4Jy+UruqcbSUXyWSM0e0bhBo
+M2jAgzkcny/8Z94OzupP8pwYK4QD2bzX6xhHHPRAAnPlr+ioGItEfzV+j/mpD6MBdhrMgBGf
+wCMQZZusgtUcbqo4p2pqtjOV1AMK5mXpR/Q3Gmjg2hkuV1eGtmvKbFuIvHvTChTrEx/ndbw7
+KPDsRF31rPg48RPfDrVB6tIpw86k/ebuDeQjyiamUuNkq9DXFEQafOkb2mYDk5BDmEhS8qid
+8JXvBT5dO6Io/ZNJoaWGMRFr0wCjoRwxVRrNOiAX7ETRrXrTyjwhQhdi6RMJjyTCdyDigB4E
+oK7nORIUEVmYp6s4uD4DN0mXk2EWI4HvIcV8nFtW+dFeMcb5LIjAIQLe9a0/B2c8pnJEYX4m
+es0opwlYdVeHJy8YV4ZXRDeYw4EY3spPvGhLzSuikmBLKl1GkihcRZyoFu4NVTaH7+BwZdRA
+d2XkJ5y090wUgcer+ewJCQ5fFibGsC/2sR9ez7GFiqx3VkexqZhp0x7hbd5TDRfQJ8G4rtUK
+l7N5nR/SZUDNEDrjuh53H2mqmBKpJvSKWKsADeezClBytwGcOh40dEI1kZANJyEJjcjxV8nq
+ncGvr39oIKDdWkY0NQ9dCocmwc4QEfj0HCFqSadlN2ji61wLehQFIR2/atAsqRQ9JgU5pyin
+WHYbgiL29BgRA+OTZ5JAxck71a5XjrJxHNJudgbN8tq3FBQRwWoFYk1sO7iAhl7gU12q0y5e
+ra6xV2lfJpY4IpbBipp7oV1YU3PfKmPjvEjlUJdrskCwiqg9FYDUGZOLOFivEtfagC9/ffWh
++8tyuby+71CyjZPrctUxzdaeQxGl0wR0yLai+FTGvkd8db7vfHIDACK4tvwHqyBVtKri+Poe
+z6rcX4XX2GVepf7SI7ggIALfgYjPgUcIFxjIu1xVpBwx4K4yQEm0CantAed5FPc9EZJlUATX
+BisoQmIVMhCAPJ9Yt4CAi19CllglK0rIhOlJaFmqqFlAetbqBH0/70W3r1KKl3RV6xtWlgm+
+9MguIOYdSfVUMEyKbAskFF2cxKTlaqDo/ICSw09dEoRk985JCPdv2oNuolj7hGAnEIELEbpa
+W1/jqkBQrpKo4/MxSFSsOzdpKFiG+y1ZCDA5hUJ/o5xXKXFgKK95JvJiUDb8+YUkbYsrOpPp
+jnDj+T7FzoR2jmmPTSqAfVkewEOA4645YcR8i57zRigtRbhlxUHmvqYdhogiIks4b1lKuRMO
+Bcy65521O0mgp3aoQWA2IpE1gLLgC1cCMfdpyfT3EuZubANklqByRNTNmd02x7kD8xlf4Pvy
+/Nc8hmv6ys22G2v6f8aupLltJFnf36/g8U3EdDwsBAEc+gACIIkRQMAokKJ8QagpWma0RCok
+eaY9v/5lVmGpKmTRfXDIzC9rRdaeC6V1JU52UrWGpJ02/I3E3ApgSDo61ou/7NDd530iu3fE
+IJ5Nig9kiWIvH+VZgUpCSCfKQNiHabnLbUjGT4xBakjFKg9W4LaJFS0PFsPZzZRiGberrKli
+ujPSXV32tac++NK3rK5lA6mIWC1/5xXGHFEbny1cy0rZ0pQtuqHTsoU2qT3LKYOvlUpT/IDD
+ne2s9DwCX+/PTUV+aanvbMcydp7Q4FAK4XtO29XL2e7xq1DCJF5wdP6FJXqA/mQwlVp6nwLZ
+d+amqsKi5ullcN8jsC1wbdtYFrC4/tLvOk5Sl4308vuZX89JYQh/zbBbG+oCcOD7K6LcsCOT
+V+vx5qsqOCjyaQWbKVcWefE6yqLf/nj8OD2Nc0z8+P4kXW9W8XTgFxnqcNwrvou12vSPiabc
+x8vaOBuLoDohaVCNf1x3YRBVJWPZMh8dLV8v5+PHjJ1fzsfrZbZ8PP759vIoe5aGVFJ/oBdw
+tM3Xco0z7qlSyn2KKgII5OXc5Z44RJw3ekRhcVmebkl5Y0vdgwEncW1tzJlr6NNVUpn0mnWo
+QXd1icEV9H7kduTH6+vs4+10PH87H2foiHXsRUwkPYtgFqLH4oyoooIrjx88vEVXPfQtFRek
+23eZTVGHWE7iY3CN3m8/Lkcel8UY/WuVTFZfToNTl0ttDRGMmOur79lVwR+4Ks9z6BMkTxY1
+TuBbpuACvFhhrSrPUBLZoEQnc6je7gsezz20XOlMMRA9R290tyPAF3S6lI5BUc8e6J5K67at
+U+JBPuFIRDWAigwobv03DeozsixWzKiRCmxVTp0d8ipWdUWQwGQClsaf4OOiTGS5QkCY2Vp6
+bwmySUb690itRdHB9+HUpOcl6CF1ddrBQWhJL3AD0fGIrIIwpC8qR5y6Gku/HoSto1Jl3Omp
+lOkL4mDUiWeUKVV9J+SZdjobakkNO+gOczg99hovoE3jEWdpbNYF5QzZ3F8cbo07VniyQshA
+mlhnCIQM/RItD55laUZV0RKNtmhiKUci5Rl3OjxiBWuK8/H9eno5HT/fu9WMm8FnvcMIctOP
+LCZlW45NRhl7YHG51RvZZG1UuK53aBsWa68/Ehs+DQeBnriK8iKirfxQJ8m2DG/AXGHJsukp
+VIA+nZJXmTMYruAHBsc2jw3OECx+UURIHpkleDKx9vQbE/jAomkedxjMP4Yn1uY+n1vudFWR
+GdCF5i3xv89tx3c1KeWft3A9VZ9FyEZvsGfuqNj1gvBGR9JeFBHSdPj4yjno402J09WoByaS
+fl94eF2mtQapxi96XwTz6dQPVNee2HhTLNpaOmHxTJrxHQMq6o1GakNgPtnlUE+85XVo5NHD
+W0w4hJ/CfZnz0F6vUwY0E9xxQ9Et2ymmaCMP3p/w65ORi8hJ3cKN9Cjx3DAwNJJvZ262YNjc
+0IjyYCa1O9rCjo98w5ZqtoU/FV2zbsPziw+AXAF5CT7yZCyHY6Qd0RXtdhbUPbdUTHSwvWBB
+dQJ/DJmHdOYcJNXPVB6xGzFkEJI6JhqPrKOsQb5r6OFu93Qzc3UHM9LzCs7INlUmR8jacMWn
+A10ZxDz69UVlCqi9llxffTcliRvfKNAdDYuCZy9cWlNMYVs4riHsgcrmWQ61AdWZ/ANVVbG2
+zg2d1a9uN7Pv5loi80FjedpD4ig2bqPSJIuku7DxKPh6ejo/zo7X9xNl7SDSxVHBo0GJ5PTE
+zRlhHshLWFr3f4M3ydYZukqkmRVWHiF7epPXgfEU2WdJym0KdNJ+njs6bQhHrgNiyi+yLXrf
+jrZrNZbmmCFebnfW2/ROA+9lCCeHnXkB9v/kAF7H2rYDo/qq8Xt4AF/u0YWM0Bm3Y9AnOc3o
+e4esbFa3qcG5HEBZYYiLkeEUnmpha5WUTYohGagrXVxct02quEYF4na3LxtzcXWa1JHJ1R36
+A8doPV8NweEzdHe9xYBXeqWUOq93INEmtGmguWSLoJfzsqyWSsj0TCzsWJ4+LlE8tLHJxFg8
+Pc2KIv4/BvLf2zcq5xoxMkRYk3pqyySE6/FyPL+8PL7/HO1VP39c4O8/gfPyccX/nJ3jP2ff
+4ED1ebo8ffxDugkSA7tpIvliQAg/dpEzvL6ll+P1ief6dOr/1+XP7Yyu3ITy++nlDf6gUezg
+fDH6gdHux1Rv79fj6WNI+Hr+S2u2KL7ZR7vEYEHbcSSRPzesBQNHGBjUJDqOFB3defSWVmIx
+3HAJjoJV7tygRSE4Yua5Bs2kkSF3HVocu3rke9exoix2XHocCrZdEtnu/FavwMKi6dUQDAZd
+oG5erByfFRV90hEs6C+iXTarVmPjHxqdIvcCMf3yLIoWlE3O/vx0ut5IB1O9b3LtLHPQs4rg
+WDaBfavlgHuL2/jiFn7HLNuhz+JD433bcBkgc9zse+QI6ZNzP7gqz57fyoNzeDeHzr7yLevm
+8Lt3AovWZOoZQjjY/IrhVn/uq4PrOFNDViErOL88KtMPKW2+bbhg6cbmwfG0WUQq43S5mfOv
+P3ZwayhyifV/KdM3hzNyuAZ34xJHeJPjLgjs6UCOH18x7qhYCHSvu6uXx4/vOlF02vkVVoF/
+nzAw6rBY6PNYlSzmlmvfmhIFjzqg/6cP5XzCpy+MEK4tSrqIbZjv3hTCwnP8cPr5Wbf6/cCH
+vetl9nE9tkfRH2Il1pdZjEQ4mMvHPz4+r6/n/55mzX4mFmySH90mVPJzkozB+hYoLqUnoGxH
+qYE2oLYRDQNZS1oB08jzF6aUHDSkLBrHOhgqhNjC0vdOEuYaMUdWsdQw252ckwSGbndtQ3mH
+2LGcgK7nIfaUkCUqNjdixSGHhB4z1JSjfmNA4/mcBbJaooJGB8eWVYWn31n21yujq9iypgdJ
+CXNuYIYP0pVoSJnOFcM7NVOYZg1Ys4tCyzLUNGtC2z3QWB04VtObZ3Zj7uM0S/bL2arfD4/j
+DshttAs8R6r9SMPjoEoXZSTZ0hIunGkotPoKNNfrywda3sOkeHq5vs0up/+M+3J5bsIsREz4
+1dTrw/r98e07vo0QZ/poTVlU7Newy68lQ5SOwOMir6sdkyJ3IiSCg6d1KV1VJrVkBQI/2ruC
+dT6cVHpeRkkL3yAhvM8j3vBgqoNVereAzq6T44OURvi1gv3GQi1LOJbJ0S5ZDlrUIeiJD+ey
+MKAuT3ldktVBT1nbDnV7xaEo0VyAjdR2V9CvP8iyLXf7NKIDayJerCmdUkT2cgxXJLBor1xS
+c6bifr06ULR2tYxl5UVE1kXkyaOwoy3kuaujuQv1IQDJu4SyXkckYo2aKzRr7ehFidiN7ZeU
+O8NVsv5yoLIGiWQNRuQZshELc7lruJfYkkd4ll7LE9kZ6Gqp6NH1cU1QQImyVjDuEkUXASjL
+ssRAWoy8JRvZ4hUGXMjzOo2lfuiAuKweoNxoAmQFfM5lnjVaoYjV6b6tskOao5p0u3xoyHjj
+S3zOpEtGgCwZAbnkEcGovdl626ZbmEblSOrYD81mpCs9lK07gBRx4IBimjwlmLRWlBVTqpOk
+q7Su06SVn02Avknj3VJrEwiKCIQhF1xEqN9A+qPFikfxneYhCtNgdBkxtzEFaLKc91gjhYxf
+vcOub/bHj2/f8AakdyZHaCrjRzXFLQWsKhylOfAbPuqqbNHLTLnd4rdVez1+WKa1QwevBBgd
+eqp9AR1kUy8JAO1QvpXyt4o9KXb5WutvOxGaLUoqHvGRIHW3SXJ1OsD8hjfyDN/JxFdne/qo
+gEPMJ81wUSrTwPL8QB96UQ2DCZ01bw1O8rhcoRcJOtthndBJ6sPtSKbFsAO1+2v8ss2D7ei1
+FkS6pxSuabo2NnO364P22ZD4i1KYq0qKy2dVNRuxkBnSZ+osAL9bV12KeqpNvbuhrGeRLv38
+YQLnyLaqy9gQ6LFjPHRuNrNlBuOdDG4HwpmWMIdmsVLXu4e6VAiutsnoSG0UxykdQ7bnoJ/J
+sYZlmZSlOjz3TbBQ42zghFXDUrk1fd36Tptx9OQwEgo6xCqA6xSmSUUuOaXN9dYK8pq+ZJFw
++soKW0FrTqAIqEpMmFnvKkHpG/F+r9CKFOMclEWqUpfQi9qc1tH4Vf56Isc9atKMwFUGIzuy
+TUpH4MQDRtne2aGlFttTLZKqGE2mh4dtycS+iChiGK1tHifTFzUkxnnEWPeqNJaHSD5fWZYz
+dxrZTQYHCuYE7npleRq92bue9WUvVxDpMJBCx6GloMddw0074k1SOnPa7RbC+/XambtORIVF
+R1xyXClR2SJduIWltSAJrblGiwrmLsLVWj6CdL0AIni3sly9vZtD4Hq0V4/+c9C9PuKdHxk5
+Z+lbckWl2/nLKxlVQCV7NRrJnQKtAfEcCul1MwmIG3pRAIs2UR2RSZIqCNTY1hpIeq4YeQZl
+VKrVo/4B3a8Lg/cCjYmya5RYqsDzDoYyTEoSUiO1Z/68XEtbYPyF3gl2B9itbmmAb/dIJM53
+jeNIalas3G2lSFD8Z1syNlEUV5EWoxzkUUaPSrYlrRp5DhWGU5T7RpALSIODgs5vYKky0sVD
+Xze9ITzWQ7aVPUQLIClkxRlB2xew45zWDKNbGcsspmUW1W4uL01dsyM2zbpipH05x9hyyv9Q
+uAGpVyJgdLC/CBTbWU6P0oRVclQvFi+UQ7/4jcGfJrQ4QUOROUVdRiz93dLreBdt8p2yIxf+
+P+HUPXFmCUTp9J4lGCRlqMBOR6VJUVzEo5XG4wvPmjh1YYpojsZspExxOK539LLEUZy8iM7m
+2A4jLMtfCKnLNL8jBRRBvFerH/Qk8SaDX9Q2k6MPPBqv2g3QTetyW6M9p3S/0tPa1WrsQ2RP
+C9ZqgQOQmqe0w38OflUiAyEJCDyul0Z9SPWMdzFMNxkZjBbQ+yhHnUItzfqhNpmYIoxBtifl
+NPfZdkPeKIjqbhkc1ZWwW0jP497nmkyECqOc0NQ2+ZeywPfk1YrekQBe74plnlZR4tziWodz
+6xZ+D/vGnJk4sIr8DDIJ6SYzZGgrU64avfdg6WjSmgxfxmGM6kN8b9g9pncqqYq2aCqcl7US
+k04iay2Q06ZNhB5LtRxhRMA2Sq9yR4atsCm3jkE+U5M5wL9fZKGGQZURVPRRAVjPosOkssy9
+oY6FHCwCMaICRAhQCy/IiVWaJjyyuEpuUExgYky1eQJywAjxk8GGgfkillEXzzwZRvqGpUBP
+K9PNn7TJ9uVkqJYVS8lQQRzdwEAtJmk29Y41wtemsQ/vI20OU9Es07+AhH5N67JrYkftKWIG
+VbL6+pDAWmGcoISPgXazW8oPHOSSxwNgyAvbji2FQ+VNxNpyI9t6KlBqhg4TaHLSU/g3sWK6
+qun3DS5ZeYQmYmHFvKoNHagcsXWUrMkD7+5eskKFH+39RjOAKkjrAFjBMCalYpjQ0aZ3iJJ7
+Z/Z5Pv5JmEH2aXdbFq1S9KS4KwZTJDnpBoN/3PZqP2TWZKuiLaj93MDyLz4db1s3OJBtqb2Q
+VqsZOVL0oH9ncEe/Te+1mQt/ibNm3zyMATnpEc4mnZvGZQgBftw0nM4HnDqO9uhiLp0bOXGb
+NvNAvmzh1Ptajj3IScJvtDOpU0c3mfdyHj34hahO5YZz8qZAoHBwk9zu6JgcS3YkukQpnreg
+Nuod2tmRTVrkKYIx0Bfm7tUtXgeiN+00mMNsZ84sMiqLKEy+FeCU0QxHpS8TJ7CmReSN65GW
+nRwdzWTVVDVs7BlMTE1FBXDjLBiZ2JOtQgfR8/7SWl82ytOjqC6um8PzMw6C5v38/DwdBXDa
+W6/F649axw5oTeEBFKYS2rMpm0n39PgmhbV0mUbULKkwknsZhSO+0Wcdi2qSqkC9vxn+VMz7
+5vz2ibEEPmafooMw8x/olHu2PX1+O79goI/j9fLt/Dz7X+zHz8f359PnP+huxAM4bMQxYpqp
+K4QZAtEEvCVHm3p+DS83n0fkypYRecmQgpCP8oC/+kCTWvwADmkvLJxWFH0m4y0r0jEiExmH
+iKOpr5h6dzTP0WlZ4AS+p5yAenroe8bsMz1QakelHbRx8OAGetnenMoEakQaQXG0DhzlqqDL
+SNHm6Wj2lM93ZVrdxK0S/gEJ/eo0VAqJm7gp4XuRaw7igDWwVyIqjajiGgEIhrDzyJptm5WQ
+DENenAFfjfQqcoAOt8brUO+5N295Q4hVmdqEdMxTG3oFUYNe9lDCbNeiNU1lFp9a8CSGhe9M
+i02Y67gEvVu9XnU6+noMNQOuEUIjupv1vGFLN3IIfwKTomvmxS7VhozltmMFJsAhkhyA7k2L
+4P4jZf/4CrBwqa/DIZORZN+oud2QXtp7huUX17mbFstgzxVa0bSiq8K1VWfrQy8doDb0U5vE
+QvvM7hnSwrUcf1qdeg/0MHZ+lwJTqOJOttyge6yw/EJ2XcujRA6R8Fa/CnF1qLR16FuUm0pF
+3OYBXayruZCdyoRjU3JUH+Ye98YvXAe9PH5+u76/3p4z4qJkhsY7tOXoyODZtiGp55GWkSOD
+P6emC90QWaZ7hAA3d7bfRAElqcU8aG7WHxlcz5TUo55nBgZWLJw5+d2XX+aBRZpt9t+o8mLZ
+F2hPR+G3qBnUmVtzw8zA36FuSr8wiJ2cba+X33DPd1MwNLvgvulxr7YzXMkLZXbTUE2KqDM3
+JCsa7Q5Jxqo8oq4Rd6ovkR03kqOvMhGroIJ0LhzCu/+s/iJdaGCgJzgX98CrDERprJfN0jou
+GSXYOxHJfXhdUIqAg6q0IqM2QeeSianUMbLX/vz+iYYn+qfpAg4rMbk72jLK81JVL+2QQtN/
+6Iwcju/Xj+u3z9nm59vp/bf97PnH6eOTCKbdROtMDaiXNrZrk89ZGABYfmlI4430uAgn4lR9
+HBMUY6DAARbni+UOtlnZ17S9W/7uWPPgBhtMzDKnNSmyyFgfz5mWy44vY9HfYcNvT7CpTIHj
+SZuCKtqmkr9Q/nMI/WZp5LpcZXn6u6fcjQMQY5TjtC3gkGNyNF8HduCTl/t1k2saj4LSxvVD
+1cBQiw0ObVW25i6j1MZVpvu0krcZeWCHjqyT2ywWqp+J5ADDrZrIbQay/PH5+Hy+PEvDQ9iK
+Ho+nl9P79fWkxm6KYH6xF4r/5Z6k7Lh6Im101qO0gV+HOtRmocPmyn4qz5ibW05CRTJjceQK
+WxDRrsvjy/WZa/6fn8+fGGjveoGG6630nVC6WYLfC2shNxl/txnGD0cxg+lCjlKtwIpPNEDC
+8KBkBL9bDFOOQ20l+zMBzJfDBsDvQH4zht/w3RXcCQYLh66hfSv/OP/2dH4/CXd0dJMx0MlC
+lpqOZPQi0+OaulVnj/b2eISSL8fT3+hs21Pbaat3ZdgT88WkjIQ3CP6IvNnPy+f308dZWTCj
+xAtdWpDCwNVKAYpJXsPAYILJIfqSGKDQYECKkGcTLRJNef4J68nx+naadZbd+gBULLQECc8Y
+GslZDHK/PX3+5/r+JxeLn/89vf9zlr2+nZ7494nJjwL95g531Ofn75/TugyOw1nuhJZN+CkX
+iKPsKRugmQ5hiP3l/zVdYR+fL6dPMRuZ64F+yoO5OwyBIw+QhEE9n3/OeFqc6bJYFZDU9z26
+NgKjDg8CCdQZD0mmGS31AzUjcRVy+ri+QN//eog4LFSGiMPQK65OsYfv3V+mzn7DGf7yBJMB
+dz863tnh1ge2V2WSxXw/2l3/kfVHZhHTccoksfBrm55HuSBEkJtPTl1ADUxfWYHbLqPqJit8
+Q1hgWBZhZ5VvDGYkh7WyT+Luyb/ssvgOEhl8p6wa2yJ2+uzt9Pjnjzf8RvDhTuiW9HT8Lncr
+f6JnMb7otnGewg4kQndjtsnvm8zPHrZR1WQx42+SdZFRktdtIYVtndzHnTOWxrVVv0DdavD0
+fj0/KYK/TepStbwZsPuMm6MlhW+KxAzb8MH1c4Y7VfrVN1nX9K7nECwGNdCWONL0Xza/AxDd
+fNztpPPTBoMHAoZKb7D8psq2GKOlAdaPhPj6+gprXsyj93ILEZwI5Z4Y09wwgJCYKEdQ4vzW
+m5ywt/OFlzc5dEB6VvMrXk+6cgBqum8I6jJPdGoRZfmyVC4fM6jbjrKI6iaZ1+vnCZ19EMdT
+rhLR3aYOEpZys5sCTtcCENm8vX48U2fSin/A/6/sWJbjxnG/4spp5jA17pcfBx/YEtWttF7R
+o932ReU4naRrx3bWbtds9usXIEUJJKGe7CHlNABRFAkSDwJgVEpO/ZK7OhiOMuR/jlgPebxq
+vCYfO0TssHiV40cREB8cmJ15SULlYpqihJtPr1tZW5KGtgEXv4L4jUr6ASq7sW6Dk6GnshGs
+DQy6OnQV7rk9yfS0rk0CGVSCQjuzQnA2uyrk/Cpqs63NI2JHEzgsHO4yp/B4P7nB/1/KM2wJ
+K1UQOamFrZ9eXNgiE9RsLvQW1eLpzFJ1L68nzqOX7LEm3mF4aavqmEBPD7uUu9y9U65fXbvJ
+7IIsN6xEGgbnV5M+ylE8/fjr8PXgcK4Ir2YXzJZw+GJcOmht6c2InWLNJvYxt4M2fONE5nQU
+MmvSFkNAUbiVG2477aa3185oCpSDs8pXOrguEtlSWY9Y5EOxB88Ti/OLOZ2VxcxWYRezK/v3
+fGoZYAsw+krXmFrM547FApAxFWyxGLVGF5ds5UVEOL3WbEh6RascAvMsJrTkQlDML1Ucfpee
+uP/3+/758WdvqvwXNbQwrP4sksRY3lpQrcxV9H+Gh7fj6+HzO1puNsPh5WgewxXfH972fyTQ
+xv7LWfLy8uPsN2j897Ov/cvfyMvtBqP5bOErPb9ulNjWqjZKLIN1V1bzhWW6E/5d3ZU5bHHj
+bKsJ1IbkcqZCDfsZix62MyoG6pV7ZKtdIzD8R4xlfto/vL2/6gIp78+Ho/fVVtHADkRZOVaV
+w+LKPmilUF+MZFsMWr84x/qsw6XWrhVGZu4jjOLs5EV2XS1dz0JT1hjd8LZBltjVM6gcSnph
+cNokE5ur68vFyEynYgX6Y55KvLb71Iwj4ciUKtT4jCs0O+PbVLb8NXIYa0NZowAdY4RU3fVr
+8t2ToZhMdHh9Uhogp9uEvLLdJ8KDFpMKzvsHgjRpyyUphB4GIez05KuroIrbeBnVWOSPXEO1
+yvMVWF2k/oMuXPHy8g3sF6a7Wk+L4rPfQFmDWT18pnR99e/fTem8YcrhoXYr7EAdA2uLqnYK
+QHfjhVbUz7fj/onWmQhEsJbtLYYq66AT2iaYmEVexZi1ydUokDvUgmlgCXp7wYQINjG9Lyuq
+sryOIyuQJdQgjiE1RpUWJm0Iv41PTV7z+c8KE9Rcp0VT51E1h04NKzRqMHeAAIJGJRh0/rXH
+7/Rm+6hSY0aFYQdCi7EeSbDtKNYxzM6qFLwNZ6hOJId3FPnyI6b0JtCcL5fe9u9fXs6+woR7
+841mRhtZk6xAm5Gi4QqJheNr6vNHYCHQgZ9nsS5TbfY6O9CoTgv7ZQrAM5VDsxN1zXk/1s1K
+1smSvqUDqS5R+xT/RFVLSdX5CXIpRtHIlMZEKY+/RdyDuoMKi6n1MnN/K/MjT3w4TLmzWmGx
+tiPp2LBlw4rc0I4yI5ElpK/ww5wk3Xw4vL1cXS2u/5h8IG0mqE2GUs3bnL0q0iK5nJGAQxtz
+uRjBWPlXDsZyADs4TiN0SC7tTx0w9C5UBzMZ68zFdPSZ2SjGOsx2cHwpOoeIO9R3SK5Henw9
+uxgdvusRd7nTAO84t4nmnJFrd/FybncxrnJktfZqZNwm08X5aNcBySlSSCOqII7tNs2rJm57
+BsGFL1D8bOxBzvtH8Qv+my948KXLKAbBm0vWp/HecYvknzpLbzdF+CaPr9qSgTVuP/E+pjJP
+R+rZGIpAJnXMu44HkqzG2/ROE5W5qMeK5/REd5jLHXP+A0OyEjKhoQs9vJRy44Nj6L+gab89
+ImtoVSBrQGL7zneDq5tyE1d8jiXSNHXEVtVKyPVj8MMO2tzsX5/3f519f3j81+H52yC6VT5v
+G5efokSsKj/NpSjjrN6oGG3Sehdc0J20Y25dIrcyuZkTWZSJJahtoLRi2RVMbhY1m7HUEaYN
+aP2ghFC3YATyTTdxMzmf9imzKkkPlQIavlLVZVzAAk8BQSVwKUWoXgAoEomSgS6Gl9eky5wK
+PDVmlrhew/Po93O6pgkrUJfiPEMFIMUb51z8RpY6rmHQUPVzaxhxZixQyW0KIKqhYaoBrUUZ
+jiKxqBYeYqeUrAD+Cn6FBvT7pJE3E58S0xz/qTWXpm+NxmYAGAYpzwvWaqP47vHzYRjxY0EX
+y4BVRbXxebBHKR7Nm/pmMiURLuS7e0L1RqYno7RurypghrBfX/27FHhcW1d5Die0ec0aWgcf
+ydpPmqUh43c4ReG9omeirTSMCbZqIsXGZ02DYc1YJChh3Te13Elv2YC1jqbDjRWep4lV5DZ7
+7tgtiCLOkI3cJkfehKStOmy07IctYyYiAPYfG6CGiGvUorT3Rpdc1DnehVclkj4zNIWHfAKG
+pJJJhF9f0b1KBBvVOrM1IA7M1LEIpm6WNJucoFjHqzVM5eiIw7+tLJd5xfQhziJeymr0drxV
+Ux3Ia/K2xBzvvMm4BJ1urtUhUNsVl3Ced21SM0UwsAoHG1HpzWi1ciHK3I+dbCSNCkqJ9Z1i
+kXBrR6V63oqs7oRSkeNdDFZNOwqnzauah50cDaUT26mP5oLmLNx/fv/2zZLNmqMB6RjWGgiS
+rZAoUxP+OL6CrazSlF2nOD8YYEGWgMohdXKFdQmGjWvLJlOymg+DQ+qSv1p7A51eStAuYDOt
+77wXLc1qUGtFoU9wX5SXQHkLW5Q6i+Oztcw8t7Is8fAl+6glNXX9oPSgiMEdIuKkSgR/NwAi
+tZviRLCD3XavVbDECcxhFtzVOec57DOMzeZQxiAO1f3iWIxSayUMM48QnhhW/CTvi4y2VGnB
+1U+TqyUqyRI1mf5cRVSOYVelKNa/RBMVhlXGX9OmalPhCMO7TOAOHZmddhzZ3sb1GjMzK/dl
+1ktAicWiDDYJ+rFg4HR31EpzGwm6B3UrtnxBKTEMJ4lfGVlK5bIGC8QkQg2+blzfW7wmyGDZ
+qcbNIw6lyoqfzK7nGI+uNlxOG2riBJScPKhKK/bbjNy4OxEbRck3FsmsJefFvBeNlhIlMMxo
+VH1RC2KzCpf0Gfx9+gGQLUaBH54yQF5bwx0Pl1G2MvVLx+TPBshqO6KjW3+h3PIyGMNnOvGr
+5AMNjpGiTO46gWF59wi8DZdseWqiQ4CYKKMkv6VNqKidOmzS8WfLPBS18HcUDfdYyzGHaow8
+acDaKvNs5wnfnce3Yd6AQFH75Ym9CT2zSWObxIbxdehMXepDBjrzGOrv7lfWSHTXQvVsyDav
+RXZb3xWyPd9dnQ9WgIuT4WBE2bhG/f9mymOzPJM3M7KWDRZfx4fzDRSsSd3juxf/ZB7Ft7IT
+2Qkv2kXouTMjWqdBW2kkE6A4VYw2L8AWwowEUPph98n8chPV/vH99XD8efbyA8/NyVnDRt7R
+owCsaSJDBwryFH3sA3xY8/DbCDx1QiHvuGUNdn1ToqoSprJSp4VqPVsrvCM58XRk2Qx6XIeW
+aVa1i7358MGgdMqAceMErz9/HF/0PXR9mXcSnabzC0SyEjT8wwJPfbgUIQv0SZfJJoiLNZXc
+LsZ/CPSXNQv0SUtqug0wn7DAmrI+OBWZWDG96+D+A+o88ImnxnLRynXkmG8d1SqaTK/SJvEQ
+WZP4QDx6+dTIRnoY9YeZgKZeAyN78G4LdYhh+DsxhVub39ekkTZeh0K9H7/vn4+Hxwe8Qk0+
+PyJ7YYbB34fj9zPx9vbyeFCo8OH44LFZEKReR1ZB6r28kp/irXnlUoXHPL18oaefpsGl/7lB
+7c9mwMyGDJYeLCkt6dezzpJTcjvsru4ru6zx1h3TU7eVIBUnWlmndr0D0/jJV2/xoac+aGf/
+dvRHqAxmU65ljVB6IHc+TakYBgQoDEvCMfOKXb1pOPdXTbjw6eJgLWSCfz36Mg2d0tsEMXLl
+6EAxHbk9bKCYsQlIhifXYuIz6lpAsxx4MZkyHa1X5WSkwJBZ9cXCLi+pOenw47sdVWz2XJ+v
+AdYumBWN8CzWE+4js2YZM22VwZz5jCVoiVHMqleGQ0QqkyQWPusI9NqbqEePKQHLncIS9IXH
+FqF9FWcHjdTfU0O9WYt7wWlDZhZFUonpufe+Dq4G2cNJGTLAspDUjrPhbVXJKTtltRQcE93m
+7uCPkGCjPi+9PP143b+9HWhYaj+UUaJv+3BbvE9izmIy++Z9H7NWPjx/eXk6y96fPu9fTVQj
+9y6sSgNqX0lr7BEZ2wr7YnoHpdSB8Q71ZNWgfrhNrW85U7O6S7E6eaxUPa3M/mSQBZghHU3V
+LDuywWwesKBDweZS8QFCu8X5dRvIEn1PeNzVKhccG2+CBspmS2Rl5zmN74Xtp0pWjesuizNR
+doZg5PFDcvj8ineYvr68Hw/PVMguY7CSMCmXDEGXoo0GVBYUd21U5qkTI0VJEpmNYDFqDaPU
+YDtY0uLABo85wWCr0SR6gxoF0wUUgLYR19aiCyYXNkU9OQ/jyIbFddPaT9kCECUf54boMDDt
+cnl3NbI4CQkfmdyRiPJWsGUTNX4Zu6/m4mhgxfbSf6AkERK4ptF1r5a8DTUbwcBV9ypYvbDN
+ZoSiUezCd/cIHta1/m0rmh1MFYMtAg8eCzvUpQOLko9ZG9D1ukm5raqjQC+3/7Zl8NGD2Xrz
+8Jnt6j62DnB6xBIQUxaT3KfC51jlPhXW0Wwp8ZQ5T/KUrmkKRWP1agQFbyQodAPDWpGpC3J9
+sRV64Ei/PxEFIUswAo7sgcbB3Dvl1GxFKpqujrd0u4S9w46FS+7bWlieOHRzsmerYUhemhax
+FUzdBNW087UB8H9ftnduOUEBAA==
 
-> Fixes: 461017cb006a ("net/mlx5e: Support RX multi-packet WQE (Striding RQ)")
-> Fixes: bc77b240b3c5 ("net/mlx5e: Add fragmented memory support for RX multi packet WQE")
-> Signed-off-by: Tariq Toukan <tariqt@mellanox.com>
-> Signed-off-by: Saeed Mahameed <saeedm@mellanox.com>
-> ---
->  drivers/net/ethernet/mellanox/mlx5/core/en.h       |  54 ++--
->  drivers/net/ethernet/mellanox/mlx5/core/en_main.c  | 136 ++++++++--
->  drivers/net/ethernet/mellanox/mlx5/core/en_rx.c    | 292 ++++-----------------
->  drivers/net/ethernet/mellanox/mlx5/core/en_stats.h |   4 -
->  drivers/net/ethernet/mellanox/mlx5/core/en_txrx.c  |   2 +-
->  5 files changed, 184 insertions(+), 304 deletions(-)
-> 
-> diff --git a/drivers/net/ethernet/mellanox/mlx5/core/en.h b/drivers/net/ethernet/mellanox/mlx5/core/en.h
-> index bf722aa..075cdfc 100644
-> --- a/drivers/net/ethernet/mellanox/mlx5/core/en.h
-> +++ b/drivers/net/ethernet/mellanox/mlx5/core/en.h
-> @@ -62,12 +62,12 @@
->  #define MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE                0xd
->  
->  #define MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE_MPW            0x1
-> -#define MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE_MPW            0x4
-> +#define MLX5E_PARAMS_DEFAULT_LOG_RQ_SIZE_MPW            0x3
->  #define MLX5E_PARAMS_MAXIMUM_LOG_RQ_SIZE_MPW            0x6
->  
->  #define MLX5_MPWRQ_LOG_STRIDE_SIZE		6  /* >= 6, HW restriction */
->  #define MLX5_MPWRQ_LOG_STRIDE_SIZE_CQE_COMPRESS	8  /* >= 6, HW restriction */
-> -#define MLX5_MPWRQ_LOG_WQE_SZ			17
-> +#define MLX5_MPWRQ_LOG_WQE_SZ			18
->  #define MLX5_MPWRQ_WQE_PAGE_ORDER  (MLX5_MPWRQ_LOG_WQE_SZ - PAGE_SHIFT > 0 ? \
->  				    MLX5_MPWRQ_LOG_WQE_SZ - PAGE_SHIFT : 0)
->  #define MLX5_MPWRQ_PAGES_PER_WQE		BIT(MLX5_MPWRQ_WQE_PAGE_ORDER)
-> @@ -293,8 +293,8 @@ struct mlx5e_rq {
->  	u32                    wqe_sz;
->  	struct sk_buff       **skb;
->  	struct mlx5e_mpw_info *wqe_info;
-> +	void                  *mtt_no_align;
->  	__be32                 mkey_be;
-> -	__be32                 umr_mkey_be;
->  
->  	struct device         *pdev;
->  	struct net_device     *netdev;
-> @@ -323,32 +323,15 @@ struct mlx5e_rq {
->  
->  struct mlx5e_umr_dma_info {
->  	__be64                *mtt;
-> -	__be64                *mtt_no_align;
->  	dma_addr_t             mtt_addr;
-> -	struct mlx5e_dma_info *dma_info;
-> +	struct mlx5e_dma_info  dma_info[MLX5_MPWRQ_PAGES_PER_WQE];
-> +	struct mlx5e_umr_wqe   wqe;
->  };
->  
->  struct mlx5e_mpw_info {
-> -	union {
-> -		struct mlx5e_dma_info     dma_info;
-> -		struct mlx5e_umr_dma_info umr;
-> -	};
-> +	struct mlx5e_umr_dma_info umr;
->  	u16 consumed_strides;
->  	u16 skbs_frags[MLX5_MPWRQ_PAGES_PER_WQE];
-> -
-> -	void (*dma_pre_sync)(struct device *pdev,
-> -			     struct mlx5e_mpw_info *wi,
-> -			     u32 wqe_offset, u32 len);
-> -	void (*add_skb_frag)(struct mlx5e_rq *rq,
-> -			     struct sk_buff *skb,
-> -			     struct mlx5e_mpw_info *wi,
-> -			     u32 page_idx, u32 frag_offset, u32 len);
-> -	void (*copy_skb_header)(struct device *pdev,
-> -				struct sk_buff *skb,
-> -				struct mlx5e_mpw_info *wi,
-> -				u32 page_idx, u32 offset,
-> -				u32 headlen);
-> -	void (*free_wqe)(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi);
->  };
->  
->  struct mlx5e_tx_wqe_info {
-> @@ -706,24 +689,11 @@ void mlx5e_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
->  void mlx5e_handle_rx_cqe_mpwrq(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
->  bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq);
->  int mlx5e_alloc_rx_wqe(struct mlx5e_rq *rq, struct mlx5e_rx_wqe *wqe, u16 ix);
-> -int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_rx_wqe *wqe, u16 ix);
-> +int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_rx_wqe *wqe,	u16 ix);
->  void mlx5e_dealloc_rx_wqe(struct mlx5e_rq *rq, u16 ix);
->  void mlx5e_dealloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix);
-> -void mlx5e_post_rx_fragmented_mpwqe(struct mlx5e_rq *rq);
-> -void mlx5e_complete_rx_linear_mpwqe(struct mlx5e_rq *rq,
-> -				    struct mlx5_cqe64 *cqe,
-> -				    u16 byte_cnt,
-> -				    struct mlx5e_mpw_info *wi,
-> -				    struct sk_buff *skb);
-> -void mlx5e_complete_rx_fragmented_mpwqe(struct mlx5e_rq *rq,
-> -					struct mlx5_cqe64 *cqe,
-> -					u16 byte_cnt,
-> -					struct mlx5e_mpw_info *wi,
-> -					struct sk_buff *skb);
-> -void mlx5e_free_rx_linear_mpwqe(struct mlx5e_rq *rq,
-> -				struct mlx5e_mpw_info *wi);
-> -void mlx5e_free_rx_fragmented_mpwqe(struct mlx5e_rq *rq,
-> -				    struct mlx5e_mpw_info *wi);
-> +void mlx5e_post_rx_mpwqe(struct mlx5e_rq *rq);
-> +void mlx5e_free_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi);
->  struct mlx5_cqe64 *mlx5e_get_cqe(struct mlx5e_cq *cq);
->  
->  void mlx5e_rx_am(struct mlx5e_rq *rq);
-> @@ -810,6 +780,12 @@ static inline void mlx5e_cq_arm(struct mlx5e_cq *cq)
->  	mlx5_cq_arm(mcq, MLX5_CQ_DB_REQ_NOT, mcq->uar->map, NULL, cq->wq.cc);
->  }
->  
-> +static inline u32 mlx5e_get_wqe_mtt_offset(struct mlx5e_rq *rq, u16 wqe_ix)
-> +{
-> +	return rq->mpwqe_mtt_offset +
-> +		wqe_ix * ALIGN(MLX5_MPWRQ_PAGES_PER_WQE, 8);
-> +}
-> +
->  static inline int mlx5e_get_max_num_channels(struct mlx5_core_dev *mdev)
->  {
->  	return min_t(int, mdev->priv.eq_table.num_comp_vectors,
-> diff --git a/drivers/net/ethernet/mellanox/mlx5/core/en_main.c b/drivers/net/ethernet/mellanox/mlx5/core/en_main.c
-> index 2459c7f..0db4d3b 100644
-> --- a/drivers/net/ethernet/mellanox/mlx5/core/en_main.c
-> +++ b/drivers/net/ethernet/mellanox/mlx5/core/en_main.c
-> @@ -138,7 +138,6 @@ static void mlx5e_update_sw_counters(struct mlx5e_priv *priv)
->  		s->rx_csum_unnecessary_inner += rq_stats->csum_unnecessary_inner;
->  		s->rx_wqe_err   += rq_stats->wqe_err;
->  		s->rx_mpwqe_filler += rq_stats->mpwqe_filler;
-> -		s->rx_mpwqe_frag   += rq_stats->mpwqe_frag;
->  		s->rx_buff_alloc_err += rq_stats->buff_alloc_err;
->  		s->rx_cqe_compress_blks += rq_stats->cqe_compress_blks;
->  		s->rx_cqe_compress_pkts += rq_stats->cqe_compress_pkts;
-> @@ -298,6 +297,107 @@ static void mlx5e_disable_async_events(struct mlx5e_priv *priv)
->  #define MLX5E_HW2SW_MTU(hwmtu) (hwmtu - (ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN))
->  #define MLX5E_SW2HW_MTU(swmtu) (swmtu + (ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN))
->  
-> +static inline int mlx5e_get_wqe_mtt_sz(void)
-> +{
-> +	/* UMR copies MTTs in units of MLX5_UMR_MTT_ALIGNMENT bytes.
-> +	 * To avoid copying garbage after the mtt array, we allocate
-> +	 * a little more.
-> +	 */
-> +	return ALIGN(MLX5_MPWRQ_PAGES_PER_WQE * sizeof(__be64),
-> +		     MLX5_UMR_MTT_ALIGNMENT);
-> +}
-> +
-> +static inline void mlx5e_build_umr_wqe(struct mlx5e_rq *rq, struct mlx5e_sq *sq,
-> +				       struct mlx5e_umr_wqe *wqe, u16 ix)
-> +{
-> +	struct mlx5_wqe_ctrl_seg      *cseg = &wqe->ctrl;
-> +	struct mlx5_wqe_umr_ctrl_seg *ucseg = &wqe->uctrl;
-> +	struct mlx5_wqe_data_seg      *dseg = &wqe->data;
-> +	struct mlx5e_mpw_info *wi = &rq->wqe_info[ix];
-> +	u8 ds_cnt = DIV_ROUND_UP(sizeof(*wqe), MLX5_SEND_WQE_DS);
-> +	u32 umr_wqe_mtt_offset = mlx5e_get_wqe_mtt_offset(rq, ix);
-> +
-> +	cseg->qpn_ds    = cpu_to_be32((sq->sqn << MLX5_WQE_CTRL_QPN_SHIFT) |
-> +				      ds_cnt);
-> +	cseg->fm_ce_se  = MLX5_WQE_CTRL_CQ_UPDATE;
-> +	cseg->imm       = rq->mkey_be;
-> +
-> +	ucseg->flags = MLX5_UMR_TRANSLATION_OFFSET_EN;
-> +	ucseg->klm_octowords =
-> +		cpu_to_be16(MLX5_MTT_OCTW(MLX5_MPWRQ_PAGES_PER_WQE));
-> +	ucseg->bsf_octowords =
-> +		cpu_to_be16(MLX5_MTT_OCTW(umr_wqe_mtt_offset));
-> +	ucseg->mkey_mask     = cpu_to_be64(MLX5_MKEY_MASK_FREE);
-> +
-> +	dseg->lkey = sq->mkey_be;
-> +	dseg->addr = cpu_to_be64(wi->umr.mtt_addr);
-> +}
-> +
-> +static int mlx5e_rq_alloc_mpwqe_info(struct mlx5e_rq *rq,
-> +				     struct mlx5e_channel *c)
-> +{
-> +	int wq_sz = mlx5_wq_ll_get_size(&rq->wq);
-> +	int mtt_sz = mlx5e_get_wqe_mtt_sz();
-> +	int mtt_alloc = mtt_sz + MLX5_UMR_ALIGN - 1;
-> +	int i;
-> +
-> +	rq->wqe_info = kzalloc_node(wq_sz * sizeof(*rq->wqe_info),
-> +				    GFP_KERNEL, cpu_to_node(c->cpu));
-> +	if (!rq->wqe_info)
-> +		goto err_out;
-> +
-> +	/* We allocate more than mtt_sz as we will align the pointer */
-> +	rq->mtt_no_align = kzalloc_node(mtt_alloc * wq_sz, GFP_KERNEL,
-> +					cpu_to_node(c->cpu));
-> +	if (unlikely(!rq->mtt_no_align))
-> +		goto err_free_wqe_info;
-> +
-> +	for (i = 0; i < wq_sz; i++) {
-> +		struct mlx5e_mpw_info *wi = &rq->wqe_info[i];
-> +
-> +		wi->umr.mtt = PTR_ALIGN(rq->mtt_no_align + i * mtt_alloc,
-> +					MLX5_UMR_ALIGN);
-> +		wi->umr.mtt_addr = dma_map_single(c->pdev, wi->umr.mtt, mtt_sz,
-> +						  PCI_DMA_TODEVICE);
-> +		if (unlikely(dma_mapping_error(c->pdev, wi->umr.mtt_addr)))
-> +			goto err_unmap_mtts;
-> +
-> +		mlx5e_build_umr_wqe(rq, &c->icosq, &wi->umr.wqe, i);
-> +	}
-> +
-> +	return 0;
-> +
-> +err_unmap_mtts:
-> +	while (--i >= 0) {
-> +		struct mlx5e_mpw_info *wi = &rq->wqe_info[i];
-> +
-> +		dma_unmap_single(c->pdev, wi->umr.mtt_addr, mtt_sz,
-> +				 PCI_DMA_TODEVICE);
-> +	}
-> +	kfree(rq->mtt_no_align);
-> +err_free_wqe_info:
-> +	kfree(rq->wqe_info);
-> +
-> +err_out:
-> +	return -ENOMEM;
-> +}
-> +
-> +static void mlx5e_rq_free_mpwqe_info(struct mlx5e_rq *rq)
-> +{
-> +	int wq_sz = mlx5_wq_ll_get_size(&rq->wq);
-> +	int mtt_sz = mlx5e_get_wqe_mtt_sz();
-> +	int i;
-> +
-> +	for (i = 0; i < wq_sz; i++) {
-> +		struct mlx5e_mpw_info *wi = &rq->wqe_info[i];
-> +
-> +		dma_unmap_single(rq->pdev, wi->umr.mtt_addr, mtt_sz,
-> +				 PCI_DMA_TODEVICE);
-> +	}
-> +	kfree(rq->mtt_no_align);
-> +	kfree(rq->wqe_info);
-> +}
-> +
->  static int mlx5e_create_rq(struct mlx5e_channel *c,
->  			   struct mlx5e_rq_param *param,
->  			   struct mlx5e_rq *rq)
-> @@ -322,14 +422,16 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
->  
->  	wq_sz = mlx5_wq_ll_get_size(&rq->wq);
->  
-> +	rq->wq_type = priv->params.rq_wq_type;
-> +	rq->pdev    = c->pdev;
-> +	rq->netdev  = c->netdev;
-> +	rq->tstamp  = &priv->tstamp;
-> +	rq->channel = c;
-> +	rq->ix      = c->ix;
-> +	rq->priv    = c->priv;
-> +
->  	switch (priv->params.rq_wq_type) {
->  	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
-> -		rq->wqe_info = kzalloc_node(wq_sz * sizeof(*rq->wqe_info),
-> -					    GFP_KERNEL, cpu_to_node(c->cpu));
-> -		if (!rq->wqe_info) {
-> -			err = -ENOMEM;
-> -			goto err_rq_wq_destroy;
-> -		}
->  		rq->handle_rx_cqe = mlx5e_handle_rx_cqe_mpwrq;
->  		rq->alloc_wqe = mlx5e_alloc_rx_mpwqe;
->  		rq->dealloc_wqe = mlx5e_dealloc_rx_mpwqe;
-> @@ -341,6 +443,10 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
->  		rq->mpwqe_num_strides = BIT(priv->params.mpwqe_log_num_strides);
->  		rq->wqe_sz = rq->mpwqe_stride_sz * rq->mpwqe_num_strides;
->  		byte_count = rq->wqe_sz;
-> +		rq->mkey_be = cpu_to_be32(c->priv->umr_mkey.key);
-> +		err = mlx5e_rq_alloc_mpwqe_info(rq, c);
-> +		if (err)
-> +			goto err_rq_wq_destroy;
->  		break;
->  	default: /* MLX5_WQ_TYPE_LINKED_LIST */
->  		rq->skb = kzalloc_node(wq_sz * sizeof(*rq->skb), GFP_KERNEL,
-> @@ -359,27 +465,19 @@ static int mlx5e_create_rq(struct mlx5e_channel *c,
->  		rq->wqe_sz = SKB_DATA_ALIGN(rq->wqe_sz);
->  		byte_count = rq->wqe_sz;
->  		byte_count |= MLX5_HW_START_PADDING;
-> +		rq->mkey_be = c->mkey_be;
->  	}
->  
->  	for (i = 0; i < wq_sz; i++) {
->  		struct mlx5e_rx_wqe *wqe = mlx5_wq_ll_get_wqe(&rq->wq, i);
->  
->  		wqe->data.byte_count = cpu_to_be32(byte_count);
-> +		wqe->data.lkey = rq->mkey_be;
->  	}
->  
->  	INIT_WORK(&rq->am.work, mlx5e_rx_am_work);
->  	rq->am.mode = priv->params.rx_cq_period_mode;
->  
-> -	rq->wq_type = priv->params.rq_wq_type;
-> -	rq->pdev    = c->pdev;
-> -	rq->netdev  = c->netdev;
-> -	rq->tstamp  = &priv->tstamp;
-> -	rq->channel = c;
-> -	rq->ix      = c->ix;
-> -	rq->priv    = c->priv;
-> -	rq->mkey_be = c->mkey_be;
-> -	rq->umr_mkey_be = cpu_to_be32(c->priv->umr_mkey.key);
-> -
->  	return 0;
->  
->  err_rq_wq_destroy:
-> @@ -392,7 +490,7 @@ static void mlx5e_destroy_rq(struct mlx5e_rq *rq)
->  {
->  	switch (rq->wq_type) {
->  	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
-> -		kfree(rq->wqe_info);
-> +		mlx5e_rq_free_mpwqe_info(rq);
->  		break;
->  	default: /* MLX5_WQ_TYPE_LINKED_LIST */
->  		kfree(rq->skb);
-> @@ -530,7 +628,7 @@ static void mlx5e_free_rx_descs(struct mlx5e_rq *rq)
->  
->  	/* UMR WQE (if in progress) is always at wq->head */
->  	if (test_bit(MLX5E_RQ_STATE_UMR_WQE_IN_PROGRESS, &rq->state))
-> -		mlx5e_free_rx_fragmented_mpwqe(rq, &rq->wqe_info[wq->head]);
-> +		mlx5e_free_rx_mpwqe(rq, &rq->wqe_info[wq->head]);
->  
->  	while (!mlx5_wq_ll_is_empty(wq)) {
->  		wqe_ix_be = *wq->tail_next;
-> diff --git a/drivers/net/ethernet/mellanox/mlx5/core/en_rx.c b/drivers/net/ethernet/mellanox/mlx5/core/en_rx.c
-> index b6f8ebb..8ad4d32 100644
-> --- a/drivers/net/ethernet/mellanox/mlx5/core/en_rx.c
-> +++ b/drivers/net/ethernet/mellanox/mlx5/core/en_rx.c
-> @@ -200,7 +200,6 @@ int mlx5e_alloc_rx_wqe(struct mlx5e_rq *rq, struct mlx5e_rx_wqe *wqe, u16 ix)
->  
->  	*((dma_addr_t *)skb->cb) = dma_addr;
->  	wqe->data.addr = cpu_to_be64(dma_addr);
-> -	wqe->data.lkey = rq->mkey_be;
->  
->  	rq->skb[ix] = skb;
->  
-> @@ -231,44 +230,11 @@ static inline int mlx5e_mpwqe_strides_per_page(struct mlx5e_rq *rq)
->  	return rq->mpwqe_num_strides >> MLX5_MPWRQ_WQE_PAGE_ORDER;
->  }
->  
-> -static inline void
-> -mlx5e_dma_pre_sync_linear_mpwqe(struct device *pdev,
-> -				struct mlx5e_mpw_info *wi,
-> -				u32 wqe_offset, u32 len)
-> -{
-> -	dma_sync_single_for_cpu(pdev, wi->dma_info.addr + wqe_offset,
-> -				len, DMA_FROM_DEVICE);
-> -}
-> -
-> -static inline void
-> -mlx5e_dma_pre_sync_fragmented_mpwqe(struct device *pdev,
-> -				    struct mlx5e_mpw_info *wi,
-> -				    u32 wqe_offset, u32 len)
-> -{
-> -	/* No dma pre sync for fragmented MPWQE */
-> -}
-> -
-> -static inline void
-> -mlx5e_add_skb_frag_linear_mpwqe(struct mlx5e_rq *rq,
-> -				struct sk_buff *skb,
-> -				struct mlx5e_mpw_info *wi,
-> -				u32 page_idx, u32 frag_offset,
-> -				u32 len)
-> -{
-> -	unsigned int truesize =	ALIGN(len, rq->mpwqe_stride_sz);
-> -
-> -	wi->skbs_frags[page_idx]++;
-> -	skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
-> -			&wi->dma_info.page[page_idx], frag_offset,
-> -			len, truesize);
-> -}
-> -
-> -static inline void
-> -mlx5e_add_skb_frag_fragmented_mpwqe(struct mlx5e_rq *rq,
-> -				    struct sk_buff *skb,
-> -				    struct mlx5e_mpw_info *wi,
-> -				    u32 page_idx, u32 frag_offset,
-> -				    u32 len)
-> +static inline void mlx5e_add_skb_frag_mpwqe(struct mlx5e_rq *rq,
-> +					    struct sk_buff *skb,
-> +					    struct mlx5e_mpw_info *wi,
-> +					    u32 page_idx, u32 frag_offset,
-> +					    u32 len)
->  {
->  	unsigned int truesize =	ALIGN(len, rq->mpwqe_stride_sz);
->  
-> @@ -282,24 +248,11 @@ mlx5e_add_skb_frag_fragmented_mpwqe(struct mlx5e_rq *rq,
->  }
->  
->  static inline void
-> -mlx5e_copy_skb_header_linear_mpwqe(struct device *pdev,
-> -				   struct sk_buff *skb,
-> -				   struct mlx5e_mpw_info *wi,
-> -				   u32 page_idx, u32 offset,
-> -				   u32 headlen)
-> -{
-> -	struct page *page = &wi->dma_info.page[page_idx];
-> -
-> -	skb_copy_to_linear_data(skb, page_address(page) + offset,
-> -				ALIGN(headlen, sizeof(long)));
-> -}
-> -
-> -static inline void
-> -mlx5e_copy_skb_header_fragmented_mpwqe(struct device *pdev,
-> -				       struct sk_buff *skb,
-> -				       struct mlx5e_mpw_info *wi,
-> -				       u32 page_idx, u32 offset,
-> -				       u32 headlen)
-> +mlx5e_copy_skb_header_mpwqe(struct device *pdev,
-> +			    struct sk_buff *skb,
-> +			    struct mlx5e_mpw_info *wi,
-> +			    u32 page_idx, u32 offset,
-> +			    u32 headlen)
->  {
->  	u16 headlen_pg = min_t(u32, headlen, PAGE_SIZE - offset);
->  	struct mlx5e_dma_info *dma_info = &wi->umr.dma_info[page_idx];
-> @@ -324,46 +277,9 @@ mlx5e_copy_skb_header_fragmented_mpwqe(struct device *pdev,
->  	}
->  }
->  
-> -static u32 mlx5e_get_wqe_mtt_offset(struct mlx5e_rq *rq, u16 wqe_ix)
-> -{
-> -	return rq->mpwqe_mtt_offset +
-> -		wqe_ix * ALIGN(MLX5_MPWRQ_PAGES_PER_WQE, 8);
-> -}
-> -
-> -static void mlx5e_build_umr_wqe(struct mlx5e_rq *rq,
-> -				struct mlx5e_sq *sq,
-> -				struct mlx5e_umr_wqe *wqe,
-> -				u16 ix)
-> +static inline void mlx5e_post_umr_wqe(struct mlx5e_rq *rq, u16 ix)
->  {
-> -	struct mlx5_wqe_ctrl_seg      *cseg = &wqe->ctrl;
-> -	struct mlx5_wqe_umr_ctrl_seg *ucseg = &wqe->uctrl;
-> -	struct mlx5_wqe_data_seg      *dseg = &wqe->data;
->  	struct mlx5e_mpw_info *wi = &rq->wqe_info[ix];
-> -	u8 ds_cnt = DIV_ROUND_UP(sizeof(*wqe), MLX5_SEND_WQE_DS);
-> -	u32 umr_wqe_mtt_offset = mlx5e_get_wqe_mtt_offset(rq, ix);
-> -
-> -	memset(wqe, 0, sizeof(*wqe));
-> -	cseg->opmod_idx_opcode =
-> -		cpu_to_be32((sq->pc << MLX5_WQE_CTRL_WQE_INDEX_SHIFT) |
-> -			    MLX5_OPCODE_UMR);
-> -	cseg->qpn_ds    = cpu_to_be32((sq->sqn << MLX5_WQE_CTRL_QPN_SHIFT) |
-> -				      ds_cnt);
-> -	cseg->fm_ce_se  = MLX5_WQE_CTRL_CQ_UPDATE;
-> -	cseg->imm       = rq->umr_mkey_be;
-> -
-> -	ucseg->flags = MLX5_UMR_TRANSLATION_OFFSET_EN;
-> -	ucseg->klm_octowords =
-> -		cpu_to_be16(MLX5_MTT_OCTW(MLX5_MPWRQ_PAGES_PER_WQE));
-> -	ucseg->bsf_octowords =
-> -		cpu_to_be16(MLX5_MTT_OCTW(umr_wqe_mtt_offset));
-> -	ucseg->mkey_mask     = cpu_to_be64(MLX5_MKEY_MASK_FREE);
-> -
-> -	dseg->lkey = sq->mkey_be;
-> -	dseg->addr = cpu_to_be64(wi->umr.mtt_addr);
-> -}
-> -
-> -static void mlx5e_post_umr_wqe(struct mlx5e_rq *rq, u16 ix)
-> -{
->  	struct mlx5e_sq *sq = &rq->channel->icosq;
->  	struct mlx5_wq_cyc *wq = &sq->wq;
->  	struct mlx5e_umr_wqe *wqe;
-> @@ -378,30 +294,22 @@ static void mlx5e_post_umr_wqe(struct mlx5e_rq *rq, u16 ix)
->  	}
->  
->  	wqe = mlx5_wq_cyc_get_wqe(wq, pi);
-> -	mlx5e_build_umr_wqe(rq, sq, wqe, ix);
-> +	memcpy(wqe, &wi->umr.wqe, sizeof(*wqe));
-> +	wqe->ctrl.opmod_idx_opcode =
-> +		cpu_to_be32((sq->pc << MLX5_WQE_CTRL_WQE_INDEX_SHIFT) |
-> +			    MLX5_OPCODE_UMR);
-> +
->  	sq->ico_wqe_info[pi].opcode = MLX5_OPCODE_UMR;
->  	sq->ico_wqe_info[pi].num_wqebbs = num_wqebbs;
->  	sq->pc += num_wqebbs;
->  	mlx5e_tx_notify_hw(sq, &wqe->ctrl, 0);
->  }
->  
-> -static inline int mlx5e_get_wqe_mtt_sz(void)
-> -{
-> -	/* UMR copies MTTs in units of MLX5_UMR_MTT_ALIGNMENT bytes.
-> -	 * To avoid copying garbage after the mtt array, we allocate
-> -	 * a little more.
-> -	 */
-> -	return ALIGN(MLX5_MPWRQ_PAGES_PER_WQE * sizeof(__be64),
-> -		     MLX5_UMR_MTT_ALIGNMENT);
-> -}
-> -
-> -static int mlx5e_alloc_and_map_page(struct mlx5e_rq *rq,
-> -				    struct mlx5e_mpw_info *wi,
-> -				    int i)
-> +static inline int mlx5e_alloc_and_map_page(struct mlx5e_rq *rq,
-> +					   struct mlx5e_mpw_info *wi,
-> +					   int i)
->  {
-> -	struct page *page;
-> -
-> -	page = dev_alloc_page();
-> +	struct page *page = dev_alloc_page();
->  	if (unlikely(!page))
->  		return -ENOMEM;
->  
-> @@ -417,47 +325,25 @@ static int mlx5e_alloc_and_map_page(struct mlx5e_rq *rq,
->  	return 0;
->  }
->  
-> -static int mlx5e_alloc_rx_fragmented_mpwqe(struct mlx5e_rq *rq,
-> -					   struct mlx5e_rx_wqe *wqe,
-> -					   u16 ix)
-> +static int mlx5e_alloc_rx_umr_mpwqe(struct mlx5e_rq *rq,
-> +				    struct mlx5e_rx_wqe *wqe,
-> +				    u16 ix)
->  {
->  	struct mlx5e_mpw_info *wi = &rq->wqe_info[ix];
-> -	int mtt_sz = mlx5e_get_wqe_mtt_sz();
->  	u64 dma_offset = (u64)mlx5e_get_wqe_mtt_offset(rq, ix) << PAGE_SHIFT;
-> +	int pg_strides = mlx5e_mpwqe_strides_per_page(rq);
-> +	int err;
->  	int i;
->  
-> -	wi->umr.dma_info = kmalloc(sizeof(*wi->umr.dma_info) *
-> -				   MLX5_MPWRQ_PAGES_PER_WQE,
-> -				   GFP_ATOMIC);
-> -	if (unlikely(!wi->umr.dma_info))
-> -		goto err_out;
-> -
-> -	/* We allocate more than mtt_sz as we will align the pointer */
-> -	wi->umr.mtt_no_align = kzalloc(mtt_sz + MLX5_UMR_ALIGN - 1,
-> -				       GFP_ATOMIC);
-> -	if (unlikely(!wi->umr.mtt_no_align))
-> -		goto err_free_umr;
-> -
-> -	wi->umr.mtt = PTR_ALIGN(wi->umr.mtt_no_align, MLX5_UMR_ALIGN);
-> -	wi->umr.mtt_addr = dma_map_single(rq->pdev, wi->umr.mtt, mtt_sz,
-> -					  PCI_DMA_TODEVICE);
-> -	if (unlikely(dma_mapping_error(rq->pdev, wi->umr.mtt_addr)))
-> -		goto err_free_mtt;
-> -
->  	for (i = 0; i < MLX5_MPWRQ_PAGES_PER_WQE; i++) {
-> -		if (unlikely(mlx5e_alloc_and_map_page(rq, wi, i)))
-> +		err = mlx5e_alloc_and_map_page(rq, wi, i);
-> +		if (unlikely(err))
->  			goto err_unmap;
-> -		page_ref_add(wi->umr.dma_info[i].page,
-> -			     mlx5e_mpwqe_strides_per_page(rq));
-> +		page_ref_add(wi->umr.dma_info[i].page, pg_strides);
->  		wi->skbs_frags[i] = 0;
->  	}
->  
->  	wi->consumed_strides = 0;
-> -	wi->dma_pre_sync = mlx5e_dma_pre_sync_fragmented_mpwqe;
-> -	wi->add_skb_frag = mlx5e_add_skb_frag_fragmented_mpwqe;
-> -	wi->copy_skb_header = mlx5e_copy_skb_header_fragmented_mpwqe;
-> -	wi->free_wqe     = mlx5e_free_rx_fragmented_mpwqe;
-> -	wqe->data.lkey = rq->umr_mkey_be;
->  	wqe->data.addr = cpu_to_be64(dma_offset);
->  
->  	return 0;
-> @@ -466,41 +352,28 @@ err_unmap:
->  	while (--i >= 0) {
->  		dma_unmap_page(rq->pdev, wi->umr.dma_info[i].addr, PAGE_SIZE,
->  			       PCI_DMA_FROMDEVICE);
-> -		page_ref_sub(wi->umr.dma_info[i].page,
-> -			     mlx5e_mpwqe_strides_per_page(rq));
-> +		page_ref_sub(wi->umr.dma_info[i].page, pg_strides);
->  		put_page(wi->umr.dma_info[i].page);
->  	}
-> -	dma_unmap_single(rq->pdev, wi->umr.mtt_addr, mtt_sz, PCI_DMA_TODEVICE);
-> -
-> -err_free_mtt:
-> -	kfree(wi->umr.mtt_no_align);
-> -
-> -err_free_umr:
-> -	kfree(wi->umr.dma_info);
->  
-> -err_out:
-> -	return -ENOMEM;
-> +	return err;
->  }
->  
-> -void mlx5e_free_rx_fragmented_mpwqe(struct mlx5e_rq *rq,
-> -				    struct mlx5e_mpw_info *wi)
-> +void mlx5e_free_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi)
->  {
-> -	int mtt_sz = mlx5e_get_wqe_mtt_sz();
-> +	int pg_strides = mlx5e_mpwqe_strides_per_page(rq);
->  	int i;
->  
->  	for (i = 0; i < MLX5_MPWRQ_PAGES_PER_WQE; i++) {
->  		dma_unmap_page(rq->pdev, wi->umr.dma_info[i].addr, PAGE_SIZE,
->  			       PCI_DMA_FROMDEVICE);
->  		page_ref_sub(wi->umr.dma_info[i].page,
-> -			mlx5e_mpwqe_strides_per_page(rq) - wi->skbs_frags[i]);
-> +			     pg_strides - wi->skbs_frags[i]);
->  		put_page(wi->umr.dma_info[i].page);
->  	}
-> -	dma_unmap_single(rq->pdev, wi->umr.mtt_addr, mtt_sz, PCI_DMA_TODEVICE);
-> -	kfree(wi->umr.mtt_no_align);
-> -	kfree(wi->umr.dma_info);
->  }
->  
-> -void mlx5e_post_rx_fragmented_mpwqe(struct mlx5e_rq *rq)
-> +void mlx5e_post_rx_mpwqe(struct mlx5e_rq *rq)
->  {
->  	struct mlx5_wq_ll *wq = &rq->wq;
->  	struct mlx5e_rx_wqe *wqe = mlx5_wq_ll_get_wqe(wq, wq->head);
-> @@ -508,12 +381,11 @@ void mlx5e_post_rx_fragmented_mpwqe(struct mlx5e_rq *rq)
->  	clear_bit(MLX5E_RQ_STATE_UMR_WQE_IN_PROGRESS, &rq->state);
->  
->  	if (unlikely(test_bit(MLX5E_RQ_STATE_FLUSH, &rq->state))) {
-> -		mlx5e_free_rx_fragmented_mpwqe(rq, &rq->wqe_info[wq->head]);
-> +		mlx5e_free_rx_mpwqe(rq, &rq->wqe_info[wq->head]);
->  		return;
->  	}
->  
->  	mlx5_wq_ll_push(wq, be16_to_cpu(wqe->next.next_wqe_index));
-> -	rq->stats.mpwqe_frag++;
->  
->  	/* ensure wqes are visible to device before updating doorbell record */
->  	dma_wmb();
-> @@ -521,84 +393,23 @@ void mlx5e_post_rx_fragmented_mpwqe(struct mlx5e_rq *rq)
->  	mlx5_wq_ll_update_db_record(wq);
->  }
->  
-> -static int mlx5e_alloc_rx_linear_mpwqe(struct mlx5e_rq *rq,
-> -				       struct mlx5e_rx_wqe *wqe,
-> -				       u16 ix)
-> -{
-> -	struct mlx5e_mpw_info *wi = &rq->wqe_info[ix];
-> -	gfp_t gfp_mask;
-> -	int i;
-> -
-> -	gfp_mask = GFP_ATOMIC | __GFP_COLD | __GFP_MEMALLOC;
-> -	wi->dma_info.page = alloc_pages_node(NUMA_NO_NODE, gfp_mask,
-> -					     MLX5_MPWRQ_WQE_PAGE_ORDER);
-> -	if (unlikely(!wi->dma_info.page))
-> -		return -ENOMEM;
-> -
-> -	wi->dma_info.addr = dma_map_page(rq->pdev, wi->dma_info.page, 0,
-> -					 rq->wqe_sz, PCI_DMA_FROMDEVICE);
-> -	if (unlikely(dma_mapping_error(rq->pdev, wi->dma_info.addr))) {
-> -		put_page(wi->dma_info.page);
-> -		return -ENOMEM;
-> -	}
-> -
-> -	/* We split the high-order page into order-0 ones and manage their
-> -	 * reference counter to minimize the memory held by small skb fragments
-> -	 */
-> -	split_page(wi->dma_info.page, MLX5_MPWRQ_WQE_PAGE_ORDER);
-> -	for (i = 0; i < MLX5_MPWRQ_PAGES_PER_WQE; i++) {
-> -		page_ref_add(&wi->dma_info.page[i],
-> -			     mlx5e_mpwqe_strides_per_page(rq));
-> -		wi->skbs_frags[i] = 0;
-> -	}
-> -
-> -	wi->consumed_strides = 0;
-> -	wi->dma_pre_sync = mlx5e_dma_pre_sync_linear_mpwqe;
-> -	wi->add_skb_frag = mlx5e_add_skb_frag_linear_mpwqe;
-> -	wi->copy_skb_header = mlx5e_copy_skb_header_linear_mpwqe;
-> -	wi->free_wqe     = mlx5e_free_rx_linear_mpwqe;
-> -	wqe->data.lkey = rq->mkey_be;
-> -	wqe->data.addr = cpu_to_be64(wi->dma_info.addr);
-> -
-> -	return 0;
-> -}
-> -
-> -void mlx5e_free_rx_linear_mpwqe(struct mlx5e_rq *rq,
-> -				struct mlx5e_mpw_info *wi)
-> -{
-> -	int i;
-> -
-> -	dma_unmap_page(rq->pdev, wi->dma_info.addr, rq->wqe_sz,
-> -		       PCI_DMA_FROMDEVICE);
-> -	for (i = 0; i < MLX5_MPWRQ_PAGES_PER_WQE; i++) {
-> -		page_ref_sub(&wi->dma_info.page[i],
-> -			mlx5e_mpwqe_strides_per_page(rq) - wi->skbs_frags[i]);
-> -		put_page(&wi->dma_info.page[i]);
-> -	}
-> -}
-> -
-> -int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_rx_wqe *wqe, u16 ix)
-> +int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, struct mlx5e_rx_wqe *wqe,	u16 ix)
->  {
->  	int err;
->  
-> -	err = mlx5e_alloc_rx_linear_mpwqe(rq, wqe, ix);
-> -	if (unlikely(err)) {
-> -		err = mlx5e_alloc_rx_fragmented_mpwqe(rq, wqe, ix);
-> -		if (unlikely(err))
-> -			return err;
-> -		set_bit(MLX5E_RQ_STATE_UMR_WQE_IN_PROGRESS, &rq->state);
-> -		mlx5e_post_umr_wqe(rq, ix);
-> -		return -EBUSY;
-> -	}
-> -
-> -	return 0;
-> +	err = mlx5e_alloc_rx_umr_mpwqe(rq, wqe, ix);
-> +	if (unlikely(err))
-> +		return err;
-> +	set_bit(MLX5E_RQ_STATE_UMR_WQE_IN_PROGRESS, &rq->state);
-> +	mlx5e_post_umr_wqe(rq, ix);
-> +	return -EBUSY;
->  }
->  
->  void mlx5e_dealloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
->  {
->  	struct mlx5e_mpw_info *wi = &rq->wqe_info[ix];
->  
-> -	wi->free_wqe(rq, wi);
-> +	mlx5e_free_rx_mpwqe(rq, wi);
->  }
->  
->  #define RQ_CANNOT_POST(rq) \
-> @@ -617,9 +428,10 @@ bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
->  		int err;
->  
->  		err = rq->alloc_wqe(rq, wqe, wq->head);
-> +		if (err == -EBUSY)
-> +			return true;
->  		if (unlikely(err)) {
-> -			if (err != -EBUSY)
-> -				rq->stats.buff_alloc_err++;
-> +			rq->stats.buff_alloc_err++;
->  			break;
->  		}
->  
-> @@ -823,7 +635,6 @@ static inline void mlx5e_mpwqe_fill_rx_skb(struct mlx5e_rq *rq,
->  					   u32 cqe_bcnt,
->  					   struct sk_buff *skb)
->  {
-> -	u32 consumed_bytes = ALIGN(cqe_bcnt, rq->mpwqe_stride_sz);
->  	u16 stride_ix      = mpwrq_get_cqe_stride_index(cqe);
->  	u32 wqe_offset     = stride_ix * rq->mpwqe_stride_sz;
->  	u32 head_offset    = wqe_offset & (PAGE_SIZE - 1);
-> @@ -837,21 +648,20 @@ static inline void mlx5e_mpwqe_fill_rx_skb(struct mlx5e_rq *rq,
->  		page_idx++;
->  		frag_offset -= PAGE_SIZE;
->  	}
-> -	wi->dma_pre_sync(rq->pdev, wi, wqe_offset, consumed_bytes);
->  
->  	while (byte_cnt) {
->  		u32 pg_consumed_bytes =
->  			min_t(u32, PAGE_SIZE - frag_offset, byte_cnt);
->  
-> -		wi->add_skb_frag(rq, skb, wi, page_idx, frag_offset,
-> -				 pg_consumed_bytes);
-> +		mlx5e_add_skb_frag_mpwqe(rq, skb, wi, page_idx, frag_offset,
-> +					 pg_consumed_bytes);
->  		byte_cnt -= pg_consumed_bytes;
->  		frag_offset = 0;
->  		page_idx++;
->  	}
->  	/* copy header */
-> -	wi->copy_skb_header(rq->pdev, skb, wi, head_page_idx, head_offset,
-> -			    headlen);
-> +	mlx5e_copy_skb_header_mpwqe(rq->pdev, skb, wi, head_page_idx,
-> +				    head_offset, headlen);
->  	/* skb linear part was allocated with headlen and aligned to long */
->  	skb->tail += headlen;
->  	skb->len  += headlen;
-> @@ -896,7 +706,7 @@ mpwrq_cqe_out:
->  	if (likely(wi->consumed_strides < rq->mpwqe_num_strides))
->  		return;
->  
-> -	wi->free_wqe(rq, wi);
-> +	mlx5e_free_rx_mpwqe(rq, wi);
->  	mlx5_wq_ll_pop(&rq->wq, cqe->wqe_id, &wqe->next.next_wqe_index);
->  }
->  
-> diff --git a/drivers/net/ethernet/mellanox/mlx5/core/en_stats.h b/drivers/net/ethernet/mellanox/mlx5/core/en_stats.h
-> index 499487c..1f56543 100644
-> --- a/drivers/net/ethernet/mellanox/mlx5/core/en_stats.h
-> +++ b/drivers/net/ethernet/mellanox/mlx5/core/en_stats.h
-> @@ -73,7 +73,6 @@ struct mlx5e_sw_stats {
->  	u64 tx_xmit_more;
->  	u64 rx_wqe_err;
->  	u64 rx_mpwqe_filler;
-> -	u64 rx_mpwqe_frag;
->  	u64 rx_buff_alloc_err;
->  	u64 rx_cqe_compress_blks;
->  	u64 rx_cqe_compress_pkts;
-> @@ -105,7 +104,6 @@ static const struct counter_desc sw_stats_desc[] = {
->  	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_xmit_more) },
->  	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_wqe_err) },
->  	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_mpwqe_filler) },
-> -	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_mpwqe_frag) },
->  	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_buff_alloc_err) },
->  	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_cqe_compress_blks) },
->  	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_cqe_compress_pkts) },
-> @@ -274,7 +272,6 @@ struct mlx5e_rq_stats {
->  	u64 lro_bytes;
->  	u64 wqe_err;
->  	u64 mpwqe_filler;
-> -	u64 mpwqe_frag;
->  	u64 buff_alloc_err;
->  	u64 cqe_compress_blks;
->  	u64 cqe_compress_pkts;
-> @@ -290,7 +287,6 @@ static const struct counter_desc rq_stats_desc[] = {
->  	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, lro_bytes) },
->  	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, wqe_err) },
->  	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, mpwqe_filler) },
-> -	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, mpwqe_frag) },
->  	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, buff_alloc_err) },
->  	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, cqe_compress_blks) },
->  	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, cqe_compress_pkts) },
-> diff --git a/drivers/net/ethernet/mellanox/mlx5/core/en_txrx.c b/drivers/net/ethernet/mellanox/mlx5/core/en_txrx.c
-> index 9bf33bb..08d8b0c 100644
-> --- a/drivers/net/ethernet/mellanox/mlx5/core/en_txrx.c
-> +++ b/drivers/net/ethernet/mellanox/mlx5/core/en_txrx.c
-> @@ -87,7 +87,7 @@ static void mlx5e_poll_ico_cq(struct mlx5e_cq *cq)
->  		case MLX5_OPCODE_NOP:
->  			break;
->  		case MLX5_OPCODE_UMR:
-> -			mlx5e_post_rx_fragmented_mpwqe(&sq->channel->rq);
-> +			mlx5e_post_rx_mpwqe(&sq->channel->rq);
->  			break;
->  		default:
->  			WARN_ONCE(true,
-
-
-
--- 
-Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  Author of http://www.iptv-analyzer.org
-  LinkedIn: http://www.linkedin.com/in/brouer
+--k+w/mQv8wyuph6w0--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
