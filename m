@@ -1,65 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B3C9B6B0038
-	for <linux-mm@kvack.org>; Wed,  7 Sep 2016 19:36:31 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id k83so73622913pfa.2
-        for <linux-mm@kvack.org>; Wed, 07 Sep 2016 16:36:31 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id 126si41969590pff.262.2016.09.07.09.34.26
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 052CF6B0038
+	for <linux-mm@kvack.org>; Wed,  7 Sep 2016 19:39:10 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id x24so74486536pfa.0
+        for <linux-mm@kvack.org>; Wed, 07 Sep 2016 16:39:09 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id y6si41974292pfy.74.2016.09.07.09.47.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Sep 2016 09:34:26 -0700 (PDT)
-Subject: Re: [PATCH] Fix region lost in /proc/self/smaps
-References: <1473231111-38058-1-git-send-email-guangrong.xiao@linux.intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <57D04192.5070704@intel.com>
-Date: Wed, 7 Sep 2016 09:34:26 -0700
-MIME-Version: 1.0
-In-Reply-To: <1473231111-38058-1-git-send-email-guangrong.xiao@linux.intel.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        Wed, 07 Sep 2016 09:47:03 -0700 (PDT)
+From: "Huang, Ying" <ying.huang@intel.com>
+Subject: [PATCH -v3 01/10] mm, swap: Make swap cluster size same of THP size on x86_64
+Date: Wed,  7 Sep 2016 09:46:00 -0700
+Message-Id: <1473266769-2155-2-git-send-email-ying.huang@intel.com>
+In-Reply-To: <1473266769-2155-1-git-send-email-ying.huang@intel.com>
+References: <1473266769-2155-1-git-send-email-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xiao Guangrong <guangrong.xiao@linux.intel.com>, pbonzini@redhat.com, akpm@linux-foundation.org, mhocko@suse.com, dan.j.williams@intel.com
-Cc: gleb@kernel.org, mtosatti@redhat.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, stefanha@redhat.com, yuhuang@redhat.com, linux-mm@kvack.org, ross.zwisler@linux.intel.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
 
-On 09/06/2016 11:51 PM, Xiao Guangrong wrote:
-> In order to fix this bug, we make 'file->version' indicate the next VMA
-> we want to handle
+From: Huang Ying <ying.huang@intel.com>
 
-This new approach makes it more likely that we'll skip a new VMA that
-gets inserted in between the read()s.  But, I guess that's OK.  We don't
-exactly claim to be giving super up-to-date data at the time of read().
+In this patch, the size of the swap cluster is changed to that of the
+THP (Transparent Huge Page) on x86_64 architecture (512).  This is for
+the THP swap support on x86_64.  Where one swap cluster will be used to
+hold the contents of each THP swapped out.  And some information of the
+swapped out THP (such as compound map count) will be recorded in the
+swap_cluster_info data structure.
 
-With the old code, was there also a case that we could print out the
-same virtual address range more than once?  It seems like that could
-happen if we had a VMA split between two reads.
+For other architectures which want THP swap support, THP_SWAP_CLUSTER
+need to be selected in the Kconfig file for the architecture.
 
-I think this introduces one oddity: if you have a VMA merge between two
-reads(), you might get the same virtual address range twice in your
-output.  This didn't happen before because we would have just skipped
-over the area that got merged.
+In effect, this will enlarge swap cluster size by 2 times on x86_64.
+Which may make it harder to find a free cluster when the swap space
+becomes fragmented.  So that, this may reduce the continuous swap space
+allocation and sequential write in theory.  The performance test in 0day
+shows no regressions caused by this.
 
-Take two example VMAs:
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Shaohua Li <shli@kernel.org>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>
+Suggested-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+---
+ arch/x86/Kconfig |  1 +
+ mm/Kconfig       | 13 +++++++++++++
+ mm/swapfile.c    |  4 ++++
+ 3 files changed, 18 insertions(+)
 
-	vma-A: (0x1000 -> 0x2000)
-	vma-B: (0x2000 -> 0x3000)
-
-read() #1: prints vma-A, sets m->version=0x2000
-
-Now, merge A/B to make C:
-
-	vma-C: (0x1000 -> 0x3000)
-
-read() #2: find_vma(m->version=0x2000), returns vma-C, prints vma-C
-
-The user will see two VMAs in their output:
-
-	A: 0x1000->0x2000
-	C: 0x1000->0x3000
-
-Will it confuse them to see the same virtual address range twice?  Or is
-there something preventing that happening that I'm missing?
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 4c39728..421d862 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -164,6 +164,7 @@ config X86
+ 	select HAVE_STACK_VALIDATION		if X86_64
+ 	select ARCH_USES_HIGH_VMA_FLAGS		if X86_INTEL_MEMORY_PROTECTION_KEYS
+ 	select ARCH_HAS_PKEYS			if X86_INTEL_MEMORY_PROTECTION_KEYS
++	select ARCH_USES_THP_SWAP_CLUSTER	if X86_64
+ 
+ config INSTRUCTION_DECODER
+ 	def_bool y
+diff --git a/mm/Kconfig b/mm/Kconfig
+index be0ee11..2da8128 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -503,6 +503,19 @@ config FRONTSWAP
+ 
+ 	  If unsure, say Y to enable frontswap.
+ 
++config ARCH_USES_THP_SWAP_CLUSTER
++	bool
++	default n
++
++config THP_SWAP_CLUSTER
++	bool
++	depends on SWAP && TRANSPARENT_HUGEPAGE && ARCH_USES_THP_SWAP_CLUSTER
++	default y
++	help
++	  Use one swap cluster to hold the contents of the THP
++	  (Transparent Huge Page) swapped out.  The size of the swap
++	  cluster will be same as that of THP.
++
+ config CMA
+ 	bool "Contiguous Memory Allocator"
+ 	depends on HAVE_MEMBLOCK && MMU
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 8f1b97d..4b78402 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -196,7 +196,11 @@ static void discard_swap_cluster(struct swap_info_struct *si,
+ 	}
+ }
+ 
++#ifdef CONFIG_THP_SWAP_CLUSTER
++#define SWAPFILE_CLUSTER	(HPAGE_SIZE / PAGE_SIZE)
++#else
+ #define SWAPFILE_CLUSTER	256
++#endif
+ #define LATENCY_LIMIT		256
+ 
+ static inline void cluster_set_flag(struct swap_cluster_info *info,
+-- 
+2.8.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
