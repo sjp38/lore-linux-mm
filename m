@@ -1,94 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7101E6B0268
-	for <linux-mm@kvack.org>; Wed,  7 Sep 2016 08:26:39 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id vp2so30345097pab.3
-        for <linux-mm@kvack.org>; Wed, 07 Sep 2016 05:26:39 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id s70si41142287pfa.89.2016.09.07.05.26.36
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B14576B026A
+	for <linux-mm@kvack.org>; Wed,  7 Sep 2016 08:32:21 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id 29so11571473lfv.2
+        for <linux-mm@kvack.org>; Wed, 07 Sep 2016 05:32:21 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id g16si24973853wjs.145.2016.09.07.05.32.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Sep 2016 05:26:36 -0700 (PDT)
-Date: Wed, 7 Sep 2016 15:25:59 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: mm: use-after-free in collapse_huge_page
-Message-ID: <20160907122559.GA6542@black.fi.intel.com>
-References: <CACT4Y+Z3gigBvhca9kRJFcjX0G70V_nRhbwKBU+yGoESBDKi9Q@mail.gmail.com>
- <20160829124233.GA40092@black.fi.intel.com>
- <20160829153548.pmwcup4q74hafwmu@redhat.com>
+        Wed, 07 Sep 2016 05:32:20 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u87CSU2H072648
+	for <linux-mm@kvack.org>; Wed, 7 Sep 2016 08:32:19 -0400
+Received: from e28smtp09.in.ibm.com (e28smtp09.in.ibm.com [125.16.236.9])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 25a2cvdyh3-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 07 Sep 2016 08:32:17 -0400
+Received: from localhost
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Wed, 7 Sep 2016 18:02:14 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 2AB55125805B
+	for <linux-mm@kvack.org>; Wed,  7 Sep 2016 18:02:20 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u87CWCTf24772858
+	for <linux-mm@kvack.org>; Wed, 7 Sep 2016 18:02:12 +0530
+Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u87CW97p011986
+	for <linux-mm@kvack.org>; Wed, 7 Sep 2016 18:02:11 +0530
+Date: Wed, 07 Sep 2016 18:02:08 +0530
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160829153548.pmwcup4q74hafwmu@redhat.com>
+Subject: Re: [PATCH V3] mm: Add sysfs interface to dump each node's zonelist
+ information
+References: <201609061710.F0GoBXOd%fengguang.wu@intel.com>
+In-Reply-To: <201609061710.F0GoBXOd%fengguang.wu@intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <57D008C8.1040107@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Vegard Nossum <vegard.nossum@oracle.com>, Sasha Levin <levinsasha928@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>
+To: kbuild test robot <lkp@intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: kbuild-all@01.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 
-On Mon, Aug 29, 2016 at 05:35:48PM +0200, Andrea Arcangeli wrote:
-> Hello Kirill,
+On 09/06/2016 02:35 PM, kbuild test robot wrote:
+> Hi Anshuman,
 > 
-> On Mon, Aug 29, 2016 at 03:42:33PM +0300, Kirill A. Shutemov wrote:
-> > @@ -898,13 +899,13 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
-> >  		/* do_swap_page returns VM_FAULT_RETRY with released mmap_sem */
-> >  		if (ret & VM_FAULT_RETRY) {
-> >  			down_read(&mm->mmap_sem);
-> > -			if (hugepage_vma_revalidate(mm, address)) {
-> > +			if (hugepage_vma_revalidate(mm, address, &vma)) {
-> >  				/* vma is no longer available, don't continue to swapin */
-> >  				trace_mm_collapse_huge_page_swapin(mm, swapped_in, referenced, 0);
-> >  				return false;
-> >  			}
-> >  			/* check if the pmd is still valid */
-> > -			if (mm_find_pmd(mm, address) != pmd)
-> > +			if (mm_find_pmd(mm, address) != pmd || vma != fe.vma)
-> >  				return false;
-> >  		}
-> >  		if (ret & VM_FAULT_ERROR) {
+> [auto build test ERROR on driver-core/driver-core-testing]
+> [also build test ERROR on v4.8-rc5 next-20160906]
+> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+> [Suggest to use git(>=2.9.0) format-patch --base=<commit> (or --base=auto for convenience) to record what (public, well-known) commit your patch series was built on]
+> [Check https://git-scm.com/docs/git-format-patch for more information]
 > 
-> You check if the vma changed if the mmap_sem was released by the
-> VM_FAULT_RETRY case but not below:
-> 
-> 	/*
-> 	 * Prevent all access to pagetables with the exception of
-> 	 * gup_fast later handled by the ptep_clear_flush and the VM
-> > @@ -994,7 +995,7 @@ static void collapse_huge_page(struct mm_struct *mm,
-> >  	 * handled by the anon_vma lock + PG_lock.
-> >  	 */
-> >  	down_write(&mm->mmap_sem);
-> > -	result = hugepage_vma_revalidate(mm, address);
-> > +	result = hugepage_vma_revalidate(mm, address, &vma);
-> >  	if (result)
-> >  		goto out;
-> >  	/* check if the pmd is still valid */
-> 	if (mm_find_pmd(mm, address) != pmd)
-> 		goto out;
-> 
-> Here you go ahead without care if the vma has changed as long as the
-> "vma" pointer was updated to the new one, and the pmd is still present
-> and stable (present and not huge) and all vma details matched as
-> before.
-> 
-> Either we care that the vma changed in both places or we don't in
-> either of the two places.
-> 
-> The idea was that even if the vma changed it doesn't matter because
-> it's still good to proceed for a collapse if all revalidation check
-> pass.
-> 
-> What we failed at, was in refreshing the pointer of the vma to the new
-> one after the vma revalidation passed, so that the code that goes
-> ahead uses the right vma pointer and not the stale one we got
-> initially.
-> 
-> Now it may give a perception that it is safer to check fa.vma != vma
-> but in reality it is not, because the vma may be freed and reallocated
-> in exactly the same address...
-> 
-> So I think the vma != fe.vma check shall be removed because no matter
-> what the safety of the vma revalidate cannot come from checking if the
-> pointer has not changed and it must come from something else.
+> url:    https://github.com/0day-ci/linux/commits/Anshuman-Khandual/mm-Add-sysfs-interface-to-dump-each-node-s-zonelist-information/20160906-163752
+> config: x86_64-randconfig-x019-201636 (attached as .config)
+> compiler: gcc-6 (Debian 6.1.1-9) 6.1.1 20160705
+> reproduce:
+>         # save the attached .config to linux build tree
+>         make ARCH=x86_64 
 
-[ Finally back to this. ]
+I am not able to reproduce this build failure with Fedora 24
+and gcc (GCC) 6.1.1 20160621 on a x86 laptop. Maybe adding
+mmzone.h into page_alloc.c will be enough to just take care
+any issues.
 
-Here's updated version.
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
