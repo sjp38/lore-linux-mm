@@ -1,320 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D7936B0038
-	for <linux-mm@kvack.org>; Wed,  7 Sep 2016 20:17:42 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id ag5so67303963pad.2
-        for <linux-mm@kvack.org>; Wed, 07 Sep 2016 17:17:42 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id u129si36568949pfu.78.2016.09.07.09.47.04
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 714E96B0038
+	for <linux-mm@kvack.org>; Wed,  7 Sep 2016 20:34:53 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id r204so19256556wma.0
+        for <linux-mm@kvack.org>; Wed, 07 Sep 2016 17:34:53 -0700 (PDT)
+Received: from mail-wm0-x230.google.com (mail-wm0-x230.google.com. [2a00:1450:400c:c09::230])
+        by mx.google.com with ESMTPS id bk9si12015438wjb.184.2016.09.07.10.23.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Sep 2016 09:47:05 -0700 (PDT)
-From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -v3 04/10] mm, THP, swap: Add swap cluster allocate/free functions
-Date: Wed,  7 Sep 2016 09:46:03 -0700
-Message-Id: <1473266769-2155-5-git-send-email-ying.huang@intel.com>
-In-Reply-To: <1473266769-2155-1-git-send-email-ying.huang@intel.com>
-References: <1473266769-2155-1-git-send-email-ying.huang@intel.com>
+        Wed, 07 Sep 2016 10:23:47 -0700 (PDT)
+Received: by mail-wm0-x230.google.com with SMTP id i204so97771423wma.0
+        for <linux-mm@kvack.org>; Wed, 07 Sep 2016 10:23:47 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <57CF4D3D.50603@iogearbox.net>
+References: <CACT4Y+ZByeFG4bYEPPSKH9ZfGquj560EqxJAo0BfjrqMguFVTw@mail.gmail.com>
+ <CAGXu5jLxayCoaKFp13DbaoXgGAGuC7bYtpB8z0djUbF94i1ddg@mail.gmail.com> <57CF4D3D.50603@iogearbox.net>
+From: Kees Cook <keescook@chromium.org>
+Date: Wed, 7 Sep 2016 10:23:45 -0700
+Message-ID: <CAGXu5jK3Z0dCQ9VFupM-1V925UCecC_MSbG+wgSAAUCTsWv+zw@mail.gmail.com>
+Subject: Re: mm: GPF in __insert_vmap_area
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
+To: Daniel Borkmann <daniel@iogearbox.net>
+Cc: Paul McKenney <paulmck@linux.vnet.ibm.com>, Dmitry Vyukov <dvyukov@google.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, zijun_hu@zoho.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, syzkaller <syzkaller@googlegroups.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>
 
-From: Huang Ying <ying.huang@intel.com>
+On Tue, Sep 6, 2016 at 4:11 PM, Daniel Borkmann <daniel@iogearbox.net> wrote:
+> On 09/06/2016 11:03 PM, Kees Cook wrote:
+>>
+>> On Sat, Sep 3, 2016 at 8:15 AM, Dmitry Vyukov <dvyukov@google.com> wrote:
+>>>
+>>> Hello,
+>>>
+>>> While running syzkaller fuzzer I've got the following GPF:
+>>>
+>>> general protection fault: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN
+>>> Dumping ftrace buffer:
+>>>     (ftrace buffer empty)
+>>> Modules linked in:
+>>> CPU: 2 PID: 4268 Comm: syz-executor Not tainted 4.8.0-rc3-next-20160825+
+>>> #8
+>>> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs
+>>> 01/01/2011
+>>> task: ffff88006a6527c0 task.stack: ffff880052630000
+>>> RIP: 0010:[<ffffffff82e1ccd6>]  [<ffffffff82e1ccd6>]
+>>> __list_add_valid+0x26/0xd0 lib/list_debug.c:23
+>>> RSP: 0018:ffff880052637a18  EFLAGS: 00010202
+>>> RAX: dffffc0000000000 RBX: 0000000000000000 RCX: ffffc90001c87000
+>>> RDX: 0000000000000001 RSI: ffff88001344cdb0 RDI: 0000000000000008
+>>> RBP: ffff880052637a30 R08: 0000000000000001 R09: 0000000000000000
+>>> R10: 0000000000000000 R11: ffffffff8a5deee0 R12: ffff88006cc47230
+>>> R13: ffff88001344cdb0 R14: ffff88006cc47230 R15: 0000000000000000
+>>> FS:  00007fbacc97e700(0000) GS:ffff88006d200000(0000)
+>>> knlGS:0000000000000000
+>>> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+>>> CR2: 0000000020de7000 CR3: 000000003c4d2000 CR4: 00000000000006e0
+>>> DR0: 000000000000001e DR1: 000000000000001e DR2: 0000000000000000
+>>> DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
+>>> Stack:
+>>>   ffff88006cc47200 ffff88001344cd98 ffff88006cc47200 ffff880052637a78
+>>>   ffffffff817bc6d1 ffff88006cc47208 ffffed000d988e41 ffff88006cc47208
+>>>   ffff88006cc3e680 ffffc900035b7000 ffffc900035a7000 ffff88006cc47200
+>>> Call Trace:
+>>>   [<     inline     >] __list_add_rcu include/linux/rculist.h:51
+>>>   [<     inline     >] list_add_rcu include/linux/rculist.h:78
+>>>   [<ffffffff817bc6d1>] __insert_vmap_area+0x1c1/0x3c0 mm/vmalloc.c:340
+>>>   [<ffffffff817bf544>] alloc_vmap_area+0x614/0x890 mm/vmalloc.c:458
+>>>   [<ffffffff817bf8a8>] __get_vm_area_node+0xe8/0x340 mm/vmalloc.c:1377
+>>>   [<ffffffff817c332a>] __vmalloc_node_range+0xaa/0x6d0 mm/vmalloc.c:1687
+>>>   [<     inline     >] __vmalloc_node mm/vmalloc.c:1736
+>>>   [<ffffffff817c39ab>] __vmalloc+0x5b/0x70 mm/vmalloc.c:1742
+>>>   [<ffffffff8166ae9c>] bpf_prog_alloc+0x3c/0x190 kernel/bpf/core.c:82
+>>>   [<ffffffff85c40ba9>] bpf_prog_create_from_user+0xa9/0x2c0
+>>> net/core/filter.c:1132
+>>>   [<     inline     >] seccomp_prepare_filter kernel/seccomp.c:373
+>>>   [<     inline     >] seccomp_prepare_user_filter kernel/seccomp.c:408
+>>>   [<     inline     >] seccomp_set_mode_filter kernel/seccomp.c:737
+>>>   [<ffffffff815d7687>] do_seccomp+0x317/0x1800 kernel/seccomp.c:787
+>>>   [<ffffffff815d8f84>] prctl_set_seccomp+0x34/0x60 kernel/seccomp.c:830
+>>>   [<     inline     >] SYSC_prctl kernel/sys.c:2157
+>>>   [<ffffffff813ccf8f>] SyS_prctl+0x82f/0xc80 kernel/sys.c:2075
+>>>   [<ffffffff86e10700>] entry_SYSCALL_64_fastpath+0x23/0xc1
+>>> Code: 00 00 00 00 00 55 48 b8 00 00 00 00 00 fc ff df 48 89 e5 41 54
+>>> 49 89 fc 48 8d 7a 08 53 48 89 d3 48 89 fa 48 83 ec 08 48 c1 ea 03 <80>
+>>> 3c 02 00 75 7c 48 8b 53 08 48 39 f2 75 37 48 89 f2 48 b8 00
+>>> RIP  [<ffffffff82e1ccd6>] __list_add_valid+0x26/0xd0 lib/list_debug.c:23
+>>>   RSP <ffff880052637a18>
+>>> ---[ end trace 983e625f02f00d9f ]---
+>>> Kernel panic - not syncing: Fatal exception
+>>>
+>>> On commit 0f98f121e1670eaa2a2fbb675e07d6ba7f0e146f of linux-next.
+>>> Unfortunately it is not reproducible.
+>
+>
+> Can you elaborate? You hit this only once and then never again
+> in this or some other, similar call-trace form, right?
 
-The swap cluster allocation/free functions are added based on the
-existing swap cluster management mechanism for SSD.  These functions
-don't work for the rotating hard disks because the existing swap cluster
-management mechanism doesn't work for them.  The hard disks support may
-be added if someone really need it.  But that needn't be included in
-this patchset.
+That's my understanding.
 
-This will be used for the THP (Transparent Huge Page) swap support.
-Where one swap cluster will hold the contents of each THP swapped out.
+>>> The crashing line is:
+>>>          CHECK_DATA_CORRUPTION(next->prev != prev,
+>>>
+>>> It crashed on KASAN check at (%rax, %rdx), this address corresponds to
+>>> next address = 0x8. So next was ~NULL.
+>>
+>>
+>> Paul, the RCU torture tests passed with the CONFIG_DEBUG_LIST changes,
+>> IIRC, yes? I'd love to rule out some kind of race condition between
+>> the removal and add code for the checking.
+>>
+>> Daniel, IIRC there was some talk about RCU and BPF? Am I remembering
+>
+>
+> --verbose, what talk specifically? There were some fixes longer
+> time ago, but related to eBPF, not cBPF, but even there I don't
+> see currently how it could be related to a va->list corruption
+> triggered in __insert_vmap_area().
 
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
----
- mm/swapfile.c | 203 +++++++++++++++++++++++++++++++++++++++++-----------------
- 1 file changed, 146 insertions(+), 57 deletions(-)
+I meant "discussion", but digging around I think I was remembering this:
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 17f25e2..0132e8c 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -326,6 +326,14 @@ static void swap_cluster_schedule_discard(struct swap_info_struct *si,
- 	schedule_work(&si->discard_work);
- }
- 
-+static void __free_cluster(struct swap_info_struct *si, unsigned long idx)
-+{
-+	struct swap_cluster_info *ci = si->cluster_info;
-+
-+	cluster_set_flag(ci + idx, CLUSTER_FLAG_FREE);
-+	cluster_list_add_tail(&si->free_clusters, ci, idx);
-+}
-+
- /*
-  * Doing discard actually. After a cluster discard is finished, the cluster
-  * will be added to free cluster list. caller should hold si->lock.
-@@ -345,8 +353,7 @@ static void swap_do_scheduled_discard(struct swap_info_struct *si)
- 				SWAPFILE_CLUSTER);
- 
- 		spin_lock(&si->lock);
--		cluster_set_flag(&info[idx], CLUSTER_FLAG_FREE);
--		cluster_list_add_tail(&si->free_clusters, info, idx);
-+		__free_cluster(si, idx);
- 		memset(si->swap_map + idx * SWAPFILE_CLUSTER,
- 				0, SWAPFILE_CLUSTER);
- 	}
-@@ -363,6 +370,34 @@ static void swap_discard_work(struct work_struct *work)
- 	spin_unlock(&si->lock);
- }
- 
-+static void alloc_cluster(struct swap_info_struct *si, unsigned long idx)
-+{
-+	struct swap_cluster_info *ci = si->cluster_info;
-+
-+	VM_BUG_ON(cluster_list_first(&si->free_clusters) != idx);
-+	cluster_list_del_first(&si->free_clusters, ci);
-+	cluster_set_count_flag(ci + idx, 0, 0);
-+}
-+
-+static void free_cluster(struct swap_info_struct *si, unsigned long idx)
-+{
-+	struct swap_cluster_info *ci = si->cluster_info + idx;
-+
-+	VM_BUG_ON(cluster_count(ci) != 0);
-+	/*
-+	 * If the swap is discardable, prepare discard the cluster
-+	 * instead of free it immediately. The cluster will be freed
-+	 * after discard.
-+	 */
-+	if ((si->flags & (SWP_WRITEOK | SWP_PAGE_DISCARD)) ==
-+	    (SWP_WRITEOK | SWP_PAGE_DISCARD)) {
-+		swap_cluster_schedule_discard(si, idx);
-+		return;
-+	}
-+
-+	__free_cluster(si, idx);
-+}
-+
- /*
-  * The cluster corresponding to page_nr will be used. The cluster will be
-  * removed from free cluster list and its usage counter will be increased.
-@@ -374,11 +409,8 @@ static void inc_cluster_info_page(struct swap_info_struct *p,
- 
- 	if (!cluster_info)
- 		return;
--	if (cluster_is_free(&cluster_info[idx])) {
--		VM_BUG_ON(cluster_list_first(&p->free_clusters) != idx);
--		cluster_list_del_first(&p->free_clusters, cluster_info);
--		cluster_set_count_flag(&cluster_info[idx], 0, 0);
--	}
-+	if (cluster_is_free(&cluster_info[idx]))
-+		alloc_cluster(p, idx);
- 
- 	VM_BUG_ON(cluster_count(&cluster_info[idx]) >= SWAPFILE_CLUSTER);
- 	cluster_set_count(&cluster_info[idx],
-@@ -402,21 +434,8 @@ static void dec_cluster_info_page(struct swap_info_struct *p,
- 	cluster_set_count(&cluster_info[idx],
- 		cluster_count(&cluster_info[idx]) - 1);
- 
--	if (cluster_count(&cluster_info[idx]) == 0) {
--		/*
--		 * If the swap is discardable, prepare discard the cluster
--		 * instead of free it immediately. The cluster will be freed
--		 * after discard.
--		 */
--		if ((p->flags & (SWP_WRITEOK | SWP_PAGE_DISCARD)) ==
--				 (SWP_WRITEOK | SWP_PAGE_DISCARD)) {
--			swap_cluster_schedule_discard(p, idx);
--			return;
--		}
--
--		cluster_set_flag(&cluster_info[idx], CLUSTER_FLAG_FREE);
--		cluster_list_add_tail(&p->free_clusters, cluster_info, idx);
--	}
-+	if (cluster_count(&cluster_info[idx]) == 0)
-+		free_cluster(p, idx);
- }
- 
- /*
-@@ -497,6 +516,69 @@ new_cluster:
- 	*scan_base = tmp;
- }
- 
-+#ifdef CONFIG_THP_SWAP_CLUSTER
-+static inline unsigned int huge_cluster_nr_entries(bool huge)
-+{
-+	return huge ? SWAPFILE_CLUSTER : 1;
-+}
-+#else
-+#define huge_cluster_nr_entries(huge)	1
-+#endif
-+
-+static void __swap_entry_alloc(struct swap_info_struct *si,
-+			       unsigned long offset, bool huge)
-+{
-+	unsigned int nr_entries = huge_cluster_nr_entries(huge);
-+	unsigned int end = offset + nr_entries - 1;
-+
-+	if (offset == si->lowest_bit)
-+		si->lowest_bit += nr_entries;
-+	if (end == si->highest_bit)
-+		si->highest_bit -= nr_entries;
-+	si->inuse_pages += nr_entries;
-+	if (si->inuse_pages == si->pages) {
-+		si->lowest_bit = si->max;
-+		si->highest_bit = 0;
-+		spin_lock(&swap_avail_lock);
-+		plist_del(&si->avail_list, &swap_avail_head);
-+		spin_unlock(&swap_avail_lock);
-+	}
-+}
-+
-+static void __swap_entry_free(struct swap_info_struct *si, unsigned long offset,
-+			      bool huge)
-+{
-+	unsigned int nr_entries = huge_cluster_nr_entries(huge);
-+	unsigned long end = offset + nr_entries - 1;
-+	void (*swap_slot_free_notify)(struct block_device *, unsigned long);
-+
-+	if (offset < si->lowest_bit)
-+		si->lowest_bit = offset;
-+	if (end > si->highest_bit) {
-+		bool was_full = !si->highest_bit;
-+
-+		si->highest_bit = end;
-+		if (was_full && (si->flags & SWP_WRITEOK)) {
-+			spin_lock(&swap_avail_lock);
-+			WARN_ON(!plist_node_empty(&si->avail_list));
-+			if (plist_node_empty(&si->avail_list))
-+				plist_add(&si->avail_list, &swap_avail_head);
-+			spin_unlock(&swap_avail_lock);
-+		}
-+	}
-+	atomic_long_add(nr_entries, &nr_swap_pages);
-+	si->inuse_pages -= nr_entries;
-+	if (si->flags & SWP_BLKDEV)
-+		swap_slot_free_notify =
-+			si->bdev->bd_disk->fops->swap_slot_free_notify;
-+	while (offset <= end) {
-+		frontswap_invalidate_page(si->type, offset);
-+		if (swap_slot_free_notify)
-+			swap_slot_free_notify(si->bdev, offset);
-+		offset++;
-+	}
-+}
-+
- static unsigned long scan_swap_map(struct swap_info_struct *si,
- 				   unsigned char usage)
- {
-@@ -591,18 +673,7 @@ checks:
- 	if (si->swap_map[offset])
- 		goto scan;
- 
--	if (offset == si->lowest_bit)
--		si->lowest_bit++;
--	if (offset == si->highest_bit)
--		si->highest_bit--;
--	si->inuse_pages++;
--	if (si->inuse_pages == si->pages) {
--		si->lowest_bit = si->max;
--		si->highest_bit = 0;
--		spin_lock(&swap_avail_lock);
--		plist_del(&si->avail_list, &swap_avail_head);
--		spin_unlock(&swap_avail_lock);
--	}
-+	__swap_entry_alloc(si, offset, false);
- 	si->swap_map[offset] = usage;
- 	inc_cluster_info_page(si, si->cluster_info, offset);
- 	si->cluster_next = offset + 1;
-@@ -649,6 +720,46 @@ no_page:
- 	return 0;
- }
- 
-+#ifdef CONFIG_THP_SWAP_CLUSTER
-+static void swap_free_huge_cluster(struct swap_info_struct *si,
-+				   unsigned long idx)
-+{
-+	struct swap_cluster_info *ci = si->cluster_info + idx;
-+	unsigned long offset = idx * SWAPFILE_CLUSTER;
-+
-+	cluster_set_count_flag(ci, 0, 0);
-+	free_cluster(si, idx);
-+	__swap_entry_free(si, offset, true);
-+}
-+
-+static unsigned long swap_alloc_huge_cluster(struct swap_info_struct *si)
-+{
-+	unsigned long idx;
-+	struct swap_cluster_info *ci;
-+	unsigned long offset, i;
-+	unsigned char *map;
-+
-+	if (cluster_list_empty(&si->free_clusters))
-+		return 0;
-+	idx = cluster_list_first(&si->free_clusters);
-+	alloc_cluster(si, idx);
-+	ci = si->cluster_info + idx;
-+	cluster_set_count_flag(ci, SWAPFILE_CLUSTER, 0);
-+
-+	offset = idx * SWAPFILE_CLUSTER;
-+	__swap_entry_alloc(si, offset, true);
-+	map = si->swap_map + offset;
-+	for (i = 0; i < SWAPFILE_CLUSTER; i++)
-+		map[i] = SWAP_HAS_CACHE;
-+	return offset;
-+}
-+#else
-+static inline unsigned long swap_alloc_huge_cluster(struct swap_info_struct *si)
-+{
-+	return 0;
-+}
-+#endif
-+
- swp_entry_t get_swap_page(void)
- {
- 	struct swap_info_struct *si, *next;
-@@ -808,29 +919,7 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
- 	if (!usage) {
- 		mem_cgroup_uncharge_swap(entry, 1);
- 		dec_cluster_info_page(p, p->cluster_info, offset);
--		if (offset < p->lowest_bit)
--			p->lowest_bit = offset;
--		if (offset > p->highest_bit) {
--			bool was_full = !p->highest_bit;
--			p->highest_bit = offset;
--			if (was_full && (p->flags & SWP_WRITEOK)) {
--				spin_lock(&swap_avail_lock);
--				WARN_ON(!plist_node_empty(&p->avail_list));
--				if (plist_node_empty(&p->avail_list))
--					plist_add(&p->avail_list,
--						  &swap_avail_head);
--				spin_unlock(&swap_avail_lock);
--			}
--		}
--		atomic_long_inc(&nr_swap_pages);
--		p->inuse_pages--;
--		frontswap_invalidate_page(p->type, offset);
--		if (p->flags & SWP_BLKDEV) {
--			struct gendisk *disk = p->bdev->bd_disk;
--			if (disk->fops->swap_slot_free_notify)
--				disk->fops->swap_slot_free_notify(p->bdev,
--								  offset);
--		}
-+		__swap_entry_free(p, offset, false);
- 	}
- 
- 	return usage;
+5a5abb1fa3b05dd6aa821525832644c1e7d2905f
+tun, bpf: fix suspicious RCU usage in tun_{attach, detach}_filter
+
+But that doesn't appear to relate at all. Hmm.
+
+>> that correctly? I'm having a hard time imagining how a list add could
+>> fail (maybe a race between two adds)?
+>
+> Or some use after free that would have corrupted that memory? I
+> would think right now that the path via bpf_prog_alloc() could
+> have triggered, but not necessarily caused the issue, hmm.
+
+Yeah, I'm really baffled about this.
+
+-Kees
+
 -- 
-2.8.1
+Kees Cook
+Nexus Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
