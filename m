@@ -1,149 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E2D6B6B0069
-	for <linux-mm@kvack.org>; Wed,  7 Sep 2016 19:51:54 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id g202so74896411pfb.3
-        for <linux-mm@kvack.org>; Wed, 07 Sep 2016 16:51:54 -0700 (PDT)
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A2566B025E
+	for <linux-mm@kvack.org>; Wed,  7 Sep 2016 19:52:47 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id vp2so65740150pab.3
+        for <linux-mm@kvack.org>; Wed, 07 Sep 2016 16:52:47 -0700 (PDT)
 Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id u129si36568949pfu.78.2016.09.07.09.47.05
+        by mx.google.com with ESMTPS id y6si41974292pfy.74.2016.09.07.09.47.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 07 Sep 2016 09:47:09 -0700 (PDT)
 From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -v3 06/10] mm, THP, swap: Support to clear SWAP_HAS_CACHE for huge page
-Date: Wed,  7 Sep 2016 09:46:05 -0700
-Message-Id: <1473266769-2155-7-git-send-email-ying.huang@intel.com>
+Subject: [PATCH -v3 09/10] mm, THP, swap: Support to split THP in swap cache
+Date: Wed,  7 Sep 2016 09:46:08 -0700
+Message-Id: <1473266769-2155-10-git-send-email-ying.huang@intel.com>
 In-Reply-To: <1473266769-2155-1-git-send-email-ying.huang@intel.com>
 References: <1473266769-2155-1-git-send-email-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
+Cc: tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>
 
 From: Huang Ying <ying.huang@intel.com>
 
-__swapcache_free() is added to support to clear the SWAP_HAS_CACHE flag
-for the huge page.  This will free the specified swap cluster now.
-Because now this function will be called only in the error path to free
-the swap cluster just allocated.  So the corresponding swap_map[i] ==
-SWAP_HAS_CACHE, that is, the swap count is 0.  This makes the
-implementation simpler than that of the ordinary swap entry.
+This patch enhanced the split_huge_page_to_list() to work properly for
+the THP (Transparent Huge Page) in the swap cache during swapping out.
 
-This will be used for delaying splitting THP (Transparent Huge Page)
-during swapping out.  Where for one THP to swap out, we will allocate a
-swap cluster, add the THP into the swap cache, then split the THP.  If
-anything fails after allocating the swap cluster and before splitting
-the THP successfully, the swapcache_free_trans_huge() will be used to
-free the swap space allocated.
+This is used for delaying splitting the THP during swapping out.  Where
+for a THP to be swapped out, we will allocate a swap cluster, add the
+THP into the swap cache, then split the THP.  The page lock will be held
+during this process.  So in the code path other than swapping out, if
+the THP need to be split, the PageSwapCache(THP) will be always false.
 
 Cc: Andrea Arcangeli <aarcange@redhat.com>
 Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Shaohua Li <shli@kernel.org>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Rik van Riel <riel@redhat.com>
+Cc: Ebru Akagunduz <ebru.akagunduz@gmail.com>
 Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
 ---
- include/linux/swap.h |  9 +++++++--
- mm/swapfile.c        | 32 ++++++++++++++++++++++++++++++--
- 2 files changed, 37 insertions(+), 4 deletions(-)
+ mm/huge_memory.c | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index bc0a84d..7be7599 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -406,7 +406,7 @@ extern void swap_shmem_alloc(swp_entry_t);
- extern int swap_duplicate(swp_entry_t);
- extern int swapcache_prepare(swp_entry_t);
- extern void swap_free(swp_entry_t);
--extern void swapcache_free(swp_entry_t);
-+extern void __swapcache_free(swp_entry_t, bool);
- extern int free_swap_and_cache(swp_entry_t);
- extern int swap_type_of(dev_t, sector_t, struct block_device **);
- extern unsigned int count_swap_pages(int, int);
-@@ -478,7 +478,7 @@ static inline void swap_free(swp_entry_t swp)
- {
- }
- 
--static inline void swapcache_free(swp_entry_t swp)
-+static inline void __swapcache_free(swp_entry_t swp, bool huge)
- {
- }
- 
-@@ -549,6 +549,11 @@ static inline swp_entry_t get_huge_swap_page(void)
- 
- #endif /* CONFIG_SWAP */
- 
-+static inline void swapcache_free(swp_entry_t entry)
-+{
-+	__swapcache_free(entry, false);
-+}
-+
- #ifdef CONFIG_MEMCG
- static inline int mem_cgroup_swappiness(struct mem_cgroup *memcg)
- {
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 3d2bd1f..26b75fa 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -732,6 +732,26 @@ static void swap_free_huge_cluster(struct swap_info_struct *si,
- 	__swap_entry_free(si, offset, true);
- }
- 
-+/*
-+ * Caller should hold si->lock.
-+ */
-+static void swapcache_free_trans_huge(struct swap_info_struct *si,
-+				      swp_entry_t entry)
-+{
-+	unsigned long offset = swp_offset(entry);
-+	unsigned long idx = offset / SWAPFILE_CLUSTER;
-+	unsigned char *map;
-+	unsigned int i;
-+
-+	map = si->swap_map + offset;
-+	for (i = 0; i < SWAPFILE_CLUSTER; i++) {
-+		VM_BUG_ON(map[i] != SWAP_HAS_CACHE);
-+		map[i] &= ~SWAP_HAS_CACHE;
-+	}
-+	mem_cgroup_uncharge_swap(entry, SWAPFILE_CLUSTER);
-+	swap_free_huge_cluster(si, idx);
-+}
-+
- static unsigned long swap_alloc_huge_cluster(struct swap_info_struct *si)
- {
- 	unsigned long idx;
-@@ -758,6 +778,11 @@ static inline unsigned long swap_alloc_huge_cluster(struct swap_info_struct *si)
- {
- 	return 0;
- }
-+
-+static inline void swapcache_free_trans_huge(struct swap_info_struct *si,
-+					     swp_entry_t entry)
-+{
-+}
- #endif
- 
- swp_entry_t __get_swap_page(bool huge)
-@@ -949,13 +974,16 @@ void swap_free(swp_entry_t entry)
- /*
-  * Called after dropping swapcache to decrease refcnt to swap entries.
-  */
--void swapcache_free(swp_entry_t entry)
-+void __swapcache_free(swp_entry_t entry, bool huge)
- {
- 	struct swap_info_struct *p;
- 
- 	p = swap_info_get(entry);
- 	if (p) {
--		swap_entry_free(p, entry, SWAP_HAS_CACHE);
-+		if (unlikely(huge))
-+			swapcache_free_trans_huge(p, entry);
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 3be5abe..3bb4976 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1834,7 +1834,7 @@ static void __split_huge_page_tail(struct page *head, int tail,
+ 	 * atomic_set() here would be safe on all archs (and not only on x86),
+ 	 * it's safer to use atomic_inc()/atomic_add().
+ 	 */
+-	if (PageAnon(head)) {
++	if (PageAnon(head) && !PageSwapCache(head)) {
+ 		page_ref_inc(page_tail);
+ 	} else {
+ 		/* Additional pin to radix tree */
+@@ -1845,6 +1845,7 @@ static void __split_huge_page_tail(struct page *head, int tail,
+ 	page_tail->flags |= (head->flags &
+ 			((1L << PG_referenced) |
+ 			 (1L << PG_swapbacked) |
++			 (1L << PG_swapcache) |
+ 			 (1L << PG_mlocked) |
+ 			 (1L << PG_uptodate) |
+ 			 (1L << PG_active) |
+@@ -1907,7 +1908,11 @@ static void __split_huge_page(struct page *page, struct list_head *list,
+ 	ClearPageCompound(head);
+ 	/* See comment in __split_huge_page_tail() */
+ 	if (PageAnon(head)) {
+-		page_ref_inc(head);
++		/* Additional pin to radix tree of swap cache */
++		if (PageSwapCache(head))
++			page_ref_add(head, 2);
 +		else
-+			swap_entry_free(p, entry, SWAP_HAS_CACHE);
- 		spin_unlock(&p->lock);
- 	}
++			page_ref_inc(head);
+ 	} else {
+ 		/* Additional pin to radix tree */
+ 		page_ref_add(head, 2);
+@@ -2019,10 +2024,12 @@ int page_trans_huge_mapcount(struct page *page, int *total_mapcount)
+ /* Racy check whether the huge page can be split */
+ bool can_split_huge_page(struct page *page)
+ {
+-	int extra_pins = 0;
++	int extra_pins;
+ 
+ 	/* Additional pins from radix tree */
+-	if (!PageAnon(page))
++	if (PageAnon(page))
++		extra_pins = PageSwapCache(page) ? HPAGE_PMD_NR : 0;
++	else
+ 		extra_pins = HPAGE_PMD_NR;
+ 	return total_mapcount(page) == page_count(page) - extra_pins - 1;
  }
+@@ -2075,7 +2082,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ 			ret = -EBUSY;
+ 			goto out;
+ 		}
+-		extra_pins = 0;
++		extra_pins = PageSwapCache(head) ? HPAGE_PMD_NR : 0;
+ 		mapping = NULL;
+ 		anon_vma_lock_write(anon_vma);
+ 	} else {
 -- 
 2.8.1
 
