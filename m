@@ -1,69 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B14576B026A
-	for <linux-mm@kvack.org>; Wed,  7 Sep 2016 08:32:21 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id 29so11571473lfv.2
-        for <linux-mm@kvack.org>; Wed, 07 Sep 2016 05:32:21 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id g16si24973853wjs.145.2016.09.07.05.32.20
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B0F46B026C
+	for <linux-mm@kvack.org>; Wed,  7 Sep 2016 08:40:51 -0400 (EDT)
+Received: by mail-ua0-f199.google.com with SMTP id 10so25720513ual.2
+        for <linux-mm@kvack.org>; Wed, 07 Sep 2016 05:40:51 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i186si13249759ywf.293.2016.09.07.05.40.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Sep 2016 05:32:20 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u87CSU2H072648
-	for <linux-mm@kvack.org>; Wed, 7 Sep 2016 08:32:19 -0400
-Received: from e28smtp09.in.ibm.com (e28smtp09.in.ibm.com [125.16.236.9])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 25a2cvdyh3-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 07 Sep 2016 08:32:17 -0400
-Received: from localhost
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Wed, 7 Sep 2016 18:02:14 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 2AB55125805B
-	for <linux-mm@kvack.org>; Wed,  7 Sep 2016 18:02:20 +0530 (IST)
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u87CWCTf24772858
-	for <linux-mm@kvack.org>; Wed, 7 Sep 2016 18:02:12 +0530
-Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u87CW97p011986
-	for <linux-mm@kvack.org>; Wed, 7 Sep 2016 18:02:11 +0530
-Date: Wed, 07 Sep 2016 18:02:08 +0530
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+        Wed, 07 Sep 2016 05:40:50 -0700 (PDT)
+Date: Wed, 7 Sep 2016 14:40:46 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: mm: use-after-free in collapse_huge_page
+Message-ID: <20160907124046.o2tmoedx4j3jyux5@redhat.com>
+References: <CACT4Y+Z3gigBvhca9kRJFcjX0G70V_nRhbwKBU+yGoESBDKi9Q@mail.gmail.com>
+ <20160829124233.GA40092@black.fi.intel.com>
+ <20160829153548.pmwcup4q74hafwmu@redhat.com>
+ <20160907122559.GA6542@black.fi.intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH V3] mm: Add sysfs interface to dump each node's zonelist
- information
-References: <201609061710.F0GoBXOd%fengguang.wu@intel.com>
-In-Reply-To: <201609061710.F0GoBXOd%fengguang.wu@intel.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <57D008C8.1040107@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160907122559.GA6542@black.fi.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <lkp@intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: kbuild-all@01.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Vegard Nossum <vegard.nossum@oracle.com>, Sasha Levin <levinsasha928@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Greg Thelen <gthelen@google.com>, Suleiman Souhlal <suleiman@google.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, syzkaller <syzkaller@googlegroups.com>, Kostya Serebryany <kcc@google.com>, Alexander Potapenko <glider@google.com>
 
-On 09/06/2016 02:35 PM, kbuild test robot wrote:
-> Hi Anshuman,
+On Wed, Sep 07, 2016 at 03:25:59PM +0300, Kirill A. Shutemov wrote:
+> Here's updated version.
 > 
-> [auto build test ERROR on driver-core/driver-core-testing]
-> [also build test ERROR on v4.8-rc5 next-20160906]
-> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
-> [Suggest to use git(>=2.9.0) format-patch --base=<commit> (or --base=auto for convenience) to record what (public, well-known) commit your patch series was built on]
-> [Check https://git-scm.com/docs/git-format-patch for more information]
+> From 14d748bd8a7eb003efc10b1e5d5b8a644e7181b1 Mon Sep 17 00:00:00 2001
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Date: Mon, 29 Aug 2016 15:32:50 +0300
+> Subject: [PATCH] khugepaged: fix use-after-free in collapse_huge_page()
 > 
-> url:    https://github.com/0day-ci/linux/commits/Anshuman-Khandual/mm-Add-sysfs-interface-to-dump-each-node-s-zonelist-information/20160906-163752
-> config: x86_64-randconfig-x019-201636 (attached as .config)
-> compiler: gcc-6 (Debian 6.1.1-9) 6.1.1 20160705
-> reproduce:
->         # save the attached .config to linux build tree
->         make ARCH=x86_64 
+> hugepage_vma_revalidate() tries to re-check if we still should try to
+> collapse small pages into huge one after the re-acquiring mmap_sem.
+> 
+> The problem Dmitry Vyukov reported[1] is that the vma found by
+> hugepage_vma_revalidate() can be suitable for huge pages, but not the
+> same vma we had before dropping mmap_sem. And dereferencing original vma
+> can lead to fun results..
+> 
+> Let's use vma hugepage_vma_revalidate() found instead of assuming it's
+> the same as what we had before the lock was dropped.
+> 
+> [1] http://lkml.kernel.org/r/CACT4Y+Z3gigBvhca9kRJFcjX0G70V_nRhbwKBU+yGoESBDKi9Q@mail.gmail.com
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Reported-by: Dmitry Vyukov <dvyukov@google.com>
+> ---
+>  mm/khugepaged.c | 15 ++++++++-------
+>  1 file changed, 8 insertions(+), 7 deletions(-)
 
-I am not able to reproduce this build failure with Fedora 24
-and gcc (GCC) 6.1.1 20160621 on a x86 laptop. Maybe adding
-mmzone.h into page_alloc.c will be enough to just take care
-any issues.
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
