@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D3FF96B0038
-	for <linux-mm@kvack.org>; Wed,  7 Sep 2016 10:11:43 -0400 (EDT)
-Received: by mail-yb0-f198.google.com with SMTP id u125so31537995ybg.1
-        for <linux-mm@kvack.org>; Wed, 07 Sep 2016 07:11:43 -0700 (PDT)
-Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0044.outbound.protection.outlook.com. [104.47.38.44])
-        by mx.google.com with ESMTPS id z10si15236652qtb.68.2016.09.07.07.11.43
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EA2146B0038
+	for <linux-mm@kvack.org>; Wed,  7 Sep 2016 10:16:34 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id x24so41543306pfa.0
+        for <linux-mm@kvack.org>; Wed, 07 Sep 2016 07:16:34 -0700 (PDT)
+Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0048.outbound.protection.outlook.com. [104.47.40.48])
+        by mx.google.com with ESMTPS id ct9si41407270pad.134.2016.09.07.07.16.33
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 07 Sep 2016 07:11:43 -0700 (PDT)
+        Wed, 07 Sep 2016 07:16:34 -0700 (PDT)
 Subject: Re: [RFC PATCH v2 07/20] x86: Provide general kernel support for
  memory encryption
 References: <20160822223529.29880.50884.stgit@tlendack-t1.amdoffice.net>
  <20160822223646.29880.28794.stgit@tlendack-t1.amdoffice.net>
- <20160902181447.GA25328@nazgul.tnic>
+ <20160905084817.GB18856@pd.tnic>
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <616644bb-6a38-e480-3375-bd39a8487b7d@amd.com>
-Date: Wed, 7 Sep 2016 09:11:35 -0500
+Message-ID: <22bcc398-8c6f-80e0-99db-8066508bb089@amd.com>
+Date: Wed, 7 Sep 2016 09:16:21 -0500
 MIME-Version: 1.0
-In-Reply-To: <20160902181447.GA25328@nazgul.tnic>
+In-Reply-To: <20160905084817.GB18856@pd.tnic>
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -27,7 +27,7 @@ To: Borislav Petkov <bp@alien8.de>
 Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
  Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On 09/02/2016 01:14 PM, Borislav Petkov wrote:
+On 09/05/2016 03:48 AM, Borislav Petkov wrote:
 > On Mon, Aug 22, 2016 at 05:36:46PM -0500, Tom Lendacky wrote:
 >> Adding general kernel support for memory encryption includes:
 >> - Modify and create some page table macros to include the Secure Memory
@@ -46,53 +46,52 @@ On 09/02/2016 01:14 PM, Borislav Petkov wrote:
 > 
 > ...
 > 
->> diff --git a/arch/x86/include/asm/mem_encrypt.h b/arch/x86/include/asm/mem_encrypt.h
->> index 747fc52..9f3e762 100644
->> --- a/arch/x86/include/asm/mem_encrypt.h
->> +++ b/arch/x86/include/asm/mem_encrypt.h
->> @@ -15,12 +15,21 @@
+>> diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
+>> index f1218f5..a01f0e1 100644
+>> --- a/arch/x86/include/asm/pgtable_types.h
+>> +++ b/arch/x86/include/asm/pgtable_types.h
+>> @@ -3,6 +3,7 @@
 >>  
->>  #ifndef __ASSEMBLY__
+>>  #include <linux/const.h>
+>>  #include <asm/page_types.h>
+>> +#include <asm/mem_encrypt.h>
 >>  
->> +#include <linux/init.h>
->> +
->>  #ifdef CONFIG_AMD_MEM_ENCRYPT
+>>  #define FIRST_USER_ADDRESS	0UL
 >>  
->>  extern unsigned long sme_me_mask;
+>> @@ -121,9 +122,9 @@
 >>  
->>  u8 sme_get_me_loss(void);
+>>  #define _PAGE_PROTNONE	(_AT(pteval_t, 1) << _PAGE_BIT_PROTNONE)
 >>  
->> +void __init sme_early_init(void);
->> +
->> +#define __sme_pa(x)		(__pa((x)) | sme_me_mask)
->> +#define __sme_pa_nodebug(x)	(__pa_nodebug((x)) | sme_me_mask)
->> +
->> +#define __sme_va(x)		(__va((x) & ~sme_me_mask))
+>> -#define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER |	\
+>> +#define __PAGE_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER |	\
+>>  			 _PAGE_ACCESSED | _PAGE_DIRTY)
 > 
-> So I'm wondering: why not push the masking off of the SME mask into the
-> __va() macro instead of defining a specific __sme_va() one?
+> Hmm, so this naming looks confusing and error-prone: the only difference
+> is a single "_".
 > 
-> I mean, do you even see cases where __va() would need to have to
-> sme_mask left in the virtual address?
+> How about this instead:
 > 
-> Because if not, you could mask it out in __va() so that all __va() users
-> get the "clean" va, without the enc bits.
+> #define _PAGE_TABLE_NO_ENC	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER |	\
+> 	  			 _PAGE_ACCESSED | _PAGE_DIRTY)
+> 
+> #define _PAGE_TABLE (_PAGE_TABLE_NO_ENC | _PAGE_ENC)
+> 
+> Or call it _PAGE_TABLE_BASE or whatever.
+> 
+> Ditto for __KERNPG_TABLE.
+> 
+> This way you can differentiate between the two and use the _NO_ENC one
+> to define _PAGE_TABLE. And it will be absolutely clear when you use the
+> _NO_ENC one, what you mean and that you don't want to have the enc mask
+> in the PTE.
+> 
+> Should be less confusing IMO too.
 
-That's a good point, yes, it could go in __va().  I'll make that change.
-
-> 
-> Hmmm.
-> 
-> Btw, this patch is huuuge. It would be nice if you could split it, if
-> possible...
-
-Ok, I'll look at how to make this a bit more manageable.
+Yup, makes sense.  I'll rework/rename.
 
 Thanks,
 Tom
 
-> 
-> Thanks.
 > 
 
 --
