@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C31956B0038
-	for <linux-mm@kvack.org>; Wed,  7 Sep 2016 10:02:59 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id i184so34802671itf.1
-        for <linux-mm@kvack.org>; Wed, 07 Sep 2016 07:02:59 -0700 (PDT)
-Received: from NAM02-SN1-obe.outbound.protection.outlook.com (mail-sn1nam02on0073.outbound.protection.outlook.com. [104.47.36.73])
-        by mx.google.com with ESMTPS id r11si32570543oih.192.2016.09.07.07.02.58
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 57F076B0260
+	for <linux-mm@kvack.org>; Wed,  7 Sep 2016 10:03:58 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id k83so40138726pfa.2
+        for <linux-mm@kvack.org>; Wed, 07 Sep 2016 07:03:58 -0700 (PDT)
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0082.outbound.protection.outlook.com. [104.47.34.82])
+        by mx.google.com with ESMTPS id i23si20683319pfj.25.2016.09.07.07.03.57
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 07 Sep 2016 07:02:58 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 01/20] x86: Documentation for AMD Secure Memory
- Encryption (SME)
+        Wed, 07 Sep 2016 07:03:57 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 03/20] x86: Secure Memory Encryption (SME) build
+ enablement
 References: <20160822223529.29880.50884.stgit@tlendack-t1.amdoffice.net>
- <20160822223539.29880.96739.stgit@tlendack-t1.amdoffice.net>
- <20160902085045.GG17338@nazgul.tnic>
+ <20160822223559.29880.1502.stgit@tlendack-t1.amdoffice.net>
+ <20160902110351.GA22559@nazgul.tnic>
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <3fbb0763-5f9f-6ff7-2266-7478fb12642e@amd.com>
-Date: Wed, 7 Sep 2016 09:02:38 -0500
+Message-ID: <5a8e2455-ef08-9e3f-2847-082fd3e01e67@amd.com>
+Date: Wed, 7 Sep 2016 09:03:46 -0500
 MIME-Version: 1.0
-In-Reply-To: <20160902085045.GG17338@nazgul.tnic>
+In-Reply-To: <20160902110351.GA22559@nazgul.tnic>
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -27,81 +27,44 @@ To: Borislav Petkov <bp@alien8.de>
 Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
  Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On 09/02/2016 03:50 AM, Borislav Petkov wrote:
-> On Mon, Aug 22, 2016 at 05:35:39PM -0500, Tom Lendacky wrote:
->> This patch adds a Documenation entry to decribe the AMD Secure Memory
->> Encryption (SME) feature.
+On 09/02/2016 06:03 AM, Borislav Petkov wrote:
+> On Mon, Aug 22, 2016 at 05:35:59PM -0500, Tom Lendacky wrote:
+>> Provide the Kconfig support to build the SME support in the kernel.
 >>
 >> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 >> ---
->>  Documentation/x86/amd-memory-encryption.txt |   35 +++++++++++++++++++++++++++
->>  1 file changed, 35 insertions(+)
->>  create mode 100644 Documentation/x86/amd-memory-encryption.txt
+>>  arch/x86/Kconfig |    9 +++++++++
+>>  1 file changed, 9 insertions(+)
 >>
->> diff --git a/Documentation/x86/amd-memory-encryption.txt b/Documentation/x86/amd-memory-encryption.txt
->> new file mode 100644
->> index 0000000..f19c555
->> --- /dev/null
->> +++ b/Documentation/x86/amd-memory-encryption.txt
->> @@ -0,0 +1,35 @@
->> +Secure Memory Encryption (SME) is a feature found on AMD processors.
->> +
->> +SME provides the ability to mark individual pages of memory as encrypted using
->> +the standard x86 page tables.  A page that is marked encrpyted will be
+>> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+>> index c580d8c..131f329 100644
+>> --- a/arch/x86/Kconfig
+>> +++ b/arch/x86/Kconfig
+>> @@ -1357,6 +1357,15 @@ config X86_DIRECT_GBPAGES
+>>  	  supports them), so don't confuse the user by printing
+>>  	  that we have them enabled.
+>>  
+>> +config AMD_MEM_ENCRYPT
+>> +	bool "Secure Memory Encryption support for AMD"
 > 
-> s/encrpyted/encrypted/
-
-Ugh..  I thought I caught all of these.  Obviously not.  I'll go through
-all the patches on this.
-
-> 
->> +automatically decrypted when read from DRAM and encrypted when written to
->> +DRAM.  SME can therefore be used to protect the contents of DRAM from physical
->> +attacks on the system.
->> +
->> +Support for SME can be determined through the CPUID instruction. The CPUID
->> +function 0x8000001f reports information related to SME:
->> +
->> +	0x8000001f[eax]:
->> +		Bit[0] indicates support for SME
->> +	0x8000001f[ebx]:
->> +		Bit[5:0]  pagetable bit number used to enable memory encryption
->> +		Bit[11:6] reduction in physical address space, in bits, when
->> +			  memory encryption is enabled (this only affects system
->> +			  physical addresses, not guest physical addresses)
->> +
->> +If support for SME is present, MSR 0xc00100010 (SYS_CFG) can be used to
->> +determine if SME is enabled and/or to enable memory encryption:
->> +
->> +	0xc0010010:
->> +		Bit[23]   0 = memory encryption features are disabled
->> +			  1 = memory encryption features are enabled
->> +
->> +Linux relies on BIOS to set this bit if BIOS has determined that the reduction
->> +in the physical address space as a result of enabling memory encryption (see
->> +CPUID information above) will not conflict with the address space resource
->> +requirements for the system.  If this bit is not set upon Linux startup then
->> +Linux itself will not set it and memory encryption will not be possible.
->> +
->> +SME support is configurable in the kernel through the AMD_MEM_ENCRYPT config
->> +option.
-> 
-> " ... is configurable through CONFIG_AMD_MEM_ENCRYPT."
+> 	     "AMD Secure Memory Encryption support"
 
 Ok.
 
-> 
->> Additionally, the mem_encrypt=on command line parameter is required
->> +to activate memory encryption.
-> 
-> I think you want to rewrite the logic here to say that people should use
-> the BIOS option and if none is present for whatever reason, resort to
-> the alternative "mem_encrypt=on" kernel command line option, no?
-
-Yes, I'll work on rewording this section.
-
 Thanks,
 Tom
+
+> 
+>> +	depends on X86_64 && CPU_SUP_AMD
+>> +	---help---
+>> +	  Say yes to enable the encryption of system memory. This requires
+>> +	  an AMD processor that supports Secure Memory Encryption (SME).
+>> +	  The encryption of system memory is disabled by default but can be
+>> +	  enabled with the mem_encrypt=on command line option.
+>> +
+>>  # Common NUMA Features
+>>  config NUMA
+>>  	bool "Numa Memory Allocation and Scheduler Support"
 > 
 
 --
