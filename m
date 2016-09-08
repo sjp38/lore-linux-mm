@@ -1,61 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D043183090
-	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 09:26:41 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id ez1so101792956pab.1
-        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 06:26:41 -0700 (PDT)
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0077.outbound.protection.outlook.com. [104.47.41.77])
-        by mx.google.com with ESMTPS id h80si29150521pfk.107.2016.09.08.06.26.39
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1829F83090
+	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 09:41:16 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id g202so115426262pfb.3
+        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 06:41:16 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTPS id hl7si4261292pad.42.2016.09.08.06.41.14
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 08 Sep 2016 06:26:40 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 07/20] x86: Provide general kernel support for
- memory encryption
-References: <20160822223529.29880.50884.stgit@tlendack-t1.amdoffice.net>
- <20160822223646.29880.28794.stgit@tlendack-t1.amdoffice.net>
- <20160906093113.GA18319@pd.tnic>
- <f4125cae-63af-f8c7-086f-e297ce480a07@amd.com>
- <20160907155535.i7wh46uxxa2bj3ik@pd.tnic>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <bc8f22db-b6f9-951f-145c-fed919098cbe@amd.com>
-Date: Thu, 8 Sep 2016 08:26:27 -0500
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Sep 2016 06:41:15 -0700 (PDT)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id D763520374
+	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 13:41:13 +0000 (UTC)
+Received: from mail-yb0-f177.google.com (mail-yb0-f177.google.com [209.85.213.177])
+	(using TLSv1.2 with cipher AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 8F2542034C
+	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 13:41:12 +0000 (UTC)
+Received: by mail-yb0-f177.google.com with SMTP id x93so16896985ybh.1
+        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 06:41:12 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20160907155535.i7wh46uxxa2bj3ik@pd.tnic>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1472712907-12700-4-git-send-email-thunder.leizhen@huawei.com>
+References: <1472712907-12700-1-git-send-email-thunder.leizhen@huawei.com> <1472712907-12700-4-git-send-email-thunder.leizhen@huawei.com>
+From: Rob Herring <robh+dt@kernel.org>
+Date: Thu, 8 Sep 2016 08:40:51 -0500
+Message-ID: <CAL_JsqK6P86F=AJjC2J6W4NOFXavb4e-OR_dmc4iofUNCJGrJA@mail.gmail.com>
+Subject: Re: [PATCH v8 03/16] of/numa: add nid check for memory block
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
- Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Zhen Lei <thunder.leizhen@huawei.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, linux-kernel <linux-kernel@vger.kernel.org>, Frank Rowand <frowand.list@gmail.com>, devicetree <devicetree@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Zefan Li <lizefan@huawei.com>, Xinwei Hu <huxinwei@huawei.com>, Tianhong Ding <dingtianhong@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
 
-On 09/07/2016 10:55 AM, Borislav Petkov wrote:
-> On Wed, Sep 07, 2016 at 09:30:54AM -0500, Tom Lendacky wrote:
->> _PAGE_ENC is #defined as sme_me_mask and sme_me_mask has already been
->> set (or not set) at this point - so it will be the mask if SME is
->> active or 0 if SME is not active.
-> 
-> Yeah, I remember :-)
-> 
->> sme_early_init() is merely propagating the mask to other structures.
->> Since early_pmd_flags is mainly used in this file (one line in
->> head_64.S is the other place) I felt it best to modify it here. But it
->> can always be moved if you feel that is best.
-> 
-> Hmm, so would it work then if you stick it in early_pmd_flags'
-> definition like you do with the other masks? I.e.,
-> 
-> pmdval_t early_pmd_flags = __PAGE_KERNEL_LARGE | _PAGE_ENC & ~(_PAGE_GLOBAL | _PAGE_NX);
+On Thu, Sep 1, 2016 at 1:54 AM, Zhen Lei <thunder.leizhen@huawei.com> wrote:
+> If the numa-id which was configured in memory@ devicetree node is greater
+> than MAX_NUMNODES, we should report a warning. We have done this for cpus
+> and distance-map dt nodes, this patch help them to be consistent.
+>
+> Signed-off-by: Zhen Lei <thunder.leizhen@huawei.com>
+> ---
+>  drivers/of/of_numa.c | 5 +++++
+>  1 file changed, 5 insertions(+)
+>
+> diff --git a/drivers/of/of_numa.c b/drivers/of/of_numa.c
+> index 7b3fbdc..c1bd62c 100644
+> --- a/drivers/of/of_numa.c
+> +++ b/drivers/of/of_numa.c
+> @@ -75,6 +75,11 @@ static int __init of_numa_parse_memory_nodes(void)
+>                          */
+>                         continue;
+>
+> +               if (nid >= MAX_NUMNODES) {
+> +                       pr_warn("NUMA: Node id %u exceeds maximum value\n", nid);
 
-When does this value get initialized?  Since _PAGE_ENC is #defined to
-sme_me_mask, which is not set until the boot process begins, I'm afraid
-we'd end up using the initial value of sme_me_mask, which is zero.  Do
-I have that right?
+Really using pr_fmt should come first so you're not changing this
+line. But not worth respinning for that:
 
-Thanks,
-Tom
+Acked-by: Rob Herring <robh@kernel.org>
 
-> 
+Rob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
