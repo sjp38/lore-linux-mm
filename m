@@ -1,51 +1,216 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 74CF26B0038
-	for <linux-mm@kvack.org>; Wed,  7 Sep 2016 20:45:40 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id 74so78319226oie.3
-        for <linux-mm@kvack.org>; Wed, 07 Sep 2016 17:45:40 -0700 (PDT)
-Received: from mail-oi0-x230.google.com (mail-oi0-x230.google.com. [2607:f8b0:4003:c06::230])
-        by mx.google.com with ESMTPS id e89si15898971ote.206.2016.09.07.08.47.13
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D94446B0038
+	for <linux-mm@kvack.org>; Wed,  7 Sep 2016 22:47:09 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id k12so8033858lfb.2
+        for <linux-mm@kvack.org>; Wed, 07 Sep 2016 19:47:09 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id p71si6599405wmf.51.2016.09.07.19.47.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Sep 2016 08:47:13 -0700 (PDT)
-Received: by mail-oi0-x230.google.com with SMTP id w78so31517653oie.3
-        for <linux-mm@kvack.org>; Wed, 07 Sep 2016 08:47:13 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <57CFA1A1.7060704@linux.vnet.ibm.com>
-References: <147318056046.30325.5100892122988191500.stgit@dwillia2-desk3.amr.corp.intel.com>
- <147318058712.30325.12749411762275637099.stgit@dwillia2-desk3.amr.corp.intel.com>
- <57CFA1A1.7060704@linux.vnet.ibm.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 7 Sep 2016 08:47:13 -0700
-Message-ID: <CAPcyv4hvv4nhE-9aO1p2+MsCDBAx-8kqwSUQ7FA15LZJAHz=8Q@mail.gmail.com>
-Subject: Re: [PATCH 5/5] mm: cleanup pfn_t usage in track_pfn_insert()
-Content-Type: text/plain; charset=UTF-8
+        Wed, 07 Sep 2016 19:47:08 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u882hIjA063380
+	for <linux-mm@kvack.org>; Wed, 7 Sep 2016 22:47:06 -0400
+Received: from e28smtp02.in.ibm.com (e28smtp02.in.ibm.com [125.16.236.2])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 25ataxj7r5-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 07 Sep 2016 22:47:06 -0400
+Received: from localhost
+	by e28smtp02.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 8 Sep 2016 08:17:02 +0530
+Received: from d28relay09.in.ibm.com (d28relay09.in.ibm.com [9.184.220.160])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 2854D394004E
+	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 08:16:59 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay09.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u882kxf027263228
+	for <linux-mm@kvack.org>; Thu, 8 Sep 2016 08:16:59 +0530
+Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u882kwnB031804
+	for <linux-mm@kvack.org>; Thu, 8 Sep 2016 08:16:58 +0530
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Subject: [PATCH V4] mm: Add sysfs interface to dump each node's zonelist information
+Date: Thu,  8 Sep 2016 08:16:58 +0530
+In-Reply-To: <1473150666-3875-1-git-send-email-khandual@linux.vnet.ibm.com>
+References: <1473150666-3875-1-git-send-email-khandual@linux.vnet.ibm.com>
+Message-Id: <1473302818-23974-1-git-send-email-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org
 
-On Tue, Sep 6, 2016 at 10:12 PM, Anshuman Khandual
-<khandual@linux.vnet.ibm.com> wrote:
-> On 09/06/2016 10:19 PM, Dan Williams wrote:
->> Now that track_pfn_insert() is no longer used in the DAX path, it no
->> longer needs to comprehend pfn_t values.
->>
->> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
->> ---
->>  arch/x86/mm/pat.c             |    4 ++--
->>  include/asm-generic/pgtable.h |    4 ++--
->>  mm/memory.c                   |    2 +-
->>  3 files changed, 5 insertions(+), 5 deletions(-)
->
-> A small nit. Should not the arch/x86/mm/pat.c changes be separated out
-> into a different patch ? Kind of faced little bit problem separating out
-> generic core mm changes to that of arch specific mm changes when going
-> through the commits in retrospect.
+Each individual node in the system has a ZONELIST_FALLBACK zonelist
+and a ZONELIST_NOFALLBACK zonelist. These zonelists decide fallback
+order of zones during memory allocations. Sometimes it helps to dump
+these zonelists to see the priority order of various zones in them.
 
-I'm going to drop this change.  Leaving it as is does no harm, and
-users of pfn_t are likely to grow over time.
+Particularly platforms which support memory hotplug into previously
+non existing zones (at boot), this interface helps in visualizing
+which all zonelists of the system at what priority level, the new
+hot added memory ends up in. POWER is such a platform where all the
+memory detected during boot time remains with ZONE_DMA for good but
+then hot plug process can actually get new memory into ZONE_MOVABLE.
+So having a way to get the snapshot of the zonelists on the system
+after memory or node hot[un]plug is desirable. This change adds one
+new sysfs interface (/sys/devices/system/memory/system_zone_details)
+which will fetch and dump this information.
+
+Example zonelist information from a KVM guest.
+
+[NODE (0)]
+        ZONELIST_FALLBACK
+                (0) (node 0) (DMA     0xc0000000ffff6300)
+                (1) (node 1) (DMA     0xc0000001ffff6300)
+                (2) (node 2) (DMA     0xc0000002ffff6300)
+                (3) (node 3) (DMA     0xc0000003ffdba300)
+        ZONELIST_NOFALLBACK
+                (0) (node 0) (DMA     0xc0000000ffff6300)
+[NODE (1)]
+        ZONELIST_FALLBACK
+                (0) (node 1) (DMA     0xc0000001ffff6300)
+                (1) (node 2) (DMA     0xc0000002ffff6300)
+                (2) (node 3) (DMA     0xc0000003ffdba300)
+                (3) (node 0) (DMA     0xc0000000ffff6300)
+        ZONELIST_NOFALLBACK
+                (0) (node 1) (DMA     0xc0000001ffff6300)
+[NODE (2)]
+        ZONELIST_FALLBACK
+                (0) (node 2) (DMA     0xc0000002ffff6300)
+                (1) (node 3) (DMA     0xc0000003ffdba300)
+                (2) (node 0) (DMA     0xc0000000ffff6300)
+                (3) (node 1) (DMA     0xc0000001ffff6300)
+        ZONELIST_NOFALLBACK
+                (0) (node 2) (DMA     0xc0000002ffff6300)
+[NODE (3)]
+        ZONELIST_FALLBACK
+                (0) (node 3) (DMA     0xc0000003ffdba300)
+                (1) (node 0) (DMA     0xc0000000ffff6300)
+                (2) (node 1) (DMA     0xc0000001ffff6300)
+                (3) (node 2) (DMA     0xc0000002ffff6300)
+        ZONELIST_NOFALLBACK
+                (0) (node 3) (DMA     0xc0000003ffdba300)
+
+Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+---
+Changes in V4:
+- Explicitly included mmzone.h header inside page_alloc.c
+- Changed the kernel address printing from %lx to %pK
+
+Changes in V3:
+- Moved all these new sysfs code inside CONFIG_NUMA
+
+Changes in V2:
+- Added more details into the commit message
+- Added sysfs interface file details into the commit message
+- Added ../ABI/testing/sysfs-system-zone-details file
+
+ .../ABI/testing/sysfs-system-zone-details          |  9 ++++
+ drivers/base/memory.c                              | 52 ++++++++++++++++++++++
+ mm/page_alloc.c                                    |  1 +
+ 3 files changed, 62 insertions(+)
+ create mode 100644 Documentation/ABI/testing/sysfs-system-zone-details
+
+diff --git a/Documentation/ABI/testing/sysfs-system-zone-details b/Documentation/ABI/testing/sysfs-system-zone-details
+new file mode 100644
+index 0000000..9c13b2e
+--- /dev/null
++++ b/Documentation/ABI/testing/sysfs-system-zone-details
+@@ -0,0 +1,9 @@
++What:		/sys/devices/system/memory/system_zone_details
++Date:		Sep 2016
++KernelVersion:	4.8
++Contact:	khandual@linux.vnet.ibm.com
++Description:
++		This read only file dumps the zonelist and it's constituent
++		zones information for both ZONELIST_FALLBACK and ZONELIST_
++		NOFALLBACK zonelists for each online node of the system at
++		any given point of time.
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index dc75de9..c7ab991 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -442,7 +442,56 @@ print_block_size(struct device *dev, struct device_attribute *attr,
+ 	return sprintf(buf, "%lx\n", get_memory_block_size());
+ }
+ 
++#ifdef CONFIG_NUMA
++static ssize_t dump_zonelist(char *buf, struct zonelist *zonelist)
++{
++	unsigned int i;
++	ssize_t count = 0;
++
++	for (i = 0; zonelist->_zonerefs[i].zone; i++) {
++		count += sprintf(buf + count,
++			"\t\t(%d) (node %d) (%-7s 0x%pK)\n", i,
++			zonelist->_zonerefs[i].zone->zone_pgdat->node_id,
++			zone_names[zonelist->_zonerefs[i].zone_idx],
++			(void *) zonelist->_zonerefs[i].zone);
++	}
++	return count;
++}
++
++static ssize_t dump_zonelists(char *buf)
++{
++	struct zonelist *zonelist;
++	unsigned int node;
++	ssize_t count = 0;
++
++	for_each_online_node(node) {
++		zonelist = &(NODE_DATA(node)->
++				node_zonelists[ZONELIST_FALLBACK]);
++		count += sprintf(buf + count, "[NODE (%d)]\n", node);
++		count += sprintf(buf + count, "\tZONELIST_FALLBACK\n");
++		count += dump_zonelist(buf + count, zonelist);
++
++		zonelist = &(NODE_DATA(node)->
++				node_zonelists[ZONELIST_NOFALLBACK]);
++		count += sprintf(buf + count, "\tZONELIST_NOFALLBACK\n");
++		count += dump_zonelist(buf + count, zonelist);
++	}
++	return count;
++}
++
++static ssize_t
++print_system_zone_details(struct device *dev, struct device_attribute *attr,
++		 char *buf)
++{
++	return dump_zonelists(buf);
++}
++#endif
++
++
+ static DEVICE_ATTR(block_size_bytes, 0444, print_block_size, NULL);
++#ifdef CONFIG_NUMA
++static DEVICE_ATTR(system_zone_details, 0444, print_system_zone_details, NULL);
++#endif
+ 
+ /*
+  * Memory auto online policy.
+@@ -783,6 +832,9 @@ static struct attribute *memory_root_attrs[] = {
+ #endif
+ 
+ 	&dev_attr_block_size_bytes.attr,
++#ifdef CONFIG_NUMA
++	&dev_attr_system_zone_details.attr,
++#endif
+ 	&dev_attr_auto_online_blocks.attr,
+ 	NULL
+ };
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index a2214c6..d3da022 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -64,6 +64,7 @@
+ #include <linux/page_owner.h>
+ #include <linux/kthread.h>
+ #include <linux/memcontrol.h>
++#include <linux/mmzone.h>
+ 
+ #include <asm/sections.h>
+ #include <asm/tlbflush.h>
+-- 
+2.1.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
