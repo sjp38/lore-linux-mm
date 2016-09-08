@@ -1,79 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 66E1D6B026C
-	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 08:27:35 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id 44so91712790qtf.3
-        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 05:27:35 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b128si15320595ybc.144.2016.09.08.05.27.34
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D043183090
+	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 09:26:41 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id ez1so101792956pab.1
+        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 06:26:41 -0700 (PDT)
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0077.outbound.protection.outlook.com. [104.47.41.77])
+        by mx.google.com with ESMTPS id h80si29150521pfk.107.2016.09.08.06.26.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Sep 2016 05:27:34 -0700 (PDT)
-Date: Thu, 8 Sep 2016 14:26:51 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [sashal-linux-stable-security:linux-3.12.y-security 590/1388]
-	mm/util.c:277:3: error: implicit declaration of function
-	'for_each_thread'
-Message-ID: <20160908122650.GB15874@redhat.com>
-References: <201609080220.fropEFaF%fengguang.wu@intel.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 08 Sep 2016 06:26:40 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 07/20] x86: Provide general kernel support for
+ memory encryption
+References: <20160822223529.29880.50884.stgit@tlendack-t1.amdoffice.net>
+ <20160822223646.29880.28794.stgit@tlendack-t1.amdoffice.net>
+ <20160906093113.GA18319@pd.tnic>
+ <f4125cae-63af-f8c7-086f-e297ce480a07@amd.com>
+ <20160907155535.i7wh46uxxa2bj3ik@pd.tnic>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <bc8f22db-b6f9-951f-145c-fed919098cbe@amd.com>
+Date: Thu, 8 Sep 2016 08:26:27 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201609080220.fropEFaF%fengguang.wu@intel.com>
+In-Reply-To: <20160907155535.i7wh46uxxa2bj3ik@pd.tnic>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: kbuild-all@01.org, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, Jiri Slaby <jslaby@suse.cz>
+To: Borislav Petkov <bp@alien8.de>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
+ Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On 09/08, kbuild test robot wrote:
->
-> Hi Oleg,
->
-> FYI, the error/warning still remains.
-
-I guess this is because you need to backport for_each_thread first ;)
-
-And probably a couple more commits before this one.
-
-> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/sashal/linux-stable-security.git linux-3.12.y-security
-> head:   aac46739e3b30a5e6a0ccb2820dfde1333e9f24b
-> commit: 9ac1e8708f42427bffe12c0f7f0813efe730a29d [590/1388] vm_is_stack: use for_each_thread() rather then buggy while_each_thread()
-> config: i386-randconfig-s1-201636 (attached as .config)
-> compiler: gcc-4.9 (Debian 4.9.3-14) 4.9.3
-> reproduce:
->         git checkout 9ac1e8708f42427bffe12c0f7f0813efe730a29d
->         # save the attached .config to linux build tree
->         make ARCH=i386 
+On 09/07/2016 10:55 AM, Borislav Petkov wrote:
+> On Wed, Sep 07, 2016 at 09:30:54AM -0500, Tom Lendacky wrote:
+>> _PAGE_ENC is #defined as sme_me_mask and sme_me_mask has already been
+>> set (or not set) at this point - so it will be the mask if SME is
+>> active or 0 if SME is not active.
 > 
-> All errors (new ones prefixed by >>):
+> Yeah, I remember :-)
 > 
->    mm/util.c: In function 'vm_is_stack':
-> >> mm/util.c:277:3: error: implicit declaration of function 'for_each_thread' [-Werror=implicit-function-declaration]
->       for_each_thread(task, t) {
->       ^
-> >> mm/util.c:277:28: error: expected ';' before '{' token
->       for_each_thread(task, t) {
->                                ^
->    cc1: some warnings being treated as errors
+>> sme_early_init() is merely propagating the mask to other structures.
+>> Since early_pmd_flags is mainly used in this file (one line in
+>> head_64.S is the other place) I felt it best to modify it here. But it
+>> can always be moved if you feel that is best.
 > 
-> vim +/for_each_thread +277 mm/util.c
+> Hmm, so would it work then if you stick it in early_pmd_flags'
+> definition like you do with the other masks? I.e.,
 > 
->    271			return task->pid;
->    272	
->    273		if (in_group) {
->    274			struct task_struct *t;
->    275	
->    276			rcu_read_lock();
->  > 277			for_each_thread(task, t) {
->    278				if (vm_is_stack_for_task(t, vma)) {
->    279					ret = t->pid;
->    280					goto done;
-> 
-> ---
-> 0-DAY kernel test infrastructure                Open Source Technology Center
-> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+> pmdval_t early_pmd_flags = __PAGE_KERNEL_LARGE | _PAGE_ENC & ~(_PAGE_GLOBAL | _PAGE_NX);
 
+When does this value get initialized?  Since _PAGE_ENC is #defined to
+sme_me_mask, which is not set until the boot process begins, I'm afraid
+we'd end up using the initial value of sme_me_mask, which is zero.  Do
+I have that right?
 
+Thanks,
+Tom
+
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
