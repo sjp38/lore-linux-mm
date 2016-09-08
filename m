@@ -1,64 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1829F83090
-	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 09:41:16 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id g202so115426262pfb.3
-        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 06:41:16 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTPS id hl7si4261292pad.42.2016.09.08.06.41.14
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DC7236B0266
+	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 09:49:41 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id f39so45315700vki.3
+        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 06:49:41 -0700 (PDT)
+Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0101.outbound.protection.outlook.com. [104.47.33.101])
+        by mx.google.com with ESMTPS id n79si28727118qkn.201.2016.09.08.06.49.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Sep 2016 06:41:15 -0700 (PDT)
-Received: from mail.kernel.org (localhost [127.0.0.1])
-	by mail.kernel.org (Postfix) with ESMTP id D763520374
-	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 13:41:13 +0000 (UTC)
-Received: from mail-yb0-f177.google.com (mail-yb0-f177.google.com [209.85.213.177])
-	(using TLSv1.2 with cipher AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 8F2542034C
-	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 13:41:12 +0000 (UTC)
-Received: by mail-yb0-f177.google.com with SMTP id x93so16896985ybh.1
-        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 06:41:12 -0700 (PDT)
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 08 Sep 2016 06:49:41 -0700 (PDT)
+From: "Kani, Toshimitsu" <toshi.kani@hpe.com>
+Subject: Re: [PATCH v4 RESEND 0/2] Align mmap address for DAX pmd mappings
+Date: Thu, 8 Sep 2016 13:49:40 +0000
+Message-ID: <1473342519.2092.42.camel@hpe.com>
+References: <1472497881-9323-1-git-send-email-toshi.kani@hpe.com>
+	 <20160829204842.GA27286@node.shutemov.name>
+	 <1472506310.1532.47.camel@hpe.com> <1472508000.1532.59.camel@hpe.com>
+	 <20160908105707.GA17331@node>
+In-Reply-To: <20160908105707.GA17331@node>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <FA10C1A0FF88C44F97659DC33A368661@NAMPRD84.PROD.OUTLOOK.COM>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <1472712907-12700-4-git-send-email-thunder.leizhen@huawei.com>
-References: <1472712907-12700-1-git-send-email-thunder.leizhen@huawei.com> <1472712907-12700-4-git-send-email-thunder.leizhen@huawei.com>
-From: Rob Herring <robh+dt@kernel.org>
-Date: Thu, 8 Sep 2016 08:40:51 -0500
-Message-ID: <CAL_JsqK6P86F=AJjC2J6W4NOFXavb4e-OR_dmc4iofUNCJGrJA@mail.gmail.com>
-Subject: Re: [PATCH v8 03/16] of/numa: add nid check for memory block
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhen Lei <thunder.leizhen@huawei.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, linux-kernel <linux-kernel@vger.kernel.org>, Frank Rowand <frowand.list@gmail.com>, devicetree <devicetree@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Zefan Li <lizefan@huawei.com>, Xinwei Hu <huxinwei@huawei.com>, Tianhong Ding <dingtianhong@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
+To: "kirill@shutemov.name" <kirill@shutemov.name>
+Cc: "hughd@google.com" <hughd@google.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "adilger.kernel@dilger.ca" <adilger.kernel@dilger.ca>, "mike.kravetz@oracle.com" <mike.kravetz@oracle.com>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "ross.zwisler@linux.intel.com" <ross.zwisler@linux.intel.com>, "tytso@mit.edu" <tytso@mit.edu>, "david@fromorbit.com" <david@fromorbit.com>, "jack@suse.cz" <jack@suse.cz>
 
-On Thu, Sep 1, 2016 at 1:54 AM, Zhen Lei <thunder.leizhen@huawei.com> wrote:
-> If the numa-id which was configured in memory@ devicetree node is greater
-> than MAX_NUMNODES, we should report a warning. We have done this for cpus
-> and distance-map dt nodes, this patch help them to be consistent.
->
-> Signed-off-by: Zhen Lei <thunder.leizhen@huawei.com>
-> ---
->  drivers/of/of_numa.c | 5 +++++
->  1 file changed, 5 insertions(+)
->
-> diff --git a/drivers/of/of_numa.c b/drivers/of/of_numa.c
-> index 7b3fbdc..c1bd62c 100644
-> --- a/drivers/of/of_numa.c
-> +++ b/drivers/of/of_numa.c
-> @@ -75,6 +75,11 @@ static int __init of_numa_parse_memory_nodes(void)
->                          */
->                         continue;
->
-> +               if (nid >= MAX_NUMNODES) {
-> +                       pr_warn("NUMA: Node id %u exceeds maximum value\n", nid);
-
-Really using pr_fmt should come first so you're not changing this
-line. But not worth respinning for that:
-
-Acked-by: Rob Herring <robh@kernel.org>
-
-Rob
+T24gVGh1LCAyMDE2LTA5LTA4IGF0IDEzOjU3ICswMzAwLCBLaXJpbGwgQS4gU2h1dGVtb3Ygd3Jv
+dGU6DQo+IE9uIE1vbiwgQXVnIDI5LCAyMDE2IGF0IDEwOjAwOjQzUE0gKzAwMDAsIEthbmksIFRv
+c2hpbWl0c3Ugd3JvdGU6DQo+ID4gDQo+ID4gT24gTW9uLCAyMDE2LTA4LTI5IGF0IDE1OjMxIC0w
+NjAwLCBLYW5pLCBUb3NoaW1pdHN1IHdyb3RlOg0KPiA+ID4gDQo+ID4gPiBPbiBNb24sIDIwMTYt
+MDgtMjkgYXQgMjM6NDggKzAzMDAsIEtpcmlsbCBBLiBTaHV0ZW1vdiB3cm90ZToNCj4gPiA+ID4g
+DQrCoDoNCj4gPiBMb29raW5nIGZ1cnRoZXIsIHRoZXNlIHNobWVtX2h1Z2UgaGFuZGxpbmdzIG9u
+bHkgY2hlY2sgcHJlLQ0KPiA+IGNvbmRpdGlvbnMuIMKgU28sIHdlIHNob3VsZCANCj4gPiBiZcKg
+YWJsZcKgdG/CoG1ha2XCoHNobWVtX2dldF91bm1hcHBlZF9hcmVhKCkgYXMgYSB3cmFwcGVyLCB3
+aGljaA0KPiA+IGNoZWNrcyBzdWNoIHNobWVtLXNwZWNpZmljIGNvbml0aW9ucywgYW5kDQo+ID4g
+dGhlbsKgY2FsbMKgX190aHBfZ2V0X3VubWFwcGVkX2FyZWEoKSBmb3IgdGhlIGFjdHVhbCB3b3Jr
+LiDCoEFsbCBEQVgtDQo+ID4gc3BlY2lmaWMgY2hlY2tzIGFyZSBwZXJmb3JtZWQgaW4gdGhwX2dl
+dF91bm1hcHBlZF9hcmVhKCkgYXMgd2VsbC4NCj4gPiDCoFdlIGNhbiBtYWtlIMKgX190aHBfZ2V0
+X3VubWFwcGVkX2FyZWEoKSBhcyBhIGNvbW1vbiBmdW5jdGlvbi4NCj4gPiANCj4gPiBJJ2QgcHJl
+ZmVyIHRvIG1ha2Ugc3VjaCBjaGFuZ2UgYXMgYSBzZXBhcmF0ZSBpdGVtLA0KPiANCj4gRG8geW91
+IGhhdmUgcGxhbiB0byBzdWJtaXQgc3VjaCBjaGFuZ2U/DQoNClllcywgSSB3aWxsIHN1Ym1pdCB0
+aGUgY2hhbmdlIG9uY2UgSSBmaW5pc2ggdGVzdGluZy4NCg0KVGhhbmtzLA0KLVRvc2hp
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
