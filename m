@@ -1,91 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 87D0282F66
-	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 06:57:11 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id s64so18090761lfs.1
-        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 03:57:11 -0700 (PDT)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id et1si30050613wjd.133.2016.09.08.03.57.09
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Sep 2016 03:57:10 -0700 (PDT)
-Received: by mail-wm0-x244.google.com with SMTP id b187so3273459wme.0
-        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 03:57:09 -0700 (PDT)
-Date: Thu, 8 Sep 2016 13:57:07 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v4 RESEND 0/2] Align mmap address for DAX pmd mappings
-Message-ID: <20160908105707.GA17331@node>
-References: <1472497881-9323-1-git-send-email-toshi.kani@hpe.com>
- <20160829204842.GA27286@node.shutemov.name>
- <1472506310.1532.47.camel@hpe.com>
- <1472508000.1532.59.camel@hpe.com>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4279F82F66
+	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 07:01:22 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id x24so106820907pfa.0
+        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 04:01:22 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id g71si27003076pfg.13.2016.09.08.04.01.21
+        for <linux-mm@kvack.org>;
+        Thu, 08 Sep 2016 04:01:21 -0700 (PDT)
+Date: Thu, 8 Sep 2016 12:01:19 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v8 00/16] fix some type infos and bugs for arm64/of numa
+Message-ID: <20160908110119.GG1493@arm.com>
+References: <1472712907-12700-1-git-send-email-thunder.leizhen@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1472508000.1532.59.camel@hpe.com>
+In-Reply-To: <1472712907-12700-1-git-send-email-thunder.leizhen@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kani, Toshimitsu" <toshi.kani@hpe.com>
-Cc: "hughd@google.com" <hughd@google.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "adilger.kernel@dilger.ca" <adilger.kernel@dilger.ca>, "mike.kravetz@oracle.com" <mike.kravetz@oracle.com>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "ross.zwisler@linux.intel.com" <ross.zwisler@linux.intel.com>, "tytso@mit.edu" <tytso@mit.edu>, "david@fromorbit.com" <david@fromorbit.com>, "jack@suse.cz" <jack@suse.cz>
+To: Zhen Lei <thunder.leizhen@huawei.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, linux-kernel <linux-kernel@vger.kernel.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, devicetree <devicetree@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Zefan Li <lizefan@huawei.com>, Xinwei Hu <huxinwei@huawei.com>, Tianhong Ding <dingtianhong@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
 
-On Mon, Aug 29, 2016 at 10:00:43PM +0000, Kani, Toshimitsu wrote:
-> On Mon, 2016-08-29 at 15:31 -0600, Kani, Toshimitsu wrote:
-> > On Mon, 2016-08-29 at 23:48 +0300, Kirill A. Shutemov wrote:
-> > > 
-> > > On Mon, Aug 29, 2016 at 01:11:19PM -0600, Toshi Kani wrote:
-> > > > 
-> > > > 
-> > > > When CONFIG_FS_DAX_PMD is set, DAX supports mmap() using pmd page
-> > > > size.  This feature relies on both mmap virtual address and FS
-> > > > block (i.e. physical address) to be aligned by the pmd page size.
-> > > > Users can use mkfs options to specify FS to align block
-> > > > allocations. However, aligning mmap address requires code changes
-> > > > to existing applications for providing a pmd-aligned address to
-> > > > mmap().
-> > > > 
-> > > > For instance, fio with "ioengine=mmap" performs I/Os with mmap()
-> > > > [1]. It calls mmap() with a NULL address, which needs to be
-> > > > changed to provide a pmd-aligned address for testing with DAX pmd
-> > > > mappings. Changing all applications that call mmap() with NULL is
-> > > > undesirable.
-> > > > 
-> > > > This patch-set extends filesystems to align an mmap address for
-> > > > a DAX file so that unmodified applications can use DAX pmd
-> > > > mappings.
-> > > 
-> > > +Hugh
-> > > 
-> > > Can we get it used for shmem/tmpfs too?
-> > > I don't think we should duplicate essentially the same
-> > > functionality in multiple places.
-> > 
-> > Here is my brief analysis when I had looked at the Hugh's patch last
-> > time (before shmem_get_unmapped_area() was accepted).
-> > https://patchwork.kernel.org/patch/8916741/
-> > 
-> > Besides some differences in the logic, ex. shmem_get_unmapped_area()
-> > always calls current->mm->get_unmapped_area twice, yes, they
-> > basically provide the same functionality.
-> > 
-> > I think one issue is that shmem_get_unmapped_area() checks with its
-> > static flag 'shmem_huge', and additinally deals with SHMEM_HUGE_DENY
-> > and SHMEM_HUGE_FORCE cases.  It also handles non-file case for
-> > !SHMEM_HUGE_FORCE.
+On Thu, Sep 01, 2016 at 02:54:51PM +0800, Zhen Lei wrote:
+> v7 -> v8:
+> Updated patches according to Will Deacon's review comments, thanks.
 > 
-> Looking further, these shmem_huge handlings only check pre-conditions.
->  So, we should be able to make shmem_get_unmapped_area() as a wrapper,
-> which checks such shmem-specific conitions, and then
-> call __thp_get_unmapped_area() for the actual work.  All DAX-specific
-> checks are performed in thp_get_unmapped_area() as well.  We can make
->  __thp_get_unmapped_area() as a common function.
+> The changed patches is: 3, 5, 8, 9, 10, 11, 12, 13, 15
+> Patch 3 requires an ack from Rob Herring.
+> Patch 10 requires an ack from linux-mm.
 > 
-> I'd prefer to make such change as a separate item,
+> Hi, Will:
+> Something should still be clarified:
+> Patch 5, I modified it according to my last reply. BTW, The last sentence
+>          "srat_disabled() ? -EINVAL : 0" of arm64_acpi_numa_init should be moved
+>          into acpi_numa_init, I think.
+>          
+> Patch 9, I still leave the code in arch/arm64.
+>          1) the implementation of setup_per_cpu_areas on all platforms are different.
+>          2) Although my implementation referred to PowerPC, but still something different.
+> 
+> Patch 15, I modified the description again. Can you take a look at it? If this patch is
+> 	  dropped, the patch 14 should also be dropped.
+> 
+> Patch 16, How many times the function node_distance to be called rely on the APP(need many tasks
+>           to be scheduled), I have not prepared yet, so I give up this patch as your advise. 
 
-Do you have plan to submit such change?
+Ok, I'm trying to pick the pieces out of this patch series and it's not
+especially easy. As far as I can tell:
 
--- 
- Kirill A. Shutemov
+  Patch 3 needs an ack from the device-tree folks
+
+  Patch 10 needs an ack from the memblock folks
+
+  Patch 11 depends on patch 10
+
+  Patches 14,15,16 can wait for the time being (I still don't see their
+  value).
+
+So, I could pick up patches 1-2, 4-9 and 12-13 but it's not clear whether
+that makes any sense. The whole series seems to be a mix of trivial printk
+cleanups, a bunch of core OF stuff, some new features and then some
+questionable changes at the end.
+
+Please throw me a clue,
+
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
