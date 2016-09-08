@@ -1,122 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C9F2B82F66
-	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 07:07:32 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id u14so18316306lfd.0
-        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 04:07:32 -0700 (PDT)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id 204si8138331wmk.76.2016.09.08.04.07.31
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D195F82F66
+	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 07:13:57 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 1so33516275wmz.2
+        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 04:13:57 -0700 (PDT)
+Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
+        by mx.google.com with ESMTPS id r134si1886299lfd.4.2016.09.08.04.13.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Sep 2016 04:07:31 -0700 (PDT)
-Received: by mail-wm0-x241.google.com with SMTP id b187so3314750wme.0
-        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 04:07:31 -0700 (PDT)
-Date: Thu, 8 Sep 2016 14:07:29 +0300
+        Thu, 08 Sep 2016 04:13:56 -0700 (PDT)
+Received: by mail-lf0-x241.google.com with SMTP id s64so1145274lfs.2
+        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 04:13:56 -0700 (PDT)
+Date: Thu, 8 Sep 2016 14:13:53 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH -v3 01/10] mm, swap: Make swap cluster size same of THP
- size on x86_64
-Message-ID: <20160908110729.GC17331@node>
+Subject: Re: [PATCH -v3 05/10] mm, THP, swap: Add get_huge_swap_page()
+Message-ID: <20160908111353.GD17331@node>
 References: <1473266769-2155-1-git-send-email-ying.huang@intel.com>
- <1473266769-2155-2-git-send-email-ying.huang@intel.com>
+ <1473266769-2155-6-git-send-email-ying.huang@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1473266769-2155-2-git-send-email-ying.huang@intel.com>
+In-Reply-To: <1473266769-2155-6-git-send-email-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
 
-On Wed, Sep 07, 2016 at 09:46:00AM -0700, Huang, Ying wrote:
+On Wed, Sep 07, 2016 at 09:46:04AM -0700, Huang, Ying wrote:
 > From: Huang Ying <ying.huang@intel.com>
 > 
-> In this patch, the size of the swap cluster is changed to that of the
-> THP (Transparent Huge Page) on x86_64 architecture (512).  This is for
-> the THP swap support on x86_64.  Where one swap cluster will be used to
-> hold the contents of each THP swapped out.  And some information of the
-> swapped out THP (such as compound map count) will be recorded in the
-> swap_cluster_info data structure.
+> A variation of get_swap_page(), get_huge_swap_page(), is added to
+> allocate a swap cluster (512 swap slots) based on the swap cluster
+> allocation function.  A fair simple algorithm is used, that is, only the
+> first swap device in priority list will be tried to allocate the swap
+> cluster.  The function will fail if the trying is not successful, and
+> the caller will fallback to allocate a single swap slot instead.  This
+> works good enough for normal cases.
+
+For normal cases, yes. But the limitation is not obvious for users and
+performance difference after small change in configuration could be
+puzzling.
+
+At least this must be documented somewhere.
+
 > 
-> For other architectures which want THP swap support, THP_SWAP_CLUSTER
-> need to be selected in the Kconfig file for the architecture.
+> This will be used for the THP (Transparent Huge Page) swap support.
+> Where get_huge_swap_page() will be used to allocate one swap cluster for
+> each THP swapped out.
 > 
-> In effect, this will enlarge swap cluster size by 2 times on x86_64.
-> Which may make it harder to find a free cluster when the swap space
-> becomes fragmented.  So that, this may reduce the continuous swap space
-> allocation and sequential write in theory.  The performance test in 0day
-> shows no regressions caused by this.
-> 
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 > Cc: Hugh Dickins <hughd@google.com>
 > Cc: Shaohua Li <shli@kernel.org>
 > Cc: Minchan Kim <minchan@kernel.org>
 > Cc: Rik van Riel <riel@redhat.com>
-> Suggested-by: Andrew Morton <akpm@linux-foundation.org>
 > Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
 > ---
->  arch/x86/Kconfig |  1 +
->  mm/Kconfig       | 13 +++++++++++++
->  mm/swapfile.c    |  4 ++++
->  3 files changed, 18 insertions(+)
+>  include/linux/swap.h | 24 +++++++++++++++++++++++-
+>  mm/swapfile.c        | 18 ++++++++++++------
+>  2 files changed, 35 insertions(+), 7 deletions(-)
 > 
-> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-> index 4c39728..421d862 100644
-> --- a/arch/x86/Kconfig
-> +++ b/arch/x86/Kconfig
-> @@ -164,6 +164,7 @@ config X86
->  	select HAVE_STACK_VALIDATION		if X86_64
->  	select ARCH_USES_HIGH_VMA_FLAGS		if X86_INTEL_MEMORY_PROTECTION_KEYS
->  	select ARCH_HAS_PKEYS			if X86_INTEL_MEMORY_PROTECTION_KEYS
-> +	select ARCH_USES_THP_SWAP_CLUSTER	if X86_64
->  
->  config INSTRUCTION_DECODER
->  	def_bool y
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index be0ee11..2da8128 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -503,6 +503,19 @@ config FRONTSWAP
->  
->  	  If unsure, say Y to enable frontswap.
->  
-> +config ARCH_USES_THP_SWAP_CLUSTER
-> +	bool
-> +	default n
-> +
-> +config THP_SWAP_CLUSTER
-> +	bool
-> +	depends on SWAP && TRANSPARENT_HUGEPAGE && ARCH_USES_THP_SWAP_CLUSTER
-> +	default y
-> +	help
-> +	  Use one swap cluster to hold the contents of the THP
-> +	  (Transparent Huge Page) swapped out.  The size of the swap
-> +	  cluster will be same as that of THP.
-> +
->  config CMA
->  	bool "Contiguous Memory Allocator"
->  	depends on HAVE_MEMBLOCK && MMU
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index 8f1b97d..4b78402 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -196,7 +196,11 @@ static void discard_swap_cluster(struct swap_info_struct *si,
->  	}
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index 75aad24..bc0a84d 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -399,7 +399,7 @@ static inline long get_nr_swap_pages(void)
 >  }
 >  
-> +#ifdef CONFIG_THP_SWAP_CLUSTER
-> +#define SWAPFILE_CLUSTER	(HPAGE_SIZE / PAGE_SIZE)
-
-#define SWAPFILE_CLUSTER HPAGE_PMD_NR
-
-Note, HPAGE_SIZE is not nessesary HPAGE_PMD_SIZE. I can imagine an arch
-with multiple huge page sizes where HPAGE_SIZE differs from what is used
-for THP.
-
-> +#else
->  #define SWAPFILE_CLUSTER	256
-> +#endif
->  #define LATENCY_LIMIT		256
+>  extern void si_swapinfo(struct sysinfo *);
+> -extern swp_entry_t get_swap_page(void);
+> +extern swp_entry_t __get_swap_page(bool huge);
+>  extern swp_entry_t get_swap_page_of_type(int);
+>  extern int add_swap_count_continuation(swp_entry_t, gfp_t);
+>  extern void swap_shmem_alloc(swp_entry_t);
+> @@ -419,6 +419,23 @@ extern bool reuse_swap_page(struct page *, int *);
+>  extern int try_to_free_swap(struct page *);
+>  struct backing_dev_info;
 >  
->  static inline void cluster_set_flag(struct swap_cluster_info *info,
+> +static inline swp_entry_t get_swap_page(void)
+> +{
+> +	return __get_swap_page(false);
+> +}
+> +
+> +#ifdef CONFIG_THP_SWAP_CLUSTER
+> +static inline swp_entry_t get_huge_swap_page(void)
+> +{
+> +	return __get_swap_page(true);
+> +}
+> +#else
+> +static inline swp_entry_t get_huge_swap_page(void)
+> +{
+> +	return (swp_entry_t) {0};
+> +}
+> +#endif
+> +
+>  #else /* CONFIG_SWAP */
+>  
+>  #define swap_address_space(entry)		(NULL)
+> @@ -525,6 +542,11 @@ static inline swp_entry_t get_swap_page(void)
+>  	return entry;
+>  }
+>  
+> +static inline swp_entry_t get_huge_swap_page(void)
+> +{
+> +	return (swp_entry_t) {0};
+> +}
+> +
+>  #endif /* CONFIG_SWAP */
+>  
+>  #ifdef CONFIG_MEMCG
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index 0132e8c..3d2bd1f 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -760,14 +760,15 @@ static inline unsigned long swap_alloc_huge_cluster(struct swap_info_struct *si)
+>  }
+>  #endif
+>  
+> -swp_entry_t get_swap_page(void)
+> +swp_entry_t __get_swap_page(bool huge)
+>  {
+>  	struct swap_info_struct *si, *next;
+>  	pgoff_t offset;
+> +	int nr_pages = huge_cluster_nr_entries(huge);
+>  
+> -	if (atomic_long_read(&nr_swap_pages) <= 0)
+> +	if (atomic_long_read(&nr_swap_pages) < nr_pages)
+>  		goto noswap;
+> -	atomic_long_dec(&nr_swap_pages);
+> +	atomic_long_sub(nr_pages, &nr_swap_pages);
+>  
+>  	spin_lock(&swap_avail_lock);
+>  
+> @@ -795,10 +796,15 @@ start_over:
+>  		}
+>  
+>  		/* This is called for allocating swap entry for cache */
+> -		offset = scan_swap_map(si, SWAP_HAS_CACHE);
+> +		if (likely(nr_pages == 1))
+> +			offset = scan_swap_map(si, SWAP_HAS_CACHE);
+> +		else
+> +			offset = swap_alloc_huge_cluster(si);
+>  		spin_unlock(&si->lock);
+>  		if (offset)
+>  			return swp_entry(si->type, offset);
+> +		else if (unlikely(nr_pages != 1))
+> +			goto fail_alloc;
+>  		pr_debug("scan_swap_map of si %d failed to find offset\n",
+>  		       si->type);
+>  		spin_lock(&swap_avail_lock);
+> @@ -818,8 +824,8 @@ nextsi:
+>  	}
+>  
+>  	spin_unlock(&swap_avail_lock);
+> -
+> -	atomic_long_inc(&nr_swap_pages);
+> +fail_alloc:
+> +	atomic_long_add(nr_pages, &nr_swap_pages);
+>  noswap:
+>  	return (swp_entry_t) {0};
+>  }
 > -- 
 > 2.8.1
 > 
