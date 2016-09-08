@@ -1,40 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 82D556B0038
-	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 16:24:54 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id k83so136549022pfa.2
-        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 13:24:54 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id h8si24852527paw.241.2016.09.08.13.24.53
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D7466B0069
+	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 18:49:33 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id v67so144720782pfv.1
+        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 15:49:33 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id r90si390799pfk.194.2016.09.08.15.49.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Sep 2016 13:24:53 -0700 (PDT)
-Subject: Re: [PATCH V4] mm: Add sysfs interface to dump each node's zonelist
- information
-References: <1473150666-3875-1-git-send-email-khandual@linux.vnet.ibm.com>
- <1473302818-23974-1-git-send-email-khandual@linux.vnet.ibm.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <57D1C914.9090403@intel.com>
-Date: Thu, 8 Sep 2016 13:24:52 -0700
-MIME-Version: 1.0
-In-Reply-To: <1473302818-23974-1-git-send-email-khandual@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
+        Thu, 08 Sep 2016 15:49:32 -0700 (PDT)
+Date: Thu, 8 Sep 2016 15:49:31 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 1/2] mm: fix cache mode of dax pmd mappings
+Message-Id: <20160908154931.73b8c075b8c8e4702f877bd7@linux-foundation.org>
+In-Reply-To: <147328717393.35069.6384193370523015106.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <147328716869.35069.16311932814998156819.stgit@dwillia2-desk3.amr.corp.intel.com>
+	<147328717393.35069.6384193370523015106.stgit@dwillia2-desk3.amr.corp.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-nvdimm@ml01.01.org, Toshi Kani <toshi.kani@hpe.com>, Matthew Wilcox <mawilcox@microsoft.com>, Nilesh Choudhury <nilesh.choudhury@oracle.com>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, linux-mm@kvack.org, dri-devel@lists.freedesktop.org, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Kai Zhang <kai.ka.zhang@oracle.com>
 
-On 09/07/2016 07:46 PM, Anshuman Khandual wrote:
-> after memory or node hot[un]plug is desirable. This change adds one
-> new sysfs interface (/sys/devices/system/memory/system_zone_details)
-> which will fetch and dump this information.
+On Wed, 07 Sep 2016 15:26:14 -0700 Dan Williams <dan.j.williams@intel.com> wrote:
 
-Doesn't this violate the "one value per file" sysfs rule?  Does it
-belong in debugfs instead?
+> track_pfn_insert() in vmf_insert_pfn_pmd() is marking dax mappings as
+> uncacheable rendering them impractical for application usage.  DAX-pte
+> mappings are cached and the goal of establishing DAX-pmd mappings is to
+> attain more performance, not dramatically less (3 orders of magnitude).
+> 
+> track_pfn_insert() relies on a previous call to reserve_memtype() to
+> establish the expected page_cache_mode for the range.  While memremap()
+> arranges for reserve_memtype() to be called, devm_memremap_pages() does
+> not.  So, teach track_pfn_insert() and untrack_pfn() how to handle
+> tracking without a vma, and arrange for devm_memremap_pages() to
+> establish the write-back-cache reservation in the memtype tree.
 
-I also really question the need to dump kernel addresses out, filtered
-or not.  What's the point?
+Acked-by: Andrew Morton <akpm@linux-foundation.org>
+
+I'll grab [2/2].
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
