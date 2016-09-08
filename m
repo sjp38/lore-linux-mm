@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F3E7D6B025E
-	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 13:23:20 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id v67so126832740pfv.1
-        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 10:23:20 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id su7si47850886pab.55.2016.09.08.10.23.19
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F45B6B0038
+	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 13:39:31 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id x24so127866210pfa.0
+        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 10:39:31 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id e85si48113501pfb.236.2016.09.08.10.39.30
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 08 Sep 2016 10:23:20 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Sep 2016 10:39:30 -0700 (PDT)
 From: "Huang\, Ying" <ying.huang@intel.com>
 Subject: Re: [PATCH -v3 01/10] mm, swap: Make swap cluster size same of THP size on x86_64
 References: <1473266769-2155-1-git-send-email-ying.huang@intel.com>
 	<1473266769-2155-2-git-send-email-ying.huang@intel.com>
-	<20160908110729.GC17331@node>
-Date: Thu, 08 Sep 2016 10:23:09 -0700
-In-Reply-To: <20160908110729.GC17331@node> (Kirill A. Shutemov's message of
-	"Thu, 8 Sep 2016 14:07:29 +0300")
-Message-ID: <878tv2tif6.fsf@yhuang-mobile.sh.intel.com>
+	<20160908110306.GB17331@node>
+Date: Thu, 08 Sep 2016 10:39:28 -0700
+In-Reply-To: <20160908110306.GB17331@node> (Kirill A. Shutemov's message of
+	"Thu, 8 Sep 2016 14:03:06 +0300")
+Message-ID: <87eg4u5m0f.fsf@yhuang-mobile.sh.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
@@ -91,6 +91,14 @@ Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.o
 >> +	  (Transparent Huge Page) swapped out.  The size of the swap
 >> +	  cluster will be same as that of THP.
 >> +
+>
+> Why do we need to ask user about it? I don't think most users qualified to
+> make this decision.
+
+Users need not to choose this.  If the dependencies is true, it will be
+turned on.  I added the help here not for users, but for developers to
+know what it is for.
+
 >>  config CMA
 >>  	bool "Contiguous Memory Allocator"
 >>  	depends on HAVE_MEMBLOCK && MMU
@@ -103,20 +111,31 @@ Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.o
 >>  }
 >>  
 >> +#ifdef CONFIG_THP_SWAP_CLUSTER
->> +#define SWAPFILE_CLUSTER	(HPAGE_SIZE / PAGE_SIZE)
 >
-> #define SWAPFILE_CLUSTER HPAGE_PMD_NR
+> Just
+>
+> #if defined(CONFIG_ARCH_USES_THP_SWAP_CLUSTER) && defined(CONFIG_TRANSPARENT_HUGEPAGE)
+>
+> would be enough from my POV.
 
-Yes.  Will change it.
-
-> Note, HPAGE_SIZE is not nessesary HPAGE_PMD_SIZE. I can imagine an arch
-> with multiple huge page sizes where HPAGE_SIZE differs from what is used
-> for THP.
-
-Thanks for pointing out that!
+That works.  I added a new configuration option just to save some typing
+and make it a little easier to read.  If other people think it is not
+necessary to add a new configuration option for that too.  I will use
+change it in this way.
 
 Best Regards,
 Huang, Ying
+
+>> +#define SWAPFILE_CLUSTER	(HPAGE_SIZE / PAGE_SIZE)
+>> +#else
+>>  #define SWAPFILE_CLUSTER	256
+>> +#endif
+>>  #define LATENCY_LIMIT		256
+>>  
+>>  static inline void cluster_set_flag(struct swap_cluster_info *info,
+>> -- 
+>> 2.8.1
+>> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
