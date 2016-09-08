@@ -1,49 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 080BB6B0069
-	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 14:15:15 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id x24so129768805pfa.0
-        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 11:15:15 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id ct9si48085496pad.134.2016.09.08.11.15.14
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 82D556B0038
+	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 16:24:54 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id k83so136549022pfa.2
+        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 13:24:54 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id h8si24852527paw.241.2016.09.08.13.24.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 08 Sep 2016 11:15:14 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -v3 03/10] mm, memcg: Support to charge/uncharge multiple swap entries
-References: <1473266769-2155-1-git-send-email-ying.huang@intel.com>
-	<1473266769-2155-4-git-send-email-ying.huang@intel.com>
-	<57D12134.40604@linux.vnet.ibm.com>
-Date: Thu, 08 Sep 2016 11:15:13 -0700
-In-Reply-To: <57D12134.40604@linux.vnet.ibm.com> (Anshuman Khandual's message
-	of "Thu, 8 Sep 2016 13:58:36 +0530")
-Message-ID: <87wpim45se.fsf@yhuang-mobile.sh.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Sep 2016 13:24:53 -0700 (PDT)
+Subject: Re: [PATCH V4] mm: Add sysfs interface to dump each node's zonelist
+ information
+References: <1473150666-3875-1-git-send-email-khandual@linux.vnet.ibm.com>
+ <1473302818-23974-1-git-send-email-khandual@linux.vnet.ibm.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <57D1C914.9090403@intel.com>
+Date: Thu, 8 Sep 2016 13:24:52 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+In-Reply-To: <1473302818-23974-1-git-send-email-khandual@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org
 
-Anshuman Khandual <khandual@linux.vnet.ibm.com> writes:
+On 09/07/2016 07:46 PM, Anshuman Khandual wrote:
+> after memory or node hot[un]plug is desirable. This change adds one
+> new sysfs interface (/sys/devices/system/memory/system_zone_details)
+> which will fetch and dump this information.
 
-> On 09/07/2016 10:16 PM, Huang, Ying wrote:
->> From: Huang Ying <ying.huang@intel.com>
->> 
->> This patch make it possible to charge or uncharge a set of continuous
->> swap entries in the swap cgroup.  The number of swap entries is
->> specified via an added parameter.
->> 
->> This will be used for the THP (Transparent Huge Page) swap support.
->> Where a swap cluster backing a THP may be allocated and freed as a
->> whole.  So a set of continuous swap entries (512 on x86_64) backing one
->
-> Please use HPAGE_SIZE / PAGE_SIZE instead of hard coded number like 512.
+Doesn't this violate the "one value per file" sysfs rule?  Does it
+belong in debugfs instead?
 
-Sure.  Will change it.
-
-Best Regards,
-Huang, Ying
+I also really question the need to dump kernel addresses out, filtered
+or not.  What's the point?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
