@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6348B82F66
-	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 07:03:10 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id k12so16655557lfb.2
-        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 04:03:10 -0700 (PDT)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id r7si30810201wjf.211.2016.09.08.04.03.08
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C9F2B82F66
+	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 07:07:32 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id u14so18316306lfd.0
+        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 04:07:32 -0700 (PDT)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id 204si8138331wmk.76.2016.09.08.04.07.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Sep 2016 04:03:09 -0700 (PDT)
-Received: by mail-wm0-x243.google.com with SMTP id a6so7307192wmc.2
-        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 04:03:08 -0700 (PDT)
-Date: Thu, 8 Sep 2016 14:03:06 +0300
+        Thu, 08 Sep 2016 04:07:31 -0700 (PDT)
+Received: by mail-wm0-x241.google.com with SMTP id b187so3314750wme.0
+        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 04:07:31 -0700 (PDT)
+Date: Thu, 8 Sep 2016 14:07:29 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
 Subject: Re: [PATCH -v3 01/10] mm, swap: Make swap cluster size same of THP
  size on x86_64
-Message-ID: <20160908110306.GB17331@node>
+Message-ID: <20160908110729.GC17331@node>
 References: <1473266769-2155-1-git-send-email-ying.huang@intel.com>
  <1473266769-2155-2-git-send-email-ying.huang@intel.com>
 MIME-Version: 1.0
@@ -91,10 +91,6 @@ On Wed, Sep 07, 2016 at 09:46:00AM -0700, Huang, Ying wrote:
 > +	  (Transparent Huge Page) swapped out.  The size of the swap
 > +	  cluster will be same as that of THP.
 > +
-
-Why do we need to ask user about it? I don't think most users qualified to
-make this decision.
-
 >  config CMA
 >  	bool "Contiguous Memory Allocator"
 >  	depends on HAVE_MEMBLOCK && MMU
@@ -107,14 +103,14 @@ make this decision.
 >  }
 >  
 > +#ifdef CONFIG_THP_SWAP_CLUSTER
-
-Just
-
-#if defined(CONFIG_ARCH_USES_THP_SWAP_CLUSTER) && defined(CONFIG_TRANSPARENT_HUGEPAGE)
-
-would be enough from my POV.
-
 > +#define SWAPFILE_CLUSTER	(HPAGE_SIZE / PAGE_SIZE)
+
+#define SWAPFILE_CLUSTER HPAGE_PMD_NR
+
+Note, HPAGE_SIZE is not nessesary HPAGE_PMD_SIZE. I can imagine an arch
+with multiple huge page sizes where HPAGE_SIZE differs from what is used
+for THP.
+
 > +#else
 >  #define SWAPFILE_CLUSTER	256
 > +#endif
