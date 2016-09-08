@@ -1,64 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 808156B0038
-	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 14:07:42 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id g202so129825031pfb.3
-        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 11:07:42 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id pv7si48121014pac.166.2016.09.08.11.07.21
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6323A6B0038
+	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 14:10:42 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id vp2so116064066pab.3
+        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 11:10:42 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id sm1si31225312pab.168.2016.09.08.11.10.41
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 08 Sep 2016 11:07:21 -0700 (PDT)
+        Thu, 08 Sep 2016 11:10:41 -0700 (PDT)
 From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -v3 01/10] mm, swap: Make swap cluster size same of THP size on x86_64
+Subject: Re: [PATCH -v3 07/10] mm, THP, swap: Support to add/delete THP to/from swap cache
 References: <1473266769-2155-1-git-send-email-ying.huang@intel.com>
-	<1473266769-2155-2-git-send-email-ying.huang@intel.com>
-	<57D0FB10.5010609@linux.vnet.ibm.com>
-Date: Thu, 08 Sep 2016 11:07:20 -0700
-In-Reply-To: <57D0FB10.5010609@linux.vnet.ibm.com> (Anshuman Khandual's
-	message of "Thu, 8 Sep 2016 11:15:52 +0530")
-Message-ID: <87a8fi5kpz.fsf@yhuang-mobile.sh.intel.com>
+	<1473266769-2155-8-git-send-email-ying.huang@intel.com>
+	<57D128A9.3030306@linux.vnet.ibm.com>
+Date: Thu, 08 Sep 2016 11:10:38 -0700
+In-Reply-To: <57D128A9.3030306@linux.vnet.ibm.com> (Anshuman Khandual's
+	message of "Thu, 8 Sep 2016 14:30:25 +0530")
+Message-ID: <8760q65kkh.fsf@yhuang-mobile.sh.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+
+Hi, Anshuman,
+
+Thanks for comments!
 
 Anshuman Khandual <khandual@linux.vnet.ibm.com> writes:
 
 > On 09/07/2016 10:16 PM, Huang, Ying wrote:
 >> From: Huang Ying <ying.huang@intel.com>
 >> 
->> In this patch, the size of the swap cluster is changed to that of the
->> THP (Transparent Huge Page) on x86_64 architecture (512).  This is for
->> the THP swap support on x86_64.  Where one swap cluster will be used to
->> hold the contents of each THP swapped out.  And some information of the
->> swapped out THP (such as compound map count) will be recorded in the
->> swap_cluster_info data structure.
+>> With this patch, a THP (Transparent Huge Page) can be added/deleted
+>> to/from the swap cache as a set of sub-pages (512 on x86_64).
 >> 
->> For other architectures which want THP swap support, THP_SWAP_CLUSTER
->> need to be selected in the Kconfig file for the architecture.
+>> This will be used for the THP (Transparent Huge Page) swap support.
+>> Where one THP may be added/delted to/from the swap cache.  This will
+>> batch the swap cache operations to reduce the lock acquire/release times
+>> for the THP swap too.
 >> 
->> In effect, this will enlarge swap cluster size by 2 times on x86_64.
->> Which may make it harder to find a free cluster when the swap space
->> becomes fragmented.  So that, this may reduce the continuous swap space
->> allocation and sequential write in theory.  The performance test in 0day
->> shows no regressions caused by this.
+>> Cc: Hugh Dickins <hughd@google.com>
+>> Cc: Shaohua Li <shli@kernel.org>
+>> Cc: Minchan Kim <minchan@kernel.org>
+>> Cc: Rik van Riel <riel@redhat.com>
+>> Cc: Andrea Arcangeli <aarcange@redhat.com>
+>> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+>> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+>> ---
+>>  include/linux/page-flags.h |  2 +-
+>>  mm/swap_state.c            | 57 +++++++++++++++++++++++++++++++---------------
+>>  2 files changed, 40 insertions(+), 19 deletions(-)
+>> 
+>> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+>> index 74e4dda..f5bcbea 100644
+>> --- a/include/linux/page-flags.h
+>> +++ b/include/linux/page-flags.h
+>> @@ -314,7 +314,7 @@ PAGEFLAG_FALSE(HighMem)
+>>  #endif
+>>  
+>>  #ifdef CONFIG_SWAP
+>> -PAGEFLAG(SwapCache, swapcache, PF_NO_COMPOUND)
+>> +PAGEFLAG(SwapCache, swapcache, PF_NO_TAIL)
 >
-> This patch needs to be split into two separate ones
->
-> (1) Add THP_SWAP_CLUSTER config option
-> (2) Enable CONFIG_THP_SWAP_CLUSTER for X86_64
->
-> The first patch should explain the proposal and the second patch
-> should have 86_64 arch specific details, regressions etc as already
-> been explained in the commit message.
+> What is the reason for this change ? The commit message does not seem
+> to explain.
 
-The code change and possible issues is not x86_64 specific, but general
-for all architectures where the config option is enabled.  If so, the
-second patch becomes 1 line kconfig change and no much to be said in
-patch description.  Does it deserve a separate patch?
+Before this change, SetPageSwapCache() cannot be called for THP, after
+the change, SetPageSwapCache() could be called for the head page of the
+THP, but not the tail pages.  Because we will never do that before this
+patch series.
 
 Best Regards,
 Huang, Ying
