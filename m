@@ -1,155 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3092B6B0069
-	for <linux-mm@kvack.org>; Fri,  9 Sep 2016 04:43:47 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id w12so8897674wmf.3
-        for <linux-mm@kvack.org>; Fri, 09 Sep 2016 01:43:47 -0700 (PDT)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id bp2si1992891wjb.158.2016.09.09.01.43.45
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CC63A6B0069
+	for <linux-mm@kvack.org>; Fri,  9 Sep 2016 05:00:50 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id v67so171859340pfv.1
+        for <linux-mm@kvack.org>; Fri, 09 Sep 2016 02:00:50 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id o3si2999555pab.114.2016.09.09.02.00.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Sep 2016 01:43:46 -0700 (PDT)
-Received: by mail-wm0-x241.google.com with SMTP id a6so1683476wmc.2
-        for <linux-mm@kvack.org>; Fri, 09 Sep 2016 01:43:45 -0700 (PDT)
-From: Anisse Astier <anisse@astier.eu>
-Subject: [PATCH] PM / Hibernate: allow hibernation with PAGE_POISONING_ZERO
-Date: Fri,  9 Sep 2016 10:43:32 +0200
-Message-Id: <1473410612-6207-1-git-send-email-anisse@astier.eu>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 09 Sep 2016 02:00:49 -0700 (PDT)
+Subject: Re: DAX mapping detection (was: Re: [PATCH] Fix region lost in
+ /proc/self/smaps)
+References: <CAPcyv4iDra+mRqEejfGqapKEAFZmUtUcg0dsJ8nt7mOhcT-Qpw@mail.gmail.com>
+ <20160908225636.GB15167@linux.intel.com>
+ <CAPcyv4h5y4MHdXtdrdPRtG7L0_KCoxf_xwDGnHQ2r5yZoqkFzQ@mail.gmail.com>
+From: Xiao Guangrong <guangrong.xiao@linux.intel.com>
+Message-ID: <5d5ef209-e005-12c6-9b34-1fdd21e1e6e2@linux.intel.com>
+Date: Fri, 9 Sep 2016 16:55:08 +0800
+MIME-Version: 1.0
+In-Reply-To: <CAPcyv4h5y4MHdXtdrdPRtG7L0_KCoxf_xwDGnHQ2r5yZoqkFzQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-pm@vger.kernel.org
-Cc: Anisse Astier <anisse@astier.eu>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Laura Abbott <labbott@fedoraproject.org>, Mel Gorman <mgorman@suse.de>, "Rafael J . Wysocki" <rjw@rjwysocki.net>, Alan Cox <gnomes@lxorguk.ukuu.org.uk>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Brad Spengler <spender@grsecurity.net>, Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>, Jianyu Zhan <nasa4836@gmail.com>, Kees Cook <keescook@chromium.org>, Len Brown <len.brown@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Mathias Krause <minipli@googlemail.com>, Michal Hocko <mhocko@suse.com>, PaX Team <pageexec@freemail.hu>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, Yves-Alexis Perez <corsac@debian.org>, linux-kernel@vger.kernel.org
+To: Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Gleb Natapov <gleb@kernel.org>, mtosatti@redhat.com, KVM list <kvm@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Hajnoczi <stefanha@redhat.com>, Yumei Huang <yuhuang@redhat.com>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-PAGE_POISONING_ZERO disables zeroing new pages on alloc, they are
-poisoned (zeroed) as they become available.
-In the hibernate use case, free pages will appear in the system without
-being cleared, left there by the loading kernel.
 
-This patch will make sure free pages are cleared on resume when
-PAGE_POISONING_ZERO is enabled. We free the pages just after resume
-because we can't do it later: going through any device resume code might
-allocate some memory and invalidate the free pages bitmap.
 
-Thus we don't need to disable hibernation when PAGE_POISONING_ZERO is
-enabled.
+On 09/09/2016 07:04 AM, Dan Williams wrote:
+> On Thu, Sep 8, 2016 at 3:56 PM, Ross Zwisler
+> <ross.zwisler@linux.intel.com> wrote:
+>> On Wed, Sep 07, 2016 at 09:32:36PM -0700, Dan Williams wrote:
+>>> [ adding linux-fsdevel and linux-nvdimm ]
+>>>
+>>> On Wed, Sep 7, 2016 at 8:36 PM, Xiao Guangrong
+>>> <guangrong.xiao@linux.intel.com> wrote:
+>>> [..]
+>>>> However, it is not easy to handle the case that the new VMA overlays with
+>>>> the old VMA
+>>>> already got by userspace. I think we have some choices:
+>>>> 1: One way is completely skipping the new VMA region as current kernel code
+>>>> does but i
+>>>>    do not think this is good as the later VMAs will be dropped.
+>>>>
+>>>> 2: show the un-overlayed portion of new VMA. In your case, we just show the
+>>>> region
+>>>>    (0x2000 -> 0x3000), however, it can not work well if the VMA is a new
+>>>> created
+>>>>    region with different attributions.
+>>>>
+>>>> 3: completely show the new VMA as this patch does.
+>>>>
+>>>> Which one do you prefer?
+>>>>
+>>>
+>>> I don't have a preference, but perhaps this breakage and uncertainty
+>>> is a good opportunity to propose a more reliable interface for NVML to
+>>> get the information it needs?
+>>>
+>>> My understanding is that it is looking for the VM_MIXEDMAP flag which
+>>> is already ambiguous for determining if DAX is enabled even if this
+>>> dynamic listing issue is fixed.  XFS has arranged for DAX to be a
+>>> per-inode capability and has an XFS-specific inode flag.  We can make
+>>> that a common inode flag, but it seems we should have a way to
+>>> interrogate the mapping itself in the case where the inode is unknown
+>>> or unavailable.  I'm thinking extensions to mincore to have flags for
+>>> DAX and possibly whether the page is part of a pte, pmd, or pud
+>>> mapping.  Just floating that idea before starting to look into the
+>>> implementation, comments or other ideas welcome...
+>>
+>> I think this goes back to our previous discussion about support for the PMEM
+>> programming model.  Really I think what NVML needs isn't a way to tell if it
+>> is getting a DAX mapping, but whether it is getting a DAX mapping on a
+>> filesystem that fully supports the PMEM programming model.  This of course is
+>> defined to be a filesystem where it can do all of its flushes from userspace
+>> safely and never call fsync/msync, and that allocations that happen in page
+>> faults will be synchronized to media before the page fault completes.
+>>
+>> IIUC this is what NVML needs - a way to decide "do I use fsync/msync for
+>> everything or can I rely fully on flushes from userspace?"
+>>
+>> For all existing implementations, I think the answer is "you need to use
+>> fsync/msync" because we don't yet have proper support for the PMEM programming
+>> model.
+>>
+>> My best idea of how to support this was a per-inode flag similar to the one
+>> supported by XFS that says "you have a PMEM capable DAX mapping", which NVML
+>> would then interpret to mean "you can do flushes from userspace and be fully
+>> safe".  I think we really want this interface to be common over XFS and ext4.
+>>
+>> If we can figure out a better way of doing this interface, say via mincore,
+>> that's fine, but I don't think we can detangle this from the PMEM API
+>> discussion.
+>
+> Whether a persistent memory mapping requires an msync/fsync is a
+> filesystem specific question.  This mincore proposal is separate from
+> that.  Consider device-DAX for volatile memory or mincore() called on
+> an anonymous memory range.  In those cases persistence and filesystem
+> metadata are not in the picture, but it would still be useful for
+> userspace to know "is there page cache backing this mapping?" or "what
+> is the TLB geometry of this mapping?".
 
-Signed-off-by: Anisse Astier <anisse@astier.eu>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Laura Abbott <labbott@fedoraproject.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Rafael J. Wysocki <rjw@rjwysocki.net>
----
- kernel/power/hibernate.c | 21 +++------------------
- kernel/power/power.h     |  2 ++
- kernel/power/snapshot.c  | 22 ++++++++++++++++++++++
- mm/Kconfig.debug         |  2 --
- 4 files changed, 27 insertions(+), 20 deletions(-)
+I got a question about msync/fsync which is beyond the topic of this thread :)
 
-diff --git a/kernel/power/hibernate.c b/kernel/power/hibernate.c
-index 33c79b6..b26dbc4 100644
---- a/kernel/power/hibernate.c
-+++ b/kernel/power/hibernate.c
-@@ -306,8 +306,10 @@ static int create_image(int platform_mode)
- 	if (error)
- 		printk(KERN_ERR "PM: Error %d creating hibernation image\n",
- 			error);
--	if (!in_suspend)
-+	if (!in_suspend) {
- 		events_check_enabled = false;
-+		clear_free_pages();
-+	}
- 
- 	platform_leave(platform_mode);
- 
-@@ -1189,22 +1191,6 @@ static int __init nohibernate_setup(char *str)
- 	return 1;
- }
- 
--static int __init page_poison_nohibernate_setup(char *str)
--{
--#ifdef CONFIG_PAGE_POISONING_ZERO
--	/*
--	 * The zeroing option for page poison skips the checks on alloc.
--	 * since hibernation doesn't save free pages there's no way to
--	 * guarantee the pages will still be zeroed.
--	 */
--	if (!strcmp(str, "on")) {
--		pr_info("Disabling hibernation due to page poisoning\n");
--		return nohibernate_setup(str);
--	}
--#endif
--	return 1;
--}
--
- __setup("noresume", noresume_setup);
- __setup("resume_offset=", resume_offset_setup);
- __setup("resume=", resume_setup);
-@@ -1212,4 +1198,3 @@ __setup("hibernate=", hibernate_setup);
- __setup("resumewait", resumewait_setup);
- __setup("resumedelay=", resumedelay_setup);
- __setup("nohibernate", nohibernate_setup);
--__setup("page_poison=", page_poison_nohibernate_setup);
-diff --git a/kernel/power/power.h b/kernel/power/power.h
-index 242d8b8..56d1d0d 100644
---- a/kernel/power/power.h
-+++ b/kernel/power/power.h
-@@ -110,6 +110,8 @@ extern int create_basic_memory_bitmaps(void);
- extern void free_basic_memory_bitmaps(void);
- extern int hibernate_preallocate_memory(void);
- 
-+extern void clear_free_pages(void);
-+
- /**
-  *	Auxiliary structure used for reading the snapshot image data and
-  *	metadata from and writing them to the list of page backup entries
-diff --git a/kernel/power/snapshot.c b/kernel/power/snapshot.c
-index b022284..4f0f060 100644
---- a/kernel/power/snapshot.c
-+++ b/kernel/power/snapshot.c
-@@ -1132,6 +1132,28 @@ void free_basic_memory_bitmaps(void)
- 	pr_debug("PM: Basic memory bitmaps freed\n");
- }
- 
-+void clear_free_pages(void)
-+{
-+#ifdef CONFIG_PAGE_POISONING_ZERO
-+	struct memory_bitmap *bm = free_pages_map;
-+	unsigned long pfn;
-+
-+	if (WARN_ON(!(free_pages_map)))
-+		return;
-+
-+	memory_bm_position_reset(bm);
-+	pfn = memory_bm_next_pfn(bm);
-+	while (pfn != BM_END_OF_MAP) {
-+		if (pfn_valid(pfn))
-+			clear_highpage(pfn_to_page(pfn));
-+
-+		pfn = memory_bm_next_pfn(bm);
-+	}
-+	memory_bm_position_reset(bm);
-+	pr_info("PM: free pages cleared after restore\n");
-+#endif /* PAGE_POISONING_ZERO */
-+}
-+
- /**
-  * snapshot_additional_pages - Estimate the number of extra pages needed.
-  * @zone: Memory zone to carry out the computation for.
-diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
-index 22f4cd9..afcc550 100644
---- a/mm/Kconfig.debug
-+++ b/mm/Kconfig.debug
-@@ -76,8 +76,6 @@ config PAGE_POISONING_ZERO
- 	   no longer necessary to write zeros when GFP_ZERO is used on
- 	   allocation.
- 
--	   Enabling page poisoning with this option will disable hibernation
--
- 	   If unsure, say N
- 	bool
- 
--- 
-2.7.4
+Whether msync/fsync can make data persistent depends on ADR feature on memory
+controller, if it exists everything works well, otherwise, we need to have another
+interface that is why 'Flush hint table' in ACPI comes in. 'Flush hint table' is
+particularly useful for nvdimm virtualization if we use normal memory to emulate
+nvdimm with data persistent characteristic (the data will be flushed to a
+persistent storage, e.g, disk).
+
+Does current PMEM programming model fully supports 'Flush hint table'? Is
+userspace allowed to use these addresses?
+
+Thanks!
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
