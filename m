@@ -1,84 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 16FFD6B0069
-	for <linux-mm@kvack.org>; Fri,  9 Sep 2016 00:06:10 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id n4so25948515lfb.3
-        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 21:06:10 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id w3si1152932wmd.40.2016.09.08.21.06.08
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Sep 2016 21:06:08 -0700 (PDT)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8942iFk013112
-	for <linux-mm@kvack.org>; Fri, 9 Sep 2016 00:06:07 -0400
-Received: from e33.co.us.ibm.com (e33.co.us.ibm.com [32.97.110.151])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 25bc2rcxs1-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 09 Sep 2016 00:06:07 -0400
-Received: from localhost
-	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <zhong@linux.vnet.ibm.com>;
-	Thu, 8 Sep 2016 22:06:06 -0600
-Content-Type: text/plain; charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 9.3 \(3124\))
-Subject: Re: [PATCH] mm, page_alloc: warn about empty nodemask
-From: Li Zhong <zhong@linux.vnet.ibm.com>
-In-Reply-To: <20160908162621.51ff52413559a7a6bb5a7df5@linux-foundation.org>
-Date: Fri, 9 Sep 2016 12:03:47 +0800
-Content-Transfer-Encoding: quoted-printable
-References: <1473044391.4250.19.camel@TP420> <d7393a3e-73a7-7923-bc32-d4dcbc6523f9@suse.cz> <B1E0D42A-2F9D-4511-927B-962BC2FD13B3@linux.vnet.ibm.com> <3a661375-95d9-d1ff-c799-a0c5d9cec5e3@suse.cz> <1473208886.12692.2.camel@TP420> <20160908162621.51ff52413559a7a6bb5a7df5@linux-foundation.org>
-Message-Id: <D1029A5D-C180-440C-8B14-A6C9E17CDB06@linux.vnet.ibm.com>
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C11A46B0069
+	for <linux-mm@kvack.org>; Fri,  9 Sep 2016 01:43:39 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id o7so79413028oif.0
+        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 22:43:39 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id o197si1644498ith.75.2016.09.08.22.43.38
+        for <linux-mm@kvack.org>;
+        Thu, 08 Sep 2016 22:43:38 -0700 (PDT)
+Date: Fri, 9 Sep 2016 14:43:36 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH -v3 00/10] THP swap: Delay splitting THP during swapping
+ out
+Message-ID: <20160909054336.GA2114@bbox>
+References: <1473266769-2155-1-git-send-email-ying.huang@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1473266769-2155-1-git-send-email-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm <linux-mm@kvack.org>, John Allen <jallen@linux.vnet.ibm.com>, qiuxishi@huawei.com, iamjoonsoo.kim@lge.com, n-horiguchi@ah.jp.nec.com, rientjes@google.com, Michal Hocko <mhocko@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
 
+Hi Huang,
 
-> On Sep 9, 2016, at 07:26, Andrew Morton <akpm@linux-foundation.org> =
-wrote:
->=20
-> On Wed, 07 Sep 2016 08:41:26 +0800 Li Zhong <zhong@linux.vnet.ibm.com> =
-wrote:
->=20
->> Warn about allocating with an empty nodemask, it would be easier to
->> understand than oom messages. The check is added in the slow path.
->>=20
->> Suggested-by: Vlastimil Babka <vbabka@suse.cz>
->> Signed-off-by: Li Zhong <zhong@linux.vnet.ibm.com>
->> ---=20
->> mm/page_alloc.c | 6 ++++++
->> 1 file changed, 6 insertions(+)
->>=20
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index a2214c6..d624ff3 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -3448,6 +3448,12 @@ __alloc_pages_slowpath(gfp_t gfp_mask, =
-unsigned int order,
->> 	if (page)
->> 		goto got_pg;
->>=20
->> +	if (ac->nodemask && nodes_empty(*ac->nodemask)) {
->> +		pr_warn("nodemask is empty\n");
->> +		gfp_mask &=3D ~__GFP_NOWARN;
->> +		goto nopage;
->> +	}
->> +
->=20
-> Wouldn't it be better to do
->=20
-> 	if (WARN_ON(ac->nodemask && nodes_empty(*ac->nodemask)) {
-> 		...
->=20
-> so we can identify the misbehaving call site?
+On Wed, Sep 07, 2016 at 09:45:59AM -0700, Huang, Ying wrote:
+> From: Huang Ying <ying.huang@intel.com>
+> 
+> This patchset is to optimize the performance of Transparent Huge Page
+> (THP) swap.
+> 
+> Hi, Andrew, could you help me to check whether the overall design is
+> reasonable?
+> 
+> Hi, Hugh, Shaohua, Minchan and Rik, could you help me to review the
+> swap part of the patchset?  Especially [01/10], [04/10], [05/10],
+> [06/10], [07/10], [10/10].
+> 
+> Hi, Andrea and Kirill, could you help me to review the THP part of the
+> patchset?  Especially [02/10], [03/10], [09/10] and [10/10].
+> 
+> Hi, Johannes, Michal and Vladimir, I am not very confident about the
+> memory cgroup part, especially [02/10] and [03/10].  Could you help me
+> to review it?
+> 
+> And for all, Any comment is welcome!
+> 
+> 
+> Recently, the performance of the storage devices improved so fast that
+> we cannot saturate the disk bandwidth when do page swap out even on a
+> high-end server machine.  Because the performance of the storage
+> device improved faster than that of CPU.  And it seems that the trend
+> will not change in the near future.  On the other hand, the THP
+> becomes more and more popular because of increased memory size.  So it
+> becomes necessary to optimize THP swap performance.
+> 
+> The advantages of the THP swap support include:
+> 
+> - Batch the swap operations for the THP to reduce lock
+>   acquiring/releasing, including allocating/freeing the swap space,
+>   adding/deleting to/from the swap cache, and writing/reading the swap
+>   space, etc.  This will help improve the performance of the THP swap.
+> 
+> - The THP swap space read/write will be 2M sequential IO.  It is
+>   particularly helpful for the swap read, which usually are 4k random
+>   IO.  This will improve the performance of the THP swap too.
+> 
+> - It will help the memory fragmentation, especially when the THP is
+>   heavily used by the applications.  The 2M continuous pages will be
+>   free up after THP swapping out.
 
-I think with __GFP_NOWARN cleared, we could know the call site from =
-warn_alloc_failed().=20
-And the message =E2=80=9Cnodemask is empty=E2=80=9D makes the error =
-obvious without going to the source.=20
+I just read patchset right now and still doubt why the all changes
+should be coupled with THP tightly. Many parts(e.g., you introduced
+or modifying existing functions for making them THP specific) could
+just take page_list and the number of pages then would handle them
+without THP awareness.
 
-Thanks, Zhong
+For example, if the nr_pages is larger than SWAPFILE_CLUSTER, we
+can try to allocate new cluster. With that, we could allocate new
+clusters to meet nr_pages requested or bail out if we fail to allocate
+and fallback to 0-order page swapout. With that, swap layer could
+support multiple order-0 pages by batch.
+
+IMO, I really want to land Tim Chen's batching swapout work first.
+With Tim Chen's work, I expect we can make better refactoring
+for batching swap before adding more confuse to the swap layer.
+(I expect it would share several pieces of code for or would be base
+for batching allocation of swapcache, swapslot)
+
+After that, we could enhance swap for big contiguous batching
+like THP and finally we might make it be aware of THP specific to
+enhance further.
+
+A thing I remember you aruged: you want to swapin 512 pages
+all at once unconditionally. It's really worth to discuss if
+your design is going for the way.
+I doubt it's generally good idea. Because, currently, we try to
+swap in swapped out pages in THP page with conservative approach
+but your direction is going to opposite way.
+
+[mm, thp: convert from optimistic swapin collapsing to conservative]
+
+I think general approach(i.e., less effective than targeting
+implement for your own specific goal but less hacky and better job
+for many cases) is to rely/improve on the swap readahead.
+If most of subpages of a THP page are really workingset, swap readahead
+could work well.
+
+Yeah, it's fairly vague feedback so sorry if I miss something clear.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
