@@ -1,121 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CC63A6B0069
-	for <linux-mm@kvack.org>; Fri,  9 Sep 2016 05:00:50 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id v67so171859340pfv.1
-        for <linux-mm@kvack.org>; Fri, 09 Sep 2016 02:00:50 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id o3si2999555pab.114.2016.09.09.02.00.49
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 273376B0069
+	for <linux-mm@kvack.org>; Fri,  9 Sep 2016 05:59:38 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id g141so10389596wmd.0
+        for <linux-mm@kvack.org>; Fri, 09 Sep 2016 02:59:38 -0700 (PDT)
+Received: from outbound-smtp06.blacknight.com (outbound-smtp06.blacknight.com. [81.17.249.39])
+        by mx.google.com with ESMTPS id b75si2225517wma.30.2016.09.09.02.59.36
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 09 Sep 2016 02:00:49 -0700 (PDT)
-Subject: Re: DAX mapping detection (was: Re: [PATCH] Fix region lost in
- /proc/self/smaps)
-References: <CAPcyv4iDra+mRqEejfGqapKEAFZmUtUcg0dsJ8nt7mOhcT-Qpw@mail.gmail.com>
- <20160908225636.GB15167@linux.intel.com>
- <CAPcyv4h5y4MHdXtdrdPRtG7L0_KCoxf_xwDGnHQ2r5yZoqkFzQ@mail.gmail.com>
-From: Xiao Guangrong <guangrong.xiao@linux.intel.com>
-Message-ID: <5d5ef209-e005-12c6-9b34-1fdd21e1e6e2@linux.intel.com>
-Date: Fri, 9 Sep 2016 16:55:08 +0800
-MIME-Version: 1.0
-In-Reply-To: <CAPcyv4h5y4MHdXtdrdPRtG7L0_KCoxf_xwDGnHQ2r5yZoqkFzQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+        Fri, 09 Sep 2016 02:59:36 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp06.blacknight.com (Postfix) with ESMTPS id 3FE38989CE
+	for <linux-mm@kvack.org>; Fri,  9 Sep 2016 09:59:36 +0000 (UTC)
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: [RFC PATCH 0/4] Reduce tree_lock contention during swap and reclaim of a single file v1
+Date: Fri,  9 Sep 2016 10:59:31 +0100
+Message-Id: <1473415175-20807-1-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Gleb Natapov <gleb@kernel.org>, mtosatti@redhat.com, KVM list <kvm@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Hajnoczi <stefanha@redhat.com>, Yumei Huang <yuhuang@redhat.com>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>
+Cc: Dave Chinner <david@fromorbit.com>, Linus Torvalds <torvalds@linux-foundation.org>, Ying Huang <ying.huang@intel.com>, Michal Hocko <mhocko@kernel.org>
 
+This is a follow-on series from the thread "[lkp] [xfs] 68a9f5e700:
+aim7.jobs-per-min -13.6% regression" with active parties cc'd.  I've
+pushed the series to git.kernel.org where the LKP robot should pick it
+up automatically.
 
+git://git.kernel.org/pub/scm/linux/kernel/git/mel/linux.git mm-reclaim-contention-v1r15
 
-On 09/09/2016 07:04 AM, Dan Williams wrote:
-> On Thu, Sep 8, 2016 at 3:56 PM, Ross Zwisler
-> <ross.zwisler@linux.intel.com> wrote:
->> On Wed, Sep 07, 2016 at 09:32:36PM -0700, Dan Williams wrote:
->>> [ adding linux-fsdevel and linux-nvdimm ]
->>>
->>> On Wed, Sep 7, 2016 at 8:36 PM, Xiao Guangrong
->>> <guangrong.xiao@linux.intel.com> wrote:
->>> [..]
->>>> However, it is not easy to handle the case that the new VMA overlays with
->>>> the old VMA
->>>> already got by userspace. I think we have some choices:
->>>> 1: One way is completely skipping the new VMA region as current kernel code
->>>> does but i
->>>>    do not think this is good as the later VMAs will be dropped.
->>>>
->>>> 2: show the un-overlayed portion of new VMA. In your case, we just show the
->>>> region
->>>>    (0x2000 -> 0x3000), however, it can not work well if the VMA is a new
->>>> created
->>>>    region with different attributions.
->>>>
->>>> 3: completely show the new VMA as this patch does.
->>>>
->>>> Which one do you prefer?
->>>>
->>>
->>> I don't have a preference, but perhaps this breakage and uncertainty
->>> is a good opportunity to propose a more reliable interface for NVML to
->>> get the information it needs?
->>>
->>> My understanding is that it is looking for the VM_MIXEDMAP flag which
->>> is already ambiguous for determining if DAX is enabled even if this
->>> dynamic listing issue is fixed.  XFS has arranged for DAX to be a
->>> per-inode capability and has an XFS-specific inode flag.  We can make
->>> that a common inode flag, but it seems we should have a way to
->>> interrogate the mapping itself in the case where the inode is unknown
->>> or unavailable.  I'm thinking extensions to mincore to have flags for
->>> DAX and possibly whether the page is part of a pte, pmd, or pud
->>> mapping.  Just floating that idea before starting to look into the
->>> implementation, comments or other ideas welcome...
->>
->> I think this goes back to our previous discussion about support for the PMEM
->> programming model.  Really I think what NVML needs isn't a way to tell if it
->> is getting a DAX mapping, but whether it is getting a DAX mapping on a
->> filesystem that fully supports the PMEM programming model.  This of course is
->> defined to be a filesystem where it can do all of its flushes from userspace
->> safely and never call fsync/msync, and that allocations that happen in page
->> faults will be synchronized to media before the page fault completes.
->>
->> IIUC this is what NVML needs - a way to decide "do I use fsync/msync for
->> everything or can I rely fully on flushes from userspace?"
->>
->> For all existing implementations, I think the answer is "you need to use
->> fsync/msync" because we don't yet have proper support for the PMEM programming
->> model.
->>
->> My best idea of how to support this was a per-inode flag similar to the one
->> supported by XFS that says "you have a PMEM capable DAX mapping", which NVML
->> would then interpret to mean "you can do flushes from userspace and be fully
->> safe".  I think we really want this interface to be common over XFS and ext4.
->>
->> If we can figure out a better way of doing this interface, say via mincore,
->> that's fine, but I don't think we can detangle this from the PMEM API
->> discussion.
->
-> Whether a persistent memory mapping requires an msync/fsync is a
-> filesystem specific question.  This mincore proposal is separate from
-> that.  Consider device-DAX for volatile memory or mincore() called on
-> an anonymous memory range.  In those cases persistence and filesystem
-> metadata are not in the picture, but it would still be useful for
-> userspace to know "is there page cache backing this mapping?" or "what
-> is the TLB geometry of this mapping?".
+The progression of this series has been unsatisfactory. Dave originally
+reported a problem with tree_lock contention and while it can be fixed
+by pushing reclaim to direct reclaim, it slows swap considerably and was
+not a universal win. This series is the best balance I've found so far
+between the swapping and large rewriter cases.
 
-I got a question about msync/fsync which is beyond the topic of this thread :)
+I never reliably produced the same contentions that Dave did so testing
+is needed.  Dave, ideally you would test patches 1+2 and patches 1+4 but
+a test of patches 1+3 would also be nice if you have the time. Minimally,
+I'm expected that patches 1+2 will help the swapping-to-fast-storage case
+(LKP to confirm independently) and may be worth considering on their own
+even if Dave's test case is not helped.
 
-Whether msync/fsync can make data persistent depends on ADR feature on memory
-controller, if it exists everything works well, otherwise, we need to have another
-interface that is why 'Flush hint table' in ACPI comes in. 'Flush hint table' is
-particularly useful for nvdimm virtualization if we use normal memory to emulate
-nvdimm with data persistent characteristic (the data will be flushed to a
-persistent storage, e.g, disk).
+ drivers/block/brd.c |   1 +
+ mm/vmscan.c         | 209 +++++++++++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 182 insertions(+), 28 deletions(-)
 
-Does current PMEM programming model fully supports 'Flush hint table'? Is
-userspace allowed to use these addresses?
-
-Thanks!
-
-
+-- 
+2.6.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
