@@ -1,108 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 400F76B0069
-	for <linux-mm@kvack.org>; Fri,  9 Sep 2016 11:59:49 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id v67so192946993pfv.1
-        for <linux-mm@kvack.org>; Fri, 09 Sep 2016 08:59:49 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id y80si4414217pfi.205.2016.09.09.08.53.42
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 166AB6B0069
+	for <linux-mm@kvack.org>; Fri,  9 Sep 2016 12:19:12 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id n4so40175448lfb.3
+        for <linux-mm@kvack.org>; Fri, 09 Sep 2016 09:19:12 -0700 (PDT)
+Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
+        by mx.google.com with ESMTPS id d191si3600324wme.111.2016.09.09.09.19.10
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 09 Sep 2016 08:53:42 -0700 (PDT)
-Message-ID: <1473436422.3916.3.camel@linux.intel.com>
-Subject: Re: [PATCH -v3 00/10] THP swap: Delay splitting THP during swapping
- out
-From: Tim Chen <tim.c.chen@linux.intel.com>
-Date: Fri, 09 Sep 2016 08:53:42 -0700
-In-Reply-To: <20160909054336.GA2114@bbox>
-References: <1473266769-2155-1-git-send-email-ying.huang@intel.com>
-	 <20160909054336.GA2114@bbox>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 09 Sep 2016 09:19:10 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 578801C18B7
+	for <linux-mm@kvack.org>; Fri,  9 Sep 2016 17:19:10 +0100 (IST)
+Date: Fri, 9 Sep 2016 17:19:08 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [RFC PATCH 0/4] Reduce tree_lock contention during swap and
+ reclaim of a single file v1
+Message-ID: <20160909161908.GG8119@techsingularity.net>
+References: <1473415175-20807-1-git-send-email-mgorman@techsingularity.net>
+ <CA+55aFxcP_ydi9KCXmMQe5tv5GXw2QmTvnCQBM7ZjEuRgKiR4g@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CA+55aFxcP_ydi9KCXmMQe5tv5GXw2QmTvnCQBM7ZjEuRgKiR4g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A .
- Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Ying Huang <ying.huang@intel.com>, Michal Hocko <mhocko@kernel.org>
 
-On Fri, 2016-09-09 at 14:43 +0900, Minchan Kim wrote:
-> Hi Huang,
+On Fri, Sep 09, 2016 at 08:31:27AM -0700, Linus Torvalds wrote:
+> On Fri, Sep 9, 2016 at 2:59 AM, Mel Gorman <mgorman@techsingularity.net> wrote:
+> >
+> > The progression of this series has been unsatisfactory.
 > 
-> On Wed, Sep 07, 2016 at 09:45:59AM -0700, Huang, Ying wrote:
-> > 
-> > From: Huang Ying <ying.huang@intel.com>
-> > 
-> > This patchset is to optimize the performance of Transparent Huge Page
-> > (THP) swap.
-> > 
-> > Hi, Andrew, could you help me to check whether the overall design is
-> > reasonable?
-> > 
-> > Hi, Hugh, Shaohua, Minchan and Rik, could you help me to review the
-> > swap part of the patchset?A A Especially [01/10], [04/10], [05/10],
-> > [06/10], [07/10], [10/10].
-> > 
-> > Hi, Andrea and Kirill, could you help me to review the THP part of the
-> > patchset?A A Especially [02/10], [03/10], [09/10] and [10/10].
-> > 
-> > Hi, Johannes, Michal and Vladimir, I am not very confident about the
-> > memory cgroup part, especially [02/10] and [03/10].A A Could you help me
-> > to review it?
-> > 
-> > And for all, Any comment is welcome!
-> > 
-> > 
-> > Recently, the performance of the storage devices improved so fast that
-> > we cannot saturate the disk bandwidth when do page swap out even on a
-> > high-end server machine.A A Because the performance of the storage
-> > device improved faster than that of CPU.A A And it seems that the trend
-> > will not change in the near future.A A On the other hand, the THP
-> > becomes more and more popular because of increased memory size.A A So it
-> > becomes necessary to optimize THP swap performance.
-> > 
-> > The advantages of the THP swap support include:
-> > 
-> > - Batch the swap operations for the THP to reduce lock
-> > A  acquiring/releasing, including allocating/freeing the swap space,
-> > A  adding/deleting to/from the swap cache, and writing/reading the swap
-> > A  space, etc.A A This will help improve the performance of the THP swap.
-> > 
-> > - The THP swap space read/write will be 2M sequential IO.A A It is
-> > A  particularly helpful for the swap read, which usually are 4k random
-> > A  IO.A A This will improve the performance of the THP swap too.
-> > 
-> > - It will help the memory fragmentation, especially when the THP is
-> > A  heavily used by the applications.A A The 2M continuous pages will be
-> > A  free up after THP swapping out.
-> I just read patchset right now and still doubt why the all changes
-> should be coupled with THP tightly. Many parts(e.g., you introduced
-> or modifying existing functions for making them THP specific) could
-> just take page_list and the number of pages then would handle them
-> without THP awareness.
+> Yeah, I have to say that I particularly don't like patch #1.
+
+There isn't many ways to make it prettier. Making it nicer is partially
+hindered by the fact that tree_lock is IRQ-safe for IO completions but
+even if that was addressed there might be lock ordering issues.
+
+> It's some
+> rather nasty complexity for dubious gains, and holding the lock for
+> longer times might have downsides.
 > 
-> For example, if the nr_pages is larger than SWAPFILE_CLUSTER, we
-> can try to allocate new cluster. With that, we could allocate new
-> clusters to meet nr_pages requested or bail out if we fail to allocate
-> and fallback to 0-order page swapout. With that, swap layer could
-> support multiple order-0 pages by batch.
+
+Kswapd reclaim would delay a parallel truncation for example. Doubtful it
+matters but the possibility is there.
+
+The gain in swapping is nice but ramdisk is excessively artifical. It might
+matter if someone reported it made a big difference swapping to faster
+storage like SSD or NVMe although the cases where fast swap is important
+are few -- overcommitted host with multiple idle VMs with a new active VM
+starting is the only one that springs to mind.
+
+> So I think this series is one of those "we need to find that it makes
+> a big positive impact" to make sense.
 > 
-> IMO, I really want to land Tim Chen's batching swapout work first.
-> With Tim Chen's work, I expect we can make better refactoring
-> for batching swap before adding more confuse to the swap layer.
-> (I expect it would share several pieces of code for or would be base
-> for batching allocation of swapcache, swapslot)
 
-Minchan,
+Agreed. I don't mind leaving it on the back burner unless Dave reports
+it really helps or a new bug report about realistic tree_lock contention
+shows up.
 
-Ying and I do plan to send out a new patch series on batching swapout
-and swapin plus a few other optimization on the swapping ofA 
-regular sized pages.
-
-Hopefully we'll be able to do that soon after we fixed up a few
-things and retest.
-
-Tim
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
