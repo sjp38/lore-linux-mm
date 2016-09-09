@@ -1,50 +1,174 @@
-From: Borislav Petkov <bp-Gina5bIWoIWzQB+pC5nmwQ@public.gmane.org>
-Subject: Re: [RFC PATCH v2 07/20] x86: Provide general kernel support for
- memory encryption
-Date: Thu, 8 Sep 2016 15:55:51 +0200
-Message-ID: <20160908135551.3gtbwezbb7xpyud2@pd.tnic>
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [RFC PATCH v2 10/20] x86: Insure that memory areas are encrypted
+ when possible
+Date: Fri, 9 Sep 2016 17:53:06 +0200
+Message-ID: <20160909155305.bmm2fvw7ndjjhqvo@pd.tnic>
 References: <20160822223529.29880.50884.stgit@tlendack-t1.amdoffice.net>
- <20160822223646.29880.28794.stgit@tlendack-t1.amdoffice.net>
- <20160906093113.GA18319@pd.tnic>
- <f4125cae-63af-f8c7-086f-e297ce480a07@amd.com>
- <20160907155535.i7wh46uxxa2bj3ik@pd.tnic>
- <bc8f22db-b6f9-951f-145c-fed919098cbe@amd.com>
+ <20160822223722.29880.94331.stgit@tlendack-t1.amdoffice.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=utf-8
-Return-path: <linux-efi-owner-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>
+Return-path: <linux-arch-owner@vger.kernel.org>
 Content-Disposition: inline
-In-Reply-To: <bc8f22db-b6f9-951f-145c-fed919098cbe-5C7GfCeVMHo@public.gmane.org>
-Sender: linux-efi-owner-u79uwXL29TY76Z2rM5mHXA@public.gmane.org
-To: Tom Lendacky <thomas.lendacky-5C7GfCeVMHo@public.gmane.org>
-Cc: linux-arch-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, linux-efi-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, kvm-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, linux-doc-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, x86-DgEjT+Ai2ygdnm+yROfE0A@public.gmane.org, linux-kernel-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, kasan-dev-/JYPxA39Uh5TLH3MbocFFw@public.gmane.org, linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org, iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, Arnd Bergmann <arnd-r2nGTMty4D4@public.gmane.org>, Jonathan Corbet <corbet-T1hC0tSOHrs@public.gmane.org>, Matt Fleming <matt-mF/unelCI9GS6iBeEJttW/XRex20P6io@public.gmane.org>, Joerg Roedel <joro-zLv9SwRftAIdnm+yROfE0A@public.gmane.org>, Konrad Rzeszutek Wilk <konrad.wilk-QHcLZuEGTsvQT0dZR+AlfA@public.gmane.org>, Andrey Ryabinin <aryabinin-5HdwGun5lf+gSpxsJD1C4w@public.gmane.org>, Ingo Molnar <mingo-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, Andy Lutomirski <luto-DgEjT+Ai2ygdnm+yROfE0A@public.gmane.org>, "H. Peter Anvin" <hpa-YMNOUZJC4hwAvxtiuMwx3w@public.gmane.org>, Paolo Bonzini <pbonzini-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, Alexander Potapenko <glider-hpIqsD4AKlfQT0dZR+AlfA@public.gmane.org>, Thomas Gleixner <tglx-hfZtesqFncYOwBW4kG4KsQ@public.gmane.org>, Dmitry Vyukov <dvyukov@google.>
+In-Reply-To: <20160822223722.29880.94331.stgit@tlendack-t1.amdoffice.net>
+Sender: linux-arch-owner@vger.kernel.org
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.>
 List-Id: linux-mm.kvack.org
 
-On Thu, Sep 08, 2016 at 08:26:27AM -0500, Tom Lendacky wrote:
-> When does this value get initialized?  Since _PAGE_ENC is #defined to
-> sme_me_mask, which is not set until the boot process begins, I'm afraid
-> we'd end up using the initial value of sme_me_mask, which is zero.  Do
-> I have that right?
+On Mon, Aug 22, 2016 at 05:37:23PM -0500, Tom Lendacky wrote:
+> Encrypt memory areas in place when possible (e.g. zero page, etc.) so
+> that special handling isn't needed afterwards.
+> 
+> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+> ---
+>  arch/x86/kernel/head64.c |   93 ++++++++++++++++++++++++++++++++++++++++++++--
+>  arch/x86/kernel/setup.c  |    8 ++++
+>  2 files changed, 96 insertions(+), 5 deletions(-)
 
-Hmm, but then that would hold true for all the other defines where you
-OR-in _PAGE_ENC, no?
+...
 
-In any case, the preprocessed source looks like this:
+> +int __init early_make_pgtable(unsigned long address)
+> +{
+> +	unsigned long physaddr = address - __PAGE_OFFSET;
+> +	pmdval_t pmd;
+> +
+> +	pmd = (physaddr & PMD_MASK) + early_pmd_flags;
+> +
+> +	return __early_make_pgtable(address, pmd);
+> +}
+> +
+> +static void __init create_unencrypted_mapping(void *address, unsigned long size)
+> +{
+> +	unsigned long physaddr = (unsigned long)address - __PAGE_OFFSET;
+> +	pmdval_t pmd_flags, pmd;
+> +
+> +	if (!sme_me_mask)
+> +		return;
+> +
+> +	/* Clear the encryption mask from the early_pmd_flags */
+> +	pmd_flags = early_pmd_flags & ~sme_me_mask;
+> +
+> +	do {
+> +		pmd = (physaddr & PMD_MASK) + pmd_flags;
+> +		__early_make_pgtable((unsigned long)address, pmd);
+> +
+> +		address += PMD_SIZE;
+> +		physaddr += PMD_SIZE;
+> +		size = (size < PMD_SIZE) ? 0 : size - PMD_SIZE;
+> +	} while (size);
+> +}
+> +
+> +static void __init __clear_mapping(unsigned long address)
 
-pmdval_t early_pmd_flags = (((((((pteval_t)(1)) << 0) | (((pteval_t)(1)) << 1) | (((pteval_t)(1)) << 6) | (((pteval_t)(1)) << 5) | (((pteval_t)(1)) << 8)) | (((pteval_t)(1)) << 63)) | (((pteval_t)(1)) << 7)) | sme_me_mask) & ~((((pteval_t)(1)) << 8) | (((pteval_t)(1)) << 63));
+Should be called something with "pmd" in the name as it clears a PMD,
+i.e. __clear_pmd_mapping or so.
 
-but the problem is later, when building:
+> +{
+> +	unsigned long physaddr = address - __PAGE_OFFSET;
+> +	pgdval_t pgd, *pgd_p;
+> +	pudval_t pud, *pud_p;
+> +	pmdval_t *pmd_p;
+> +
+> +	/* Invalid address or early pgt is done ?  */
+> +	if (physaddr >= MAXMEM ||
+> +	    read_cr3() != __sme_pa_nodebug(early_level4_pgt))
+> +		return;
+> +
+> +	pgd_p = &early_level4_pgt[pgd_index(address)].pgd;
+> +	pgd = *pgd_p;
+> +
+> +	if (!pgd)
+> +		return;
+> +
+> +	/*
+> +	 * The use of __START_KERNEL_map rather than __PAGE_OFFSET here matches
+> +	 * __early_make_pgtable where the entry was created.
+> +	 */
+> +	pud_p = (pudval_t *)((pgd & PTE_PFN_MASK) + __START_KERNEL_map - phys_base);
+> +	pud_p += pud_index(address);
+> +	pud = *pud_p;
+> +
+> +	if (!pud)
+> +		return;
+> +
+> +	pmd_p = (pmdval_t *)((pud & PTE_PFN_MASK) + __START_KERNEL_map - phys_base);
+> +	pmd_p[pmd_index(address)] = 0;
+> +}
+> +
+> +static void __init clear_mapping(void *address, unsigned long size)
+> +{
+> +	if (!sme_me_mask)
+> +		return;
+> +
+> +	do {
+> +		__clear_mapping((unsigned long)address);
+> +
+> +		address += PMD_SIZE;
+> +		size = (size < PMD_SIZE) ? 0 : size - PMD_SIZE;
+> +	} while (size);
+> +}
+> +
+> +static void __init sme_memcpy(void *dst, void *src, unsigned long size)
+> +{
+> +	create_unencrypted_mapping(src, size);
+> +	memcpy(dst, src, size);
+> +	clear_mapping(src, size);
+> +}
+> +
 
-arch/x86/kernel/head64.c:39:28: error: initializer element is not constant
- pmdval_t early_pmd_flags = (__PAGE_KERNEL_LARGE | _PAGE_ENC) & ~(_PAGE_GLOBAL | _PAGE_NX);
-                            ^
-scripts/Makefile.build:153: recipe for target 'arch/x86/kernel/head64.s' failed
+In any case, this whole functionality is SME-specific and should be
+somewhere in an SME-specific file. arch/x86/mm/mem_encrypt.c or so...
 
-so I guess not. :-\
+>  /* Don't add a printk in there. printk relies on the PDA which is not initialized 
+>     yet. */
+>  static void __init clear_bss(void)
+> @@ -122,12 +205,12 @@ static void __init copy_bootdata(char *real_mode_data)
+>  	char * command_line;
+>  	unsigned long cmd_line_ptr;
+>  
+> -	memcpy(&boot_params, real_mode_data, sizeof boot_params);
+> +	sme_memcpy(&boot_params, real_mode_data, sizeof boot_params);
 
-Ok, then at least please put the early_pmd_flags init after
-sme_early_init() along with a small comment explaning what happens.
+checkpatch.pl:
 
-Thanks.
+WARNING: sizeof boot_params should be sizeof(boot_params)
+#155: FILE: arch/x86/kernel/head64.c:208:
++       sme_memcpy(&boot_params, real_mode_data, sizeof boot_params);
+
+>  	sanitize_boot_params(&boot_params);
+>  	cmd_line_ptr = get_cmd_line_ptr();
+>  	if (cmd_line_ptr) {
+>  		command_line = __va(cmd_line_ptr);
+> -		memcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
+> +		sme_memcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
+>  	}
+>  }
+>  
+> diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+> index 1489da8..1fdaa11 100644
+> --- a/arch/x86/kernel/setup.c
+> +++ b/arch/x86/kernel/setup.c
+> @@ -114,6 +114,7 @@
+>  #include <asm/microcode.h>
+>  #include <asm/mmu_context.h>
+>  #include <asm/kaslr.h>
+> +#include <asm/mem_encrypt.h>
+>  
+>  /*
+>   * max_low_pfn_mapped: highest direct mapped pfn under 4GB
+> @@ -376,6 +377,13 @@ static void __init reserve_initrd(void)
+>  	    !ramdisk_image || !ramdisk_size)
+>  		return;		/* No initrd provided by bootloader */
+>  
+> +	/*
+> +	 * This memory is marked encrypted by the kernel but the ramdisk
+> +	 * was loaded in the clear by the bootloader, so make sure that
+> +	 * the ramdisk image is encrypted.
+> +	 */
+> +	sme_early_mem_enc(ramdisk_image, ramdisk_end - ramdisk_image);
+
+What happens if we go and relocate the ramdisk? I.e., the function above
+this one: relocate_initrd(). We have to encrypt it then too, I presume.
 
 -- 
 Regards/Gruss,
