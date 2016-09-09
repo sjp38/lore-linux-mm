@@ -1,66 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 37EAD6B0069
-	for <linux-mm@kvack.org>; Fri,  9 Sep 2016 07:53:01 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id w12so12336474wmf.3
-        for <linux-mm@kvack.org>; Fri, 09 Sep 2016 04:53:01 -0700 (PDT)
-Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
-        by mx.google.com with ESMTPS id e83si2629494wmi.72.2016.09.09.04.52.59
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E7AA36B0069
+	for <linux-mm@kvack.org>; Fri,  9 Sep 2016 08:36:14 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id v67so182389144pfv.1
+        for <linux-mm@kvack.org>; Fri, 09 Sep 2016 05:36:14 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id l6si3747866pav.281.2016.09.09.05.36.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Sep 2016 04:52:59 -0700 (PDT)
-Received: by mail-wm0-x242.google.com with SMTP id w12so2411364wmf.1
-        for <linux-mm@kvack.org>; Fri, 09 Sep 2016 04:52:59 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 09 Sep 2016 05:36:14 -0700 (PDT)
+Date: Fri, 9 Sep 2016 15:36:08 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH v4 RESEND 0/2] Align mmap address for DAX pmd mappings
+Message-ID: <20160909123608.GA75965@black.fi.intel.com>
+References: <1472497881-9323-1-git-send-email-toshi.kani@hpe.com>
+ <20160829204842.GA27286@node.shutemov.name>
+ <1472506310.1532.47.camel@hpe.com>
+ <1472508000.1532.59.camel@hpe.com>
+ <20160908105707.GA17331@node>
+ <1473342519.2092.42.camel@hpe.com>
+ <1473376846.2092.69.camel@hpe.com>
 MIME-Version: 1.0
-In-Reply-To: <20160909104637.2580-1-colin.king@canonical.com>
-References: <20160909104637.2580-1-colin.king@canonical.com>
-From: Alexey Klimov <klimov.linux@gmail.com>
-Date: Fri, 9 Sep 2016 12:52:58 +0100
-Message-ID: <CALW4P+K_ULv97bf3VVoFVwivcB7G2MxWx5P4S4hcxdnypsRpXA@mail.gmail.com>
-Subject: Re: [PATCH] mm: mlock: check if vma is locked using & instead of && operator
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1473376846.2092.69.camel@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Colin King <colin.king@canonical.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Eric B Munson <emunson@akamai.com>, Simon Guo <wei.guo.simon@gmail.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: "Kani, Toshimitsu" <toshi.kani@hpe.com>
+Cc: "kirill@shutemov.name" <kirill@shutemov.name>, "hughd@google.com" <hughd@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "adilger.kernel@dilger.ca" <adilger.kernel@dilger.ca>, "mike.kravetz@oracle.com" <mike.kravetz@oracle.com>, "dan.j.williams@intel.com" <dan.j.williams@intel.com>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "ross.zwisler@linux.intel.com" <ross.zwisler@linux.intel.com>, "tytso@mit.edu" <tytso@mit.edu>, "david@fromorbit.com" <david@fromorbit.com>, "jack@suse.cz" <jack@suse.cz>
 
-Hi Colin,
+On Thu, Sep 08, 2016 at 11:21:46PM +0000, Kani, Toshimitsu wrote:
+> On Thu, 2016-09-08 at 07:48 -0600, Kani, Toshimitsu wrote:
+> > On Thu, 2016-09-08 at 13:57 +0300, Kirill A. Shutemov wrote:
+> > > 
+> > > On Mon, Aug 29, 2016 at 10:00:43PM +0000, Kani, Toshimitsu wrote:
+>  :
+> > > > 
+> > > > Looking further, these shmem_huge handlings only check pre-
+> > > > conditions.  So, we should be able to make shmem_get_unmapped_are
+> > > > a() as a wrapper, which checks such shmem-specific conitions, and
+> > > > then call __thp_get_unmapped_area() for the actual work.  All
+> > > > DAX-specific checks are performed in thp_get_unmapped_area() as
+> > > > well.  We can make  __thp_get_unmapped_area() as a common
+> > > > function.
+> > > > 
+> > > > I'd prefer to make such change as a separate item,
+> > > 
+> > > Do you have plan to submit such change?
+> > 
+> > Yes, I will submit the change once I finish testing.
+> 
+> I found a bug in the current code, and need some clarification.  The
+> if-statement below is reverted.
 
-On Fri, Sep 9, 2016 at 11:46 AM, Colin King <colin.king@canonical.com> wrote:
-> From: Colin Ian King <colin.king@canonical.com>
->
-> The check to see if a vma is locked is using the operator && and
-> should be using the bitwise operator & to see if the VM_LOCKED bit
-> is set. Fix this to use & instead.
->
-> Fixes: ae38c3be005ee ("mm: mlock: check against vma for actual mlock() size")
-> Signed-off-by: Colin Ian King <colin.king@canonical.com>
-> ---
->  mm/mlock.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/mm/mlock.c b/mm/mlock.c
-> index fafbb78..f5b1d07 100644
-> --- a/mm/mlock.c
-> +++ b/mm/mlock.c
-> @@ -643,7 +643,7 @@ static int count_mm_mlocked_page_nr(struct mm_struct *mm,
->         for (; vma ; vma = vma->vm_next) {
->                 if (start + len <=  vma->vm_start)
->                         break;
-> -               if (vma->vm_flags && VM_LOCKED) {
-> +               if (vma->vm_flags & VM_LOCKED) {
->                         if (start > vma->vm_start)
->                                 count -= (start - vma->vm_start);
->                         if (start + len < vma->vm_end) {
-> --
+<two-hands-facepalm>
 
-I think it was already addressed in [1] by Simon Guo.
+Yeah. It was repored by Hillf[1]. The fixup got lost. :(
 
-[1] http://www.spinics.net/lists/linux-mm/msg113228.html
+Could you post a proper patch with the fix?
+
+I would be nice to credit Hillf there too.
+
+[1] http://lkml.kernel.org/r/054f01d1c86f$2994d5c0$7cbe8140$@alibaba-inc.com
 
 -- 
-Best regards,
-Alexey
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
