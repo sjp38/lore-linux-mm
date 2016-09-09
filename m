@@ -1,108 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 881F46B0069
-	for <linux-mm@kvack.org>; Thu,  8 Sep 2016 23:52:07 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id l64so31453718oif.3
-        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 20:52:07 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id v68si1251046itd.27.2016.09.08.20.52.06
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 16FFD6B0069
+	for <linux-mm@kvack.org>; Fri,  9 Sep 2016 00:06:10 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id n4so25948515lfb.3
+        for <linux-mm@kvack.org>; Thu, 08 Sep 2016 21:06:10 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id w3si1152932wmd.40.2016.09.08.21.06.08
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 08 Sep 2016 20:52:06 -0700 (PDT)
-Subject: Re: [PATCH v8 10/16] mm/memblock: add a new function
- memblock_alloc_near_nid
-References: <1472712907-12700-1-git-send-email-thunder.leizhen@huawei.com>
- <1472712907-12700-11-git-send-email-thunder.leizhen@huawei.com>
-From: "Leizhen (ThunderTown)" <thunder.leizhen@huawei.com>
-Message-ID: <57D23157.7000203@huawei.com>
-Date: Fri, 9 Sep 2016 11:49:43 +0800
-MIME-Version: 1.0
-In-Reply-To: <1472712907-12700-11-git-send-email-thunder.leizhen@huawei.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Sep 2016 21:06:08 -0700 (PDT)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8942iFk013112
+	for <linux-mm@kvack.org>; Fri, 9 Sep 2016 00:06:07 -0400
+Received: from e33.co.us.ibm.com (e33.co.us.ibm.com [32.97.110.151])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 25bc2rcxs1-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 09 Sep 2016 00:06:07 -0400
+Received: from localhost
+	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <zhong@linux.vnet.ibm.com>;
+	Thu, 8 Sep 2016 22:06:06 -0600
+Content-Type: text/plain; charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 9.3 \(3124\))
+Subject: Re: [PATCH] mm, page_alloc: warn about empty nodemask
+From: Li Zhong <zhong@linux.vnet.ibm.com>
+In-Reply-To: <20160908162621.51ff52413559a7a6bb5a7df5@linux-foundation.org>
+Date: Fri, 9 Sep 2016 12:03:47 +0800
+Content-Transfer-Encoding: quoted-printable
+References: <1473044391.4250.19.camel@TP420> <d7393a3e-73a7-7923-bc32-d4dcbc6523f9@suse.cz> <B1E0D42A-2F9D-4511-927B-962BC2FD13B3@linux.vnet.ibm.com> <3a661375-95d9-d1ff-c799-a0c5d9cec5e3@suse.cz> <1473208886.12692.2.camel@TP420> <20160908162621.51ff52413559a7a6bb5a7df5@linux-foundation.org>
+Message-Id: <D1029A5D-C180-440C-8B14-A6C9E17CDB06@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, linux-kernel <linux-kernel@vger.kernel.org>, Rob Herring <robh+dt@kernel.org>, Frank
- Rowand <frowand.list@gmail.com>, devicetree <devicetree@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
-Cc: Zefan Li <lizefan@huawei.com>, Xinwei Hu <huxinwei@huawei.com>, Tianhong
- Ding <dingtianhong@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm <linux-mm@kvack.org>, John Allen <jallen@linux.vnet.ibm.com>, qiuxishi@huawei.com, iamjoonsoo.kim@lge.com, n-horiguchi@ah.jp.nec.com, rientjes@google.com, Michal Hocko <mhocko@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-Hi, linux-mm folks:
-    Can somebody help me to review this patch?
-    I ran scripts/get_maintainer.pl -f mm/memblock.c and scripts/get_maintainer.pl -f mm/, but
-the results showed me that there is no maintainer.
-    To understand this patch should also read patch 11.
 
-On 2016/9/1 14:55, Zhen Lei wrote:
-> If HAVE_MEMORYLESS_NODES is selected, and some memoryless numa nodes are
-> actually exist. The percpu variable areas and numa control blocks of that
-> memoryless numa nodes must be allocated from the nearest available node
-> to improve performance.
-> 
-> Signed-off-by: Zhen Lei <thunder.leizhen@huawei.com>
-> ---
->  include/linux/memblock.h |  1 +
->  mm/memblock.c            | 28 ++++++++++++++++++++++++++++
->  2 files changed, 29 insertions(+)
-> 
-> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-> index 2925da2..8e866e0 100644
-> --- a/include/linux/memblock.h
-> +++ b/include/linux/memblock.h
-> @@ -290,6 +290,7 @@ static inline int memblock_get_region_node(const struct memblock_region *r)
-> 
->  phys_addr_t memblock_alloc_nid(phys_addr_t size, phys_addr_t align, int nid);
->  phys_addr_t memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, int nid);
-> +phys_addr_t memblock_alloc_near_nid(phys_addr_t size, phys_addr_t align, int nid);
-> 
->  phys_addr_t memblock_alloc(phys_addr_t size, phys_addr_t align);
-> 
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index 483197e..6578fff 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -1189,6 +1189,34 @@ again:
->  	return ret;
->  }
-> 
-> +phys_addr_t __init memblock_alloc_near_nid(phys_addr_t size, phys_addr_t align, int nid)
-> +{
-> +	int i, best_nid, distance;
-> +	u64 pa;
-> +	DECLARE_BITMAP(nodes_map, MAX_NUMNODES);
-> +
-> +	bitmap_zero(nodes_map, MAX_NUMNODES);
-> +
-> +find_nearest_node:
-> +	best_nid = NUMA_NO_NODE;
-> +	distance = INT_MAX;
-> +
-> +	for_each_clear_bit(i, nodes_map, MAX_NUMNODES)
-> +		if (node_distance(nid, i) < distance) {
-> +			best_nid = i;
-> +			distance = node_distance(nid, i);
-> +		}
-> +
-> +	pa = memblock_alloc_nid(size, align, best_nid);
-> +	if (!pa) {
-> +		BUG_ON(best_nid == NUMA_NO_NODE);
-> +		bitmap_set(nodes_map, best_nid, 1);
-> +		goto find_nearest_node;
-> +	}
-> +
-> +	return pa;
-> +}
-> +
->  phys_addr_t __init __memblock_alloc_base(phys_addr_t size, phys_addr_t align, phys_addr_t max_addr)
->  {
->  	return memblock_alloc_base_nid(size, align, max_addr, NUMA_NO_NODE,
-> --
-> 2.5.0
-> 
-> 
-> 
-> .
-> 
+> On Sep 9, 2016, at 07:26, Andrew Morton <akpm@linux-foundation.org> =
+wrote:
+>=20
+> On Wed, 07 Sep 2016 08:41:26 +0800 Li Zhong <zhong@linux.vnet.ibm.com> =
+wrote:
+>=20
+>> Warn about allocating with an empty nodemask, it would be easier to
+>> understand than oom messages. The check is added in the slow path.
+>>=20
+>> Suggested-by: Vlastimil Babka <vbabka@suse.cz>
+>> Signed-off-by: Li Zhong <zhong@linux.vnet.ibm.com>
+>> ---=20
+>> mm/page_alloc.c | 6 ++++++
+>> 1 file changed, 6 insertions(+)
+>>=20
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index a2214c6..d624ff3 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -3448,6 +3448,12 @@ __alloc_pages_slowpath(gfp_t gfp_mask, =
+unsigned int order,
+>> 	if (page)
+>> 		goto got_pg;
+>>=20
+>> +	if (ac->nodemask && nodes_empty(*ac->nodemask)) {
+>> +		pr_warn("nodemask is empty\n");
+>> +		gfp_mask &=3D ~__GFP_NOWARN;
+>> +		goto nopage;
+>> +	}
+>> +
+>=20
+> Wouldn't it be better to do
+>=20
+> 	if (WARN_ON(ac->nodemask && nodes_empty(*ac->nodemask)) {
+> 		...
+>=20
+> so we can identify the misbehaving call site?
+
+I think with __GFP_NOWARN cleared, we could know the call site from =
+warn_alloc_failed().=20
+And the message =E2=80=9Cnodemask is empty=E2=80=9D makes the error =
+obvious without going to the source.=20
+
+Thanks, Zhong
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
