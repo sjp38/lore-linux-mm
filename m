@@ -1,80 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9931E6B0069
-	for <linux-mm@kvack.org>; Fri,  9 Sep 2016 14:16:38 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id v67so200631616pfv.1
-        for <linux-mm@kvack.org>; Fri, 09 Sep 2016 11:16:38 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id o3si4963592pfb.55.2016.09.09.11.16.37
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8213C6B0069
+	for <linux-mm@kvack.org>; Fri,  9 Sep 2016 14:29:51 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id g141so19647585wmd.0
+        for <linux-mm@kvack.org>; Fri, 09 Sep 2016 11:29:51 -0700 (PDT)
+Received: from mail-wm0-x229.google.com (mail-wm0-x229.google.com. [2a00:1450:400c:c09::229])
+        by mx.google.com with ESMTPS id ql8si4146209wjc.120.2016.09.09.11.29.50
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 09 Sep 2016 11:16:37 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [RFC PATCH 0/4] Reduce tree_lock contention during swap and reclaim of a single file v1
-References: <1473415175-20807-1-git-send-email-mgorman@techsingularity.net>
-	<CA+55aFxcP_ydi9KCXmMQe5tv5GXw2QmTvnCQBM7ZjEuRgKiR4g@mail.gmail.com>
-	<20160909161908.GG8119@techsingularity.net>
-Date: Fri, 09 Sep 2016 11:16:35 -0700
-In-Reply-To: <20160909161908.GG8119@techsingularity.net> (Mel Gorman's message
-	of "Fri, 9 Sep 2016 17:19:08 +0100")
-Message-ID: <8760q52b24.fsf@yhuang-mobile.sh.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 09 Sep 2016 11:29:50 -0700 (PDT)
+Received: by mail-wm0-x229.google.com with SMTP id b187so45508727wme.1
+        for <linux-mm@kvack.org>; Fri, 09 Sep 2016 11:29:50 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+In-Reply-To: <1473410612-6207-1-git-send-email-anisse@astier.eu>
+References: <1473410612-6207-1-git-send-email-anisse@astier.eu>
+From: Kees Cook <keescook@chromium.org>
+Date: Fri, 9 Sep 2016 11:29:49 -0700
+Message-ID: <CAGXu5jLP2NmuN17HraJw2iLLB=5w=mb6-bTOpSECK_ai1ifjEg@mail.gmail.com>
+Subject: Re: [PATCH] PM / Hibernate: allow hibernation with PAGE_POISONING_ZERO
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Ying Huang <ying.huang@intel.com>, Michal Hocko <mhocko@kernel.org>, "Tim C. Chen" <tim.c.chen@intel.com>, Dave Hansen <dave.hansen@intel.com>, Andi Kleen <andi.kleen@intel.com>
+To: Anisse Astier <anisse@astier.eu>, Laura Abbott <labbott@fedoraproject.org>
+Cc: Linux-MM <linux-mm@kvack.org>, Linux PM list <linux-pm@vger.kernel.org>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, "Rafael J . Wysocki" <rjw@rjwysocki.net>, Alan Cox <gnomes@lxorguk.ukuu.org.uk>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Brad Spengler <spender@grsecurity.net>, Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>, Jianyu Zhan <nasa4836@gmail.com>, Len Brown <len.brown@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Mathias Krause <minipli@googlemail.com>, Michal Hocko <mhocko@suse.com>, PaX Team <pageexec@freemail.hu>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, Yves-Alexis Perez <corsac@debian.org>, LKML <linux-kernel@vger.kernel.org>
 
-Mel Gorman <mgorman@techsingularity.net> writes:
-
-> On Fri, Sep 09, 2016 at 08:31:27AM -0700, Linus Torvalds wrote:
->> On Fri, Sep 9, 2016 at 2:59 AM, Mel Gorman <mgorman@techsingularity.net> wrote:
->> >
->> > The progression of this series has been unsatisfactory.
->> 
->> Yeah, I have to say that I particularly don't like patch #1.
+On Fri, Sep 9, 2016 at 1:43 AM, Anisse Astier <anisse@astier.eu> wrote:
+> PAGE_POISONING_ZERO disables zeroing new pages on alloc, they are
+> poisoned (zeroed) as they become available.
+> In the hibernate use case, free pages will appear in the system without
+> being cleared, left there by the loading kernel.
 >
-> There isn't many ways to make it prettier. Making it nicer is partially
-> hindered by the fact that tree_lock is IRQ-safe for IO completions but
-> even if that was addressed there might be lock ordering issues.
+> This patch will make sure free pages are cleared on resume when
+> PAGE_POISONING_ZERO is enabled. We free the pages just after resume
+> because we can't do it later: going through any device resume code might
+> allocate some memory and invalidate the free pages bitmap.
 >
->> It's some
->> rather nasty complexity for dubious gains, and holding the lock for
->> longer times might have downsides.
->> 
+> Thus we don't need to disable hibernation when PAGE_POISONING_ZERO is
+> enabled.
 >
-> Kswapd reclaim would delay a parallel truncation for example. Doubtful it
-> matters but the possibility is there.
->
-> The gain in swapping is nice but ramdisk is excessively artifical. It might
-> matter if someone reported it made a big difference swapping to faster
-> storage like SSD or NVMe although the cases where fast swap is important
-> are few -- overcommitted host with multiple idle VMs with a new active VM
-> starting is the only one that springs to mind.
+> Signed-off-by: Anisse Astier <anisse@astier.eu>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Laura Abbott <labbott@fedoraproject.org>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Rafael J. Wysocki <rjw@rjwysocki.net>
 
-I will try to provide some data for the NVMe disk.  I think the trend is
-that the performance of the disk is increasing fast and will continue in
-the near future at least.  We found we cannot saturate the latest NVMe
-disk when swapping because of locking issues in swap and page reclaim
-path.
+Cool!
 
-The swap usage problem could be a "Chicken and Egg" problem.  Because
-swap performance is poor, nobody uses swap, and because nobody uses
-swap, nobody works on improving the performance of the swap.  With the
-faster and faster storage device, swap could be more popular in the
-future if we optimize its performance to catch up with the performance
-of the storage.
+Reviewed-by: Kees Cook <keescook@chromium.org>
 
->> So I think this series is one of those "we need to find that it makes
->> a big positive impact" to make sense.
->> 
->
-> Agreed. I don't mind leaving it on the back burner unless Dave reports
-> it really helps or a new bug report about realistic tree_lock contention
-> shows up.
+-Kees
 
-Best Regards,
-Huang, Ying
+-- 
+Kees Cook
+Nexus Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
