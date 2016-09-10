@@ -1,65 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DE7F6B025E
-	for <linux-mm@kvack.org>; Sat, 10 Sep 2016 11:55:20 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id ag5so236063305pad.2
-        for <linux-mm@kvack.org>; Sat, 10 Sep 2016 08:55:20 -0700 (PDT)
-Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0138.outbound.protection.outlook.com. [104.47.34.138])
-        by mx.google.com with ESMTPS id s64si10390165pfk.75.2016.09.10.08.55.18
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 73CE86B0069
+	for <linux-mm@kvack.org>; Sat, 10 Sep 2016 12:39:36 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 128so28186733pfb.2
+        for <linux-mm@kvack.org>; Sat, 10 Sep 2016 09:39:36 -0700 (PDT)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id g84si10558617pfb.36.2016.09.10.09.39.34
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sat, 10 Sep 2016 08:55:19 -0700 (PDT)
-From: Matthew Wilcox <mawilcox@microsoft.com>
-Subject: RE: [PATCH v2 2/9] ext2: tell DAX the size of allocation holes
-Date: Sat, 10 Sep 2016 15:55:17 +0000
-Message-ID: <DM2PR21MB0089423BC46778AC1A511995CBFD0@DM2PR21MB0089.namprd21.prod.outlook.com>
-References: <20160823220419.11717-1-ross.zwisler@linux.intel.com>
- <20160823220419.11717-3-ross.zwisler@linux.intel.com>
- <20160825075728.GA11235@infradead.org>
- <20160826212934.GA11265@linux.intel.com>
- <20160829074116.GA16491@infradead.org>
- <20160829125741.cdnbb2uaditcmnw2@thunk.org>
- <20160909164808.GC18554@linux.intel.com>
- <DM2PR21MB0089BCA980B67D8C53B25A1BCBFA0@DM2PR21MB0089.namprd21.prod.outlook.com>
- <20160910073012.GA5295@infradead.org>
-In-Reply-To: <20160910073012.GA5295@infradead.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 10 Sep 2016 09:39:35 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id x24so5610148pfa.3
+        for <linux-mm@kvack.org>; Sat, 10 Sep 2016 09:39:34 -0700 (PDT)
+From: cee1 <fykcee1@gmail.com>
+Subject: [PATCH] mm: unmapped_area: visit left subtree more precisely
+Date: Sun, 11 Sep 2016 00:39:23 +0800
+Message-Id: <1473525563-20703-1-git-send-email-fykcee1@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, Dave Chinner <david@fromorbit.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andreas
- Dilger <adilger.kernel@dilger.ca>, Alexander Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, cee1 <fykcee1@gmail.com>
 
-From: Christoph Hellwig [mailto:hch@infradead.org]
-> Either way we need to get rid of buffer_heads, and another aop that is en=
-tirely
-> caller specific is unaceptable.
+unmapped_area() tries to find an unmapped area between info.low_limit and
+info.high_limit:
 
-I finally figured out what you actually meant by this.  You mean that inste=
-ad of having an aop->populate_pfn, you want to define a populate_pfn_t call=
-back and pass it in.
+  info.low_limit                                 info.high_limit
+       ^                                              ^
+       |                                              |
+  _____|______________________________________________|_______
+ |_____|__1__|__________________________________|__2__|_______|
+             |                                  |
+             V                                  |
+     low_limit = info.low_limit + length        V
+                                   high_limit = info.high_limit - length
 
-Something like this:
+ The lowest possible unmapped_area is at 1)
+ The highest possible unmapped_area us at 2)
 
-int ext2_populate_pfn(struct address_space *mapping, pgoff_t pgoff)
-{
-	struct iomap iomap;
-	...
-	return dax_populate_pfn(mapping, pgoff, &iomap);
-}
+unmapped_are() will first try to find any gap which is:
+- gap_start <= high_limit
+- gap_end >= low_limit
+- big enough, i.e. gap_end - gap_start >= length
 
-int ext2_dax_fault(vma, vmf)
-{
-	...
-	ret =3D dax_fault(vma, vmf, ext2_populate_pfn);
-	...
-}
+The search starts from the lowest gap, up to the highest gap, that means
+a rbtree In-order traversal.
 
-I don't have a problem with that.  I'll work up something along those lines=
- next week.
+In the old logic, it visits left subtree if:
+- it has gaps big enough
+- "the highest gap_end" of the node >= low_limit
+
+It will be more precise, if it uses "the highest gap_end" of
+the left subtree, which is vma->vm_prev->vm_start.
+---
+ mm/mmap.c | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+index ca9d91b..e65c04d 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1630,19 +1630,25 @@ unsigned long unmapped_area(struct vm_unmapped_area_info *info)
+ 
+ 	while (true) {
+ 		/* Visit left subtree if it looks promising */
+-		gap_end = vma->vm_start;
+-		if (gap_end >= low_limit && vma->vm_rb.rb_left) {
++		if (vma->vm_rb.rb_left) {
+ 			struct vm_area_struct *left =
+ 				rb_entry(vma->vm_rb.rb_left,
+ 					 struct vm_area_struct, vm_rb);
+-			if (left->rb_subtree_gap >= length) {
++
++			VM_BUG_ON(!vma->vm_prev);
++			gap_end = vma->vm_prev->vm_start;
++
++			if (gap_end >= low_limit &&
++			    left->rb_subtree_gap >= length) {
+ 				vma = left;
+ 				continue;
+ 			}
+ 		}
+ 
+-		gap_start = vma->vm_prev ? vma->vm_prev->vm_end : 0;
+ check_current:
++		gap_start = vma->vm_prev ? vma->vm_prev->vm_end : 0;
++		gap_end = vma->vm_start;
++
+ 		/* Check if current node has a suitable gap */
+ 		if (gap_start > high_limit)
+ 			return -ENOMEM;
+@@ -1668,8 +1674,6 @@ check_current:
+ 			vma = rb_entry(rb_parent(prev),
+ 				       struct vm_area_struct, vm_rb);
+ 			if (prev == vma->vm_rb.rb_left) {
+-				gap_start = vma->vm_prev->vm_end;
+-				gap_end = vma->vm_start;
+ 				goto check_current;
+ 			}
+ 		}
+-- 
+2.3.2 (Apple Git-55)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
