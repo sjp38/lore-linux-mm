@@ -1,99 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C5A976B0069
-	for <linux-mm@kvack.org>; Sat, 10 Sep 2016 04:15:11 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id e1so119426202itb.0
-        for <linux-mm@kvack.org>; Sat, 10 Sep 2016 01:15:11 -0700 (PDT)
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0110.outbound.protection.outlook.com. [104.47.41.110])
-        by mx.google.com with ESMTPS id b30si4872446otc.110.2016.09.10.01.15.10
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CB5476B0069
+	for <linux-mm@kvack.org>; Sat, 10 Sep 2016 07:25:50 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id ez1so223713675pab.1
+        for <linux-mm@kvack.org>; Sat, 10 Sep 2016 04:25:50 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id j12si9331750pat.285.2016.09.10.04.25.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sat, 10 Sep 2016 01:15:11 -0700 (PDT)
-From: Matthew Wilcox <mawilcox@microsoft.com>
-Subject: RE: [PATCH v2 2/9] ext2: tell DAX the size of allocation holes
-Date: Sat, 10 Sep 2016 08:15:06 +0000
-Message-ID: <DM2PR21MB00899C835BC0AF476B6683CDCBFD0@DM2PR21MB0089.namprd21.prod.outlook.com>
-References: <20160823220419.11717-1-ross.zwisler@linux.intel.com>
- <20160823220419.11717-3-ross.zwisler@linux.intel.com>
- <20160825075728.GA11235@infradead.org>
- <20160826212934.GA11265@linux.intel.com>
- <20160829074116.GA16491@infradead.org>
- <20160829125741.cdnbb2uaditcmnw2@thunk.org>
- <20160909164808.GC18554@linux.intel.com>
- <DM2PR21MB0089BCA980B67D8C53B25A1BCBFA0@DM2PR21MB0089.namprd21.prod.outlook.com>
- <CAPcyv4hjna08+Yw23w_V2f-RbBE6ar220+YGCuBVA-TACKWNug@mail.gmail.com>
-In-Reply-To: <CAPcyv4hjna08+Yw23w_V2f-RbBE6ar220+YGCuBVA-TACKWNug@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 10 Sep 2016 04:25:49 -0700 (PDT)
+Date: Sat, 10 Sep 2016 13:25:53 +0200
+From: Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH] android: binder: Disable preemption while holding the
+ global binder lock
+Message-ID: <20160910112553.GA27714@kroah.com>
+References: <1473434264-18479-1-git-send-email-tkjos@google.com>
+ <20160909154423.GB24649@kroah.com>
+ <CAD0t5oO9ZGPS3hKS3ZW-DzG21xz4zXH8050fK2G9R6CVPb0n6w@mail.gmail.com>
+ <20160910111847.GC26685@kroah.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160910111847.GC26685@kroah.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Christoph Hellwig <hch@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-nvdimm@ml01.01.org" <linux-nvdimm@ml01.01.org>, Dave Chinner <david@fromorbit.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andreas Dilger <adilger.kernel@dilger.ca>, Alexander Viro <viro@zeniv.linux.org.uk>, Jan
- Kara <jack@suse.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-ext4@vger.kernel.org" <linux-ext4@vger.kernel.org>
+To: Todd Kjos <tkjos@android.com>
+Cc: arve@android.com, riandrews@android.com, devel@driverdev.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-RnJvbTogRGFuIFdpbGxpYW1zIFttYWlsdG86ZGFuLmoud2lsbGlhbXNAaW50ZWwuY29tXQ0KPiAv
-bWUgZ3J1bWJsZXMgYWJvdXQgdG9wLXBvc3RpbmcuLi4NCg0KTGV0J3Mgc2VlIGlmIHRoaXMgZG9l
-cyBhbnkgYmV0dGVyIC4uIHRoZXJlJ3MgbG90cyBvZiBuZXcgZmVhdHVyZXMsIGJ1dCBJIGRvbid0
-IHNlZSBhICd3cmFwIGxpbmVzIGF0IDgwIGNvbHVtbnMnIG9wdGlvbi4gIFVuZm9ydHVuYXRlbHku
-DQoNCj4gT24gRnJpLCBTZXAgOSwgMjAxNiBhdCAxOjM1IFBNLCBNYXR0aGV3IFdpbGNveCA8bWF3
-aWxjb3hAbWljcm9zb2Z0LmNvbT4NCj4gd3JvdGU6DQo+ID4gSSB0aG91Z2h0IGFmdGVyIFN0b3Jh
-Z2UgU3VtbWl0LCB3ZSBoYWQgYnJvYWQgYWdyZWVtZW50IHRoYXQgd2Ugd2VyZQ0KPiA+IG1vdmlu
-ZyB0byBhIHByaW1hcnkgREFYIEFQSSB0aGF0IHdhcyBub3QgQkggKG5vciBpbmRlZWQgaW9tYXAp
-IGJhc2VkLiAgV2UNCj4gPiB3b3VsZCBzdGlsbCBoYXZlIERBWCBoZWxwZXJzIGZvciBibG9jayBi
-YXNlZCBmaWxlc3lzdGVtcyAoYmVjYXVzZSBkdXBsaWNhdGluZw0KPiA+IGFsbCB0aGF0IGNvZGUg
-YmV0d2VlbiBmaWxlc3lzdGVtcyBpcyBwb2ludGxlc3MpLCBidXQgSSBub3cga25vdyBvZiB0aHJl
-ZQ0KPiA+IGZpbGVzeXN0ZW1zIHdoaWNoIGFyZSBub3QgYmxvY2sgYmFzZWQgdGhhdCBhcmUgaW50
-ZXJlc3RlZCBpbiB1c2luZyBEQVguICBKYXJlZA0KPiA+IEh1bGJlcnQncyBBWEZTIGlzIGEgbmlj
-ZSBwdWJsaWMgZXhhbXBsZS4NCj4gPg0KPiA+IEkgcG9zdGVkIGEgcHJvdG90eXBlIG9mIHRoaXMg
-aGVyZToNCj4gPg0KPiA+DQo+IGh0dHBzOi8vZ3JvdXBzLmdvb2dsZS5jb20vZC9tc2cvbGludXgu
-a2VybmVsL3hGRkhWQ1FNN0dvL1pRZURWWVRuRmdBSg0KPiA+DQo+ID4gSXQgaXMsIG9mIGNvdXJz
-ZSwgd29lZnVsbHkgb3V0IG9mIGRhdGUsIGJ1dCBzb21lIG9mIHRoZSBwcmluY2lwbGVzIGluIGl0
-IGFyZSBzdGlsbA0KPiBnb29kIChhbmQgSSdtIHdvcmtpbmcgdG8gc3BsaXQgaXQgaW50byBkaWdl
-c3RpYmxlIGNodW5rcykuDQo+ID4NCj4gPiBUaGUgZXNzZW5jZToNCj4gPg0KPiA+IDEuIFZGUyBv
-ciBWTSBjYWxscyBmaWxlc3lzdGVtIChlZyAtPmZhdWx0KCkpIDIuIEZpbGVzeXN0ZW0gY2FsbHMg
-REFYDQo+ID4gKGVnIGRheF9mYXVsdCgpKSAzLiBEQVggbG9va3MgaW4gcmFkaXggdHJlZSwgZmlu
-ZHMgbm8gaW5mb3JtYXRpb24uDQo+ID4gNC4gREFYIGNhbGxzIChORVchKSBtYXBwaW5nLT5hX29w
-cy0+cG9wdWxhdGVfcGZucyA1YS4gRmlsZXN5c3RlbSAoaWYNCj4gPiBub3QgYmxvY2sgYmFzZWQp
-IGRvZXMgaXRzIG93biB0aGluZyB0byBmaW5kIG91dCB0aGUgUEZOcyBjb3JyZXNwb25kaW5nDQo+
-ID4gdG8gdGhlIHJlcXVlc3RlZCByYW5nZSwgdGhlbiBpbnNlcnRzIHRoZW0gaW50byB0aGUgcmFk
-aXggdHJlZSAocG9zc2libGUgaGVscGVyDQo+IGluIERBWCBjb2RlKSA1Yi4gRmlsZXN5c3RlbSAo
-aWYgYmxvY2sgYmFzZWQpIGxvb2tzIHVwIGl0cyBpbnRlcm5hbCBkYXRhIHN0cnVjdHVyZQ0KPiAo
-ZWcgZXh0ZW50IHRyZWUpIGFuZA0KPiA+ICAgIGNhbGxzIGRheF9jcmVhdGVfcGZucygpIChzZWUg
-Z2lhbnQgcGF0Y2ggZnJvbSB5ZXN0ZXJkYXksIG9ubHkgaW5zdGVhZCBvZg0KPiA+ICAgIHBhc3Np
-bmcgYSBnZXRfYmxvY2tfdCwgdGhlIGZpbGVzeXN0ZW0gaGFzIGFscmVhZHkgZmlsbGVkIGluIGEg
-Ymggd2hpY2gNCj4gPiAgICBkZXNjcmliZXMgdGhlIGVudGlyZSBleHRlbnQgdGhhdCB0aGlzIGFj
-Y2VzcyBoYXBwZW5zIHRvIGxhbmQgaW4pLg0KPiA+IDZiLiBEQVggdGFrZXMgY2FyZSBvZiBjYWxs
-aW5nIGJkZXZfZGlyZWN0X2FjY2VzcygpIGZyb20gZGF4X2NyZWF0ZV9wZm5zKCkuDQo+ID4NCj4g
-PiBOb3csIG5vdGljZSB0aGF0IHRoZXJlJ3Mgbm8gaW50ZXJhY3Rpb24gd2l0aCB0aGUgcmVzdCBv
-ZiB0aGUgZmlsZXN5c3RlbSBoZXJlLg0KPiBXZSBjYW4gc3dhcCBvdXQgQkhzIGFuZCBpb21hcHMg
-cmVsYXRpdmVseSB0cml2aWFsbHk7IHRoZXJlJ3Mgbm8gY2FsbCBmb3IgbWFraW5nDQo+IGdyYW5k
-IGNoYW5nZXMsIGxpa2UgY29udmVydGluZyBleHQyIG92ZXIgdG8gaW9tYXAuICBUaGUgQkggb3Ig
-aW9tYXAgaXMgb25seQ0KPiB1c2VkIGZvciBjb21tdW5pY2F0aW5nIHRoZSBleHRlbnQgZnJvbSB0
-aGUgZmlsZXN5c3RlbSB0byBEQVguDQo+ID4NCj4gPiBEbyB3ZSBoYXZlIGFncmVlbWVudCB0aGF0
-IHRoaXMgaXMgdGhlIHJpZ2h0IHdheSB0byBnbz8NCj4gDQo+IE15ICQwLjAyLi4uDQo+IA0KPiBT
-byB0aGUgY3VycmVudCBkYXggaW1wbGVtZW50YXRpb24gaXMgc3RpbGwgc3RydWdnbGluZyB0byBn
-ZXQgcmlnaHQgKHBtZCBmYXVsdGluZywNCj4gZGlydHkgZW50cnkgY2xlYW5pbmcsIGV0YykgYW5k
-IHRoaXMgc2VlbXMgbGlrZSBhIHJld3JpdGUgdGhhdCBzZXRzIHVzIHVwIGZvciBmdXR1cmUNCj4g
-ZmVhdHVyZXMgd2l0aG91dCBhZGRyZXNzaW5nIHRoZSBjdXJyZW50IGJ1Z3MgYW5kIHRvZG8gaXRl
-bXMuICBJbiBjb21wYXJpc29uDQo+IHRoZSBpb21hcCBjb252ZXJzaW9uIHdvcmsgc2VlbXMgaW5j
-cmVtZW50YWwgYW5kIGNvbnNlcnZpbmcgb2YgY3VycmVudA0KPiBkZXZlbG9wbWVudCBtb21lbnR1
-bS4NCg0KSSBiZWxpZXZlIHlvdXIgYXNzZXNzbWVudCBpcyBpbmNvcnJlY3QuICBJZiBjb252ZXJ0
-aW5nIHRoZSBjdXJyZW50IERBWCBjb2RlIHRvDQp1c2UgaW9tYXAgZm9yY2VzIGNvbnZlcnRpbmcg
-ZXh0MiwgdGhlbiBpdCdzIHRpbWUgdG8gZ2V0IHJpZCBvZiBhbGwgdGhlIGhhbGYtbWVhc3VyZXMN
-CmN1cnJlbnRseSBpbiBwbGFjZS4gIFlvdSBsZWZ0IG9mZiBvbmUgdG9kbyBpdGVtIHRoYXQgdGhp
-cyBkb2VzIGdldCB1cyBhIHN0ZXAgY2xvc2VyIHRvDQpmaXhpbmcgLS0gc3VwcG9ydCBmb3IgRE1B
-IHRvIG1tYXBlZCBEQVggZmlsZXMuICBJIHRoaW5rIGl0IGFsc28gcHV0cyB1cyBpbiBhIGJldHRl
-cg0KcG9zaXRpb24gdG8gZml4IHRoZSAyTUIgc3VwcG9ydCwgbG9ja2luZywgYW5kIGRpcnRpbmVz
-cyB0cmFja2luZy4gIE9oLCBhbmQgaXQgZG9lcw0KZml4IHRoZSBtdWx0aXZvbHVtZSBzdXBwb3J0
-IChiZWNhdXNlIHRoZSBzZWN0b3JzIGluIHRoZSByYWRpeCB0cmVlIGNvdWxkIGJlDQppbnRlcnBy
-ZXRlZCBhcyBiZWluZyBmcm9tIHRoZSB3cm9uZyB2b2x1bWUpLg0KDQo+IEkgYWdyZWUgd2l0aCB5
-b3UgdGhhdCBjb250aW51aW5nIHRvIHRvdWNoIGV4dDIgaXMgbm90IGEgZ29vZCBpZGVhLCBidXQg
-SSdtIG5vdA0KPiB5ZXQgY29udmluY2VkIHRoYXQgbm93IGlzIHRoZSB0aW1lIHRvIGdvIGRvIGRh
-eC0yLjAgd2hlbiB3ZSBoYXZlbid0IGZpbmlzaGVkDQo+IHNoaXBwaW5nIGRheC0xLjAuDQoNCmRh
-eC0xLjAgZGllZCBsb25nIGFnbyAuLi4gSSB0aGluayB3ZSdyZSB1cCB0byBhdCBsZWFzdCBEQVgg
-dmVyc2lvbiA0IGJ5IG5vdy4NCg0K
+On Sat, Sep 10, 2016 at 01:18:47PM +0200, Greg KH wrote:
+> On Fri, Sep 09, 2016 at 10:39:32AM -0700, Todd Kjos wrote:
+> > On Fri, Sep 9, 2016 at 8:44 AM, Greg KH <gregkh@linuxfoundation.org> wrote:
+> > > On Fri, Sep 09, 2016 at 08:17:44AM -0700, Todd Kjos wrote:
+> > >> From: Todd Kjos <tkjos@android.com>
+> > >>
+> > >> In Android systems, the display pipeline relies on low
+> > >> latency binder transactions and is therefore sensitive to
+> > >> delays caused by contention for the global binder lock.
+> > >> Jank is significantly reduced by disabling preemption
+> > >> while the global binder lock is held.
+> > >
+> > > What is the technical definition of "Jank"?  :)
+> > 
+> > I'll rephrase in the next version to "dropped or delayed frames".
+> 
+> Heh, thanks :)
+> 
+> Also in the next version can you fix the errors found by the 0-day build
+> bot?
+> 
+> > >> This patch was originated by Riley Andrews <riandrews@android.com>
+> > >> with tweaks and forward-porting by me.
+> > >>
+> > >> Originally-from: Riley Andrews <riandrews@android.com>
+> > >> Signed-off-by: Todd Kjos <tkjos@android.com>
+> > >> ---
+> > >>  drivers/android/binder.c | 194 +++++++++++++++++++++++++++++++++++------------
+> > >>  1 file changed, 146 insertions(+), 48 deletions(-)
+> > >>
+> > >> diff --git a/drivers/android/binder.c b/drivers/android/binder.c
+> > >> index 16288e7..c36e420 100644
+> > >> --- a/drivers/android/binder.c
+> > >> +++ b/drivers/android/binder.c
+> > >> @@ -379,6 +379,7 @@ static int task_get_unused_fd_flags(struct binder_proc *proc, int flags)
+> > >>       struct files_struct *files = proc->files;
+> > >>       unsigned long rlim_cur;
+> > >>       unsigned long irqs;
+> > >> +     int ret;
+> > >>
+> > >>       if (files == NULL)
+> > >>               return -ESRCH;
+> > >> @@ -389,7 +390,11 @@ static int task_get_unused_fd_flags(struct binder_proc *proc, int flags)
+> > >>       rlim_cur = task_rlimit(proc->tsk, RLIMIT_NOFILE);
+> > >>       unlock_task_sighand(proc->tsk, &irqs);
+> > >>
+> > >> -     return __alloc_fd(files, 0, rlim_cur, flags);
+> > >> +     preempt_enable_no_resched();
+> > >> +     ret = __alloc_fd(files, 0, rlim_cur, flags);
+> > >> +     preempt_disable();
+> > >> +
+> > >> +     return ret;
+> > >>  }
+> > >>
+> > >>  /*
+> > >> @@ -398,8 +403,11 @@ static int task_get_unused_fd_flags(struct binder_proc *proc, int flags)
+> > >>  static void task_fd_install(
+> > >>       struct binder_proc *proc, unsigned int fd, struct file *file)
+> > >>  {
+> > >> -     if (proc->files)
+> > >> +     if (proc->files) {
+> > >> +             preempt_enable_no_resched();
+> > >>               __fd_install(proc->files, fd, file);
+> > >> +             preempt_disable();
+> > >> +     }
+> > >>  }
+> > >>
+> > >>  /*
+> > >> @@ -427,6 +435,7 @@ static inline void binder_lock(const char *tag)
+> > >>  {
+> > >>       trace_binder_lock(tag);
+> > >>       mutex_lock(&binder_main_lock);
+> > >> +     preempt_disable();
+> > >>       trace_binder_locked(tag);
+> > >>  }
+> > >>
+> > >> @@ -434,8 +443,65 @@ static inline void binder_unlock(const char *tag)
+> > >>  {
+> > >>       trace_binder_unlock(tag);
+> > >>       mutex_unlock(&binder_main_lock);
+> > >> +     preempt_enable();
+> > >> +}
+> > >> +
+> > >> +static inline void *kzalloc_nopreempt(size_t size)
+> > >> +{
+> > >> +     void *ptr;
+> > >> +
+> > >> +     ptr = kzalloc(size, GFP_NOWAIT);
+> > >> +     if (ptr)
+> > >> +             return ptr;
+> > >> +
+> > >> +     preempt_enable_no_resched();
+> > >> +     ptr = kzalloc(size, GFP_KERNEL);
+> > >> +     preempt_disable();
+> > >
+> > > Doesn't the allocator retry if the first one fails anyway?  Why not
+> > > GFP_NOIO or GFP_ATOMIC?  Have you really hit the second GFP_KERNEL
+> > > usage?
+> > 
+> > I suspect we have hit the second, since we do get into cases where
+> > direct reclaim is needed. I can't confirm since I haven't instrumented
+> > this case. As you say, if we use GFP_ATOMIC instead, maybe we
+> > wouldn't, but even then I'd be concerned that we could deplete the
+> > memory reserved for atomic. The general idea of trying for a fast,
+> > nowait allocation and then enabling preempt for the rare potentially
+> > blocking allocation seems reasonable, doesn't it?
+> 
+> Yes it is, so much so that I think there's a generic kernel function for
+> it already.  Adding in the linux-mm mailing list to be told that I'm
+> wrong about this :)
+
+Ok, adding the correct linux-mm list address this time...
+
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
