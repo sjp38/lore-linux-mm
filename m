@@ -1,489 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 868746B0038
-	for <linux-mm@kvack.org>; Sun, 11 Sep 2016 18:25:47 -0400 (EDT)
-Received: by mail-vk0-f69.google.com with SMTP id f76so252712609vke.0
-        for <linux-mm@kvack.org>; Sun, 11 Sep 2016 15:25:47 -0700 (PDT)
-Received: from mail-qk0-x243.google.com (mail-qk0-x243.google.com. [2607:f8b0:400d:c09::243])
-        by mx.google.com with ESMTPS id u28si983130qte.19.2016.09.11.15.25.46
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A02366B0038
+	for <linux-mm@kvack.org>; Sun, 11 Sep 2016 18:54:29 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id u14so83245084lfd.0
+        for <linux-mm@kvack.org>; Sun, 11 Sep 2016 15:54:29 -0700 (PDT)
+Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
+        by mx.google.com with ESMTPS id hn1si12714218wjb.164.2016.09.11.15.54.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 11 Sep 2016 15:25:46 -0700 (PDT)
-Received: by mail-qk0-x243.google.com with SMTP id n66so10523197qkf.0
-        for <linux-mm@kvack.org>; Sun, 11 Sep 2016 15:25:46 -0700 (PDT)
-Date: Sun, 11 Sep 2016 18:24:12 -0400
-From: Janani Ravichandran <janani.rvchndrn@gmail.com>
-Subject: [RFC] scripts: Include postprocessing script for memory allocation
- tracing
-Message-ID: <20160911222411.GA2854@janani-Inspiron-3521>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+        Sun, 11 Sep 2016 15:54:28 -0700 (PDT)
+Received: by mail-wm0-x242.google.com with SMTP id a6so11220734wmc.2
+        for <linux-mm@kvack.org>; Sun, 11 Sep 2016 15:54:27 -0700 (PDT)
+From: Lorenzo Stoakes <lstoakes@gmail.com>
+Subject: [PATCH] mm: check VMA flags to avoid invalid PROT_NONE NUMA balancing
+Date: Sun, 11 Sep 2016 23:54:25 +0100
+Message-Id: <20160911225425.10388-1-lstoakes@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: riel@surriel.com, akpm@linux-foundation.org, vdavydov@virtuozzo.com, mhocko@suse.com, vbabka@suse.cz, mgorman@techsingularity.net, rostedt@goodmis.org
+To: linux-mm@kvack.org
+Cc: mgorman@techsingularity.net, torvalds@linux-foundation.org, riel@redhat.com, tbsaunde@tbsaunde.org, robert@ocallahan.org, Lorenzo Stoakes <lstoakes@gmail.com>
 
-The objective of this patch is to help users observe latencies in memory
-allocation.
-The function graph tracer is great for seeing how long functions took to
-execute. And often, tracepoints, along with the tracer help understand
-situations better. However, while it is possible to set a threshold for
-function graph and have only the functions that exceed a certain
-threshold appear in the output (by echoing the threshold value in
-tracing_thresh in the tracing directory), there is no method to filter
-out tracepoints that are not associated with functions whose latencies
-exceed the threshold.
+The NUMA balancing logic uses an arch-specific PROT_NONE page table flag defined
+by pte_protnone() or pmd_protnone() to mark PTEs or huge page PMDs respectively
+as requiring balancing upon a subsequent page fault. User-defined PROT_NONE
+memory regions which also have this flag set will not normally invoke the NUMA
+balancing code as do_page_fault() will send a segfault to the process before
+handle_mm_fault() is even called.
 
-When the threshold is set high, it is possible that a lot of information
-that is of little interest to the user is printed from the tracepoints.
-Limiting this information can help reduce disk I/O significantly.
+However if access_remote_vm() is invoked to access a PROT_NONE region of memory,
+handle_mm_fault() is called via faultin_page() and __get_user_pages() without
+any access checks being performed, meaning the NUMA balancing logic is
+incorrectly invoked on a non-NUMA memory region.
 
-This patch deals with latencies in memory allocation and more
-specifically, direct reclaim and compaction.
+A simple means of triggering this problem is to access PROT_NONE mmap'd memory
+using /proc/self/mem which reliably results in the NUMA handling functions being
+invoked when CONFIG_NUMA_BALANCING is set.
 
-setup_alloc_trace.sh is a bash script which handles the initial the
-setup of
-function graph, specifies which functions to include in the output and
-enables some tracepoints of interest. Upon exit, it clears all the
-values set.
+This issue was reported in bugzilla (issue 99101) which includes some simple
+repro code.
 
-The functions traced currently are __alloc_pages_nodemask,
-try_to_free_pages, mem_cgroup_soft_limit_reclaim, shrink_node,
-shrink_node_memcg, shrink_slab, shrink_active_list,
-shrink_inactive_list, compact_zone and try_to_compact_pages.
+There are BUG_ON() checks in do_numa_page() and do_huge_pmd_numa_page() added at
+commit c0e7cad to avoid accidentally provoking strange behaviour by attempting
+to apply NUMA balancing to pages that are in fact PROT_NONE. The BUG_ON()'s are
+consistently triggered by the repro.
 
-The tracepoints enabled are mm_shrink_slab_start,
-mm_slab_slab_end, mm_vmscan_direct_reclaim_begin,
-mm_vmscan_direct_reclaim_end, mm_vmscan_lru_shrink_inactive,
-mm_compaction_begin, mm_compation_end,
-mm_compaction_try_to_compact_pages.
+This patch moves the PROT_NONE check into mm/memory.c rather than invoking
+BUG_ON() as faulting in these pages via faultin_page() is a valid reason for
+reaching the NUMA check with the PROT_NONE page table flag set and is therefore
+not always a bug.
 
-More functions can be traced as desired by making changes to
-setup_alloc_trace.sh accordingly.
-
-allocation_postprocess.py is a script which reads from trace_pipe. It
-does the following to filter out info from tracepoints that may not
-be important:
-
-1. Displays mm_vmscan_direct_reclaim_begin and
-mm_vmscan_direct_reclaim_end only when try_to_free_pages has
-exceeded the threshold.
-2. Displays mm_compaction_begin and mm_compaction_end only when
-compact_zone has exceeded the threshold.
-3. Displays mm_compaction_try_to_compat_pages only when
-try_to_compact_pages has exceeded the threshold.
-4. Displays mm_shrink_slab_start and mm_shrink_slab_end only when
-the time elapsed between them exceeds the threshold.
-5. Displays mm_vmscan_lru_shrink_inactive only when shrink_inactive_list
-has exceeded the threshold.
-
-When CTRL+C is pressed, the script shows the times taken by the
-shrinkers. However, currently it is not possible to differentiate among
-the
-superblock shrinkers.
-
-Sample output:
-^Ci915_gem_shrinker_scan : total time = 8.731000 ms, max latency =
-0.278000 ms
-ext4_es_scan : total time = 0.970000 ms, max latency = 0.129000 ms
-scan_shadow_nodes : total time = 1.150000 ms, max latency = 0.175000 ms
-super_cache_scan : total time = 8.455000 ms, max latency = 0.466000 ms
-deferred_split_scan : total time = 25.767000 ms, max latency = 25.485000
-ms
-
-Usage:
-
-# ./setup_alloc_trace.sh -t 134 -s /sys/kernel/debug/tracing > file.dat
-
-Where -t represents threshold (134 us in this case) and -s represents
-the path to the tracing diretory. The default is
-/sys/kernel/debug/tracing, which is used when no path is specified.
-The threshold on the other hand, must be set.
-
-Ideas/ comments/ suggestions are welcome, escpecially on adherence to
-the python coding style followed by the Linux community and the
-functions enabled to be traced.
-
-Thanks.
-
-Signed-off-by: Janani Ravichandran <janani.rvchndrn@gmail.com>
+Link: https://bugzilla.kernel.org/show_bug.cgi?id=99101
+Reported-by: Trevor Saunders <tbsaunde@tbsaunde.org>
+Signed-off-by: Lorenzo Stoakes <lstoakes@gmail.com>
 ---
- scripts/tracing/allocation_postprocess.py | 267 ++++++++++++++++++++++++++++++
- scripts/tracing/setup_alloc_trace.sh      |  88 ++++++++++
- 2 files changed, 355 insertions(+)
- create mode 100755 scripts/tracing/allocation_postprocess.py
- create mode 100755 scripts/tracing/setup_alloc_trace.sh
+ mm/huge_memory.c |  3 ---
+ mm/memory.c      | 12 +++++++-----
+ 2 files changed, 7 insertions(+), 8 deletions(-)
 
-diff --git a/scripts/tracing/allocation_postprocess.py b/scripts/tracing/allocation_postprocess.py
-new file mode 100755
-index 0000000..2f65457
---- /dev/null
-+++ b/scripts/tracing/allocation_postprocess.py
-@@ -0,0 +1,267 @@
-+#!/usr/bin/env python
-+# python 2.7
-+
-+"""
-+This script uses function graph and some of the existing
-+tracepoints to help people observe how long page allocations and some
-+functions in the direct reclaim and compaction paths take.
-+The functions and tracepoints enabled can be seen in setup_alloc_trace.sh.
-+It reads from trace_pipe of the tracing directory and prints
-+only those tracepoints and functions which are associated
-+with latencies greater than the threshold specified.
-+When CTRL+C is pressed, the times spent in the various shrinkers are displayed.
-+The setup of trace is done in setup_alloc_trace.sh, from where this script is
-+invoked.
-+"""
-+
-+import argparse
-+import re
-+import sys
-+import signal
-+
-+from collections import defaultdict
-+
-+# Constants for tracepoints
-+
-+DIRECT_RECLAIM_BEGIN        = 1
-+DIRECT_RECLAIM_END          = 2
-+SHRINK_SLAB_START           = 3
-+SHRINK_INACTIVE_LIST        = 5
-+TRY_TO_COMPACT              = 6
-+COMPACTION_BEGIN            = 7
-+COMPACTION_END              = 8
-+
-+SECS_TO_US                  = 1000000
-+US_TO_MS                    = 1000
-+
-+# Parse command line arguments
-+parser = argparse.ArgumentParser(description='Parser for latency analyzer')
-+
-+parser.add_argument('-s', '--source', action='store',
-+                    default='/sys/kernel/debug/tracing',
-+                    dest='source_path',
-+                    help='Specify source file to read trace output')
-+parser.add_argument('-t', '--threshold', action='store', default=0.0,
-+                    dest='threshold', type=float)
-+args = parser.parse_args()
-+
-+source_path = ''.join((args.source_path,'/trace_pipe'))
-+threshold = args.threshold
-+
-+# Regexes
-+line_pattern = re.compile(r'\s*(\d+\.\d+)\s+\|\s+\d*\)*\s+([\w-]+)\s+\|\s+.*\s+(\d*\.*\d*)\s+[us]{0,2}\s+\|\s+(.*)')
-+tracepoint_pattern = re.compile(r'\/\*\s*([\w]*):\s*(.*)\s*\*\/')
-+shrinker_pattern = re.compile(r'\s*([\w]*)\+(.*)\s*')
-+function_end_pattern = re.compile(r'.*\/\*\s*([\w]*)\s*\*\/')
-+
-+# The dictionary which holds tracepoint information for all processes
-+all_information = defaultdict(dict)
-+
-+# The dictionary which holds shrinker latencies
-+shrinker_latencies = defaultdict(float)
-+shrinker_max_latencies = defaultdict(float)
-+
-+def print_shrinker_latencies(signum, frame):
-+    """ This function prints the time spent in each shrinker, when CTRL+C is 
-+    pressed.
-+    """
-+
-+    signal.signal(signal.SIGINT, original_sigint)
-+    for key, value in shrinker_latencies.iteritems():
-+        print '%s : total time = %f ms, max latency = %f ms' %(key,
-+                                        value*US_TO_MS,
-+                                        shrinker_max_latencies[key]*US_TO_MS)
-+    sys.exit(0)
-+
-+original_sigint = signal.getsignal(signal.SIGINT)
-+signal.signal(signal.SIGINT, print_shrinker_latencies)
-+
-+
-+def set_begin_info(process, EVENT, timestamp, info):
-+    """ This function sets information associated with mm_shrink_slab_start.
-+    It sets the entire tracepoint info, along with the timestamp, which will
-+    be used to calculate latencies when corresponding mm_ shrink_slab_end
-+    tracepoints are encountered.
-+    """
-+
-+    per_process_dict = all_information[process]
-+    begin_info = {}
-+    begin_info["data"] = info
-+    begin_info["time"] = timestamp
-+    per_process_dict[EVENT] = begin_info
-+
-+
-+def set_trace_info(process, EVENT, info):
-+    """ This function sets trace information associated with specific events.
-+    """
-+
-+    per_process_dict = all_information[process]
-+    per_process_dict[EVENT] = info
-+
-+
-+def store_max_latency(shrinker_name, latency):
-+    """ This function stores the maximum latency encountered in a shrinker. """
-+
-+    max_latency = shrinker_max_latencies[shrinker_name]
-+    if latency > max_latency:
-+        shrinker_max_latencies[shrinker_name] = latency
-+
-+
-+def find_latency(process, BEGIN_EVENT, timestamp):
-+    """ This function calculates shrinker latencies."""
-+
-+    per_process_dict = all_information.get(process, None)
-+    if per_process_dict:
-+        begin_info = per_process_dict.get(BEGIN_EVENT, None)
-+        if begin_info:
-+            begin_data = begin_info.get("data", None)
-+            begin_time = begin_info.get("time", None)
-+            if begin_time:
-+                time_elapsed = float(timestamp) - float(begin_time)
-+                if time_elapsed*SECS_TO_US > threshold:
-+                    return (True, begin_data, time_elapsed)
-+                return (False, begin_data, time_elapsed)
-+    return (False, None, 0.0)
-+
-+
-+def print_line(line_info):
-+    print line_info,
-+
-+
-+def print_tracepoint(process, EVENT, info):
-+    if info:
-+        print info,
-+    else:
-+        per_process_dict = all_information.get(process, None)
-+        TP_info = per_process_dict.get(EVENT, None)
-+        if TP_info:
-+            print TP_info,
-+        per_process_dict.pop(EVENT, None)
-+
-+with open(source_path) as f:
-+    for line in f:
-+        line_match = re.match(line_pattern, line)
-+        if line_match:
-+            timestamp = line_match.group(1)
-+            process_info = line_match.group(2)
-+            function_match = re.match(function_end_pattern, line_match.group(4))
-+            tracepoint_match = re.match(tracepoint_pattern, line_match.group(4))
-+            if tracepoint_match:
-+                TP_whole = line_match.group(4)
-+                TP_name = tracepoint_match.group(1)
-+                TP_info = tracepoint_match.group(2)
-+
-+
-+                def call_set_trace_info(EVENT):
-+                    set_trace_info(process_info, EVENT, line)
-+
-+
-+                def direct_reclaim_b():
-+                    call_set_trace_info(DIRECT_RECLAIM_BEGIN)
-+
-+
-+                def direct_reclaim_e():
-+                    call_set_trace_info(DIRECT_RECLAIM_END)
-+
-+
-+                def shrink_inactive_list():
-+                    call_set_trace_info(SHRINK_INACTIVE_LIST)
-+
-+
-+                def shrink_slab_b():
-+                    set_begin_info(process_info, SHRINK_SLAB_START, timestamp,
-+                                    line)
-+
-+
-+                def shrink_slab_e():
-+                    delay_status, begin_data, time_elapsed = find_latency(
-+                                                                process_info,
-+                                                                SHRINK_SLAB_START,
-+                                                                timestamp)
-+                    shrinker_match = re.match(shrinker_pattern, TP_info)
-+                    if shrinker_match:
-+                        shrinker_name = shrinker_match.group(1)
-+                        shrinker_latencies[shrinker_name] += time_elapsed
-+                        store_max_latency(shrinker_name, time_elapsed)
-+
-+                    if delay_status:
-+                        print_tracepoint(process_info,
-+                                         SHRINK_SLAB_START,
-+                                         begin_data)
-+                        print_tracepoint(process_info,
-+                                         None,
-+                                         line)
-+
-+
-+                def try_to_compact():
-+                    call_set_trace_info(TRY_TO_COMPACT)
-+
-+
-+                def compact_b():
-+                    call_set_trace_info(COMPACTION_BEGIN)
-+
-+
-+                def compact_e():
-+                    call_set_trace_info(COMPACTION_END)
-+
-+
-+                trace_match = {'mm_vmscan_direct_reclaim_begin' : direct_reclaim_b,
-+                               'mm_vmscan_direct_reclaim_end'   : direct_reclaim_e,
-+                               'mm_shrink_slab_start'           : shrink_slab_b,
-+                               'mm_shrink_slab_end'             : shrink_slab_e,
-+                               'mm_vmscan_lru_shrink_inactive'  :
-+                                                              shrink_inactive_list,
-+                               'mm_compaction_try_to_compact_pages':
-+                                                              try_to_compact,
-+                               'mm_compaction_begin'            : compact_b,
-+                               'mm_compaction_end'              : compact_e}
-+
-+                if TP_name in trace_match:
-+                    trace_match[TP_name]()
-+                else:
-+                    pass
-+
-+            else:
-+                function_match = re.match(function_end_pattern,
-+                                          line_match.group(4))
-+                if function_match:
-+                    function_name = function_match.group(1)
-+
-+
-+                    def alloc_pages():
-+                        print_line(line)
-+                        all_information.pop(process_info, None)
-+
-+
-+                    def try_to_free_pages():
-+                        print_tracepoint(process_info, DIRECT_RECLAIM_BEGIN, None)
-+                        print_tracepoint(process_info, DIRECT_RECLAIM_END, None)
-+                        print_line(line)
-+
-+
-+                    def shrink_inactive_list():
-+                        print_tracepoint(process_info, SHRINK_INACTIVE_LIST, None)
-+                        print_line(line)
-+
-+
-+                    def try_to_compact():
-+                        print_tracepoint(process_info, TRY_TO_COMPACT, None)
-+                        print_line(line)
-+
-+
-+                    def compact_zone():
-+                        print_tracepoint(process_info, COMPACTION_BEGIN, None)
-+                        print_tracepoint(process_info, COMPACTION_END, None)
-+                        print_line(line)
-+
-+
-+                    f_match = {'__alloc_pages_nodemask' : alloc_pages,
-+                               'try_to_free_pages'      : try_to_free_pages,
-+                               'shrink_inactive_list'   : shrink_inactive_list,
-+                               'try_to_compact'         : try_to_compact,
-+                               'compact_zone'           : compact_zone}
-+
-+                    if function_name in f_match:
-+                        f_match[function_name]()
-+                    else:
-+                        print_line(line)
-diff --git a/scripts/tracing/setup_alloc_trace.sh b/scripts/tracing/setup_alloc_trace.sh
-new file mode 100755
-index 0000000..9a558b0
---- /dev/null
-+++ b/scripts/tracing/setup_alloc_trace.sh
-@@ -0,0 +1,88 @@
-+#! /bin/bash
-+
-+# This script does all the basic setup necessary for allocation_postprocess.py
-+# and then invokes the script. All the setup that is done at the beginning
-+# is cleared on exit.
-+
-+# Usage: # ./setup_alloc_trace.sh -t THRESHOLD_IN_US -s
-+# path/to/tracing/directory > path/to/output/file.
-+
-+while getopts :t:s: name
-+do
-+	case $name in
-+		t)threshold=$OPTARG;;
-+		s)trace_dir=$OPTARG;;
-+		*) echo "Usage: ./setup_alloc_trace.sh -t THRESHOLD_IN_US -s path/to/tracing/directory"
-+		esac
-+done
-+
-+if [[ -z $threshold ]]
-+then
-+	echo "Must specify threshold."
-+	exit 1
-+fi
-+
-+if [[ -z $trace_dir ]]
-+then
-+	trace_dir="/sys/kernel/debug/tracing"
-+fi
-+
-+pwd=`pwd`
-+cd $trace_dir
-+echo 0 > tracing_on
-+
-+echo function_graph > current_tracer
-+echo funcgraph-proc > trace_options
-+echo funcgraph-abstime > trace_options
-+
-+# set filter functions
-+echo __alloc_pages_nodemask > set_ftrace_filter
-+echo try_to_free_pages >> set_ftrace_filter
-+echo mem_cgroup_soft_limit_reclaim >> set_ftrace_filter
-+echo shrink_node >> set_ftrace_filter
-+echo shrink_node_memcg >> set_ftrace_filter
-+echo shrink_slab >> set_ftrace_filter
-+echo shrink_active_list >> set_ftrace_filter
-+echo shrink_inactive_list >> set_ftrace_filter
-+echo compact_zone >> set_ftrace_filter
-+echo try_to_compact_pages >> set_ftrace_filter
-+
-+echo $threshold > tracing_thresh
-+
-+# set tracepoints
-+echo 1 > events/vmscan/mm_shrink_slab_start/enable
-+echo 1 > events/vmscan/mm_shrink_slab_end/enable
-+echo 1 > events/vmscan/mm_vmscan_direct_reclaim_begin/enable
-+echo 1 > events/vmscan/mm_vmscan_direct_reclaim_end/enable
-+echo 1 > events/vmscan/mm_vmscan_lru_shrink_inactive/enable
-+echo 1 > events/compaction/mm_compaction_begin/enable
-+echo 1 > events/compaction/mm_compaction_end/enable
-+echo 1 > events/compaction/mm_compaction_try_to_compact_pages/enable
-+echo 1 > tracing_on
-+
-+cd $pwd
-+
-+./allocation_postprocess.py -t $threshold -s $trace_dir
-+
-+function cleanup {
-+	cd $trace_dir
-+	echo 0 > tracing_on
-+	echo nop > current_tracer
-+	echo > set_ftrace_filter
-+	echo 0 > tracing_thresh
-+
-+	echo 0 > events/vmscan/mm_shrink_slab_start/enable
-+	echo 0 > events/vmscan/mm_shrink_slab_end/enable
-+	echo 0 > events/vmscan/mm_vmscan_direct_reclaim_begin/enable
-+	echo 0 > events/vmscan/mm_vmscan_direct_reclaim_end/enable
-+	echo 0 > events/vmscan/mm_vmscan_lru_shrink_inactive/enable
-+	echo 0 > events/compaction/mm_compaction_begin/enable
-+	echo 0 > events/compaction/mm_compaction_end/enable
-+	echo 0 > events/compaction/mm_compaction_try_to_compact_pages/enable
-+
-+	exit $?
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index d76700d..954be55 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1198,9 +1198,6 @@ int do_huge_pmd_numa_page(struct fault_env *fe, pmd_t pmd)
+ 	bool was_writable;
+ 	int flags = 0;
+
+-	/* A PROT_NONE fault should not end up here */
+-	BUG_ON(!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)));
+-
+ 	fe->ptl = pmd_lock(vma->vm_mm, fe->pmd);
+ 	if (unlikely(!pmd_same(pmd, *fe->pmd)))
+ 		goto out_unlock;
+diff --git a/mm/memory.c b/mm/memory.c
+index 020226b..aebc04f 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3351,9 +3351,6 @@ static int do_numa_page(struct fault_env *fe, pte_t pte)
+ 	bool was_writable = pte_write(pte);
+ 	int flags = 0;
+
+-	/* A PROT_NONE fault should not end up here */
+-	BUG_ON(!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)));
+-
+ 	/*
+ 	* The "pte" at this point cannot be used safely without
+ 	* validation through pte_unmap_same(). It's of NUMA type but
+@@ -3458,6 +3455,11 @@ static int wp_huge_pmd(struct fault_env *fe, pmd_t orig_pmd)
+ 	return VM_FAULT_FALLBACK;
+ }
+
++static inline bool vma_is_accessible(struct vm_area_struct *vma)
++{
++	return vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE);
 +}
 +
-+trap cleanup SIGINT
-+trap cleanup SIGTERM
-+trap cleanup EXIT
--- 
-2.7.0
+ /*
+  * These routines also need to handle stuff like marking pages dirty
+  * and/or accessed for architectures that don't do it in hardware (most
+@@ -3524,7 +3526,7 @@ static int handle_pte_fault(struct fault_env *fe)
+ 	if (!pte_present(entry))
+ 		return do_swap_page(fe, entry);
+
+-	if (pte_protnone(entry))
++	if (pte_protnone(entry) && vma_is_accessible(fe->vma))
+ 		return do_numa_page(fe, entry);
+
+ 	fe->ptl = pte_lockptr(fe->vma->vm_mm, fe->pmd);
+@@ -3590,7 +3592,7 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
+
+ 		barrier();
+ 		if (pmd_trans_huge(orig_pmd) || pmd_devmap(orig_pmd)) {
+-			if (pmd_protnone(orig_pmd))
++			if (pmd_protnone(orig_pmd) && vma_is_accessible(vma))
+ 				return do_huge_pmd_numa_page(&fe, orig_pmd);
+
+ 			if ((fe.flags & FAULT_FLAG_WRITE) &&
+--
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
