@@ -1,135 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 278986B0038
-	for <linux-mm@kvack.org>; Sun, 11 Sep 2016 19:00:00 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 1so47211538wmz.2
-        for <linux-mm@kvack.org>; Sun, 11 Sep 2016 16:00:00 -0700 (PDT)
-Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
-        by mx.google.com with ESMTPS id a6si1525793lfd.396.2016.09.11.15.59.58
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A24176B0038
+	for <linux-mm@kvack.org>; Sun, 11 Sep 2016 19:44:42 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id x24so324117975pfa.0
+        for <linux-mm@kvack.org>; Sun, 11 Sep 2016 16:44:42 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id bl7si18264646pad.14.2016.09.11.16.44.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 11 Sep 2016 15:59:58 -0700 (PDT)
-Received: by mail-lf0-x243.google.com with SMTP id s29so5086448lfg.3
-        for <linux-mm@kvack.org>; Sun, 11 Sep 2016 15:59:58 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 11 Sep 2016 16:44:41 -0700 (PDT)
+Date: Mon, 12 Sep 2016 07:44:37 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [linux-stable-rc:linux-3.14.y 1941/4977]
+ include/linux/irqdesc.h:80:33: error: 'NR_IRQS' undeclared here (not in a
+ function)
+Message-ID: <20160911234437.voyzdbxvvd2w5oqk@wfg-t540p.sh.intel.com>
+References: <201609120447.p6I9GrZF%fengguang.wu@intel.com>
+ <20160911204731.GB30805@sasha-lappy>
 MIME-Version: 1.0
-In-Reply-To: <20160911225425.10388-1-lstoakes@gmail.com>
-References: <20160911225425.10388-1-lstoakes@gmail.com>
-From: Lorenzo Stoakes <lstoakes@gmail.com>
-Date: Sun, 11 Sep 2016 23:59:37 +0100
-Message-ID: <CAA5enKaOyCvSAWfw+KH=hcKT88nSF0nTQSb0RcviUfcCH+tCnw@mail.gmail.com>
-Subject: Re: [PATCH] mm: check VMA flags to avoid invalid PROT_NONE NUMA balancing
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <20160911204731.GB30805@sasha-lappy>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Mel Gorman <mgorman@techsingularity.net>, torvalds@linux-foundation.org, riel@redhat.com, tbsaunde@tbsaunde.org, robert@ocallahan.org, Lorenzo Stoakes <lstoakes@gmail.com>
+To: "Levin, Alexander" <alexander.levin@verizon.com>
+Cc: "kbuild-all@01.org" <kbuild-all@01.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-[adding lkml, accidentally excluded!]
+Hi Sasha,
 
-On 11 September 2016 at 23:54, Lorenzo Stoakes <lstoakes@gmail.com> wrote:
-> The NUMA balancing logic uses an arch-specific PROT_NONE page table flag defined
-> by pte_protnone() or pmd_protnone() to mark PTEs or huge page PMDs respectively
-> as requiring balancing upon a subsequent page fault. User-defined PROT_NONE
-> memory regions which also have this flag set will not normally invoke the NUMA
-> balancing code as do_page_fault() will send a segfault to the process before
-> handle_mm_fault() is even called.
+On Sun, Sep 11, 2016 at 04:47:31PM -0400, Levin, Alexander wrote:
+>On Sun, Sep 11, 2016 at 04:06:50PM -0400, kbuild test robot wrote:
+>> Hi Sasha,
+>>
+>> FYI, the error/warning still remains.
+>>
+>> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable-rc.git linux-3.14.y
+>> head:   b65f2f457c49b2cfd7967c34b7a0b04c25587f13
+>> commit: 017ff97daa4a7892181a4dd315c657108419da0c [1941/4977] kernel: add support for gcc 5
 >
-> However if access_remote_vm() is invoked to access a PROT_NONE region of memory,
-> handle_mm_fault() is called via faultin_page() and __get_user_pages() without
-> any access checks being performed, meaning the NUMA balancing logic is
-> incorrectly invoked on a non-NUMA memory region.
+>Please make it stop :(
 >
-> A simple means of triggering this problem is to access PROT_NONE mmap'd memory
-> using /proc/self/mem which reliably results in the NUMA handling functions being
-> invoked when CONFIG_NUMA_BALANCING is set.
->
-> This issue was reported in bugzilla (issue 99101) which includes some simple
-> repro code.
->
-> There are BUG_ON() checks in do_numa_page() and do_huge_pmd_numa_page() added at
-> commit c0e7cad to avoid accidentally provoking strange behaviour by attempting
-> to apply NUMA balancing to pages that are in fact PROT_NONE. The BUG_ON()'s are
-> consistently triggered by the repro.
->
-> This patch moves the PROT_NONE check into mm/memory.c rather than invoking
-> BUG_ON() as faulting in these pages via faultin_page() is a valid reason for
-> reaching the NUMA check with the PROT_NONE page table flag set and is therefore
-> not always a bug.
->
-> Link: https://bugzilla.kernel.org/show_bug.cgi?id=99101
-> Reported-by: Trevor Saunders <tbsaunde@tbsaunde.org>
-> Signed-off-by: Lorenzo Stoakes <lstoakes@gmail.com>
-> ---
->  mm/huge_memory.c |  3 ---
->  mm/memory.c      | 12 +++++++-----
->  2 files changed, 7 insertions(+), 8 deletions(-)
->
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index d76700d..954be55 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1198,9 +1198,6 @@ int do_huge_pmd_numa_page(struct fault_env *fe, pmd_t pmd)
->         bool was_writable;
->         int flags = 0;
->
-> -       /* A PROT_NONE fault should not end up here */
-> -       BUG_ON(!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)));
-> -
->         fe->ptl = pmd_lock(vma->vm_mm, fe->pmd);
->         if (unlikely(!pmd_same(pmd, *fe->pmd)))
->                 goto out_unlock;
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 020226b..aebc04f 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -3351,9 +3351,6 @@ static int do_numa_page(struct fault_env *fe, pte_t pte)
->         bool was_writable = pte_write(pte);
->         int flags = 0;
->
-> -       /* A PROT_NONE fault should not end up here */
-> -       BUG_ON(!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)));
-> -
->         /*
->         * The "pte" at this point cannot be used safely without
->         * validation through pte_unmap_same(). It's of NUMA type but
-> @@ -3458,6 +3455,11 @@ static int wp_huge_pmd(struct fault_env *fe, pmd_t orig_pmd)
->         return VM_FAULT_FALLBACK;
->  }
->
-> +static inline bool vma_is_accessible(struct vm_area_struct *vma)
-> +{
-> +       return vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE);
-> +}
-> +
->  /*
->   * These routines also need to handle stuff like marking pages dirty
->   * and/or accessed for architectures that don't do it in hardware (most
-> @@ -3524,7 +3526,7 @@ static int handle_pte_fault(struct fault_env *fe)
->         if (!pte_present(entry))
->                 return do_swap_page(fe, entry);
->
-> -       if (pte_protnone(entry))
-> +       if (pte_protnone(entry) && vma_is_accessible(fe->vma))
->                 return do_numa_page(fe, entry);
->
->         fe->ptl = pte_lockptr(fe->vma->vm_mm, fe->pmd);
-> @@ -3590,7 +3592,7 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
->
->                 barrier();
->                 if (pmd_trans_huge(orig_pmd) || pmd_devmap(orig_pmd)) {
-> -                       if (pmd_protnone(orig_pmd))
-> +                       if (pmd_protnone(orig_pmd) && vma_is_accessible(vma))
->                                 return do_huge_pmd_numa_page(&fe, orig_pmd);
->
->                         if ((fe.flags & FAULT_FLAG_WRITE) &&
-> --
-> 2.9.3
+>I've introduced a commit to support gcc 5, and I'm guessing that in turn your build system now probably builds using gcc 5 for anything past that point, right?
 
+Yes, many "hidden" error/warnings show up after that commit. I'll
+ignore bisects to this commit.
 
+>This causes new errors/warnings which appear to be caused by my commit, but obviously aren't.
+>
+>Can you please make the build system just ignore this commit if it gets bisected?
 
--- 
-Lorenzo Stoakes
-https://ljs.io
+Yes, sure. Sorry for the noises!
+
+Cheers,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
