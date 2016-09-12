@@ -1,91 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D2486B0253
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 02:36:53 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 128so111899382pfb.2
-        for <linux-mm@kvack.org>; Sun, 11 Sep 2016 23:36:53 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id di8si20076635pad.232.2016.09.11.23.36.51
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A30A06B0038
+	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 03:16:54 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id k12so87502054lfb.2
+        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 00:16:54 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t16si14051929wmt.101.2016.09.12.00.16.52
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 11 Sep 2016 23:36:52 -0700 (PDT)
-Subject: Re: DAX mapping detection (was: Re: [PATCH] Fix region lost in
- /proc/self/smaps)
-References: <CAPcyv4iDra+mRqEejfGqapKEAFZmUtUcg0dsJ8nt7mOhcT-Qpw@mail.gmail.com>
- <20160908225636.GB15167@linux.intel.com>
- <CAPcyv4h5y4MHdXtdrdPRtG7L0_KCoxf_xwDGnHQ2r5yZoqkFzQ@mail.gmail.com>
- <5d5ef209-e005-12c6-9b34-1fdd21e1e6e2@linux.intel.com>
- <E987E30D-5C68-420C-B68D-7E0AAA7F2303@intel.com>
-From: Xiao Guangrong <guangrong.xiao@linux.intel.com>
-Message-ID: <b7b3955f-a879-e75f-fda8-f5962a5d58ec@linux.intel.com>
-Date: Mon, 12 Sep 2016 14:31:06 +0800
+        Mon, 12 Sep 2016 00:16:53 -0700 (PDT)
+Date: Mon, 12 Sep 2016 09:16:51 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm: Don't emit warning from pagefault_out_of_memory()
+Message-ID: <20160912071651.GB14524@dhcp22.suse.cz>
+References: <1473442120-7246-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <E987E30D-5C68-420C-B68D-7E0AAA7F2303@intel.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1473442120-7246-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rudoff, Andy" <andy.rudoff@intel.com>, "Williams, Dan J" <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Hansen, Dave" <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Gleb Natapov <gleb@kernel.org>, "mtosatti@redhat.com" <mtosatti@redhat.com>, KVM list <kvm@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Hajnoczi <stefanha@redhat.com>, Yumei Huang <yuhuang@redhat.com>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>
 
+On Sat 10-09-16 02:28:40, Tetsuo Handa wrote:
+> Commit c32b3cbe0d067a9c ("oom, PM: make OOM detection in the freezer path
+> raceless") inserted a WARN_ON() into pagefault_out_of_memory() in order
+> to warn when we raced with disabling the OOM killer. But emitting same
+> backtrace forever after the OOM killer/reaper are disabled is pointless
+> because the system is already OOM livelocked.
 
+How that would that be forever? Pagefaults are not GFP_NOFAIL and the
+killed task would just enter the exit path. Sure we will see one warning
+per each g-u-p after that point but the above text seems to be
+misleading to me. So can you just drop the last sentence?
 
-On 09/12/2016 11:44 AM, Rudoff, Andy wrote:
->> Whether msync/fsync can make data persistent depends on ADR feature on
->> memory controller, if it exists everything works well, otherwise, we need
->> to have another interface that is why 'Flush hint table' in ACPI comes
->> in. 'Flush hint table' is particularly useful for nvdimm virtualization if
->> we use normal memory to emulate nvdimm with data persistent characteristic
->> (the data will be flushed to a persistent storage, e.g, disk).
->>
->> Does current PMEM programming model fully supports 'Flush hint table'? Is
->> userspace allowed to use these addresses?
->
-> The Flush hint table is NOT a replacement for ADR.  To support pmem on
-> the x86 architecture, the platform is required to ensure that a pmem
-> store flushed from the CPU caches is in the persistent domain so that the
-> application need not take any additional steps to make it persistent.
-> The most common way to do this is the ADR feature.
->
-> If the above is not true, then your x86 platform does not support pmem.
+> Now, patch "oom, suspend: fix oom_killer_disable vs. pm suspend properly"
+> introduced a timeout for oom_killer_disable(). Even if we raced with
+> disabling the OOM killer and the system is OOM livelocked, the OOM killer
+> will be enabled eventually (in 20 seconds by default) and the OOM livelock
+> will be solved. Therefore, we no longer need to warn when we raced with
+> disabling the OOM killer.
 
-Understood.
+That being said I guess the warning is really no longer needed as you
+say. So I am not against the patch. But the changelog wording seems
+misleading to me.
 
-However, virtualization is a special case as we can use normal memory
-to emulate NVDIMM for the vm so that vm can bypass local file-cache,
-reduce memory usage and io path, etc. Currently, this usage is useful
-for lightweight virtualization, such as clean container.
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  mm/oom_kill.c | 12 +-----------
+>  1 file changed, 1 insertion(+), 11 deletions(-)
+> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 0034baf..f284e92 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -1069,16 +1069,6 @@ void pagefault_out_of_memory(void)
+>  
+>  	if (!mutex_trylock(&oom_lock))
+>  		return;
+> -
+> -	if (!out_of_memory(&oc)) {
+> -		/*
+> -		 * There shouldn't be any user tasks runnable while the
+> -		 * OOM killer is disabled, so the current task has to
+> -		 * be a racing OOM victim for which oom_killer_disable()
+> -		 * is waiting for.
+> -		 */
+> -		WARN_ON(test_thread_flag(TIF_MEMDIE));
+> -	}
+> -
+> +	out_of_memory(&oc);
+>  	mutex_unlock(&oom_lock);
+>  }
+> -- 
+> 1.8.3.1
 
-Under this case, ADR is available on physical platform but it can
-not help us to make data persistence for the vm. So that virtualizeing
-'flush hint table' is a good way to handle it based on the acpi spec:
-| software can write to any one of these Flush Hint Addresses to
-| cause any preceding writes to the NVDIMM region to be flushed
-| out of the intervening platform buffers 1 to the targeted NVDIMM
-| (to achieve durability)
-
->
-> Flush hints are for use by the BIOS and drivers and are not intended to
-> be used in user space.  Flush hints provide two things:
->
-> First, if a driver needs to write to command registers or movable windows
-> on a DIMM, the Flush hint (if provided in the NFIT) is required to flush
-> the command to the DIMM or ensure stores done through the movable window
-> are complete before moving it somewhere else.
->
-> Second, for the rare case where the kernel wants to flush stores to the
-> smallest possible failure domain (i.e. to the DIMM even though ADR will
-> handle flushing it from a larger domain), the flush hints provide a way
-> to do this.  This might be useful for things like file system journals to
-> help ensure the file system is consistent even in the face of ADR failure.
-
-We are assuming ADR can fail, however, do we have a way to know whether
-ADR works correctly? Maybe MCE can work on it?
-
-This is necessary to support making data persistent without 'fsync/msync'
-in userspace. Or do we need to unconditionally use 'flush hint address'
-if it is available as current nvdimm driver does?
-
-Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
