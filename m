@@ -1,73 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 865726B0038
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 13:44:49 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 1so65200767wmz.2
-        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 10:44:49 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c200si3587211wme.81.2016.09.12.10.44.48
+	by kanga.kvack.org (Postfix) with ESMTP id 442356B0038
+	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 13:47:50 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id b187so18403489wme.1
+        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 10:47:50 -0700 (PDT)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTPS id ke3si16244027wjb.240.2016.09.12.10.47.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 12 Sep 2016 10:44:48 -0700 (PDT)
-Date: Mon, 12 Sep 2016 19:44:46 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm: fix oom work when memory is under pressure
-Message-ID: <20160912174445.GC14997@dhcp22.suse.cz>
-References: <1473173226-25463-1-git-send-email-zhongjiang@huawei.com>
- <20160909114410.GG4844@dhcp22.suse.cz>
- <57D67A8A.7070500@huawei.com>
- <20160912111327.GG14524@dhcp22.suse.cz>
- <57D6B0C4.6040400@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 12 Sep 2016 10:47:49 -0700 (PDT)
+Date: Mon, 12 Sep 2016 19:47:47 +0200
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH] PM / Hibernate: allow hibernation with
+ PAGE_POISONING_ZERO
+Message-ID: <20160912174747.GA8285@amd>
+References: <1473410612-6207-1-git-send-email-anisse@astier.eu>
+ <20160912113238.GA30927@amd>
+ <CALUN=qJNX6HqrwXkk--8u0PiOxV-USE4tEouqimXPiRaobtAEw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <57D6B0C4.6040400@huawei.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CALUN=qJNX6HqrwXkk--8u0PiOxV-USE4tEouqimXPiRaobtAEw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhong jiang <zhongjiang@huawei.com>
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, linux-mm@kvack.org, Xishi Qiu <qiuxishi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
+To: Anisse Astier <anisse@astier.eu>
+Cc: David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, linux-pm@vger.kernel.org, Mathias Krause <minipli@googlemail.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J . Wysocki" <rjw@rjwysocki.net>, Laura Abbott <labbott@fedoraproject.org>, linux-mm@kvack.org, Brad Spengler <spender@grsecurity.net>, Jianyu Zhan <nasa4836@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Yves-Alexis Perez <corsac@debian.org>, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, Andi Kleen <andi@firstfloor.org>, Len Brown <len.brown@intel.com>, Alan Cox <gnomes@lxorguk.ukuu.org.uk>, PaX Team <pageexec@freemail.hu>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>
 
-On Mon 12-09-16 21:42:28, zhong jiang wrote:
-> On 2016/9/12 19:13, Michal Hocko wrote:
-> > On Mon 12-09-16 17:51:06, zhong jiang wrote:
-> > [...]
-> >> hi,  Michal
-> >> oom reaper indeed can accelerate the recovery of memory, but the patch
-> >> solve the extreme scenario, I hit it by runing trinity. I think the
-> >> scenario can happen whether oom reaper or not.
-> > could you be more specific about the case when the oom reaper and the
-> > current oom code led to the oom deadlock?
->
-> It is not the oom deadlock.  It will lead to hungtask.  The explain is
-> as follows.
+Hi!
+
+On Mon 2016-09-12 17:19:54, Anisse Astier wrote:
+> Le 12 sept. 2016 13:32, "Pavel Machek" <pavel@ucw.cz> a ecrit :
+> >
+> > On Fri 2016-09-09 10:43:32, Anisse Astier wrote:
+> > > PAGE_POISONING_ZERO disables zeroing new pages on alloc, they are
+> > > poisoned (zeroed) as they become available.
+> > > In the hibernate use case, free pages will appear in the system without
+> > > being cleared, left there by the loading kernel.
+> > >
+> > > This patch will make sure free pages are cleared on resume when
+> > > PAGE_POISONING_ZERO is enabled. We free the pages just after resume
+> > > because we can't do it later: going through any device resume code might
+> > > allocate some memory and invalidate the free pages bitmap.
+> > >
+> > > Thus we don't need to disable hibernation when PAGE_POISONING_ZERO is
+> > > enabled.
+> > >
+> > > Signed-off-by: Anisse Astier <anisse@astier.eu>
+> > > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > > Cc: Laura Abbott <labbott@fedoraproject.org>
+> > > Cc: Mel Gorman <mgorman@suse.de>
+> > > Cc: Rafael J. Wysocki <rjw@rjwysocki.net>
+> >
+> > Looks reasonable to me.
+> >
+> > Acked-by: Pavel Machek <pavel@ucw.cz>
+> >
+> > Actually.... this takes basically zero time come. Do we want to do it
+> > unconditionally?
+> >
+> > (Yes, it is free memory, but for sake of debugging, I guess zeros are
+> > preffered to random content that changed during hibernation.)
+> >
+> > (But that does not change the Ack.)
+> >
+> > Best regards,
+> >
+> Pavel
+> > --
 > 
-> process A occupy a resource and lock it. then A need to allocate
-> memory when memory is very low. at the some time, oom will come up and
-> return directly. because it find other process is freeing memory in
-> same zone.
->
-> however, the freed memory is taken away by another process.
-> it will lead to A oom again and again.
-> 
-> process B still wait some resource holded by A. so B will obtain the
-> lock until A release the resource. therefor, if A spend much time to
-> obtain memory, B will hungtask.
+> I have no opposition on doing this unconditionally. I can send a v2 as soon
+> as I get closer to a computer.
 
-OK, I see what you are aiming for. And indeed such a starvation and
-resulting priority inversion is possible. It is a hard problem to solve
-and your patch doesn't address it either. You can spend enough time
-reclaiming and retrying without ever getting to the oom path to trigger
-this hungtask warning.
+Actually, I'd keep this one as is, when it works and there are no
+problems for a release or so, we can delete the ifdefs.
 
-If you want to solve this problem properly then you would have to give
-tasks which are looping in the page allocator access to some portion of
-memory reserves. This is quite tricky to do right, though.
-
-Retry counters with the fail path have been proposed in the past and not
-accepted.
+Thanks!
+									Pavel
 -- 
-Michal Hocko
-SUSE Labs
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
