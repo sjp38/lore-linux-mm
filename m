@@ -1,121 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CD4C6B0038
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 05:56:15 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id b187so8526421wme.1
-        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 02:56:15 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id ea4si14549562wjb.234.2016.09.12.02.56.12
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C55306B0038
+	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 05:59:04 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id s64so92232395lfs.1
+        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 02:59:04 -0700 (PDT)
+Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
+        by mx.google.com with ESMTPS id i201si6369196lfe.238.2016.09.12.02.59.03
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 12 Sep 2016 02:56:14 -0700 (PDT)
-Message-ID: <57D67A8A.7070500@huawei.com>
-Date: Mon, 12 Sep 2016 17:51:06 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 12 Sep 2016 02:59:03 -0700 (PDT)
+Received: by mail-lf0-x244.google.com with SMTP id s29so5571072lfg.3
+        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 02:59:03 -0700 (PDT)
+Date: Mon, 12 Sep 2016 12:59:00 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 1/2] shmem: fix tmpfs to handle the huge= option properly
+Message-ID: <20160912095900.GA23346@node.shutemov.name>
+References: <1473459863-11287-1-git-send-email-toshi.kani@hpe.com>
+ <1473459863-11287-2-git-send-email-toshi.kani@hpe.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: fix oom work when memory is under pressure
-References: <1473173226-25463-1-git-send-email-zhongjiang@huawei.com> <20160909114410.GG4844@dhcp22.suse.cz>
-In-Reply-To: <20160909114410.GG4844@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1473459863-11287-2-git-send-email-toshi.kani@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, linux-mm@kvack.org, Xishi Qiu <qiuxishi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
+To: Toshi Kani <toshi.kani@hpe.com>
+Cc: akpm@linux-foundation.org, dan.j.williams@intel.com, mawilcox@microsoft.com, hughd@google.com, kirill.shutemov@linux.intel.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 2016/9/9 19:44, Michal Hocko wrote:
-> On Tue 06-09-16 22:47:06, zhongjiang wrote:
->> From: zhong jiang <zhongjiang@huawei.com>
->>
->> Some hungtask come up when I run the trinity, and OOM occurs
->> frequently.
->> A task hold lock to allocate memory, due to the low memory,
->> it will lead to oom. at the some time , it will retry because
->> it find that oom is in progress. but it always allocate fails,
->> the freed memory was taken away quickly.
->> The patch fix it by limit times to avoid hungtask and livelock
->> come up.
-> Which kernel has shown this issue? Since 4.6 IIRC we have oom reaper
-> responsible for the async memory reclaim from the oom victim and later
-> changes should help to reduce oom lockups even further.
->
-> That being said this is not a right approach. It is even incorrect
-> because it allows __GFP_NOFAIL to fail now. So NAK to this patch.
->
->> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
->> ---
->>  mm/page_alloc.c | 8 +++++++-
->>  1 file changed, 7 insertions(+), 1 deletion(-)
->>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index a178b1d..0dcf08b 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -3457,6 +3457,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->>  	enum compact_result compact_result;
->>  	int compaction_retries = 0;
->>  	int no_progress_loops = 0;
->> +	int oom_failed = 0;
->>  
->>  	/*
->>  	 * In the slowpath, we sanity check order to avoid ever trying to
->> @@ -3645,8 +3646,13 @@ retry:
->>  	page = __alloc_pages_may_oom(gfp_mask, order, ac, &did_some_progress);
->>  	if (page)
->>  		goto got_pg;
->> +	else
->> +		oom_failed++;
->> +
->> +	/* more than limited times will drop out */
->> +	if (oom_failed > MAX_RECLAIM_RETRIES)
->> +		goto nopage;
->>  
->> -	/* Retry as long as the OOM killer is making progress */
->>  	if (did_some_progress) {
->>  		no_progress_loops = 0;
->>  		goto retry;
->> -- 
->> 1.8.3.1
- hi,  Michal
- oom reaper indeed can accelerate the recovery of memory,  but the patch solve the extreme scenario,
- I hit it by runing trinity. I think the scenario can happen whether  oom reaper  or not.
- 
-The __GFP_NOFAIL should be considered. Thank you for reminding. The following patch is updated.
+On Fri, Sep 09, 2016 at 04:24:22PM -0600, Toshi Kani wrote:
+> shmem_get_unmapped_area() checks SHMEM_SB(sb)->huge incorrectly,
+> which leads to a reversed effect of "huge=" mount option.
+> 
+> Fix the check in shmem_get_unmapped_area().
+> 
+> Note, the default value of SHMEM_SB(sb)->huge remains as
+> SHMEM_HUGE_NEVER.  User will need to specify "huge=" option to
+> enable huge page mappings.
+> 
+> Reported-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+> Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Hugh Dickins <hughd@google.com>
 
-Thanks
-zhongjiang
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a178b1d..47804c1 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3457,6 +3457,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
-        enum compact_result compact_result;
-        int compaction_retries = 0;
-        int no_progress_loops = 0;
-+       int oom_failed = 0;
-
-        /*
-         * In the slowpath, we sanity check order to avoid ever trying to
-@@ -3645,8 +3646,15 @@ retry:
-        page = __alloc_pages_may_oom(gfp_mask, order, ac, &did_some_progress);
-        if (page)
-                goto got_pg;
-+       else
-+               oom_failed++;
-+
-+       /* more than limited times will drop out */
-+       if (oom_failed > MAX_RECLAIM_RETRIES) {
-+               WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL);
-+               goto nopage;
-+       }
-
--       /* Retry as long as the OOM killer is making progress */
-        if (did_some_progress) {
-                no_progress_loops = 0;
-                goto retry;
-
-
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
