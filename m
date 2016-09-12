@@ -1,87 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A30A06B0038
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 03:16:54 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id k12so87502054lfb.2
-        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 00:16:54 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t16si14051929wmt.101.2016.09.12.00.16.52
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D92F6B0038
+	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 03:25:17 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id t7so191686780qkh.0
+        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 00:25:17 -0700 (PDT)
+Received: from mail-qk0-x242.google.com (mail-qk0-x242.google.com. [2607:f8b0:400d:c09::242])
+        by mx.google.com with ESMTPS id v4si10398451qkg.52.2016.09.12.00.25.16
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 12 Sep 2016 00:16:53 -0700 (PDT)
-Date: Mon, 12 Sep 2016 09:16:51 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm: Don't emit warning from pagefault_out_of_memory()
-Message-ID: <20160912071651.GB14524@dhcp22.suse.cz>
-References: <1473442120-7246-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 12 Sep 2016 00:25:16 -0700 (PDT)
+Received: by mail-qk0-x242.google.com with SMTP id b204so1707769qkc.1
+        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 00:25:16 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1473442120-7246-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+In-Reply-To: <20160912052703.GA1897@infradead.org>
+References: <CAPcyv4iDra+mRqEejfGqapKEAFZmUtUcg0dsJ8nt7mOhcT-Qpw@mail.gmail.com>
+ <20160908225636.GB15167@linux.intel.com> <20160912052703.GA1897@infradead.org>
+From: "Oliver O'Halloran" <oohall@gmail.com>
+Date: Mon, 12 Sep 2016 17:25:15 +1000
+Message-ID: <CAOSf1CHaW=szD+YEjV6vcUG0KKr=aXv8RXomw9xAgknh_9NBFQ@mail.gmail.com>
+Subject: Re: DAX mapping detection (was: Re: [PATCH] Fix region lost in /proc/self/smaps)
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Xiao Guangrong <guangrong.xiao@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Gleb Natapov <gleb@kernel.org>, mtosatti@redhat.com, KVM list <kvm@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Hajnoczi <stefanha@redhat.com>, Yumei Huang <yuhuang@redhat.com>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-On Sat 10-09-16 02:28:40, Tetsuo Handa wrote:
-> Commit c32b3cbe0d067a9c ("oom, PM: make OOM detection in the freezer path
-> raceless") inserted a WARN_ON() into pagefault_out_of_memory() in order
-> to warn when we raced with disabling the OOM killer. But emitting same
-> backtrace forever after the OOM killer/reaper are disabled is pointless
-> because the system is already OOM livelocked.
+On Mon, Sep 12, 2016 at 3:27 PM, Christoph Hellwig <hch@infradead.org> wrote:
+> On Thu, Sep 08, 2016 at 04:56:36PM -0600, Ross Zwisler wrote:
+>> I think this goes back to our previous discussion about support for the PMEM
+>> programming model.  Really I think what NVML needs isn't a way to tell if it
+>> is getting a DAX mapping, but whether it is getting a DAX mapping on a
+>> filesystem that fully supports the PMEM programming model.  This of course is
+>> defined to be a filesystem where it can do all of its flushes from userspace
+>> safely and never call fsync/msync, and that allocations that happen in page
+>> faults will be synchronized to media before the page fault completes.
+>
+> That's a an easy way to flag:  you will never get that from a Linux
+> filesystem, period.
+>
+> NVML folks really need to stop taking crack and dreaming this could
+> happen.
 
-How that would that be forever? Pagefaults are not GFP_NOFAIL and the
-killed task would just enter the exit path. Sure we will see one warning
-per each g-u-p after that point but the above text seems to be
-misleading to me. So can you just drop the last sentence?
+Well, that's a bummer.
 
-> Now, patch "oom, suspend: fix oom_killer_disable vs. pm suspend properly"
-> introduced a timeout for oom_killer_disable(). Even if we raced with
-> disabling the OOM killer and the system is OOM livelocked, the OOM killer
-> will be enabled eventually (in 20 seconds by default) and the OOM livelock
-> will be solved. Therefore, we no longer need to warn when we raced with
-> disabling the OOM killer.
-
-That being said I guess the warning is really no longer needed as you
-say. So I am not against the patch. But the changelog wording seems
-misleading to me.
-
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  mm/oom_kill.c | 12 +-----------
->  1 file changed, 1 insertion(+), 11 deletions(-)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 0034baf..f284e92 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -1069,16 +1069,6 @@ void pagefault_out_of_memory(void)
->  
->  	if (!mutex_trylock(&oom_lock))
->  		return;
-> -
-> -	if (!out_of_memory(&oc)) {
-> -		/*
-> -		 * There shouldn't be any user tasks runnable while the
-> -		 * OOM killer is disabled, so the current task has to
-> -		 * be a racing OOM victim for which oom_killer_disable()
-> -		 * is waiting for.
-> -		 */
-> -		WARN_ON(test_thread_flag(TIF_MEMDIE));
-> -	}
-> -
-> +	out_of_memory(&oc);
->  	mutex_unlock(&oom_lock);
->  }
-> -- 
-> 1.8.3.1
-
--- 
-Michal Hocko
-SUSE Labs
+What are the problems here? Is this a matter of existing filesystems
+being unable/unwilling to support this or is it just fundamentally
+broken? The end goal is to let applications manage the persistence of
+their own data without having to involve the kernel in every IOP, but
+if we can't do that then what would a 90% solution look like? I think
+most people would be OK with having to do an fsync() occasionally, but
+not after ever write to pmem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
