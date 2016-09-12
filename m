@@ -1,85 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 442356B0038
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 13:47:50 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id b187so18403489wme.1
-        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 10:47:50 -0700 (PDT)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTPS id ke3si16244027wjb.240.2016.09.12.10.47.49
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B7936B0038
+	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 14:13:47 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id ag5so356365016pad.2
+        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 11:13:47 -0700 (PDT)
+Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
+        by mx.google.com with ESMTPS id rx5si22684973pac.54.2016.09.12.11.13.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Sep 2016 10:47:49 -0700 (PDT)
-Date: Mon, 12 Sep 2016 19:47:47 +0200
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [PATCH] PM / Hibernate: allow hibernation with
- PAGE_POISONING_ZERO
-Message-ID: <20160912174747.GA8285@amd>
-References: <1473410612-6207-1-git-send-email-anisse@astier.eu>
- <20160912113238.GA30927@amd>
- <CALUN=qJNX6HqrwXkk--8u0PiOxV-USE4tEouqimXPiRaobtAEw@mail.gmail.com>
+        Mon, 12 Sep 2016 11:13:46 -0700 (PDT)
+Received: by mail-pa0-x233.google.com with SMTP id b2so53079544pat.2
+        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 11:13:45 -0700 (PDT)
+Date: Mon, 12 Sep 2016 11:13:43 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH V4] mm: Add sysfs interface to dump each node's zonelist
+ information
+In-Reply-To: <57D63CB2.8070003@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.10.1609121106500.39030@chino.kir.corp.google.com>
+References: <1473150666-3875-1-git-send-email-khandual@linux.vnet.ibm.com> <1473302818-23974-1-git-send-email-khandual@linux.vnet.ibm.com> <57D1C914.9090403@intel.com> <57D63CB2.8070003@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CALUN=qJNX6HqrwXkk--8u0PiOxV-USE4tEouqimXPiRaobtAEw@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anisse Astier <anisse@astier.eu>
-Cc: David Rientjes <rientjes@google.com>, Michal Hocko <mhocko@suse.com>, linux-pm@vger.kernel.org, Mathias Krause <minipli@googlemail.com>, Andrew Morton <akpm@linux-foundation.org>, "Rafael J . Wysocki" <rjw@rjwysocki.net>, Laura Abbott <labbott@fedoraproject.org>, linux-mm@kvack.org, Brad Spengler <spender@grsecurity.net>, Jianyu Zhan <nasa4836@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Yves-Alexis Perez <corsac@debian.org>, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org, Andi Kleen <andi@firstfloor.org>, Len Brown <len.brown@intel.com>, Alan Cox <gnomes@lxorguk.ukuu.org.uk>, PaX Team <pageexec@freemail.hu>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 
-Hi!
+On Mon, 12 Sep 2016, Anshuman Khandual wrote:
 
-On Mon 2016-09-12 17:19:54, Anisse Astier wrote:
-> Le 12 sept. 2016 13:32, "Pavel Machek" <pavel@ucw.cz> a ecrit :
-> >
-> > On Fri 2016-09-09 10:43:32, Anisse Astier wrote:
-> > > PAGE_POISONING_ZERO disables zeroing new pages on alloc, they are
-> > > poisoned (zeroed) as they become available.
-> > > In the hibernate use case, free pages will appear in the system without
-> > > being cleared, left there by the loading kernel.
-> > >
-> > > This patch will make sure free pages are cleared on resume when
-> > > PAGE_POISONING_ZERO is enabled. We free the pages just after resume
-> > > because we can't do it later: going through any device resume code might
-> > > allocate some memory and invalidate the free pages bitmap.
-> > >
-> > > Thus we don't need to disable hibernation when PAGE_POISONING_ZERO is
-> > > enabled.
-> > >
-> > > Signed-off-by: Anisse Astier <anisse@astier.eu>
-> > > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > > Cc: Laura Abbott <labbott@fedoraproject.org>
-> > > Cc: Mel Gorman <mgorman@suse.de>
-> > > Cc: Rafael J. Wysocki <rjw@rjwysocki.net>
-> >
-> > Looks reasonable to me.
-> >
-> > Acked-by: Pavel Machek <pavel@ucw.cz>
-> >
-> > Actually.... this takes basically zero time come. Do we want to do it
-> > unconditionally?
-> >
-> > (Yes, it is free memory, but for sake of debugging, I guess zeros are
-> > preffered to random content that changed during hibernation.)
-> >
-> > (But that does not change the Ack.)
-> >
-> > Best regards,
-> >
-> Pavel
-> > --
+> >> > after memory or node hot[un]plug is desirable. This change adds one
+> >> > new sysfs interface (/sys/devices/system/memory/system_zone_details)
+> >> > which will fetch and dump this information.
+> > Doesn't this violate the "one value per file" sysfs rule?  Does it
+> > belong in debugfs instead?
 > 
-> I have no opposition on doing this unconditionally. I can send a v2 as soon
-> as I get closer to a computer.
+> Yeah sure. Will make it a debugfs interface.
+> 
 
-Actually, I'd keep this one as is, when it works and there are no
-problems for a release or so, we can delete the ifdefs.
+So the intended reader of this file is running as root?
 
-Thanks!
-									Pavel
--- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+> > I also really question the need to dump kernel addresses out, filtered 
+> > or not.  What's the point?
+> 
+> Hmm, thought it to be an additional information. But yes its additional
+> and can be dropped.
+> 
+
+I'm questioning if this information can be inferred from information 
+already in /proc/zoneinfo and sysfs.  We know the no-fallback zonelist is 
+going to include the local node, and we know the other zonelists are 
+either node ordered or zone ordered (or do we need to extend 
+vm.numa_zonelist_order for default?).  I may have missed what new 
+knowledge this interface is imparting on us.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
