@@ -1,211 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 89E486B0038
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 11:05:44 -0400 (EDT)
-Received: by mail-yw0-f199.google.com with SMTP id u124so312643661ywg.3
-        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 08:05:44 -0700 (PDT)
-Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0081.outbound.protection.outlook.com. [104.47.33.81])
-        by mx.google.com with ESMTPS id k12si1291243qtc.139.2016.09.12.08.05.43
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 52A546B0038
+	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 11:11:16 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id b204so27773241qkc.1
+        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 08:11:16 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x191si4536484ybe.227.2016.09.12.08.09.48
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 12 Sep 2016 08:05:43 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 10/20] x86: Insure that memory areas are encrypted
- when possible
-References: <20160822223529.29880.50884.stgit@tlendack-t1.amdoffice.net>
- <20160822223722.29880.94331.stgit@tlendack-t1.amdoffice.net>
- <20160909155305.bmm2fvw7ndjjhqvo@pd.tnic>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <23855fb4-05b0-4c12-d34f-4d5f45f3b015@amd.com>
-Date: Mon, 12 Sep 2016 10:05:36 -0500
-MIME-Version: 1.0
-In-Reply-To: <20160909155305.bmm2fvw7ndjjhqvo@pd.tnic>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 12 Sep 2016 08:09:51 -0700 (PDT)
+Message-ID: <1473692983.32433.235.camel@redhat.com>
+Subject: Re: [PATCH] sched,numa,mm: revert to checking pmd/pte_write instead
+ of VMA flags
+From: Rik van Riel <riel@redhat.com>
+Date: Mon, 12 Sep 2016 11:09:43 -0400
+In-Reply-To: <20160911162402.GA2775@suse.de>
+References: <20160908213053.07c992a9@annuminas.surriel.com>
+	 <20160911162402.GA2775@suse.de>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-2cmrlBgGTOZii60NBkbF"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
- Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, peterz@infradead.org, mingo@kernel.org, aarcange@redhat.com
 
-On 09/09/2016 10:53 AM, Borislav Petkov wrote:
-> On Mon, Aug 22, 2016 at 05:37:23PM -0500, Tom Lendacky wrote:
->> Encrypt memory areas in place when possible (e.g. zero page, etc.) so
->> that special handling isn't needed afterwards.
->>
->> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
->> ---
->>  arch/x86/kernel/head64.c |   93 ++++++++++++++++++++++++++++++++++++++++++++--
->>  arch/x86/kernel/setup.c  |    8 ++++
->>  2 files changed, 96 insertions(+), 5 deletions(-)
-> 
-> ...
-> 
->> +int __init early_make_pgtable(unsigned long address)
->> +{
->> +	unsigned long physaddr = address - __PAGE_OFFSET;
->> +	pmdval_t pmd;
->> +
->> +	pmd = (physaddr & PMD_MASK) + early_pmd_flags;
->> +
->> +	return __early_make_pgtable(address, pmd);
->> +}
->> +
->> +static void __init create_unencrypted_mapping(void *address, unsigned long size)
->> +{
->> +	unsigned long physaddr = (unsigned long)address - __PAGE_OFFSET;
->> +	pmdval_t pmd_flags, pmd;
->> +
->> +	if (!sme_me_mask)
->> +		return;
->> +
->> +	/* Clear the encryption mask from the early_pmd_flags */
->> +	pmd_flags = early_pmd_flags & ~sme_me_mask;
->> +
->> +	do {
->> +		pmd = (physaddr & PMD_MASK) + pmd_flags;
->> +		__early_make_pgtable((unsigned long)address, pmd);
->> +
->> +		address += PMD_SIZE;
->> +		physaddr += PMD_SIZE;
->> +		size = (size < PMD_SIZE) ? 0 : size - PMD_SIZE;
->> +	} while (size);
->> +}
->> +
->> +static void __init __clear_mapping(unsigned long address)
-> 
-> Should be called something with "pmd" in the name as it clears a PMD,
-> i.e. __clear_pmd_mapping or so.
 
-Ok.
+--=-2cmrlBgGTOZii60NBkbF
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-> 
->> +{
->> +	unsigned long physaddr = address - __PAGE_OFFSET;
->> +	pgdval_t pgd, *pgd_p;
->> +	pudval_t pud, *pud_p;
->> +	pmdval_t *pmd_p;
->> +
->> +	/* Invalid address or early pgt is done ?  */
->> +	if (physaddr >= MAXMEM ||
->> +	    read_cr3() != __sme_pa_nodebug(early_level4_pgt))
->> +		return;
->> +
->> +	pgd_p = &early_level4_pgt[pgd_index(address)].pgd;
->> +	pgd = *pgd_p;
->> +
->> +	if (!pgd)
->> +		return;
->> +
->> +	/*
->> +	 * The use of __START_KERNEL_map rather than __PAGE_OFFSET here matches
->> +	 * __early_make_pgtable where the entry was created.
->> +	 */
->> +	pud_p = (pudval_t *)((pgd & PTE_PFN_MASK) + __START_KERNEL_map - phys_base);
->> +	pud_p += pud_index(address);
->> +	pud = *pud_p;
->> +
->> +	if (!pud)
->> +		return;
->> +
->> +	pmd_p = (pmdval_t *)((pud & PTE_PFN_MASK) + __START_KERNEL_map - phys_base);
->> +	pmd_p[pmd_index(address)] = 0;
->> +}
->> +
->> +static void __init clear_mapping(void *address, unsigned long size)
->> +{
->> +	if (!sme_me_mask)
->> +		return;
->> +
->> +	do {
->> +		__clear_mapping((unsigned long)address);
->> +
->> +		address += PMD_SIZE;
->> +		size = (size < PMD_SIZE) ? 0 : size - PMD_SIZE;
->> +	} while (size);
->> +}
->> +
->> +static void __init sme_memcpy(void *dst, void *src, unsigned long size)
->> +{
->> +	create_unencrypted_mapping(src, size);
->> +	memcpy(dst, src, size);
->> +	clear_mapping(src, size);
->> +}
->> +
-> 
-> In any case, this whole functionality is SME-specific and should be
-> somewhere in an SME-specific file. arch/x86/mm/mem_encrypt.c or so...
+On Sun, 2016-09-11 at 17:24 +0100, Mel Gorman wrote:
+> On Thu, Sep 08, 2016 at 09:30:53PM -0400, Rik van Riel wrote:
+> > Commit 4d9424669946 ("mm: convert p[te|md]_mknonnuma and remaining
+> > page table manipulations") changed NUMA balancing from _PAGE_NUMA
+> > to using PROT_NONE, and was quickly found to introduce a regression
+> > with NUMA grouping.
+> >=20
+> > It was followed up by these changesets:
+> >=20
+> > 53da3bc2ba9e ("mm: fix up numa read-only thread grouping logic")
+> > bea66fbd11af ("mm: numa: group related processes based on VMA flags
+> > instead of page table flags")
+> > b191f9b106ea ("mm: numa: preserve PTE write permissions across a
+> > NUMA hinting fault")
+> >=20
+> > The first of those two changesets try alternate approaches to NUMA
+> > grouping, which apparently do not work as well as looking at the
+> > PTE
+> > write permissions.
+> >=20
+> > The latter patch preserves the PTE write permissions across a NUMA
+> > protection fault. However, it forgets to revert the condition for
+> > whether or not to group tasks together back to what it was before
+> > 3.19, even though the information is now preserved in the page
+> > tables
+> > once again.
+> >=20
+> > This patch brings the NUMA grouping heuristic back to what it was
+> > before changeset 4d9424669946, which the changelogs of subsequent
+> > changesets suggest worked best.
+> >=20
+> > We have all the information again. We should probably use it.
+> >=20
+>=20
+> Patch looks ok other than the comment above the second hunk being out
+> of
+> date. Out of curiousity, what workload benefitted from this? I saw a
+> mix
+> of marginal results when I ran this on a 2-socket and 4-socket box.
 
-I can look into that.  The reason I put this here is this is all the
-early page fault support that is very specific to this file. I modified
-an existing static function to take advantage of the mapping support.
+I did not performance test the change, because I believe
+the VM_WRITE test has a small logical error.
 
-> 
->>  /* Don't add a printk in there. printk relies on the PDA which is not initialized 
->>     yet. */
->>  static void __init clear_bss(void)
->> @@ -122,12 +205,12 @@ static void __init copy_bootdata(char *real_mode_data)
->>  	char * command_line;
->>  	unsigned long cmd_line_ptr;
->>  
->> -	memcpy(&boot_params, real_mode_data, sizeof boot_params);
->> +	sme_memcpy(&boot_params, real_mode_data, sizeof boot_params);
-> 
-> checkpatch.pl:
-> 
-> WARNING: sizeof boot_params should be sizeof(boot_params)
-> #155: FILE: arch/x86/kernel/head64.c:208:
-> +       sme_memcpy(&boot_params, real_mode_data, sizeof boot_params);
+Specifically, VM_WRITE is also true for VMAs that are
+PROT_WRITE|MAP_PRIVATE, which we do NOT want to group
+on. Every shared library mapped on my system seems to
+have a (small) read-write VMA:
 
-I can fix that.
+00007f5adacff000=C2=A0=C2=A0=C2=A01764K r-x-- libc-2.23.so
+00007f5adaeb8000=C2=A0=C2=A0=C2=A02044K ----- libc-2.23.so
+00007f5adb0b7000=C2=A0=C2=A0=C2=A0=C2=A0=C2=A016K r---- libc-2.23.so
+00007f5adb0bb000=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A08K rw--- libc-2.23.so
 
-> 
->>  	sanitize_boot_params(&boot_params);
->>  	cmd_line_ptr = get_cmd_line_ptr();
->>  	if (cmd_line_ptr) {
->>  		command_line = __va(cmd_line_ptr);
->> -		memcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
->> +		sme_memcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
->>  	}
->>  }
->>  
->> diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
->> index 1489da8..1fdaa11 100644
->> --- a/arch/x86/kernel/setup.c
->> +++ b/arch/x86/kernel/setup.c
->> @@ -114,6 +114,7 @@
->>  #include <asm/microcode.h>
->>  #include <asm/mmu_context.h>
->>  #include <asm/kaslr.h>
->> +#include <asm/mem_encrypt.h>
->>  
->>  /*
->>   * max_low_pfn_mapped: highest direct mapped pfn under 4GB
->> @@ -376,6 +377,13 @@ static void __init reserve_initrd(void)
->>  	    !ramdisk_image || !ramdisk_size)
->>  		return;		/* No initrd provided by bootloader */
->>  
->> +	/*
->> +	 * This memory is marked encrypted by the kernel but the ramdisk
->> +	 * was loaded in the clear by the bootloader, so make sure that
->> +	 * the ramdisk image is encrypted.
->> +	 */
->> +	sme_early_mem_enc(ramdisk_image, ramdisk_end - ramdisk_image);
-> 
-> What happens if we go and relocate the ramdisk? I.e., the function above
-> this one: relocate_initrd(). We have to encrypt it then too, I presume.
+In other words, the code that is currently upstream
+could result in programs being grouped into a numa
+group due to accesses to libc.so, if they happened
+to get started up right at the same time.
 
-Hmmm, maybe... With the change to the early_memremap() the initrd is now
-identified as BOOT_DATA in relocate_initrd() and so it will be mapped
-and copied as non-encyrpted data. But since it was encrypted before the
-call to relocate_initrd() it will copy encrypted bytes which will later
-be accessed encrypted. That isn't clear though, so I'll rework
-reserve_initrd() to perform the sme_early_mem_enc() once at the end
-whether the initrd is re-located or not.
+This will not catch many programs, since most of them
+will have private copies of the pages in the small
+read-write segments by the time other programs start
+up, but it could catch a few of them.
 
-Thanks,
-Tom
+Testing on VM_WRITE|VM_SHARED would solve that issue,
+but at that point it would be essentially identical
+to reverting the code to the old pte_write() test
+that we had in 3.19 and before.
 
-> 
+I do not expect the performance impact to be visible,
+except when somebody gets very unlucky with application
+startup timing.
+
+--=20
+
+All Rights Reversed.
+--=-2cmrlBgGTOZii60NBkbF
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQEcBAABCAAGBQJX1sU3AAoJEM553pKExN6DZVAH/jhLcDRAlZO+gcP8ZXxDLPHe
++CK/qWazGJuaghEG1zSAnzkALgfkP+B134jzcE+9hJ4W44ZwaJMxO8K6FNloEg3s
+h/v0gXBXEEWMRXfaozTlVeDm7tfzeYbgJPSP5A0mg1bREcoNceptRbrjs+B/E8N3
+l+1AZ8ow5Dakj4PwQdDqjM5F1MS8BihDU3jy9r2B5ijKNUdIkHJK39Ys+JdyIWPc
+7ZNgu55qo/RVyA6LD8uLsGGhPtPQigSvRebOi+3IDHuUTNSKE8YjAFV9KNQffWc9
+C3XQvI64G2/hkh+cch/d6xSQhNoOYEBzzVPbRgB8OLD6t1nb0MfNHjVqQk+QAYU=
+=XQb6
+-----END PGP SIGNATURE-----
+
+--=-2cmrlBgGTOZii60NBkbF--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
