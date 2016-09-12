@@ -1,106 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F100A6B0038
-	for <linux-mm@kvack.org>; Sun, 11 Sep 2016 20:47:31 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id 128so99335009pfb.2
-        for <linux-mm@kvack.org>; Sun, 11 Sep 2016 17:47:31 -0700 (PDT)
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AB1BC6B0038
+	for <linux-mm@kvack.org>; Sun, 11 Sep 2016 21:40:40 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id 192so89515993itm.2
+        for <linux-mm@kvack.org>; Sun, 11 Sep 2016 18:40:40 -0700 (PDT)
 Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
-        by mx.google.com with ESMTP id h16si18478166pfj.245.2016.09.11.17.47.30
+        by mx.google.com with ESMTP id u66si17078787itf.4.2016.09.11.18.40.38
         for <linux-mm@kvack.org>;
-        Sun, 11 Sep 2016 17:47:31 -0700 (PDT)
-Date: Mon, 12 Sep 2016 10:46:56 +1000
+        Sun, 11 Sep 2016 18:40:39 -0700 (PDT)
+Date: Mon, 12 Sep 2016 11:40:35 +1000
 From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 2/3] writeback: allow for dirty metadata accounting
-Message-ID: <20160912004656.GA30497@dastard>
-References: <1471887302-12730-1-git-send-email-jbacik@fb.com>
- <1471887302-12730-3-git-send-email-jbacik@fb.com>
- <20160909081743.GC22777@quack2.suse.cz>
+Subject: Re: DAX mapping detection (was: Re: [PATCH] Fix region lost in
+ /proc/self/smaps)
+Message-ID: <20160912014035.GB30497@dastard>
+References: <CAPcyv4iDra+mRqEejfGqapKEAFZmUtUcg0dsJ8nt7mOhcT-Qpw@mail.gmail.com>
+ <20160908225636.GB15167@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160909081743.GC22777@quack2.suse.cz>
+In-Reply-To: <20160908225636.GB15167@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Josef Bacik <jbacik@fb.com>, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, kernel-team@fb.com, jack@suse.com, viro@zeniv.linux.org.uk, dchinner@redhat.com, hch@lst.de, linux-mm@kvack.org
+To: Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Xiao Guangrong <guangrong.xiao@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Gleb Natapov <gleb@kernel.org>, mtosatti@redhat.com, KVM list <kvm@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Hajnoczi <stefanha@redhat.com>, Yumei Huang <yuhuang@redhat.com>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-On Fri, Sep 09, 2016 at 10:17:43AM +0200, Jan Kara wrote:
-> On Mon 22-08-16 13:35:01, Josef Bacik wrote:
-> > Provide a mechanism for file systems to indicate how much dirty metadata they
-> > are holding.  This introduces a few things
-> > 
-> > 1) Zone stats for dirty metadata, which is the same as the NR_FILE_DIRTY.
-> > 2) WB stat for dirty metadata.  This way we know if we need to try and call into
-> > the file system to write out metadata.  This could potentially be used in the
-> > future to make balancing of dirty pages smarter.
+On Thu, Sep 08, 2016 at 04:56:36PM -0600, Ross Zwisler wrote:
+> On Wed, Sep 07, 2016 at 09:32:36PM -0700, Dan Williams wrote:
+> > My understanding is that it is looking for the VM_MIXEDMAP flag which
+> > is already ambiguous for determining if DAX is enabled even if this
+> > dynamic listing issue is fixed.  XFS has arranged for DAX to be a
+> > per-inode capability and has an XFS-specific inode flag.  We can make
+> > that a common inode flag, but it seems we should have a way to
+> > interrogate the mapping itself in the case where the inode is unknown
+> > or unavailable.  I'm thinking extensions to mincore to have flags for
+> > DAX and possibly whether the page is part of a pte, pmd, or pud
+> > mapping.  Just floating that idea before starting to look into the
+> > implementation, comments or other ideas welcome...
 > 
-> So I'm curious about one thing: In the previous posting you have mentioned
-> that the main motivation for this work is to have a simple support for
-> sub-pagesize dirty metadata blocks that need tracking in btrfs. However you
-> do the dirty accounting at page granularity. What are your plans to handle
-> this mismatch?
+> I think this goes back to our previous discussion about support for the PMEM
+> programming model.  Really I think what NVML needs isn't a way to tell if it
+> is getting a DAX mapping, but whether it is getting a DAX mapping on a
+> filesystem that fully supports the PMEM programming model.  This of course is
+> defined to be a filesystem where it can do all of its flushes from userspace
+> safely and never call fsync/msync, and that allocations that happen in page
+> faults will be synchronized to media before the page fault completes.
 > 
-> The thing is you actually shouldn't miscount by too much as that could
-> upset some checks in mm checking how much dirty pages a node has directing
-> how reclaim should be done... But it's a question whether NR_METADATA_DIRTY
-> should be actually used in the checks in node_limits_ok() or in
-> node_pagecache_reclaimable() at all because once you start accounting dirty
-> slab objects, you are really on a thin ice...
+> IIUC this is what NVML needs - a way to decide "do I use fsync/msync for
+> everything or can I rely fully on flushes from userspace?" 
 
-The other thing I'm concerned about is that it's a btrfs-only thing,
-which means having dirty btrfs metadata on a system with different
-filesystems (e.g. btrfs root/home, XFS data) is going to affect how
-memory balance and throttling is run on other filesystems. i.e. it's
-going ot make a filesystem specific issue into a problem that
-affects global behaviour.
-> 
-> > diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-> > index 56c8fda..d329f89 100644
-> > --- a/fs/fs-writeback.c
-> > +++ b/fs/fs-writeback.c
-> > @@ -1809,6 +1809,7 @@ static unsigned long get_nr_dirty_pages(void)
-> >  {
-> >  	return global_node_page_state(NR_FILE_DIRTY) +
-> >  		global_node_page_state(NR_UNSTABLE_NFS) +
-> > +		global_node_page_state(NR_METADATA_DIRTY) +
-> >  		get_nr_dirty_inodes();
-> 
-> With my question is also connected this - when we have NR_METADATA_DIRTY,
-> we could just account dirty inodes there and get rid of this
-> get_nr_dirty_inodes() hack...
+"need fsync/msync" is a dynamic state of an inode, not a static
+property. i.e. users can do things that change an inode behind the
+back of a mapping, even if they are not aware that this might
+happen. As such, a filesystem can invalidate an existing mapping
+at any time and userspace won't notice because it will simply fault
+in a new mapping on the next access...
 
-Accounting of dirty inodes would have to applied to every
-filesystem before that could be done, but....
+> For all existing implementations, I think the answer is "you need to use
+> fsync/msync" because we don't yet have proper support for the PMEM programming
+> model.
 
-> But actually getting this to work right to be able to track dirty inodes would
-> be useful on its own - some throlling of creation of dirty inodes would be
-> useful for several filesystems (ext4, xfs, ...).
+Yes, that is correct.
 
-... this relies on the VFS being able to track and control all
-dirtying of inodes and metadata.
+FWIW, I don't think it will ever be possible to support this ....
+wonderful "PMEM programming model" from any current or future kernel
+filesystem without a very specific set of restrictions on what can
+be done to a file.  e.g.
 
-Which, it should be noted, cannot be done unconditionally because
-some filesystems /explicitly avoid/ dirtying VFS inodes for anything
-other than dirty data and provide no mechanism to the VFS for
-writeback inodes or their related metadata. e.g. XFS, where all
-metadata changes are transactional and so all dirty inode tracking
-and writeback control is internal the to the XFS transaction
-subsystem.
+	1. the file has to be fully allocated and zeroed before
+	   use. Preallocation/zeroing via unwritten extents is not
+	   allowed. Sparse files are not allowed. Shared extents are
+	   not allowed.
+	2. set the "PMEM_IMMUTABLE" inode flag - filesystem must
+	   check the file is fully allocated before allowing it to
+	   be set, and caller must have CAP_LINUX_IMMUTABLE.
+	3. Inode metadata is now immutable, and file data can only
+	   be accessed and/or modified via mmap().
+	4. All non-mmap methods of inode data modification
+	   will now fail with EPERM.
+	5. all methods of inode metadata modification will now fail
+	   with EPERM, timestamp udpdates will be ignored.
+	6. PMEM_IMMUTABLE flag can only be removed if the file is
+	   not currently mapped and caller has CAP_LINUX_IMMUTABLE.
 
-Adding an external throttle to dirtying of metadata doesn't make any
-sense in this sort of architecture - in XFS we already have all the
-throttles and expedited writeback triggers integrated into the
-transaction subsystem (e.g transaction reservation limits, log space
-limits, periodic background writeback, memory reclaim triggers,
-etc). It's all so tightly integrated around the physical structure
-of the filesystem I can't see any way to sanely abstract it to work
-with a generic "dirty list" accounting and writeback engine at this
-point...
-
-I can see how tracking of information such as the global amount of
-dirty metadata is useful for diagnostics, but I'm not convinced we
-should be using it for globally scoped external control of deeply
-integrated and highly specific internal filesystem functionality.
+A flag like this /should/ make it possible to avoid fsync/msync() on
+a file for existing filesystems, but it also means that such files
+have significant management issues (hence the need for
+CAP_LINUX_IMMUTABLE to cover it's use).
 
 Cheers,
 
