@@ -1,69 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 945106B0038
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 05:18:17 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id g141so54522721wmd.0
-        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 02:18:17 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s140si14420053wmd.57.2016.09.12.02.18.16
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CD4C6B0038
+	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 05:56:15 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id b187so8526421wme.1
+        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 02:56:15 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id ea4si14549562wjb.234.2016.09.12.02.56.12
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 12 Sep 2016 02:18:16 -0700 (PDT)
-Date: Mon, 12 Sep 2016 11:18:12 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mem-hotplug: Don't clear the only node in new_node_page()
-Message-ID: <20160912091811.GE14524@dhcp22.suse.cz>
-References: <1473044391.4250.19.camel@TP420>
- <d7393a3e-73a7-7923-bc32-d4dcbc6523f9@suse.cz>
+        Mon, 12 Sep 2016 02:56:14 -0700 (PDT)
+Message-ID: <57D67A8A.7070500@huawei.com>
+Date: Mon, 12 Sep 2016 17:51:06 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <d7393a3e-73a7-7923-bc32-d4dcbc6523f9@suse.cz>
+Subject: Re: [PATCH] mm: fix oom work when memory is under pressure
+References: <1473173226-25463-1-git-send-email-zhongjiang@huawei.com> <20160909114410.GG4844@dhcp22.suse.cz>
+In-Reply-To: <20160909114410.GG4844@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Li Zhong <zhong@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, jallen@linux.vnet.ibm.com, qiuxishi@huawei.com, iamjoonsoo.kim@lge.com, n-horiguchi@ah.jp.nec.com, rientjes@google.com, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, linux-mm@kvack.org, Xishi Qiu <qiuxishi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
 
-On Mon 05-09-16 16:18:29, Vlastimil Babka wrote:
-> On 09/05/2016 04:59 AM, Li Zhong wrote:
-> > Commit 394e31d2c introduced new_node_page() for memory hotplug.
-> > 
-> > In new_node_page(), the nid is cleared before calling __alloc_pages_nodemask().
-> > But if it is the only node of the system,
-> 
-> So the use case is that we are partially offlining the only online node?
-> 
-> > and the first round allocation fails,
-> > it will not be able to get memory from an empty nodemask, and trigger oom.
-> 
-> Hmm triggering OOM due to empty nodemask sounds like a wrong thing to do.
-> CCing some OOM experts for insight.
+On 2016/9/9 19:44, Michal Hocko wrote:
+> On Tue 06-09-16 22:47:06, zhongjiang wrote:
+>> From: zhong jiang <zhongjiang@huawei.com>
+>>
+>> Some hungtask come up when I run the trinity, and OOM occurs
+>> frequently.
+>> A task hold lock to allocate memory, due to the low memory,
+>> it will lead to oom. at the some time , it will retry because
+>> it find that oom is in progress. but it always allocate fails,
+>> the freed memory was taken away quickly.
+>> The patch fix it by limit times to avoid hungtask and livelock
+>> come up.
+> Which kernel has shown this issue? Since 4.6 IIRC we have oom reaper
+> responsible for the async memory reclaim from the oom victim and later
+> changes should help to reduce oom lockups even further.
+>
+> That being said this is not a right approach. It is even incorrect
+> because it allows __GFP_NOFAIL to fail now. So NAK to this patch.
+>
+>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+>> ---
+>>  mm/page_alloc.c | 8 +++++++-
+>>  1 file changed, 7 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index a178b1d..0dcf08b 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -3457,6 +3457,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>>  	enum compact_result compact_result;
+>>  	int compaction_retries = 0;
+>>  	int no_progress_loops = 0;
+>> +	int oom_failed = 0;
+>>  
+>>  	/*
+>>  	 * In the slowpath, we sanity check order to avoid ever trying to
+>> @@ -3645,8 +3646,13 @@ retry:
+>>  	page = __alloc_pages_may_oom(gfp_mask, order, ac, &did_some_progress);
+>>  	if (page)
+>>  		goto got_pg;
+>> +	else
+>> +		oom_failed++;
+>> +
+>> +	/* more than limited times will drop out */
+>> +	if (oom_failed > MAX_RECLAIM_RETRIES)
+>> +		goto nopage;
+>>  
+>> -	/* Retry as long as the OOM killer is making progress */
+>>  	if (did_some_progress) {
+>>  		no_progress_loops = 0;
+>>  		goto retry;
+>> -- 
+>> 1.8.3.1
+ hi,  Michal
+ oom reaper indeed can accelerate the recovery of memory,  but the patch solve the extreme scenario,
+ I hit it by runing trinity. I think the scenario can happen whether  oom reaper  or not.
+ 
+The __GFP_NOFAIL should be considered. Thank you for reminding. The following patch is updated.
 
-Hmm, to be honest I think that using an empty nodemask is just a bug in
-the code. I do not see any reasonable scenario when this would make a
-sense. I agree that triggering an OOM killer for that is bad as well but
-do we actually want to allow for such a case at all? How can this
-happen?
+Thanks
+zhongjiang
 
-> Also OOM is skipped for __GFP_THISNODE
-> allocations, so we might also consider the same for nodemask-constrained
-> allocations?
-> 
-> > The patch checks whether it is the last node on the system, and if it is, then
-> > don't clear the nid in the nodemask.
-> 
-> I'd rather see the allocation not OOM, and rely on the fallback in
-> new_node_page() that doesn't have nodemask. But I suspect it might also make
-> sense to treat empty nodemask as something unexpected and put some WARN_ON
-> (instead of OOM) in the allocator.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index a178b1d..47804c1 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3457,6 +3457,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+        enum compact_result compact_result;
+        int compaction_retries = 0;
+        int no_progress_loops = 0;
++       int oom_failed = 0;
 
-To be honest I am really not all that happy about 394e31d2ceb4
-("mem-hotplug: alloc new page from a nearest neighbor node when
-mem-offline") and find it a bit fishy. I would rather re-iterate that
-patch rather than build new hacks on top.
--- 
-Michal Hocko
-SUSE Labs
+        /*
+         * In the slowpath, we sanity check order to avoid ever trying to
+@@ -3645,8 +3646,15 @@ retry:
+        page = __alloc_pages_may_oom(gfp_mask, order, ac, &did_some_progress);
+        if (page)
+                goto got_pg;
++       else
++               oom_failed++;
++
++       /* more than limited times will drop out */
++       if (oom_failed > MAX_RECLAIM_RETRIES) {
++               WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL);
++               goto nopage;
++       }
+
+-       /* Retry as long as the OOM killer is making progress */
+        if (did_some_progress) {
+                no_progress_loops = 0;
+                goto retry;
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
