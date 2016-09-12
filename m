@@ -1,84 +1,72 @@
-From: Borislav Petkov <bp-Gina5bIWoIWzQB+pC5nmwQ@public.gmane.org>
-Subject: Re: [RFC PATCH v2 16/20] x86: Check for memory encryption on the APs
-Date: Mon, 12 Sep 2016 14:17:40 +0200
-Message-ID: <20160912121739.rwuumwpwo5megmd7@pd.tnic>
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [RFC PATCH v2 18/20] x86/kvm: Enable Secure Memory Encryption of
+ nested page tables
+Date: Mon, 12 Sep 2016 16:35:55 +0200
+Message-ID: <20160912143555.26lxdu3lv3o5hjp7@pd.tnic>
 References: <20160822223529.29880.50884.stgit@tlendack-t1.amdoffice.net>
-	<20160822223829.29880.10341.stgit@tlendack-t1.amdoffice.net>
+ <20160822223849.29880.35462.stgit@tlendack-t1.amdoffice.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Return-path: <iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
+Content-Type: text/plain; charset=utf-8
+Return-path: <linux-arch-owner@vger.kernel.org>
 Content-Disposition: inline
-In-Reply-To: <20160822223829.29880.10341.stgit-qCXWGYdRb2BnqfbPTmsdiZQ+2ll4COg0XqFh9Ls21Oc@public.gmane.org>
-List-Unsubscribe: <https://lists.linuxfoundation.org/mailman/options/iommu>,
-	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=unsubscribe>
-List-Archive: <http://lists.linuxfoundation.org/pipermail/iommu/>
-List-Post: <mailto:iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org>
-List-Help: <mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=help>
-List-Subscribe: <https://lists.linuxfoundation.org/mailman/listinfo/iommu>,
-	<mailto:iommu-request-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org?subject=subscribe>
-Sender: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
-Errors-To: iommu-bounces-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org
-To: Tom Lendacky <thomas.lendacky-5C7GfCeVMHo@public.gmane.org>
-Cc: linux-efi-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, kvm-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, Matt Fleming <matt-mF/unelCI9GS6iBeEJttW/XRex20P6io@public.gmane.org>, x86-DgEjT+Ai2ygdnm+yROfE0A@public.gmane.org, linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org, Alexander Potapenko <glider-hpIqsD4AKlfQT0dZR+AlfA@public.gmane.org>, "H. Peter Anvin" <hpa-YMNOUZJC4hwAvxtiuMwx3w@public.gmane.org>, linux-arch-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, Jonathan Corbet <corbet-T1hC0tSOHrs@public.gmane.org>, linux-doc-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, kasan-dev-/JYPxA39Uh5TLH3MbocFFw@public.gmane.org, Ingo Molnar <mingo-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>, Andrey Ryabinin <aryabinin-5HdwGun5lf+gSpxsJD1C4w@public.gmane.org>, Arnd Bergmann <arnd-r2nGTMty4D4@public.gmane.org>, Andy Lutomirski <luto-DgEjT+Ai2ygdnm+yROfE0A@public.gmane.org>, Thomas Gleixner <tglx-hfZtesqFncYOwBW4kG4KsQ@public.gmane.org>, Dmitry Vyukov <dvyukov-hpIqsD4AKlfQT0dZR+AlfA@public.gmane.org>, linux-kernel-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, iommu-cunTk1MwBs9QetFLy7KEm3xJsTq8ys+cHZ5vskTnxNA@public.gmane.org, Paolo Bonzini <pbonzini-H+wXaHxf7aLQT0dZR+AlfA@public.gmane.org>
+In-Reply-To: <20160822223849.29880.35462.stgit@tlendack-t1.amdoffice.net>
+Sender: linux-arch-owner@vger.kernel.org
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.>
 List-Id: linux-mm.kvack.org
 
-On Mon, Aug 22, 2016 at 05:38:29PM -0500, Tom Lendacky wrote:
-> Add support to check if memory encryption is active in the kernel and that
-> it has been enabled on the AP. If memory encryption is active in the kernel
-> but has not been enabled on the AP then do not allow the AP to continue
-> start up.
+On Mon, Aug 22, 2016 at 05:38:49PM -0500, Tom Lendacky wrote:
+> Update the KVM support to include the memory encryption mask when creating
+> and using nested page tables.
 > 
-> Signed-off-by: Tom Lendacky <thomas.lendacky-5C7GfCeVMHo@public.gmane.org>
+> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 > ---
->  arch/x86/include/asm/msr-index.h     |    2 ++
->  arch/x86/include/asm/realmode.h      |   12 ++++++++++++
->  arch/x86/realmode/init.c             |    4 ++++
->  arch/x86/realmode/rm/trampoline_64.S |   19 +++++++++++++++++++
->  4 files changed, 37 insertions(+)
+>  arch/x86/include/asm/kvm_host.h |    3 ++-
+>  arch/x86/kvm/mmu.c              |    8 ++++++--
+>  arch/x86/kvm/vmx.c              |    3 ++-
+>  arch/x86/kvm/x86.c              |    3 ++-
+>  4 files changed, 12 insertions(+), 5 deletions(-)
+> 
+> diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
+> index 33ae3a4..c51c1cb 100644
+> --- a/arch/x86/include/asm/kvm_host.h
+> +++ b/arch/x86/include/asm/kvm_host.h
+> @@ -1039,7 +1039,8 @@ void kvm_mmu_setup(struct kvm_vcpu *vcpu);
+>  void kvm_mmu_init_vm(struct kvm *kvm);
+>  void kvm_mmu_uninit_vm(struct kvm *kvm);
+>  void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
+> -		u64 dirty_mask, u64 nx_mask, u64 x_mask, u64 p_mask);
+> +		u64 dirty_mask, u64 nx_mask, u64 x_mask, u64 p_mask,
+> +		u64 me_mask);
 
-...
+Why do you need a separate mask?
 
-> diff --git a/arch/x86/realmode/rm/trampoline_64.S b/arch/x86/realmode/rm/trampoline_64.S
-> index dac7b20..94e29f4 100644
-> --- a/arch/x86/realmode/rm/trampoline_64.S
-> +++ b/arch/x86/realmode/rm/trampoline_64.S
-> @@ -30,6 +30,7 @@
->  #include <asm/msr.h>
->  #include <asm/segment.h>
->  #include <asm/processor-flags.h>
-> +#include <asm/realmode.h>
->  #include "realmode.h"
+arch/x86/kvm/mmu.c::set_spte() ORs in shadow_present_mask
+unconditionally. So you can simply do:
+
+
+	kvm_mmu_set_mask_ptes(PT_USER_MASK, PT_ACCESSED_MASK,
+			      PT_DIRTY_MASK, PT64_NX_MASK, 0,
+			      PT_PRESENT_MASK | sme_me_mask);
+
+and have this change much simpler.
+
+>  void kvm_mmu_reset_context(struct kvm_vcpu *vcpu);
+>  void kvm_mmu_slot_remove_write_access(struct kvm *kvm,
+> diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+> index 3d4cc8cc..a7040f4 100644
+> --- a/arch/x86/kvm/mmu.c
+> +++ b/arch/x86/kvm/mmu.c
+> @@ -122,7 +122,7 @@ module_param(dbg, bool, 0644);
+>  					    * PT32_LEVEL_BITS))) - 1))
 >  
->  	.text
-> @@ -92,6 +93,23 @@ ENTRY(startup_32)
->  	movl	%edx, %fs
->  	movl	%edx, %gs
->  
-> +	/* Check for memory encryption support */
-> +	bt	$TH_FLAGS_SME_ENABLE_BIT, pa_tr_flags
-> +	jnc	.Ldone
-> +	movl	$MSR_K8_SYSCFG, %ecx
-> +	rdmsr
-> +	bt	$MSR_K8_SYSCFG_MEM_ENCRYPT_BIT, %eax
-> +	jc	.Ldone
-> +
-> +	/*
-> +	 * Memory encryption is enabled but the MSR has not been set on this
-> +	 * CPU so we can't continue
+>  #define PT64_PERM_MASK (PT_PRESENT_MASK | PT_WRITABLE_MASK | shadow_user_mask \
+> -			| shadow_x_mask | shadow_nx_mask)
+> +			| shadow_x_mask | shadow_nx_mask | shadow_me_mask)
 
-Hmm, let me try to parse this correctly: BSP has SME enabled but the
-BIOS might not've set this on the AP? Really? Is that even possible?
+This would be sme_me_mask, of course, like with the baremetal masks.
 
-Because if SME is enabled, that means that MSR_K8_SYSCFG[23] on the BSP
-is set, right?
-
-Also, I want to rule out here simple BIOS idiocy: if the only problem
-with the bit not being set in the AP is because some BIOS monkey forgot
-to do so, then we should try to set it ourselves and not die for no real
-reason.
-
-Or is there another issue?
+Or am I missing something?
 
 -- 
 Regards/Gruss,
