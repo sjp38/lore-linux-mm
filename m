@@ -1,65 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 83BCB6B0253
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 01:27:24 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id k12so85811188lfb.2
-        for <linux-mm@kvack.org>; Sun, 11 Sep 2016 22:27:24 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id e69si13698754wmc.143.2016.09.11.22.27.22
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F62F6B0038
+	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 02:06:01 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id x24so337956492pfa.0
+        for <linux-mm@kvack.org>; Sun, 11 Sep 2016 23:06:01 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id p184si19933875pfp.114.2016.09.11.23.05.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 11 Sep 2016 22:27:23 -0700 (PDT)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8C5NArD102453
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 01:27:22 -0400
-Received: from e23smtp06.au.ibm.com (e23smtp06.au.ibm.com [202.81.31.148])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 25ce5wnj7a-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 01:27:21 -0400
-Received: from localhost
-	by e23smtp06.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Mon, 12 Sep 2016 15:27:19 +1000
-Received: from d23relay07.au.ibm.com (d23relay07.au.ibm.com [9.190.26.37])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 81F152BB0059
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 15:27:16 +1000 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u8C5RGM326476644
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 15:27:16 +1000
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u8C5RGTr022302
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 15:27:16 +1000
-Date: Mon, 12 Sep 2016 10:57:14 +0530
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+        Sun, 11 Sep 2016 23:05:58 -0700 (PDT)
+Subject: Re: DAX mapping detection (was: Re: [PATCH] Fix region lost in
+ /proc/self/smaps)
+References: <CAPcyv4iDra+mRqEejfGqapKEAFZmUtUcg0dsJ8nt7mOhcT-Qpw@mail.gmail.com>
+ <20160908225636.GB15167@linux.intel.com>
+ <CAPcyv4h5y4MHdXtdrdPRtG7L0_KCoxf_xwDGnHQ2r5yZoqkFzQ@mail.gmail.com>
+ <5d5ef209-e005-12c6-9b34-1fdd21e1e6e2@linux.intel.com>
+ <CAPcyv4ibiZG3SkW0TZywn8Qovo3hpxBqs4wCfw1DFEbbE=1-Mg@mail.gmail.com>
+From: Xiao Guangrong <guangrong.xiao@linux.intel.com>
+Message-ID: <ee62e419-6dd2-4cbd-c84a-d73b0cce2f2c@linux.intel.com>
+Date: Mon, 12 Sep 2016 14:00:07 +0800
 MIME-Version: 1.0
-Subject: Re: [PATCH V4] mm: Add sysfs interface to dump each node's zonelist
- information
-References: <1473150666-3875-1-git-send-email-khandual@linux.vnet.ibm.com> <1473302818-23974-1-git-send-email-khandual@linux.vnet.ibm.com> <57D1C914.9090403@intel.com>
-In-Reply-To: <57D1C914.9090403@intel.com>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <CAPcyv4ibiZG3SkW0TZywn8Qovo3hpxBqs4wCfw1DFEbbE=1-Mg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <57D63CB2.8070003@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Gleb Natapov <gleb@kernel.org>, mtosatti@redhat.com, KVM list <kvm@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Stefan Hajnoczi <stefanha@redhat.com>, Yumei Huang <yuhuang@redhat.com>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-On 09/09/2016 01:54 AM, Dave Hansen wrote:
-> On 09/07/2016 07:46 PM, Anshuman Khandual wrote:
->> > after memory or node hot[un]plug is desirable. This change adds one
->> > new sysfs interface (/sys/devices/system/memory/system_zone_details)
->> > which will fetch and dump this information.
-> Doesn't this violate the "one value per file" sysfs rule?  Does it
-> belong in debugfs instead?
 
-Yeah sure. Will make it a debugfs interface.
 
-> 
-> I also really question the need to dump kernel addresses out, filtered
-> or not.  What's the point?
+On 09/09/2016 11:40 PM, Dan Williams wrote:
+> On Fri, Sep 9, 2016 at 1:55 AM, Xiao Guangrong
+> <guangrong.xiao@linux.intel.com> wrote:
+> [..]
+>>>
+>>> Whether a persistent memory mapping requires an msync/fsync is a
+>>> filesystem specific question.  This mincore proposal is separate from
+>>> that.  Consider device-DAX for volatile memory or mincore() called on
+>>> an anonymous memory range.  In those cases persistence and filesystem
+>>> metadata are not in the picture, but it would still be useful for
+>>> userspace to know "is there page cache backing this mapping?" or "what
+>>> is the TLB geometry of this mapping?".
+>>
+>>
+>> I got a question about msync/fsync which is beyond the topic of this thread
+>> :)
+>>
+>> Whether msync/fsync can make data persistent depends on ADR feature on
+>> memory
+>> controller, if it exists everything works well, otherwise, we need to have
+>> another
+>> interface that is why 'Flush hint table' in ACPI comes in. 'Flush hint
+>> table' is
+>> particularly useful for nvdimm virtualization if we use normal memory to
+>> emulate
+>> nvdimm with data persistent characteristic (the data will be flushed to a
+>> persistent storage, e.g, disk).
+>>
+>> Does current PMEM programming model fully supports 'Flush hint table'? Is
+>> userspace allowed to use these addresses?
+>
+> If you publish flush hint addresses in the virtual NFIT the guest VM
+> will write to them whenever a REQ_FLUSH or REQ_FUA request is sent to
+> the virtual /dev/pmemX device.  Yes, seems straightforward to take a
+> VM exit on those events and flush simulated pmem to persistent
+> storage.
+>
 
-Hmm, thought it to be an additional information. But yes its additional
-and can be dropped.
+Thank you, Dan!
+
+However REQ_FLUSH or REQ_FUA is handled in kernel space, okay, after following
+up the discussion in this thread, i understood that currently filesystems have
+not supported the case that usespace itself make data be persistent without
+kernel's involvement. So that works.
+
+Hmm, Does device-DAX support this case (make data be persistent without
+msync/fsync)? I guess no, but just want to confirm it. :)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
