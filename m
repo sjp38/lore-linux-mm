@@ -1,80 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D2BF6B0038
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 11:43:42 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id 192so132125326itm.2
-        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 08:43:42 -0700 (PDT)
-Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0084.outbound.protection.outlook.com. [104.47.38.84])
-        by mx.google.com with ESMTPS id u201si10600195oie.216.2016.09.12.08.43.41
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 828346B0038
+	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 12:55:31 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id 93so334341405qtg.1
+        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 09:55:31 -0700 (PDT)
+Received: from mail-vk0-x22f.google.com (mail-vk0-x22f.google.com. [2607:f8b0:400c:c05::22f])
+        by mx.google.com with ESMTPS id p63si5530210vkf.156.2016.09.12.09.55.30
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 12 Sep 2016 08:43:41 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 13/20] x86: Decrypt trampoline area if memory
- encryption is active
-References: <20160822223529.29880.50884.stgit@tlendack-t1.amdoffice.net>
- <20160822223757.29880.24107.stgit@tlendack-t1.amdoffice.net>
- <20160909173442.wypsprnzb5ax6xqb@pd.tnic>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <15219992-dfca-aaa4-4a98-593ed85e1e8f@amd.com>
-Date: Mon, 12 Sep 2016 10:43:32 -0500
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 12 Sep 2016 09:55:30 -0700 (PDT)
+Received: by mail-vk0-x22f.google.com with SMTP id v189so143464431vkv.1
+        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 09:55:30 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20160909173442.wypsprnzb5ax6xqb@pd.tnic>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20160822223738.29880.6909.stgit@tlendack-t1.amdoffice.net>
+References: <20160822223529.29880.50884.stgit@tlendack-t1.amdoffice.net> <20160822223738.29880.6909.stgit@tlendack-t1.amdoffice.net>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Mon, 12 Sep 2016 09:55:09 -0700
+Message-ID: <CALCETrUk2kRSzKfwhio6KV3iuYaSV2uxybd-e95kK3vY=yTSfg@mail.gmail.com>
+Subject: Re: [RFC PATCH v2 11/20] mm: Access BOOT related data in the clear
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
- Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Tom Lendacky <thomas.lendacky@amd.com>, Matt Fleming <mfleming@suse.de>
+Cc: kasan-dev <kasan-dev@googlegroups.com>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, iommu@lists.linux-foundation.org, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Jonathan Corbet <corbet@lwn.net>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Matt Fleming <matt@codeblueprint.co.uk>, Alexander Potapenko <glider@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, kvm list <kvm@vger.kernel.org>
 
-On 09/09/2016 12:34 PM, Borislav Petkov wrote:
-> On Mon, Aug 22, 2016 at 05:37:57PM -0500, Tom Lendacky wrote:
->> When Secure Memory Encryption is enabled, the trampoline area must not
->> be encrypted. A cpu running in real mode will not be able to decrypt
-> 
-> s/cpu/CPU/... always :-)
+On Aug 22, 2016 6:53 PM, "Tom Lendacky" <thomas.lendacky@amd.com> wrote:
+>
+> BOOT data (such as EFI related data) is not encyrpted when the system is
+> booted and needs to be accessed as non-encrypted.  Add support to the
+> early_memremap API to identify the type of data being accessed so that
+> the proper encryption attribute can be applied.  Currently, two types
+> of data are defined, KERNEL_DATA and BOOT_DATA.
 
-Ok.
+What happens when you memremap boot services data outside of early
+boot?  Matt just added code that does this.
 
-> 
->> memory that has been encrypted because it will not be able to use addresses
->> with the memory encryption mask.
->>
->> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
->> ---
->>  arch/x86/realmode/init.c |    9 +++++++++
->>  1 file changed, 9 insertions(+)
->>
->> diff --git a/arch/x86/realmode/init.c b/arch/x86/realmode/init.c
->> index 5db706f1..f74925f 100644
->> --- a/arch/x86/realmode/init.c
->> +++ b/arch/x86/realmode/init.c
->> @@ -6,6 +6,7 @@
->>  #include <asm/pgtable.h>
->>  #include <asm/realmode.h>
->>  #include <asm/tlbflush.h>
->> +#include <asm/mem_encrypt.h>
->>  
->>  struct real_mode_header *real_mode_header;
->>  u32 *trampoline_cr4_features;
->> @@ -130,6 +131,14 @@ static void __init set_real_mode_permissions(void)
->>  	unsigned long text_start =
->>  		(unsigned long) __va(real_mode_header->text_start);
->>  
->> +	/*
->> +	 * If memory encryption is active, the trampoline area will need to
->> +	 * be in non-encrypted memory in order to bring up other processors
-> 
-> Let's stick with either "unencrypted" - I'd prefer that one - or
-> "non-encrypted" nomenclature so that there's no distraction. I see both
-> versions in the patchset.
+IMO this API is not so great.  It scatters a specialized consideration
+all over the place.  Could early_memremap not look up the PA to figure
+out what to do?
 
-Yup, I'll audit the code and make everything consistent.
+--Andy
 
-Thanks,
-Tom
+[leaving the rest here for Matt's benefit]
 
-> 
+>                      unsigned long size,
+> +                                                   enum memremap_owner owner,
+> +                                                   pgprot_t prot)
+> +{
+> +       return prot;
+> +}
+> +
+>  void __init early_ioremap_reset(void)
+>  {
+>         early_ioremap_shutdown();
+> @@ -213,16 +221,23 @@ early_ioremap(resource_size_t phys_addr, unsigned long size)
+>
+>  /* Remap memory */
+>  void __init *
+> -early_memremap(resource_size_t phys_addr, unsigned long size)
+> +early_memremap(resource_size_t phys_addr, unsigned long size,
+> +              enum memremap_owner owner)
+>  {
+> -       return (__force void *)__early_ioremap(phys_addr, size,
+> -                                              FIXMAP_PAGE_NORMAL);
+> +       pgprot_t prot = early_memremap_pgprot_adjust(phys_addr, size, owner,
+> +                                                    FIXMAP_PAGE_NORMAL);
+> +
+> +       return (__force void *)__early_ioremap(phys_addr, size, prot);
+>  }
+>  #ifdef FIXMAP_PAGE_RO
+>  void __init *
+> -early_memremap_ro(resource_size_t phys_addr, unsigned long size)
+> +early_memremap_ro(resource_size_t phys_addr, unsigned long size,
+> +                 enum memremap_owner owner)
+>  {
+> -       return (__force void *)__early_ioremap(phys_addr, size, FIXMAP_PAGE_RO);
+> +       pgprot_t prot = early_memremap_pgprot_adjust(phys_addr, size, owner,
+> +                                                    FIXMAP_PAGE_RO);
+> +
+> +       return (__force void *)__early_ioremap(phys_addr, size, prot);
+>  }
+>  #endif
+>
+> @@ -236,7 +251,8 @@ early_memremap_prot(resource_size_t phys_addr, unsigned long size,
+>
+>  #define MAX_MAP_CHUNK  (NR_FIX_BTMAPS << PAGE_SHIFT)
+>
+> -void __init copy_from_early_mem(void *dest, phys_addr_t src, unsigned long size)
+> +void __init copy_from_early_mem(void *dest, phys_addr_t src, unsigned long size,
+> +                               enum memremap_owner owner)
+>  {
+>         unsigned long slop, clen;
+>         char *p;
+> @@ -246,7 +262,7 @@ void __init copy_from_early_mem(void *dest, phys_addr_t src, unsigned long size)
+>                 clen = size;
+>                 if (clen > MAX_MAP_CHUNK - slop)
+>                         clen = MAX_MAP_CHUNK - slop;
+> -               p = early_memremap(src & PAGE_MASK, clen + slop);
+> +               p = early_memremap(src & PAGE_MASK, clen + slop, owner);
+>                 memcpy(dest, p + slop, clen);
+>                 early_memunmap(p, clen + slop);
+>                 dest += clen;
+> @@ -265,12 +281,14 @@ early_ioremap(resource_size_t phys_addr, unsigned long size)
+>
+>  /* Remap memory */
+>  void __init *
+> -early_memremap(resource_size_t phys_addr, unsigned long size)
+> +early_memremap(resource_size_t phys_addr, unsigned long size,
+> +              enum memremap_owner owner)
+>  {
+>         return (void *)phys_addr;
+>  }
+>  void __init *
+> -early_memremap_ro(resource_size_t phys_addr, unsigned long size)
+> +early_memremap_ro(resource_size_t phys_addr, unsigned long size,
+> +                 enum memremap_owner owner)
+>  {
+>         return (void *)phys_addr;
+>  }
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
