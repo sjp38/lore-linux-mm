@@ -1,128 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 52A546B0038
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 11:11:16 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id b204so27773241qkc.1
-        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 08:11:16 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x191si4536484ybe.227.2016.09.12.08.09.48
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C1AA76B025E
+	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 11:17:20 -0400 (EDT)
+Received: by mail-yb0-f198.google.com with SMTP id u125so320230449ybg.1
+        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 08:17:20 -0700 (PDT)
+Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0052.outbound.protection.outlook.com. [104.47.33.52])
+        by mx.google.com with ESMTPS id n81si6392045qka.92.2016.09.12.08.15.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Sep 2016 08:09:51 -0700 (PDT)
-Message-ID: <1473692983.32433.235.camel@redhat.com>
-Subject: Re: [PATCH] sched,numa,mm: revert to checking pmd/pte_write instead
- of VMA flags
-From: Rik van Riel <riel@redhat.com>
-Date: Mon, 12 Sep 2016 11:09:43 -0400
-In-Reply-To: <20160911162402.GA2775@suse.de>
-References: <20160908213053.07c992a9@annuminas.surriel.com>
-	 <20160911162402.GA2775@suse.de>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-2cmrlBgGTOZii60NBkbF"
-Mime-Version: 1.0
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 12 Sep 2016 08:15:09 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 11/20] mm: Access BOOT related data in the clear
+References: <20160822223529.29880.50884.stgit@tlendack-t1.amdoffice.net>
+ <20160822223738.29880.6909.stgit@tlendack-t1.amdoffice.net>
+ <20160909163814.sgsi2jlxlshskt5c@pd.tnic>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <6431e761-a4c8-c9bb-1352-6d66672200fd@amd.com>
+Date: Mon, 12 Sep 2016 10:14:59 -0500
+MIME-Version: 1.0
+In-Reply-To: <20160909163814.sgsi2jlxlshskt5c@pd.tnic>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, peterz@infradead.org, mingo@kernel.org, aarcange@redhat.com
+To: Borislav Petkov <bp@alien8.de>
+Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
+ Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
+On 09/09/2016 11:38 AM, Borislav Petkov wrote:
+> On Mon, Aug 22, 2016 at 05:37:38PM -0500, Tom Lendacky wrote:
+>> BOOT data (such as EFI related data) is not encyrpted when the system is
+>> booted and needs to be accessed as non-encrypted.  Add support to the
+>> early_memremap API to identify the type of data being accessed so that
+>> the proper encryption attribute can be applied.  Currently, two types
+>> of data are defined, KERNEL_DATA and BOOT_DATA.
+>>
+>> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+>> ---
+> 
+> ...
+> 
+>> diff --git a/arch/x86/mm/ioremap.c b/arch/x86/mm/ioremap.c
+>> index 031db21..e3bdc5a 100644
+>> --- a/arch/x86/mm/ioremap.c
+>> +++ b/arch/x86/mm/ioremap.c
+>> @@ -419,6 +419,25 @@ void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr)
+>>  	iounmap((void __iomem *)((unsigned long)addr & PAGE_MASK));
+>>  }
+>>  
+>> +/*
+>> + * Architecure override of __weak function to adjust the protection attributes
+>> + * used when remapping memory.
+>> + */
+>> +pgprot_t __init early_memremap_pgprot_adjust(resource_size_t phys_addr,
+>> +					     unsigned long size,
+>> +					     enum memremap_owner owner,
+>> +					     pgprot_t prot)
+>> +{
+>> +	/*
+>> +	 * If memory encryption is enabled and BOOT_DATA is being mapped
+>> +	 * then remove the encryption bit.
+>> +	 */
+>> +	if (_PAGE_ENC && (owner == BOOT_DATA))
+>> +		prot = __pgprot(pgprot_val(prot) & ~_PAGE_ENC);
+>> +
+>> +	return prot;
+>> +}
+>> +
+> 
+> Hmm, so AFAICT, only arch/x86/xen needs KERNEL_DATA and everything else
+> is BOOT_DATA.
+> 
+> So instead of touching so many files and changing early_memremap(),
+> why can't you remove _PAGE_ENC by default on x86 and define a specific
+> early_memremap() for arch/x86/xen/ which you call there?
+> 
+> That would make this patch soo much smaller and the change simpler.
 
---=-2cmrlBgGTOZii60NBkbF
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Yes it would.  I'll take a look into that.
 
-On Sun, 2016-09-11 at 17:24 +0100, Mel Gorman wrote:
-> On Thu, Sep 08, 2016 at 09:30:53PM -0400, Rik van Riel wrote:
-> > Commit 4d9424669946 ("mm: convert p[te|md]_mknonnuma and remaining
-> > page table manipulations") changed NUMA balancing from _PAGE_NUMA
-> > to using PROT_NONE, and was quickly found to introduce a regression
-> > with NUMA grouping.
-> >=20
-> > It was followed up by these changesets:
-> >=20
-> > 53da3bc2ba9e ("mm: fix up numa read-only thread grouping logic")
-> > bea66fbd11af ("mm: numa: group related processes based on VMA flags
-> > instead of page table flags")
-> > b191f9b106ea ("mm: numa: preserve PTE write permissions across a
-> > NUMA hinting fault")
-> >=20
-> > The first of those two changesets try alternate approaches to NUMA
-> > grouping, which apparently do not work as well as looking at the
-> > PTE
-> > write permissions.
-> >=20
-> > The latter patch preserves the PTE write permissions across a NUMA
-> > protection fault. However, it forgets to revert the condition for
-> > whether or not to group tasks together back to what it was before
-> > 3.19, even though the information is now preserved in the page
-> > tables
-> > once again.
-> >=20
-> > This patch brings the NUMA grouping heuristic back to what it was
-> > before changeset 4d9424669946, which the changelogs of subsequent
-> > changesets suggest worked best.
-> >=20
-> > We have all the information again. We should probably use it.
-> >=20
->=20
-> Patch looks ok other than the comment above the second hunk being out
-> of
-> date. Out of curiousity, what workload benefitted from this? I saw a
-> mix
-> of marginal results when I ran this on a 2-socket and 4-socket box.
+> 
+> ...
+> 
+>> diff --git a/drivers/firmware/efi/efi.c b/drivers/firmware/efi/efi.c
+>> index 5a2631a..f9286c6 100644
+>> --- a/drivers/firmware/efi/efi.c
+>> +++ b/drivers/firmware/efi/efi.c
+>> @@ -386,7 +386,7 @@ int __init efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
+>>  		 * So just always get our own virtual map on the CPU.
+>>  		 *
+>>  		 */
+>> -		md = early_memremap(p, sizeof (*md));
+>> +		md = early_memremap(p, sizeof (*md), BOOT_DATA);
+> 
+> WARNING: space prohibited between function name and open parenthesis '('
+> #432: FILE: drivers/firmware/efi/efi.c:389:
+> +               md = early_memremap(p, sizeof (*md), BOOT_DATA);
+> 
+> Please integrate checkpatch.pl into your workflow so that you can catch
+> small style nits like this. And don't take its output too seriously... :-)
 
-I did not performance test the change, because I believe
-the VM_WRITE test has a small logical error.
+I did run checkpatch against everything, but was always under the
+assumption that I shouldn't change existing warnings/errors like this.
+If it's considered ok since I'm touching that line of code then I'll
+take care of those situations.
 
-Specifically, VM_WRITE is also true for VMAs that are
-PROT_WRITE|MAP_PRIVATE, which we do NOT want to group
-on. Every shared library mapped on my system seems to
-have a (small) read-write VMA:
+Thanks,
+Tom
 
-00007f5adacff000=C2=A0=C2=A0=C2=A01764K r-x-- libc-2.23.so
-00007f5adaeb8000=C2=A0=C2=A0=C2=A02044K ----- libc-2.23.so
-00007f5adb0b7000=C2=A0=C2=A0=C2=A0=C2=A0=C2=A016K r---- libc-2.23.so
-00007f5adb0bb000=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A08K rw--- libc-2.23.so
-
-In other words, the code that is currently upstream
-could result in programs being grouped into a numa
-group due to accesses to libc.so, if they happened
-to get started up right at the same time.
-
-This will not catch many programs, since most of them
-will have private copies of the pages in the small
-read-write segments by the time other programs start
-up, but it could catch a few of them.
-
-Testing on VM_WRITE|VM_SHARED would solve that issue,
-but at that point it would be essentially identical
-to reverting the code to the old pte_write() test
-that we had in 3.19 and before.
-
-I do not expect the performance impact to be visible,
-except when somebody gets very unlucky with application
-startup timing.
-
---=20
-
-All Rights Reversed.
---=-2cmrlBgGTOZii60NBkbF
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQEcBAABCAAGBQJX1sU3AAoJEM553pKExN6DZVAH/jhLcDRAlZO+gcP8ZXxDLPHe
-+CK/qWazGJuaghEG1zSAnzkALgfkP+B134jzcE+9hJ4W44ZwaJMxO8K6FNloEg3s
-h/v0gXBXEEWMRXfaozTlVeDm7tfzeYbgJPSP5A0mg1bREcoNceptRbrjs+B/E8N3
-l+1AZ8ow5Dakj4PwQdDqjM5F1MS8BihDU3jy9r2B5ijKNUdIkHJK39Ys+JdyIWPc
-7ZNgu55qo/RVyA6LD8uLsGGhPtPQigSvRebOi+3IDHuUTNSKE8YjAFV9KNQffWc9
-C3XQvI64G2/hkh+cch/d6xSQhNoOYEBzzVPbRgB8OLD6t1nb0MfNHjVqQk+QAYU=
-=XQb6
------END PGP SIGNATURE-----
-
---=-2cmrlBgGTOZii60NBkbF--
+> 
+>>  		if (!md) {
+>>  			pr_err_once("early_memremap(%pa, %zu) failed.\n",
+>>  				    &p, sizeof (*md));
+>> @@ -501,7 +501,8 @@ int __init efi_config_parse_tables(void *config_tables, int count, int sz,
+>>  	if (efi.properties_table != EFI_INVALID_TABLE_ADDR) {
+>>  		efi_properties_table_t *tbl;
+>>  
+>> -		tbl = early_memremap(efi.properties_table, sizeof(*tbl));
+>> +		tbl = early_memremap(efi.properties_table, sizeof(*tbl),
+>> +				     BOOT_DATA);
+>>  		if (tbl == NULL) {
+>>  			pr_err("Could not map Properties table!\n");
+>>  			return -ENOMEM;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
