@@ -1,152 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 64B5F6B0038
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 03:34:21 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id k12so87808098lfb.2
-        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 00:34:21 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fp4si14113150wjc.282.2016.09.12.00.34.19
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 20D9F6B0038
+	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 03:51:33 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id ag5so326078873pad.2
+        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 00:51:33 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id yv3si20402193pab.56.2016.09.12.00.51.32
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 12 Sep 2016 00:34:19 -0700 (PDT)
-Date: Mon, 12 Sep 2016 09:34:18 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 2/3] writeback: allow for dirty metadata accounting
-Message-ID: <20160912073418.GA23870@quack2.suse.cz>
-References: <1471887302-12730-1-git-send-email-jbacik@fb.com>
- <1471887302-12730-3-git-send-email-jbacik@fb.com>
- <20160909081743.GC22777@quack2.suse.cz>
- <20160912004656.GA30497@dastard>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 12 Sep 2016 00:51:32 -0700 (PDT)
+Date: Mon, 12 Sep 2016 00:51:28 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: DAX mapping detection (was: Re: [PATCH] Fix region lost in
+ /proc/self/smaps)
+Message-ID: <20160912075128.GB21474@infradead.org>
+References: <CAPcyv4iDra+mRqEejfGqapKEAFZmUtUcg0dsJ8nt7mOhcT-Qpw@mail.gmail.com>
+ <20160908225636.GB15167@linux.intel.com>
+ <20160912052703.GA1897@infradead.org>
+ <CAOSf1CHaW=szD+YEjV6vcUG0KKr=aXv8RXomw9xAgknh_9NBFQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160912004656.GA30497@dastard>
+In-Reply-To: <CAOSf1CHaW=szD+YEjV6vcUG0KKr=aXv8RXomw9xAgknh_9NBFQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jan Kara <jack@suse.cz>, Josef Bacik <jbacik@fb.com>, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, kernel-team@fb.com, jack@suse.com, viro@zeniv.linux.org.uk, dchinner@redhat.com, hch@lst.de, linux-mm@kvack.org
+To: Oliver O'Halloran <oohall@gmail.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Yumei Huang <yuhuang@redhat.com>, Michal Hocko <mhocko@suse.com>, Xiao Guangrong <guangrong.xiao@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, KVM list <kvm@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Gleb Natapov <gleb@kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, mtosatti@redhat.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Hansen <dave.hansen@intel.com>, Stefan Hajnoczi <stefanha@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Paolo Bonzini <pbonzini@redhat.com>
 
-On Mon 12-09-16 10:46:56, Dave Chinner wrote:
-> On Fri, Sep 09, 2016 at 10:17:43AM +0200, Jan Kara wrote:
-> > On Mon 22-08-16 13:35:01, Josef Bacik wrote:
-> > > Provide a mechanism for file systems to indicate how much dirty metadata they
-> > > are holding.  This introduces a few things
-> > > 
-> > > 1) Zone stats for dirty metadata, which is the same as the NR_FILE_DIRTY.
-> > > 2) WB stat for dirty metadata.  This way we know if we need to try and call into
-> > > the file system to write out metadata.  This could potentially be used in the
-> > > future to make balancing of dirty pages smarter.
-> > 
-> > So I'm curious about one thing: In the previous posting you have mentioned
-> > that the main motivation for this work is to have a simple support for
-> > sub-pagesize dirty metadata blocks that need tracking in btrfs. However you
-> > do the dirty accounting at page granularity. What are your plans to handle
-> > this mismatch?
-> > 
-> > The thing is you actually shouldn't miscount by too much as that could
-> > upset some checks in mm checking how much dirty pages a node has directing
-> > how reclaim should be done... But it's a question whether NR_METADATA_DIRTY
-> > should be actually used in the checks in node_limits_ok() or in
-> > node_pagecache_reclaimable() at all because once you start accounting dirty
-> > slab objects, you are really on a thin ice...
-> 
-> The other thing I'm concerned about is that it's a btrfs-only thing,
-> which means having dirty btrfs metadata on a system with different
-> filesystems (e.g. btrfs root/home, XFS data) is going to affect how
-> memory balance and throttling is run on other filesystems. i.e. it's
-> going ot make a filesystem specific issue into a problem that
-> affects global behaviour.
+On Mon, Sep 12, 2016 at 05:25:15PM +1000, Oliver O'Halloran wrote:
+> What are the problems here? Is this a matter of existing filesystems
+> being unable/unwilling to support this or is it just fundamentally
+> broken?
 
-Umm, I don't think it will be different than currently. Currently btrfs
-dirty metadata is accounted as dirty page cache because they have this
-virtual fs inode which owns all metadata pages. It is pretty similar to
-e.g. ext2 where you have bdev inode which effectively owns all metadata
-pages and these dirty pages account towards the dirty limits. For ext4
-things are more complicated due to journaling and thus ext4 hides the fact
-that a metadata page is dirty until the corresponding transaction is
-committed.  But from that moment on dirty metadata is again just a dirty
-pagecache page in the bdev inode.
+It's a fundamentally broken model.  See Dave's post that actually was
+sent slightly earlier then mine for the list of required items, which
+is fairly unrealistic.  You could probably try to architect a file
+system for it, but I doubt it would gain much traction.
 
-So current Josef's patch just splits the counter in which btrfs metadata
-pages would be accounted but effectively there should be no change in the
-behavior. It is just a question whether this approach is workable in the
-future when they'd like to track different objects than just pages in the
-counter.
+> The end goal is to let applications manage the persistence of
+> their own data without having to involve the kernel in every IOP, but
+> if we can't do that then what would a 90% solution look like? I think
+> most people would be OK with having to do an fsync() occasionally, but
+> not after ever write to pmem.
 
-> > > diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-> > > index 56c8fda..d329f89 100644
-> > > --- a/fs/fs-writeback.c
-> > > +++ b/fs/fs-writeback.c
-> > > @@ -1809,6 +1809,7 @@ static unsigned long get_nr_dirty_pages(void)
-> > >  {
-> > >  	return global_node_page_state(NR_FILE_DIRTY) +
-> > >  		global_node_page_state(NR_UNSTABLE_NFS) +
-> > > +		global_node_page_state(NR_METADATA_DIRTY) +
-> > >  		get_nr_dirty_inodes();
-> > 
-> > With my question is also connected this - when we have NR_METADATA_DIRTY,
-> > we could just account dirty inodes there and get rid of this
-> > get_nr_dirty_inodes() hack...
-> 
-> Accounting of dirty inodes would have to applied to every
-> filesystem before that could be done, but....
+You need an fsync for each write that you want to persist.  This sounds
+painful for now.  But I have an implementation that will allow the
+atomic commit of more or less arbitrary amounts of previous writes for
+XFS that I plan to land once the reflink work is in.
 
-Well, this particular hack of adding get_nr_dirty_inodes() into the result
-of get_nr_dirty_pages() is there only so that we do writeback even if there
-are only dirty inodes without dirty pages. Since XFS doesn't care about
-writeback for dirty inodes, it would be fine regardless what we do here,
-won't it?
-
-> > But actually getting this to work right to be able to track dirty inodes would
-> > be useful on its own - some throlling of creation of dirty inodes would be
-> > useful for several filesystems (ext4, xfs, ...).
-> 
-> ... this relies on the VFS being able to track and control all
-> dirtying of inodes and metadata.
-> 
-> Which, it should be noted, cannot be done unconditionally because
-> some filesystems /explicitly avoid/ dirtying VFS inodes for anything
-> other than dirty data and provide no mechanism to the VFS for
-> writeback inodes or their related metadata. e.g. XFS, where all
-> metadata changes are transactional and so all dirty inode tracking
-> and writeback control is internal the to the XFS transaction
-> subsystem.
-> 
-> Adding an external throttle to dirtying of metadata doesn't make any
-> sense in this sort of architecture - in XFS we already have all the
-> throttles and expedited writeback triggers integrated into the
-> transaction subsystem (e.g transaction reservation limits, log space
-> limits, periodic background writeback, memory reclaim triggers,
-> etc). It's all so tightly integrated around the physical structure
-> of the filesystem I can't see any way to sanely abstract it to work
-> with a generic "dirty list" accounting and writeback engine at this
-> point...
-
-OK, thanks for providing the details about XFS. So my idea was (and Josef's
-patches seem to be working towards this), that filesystems that decide to
-use the generic throttling, would just account the dirty metadata in some
-counter. That counter would be included in the limits checked by
-balance_dirty_pages(). Filesystem that don't want to use generic throttling
-would have the counter 0 and thus for them there'd be no difference. And in
-appropriate points after metadata was dirtied, filesystems that care could
-call balance_dirty_pages() to throttle the process creating dirty
-metadata.
-
-> I can see how tracking of information such as the global amount of
-> dirty metadata is useful for diagnostics, but I'm not convinced we
-> should be using it for globally scoped external control of deeply
-> integrated and highly specific internal filesystem functionality.
-
-You are right that when journalling comes in, things get more complex. But
-btrfs already uses a scheme similar to the above and I believe ext4 could
-be made to use a similar scheme as well. If you have something better for
-XFS, then that's good for you and we should make sure we don't interfere
-with that. Currently I don't think we will.
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+That way you create almost arbitrarily complex data structures in your
+programs and commit them atomicly.  It's not going to fit the nvml
+model, but that whole think has been complete bullshit since the
+beginning anyway.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
