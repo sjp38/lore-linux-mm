@@ -1,97 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 553066B0038
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 10:56:18 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id v67so362789980pfv.1
-        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 07:56:18 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id t125si22043442pfb.214.2016.09.12.07.56.14
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D2ACA6B0038
+	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 11:01:54 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id g202so365413652pfb.3
+        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 08:01:54 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id u86si6415779pfg.287.2016.09.12.08.01.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Sep 2016 07:56:17 -0700 (PDT)
-Subject: Re: [PATCH 2/3] writeback: allow for dirty metadata accounting
-References: <1471887302-12730-1-git-send-email-jbacik@fb.com>
- <1471887302-12730-3-git-send-email-jbacik@fb.com>
- <20160909081743.GC22777@quack2.suse.cz>
-From: Josef Bacik <jbacik@fb.com>
-Message-ID: <bd00ed53-00c8-49d2-13b2-5f7dfa607185@fb.com>
-Date: Mon, 12 Sep 2016 10:56:04 -0400
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 12 Sep 2016 08:01:52 -0700 (PDT)
+Subject: Re: [PATCH v2] mm, proc: Fix region lost in /proc/self/smaps
+References: <1473649964-20191-1-git-send-email-guangrong.xiao@linux.intel.com>
+ <20160912125447.GM14524@dhcp22.suse.cz>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <57D6C332.4000409@intel.com>
+Date: Mon, 12 Sep 2016 08:01:06 -0700
 MIME-Version: 1.0
-In-Reply-To: <20160909081743.GC22777@quack2.suse.cz>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
+In-Reply-To: <20160912125447.GM14524@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, kernel-team@fb.com, jack@suse.com, viro@zeniv.linux.org.uk, dchinner@redhat.com, hch@lst.de, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>, Xiao Guangrong <guangrong.xiao@linux.intel.com>
+Cc: pbonzini@redhat.com, akpm@linux-foundation.org, dan.j.williams@intel.com, gleb@kernel.org, mtosatti@redhat.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, stefanha@redhat.com, yuhuang@redhat.com, linux-mm@kvack.org, ross.zwisler@linux.intel.com, Oleg Nesterov <oleg@redhat.com>
 
-On 09/09/2016 04:17 AM, Jan Kara wrote:
-> On Mon 22-08-16 13:35:01, Josef Bacik wrote:
->> Provide a mechanism for file systems to indicate how much dirty metadata they
->> are holding.  This introduces a few things
->>
->> 1) Zone stats for dirty metadata, which is the same as the NR_FILE_DIRTY.
->> 2) WB stat for dirty metadata.  This way we know if we need to try and call into
->> the file system to write out metadata.  This could potentially be used in the
->> future to make balancing of dirty pages smarter.
->
-> So I'm curious about one thing: In the previous posting you have mentioned
-> that the main motivation for this work is to have a simple support for
-> sub-pagesize dirty metadata blocks that need tracking in btrfs. However you
-> do the dirty accounting at page granularity. What are your plans to handle
-> this mismatch?
+On 09/12/2016 05:54 AM, Michal Hocko wrote:
+>> > In order to fix this bug, we make 'file->version' indicate the end address
+>> > of current VMA
+> Doesn't this open doors to another weird cases. Say B would be partially
+> unmapped (tail of the VMA would get unmapped and reused for a new VMA.
 
-We already track how much dirty metadata we have internally in btrfs, I 
-envisioned the subpage blocksize guys just calling the accounting ever N objects 
-that were dirited in order to keep the accounting correct.  This is not great, 
-but it was better than the hoops we needed to jump through to deal with the 
-btree_inode and subpagesize blocksizes.
+In the end, this interface isn't about VMAs.  It's about addresses, and
+we need to make sure that the _addresses_ coming out of it are sane.  In
+the case that a VMA was partially unmapped, it doesn't make sense to
+show the "new" VMA because we already had some output covering the
+address of the "new" VMA from the old one.
 
->
-> The thing is you actually shouldn't miscount by too much as that could
-> upset some checks in mm checking how much dirty pages a node has directing
-> how reclaim should be done... But it's a question whether NR_METADATA_DIRTY
-> should be actually used in the checks in node_limits_ok() or in
-> node_pagecache_reclaimable() at all because once you start accounting dirty
-> slab objects, you are really on a thin ice...
+> I am not sure we provide any guarantee when there are more read
+> syscalls. Hmm, even with a single read() we can get inconsistent results
+> from different threads without any user space synchronization.
 
-Agreed, this does get a bit ugly.
+Yeah, very true.  But, I think we _can_ at least provide the following
+guarantees (among others):
+1. addresses don't go backwards
+2. If there is something at a given vaddr during the entirety of the
+   life of the smaps walk, we will produce some output for it.
 
->
->> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
->> index 56c8fda..d329f89 100644
->> --- a/fs/fs-writeback.c
->> +++ b/fs/fs-writeback.c
->> @@ -1809,6 +1809,7 @@ static unsigned long get_nr_dirty_pages(void)
->>  {
->>  	return global_node_page_state(NR_FILE_DIRTY) +
->>  		global_node_page_state(NR_UNSTABLE_NFS) +
->> +		global_node_page_state(NR_METADATA_DIRTY) +
->>  		get_nr_dirty_inodes();
->
-> With my question is also connected this - when we have NR_METADATA_DIRTY,
-> we could just account dirty inodes there and get rid of this
-> get_nr_dirty_inodes() hack...
->
-> But actually getting this to work right to be able to track dirty inodes would
-> be useful on its own - some throlling of creation of dirty inodes would be
-> useful for several filesystems (ext4, xfs, ...).
+> So in other words isn't this fixing a bug by introducing a slightly
+> different one while we are not really guaranteeing anything strong here?
 
-So I suppose what I could do is instead provide a callback for the vm to ask how 
-many dirty objects we have in the file system, instead of adding another page 
-counter.  That way the actual accounting is kept internal to the file system, 
-and it gets rid of the weird mismatch when blocksize < pagesize.  Does that 
-sound like a more acceptable approach?  Unfortunately I decided to do this work 
-to make the blocksize < pagesize work easier, but then didn't actually think 
-about how the accounting would interact with that case, because I'm an idiot.
-
-I think that looping through all the sb's in the system would be kinda shitty 
-for this tho, we want the "get number of dirty pages" part to be relatively 
-fast.  What if I do something like the shrinker_control only for dirty objects. 
-So the fs registers some dirty_objects_control, we call into each of those and 
-get the counts from that.  Does that sound less crappy?  Thanks,
-
-Josef
+Well, the (original) bug here _is_ pretty crummy.  It's not printing a
+VMA, and that VMA was never touched.  It's just collateral damage from
+the previous guy who got destroyed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
