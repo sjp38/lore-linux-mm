@@ -1,66 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id F3C776B0069
-	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 19:18:30 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id 188so199008104iti.1
-        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 16:18:30 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id 18si6354903ion.58.2016.09.12.16.18.29
-        for <linux-mm@kvack.org>;
-        Mon, 12 Sep 2016 16:18:30 -0700 (PDT)
-Date: Tue, 13 Sep 2016 09:18:26 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 2/3] writeback: allow for dirty metadata accounting
-Message-ID: <20160912231826.GK22388@dastard>
-References: <1471887302-12730-1-git-send-email-jbacik@fb.com>
- <1471887302-12730-3-git-send-email-jbacik@fb.com>
- <20160909081743.GC22777@quack2.suse.cz>
- <bd00ed53-00c8-49d2-13b2-5f7dfa607185@fb.com>
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 782A06B0069
+	for <linux-mm@kvack.org>; Mon, 12 Sep 2016 21:31:41 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id ex14so225977176pac.0
+        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 18:31:41 -0700 (PDT)
+Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
+        by mx.google.com with ESMTPS id f67si24498833pff.200.2016.09.12.18.31.39
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 12 Sep 2016 18:31:40 -0700 (PDT)
+Received: by mail-pf0-x242.google.com with SMTP id g202so8850472pfb.1
+        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 18:31:39 -0700 (PDT)
+Date: Tue, 13 Sep 2016 11:31:28 +1000
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: DAX mapping detection (was: Re: [PATCH] Fix region lost in
+ /proc/self/smaps)
+Message-ID: <20160913113128.4eae792e@roar.ozlabs.ibm.com>
+In-Reply-To: <20160912150148.GA10039@infradead.org>
+References: <CAPcyv4iDra+mRqEejfGqapKEAFZmUtUcg0dsJ8nt7mOhcT-Qpw@mail.gmail.com>
+	<20160908225636.GB15167@linux.intel.com>
+	<20160912052703.GA1897@infradead.org>
+	<CAOSf1CHaW=szD+YEjV6vcUG0KKr=aXv8RXomw9xAgknh_9NBFQ@mail.gmail.com>
+	<20160912075128.GB21474@infradead.org>
+	<20160912180507.533b3549@roar.ozlabs.ibm.com>
+	<20160912150148.GA10039@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <bd00ed53-00c8-49d2-13b2-5f7dfa607185@fb.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josef Bacik <jbacik@fb.com>
-Cc: Jan Kara <jack@suse.cz>, linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, kernel-team@fb.com, jack@suse.com, viro@zeniv.linux.org.uk, dchinner@redhat.com, hch@lst.de, linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Oliver O'Halloran <oohall@gmail.com>, Yumei Huang <yuhuang@redhat.com>, Michal Hocko <mhocko@suse.com>, Xiao Guangrong <guangrong.xiao@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, KVM list <kvm@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Gleb Natapov <gleb@kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, mtosatti@redhat.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Hansen <dave.hansen@intel.com>, Stefan Hajnoczi <stefanha@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Paolo Bonzini <pbonzini@redhat.com>
 
-On Mon, Sep 12, 2016 at 10:56:04AM -0400, Josef Bacik wrote:
-> I think that looping through all the sb's in the system would be
-> kinda shitty for this tho, we want the "get number of dirty pages"
-> part to be relatively fast.  What if I do something like the
-> shrinker_control only for dirty objects. So the fs registers some
-> dirty_objects_control, we call into each of those and get the counts
-> from that.  Does that sound less crappy?  Thanks,
+On Mon, 12 Sep 2016 08:01:48 -0700
+Christoph Hellwig <hch@infradead.org> wrote:
 
-Hmmm - just an off-the-wall thought on this....
+> On Mon, Sep 12, 2016 at 06:05:07PM +1000, Nicholas Piggin wrote:
+> > It's not fundamentally broken, it just doesn't fit well existing
+> > filesystems.  
+> 
+> Or the existing file system architecture for that matter.  Which makes
+> it a fundamentally broken model.
 
-If you're going to do that, then why wouldn't you simply use a
-"shrinker" to do the metadata writeback rather than having a hook to
-count dirty objects to pass to some other writeback code that calls
-a hook to write the metadata?
+Not really. A few reasonable changes can be made to improve things.
+Until just now you thought it was fundamentally impossible to make a
+reasonable implementation due to Dave's "constraints".
 
-That way filesystems can also implement dirty accounting and
-"writers" for each cache of objects they currently implement
-shrinkers for. i.e. just expanding shrinkers to be able to "count
-dirty objects" and "write dirty objects" so that we can tell
-filesystems to write back all their different metadata caches
-proportionally to the size of the page cache and it's dirty state.
-The existing file data and inode writeback could then just be new
-generic "superblock shrinker" operations, and the fs could have it's
-own private metadata writeback similar to the private sb shrinker
-callout we currently have...
+> 
+> > Dave's post of requirements is also wrong. A filesystem does not have
+> > to guarantee all that, it only has to guarantee that is the case for
+> > a given block after it has a mapping and page fault returns, other
+> > operations can be supported by invalidating mappings, etc.  
+> 
+> Which doesn't really matter if your use case is manipulating
+> fully mapped files.
 
-And, in doing so, we might be able to completely hide memcg from the
-writeback implementations similar to the way memcg is completely
-hidden from the shrinker reclaim implementations...
+Nothing that says you have to use them fully mapped always and not
+use other APIs on them.
 
-Cheers,
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+> But back to the point: if you want to use a full blown Linux or Unix
+> filesystem you will always have to fsync (or variants of it like msync),
+> period.
+
+That's circular logic. First you said that should not be done
+because of your imagined constraints.
+
+In fact, it's not unreasonable to describe some additional semantics
+of the storage that is unavailable with traditional filesystems.
+
+That said, a noop system call is on the order of 100 cycles nowadays,
+so rushing to implement these APIs without seeing good numbers and
+actual users ready to go seems premature. *This* is the real reason
+not to implement new APIs yet.
+
+
+> If you want a volume manager on stereoids that hands out large chunks
+> of storage memory that can't ever be moved, truncated, shared, allocated
+> on demand, etc - implement it in your library on top of a device file.
+
+Those constraints don't exist either. I've written a filesystem
+that avoids them. It isn't rocket science.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
