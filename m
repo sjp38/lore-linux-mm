@@ -1,243 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 64F1F6B0069
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2016 05:16:57 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id q188so244102206oia.1
-        for <linux-mm@kvack.org>; Tue, 13 Sep 2016 02:16:57 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id s186si25412856itg.122.2016.09.13.02.16.53
-        for <linux-mm@kvack.org>;
-        Tue, 13 Sep 2016 02:16:54 -0700 (PDT)
-Date: Tue, 13 Sep 2016 18:16:52 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH -v3 00/10] THP swap: Delay splitting THP during swapping
- out
-Message-ID: <20160913091652.GB7132@bbox>
-References: <1473266769-2155-1-git-send-email-ying.huang@intel.com>
- <20160909054336.GA2114@bbox>
- <87sht824n3.fsf@yhuang-mobile.sh.intel.com>
- <20160913061349.GA4445@bbox>
- <87y42wgv5r.fsf@yhuang-dev.intel.com>
- <20160913070524.GA4973@bbox>
- <87vay0ji3m.fsf@yhuang-mobile.sh.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87vay0ji3m.fsf@yhuang-mobile.sh.intel.com>
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D66356B0069
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2016 05:26:28 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id l68so25415603wml.3
+        for <linux-mm@kvack.org>; Tue, 13 Sep 2016 02:26:28 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id z186si19868027wmg.93.2016.09.13.02.26.27
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Sep 2016 02:26:27 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8D9Ob09145308
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2016 05:26:26 -0400
+Received: from e37.co.us.ibm.com (e37.co.us.ibm.com [32.97.110.158])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 25dyk82f09-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2016 05:26:26 -0400
+Received: from localhost
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rui.teng@linux.vnet.ibm.com>;
+	Tue, 13 Sep 2016 03:26:25 -0600
+From: Rui Teng <rui.teng@linux.vnet.ibm.com>
+Subject: [RFC] mm: Change the data type of huge page size from unsigned long to u64
+Date: Tue, 13 Sep 2016 17:26:05 +0800
+Message-Id: <1473758765-13673-1-git-send-email-rui.teng@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Chen Gang <chengang@emindsoft.com.cn>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, hejianet@linux.vnet.ibm.com, Rui Teng <rui.teng@linux.vnet.ibm.com>
 
-On Tue, Sep 13, 2016 at 04:53:49PM +0800, Huang, Ying wrote:
-> Minchan Kim <minchan@kernel.org> writes:
-> > On Tue, Sep 13, 2016 at 02:40:00PM +0800, Huang, Ying wrote:
-> >> Minchan Kim <minchan@kernel.org> writes:
-> >> 
-> >> > Hi Huang,
-> >> >
-> >> > On Fri, Sep 09, 2016 at 01:35:12PM -0700, Huang, Ying wrote:
-> >> >
-> >> > < snip >
-> >> >
-> >> >> >> Recently, the performance of the storage devices improved so fast that
-> >> >> >> we cannot saturate the disk bandwidth when do page swap out even on a
-> >> >> >> high-end server machine.  Because the performance of the storage
-> >> >> >> device improved faster than that of CPU.  And it seems that the trend
-> >> >> >> will not change in the near future.  On the other hand, the THP
-> >> >> >> becomes more and more popular because of increased memory size.  So it
-> >> >> >> becomes necessary to optimize THP swap performance.
-> >> >> >> 
-> >> >> >> The advantages of the THP swap support include:
-> >> >> >> 
-> >> >> >> - Batch the swap operations for the THP to reduce lock
-> >> >> >>   acquiring/releasing, including allocating/freeing the swap space,
-> >> >> >>   adding/deleting to/from the swap cache, and writing/reading the swap
-> >> >> >>   space, etc.  This will help improve the performance of the THP swap.
-> >> >> >> 
-> >> >> >> - The THP swap space read/write will be 2M sequential IO.  It is
-> >> >> >>   particularly helpful for the swap read, which usually are 4k random
-> >> >> >>   IO.  This will improve the performance of the THP swap too.
-> >> >> >> 
-> >> >> >> - It will help the memory fragmentation, especially when the THP is
-> >> >> >>   heavily used by the applications.  The 2M continuous pages will be
-> >> >> >>   free up after THP swapping out.
-> >> >> >
-> >> >> > I just read patchset right now and still doubt why the all changes
-> >> >> > should be coupled with THP tightly. Many parts(e.g., you introduced
-> >> >> > or modifying existing functions for making them THP specific) could
-> >> >> > just take page_list and the number of pages then would handle them
-> >> >> > without THP awareness.
-> >> >> 
-> >> >> I am glad if my change could help normal pages swapping too.  And we can
-> >> >> change these functions to work for normal pages when necessary.
-> >> >
-> >> > Sure but it would be less painful that THP awareness swapout is
-> >> > based on multiple normal pages swapout. For exmaple, we don't
-> >> > touch delay THP split part(i.e., split a THP into 512 pages like
-> >> > as-is) and enhances swapout further like Tim's suggestion
-> >> > for mulitple normal pages swapout. With that, it might be enough
-> >> > for fast-storage without needing THP awareness.
-> >> >
-> >> > My *point* is let's approach step by step.
-> >> > First of all, go with batching normal pages swapout and if it's
-> >> > not enough, dive into further optimization like introducing
-> >> > THP-aware swapout.
-> >> >
-> >> > I believe it's natural development process to evolve things
-> >> > without over-engineering.
-> >> 
-> >> My target is not only the THP swap out acceleration, but also the full
-> >> THP swap out/in support without splitting THP.  This patchset is just
-> >> the first step of the full THP swap support.
-> >> 
-> >> >> > For example, if the nr_pages is larger than SWAPFILE_CLUSTER, we
-> >> >> > can try to allocate new cluster. With that, we could allocate new
-> >> >> > clusters to meet nr_pages requested or bail out if we fail to allocate
-> >> >> > and fallback to 0-order page swapout. With that, swap layer could
-> >> >> > support multiple order-0 pages by batch.
-> >> >> >
-> >> >> > IMO, I really want to land Tim Chen's batching swapout work first.
-> >> >> > With Tim Chen's work, I expect we can make better refactoring
-> >> >> > for batching swap before adding more confuse to the swap layer.
-> >> >> > (I expect it would share several pieces of code for or would be base
-> >> >> > for batching allocation of swapcache, swapslot)
-> >> >> 
-> >> >> I don't think there is hard conflict between normal pages swapping
-> >> >> optimizing and THP swap optimizing.  Some code may be shared between
-> >> >> them.  That is good for both sides.
-> >> >> 
-> >> >> > After that, we could enhance swap for big contiguous batching
-> >> >> > like THP and finally we might make it be aware of THP specific to
-> >> >> > enhance further.
-> >> >> >
-> >> >> > A thing I remember you aruged: you want to swapin 512 pages
-> >> >> > all at once unconditionally. It's really worth to discuss if
-> >> >> > your design is going for the way.
-> >> >> > I doubt it's generally good idea. Because, currently, we try to
-> >> >> > swap in swapped out pages in THP page with conservative approach
-> >> >> > but your direction is going to opposite way.
-> >> >> >
-> >> >> > [mm, thp: convert from optimistic swapin collapsing to conservative]
-> >> >> >
-> >> >> > I think general approach(i.e., less effective than targeting
-> >> >> > implement for your own specific goal but less hacky and better job
-> >> >> > for many cases) is to rely/improve on the swap readahead.
-> >> >> > If most of subpages of a THP page are really workingset, swap readahead
-> >> >> > could work well.
-> >> >> >
-> >> >> > Yeah, it's fairly vague feedback so sorry if I miss something clear.
-> >> >> 
-> >> >> Yes.  I want to go to the direction that to swap in 512 pages together.
-> >> >> And I think it is a good opportunity to discuss that now.  The advantages
-> >> >> of swapping in 512 pages together are:
-> >> >> 
-> >> >> - Improve the performance of swapping in IO via turning small read size
-> >> >>   into 512 pages big read size.
-> >> >> 
-> >> >> - Keep THP across swap out/in.  With the memory size become more and
-> >> >>   more large, the 4k pages bring more and more burden to memory
-> >> >>   management.  One solution is to use 2M pages as much as possible, that
-> >> >>   will reduce the management burden greatly, such as much reduced length
-> >> >>   of LRU list, etc.
-> >> >> 
-> >> >> The disadvantage are:
-> >> >> 
-> >> >> - Increase the memory pressure when swap in THP.
-> >> >> 
-> >> >> - Some pages swapped in may not needed in the near future.
-> >> >> 
-> >> >> Because of the disadvantages, the 512 pages swapping in should be made
-> >> >> optional.  But I don't think we should make it impossible.
-> >> >
-> >> > Yeb. No need to make it impossible but your design shouldn't be coupled
-> >> > with non-existing feature yet.
-> >> 
-> >> Sorry, what is the "non-existing feature"?  The full THP swap out/in
-> >
-> > THP swapin.
-> >
-> > You said you increased cluster size to fit a THP size for recording
-> > some meta in there for THP swapin.
-> 
-> And to find the head of the THP to swap in the whole THP when an address
-> in the middle of a THP is accessed.
-> 
-> > You gave number about how scale bad current swapout so try to enhance
-> > that path. I agree it alghouth I don't like your approach for first step.
-> > However, you didn't give any clue why we should swap in a THP. How bad
-> > current conservative swapin from khugepagd is really bad and why cannot
-> > enhance that.
-> >
-> >> support without splitting THP?  If so, this patchset is the just the
-> >> first step of that.  I plan to finish the the full THP swap out/in
-> >> support in 3 steps:
-> >> 
-> >> 1. Delay splitting the THP after adding it into swap cache
-> >> 
-> >> 2. Delay splitting the THP after swapping out being completed
-> >> 
-> >> 3. Avoid splitting the THP during swap out, and swap in the full THP if
-> >>    possible
-> >> 
-> >> I plan to do it step by step to make it easier to review the code.
-> >
-> > 1. If we solve batching swapout, then how is THP split for swapout bad?
-> > 2. Also, how is current conservatie swapin from khugepaged bad?
-> >
-> > I think it's one of decision point for the motivation of your work
-> > and for 1, we need batching swapout feature.
-> >
-> > I am saying again that I'm not against your goal but only concern
-> > is approach. If you don't agree, please ignore me.
-> 
-> I am glad to discuss my final goal, that is, swapping out/in the full
-> THP without splitting.  Why I want to do that is copied as below,
+The huge page size could be 16G(0x400000000) on ppc64 architecture, and it will
+cause an overflow on unsigned long data type(0xFFFFFFFF).
 
-Yes, it's your *final* goal but what if it couldn't be acceptable
-on second step you mentioned above, for example?
+For example, huge_page_size() will return 0, if the PAGE_SIZE is 65536 and
+h->order is 18, which is the result on ppc64 with 16G huge page enabled.
 
-        Unncessary binded implementation to rejected work.
+I think it needs to change the data type from unsigned long to u64. But it will
+cause a lot of functions and data structures changed. Any comments and
+suggestions?
 
-If you want to achieve your goal step by step, please consider if
-one of step you are thinking could be rejected but steps already
-merged should be self-contained without side-effect.
-If it's hard, send full patchset all at once so reviewers can think
-what you want of right direction and implementation is good for it.
+Thanks!
 
-> 
-> >> >> The advantages of swapping in 512 pages together are:
-> >> >> 
-> >> >> - Improve the performance of swapping in IO via turning small read size
-> >> >>   into 512 pages big read size.
-> >> >> 
-> >> >> - Keep THP across swap out/in.  With the memory size become more and
-> >> >>   more large, the 4k pages bring more and more burden to memory
-> >> >>   management.  One solution is to use 2M pages as much as possible, that
-> >> >>   will reduce the management burden greatly, such as much reduced length
-> >> >>   of LRU list, etc.
-> 
-> - Avoid CPU time for splitting, collapsing THP across swap out/in.
+Signed-off-by: Rui Teng <rui.teng@linux.vnet.ibm.com>
+---
+ include/linux/hugetlb.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-Yes, if you want, please give us how bad it is.
-
-> 
-> >> >> 
-> >> >> The disadvantage are:
-> >> >> 
-> >> >> - Increase the memory pressure when swap in THP.
-> >> >> 
-> >> >> - Some pages swapped in may not needed in the near future.
-> 
-> I think it is important to use 2M pages as much as possible to deal with
-> the big memory problem.  Do you agree?
-
-There is no number I can think what is current problems and
-how it is popular thesedays so I don't agree.
-
-> 
-> Best Regards,
-> Huang, Ying
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index c26d463..efbe5cf 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -374,9 +374,9 @@ static inline struct hstate *hstate_vma(struct vm_area_struct *vma)
+ 	return hstate_file(vma->vm_file);
+ }
+ 
+-static inline unsigned long huge_page_size(struct hstate *h)
++static inline u64 huge_page_size(struct hstate *h)
+ {
+-	return (unsigned long)PAGE_SIZE << h->order;
++	return (u64)PAGE_SIZE << h->order;
+ }
+ 
+ extern unsigned long vma_kernel_pagesize(struct vm_area_struct *vma);
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
