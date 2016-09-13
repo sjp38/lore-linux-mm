@@ -1,64 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CD3066B0069
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2016 11:14:25 -0400 (EDT)
-Received: by mail-yb0-f197.google.com with SMTP id e2so56022441ybi.0
-        for <linux-mm@kvack.org>; Tue, 13 Sep 2016 08:14:25 -0700 (PDT)
-Received: from mail-vk0-x236.google.com (mail-vk0-x236.google.com. [2607:f8b0:400c:c05::236])
-        by mx.google.com with ESMTPS id t68si7574532vke.133.2016.09.13.08.14.25
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C5A346B0069
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2016 12:21:20 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id n24so171071pfb.0
+        for <linux-mm@kvack.org>; Tue, 13 Sep 2016 09:21:20 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id w25si11455884pfg.107.2016.09.13.09.21.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Sep 2016 08:14:25 -0700 (PDT)
-Received: by mail-vk0-x236.google.com with SMTP id 16so162979652vko.2
-        for <linux-mm@kvack.org>; Tue, 13 Sep 2016 08:14:25 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 13 Sep 2016 09:21:19 -0700 (PDT)
+Subject: Re: [PATCH v2] mm, proc: Fix region lost in /proc/self/smaps
+References: <1473649964-20191-1-git-send-email-guangrong.xiao@linux.intel.com>
+ <20160912125447.GM14524@dhcp22.suse.cz> <57D6C332.4000409@intel.com>
+ <20160912191035.GD14997@dhcp22.suse.cz> <20160913145906.GA28037@redhat.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <57D8277E.80505@intel.com>
+Date: Tue, 13 Sep 2016 09:21:18 -0700
 MIME-Version: 1.0
-In-Reply-To: <20160913100520.GA5035@twins.programming.kicks-ass.net>
-References: <1473759914-17003-1-git-send-email-byungchul.park@lge.com>
- <1473759914-17003-8-git-send-email-byungchul.park@lge.com> <20160913100520.GA5035@twins.programming.kicks-ass.net>
-From: Byungchul Park <max.byungchul.park@gmail.com>
-Date: Wed, 14 Sep 2016 00:14:22 +0900
-Message-ID: <CANrsvRPQ=7ryYkYQpHUzK3Yzs_Yf-VH=1c6g=QnqqEP1WTJ5Xg@mail.gmail.com>
-Subject: Re: [PATCH v3 07/15] lockdep: Implement crossrelease feature
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20160913145906.GA28037@redhat.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Byungchul Park <byungchul.park@lge.com>, Ingo Molnar <mingo@kernel.org>, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
+To: Oleg Nesterov <oleg@redhat.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Xiao Guangrong <guangrong.xiao@linux.intel.com>, pbonzini@redhat.com, akpm@linux-foundation.org, dan.j.williams@intel.com, gleb@kernel.org, mtosatti@redhat.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, stefanha@redhat.com, yuhuang@redhat.com, linux-mm@kvack.org, ross.zwisler@linux.intel.com
 
-On Tue, Sep 13, 2016 at 7:05 PM, Peter Zijlstra <peterz@infradead.org> wrote:
-> On Tue, Sep 13, 2016 at 06:45:06PM +0900, Byungchul Park wrote:
->> Crossrelease feature calls a lock 'crosslock' if it is releasable
->> in any context. For crosslock, all locks having been held in the
->> release context of the crosslock, until eventually the crosslock
->> will be released, have dependency with the crosslock.
->>
->> Using crossrelease feature, we can detect deadlock possibility even
->> for lock_page(), wait_for_complete() and so on.
->>
->
-> Completely inadequate.
->
-> Please explain how cross-release does what it does. Talk about lock
-> graphs and such.
+On 09/13/2016 07:59 AM, Oleg Nesterov wrote:
+> On 09/12, Michal Hocko wrote:
+>> > Considering how this all can be tricky and how partial reads can be
+>> > confusing and even misleading I am really wondering whether we
+>> > should simply document that only full reads will provide a sensible
+>> > results.
+> I agree. I don't even understand why this was considered as a bug.
+> Obviously, m_stop() which drops mmap_sep should not be called, or
+> all the threads should be stopped, if you want to trust the result.
 
-Hello,
+There was a mapping at a given address.  That mapping did not change, it
+was not split, its attributes did not change.  But, it didn't show up
+when reading smaps.  Folks _actually_ noticed this in a test suite
+looking for that address range in smaps.
 
-Could you tell me about what you intend, in detail?
-I'm now asking you since I really don't know it.
+IOW, we had goofy kernel behavior, and it broke a reasonable test
+program.  The test program just used fgets() to read into a fixed-length
+buffer, which is a completely normal thing to do.
 
-The reason I reworked on documentation was to
-answer your requests like "explain mathematically",
-"tell how it works with graph" and so on. Should I
-do anything else? I really don't know it.
-
-If I missed something, please let me know. Then I
-can do whatever you want if it's necessary.
-
-> I do not have time to reverse engineer this stuff.
-
-Why don't you read the document in the last patch
-first? The document is my answer for your requests
-you asked in version 1 thread. Insufficient?
+To get "sensible results", doesn't userspace have to somehow know in
+advance how many bytes of data a given VMA will generate in smaps output?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
