@@ -1,56 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 52ABC6B0069
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2016 10:09:16 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id e1so356549594itb.0
-        for <linux-mm@kvack.org>; Tue, 13 Sep 2016 07:09:16 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTP id h35si14230426otb.237.2016.09.13.07.09.02
-        for <linux-mm@kvack.org>;
-        Tue, 13 Sep 2016 07:09:03 -0700 (PDT)
-Message-ID: <57D806C5.8070305@huawei.com>
-Date: Tue, 13 Sep 2016 22:01:41 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A1A06B0069
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2016 10:35:54 -0400 (EDT)
+Received: by mail-yb0-f198.google.com with SMTP id c79so49671154ybf.2
+        for <linux-mm@kvack.org>; Tue, 13 Sep 2016 07:35:54 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a4si6050026ywc.404.2016.09.13.07.35.51
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Sep 2016 07:35:53 -0700 (PDT)
+Date: Tue, 13 Sep 2016 16:35:48 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH -v3 00/10] THP swap: Delay splitting THP during swapping
+ out
+Message-ID: <20160913143548.GP19048@redhat.com>
+References: <1473266769-2155-1-git-send-email-ying.huang@intel.com>
+ <20160909054336.GA2114@bbox>
+ <87sht824n3.fsf@yhuang-mobile.sh.intel.com>
+ <20160913061349.GA4445@bbox>
+ <87y42wgv5r.fsf@yhuang-dev.intel.com>
+ <20160913070524.GA4973@bbox>
+ <87vay0ji3m.fsf@yhuang-mobile.sh.intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: fix oom work when memory is under pressure
-References: <1473173226-25463-1-git-send-email-zhongjiang@huawei.com> <20160909114410.GG4844@dhcp22.suse.cz> <57D67A8A.7070500@huawei.com> <20160912111327.GG14524@dhcp22.suse.cz> <57D6B0C4.6040400@huawei.com> <20160912174445.GC14997@dhcp22.suse.cz> <57D7FB71.9090102@huawei.com> <20160913132854.GB6592@dhcp22.suse.cz>
-In-Reply-To: <20160913132854.GB6592@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87vay0ji3m.fsf@yhuang-mobile.sh.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, linux-mm@kvack.org, Xishi Qiu <qiuxishi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
 
-On 2016/9/13 21:28, Michal Hocko wrote:
-> On Tue 13-09-16 21:13:21, zhong jiang wrote:
->> On 2016/9/13 1:44, Michal Hocko wrote:
-> [...]
->>> If you want to solve this problem properly then you would have to give
->>> tasks which are looping in the page allocator access to some portion of
->>> memory reserves. This is quite tricky to do right, though.
->> To use some portion of memory reserves is almost no effect in a so
->> starvation scenario.  I think the hungtask still will occur. it can
->> not solve the problem primarily.
-> Granting an access to memory reserves is of course no full solution but
-> it raises chances for a forward progress. Other solutions would have to
-> guarantee that the memory reclaimed on behalf of the requester will be
-> given to the requester. Not an easy task
->
->>> Retry counters with the fail path have been proposed in the past and not
->>> accepted.
->> The above patch have been tested by runing the trinity.  The question
->> is fixed.  Is there any reasonable reason oppose to the patch ? or it
->> will bring in any side-effect.
-> Sure there is. Low order allocations have been traditionally non failing
-> and changing that behavior is a major obstacle because it opens up a
-> door to many bugs. I've tried to do something similar in the past and
-> there was a strong resistance against it. Believe me been there done
-> that...
->
-  That sounds resonable.  but So starvation scenario should unavoidable failed. In any case
-  you mean  we need allow to allocate the low order.
+Hello,
 
+On Tue, Sep 13, 2016 at 04:53:49PM +0800, Huang, Ying wrote:
+> I am glad to discuss my final goal, that is, swapping out/in the full
+> THP without splitting.  Why I want to do that is copied as below,
+
+I think that is a fine objective. It wasn't implemented initially just
+to keep things simple.
+
+Doing it will reduce swap fragmentation (provided we can find a
+physically contiguous piece of to swapout the THP in the first place)
+and it will make all other heuristics that tries to keep the swap
+space contiguous less relevant and it should increase the swap
+bandwidth significantly at least on spindle disks. I personally see it
+as a positive that we relay less on those and the readhaead swapin.
+
+> >> >> The disadvantage are:
+> >> >> 
+> >> >> - Increase the memory pressure when swap in THP.
+
+That is always true with THP enabled to always. It is the tradeoff. It
+still cannot use more RAM than userland ever allocated in the vma as
+virtual memory. If userland don't ever need such memory it can free it
+by zapping the vma and the THP will be splitted. If the vma is zapped
+while the THP is natively swapped out, the zapped portion of swap
+space shall be released as well. So ultimately userland always
+controls the cap on the max virtual memory (ram+swap) the kernel
+decides to use with THP enabled to always.
+
+> I think it is important to use 2M pages as much as possible to deal with
+> the big memory problem.  Do you agree?
+
+I agree.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
