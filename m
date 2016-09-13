@@ -1,45 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E4D828024B
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2016 06:05:36 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id 192so192058141itm.2
-        for <linux-mm@kvack.org>; Tue, 13 Sep 2016 03:05:36 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id y203si25713717itc.30.2016.09.13.03.05.26
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 482A96B0069
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2016 07:21:21 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id u14so120229151lfd.0
+        for <linux-mm@kvack.org>; Tue, 13 Sep 2016 04:21:21 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id m2si20313213wjj.132.2016.09.13.04.21.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Sep 2016 03:05:26 -0700 (PDT)
-Date: Tue, 13 Sep 2016 12:05:20 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v3 07/15] lockdep: Implement crossrelease feature
-Message-ID: <20160913100520.GA5035@twins.programming.kicks-ass.net>
-References: <1473759914-17003-1-git-send-email-byungchul.park@lge.com>
- <1473759914-17003-8-git-send-email-byungchul.park@lge.com>
+        Tue, 13 Sep 2016 04:21:20 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8DBJlR1044582
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2016 07:21:18 -0400
+Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 25e2peqjff-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2016 07:21:18 -0400
+Received: from localhost
+	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rui.teng@linux.vnet.ibm.com>;
+	Tue, 13 Sep 2016 07:21:17 -0400
+Subject: Re: [RFC] mm: Change the data type of huge page size from unsigned
+ long to u64
+References: <1473758765-13673-1-git-send-email-rui.teng@linux.vnet.ibm.com>
+ <20160913093257.GA31186@node>
+From: Rui Teng <rui.teng@linux.vnet.ibm.com>
+Date: Tue, 13 Sep 2016 19:21:07 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1473759914-17003-8-git-send-email-byungchul.park@lge.com>
+In-Reply-To: <20160913093257.GA31186@node>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
+Message-Id: <09ab7941-07fa-0003-46d8-9fa5c07eba2d@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Byungchul Park <byungchul.park@lge.com>
-Cc: mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Chen Gang <chengang@emindsoft.com.cn>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, hejianet@linux.vnet.ibm.com
 
-On Tue, Sep 13, 2016 at 06:45:06PM +0900, Byungchul Park wrote:
-> Crossrelease feature calls a lock 'crosslock' if it is releasable
-> in any context. For crosslock, all locks having been held in the
-> release context of the crosslock, until eventually the crosslock
-> will be released, have dependency with the crosslock.
-> 
-> Using crossrelease feature, we can detect deadlock possibility even
-> for lock_page(), wait_for_complete() and so on.
-> 
-
-Completely inadequate.
-
-Please explain how cross-release does what it does. Talk about lock
-graphs and such.
-
-I do not have time to reverse engineer this stuff.
+On 9/13/16 5:32 PM, Kirill A. Shutemov wrote:
+> On Tue, Sep 13, 2016 at 05:26:05PM +0800, Rui Teng wrote:
+>> The huge page size could be 16G(0x400000000) on ppc64 architecture, and it will
+>> cause an overflow on unsigned long data type(0xFFFFFFFF).
+>
+> Huh? ppc64 is 64-bit system and sizeof(void *) is equal to
+> sizeof(unsigned long) on Linux (LP64 model).
+>
+> So where your 0xFFFFFFFF comes from?
+>
+The size of unsigned long data type is 4 bytes, and the 0xFFFFFFFF here
+is the maximum value. And 16G is bigger than it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
