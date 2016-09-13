@@ -1,66 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 38E246B0069
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2016 13:32:19 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id mi5so25292496pab.2
-        for <linux-mm@kvack.org>; Tue, 13 Sep 2016 10:32:19 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id d63si28506560pfk.42.2016.09.13.10.32.18
+Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A3916B0069
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2016 14:04:54 -0400 (EDT)
+Received: by mail-yb0-f200.google.com with SMTP id e2so67097396ybi.0
+        for <linux-mm@kvack.org>; Tue, 13 Sep 2016 11:04:54 -0700 (PDT)
+Received: from mail-qt0-x241.google.com (mail-qt0-x241.google.com. [2607:f8b0:400d:c0d::241])
+        by mx.google.com with ESMTPS id r4si16069072qkd.42.2016.09.13.11.04.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 13 Sep 2016 10:32:18 -0700 (PDT)
-Subject: Re: [PATCH] memory-hotplug: Fix bad area access on
- dissolve_free_huge_pages()
-References: <1473755948-13215-1-git-send-email-rui.teng@linux.vnet.ibm.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <57D83821.4090804@linux.intel.com>
-Date: Tue, 13 Sep 2016 10:32:17 -0700
-MIME-Version: 1.0
-In-Reply-To: <1473755948-13215-1-git-send-email-rui.teng@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Sep 2016 11:04:53 -0700 (PDT)
+Received: by mail-qt0-x241.google.com with SMTP id 11so7240788qtc.3
+        for <linux-mm@kvack.org>; Tue, 13 Sep 2016 11:04:53 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 8.2 \(2104\))
+Subject: Re: [RFC] scripts: Include postprocessing script for memory allocation tracing
+From: Janani Ravichandran <janani.rvchndrn@gmail.com>
+In-Reply-To: <20160912121635.GL14524@dhcp22.suse.cz>
+Date: Tue, 13 Sep 2016 14:04:49 -0400
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <0ACE5927-A6E5-4B49-891D-F990527A9F50@gmail.com>
+References: <20160911222411.GA2854@janani-Inspiron-3521> <20160912121635.GL14524@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rui Teng <rui.teng@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Michal Hocko <mhocko@suse.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Santhosh G <santhog4@in.ibm.com>"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Janani Ravichandran <janani.rvchndrn@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@surriel.com, akpm@linux-foundation.org, vdavydov@virtuozzo.com, vbabka@suse.cz, mgorman@techsingularity.net, rostedt@goodmis.org
 
-On 09/13/2016 01:39 AM, Rui Teng wrote:
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 87e11d8..64b5f81 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1442,7 +1442,7 @@ static int free_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed,
->  static void dissolve_free_huge_page(struct page *page)
->  {
->  	spin_lock(&hugetlb_lock);
-> -	if (PageHuge(page) && !page_count(page)) {
-> +	if (PageHuge(page) && !page_count(page) && PageHead(page)) {
->  		struct hstate *h = page_hstate(page);
->  		int nid = page_to_nid(page);
->  		list_del(&page->lru);
 
-This is goofy.  What is calling dissolve_free_huge_page() on a tail page?
+> On Sep 12, 2016, at 8:16 AM, Michal Hocko <mhocko@kernel.org> wrote:
+>=20
+> Hi,
 
-Hmm:
+Hello Michal,
 
->         for (pfn = start_pfn; pfn < end_pfn; pfn += 1 << minimum_order)
->                 dissolve_free_huge_page(pfn_to_page(pfn));
+> I am sorry I didn't follow up on the previous submission.
 
-So, skip through the area being offlined at the smallest huge page size,
-and try to dissolve a huge page in each place one might appear.  But,
-after we dissolve a 16GB huge page, we continue looking through the
-remaining 15.98GB tail area for huge pages in the area we just
-dissolved.  The tail pages are still PageHuge() (how??), and we call
-page_hstate() on the tail page whose head was just dissolved.
+That=E2=80=99s alright :)
 
-Note, even with the fix, this taking a (global) spinlock 1023 more times
-that it doesn't have to.
+> I find this
+> _really_ helpful. It is great that you could build on top of existing
+> tracepoints but one thing is not entirely clear to me. Without a begin
+> marker in __alloc_pages_nodemask we cannot really tell how long the
+> whole allocation took, which would be extremely useful. Or do you use
+> any graph tracer tricks to deduce that?
 
-This seems inefficient, and fails to fully explain what is going on, and
-how tail pages still _look_ like PageHuge(), which seems pretty wrong.
+I=E2=80=99m using the function graph tracer to see how long =
+__alloc_pages_nodemask()
+took.
 
-I guess the patch _works_.  But, sheesh, it leaves a lot of room for
-improvement.
+
+> There is a note in your
+> changelog but I cannot seem to find that in the changelog. And FWIW I
+> would be open to adding a tracepoint like that. It would make our life
+> so much easier=E2=80=A6
+
+The line
+echo __alloc_pages_nodemask > set_ftrace_filter in setup_alloc_trace.sh
+sets __alloc_pages_nodemask as a function graph filter and this should =
+help
+us observe how long the function took.
+
+>=20
+> On Sun 11-09-16 18:24:12, Janani Ravichandran wrote:
+> [...]
+>> allocation_postprocess.py is a script which reads from trace_pipe. It
+>> does the following to filter out info from tracepoints that may not
+>> be important:
+>>=20
+>> 1. Displays mm_vmscan_direct_reclaim_begin and
+>> mm_vmscan_direct_reclaim_end only when try_to_free_pages has
+>> exceeded the threshold.
+>> 2. Displays mm_compaction_begin and mm_compaction_end only when
+>> compact_zone has exceeded the threshold.
+>> 3. Displays mm_compaction_try_to_compat_pages only when
+>> try_to_compact_pages has exceeded the threshold.
+>> 4. Displays mm_shrink_slab_start and mm_shrink_slab_end only when
+>> the time elapsed between them exceeds the threshold.
+>> 5. Displays mm_vmscan_lru_shrink_inactive only when =
+shrink_inactive_list
+>> has exceeded the threshold.
+>>=20
+>> When CTRL+C is pressed, the script shows the times taken by the
+>> shrinkers. However, currently it is not possible to differentiate =
+among
+>> the
+>> superblock shrinkers.
+>>=20
+>> Sample output:
+>> ^Ci915_gem_shrinker_scan : total time =3D 8.731000 ms, max latency =3D
+>> 0.278000 ms
+>> ext4_es_scan : total time =3D 0.970000 ms, max latency =3D 0.129000 =
+ms
+>> scan_shadow_nodes : total time =3D 1.150000 ms, max latency =3D =
+0.175000 ms
+>> super_cache_scan : total time =3D 8.455000 ms, max latency =3D =
+0.466000 ms
+>> deferred_split_scan : total time =3D 25.767000 ms, max latency =3D =
+25.485000
+>> ms
+>=20
+> Would it be possible to group those per the context?
+
+Absolutely!
+> I mean a single
+> allocation/per-process drop down values rather than mixing all those
+> values together? For example if I see that a process is talling due to
+> direct reclaim I would love to see what is the worst case allocation
+> stall and what is the most probable source of that stall. Mixing =
+kswapd
+> traces would be misleading here.
+>=20
+
+True. I=E2=80=99ll do that and send a v2. Thanks for the suggestions!
+
+Janani
+>=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
