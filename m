@@ -1,42 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FA5B6B025E
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2016 05:33:01 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id l68so25534608wml.3
-        for <linux-mm@kvack.org>; Tue, 13 Sep 2016 02:33:01 -0700 (PDT)
-Received: from mail-wm0-x233.google.com (mail-wm0-x233.google.com. [2a00:1450:400c:c09::233])
-        by mx.google.com with ESMTPS id r134si19907897wmd.40.2016.09.13.02.33.00
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Sep 2016 02:33:00 -0700 (PDT)
-Received: by mail-wm0-x233.google.com with SMTP id 1so190009949wmz.1
-        for <linux-mm@kvack.org>; Tue, 13 Sep 2016 02:33:00 -0700 (PDT)
-Date: Tue, 13 Sep 2016 12:32:58 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC] mm: Change the data type of huge page size from unsigned
- long to u64
-Message-ID: <20160913093257.GA31186@node>
-References: <1473758765-13673-1-git-send-email-rui.teng@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1473758765-13673-1-git-send-email-rui.teng@linux.vnet.ibm.com>
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 514D26B025E
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2016 05:48:12 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id q188so246000210oia.1
+        for <linux-mm@kvack.org>; Tue, 13 Sep 2016 02:48:12 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id g17si25591310ita.7.2016.09.13.02.48.10
+        for <linux-mm@kvack.org>;
+        Tue, 13 Sep 2016 02:48:11 -0700 (PDT)
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: [PATCH v3 00/15] lockdep: Implement crossrelease feature
+Date: Tue, 13 Sep 2016 18:44:59 +0900
+Message-Id: <1473759914-17003-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rui Teng <rui.teng@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Chen Gang <chengang@emindsoft.com.cn>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, hejianet@linux.vnet.ibm.com
+To: peterz@infradead.org, mingo@kernel.org
+Cc: tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
 
-On Tue, Sep 13, 2016 at 05:26:05PM +0800, Rui Teng wrote:
-> The huge page size could be 16G(0x400000000) on ppc64 architecture, and it will
-> cause an overflow on unsigned long data type(0xFFFFFFFF).
+I checked if crossrelease feature works well on my qemu-i386 machine.
+There's no problem at all to work on mine. But I wonder if it's also
+true even on other machines. Especially, on large system. Could you
+let me know if it doesn't work on yours? Or Could you let me know if
+crossrelease feature is useful? Please let me know if you need to
+backport it to another version but it's not easy. Then I can provide
+the backported version after working it.
 
-Huh? ppc64 is 64-bit system and sizeof(void *) is equal to
-sizeof(unsigned long) on Linux (LP64 model).
+I added output text of 'cat /proc/lockdep' on my machine applying
+crossrelease feature, showing dependencies of lockdep. You can check
+what kind of dependencies are added by crossrelease feature. Please
+use '(complete)' or '(PG_locked)' as a keyword to find dependencies
+added by this patch set.
 
-So where your 0xFFFFFFFF comes from?
+-----8<-----
+
+Change from v2
+	- rebase on vanilla v4.7 tag
+	- move lockdep data for page lock from struct page to page_ext
+	- allocate plocks buffer via vmalloc instead of in struct task
+	- enhanced comments and document
+	- optimize performance
+	- make reporting function crossrelease-aware
+
+Change from v1
+	- enhanced the document
+	- removed save_stack_trace() optimizing patch
+	- made this based on the seperated save_stack_trace patchset
+	  https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1182242.html
+
+Can we detect deadlocks below with original lockdep?
+
+Example 1)
+
+	PROCESS X	PROCESS Y
+	--------------	--------------
+	mutext_lock A
+			lock_page B
+	lock_page B
+			mutext_lock A // DEADLOCK
+	unlock_page B
+			mutext_unlock A
+	mutex_unlock A
+			unlock_page B
+
+where A and B are different lock classes.
+
+No, we cannot.
+
+Example 2)
+
+	PROCESS X	PROCESS Y	PROCESS Z
+	--------------	--------------	--------------
+			mutex_lock A
+	lock_page B
+			lock_page B
+					mutext_lock A // DEADLOCK
+					mutext_unlock A
+					unlock_page B
+					(B was held by PROCESS X)
+			unlock_page B
+			mutex_unlock A
+
+where A and B are different lock classes.
+
+No, we cannot.
+
+Example 3)
+
+	PROCESS X	PROCESS Y
+	--------------	--------------
+			mutex_lock A
+	mutex_lock A
+	mutex_unlock A
+			wait_for_complete B // DEADLOCK
+	complete B
+			mutex_unlock A
+
+where A is a lock class and B is a completion variable.
+
+No, we cannot.
+
+Not only lock operations, but also any operations causing to wait or
+spin for something can cause deadlock unless it's eventually *released*
+by someone. The important point here is that the waiting or spinning
+must be *released* by someone.
+
+Using crossrelease feature, we can check dependency and detect deadlock
+possibility not only for typical lock, but also for lock_page(),
+wait_for_xxx() and so on, which might be released in any context.
+
+See the last patch including the document for more information.
+
+Byungchul Park (15):
+  x86/dumpstack: Optimize save_stack_trace
+  x86/dumpstack: Add save_stack_trace()_fast()
+  lockdep: Refactor lookup_chain_cache()
+  lockdep: Add a function building a chain between two classes
+  lockdep: Make check_prev_add can use a separate stack_trace
+  lockdep: Make save_trace can skip stack tracing of the current
+  lockdep: Implement crossrelease feature
+  lockdep: Make crossrelease use save_stack_trace_fast()
+  lockdep: Make print_circular_bug() crosslock-aware
+  lockdep: Apply crossrelease to completion operation
+  pagemap.h: Remove trailing white space
+  lockdep: Apply crossrelease to PG_locked lock
+  lockdep: Apply lock_acquire(release) on __Set(__Clear)PageLocked
+  lockdep: Move data used in CONFIG_LOCKDEP_PAGELOCK from page to
+    page_ext
+  lockdep: Crossrelease feature documentation
+
+ Documentation/locking/crossrelease.txt | 785 ++++++++++++++++++++++++++++++++
+ arch/x86/include/asm/stacktrace.h      |   1 +
+ arch/x86/kernel/dumpstack.c            |   4 +
+ arch/x86/kernel/dumpstack_32.c         |   2 +
+ arch/x86/kernel/stacktrace.c           |  32 ++
+ include/linux/completion.h             | 121 ++++-
+ include/linux/irqflags.h               |  12 +-
+ include/linux/lockdep.h                | 122 +++++
+ include/linux/mm_types.h               |   4 +
+ include/linux/page-flags.h             |  43 +-
+ include/linux/page_ext.h               |   5 +
+ include/linux/pagemap.h                | 124 ++++-
+ include/linux/sched.h                  |   5 +
+ include/linux/stacktrace.h             |   2 +
+ kernel/exit.c                          |   9 +
+ kernel/fork.c                          |  20 +
+ kernel/locking/lockdep.c               | 804 +++++++++++++++++++++++++++++----
+ kernel/sched/completion.c              |  54 ++-
+ lib/Kconfig.debug                      |  30 ++
+ mm/filemap.c                           |  76 +++-
+ mm/page_ext.c                          |   4 +
+ 21 files changed, 2124 insertions(+), 135 deletions(-)
+ create mode 100644 Documentation/locking/crossrelease.txt
 
 -- 
- Kirill A. Shutemov
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
