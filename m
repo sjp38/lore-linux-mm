@@ -1,51 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 559586B0038
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2016 17:42:52 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id n24so16856161pfb.0
-        for <linux-mm@kvack.org>; Tue, 13 Sep 2016 14:42:52 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id c7si717453paq.28.2016.09.13.14.42.50
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 091026B0069
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2016 19:52:30 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id n24so2167656pfb.0
+        for <linux-mm@kvack.org>; Tue, 13 Sep 2016 16:52:30 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id ww6si1246235pab.52.2016.09.13.16.52.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Sep 2016 14:42:51 -0700 (PDT)
-Date: Tue, 13 Sep 2016 23:42:44 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v3 07/15] lockdep: Implement crossrelease feature
-Message-ID: <20160913214244.GB5020@twins.programming.kicks-ass.net>
-References: <1473759914-17003-1-git-send-email-byungchul.park@lge.com>
- <1473759914-17003-8-git-send-email-byungchul.park@lge.com>
- <20160913150554.GI2794@worktop>
- <CANrsvRNarrDejL_ju-X=MtiBbwG-u2H4TNsZ1i_d=3nbd326PQ@mail.gmail.com>
- <20160913193829.GA5016@twins.programming.kicks-ass.net>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 13 Sep 2016 16:52:29 -0700 (PDT)
+From: "Chen, Tim C" <tim.c.chen@intel.com>
+Subject: RE: [PATCH -v3 00/10] THP swap: Delay splitting THP during swapping
+ out
+Date: Tue, 13 Sep 2016 23:52:27 +0000
+Message-ID: <045D8A5597B93E4EBEDDCBF1FC15F50935BF9343@fmsmsx104.amr.corp.intel.com>
+References: <1473266769-2155-1-git-send-email-ying.huang@intel.com>
+ <20160909054336.GA2114@bbox> <87sht824n3.fsf@yhuang-mobile.sh.intel.com>
+ <20160913061349.GA4445@bbox> <87y42wgv5r.fsf@yhuang-dev.intel.com>
+ <20160913070524.GA4973@bbox> <87vay0ji3m.fsf@yhuang-mobile.sh.intel.com>
+ <20160913091652.GB7132@bbox>
+In-Reply-To: <20160913091652.GB7132@bbox>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160913193829.GA5016@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Byungchul Park <max.byungchul.park@gmail.com>
-Cc: Byungchul Park <byungchul.park@lge.com>, Ingo Molnar <mingo@kernel.org>, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
+To: Minchan Kim <minchan@kernel.org>, "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Hansen, Dave" <dave.hansen@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, "Lu, Aaron" <aaron.lu@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A .
+ Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
 
-On Tue, Sep 13, 2016 at 09:38:29PM +0200, Peter Zijlstra wrote:
+>>
+>> - Avoid CPU time for splitting, collapsing THP across swap out/in.
+>
+>Yes, if you want, please give us how bad it is.
+>
 
-> > > I _think_ you propose to keep track of all prior held locks and then use
-> > > the union of the held list on the block-chain with the prior held list
-> > > from the complete context.
-> > 
-> > Almost right. Only thing we need to do to consider the union is to
-> > connect two chains of two contexts by adding one dependency 'b -> a'.
-> 
-> Sure, but how do you arrive at which connection to make. The document is
-> entirely silent on this crucial point.
-> 
-> The union between the held-locks of the blocked and prev-held-locks of
-> the release should give a fair indication I think, but then, I've not
-> thought too hard on this yet.
+It could be pretty bad.  In an experiment with THP turned on and we
+enter swap, 50% of the cpu are spent in the page compaction path. =20
+So if we could deal with units of large page for swap, the splitting
+and compaction of ordinary pages to large page overhead could be avoided.
 
-s/union/intersection/
+   51.89%    51.89%            :1688  [kernel.kallsyms]   [k] pageblock_pfn=
+_to_page                      =20
+                      |
+                      --- pageblock_pfn_to_page
+                         |         =20
+                         |--64.57%-- compaction_alloc
+                         |          migrate_pages
+                         |          compact_zone
+                         |          compact_zone_order
+                         |          try_to_compact_pages
+                         |          __alloc_pages_direct_compact
+                         |          __alloc_pages_nodemask
+                         |          alloc_pages_vma
+                         |          do_huge_pmd_anonymous_page
+                         |          handle_mm_fault
+                         |          __do_page_fault
+                         |          do_page_fault
+                         |          page_fault
+                         |          0x401d9a
+                         |         =20
+                         |--34.62%-- compact_zone
+                         |          compact_zone_order
+                         |          try_to_compact_pages
+                         |          __alloc_pages_direct_compact
+                         |          __alloc_pages_nodemask
+                         |          alloc_pages_vma
+                         |          do_huge_pmd_anonymous_page
+                         |          handle_mm_fault
+                         |          __do_page_fault
+                         |          do_page_fault
+                         |          page_fault
+                         |          0x401d9a
+                          --0.81%-- [...]
 
-those that are in both sets.
+Tim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
