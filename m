@@ -1,149 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8848D6B0069
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2016 02:13:53 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id o7so359239155oif.0
-        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 23:13:53 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id t19si8655739ioi.250.2016.09.12.23.13.51
-        for <linux-mm@kvack.org>;
-        Mon, 12 Sep 2016 23:13:52 -0700 (PDT)
-Date: Tue, 13 Sep 2016 15:13:49 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH -v3 00/10] THP swap: Delay splitting THP during swapping
- out
-Message-ID: <20160913061349.GA4445@bbox>
-References: <1473266769-2155-1-git-send-email-ying.huang@intel.com>
- <20160909054336.GA2114@bbox>
- <87sht824n3.fsf@yhuang-mobile.sh.intel.com>
-MIME-Version: 1.0
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C734E6B0069
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2016 02:26:35 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id 192so179874733itm.2
+        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 23:26:35 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id o133si12983448oif.18.2016.09.12.23.26.34
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 12 Sep 2016 23:26:34 -0700 (PDT)
+Subject: Re: [RFC 3/4] mm, oom: do not rely on TIF_MEMDIE for exit_oom_victim
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201609041050.BFG65134.OHVFQJOOSLMtFF@I-love.SAKURA.ne.jp>
+	<20160909140851.GP4844@dhcp22.suse.cz>
+	<201609101529.GCI12481.VOtOLHJQFOSMFF@I-love.SAKURA.ne.jp>
+	<201609102155.AHJ57859.SOFHQFOtOFLJVM@I-love.SAKURA.ne.jp>
+	<20160912091141.GD14524@dhcp22.suse.cz>
+In-Reply-To: <20160912091141.GD14524@dhcp22.suse.cz>
+Message-Id: <201609131525.IGF78600.JFOOVQMOLSHFFt@I-love.SAKURA.ne.jp>
+Date: Tue, 13 Sep 2016 15:25:51 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87sht824n3.fsf@yhuang-mobile.sh.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
+To: mhocko@kernel.org
+Cc: linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, oleg@redhat.com, viro@zeniv.linux.org.uk
 
-Hi Huang,
+Michal Hocko wrote:
+> On Sat 10-09-16 21:55:49, Tetsuo Handa wrote:
+> > Tetsuo Handa wrote:
+> > > If you worry about tasks which are sitting on a memory which is not
+> > > reclaimable by the oom reaper, why you don't worry about tasks which
+> > > share mm and do not share signal (i.e. clone(CLONE_VM && !CLONE_SIGHAND)
+> > > tasks) ? Thawing only tasks which share signal is a halfway job.
+> > > 
+> > 
+> > Here is a different approach which does not thaw tasks as of mark_oom_victim()
+> > but thaws tasks as of oom_killer_disable(). I think that we don't need to
+> > distinguish OOM victims and killed/exiting tasks when we disable the OOM
+> > killer, for trying to reclaim as much memory as possible is preferable for
+> > reducing the possibility of memory allocation failure after the OOM killer
+> > is disabled.
+> 
+> This makes the oom_killer_disable suspend specific which is imho not
+> necessary. While we do not have any other user outside of the suspend
+> path right now and I hope we will not need any in a foreseeable future
+> there is no real reason to do a hack like this if we can make the
+> implementation suspend independent.
 
-On Fri, Sep 09, 2016 at 01:35:12PM -0700, Huang, Ying wrote:
+My intention is to somehow get rid of oom_killer_disable(). While I wrote
+this approach, I again came to wonder why we need to disable the OOM killer
+during suspend.
 
-< snip >
+If the reason is that the OOM killer thaws already frozen OOM victims,
+we won't have reason to disable the OOM killer if the OOM killer does not
+thaw OOM victims. We can rely on the OOM killer/reaper immediately before
+start taking a memory snapshot for suspend.
 
-> >> Recently, the performance of the storage devices improved so fast that
-> >> we cannot saturate the disk bandwidth when do page swap out even on a
-> >> high-end server machine.  Because the performance of the storage
-> >> device improved faster than that of CPU.  And it seems that the trend
-> >> will not change in the near future.  On the other hand, the THP
-> >> becomes more and more popular because of increased memory size.  So it
-> >> becomes necessary to optimize THP swap performance.
-> >> 
-> >> The advantages of the THP swap support include:
-> >> 
-> >> - Batch the swap operations for the THP to reduce lock
-> >>   acquiring/releasing, including allocating/freeing the swap space,
-> >>   adding/deleting to/from the swap cache, and writing/reading the swap
-> >>   space, etc.  This will help improve the performance of the THP swap.
-> >> 
-> >> - The THP swap space read/write will be 2M sequential IO.  It is
-> >>   particularly helpful for the swap read, which usually are 4k random
-> >>   IO.  This will improve the performance of the THP swap too.
-> >> 
-> >> - It will help the memory fragmentation, especially when the THP is
-> >>   heavily used by the applications.  The 2M continuous pages will be
-> >>   free up after THP swapping out.
-> >
-> > I just read patchset right now and still doubt why the all changes
-> > should be coupled with THP tightly. Many parts(e.g., you introduced
-> > or modifying existing functions for making them THP specific) could
-> > just take page_list and the number of pages then would handle them
-> > without THP awareness.
-> 
-> I am glad if my change could help normal pages swapping too.  And we can
-> change these functions to work for normal pages when necessary.
+If the reason is that the OOM killer changes SIGKILL pending state of
+already frozen OOM victims during taking a memory snapshot, I think that
+sending SIGKILL via not only SysRq-f but also SysRq-i will be problematic.
 
-Sure but it would be less painful that THP awareness swapout is
-based on multiple normal pages swapout. For exmaple, we don't
-touch delay THP split part(i.e., split a THP into 512 pages like
-as-is) and enhances swapout further like Tim's suggestion
-for mulitple normal pages swapout. With that, it might be enough
-for fast-storage without needing THP awareness.
-
-My *point* is let's approach step by step.
-First of all, go with batching normal pages swapout and if it's
-not enough, dive into further optimization like introducing
-THP-aware swapout.
-
-I believe it's natural development process to evolve things
-without over-engineering.
-
-> 
-> > For example, if the nr_pages is larger than SWAPFILE_CLUSTER, we
-> > can try to allocate new cluster. With that, we could allocate new
-> > clusters to meet nr_pages requested or bail out if we fail to allocate
-> > and fallback to 0-order page swapout. With that, swap layer could
-> > support multiple order-0 pages by batch.
-> >
-> > IMO, I really want to land Tim Chen's batching swapout work first.
-> > With Tim Chen's work, I expect we can make better refactoring
-> > for batching swap before adding more confuse to the swap layer.
-> > (I expect it would share several pieces of code for or would be base
-> > for batching allocation of swapcache, swapslot)
-> 
-> I don't think there is hard conflict between normal pages swapping
-> optimizing and THP swap optimizing.  Some code may be shared between
-> them.  That is good for both sides.
-> 
-> > After that, we could enhance swap for big contiguous batching
-> > like THP and finally we might make it be aware of THP specific to
-> > enhance further.
-> >
-> > A thing I remember you aruged: you want to swapin 512 pages
-> > all at once unconditionally. It's really worth to discuss if
-> > your design is going for the way.
-> > I doubt it's generally good idea. Because, currently, we try to
-> > swap in swapped out pages in THP page with conservative approach
-> > but your direction is going to opposite way.
-> >
-> > [mm, thp: convert from optimistic swapin collapsing to conservative]
-> >
-> > I think general approach(i.e., less effective than targeting
-> > implement for your own specific goal but less hacky and better job
-> > for many cases) is to rely/improve on the swap readahead.
-> > If most of subpages of a THP page are really workingset, swap readahead
-> > could work well.
-> >
-> > Yeah, it's fairly vague feedback so sorry if I miss something clear.
-> 
-> Yes.  I want to go to the direction that to swap in 512 pages together.
-> And I think it is a good opportunity to discuss that now.  The advantages
-> of swapping in 512 pages together are:
-> 
-> - Improve the performance of swapping in IO via turning small read size
->   into 512 pages big read size.
-> 
-> - Keep THP across swap out/in.  With the memory size become more and
->   more large, the 4k pages bring more and more burden to memory
->   management.  One solution is to use 2M pages as much as possible, that
->   will reduce the management burden greatly, such as much reduced length
->   of LRU list, etc.
-> 
-> The disadvantage are:
-> 
-> - Increase the memory pressure when swap in THP.
-> 
-> - Some pages swapped in may not needed in the near future.
-> 
-> Because of the disadvantages, the 512 pages swapping in should be made
-> optional.  But I don't think we should make it impossible.
-
-Yeb. No need to make it impossible but your design shouldn't be coupled
-with non-existing feature yet.
-
-> 
-> Best Regards,
-> Huang, Ying
+If the reason is that the OOM reaper changes content of mm_struct of
+OOM victims during taking a memory snapshot, what guarantees that
+the OOM reaper does not call __oom_reap_task_mm() because we are not
+waiting for oom_reaper_list to become NULL at oom_killer_disable(), for
+patch "oom, suspend: fix oom_killer_disable vs. pm suspend properly"
+removed set_freezable() from oom_reaper() which made oom_reaper() no
+longer enter __refrigerator() at wait_event_freezable() in oom_reaper() ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
