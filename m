@@ -1,39 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 22CFB6B0069
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2016 02:44:09 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id ag5so392821560pad.2
-        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 23:44:09 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id tq7si25988783pab.0.2016.09.12.23.44.06
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A9C016B0069
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2016 02:53:04 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id n4so104200083lfb.3
+        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 23:53:04 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id a4si19353965wme.75.2016.09.12.23.53.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 Sep 2016 23:44:06 -0700 (PDT)
-Date: Mon, 12 Sep 2016 23:44:05 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [RFC PATCH 1/2] mm, mincore2(): retrieve dax and tlb-size
- attributes of an address range
-Message-ID: <20160913064405.GA21069@infradead.org>
-References: <147361509579.17004.5258725187329709824.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Mon, 12 Sep 2016 23:53:03 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id b184so874045wma.3
+        for <linux-mm@kvack.org>; Mon, 12 Sep 2016 23:53:03 -0700 (PDT)
+Date: Tue, 13 Sep 2016 08:53:01 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2] fs: use mapping_set_error instead of opencoded
+ set_bit
+Message-ID: <20160913065259.GA31898@dhcp22.suse.cz>
+References: <20160901091347.GC12147@dhcp22.suse.cz>
+ <20160912111608.2588-1-mhocko@kernel.org>
+ <20160912111608.2588-2-mhocko@kernel.org>
+ <20160912151146.9999e6b1a9b18eac61d177d2@linux-foundation.org>
+ <20160912151823.45d01e5acc44fa082c94dd2c@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <147361509579.17004.5258725187329709824.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <20160912151823.45d01e5acc44fa082c94dd2c@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Xiao Guangrong <guangrong.xiao@linux.intel.com>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm@ml01.01.org, linux-api@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Sun, Sep 11, 2016 at 10:31:35AM -0700, Dan Williams wrote:
-> As evidenced by this bug report [1], userspace libraries are interested
-> in whether a mapping is DAX mapped, i.e. no intervening page cache.
-> Rather than using the ambiguous VM_MIXEDMAP flag in smaps, provide an
-> explicit "is dax" indication as a new flag in the page vector populated
-> by mincore.
+On Mon 12-09-16 15:18:23, Andrew Morton wrote:
+> On Mon, 12 Sep 2016 15:11:46 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
+> 
+> > > @@ -409,7 +408,7 @@ static int afs_write_back_from_locked_page(struct afs_writeback *wb,
+> > >  		case -ENOMEDIUM:
+> > >  		case -ENXIO:
+> > >  			afs_kill_pages(wb->vnode, true, first, last);
+> > > -			set_bit(AS_EIO, &wb->vnode->vfs_inode.i_mapping->flags);
+> > > +			mapping_set_error(wb->vnode->vfs_inode.i_mapping, -ENXIO);
+> > 
+> > This one is a functional change: mapping_set_error() will rewrite
+> > -ENXIO into -EIO.  Doesn't seem at all important though.
+> 
+> hm, OK, it's not a functional change - the code was already doing
+> s/ENXIO/EIO/.
 
-And how exactly does an implementation detail like DAX matter for an
-application?  The only thing that might matter is the atomicy boundary,
-but mincore is not the right interface for that.
+Yes the rewrite is silent but I've decided to keep the current errno
+because I have no idea whether this can change in future. It doesn't
+sound probable but it also sounds safer to do an overwrite at a single
+place rather than all over the place /me thinks.
+
+> Let's make it look more truthful?
+> 
+> --- a/fs/afs/write.c~fs-use-mapping_set_error-instead-of-opencoded-set_bit-fix
+> +++ a/fs/afs/write.c
+> @@ -408,7 +408,7 @@ no_more:
+>  		case -ENOMEDIUM:
+>  		case -ENXIO:
+>  			afs_kill_pages(wb->vnode, true, first, last);
+> -			mapping_set_error(wb->vnode->vfs_inode.i_mapping, -ENXIO);
+> +			mapping_set_error(wb->vnode->vfs_inode.i_mapping, -EIO);
+>  			break;
+>  		case -EACCES:
+>  		case -EPERM:
+> _
+> 
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
