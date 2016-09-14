@@ -1,23 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C9C7B6B0253
-	for <linux-mm@kvack.org>; Wed, 14 Sep 2016 09:50:39 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id fu12so28297327pac.1
-        for <linux-mm@kvack.org>; Wed, 14 Sep 2016 06:50:39 -0700 (PDT)
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0064.outbound.protection.outlook.com. [104.47.40.64])
-        by mx.google.com with ESMTPS id 201si12624322pfw.92.2016.09.14.06.50.38
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C49C6B0038
+	for <linux-mm@kvack.org>; Wed, 14 Sep 2016 10:02:20 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id wk8so28384761pab.3
+        for <linux-mm@kvack.org>; Wed, 14 Sep 2016 07:02:20 -0700 (PDT)
+Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0089.outbound.protection.outlook.com. [104.47.42.89])
+        by mx.google.com with ESMTPS id y23si13108107pff.12.2016.09.14.07.02.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 14 Sep 2016 06:50:39 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 16/20] x86: Check for memory encryption on the APs
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 14 Sep 2016 07:02:19 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 18/20] x86/kvm: Enable Secure Memory Encryption of
+ nested page tables
 References: <20160822223529.29880.50884.stgit@tlendack-t1.amdoffice.net>
- <20160822223829.29880.10341.stgit@tlendack-t1.amdoffice.net>
- <20160912121739.rwuumwpwo5megmd7@pd.tnic>
+ <20160822223849.29880.35462.stgit@tlendack-t1.amdoffice.net>
+ <20160912143555.26lxdu3lv3o5hjp7@pd.tnic>
 From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <06a97eaa-d54f-9f7e-d207-4ff3e576169f@amd.com>
-Date: Wed, 14 Sep 2016 08:50:25 -0500
+Message-ID: <e163446f-52e6-ff52-0306-83b304173e44@amd.com>
+Date: Wed, 14 Sep 2016 09:02:09 -0500
 MIME-Version: 1.0
-In-Reply-To: <20160912121739.rwuumwpwo5megmd7@pd.tnic>
+In-Reply-To: <20160912143555.26lxdu3lv3o5hjp7@pd.tnic>
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -26,77 +27,71 @@ To: Borislav Petkov <bp@alien8.de>
 Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
  Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
 
-On 09/12/2016 07:17 AM, Borislav Petkov wrote:
-> On Mon, Aug 22, 2016 at 05:38:29PM -0500, Tom Lendacky wrote:
->> Add support to check if memory encryption is active in the kernel and that
->> it has been enabled on the AP. If memory encryption is active in the kernel
->> but has not been enabled on the AP then do not allow the AP to continue
->> start up.
+On 09/12/2016 09:35 AM, Borislav Petkov wrote:
+> On Mon, Aug 22, 2016 at 05:38:49PM -0500, Tom Lendacky wrote:
+>> Update the KVM support to include the memory encryption mask when creating
+>> and using nested page tables.
 >>
 >> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 >> ---
->>  arch/x86/include/asm/msr-index.h     |    2 ++
->>  arch/x86/include/asm/realmode.h      |   12 ++++++++++++
->>  arch/x86/realmode/init.c             |    4 ++++
->>  arch/x86/realmode/rm/trampoline_64.S |   19 +++++++++++++++++++
->>  4 files changed, 37 insertions(+)
+>>  arch/x86/include/asm/kvm_host.h |    3 ++-
+>>  arch/x86/kvm/mmu.c              |    8 ++++++--
+>>  arch/x86/kvm/vmx.c              |    3 ++-
+>>  arch/x86/kvm/x86.c              |    3 ++-
+>>  4 files changed, 12 insertions(+), 5 deletions(-)
+>>
+>> diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
+>> index 33ae3a4..c51c1cb 100644
+>> --- a/arch/x86/include/asm/kvm_host.h
+>> +++ b/arch/x86/include/asm/kvm_host.h
+>> @@ -1039,7 +1039,8 @@ void kvm_mmu_setup(struct kvm_vcpu *vcpu);
+>>  void kvm_mmu_init_vm(struct kvm *kvm);
+>>  void kvm_mmu_uninit_vm(struct kvm *kvm);
+>>  void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
+>> -		u64 dirty_mask, u64 nx_mask, u64 x_mask, u64 p_mask);
+>> +		u64 dirty_mask, u64 nx_mask, u64 x_mask, u64 p_mask,
+>> +		u64 me_mask);
 > 
-> ...
+> Why do you need a separate mask?
 > 
->> diff --git a/arch/x86/realmode/rm/trampoline_64.S b/arch/x86/realmode/rm/trampoline_64.S
->> index dac7b20..94e29f4 100644
->> --- a/arch/x86/realmode/rm/trampoline_64.S
->> +++ b/arch/x86/realmode/rm/trampoline_64.S
->> @@ -30,6 +30,7 @@
->>  #include <asm/msr.h>
->>  #include <asm/segment.h>
->>  #include <asm/processor-flags.h>
->> +#include <asm/realmode.h>
->>  #include "realmode.h"
+> arch/x86/kvm/mmu.c::set_spte() ORs in shadow_present_mask
+> unconditionally. So you can simply do:
+> 
+> 
+> 	kvm_mmu_set_mask_ptes(PT_USER_MASK, PT_ACCESSED_MASK,
+> 			      PT_DIRTY_MASK, PT64_NX_MASK, 0,
+> 			      PT_PRESENT_MASK | sme_me_mask);
+> 
+> and have this change much simpler.
+
+Just keeping in step with the way this is done for the other masks.
+They each have a specific meaning so I was trying not to combine
+them in case they may be used differently in the future.
+
+> 
+>>  void kvm_mmu_reset_context(struct kvm_vcpu *vcpu);
+>>  void kvm_mmu_slot_remove_write_access(struct kvm *kvm,
+>> diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+>> index 3d4cc8cc..a7040f4 100644
+>> --- a/arch/x86/kvm/mmu.c
+>> +++ b/arch/x86/kvm/mmu.c
+>> @@ -122,7 +122,7 @@ module_param(dbg, bool, 0644);
+>>  					    * PT32_LEVEL_BITS))) - 1))
 >>  
->>  	.text
->> @@ -92,6 +93,23 @@ ENTRY(startup_32)
->>  	movl	%edx, %fs
->>  	movl	%edx, %gs
->>  
->> +	/* Check for memory encryption support */
->> +	bt	$TH_FLAGS_SME_ENABLE_BIT, pa_tr_flags
->> +	jnc	.Ldone
->> +	movl	$MSR_K8_SYSCFG, %ecx
->> +	rdmsr
->> +	bt	$MSR_K8_SYSCFG_MEM_ENCRYPT_BIT, %eax
->> +	jc	.Ldone
->> +
->> +	/*
->> +	 * Memory encryption is enabled but the MSR has not been set on this
->> +	 * CPU so we can't continue
+>>  #define PT64_PERM_MASK (PT_PRESENT_MASK | PT_WRITABLE_MASK | shadow_user_mask \
+>> -			| shadow_x_mask | shadow_nx_mask)
+>> +			| shadow_x_mask | shadow_nx_mask | shadow_me_mask)
 > 
-> Hmm, let me try to parse this correctly: BSP has SME enabled but the
-> BIOS might not've set this on the AP? Really? Is that even possible?
-
-Anything is possible, although it's highly unlikely.
-
+> This would be sme_me_mask, of course, like with the baremetal masks.
 > 
-> Because if SME is enabled, that means that MSR_K8_SYSCFG[23] on the BSP
-> is set, right?
+> Or am I missing something?
 
-Correct.
-
-> 
-> Also, I want to rule out here simple BIOS idiocy: if the only problem
-> with the bit not being set in the AP is because some BIOS monkey forgot
-> to do so, then we should try to set it ourselves and not die for no real
-> reason.
-
-Yes, we can do that.  I was debating on which way to go with this. Most
-likely this would never happen, but if it did...  I can change this to
-set the MSR bit and continue.
+Given the current patch, this would be shadow_me_mask since that value
+is set by the call to kvm_mmu_set_mask_ptes.
 
 Thanks,
 Tom
 
-> 
-> Or is there another issue?
 > 
 
 --
