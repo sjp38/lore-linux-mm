@@ -1,52 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 831FA6B0069
-	for <linux-mm@kvack.org>; Wed, 14 Sep 2016 05:25:55 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 1so7934467wmz.2
-        for <linux-mm@kvack.org>; Wed, 14 Sep 2016 02:25:55 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gd8si3269508wjb.188.2016.09.14.02.25.54
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 14 Sep 2016 02:25:54 -0700 (PDT)
-Date: Wed, 14 Sep 2016 10:25:51 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] sched,numa,mm: revert to checking pmd/pte_write instead
- of VMA flags
-Message-ID: <20160914092551.GA2745@suse.de>
-References: <20160908213053.07c992a9@annuminas.surriel.com>
- <20160911162402.GA2775@suse.de>
- <1473692983.32433.235.camel@redhat.com>
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F6CD6B0069
+	for <linux-mm@kvack.org>; Wed, 14 Sep 2016 05:35:28 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id 186so38883284itf.2
+        for <linux-mm@kvack.org>; Wed, 14 Sep 2016 02:35:28 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTP id x78si7457470oia.164.2016.09.14.02.35.15
+        for <linux-mm@kvack.org>;
+        Wed, 14 Sep 2016 02:35:16 -0700 (PDT)
+Message-ID: <57D91771.9050108@huawei.com>
+Date: Wed, 14 Sep 2016 17:25:05 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1473692983.32433.235.camel@redhat.com>
+Subject: Re: [PATCH] mm: fix oom work when memory is under pressure
+References: <1473173226-25463-1-git-send-email-zhongjiang@huawei.com> <20160909114410.GG4844@dhcp22.suse.cz> <57D67A8A.7070500@huawei.com> <20160912111327.GG14524@dhcp22.suse.cz> <57D6B0C4.6040400@huawei.com> <20160912174445.GC14997@dhcp22.suse.cz> <57D7FB71.9090102@huawei.com> <20160913132854.GB6592@dhcp22.suse.cz> <57D8F8AE.1090404@huawei.com> <20160914084219.GA1612@dhcp22.suse.cz> <20160914085227.GB1612@dhcp22.suse.cz>
+In-Reply-To: <20160914085227.GB1612@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, peterz@infradead.org, mingo@kernel.org, aarcange@redhat.com
+To: Michal Hocko <mhocko@suse.cz>
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, linux-mm@kvack.org, Xishi Qiu <qiuxishi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Hugh Dickins <hughd@google.com>
 
-On Mon, Sep 12, 2016 at 11:09:43AM -0400, Rik van Riel wrote:
-> > Patch looks ok other than the comment above the second hunk being out
-> > of
-> > date. Out of curiousity, what workload benefitted from this? I saw a
-> > mix
-> > of marginal results when I ran this on a 2-socket and 4-socket box.
-> 
-> I did not performance test the change, because I believe
-> the VM_WRITE test has a small logical error.
-> 
-> Specifically, VM_WRITE is also true for VMAs that are
-> PROT_WRITE|MAP_PRIVATE, which we do NOT want to group
-> on. Every shared library mapped on my system seems to
-> have a (small) read-write VMA:
-> 
+On 2016/9/14 16:52, Michal Hocko wrote:
+> On Wed 14-09-16 10:42:19, Michal Hocko wrote:
+>> [Let's CC Hugh]
+> now for real...
+>
+>> On Wed 14-09-16 15:13:50, zhong jiang wrote:
+>> [...]
+>>>   hi, Michal
+>>>
+>>>   Recently, I hit the same issue when run a OOM case of the LTP and ksm enable.
+>>>  
+>>> [  601.937145] Call trace:
+>>> [  601.939600] [<ffffffc000086a88>] __switch_to+0x74/0x8c
+>>> [  601.944760] [<ffffffc000a1bae0>] __schedule+0x23c/0x7bc
+>>> [  601.950007] [<ffffffc000a1c09c>] schedule+0x3c/0x94
+>>> [  601.954907] [<ffffffc000a1eb84>] rwsem_down_write_failed+0x214/0x350
+>>> [  601.961289] [<ffffffc000a1e32c>] down_write+0x64/0x80
+>>> [  601.966363] [<ffffffc00021f794>] __ksm_exit+0x90/0x19c
+>>> [  601.971523] [<ffffffc0000be650>] mmput+0x118/0x11c
+>>> [  601.976335] [<ffffffc0000c3ec4>] do_exit+0x2dc/0xa74
+>>> [  601.981321] [<ffffffc0000c46f8>] do_group_exit+0x4c/0xe4
+>>> [  601.986656] [<ffffffc0000d0f34>] get_signal+0x444/0x5e0
+>>> [  601.991904] [<ffffffc000089fcc>] do_signal+0x1d8/0x450
+>>> [  601.997065] [<ffffffc00008a35c>] do_notify_resume+0x70/0x78
+>> So this is a hung task triggering because the exiting task cannot get
+>> the mmap sem for write because the ksmd holds it for read while
+>> allocating memory which just takes ages to complete, right?
+>>
+>>> The root case is that ksmd hold the read lock. and the lock is not released.
+>>>  scan_get_next_rmap_item
+>>>          down_read
+>>>                    get_next_rmap_item
+>>>                              alloc_rmap_item     #ksmd will loop permanently.
+>>>
+>>> How do you see this kind of situation ? or  let the issue alone.
+>> I am not familiar with the ksmd code so it is hard for me to judge but
+>> one thing to do would be __GFP_NORETRY which would force a bail out from
+>> the allocation rather than looping for ever. A quick look tells me that
+>> the allocation failure here is quite easy to handle. There might be
+>> others...
+>>
+>> -- 
+>> Michal Hocko
+>> SUSE Labs
+Adding the __GFP_NORETRY,  the issue also can fixed.
+Therefore, we can assure that the case of LTP will leads to the endless looping.
 
-Ok, while I agree with you, the patch is not a guaranteed win. However,
-in the event it is not, I agree that the problem will be with the
-grouping code. If the comment is updated then feel free to add my
+index d45a0a1..03fb67b 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -283,7 +283,7 @@ static inline struct rmap_item *alloc_rmap_item(void)
+ {
+        struct rmap_item *rmap_item;
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+-       rmap_item = kmem_cache_zalloc(rmap_item_cache, GFP_KERNEL);
++       rmap_item = kmem_cache_zalloc(rmap_item_cache, GFP_KERNEL | __GFP_NORETRY);
+        if (rmap_item)
+                ksm_rmap_items++;
+        return rmap_item;
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
