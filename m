@@ -1,41 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 281BA6B0038
-	for <linux-mm@kvack.org>; Wed, 14 Sep 2016 12:37:25 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id fu12so37799825pac.1
-        for <linux-mm@kvack.org>; Wed, 14 Sep 2016 09:37:25 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id o6si5428217pan.251.2016.09.14.09.37.23
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 75A356B0038
+	for <linux-mm@kvack.org>; Wed, 14 Sep 2016 15:52:56 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id s64so23601057lfs.1
+        for <linux-mm@kvack.org>; Wed, 14 Sep 2016 12:52:56 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id d2si5990693wjl.73.2016.09.14.12.52.54
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 14 Sep 2016 09:37:23 -0700 (PDT)
-Subject: Re: [PATCH] memory-hotplug: Fix bad area access on
- dissolve_free_huge_pages()
-References: <1473755948-13215-1-git-send-email-rui.teng@linux.vnet.ibm.com>
- <57D83821.4090804@linux.intel.com>
- <a789f3ef-bd49-8811-e1df-e949f0758ad1@linux.vnet.ibm.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <57D97CAF.7080005@linux.intel.com>
-Date: Wed, 14 Sep 2016 09:37:03 -0700
-MIME-Version: 1.0
-In-Reply-To: <a789f3ef-bd49-8811-e1df-e949f0758ad1@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 Sep 2016 12:52:54 -0700 (PDT)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [PATCH 1/3] mm: memcontrol: make per-cpu charge cache IRQ-safe for socket accounting
+Date: Wed, 14 Sep 2016 15:48:44 -0400
+Message-Id: <20160914194846.11153-1-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rui Teng <rui.teng@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Michal Hocko <mhocko@suse.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Santhosh G <santhog4@in.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, "David S. Miller" <davem@davemloft.net>
+Cc: Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@virtuozzo.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On 09/14/2016 09:33 AM, Rui Teng wrote:
-> 
-> How about return the size of page freed from dissolve_free_huge_page(),
-> and jump such step on pfn?
+From: Johannes Weiner <jweiner@fb.com>
 
-That would be a nice improvement.
+During cgroup2 rollout into production, we started encountering css
+refcount underflows and css access crashes in the memory controller.
+Splitting the heavily shared css reference counter into logical users
+narrowed the imbalance down to the cgroup2 socket memory accounting.
 
-But, as far as describing the initial problem, can you explain how the
-tail pages still ended up being PageHuge()?  Seems like dissolving the
-huge page should have cleared that.
+The problem turns out to be the per-cpu charge cache. Cgroup1 had a
+separate socket counter, but the new cgroup2 socket accounting goes
+through the common charge path that uses a shared per-cpu cache for
+all memory that is being tracked. Those caches are safe against
+scheduling preemption, but not against interrupts - such as the newly
+added packet receive path. When cache draining is interrupted by
+network RX taking pages out of the cache, the resuming drain operation
+will put references of in-use pages, thus causing the imbalance.
+
+Disable IRQs during all per-cpu charge cache operations.
+
+Fixes: f7e1cb6ec51b ("mm: memcontrol: account socket memory in unified hierarchy memory controller")
+Cc: <stable@vger.kernel.org> # 4.5+
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ mm/memcontrol.c | 31 ++++++++++++++++++++++---------
+ 1 file changed, 22 insertions(+), 9 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 7a8d6624758a..60bb830abc34 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1710,17 +1710,22 @@ static DEFINE_MUTEX(percpu_charge_mutex);
+ static bool consume_stock(struct mem_cgroup *memcg, unsigned int nr_pages)
+ {
+ 	struct memcg_stock_pcp *stock;
++	unsigned long flags;
+ 	bool ret = false;
+ 
+ 	if (nr_pages > CHARGE_BATCH)
+ 		return ret;
+ 
+-	stock = &get_cpu_var(memcg_stock);
++	local_irq_save(flags);
++
++	stock = this_cpu_ptr(&memcg_stock);
+ 	if (memcg == stock->cached && stock->nr_pages >= nr_pages) {
+ 		stock->nr_pages -= nr_pages;
+ 		ret = true;
+ 	}
+-	put_cpu_var(memcg_stock);
++
++	local_irq_restore(flags);
++
+ 	return ret;
+ }
+ 
+@@ -1741,15 +1746,18 @@ static void drain_stock(struct memcg_stock_pcp *stock)
+ 	stock->cached = NULL;
+ }
+ 
+-/*
+- * This must be called under preempt disabled or must be called by
+- * a thread which is pinned to local cpu.
+- */
+ static void drain_local_stock(struct work_struct *dummy)
+ {
+-	struct memcg_stock_pcp *stock = this_cpu_ptr(&memcg_stock);
++	struct memcg_stock_pcp *stock;
++	unsigned long flags;
++
++	local_irq_save(flags);
++
++	stock = this_cpu_ptr(&memcg_stock);
+ 	drain_stock(stock);
+ 	clear_bit(FLUSHING_CACHED_CHARGE, &stock->flags);
++
++	local_irq_restore(flags);
+ }
+ 
+ /*
+@@ -1758,14 +1766,19 @@ static void drain_local_stock(struct work_struct *dummy)
+  */
+ static void refill_stock(struct mem_cgroup *memcg, unsigned int nr_pages)
+ {
+-	struct memcg_stock_pcp *stock = &get_cpu_var(memcg_stock);
++	struct memcg_stock_pcp *stock;
++	unsigned long flags;
++
++	local_irq_save(flags);
+ 
++	stock = this_cpu_ptr(&memcg_stock);
+ 	if (stock->cached != memcg) { /* reset if necessary */
+ 		drain_stock(stock);
+ 		stock->cached = memcg;
+ 	}
+ 	stock->nr_pages += nr_pages;
+-	put_cpu_var(memcg_stock);
++
++	local_irq_restore(flags);
+ }
+ 
+ /*
+-- 
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
