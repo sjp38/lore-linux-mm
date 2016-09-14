@@ -1,116 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DBD366B0069
-	for <linux-mm@kvack.org>; Wed, 14 Sep 2016 04:11:21 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id v67so14492068pfv.1
-        for <linux-mm@kvack.org>; Wed, 14 Sep 2016 01:11:21 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id p63si32292512pfp.244.2016.09.14.01.11.21
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B655F6B0069
+	for <linux-mm@kvack.org>; Wed, 14 Sep 2016 04:42:28 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id u14so6298106lfd.0
+        for <linux-mm@kvack.org>; Wed, 14 Sep 2016 01:42:28 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p13si3102305wmd.97.2016.09.14.01.42.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Sep 2016 01:11:21 -0700 (PDT)
-Date: Wed, 14 Sep 2016 10:11:17 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v3 07/15] lockdep: Implement crossrelease feature
-Message-ID: <20160914081117.GK5008@twins.programming.kicks-ass.net>
-References: <1473759914-17003-1-git-send-email-byungchul.park@lge.com>
- <1473759914-17003-8-git-send-email-byungchul.park@lge.com>
- <20160913150554.GI2794@worktop>
- <CANrsvRNarrDejL_ju-X=MtiBbwG-u2H4TNsZ1i_d=3nbd326PQ@mail.gmail.com>
- <20160913193829.GA5016@twins.programming.kicks-ass.net>
- <CANrsvROL43uYXsU7-kmFbHFgiKARBXYHNeqL71V9GxGzBYEdNA@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 14 Sep 2016 01:42:26 -0700 (PDT)
+Date: Wed, 14 Sep 2016 10:42:19 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm: fix oom work when memory is under pressure
+Message-ID: <20160914084219.GA1612@dhcp22.suse.cz>
+References: <1473173226-25463-1-git-send-email-zhongjiang@huawei.com>
+ <20160909114410.GG4844@dhcp22.suse.cz>
+ <57D67A8A.7070500@huawei.com>
+ <20160912111327.GG14524@dhcp22.suse.cz>
+ <57D6B0C4.6040400@huawei.com>
+ <20160912174445.GC14997@dhcp22.suse.cz>
+ <57D7FB71.9090102@huawei.com>
+ <20160913132854.GB6592@dhcp22.suse.cz>
+ <57D8F8AE.1090404@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CANrsvROL43uYXsU7-kmFbHFgiKARBXYHNeqL71V9GxGzBYEdNA@mail.gmail.com>
+In-Reply-To: <57D8F8AE.1090404@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Byungchul Park <max.byungchul.park@gmail.com>
-Cc: Byungchul Park <byungchul.park@lge.com>, Ingo Molnar <mingo@kernel.org>, tglx@linutronix.de, Michel Lespinasse <walken@google.com>, boqun.feng@gmail.com, kirill@shutemov.name, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
+To: zhong jiang <zhongjiang@huawei.com>
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, linux-mm@kvack.org, Xishi Qiu <qiuxishi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
 
-On Wed, Sep 14, 2016 at 11:27:22AM +0900, Byungchul Park wrote:
-> > Well, there is, its just not trivially observable. We must be able to
-> > acquire a in order to complete b, therefore there is a dependency.
+[Let's CC Hugh]
+
+On Wed 14-09-16 15:13:50, zhong jiang wrote:
+[...]
+>   hi, Michal
 > 
-> No. We cannot say there is a dependency unconditionally. There can
-> be a dependency or not.
+>   Recently, I hit the same issue when run a OOM case of the LTP and ksm enable.
+>  
+> [  601.937145] Call trace:
+> [  601.939600] [<ffffffc000086a88>] __switch_to+0x74/0x8c
+> [  601.944760] [<ffffffc000a1bae0>] __schedule+0x23c/0x7bc
+> [  601.950007] [<ffffffc000a1c09c>] schedule+0x3c/0x94
+> [  601.954907] [<ffffffc000a1eb84>] rwsem_down_write_failed+0x214/0x350
+> [  601.961289] [<ffffffc000a1e32c>] down_write+0x64/0x80
+> [  601.966363] [<ffffffc00021f794>] __ksm_exit+0x90/0x19c
+> [  601.971523] [<ffffffc0000be650>] mmput+0x118/0x11c
+> [  601.976335] [<ffffffc0000c3ec4>] do_exit+0x2dc/0xa74
+> [  601.981321] [<ffffffc0000c46f8>] do_group_exit+0x4c/0xe4
+> [  601.986656] [<ffffffc0000d0f34>] get_signal+0x444/0x5e0
+> [  601.991904] [<ffffffc000089fcc>] do_signal+0x1d8/0x450
+> [  601.997065] [<ffffffc00008a35c>] do_notify_resume+0x70/0x78
+
+So this is a hung task triggering because the exiting task cannot get
+the mmap sem for write because the ksmd holds it for read while
+allocating memory which just takes ages to complete, right?
+
 > 
-> L a     L a
->         U a
-> ~~~~~~~~~ what if serialized by something?
-
-Well, there's no serialization in the example, so no what if.
-
-> W b     C b
+> The root case is that ksmd hold the read lock. and the lock is not released.
+>  scan_get_next_rmap_item
+>          down_read
+>                    get_next_rmap_item
+>                              alloc_rmap_item     #ksmd will loop permanently.
 > 
-> If something we don't recognize serializes locks, which ensures
-> 'W b' happens after 'L a , U a' in the other context, then there's
-> no dependency here.
+> How do you see this kind of situation ? or  let the issue alone.
 
-Its not there.
+I am not familiar with the ksmd code so it is hard for me to judge but
+one thing to do would be __GFP_NORETRY which would force a bail out from
+the allocation rather than looping for ever. A quick look tells me that
+the allocation failure here is quite easy to handle. There might be
+others...
 
-> We should say 'b depends on a' in only case that the sequence
-> 'W b and then L a and then C b, where last two ops are in same
-> context' _actually_ happened at least once. Otherwise, it might
-> add a false dependency.
-> 
-> It's same as how original lockdep works with typical locks. It adds
-> a dependency only when a lock is actually hit.
-
-But since these threads are independently scheduled there is no point in
-transferring the point in time thread A does W to thread B. There is no
-relation there.
-
-B could have already executed the complete or it could not yet have
-started execution at all or anything in between, entirely random.
-
-> > What does that mean? Any why? This is a random point in time without
-> > actual meaning.
-> 
-> It's not random point. We have to consider meaningful sequences among
-> those which are globally observable. That's why we need to serialize
-> those locks.
-
-Serialize how? there is no serialization.
-
-> For example,
-> 
-> W b
-> L a
-> U a
-> C b
-> 
-> Once this sequence is observable globally, we can say 'It's possible to
-> run in this sequence. Is this sequence problematic or not?'.
-> 
-> L a
-> U a
-> W b
-> C b
-> 
-> If only this sequence can be observable, we should not assume
-> this sequence can be changed. However once the former sequence
-> happens, it has a possibility to hit the same sequence again later.
-> So we can check deadlock possibility with the sequence,
-> 
-> _not randomly_.
-
-I still don't get it.
-
-> We need to connect between the crosslock and the first lock among
-> locks having been acquired since the crosslock was held.
-
-Which can be _any_ lock in the history of that thread. It could be
-rq->lock from getting the thread scheduled.
-
-> Others will be
-> connected each other by original lockdep.
-> 
-> By the way, does my document miss this description? If so, sorry.
-> I will check and update it.
-
-I couldn't find anything useful, but then I could not understand most of
-what was written, and I tried hard :-(
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
