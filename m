@@ -1,88 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F6CD6B0069
-	for <linux-mm@kvack.org>; Wed, 14 Sep 2016 05:35:28 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id 186so38883284itf.2
-        for <linux-mm@kvack.org>; Wed, 14 Sep 2016 02:35:28 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTP id x78si7457470oia.164.2016.09.14.02.35.15
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 01B4F6B0253
+	for <linux-mm@kvack.org>; Wed, 14 Sep 2016 05:36:53 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id ex14so16923378pac.0
+        for <linux-mm@kvack.org>; Wed, 14 Sep 2016 02:36:52 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id s4si5799850pfi.286.2016.09.14.02.36.52
         for <linux-mm@kvack.org>;
-        Wed, 14 Sep 2016 02:35:16 -0700 (PDT)
-Message-ID: <57D91771.9050108@huawei.com>
-Date: Wed, 14 Sep 2016 17:25:05 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        Wed, 14 Sep 2016 02:36:52 -0700 (PDT)
+Date: Wed, 14 Sep 2016 10:36:34 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+Subject: Re: [kernel-hardening] [RFC PATCH v2 0/3] Add support for eXclusive
+ Page Frame Ownership (XPFO)
+Message-ID: <20160914093634.GB13121@leverpostej>
+References: <20160902113909.32631-1-juerg.haefliger@hpe.com>
+ <20160914071901.8127-1-juerg.haefliger@hpe.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: fix oom work when memory is under pressure
-References: <1473173226-25463-1-git-send-email-zhongjiang@huawei.com> <20160909114410.GG4844@dhcp22.suse.cz> <57D67A8A.7070500@huawei.com> <20160912111327.GG14524@dhcp22.suse.cz> <57D6B0C4.6040400@huawei.com> <20160912174445.GC14997@dhcp22.suse.cz> <57D7FB71.9090102@huawei.com> <20160913132854.GB6592@dhcp22.suse.cz> <57D8F8AE.1090404@huawei.com> <20160914084219.GA1612@dhcp22.suse.cz> <20160914085227.GB1612@dhcp22.suse.cz>
-In-Reply-To: <20160914085227.GB1612@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160914071901.8127-1-juerg.haefliger@hpe.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, linux-mm@kvack.org, Xishi Qiu <qiuxishi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Hugh Dickins <hughd@google.com>
+To: kernel-hardening@lists.openwall.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-x86_64@vger.kernel.org, juerg.haefliger@hpe.com, vpk@cs.columbia.edu
 
-On 2016/9/14 16:52, Michal Hocko wrote:
-> On Wed 14-09-16 10:42:19, Michal Hocko wrote:
->> [Let's CC Hugh]
-> now for real...
->
->> On Wed 14-09-16 15:13:50, zhong jiang wrote:
->> [...]
->>>   hi, Michal
->>>
->>>   Recently, I hit the same issue when run a OOM case of the LTP and ksm enable.
->>>  
->>> [  601.937145] Call trace:
->>> [  601.939600] [<ffffffc000086a88>] __switch_to+0x74/0x8c
->>> [  601.944760] [<ffffffc000a1bae0>] __schedule+0x23c/0x7bc
->>> [  601.950007] [<ffffffc000a1c09c>] schedule+0x3c/0x94
->>> [  601.954907] [<ffffffc000a1eb84>] rwsem_down_write_failed+0x214/0x350
->>> [  601.961289] [<ffffffc000a1e32c>] down_write+0x64/0x80
->>> [  601.966363] [<ffffffc00021f794>] __ksm_exit+0x90/0x19c
->>> [  601.971523] [<ffffffc0000be650>] mmput+0x118/0x11c
->>> [  601.976335] [<ffffffc0000c3ec4>] do_exit+0x2dc/0xa74
->>> [  601.981321] [<ffffffc0000c46f8>] do_group_exit+0x4c/0xe4
->>> [  601.986656] [<ffffffc0000d0f34>] get_signal+0x444/0x5e0
->>> [  601.991904] [<ffffffc000089fcc>] do_signal+0x1d8/0x450
->>> [  601.997065] [<ffffffc00008a35c>] do_notify_resume+0x70/0x78
->> So this is a hung task triggering because the exiting task cannot get
->> the mmap sem for write because the ksmd holds it for read while
->> allocating memory which just takes ages to complete, right?
->>
->>> The root case is that ksmd hold the read lock. and the lock is not released.
->>>  scan_get_next_rmap_item
->>>          down_read
->>>                    get_next_rmap_item
->>>                              alloc_rmap_item     #ksmd will loop permanently.
->>>
->>> How do you see this kind of situation ? or  let the issue alone.
->> I am not familiar with the ksmd code so it is hard for me to judge but
->> one thing to do would be __GFP_NORETRY which would force a bail out from
->> the allocation rather than looping for ever. A quick look tells me that
->> the allocation failure here is quite easy to handle. There might be
->> others...
->>
->> -- 
->> Michal Hocko
->> SUSE Labs
-Adding the __GFP_NORETRY,  the issue also can fixed.
-Therefore, we can assure that the case of LTP will leads to the endless looping.
+Hi,
 
-index d45a0a1..03fb67b 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -283,7 +283,7 @@ static inline struct rmap_item *alloc_rmap_item(void)
- {
-        struct rmap_item *rmap_item;
+On Wed, Sep 14, 2016 at 09:18:58AM +0200, Juerg Haefliger wrote:
 
--       rmap_item = kmem_cache_zalloc(rmap_item_cache, GFP_KERNEL);
-+       rmap_item = kmem_cache_zalloc(rmap_item_cache, GFP_KERNEL | __GFP_NORETRY);
-        if (rmap_item)
-                ksm_rmap_items++;
-        return rmap_item;
+> This patch series adds support for XPFO which protects against 'ret2dir'
+> kernel attacks. The basic idea is to enforce exclusive ownership of page
+> frames by either the kernel or userspace, unless explicitly requested by
+> the kernel. Whenever a page destined for userspace is allocated, it is
+> unmapped from physmap (the kernel's page table). When such a page is
+> reclaimed from userspace, it is mapped back to physmap.
 
+> Known issues/limitations:
+>   - Only supports x86-64 (for now)
+>   - Only supports 4k pages (for now)
+>   - There are most likely some legitimate uses cases where the kernel needs
+>     to access userspace which need to be made XPFO-aware
+>   - Performance penalty
+> 
+> Reference paper by the original patch authors:
+>   http://www.cs.columbia.edu/~vpk/papers/ret2dir.sec14.pdf
 
+Just to check, doesn't DEBUG_RODATA ensure that the linear mapping is
+non-executable on x86_64 (as it does for arm64)?
+
+For both arm64 and x86_64, DEBUG_RODATA is mandatory (or soon to be so).
+Assuming that implies a lack of execute permission for x86_64, that
+should provide a similar level of protection against erroneously
+branching to addresses in the linear map, without the complexity and
+overhead of mapping/unmapping pages.
+
+So to me it looks like this approach may only be useful for
+architectures without page-granular execute permission controls.
+
+Is this also intended to protect against erroneous *data* accesses to
+the linear map?
+
+Am I missing something?
+
+Thanks,
+Mark.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
