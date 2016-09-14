@@ -1,81 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 091026B0069
-	for <linux-mm@kvack.org>; Tue, 13 Sep 2016 19:52:30 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id n24so2167656pfb.0
-        for <linux-mm@kvack.org>; Tue, 13 Sep 2016 16:52:30 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id ww6si1246235pab.52.2016.09.13.16.52.29
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 13 Sep 2016 16:52:29 -0700 (PDT)
-From: "Chen, Tim C" <tim.c.chen@intel.com>
-Subject: RE: [PATCH -v3 00/10] THP swap: Delay splitting THP during swapping
- out
-Date: Tue, 13 Sep 2016 23:52:27 +0000
-Message-ID: <045D8A5597B93E4EBEDDCBF1FC15F50935BF9343@fmsmsx104.amr.corp.intel.com>
-References: <1473266769-2155-1-git-send-email-ying.huang@intel.com>
- <20160909054336.GA2114@bbox> <87sht824n3.fsf@yhuang-mobile.sh.intel.com>
- <20160913061349.GA4445@bbox> <87y42wgv5r.fsf@yhuang-dev.intel.com>
- <20160913070524.GA4973@bbox> <87vay0ji3m.fsf@yhuang-mobile.sh.intel.com>
- <20160913091652.GB7132@bbox>
-In-Reply-To: <20160913091652.GB7132@bbox>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id F23C36B0069
+	for <linux-mm@kvack.org>; Tue, 13 Sep 2016 20:54:21 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id b187so842741wme.1
+        for <linux-mm@kvack.org>; Tue, 13 Sep 2016 17:54:21 -0700 (PDT)
+Received: from cloudserver094114.home.net.pl (cloudserver094114.home.net.pl. [79.96.170.134])
+        by mx.google.com with SMTP id l12si1433267wmb.146.2016.09.13.17.54.20
+        for <linux-mm@kvack.org>;
+        Tue, 13 Sep 2016 17:54:20 -0700 (PDT)
+From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Subject: Re: [PATCH] PM / Hibernate: allow hibernation with PAGE_POISONING_ZERO
+Date: Wed, 14 Sep 2016 03:00:29 +0200
+Message-ID: <1856521.PhkV49ibzK@vostro.rjw.lan>
+In-Reply-To: <1473410612-6207-1-git-send-email-anisse@astier.eu>
+References: <1473410612-6207-1-git-send-email-anisse@astier.eu>
 MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Hansen, Dave" <dave.hansen@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, "Lu, Aaron" <aaron.lu@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A .
- Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
+To: Anisse Astier <anisse@astier.eu>
+Cc: linux-mm@kvack.org, linux-pm@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Laura Abbott <labbott@fedoraproject.org>, Mel Gorman <mgorman@suse.de>, Alan Cox <gnomes@lxorguk.ukuu.org.uk>, Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Brad Spengler <spender@grsecurity.net>, Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>, Jianyu Zhan <nasa4836@gmail.com>, Kees Cook <keescook@chromium.org>, Len Brown <len.brown@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Mathias Krause <minipli@googlemail.com>, Michal Hocko <mhocko@suse.com>, PaX Team <pageexec@freemail.hu>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, Yves-Alexis Perez <corsac@debian.org>, linux-kernel@vger.kernel.orgKees Cook <keescook@chromium.org>Pavel Machek <pavel@ucw.cz>
 
->>
->> - Avoid CPU time for splitting, collapsing THP across swap out/in.
->
->Yes, if you want, please give us how bad it is.
->
+On Friday, September 09, 2016 10:43:32 AM Anisse Astier wrote:
+> PAGE_POISONING_ZERO disables zeroing new pages on alloc, they are
+> poisoned (zeroed) as they become available.
+> In the hibernate use case, free pages will appear in the system without
+> being cleared, left there by the loading kernel.
+> 
+> This patch will make sure free pages are cleared on resume when
+> PAGE_POISONING_ZERO is enabled. We free the pages just after resume
+> because we can't do it later: going through any device resume code might
+> allocate some memory and invalidate the free pages bitmap.
+> 
+> Thus we don't need to disable hibernation when PAGE_POISONING_ZERO is
+> enabled.
+> 
+> Signed-off-by: Anisse Astier <anisse@astier.eu>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Laura Abbott <labbott@fedoraproject.org>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Rafael J. Wysocki <rjw@rjwysocki.net>
 
-It could be pretty bad.  In an experiment with THP turned on and we
-enter swap, 50% of the cpu are spent in the page compaction path. =20
-So if we could deal with units of large page for swap, the splitting
-and compaction of ordinary pages to large page overhead could be avoided.
+Applied (with the tags from Pavel and Kees).
 
-   51.89%    51.89%            :1688  [kernel.kallsyms]   [k] pageblock_pfn=
-_to_page                      =20
-                      |
-                      --- pageblock_pfn_to_page
-                         |         =20
-                         |--64.57%-- compaction_alloc
-                         |          migrate_pages
-                         |          compact_zone
-                         |          compact_zone_order
-                         |          try_to_compact_pages
-                         |          __alloc_pages_direct_compact
-                         |          __alloc_pages_nodemask
-                         |          alloc_pages_vma
-                         |          do_huge_pmd_anonymous_page
-                         |          handle_mm_fault
-                         |          __do_page_fault
-                         |          do_page_fault
-                         |          page_fault
-                         |          0x401d9a
-                         |         =20
-                         |--34.62%-- compact_zone
-                         |          compact_zone_order
-                         |          try_to_compact_pages
-                         |          __alloc_pages_direct_compact
-                         |          __alloc_pages_nodemask
-                         |          alloc_pages_vma
-                         |          do_huge_pmd_anonymous_page
-                         |          handle_mm_fault
-                         |          __do_page_fault
-                         |          do_page_fault
-                         |          page_fault
-                         |          0x401d9a
-                          --0.81%-- [...]
-
-Tim
+Thanks,
+Rafael
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
