@@ -1,85 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FE166B0038
-	for <linux-mm@kvack.org>; Wed, 14 Sep 2016 11:39:07 -0400 (EDT)
-Received: by mail-yb0-f199.google.com with SMTP id c79so28151321ybf.2
-        for <linux-mm@kvack.org>; Wed, 14 Sep 2016 08:39:07 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h184si2319416ywe.435.2016.09.14.08.39.06
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DB8366B0038
+	for <linux-mm@kvack.org>; Wed, 14 Sep 2016 11:58:31 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id 192so60971393itm.1
+        for <linux-mm@kvack.org>; Wed, 14 Sep 2016 08:58:31 -0700 (PDT)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0098.outbound.protection.outlook.com. [104.47.2.98])
+        by mx.google.com with ESMTPS id 5si19388480oih.280.2016.09.14.08.58.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Sep 2016 08:39:06 -0700 (PDT)
-Date: Wed, 14 Sep 2016 17:38:14 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH v2] mm, proc: Fix region lost in /proc/self/smaps
-Message-ID: <20160914153814.GA21284@redhat.com>
-References: <1473649964-20191-1-git-send-email-guangrong.xiao@linux.intel.com> <20160912125447.GM14524@dhcp22.suse.cz> <57D6C332.4000409@intel.com> <20160912191035.GD14997@dhcp22.suse.cz> <20160913145906.GA28037@redhat.com> <57D8277E.80505@intel.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 14 Sep 2016 08:58:17 -0700 (PDT)
+Subject: Re: [PATCHv5 0/6] x86: 32-bit compatible C/R on x86_64
+References: <20160905133308.28234-1-dsafonov@virtuozzo.com>
+From: Dmitry Safonov <dsafonov@virtuozzo.com>
+Message-ID: <28071a1b-5f2e-be74-0408-8ec0e26957db@virtuozzo.com>
+Date: Wed, 14 Sep 2016 18:56:10 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <57D8277E.80505@intel.com>
+In-Reply-To: <20160905133308.28234-1-dsafonov@virtuozzo.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Xiao Guangrong <guangrong.xiao@linux.intel.com>, pbonzini@redhat.com, akpm@linux-foundation.org, dan.j.williams@intel.com, gleb@kernel.org, mtosatti@redhat.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, stefanha@redhat.com, yuhuang@redhat.com, linux-mm@kvack.org, ross.zwisler@linux.intel.com
+To: linux-kernel@vger.kernel.org, mingo@redhat.com
+Cc: 0x7f454c46@gmail.com, linux-mm@kvack.org, x86@kernel.org
 
-On 09/13, Dave Hansen wrote:
+On 09/05/2016 04:33 PM, Dmitry Safonov wrote:
+> Changes from v4:
+> - check both vm_ops and vm_private_data to avoid (unlikely) confusion
+>   with some other vma in map_vdso_once (as Andy noticed) - which would
+>   lead to unable to use this API in that unlikely-case
+>   (vm_private_data may be uninitialized and be the same as vvar_mapping
+>   or vdso_mapping pointer) - so I introduced one-liner helper
+>   vma_is_special_mapping().
 >
-> On 09/13/2016 07:59 AM, Oleg Nesterov wrote:
-> > I agree. I don't even understand why this was considered as a bug.
-> > Obviously, m_stop() which drops mmap_sep should not be called, or
-> > all the threads should be stopped, if you want to trust the result.
->
-> There was a mapping at a given address.  That mapping did not change, it
-> was not split, its attributes did not change.  But, it didn't show up
-> when reading smaps.  Folks _actually_ noticed this in a test suite
-> looking for that address range in smaps.
+> Changes from v3:
+> - proper ifdefs around vdso_image_32
+> - missed Reviewed-by tag
 
-I understand, and I won't argue with any change which makes the things
-better. Just I do not think this is a real problem. And this patch can't
-fix other oddities and it seems it adds another one (at least) although
-I can easily misread this patch and/or the code.
+Ping?
+It looks like, all acks are there and there are no objections.
 
-So we change m_cache_vma(),
-
-	-        m->version = m_next_vma(m->private, vma) ? vma->vm_start : -1UL;
-	+        m->version = m_next_vma(m->private, vma) ? vma->vm_end : -1UL;
-
-OK, and another change in m_start()
-
-	-        if (vma && (vma = m_next_vma(priv, vma)))
-	+        if (vma)
-
-means that it can return the same vma if it grows in between.
-
-show_map_vma() has another change
-
-	+       start = max(vma->vm_start, start);
-
-so it will be reported as _another_ vma, and this doesn't look exactly
-right.
-
-And after that *ppos will be falsely incremented... but probably this
-doesn't matter because the "if (pos < mm->map_count)" logic in m_start()
-looks broken anyway.
-
-> IOW, we had goofy kernel behavior, and it broke a reasonable test
-> program.  The test program just used fgets() to read into a fixed-length
-> buffer, which is a completely normal thing to do.
->
-> To get "sensible results", doesn't userspace have to somehow know in
-> advance how many bytes of data a given VMA will generate in smaps output?
-
-Yes, /proc/has its limitations ;)
-
-Even if you read, say, /proc/pid/status you can get the corrupted result
-after the short read. But in this case fgets() should likely work, yes.
-
-
-Dave, let me repeat, I won't argue with any change and in any case you
-can safely ignore my opinion.
-
-Oleg.
+-- 
+              Dmitry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
