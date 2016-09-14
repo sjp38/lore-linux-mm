@@ -1,179 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A20C6B025E
-	for <linux-mm@kvack.org>; Wed, 14 Sep 2016 15:53:00 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id l68so22778864wml.3
-        for <linux-mm@kvack.org>; Wed, 14 Sep 2016 12:53:00 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id cf10si5970452wjc.162.2016.09.14.12.52.58
+	by kanga.kvack.org (Postfix) with ESMTP id 4E0196B0038
+	for <linux-mm@kvack.org>; Wed, 14 Sep 2016 16:07:09 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id g141so22707307wmd.0
+        for <linux-mm@kvack.org>; Wed, 14 Sep 2016 13:07:09 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id b68si543639wmd.56.2016.09.14.13.07.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Sep 2016 12:52:58 -0700 (PDT)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 3/3] mm: memcontrol: consolidate cgroup socket tracking
-Date: Wed, 14 Sep 2016 15:48:46 -0400
-Message-Id: <20160914194846.11153-3-hannes@cmpxchg.org>
-In-Reply-To: <20160914194846.11153-1-hannes@cmpxchg.org>
-References: <20160914194846.11153-1-hannes@cmpxchg.org>
+        Wed, 14 Sep 2016 13:07:08 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8EK2poQ053109
+	for <linux-mm@kvack.org>; Wed, 14 Sep 2016 16:07:06 -0400
+Received: from e38.co.us.ibm.com (e38.co.us.ibm.com [32.97.110.159])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 25exc0dd6k-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 14 Sep 2016 16:07:06 -0400
+Received: from localhost
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
+	Wed, 14 Sep 2016 14:07:05 -0600
+From: Reza Arbab <arbab@linux.vnet.ibm.com>
+Subject: [PATCH v2 0/3] powerpc/mm: movable hotplug memory nodes
+Date: Wed, 14 Sep 2016 15:06:55 -0500
+Message-Id: <1473883618-14998-1-git-send-email-arbab@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, "David S. Miller" <davem@davemloft.net>
-Cc: Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@virtuozzo.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, devicetree@vger.kernel.org, linux-mm@kvack.org
 
-The cgroup core and the memory controller need to track socket
-ownership for different purposes, but the tracking sites being
-entirely different is kind of ugly.
+These changes enable onlining memory into ZONE_MOVABLE on power, and the 
+creation of discrete nodes of movable memory.
 
-Be a better citizen and rename the memory controller callbacks to
-match the cgroup core callbacks, then move them to the same place.
+We provide a way to describe the extents and numa associativity of such 
+a node in the device tree, yet still defer the memory addition to take 
+place post-boot through hotplug.
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- include/linux/memcontrol.h |  4 ++--
- mm/memcontrol.c            | 19 +++++++++++--------
- net/core/sock.c            |  6 +++---
- net/ipv4/tcp.c             |  2 --
- net/ipv4/tcp_ipv4.c        |  3 ---
- 5 files changed, 16 insertions(+), 18 deletions(-)
+In v1, this patchset introduced a new dt compatible id to explicitly 
+create a memoryless node at boot. Here, things have been simplified to 
+be applicable regardless of the status of node hotplug on power. We 
+still intend to enable hotadding a pgdat, but that's now untangled as a 
+separate topic.
 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 0710143723bc..ca11b3e6dd65 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -773,8 +773,8 @@ static inline void mem_cgroup_wb_stats(struct bdi_writeback *wb,
- #endif	/* CONFIG_CGROUP_WRITEBACK */
- 
- struct sock;
--void sock_update_memcg(struct sock *sk);
--void sock_release_memcg(struct sock *sk);
-+void mem_cgroup_sk_alloc(struct sock *sk);
-+void mem_cgroup_sk_free(struct sock *sk);
- bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages);
- void mem_cgroup_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages);
- #ifdef CONFIG_MEMCG
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 60bb830abc34..2caf1ee86e78 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2939,7 +2939,7 @@ static int memcg_update_tcp_limit(struct mem_cgroup *memcg, unsigned long limit)
- 		/*
- 		 * The active flag needs to be written after the static_key
- 		 * update. This is what guarantees that the socket activation
--		 * function is the last one to run. See sock_update_memcg() for
-+		 * function is the last one to run. See mem_cgroup_sk_alloc() for
- 		 * details, and note that we don't mark any socket as belonging
- 		 * to this memcg until that flag is up.
- 		 *
-@@ -2948,7 +2948,7 @@ static int memcg_update_tcp_limit(struct mem_cgroup *memcg, unsigned long limit)
- 		 * as accounted, but the accounting functions are not patched in
- 		 * yet, we'll lose accounting.
- 		 *
--		 * We never race with the readers in sock_update_memcg(),
-+		 * We never race with the readers in mem_cgroup_sk_alloc(),
- 		 * because when this value change, the code to process it is not
- 		 * patched in yet.
- 		 */
-@@ -5651,11 +5651,15 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage)
- DEFINE_STATIC_KEY_FALSE(memcg_sockets_enabled_key);
- EXPORT_SYMBOL(memcg_sockets_enabled_key);
- 
--void sock_update_memcg(struct sock *sk)
-+void mem_cgroup_sk_alloc(struct sock *sk)
- {
- 	struct mem_cgroup *memcg;
- 
--	/* Socket cloning can throw us here with sk_cgrp already
-+	if (!mem_cgroup_sockets_enabled)
-+		return;
-+
-+	/*
-+	 * Socket cloning can throw us here with sk_memcg already
- 	 * filled. It won't however, necessarily happen from
- 	 * process context. So the test for root memcg given
- 	 * the current task's memcg won't help us in this case.
-@@ -5680,12 +5684,11 @@ void sock_update_memcg(struct sock *sk)
- out:
- 	rcu_read_unlock();
- }
--EXPORT_SYMBOL(sock_update_memcg);
- 
--void sock_release_memcg(struct sock *sk)
-+void mem_cgroup_sk_free(struct sock *sk)
- {
--	WARN_ON(!sk->sk_memcg);
--	css_put(&sk->sk_memcg->css);
-+	if (sk->sk_memcg)
-+		css_put(&sk->sk_memcg->css);
- }
- 
- /**
-diff --git a/net/core/sock.c b/net/core/sock.c
-index 038e660ef844..c73e28fc9c2a 100644
---- a/net/core/sock.c
-+++ b/net/core/sock.c
-@@ -1363,6 +1363,7 @@ static void sk_prot_free(struct proto *prot, struct sock *sk)
- 	slab = prot->slab;
- 
- 	cgroup_sk_free(&sk->sk_cgrp_data);
-+	mem_cgroup_sk_free(sk);
- 	security_sk_free(sk);
- 	if (slab != NULL)
- 		kmem_cache_free(slab, sk);
-@@ -1399,6 +1400,7 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
- 		sock_net_set(sk, net);
- 		atomic_set(&sk->sk_wmem_alloc, 1);
- 
-+		mem_cgroup_sk_alloc(sk);
- 		cgroup_sk_alloc(&sk->sk_cgrp_data);
- 		sock_update_classid(&sk->sk_cgrp_data);
- 		sock_update_netprioidx(&sk->sk_cgrp_data);
-@@ -1545,6 +1547,7 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
- 		newsk->sk_incoming_cpu = raw_smp_processor_id();
- 		atomic64_set(&newsk->sk_cookie, 0);
- 
-+		mem_cgroup_sk_alloc(newsk);
- 		cgroup_sk_alloc(&newsk->sk_cgrp_data);
- 
- 		/*
-@@ -1569,9 +1572,6 @@ struct sock *sk_clone_lock(const struct sock *sk, const gfp_t priority)
- 		sk_set_socket(newsk, NULL);
- 		newsk->sk_wq = NULL;
- 
--		if (mem_cgroup_sockets_enabled && sk->sk_memcg)
--			sock_update_memcg(newsk);
--
- 		if (newsk->sk_prot->sockets_allocated)
- 			sk_sockets_allocated_inc(newsk);
- 
-diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
-index a13fcb369f52..fc76ef51a5f4 100644
---- a/net/ipv4/tcp.c
-+++ b/net/ipv4/tcp.c
-@@ -421,8 +421,6 @@ void tcp_init_sock(struct sock *sk)
- 	sk->sk_rcvbuf = sysctl_tcp_rmem[1];
- 
- 	local_bh_disable();
--	if (mem_cgroup_sockets_enabled)
--		sock_update_memcg(sk);
- 	sk_sockets_allocated_inc(sk);
- 	local_bh_enable();
- }
-diff --git a/net/ipv4/tcp_ipv4.c b/net/ipv4/tcp_ipv4.c
-index 04b989328558..b8fc74a66299 100644
---- a/net/ipv4/tcp_ipv4.c
-+++ b/net/ipv4/tcp_ipv4.c
-@@ -1872,9 +1872,6 @@ void tcp_v4_destroy_sock(struct sock *sk)
- 	local_bh_disable();
- 	sk_sockets_allocated_dec(sk);
- 	local_bh_enable();
--
--	if (mem_cgroup_sockets_enabled && sk->sk_memcg)
--		sock_release_memcg(sk);
- }
- EXPORT_SYMBOL(tcp_v4_destroy_sock);
- 
+v2:
+* Use the "status" property of standard dt memory nodes instead of 
+  introducing a new "ibm,hotplug-aperture" compatible id.
+
+* Remove the patch which explicitly creates a memoryless node. This set 
+  no longer has any bearing on whether the pgdat is created at boot or 
+  at the time of memory addition.
+
+v1:
+* http://lkml.kernel.org/r/1470680843-28702-1-git-send-email-arbab@linux.vnet.ibm.com
+
+Reza Arbab (3):
+  drivers/of: recognize status property of dt memory nodes
+  powerpc/mm: allow memory hotplug into a memoryless node
+  mm: enable CONFIG_MOVABLE_NODE on powerpc
+
+ Documentation/kernel-parameters.txt |  2 +-
+ arch/powerpc/mm/numa.c              | 13 +------------
+ drivers/of/fdt.c                    |  8 ++++++++
+ mm/Kconfig                          |  2 +-
+ 4 files changed, 11 insertions(+), 14 deletions(-)
+
 -- 
-2.9.3
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
