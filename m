@@ -1,85 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BA986B0253
-	for <linux-mm@kvack.org>; Wed, 14 Sep 2016 03:21:24 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id e20so27880057itc.0
-        for <linux-mm@kvack.org>; Wed, 14 Sep 2016 00:21:24 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id r7si17356253oig.5.2016.09.14.00.21.06
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DF87E6B0069
+	for <linux-mm@kvack.org>; Wed, 14 Sep 2016 03:24:11 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id j128so22778337oif.3
+        for <linux-mm@kvack.org>; Wed, 14 Sep 2016 00:24:11 -0700 (PDT)
+Received: from g4t3428.houston.hpe.com (g4t3428.houston.hpe.com. [15.241.140.76])
+        by mx.google.com with ESMTPS id x12si17382827otd.30.2016.09.14.00.24.02
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 14 Sep 2016 00:21:07 -0700 (PDT)
-Message-ID: <57D8F8AE.1090404@huawei.com>
-Date: Wed, 14 Sep 2016 15:13:50 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 Sep 2016 00:24:02 -0700 (PDT)
+Subject: Re: [RFC PATCH v2 0/3] Add support for eXclusive Page Frame Ownership
+ (XPFO)
+References: <20160902113909.32631-1-juerg.haefliger@hpe.com>
+ <20160914071901.8127-1-juerg.haefliger@hpe.com>
+From: Juerg Haefliger <juerg.haefliger@hpe.com>
+Message-ID: <afe6dc8e-7e53-e4e4-8959-0098d3d0c92a@hpe.com>
+Date: Wed, 14 Sep 2016 09:23:58 +0200
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: fix oom work when memory is under pressure
-References: <1473173226-25463-1-git-send-email-zhongjiang@huawei.com> <20160909114410.GG4844@dhcp22.suse.cz> <57D67A8A.7070500@huawei.com> <20160912111327.GG14524@dhcp22.suse.cz> <57D6B0C4.6040400@huawei.com> <20160912174445.GC14997@dhcp22.suse.cz> <57D7FB71.9090102@huawei.com> <20160913132854.GB6592@dhcp22.suse.cz>
-In-Reply-To: <20160913132854.GB6592@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20160914071901.8127-1-juerg.haefliger@hpe.com>
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ protocol="application/pgp-signature";
+ boundary="X1S6k1OXnDBv9lOh0eaK4rxduXi2rQ5fA"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, linux-mm@kvack.org, Xishi Qiu <qiuxishi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, linux-x86_64@vger.kernel.org
+Cc: vpk@cs.columbia.edu
 
-On 2016/9/13 21:28, Michal Hocko wrote:
-> On Tue 13-09-16 21:13:21, zhong jiang wrote:
->> On 2016/9/13 1:44, Michal Hocko wrote:
-> [...]
->>> If you want to solve this problem properly then you would have to give
->>> tasks which are looping in the page allocator access to some portion of
->>> memory reserves. This is quite tricky to do right, though.
->> To use some portion of memory reserves is almost no effect in a so
->> starvation scenario.  I think the hungtask still will occur. it can
->> not solve the problem primarily.
-> Granting an access to memory reserves is of course no full solution but
-> it raises chances for a forward progress. Other solutions would have to
-> guarantee that the memory reclaimed on behalf of the requester will be
-> given to the requester. Not an easy task
->
->>> Retry counters with the fail path have been proposed in the past and not
->>> accepted.
->> The above patch have been tested by runing the trinity.  The question
->> is fixed.  Is there any reasonable reason oppose to the patch ? or it
->> will bring in any side-effect.
-> Sure there is. Low order allocations have been traditionally non failing
-> and changing that behavior is a major obstacle because it opens up a
-> door to many bugs. I've tried to do something similar in the past and
-> there was a strong resistance against it. Believe me been there done
-> that...
->
-  hi, Michal
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--X1S6k1OXnDBv9lOh0eaK4rxduXi2rQ5fA
+Content-Type: multipart/mixed; boundary="rOu3TDjgvxEHAGHDHwIoR03apojltv8SM";
+ protected-headers="v1"
+From: Juerg Haefliger <juerg.haefliger@hpe.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ kernel-hardening@lists.openwall.com, linux-x86_64@vger.kernel.org
+Cc: vpk@cs.columbia.edu
+Message-ID: <afe6dc8e-7e53-e4e4-8959-0098d3d0c92a@hpe.com>
+Subject: Re: [RFC PATCH v2 0/3] Add support for eXclusive Page Frame Ownership
+ (XPFO)
+References: <20160902113909.32631-1-juerg.haefliger@hpe.com>
+ <20160914071901.8127-1-juerg.haefliger@hpe.com>
+In-Reply-To: <20160914071901.8127-1-juerg.haefliger@hpe.com>
 
-  Recently, I hit the same issue when run a OOM case of the LTP and ksm enable.
- 
-[  601.937145] Call trace:
-[  601.939600] [<ffffffc000086a88>] __switch_to+0x74/0x8c
-[  601.944760] [<ffffffc000a1bae0>] __schedule+0x23c/0x7bc
-[  601.950007] [<ffffffc000a1c09c>] schedule+0x3c/0x94
-[  601.954907] [<ffffffc000a1eb84>] rwsem_down_write_failed+0x214/0x350
-[  601.961289] [<ffffffc000a1e32c>] down_write+0x64/0x80
-[  601.966363] [<ffffffc00021f794>] __ksm_exit+0x90/0x19c
-[  601.971523] [<ffffffc0000be650>] mmput+0x118/0x11c
-[  601.976335] [<ffffffc0000c3ec4>] do_exit+0x2dc/0xa74
-[  601.981321] [<ffffffc0000c46f8>] do_group_exit+0x4c/0xe4
-[  601.986656] [<ffffffc0000d0f34>] get_signal+0x444/0x5e0
-[  601.991904] [<ffffffc000089fcc>] do_signal+0x1d8/0x450
-[  601.997065] [<ffffffc00008a35c>] do_notify_resume+0x70/0x78
+--rOu3TDjgvxEHAGHDHwIoR03apojltv8SM
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: quoted-printable
 
-The root case is that ksmd hold the read lock. and the lock is not released.
- scan_get_next_rmap_item
-         down_read
-                   get_next_rmap_item
-                             alloc_rmap_item     #ksmd will loop permanently.
+Resending to include the kernel-hardening list. Sorry, I wasn't subscribe=
+d with the correct email
+address when I sent this the first time.
 
-How do you see this kind of situation ? or  let the issue alone.
+=2E..Juerg
 
-Thanks
-zhongjiang
- 
-                      
-    
+On 09/14/2016 09:18 AM, Juerg Haefliger wrote:
+> Changes from:
+>   v1 -> v2:
+>     - Moved the code from arch/x86/mm/ to mm/ since it's (mostly)
+>       arch-agnostic.
+>     - Moved the config to the generic layer and added ARCH_SUPPORTS_XPF=
+O
+>       for x86.
+>     - Use page_ext for the additional per-page data.
+>     - Removed the clearing of pages. This can be accomplished by using
+>       PAGE_POISONING.
+>     - Split up the patch into multiple patches.
+>     - Fixed additional issues identified by reviewers.
+>=20
+> This patch series adds support for XPFO which protects against 'ret2dir=
+'
+> kernel attacks. The basic idea is to enforce exclusive ownership of pag=
+e
+> frames by either the kernel or userspace, unless explicitly requested b=
+y
+> the kernel. Whenever a page destined for userspace is allocated, it is
+> unmapped from physmap (the kernel's page table). When such a page is
+> reclaimed from userspace, it is mapped back to physmap.
+>=20
+> Additional fields in the page_ext struct are used for XPFO housekeeping=
+=2E
+> Specifically two flags to distinguish user vs. kernel pages and to tag
+> unmapped pages and a reference counter to balance kmap/kunmap operation=
+s
+> and a lock to serialize access to the XPFO fields.
+>=20
+> Known issues/limitations:
+>   - Only supports x86-64 (for now)
+>   - Only supports 4k pages (for now)
+>   - There are most likely some legitimate uses cases where the kernel n=
+eeds
+>     to access userspace which need to be made XPFO-aware
+>   - Performance penalty
+>=20
+> Reference paper by the original patch authors:
+>   http://www.cs.columbia.edu/~vpk/papers/ret2dir.sec14.pdf
+>=20
+> Juerg Haefliger (3):
+>   Add support for eXclusive Page Frame Ownership (XPFO)
+>   xpfo: Only put previous userspace pages into the hot cache
+>   block: Always use a bounce buffer when XPFO is enabled
+>=20
+>  arch/x86/Kconfig         |   3 +-
+>  arch/x86/mm/init.c       |   2 +-
+>  block/blk-map.c          |   2 +-
+>  include/linux/highmem.h  |  15 +++-
+>  include/linux/page_ext.h |   7 ++
+>  include/linux/xpfo.h     |  41 +++++++++
+>  lib/swiotlb.c            |   3 +-
+>  mm/Makefile              |   1 +
+>  mm/page_alloc.c          |  10 ++-
+>  mm/page_ext.c            |   4 +
+>  mm/xpfo.c                | 213 +++++++++++++++++++++++++++++++++++++++=
+++++++++
+>  security/Kconfig         |  20 +++++
+>  12 files changed, 314 insertions(+), 7 deletions(-)
+>  create mode 100644 include/linux/xpfo.h
+>  create mode 100644 mm/xpfo.c
+>=20
+
+
+--=20
+Juerg Haefliger
+Hewlett Packard Enterprise
+
+
+--rOu3TDjgvxEHAGHDHwIoR03apojltv8SM--
+
+--X1S6k1OXnDBv9lOh0eaK4rxduXi2rQ5fA
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQIcBAEBCAAGBQJX2PsOAAoJEHVMOpb5+LSMsA0QAIHMfTGCGDrTmqVL6Bi7/947
+CYxgUUi235iAvh9DX+c50Oci+IrhRGKOiXOw7D4lj6MFYnhoBFKFlT/hioJoB+KU
+iv+Kb9HfN8Ab0BITVhmFKOJ8vsELLI/gbOTBceDimVoEndlkYXeP1AnVL56Y1Dmr
+17k5Yhy4pdKLvOt4NYTprKEnc+td1XtbZ/biRZhrCRrhLFgaQDB2gOYZmu0kny7X
+Plp04Ts/fhsh8nh86ej1BeU4yg0XPexi9I+O8TSrzsG8LUSj3Ev1g/56rETzYeze
++QOzUhuMOEZLju+5Cix9tjPG7RPPQJ+k1SqNhE4q+YHwwOhx+Qa5RJRL92/hyoDk
+cMBhDb5Mk/G2Y0CzvGYurfJxFny6h324NTjvUhNquTV5hXwy61e2qAkd0bOh2W3o
+8RfwVp/xYoYeqbkcNcq+tyPSx6rC4MUC07jm28pn9McAyaLIBN63tuyAX9Hm8lAh
+euxdnSG0EcFMA2PpFVAvIoTY+a7l3gEViQPYdjmDgVY3Sbq7cBZJv4mBcgsnI7oY
+S2Jbd0y9oE7zv2lJL2xbt1Ylu3wR5+BHUWcg6nUrEHrNNJ/C3QRtoMEKA7MqP+l7
+DgSIbUQZ5IFDZ5nNHUmGI6pz49PG+4k8aef2hoH3tzFJ1Az1u/qCSB5H0obSez9Q
+2WwUHG3aQkkJwO5Rd0DS
+=Wq/n
+-----END PGP SIGNATURE-----
+
+--X1S6k1OXnDBv9lOh0eaK4rxduXi2rQ5fA--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
