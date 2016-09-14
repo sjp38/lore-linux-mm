@@ -1,102 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A60EB6B0038
-	for <linux-mm@kvack.org>; Wed, 14 Sep 2016 18:11:08 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id t67so62173199ywg.3
-        for <linux-mm@kvack.org>; Wed, 14 Sep 2016 15:11:08 -0700 (PDT)
-Received: from smtp-fw-6002.amazon.com (smtp-fw-6002.amazon.com. [52.95.49.90])
-        by mx.google.com with ESMTPS id k41si308392qta.5.2016.09.14.15.11.07
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AF2996B0038
+	for <linux-mm@kvack.org>; Wed, 14 Sep 2016 18:17:18 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id n24so57564186pfb.0
+        for <linux-mm@kvack.org>; Wed, 14 Sep 2016 15:17:18 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id z89si3943041pff.2.2016.09.14.15.17.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Sep 2016 15:11:07 -0700 (PDT)
-From: "Raslan, KarimAllah" <karahmed@amazon.de>
-Subject: Re: [PATCH] sparse: Track the boundaries of memory sections for
- accurate checks
-Date: Wed, 14 Sep 2016 22:11:00 +0000
-Message-ID: <7D63A80D-53B7-460A-A74D-0005B7D499D6@amazon.de>
-References: <1466244679-23824-1-git-send-email-karahmed@amazon.de>
- <20160620082339.GC4340@dhcp22.suse.cz>
- <8B91B5C5-4506-40CB-B7F0-0990A37F95AA@amazon.de>
- <CAPcyv4gQZ-=6SdsGc-YafcAUz0WWxtGuh56CPan1xqSkWbd9=A@mail.gmail.com>
-In-Reply-To: <CAPcyv4gQZ-=6SdsGc-YafcAUz0WWxtGuh56CPan1xqSkWbd9=A@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <93E79DEE98FC1B47AC7071613EE0BE6A@ant.amazon.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
+        Wed, 14 Sep 2016 15:17:17 -0700 (PDT)
+Date: Wed, 14 Sep 2016 15:17:14 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 3/3] mm: memcontrol: consolidate cgroup socket tracking
+Message-Id: <20160914151714.f6d1b2a57da0619bf9e2372c@linux-foundation.org>
+In-Reply-To: <201609151357.bgs2EcXM%fengguang.wu@intel.com>
+References: <20160914194846.11153-3-hannes@cmpxchg.org>
+	<201609151357.bgs2EcXM%fengguang.wu@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Michal Hocko <mhocko@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Yaowei Bai <baiyaowei@cmss.chinamobile.com>, Joe Perches <joe@perches.com>, Tejun Heo <tj@kernel.org>, "Liguori, Anthony" <aliguori@amazon.com>, "Schoenherr, Jan
- H." <jschoenh@amazon.de>
+To: kbuild test robot <lkp@intel.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org, Tejun Heo <tj@kernel.org>, "David S. Miller" <davem@davemloft.net>, Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@virtuozzo.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
+On Thu, 15 Sep 2016 13:34:24 +0800 kbuild test robot <lkp@intel.com> wrote:
 
-Ahmed, Karim Allah
-karahmed@amazon.de
+> Hi Johannes,
+> 
+> [auto build test ERROR on net/master]
+> [also build test ERROR on v4.8-rc6 next-20160914]
+> [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+> [Suggest to use git(>=2.9.0) format-patch --base=<commit> (or --base=auto for convenience) to record what (public, well-known) commit your patch series was built on]
+> [Check https://git-scm.com/docs/git-format-patch for more information]
+> 
+> url:    https://github.com/0day-ci/linux/commits/Johannes-Weiner/mm-memcontrol-make-per-cpu-charge-cache-IRQ-safe-for-socket-accounting/20160915-035634
+> config: m68k-sun3_defconfig (attached as .config)
+> compiler: m68k-linux-gcc (GCC) 4.9.0
+> reproduce:
+>         wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
+>         chmod +x ~/bin/make.cross
+>         # save the attached .config to linux build tree
+>         make.cross ARCH=m68k 
+> 
+> All errors (new ones prefixed by >>):
+> 
+>    net/built-in.o: In function `sk_alloc':
+> >> (.text+0x4076): undefined reference to `mem_cgroup_sk_alloc'
+>    net/built-in.o: In function `__sk_destruct':
+> >> sock.c:(.text+0x457e): undefined reference to `mem_cgroup_sk_free'
+>    net/built-in.o: In function `sk_clone_lock':
+>    (.text+0x4f1c): undefined reference to `mem_cgroup_sk_alloc'
 
+This?
 
-
-> On Sep 15, 2016, at 12:05 AM, Dan Williams <dan.j.williams@intel.com> wro=
-te:
-> =
-
-> On Wed, Sep 14, 2016 at 2:40 PM, Raslan, KarimAllah <karahmed@amazon.de> =
-wrote:
->> =
-
->> =
-
->> On 6/20/16, 10:23 AM, "Michal Hocko" <mhocko@kernel.org> wrote:
->> =
-
->>    On Sat 18-06-16 12:11:19, KarimAllah Ahmed wrote:
->>> When sparse memory model is used an array of memory sections is created=
- to
->>> track each block of contiguous physical pages. Each element of this arr=
-ay
->>> contains PAGES_PER_SECTION pages. During the creation of this array the=
- actual
->>> boundaries of the memory block is lost, so the whole block is either co=
-nsidered
->>> as present or not.
->>> =
-
->>> pfn_valid() in the sparse memory configuration checks which memory sect=
-ions the
->>> pfn belongs to then checks whether it's present or not. This yields sub=
--optimal
->>> results when the available memory doesn't cover the whole memory sectio=
-n,
->>> because pfn_valid will return 'true' even for the unavailable pfns at t=
-he
->>> boundaries of the memory section.
->> =
-
->>    Please be more verbose of _why_ the patch is needed. Why those
->>    "sub-optimal results" matter?
->> =
-
->> Does this make sense to you ?
-> =
-
-> [ channeling my inner akpm ]
-> =
-
-> What's the user visible effect of this change?  What code is getting
-> tripped up by pfn_valid() being imprecise, and why is changing
-> pfn_valid() the preferred fix?
-
-I did expand the commit message in v2 of this patch to answer these questio=
-ns:
-
-https://patchwork.kernel.org/patch/9190737/
-
-Amazon Development Center Germany GmbH
-Berlin - Dresden - Aachen
-main office: Krausenstr. 38, 10117 Berlin
-Geschaeftsfuehrer: Dr. Ralf Herbrich, Christian Schlaeger
-Ust-ID: DE289237879
-Eingetragen am Amtsgericht Charlottenburg HRB 149173 B
+--- a/mm/memcontrol.c~mm-memcontrol-consolidate-cgroup-socket-tracking-fix
++++ a/mm/memcontrol.c
+@@ -5655,9 +5655,6 @@ void mem_cgroup_sk_alloc(struct sock *sk
+ {
+ 	struct mem_cgroup *memcg;
+ 
+-	if (!mem_cgroup_sockets_enabled)
+-		return;
+-
+ 	/*
+ 	 * Socket cloning can throw us here with sk_memcg already
+ 	 * filled. It won't however, necessarily happen from
+--- a/net/core/sock.c~mm-memcontrol-consolidate-cgroup-socket-tracking-fix
++++ a/net/core/sock.c
+@@ -1385,7 +1385,8 @@ static void sk_prot_free(struct proto *p
+ 	slab = prot->slab;
+ 
+ 	cgroup_sk_free(&sk->sk_cgrp_data);
+-	mem_cgroup_sk_free(sk);
++	if (mem_cgroup_sockets_enabled)
++		mem_cgroup_sk_free(sk);
+ 	security_sk_free(sk);
+ 	if (slab != NULL)
+ 		kmem_cache_free(slab, sk);
+@@ -1422,7 +1423,8 @@ struct sock *sk_alloc(struct net *net, i
+ 		sock_net_set(sk, net);
+ 		atomic_set(&sk->sk_wmem_alloc, 1);
+ 
+-		mem_cgroup_sk_alloc(sk);
++		if (mem_cgroup_sockets_enabled)
++			mem_cgroup_sk_alloc(sk);
+ 		cgroup_sk_alloc(&sk->sk_cgrp_data);
+ 		sock_update_classid(&sk->sk_cgrp_data);
+ 		sock_update_netprioidx(&sk->sk_cgrp_data);
+@@ -1569,7 +1571,8 @@ struct sock *sk_clone_lock(const struct
+ 		newsk->sk_incoming_cpu = raw_smp_processor_id();
+ 		atomic64_set(&newsk->sk_cookie, 0);
+ 
+-		mem_cgroup_sk_alloc(newsk);
++		if (mem_cgroup_sockets_enabled)
++			mem_cgroup_sk_alloc(newsk);
+ 		cgroup_sk_alloc(&newsk->sk_cgrp_data);
+ 
+ 		/*
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
