@@ -1,48 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BA246B0038
-	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 13:26:32 -0400 (EDT)
-Received: by mail-yb0-f200.google.com with SMTP id z8so93284124ybh.1
-        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 10:26:32 -0700 (PDT)
-Received: from mail-it0-x231.google.com (mail-it0-x231.google.com. [2607:f8b0:4001:c0b::231])
-        by mx.google.com with ESMTPS id v123si4967187itg.41.2016.09.15.10.26.31
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 744026B0038
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 13:41:48 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id t67so115070633ywg.3
+        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 10:41:48 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p126si1993676ybg.298.2016.09.15.10.41.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Sep 2016 10:26:31 -0700 (PDT)
-Received: by mail-it0-x231.google.com with SMTP id 186so86171879itf.0
-        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 10:26:31 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1473759914-17003-16-git-send-email-byungchul.park@lge.com>
-References: <1473759914-17003-1-git-send-email-byungchul.park@lge.com> <1473759914-17003-16-git-send-email-byungchul.park@lge.com>
-From: Nilay Vaish <nilayvaish@gmail.com>
-Date: Thu, 15 Sep 2016 12:25:51 -0500
-Message-ID: <CACbG30_tz=tkkibzH1od+2jLPq3k1W-6qsf6vDB=rwQ-Fm3ygg@mail.gmail.com>
-Subject: Re: [PATCH v3 15/15] lockdep: Crossrelease feature documentation
-Content-Type: text/plain; charset=UTF-8
+        Thu, 15 Sep 2016 10:41:47 -0700 (PDT)
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: [PATCH 1/2] mm: vm_page_prot: update with WRITE_ONCE/READ_ONCE
+Date: Thu, 15 Sep 2016 19:41:43 +0200
+Message-Id: <1473961304-19370-2-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1473961304-19370-1-git-send-email-aarcange@redhat.com>
+References: <1473961304-19370-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Byungchul Park <byungchul.park@lge.com>
-Cc: peterz@infradead.org, mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, Linux Kernel list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>, Jan Vorlicek <janvorli@microsoft.com>, Aditya Mandaleeka <adityam@microsoft.com>
 
-On 13 September 2016 at 04:45, Byungchul Park <byungchul.park@lge.com> wrote:
-> This document describes the concept of crossrelease feature, which
-> generalizes what causes a deadlock and how can detect a deadlock.
->
-> Signed-off-by: Byungchul Park <byungchul.park@lge.com>
-> ---
->  Documentation/locking/crossrelease.txt | 785 +++++++++++++++++++++++++++++++++
->  1 file changed, 785 insertions(+)
->  create mode 100644 Documentation/locking/crossrelease.txt
+vma->vm_page_prot is read lockless from the rmap_walk, it may be
+updated concurrently and this prevents the risk of reading
+intermediate values.
 
-Byungchul, I mostly skimmed through the document.  I suggest that we
-split this document.  The initial 1/4 of the document talks about
-lockdep's current implementation which I believe should be combined
-with the file: Documentation/locking/lockdep-design.txt. Tomorrow I
-would try to understand the document in detail and hopefully provide
-some useful comments.
+Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+---
+ mm/huge_memory.c | 2 +-
+ mm/migrate.c     | 2 +-
+ mm/mmap.c        | 9 ++++++---
+ 3 files changed, 8 insertions(+), 5 deletions(-)
 
---
-Nilay
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index cb95a83..995f8a1 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1566,7 +1566,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
+ 			if (soft_dirty)
+ 				entry = pte_swp_mksoft_dirty(entry);
+ 		} else {
+-			entry = mk_pte(page + i, vma->vm_page_prot);
++			entry = mk_pte(page + i, READ_ONCE(vma->vm_page_prot));
+ 			entry = maybe_mkwrite(entry, vma);
+ 			if (!write)
+ 				entry = pte_wrprotect(entry);
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 00167df..e49ccce 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -234,7 +234,7 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
+ 		goto unlock;
+ 
+ 	get_page(new);
+-	pte = pte_mkold(mk_pte(new, vma->vm_page_prot));
++	pte = pte_mkold(mk_pte(new, READ_ONCE(vma->vm_page_prot)));
+ 	if (pte_swp_soft_dirty(*ptep))
+ 		pte = pte_mksoft_dirty(pte);
+ 
+diff --git a/mm/mmap.c b/mm/mmap.c
+index c34f643..1abf106 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -112,13 +112,16 @@ static pgprot_t vm_pgprot_modify(pgprot_t oldprot, unsigned long vm_flags)
+ void vma_set_page_prot(struct vm_area_struct *vma)
+ {
+ 	unsigned long vm_flags = vma->vm_flags;
++	pgprot_t vm_page_prot;
+ 
+-	vma->vm_page_prot = vm_pgprot_modify(vma->vm_page_prot, vm_flags);
++	vm_page_prot = vm_pgprot_modify(vma->vm_page_prot, vm_flags);
+ 	if (vma_wants_writenotify(vma)) {
+ 		vm_flags &= ~VM_SHARED;
+-		vma->vm_page_prot = vm_pgprot_modify(vma->vm_page_prot,
+-						     vm_flags);
++		vm_page_prot = vm_pgprot_modify(vma->vm_page_prot,
++						vm_flags);
+ 	}
++	/* remove_protection_ptes reads vma->vm_page_prot without mmap_sem */
++	WRITE_ONCE(vma->vm_page_prot, vm_page_prot);
+ }
+ 
+ static unsigned long vm_mergeable __read_mostly;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
