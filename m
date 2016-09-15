@@ -1,98 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B1FE36B0069
-	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 14:28:37 -0400 (EDT)
-Received: by mail-yb0-f198.google.com with SMTP id c79so96772920ybf.2
-        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 11:28:37 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x205si2074727ybb.131.2016.09.15.11.28.36
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E2C46B0038
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 14:51:29 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 1so36820438wmz.2
+        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 11:51:29 -0700 (PDT)
+Received: from mail-lf0-x242.google.com (mail-lf0-x242.google.com. [2a00:1450:4010:c07::242])
+        by mx.google.com with ESMTPS id f11si2860615lfb.309.2016.09.15.11.51.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Sep 2016 11:28:37 -0700 (PDT)
-Message-ID: <1473964113.10218.92.camel@redhat.com>
-Subject: Re: [PATCH 2/2] mm: vma_merge: fix race vm_page_prot race condition
- against rmap_walk
-From: Rik van Riel <riel@redhat.com>
-Date: Thu, 15 Sep 2016 14:28:33 -0400
-In-Reply-To: <1473961304-19370-3-git-send-email-aarcange@redhat.com>
-References: <1473961304-19370-1-git-send-email-aarcange@redhat.com>
-	 <1473961304-19370-3-git-send-email-aarcange@redhat.com>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-9rRrGKy/nakdPBb+NJWt"
-Mime-Version: 1.0
+        Thu, 15 Sep 2016 11:51:28 -0700 (PDT)
+Received: by mail-lf0-x242.google.com with SMTP id s64so3845535lfs.2
+        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 11:51:27 -0700 (PDT)
+From: Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>
+Reply-To: arekm@maven.pl
+Subject: Re: [PATCH 0/4] reintroduce compaction feedback for OOM decisions
+Date: Thu, 15 Sep 2016 20:51:25 +0200
+References: <20160906135258.18335-1-vbabka@suse.cz>
+In-Reply-To: <20160906135258.18335-1-vbabka@suse.cz>
+MIME-Version: 1.0
+Content-Type: Text/Plain;
+  charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <201609152051.25268.a.miskiewicz@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>, Jan Vorlicek <janvorli@microsoft.com>, Aditya Mandaleeka <adityam@microsoft.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Olaf Hering <olaf@aepfle.de>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Rik van Riel <riel@redhat.com>
 
-
---=-9rRrGKy/nakdPBb+NJWt
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-On Thu, 2016-09-15 at 19:41 +0200, Andrea Arcangeli wrote:
-> The rmap_walk can access vm_page_prot (and potentially vm_flags in
-> the
-> pte/pmd manipulations). So it's not safe to wait the caller to update
-> the vm_page_prot/vm_flags after vma_merge returned potentially
-> removing the "next" vma and extending the "current" vma over the
-> next->vm_start,vm_end range, but still with the "current" vma
-> vm_page_prot, after releasing the rmap locks.
+On Tuesday 06 of September 2016, Vlastimil Babka wrote:
+> After several people reported OOM's for order-2 allocations in 4.7 due to
+> Michal Hocko's OOM rework, he reverted the part that considered compaction
+> feedback [1] in the decisions to retry reclaim/compaction. This was to
+> provide a fix quickly for 4.8 rc and 4.7 stable series, while mmotm had an
+> almost complete solution that instead improved compaction reliability.
 >=20
-> The vm_page_prot/vm_flags must be transferred from the "next" vma to
-> the current vma while vma_merge still holds the rmap locks.
+> This series completes the mmotm solution and reintroduces the compaction
+> feedback into OOM decisions. The first two patches restore the state of
+> mmotm before the temporary solution was merged, the last patch should be
+> the missing piece for reliability. The third patch restricts the hardened
+> compaction to non-costly orders, since costly orders don't result in OOMs
+> in the first place.
 >=20
-> The side effect of this race condition is pte corruption during
-> migrate as remove_migration_ptes when run on a address of the "next"
-> vma that got removed, used the vm_page_prot of the current vma.
->=20
-> migrate	=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0	=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0	=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0mprotect
-> ------------			-------------
-> migrating in "next" vma
-> 				vma_merge() # removes "next" vma and
-> 			=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0	=C2=A0=C2=A0=C2=A0=C2=
-=A0# extends "current" vma
-> 					=C2=A0=C2=A0=C2=A0=C2=A0# current vma is not with
-> 					=C2=A0=C2=A0=C2=A0=C2=A0# vm_page_prot updated
-> remove_migration_ptes
-> read vm_page_prot of current "vma"
-> establish pte with wrong permissions
-> 				vm_set_page_prot(vma) # too late!
-> 				change_protection in the old vma range
-> 				only, next range is not updated
->=20
-> This caused segmentation faults and potentially memory corruption in
-> heavy mprotect loads with some light page migration caused by
-> compaction in the background.
->=20
-> Reported-by: Aditya Mandaleeka <adityam@microsoft.com>
-> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> Some preliminary testing suggested that this approach should work, but I
+> would like to ask all who experienced the regression to please retest
+> this. You will need to apply this series on top of tag
+> mmotm-2016-08-31-16-06 from the mmotm git tree [2]. Thanks in advance!
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Tested-by: Rik van Riel <riel@redhat.com>
+My "rm -rf copyX; cp -al org copyX" test x10 in parallel worked without any=
+=20
+OOM.
 
---=20
-All rights reversed
 
---=-9rRrGKy/nakdPBb+NJWt
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQEcBAABCAAGBQJX2uhSAAoJEM553pKExN6DDqkIAIRvKAWtUlV1OravZIq/0g8+
-5v+7bTWew6DKJvtzZxD/TeHDa1E8K8RI5Cgn07vSr073ZGYTFUDvE9Qox3DejBPZ
-Bm4glesKh80Ej1wtWZL+oTxJw76j5CHF5EnY+/A3dbqH7KkjFF61xIZuCGPKPkyG
-QsEKzg2F/Zm63FRksqigIRYlnasP/E14Um853cP2C9to94SuLX0Tf3zOH2eGaYju
-SMTwXSC3TSWoSsMQT8k+SSTCzb/bv4Jk51YjGOy7tzv8BPrCEP++b25FkmBpScCs
-F0/oUaI/hXY1jb0m4do1AVxavlTPqfB7tmZLxP2ilPd6ABXL8+3sX4AoXb+cHAE=
-=3hqu
------END PGP SIGNATURE-----
-
---=-9rRrGKy/nakdPBb+NJWt--
+=2D-=20
+Arkadiusz Mi=C5=9Bkiewicz, arekm / ( maven.pl | pld-linux.org )
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
