@@ -1,67 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F56E6B0262
-	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 10:45:22 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id u14so48011828lfd.0
-        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 07:45:22 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id f189si619662wmf.4.2016.09.15.07.45.20
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BA7F66B0069
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 11:34:53 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id r126so153251000oib.0
+        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 08:34:53 -0700 (PDT)
+Received: from mail-it0-x231.google.com (mail-it0-x231.google.com. [2607:f8b0:4001:c0b::231])
+        by mx.google.com with ESMTPS id b12si5868106iob.62.2016.09.15.08.34.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Sep 2016 07:45:20 -0700 (PDT)
-Date: Thu, 15 Sep 2016 10:41:18 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC 0/4] mm, oom: get rid of TIF_MEMDIE
-Message-ID: <20160915144118.GB25519@cmpxchg.org>
-References: <1472723464-22866-1-git-send-email-mhocko@kernel.org>
+        Thu, 15 Sep 2016 08:34:27 -0700 (PDT)
+Received: by mail-it0-x231.google.com with SMTP id 186so80651952itf.0
+        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 08:34:27 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1472723464-22866-1-git-send-email-mhocko@kernel.org>
+In-Reply-To: <1473759914-17003-4-git-send-email-byungchul.park@lge.com>
+References: <1473759914-17003-1-git-send-email-byungchul.park@lge.com> <1473759914-17003-4-git-send-email-byungchul.park@lge.com>
+From: Nilay Vaish <nilayvaish@gmail.com>
+Date: Thu, 15 Sep 2016 10:33:46 -0500
+Message-ID: <CACbG308kitsX23FTCJiUDVpN2uusabHiN1ifao53yR5fM4Z7VA@mail.gmail.com>
+Subject: Re: [PATCH v3 03/15] lockdep: Refactor lookup_chain_cache()
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Oleg Nesterov <oleg@redhat.com>
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: peterz@infradead.org, mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, Linux Kernel list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
 
-Hi Michal,
-
-On Thu, Sep 01, 2016 at 11:51:00AM +0200, Michal Hocko wrote:
-> Hi,
-> this is an early RFC to see whether the approach I've taken is acceptable.
-> The series is on top of the current mmotm tree (2016-08-31-16-06). I didn't
-> get to test it so it might be completely broken.
-> 
-> The primary point of this series is to get rid of TIF_MEMDIE finally.
-> Recent changes in the oom proper allows for that finally, I believe. Now
-> that all the oom victims are reapable we are no longer depending on
-> ALLOC_NO_WATERMARKS because the memory held by the victim is reclaimed
-> asynchronously. A partial access to memory reserves should be sufficient
-> just to guarantee that the oom victim is not starved due to other
-> memory consumers. This also means that we do not have to pretend to be
-> conservative and give access to memory reserves only to one thread from
-> the process at the time. This is patch 1.
+On 13 September 2016 at 04:45, Byungchul Park <byungchul.park@lge.com> wrote:
+> @@ -2215,6 +2178,75 @@ cache_hit:
+>         return 1;
+>  }
 >
-> Patch 2 is a simple cleanup which turns TIF_MEMDIE users to tsk_is_oom_victim
-> which is process rather than thread centric. None of those callers really
-> requires to be thread aware AFAICS.
-> 
-> The tricky part then is exit_oom_victim vs. oom_killer_disable because
-> TIF_MEMDIE acted as a token there so we had a way to count threads from
-> the process. It didn't work 100% reliably and had it own issues but we
-> have to replace it with something which doesn't rely on counting threads
-> but rather find a moment when all threads have reached steady state in
-> do_exit. This is what patch 3 does and I would really appreciate if Oleg
-> could double check my thinking there. I am also CCing Al on that one
-> because I am moving exit_io_context up in do_exit right before exit_notify.
+> +/*
+> + * Look up a dependency chain.
+> + */
+> +static inline struct lock_chain *lookup_chain_cache(u64 chain_key)
+> +{
+> +       struct hlist_head *hash_head = chainhashentry(chain_key);
+> +       struct lock_chain *chain;
+> +
+> +       /*
+> +        * We can walk it lock-free, because entries only get added
+> +        * to the hash:
+> +        */
+> +       hlist_for_each_entry_rcu(chain, hash_head, entry) {
+> +               if (chain->chain_key == chain_key) {
+> +                       debug_atomic_inc(chain_lookup_hits);
+> +                       return chain;
+> +               }
+> +       }
+> +       return NULL;
+> +}
 
-You're explaining the mechanical thing you are doing, but I'm having
-trouble understanding why you want to get rid of TIF_MEMDIE. For one,
-it's more code. And apparently, it's also more complicated than what
-we have right now.
+Byungchul,  do you think we should increment chain_lookup_misses
+before returning NULL from the above function?
 
-Can you please explain in the cover letter what's broken/undesirable?
-
-Thanks
+--
+Nilay
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
