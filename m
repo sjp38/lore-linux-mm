@@ -1,54 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F349A6B0038
-	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 13:45:15 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id o3so84984232ita.3
-        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 10:45:15 -0700 (PDT)
-Received: from mail-oi0-x230.google.com (mail-oi0-x230.google.com. [2607:f8b0:4003:c06::230])
-        by mx.google.com with ESMTPS id 8si5092527otm.126.2016.09.15.10.44.54
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A6576B0038
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 14:27:38 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id b204so140515qkc.1
+        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 11:27:38 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t5si607735ywf.160.2016.09.15.11.27.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Sep 2016 10:44:54 -0700 (PDT)
-Received: by mail-oi0-x230.google.com with SMTP id w11so80464116oia.2
-        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 10:44:54 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20160915170942.GJ9314@birch.djwong.org>
-References: <147392246509.9873.17750323049785100997.stgit@dwillia2-desk3.amr.corp.intel.com>
- <147392247875.9873.4205533916442000884.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20160915082615.GA9772@lst.de> <CAPcyv4jTw3cXpmmJRh7t16Xy2uYofDe+fJ+X_jnz+Q=o0uGneg@mail.gmail.com>
- <20160915170942.GJ9314@birch.djwong.org>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 15 Sep 2016 10:44:53 -0700
-Message-ID: <CAPcyv4h4f468Dt3Uv2YJO18TD2rN=s+xJRWK4QvOvxANSkdesA@mail.gmail.com>
-Subject: Re: [PATCH v2 2/3] mm, dax: add VM_DAX flag for DAX VMAs
-Content-Type: text/plain; charset=UTF-8
+        Thu, 15 Sep 2016 11:27:37 -0700 (PDT)
+Message-ID: <1473964054.10218.91.camel@redhat.com>
+Subject: Re: [PATCH 1/2] mm: vm_page_prot: update with WRITE_ONCE/READ_ONCE
+From: Rik van Riel <riel@redhat.com>
+Date: Thu, 15 Sep 2016 14:27:34 -0400
+In-Reply-To: <1473961304-19370-2-git-send-email-aarcange@redhat.com>
+References: <1473961304-19370-1-git-send-email-aarcange@redhat.com>
+	 <1473961304-19370-2-git-send-email-aarcange@redhat.com>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-600NoOkgfqzxRXbjgfBS"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Christoph Hellwig <hch@lst.de>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Nicholas Piggin <npiggin@gmail.com>, XFS Developers <xfs@oss.sgi.com>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>, Jan Vorlicek <janvorli@microsoft.com>, Aditya Mandaleeka <adityam@microsoft.com>
 
-On Thu, Sep 15, 2016 at 10:09 AM, Darrick J. Wong
-<darrick.wong@oracle.com> wrote:
-> On Thu, Sep 15, 2016 at 10:01:03AM -0700, Dan Williams wrote:
->> On Thu, Sep 15, 2016 at 1:26 AM, Christoph Hellwig <hch@lst.de> wrote:
->> > On Wed, Sep 14, 2016 at 11:54:38PM -0700, Dan Williams wrote:
->> >> The DAX property, page cache bypass, of a VMA is only detectable via the
->> >> vma_is_dax() helper to check the S_DAX inode flag.  However, this is
->> >> only available internal to the kernel and is a property that userspace
->> >> applications would like to interrogate.
->> >
->> > They have absolutely no business knowing such an implementation detail.
->>
->> Hasn't that train already left the station with FS_XFLAG_DAX?
->
-> Seeing as FS_IOC_FSGETXATTR is a "generic" ioctl now, why not just
-> implement it for all the DAX fses and block devices?  Aside from xflags,
-> the other fields are probably all zero for non-xfs (aside from project
-> quota id I guess).
->
-> (Yeah, sort of awkward, I know...)
 
-It would solve the problem at hand, I'll take a look.
+--=-600NoOkgfqzxRXbjgfBS
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+On Thu, 2016-09-15 at 19:41 +0200, Andrea Arcangeli wrote:
+> vma->vm_page_prot is read lockless from the rmap_walk, it may be
+> updated concurrently and this prevents the risk of reading
+> intermediate values.
+>=20
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+
+Reviewed-by: Rik van Riel <riel@redhat.com>
+
+--=20
+All rights reversed
+
+--=-600NoOkgfqzxRXbjgfBS
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQEcBAABCAAGBQJX2ugWAAoJEM553pKExN6D9+QH/jVO8GfThcLAxZC1b9nuJ6fe
+Efpp78dzJ3DwjyrhQ1/TDI/Bf6cpjv4nJ6mdA1JSAPyPacP94G+sttaC5NT3I4Pg
+YYeAF8yqv9YFmQwa+fBjKSooyWwpEuEpG3tUzQ72c1oM0WuF6IJwL7s/9bhfup5H
+Nz9fQkcHeFcMd7BSuXmHe4lb1B+qlZpFnRSRyvtEjb/r/24SFcDzQxnxFfJ/gaY1
+yFrpVD/X66TyPjeOT/xF06JHsNQTyVTAM+vAg/POYxwQFzHxnu1dTcHbRhtgcszF
+slCHXasfYa3ax4L93OzrPVjreK2X0Ze9JSekVeVltaoGrO5+e/uesD+KNMMbCOI=
+=0Qkl
+-----END PGP SIGNATURE-----
+
+--=-600NoOkgfqzxRXbjgfBS--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
