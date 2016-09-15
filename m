@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A70B28024B
-	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 07:55:41 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id n24so89446204pfb.0
-        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 04:55:41 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id y81si33438682pfb.247.2016.09.15.04.55.40
+	by kanga.kvack.org (Postfix) with ESMTP id 24A9328024D
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 07:55:43 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 128so89158618pfb.2
+        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 04:55:43 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id a68si39039746pfb.39.2016.09.15.04.55.41
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 15 Sep 2016 04:55:40 -0700 (PDT)
+        Thu, 15 Sep 2016 04:55:41 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 15/41] filemap: handle huge pages in do_generic_file_read()
-Date: Thu, 15 Sep 2016 14:54:57 +0300
-Message-Id: <20160915115523.29737-16-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 17/41] filemap: handle huge pages in filemap_fdatawait_range()
+Date: Thu, 15 Sep 2016 14:54:59 +0300
+Message-Id: <20160915115523.29737-18-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20160915115523.29737-1-kirill.shutemov@linux.intel.com>
 References: <20160915115523.29737-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,47 +20,32 @@ List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Most of work happans on head page. Only when we need to do copy data to
-userspace we find relevant subpage.
-
-We are still limited by PAGE_SIZE per iteration. Lifting this limitation
-would require some more work.
+We writeback whole huge page a time.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/filemap.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ mm/filemap.c | 5 +++++
+ 1 file changed, 5 insertions(+)
 
 diff --git a/mm/filemap.c b/mm/filemap.c
-index 50afe17230e7..b77bcf6843ee 100644
+index 05b42d3e5ed8..53da93156e60 100644
 --- a/mm/filemap.c
 +++ b/mm/filemap.c
-@@ -1860,6 +1860,7 @@ find_page:
- 			if (unlikely(page == NULL))
- 				goto no_cached_page;
- 		}
-+		page = compound_head(page);
- 		if (PageReadahead(page)) {
- 			page_cache_async_readahead(mapping,
- 					ra, filp, page,
-@@ -1936,7 +1937,8 @@ page_ok:
- 		 * now we can copy it to user space...
- 		 */
+@@ -372,9 +372,14 @@ static int __filemap_fdatawait_range(struct address_space *mapping,
+ 			if (page->index > end)
+ 				continue;
  
--		ret = copy_page_to_iter(page, offset, nr, iter);
-+		ret = copy_page_to_iter(page + index - page->index, offset,
-+				nr, iter);
- 		offset += ret;
- 		index += offset >> PAGE_SHIFT;
- 		offset &= ~PAGE_MASK;
-@@ -2356,6 +2358,7 @@ page_not_uptodate:
- 	 * because there really aren't any performance issues here
- 	 * and we need to check for errors.
- 	 */
-+	page = compound_head(page);
- 	ClearPageError(page);
- 	error = mapping->a_ops->readpage(file, page);
- 	if (!error) {
++			page = compound_head(page);
+ 			wait_on_page_writeback(page);
+ 			if (TestClearPageError(page))
+ 				ret = -EIO;
++			if (PageTransHuge(page)) {
++				index = page->index + HPAGE_PMD_NR;
++				i += index - pvec.pages[i]->index - 1;
++			}
+ 		}
+ 		pagevec_release(&pvec);
+ 		cond_resched();
 -- 
 2.9.3
 
