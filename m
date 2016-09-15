@@ -1,70 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BF97A6B026B
-	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 10:32:18 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id n24so97154694pfb.0
-        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 07:32:18 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id m9si4604849pfg.30.2016.09.15.07.32.17
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F56E6B0262
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 10:45:22 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id u14so48011828lfd.0
+        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 07:45:22 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id f189si619662wmf.4.2016.09.15.07.45.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Sep 2016 07:32:18 -0700 (PDT)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8FESHkG133569
-	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 10:32:17 -0400
-Received: from e38.co.us.ibm.com (e38.co.us.ibm.com [32.97.110.159])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 25fr9h98qy-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 10:32:17 -0400
-Received: from localhost
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Thu, 15 Sep 2016 08:32:16 -0600
-Date: Thu, 15 Sep 2016 09:31:57 -0500
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 1/3] drivers/of: recognize status property of dt
- memory nodes
-References: <1473883618-14998-1-git-send-email-arbab@linux.vnet.ibm.com>
- <1473883618-14998-2-git-send-email-arbab@linux.vnet.ibm.com>
- <CAL_JsqK5ngY-eJggPSo5AGcv4CC2b8Y1X_aYzr06_Zf6Kv-u=w@mail.gmail.com>
+        Thu, 15 Sep 2016 07:45:20 -0700 (PDT)
+Date: Thu, 15 Sep 2016 10:41:18 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC 0/4] mm, oom: get rid of TIF_MEMDIE
+Message-ID: <20160915144118.GB25519@cmpxchg.org>
+References: <1472723464-22866-1-git-send-email-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAL_JsqK5ngY-eJggPSo5AGcv4CC2b8Y1X_aYzr06_Zf6Kv-u=w@mail.gmail.com>
-Message-Id: <20160915143157.mi7xhxfedbic6m63@arbab-laptop>
+In-Reply-To: <1472723464-22866-1-git-send-email-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rob Herring <robh+dt@kernel.org>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Frank Rowand <frowand.list@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Oleg Nesterov <oleg@redhat.com>
 
-On Thu, Sep 15, 2016 at 08:43:08AM -0500, Rob Herring wrote:
->On Wed, Sep 14, 2016 at 3:06 PM, Reza Arbab <arbab@linux.vnet.ibm.com> wrote:
->> +       status = of_get_flat_dt_prop(node, "status", NULL);
->> +       add_memory = !status || !strcmp(status, "okay");
+Hi Michal,
+
+On Thu, Sep 01, 2016 at 11:51:00AM +0200, Michal Hocko wrote:
+> Hi,
+> this is an early RFC to see whether the approach I've taken is acceptable.
+> The series is on top of the current mmotm tree (2016-08-31-16-06). I didn't
+> get to test it so it might be completely broken.
+> 
+> The primary point of this series is to get rid of TIF_MEMDIE finally.
+> Recent changes in the oom proper allows for that finally, I believe. Now
+> that all the oom victims are reapable we are no longer depending on
+> ALLOC_NO_WATERMARKS because the memory held by the victim is reclaimed
+> asynchronously. A partial access to memory reserves should be sufficient
+> just to guarantee that the oom victim is not starved due to other
+> memory consumers. This also means that we do not have to pretend to be
+> conservative and give access to memory reserves only to one thread from
+> the process at the time. This is patch 1.
 >
->Move this into it's own function to mirror the unflattened version
->(of_device_is_available). Also, make sure the logic is the same. IIRC,
->"ok" is also allowed.
+> Patch 2 is a simple cleanup which turns TIF_MEMDIE users to tsk_is_oom_victim
+> which is process rather than thread centric. None of those callers really
+> requires to be thread aware AFAICS.
+> 
+> The tricky part then is exit_oom_victim vs. oom_killer_disable because
+> TIF_MEMDIE acted as a token there so we had a way to count threads from
+> the process. It didn't work 100% reliably and had it own issues but we
+> have to replace it with something which doesn't rely on counting threads
+> but rather find a moment when all threads have reached steady state in
+> do_exit. This is what patch 3 does and I would really appreciate if Oleg
+> could double check my thinking there. I am also CCing Al on that one
+> because I am moving exit_io_context up in do_exit right before exit_notify.
 
-Will do. 
+You're explaining the mechanical thing you are doing, but I'm having
+trouble understanding why you want to get rid of TIF_MEMDIE. For one,
+it's more code. And apparently, it's also more complicated than what
+we have right now.
 
->> @@ -1057,6 +1062,9 @@ int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
->>                 pr_debug(" - %llx ,  %llx\n", (unsigned long long)base,
->>                     (unsigned long long)size);
->>
->> +               if (!add_memory)
->> +                       continue;
->
->There's no point in checking this in the loop. status applies to the
->whole node. Just return up above.
+Can you please explain in the cover letter what's broken/undesirable?
 
-I was trying to preserve that pr_debug output for these nodes, but I'm 
-also fine with skipping it.
-
-Thanks for your feedback! I'll spin a v3 of this patchset soon.
-
--- 
-Reza Arbab
+Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
