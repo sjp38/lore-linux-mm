@@ -1,8 +1,8 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CCF9E280258
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D14BB280259
 	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 07:55:52 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id fu12so85061443pac.1
+Received: by mail-pf0-f199.google.com with SMTP id v67so90203228pfv.1
         for <linux-mm@kvack.org>; Thu, 15 Sep 2016 04:55:52 -0700 (PDT)
 Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
         by mx.google.com with ESMTPS id y187si3556097pfy.250.2016.09.15.04.55.49
@@ -10,9 +10,9 @@ Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Thu, 15 Sep 2016 04:55:49 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 35/41] ext4: make ext4_da_page_release_reservation() aware about huge pages
-Date: Thu, 15 Sep 2016 14:55:17 +0300
-Message-Id: <20160915115523.29737-36-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 33/41] ext4: make ext4_block_write_begin() aware about huge pages
+Date: Thu, 15 Sep 2016 14:55:15 +0300
+Message-Id: <20160915115523.29737-34-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20160915115523.29737-1-kirill.shutemov@linux.intel.com>
 References: <20160915115523.29737-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,39 +20,63 @@ List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-For huge pages 'stop' must be within HPAGE_PMD_SIZE.
-Let's use hpage_size() in the BUG_ON().
-
-We also need to change how we calculate lblk for cluster deallocation.
+It simply matches changes to __block_write_begin_int().
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- fs/ext4/inode.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+ fs/ext4/inode.c | 24 ++++++++++++++++--------
+ 1 file changed, 16 insertions(+), 8 deletions(-)
 
 diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index deacd3499ec7..6a8da1a8409c 100644
+index a07c055d8e78..31560b52eff2 100644
 --- a/fs/ext4/inode.c
 +++ b/fs/ext4/inode.c
-@@ -1558,7 +1558,7 @@ static void ext4_da_page_release_reservation(struct page *page,
- 	int num_clusters;
- 	ext4_fsblk_t lblk;
+@@ -1079,9 +1079,8 @@ int do_journal_get_write_access(handle_t *handle,
+ static int ext4_block_write_begin(struct page *page, loff_t pos, unsigned len,
+ 				  get_block_t *get_block)
+ {
+-	unsigned from = pos & (PAGE_SIZE - 1);
+-	unsigned to = from + len;
+-	struct inode *inode = page->mapping->host;
++	unsigned from, to;
++	struct inode *inode = page_mapping(page)->host;
+ 	unsigned block_start, block_end;
+ 	sector_t block;
+ 	int err = 0;
+@@ -1090,9 +1089,12 @@ static int ext4_block_write_begin(struct page *page, loff_t pos, unsigned len,
+ 	struct buffer_head *bh, *head, *wait[2], **wait_bh = wait;
+ 	bool decrypt = false;
  
--	BUG_ON(stop > PAGE_SIZE || stop < length);
-+	BUG_ON(stop > hpage_size(page) || stop < length);
++	page = compound_head(page);
++	from = pos & ~hpage_mask(page);
++	to = from + len;
+ 	BUG_ON(!PageLocked(page));
+-	BUG_ON(from > PAGE_SIZE);
+-	BUG_ON(to > PAGE_SIZE);
++	BUG_ON(from > hpage_size(page));
++	BUG_ON(to > hpage_size(page));
+ 	BUG_ON(from > to);
  
- 	head = page_buffers(page);
- 	bh = head;
-@@ -1593,7 +1593,8 @@ static void ext4_da_page_release_reservation(struct page *page,
- 	 * need to release the reserved space for that cluster. */
- 	num_clusters = EXT4_NUM_B2C(sbi, to_release);
- 	while (num_clusters > 0) {
--		lblk = (page->index << (PAGE_SHIFT - inode->i_blkbits)) +
-+		lblk = ((page->index + offset / PAGE_SIZE) <<
-+				(PAGE_SHIFT - inode->i_blkbits)) +
- 			((num_clusters - 1) << sbi->s_cluster_bits);
- 		if (sbi->s_cluster_ratio == 1 ||
- 		    !ext4_find_delalloc_cluster(inode, lblk))
+ 	if (!page_has_buffers(page))
+@@ -1127,9 +1129,15 @@ static int ext4_block_write_begin(struct page *page, loff_t pos, unsigned len,
+ 					mark_buffer_dirty(bh);
+ 					continue;
+ 				}
+-				if (block_end > to || block_start < from)
+-					zero_user_segments(page, to, block_end,
+-							   block_start, from);
++				if (block_end > to || block_start < from) {
++					BUG_ON(to - from  > PAGE_SIZE);
++					zero_user_segments(page +
++							block_start / PAGE_SIZE,
++							to % PAGE_SIZE,
++							(block_start % PAGE_SIZE) + blocksize,
++							block_start % PAGE_SIZE,
++							from % PAGE_SIZE);
++				}
+ 				continue;
+ 			}
+ 		}
 -- 
 2.9.3
 
