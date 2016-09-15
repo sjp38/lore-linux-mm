@@ -1,139 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 71EA36B0069
-	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 18:35:05 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id wk8so116349769pab.3
-        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 15:35:05 -0700 (PDT)
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B5FAB6B0069
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 19:07:58 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id c31so17128755iod.2
+        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 16:07:58 -0700 (PDT)
 Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
-        by mx.google.com with ESMTP id n81si41527548pfb.192.2016.09.15.15.35.03
+        by mx.google.com with ESMTP id i10si25893823oif.106.2016.09.15.16.07.56
         for <linux-mm@kvack.org>;
-        Thu, 15 Sep 2016 15:35:04 -0700 (PDT)
-Date: Fri, 16 Sep 2016 08:33:50 +1000
+        Thu, 15 Sep 2016 16:07:57 -0700 (PDT)
+Date: Fri, 16 Sep 2016 09:07:48 +1000
 From: Dave Chinner <david@fromorbit.com>
-Subject: Re: DAX mapping detection (was: Re: [PATCH] Fix region lost in
- /proc/self/smaps)
-Message-ID: <20160915223350.GU22388@dastard>
-References: <20160912075128.GB21474@infradead.org>
- <20160912180507.533b3549@roar.ozlabs.ibm.com>
- <20160912213435.GD30497@dastard>
- <20160913115311.509101b0@roar.ozlabs.ibm.com>
- <20160914073902.GQ22388@dastard>
- <20160914201936.08315277@roar.ozlabs.ibm.com>
- <20160915023133.GR22388@dastard>
- <20160915134945.0aaa4f5a@roar.ozlabs.ibm.com>
- <20160915103210.GT22388@dastard>
- <20160915214222.505f4888@roar.ozlabs.ibm.com>
+Subject: Re: [PATCH v2 2/3] mm, dax: add VM_DAX flag for DAX VMAs
+Message-ID: <20160915230748.GS30497@dastard>
+References: <147392246509.9873.17750323049785100997.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <147392247875.9873.4205533916442000884.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20160915082615.GA9772@lst.de>
+ <CAPcyv4jTw3cXpmmJRh7t16Xy2uYofDe+fJ+X_jnz+Q=o0uGneg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160915214222.505f4888@roar.ozlabs.ibm.com>
+In-Reply-To: <CAPcyv4jTw3cXpmmJRh7t16Xy2uYofDe+fJ+X_jnz+Q=o0uGneg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Oliver O'Halloran <oohall@gmail.com>, Yumei Huang <yuhuang@redhat.com>, Michal Hocko <mhocko@suse.com>, Xiao Guangrong <guangrong.xiao@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, KVM list <kvm@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Gleb Natapov <gleb@kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, mtosatti@redhat.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Hansen <dave.hansen@intel.com>, Stefan Hajnoczi <stefanha@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Paolo Bonzini <pbonzini@redhat.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Nicholas Piggin <npiggin@gmail.com>, XFS Developers <xfs@oss.sgi.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-On Thu, Sep 15, 2016 at 09:42:22PM +1000, Nicholas Piggin wrote:
-> On Thu, 15 Sep 2016 20:32:10 +1000
-> Dave Chinner <david@fromorbit.com> wrote:
-> > 
-> > You still haven't described anything about what a per-block flag
-> > design is supposed to look like.... :/
+On Thu, Sep 15, 2016 at 10:01:03AM -0700, Dan Williams wrote:
+> On Thu, Sep 15, 2016 at 1:26 AM, Christoph Hellwig <hch@lst.de> wrote:
+> > On Wed, Sep 14, 2016 at 11:54:38PM -0700, Dan Williams wrote:
+> >> The DAX property, page cache bypass, of a VMA is only detectable via the
+> >> vma_is_dax() helper to check the S_DAX inode flag.  However, this is
+> >> only available internal to the kernel and is a property that userspace
+> >> applications would like to interrogate.
+> >
+> > They have absolutely no business knowing such an implementation detail.
 > 
-> For the API, or implementation? I'm not quite sure what you mean
-> here. For implementation it's possible to carefully ensure metadata
-> is persistent when allocating blocks in page fault but before
-> mapping pages. Truncate or hole punch or such things can be made to
-> work by invalidating all such mappings and holding them off until
-> you can cope with them again. Not necessarily for a filesystem with
-> *all* capabilities of XFS -- I don't know -- but for a complete basic
-> one.
+> Hasn't that train already left the station with FS_XFLAG_DAX?
 
-SO, essentially, it comes down to synchrnous metadta updates again.
-but synchronous updates would be conditional on whether an extent
-metadata with the "nofsync" flag asserted was updated? Where's the
-nofsync flag kept? in memory at a generic layer, or in the
-filesystem, potentially in an on-disk structure? How would the
-application set it for a given range?
+No, that's an admin flag, not a runtime hint for applications. Just
+because that flag is set on an inode, it does not mean that DAX is
+actually in use - it will be ignored if the backing dev is not dax
+capable.
 
-> > > > > Filesystem will
-> > > > > invalidate all such mappings before it does buffered IOs or hole punch,
-> > > > > and will sync metadata after allocating a new block but before returning
-> > > > > from a fault.    
-> > > > 
-> > > > ... requires synchronous metadata updates from page fault context,
-> > > > which we already know is not a good solution.  I'll quote one of
-> > > > Christoph's previous replies to save me the trouble:
-> > > > 
-> > > > 	"You could write all metadata synchronously from the page
-> > > > 	fault handler, but that's basically asking for all kinds of
-> > > > 	deadlocks."
-> > > > So, let's redirect back to the "no sync" flag you were talking about
-> > > > - can you answer the questions I asked above? It would be especially
-> > > > important to highlight how the proposed feature would avoid requiring
-> > > > synchronous metadata updates in page fault contexts....  
-> > > 
-> > > Right. So what deadlocks are you concerned about?  
-> > 
-> > It basically puts the entire journal checkpoint path under a page
-> > fault context. i.e. a whole new global locking context problem is
-> 
-> Yes there are potentially some new lock orderings created if you
-> do that, depending on what locks the filesystem does.
+> The other problem with hiding the DAX property is that it turns out to
+> not be a transparent acceleration feature.  See xfs/086 xfs/088
+> xfs/089 xfs/091 which fail with DAX and, as far as I understand, it is
+> due to the fact that DAX disallows delayed allocation behavior.
 
-Well, that's the whole issue.
+Which is not a bug, nor is it something that app developers should
+be surprised by.
 
-> > created as this path can now be run both inside and outside the
-> > mmap_sem. Nothing ever good comes from running filesystem locking
-> > code both inside and outside the mmap_sem.
-> 
-> You mean that some cases journal checkpoint runs with mmap_sem
-> held, and others without mmap_sem held? Not that mmap_sem is taken
-> inside journal checkpoint.
+i.e. Subtle differences in error reporting behaviour occur in
+filesystems /all the time/. Run the test on a non-dax filesystem
+with an extent size hint. It fails /exactly the same way as DAX/.
+Run it with direct IO - fails the same way as DAX. Run it
+with synchronous writes - it fails the same way as DAX.
 
-Maybe not, but now we open up the potential for locks held inside
-or outside mmap sem to interact with the journal locks that are now
-held inside and outside mmap_sem. See below....
+IOWs, if an app can't handle the way DAX reports errors, then they
+are /broken/. Delayed allocation requires checking the return value
+of fsync() or close() to capture the allocation error - many more
+apps get that wrong than the ones that expect the immediate errors
+from write()...
 
-> Then I don't really see why that's a
-> problem. I mean performance could suffer a bit, but with fault
-> retry you can almost always do the syncing outside mmap_sem in
-> practice.
-> 
-> Yes, I'll preemptively agree with you -- We don't want to add any
-> such burden if it is not needed and well justified.
-> 
-> > FWIW, We've never executed synchronous transactions inside page
-> > faults in XFS, and I think ext4 is in the same boat - it may be even
-> > worse because of the way it does ordered data dispatch through the
-> > journal. I don't really even want to think about the level of hurt
-> > this might put btrfs or other COW/log structured filesystems under.
-> > I'm sure Christoph can reel off a bunch more issues off the top of
-> > his head....
-> 
-> I asked him, we'll see what he thinks. I don't beleive there is
-> anything fundamental about mm or fs core layers that cause deadlocks
-> though.
+Anyway: to domeonstrate that the nothign is actually broken, and
+you might sometimes need to fix tests and send patches to
+fstests@vger.kernel.org, this makes xfs/086 pass for me on DAX:
 
-Spent 5 minutes looking at ext4 for an example: filesystems are
-allowed to take page locks during transaction commit. e.g ext4
-journal commit when using the default ordered data mode:
-
-jbd2_journal_commit_transaction
-  journal_submit_data_buffers()
-    journal_submit_inode_data_buffers
-      generic_writepages()
-        ext4_writepages()
-	  mpage_prepare_extent_to_map()
-	    lock_page()
-
-i.e. if we fault on the user buffer during a write() operation and
-that user buffer is a mmapped DAX file that needs to be allocated
-and we have synchronous metadata updates during page faults, we
-deadlock on the page lock held above the page fault context...
-
+--- a/tests/xfs/086
++++ b/tests/xfs/086
+@@ -96,7 +96,8 @@ _scratch_mount
+ 
+ echo "+ modify files"
+ for x in `seq 1 64`; do
+-	$XFS_IO_PROG -f -c "pwrite -S 0x62 0 ${blksz}" "${TESTFILE}.${x}" >> $seqres.full
++	$XFS_IO_PROG -f -c "pwrite -S 0x62 0 ${blksz}" "${TESTFILE}.${x}" \
++		>> $seqres.full 2>&1
+ done
+ umount "${SCRATCH_MNT}"
+ 
 Cheers,
 
 Dave.
+
 -- 
 Dave Chinner
 david@fromorbit.com
