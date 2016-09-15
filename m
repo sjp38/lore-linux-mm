@@ -1,35 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 82A466B0253
-	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 04:26:17 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id k12so35039080lfb.2
-        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 01:26:17 -0700 (PDT)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id lg5si214527wjc.143.2016.09.15.01.26.16
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EF906B0038
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 05:57:15 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id l68so34816702wml.3
+        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 02:57:15 -0700 (PDT)
+Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
+        by mx.google.com with ESMTPS id e4si693931wjc.142.2016.09.15.02.57.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Sep 2016 01:26:16 -0700 (PDT)
-Date: Thu, 15 Sep 2016 10:26:15 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH v2 2/3] mm, dax: add VM_DAX flag for DAX VMAs
-Message-ID: <20160915082615.GA9772@lst.de>
-References: <147392246509.9873.17750323049785100997.stgit@dwillia2-desk3.amr.corp.intel.com> <147392247875.9873.4205533916442000884.stgit@dwillia2-desk3.amr.corp.intel.com>
+        Thu, 15 Sep 2016 02:57:11 -0700 (PDT)
+Received: by mail-wm0-x22f.google.com with SMTP id b187so88072542wme.1
+        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 02:57:11 -0700 (PDT)
+Date: Thu, 15 Sep 2016 10:57:09 +0100
+From: Matt Fleming <matt@codeblueprint.co.uk>
+Subject: Re: [RFC PATCH v2 11/20] mm: Access BOOT related data in the clear
+Message-ID: <20160915095709.GB16797@codeblueprint.co.uk>
+References: <20160822223529.29880.50884.stgit@tlendack-t1.amdoffice.net>
+ <20160822223738.29880.6909.stgit@tlendack-t1.amdoffice.net>
+ <CALCETrUk2kRSzKfwhio6KV3iuYaSV2uxybd-e95kK3vY=yTSfg@mail.gmail.com>
+ <e30ddb53-df6c-28ee-54fe-f3e52e515acb@amd.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <147392247875.9873.4205533916442000884.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <e30ddb53-df6c-28ee-54fe-f3e52e515acb@amd.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: linux-mm@kvack.org, linux-nvdimm@lists.01.org, david@fromorbit.com, linux-kernel@vger.kernel.org, npiggin@gmail.com, xfs@oss.sgi.com, linux-fsdevel@vger.kernel.org, hch@lst.de
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: Andy Lutomirski <luto@amacapital.net>, kasan-dev <kasan-dev@googlegroups.com>, "linux-efi@vger.kernel.org" <linux-efi@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Paolo Bonzini <pbonzini@redhat.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, iommu@lists.linux-foundation.org, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Jonathan Corbet <corbet@lwn.net>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Alexander Potapenko <glider@google.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Arnd Bergmann <arnd@arndb.de>, Joerg Roedel <joro@8bytes.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, "H. Peter Anvin" <hpa@zytor.com>, X86 ML <x86@kernel.org>, kvm list <kvm@vger.kernel.org>, Dave Young <dyoung@redhat.com>
 
-On Wed, Sep 14, 2016 at 11:54:38PM -0700, Dan Williams wrote:
-> The DAX property, page cache bypass, of a VMA is only detectable via the
-> vma_is_dax() helper to check the S_DAX inode flag.  However, this is
-> only available internal to the kernel and is a property that userspace
-> applications would like to interrogate.
+On Wed, 14 Sep, at 09:20:44AM, Tom Lendacky wrote:
+> On 09/12/2016 11:55 AM, Andy Lutomirski wrote:
+> > On Aug 22, 2016 6:53 PM, "Tom Lendacky" <thomas.lendacky@amd.com> wrote:
+> >>
+> >> BOOT data (such as EFI related data) is not encyrpted when the system is
+> >> booted and needs to be accessed as non-encrypted.  Add support to the
+> >> early_memremap API to identify the type of data being accessed so that
+> >> the proper encryption attribute can be applied.  Currently, two types
+> >> of data are defined, KERNEL_DATA and BOOT_DATA.
+> > 
+> > What happens when you memremap boot services data outside of early
+> > boot?  Matt just added code that does this.
+> > 
+> > IMO this API is not so great.  It scatters a specialized consideration
+> > all over the place.  Could early_memremap not look up the PA to figure
+> > out what to do?
+> 
+> Yes, I could see if the PA falls outside of the kernel usable area and,
+> if so, remove the memory encryption attribute from the mapping (for both
+> early_memremap and memremap).
+> 
+> Let me look into that, I would prefer something along that line over
+> this change.
 
-They have absolutely no business knowing such an implementation detail.
+So, the last time we talked about using the address to figure out
+whether to encrypt/decrypt you said,
+
+ "I looked into this and this would be a large change also to parse
+  tables and build lists."
+
+Has something changed that makes this approach easier?
+
+And again, you need to be careful with the EFI kexec code paths, since
+you've got a mixture of boot and kernel data being passed. In
+particular the EFI memory map is allocated by the firmware on first
+boot (BOOT_DATA) but by the kernel on kexec (KERNEL_DATA).
+
+That's one of the reasons I suggested requiring the caller to decide
+on BOOT_DATA vs KERNEL_DATA - when you start looking at kexec the
+distinction isn't easily made.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
