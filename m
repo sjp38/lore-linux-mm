@@ -1,54 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EAF0D6B0038
-	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 12:58:09 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id e20so161255173itc.0
-        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 09:58:09 -0700 (PDT)
-Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0084.outbound.protection.outlook.com. [104.47.42.84])
-        by mx.google.com with ESMTPS id p15si4319180oic.81.2016.09.15.09.57.50
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BCA3D6B0038
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 13:01:28 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id x203so5399101oia.3
+        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 10:01:28 -0700 (PDT)
+Received: from mail-oi0-x22b.google.com (mail-oi0-x22b.google.com. [2607:f8b0:4003:c06::22b])
+        by mx.google.com with ESMTPS id 34si1943715oto.123.2016.09.15.10.01.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 15 Sep 2016 09:57:52 -0700 (PDT)
-Subject: Re: [RFC PATCH v2 15/20] iommu/amd: AMD IOMMU support for memory
- encryption
-References: <20160822223529.29880.50884.stgit@tlendack-t1.amdoffice.net>
- <20160822223820.29880.17752.stgit@tlendack-t1.amdoffice.net>
- <20160912114550.nwhtpmncwp22l7vy@pd.tnic>
- <27bc5c87-3a74-a1ee-55b1-7f19ec9cd6cc@amd.com>
- <20160914144139.GA9295@nazgul.tnic>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <421c767b-2410-2537-4f4e-b70670898fee@amd.com>
-Date: Thu, 15 Sep 2016 11:57:41 -0500
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Sep 2016 10:01:04 -0700 (PDT)
+Received: by mail-oi0-x22b.google.com with SMTP id q188so78606237oia.3
+        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 10:01:04 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20160914144139.GA9295@nazgul.tnic>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20160915082615.GA9772@lst.de>
+References: <147392246509.9873.17750323049785100997.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <147392247875.9873.4205533916442000884.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20160915082615.GA9772@lst.de>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 15 Sep 2016 10:01:03 -0700
+Message-ID: <CAPcyv4jTw3cXpmmJRh7t16Xy2uYofDe+fJ+X_jnz+Q=o0uGneg@mail.gmail.com>
+Subject: Re: [PATCH v2 2/3] mm, dax: add VM_DAX flag for DAX VMAs
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, linux-doc@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, iommu@lists.linux-foundation.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Joerg Roedel <joro@8bytes.org>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, "H. Peter
- Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, david <david@fromorbit.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Nicholas Piggin <npiggin@gmail.com>, XFS Developers <xfs@oss.sgi.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-On 09/14/2016 09:41 AM, Borislav Petkov wrote:
-> On Wed, Sep 14, 2016 at 08:45:44AM -0500, Tom Lendacky wrote:
->> Currently, mem_encrypt.h only lives in the arch/x86 directory so it
->> wouldn't be able to be included here without breaking other archs.
-> 
-> I'm wondering if it would be simpler to move only sme_me_mask to an
-> arch-agnostic header just so that we save us all the code duplication.
-> 
-> Hmmm.
+On Thu, Sep 15, 2016 at 1:26 AM, Christoph Hellwig <hch@lst.de> wrote:
+> On Wed, Sep 14, 2016 at 11:54:38PM -0700, Dan Williams wrote:
+>> The DAX property, page cache bypass, of a VMA is only detectable via the
+>> vma_is_dax() helper to check the S_DAX inode flag.  However, this is
+>> only available internal to the kernel and is a property that userspace
+>> applications would like to interrogate.
+>
+> They have absolutely no business knowing such an implementation detail.
 
-If I do that, then I could put an #ifdef in the header to include the
-asm/mem_encrypt.h if the memory encryption is configured, else set the
-value to zero.  I'll look into this.  One immediate question becomes do
-we keep the name very specific vs. making it more generic, sme_me_mask
-vs me_mask, etc.
+Hasn't that train already left the station with FS_XFLAG_DAX?
 
-Thanks,
-Tom
+The other problem with hiding the DAX property is that it turns out to
+not be a transparent acceleration feature.  See xfs/086 xfs/088
+xfs/089 xfs/091 which fail with DAX and, as far as I understand, it is
+due to the fact that DAX disallows delayed allocation behavior.
 
-> 
+If behavior changes I think we should indicate that to userspace and
+VM_DAX is certainly more useful to userspace than some of the other vm
+internals we already export in those flags.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
