@@ -1,114 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 284346B0269
-	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 10:28:47 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id 192so150637846itm.1
-        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 07:28:47 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0058.outbound.protection.outlook.com. [104.47.1.58])
-        by mx.google.com with ESMTPS id x189si18896670oix.208.2016.09.15.07.28.30
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EA5D76B0269
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 10:32:02 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id u14so47526532lfd.0
+        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 07:32:02 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id lr1si382357wjb.14.2016.09.15.07.31.47
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 15 Sep 2016 07:28:30 -0700 (PDT)
-Subject: Re: [PATCH RFC 01/11] net/mlx5e: Single flow order-0 pages for
- Striding RQ
-References: <1473252152-11379-1-git-send-email-saeedm@mellanox.com>
- <1473252152-11379-2-git-send-email-saeedm@mellanox.com>
- <20160907211840.36c37ea0@redhat.com>
-From: Tariq Toukan <tariqt@mellanox.com>
-Message-ID: <375b9772-ca04-3024-dacd-1a7293e2ae3a@mellanox.com>
-Date: Thu, 15 Sep 2016 17:28:18 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Sep 2016 07:31:47 -0700 (PDT)
+Date: Thu, 15 Sep 2016 10:27:33 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 3/3] mm: memcontrol: consolidate cgroup socket tracking
+Message-ID: <20160915142733.GA25519@cmpxchg.org>
+References: <20160914194846.11153-3-hannes@cmpxchg.org>
+ <201609151357.bgs2EcXM%fengguang.wu@intel.com>
+ <20160914151714.f6d1b2a57da0619bf9e2372c@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20160907211840.36c37ea0@redhat.com>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160914151714.f6d1b2a57da0619bf9e2372c@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>, Saeed Mahameed <saeedm@mellanox.com>
-Cc: iovisor-dev <iovisor-dev@lists.iovisor.org>, netdev@vger.kernel.org, Brenden Blanco <bblanco@plumgrid.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, Tom Herbert <tom@herbertland.com>, Martin
- KaFai Lau <kafai@fb.com>, Daniel Borkmann <daniel@iogearbox.net>, Eric
- Dumazet <edumazet@google.com>, Jamal Hadi Salim <jhs@mojatatu.com>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kbuild test robot <lkp@intel.com>, kbuild-all@01.org, Tejun Heo <tj@kernel.org>, "David S. Miller" <davem@davemloft.net>, Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov@virtuozzo.com>, linux-mm@kvack.org, cgroups@vger.kernel.org, netdev@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-Hi Jesper,
+On Wed, Sep 14, 2016 at 03:17:14PM -0700, Andrew Morton wrote:
+> On Thu, 15 Sep 2016 13:34:24 +0800 kbuild test robot <lkp@intel.com> wrote:
+> 
+> > Hi Johannes,
+> > 
+> > [auto build test ERROR on net/master]
+> > [also build test ERROR on v4.8-rc6 next-20160914]
+> > [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+> > [Suggest to use git(>=2.9.0) format-patch --base=<commit> (or --base=auto for convenience) to record what (public, well-known) commit your patch series was built on]
+> > [Check https://git-scm.com/docs/git-format-patch for more information]
+> > 
+> > url:    https://github.com/0day-ci/linux/commits/Johannes-Weiner/mm-memcontrol-make-per-cpu-charge-cache-IRQ-safe-for-socket-accounting/20160915-035634
+> > config: m68k-sun3_defconfig (attached as .config)
+> > compiler: m68k-linux-gcc (GCC) 4.9.0
+> > reproduce:
+> >         wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
+> >         chmod +x ~/bin/make.cross
+> >         # save the attached .config to linux build tree
+> >         make.cross ARCH=m68k 
+> > 
+> > All errors (new ones prefixed by >>):
+> > 
+> >    net/built-in.o: In function `sk_alloc':
+> > >> (.text+0x4076): undefined reference to `mem_cgroup_sk_alloc'
+> >    net/built-in.o: In function `__sk_destruct':
+> > >> sock.c:(.text+0x457e): undefined reference to `mem_cgroup_sk_free'
+> >    net/built-in.o: In function `sk_clone_lock':
+> >    (.text+0x4f1c): undefined reference to `mem_cgroup_sk_alloc'
+> 
+> This?
 
+Thanks for fixing it up, Andrew.
 
-On 07/09/2016 10:18 PM, Jesper Dangaard Brouer wrote:
-> On Wed,  7 Sep 2016 15:42:22 +0300 Saeed Mahameed <saeedm@mellanox.com> wrote:
->
->> From: Tariq Toukan <tariqt@mellanox.com>
->>
->> To improve the memory consumption scheme, we omit the flow that
->> demands and splits high-order pages in Striding RQ, and stay
->> with a single Striding RQ flow that uses order-0 pages.
-> Thanks you for doing this! MM-list people thanks you!
-Thanks. I've just submitted it to net-next.
-> For others to understand what this means:  This driver was doing
-> split_page() on high-order pages (for Striding RQ).  This was really bad
-> because it will cause fragmenting the page-allocator, and depleting the
-> high-order pages available quickly.
->
-> (I've left rest of patch intact below, if some MM people should be
-> interested in looking at the changes).
->
-> There is even a funny comment in split_page() relevant to this:
->
-> /* [...]
->   * Note: this is probably too low level an operation for use in drivers.
->   * Please consult with lkml before using this in your driver.
->   */
->
->
->> Moving to fragmented memory allows the use of larger MPWQEs,
->> which reduces the number of UMR posts and filler CQEs.
->>
->> Moving to a single flow allows several optimizations that improve
->> performance, especially in production servers where we would
->> anyway fallback to order-0 allocations:
->> - inline functions that were called via function pointers.
->> - improve the UMR post process.
->>
->> This patch alone is expected to give a slight performance reduction.
->> However, the new memory scheme gives the possibility to use a page-cache
->> of a fair size, that doesn't inflate the memory footprint, which will
->> dramatically fix the reduction and even give a huge gain.
->>
->> We ran pktgen single-stream benchmarks, with iptables-raw-drop:
->>
->> Single stride, 64 bytes:
->> * 4,739,057 - baseline
->> * 4,749,550 - this patch
->> no reduction
->>
->> Larger packets, no page cross, 1024 bytes:
->> * 3,982,361 - baseline
->> * 3,845,682 - this patch
->> 3.5% reduction
->>
->> Larger packets, every 3rd packet crosses a page, 1500 bytes:
->> * 3,731,189 - baseline
->> * 3,579,414 - this patch
->> 4% reduction
->>
-> Well, the reduction does not really matter than much, because your
-> baseline benchmarks are from a freshly booted system, where you have
-> not fragmented and depleted the high-order pages yet... ;-)
-Indeed. On fragmented systems we'll get a gain, even w/o the page-cache 
-mechanism, as no time is wasted looking for high-order-pages.
->
->
->> Fixes: 461017cb006a ("net/mlx5e: Support RX multi-packet WQE (Striding RQ)")
->> Fixes: bc77b240b3c5 ("net/mlx5e: Add fragmented memory support for RX multi packet WQE")
->> Signed-off-by: Tariq Toukan <tariqt@mellanox.com>
->> Signed-off-by: Saeed Mahameed <saeedm@mellanox.com>
->> ---
->>   drivers/net/ethernet/mellanox/mlx5/core/en.h       |  54 ++--
->>   drivers/net/ethernet/mellanox/mlx5/core/en_main.c  | 136 ++++++++--
->>   drivers/net/ethernet/mellanox/mlx5/core/en_rx.c    | 292 ++++-----------------
->>   drivers/net/ethernet/mellanox/mlx5/core/en_stats.h |   4 -
->>   drivers/net/ethernet/mellanox/mlx5/core/en_txrx.c  |   2 +-
->>   5 files changed, 184 insertions(+), 304 deletions(-)
->>
-Regards,
-Tariq
+I think it'd be nicer to declare the dummy functions for !CONFIG_MEMCG;
+it also doesn't look like a hotpath that would necessitate the jump
+label in that place. Dave, any preference either way?
+
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index ca11b3e6dd65..61d20c17f3b7 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -773,13 +773,13 @@ static inline void mem_cgroup_wb_stats(struct bdi_writeback *wb,
+ #endif	/* CONFIG_CGROUP_WRITEBACK */
+ 
+ struct sock;
+-void mem_cgroup_sk_alloc(struct sock *sk);
+-void mem_cgroup_sk_free(struct sock *sk);
+ bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages);
+ void mem_cgroup_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages);
+ #ifdef CONFIG_MEMCG
+ extern struct static_key_false memcg_sockets_enabled_key;
+ #define mem_cgroup_sockets_enabled static_branch_unlikely(&memcg_sockets_enabled_key)
++void mem_cgroup_sk_alloc(struct sock *sk);
++void mem_cgroup_sk_free(struct sock *sk);
+ static inline bool mem_cgroup_under_socket_pressure(struct mem_cgroup *memcg)
+ {
+ 	if (!cgroup_subsys_on_dfl(memory_cgrp_subsys) && memcg->tcpmem_pressure)
+@@ -792,6 +792,8 @@ static inline bool mem_cgroup_under_socket_pressure(struct mem_cgroup *memcg)
+ }
+ #else
+ #define mem_cgroup_sockets_enabled 0
++static inline void mem_cgroup_sk_alloc(struct sock *sk) { };
++static inline void mem_cgroup_sk_free(struct sock *sk) { };
+ static inline bool mem_cgroup_under_socket_pressure(struct mem_cgroup *memcg)
+ {
+ 	return false;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
