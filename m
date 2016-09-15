@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7169028024D
-	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 07:55:43 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id fu12so85055930pac.1
-        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 04:55:43 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id a68si39039746pfb.39.2016.09.15.04.55.42
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D3A2280252
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 07:55:47 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id v67so90199330pfv.1
+        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 04:55:47 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id y81si33438682pfb.247.2016.09.15.04.55.44
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 15 Sep 2016 04:55:42 -0700 (PDT)
+        Thu, 15 Sep 2016 04:55:44 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv3 21/41] thp: introduce hpage_size() and hpage_mask()
-Date: Thu, 15 Sep 2016 14:55:03 +0300
-Message-Id: <20160915115523.29737-22-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 26/41] truncate: make truncate_inode_pages_range() aware about huge pages
+Date: Thu, 15 Sep 2016 14:55:08 +0300
+Message-Id: <20160915115523.29737-27-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20160915115523.29737-1-kirill.shutemov@linux.intel.com>
 References: <20160915115523.29737-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,49 +20,178 @@ List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Introduce new helpers which return size/mask of the page:
-HPAGE_PMD_SIZE/HPAGE_PMD_MASK if the page is PageTransHuge() and
-PAGE_SIZE/PAGE_MASK otherwise.
+As with shmem_undo_range(), truncate_inode_pages_range() removes huge
+pages, if it fully within range.
+
+Partial truncate of huge pages zero out this part of THP.
+
+Unlike with shmem, it doesn't prevent us having holes in the middle of
+huge page we still can skip writeback not touched buffers.
+
+With memory-mapped IO we would loose holes in some cases when we have
+THP in page cache, since we cannot track access on 4k level in this
+case.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/huge_mm.h | 16 ++++++++++++++++
- 1 file changed, 16 insertions(+)
+ fs/buffer.c   |  2 +-
+ mm/truncate.c | 95 ++++++++++++++++++++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 88 insertions(+), 9 deletions(-)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 6f14de45b5ce..de2789b4402c 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -138,6 +138,20 @@ static inline int hpage_nr_pages(struct page *page)
- 	return 1;
- }
+diff --git a/fs/buffer.c b/fs/buffer.c
+index e53808e790e2..20898b051044 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -1534,7 +1534,7 @@ void block_invalidatepage(struct page *page, unsigned int offset,
+ 	/*
+ 	 * Check for overflow
+ 	 */
+-	BUG_ON(stop > PAGE_SIZE || stop < length);
++	BUG_ON(stop > hpage_size(page) || stop < length);
  
-+static inline int hpage_size(struct page *page)
-+{
-+	if (unlikely(PageTransHuge(page)))
-+		return HPAGE_PMD_SIZE;
-+	return PAGE_SIZE;
-+}
+ 	head = page_buffers(page);
+ 	bh = head;
+diff --git a/mm/truncate.c b/mm/truncate.c
+index ce904e4b1708..9c339e6255f2 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -90,7 +90,7 @@ void do_invalidatepage(struct page *page, unsigned int offset,
+ {
+ 	void (*invalidatepage)(struct page *, unsigned int, unsigned int);
+ 
+-	invalidatepage = page->mapping->a_ops->invalidatepage;
++	invalidatepage = page_mapping(page)->a_ops->invalidatepage;
+ #ifdef CONFIG_BLOCK
+ 	if (!invalidatepage)
+ 		invalidatepage = block_invalidatepage;
+@@ -116,7 +116,7 @@ truncate_complete_page(struct address_space *mapping, struct page *page)
+ 		return -EIO;
+ 
+ 	if (page_has_private(page))
+-		do_invalidatepage(page, 0, PAGE_SIZE);
++		do_invalidatepage(page, 0, hpage_size(page));
+ 
+ 	/*
+ 	 * Some filesystems seem to re-dirty the page even after
+@@ -288,6 +288,36 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 				unlock_page(page);
+ 				continue;
+ 			}
 +
-+static inline unsigned long hpage_mask(struct page *page)
-+{
-+	if (unlikely(PageTransHuge(page)))
-+		return HPAGE_PMD_MASK;
-+	return PAGE_MASK;
-+}
++			if (PageTransTail(page)) {
++				/* Middle of THP: zero out the page */
++				clear_highpage(page);
++				if (page_has_private(page)) {
++					int off = page - compound_head(page);
++					do_invalidatepage(compound_head(page),
++							off * PAGE_SIZE,
++							PAGE_SIZE);
++				}
++				unlock_page(page);
++				continue;
++			} else if (PageTransHuge(page)) {
++				if (index == round_down(end, HPAGE_PMD_NR)) {
++					/*
++					 * Range ends in the middle of THP:
++					 * zero out the page
++					 */
++					clear_highpage(page);
++					if (page_has_private(page)) {
++						do_invalidatepage(page, 0,
++								PAGE_SIZE);
++					}
++					unlock_page(page);
++					continue;
++				}
++				index += HPAGE_PMD_NR - 1;
++				i += HPAGE_PMD_NR - 1;
++			}
 +
- extern int do_huge_pmd_numa_page(struct fault_env *fe, pmd_t orig_pmd);
- 
- extern struct page *huge_zero_page;
-@@ -163,6 +177,8 @@ void put_huge_zero_page(void);
- #define HPAGE_PMD_SIZE ({ BUILD_BUG(); 0; })
- 
- #define hpage_nr_pages(x) 1
-+#define hpage_size(x) PAGE_SIZE
-+#define hpage_mask(x) PAGE_MASK
- 
- #define transparent_hugepage_enabled(__vma) 0
- 
+ 			truncate_inode_page(mapping, page);
+ 			unlock_page(page);
+ 		}
+@@ -309,9 +339,12 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 			wait_on_page_writeback(page);
+ 			zero_user_segment(page, partial_start, top);
+ 			cleancache_invalidate_page(mapping, page);
+-			if (page_has_private(page))
+-				do_invalidatepage(page, partial_start,
+-						  top - partial_start);
++			if (page_has_private(page)) {
++				int off = page - compound_head(page);
++				do_invalidatepage(compound_head(page),
++						off * PAGE_SIZE + partial_start,
++						top - partial_start);
++			}
+ 			unlock_page(page);
+ 			put_page(page);
+ 		}
+@@ -322,9 +355,12 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 			wait_on_page_writeback(page);
+ 			zero_user_segment(page, 0, partial_end);
+ 			cleancache_invalidate_page(mapping, page);
+-			if (page_has_private(page))
+-				do_invalidatepage(page, 0,
+-						  partial_end);
++			if (page_has_private(page)) {
++				int off = page - compound_head(page);
++				do_invalidatepage(compound_head(page),
++						off * PAGE_SIZE,
++						partial_end);
++			}
+ 			unlock_page(page);
+ 			put_page(page);
+ 		}
+@@ -373,6 +409,49 @@ void truncate_inode_pages_range(struct address_space *mapping,
+ 			lock_page(page);
+ 			WARN_ON(page_to_pgoff(page) != index);
+ 			wait_on_page_writeback(page);
++
++			if (PageTransTail(page)) {
++				/* Middle of THP: zero out the page */
++				clear_highpage(page);
++				if (page_has_private(page)) {
++					int off = page - compound_head(page);
++					do_invalidatepage(compound_head(page),
++							off * PAGE_SIZE,
++							PAGE_SIZE);
++				}
++				unlock_page(page);
++				/*
++				 * Partial thp truncate due 'start' in middle
++				 * of THP: don't need to look on these pages
++				 * again on !pvec.nr restart.
++				 */
++				if (index != round_down(end, HPAGE_PMD_NR))
++					start++;
++				continue;
++			} else if (PageTransHuge(page)) {
++				if (index == round_down(end, HPAGE_PMD_NR)) {
++					/*
++					 * Range ends in the middle of THP:
++					 * zero out the page
++					 */
++					clear_highpage(page);
++					if (page_has_private(page)) {
++						do_invalidatepage(page, 0,
++								PAGE_SIZE);
++					}
++					unlock_page(page);
++					/*
++					 * Partial thp truncate due 'end' in
++					 * middle of THP: don't need to look on
++					 * these pages again restart.
++					 */
++					start++;
++					continue;
++				}
++				index += HPAGE_PMD_NR - 1;
++				i += HPAGE_PMD_NR - 1;
++			}
++
+ 			truncate_inode_page(mapping, page);
+ 			unlock_page(page);
+ 		}
 -- 
 2.9.3
 
