@@ -1,101 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 828DF6B0253
-	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 13:41:48 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id z190so10589391qkc.1
-        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 10:41:48 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x130si2017657ywd.295.2016.09.15.10.41.47
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F349A6B0038
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 13:45:15 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id o3so84984232ita.3
+        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 10:45:15 -0700 (PDT)
+Received: from mail-oi0-x230.google.com (mail-oi0-x230.google.com. [2607:f8b0:4003:c06::230])
+        by mx.google.com with ESMTPS id 8si5092527otm.126.2016.09.15.10.44.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Sep 2016 10:41:47 -0700 (PDT)
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 0/2] vma_merge vs rmap_walk SMP race condition fix
-Date: Thu, 15 Sep 2016 19:41:42 +0200
-Message-Id: <1473961304-19370-1-git-send-email-aarcange@redhat.com>
+        Thu, 15 Sep 2016 10:44:54 -0700 (PDT)
+Received: by mail-oi0-x230.google.com with SMTP id w11so80464116oia.2
+        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 10:44:54 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20160915170942.GJ9314@birch.djwong.org>
+References: <147392246509.9873.17750323049785100997.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <147392247875.9873.4205533916442000884.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20160915082615.GA9772@lst.de> <CAPcyv4jTw3cXpmmJRh7t16Xy2uYofDe+fJ+X_jnz+Q=o0uGneg@mail.gmail.com>
+ <20160915170942.GJ9314@birch.djwong.org>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 15 Sep 2016 10:44:53 -0700
+Message-ID: <CAPcyv4h4f468Dt3Uv2YJO18TD2rN=s+xJRWK4QvOvxANSkdesA@mail.gmail.com>
+Subject: Re: [PATCH v2 2/3] mm, dax: add VM_DAX flag for DAX VMAs
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>, Jan Vorlicek <janvorli@microsoft.com>, Aditya Mandaleeka <adityam@microsoft.com>
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: Christoph Hellwig <hch@lst.de>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Nicholas Piggin <npiggin@gmail.com>, XFS Developers <xfs@oss.sgi.com>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-Hello,
+On Thu, Sep 15, 2016 at 10:09 AM, Darrick J. Wong
+<darrick.wong@oracle.com> wrote:
+> On Thu, Sep 15, 2016 at 10:01:03AM -0700, Dan Williams wrote:
+>> On Thu, Sep 15, 2016 at 1:26 AM, Christoph Hellwig <hch@lst.de> wrote:
+>> > On Wed, Sep 14, 2016 at 11:54:38PM -0700, Dan Williams wrote:
+>> >> The DAX property, page cache bypass, of a VMA is only detectable via the
+>> >> vma_is_dax() helper to check the S_DAX inode flag.  However, this is
+>> >> only available internal to the kernel and is a property that userspace
+>> >> applications would like to interrogate.
+>> >
+>> > They have absolutely no business knowing such an implementation detail.
+>>
+>> Hasn't that train already left the station with FS_XFLAG_DAX?
+>
+> Seeing as FS_IOC_FSGETXATTR is a "generic" ioctl now, why not just
+> implement it for all the DAX fses and block devices?  Aside from xflags,
+> the other fields are probably all zero for non-xfs (aside from project
+> quota id I guess).
+>
+> (Yeah, sort of awkward, I know...)
 
-Aditya reported the CLR JIT was segfaulting on older kernels.
-
-It turns out newer kernels have do_numa_page using pte_modify instead
-of pte_mknotnuma, that by luck corrects any broken invariant of a
-PAGE_NONE pte on a VM_READ|WRITE vma even on non-NUMA systems, and
-establishes a proper pte with PAGE_USER set.
-
-However the opposite version of the race condition can still happen
-even upstream and that generates silent data corruption with a pte
-that should be PAGE_NONE and is not.
-
-The testcase source is on github.
-
-https://github.com/dotnet/coreclr/tree/784f4d93d43f29cc52d41ec9fae5a96ad68633cb/src
-
-To verify the bug upstream, I verified that do_page_numa indeed is
-invoked on non-NUMA guests, despite NUMA balancing obviously was never
-enabled on non-NUMA guests. With the fix applied do_numa_page is never
-executed anymore.
-
--->	*pprev = vma_merge(mm, *pprev, start, end, newflags,
-			   vma->anon_vma, vma->vm_file, pgoff, vma_policy(vma),
-			   vma->vm_userfaultfd_ctx);
-	if (*pprev) {
-		vma = *pprev;
-		goto success;
-[..]
-success:
-	/*
-	 * vm_flags and vm_page_prot are protected by the mmap_sem
-	 * held in write mode.
-	 */
-	vma->vm_flags = newflags;
-	dirty_accountable = vma_wants_writenotify(vma);
--->	vma_set_page_prot(vma);
-
-If remove_migration_ptes runs before vma_set_page_prot run but after
-the current vma was extended and the "next" vma was removed, and the
-page migration happened in an address in the "next->vma_start/end"
-range, the pte of the "next" range gets established by
-remove_migration_ptes using the vm_page_prot of the prev vma, but
-change_protection of course won't run on the next range, but only in
-the current vma range.
-
-There are already fields in the vma that must be updated inside the
-anon_vma/i_mmap locks, to avoid screwing the rmap_walk,
-vm_start/vm_pgoff are two of them, but vm_page_prot/vm_flags got
-overlooked and wasn't properly transferred from the removed_next vma
-to the importer current vma, before releasing the rmap locks.
-
-Now the bug happens because of vm_page_prot, but I copied over
-vm_flags too as often it's used by maybe_mkwrite and other pte/pmd
-manipulations that might run in rmap walks. It's just safer to update
-both before releasing the rmap serializing locks.
-
-This fixes the race and it is confirmed by do_numa_page never running
-anymore as after mprotect(PROT_READ|WRITE) returns on non-NUMA
-systems.
-
-So no pte is left as PAGE_NONE by mistake (the other way around too
-even though it's harder to verify as the other way is silent, but the
-fix is obviously going to correct the reverse condition too).
-
-Then there's patch 1/2 too where half updated vm_page_prot could
-become visible to rmap walks but that is a theoretical problem noticed
-only during code review that I fixed along the way. The real practical
-fix that solves the pgtable going out of sync with vm_flags is 2/2.
-
-Andrea Arcangeli (2):
-  mm: vm_page_prot: update with WRITE_ONCE/READ_ONCE
-  mm: vma_merge: fix race vm_page_prot race condition against rmap_walk
-
- mm/huge_memory.c |  2 +-
- mm/migrate.c     |  2 +-
- mm/mmap.c        | 23 +++++++++++++++++++----
- 3 files changed, 21 insertions(+), 6 deletions(-)
+It would solve the problem at hand, I'll take a look.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
