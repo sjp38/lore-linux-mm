@@ -1,113 +1,178 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C1DDC6B0069
-	for <linux-mm@kvack.org>; Fri, 16 Sep 2016 01:36:40 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id 20so34210002itx.0
-        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 22:36:40 -0700 (PDT)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id d16si3260129oig.162.2016.09.15.22.36.35
-        for <linux-mm@kvack.org>;
-        Thu, 15 Sep 2016 22:36:39 -0700 (PDT)
-Date: Fri, 16 Sep 2016 15:36:32 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v2 2/3] mm, dax: add VM_DAX flag for DAX VMAs
-Message-ID: <20160916053632.GT30497@dastard>
-References: <147392246509.9873.17750323049785100997.stgit@dwillia2-desk3.amr.corp.intel.com>
- <147392247875.9873.4205533916442000884.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20160915082615.GA9772@lst.de>
- <CAPcyv4jTw3cXpmmJRh7t16Xy2uYofDe+fJ+X_jnz+Q=o0uGneg@mail.gmail.com>
- <20160915230748.GS30497@dastard>
- <CAPcyv4jvcWEc2TkRh6-MoKb_-1VbFoiKUJEB=svQO+BVN8s-Sg@mail.gmail.com>
- <20160916012458.GW22388@dastard>
- <CAPcyv4hoTNw8OM-hoYOqzCS04ZNh+Tv_xhLAiP3AXVcGK6H_mg@mail.gmail.com>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7894D6B0069
+	for <linux-mm@kvack.org>; Fri, 16 Sep 2016 01:54:18 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id c84so24346825pfj.2
+        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 22:54:18 -0700 (PDT)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id fe8si8435463pad.192.2016.09.15.22.54.17
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 15 Sep 2016 22:54:17 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id q2so502541pfj.0
+        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 22:54:17 -0700 (PDT)
+Date: Fri, 16 Sep 2016 15:54:05 +1000
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: DAX mapping detection (was: Re: [PATCH] Fix region lost in
+ /proc/self/smaps)
+Message-ID: <20160916155405.6b634bbc@roar.ozlabs.ibm.com>
+In-Reply-To: <20160915223350.GU22388@dastard>
+References: <20160912075128.GB21474@infradead.org>
+	<20160912180507.533b3549@roar.ozlabs.ibm.com>
+	<20160912213435.GD30497@dastard>
+	<20160913115311.509101b0@roar.ozlabs.ibm.com>
+	<20160914073902.GQ22388@dastard>
+	<20160914201936.08315277@roar.ozlabs.ibm.com>
+	<20160915023133.GR22388@dastard>
+	<20160915134945.0aaa4f5a@roar.ozlabs.ibm.com>
+	<20160915103210.GT22388@dastard>
+	<20160915214222.505f4888@roar.ozlabs.ibm.com>
+	<20160915223350.GU22388@dastard>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4hoTNw8OM-hoYOqzCS04ZNh+Tv_xhLAiP3AXVcGK6H_mg@mail.gmail.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Nicholas Piggin <npiggin@gmail.com>, XFS Developers <xfs@oss.sgi.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Oliver O'Halloran <oohall@gmail.com>, Yumei Huang <yuhuang@redhat.com>, Michal Hocko <mhocko@suse.com>, Xiao Guangrong <guangrong.xiao@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, KVM list <kvm@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Gleb Natapov <gleb@kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, mtosatti@redhat.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Hansen <dave.hansen@intel.com>, Stefan Hajnoczi <stefanha@redhat.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Paolo Bonzini <pbonzini@redhat.com>
 
-On Thu, Sep 15, 2016 at 07:04:27PM -0700, Dan Williams wrote:
-> On Thu, Sep 15, 2016 at 6:24 PM, Dave Chinner <david@fromorbit.com> wrote:
-> > On Thu, Sep 15, 2016 at 05:16:42PM -0700, Dan Williams wrote:
-> >> On Thu, Sep 15, 2016 at 4:07 PM, Dave Chinner <david@fromorbit.com> wrote:
-> >> > On Thu, Sep 15, 2016 at 10:01:03AM -0700, Dan Williams wrote:
-> >> >> On Thu, Sep 15, 2016 at 1:26 AM, Christoph Hellwig <hch@lst.de> wrote:
-> >> >> > On Wed, Sep 14, 2016 at 11:54:38PM -0700, Dan Williams wrote:
-> >> >> >> The DAX property, page cache bypass, of a VMA is only detectable via the
-> >> >> >> vma_is_dax() helper to check the S_DAX inode flag.  However, this is
-> >> >> >> only available internal to the kernel and is a property that userspace
-> >> >> >> applications would like to interrogate.
-> >> >> >
-> >> >> > They have absolutely no business knowing such an implementation detail.
-> >> >>
-> >> >> Hasn't that train already left the station with FS_XFLAG_DAX?
-> >> >
-> >> > No, that's an admin flag, not a runtime hint for applications. Just
-> >> > because that flag is set on an inode, it does not mean that DAX is
-> >> > actually in use - it will be ignored if the backing dev is not dax
-> >> > capable.
-> >>
-> >> What's the point of an admin flag if an admin can't do cat /proc/<pid
-> >> of interest>/smaps, or some other mechanism, to validate that the
-> >> setting the admin cares about is in effect?
-> >
-> > Sorry, I don't follow - why would you be looking at mapping file
-> > regions in /proc to determine if some file somewhere in a filesystem
-> > has a specific flag set on it or not?
-> >
-> > FS_XFLAG_DAX is an inode attribute flag, not something you can
-> > query or administrate through mmap:
-> >
-> > I.e.
-> > # xfs_io -c "lsattr" -c "chattr +x" -c lsattr -c "chattr -x" -c "lsattr" foo
-> >  --------------- foo
-> >  --------------x foo
-> >  --------------- foo
-> > #
-> >
-> > What happens when that flag is set on an inode is determined by a
-> > whole bunch of other things that are completely separate to the
-> > management of the inode flag itself.
+On Fri, 16 Sep 2016 08:33:50 +1000
+Dave Chinner <david@fromorbit.com> wrote:
+
+> On Thu, Sep 15, 2016 at 09:42:22PM +1000, Nicholas Piggin wrote:
+> > On Thu, 15 Sep 2016 20:32:10 +1000
+> > Dave Chinner <david@fromorbit.com> wrote:  
+> > > 
+> > > You still haven't described anything about what a per-block flag
+> > > design is supposed to look like.... :/  
+> > 
+> > For the API, or implementation? I'm not quite sure what you mean
+> > here. For implementation it's possible to carefully ensure metadata
+> > is persistent when allocating blocks in page fault but before
+> > mapping pages. Truncate or hole punch or such things can be made to
+> > work by invalidating all such mappings and holding them off until
+> > you can cope with them again. Not necessarily for a filesystem with
+> > *all* capabilities of XFS -- I don't know -- but for a complete basic
+> > one.  
 > 
-> Right, I understand that, but how does an admin audit those "bunch of
-> other things"
+> SO, essentially, it comes down to synchrnous metadta updates again.
 
-Filesystem mounts checks all the various stuff that determines
-whether DAX can be used. It logs to the console that it is "Dax
-capable". Any file that then has FS_XFLAG_DAX set will result in DAX
-being used. There is no other possibility when these two things are
-reported.
+Yes. I guess fundamentally you can't get away from either that or
+preloading at some level.
 
-/me points at runtime diagnostic tracepoints like
-trace_xfs_file_dax_read() and notes that dax is sadly lacking in
-diagnostic tracepoints.
+(Also I don't know that there's a sane way to handle [cm]time properly,
+so some things like that -- this is just about block allocation /
+avoiding fdatasync).
 
-Besides, userspace can't do anything useful with this information,
-because the FS_XFLAG_DAX can be changed /at any time/ by an admin.
-And the filesystem is free to remove it at any time, too, if it
-needs to (e.g. file gets reflinked or snapshotted).
+> but synchronous updates would be conditional on whether an extent
+> metadata with the "nofsync" flag asserted was updated? Where's the
+> nofsync flag kept? in memory at a generic layer, or in the
+> filesystem, potentially in an on-disk structure? How would the
+> application set it for a given range?
 
-That's right, an inode can dynamically change from DAX to non-DAX
-underneath the application, and the application /will not notice/.
-That's because changing the flag will sync and invalidate the
-existing mappings and the next application access will simply fault
-it back in using whatever mechanism the inode is now configured
-with.
+I guess that comes back to the API. Whether you want it to be persistent,
+request based, etc. It could be derived type of storage blocks that are
+mapped there, stored per-inode, in-memory, or on extents on disk. I'm not
+advocating for a particular API and of course less complexity better.
 
-Plain and simple: userspace has absolutely no fucking idea of
-whether DAX is enabled or not, and whatever the kernel returns to
-userspace above the DAX configuration is stale before it even got
-out of the kernel....
+> 
+> > > > > > Filesystem will
+> > > > > > invalidate all such mappings before it does buffered IOs or hole punch,
+> > > > > > and will sync metadata after allocating a new block but before returning
+> > > > > > from a fault.      
+> > > > > 
+> > > > > ... requires synchronous metadata updates from page fault context,
+> > > > > which we already know is not a good solution.  I'll quote one of
+> > > > > Christoph's previous replies to save me the trouble:
+> > > > > 
+> > > > > 	"You could write all metadata synchronously from the page
+> > > > > 	fault handler, but that's basically asking for all kinds of
+> > > > > 	deadlocks."
+> > > > > So, let's redirect back to the "no sync" flag you were talking about
+> > > > > - can you answer the questions I asked above? It would be especially
+> > > > > important to highlight how the proposed feature would avoid requiring
+> > > > > synchronous metadata updates in page fault contexts....    
+> > > > 
+> > > > Right. So what deadlocks are you concerned about?    
+> > > 
+> > > It basically puts the entire journal checkpoint path under a page
+> > > fault context. i.e. a whole new global locking context problem is  
+> > 
+> > Yes there are potentially some new lock orderings created if you
+> > do that, depending on what locks the filesystem does.  
+> 
+> Well, that's the whole issue.
 
-Cheers,
+For filesystem implementations, but perhaps not mm/vfs implemenatation
+AFAIKS.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+> 
+> > > created as this path can now be run both inside and outside the
+> > > mmap_sem. Nothing ever good comes from running filesystem locking
+> > > code both inside and outside the mmap_sem.  
+> > 
+> > You mean that some cases journal checkpoint runs with mmap_sem
+> > held, and others without mmap_sem held? Not that mmap_sem is taken
+> > inside journal checkpoint.  
+> 
+> Maybe not, but now we open up the potential for locks held inside
+> or outside mmap sem to interact with the journal locks that are now
+> held inside and outside mmap_sem. See below....
+> 
+> > Then I don't really see why that's a
+> > problem. I mean performance could suffer a bit, but with fault
+> > retry you can almost always do the syncing outside mmap_sem in
+> > practice.
+> > 
+> > Yes, I'll preemptively agree with you -- We don't want to add any
+> > such burden if it is not needed and well justified.
+> >   
+> > > FWIW, We've never executed synchronous transactions inside page
+> > > faults in XFS, and I think ext4 is in the same boat - it may be even
+> > > worse because of the way it does ordered data dispatch through the
+> > > journal. I don't really even want to think about the level of hurt
+> > > this might put btrfs or other COW/log structured filesystems under.
+> > > I'm sure Christoph can reel off a bunch more issues off the top of
+> > > his head....  
+> > 
+> > I asked him, we'll see what he thinks. I don't beleive there is
+> > anything fundamental about mm or fs core layers that cause deadlocks
+> > though.  
+> 
+> Spent 5 minutes looking at ext4 for an example: filesystems are
+> allowed to take page locks during transaction commit. e.g ext4
+> journal commit when using the default ordered data mode:
+> 
+> jbd2_journal_commit_transaction
+>   journal_submit_data_buffers()
+>     journal_submit_inode_data_buffers
+>       generic_writepages()
+>         ext4_writepages()
+> 	  mpage_prepare_extent_to_map()
+> 	    lock_page()
+> 
+> i.e. if we fault on the user buffer during a write() operation and
+> that user buffer is a mmapped DAX file that needs to be allocated
+> and we have synchronous metadata updates during page faults, we
+> deadlock on the page lock held above the page fault context...
+
+Yeah, page lock is probably bigger issue for filesystems than
+mmap_sem. But still is filesystem implementation detail. Again,
+I'm not suggesting you could just switch all filesystems today
+to do a metadata sync with mmap sem and page lock held. Only that
+there aren't fundamental deadlocks enforced by the mm/vfs.
+
+Filesystems are already taking metadata page locks in the read path
+while holding data page lock, so there's long been some amount of
+nesting of page lock.
+
+It would be possible to change the page fault handler to allow a
+sync without holding page lock too if it came to it. But I don't
+want to go to far about implementation handwaving before it's even
+established that this would be worthwhile.
+
+Definitely the first step would be your simple preallocated per
+inode approach until it is shown to be insufficient.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
