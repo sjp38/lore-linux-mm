@@ -1,97 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C855C6B0069
-	for <linux-mm@kvack.org>; Fri, 16 Sep 2016 16:10:37 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id n185so81656834qke.2
-        for <linux-mm@kvack.org>; Fri, 16 Sep 2016 13:10:37 -0700 (PDT)
-Received: from mail-yw0-f172.google.com (mail-yw0-f172.google.com. [209.85.161.172])
-        by mx.google.com with ESMTPS id a124si5408701ywe.241.2016.09.16.13.10.36
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 300C26B0069
+	for <linux-mm@kvack.org>; Fri, 16 Sep 2016 16:32:40 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id j128so79590275oif.0
+        for <linux-mm@kvack.org>; Fri, 16 Sep 2016 13:32:40 -0700 (PDT)
+Received: from mail-oi0-x230.google.com (mail-oi0-x230.google.com. [2607:f8b0:4003:c06::230])
+        by mx.google.com with ESMTPS id t125si32258800oig.109.2016.09.16.13.32.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Sep 2016 13:10:37 -0700 (PDT)
-Received: by mail-yw0-f172.google.com with SMTP id i129so96517046ywb.0
-        for <linux-mm@kvack.org>; Fri, 16 Sep 2016 13:10:36 -0700 (PDT)
-Subject: Re: [REGRESSION] RLIMIT_DATA crashes named
-References: <33304dd8-8754-689d-11f3-751833b4a288@redhat.com>
- <CA+55aFyfny-0F=VKKe6BCm-=fX5b08o1jPjrxTBOatiTzGdBVg@mail.gmail.com>
-From: Laura Abbott <labbott@redhat.com>
-Message-ID: <d4e15f7b-fedd-e8ff-539f-61d441b402cd@redhat.com>
-Date: Fri, 16 Sep 2016 13:10:32 -0700
+        Fri, 16 Sep 2016 13:32:39 -0700 (PDT)
+Received: by mail-oi0-x230.google.com with SMTP id w11so125504626oia.2
+        for <linux-mm@kvack.org>; Fri, 16 Sep 2016 13:32:39 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFyfny-0F=VKKe6BCm-=fX5b08o1jPjrxTBOatiTzGdBVg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <d4e15f7b-fedd-e8ff-539f-61d441b402cd@redhat.com>
+References: <33304dd8-8754-689d-11f3-751833b4a288@redhat.com>
+ <CA+55aFyfny-0F=VKKe6BCm-=fX5b08o1jPjrxTBOatiTzGdBVg@mail.gmail.com> <d4e15f7b-fedd-e8ff-539f-61d441b402cd@redhat.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 16 Sep 2016 13:32:38 -0700
+Message-ID: <CA+55aFzWts-dgNRuqfwHu4VeN-YcRqkZdMiRpRQ=Pg91sWJ=VQ@mail.gmail.com>
+Subject: Re: [REGRESSION] RLIMIT_DATA crashes named
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Sam Varshavchik <mrsam@courier-mta.com>, Brent <fix@bitrealm.com>
-Cc: Konstantin Khlebnikov <koct9i@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, Christian Borntraeger <borntraeger@de.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Laura Abbott <labbott@redhat.com>
+Cc: Sam Varshavchik <mrsam@courier-mta.com>, Brent <fix@bitrealm.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, Christian Borntraeger <borntraeger@de.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On 09/16/2016 10:46 AM, Linus Torvalds wrote:
-> On Fri, Sep 16, 2016 at 8:16 AM, Laura Abbott <labbott@redhat.com> wrote:
->>
->> Fedora received a bug report[1] after pushing 4.7.2 that named
->> was segfaulting with named-chroot. With some help (thank you
->> tibbs!), it was noted that on older kernels named was spitting
->> out
->>
->> mmap: named (671): VmData 27566080 exceed data ulimit 23068672.
->> Will be forbidden soon.
->>
->> and with f4fcd55841fc ("mm: enable RLIMIT_DATA by default with
->> workaround for valgrind") it now spits out
->>
->> mmap: named (593): VmData 27566080 exceed data ulimit 20971520.
->> Update limits or use boot option ignore_rlimit_data.
+On Fri, Sep 16, 2016 at 1:10 PM, Laura Abbott <labbott@redhat.com> wrote:
 >
-> Ok, we can certainly revert, but before we do that I'd like to
-> understand a few more things.
->
-> For example, where the data limit came from, and how likely this is to
-> hit others that have a much harder time fixing it. Adding Sam
-> Varshavchik and Brent to the participants list...
->
-> In particular, this is clearly trivially fixable as noted by Brent in
-> that bugzilla entry:
->
->   'remove the "datasize 20M;" directive in named.conf'
->
-> along with the (much worse) option of "use boot option
-> ignore_rlimit_data" that the kernel dmesg itself suggests as an
-> option.
->
-> So for example, if that "datasize 20M;" is coming from just the Fedora
-> named package, it would be much nicer to just get that fixed instead.
-> Because RLIMIT_DATA the old way was just meaningless noise.
->
+> As far as I can tell this isn't Fedora specific.
 
-As far as I can tell this isn't Fedora specific.
+Some googling does seem to say that "datalimit 20M" and "named.conf"
+ends up being some really old default that just gets endlessly copied.
 
-> We definitely don't want to break peoples existing setups, but as this
-> is *so* easy to fix in other ways (even at runtime without even
-> updating a kernel), and since this commit is already four months old
-> by now with this single bugzilla being the only report since then that
-> I'm aware of, my reaction is just that there are better ways to fix it
-> than reverting a commit that can be worked around trivially.
+So no, it's not Fedora-specific per se.
 
-I was debating the merits of a revert. My concern is that this bugzilla
-just represents the people who are reporting the bug and able to
-correlate it to named. The actual number of people who are seeing
-problems may be higher and anyone mucking with their config
-could hit this and then have to go through troubleshooting steps again.
-Add a config, get a segfault is a pretty terrible experience even
-by Linux standards. I'd feel better about not reverting if there
-were a proposed patch for named
+But I suspect most people with a named.conf did either
 
-I would like to see RLIMIT_DATA actually do something useful so worse
-case I'll figure out something to carry in Fedora and this thread
-can be an FYI for people googling.
+ (a) get it from their distro and didn't change it and so if the
+distro just updates theirs, things will automatically "just work"
 
->
->                  Linus
->
+ (b) actually did write their own (or at least edited it), and knows
+what they are doing, and have absolutely no problem removing or
+updating that datalimit thing.
 
-Thanks,
-Laura
+> I would like to see RLIMIT_DATA actually do something useful so worse
+> case I'll figure out something to carry in Fedora and this thread
+> can be an FYI for people googling.
+
+Yeah, even if we only get a good hit for "named segmentation fault", I
+guess that will help people a lot.
+
+The really annoying thing seems to be that the kernel message has been
+hidden too much. IOW, Sam in his bugzilla report clearly found the
+system messages with
+
+    Sep 10 07:38:23 shorty systemd-coredump: Process 1651 (named) of
+user 25 dumped core.
+
+but for some reason never noticed the kernel saying (quoting Jason):
+
+   mmap: named (593): VmData 27566080 exceed data ulimit 20971520.
+Update limits or use boot option ignore_rlimit_data
+
+at the same time.
+
+Ok, the kernel only says it *once*. Maybe Sam had it in his logs, but
+didn't notice the initial failure (which would have had the kernel
+message too), and he then looked at the logs for when he tried to
+re-start.
+
+Or maybe the system logs don't have those kernel messages, which would
+be a disaster.
+
+So maybe we should just change the "pr_warn_once()" into
+"pr_warn_ratelimited()", except the default rate limits for that are
+wrong (we'd perhaps want something like "at most once every minute" or
+similar, while the default rate limits are along the lines of "max 10
+lines every 5 _seconds_").
+
+Sam, do you end up seeing the kernel warning in your logs if you just
+go back earlier in the boot?
+
+                    Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
