@@ -1,59 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E18A6B0069
-	for <linux-mm@kvack.org>; Fri, 16 Sep 2016 15:06:23 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id c84so60248596pfj.2
-        for <linux-mm@kvack.org>; Fri, 16 Sep 2016 12:06:23 -0700 (PDT)
-Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
-        by mx.google.com with ESMTPS id ys7si9154444pac.59.2016.09.16.12.06.22
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C855C6B0069
+	for <linux-mm@kvack.org>; Fri, 16 Sep 2016 16:10:37 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id n185so81656834qke.2
+        for <linux-mm@kvack.org>; Fri, 16 Sep 2016 13:10:37 -0700 (PDT)
+Received: from mail-yw0-f172.google.com (mail-yw0-f172.google.com. [209.85.161.172])
+        by mx.google.com with ESMTPS id a124si5408701ywe.241.2016.09.16.13.10.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Sep 2016 12:06:22 -0700 (PDT)
-Received: by mail-pf0-x22d.google.com with SMTP id 21so19192787pfy.0
-        for <linux-mm@kvack.org>; Fri, 16 Sep 2016 12:06:22 -0700 (PDT)
-Date: Fri, 16 Sep 2016 12:06:11 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm/shmem.c: constify anon_ops
-In-Reply-To: <1473890528-7009-1-git-send-email-linux@rasmusvillemoes.dk>
-Message-ID: <alpine.LSU.2.11.1609161203350.4175@eggly.anvils>
-References: <1473890528-7009-1-git-send-email-linux@rasmusvillemoes.dk>
+        Fri, 16 Sep 2016 13:10:37 -0700 (PDT)
+Received: by mail-yw0-f172.google.com with SMTP id i129so96517046ywb.0
+        for <linux-mm@kvack.org>; Fri, 16 Sep 2016 13:10:36 -0700 (PDT)
+Subject: Re: [REGRESSION] RLIMIT_DATA crashes named
+References: <33304dd8-8754-689d-11f3-751833b4a288@redhat.com>
+ <CA+55aFyfny-0F=VKKe6BCm-=fX5b08o1jPjrxTBOatiTzGdBVg@mail.gmail.com>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <d4e15f7b-fedd-e8ff-539f-61d441b402cd@redhat.com>
+Date: Fri, 16 Sep 2016 13:10:32 -0700
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <CA+55aFyfny-0F=VKKe6BCm-=fX5b08o1jPjrxTBOatiTzGdBVg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rasmus Villemoes <linux@rasmusvillemoes.dk>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>, Sam Varshavchik <mrsam@courier-mta.com>, Brent <fix@bitrealm.com>
+Cc: Konstantin Khlebnikov <koct9i@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, Christian Borntraeger <borntraeger@de.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Thu, 15 Sep 2016, Rasmus Villemoes wrote:
+On 09/16/2016 10:46 AM, Linus Torvalds wrote:
+> On Fri, Sep 16, 2016 at 8:16 AM, Laura Abbott <labbott@redhat.com> wrote:
+>>
+>> Fedora received a bug report[1] after pushing 4.7.2 that named
+>> was segfaulting with named-chroot. With some help (thank you
+>> tibbs!), it was noted that on older kernels named was spitting
+>> out
+>>
+>> mmap: named (671): VmData 27566080 exceed data ulimit 23068672.
+>> Will be forbidden soon.
+>>
+>> and with f4fcd55841fc ("mm: enable RLIMIT_DATA by default with
+>> workaround for valgrind") it now spits out
+>>
+>> mmap: named (593): VmData 27566080 exceed data ulimit 20971520.
+>> Update limits or use boot option ignore_rlimit_data.
+>
+> Ok, we can certainly revert, but before we do that I'd like to
+> understand a few more things.
+>
+> For example, where the data limit came from, and how likely this is to
+> hit others that have a much harder time fixing it. Adding Sam
+> Varshavchik and Brent to the participants list...
+>
+> In particular, this is clearly trivially fixable as noted by Brent in
+> that bugzilla entry:
+>
+>   'remove the "datasize 20M;" directive in named.conf'
+>
+> along with the (much worse) option of "use boot option
+> ignore_rlimit_data" that the kernel dmesg itself suggests as an
+> option.
+>
+> So for example, if that "datasize 20M;" is coming from just the Fedora
+> named package, it would be much nicer to just get that fixed instead.
+> Because RLIMIT_DATA the old way was just meaningless noise.
+>
 
-> Every other dentry_operations instance is const, and this one might as
-> well be.
-> 
-> Signed-off-by: Rasmus Villemoes <linux@rasmusvillemoes.dk>
+As far as I can tell this isn't Fedora specific.
 
-Indeed, thanks,
+> We definitely don't want to break peoples existing setups, but as this
+> is *so* easy to fix in other ways (even at runtime without even
+> updating a kernel), and since this commit is already four months old
+> by now with this single bugzilla being the only report since then that
+> I'm aware of, my reaction is just that there are better ways to fix it
+> than reverting a commit that can be worked around trivially.
 
-Acked-by: Hugh Dickins <hughd@google.com>
+I was debating the merits of a revert. My concern is that this bugzilla
+just represents the people who are reporting the bug and able to
+correlate it to named. The actual number of people who are seeing
+problems may be higher and anyone mucking with their config
+could hit this and then have to go through troubleshooting steps again.
+Add a config, get a segfault is a pretty terrible experience even
+by Linux standards. I'd feel better about not reverting if there
+were a proposed patch for named
 
-> ---
->  mm/shmem.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index fd8b2b5741b1..693ffdc5899a 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -4077,7 +4077,7 @@ EXPORT_SYMBOL_GPL(shmem_truncate_range);
->  
->  /* common code */
->  
-> -static struct dentry_operations anon_ops = {
-> +static const struct dentry_operations anon_ops = {
->  	.d_dname = simple_dname
->  };
->  
-> -- 
-> 2.1.4
+I would like to see RLIMIT_DATA actually do something useful so worse
+case I'll figure out something to carry in Fedora and this thread
+can be an FYI for people googling.
+
+>
+>                  Linus
+>
+
+Thanks,
+Laura
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
