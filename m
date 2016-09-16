@@ -1,79 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 32BA76B0069
-	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 22:04:29 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id g22so24480684ioj.1
-        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 19:04:29 -0700 (PDT)
-Received: from mail-oi0-x235.google.com (mail-oi0-x235.google.com. [2607:f8b0:4003:c06::235])
-        by mx.google.com with ESMTPS id c184si4018043oia.229.2016.09.15.19.04.28
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 467246B0069
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 23:14:30 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id l132so2072510wmf.0
+        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 20:14:30 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id z3si1892531wjh.38.2016.09.15.20.14.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Sep 2016 19:04:28 -0700 (PDT)
-Received: by mail-oi0-x235.google.com with SMTP id r126so95333271oib.0
-        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 19:04:28 -0700 (PDT)
+        Thu, 15 Sep 2016 20:14:29 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8G3D2iN024899
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 23:14:27 -0400
+Received: from e19.ny.us.ibm.com (e19.ny.us.ibm.com [129.33.205.209])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 25fsbjhdpf-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 23:14:27 -0400
+Received: from localhost
+	by e19.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Thu, 15 Sep 2016 23:14:27 -0400
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v5 1/6] mm/page_alloc: don't reserve ZONE_HIGHMEM for ZONE_MOVABLE request
+In-Reply-To: <1472447255-10584-2-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1472447255-10584-1-git-send-email-iamjoonsoo.kim@lge.com> <1472447255-10584-2-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Fri, 16 Sep 2016 08:44:17 +0530
 MIME-Version: 1.0
-In-Reply-To: <20160916012458.GW22388@dastard>
-References: <147392246509.9873.17750323049785100997.stgit@dwillia2-desk3.amr.corp.intel.com>
- <147392247875.9873.4205533916442000884.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20160915082615.GA9772@lst.de> <CAPcyv4jTw3cXpmmJRh7t16Xy2uYofDe+fJ+X_jnz+Q=o0uGneg@mail.gmail.com>
- <20160915230748.GS30497@dastard> <CAPcyv4jvcWEc2TkRh6-MoKb_-1VbFoiKUJEB=svQO+BVN8s-Sg@mail.gmail.com>
- <20160916012458.GW22388@dastard>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 15 Sep 2016 19:04:27 -0700
-Message-ID: <CAPcyv4hoTNw8OM-hoYOqzCS04ZNh+Tv_xhLAiP3AXVcGK6H_mg@mail.gmail.com>
-Subject: Re: [PATCH v2 2/3] mm, dax: add VM_DAX flag for DAX VMAs
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
+Message-Id: <87sht0y1rq.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Nicholas Piggin <npiggin@gmail.com>, XFS Developers <xfs@oss.sgi.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Thu, Sep 15, 2016 at 6:24 PM, Dave Chinner <david@fromorbit.com> wrote:
-> On Thu, Sep 15, 2016 at 05:16:42PM -0700, Dan Williams wrote:
->> On Thu, Sep 15, 2016 at 4:07 PM, Dave Chinner <david@fromorbit.com> wrote:
->> > On Thu, Sep 15, 2016 at 10:01:03AM -0700, Dan Williams wrote:
->> >> On Thu, Sep 15, 2016 at 1:26 AM, Christoph Hellwig <hch@lst.de> wrote:
->> >> > On Wed, Sep 14, 2016 at 11:54:38PM -0700, Dan Williams wrote:
->> >> >> The DAX property, page cache bypass, of a VMA is only detectable via the
->> >> >> vma_is_dax() helper to check the S_DAX inode flag.  However, this is
->> >> >> only available internal to the kernel and is a property that userspace
->> >> >> applications would like to interrogate.
->> >> >
->> >> > They have absolutely no business knowing such an implementation detail.
->> >>
->> >> Hasn't that train already left the station with FS_XFLAG_DAX?
->> >
->> > No, that's an admin flag, not a runtime hint for applications. Just
->> > because that flag is set on an inode, it does not mean that DAX is
->> > actually in use - it will be ignored if the backing dev is not dax
->> > capable.
->>
->> What's the point of an admin flag if an admin can't do cat /proc/<pid
->> of interest>/smaps, or some other mechanism, to validate that the
->> setting the admin cares about is in effect?
->
-> Sorry, I don't follow - why would you be looking at mapping file
-> regions in /proc to determine if some file somewhere in a filesystem
-> has a specific flag set on it or not?
->
-> FS_XFLAG_DAX is an inode attribute flag, not something you can
-> query or administrate through mmap:
->
-> I.e.
-> # xfs_io -c "lsattr" -c "chattr +x" -c lsattr -c "chattr -x" -c "lsattr" foo
->  --------------- foo
->  --------------x foo
->  --------------- foo
-> #
->
-> What happens when that flag is set on an inode is determined by a
-> whole bunch of other things that are completely separate to the
-> management of the inode flag itself.
+js1304@gmail.com writes:
 
-Right, I understand that, but how does an admin audit those "bunch of
-other things" that actually gate whether DAX ends up being used in
-practice?  There's currently no way for userspace to observe that a
-file with FS_XFLAG_DAX actually results in a change in mmap behavior.
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>
+> Freepage on ZONE_HIGHMEM doesn't work for kernel memory so it's not that
+> important to reserve. When ZONE_MOVABLE is used, this problem would
+> theorectically cause to decrease usable memory for GFP_HIGHUSER_MOVABLE
+> allocation request which is mainly used for page cache and anon page
+> allocation. So, fix it.
+>
+> And, defining sysctl_lowmem_reserve_ratio array by MAX_NR_ZONES - 1 size
+> makes code complex. For example, if there is highmem system, following
+> reserve ratio is activated for *NORMAL ZONE* which would be easyily
+> misleading people.
+>
+>  #ifdef CONFIG_HIGHMEM
+>  32
+>  #endif
+>
+> This patch also fix this situation by defining sysctl_lowmem_reserve_ratio
+> array by MAX_NR_ZONES and place "#ifdef" to right place.
+>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> ---
+>  include/linux/mmzone.h | 2 +-
+>  mm/page_alloc.c        | 7 ++++---
+>  2 files changed, 5 insertions(+), 4 deletions(-)
+>
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index d572b78..e3f39af 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -877,7 +877,7 @@ int min_free_kbytes_sysctl_handler(struct ctl_table *, int,
+>  					void __user *, size_t *, loff_t *);
+>  int watermark_scale_factor_sysctl_handler(struct ctl_table *, int,
+>  					void __user *, size_t *, loff_t *);
+> -extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1];
+> +extern int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES];
+>  int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *, int,
+>  					void __user *, size_t *, loff_t *);
+>  int percpu_pagelist_fraction_sysctl_handler(struct ctl_table *, int,
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 4f7d5d7..a8310de 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -198,17 +198,18 @@ static void __free_pages_ok(struct page *page, unsigned int order);
+>   * TBD: should special case ZONE_DMA32 machines here - in those we normally
+>   * don't need any ZONE_NORMAL reservation
+>   */
+> -int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = {
+> +int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES] = {
+>  #ifdef CONFIG_ZONE_DMA
+>  	 256,
+>  #endif
+>  #ifdef CONFIG_ZONE_DMA32
+>  	 256,
+>  #endif
+> -#ifdef CONFIG_HIGHMEM
+>  	 32,
+> +#ifdef CONFIG_HIGHMEM
+> +	 INT_MAX,
+>  #endif
+> -	 32,
+> +	 INT_MAX,
+>  };
+>
+>  EXPORT_SYMBOL(totalram_pages);
+> -- 
+> 1.9.1
+
+We can also do things like below to make it readable ?
+
+#ifdef CONFIG_ZONE_DMA
+	[ZONE_DMA] = 256,
+#endif
+
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
