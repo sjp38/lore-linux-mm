@@ -1,60 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BFC16B0069
-	for <linux-mm@kvack.org>; Fri, 16 Sep 2016 08:17:45 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id u14so72424057lfd.0
-        for <linux-mm@kvack.org>; Fri, 16 Sep 2016 05:17:45 -0700 (PDT)
-Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
-        by mx.google.com with ESMTPS id e199si5626379lfe.148.2016.09.16.05.17.43
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D7576B0069
+	for <linux-mm@kvack.org>; Fri, 16 Sep 2016 09:25:13 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id u18so63522769ita.2
+        for <linux-mm@kvack.org>; Fri, 16 Sep 2016 06:25:13 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id k77si13074559iod.60.2016.09.16.06.25.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Sep 2016 05:17:43 -0700 (PDT)
-Received: by mail-lf0-x244.google.com with SMTP id l131so4892505lfl.0
-        for <linux-mm@kvack.org>; Fri, 16 Sep 2016 05:17:43 -0700 (PDT)
-Date: Fri, 16 Sep 2016 15:17:40 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv3 29/41] ext4: make ext4_mpage_readpages() hugepage-aware
-Message-ID: <20160916121740.GA18021@node.shutemov.name>
-References: <20160915115523.29737-1-kirill.shutemov@linux.intel.com>
- <20160915115523.29737-30-kirill.shutemov@linux.intel.com>
- <56332284-449B-4998-AA99-245361CEE6D9@dilger.ca>
+        Fri, 16 Sep 2016 06:25:12 -0700 (PDT)
+Date: Fri, 16 Sep 2016 15:25:06 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 1/4] mm, vmscan: Batch removal of mappings under a single
+ lock during reclaim
+Message-ID: <20160916132506.GB5035@twins.programming.kicks-ass.net>
+References: <1473415175-20807-1-git-send-email-mgorman@techsingularity.net>
+ <1473415175-20807-2-git-send-email-mgorman@techsingularity.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <56332284-449B-4998-AA99-245361CEE6D9@dilger.ca>
+In-Reply-To: <1473415175-20807-2-git-send-email-mgorman@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andreas Dilger <adilger@dilger.ca>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4 <linux-ext4@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-block@vger.kernel.org
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Linus Torvalds <torvalds@linux-foundation.org>, Ying Huang <ying.huang@intel.com>, Michal Hocko <mhocko@kernel.org>
 
-On Thu, Sep 15, 2016 at 06:27:10AM -0600, Andreas Dilger wrote:
-> On Sep 15, 2016, at 5:55 AM, Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
-> > 
-> > This patch modifies ext4_mpage_readpages() to deal with huge pages.
-> > 
-> > We read out 2M at once, so we have to alloc (HPAGE_PMD_NR *
-> > blocks_per_page) sector_t for that. I'm not entirely happy with kmalloc
-> > in this codepath, but don't see any other option.
-> 
-> If you're reading 2MB from disk (possibly from disjoint blocks with seeks
-> in between) I don't think that the kmalloc() is going to be the limiting
-> performance factor.  If you are concerned about the size of the kmalloc()
-> causing failures when pages are fragmented (it can be 16KB for 1KB blocks
-> with 4KB pages), then using ext4_kvmalloc() to fall back to vmalloc() in
-> case kmalloc() fails.  It shouldn't fail often for 16KB allocations,
-> but it could in theory.
+On Fri, Sep 09, 2016 at 10:59:32AM +0100, Mel Gorman wrote:
+> Pages unmapped during reclaim acquire/release the mapping->tree_lock for
+> every single page. There are two cases when it's likely that pages at the
+> tail of the LRU share the same mapping -- large amounts of IO to/from a
+> single file and swapping. This patch acquires the mapping->tree_lock for
+> multiple page removals.
 
-Good point. Will use ext4_kvmalloc().
+So, once upon a time, in a galaxy far away,..  I did a concurrent
+pagecache patch set that replaced the tree_lock with a per page bit-
+spinlock and fine grained locking in the radix tree.
 
-> I also notice that ext4_kvmalloc() should probably use unlikely() for
-> the failure case, so that the uncommon vmalloc() fallback is out-of-line
-> in this more important codepath.  The only other callers are during mount,
-> so a branch misprediction is not critical.
+I know the mm has changed quite a bit since, but would such an approach
+still be feasible?
 
-I agree. But it's out-of-scope for the patchset.
-
--- 
- Kirill A. Shutemov
+I cannot seem to find an online reference to a 'complete' version of
+that patch set, but I did find the OLS paper on it and I did find some
+copies on my local machines.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
