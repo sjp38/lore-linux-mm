@@ -1,64 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C254C6B0069
-	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 23:21:42 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id 184so28436890ity.1
-        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 20:21:42 -0700 (PDT)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id f124si1703590iof.153.2016.09.15.20.21.42
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E64506B0069
+	for <linux-mm@kvack.org>; Thu, 15 Sep 2016 23:41:26 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id u18so32386207ita.2
+        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 20:41:26 -0700 (PDT)
+Received: from mail-oi0-x236.google.com (mail-oi0-x236.google.com. [2607:f8b0:4003:c06::236])
+        by mx.google.com with ESMTPS id s132si6654844oie.0.2016.09.15.20.41.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 Sep 2016 20:21:42 -0700 (PDT)
-Received: by mail-pf0-x241.google.com with SMTP id n24so3005710pfb.3
-        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 20:21:42 -0700 (PDT)
-From: Wanlong Gao <wanlong.gao@gmail.com>
-Subject: [PATCH] mm: nobootmem: move the comment of free_all_bootmem
-Date: Fri, 16 Sep 2016 11:21:22 +0800
-Message-Id: <1473996082-14603-1-git-send-email-wanlong.gao@gmail.com>
+        Thu, 15 Sep 2016 20:41:26 -0700 (PDT)
+Received: by mail-oi0-x236.google.com with SMTP id r126so97316160oib.0
+        for <linux-mm@kvack.org>; Thu, 15 Sep 2016 20:41:26 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CAPcyv4hoTNw8OM-hoYOqzCS04ZNh+Tv_xhLAiP3AXVcGK6H_mg@mail.gmail.com>
+References: <147392246509.9873.17750323049785100997.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <147392247875.9873.4205533916442000884.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20160915082615.GA9772@lst.de> <CAPcyv4jTw3cXpmmJRh7t16Xy2uYofDe+fJ+X_jnz+Q=o0uGneg@mail.gmail.com>
+ <20160915230748.GS30497@dastard> <CAPcyv4jvcWEc2TkRh6-MoKb_-1VbFoiKUJEB=svQO+BVN8s-Sg@mail.gmail.com>
+ <20160916012458.GW22388@dastard> <CAPcyv4hoTNw8OM-hoYOqzCS04ZNh+Tv_xhLAiP3AXVcGK6H_mg@mail.gmail.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 15 Sep 2016 20:41:25 -0700
+Message-ID: <CAPcyv4iDifiY-eGK+Fw7Q4BN7yuJYy=rcnaM6y36P+KLjE=sMg@mail.gmail.com>
+Subject: Re: [PATCH v2 2/3] mm, dax: add VM_DAX flag for DAX VMAs
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, Wanlong Gao <wanlong.gao@gmail.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Nicholas Piggin <npiggin@gmail.com>, XFS Developers <xfs@oss.sgi.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-The commit b4def3509d18c1db9198f92d4c35065e029a09a1 removed
-the unnecessary nodeid argument, after that, this comment
-becomes more confused. We should move it to the right place.
+On Thu, Sep 15, 2016 at 7:04 PM, Dan Williams <dan.j.williams@intel.com> wrote:
+> On Thu, Sep 15, 2016 at 6:24 PM, Dave Chinner <david@fromorbit.com> wrote:
+>> On Thu, Sep 15, 2016 at 05:16:42PM -0700, Dan Williams wrote:
+>>> On Thu, Sep 15, 2016 at 4:07 PM, Dave Chinner <david@fromorbit.com> wrote:
+>>> > On Thu, Sep 15, 2016 at 10:01:03AM -0700, Dan Williams wrote:
+>>> >> On Thu, Sep 15, 2016 at 1:26 AM, Christoph Hellwig <hch@lst.de> wrote:
+>>> >> > On Wed, Sep 14, 2016 at 11:54:38PM -0700, Dan Williams wrote:
+>>> >> >> The DAX property, page cache bypass, of a VMA is only detectable via the
+>>> >> >> vma_is_dax() helper to check the S_DAX inode flag.  However, this is
+>>> >> >> only available internal to the kernel and is a property that userspace
+>>> >> >> applications would like to interrogate.
+>>> >> >
+>>> >> > They have absolutely no business knowing such an implementation detail.
+>>> >>
+>>> >> Hasn't that train already left the station with FS_XFLAG_DAX?
+>>> >
+>>> > No, that's an admin flag, not a runtime hint for applications. Just
+>>> > because that flag is set on an inode, it does not mean that DAX is
+>>> > actually in use - it will be ignored if the backing dev is not dax
+>>> > capable.
+>>>
+>>> What's the point of an admin flag if an admin can't do cat /proc/<pid
+>>> of interest>/smaps, or some other mechanism, to validate that the
+>>> setting the admin cares about is in effect?
+>>
+>> Sorry, I don't follow - why would you be looking at mapping file
+>> regions in /proc to determine if some file somewhere in a filesystem
+>> has a specific flag set on it or not?
+>>
+>> FS_XFLAG_DAX is an inode attribute flag, not something you can
+>> query or administrate through mmap:
+>>
+>> I.e.
+>> # xfs_io -c "lsattr" -c "chattr +x" -c lsattr -c "chattr -x" -c "lsattr" foo
+>>  --------------- foo
+>>  --------------x foo
+>>  --------------- foo
+>> #
+>>
+>> What happens when that flag is set on an inode is determined by a
+>> whole bunch of other things that are completely separate to the
+>> management of the inode flag itself.
+>
+> Right, I understand that, but how does an admin audit those "bunch of
+> other things" that actually gate whether DAX ends up being used in
+> practice?  There's currently no way for userspace to observe that a
+> file with FS_XFLAG_DAX actually results in a change in mmap behavior.
 
-Signed-off-by: Wanlong Gao <wanlong.gao@gmail.com>
----
- mm/nobootmem.c | 10 +++++-----
- 1 file changed, 5 insertions(+), 5 deletions(-)
-
-diff --git a/mm/nobootmem.c b/mm/nobootmem.c
-index bd05a70..8bfa986 100644
---- a/mm/nobootmem.c
-+++ b/mm/nobootmem.c
-@@ -134,6 +134,11 @@ static unsigned long __init free_low_memory_core_early(void)
- 	for_each_reserved_mem_region(i, &start, &end)
- 		reserve_bootmem_region(start, end);
- 
-+	/*
-+	 * We need to use NUMA_NO_NODE instead of NODE_DATA(0)->node_id
-+	 *  because in some case like Node0 doesn't have RAM installed
-+	 *  low ram will be on Node1
-+	 */
- 	for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE, &start, &end,
- 				NULL)
- 		count += __free_memory_core(start, end);
-@@ -191,11 +196,6 @@ unsigned long __init free_all_bootmem(void)
- 
- 	reset_all_zones_managed_pages();
- 
--	/*
--	 * We need to use NUMA_NO_NODE instead of NODE_DATA(0)->node_id
--	 *  because in some case like Node0 doesn't have RAM installed
--	 *  low ram will be on Node1
--	 */
- 	pages = free_low_memory_core_early();
- 	totalram_pages += pages;
- 
--- 
-2.7.4
+Let me put it another way, if we inadvertently break DAX causing it to
+be disabled in scenarios when it should be enabled.  What is the
+interface for the admin to check "I have the DAX inode flag set, but
+the file this application expects to be mapped DAX is mapped with page
+cache"?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
