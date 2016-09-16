@@ -1,98 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 934416B0069
-	for <linux-mm@kvack.org>; Fri, 16 Sep 2016 18:14:06 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id n24so187596211pfb.0
-        for <linux-mm@kvack.org>; Fri, 16 Sep 2016 15:14:06 -0700 (PDT)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com. [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id g72si11652155pfe.241.2016.09.16.15.14.05
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E7FBA6B0069
+	for <linux-mm@kvack.org>; Fri, 16 Sep 2016 18:35:30 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id b133so57196590vka.0
+        for <linux-mm@kvack.org>; Fri, 16 Sep 2016 15:35:30 -0700 (PDT)
+Received: from www.courier-mta.com (www.courier-mta.com. [216.254.115.190])
+        by mx.google.com with ESMTPS id p66si6458745qki.25.2016.09.16.15.35.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Sep 2016 15:14:05 -0700 (PDT)
-Received: by mail-pa0-x22c.google.com with SMTP id id6so29620176pad.3
-        for <linux-mm@kvack.org>; Fri, 16 Sep 2016 15:14:05 -0700 (PDT)
-Date: Fri, 16 Sep 2016 15:13:56 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm: fix oom work when memory is under pressure
-In-Reply-To: <20160914085227.GB1612@dhcp22.suse.cz>
-Message-ID: <alpine.LSU.2.11.1609161440280.5127@eggly.anvils>
-References: <1473173226-25463-1-git-send-email-zhongjiang@huawei.com> <20160909114410.GG4844@dhcp22.suse.cz> <57D67A8A.7070500@huawei.com> <20160912111327.GG14524@dhcp22.suse.cz> <57D6B0C4.6040400@huawei.com> <20160912174445.GC14997@dhcp22.suse.cz>
- <57D7FB71.9090102@huawei.com> <20160913132854.GB6592@dhcp22.suse.cz> <57D8F8AE.1090404@huawei.com> <20160914084219.GA1612@dhcp22.suse.cz> <20160914085227.GB1612@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Fri, 16 Sep 2016 15:35:29 -0700 (PDT)
+References: <33304dd8-8754-689d-11f3-751833b4a288@redhat.com> <CA+55aFyfny-0F=VKKe6BCm-=fX5b08o1jPjrxTBOatiTzGdBVg@mail.gmail.com> <d4e15f7b-fedd-e8ff-539f-61d441b402cd@redhat.com> <CA+55aFzWts-dgNRuqfwHu4VeN-YcRqkZdMiRpRQ=Pg91sWJ=VQ@mail.gmail.com>
+Message-ID: <cone.1474065027.299244.29242.1004@monster.email-scan.com>
+From: Sam Varshavchik <mrsam@courier-mta.com>
+Subject: Re: [REGRESSION] =?UTF-8?Q?RLIMIT=5FDATA?= crashes named
+Date: Fri, 16 Sep 2016 18:30:27 -0400
+Mime-Version: 1.0
+Content-Type: text/plain; format=flowed; delsp=yes; charset="UTF-8"
+Content-Disposition: inline
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: zhong jiang <zhongjiang@huawei.com>, akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, linux-mm@kvack.org, Xishi Qiu <qiuxishi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Hugh Dickins <hughd@google.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Laura Abbott <labbott@redhat.com>, Brent <fix@bitrealm.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, Christian Borntraeger <borntraeger@de.ibm.com>, =?UTF-8?Q?linux-mm=40kvack=2Eorg?= <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Wed, 14 Sep 2016, Michal Hocko wrote:
-> On Wed 14-09-16 10:42:19, Michal Hocko wrote:
-> > [Let's CC Hugh]
-> 
-> now for real...
-> 
-> > 
-> > On Wed 14-09-16 15:13:50, zhong jiang wrote:
-> > [...]
-> > >   hi, Michal
-> > > 
-> > >   Recently, I hit the same issue when run a OOM case of the LTP and ksm enable.
-> > >  
-> > > [  601.937145] Call trace:
-> > > [  601.939600] [<ffffffc000086a88>] __switch_to+0x74/0x8c
-> > > [  601.944760] [<ffffffc000a1bae0>] __schedule+0x23c/0x7bc
-> > > [  601.950007] [<ffffffc000a1c09c>] schedule+0x3c/0x94
-> > > [  601.954907] [<ffffffc000a1eb84>] rwsem_down_write_failed+0x214/0x350
-> > > [  601.961289] [<ffffffc000a1e32c>] down_write+0x64/0x80
-> > > [  601.966363] [<ffffffc00021f794>] __ksm_exit+0x90/0x19c
-> > > [  601.971523] [<ffffffc0000be650>] mmput+0x118/0x11c
-> > > [  601.976335] [<ffffffc0000c3ec4>] do_exit+0x2dc/0xa74
-> > > [  601.981321] [<ffffffc0000c46f8>] do_group_exit+0x4c/0xe4
-> > > [  601.986656] [<ffffffc0000d0f34>] get_signal+0x444/0x5e0
-> > > [  601.991904] [<ffffffc000089fcc>] do_signal+0x1d8/0x450
-> > > [  601.997065] [<ffffffc00008a35c>] do_notify_resume+0x70/0x78
-> > 
-> > So this is a hung task triggering because the exiting task cannot get
-> > the mmap sem for write because the ksmd holds it for read while
-> > allocating memory which just takes ages to complete, right?
-> > 
-> > > 
-> > > The root case is that ksmd hold the read lock. and the lock is not released.
-> > >  scan_get_next_rmap_item
-> > >          down_read
-> > >                    get_next_rmap_item
-> > >                              alloc_rmap_item     #ksmd will loop permanently.
-> > > 
-> > > How do you see this kind of situation ? or  let the issue alone.
-> > 
-> > I am not familiar with the ksmd code so it is hard for me to judge but
-> > one thing to do would be __GFP_NORETRY which would force a bail out from
-> > the allocation rather than looping for ever. A quick look tells me that
-> > the allocation failure here is quite easy to handle. There might be
-> > others...
+Linus Torvalds writes:
 
-Yes, very good suggestion in this case: the ksmd code does exactly the
-right thing when that allocation fails, but was too stupid to use an
-allocation mode which might fail - and it can allocate rather a lot of
-slots along that path, so it will be good to let it break out there.
+> On Fri, Sep 16, 2016 at 1:10 PM, Laura Abbott <labbott@redhat.com> wrote:
+> >
+> > As far as I can tell this isn't Fedora specific.
+>
+> Some googling does seem to say that "datalimit 20M" and "named.conf"
+> ends up being some really old default that just gets endlessly copied.
+>
+> So no, it's not Fedora-specific per se.
 
-Thank you, Zhongjiang, please send akpm a fully signed-off patch, tagged
-for stable, with your explanation above (which was a lot more helpful
-to me than what you wrote in your other mail of Sept 13th).  But please
-make it GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN (and break that line
-before 80 cols): the allocation will sometimes fail, and we're not at
-all interested in hearing about that.
+I'll confirm that.
 
-Michal, how would you feel about this or a separate patch adding
-__GFP_HIGH to the allocation in ksm's alloc_stable_node()?  That
-allocation could cause the same problem, but it is much less common
-(so less important to do anything about it), and differs from the
-rmap_item case in that if it succeeds, it will usually free a page;
-whereas if it fails, the fallback (two break_cow()s) may want to
-allocate a couple of pages.  So __GFP_HIGH makes more sense for it
-than __GFP_NORETRY: but perhaps we prefer not to add __GFP_HIGHs?
+It's been sitting in my named.conf for at least ten years. I don't remember  
+where it came from. The Google sources are very likely. I probably copied  
+it, from some tutorial.
 
-Hugh
+> But I suspect most people with a named.conf did either
+>
+>  (a) get it from their distro and didn't change it and so if the
+> distro just updates theirs, things will automatically "just work"
+>
+>  (b) actually did write their own (or at least edited it), and knows
+> what they are doing, and have absolutely no problem removing or
+> updating that datalimit thing.
+
+(b) in my case. Now that the root cause is mostly known, I'll just bump it  
+up.
+
+> The really annoying thing seems to be that the kernel message has been
+> hidden too much. IOW, Sam in his bugzilla report clearly found the
+> system messages with
+>
+>     Sep 10 07:38:23 shorty systemd-coredump: Process 1651 (named) of
+> user 25 dumped core.
+>
+> but for some reason never noticed the kernel saying (quoting Jason):
+>
+>    mmap: named (593): VmData 27566080 exceed data ulimit 20971520.
+> Update limits or use boot option ignore_rlimit_data
+>
+> at the same time.
+>
+> Ok, the kernel only says it *once*. Maybe Sam had it in his logs, but
+> didn't notice the initial failure (which would have had the kernel
+> message too), and he then looked at the logs for when he tried to
+> re-start.
+
+I still have this log file. Looking over it, this is indeed what happened.
+
+> Or maybe the system logs don't have those kernel messages, which would
+> be a disaster.
+>
+> So maybe we should just change the "pr_warn_once()" into
+> "pr_warn_ratelimited()", except the default rate limits for that are
+> wrong (we'd perhaps want something like "at most once every minute" or
+> similar, while the default rate limits are along the lines of "max 10
+> lines every 5 _seconds_").
+>
+> Sam, do you end up seeing the kernel warning in your logs if you just
+> go back earlier in the boot?
+
+Yes, I found it.
+
+Sep 10 07:36:29 shorty kernel: mmap: named (1108): VmData 52588544 exceed  
+data ulimit 20971520. Update limits or use boot option ignore_rlimit_data.
+
+Now that I know what to search for: this appeared about 300 lines earlier in  
+/var/log/messages.
+
+When trying to figure out what's going on with named, searching backwards in  
+time, and finding the logged segault @07:38:23, IIRC I only looked as far  
+back until the @07:38:23 timestamp started, and did not see anything other  
+the apparent segfault. Before that, /var/log/messages was full of other  
+noise. The original named that was launched two minutes earlier was ancient  
+history, by then.
+
+All I saw was that named was apparently segfaulting after booting a new  
+kernel. Ok, boot back to the previous kernel, search bugzilla to see if it  
+was reported already, and, if not, create it yourself. That's what happened.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
