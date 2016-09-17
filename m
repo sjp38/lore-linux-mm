@@ -1,108 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 262106B025E
-	for <linux-mm@kvack.org>; Fri, 16 Sep 2016 20:13:38 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id g22so107140002ioj.1
-        for <linux-mm@kvack.org>; Fri, 16 Sep 2016 17:13:38 -0700 (PDT)
-Received: from mail-oi0-x230.google.com (mail-oi0-x230.google.com. [2607:f8b0:4003:c06::230])
-        by mx.google.com with ESMTPS id h73si24922544oib.43.2016.09.16.17.06.16
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 485BE6B0069
+	for <linux-mm@kvack.org>; Fri, 16 Sep 2016 21:36:12 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id mi5so182608208pab.2
+        for <linux-mm@kvack.org>; Fri, 16 Sep 2016 18:36:12 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id s86si6685937pfd.23.2016.09.16.18.36.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Sep 2016 17:06:16 -0700 (PDT)
-Received: by mail-oi0-x230.google.com with SMTP id r126so130167763oib.0
-        for <linux-mm@kvack.org>; Fri, 16 Sep 2016 17:06:16 -0700 (PDT)
+        Fri, 16 Sep 2016 18:36:11 -0700 (PDT)
+Date: Sat, 17 Sep 2016 03:36:06 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 1/4] mm, vmscan: Batch removal of mappings under a single
+ lock during reclaim
+Message-ID: <20160917013606.GM5016@twins.programming.kicks-ass.net>
+References: <1473415175-20807-1-git-send-email-mgorman@techsingularity.net>
+ <1473415175-20807-2-git-send-email-mgorman@techsingularity.net>
+ <20160916132506.GB5035@twins.programming.kicks-ass.net>
+ <CA+55aFwoEMOweMaOjFk9+H04mFXnwGk7y6n86T2ZbF_CZOkKEg@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <cone.1474065027.299244.29242.1004@monster.email-scan.com>
-References: <33304dd8-8754-689d-11f3-751833b4a288@redhat.com>
- <CA+55aFyfny-0F=VKKe6BCm-=fX5b08o1jPjrxTBOatiTzGdBVg@mail.gmail.com>
- <d4e15f7b-fedd-e8ff-539f-61d441b402cd@redhat.com> <CA+55aFzWts-dgNRuqfwHu4VeN-YcRqkZdMiRpRQ=Pg91sWJ=VQ@mail.gmail.com>
- <cone.1474065027.299244.29242.1004@monster.email-scan.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Fri, 16 Sep 2016 16:58:52 -0700
-Message-ID: <CA+55aFwPNBQePQCQ7qRmvn-nVaEn2YVsXnBFc5y1UVWExifBHw@mail.gmail.com>
-Subject: Re: [REGRESSION] RLIMIT_DATA crashes named
-Content-Type: multipart/mixed; boundary=001a11c1619e8f5368053ca8bea9
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFwoEMOweMaOjFk9+H04mFXnwGk7y6n86T2ZbF_CZOkKEg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sam Varshavchik <mrsam@courier-mta.com>, Ingo Molnar <mingo@kernel.org>, Joe Perches <joe@perches.com>
-Cc: Laura Abbott <labbott@redhat.com>, Brent <fix@bitrealm.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, Christian Borntraeger <borntraeger@de.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Ying Huang <ying.huang@intel.com>, Michal Hocko <mhocko@kernel.org>
 
---001a11c1619e8f5368053ca8bea9
-Content-Type: text/plain; charset=UTF-8
+On Fri, Sep 16, 2016 at 11:33:00AM -0700, Linus Torvalds wrote:
+> On Fri, Sep 16, 2016 at 6:25 AM, Peter Zijlstra <peterz@infradead.org> wrote:
+> >
+> > So, once upon a time, in a galaxy far away,..  I did a concurrent
+> > pagecache patch set that replaced the tree_lock with a per page bit-
+> > spinlock and fine grained locking in the radix tree.
+> 
+> I'd love to see the patch for that. I'd be a bit worried about extra
+> locking in the trivial cases (ie multi-level locking when we now take
+> just the single mapping lock), but if there is some smart reason why
+> that doesn't happen, then..
 
-On Fri, Sep 16, 2016 at 3:30 PM, Sam Varshavchik <mrsam@courier-mta.com> wrote:
->>
->> Sam, do you end up seeing the kernel warning in your logs if you just
->> go back earlier in the boot?
->
-> Yes, I found it.
->
-> Sep 10 07:36:29 shorty kernel: mmap: named (1108): VmData 52588544 exceed
-> data ulimit 20971520. Update limits or use boot option ignore_rlimit_data.
->
-> Now that I know what to search for: this appeared about 300 lines earlier in
-> /var/log/messages.
+On average we'll likely take a few more locks, but its not as bad as
+having to take the whole tree depth every time, or even touching the
+root lock most times.
 
-Ok, so that's a pretty strong argument that we shouldn't just warn once.
+There's two cases, the first: the modification is only done on a single
+node (like insert), here we do an RCU lookup of the node, lock it,
+verify the node is still correct, do modification and unlock, done.
 
-Maybe the warning happened at bootup, and it is now three months
-later, and somebody notices that something doesn't work. It might not
-be *critical* (three months without working implies it isn't), but it
-sure is silly for the kernel to say "yeah, I already warned you, I'm
-not going to tell you why it's not working any more".
+The second case, the modification needs to then back up the tree (like
+setting/clearing tags, delete). For this case we can determine on our
+way down where the first node is we need to modify, lock that, verify,
+and then lock all nodes down to the last. i.e. we lock a partial path.
 
-So it sounds like if the kernel had just had a that warning be
-rate-limited instead of happening only once, there would never have
-been any confusion about the RLIMIT_DATA change.
-
-Doing a grep for "pr_warn_once()", I get the feeling that we could
-just change the definition of "once" to be "at most once per minute"
-and everybody would be happy.
-
-Maybe we could change all the "pr_xyz_once()" to consider "once" to be
-a softer "at most once per minute" thing. After all, these things are
-*supposed* to be very uncommon to begin with, but when they do happen
-we do want the user to be aware of them.
-
-Here's a totally untested patch. What do people say?
-
-                 Linus
-
---001a11c1619e8f5368053ca8bea9
-Content-Type: text/plain; charset=US-ASCII; name="patch.diff"
-Content-Disposition: attachment; filename="patch.diff"
-Content-Transfer-Encoding: base64
-X-Attachment-Id: f_it6fer5g0
-
-IGluY2x1ZGUvbGludXgvcHJpbnRrLmggfCAzOCArKysrKysrKysrKysrKystLS0tLS0tLS0tLS0t
-LS0tLS0tLS0tLQogMSBmaWxlIGNoYW5nZWQsIDE1IGluc2VydGlvbnMoKyksIDIzIGRlbGV0aW9u
-cygtKQoKZGlmZiAtLWdpdCBhL2luY2x1ZGUvbGludXgvcHJpbnRrLmggYi9pbmNsdWRlL2xpbnV4
-L3ByaW50ay5oCmluZGV4IDY5NmE1NmJlN2QzZS4uYWU5OGMzODhhMzc3IDEwMDY0NAotLS0gYS9p
-bmNsdWRlL2xpbnV4L3ByaW50ay5oCisrKyBiL2luY2x1ZGUvbGludXgvcHJpbnRrLmgKQEAgLTMx
-NiwzMSArMzE2LDIzIEBAIGV4dGVybiBhc21saW5rYWdlIHZvaWQgZHVtcF9zdGFjayh2b2lkKSBf
-X2NvbGQ7CiAKIC8qCiAgKiBQcmludCBhIG9uZS10aW1lIG1lc3NhZ2UgKGFuYWxvZ291cyB0byBX
-QVJOX09OQ0UoKSBldCBhbCk6CisgKgorICogIm9uY2UiIGhlcmUgaXMgYSBtaXNub21lci4gSXQn
-cyBzaG9ydGhhbmQgZm9yICJhdCBtb3N0IG9uY2UgYSBtaW51dGUiLgogICovCi0KICNpZmRlZiBD
-T05GSUdfUFJJTlRLCi0jZGVmaW5lIHByaW50a19vbmNlKGZtdCwgLi4uKQkJCQkJXAotKHsJCQkJ
-CQkJCVwKLQlzdGF0aWMgYm9vbCBfX3ByaW50X29uY2UgX19yZWFkX21vc3RseTsJCQlcCi0JYm9v
-bCBfX3JldF9wcmludF9vbmNlID0gIV9fcHJpbnRfb25jZTsJCQlcCi0JCQkJCQkJCVwKLQlpZiAo
-IV9fcHJpbnRfb25jZSkgewkJCQkJXAotCQlfX3ByaW50X29uY2UgPSB0cnVlOwkJCQlcCi0JCXBy
-aW50ayhmbXQsICMjX19WQV9BUkdTX18pOwkJCVwKLQl9CQkJCQkJCVwKLQl1bmxpa2VseShfX3Jl
-dF9wcmludF9vbmNlKTsJCQkJXAotfSkKLSNkZWZpbmUgcHJpbnRrX2RlZmVycmVkX29uY2UoZm10
-LCAuLi4pCQkJCVwKLSh7CQkJCQkJCQlcCi0Jc3RhdGljIGJvb2wgX19wcmludF9vbmNlIF9fcmVh
-ZF9tb3N0bHk7CQkJXAotCWJvb2wgX19yZXRfcHJpbnRfb25jZSA9ICFfX3ByaW50X29uY2U7CQkJ
-XAotCQkJCQkJCQlcCi0JaWYgKCFfX3ByaW50X29uY2UpIHsJCQkJCVwKLQkJX19wcmludF9vbmNl
-ID0gdHJ1ZTsJCQkJXAotCQlwcmludGtfZGVmZXJyZWQoZm10LCAjI19fVkFfQVJHU19fKTsJCVwK
-LQl9CQkJCQkJCVwKLQl1bmxpa2VseShfX3JldF9wcmludF9vbmNlKTsJCQkJXAotfSkKKworI2Rl
-ZmluZSBkb19qdXN0X29uY2Uoc3RtdCkJKHsJCQlcCisJc3RhdGljIERFRklORV9SQVRFTElNSVRf
-U1RBVEUoX3JzLCBIWio2MCwgMSk7CVwKKwlib29sIF9fZG9faXQgPSBfX3JhdGVsaW1pdCgmX3Jz
-KTsJCVwKKwlpZiAodW5saWtlbHkoX19kb19pdCkpCQkJCVwKKwkJc3RtdDsJCQkJCVwKKwl1bmxp
-a2VseShfX2RvX2l0KTsgfSkKKworI2RlZmluZSBwcmludGtfb25jZShmbXQsIC4uLikgXAorCWRv
-X2p1c3Rfb25jZShwcmludGsoZm10LCAjI19fVkFfQVJHU19fKSkKKyNkZWZpbmUgcHJpbnRrX2Rl
-ZmVycmVkX29uY2UoZm10LCAuLi4pIFwKKwlkb19qdXN0X29uY2UocHJpbnRrX2RlZmVycmVkKGZt
-dCwgIyNfX1ZBX0FSR1NfXykpCisKICNlbHNlCiAjZGVmaW5lIHByaW50a19vbmNlKGZtdCwgLi4u
-KQkJCQkJXAogCW5vX3ByaW50ayhmbXQsICMjX19WQV9BUkdTX18pCg==
---001a11c1619e8f5368053ca8bea9--
+I can send you the 2.6.31 patches if you're interested, but if you want
+something that applies to a kernel from this decade I'll have to go
+rewrite them which will take a wee bit of time :-) Both the radix tree
+code and the mm have changed somewhat.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
