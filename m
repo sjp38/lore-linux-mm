@@ -1,226 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8447E6B0069
-	for <linux-mm@kvack.org>; Sat, 17 Sep 2016 11:47:03 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id l132so32959726wmf.0
-        for <linux-mm@kvack.org>; Sat, 17 Sep 2016 08:47:03 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id w1si8272166wjv.42.2016.09.17.08.47.02
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 655C16B0069
+	for <linux-mm@kvack.org>; Sat, 17 Sep 2016 11:57:00 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id l132so33056926wmf.0
+        for <linux-mm@kvack.org>; Sat, 17 Sep 2016 08:57:00 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n1si882004wju.284.2016.09.17.08.56.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 17 Sep 2016 08:47:02 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id l132so6892538wmf.1
-        for <linux-mm@kvack.org>; Sat, 17 Sep 2016 08:47:02 -0700 (PDT)
-Date: Sat, 17 Sep 2016 17:46:59 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: migrate: Return false instead of -EAGAIN for dummy
- functions
-Message-ID: <20160917154659.GA29145@dhcp22.suse.cz>
-References: <1474096836-31045-1-git-send-email-chengang@emindsoft.com.cn>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 17 Sep 2016 08:56:59 -0700 (PDT)
+Date: Sat, 17 Sep 2016 17:56:56 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm: fix oom work when memory is under pressure
+Message-ID: <20160917155655.GD29145@dhcp22.suse.cz>
+References: <57D67A8A.7070500@huawei.com>
+ <20160912111327.GG14524@dhcp22.suse.cz>
+ <57D6B0C4.6040400@huawei.com>
+ <20160912174445.GC14997@dhcp22.suse.cz>
+ <57D7FB71.9090102@huawei.com>
+ <20160913132854.GB6592@dhcp22.suse.cz>
+ <57D8F8AE.1090404@huawei.com>
+ <20160914084219.GA1612@dhcp22.suse.cz>
+ <20160914085227.GB1612@dhcp22.suse.cz>
+ <alpine.LSU.2.11.1609161440280.5127@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1474096836-31045-1-git-send-email-chengang@emindsoft.com.cn>
+In-Reply-To: <alpine.LSU.2.11.1609161440280.5127@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: chengang@emindsoft.com.cn
-Cc: akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, gi-oh.kim@profitbricks.com, opensource.ganesh@gmail.com, hughd@google.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Gang <gang.chen.5i5j@gmail.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: zhong jiang <zhongjiang@huawei.com>, akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, linux-mm@kvack.org, Xishi Qiu <qiuxishi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
 
-On Sat 17-09-16 15:20:36, chengang@emindsoft.com.cn wrote:
-> From: Chen Gang <gang.chen.5i5j@gmail.com>
+On Fri 16-09-16 15:13:56, Hugh Dickins wrote:
+> On Wed, 14 Sep 2016, Michal Hocko wrote:
+> > On Wed 14-09-16 10:42:19, Michal Hocko wrote:
+> > > [Let's CC Hugh]
+> > 
+> > now for real...
+> > 
+> > > 
+> > > On Wed 14-09-16 15:13:50, zhong jiang wrote:
+> > > [...]
+> > > >   hi, Michal
+> > > > 
+> > > >   Recently, I hit the same issue when run a OOM case of the LTP and ksm enable.
+> > > >  
+> > > > [  601.937145] Call trace:
+> > > > [  601.939600] [<ffffffc000086a88>] __switch_to+0x74/0x8c
+> > > > [  601.944760] [<ffffffc000a1bae0>] __schedule+0x23c/0x7bc
+> > > > [  601.950007] [<ffffffc000a1c09c>] schedule+0x3c/0x94
+> > > > [  601.954907] [<ffffffc000a1eb84>] rwsem_down_write_failed+0x214/0x350
+> > > > [  601.961289] [<ffffffc000a1e32c>] down_write+0x64/0x80
+> > > > [  601.966363] [<ffffffc00021f794>] __ksm_exit+0x90/0x19c
+> > > > [  601.971523] [<ffffffc0000be650>] mmput+0x118/0x11c
+> > > > [  601.976335] [<ffffffc0000c3ec4>] do_exit+0x2dc/0xa74
+> > > > [  601.981321] [<ffffffc0000c46f8>] do_group_exit+0x4c/0xe4
+> > > > [  601.986656] [<ffffffc0000d0f34>] get_signal+0x444/0x5e0
+> > > > [  601.991904] [<ffffffc000089fcc>] do_signal+0x1d8/0x450
+> > > > [  601.997065] [<ffffffc00008a35c>] do_notify_resume+0x70/0x78
+> > > 
+> > > So this is a hung task triggering because the exiting task cannot get
+> > > the mmap sem for write because the ksmd holds it for read while
+> > > allocating memory which just takes ages to complete, right?
+> > > 
+> > > > 
+> > > > The root case is that ksmd hold the read lock. and the lock is not released.
+> > > >  scan_get_next_rmap_item
+> > > >          down_read
+> > > >                    get_next_rmap_item
+> > > >                              alloc_rmap_item     #ksmd will loop permanently.
+> > > > 
+> > > > How do you see this kind of situation ? or  let the issue alone.
+> > > 
+> > > I am not familiar with the ksmd code so it is hard for me to judge but
+> > > one thing to do would be __GFP_NORETRY which would force a bail out from
+> > > the allocation rather than looping for ever. A quick look tells me that
+> > > the allocation failure here is quite easy to handle. There might be
+> > > others...
 > 
-> For migrate_misplaced_page and migrate_misplaced_transhuge_page, they
-> are pure Boolean functions and are also used as pure Boolean functions,
-> but the related dummy functions return -EAGAIN.
-
-I agree that their return semantic is rather confusing wrt. how they are
-used but
-
-> Also change their related pure Boolean function numamigrate_isolate_page.
-
-this is not true. Just look at the current usage
-
-	migrated = migrate_misplaced_page(page, vma, target_nid);
-	if (migrated) {
-		page_nid = target_nid;
-		flags |= TNF_MIGRATED;
-	} else
-		flags |= TNF_MIGRATE_FAIL;
-
-and now take your change which changes -EAGAIN into false. See the
-difference? Now I didn't even try to understand why
-CONFIG_NUMA_BALANCING=n pretends a success but then in order to keep the
-current semantic your patch should return true in that path. So NAK from
-me until you either explain why this is OK or change it.
-
-But to be honest I am not keen of this int -> bool changes much.
-Especially if they are bringing a risk of subtle behavior change like
-this patch. And without a good changelog explaining why this makes
-sense.
-
-> For variable isolated in migrate_misplaced_transhuge_page, it need not
-> be initialized.
+> Yes, very good suggestion in this case: the ksmd code does exactly the
+> right thing when that allocation fails, but was too stupid to use an
+> allocation mode which might fail - and it can allocate rather a lot of
+> slots along that path, so it will be good to let it break out there.
 > 
-> Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>
-> ---
->  include/linux/migrate.h | 16 ++++++++--------
->  mm/migrate.c            | 24 ++++++++++++------------
->  2 files changed, 20 insertions(+), 20 deletions(-)
-> 
-> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-> index ae8d475..b5e791d 100644
-> --- a/include/linux/migrate.h
-> +++ b/include/linux/migrate.h
-> @@ -88,34 +88,34 @@ static inline void __ClearPageMovable(struct page *page)
->  
->  #ifdef CONFIG_NUMA_BALANCING
->  extern bool pmd_trans_migrating(pmd_t pmd);
-> -extern int migrate_misplaced_page(struct page *page,
-> -				  struct vm_area_struct *vma, int node);
-> +extern bool migrate_misplaced_page(struct page *page,
-> +				   struct vm_area_struct *vma, int node);
->  #else
->  static inline bool pmd_trans_migrating(pmd_t pmd)
->  {
->  	return false;
->  }
-> -static inline int migrate_misplaced_page(struct page *page,
-> -					 struct vm_area_struct *vma, int node)
-> +static inline bool migrate_misplaced_page(struct page *page,
-> +					  struct vm_area_struct *vma, int node)
->  {
-> -	return -EAGAIN; /* can't migrate now */
-> +	return false;
->  }
->  #endif /* CONFIG_NUMA_BALANCING */
->  
->  #if defined(CONFIG_NUMA_BALANCING) && defined(CONFIG_TRANSPARENT_HUGEPAGE)
-> -extern int migrate_misplaced_transhuge_page(struct mm_struct *mm,
-> +extern bool migrate_misplaced_transhuge_page(struct mm_struct *mm,
->  			struct vm_area_struct *vma,
->  			pmd_t *pmd, pmd_t entry,
->  			unsigned long address,
->  			struct page *page, int node);
->  #else
-> -static inline int migrate_misplaced_transhuge_page(struct mm_struct *mm,
-> +static inline bool migrate_misplaced_transhuge_page(struct mm_struct *mm,
->  			struct vm_area_struct *vma,
->  			pmd_t *pmd, pmd_t entry,
->  			unsigned long address,
->  			struct page *page, int node)
->  {
-> -	return -EAGAIN;
-> +	return false;
->  }
->  #endif /* CONFIG_NUMA_BALANCING && CONFIG_TRANSPARENT_HUGEPAGE*/
->  
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index f7ee04a..3cdaa19 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -1805,7 +1805,7 @@ static bool numamigrate_update_ratelimit(pg_data_t *pgdat,
->  	return false;
->  }
->  
-> -static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
-> +static bool numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
->  {
->  	int page_lru;
->  
-> @@ -1813,10 +1813,10 @@ static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
->  
->  	/* Avoid migrating to a node that is nearly full */
->  	if (!migrate_balanced_pgdat(pgdat, 1UL << compound_order(page)))
-> -		return 0;
-> +		return false;
->  
->  	if (isolate_lru_page(page))
-> -		return 0;
-> +		return false;
->  
->  	/*
->  	 * migrate_misplaced_transhuge_page() skips page migration's usual
-> @@ -1827,7 +1827,7 @@ static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
->  	 */
->  	if (PageTransHuge(page) && page_count(page) != 3) {
->  		putback_lru_page(page);
-> -		return 0;
-> +		return false;
->  	}
->  
->  	page_lru = page_is_file_cache(page);
-> @@ -1840,7 +1840,7 @@ static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
->  	 * disappearing underneath us during migration.
->  	 */
->  	put_page(page);
-> -	return 1;
-> +	return true;
->  }
->  
->  bool pmd_trans_migrating(pmd_t pmd)
-> @@ -1854,11 +1854,11 @@ bool pmd_trans_migrating(pmd_t pmd)
->   * node. Caller is expected to have an elevated reference count on
->   * the page that will be dropped by this function before returning.
->   */
-> -int migrate_misplaced_page(struct page *page, struct vm_area_struct *vma,
-> +bool migrate_misplaced_page(struct page *page, struct vm_area_struct *vma,
->  			   int node)
->  {
->  	pg_data_t *pgdat = NODE_DATA(node);
-> -	int isolated;
-> +	bool isolated;
->  	int nr_remaining;
->  	LIST_HEAD(migratepages);
->  
-> @@ -1893,7 +1893,7 @@ int migrate_misplaced_page(struct page *page, struct vm_area_struct *vma,
->  					page_is_file_cache(page));
->  			putback_lru_page(page);
->  		}
-> -		isolated = 0;
-> +		isolated = false;
->  	} else
->  		count_vm_numa_event(NUMA_PAGE_MIGRATE);
->  	BUG_ON(!list_empty(&migratepages));
-> @@ -1901,7 +1901,7 @@ int migrate_misplaced_page(struct page *page, struct vm_area_struct *vma,
->  
->  out:
->  	put_page(page);
-> -	return 0;
-> +	return false;
->  }
->  #endif /* CONFIG_NUMA_BALANCING */
->  
-> @@ -1910,7 +1910,7 @@ int migrate_misplaced_page(struct page *page, struct vm_area_struct *vma,
->   * Migrates a THP to a given target node. page must be locked and is unlocked
->   * before returning.
->   */
-> -int migrate_misplaced_transhuge_page(struct mm_struct *mm,
-> +bool migrate_misplaced_transhuge_page(struct mm_struct *mm,
->  				struct vm_area_struct *vma,
->  				pmd_t *pmd, pmd_t entry,
->  				unsigned long address,
-> @@ -1918,7 +1918,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
->  {
->  	spinlock_t *ptl;
->  	pg_data_t *pgdat = NODE_DATA(node);
-> -	int isolated = 0;
-> +	bool isolated;
->  	struct page *new_page = NULL;
->  	int page_lru = page_is_file_cache(page);
->  	unsigned long mmun_start = address & HPAGE_PMD_MASK;
-> @@ -2052,7 +2052,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
->  out_unlock:
->  	unlock_page(page);
->  	put_page(page);
-> -	return 0;
-> +	return false;
->  }
->  #endif /* CONFIG_NUMA_BALANCING */
->  
-> -- 
-> 1.9.3
-> 
+> Thank you, Zhongjiang, please send akpm a fully signed-off patch, tagged
+> for stable, with your explanation above (which was a lot more helpful
+> to me than what you wrote in your other mail of Sept 13th).  But please
+> make it GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN (and break that line
 
+agreed
+
+> before 80 cols): the allocation will sometimes fail, and we're not at
+> all interested in hearing about that.
+> 
+> Michal, how would you feel about this or a separate patch adding
+> __GFP_HIGH to the allocation in ksm's alloc_stable_node()?  That
+> allocation could cause the same problem, but it is much less common
+> (so less important to do anything about it), and differs from the
+> rmap_item case in that if it succeeds, it will usually free a page;
+> whereas if it fails, the fallback (two break_cow()s) may want to
+> allocate a couple of pages.  So __GFP_HIGH makes more sense for it
+> than __GFP_NORETRY: but perhaps we prefer not to add __GFP_HIGHs?
+
+I am not familiar with the ksmd code enough to have a strong opinion
+here. __GFP_HIGH should be imho used only when really necessary but as
+you point out and comment in cmp_and_merge_page explain
+			/*
+			 * If we fail to insert the page into the stable tree,
+			 * we will have 2 virtual addresses that are pointing
+			 * to a ksm page left outside the stable tree,
+			 * in which case we need to break_cow on both.
+			 */
+this can actually save some memory if succeed. So I will leave the
+decision to you. I have no experience in how much this path can actually
+eat and whether the flag actually makes much difference.
+
+Thanks!
 -- 
 Michal Hocko
 SUSE Labs
