@@ -1,61 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 485BE6B0069
-	for <linux-mm@kvack.org>; Fri, 16 Sep 2016 21:36:12 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id mi5so182608208pab.2
-        for <linux-mm@kvack.org>; Fri, 16 Sep 2016 18:36:12 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id s86si6685937pfd.23.2016.09.16.18.36.11
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 607DD6B0069
+	for <linux-mm@kvack.org>; Sat, 17 Sep 2016 00:08:21 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id g22so116487438ioj.1
+        for <linux-mm@kvack.org>; Fri, 16 Sep 2016 21:08:21 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0248.hostedemail.com. [216.40.44.248])
+        by mx.google.com with ESMTPS id 130si14543797its.84.2016.09.16.21.08.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Sep 2016 18:36:11 -0700 (PDT)
-Date: Sat, 17 Sep 2016 03:36:06 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 1/4] mm, vmscan: Batch removal of mappings under a single
- lock during reclaim
-Message-ID: <20160917013606.GM5016@twins.programming.kicks-ass.net>
-References: <1473415175-20807-1-git-send-email-mgorman@techsingularity.net>
- <1473415175-20807-2-git-send-email-mgorman@techsingularity.net>
- <20160916132506.GB5035@twins.programming.kicks-ass.net>
- <CA+55aFwoEMOweMaOjFk9+H04mFXnwGk7y6n86T2ZbF_CZOkKEg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFwoEMOweMaOjFk9+H04mFXnwGk7y6n86T2ZbF_CZOkKEg@mail.gmail.com>
+        Fri, 16 Sep 2016 21:08:20 -0700 (PDT)
+Message-ID: <1474085296.32273.95.camel@perches.com>
+Subject: Re: [REGRESSION] RLIMIT_DATA crashes named
+From: Joe Perches <joe@perches.com>
+Date: Fri, 16 Sep 2016 21:08:16 -0700
+In-Reply-To: <CA+55aFy-mMfj3qj6=WMawEUGEkwnFEqB_=S6Pxx3P_c58uHW2w@mail.gmail.com>
+References: <33304dd8-8754-689d-11f3-751833b4a288@redhat.com>
+	 <CA+55aFyfny-0F=VKKe6BCm-=fX5b08o1jPjrxTBOatiTzGdBVg@mail.gmail.com>
+	 <d4e15f7b-fedd-e8ff-539f-61d441b402cd@redhat.com>
+	 <CA+55aFzWts-dgNRuqfwHu4VeN-YcRqkZdMiRpRQ=Pg91sWJ=VQ@mail.gmail.com>
+	 <cone.1474065027.299244.29242.1004@monster.email-scan.com>
+	 <CA+55aFwPNBQePQCQ7qRmvn-nVaEn2YVsXnBFc5y1UVWExifBHw@mail.gmail.com>
+	 <CA+55aFy-mMfj3qj6=WMawEUGEkwnFEqB_=S6Pxx3P_c58uHW2w@mail.gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Dave Chinner <david@fromorbit.com>, Ying Huang <ying.huang@intel.com>, Michal Hocko <mhocko@kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Sam Varshavchik <mrsam@courier-mta.com>, Ingo Molnar <mingo@kernel.org>
+Cc: Laura Abbott <labbott@redhat.com>, Brent <fix@bitrealm.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, Christian Borntraeger <borntraeger@de.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Fri, Sep 16, 2016 at 11:33:00AM -0700, Linus Torvalds wrote:
-> On Fri, Sep 16, 2016 at 6:25 AM, Peter Zijlstra <peterz@infradead.org> wrote:
-> >
-> > So, once upon a time, in a galaxy far away,..  I did a concurrent
-> > pagecache patch set that replaced the tree_lock with a per page bit-
-> > spinlock and fine grained locking in the radix tree.
-> 
-> I'd love to see the patch for that. I'd be a bit worried about extra
-> locking in the trivial cases (ie multi-level locking when we now take
-> just the single mapping lock), but if there is some smart reason why
-> that doesn't happen, then..
+On Fri, 2016-09-16 at 17:040700, Linus Torvalds wrote:
+> On Fri, Sep 16, 2016 at 4:58 PM, Linus Torvalds <torvalds@linux-foundation.org> wrote:
+> > Here's a totally untested patch. What do people say?
+> Heh. It looks like "pr_xyz_once()" is used in places that haven't
+> included "ratelimit.h", so this doesn't actually build for everything.
+> But I guess as a concept patch it's not hard to understand, even if
+> the implementation needs a bit of tweaking.
 
-On average we'll likely take a few more locks, but its not as bad as
-having to take the whole tree depth every time, or even touching the
-root lock most times.
+do_just_once just isn't a good name for a global
+rate limited mechanism that does something very
+different than the name.
 
-There's two cases, the first: the modification is only done on a single
-node (like insert), here we do an RCU lookup of the node, lock it,
-verify the node is still correct, do modification and unlock, done.
+Maybe allow_once_per_ratelimit or the like
 
-The second case, the modification needs to then back up the tree (like
-setting/clearing tags, delete). For this case we can determine on our
-way down where the first node is we need to modify, lock that, verify,
-and then lock all nodes down to the last. i.e. we lock a partial path.
+There could be an equivalent do_once
 
-I can send you the 2.6.31 patches if you're interested, but if you want
-something that applies to a kernel from this decade I'll have to go
-rewrite them which will take a wee bit of time :-) Both the radix tree
-code and the mm have changed somewhat.
+https://lkml.org/lkml/2009/5/22/3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
