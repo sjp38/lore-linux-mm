@@ -1,191 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E32E56B0069
-	for <linux-mm@kvack.org>; Sat, 17 Sep 2016 03:19:17 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id v62so123769004oig.3
-        for <linux-mm@kvack.org>; Sat, 17 Sep 2016 00:19:17 -0700 (PDT)
-Received: from out1134-194.mail.aliyun.com (out1134-194.mail.aliyun.com. [42.120.134.194])
-        by mx.google.com with ESMTP id 3si10447939ioz.100.2016.09.17.00.19.14
-        for <linux-mm@kvack.org>;
-        Sat, 17 Sep 2016 00:19:15 -0700 (PDT)
-From: chengang@emindsoft.com.cn
-Subject: [PATCH] mm: migrate: Return false instead of -EAGAIN for dummy functions
-Date: Sat, 17 Sep 2016 15:20:36 +0800
-Message-Id: <1474096836-31045-1-git-send-email-chengang@emindsoft.com.cn>
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5863E6B0069
+	for <linux-mm@kvack.org>; Sat, 17 Sep 2016 04:33:59 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id k12so89223049lfb.2
+        for <linux-mm@kvack.org>; Sat, 17 Sep 2016 01:33:59 -0700 (PDT)
+Received: from mail-lf0-x22b.google.com (mail-lf0-x22b.google.com. [2a00:1450:4010:c07::22b])
+        by mx.google.com with ESMTPS id i187si4701766lfi.418.2016.09.17.01.33.57
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 17 Sep 2016 01:33:57 -0700 (PDT)
+Received: by mail-lf0-x22b.google.com with SMTP id g62so76144875lfe.3
+        for <linux-mm@kvack.org>; Sat, 17 Sep 2016 01:33:57 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1474085296.32273.95.camel@perches.com>
+References: <33304dd8-8754-689d-11f3-751833b4a288@redhat.com>
+ <CA+55aFyfny-0F=VKKe6BCm-=fX5b08o1jPjrxTBOatiTzGdBVg@mail.gmail.com>
+ <d4e15f7b-fedd-e8ff-539f-61d441b402cd@redhat.com> <CA+55aFzWts-dgNRuqfwHu4VeN-YcRqkZdMiRpRQ=Pg91sWJ=VQ@mail.gmail.com>
+ <cone.1474065027.299244.29242.1004@monster.email-scan.com>
+ <CA+55aFwPNBQePQCQ7qRmvn-nVaEn2YVsXnBFc5y1UVWExifBHw@mail.gmail.com>
+ <CA+55aFy-mMfj3qj6=WMawEUGEkwnFEqB_=S6Pxx3P_c58uHW2w@mail.gmail.com> <1474085296.32273.95.camel@perches.com>
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Date: Sat, 17 Sep 2016 11:33:56 +0300
+Message-ID: <CALYGNiNuF1Ggy=DyYG32HXbnJp3Q0cX9ekQ5w2jR1M9rkKaX9A@mail.gmail.com>
+Subject: Re: [REGRESSION] RLIMIT_DATA crashes named
+Content-Type: multipart/mixed; boundary=001a1142b6369e0ab7053caff0e7
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, mhocko@suse.com
-Cc: gi-oh.kim@profitbricks.com, opensource.ganesh@gmail.com, hughd@google.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Gang <gang.chen.5i5j@gmail.com>
+To: Joe Perches <joe@perches.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Sam Varshavchik <mrsam@courier-mta.com>, Ingo Molnar <mingo@kernel.org>, Laura Abbott <labbott@redhat.com>, Brent <fix@bitrealm.com>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, Christian Borntraeger <borntraeger@de.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-From: Chen Gang <gang.chen.5i5j@gmail.com>
+--001a1142b6369e0ab7053caff0e7
+Content-Type: text/plain; charset=UTF-8
 
-For migrate_misplaced_page and migrate_misplaced_transhuge_page, they
-are pure Boolean functions and are also used as pure Boolean functions,
-but the related dummy functions return -EAGAIN.
+On Sat, Sep 17, 2016 at 7:08 AM, Joe Perches <joe@perches.com> wrote:
+> On Fri, 2016-09-16 at 17:040700, Linus Torvalds wrote:
+>> On Fri, Sep 16, 2016 at 4:58 PM, Linus Torvalds <torvalds@linux-foundation.org> wrote:
+>> > Here's a totally untested patch. What do people say?
+>> Heh. It looks like "pr_xyz_once()" is used in places that haven't
+>> included "ratelimit.h", so this doesn't actually build for everything.
+>> But I guess as a concept patch it's not hard to understand, even if
+>> the implementation needs a bit of tweaking.
+>
+> do_just_once just isn't a good name for a global
+> rate limited mechanism that does something very
+> different than the name.
+>
+> Maybe allow_once_per_ratelimit or the like
+>
+> There could be an equivalent do_once
+>
+> https://lkml.org/lkml/2009/5/22/3
+>
 
-Also change their related pure Boolean function numamigrate_isolate_page.
+What about this printk_reriodic() and pr_warn_once_per_minute()?
 
-For variable isolated in migrate_misplaced_transhuge_page, it need not
-be initialized.
+It simply remembers next jiffies to print rather than using that
+complicated ratelimiting engine.
 
-Signed-off-by: Chen Gang <gang.chen.5i5j@gmail.com>
----
- include/linux/migrate.h | 16 ++++++++--------
- mm/migrate.c            | 24 ++++++++++++------------
- 2 files changed, 20 insertions(+), 20 deletions(-)
+--001a1142b6369e0ab7053caff0e7
+Content-Type: application/octet-stream;
+	name=printk-add-pr_warn_once_per_minute
+Content-Disposition: attachment;
+	filename=printk-add-pr_warn_once_per_minute
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_it6xku9n0
 
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index ae8d475..b5e791d 100644
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -88,34 +88,34 @@ static inline void __ClearPageMovable(struct page *page)
- 
- #ifdef CONFIG_NUMA_BALANCING
- extern bool pmd_trans_migrating(pmd_t pmd);
--extern int migrate_misplaced_page(struct page *page,
--				  struct vm_area_struct *vma, int node);
-+extern bool migrate_misplaced_page(struct page *page,
-+				   struct vm_area_struct *vma, int node);
- #else
- static inline bool pmd_trans_migrating(pmd_t pmd)
- {
- 	return false;
- }
--static inline int migrate_misplaced_page(struct page *page,
--					 struct vm_area_struct *vma, int node)
-+static inline bool migrate_misplaced_page(struct page *page,
-+					  struct vm_area_struct *vma, int node)
- {
--	return -EAGAIN; /* can't migrate now */
-+	return false;
- }
- #endif /* CONFIG_NUMA_BALANCING */
- 
- #if defined(CONFIG_NUMA_BALANCING) && defined(CONFIG_TRANSPARENT_HUGEPAGE)
--extern int migrate_misplaced_transhuge_page(struct mm_struct *mm,
-+extern bool migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 			struct vm_area_struct *vma,
- 			pmd_t *pmd, pmd_t entry,
- 			unsigned long address,
- 			struct page *page, int node);
- #else
--static inline int migrate_misplaced_transhuge_page(struct mm_struct *mm,
-+static inline bool migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 			struct vm_area_struct *vma,
- 			pmd_t *pmd, pmd_t entry,
- 			unsigned long address,
- 			struct page *page, int node)
- {
--	return -EAGAIN;
-+	return false;
- }
- #endif /* CONFIG_NUMA_BALANCING && CONFIG_TRANSPARENT_HUGEPAGE*/
- 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index f7ee04a..3cdaa19 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1805,7 +1805,7 @@ static bool numamigrate_update_ratelimit(pg_data_t *pgdat,
- 	return false;
- }
- 
--static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
-+static bool numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
- {
- 	int page_lru;
- 
-@@ -1813,10 +1813,10 @@ static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
- 
- 	/* Avoid migrating to a node that is nearly full */
- 	if (!migrate_balanced_pgdat(pgdat, 1UL << compound_order(page)))
--		return 0;
-+		return false;
- 
- 	if (isolate_lru_page(page))
--		return 0;
-+		return false;
- 
- 	/*
- 	 * migrate_misplaced_transhuge_page() skips page migration's usual
-@@ -1827,7 +1827,7 @@ static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
- 	 */
- 	if (PageTransHuge(page) && page_count(page) != 3) {
- 		putback_lru_page(page);
--		return 0;
-+		return false;
- 	}
- 
- 	page_lru = page_is_file_cache(page);
-@@ -1840,7 +1840,7 @@ static int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
- 	 * disappearing underneath us during migration.
- 	 */
- 	put_page(page);
--	return 1;
-+	return true;
- }
- 
- bool pmd_trans_migrating(pmd_t pmd)
-@@ -1854,11 +1854,11 @@ bool pmd_trans_migrating(pmd_t pmd)
-  * node. Caller is expected to have an elevated reference count on
-  * the page that will be dropped by this function before returning.
-  */
--int migrate_misplaced_page(struct page *page, struct vm_area_struct *vma,
-+bool migrate_misplaced_page(struct page *page, struct vm_area_struct *vma,
- 			   int node)
- {
- 	pg_data_t *pgdat = NODE_DATA(node);
--	int isolated;
-+	bool isolated;
- 	int nr_remaining;
- 	LIST_HEAD(migratepages);
- 
-@@ -1893,7 +1893,7 @@ int migrate_misplaced_page(struct page *page, struct vm_area_struct *vma,
- 					page_is_file_cache(page));
- 			putback_lru_page(page);
- 		}
--		isolated = 0;
-+		isolated = false;
- 	} else
- 		count_vm_numa_event(NUMA_PAGE_MIGRATE);
- 	BUG_ON(!list_empty(&migratepages));
-@@ -1901,7 +1901,7 @@ int migrate_misplaced_page(struct page *page, struct vm_area_struct *vma,
- 
- out:
- 	put_page(page);
--	return 0;
-+	return false;
- }
- #endif /* CONFIG_NUMA_BALANCING */
- 
-@@ -1910,7 +1910,7 @@ int migrate_misplaced_page(struct page *page, struct vm_area_struct *vma,
-  * Migrates a THP to a given target node. page must be locked and is unlocked
-  * before returning.
-  */
--int migrate_misplaced_transhuge_page(struct mm_struct *mm,
-+bool migrate_misplaced_transhuge_page(struct mm_struct *mm,
- 				struct vm_area_struct *vma,
- 				pmd_t *pmd, pmd_t entry,
- 				unsigned long address,
-@@ -1918,7 +1918,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- {
- 	spinlock_t *ptl;
- 	pg_data_t *pgdat = NODE_DATA(node);
--	int isolated = 0;
-+	bool isolated;
- 	struct page *new_page = NULL;
- 	int page_lru = page_is_file_cache(page);
- 	unsigned long mmun_start = address & HPAGE_PMD_MASK;
-@@ -2052,7 +2052,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- out_unlock:
- 	unlock_page(page);
- 	put_page(page);
--	return 0;
-+	return false;
- }
- #endif /* CONFIG_NUMA_BALANCING */
- 
--- 
-1.9.3
+cHJpbnRrOiBhZGQgcHJfd2Fybl9vbmNlX3Blcl9taW51dGUKCkZyb206IEtvbnN0YW50aW4gS2hs
+ZWJuaWtvdiA8a29jdDlpQGdtYWlsLmNvbT4KClNpZ25lZC1vZmYtYnk6IEtvbnN0YW50aW4gS2hs
+ZWJuaWtvdiA8a29jdDlpQGdtYWlsLmNvbT4KLS0tCiBpbmNsdWRlL2xpbnV4L3ByaW50ay5oIHwg
+ICAxNiArKysrKysrKysrKysrKysrCiBtbS9tbWFwLmMgICAgICAgICAgICAgIHwgICAgMiArLQog
+MiBmaWxlcyBjaGFuZ2VkLCAxNyBpbnNlcnRpb25zKCspLCAxIGRlbGV0aW9uKC0pCgpkaWZmIC0t
+Z2l0IGEvaW5jbHVkZS9saW51eC9wcmludGsuaCBiL2luY2x1ZGUvbGludXgvcHJpbnRrLmgKaW5k
+ZXggNjk2YTU2YmU3ZDNlLi5hZjE2NDY0ODNkYmIgMTAwNjQ0Ci0tLSBhL2luY2x1ZGUvbGludXgv
+cHJpbnRrLmgKKysrIGIvaW5jbHVkZS9saW51eC9wcmludGsuaApAQCAtMzQxLDExICszNDEsMjQg
+QEAgZXh0ZXJuIGFzbWxpbmthZ2Ugdm9pZCBkdW1wX3N0YWNrKHZvaWQpIF9fY29sZDsKIAl9CQkJ
+CQkJCVwKIAl1bmxpa2VseShfX3JldF9wcmludF9vbmNlKTsJCQkJXAogfSkKKyNkZWZpbmUgcHJp
+bnRrX3BlcmlvZGljKHBlcmlvZCwgZm10LCAuLi4pCQkJXAorKHsJCQkJCQkJCVwKKwlzdGF0aWMg
+dW5zaWduZWQgbG9uZyBfX3ByaW50X25leHQgX19yZWFkX21vc3RseSA9IElOSVRJQUxfSklGRklF
+UzsgXAorCWJvb2wgX19kb19wcmludCA9IHRpbWVfYWZ0ZXJfZXEoamlmZmllcywgX19wcmludF9u
+ZXh0KTsgXAorCQkJCQkJCQlcCisJaWYgKF9fZG9fcHJpbnQpIHsJCQkJCVwKKwkJX19wcmludF9u
+ZXh0ID0gamlmZmllcyArIChwZXJpb2QpOwkJXAorCQlwcmludGsoZm10LCAjI19fVkFfQVJHU19f
+KTsJCQlcCisJfQkJCQkJCQlcCisJdW5saWtlbHkoX19kb19wcmludCk7CQkJCQlcCit9KQogI2Vs
+c2UKICNkZWZpbmUgcHJpbnRrX29uY2UoZm10LCAuLi4pCQkJCQlcCiAJbm9fcHJpbnRrKGZtdCwg
+IyNfX1ZBX0FSR1NfXykKICNkZWZpbmUgcHJpbnRrX2RlZmVycmVkX29uY2UoZm10LCAuLi4pCQkJ
+CVwKIAlub19wcmludGsoZm10LCAjI19fVkFfQVJHU19fKQorI2RlZmluZSBwcmludGtfcGVyaW9k
+aWMocGVyaW9kLCBmbXQsIC4uLikJCQlcCisJbm9fcHJpbnRrKGZtdCwgIyNfX1ZBX0FSR1NfXykK
+ICNlbmRpZgogCiAjZGVmaW5lIHByX2VtZXJnX29uY2UoZm10LCAuLi4pCQkJCQlcCkBAIC0zNjUs
+NiArMzc4LDkgQEAgZXh0ZXJuIGFzbWxpbmthZ2Ugdm9pZCBkdW1wX3N0YWNrKHZvaWQpIF9fY29s
+ZDsKICNkZWZpbmUgcHJfY29udF9vbmNlKGZtdCwgLi4uKQkJCQkJXAogCXByaW50a19vbmNlKEtF
+Uk5fQ09OVCBwcl9mbXQoZm10KSwgIyNfX1ZBX0FSR1NfXykKIAorI2RlZmluZSBwcl93YXJuX29u
+Y2VfcGVyX21pbnV0ZShmbXQsIC4uLikJCQlcCisJcHJpbnRrX3BlcmlvZGljKEhaICogNjAsIEtF
+Uk5fV0FSTklORyBwcl9mbXQoZm10KSwgIyNfX1ZBX0FSR1NfXykKKwogI2lmIGRlZmluZWQoREVC
+VUcpCiAjZGVmaW5lIHByX2RldmVsX29uY2UoZm10LCAuLi4pCQkJCQlcCiAJcHJpbnRrX29uY2Uo
+S0VSTl9ERUJVRyBwcl9mbXQoZm10KSwgIyNfX1ZBX0FSR1NfXykKZGlmZiAtLWdpdCBhL21tL21t
+YXAuYyBiL21tL21tYXAuYwppbmRleCBjYTlkOTFiY2EwZDYuLjM0ZjlmYjJhZGNhYiAxMDA2NDQK
+LS0tIGEvbW0vbW1hcC5jCisrKyBiL21tL21tYXAuYwpAQCAtMjkzNSw3ICsyOTM1LDcgQEAgYm9v
+bCBtYXlfZXhwYW5kX3ZtKHN0cnVjdCBtbV9zdHJ1Y3QgKm1tLCB2bV9mbGFnc190IGZsYWdzLCB1
+bnNpZ25lZCBsb25nIG5wYWdlcykKIAkJICAgIG1tLT5kYXRhX3ZtICsgbnBhZ2VzIDw9IHJsaW1p
+dF9tYXgoUkxJTUlUX0RBVEEpID4+IFBBR0VfU0hJRlQpCiAJCQlyZXR1cm4gdHJ1ZTsKIAkJaWYg
+KCFpZ25vcmVfcmxpbWl0X2RhdGEpIHsKLQkJCXByX3dhcm5fb25jZSgiJXMgKCVkKTogVm1EYXRh
+ICVsdSBleGNlZWQgZGF0YSB1bGltaXQgJWx1LiBVcGRhdGUgbGltaXRzIG9yIHVzZSBib290IG9w
+dGlvbiBpZ25vcmVfcmxpbWl0X2RhdGEuXG4iLAorCQkJcHJfd2Fybl9vbmNlX3Blcl9taW51dGUo
+IiVzICglZCk6IFZtRGF0YSAlbHUgZXhjZWVkIGRhdGEgdWxpbWl0ICVsdS4gVXBkYXRlIGxpbWl0
+cyBvciB1c2UgYm9vdCBvcHRpb24gaWdub3JlX3JsaW1pdF9kYXRhLlxuIiwKIAkJCQkgICAgIGN1
+cnJlbnQtPmNvbW0sIGN1cnJlbnQtPnBpZCwKIAkJCQkgICAgIChtbS0+ZGF0YV92bSArIG5wYWdl
+cykgPDwgUEFHRV9TSElGVCwKIAkJCQkgICAgIHJsaW1pdChSTElNSVRfREFUQSkpOwo=
+--001a1142b6369e0ab7053caff0e7--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
