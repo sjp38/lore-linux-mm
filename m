@@ -1,51 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 607DD6B0069
-	for <linux-mm@kvack.org>; Sat, 17 Sep 2016 00:08:21 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id g22so116487438ioj.1
-        for <linux-mm@kvack.org>; Fri, 16 Sep 2016 21:08:21 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0248.hostedemail.com. [216.40.44.248])
-        by mx.google.com with ESMTPS id 130si14543797its.84.2016.09.16.21.08.20
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 834A86B0069
+	for <linux-mm@kvack.org>; Sat, 17 Sep 2016 00:26:58 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id s64so86723996lfs.1
+        for <linux-mm@kvack.org>; Fri, 16 Sep 2016 21:26:58 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id l2si7906627wjg.109.2016.09.16.21.26.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 16 Sep 2016 21:08:20 -0700 (PDT)
-Message-ID: <1474085296.32273.95.camel@perches.com>
-Subject: Re: [REGRESSION] RLIMIT_DATA crashes named
-From: Joe Perches <joe@perches.com>
-Date: Fri, 16 Sep 2016 21:08:16 -0700
-In-Reply-To: <CA+55aFy-mMfj3qj6=WMawEUGEkwnFEqB_=S6Pxx3P_c58uHW2w@mail.gmail.com>
-References: <33304dd8-8754-689d-11f3-751833b4a288@redhat.com>
-	 <CA+55aFyfny-0F=VKKe6BCm-=fX5b08o1jPjrxTBOatiTzGdBVg@mail.gmail.com>
-	 <d4e15f7b-fedd-e8ff-539f-61d441b402cd@redhat.com>
-	 <CA+55aFzWts-dgNRuqfwHu4VeN-YcRqkZdMiRpRQ=Pg91sWJ=VQ@mail.gmail.com>
-	 <cone.1474065027.299244.29242.1004@monster.email-scan.com>
-	 <CA+55aFwPNBQePQCQ7qRmvn-nVaEn2YVsXnBFc5y1UVWExifBHw@mail.gmail.com>
-	 <CA+55aFy-mMfj3qj6=WMawEUGEkwnFEqB_=S6Pxx3P_c58uHW2w@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Fri, 16 Sep 2016 21:26:57 -0700 (PDT)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8H4NLmi020881
+	for <linux-mm@kvack.org>; Sat, 17 Sep 2016 00:26:55 -0400
+Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com [202.81.31.140])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 25gxrvr2cu-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sat, 17 Sep 2016 00:26:55 -0400
+Received: from localhost
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Sat, 17 Sep 2016 14:26:52 +1000
+Received: from d23relay08.au.ibm.com (d23relay08.au.ibm.com [9.185.71.33])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id DB60D3578056
+	for <linux-mm@kvack.org>; Sat, 17 Sep 2016 14:26:50 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u8H4QoVj63111348
+	for <linux-mm@kvack.org>; Sat, 17 Sep 2016 14:26:50 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u8H4QoH0001021
+	for <linux-mm@kvack.org>; Sat, 17 Sep 2016 14:26:50 +1000
+Date: Sat, 17 Sep 2016 09:56:45 +0530
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH V4] mm: Add sysfs interface to dump each node's zonelist
+ information
+References: <1473150666-3875-1-git-send-email-khandual@linux.vnet.ibm.com> <1473302818-23974-1-git-send-email-khandual@linux.vnet.ibm.com> <57D1C914.9090403@intel.com> <57D63CB2.8070003@linux.vnet.ibm.com> <alpine.DEB.2.10.1609121106500.39030@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1609121106500.39030@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <57DCC605.10305@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Sam Varshavchik <mrsam@courier-mta.com>, Ingo Molnar <mingo@kernel.org>
-Cc: Laura Abbott <labbott@redhat.com>, Brent <fix@bitrealm.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Cyrill Gorcunov <gorcunov@openvz.org>, Christian Borntraeger <borntraeger@de.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 
-On Fri, 2016-09-16 at 17:040700, Linus Torvalds wrote:
-> On Fri, Sep 16, 2016 at 4:58 PM, Linus Torvalds <torvalds@linux-foundation.org> wrote:
-> > Here's a totally untested patch. What do people say?
-> Heh. It looks like "pr_xyz_once()" is used in places that haven't
-> included "ratelimit.h", so this doesn't actually build for everything.
-> But I guess as a concept patch it's not hard to understand, even if
-> the implementation needs a bit of tweaking.
+On 09/12/2016 11:43 PM, David Rientjes wrote:
+> On Mon, 12 Sep 2016, Anshuman Khandual wrote:
+> 
+>>>>> after memory or node hot[un]plug is desirable. This change adds one
+>>>>> new sysfs interface (/sys/devices/system/memory/system_zone_details)
+>>>>> which will fetch and dump this information.
+>>> Doesn't this violate the "one value per file" sysfs rule?  Does it
+>>> belong in debugfs instead?
+>>
+>> Yeah sure. Will make it a debugfs interface.
+>>
+> 
+> So the intended reader of this file is running as root?
 
-do_just_once just isn't a good name for a global
-rate limited mechanism that does something very
-different than the name.
+Yeah.
 
-Maybe allow_once_per_ratelimit or the like
+> 
+>>> I also really question the need to dump kernel addresses out, filtered 
+>>> or not.  What's the point?
+>>
+>> Hmm, thought it to be an additional information. But yes its additional
+>> and can be dropped.
+>>
+> 
+> I'm questioning if this information can be inferred from information 
+> already in /proc/zoneinfo and sysfs.  We know the no-fallback zonelist is 
+> going to include the local node, and we know the other zonelists are 
+> either node ordered or zone ordered (or do we need to extend 
+> vm.numa_zonelist_order for default?).  I may have missed what new 
+> knowledge this interface is imparting on us.
 
-There could be an equivalent do_once
-
-https://lkml.org/lkml/2009/5/22/3
+IIUC /proc/zoneinfo lists down zone internal state and statistics for
+all zones on the system at any given point of time. The no-fallback
+list contains the zones from the local node and fallback (which gets
+used more often than the no-fallback) list contains all zones either
+in node-ordered or zone-ordered manner. In most of the platforms the
+default being the node order but the sequence of present nodes in
+that order is determined by various factors like NUMA distance, load,
+presence of CPUs on the node etc. This order of nodes in the fallback
+list is the most important information derived out of this interface.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
