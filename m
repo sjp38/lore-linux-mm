@@ -1,59 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C133E6B025E
-	for <linux-mm@kvack.org>; Sun, 18 Sep 2016 17:18:23 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id v62so222857914oig.3
-        for <linux-mm@kvack.org>; Sun, 18 Sep 2016 14:18:23 -0700 (PDT)
-Received: from mail-oi0-x236.google.com (mail-oi0-x236.google.com. [2607:f8b0:4003:c06::236])
-        by mx.google.com with ESMTPS id g9si17249006oif.281.2016.09.18.14.18.23
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6797F6B025E
+	for <linux-mm@kvack.org>; Sun, 18 Sep 2016 17:34:42 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id s64so109247789lfs.1
+        for <linux-mm@kvack.org>; Sun, 18 Sep 2016 14:34:42 -0700 (PDT)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id kg3si15579828wjb.37.2016.09.18.14.34.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 18 Sep 2016 14:18:23 -0700 (PDT)
-Received: by mail-oi0-x236.google.com with SMTP id a62so39030214oib.1
-        for <linux-mm@kvack.org>; Sun, 18 Sep 2016 14:18:23 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <214a6307-3bcf-38e1-7984-48cc9f838a48@suse.cz>
-References: <CA+55aFwu30Yz52yW+MRHt_JgpqZkq4DHdWR-pX4+gO_OK7agCQ@mail.gmail.com>
- <214a6307-3bcf-38e1-7984-48cc9f838a48@suse.cz>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sun, 18 Sep 2016 14:18:22 -0700
-Message-ID: <CA+55aFx8qwCVZFa9VZTMMgzhn9qphsrOFYJVWtfHs9bAVEWhGw@mail.gmail.com>
+        Sun, 18 Sep 2016 14:34:41 -0700 (PDT)
+Received: by mail-wm0-x241.google.com with SMTP id 133so12089432wmq.2
+        for <linux-mm@kvack.org>; Sun, 18 Sep 2016 14:34:41 -0700 (PDT)
+Date: Sun, 18 Sep 2016 22:34:38 +0100
+From: Lorenzo Stoakes <lstoakes@gmail.com>
 Subject: Re: More OOM problems
-Content-Type: text/plain; charset=UTF-8
+Message-ID: <20160918213438.GA3434@lucifer>
+References: <CA+55aFwu30Yz52yW+MRHt_JgpqZkq4DHdWR-pX4+gO_OK7agCQ@mail.gmail.com>
+ <20160918202614.GB31286@lucifer>
+ <CA+55aFy0o7B1eLMKaM37dK9PKfKCuyJKxsqK=G+Eno18dPW-CQ@mail.gmail.com>
+ <5bd50aca-99ca-8ea7-6008-5f83494c84fd@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5bd50aca-99ca-8ea7-6008-5f83494c84fd@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Markus Trippelsdorf <markus@trippelsdorf.de>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Jiri Slaby <jslaby@suse.com>, Olaf Hering <olaf@aepfle.de>, Joonsoo Kim <js1304@gmail.com>, linux-mm <linux-mm@kvack.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Markus Trippelsdorf <markus@trippelsdorf.de>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Jiri Slaby <jslaby@suse.com>, Olaf Hering <olaf@aepfle.de>, Joonsoo Kim <js1304@gmail.com>, linux-mm <linux-mm@kvack.org>
 
-On Sun, Sep 18, 2016 at 2:00 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
+On Sun, Sep 18, 2016 at 11:13:36PM +0200, Vlastimil Babka wrote:
 >
-> Sounds like SLUB. SLAB would use order-0 as long as things fit. I would
-> hope for SLUB to fallback to order-0 (or order-1 for 8kB) instead of
-> OOM, though. Guess not...
+> The 4 patches above had more as prerequisities already in -mm. So one
+> way to test is the whole tree:
+> git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+> tag mmotm-2016-09-14-16-49
+>
+> or just a recent -next.
+>
 
-SLUB it is - and I think that's pretty much all the world these days.
-SLAB is largely deprecated.
-
-We should probably start to remove SLAB entirely, and I definitely
-hope that no oom people run with it. SLUB is marked default in our
-config files, and I think most distros follow that (I know Fedora
-does, didn't check others).
-
-> Well, order-3 is actually PAGE_ALLOC_COSTLY_ORDER, and costly orders
-> have to be strictly larger in all the tests. So order-3 is in fact still
-> considered "small", and thus it actually results in OOM instead of
-> allocation failure.
-
-Yeah, but I do think that "oom when you have 156MB free and 7GB
-reclaimable, and haven't even tried swapping" counts as obviously
-wrong.
-
-I'm not saying the code should fail and return NULL either, of course.
-
-So  PAGE_ALLOC_COSTLY_ORDER should *not* mean "oom rather than return
-NULL". It really has to mean "try a _lot_ harder".
-
-                 Linus
+Thanks, I will try this out (probably using a recent -next.)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
