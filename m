@@ -1,73 +1,241 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BCFF6B0069
-	for <linux-mm@kvack.org>; Sat, 17 Sep 2016 20:36:59 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id p53so250116973qtp.0
-        for <linux-mm@kvack.org>; Sat, 17 Sep 2016 17:36:59 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d140si609159ybh.230.2016.09.17.17.36.58
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 071146B0069
+	for <linux-mm@kvack.org>; Sat, 17 Sep 2016 21:53:44 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id v67so247584431pfv.1
+        for <linux-mm@kvack.org>; Sat, 17 Sep 2016 18:53:43 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id su7si19734124pab.55.2016.09.17.18.53.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 17 Sep 2016 17:36:58 -0700 (PDT)
-Date: Sun, 18 Sep 2016 02:36:54 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 1/1] mm: vma_merge: fix vm_page_prot SMP race condition
- against rmap_walk
-Message-ID: <20160918003654.GA25048@redhat.com>
-References: <20160916205441.GB4743@redhat.com>
- <1474128315-22726-1-git-send-email-aarcange@redhat.com>
- <1474128315-22726-2-git-send-email-aarcange@redhat.com>
+        Sat, 17 Sep 2016 18:53:43 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -v3 00/10] THP swap: Delay splitting THP during swapping out
+References: <1473266769-2155-1-git-send-email-ying.huang@intel.com>
+	<20160909054336.GA2114@bbox>
+	<87sht824n3.fsf@yhuang-mobile.sh.intel.com>
+	<20160913061349.GA4445@bbox> <87y42wgv5r.fsf@yhuang-dev.intel.com>
+	<20160913070524.GA4973@bbox>
+	<87vay0ji3m.fsf@yhuang-mobile.sh.intel.com>
+	<20160913091652.GB7132@bbox>
+Date: Sun, 18 Sep 2016 09:53:39 +0800
+In-Reply-To: <20160913091652.GB7132@bbox> (Minchan Kim's message of "Tue, 13
+	Sep 2016 18:16:52 +0900")
+Message-ID: <87intu9dng.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1474128315-22726-2-git-send-email-aarcange@redhat.com>
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>, Jan Vorlicek <janvorli@microsoft.com>, Aditya Mandaleeka <adityam@microsoft.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
 
-On Sat, Sep 17, 2016 at 06:05:15PM +0200, Andrea Arcangeli wrote:
-> +	if (remove_next == 1) {
-> +		/*
-> +		 * vm_page_prot and vm_flags can be read by the
-> +		 * rmap_walk, for example in remove_migration_ptes(),
-> +		 * so before releasing the rmap locks the permissions
-> +		 * of the expanded vmas must be already the correct
-> +		 * one for the whole merged range.
-> +		 *
-> +		 * mprotect case 8 (which sets remove_next == 1) needs
-> +		 * special handling to provide the above guarantee, as
-> +		 * it is the only case where the "vma" that is being
-> +		 * expanded is the one with the wrong permissions for
-> +		 * the whole merged region. So copy the right
-> +		 * permissions from the next one that is getting
-> +		 * removed before releasing the rmap locks.
-> +		 */
-> +		vma->vm_page_prot = next->vm_page_prot;
-> +		vma->vm_flags = next->vm_flags;
-> +	}
->  	if (start != vma->vm_start) {
+Minchan Kim <minchan@kernel.org> writes:
 
-One more thought, doesn't remove_next get set to 1 also in case 7?
+> On Tue, Sep 13, 2016 at 04:53:49PM +0800, Huang, Ying wrote:
+>> Minchan Kim <minchan@kernel.org> writes:
+>> > On Tue, Sep 13, 2016 at 02:40:00PM +0800, Huang, Ying wrote:
+>> >> Minchan Kim <minchan@kernel.org> writes:
+>> >> 
+>> >> > Hi Huang,
+>> >> >
+>> >> > On Fri, Sep 09, 2016 at 01:35:12PM -0700, Huang, Ying wrote:
+>> >> >
+>> >> > < snip >
+>> >> >
+>> >> >> >> Recently, the performance of the storage devices improved so fast that
+>> >> >> >> we cannot saturate the disk bandwidth when do page swap out even on a
+>> >> >> >> high-end server machine.  Because the performance of the storage
+>> >> >> >> device improved faster than that of CPU.  And it seems that the trend
+>> >> >> >> will not change in the near future.  On the other hand, the THP
+>> >> >> >> becomes more and more popular because of increased memory size.  So it
+>> >> >> >> becomes necessary to optimize THP swap performance.
+>> >> >> >> 
+>> >> >> >> The advantages of the THP swap support include:
+>> >> >> >> 
+>> >> >> >> - Batch the swap operations for the THP to reduce lock
+>> >> >> >>   acquiring/releasing, including allocating/freeing the swap space,
+>> >> >> >>   adding/deleting to/from the swap cache, and writing/reading the swap
+>> >> >> >>   space, etc.  This will help improve the performance of the THP swap.
+>> >> >> >> 
+>> >> >> >> - The THP swap space read/write will be 2M sequential IO.  It is
+>> >> >> >>   particularly helpful for the swap read, which usually are 4k random
+>> >> >> >>   IO.  This will improve the performance of the THP swap too.
+>> >> >> >> 
+>> >> >> >> - It will help the memory fragmentation, especially when the THP is
+>> >> >> >>   heavily used by the applications.  The 2M continuous pages will be
+>> >> >> >>   free up after THP swapping out.
+>> >> >> >
+>> >> >> > I just read patchset right now and still doubt why the all changes
+>> >> >> > should be coupled with THP tightly. Many parts(e.g., you introduced
+>> >> >> > or modifying existing functions for making them THP specific) could
+>> >> >> > just take page_list and the number of pages then would handle them
+>> >> >> > without THP awareness.
+>> >> >> 
+>> >> >> I am glad if my change could help normal pages swapping too.  And we can
+>> >> >> change these functions to work for normal pages when necessary.
+>> >> >
+>> >> > Sure but it would be less painful that THP awareness swapout is
+>> >> > based on multiple normal pages swapout. For exmaple, we don't
+>> >> > touch delay THP split part(i.e., split a THP into 512 pages like
+>> >> > as-is) and enhances swapout further like Tim's suggestion
+>> >> > for mulitple normal pages swapout. With that, it might be enough
+>> >> > for fast-storage without needing THP awareness.
+>> >> >
+>> >> > My *point* is let's approach step by step.
+>> >> > First of all, go with batching normal pages swapout and if it's
+>> >> > not enough, dive into further optimization like introducing
+>> >> > THP-aware swapout.
+>> >> >
+>> >> > I believe it's natural development process to evolve things
+>> >> > without over-engineering.
+>> >> 
+>> >> My target is not only the THP swap out acceleration, but also the full
+>> >> THP swap out/in support without splitting THP.  This patchset is just
+>> >> the first step of the full THP swap support.
+>> >> 
+>> >> >> > For example, if the nr_pages is larger than SWAPFILE_CLUSTER, we
+>> >> >> > can try to allocate new cluster. With that, we could allocate new
+>> >> >> > clusters to meet nr_pages requested or bail out if we fail to allocate
+>> >> >> > and fallback to 0-order page swapout. With that, swap layer could
+>> >> >> > support multiple order-0 pages by batch.
+>> >> >> >
+>> >> >> > IMO, I really want to land Tim Chen's batching swapout work first.
+>> >> >> > With Tim Chen's work, I expect we can make better refactoring
+>> >> >> > for batching swap before adding more confuse to the swap layer.
+>> >> >> > (I expect it would share several pieces of code for or would be base
+>> >> >> > for batching allocation of swapcache, swapslot)
+>> >> >> 
+>> >> >> I don't think there is hard conflict between normal pages swapping
+>> >> >> optimizing and THP swap optimizing.  Some code may be shared between
+>> >> >> them.  That is good for both sides.
+>> >> >> 
+>> >> >> > After that, we could enhance swap for big contiguous batching
+>> >> >> > like THP and finally we might make it be aware of THP specific to
+>> >> >> > enhance further.
+>> >> >> >
+>> >> >> > A thing I remember you aruged: you want to swapin 512 pages
+>> >> >> > all at once unconditionally. It's really worth to discuss if
+>> >> >> > your design is going for the way.
+>> >> >> > I doubt it's generally good idea. Because, currently, we try to
+>> >> >> > swap in swapped out pages in THP page with conservative approach
+>> >> >> > but your direction is going to opposite way.
+>> >> >> >
+>> >> >> > [mm, thp: convert from optimistic swapin collapsing to conservative]
+>> >> >> >
+>> >> >> > I think general approach(i.e., less effective than targeting
+>> >> >> > implement for your own specific goal but less hacky and better job
+>> >> >> > for many cases) is to rely/improve on the swap readahead.
+>> >> >> > If most of subpages of a THP page are really workingset, swap readahead
+>> >> >> > could work well.
+>> >> >> >
+>> >> >> > Yeah, it's fairly vague feedback so sorry if I miss something clear.
+>> >> >> 
+>> >> >> Yes.  I want to go to the direction that to swap in 512 pages together.
+>> >> >> And I think it is a good opportunity to discuss that now.  The advantages
+>> >> >> of swapping in 512 pages together are:
+>> >> >> 
+>> >> >> - Improve the performance of swapping in IO via turning small read size
+>> >> >>   into 512 pages big read size.
+>> >> >> 
+>> >> >> - Keep THP across swap out/in.  With the memory size become more and
+>> >> >>   more large, the 4k pages bring more and more burden to memory
+>> >> >>   management.  One solution is to use 2M pages as much as possible, that
+>> >> >>   will reduce the management burden greatly, such as much reduced length
+>> >> >>   of LRU list, etc.
+>> >> >> 
+>> >> >> The disadvantage are:
+>> >> >> 
+>> >> >> - Increase the memory pressure when swap in THP.
+>> >> >> 
+>> >> >> - Some pages swapped in may not needed in the near future.
+>> >> >> 
+>> >> >> Because of the disadvantages, the 512 pages swapping in should be made
+>> >> >> optional.  But I don't think we should make it impossible.
+>> >> >
+>> >> > Yeb. No need to make it impossible but your design shouldn't be coupled
+>> >> > with non-existing feature yet.
+>> >> 
+>> >> Sorry, what is the "non-existing feature"?  The full THP swap out/in
+>> >
+>> > THP swapin.
+>> >
+>> > You said you increased cluster size to fit a THP size for recording
+>> > some meta in there for THP swapin.
+>> 
+>> And to find the head of the THP to swap in the whole THP when an address
+>> in the middle of a THP is accessed.
+>> 
+>> > You gave number about how scale bad current swapout so try to enhance
+>> > that path. I agree it alghouth I don't like your approach for first step.
+>> > However, you didn't give any clue why we should swap in a THP. How bad
+>> > current conservative swapin from khugepagd is really bad and why cannot
+>> > enhance that.
+>> >
+>> >> support without splitting THP?  If so, this patchset is the just the
+>> >> first step of that.  I plan to finish the the full THP swap out/in
+>> >> support in 3 steps:
+>> >> 
+>> >> 1. Delay splitting the THP after adding it into swap cache
+>> >> 
+>> >> 2. Delay splitting the THP after swapping out being completed
+>> >> 
+>> >> 3. Avoid splitting the THP during swap out, and swap in the full THP if
+>> >>    possible
+>> >> 
+>> >> I plan to do it step by step to make it easier to review the code.
+>> >
+>> > 1. If we solve batching swapout, then how is THP split for swapout bad?
+>> > 2. Also, how is current conservatie swapin from khugepaged bad?
+>> >
+>> > I think it's one of decision point for the motivation of your work
+>> > and for 1, we need batching swapout feature.
+>> >
+>> > I am saying again that I'm not against your goal but only concern
+>> > is approach. If you don't agree, please ignore me.
+>> 
+>> I am glad to discuss my final goal, that is, swapping out/in the full
+>> THP without splitting.  Why I want to do that is copied as below,
+>
+> Yes, it's your *final* goal but what if it couldn't be acceptable
+> on second step you mentioned above, for example?
+>
+>         Unncessary binded implementation to rejected work.
 
-I assumed this could be fixed within vma_adjust but case 7 is
-indistinguishable from case 8 from within vma_adjust. So the fix has
-to move up one level in vma_merge where it's possible to differentiate
-case 7 and case 8.
+So I want to discuss my final goal.  If people accept my final goal,
+this is resolved.  If people don't accept, I will reconsider it.
 
-The fact no available testcase is exercising the race with any other
-cases of vma_merge except case 8, makes the testing prone for false
-negatives (accidentally upstream also initially passed as a false
-negative thanks to the pmd_modify in do_numa_page that hidden the most
-visible side effect of the bug even in case 8). All I can easily
-verify with the testcase is that case 8 is fixed by monitoring any
-erroneous do_numa_page execution on non-NUMA guests, and sure thing
-case 8 was fixed.
+> If you want to achieve your goal step by step, please consider if
+> one of step you are thinking could be rejected but steps already
+> merged should be self-contained without side-effect.
 
-I'll also reconsider how much more complex it is to remove the "area"
-vma in case 8, instead of the "next", so that case 8 changes from
-PPPPNNNNXXXX->PPPPNNNNNNNN to PPPPNNNNXXXX->PPPPXXXXXXXX, in turn
-removing the oddness factor from case 8.
+What is the side-effect or possible regressions of the step 1 as in this
+patchset?  Lacks the opportunity to allocate consecutive 512 swap slots
+in 2 non-free swap clusters?  I don't think that is a regression,
+because the patchset will NOT make free swap clusters consumed faster
+than that in current code.  Even if it were better to allocate
+consecutive 512 swap slots in 2 non-free swap clusters, it could be an
+incremental improvement to the simple solution in this patchset.  That
+is, to allocate 512 swap slots, the simple solution is:
+
+a) Try to allocate a free swap cluster
+b) If a) fails, give up
+
+The improved solution could be (if it were needed finally)
+
+a) Try to allocate a free swap cluster
+b) If a) fails, try to allocate consecutive 512 swap slots in 2 non-free
+   swap clusters
+c) If b) fails, give up
+
+> If it's hard, send full patchset all at once so reviewers can think
+> what you want of right direction and implementation is good for it.
+
+Thanks for suggestion.
+
+[snip]
+
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
