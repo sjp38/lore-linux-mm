@@ -1,58 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id ADFF26B0069
-	for <linux-mm@kvack.org>; Sun, 18 Sep 2016 07:30:23 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id y6so19573369lff.0
-        for <linux-mm@kvack.org>; Sun, 18 Sep 2016 04:30:23 -0700 (PDT)
-Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
-        by mx.google.com with ESMTPS id h199si6192764lfg.7.2016.09.18.04.30.21
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 839E26B0069
+	for <linux-mm@kvack.org>; Sun, 18 Sep 2016 10:42:54 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id s64so105510025lfs.1
+        for <linux-mm@kvack.org>; Sun, 18 Sep 2016 07:42:54 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a139si3499112wme.30.2016.09.18.07.42.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 18 Sep 2016 04:30:21 -0700 (PDT)
-Received: by mail-lf0-x243.google.com with SMTP id l131so6990770lfl.0
-        for <linux-mm@kvack.org>; Sun, 18 Sep 2016 04:30:21 -0700 (PDT)
-From: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
-Subject: [PATCH] mm/mempolicy.c: forbid static or relative flags for local NUMA mode
-Date: Sun, 18 Sep 2016 13:29:43 +0200
-Message-Id: <20160918112943.1645-1-kwapulinski.piotr@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 18 Sep 2016 07:42:53 -0700 (PDT)
+Date: Sun, 18 Sep 2016 16:42:49 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm: fix oom work when memory is under pressure
+Message-ID: <20160918144248.GA28476@dhcp22.suse.cz>
+References: <20160912111327.GG14524@dhcp22.suse.cz>
+ <57D6B0C4.6040400@huawei.com>
+ <20160912174445.GC14997@dhcp22.suse.cz>
+ <57D7FB71.9090102@huawei.com>
+ <20160913132854.GB6592@dhcp22.suse.cz>
+ <57D8F8AE.1090404@huawei.com>
+ <20160914084219.GA1612@dhcp22.suse.cz>
+ <20160914085227.GB1612@dhcp22.suse.cz>
+ <alpine.LSU.2.11.1609161440280.5127@eggly.anvils>
+ <57DE125F.7030508@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <57DE125F.7030508@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: kirill.shutemov@linux.intel.com, vbabka@suse.cz, rientjes@google.com, mhocko@kernel.org, mgorman@techsingularity.net, liangchen.linux@gmail.com, nzimmer@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kwapulinski.piotr@gmail.com
+To: zhong jiang <zhongjiang@huawei.com>
+Cc: Hugh Dickins <hughd@google.com>, akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, linux-mm@kvack.org, Xishi Qiu <qiuxishi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
 
-The MPOL_F_STATIC_NODES and MPOL_F_RELATIVE_NODES flags are irrelevant
-when setting them for MPOL_LOCAL NUMA memory policy via set_mempolicy.
-Return the "invalid argument" from set_mempolicy whenever
-any of these flags is passed along with MPOL_LOCAL.
-It is consistent with MPOL_PREFERRED passed with empty nodemask.
-It also slightly shortens the execution time in paths where these flags
-are used e.g. when trying to rebind the NUMA nodes for changes in
-cgroups cpuset mems (mpol_rebind_preferred()) or when just printing
-the mempolicy structure (/proc/PID/numa_maps).
-Isolated tests done.
+On Sun 18-09-16 12:04:47, zhong jiang wrote:
+[...]
+>  index 5048083..72dc475 100644
+> --- a/mm/ksm.c
+> +++ b/mm/ksm.c
+> @@ -299,7 +299,7 @@ static inline void free_rmap_item(struct rmap_item *rmap_item)
+> 
+>  static inline struct stable_node *alloc_stable_node(void)
+>  {
+> -       return kmem_cache_alloc(stable_node_cache, GFP_KERNEL);
+> +       return kmem_cache_alloc(stable_node_cache, __GFP_HIGH);
+>  }
 
-Signed-off-by: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
----
- mm/mempolicy.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+I do not want to speak for Hugh but I believe he meant something
+different. The above will grant access to memory reserves but it doesn't
+wake kswapd nor the direct reclaim. I guess he meant GFP_KERNEL | __GFP_HIGH
 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 2da72a5..27b07d1 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -276,7 +276,9 @@ static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
- 				return ERR_PTR(-EINVAL);
- 		}
- 	} else if (mode == MPOL_LOCAL) {
--		if (!nodes_empty(*nodes))
-+		if (!nodes_empty(*nodes) ||
-+		    (flags & MPOL_F_STATIC_NODES) ||
-+		    (flags & MPOL_F_RELATIVE_NODES))
- 			return ERR_PTR(-EINVAL);
- 		mode = MPOL_PREFERRED;
- 	} else if (nodes_empty(*nodes))
 -- 
-2.9.2
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
