@@ -1,108 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 00E906B0069
-	for <linux-mm@kvack.org>; Sun, 18 Sep 2016 00:06:18 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id 20so175994187itx.0
-        for <linux-mm@kvack.org>; Sat, 17 Sep 2016 21:06:18 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id s65si21535232iod.149.2016.09.17.21.06.17
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BFE66B0069
+	for <linux-mm@kvack.org>; Sun, 18 Sep 2016 02:00:57 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id m186so184616787ioa.0
+        for <linux-mm@kvack.org>; Sat, 17 Sep 2016 23:00:57 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id 95si10888027otw.90.2016.09.17.23.00.55
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 17 Sep 2016 21:06:18 -0700 (PDT)
-Message-ID: <57DE125F.7030508@huawei.com>
-Date: Sun, 18 Sep 2016 12:04:47 +0800
-From: zhong jiang <zhongjiang@huawei.com>
-MIME-Version: 1.0
+        Sat, 17 Sep 2016 23:00:55 -0700 (PDT)
 Subject: Re: [PATCH] mm: fix oom work when memory is under pressure
-References: <1473173226-25463-1-git-send-email-zhongjiang@huawei.com> <20160909114410.GG4844@dhcp22.suse.cz> <57D67A8A.7070500@huawei.com> <20160912111327.GG14524@dhcp22.suse.cz> <57D6B0C4.6040400@huawei.com> <20160912174445.GC14997@dhcp22.suse.cz> <57D7FB71.9090102@huawei.com> <20160913132854.GB6592@dhcp22.suse.cz> <57D8F8AE.1090404@huawei.com> <20160914084219.GA1612@dhcp22.suse.cz> <20160914085227.GB1612@dhcp22.suse.cz> <alpine.LSU.2.11.1609161440280.5127@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.11.1609161440280.5127@eggly.anvils>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20160914084219.GA1612@dhcp22.suse.cz>
+	<20160914085227.GB1612@dhcp22.suse.cz>
+	<57D91771.9050108@huawei.com>
+	<7edef3e0-b7cd-426a-5ed7-b1dad822733a@I-love.SAKURA.ne.jp>
+	<57D95620.8000404@huawei.com>
+In-Reply-To: <57D95620.8000404@huawei.com>
+Message-Id: <201609181500.HIC05206.QJOFMOFHOFtLVS@I-love.SAKURA.ne.jp>
+Date: Sun, 18 Sep 2016 15:00:37 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, linux-mm@kvack.org, Xishi Qiu <qiuxishi@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
+To: zhongjiang@huawei.com
+Cc: mhocko@suse.cz, akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, linux-mm@kvack.org, qiuxishi@huawei.com, guohanjun@huawei.com, hughd@google.com
 
-On 2016/9/17 6:13, Hugh Dickins wrote:
-> On Wed, 14 Sep 2016, Michal Hocko wrote:
->> On Wed 14-09-16 10:42:19, Michal Hocko wrote:
->>> [Let's CC Hugh]
->> now for real...
->>
->>> On Wed 14-09-16 15:13:50, zhong jiang wrote:
->>> [...]
->>>>   hi, Michal
->>>>
->>>>   Recently, I hit the same issue when run a OOM case of the LTP and ksm enable.
->>>>  
->>>> [  601.937145] Call trace:
->>>> [  601.939600] [<ffffffc000086a88>] __switch_to+0x74/0x8c
->>>> [  601.944760] [<ffffffc000a1bae0>] __schedule+0x23c/0x7bc
->>>> [  601.950007] [<ffffffc000a1c09c>] schedule+0x3c/0x94
->>>> [  601.954907] [<ffffffc000a1eb84>] rwsem_down_write_failed+0x214/0x350
->>>> [  601.961289] [<ffffffc000a1e32c>] down_write+0x64/0x80
->>>> [  601.966363] [<ffffffc00021f794>] __ksm_exit+0x90/0x19c
->>>> [  601.971523] [<ffffffc0000be650>] mmput+0x118/0x11c
->>>> [  601.976335] [<ffffffc0000c3ec4>] do_exit+0x2dc/0xa74
->>>> [  601.981321] [<ffffffc0000c46f8>] do_group_exit+0x4c/0xe4
->>>> [  601.986656] [<ffffffc0000d0f34>] get_signal+0x444/0x5e0
->>>> [  601.991904] [<ffffffc000089fcc>] do_signal+0x1d8/0x450
->>>> [  601.997065] [<ffffffc00008a35c>] do_notify_resume+0x70/0x78
->>> So this is a hung task triggering because the exiting task cannot get
->>> the mmap sem for write because the ksmd holds it for read while
->>> allocating memory which just takes ages to complete, right?
->>>
->>>> The root case is that ksmd hold the read lock. and the lock is not released.
->>>>  scan_get_next_rmap_item
->>>>          down_read
->>>>                    get_next_rmap_item
->>>>                              alloc_rmap_item     #ksmd will loop permanently.
->>>>
->>>> How do you see this kind of situation ? or  let the issue alone.
->>> I am not familiar with the ksmd code so it is hard for me to judge but
->>> one thing to do would be __GFP_NORETRY which would force a bail out from
->>> the allocation rather than looping for ever. A quick look tells me that
->>> the allocation failure here is quite easy to handle. There might be
->>> others...
-> Yes, very good suggestion in this case: the ksmd code does exactly the
-> right thing when that allocation fails, but was too stupid to use an
-> allocation mode which might fail - and it can allocate rather a lot of
-> slots along that path, so it will be good to let it break out there.
->
-> Thank you, Zhongjiang, please send akpm a fully signed-off patch, tagged
-> for stable, with your explanation above (which was a lot more helpful
-> to me than what you wrote in your other mail of Sept 13th).  But please
-> make it GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN (and break that line
-> before 80 cols): the allocation will sometimes fail, and we're not at
-> all interested in hearing about that.
->
-> Michal, how would you feel about this or a separate patch adding
-> __GFP_HIGH to the allocation in ksm's alloc_stable_node()?  That
-> allocation could cause the same problem, but it is much less common
-> (so less important to do anything about it), and differs from the
-> rmap_item case in that if it succeeds, it will usually free a page;
-> whereas if it fails, the fallback (two break_cow()s) may want to
-> allocate a couple of pages.  So __GFP_HIGH makes more sense for it
-> than __GFP_NORETRY: but perhaps we prefer not to add __GFP_HIGHs?
->
-> Hugh
->
-> .
->
-  I agree.  it indeed make progress.  if alloc_stable_node fails to allocate memory,
-  some memory need to obtain from kernel at same time. the pressure suddenly
-  will increase.
+zhong jiang wrote:
+> On 2016/9/14 19:29, Tetsuo Handa wrote:
+> > On 2016/09/14 18:25, zhong jiang wrote:
+> >> On 2016/9/14 16:52, Michal Hocko wrote:
+> >>> On Wed 14-09-16 10:42:19, Michal Hocko wrote:
+> >>>> [Let's CC Hugh]
+> >>> now for real...
+> >>>
+> >>>> On Wed 14-09-16 15:13:50, zhong jiang wrote:
+> >>>> [...]
+> >>>>>   hi, Michal
+> >>>>>
+> >>>>>   Recently, I hit the same issue when run a OOM case of the LTP and ksm enable.
+> >>>>>  
+> >>>>> [  601.937145] Call trace:
+> >>>>> [  601.939600] [<ffffffc000086a88>] __switch_to+0x74/0x8c
+> >>>>> [  601.944760] [<ffffffc000a1bae0>] __schedule+0x23c/0x7bc
+> >>>>> [  601.950007] [<ffffffc000a1c09c>] schedule+0x3c/0x94
+> >>>>> [  601.954907] [<ffffffc000a1eb84>] rwsem_down_write_failed+0x214/0x350
+> >>>>> [  601.961289] [<ffffffc000a1e32c>] down_write+0x64/0x80
+> >>>>> [  601.966363] [<ffffffc00021f794>] __ksm_exit+0x90/0x19c
+> >>>>> [  601.971523] [<ffffffc0000be650>] mmput+0x118/0x11c
+> >>>>> [  601.976335] [<ffffffc0000c3ec4>] do_exit+0x2dc/0xa74
+> >>>>> [  601.981321] [<ffffffc0000c46f8>] do_group_exit+0x4c/0xe4
+> >>>>> [  601.986656] [<ffffffc0000d0f34>] get_signal+0x444/0x5e0
+> >>>>> [  601.991904] [<ffffffc000089fcc>] do_signal+0x1d8/0x450
+> >>>>> [  601.997065] [<ffffffc00008a35c>] do_notify_resume+0x70/0x78
+> > Please be sure to include exact kernel version (e.g. "uname -r",
+> > "cat /proc/version") when reporting.
+> >
+> > You are reporting a bug in 4.1-stable kernel, which was prone to
+> > OOM livelock because the OOM reaper is not available.
+> > ( http://lkml.kernel.org/r/57D8012F.7080508@huawei.com )
+> >
+> > I think we no longer can reproduce this bug using 4.8-rc6 (or linux-next),
+> > but it will be a nice thing to backport __GFP_NORETRY patch to stable
+> > kernels which do not have the OOM reaper.
+>   No, OOM reaper can not  solve the issue completely , As had disscussed with Michal.
+>   The conclusion is that we need come up with a better method to fix it.
+> 
+>    Thanks
+>   zhongjiang
 
- index 5048083..72dc475 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -299,7 +299,7 @@ static inline void free_rmap_item(struct rmap_item *rmap_item)
+I still think we no longer can reproduce this bug using 4.8-rc6 (or linux-next).
 
- static inline struct stable_node *alloc_stable_node(void)
- {
--       return kmem_cache_alloc(stable_node_cache, GFP_KERNEL);
-+       return kmem_cache_alloc(stable_node_cache, __GFP_HIGH);
- }
+As of 4.1-stable, this bug caused OOM livelock situation because TIF_MEMDIE was
+cleared only after returning from mmput() from exit_mm() from do_exit(). Since
+there is a TIF_MEMDIE thread waiting at mmput() exists, the OOM killer does not
+select next OOM victim because oom_scan_process_thread() returns OOM_SCAN_ABORT,
+although ksmd is waking up the OOM killer via a __GFP_FS allocation request.
+
+As of 4.8-rc6, the OOM reaper cannot take mmap_sem for read at __oom_reap_task()
+because of TIF_MEMDIE thread waiting at ksm_exit() from __mmput() from mmput()
+ from exit_mm() from do_exit(). Thus, __oom_reap_task() returns false and
+oom_reap_task() will emit "oom_reaper: unable to reap pid:%d (%s)\n" message.
+Then, oom_reap_task() clears TIF_MEMDIE from that thread, which in turn
+makes oom_scan_process_thread() not to return OOM_SCAN_ABORT because
+atomic_read(&task->signal->oom_victims) becomes 0 due to exit_oom_victim()
+by the OOM reaper. Then, the OOM killer selects next OOM victim because
+ksmd is waking up the OOM killer via a __GFP_FS allocation request.
+
+Thus, this bug will be completely solved (at the cost of selecting next
+OOM victim) as of 4.8-rc6.
+
+> >> Adding the __GFP_NORETRY,  the issue also can fixed.
+> >> Therefore, we can assure that the case of LTP will leads to the endless looping.
+> >>
+> >> index d45a0a1..03fb67b 100644
+> >> --- a/mm/ksm.c
+> >> +++ b/mm/ksm.c
+> >> @@ -283,7 +283,7 @@ static inline struct rmap_item *alloc_rmap_item(void)
+> >>  {
+> >>         struct rmap_item *rmap_item;
+> >>
+> >> -       rmap_item = kmem_cache_zalloc(rmap_item_cache, GFP_KERNEL);
+> >> +       rmap_item = kmem_cache_zalloc(rmap_item_cache, GFP_KERNEL | __GFP_NORETRY);
+> >>         if (rmap_item)
+> >>                 ksm_rmap_items++;
+> >>         return rmap_item;
+> >
+
+Your patch to add __GFP_NORETRY and __GFP_NOWARN is OK. But please explicitly state
+that you hit this bug in 4.1-stable. Also, your trace is not only a hung task but also
+an OOM livelock; the kernel as of 4.1-stable is silent when OOM livelock situation
+occurred.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
