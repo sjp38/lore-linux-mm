@@ -1,51 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C79EB6B0069
-	for <linux-mm@kvack.org>; Sun, 18 Sep 2016 02:13:33 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id v67so254865515pfv.1
-        for <linux-mm@kvack.org>; Sat, 17 Sep 2016 23:13:33 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id tm1si6389951pac.254.2016.09.17.23.13.32
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id ADFF26B0069
+	for <linux-mm@kvack.org>; Sun, 18 Sep 2016 07:30:23 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id y6so19573369lff.0
+        for <linux-mm@kvack.org>; Sun, 18 Sep 2016 04:30:23 -0700 (PDT)
+Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
+        by mx.google.com with ESMTPS id h199si6192764lfg.7.2016.09.18.04.30.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 17 Sep 2016 23:13:33 -0700 (PDT)
-Subject: Re: [PATCH] mm: fix oom work when memory is under pressure
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20160914085227.GB1612@dhcp22.suse.cz>
-	<57D91771.9050108@huawei.com>
-	<7edef3e0-b7cd-426a-5ed7-b1dad822733a@I-love.SAKURA.ne.jp>
-	<57D95620.8000404@huawei.com>
-	<201609181500.HIC05206.QJOFMOFHOFtLVS@I-love.SAKURA.ne.jp>
-In-Reply-To: <201609181500.HIC05206.QJOFMOFHOFtLVS@I-love.SAKURA.ne.jp>
-Message-Id: <201609181513.FBI69733.FFFHOMLQOJOSVt@I-love.SAKURA.ne.jp>
-Date: Sun, 18 Sep 2016 15:13:18 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 18 Sep 2016 04:30:21 -0700 (PDT)
+Received: by mail-lf0-x243.google.com with SMTP id l131so6990770lfl.0
+        for <linux-mm@kvack.org>; Sun, 18 Sep 2016 04:30:21 -0700 (PDT)
+From: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+Subject: [PATCH] mm/mempolicy.c: forbid static or relative flags for local NUMA mode
+Date: Sun, 18 Sep 2016 13:29:43 +0200
+Message-Id: <20160918112943.1645-1-kwapulinski.piotr@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhongjiang@huawei.com
-Cc: mhocko@suse.cz, akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, linux-mm@kvack.org, qiuxishi@huawei.com, guohanjun@huawei.com, hughd@google.com
+To: akpm@linux-foundation.org
+Cc: kirill.shutemov@linux.intel.com, vbabka@suse.cz, rientjes@google.com, mhocko@kernel.org, mgorman@techsingularity.net, liangchen.linux@gmail.com, nzimmer@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kwapulinski.piotr@gmail.com
 
-Tetsuo Handa wrote:
-> As of 4.8-rc6, the OOM reaper cannot take mmap_sem for read at __oom_reap_task()
-> because of TIF_MEMDIE thread waiting at ksm_exit() from __mmput() from mmput()
->  from exit_mm() from do_exit(). Thus, __oom_reap_task() returns false and
-> oom_reap_task() will emit "oom_reaper: unable to reap pid:%d (%s)\n" message.
-> Then, oom_reap_task() clears TIF_MEMDIE from that thread, which in turn
-> makes oom_scan_process_thread() not to return OOM_SCAN_ABORT because
-> atomic_read(&task->signal->oom_victims) becomes 0 due to exit_oom_victim()
-> by the OOM reaper. Then, the OOM killer selects next OOM victim because
-> ksmd is waking up the OOM killer via a __GFP_FS allocation request.
+The MPOL_F_STATIC_NODES and MPOL_F_RELATIVE_NODES flags are irrelevant
+when setting them for MPOL_LOCAL NUMA memory policy via set_mempolicy.
+Return the "invalid argument" from set_mempolicy whenever
+any of these flags is passed along with MPOL_LOCAL.
+It is consistent with MPOL_PREFERRED passed with empty nodemask.
+It also slightly shortens the execution time in paths where these flags
+are used e.g. when trying to rebind the NUMA nodes for changes in
+cgroups cpuset mems (mpol_rebind_preferred()) or when just printing
+the mempolicy structure (/proc/PID/numa_maps).
+Isolated tests done.
 
-Oops. As of 4.8-rc6, __oom_reap_task() returns true because of
-find_lock_task_mm() returning NULL. Thus, oom_reap_task() clears TIF_MEMDIE
-without emitting "oom_reaper: unable to reap pid:%d (%s)\n" message.
+Signed-off-by: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+---
+ mm/mempolicy.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-> 
-> Thus, this bug will be completely solved (at the cost of selecting next
-> OOM victim) as of 4.8-rc6.
-
-The conclusion is same.
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 2da72a5..27b07d1 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -276,7 +276,9 @@ static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
+ 				return ERR_PTR(-EINVAL);
+ 		}
+ 	} else if (mode == MPOL_LOCAL) {
+-		if (!nodes_empty(*nodes))
++		if (!nodes_empty(*nodes) ||
++		    (flags & MPOL_F_STATIC_NODES) ||
++		    (flags & MPOL_F_RELATIVE_NODES))
+ 			return ERR_PTR(-EINVAL);
+ 		mode = MPOL_PREFERRED;
+ 	} else if (nodes_empty(*nodes))
+-- 
+2.9.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
