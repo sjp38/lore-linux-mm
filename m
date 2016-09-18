@@ -1,63 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EF6DE6B0069
-	for <linux-mm@kvack.org>; Sat, 17 Sep 2016 17:52:34 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id u18so162327316ita.2
-        for <linux-mm@kvack.org>; Sat, 17 Sep 2016 14:52:34 -0700 (PDT)
-Received: from smtprelay.hostedemail.com (smtprelay0042.hostedemail.com. [216.40.44.42])
-        by mx.google.com with ESMTPS id d95si20242678ioj.42.2016.09.17.14.52.34
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BCFF6B0069
+	for <linux-mm@kvack.org>; Sat, 17 Sep 2016 20:36:59 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id p53so250116973qtp.0
+        for <linux-mm@kvack.org>; Sat, 17 Sep 2016 17:36:59 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d140si609159ybh.230.2016.09.17.17.36.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 17 Sep 2016 14:52:34 -0700 (PDT)
-Message-ID: <1474149151.1954.4.camel@perches.com>
-Subject: Re: [REGRESSION] RLIMIT_DATA crashes named
-From: Joe Perches <joe@perches.com>
-Date: Sat, 17 Sep 2016 14:52:31 -0700
-In-Reply-To: <CALYGNiN-ELbwSV0X2_FeKvGSOfRuHMsBnBDj86NHZxQKnZgVsQ@mail.gmail.com>
-References: 
-	<CA+55aFyfny-0F=VKKe6BCm-=fX5b08o1jPjrxTBOatiTzGdBVg@mail.gmail.com>
-	 <d4e15f7b-fedd-e8ff-539f-61d441b402cd@redhat.com>
-	 <CA+55aFzWts-dgNRuqfwHu4VeN-YcRqkZdMiRpRQ=Pg91sWJ=VQ@mail.gmail.com>
-	 <cone.1474065027.299244.29242.1004@monster.email-scan.com>
-	 <CA+55aFwPNBQePQCQ7qRmvn-nVaEn2YVsXnBFc5y1UVWExifBHw@mail.gmail.com>
-	 <CA+55aFy-mMfj3qj6=WMawEUGEkwnFEqB_=S6Pxx3P_c58uHW2w@mail.gmail.com>
-	 <1474085296.32273.95.camel@perches.com>
-	 <CALYGNiNuF1Ggy=DyYG32HXbnJp3Q0cX9ekQ5w2jR1M9rkKaX9A@mail.gmail.com>
-	 <20160917090941.GB26044@uranus.lan>
-	 <CALYGNiNzdsnzCZXg_-2u1Tv8+RdRFJVXa6iXY+s64=+LHr2TSA@mail.gmail.com>
-	 <20160917122021.GC26044@uranus.lan>
-	 <CALYGNiN-ELbwSV0X2_FeKvGSOfRuHMsBnBDj86NHZxQKnZgVsQ@mail.gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Sat, 17 Sep 2016 17:36:58 -0700 (PDT)
+Date: Sun, 18 Sep 2016 02:36:54 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 1/1] mm: vma_merge: fix vm_page_prot SMP race condition
+ against rmap_walk
+Message-ID: <20160918003654.GA25048@redhat.com>
+References: <20160916205441.GB4743@redhat.com>
+ <1474128315-22726-1-git-send-email-aarcange@redhat.com>
+ <1474128315-22726-2-git-send-email-aarcange@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1474128315-22726-2-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>, Cyrill Gorcunov <gorcunov@gmail.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Sam Varshavchik <mrsam@courier-mta.com>, Ingo Molnar <mingo@kernel.org>, Laura Abbott <labbott@redhat.com>, Brent <fix@bitrealm.com>, Andrew Morton <akpm@linux-foundation.org>, Christian Borntraeger <borntraeger@de.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>, Jan Vorlicek <janvorli@microsoft.com>, Aditya Mandaleeka <adityam@microsoft.com>
 
-On Sun, 2016-09-18 at 00:40 +0300, Konstantin Khlebnikov wrote:
-> #define printk_periodic(period, fmt, ...)
-> ({
->         static unsigned long __prev __read_mostly = INITIAL_JIFFIES - (period);
->         unsigned long __now = jiffies;
->         bool __print = !time_in_range_open(__now, __prev, __prev + (period));
-> 
->         if (__print) {
->                 __prev = __now;
->                 printk(fmt, ##__VA_ARGS__);
->         }
->         unlikely(__print);
-> })
+On Sat, Sep 17, 2016 at 06:05:15PM +0200, Andrea Arcangeli wrote:
+> +	if (remove_next == 1) {
+> +		/*
+> +		 * vm_page_prot and vm_flags can be read by the
+> +		 * rmap_walk, for example in remove_migration_ptes(),
+> +		 * so before releasing the rmap locks the permissions
+> +		 * of the expanded vmas must be already the correct
+> +		 * one for the whole merged range.
+> +		 *
+> +		 * mprotect case 8 (which sets remove_next == 1) needs
+> +		 * special handling to provide the above guarantee, as
+> +		 * it is the only case where the "vma" that is being
+> +		 * expanded is the one with the wrong permissions for
+> +		 * the whole merged region. So copy the right
+> +		 * permissions from the next one that is getting
+> +		 * removed before releasing the rmap locks.
+> +		 */
+> +		vma->vm_page_prot = next->vm_page_prot;
+> +		vma->vm_flags = next->vm_flags;
+> +	}
+>  	if (start != vma->vm_start) {
 
-printk_periodic reads like a thing that would create a
-thread to printk a message every period.
+One more thought, doesn't remove_next get set to 1 also in case 7?
 
-And trivially, period should be copied to a temporary
-and not be reused (use your choice of # of underscores)
+I assumed this could be fixed within vma_adjust but case 7 is
+indistinguishable from case 8 from within vma_adjust. So the fix has
+to move up one level in vma_merge where it's possible to differentiate
+case 7 and case 8.
 
-	unsigned long _period = period;
-	unsigned long _now = now;
-	static unsigned long _prev __read_mostly = etc...
+The fact no available testcase is exercising the race with any other
+cases of vma_merge except case 8, makes the testing prone for false
+negatives (accidentally upstream also initially passed as a false
+negative thanks to the pmd_modify in do_numa_page that hidden the most
+visible side effect of the bug even in case 8). All I can easily
+verify with the testcase is that case 8 is fixed by monitoring any
+erroneous do_numa_page execution on non-NUMA guests, and sure thing
+case 8 was fixed.
+
+I'll also reconsider how much more complex it is to remove the "area"
+vma in case 8, instead of the "next", so that case 8 changes from
+PPPPNNNNXXXX->PPPPNNNNNNNN to PPPPNNNNXXXX->PPPPXXXXXXXX, in turn
+removing the oddness factor from case 8.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
