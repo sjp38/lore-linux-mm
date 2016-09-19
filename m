@@ -1,104 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5910B6B0069
-	for <linux-mm@kvack.org>; Sun, 18 Sep 2016 18:00:48 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id k12so109526301lfb.2
-        for <linux-mm@kvack.org>; Sun, 18 Sep 2016 15:00:48 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s17si18309835wmb.62.2016.09.18.15.00.46
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A3AE6B0069
+	for <linux-mm@kvack.org>; Sun, 18 Sep 2016 21:07:22 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 21so234839636pfy.3
+        for <linux-mm@kvack.org>; Sun, 18 Sep 2016 18:07:22 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id u14si25817785pal.70.2016.09.18.18.07.20
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 18 Sep 2016 15:00:46 -0700 (PDT)
+        Sun, 18 Sep 2016 18:07:20 -0700 (PDT)
+From: Andi Kleen <andi@firstfloor.org>
 Subject: Re: More OOM problems
 References: <CA+55aFwu30Yz52yW+MRHt_JgpqZkq4DHdWR-pX4+gO_OK7agCQ@mail.gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <6aa81fe3-7f04-78d7-d477-609a7acd351a@suse.cz>
-Date: Mon, 19 Sep 2016 00:00:24 +0200
+	<214a6307-3bcf-38e1-7984-48cc9f838a48@suse.cz>
+Date: Sun, 18 Sep 2016 18:07:19 -0700
+In-Reply-To: <214a6307-3bcf-38e1-7984-48cc9f838a48@suse.cz> (Vlastimil Babka's
+	message of "Sun, 18 Sep 2016 23:00:29 +0200")
+Message-ID: <87twdc4rzs.fsf@tassilo.jf.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFwu30Yz52yW+MRHt_JgpqZkq4DHdWR-pX4+gO_OK7agCQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Markus Trippelsdorf <markus@trippelsdorf.de>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Jiri Slaby <jslaby@suse.com>, Olaf Hering <olaf@aepfle.de>, Joonsoo Kim <js1304@gmail.com>, linux-mm <linux-mm@kvack.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Markus Trippelsdorf <markus@trippelsdorf.de>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Jiri Slaby <jslaby@suse.com>, Olaf Hering <olaf@aepfle.de>, Joonsoo Kim <js1304@gmail.com>, linux-mm <linux-mm@kvack.org>, cl@linux-foundation.org
 
-On 09/18/2016 10:03 PM, Linus Torvalds wrote:
-> [ More or less random collection of people from previous oom patches 
-> and/or discussions, if you feel you shouldn't have been cc'd, blame
-> me for just picking things from earlier threads and/or commits ]
-> 
-> I'm afraid that the oom situation is still not fixed, and the "let's 
-> die quickly" patches are still a nasty regression.
+Vlastimil Babka <vbabka@suse.cz> writes:
+>> 
+>> The trigger is a kcalloc() in the i915 driver:
+>> 
+>>     Xorg invoked oom-killer:
+>> gfp_mask=0x240c0d0(GFP_TEMPORARY|__GFP_COMP|__GFP_ZERO), order=3,
+>> oom_score_adj=0
+>> 
+>>       __kmalloc+0x1cd/0x1f0
+>>       alloc_gen8_temp_bitmaps+0x47/0x80 [i915]
+>> 
+>> which looks like it is one of these:
+>> 
+>>   slabinfo - version: 2.1
+>>   # name            <active_objs> <num_objs> <objsize> <objperslab>
+>> <pagesperslab>
+>>   kmalloc-8192         268    268   8192    4    8
+>>   kmalloc-4096         732    786   4096    8    8
+>>   kmalloc-2048        1402   1456   2048   16    8
+>>   kmalloc-1024        2505   2976   1024   32    8
+>> 
+>> so even just a 1kB allocation can cause an order-3 page allocation.
+>
+> Sounds like SLUB. SLAB would use order-0 as long as things fit. I would
+> hope for SLUB to fallback to order-0 (or order-1 for 8kB) instead of
+> OOM, though. Guess not...
 
-So I'm trying to understand the core of the regression compared to
-pre-4.7. It can't be the compaction feedback, as that was reverted, and
-compaction itself shouldn't perform worse than pre-4.7. This leaves us
-with should_reclaim_retry() false. This can return false if:
+It's already trying to do that, perhaps just some flags need to be
+changed?
 
-1) no_progress_loops > MAX_RECLAIM_RETRIES
+Adding Christoph.
 
-But we have in __allow_pages_slowpath() this:
+	flags |= s->allocflags;
 
-if (did_some_progress && order <= PAGE_ALLOC_COSTLY_ORDER)
-no_progress_loops = 0;
+	/*
+	 * Let the initial higher-order allocation fail under memory pressure
+	 * so we fall-back to the minimum order allocation.
+	 */
+	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY) & ~__GFP_NOFAIL;
 
-I doubt reclaim makes no progress in your case, and the non-costly order
-is also true. So, unlikely.
+	page = alloc_slab_page(alloc_gfp, node, oo);
+	if (unlikely(!page)) {
+		oo = s->min;
+		/*
+		 * Allocation may have failed due to fragmentation.
+		 * Try a lower order alloc if possible
+		 */
+		page = alloc_slab_page(flags, node, oo);
 
-2) The watermark check that includes estimate for pages available for
-reclaim fails.
+		if (page)
+			stat(s, ORDER_FALLBACK);
+	}
 
-Could be the backoff in calculation of "available" in
-should_reclaim_retry() is too aggressive. But it depends on the
-no_progress_loops which I think is 0 (see above). Again, unlikely.
 
-But the watermark check doesn't actually work for order-1+ allocations,
-the "available" estimate only affects order-0 check. For higher orders
-it will be false if the page of sufficient order doesn't already exist.
-That's fine if we trust should_compact_retry() in such case.
-
-But Joonsoo already had a theoretical scenario where this can fall apart:
-http://lkml.kernel.org/r/<20160824050157.GA22781@js1304-P5Q-DELUXE>
-
-See the part that starts at "Assume following situation:". I suspect
-something like that happened here.
-
-I think at least temporarily we'll have to make the watermark check
-to be order-0 check for non-costly orders.
-
-Something like below (untested)?
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a2214c64ed3c..9b3b3a79c58a 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3347,17 +3347,24 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
- 					ac->nodemask) {
- 		unsigned long available;
- 		unsigned long reclaimable;
-+		int check_order = order;
-+		unsigned long watermark = min_wmark_pages(zone);
- 
- 		available = reclaimable = zone_reclaimable_pages(zone);
- 		available -= DIV_ROUND_UP(no_progress_loops * available,
- 					  MAX_RECLAIM_RETRIES);
- 		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
- 
-+		if (order > 0 && order <= PAGE_ALLOC_COSTLY_ORDER) {
-+			check_order = 0;
-+			watermark += 1UL << order;
-+		}
-+
- 		/*
- 		 * Would the allocation succeed if we reclaimed the whole
- 		 * available?
- 		 */
--		if (__zone_watermark_ok(zone, order, min_wmark_pages(zone),
-+		if (__zone_watermark_ok(zone, check_order, watermark,
- 				ac_classzone_idx(ac), alloc_flags, available)) {
- 			/*
- 			 * If we didn't make any progress and have a lot of
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
