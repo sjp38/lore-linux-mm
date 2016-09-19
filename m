@@ -1,79 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DC736B0069
-	for <linux-mm@kvack.org>; Mon, 19 Sep 2016 07:52:08 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id n4so119453460lfb.3
-        for <linux-mm@kvack.org>; Mon, 19 Sep 2016 04:52:08 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id ud2si21926891wjc.0.2016.09.19.04.52.06
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 41FD66B0253
+	for <linux-mm@kvack.org>; Mon, 19 Sep 2016 07:53:37 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id fu12so303483070pac.1
+        for <linux-mm@kvack.org>; Mon, 19 Sep 2016 04:53:37 -0700 (PDT)
+Received: from mail-pa0-x243.google.com (mail-pa0-x243.google.com. [2607:f8b0:400e:c03::243])
+        by mx.google.com with ESMTPS id c9si28674310pad.128.2016.09.19.04.53.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Sep 2016 04:52:06 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id b184so14540392wma.3
-        for <linux-mm@kvack.org>; Mon, 19 Sep 2016 04:52:06 -0700 (PDT)
-Date: Mon, 19 Sep 2016 13:52:05 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm/mempolicy.c: forbid static or relative flags for
- local NUMA mode
-Message-ID: <20160919115204.GL10785@dhcp22.suse.cz>
-References: <20160918112943.1645-1-kwapulinski.piotr@gmail.com>
+        Mon, 19 Sep 2016 04:53:36 -0700 (PDT)
+Received: by mail-pa0-x243.google.com with SMTP id vz6so6920420pab.1
+        for <linux-mm@kvack.org>; Mon, 19 Sep 2016 04:53:36 -0700 (PDT)
+Subject: Re: [PATCH v2 2/3] powerpc/mm: allow memory hotplug into a memoryless
+ node
+References: <1473883618-14998-1-git-send-email-arbab@linux.vnet.ibm.com>
+ <1473883618-14998-3-git-send-email-arbab@linux.vnet.ibm.com>
+From: Balbir Singh <bsingharora@gmail.com>
+Message-ID: <15d62e9c-38e6-dfd3-0ee2-6885cbfbe315@gmail.com>
+Date: Mon, 19 Sep 2016 21:53:49 +1000
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160918112943.1645-1-kwapulinski.piotr@gmail.com>
+In-Reply-To: <1473883618-14998-3-git-send-email-arbab@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
-Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, vbabka@suse.cz, rientjes@google.com, mgorman@techsingularity.net, liangchen.linux@gmail.com, nzimmer@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Reza Arbab <arbab@linux.vnet.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, devicetree@vger.kernel.org, linux-mm@kvack.org
 
-On Sun 18-09-16 13:29:43, Piotr Kwapulinski wrote:
-> The MPOL_F_STATIC_NODES and MPOL_F_RELATIVE_NODES flags are irrelevant
-> when setting them for MPOL_LOCAL NUMA memory policy via set_mempolicy.
-> Return the "invalid argument" from set_mempolicy whenever
-> any of these flags is passed along with MPOL_LOCAL.
 
-man 2 set_mempolicy doesn't list this as invalid option. Maybe this is a
-documentation bug but is it possible that somebody will see this as an
-unexpected error?
 
-> It is consistent with MPOL_PREFERRED passed with empty nodemask.
-> It also slightly shortens the execution time in paths where these flags
-> are used e.g. when trying to rebind the NUMA nodes for changes in
-> cgroups cpuset mems (mpol_rebind_preferred()) or when just printing
-> the mempolicy structure (/proc/PID/numa_maps).
-
-I am not sure I understand this argument. What does this patch actually
-fix? If this is about the execution time then why not just bail out
-early when MPOL_LOCAL && (MPOL_F_STATIC_NODES || MPOL_F_RELATIVE_NODES)
-
-> Isolated tests done.
+On 15/09/16 06:06, Reza Arbab wrote:
+> Remove the check which prevents us from hotplugging into an empty node.
 > 
-> Signed-off-by: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+> This limitation has been questioned before [1], and judging by the
+> response, there doesn't seem to be a reason we can't remove it. No issues
+> have been found in light testing.
+> 
+> [1] http://lkml.kernel.org/r/CAGZKiBrmkSa1yyhbf5hwGxubcjsE5SmkSMY4tpANERMe2UG4bg@mail.gmail.com
+>     http://lkml.kernel.org/r/20160511215051.GF22115@arbab-laptop.austin.ibm.com
+> 
+> Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
+> Acked-by: Balbir Singh <bsingharora@gmail.com>
+> Cc: Nathan Fontenot <nfont@linux.vnet.ibm.com>
+> Cc: Bharata B Rao <bharata@linux.vnet.ibm.com>
 > ---
->  mm/mempolicy.c | 4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
+>  arch/powerpc/mm/numa.c | 13 +------------
+>  1 file changed, 1 insertion(+), 12 deletions(-)
 > 
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index 2da72a5..27b07d1 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -276,7 +276,9 @@ static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
->  				return ERR_PTR(-EINVAL);
->  		}
->  	} else if (mode == MPOL_LOCAL) {
-> -		if (!nodes_empty(*nodes))
-> +		if (!nodes_empty(*nodes) ||
-> +		    (flags & MPOL_F_STATIC_NODES) ||
-> +		    (flags & MPOL_F_RELATIVE_NODES))
->  			return ERR_PTR(-EINVAL);
->  		mode = MPOL_PREFERRED;
->  	} else if (nodes_empty(*nodes))
-> -- 
-> 2.9.2
 
--- 
-Michal Hocko
-SUSE Labs
+I presume you've tested with CONFIG_NODES_SHIFT of 8 (255 nodes?)
+
+Balbir Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
