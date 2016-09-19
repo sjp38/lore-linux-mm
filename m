@@ -1,70 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 464AC6B0069
-	for <linux-mm@kvack.org>; Sun, 18 Sep 2016 23:09:01 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id 20so117390153ioj.2
-        for <linux-mm@kvack.org>; Sun, 18 Sep 2016 20:09:01 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id j79si23216027itb.44.2016.09.18.20.08.59
-        for <linux-mm@kvack.org>;
-        Sun, 18 Sep 2016 20:09:00 -0700 (PDT)
-Date: Mon, 19 Sep 2016 12:05:58 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v3 03/15] lockdep: Refactor lookup_chain_cache()
-Message-ID: <20160919030558.GI2279@X58A-UD3R>
-References: <1473759914-17003-1-git-send-email-byungchul.park@lge.com>
- <1473759914-17003-4-git-send-email-byungchul.park@lge.com>
- <CACbG308kitsX23FTCJiUDVpN2uusabHiN1ifao53yR5fM4Z7VA@mail.gmail.com>
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CA0056B0069
+	for <linux-mm@kvack.org>; Mon, 19 Sep 2016 00:49:31 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id y10so311095547qty.2
+        for <linux-mm@kvack.org>; Sun, 18 Sep 2016 21:49:31 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id s129si18089347qkf.110.2016.09.18.21.49.30
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 18 Sep 2016 21:49:31 -0700 (PDT)
+Message-ID: <57DF6D36.3040108@huawei.com>
+Date: Mon, 19 Sep 2016 12:44:38 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CACbG308kitsX23FTCJiUDVpN2uusabHiN1ifao53yR5fM4Z7VA@mail.gmail.com>
+Subject: Re: [PATCH] mm: fix oom work when memory is under pressure
+References: <20160914085227.GB1612@dhcp22.suse.cz> <57D91771.9050108@huawei.com> <7edef3e0-b7cd-426a-5ed7-b1dad822733a@I-love.SAKURA.ne.jp> <57D95620.8000404@huawei.com> <201609181500.HIC05206.QJOFMOFHOFtLVS@I-love.SAKURA.ne.jp> <201609181513.FBI69733.FFFHOMLQOJOSVt@I-love.SAKURA.ne.jp>
+In-Reply-To: <201609181513.FBI69733.FFFHOMLQOJOSVt@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nilay Vaish <nilayvaish@gmail.com>
-Cc: peterz@infradead.org, mingo@kernel.org, tglx@linutronix.de, walken@google.com, boqun.feng@gmail.com, kirill@shutemov.name, Linux Kernel list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: mhocko@suse.cz, akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, linux-mm@kvack.org, qiuxishi@huawei.com, guohanjun@huawei.com, hughd@google.com
 
-On Thu, Sep 15, 2016 at 10:33:46AM -0500, Nilay Vaish wrote:
-> On 13 September 2016 at 04:45, Byungchul Park <byungchul.park@lge.com> wrote:
-> > @@ -2215,6 +2178,75 @@ cache_hit:
-> >         return 1;
-> >  }
-> >
-> > +/*
-> > + * Look up a dependency chain.
-> > + */
-> > +static inline struct lock_chain *lookup_chain_cache(u64 chain_key)
-> > +{
-> > +       struct hlist_head *hash_head = chainhashentry(chain_key);
-> > +       struct lock_chain *chain;
-> > +
-> > +       /*
-> > +        * We can walk it lock-free, because entries only get added
-> > +        * to the hash:
-> > +        */
-> > +       hlist_for_each_entry_rcu(chain, hash_head, entry) {
-> > +               if (chain->chain_key == chain_key) {
-> > +                       debug_atomic_inc(chain_lookup_hits);
-> > +                       return chain;
-> > +               }
-> > +       }
-> > +       return NULL;
-> > +}
-> 
-> Byungchul,  do you think we should increment chain_lookup_misses
-> before returning NULL from the above function?
+On 2016/9/18 14:13, Tetsuo Handa wrote:
+> Tetsuo Handa wrote:
+>> As of 4.8-rc6, the OOM reaper cannot take mmap_sem for read at __oom_reap_task()
+>> because of TIF_MEMDIE thread waiting at ksm_exit() from __mmput() from mmput()
+>>  from exit_mm() from do_exit(). Thus, __oom_reap_task() returns false and
+>> oom_reap_task() will emit "oom_reaper: unable to reap pid:%d (%s)\n" message.
+>> Then, oom_reap_task() clears TIF_MEMDIE from that thread, which in turn
+>> makes oom_scan_process_thread() not to return OOM_SCAN_ABORT because
+>> atomic_read(&task->signal->oom_victims) becomes 0 due to exit_oom_victim()
+>> by the OOM reaper. Then, the OOM killer selects next OOM victim because
+>> ksmd is waking up the OOM killer via a __GFP_FS allocation request.
+  hi, Tetsuo
 
-Hello,
+  OOM reaper indeed relieve the issue,  as had discussed with Michal,  but it is not completely
+  solved.  and OOM livelock had been solved by backport the patch from Michal.
+ 
+  The key is that ksmd enter into the OOM and bail out quickly. because other process implement
+  a OOM in the same zone. therefore, ksmd can not obtain the memory.
 
-No, I don't think so.
-It will be done in add_chain_cache().
+  Thanks
+  zhongjiang
+> Oops. As of 4.8-rc6, __oom_reap_task() returns true because of
+> find_lock_task_mm() returning NULL. Thus, oom_reap_task() clears TIF_MEMDIE
+> without emitting "oom_reaper: unable to reap pid:%d (%s)\n" message.
+>
+>> Thus, this bug will be completely solved (at the cost of selecting next
+>> OOM victim) as of 4.8-rc6.
+> The conclusion is same.
+>
+> .
+>
 
-Thank you,
-Byungchul
-
-> 
-> --
-> Nilay
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
