@@ -1,85 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C0586B0069
-	for <linux-mm@kvack.org>; Mon, 19 Sep 2016 03:27:54 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id v67so313288827pfv.1
-        for <linux-mm@kvack.org>; Mon, 19 Sep 2016 00:27:54 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id o3si27610903pav.101.2016.09.19.00.27.53
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 487486B0069
+	for <linux-mm@kvack.org>; Mon, 19 Sep 2016 03:52:35 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id s64so116062580lfs.1
+        for <linux-mm@kvack.org>; Mon, 19 Sep 2016 00:52:35 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 123si17741024wmt.39.2016.09.19.00.52.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Sep 2016 00:27:53 -0700 (PDT)
-Subject: Re: [PATCH v2] mm, proc: Fix region lost in /proc/self/smaps
-References: <1473649964-20191-1-git-send-email-guangrong.xiao@linux.intel.com>
- <20160912125447.GM14524@dhcp22.suse.cz> <57D6C332.4000409@intel.com>
- <20160912191035.GD14997@dhcp22.suse.cz> <20160913145906.GA28037@redhat.com>
- <57D8277E.80505@intel.com> <20160914153814.GA21284@redhat.com>
-From: Xiao Guangrong <guangrong.xiao@linux.intel.com>
-Message-ID: <7d1089c8-7921-3245-af2f-106c0c3880b4@linux.intel.com>
-Date: Mon, 19 Sep 2016 15:21:56 +0800
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 19 Sep 2016 00:52:33 -0700 (PDT)
+Date: Mon, 19 Sep 2016 09:52:30 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: More OOM problems
+Message-ID: <20160919075230.GE10785@dhcp22.suse.cz>
+References: <CA+55aFwu30Yz52yW+MRHt_JgpqZkq4DHdWR-pX4+gO_OK7agCQ@mail.gmail.com>
+ <214a6307-3bcf-38e1-7984-48cc9f838a48@suse.cz>
+ <CA+55aFx8qwCVZFa9VZTMMgzhn9qphsrOFYJVWtfHs9bAVEWhGw@mail.gmail.com>
+ <20160919070106.GC10785@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20160914153814.GA21284@redhat.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160919070106.GC10785@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>, Dave Hansen <dave.hansen@intel.com>
-Cc: Michal Hocko <mhocko@kernel.org>, pbonzini@redhat.com, akpm@linux-foundation.org, dan.j.williams@intel.com, gleb@kernel.org, mtosatti@redhat.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, stefanha@redhat.com, yuhuang@redhat.com, linux-mm@kvack.org, ross.zwisler@linux.intel.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Markus Trippelsdorf <markus@trippelsdorf.de>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Jiri Slaby <jslaby@suse.com>, Olaf Hering <olaf@aepfle.de>, Joonsoo Kim <js1304@gmail.com>, linux-mm <linux-mm@kvack.org>
 
+On Mon 19-09-16 09:01:06, Michal Hocko wrote:
+> On Sun 18-09-16 14:18:22, Linus Torvalds wrote:
+[...]
+> > I'm not saying the code should fail and return NULL either, of course.
+> > 
+> > So  PAGE_ALLOC_COSTLY_ORDER should *not* mean "oom rather than return
+> > NULL". It really has to mean "try a _lot_ harder".
+> 
+> Agreed and Vlastimil's patches go that route. We just do not try
+> sufficiently hard with the compaction.
 
+And just to clarify why I think that Vlastimil's patches might help
+here. Your allocation fails because you seem to be hitting min watermark
+even for order-0 with my workaround which is sitting in 4.8. If this is
+a longer term state then the compaction even doesn't try to do anything.
+With the original should_compact_retry we would keep retrying based on
+compaction_withdrawn() feedback. That would get us over order-0
+watermarks kick the compaction in. Without Vlastimil's patches we could
+still give up too early due some of the back off heuristic in the
+compaction code. But most of those should be gone with his patches. So I
+believe that they should really help here. Maybe there are still some
+places to look at - I didn't get to fully review his patches (plan to do
+it this week).
 
-On 09/14/2016 11:38 PM, Oleg Nesterov wrote:
-> On 09/13, Dave Hansen wrote:
->>
->> On 09/13/2016 07:59 AM, Oleg Nesterov wrote:
->>> I agree. I don't even understand why this was considered as a bug.
->>> Obviously, m_stop() which drops mmap_sep should not be called, or
->>> all the threads should be stopped, if you want to trust the result.
->>
->> There was a mapping at a given address.  That mapping did not change, it
->> was not split, its attributes did not change.  But, it didn't show up
->> when reading smaps.  Folks _actually_ noticed this in a test suite
->> looking for that address range in smaps.
->
-> I understand, and I won't argue with any change which makes the things
-> better. Just I do not think this is a real problem. And this patch can't
-> fix other oddities and it seems it adds another one (at least) although
-> I can easily misread this patch and/or the code.
->
-> So we change m_cache_vma(),
->
-> 	-        m->version = m_next_vma(m->private, vma) ? vma->vm_start : -1UL;
-> 	+        m->version = m_next_vma(m->private, vma) ? vma->vm_end : -1UL;
->
-> OK, and another change in m_start()
->
-> 	-        if (vma && (vma = m_next_vma(priv, vma)))
-> 	+        if (vma)
->
-> means that it can return the same vma if it grows in between.
->
-> show_map_vma() has another change
->
-> 	+       start = max(vma->vm_start, start);
->
-> so it will be reported as _another_ vma, and this doesn't look exactly
-> right.
+So in short the workaround we have in 4.8 currently tried to plug the
+biggest hole while the situation is not ideal. That's why I originally
+hoped for the compaction feedback already in 4.8.
 
-We noticed it in the discussion of v1, however it is not bad as Dave said
-it is about 'address range' rather that vma.
-
->
-> And after that *ppos will be falsely incremented... but probably this
-> doesn't matter because the "if (pos < mm->map_count)" logic in m_start()
-> looks broken anyway.
-
-The 'broken' can happen only if it is not the first read and m->version is
-zero (*ppos != 0 && m->version == 0). If i understand the code correctly,
-only m->buffer overflowed can trigger this, for smaps, each vma only
-uses ~1k memory that means this could not happen. Right?
-
-
-
+I fully realize this is a lot of code for late 4.8 cycle, though. So if
+this turns out to be really critical for 4.8 then what Vlastimil was
+suggesting in
+http://lkml.kernel.org/r/6aa81fe3-7f04-78d7-d477-609a7acd351a@suse.cz
+might be another workaround on top. We can even consider completely
+disable OOM killer for !costly orders.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
