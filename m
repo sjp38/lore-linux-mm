@@ -1,84 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 81F646B0069
-	for <linux-mm@kvack.org>; Mon, 19 Sep 2016 02:29:53 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 1so58811581wmz.2
-        for <linux-mm@kvack.org>; Sun, 18 Sep 2016 23:29:53 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id t64si17606160wma.117.2016.09.18.23.29.51
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BDAA6B0069
+	for <linux-mm@kvack.org>; Mon, 19 Sep 2016 02:48:51 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id n4so113382460lfb.3
+        for <linux-mm@kvack.org>; Sun, 18 Sep 2016 23:48:51 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e69si16128303wmc.143.2016.09.18.23.48.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 18 Sep 2016 23:29:52 -0700 (PDT)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8J6ShoU143274
-	for <linux-mm@kvack.org>; Mon, 19 Sep 2016 02:29:51 -0400
-Received: from e31.co.us.ibm.com (e31.co.us.ibm.com [32.97.110.149])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 25gxrxxhxw-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 19 Sep 2016 02:29:50 -0400
-Received: from localhost
-	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 19 Sep 2016 00:29:50 -0600
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 3/3] mm: enable CONFIG_MOVABLE_NODE on powerpc
-In-Reply-To: <1473883618-14998-4-git-send-email-arbab@linux.vnet.ibm.com>
-References: <1473883618-14998-1-git-send-email-arbab@linux.vnet.ibm.com> <1473883618-14998-4-git-send-email-arbab@linux.vnet.ibm.com>
-Date: Mon, 19 Sep 2016 11:59:35 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 18 Sep 2016 23:48:50 -0700 (PDT)
+Date: Mon, 19 Sep 2016 08:48:48 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: More OOM problems
+Message-ID: <20160919064848.GA10785@dhcp22.suse.cz>
+References: <CA+55aFwu30Yz52yW+MRHt_JgpqZkq4DHdWR-pX4+gO_OK7agCQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <87h99cxv00.fsf@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFwu30Yz52yW+MRHt_JgpqZkq4DHdWR-pX4+gO_OK7agCQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Reza Arbab <arbab@linux.vnet.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, devicetree@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Markus Trippelsdorf <markus@trippelsdorf.de>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Jiri Slaby <jslaby@suse.com>, Olaf Hering <olaf@aepfle.de>, Joonsoo Kim <js1304@gmail.com>, linux-mm <linux-mm@kvack.org>
 
-Reza Arbab <arbab@linux.vnet.ibm.com> writes:
+On Sun 18-09-16 13:03:01, Linus Torvalds wrote:
+> [ More or less random collection of people from previous oom patches
+> and/or discussions, if you feel you shouldn't have been cc'd, blame me
+> for just picking things from earlier threads and/or commits ]
+> 
+> I'm afraid that the oom situation is still not fixed, and the "let's
+> die quickly" patches are still a nasty regression.
+> 
+> I have a 16GB desktop that I just noticed killed one of the chrome
+> tabs yesterday. Tha machine had *tons* of freeable memory, with
+> something like 7GB of page cache at the time, if I read this right.
+> 
+> The trigger is a kcalloc() in the i915 driver:
+> 
+>     Xorg invoked oom-killer:
+> gfp_mask=0x240c0d0(GFP_TEMPORARY|__GFP_COMP|__GFP_ZERO), order=3,
+> oom_score_adj=0
+> 
+>       __kmalloc+0x1cd/0x1f0
+>       alloc_gen8_temp_bitmaps+0x47/0x80 [i915]
+> 
+> which looks like it is one of these:
+> 
+>   slabinfo - version: 2.1
+>   # name            <active_objs> <num_objs> <objsize> <objperslab>
+> <pagesperslab>
+>   kmalloc-8192         268    268   8192    4    8
+>   kmalloc-4096         732    786   4096    8    8
+>   kmalloc-2048        1402   1456   2048   16    8
+>   kmalloc-1024        2505   2976   1024   32    8
+> 
+> so even just a 1kB allocation can cause an order-3 page allocation.
 
-> Onlining memory into ZONE_MOVABLE requires CONFIG_MOVABLE_NODE. Enable
-> the use of this config option on PPC64 platforms.
->
-> Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
-> ---
->  Documentation/kernel-parameters.txt | 2 +-
->  mm/Kconfig                          | 2 +-
->  2 files changed, 2 insertions(+), 2 deletions(-)
->
-> diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-> index a4f4d69..3d8460d 100644
-> --- a/Documentation/kernel-parameters.txt
-> +++ b/Documentation/kernel-parameters.txt
-> @@ -2344,7 +2344,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
->  			that the amount of memory usable for all allocations
->  			is not too small.
->  
-> -	movable_node	[KNL,X86] Boot-time switch to enable the effects
-> +	movable_node	[KNL,X86,PPC] Boot-time switch to enable the effects
->  			of CONFIG_MOVABLE_NODE=y. See mm/Kconfig for details.
->  
+Yes it can trigger order-3 but that should be just
+alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY) & ~__GFP_NOFAIL
 
-Movable node also does.
-	memblock_set_bottom_up(true);
-What is the impact of that. Do we need changes equivalent to that ? Also
-where are we marking the nodes which can be hotplugged, ie where do we
-do memblock_mark_hotplug() ?
-       
->  	MTD_Partition=	[MTD]
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index be0ee11..4b19cd3 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -153,7 +153,7 @@ config MOVABLE_NODE
->  	bool "Enable to assign a node which has only movable memory"
->  	depends on HAVE_MEMBLOCK
->  	depends on NO_BOOTMEM
-> -	depends on X86_64
-> +	depends on X86_64 || PPC64
->  	depends on NUMA
->  	default n
->  	help
+so not triggering OOM and failing early rather than retry really hard.
+Considering the above gfp_mask this seems like the real order-3 size
+request.
 
--aneesh
+> And yeah, I had what, 137MB free memory, it's just that it's all
+> fairly fragmented.
+
+137MB in your case means that all usable zones are not meating the min
+wmark so 6b4e3181d7bd ("mm, oom: prevent premature OOM killer invocation
+for high order request") didn't stop the OOM.
+
+[...]
+
+> So quite honestly, I *really* don't think that a 1kB allocation should
+> have reasonably failed and killed anything at all (ok, it could have
+> been an 8kB one, who knows - but it really looks like it *could* have
+> been just 1kB).
+
+Unless I am missing something this should really be a 32k request. It is
+true that retrying some or much more might help here indeed this is
+really hard to tell. Vlastimil's patches you have mentioned might really
+help here because they are getting rid of most of the heuristics that
+would give up just too early. But I am also wondering whether a more
+pragmatic approach in this case would be to simply use GFP_NORETRY and
+fallback to vmalloc. Note that I am not familiar with the code and
+vmalloc might be a no-go but it is at least worth exploring this option.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
