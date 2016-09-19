@@ -1,60 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CA0056B0069
-	for <linux-mm@kvack.org>; Mon, 19 Sep 2016 00:49:31 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id y10so311095547qty.2
-        for <linux-mm@kvack.org>; Sun, 18 Sep 2016 21:49:31 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id s129si18089347qkf.110.2016.09.18.21.49.30
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EA0076B0069
+	for <linux-mm@kvack.org>; Mon, 19 Sep 2016 02:27:18 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id k12so114671043lfb.2
+        for <linux-mm@kvack.org>; Sun, 18 Sep 2016 23:27:18 -0700 (PDT)
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com. [74.125.82.51])
+        by mx.google.com with ESMTPS id et1si24724140wjd.133.2016.09.18.23.27.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 18 Sep 2016 21:49:31 -0700 (PDT)
-Message-ID: <57DF6D36.3040108@huawei.com>
-Date: Mon, 19 Sep 2016 12:44:38 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 18 Sep 2016 23:27:14 -0700 (PDT)
+Received: by mail-wm0-f51.google.com with SMTP id l132so132928233wmf.0
+        for <linux-mm@kvack.org>; Sun, 18 Sep 2016 23:27:12 -0700 (PDT)
+Subject: Re: More OOM problems
+References: <CA+55aFwu30Yz52yW+MRHt_JgpqZkq4DHdWR-pX4+gO_OK7agCQ@mail.gmail.com>
+ <214a6307-3bcf-38e1-7984-48cc9f838a48@suse.cz>
+ <CA+55aFx8qwCVZFa9VZTMMgzhn9qphsrOFYJVWtfHs9bAVEWhGw@mail.gmail.com>
+From: Jiri Slaby <jslaby@suse.cz>
+Message-ID: <824b0cb4-596f-b873-0609-68201f5622db@suse.cz>
+Date: Mon, 19 Sep 2016 08:27:10 +0200
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: fix oom work when memory is under pressure
-References: <20160914085227.GB1612@dhcp22.suse.cz> <57D91771.9050108@huawei.com> <7edef3e0-b7cd-426a-5ed7-b1dad822733a@I-love.SAKURA.ne.jp> <57D95620.8000404@huawei.com> <201609181500.HIC05206.QJOFMOFHOFtLVS@I-love.SAKURA.ne.jp> <201609181513.FBI69733.FFFHOMLQOJOSVt@I-love.SAKURA.ne.jp>
-In-Reply-To: <201609181513.FBI69733.FFFHOMLQOJOSVt@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset="ISO-8859-1"
+In-Reply-To: <CA+55aFx8qwCVZFa9VZTMMgzhn9qphsrOFYJVWtfHs9bAVEWhGw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: mhocko@suse.cz, akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com, linux-mm@kvack.org, qiuxishi@huawei.com, guohanjun@huawei.com, hughd@google.com
+To: Linus Torvalds <torvalds@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>
+Cc: Olaf Hering <olaf@aepfle.de>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Joonsoo Kim <js1304@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Michal Hocko <mhocko@kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov@parallels.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Oleg Nesterov <oleg@redhat.com>, Markus Trippelsdorf <markus@trippelsdorf.de>
 
-On 2016/9/18 14:13, Tetsuo Handa wrote:
-> Tetsuo Handa wrote:
->> As of 4.8-rc6, the OOM reaper cannot take mmap_sem for read at __oom_reap_task()
->> because of TIF_MEMDIE thread waiting at ksm_exit() from __mmput() from mmput()
->>  from exit_mm() from do_exit(). Thus, __oom_reap_task() returns false and
->> oom_reap_task() will emit "oom_reaper: unable to reap pid:%d (%s)\n" message.
->> Then, oom_reap_task() clears TIF_MEMDIE from that thread, which in turn
->> makes oom_scan_process_thread() not to return OOM_SCAN_ABORT because
->> atomic_read(&task->signal->oom_victims) becomes 0 due to exit_oom_victim()
->> by the OOM reaper. Then, the OOM killer selects next OOM victim because
->> ksmd is waking up the OOM killer via a __GFP_FS allocation request.
-  hi, Tetsuo
+On 09/18/2016, 11:18 PM, Linus Torvalds wrote:
+> SLUB is marked default in our
+> config files, and I think most distros follow that (I know Fedora
+> does, didn't check others).
 
-  OOM reaper indeed relieve the issue,  as had discussed with Michal,  but it is not completely
-  solved.  and OOM livelock had been solved by backport the patch from Michal.
- 
-  The key is that ksmd enter into the OOM and bail out quickly. because other process implement
-  a OOM in the same zone. therefore, ksmd can not obtain the memory.
+For the reference, all active SUSE kernels use SLAB.
 
-  Thanks
-  zhongjiang
-> Oops. As of 4.8-rc6, __oom_reap_task() returns true because of
-> find_lock_task_mm() returning NULL. Thus, oom_reap_task() clears TIF_MEMDIE
-> without emitting "oom_reaper: unable to reap pid:%d (%s)\n" message.
->
->> Thus, this bug will be completely solved (at the cost of selecting next
->> OOM victim) as of 4.8-rc6.
-> The conclusion is same.
->
-> .
->
-
+thanks,
+-- 
+js
+suse labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
