@@ -1,396 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D4A516B0261
-	for <linux-mm@kvack.org>; Mon, 19 Sep 2016 14:25:17 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id p53so350148436qtp.0
-        for <linux-mm@kvack.org>; Mon, 19 Sep 2016 11:25:17 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id l199si9622665ybf.324.2016.09.19.11.25.16
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5514E6B0069
+	for <linux-mm@kvack.org>; Mon, 19 Sep 2016 15:02:58 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id b130so11809993wmc.2
+        for <linux-mm@kvack.org>; Mon, 19 Sep 2016 12:02:58 -0700 (PDT)
+Received: from mail-wm0-f53.google.com (mail-wm0-f53.google.com. [74.125.82.53])
+        by mx.google.com with ESMTPS id o76si22434432wmg.82.2016.09.19.12.02.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Sep 2016 11:25:17 -0700 (PDT)
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 1/2] mm: vma_merge: fix vm_page_prot SMP race condition against rmap_walk
-Date: Mon, 19 Sep 2016 20:25:12 +0200
-Message-Id: <1474309513-20313-1-git-send-email-aarcange@redhat.com>
-In-Reply-To: <20160918003654.GA25048@redhat.com>
-References: <20160918003654.GA25048@redhat.com>
+        Mon, 19 Sep 2016 12:02:56 -0700 (PDT)
+Received: by mail-wm0-f53.google.com with SMTP id b130so78885209wmc.0
+        for <linux-mm@kvack.org>; Mon, 19 Sep 2016 12:02:56 -0700 (PDT)
+Date: Mon, 19 Sep 2016 21:02:54 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC 0/4] mm, oom: get rid of TIF_MEMDIE
+Message-ID: <20160919190254.GC25740@dhcp22.suse.cz>
+References: <1472723464-22866-1-git-send-email-mhocko@kernel.org>
+ <20160915144118.GB25519@cmpxchg.org>
+ <20160916071517.GA29534@dhcp22.suse.cz>
+ <20160919161837.GA29553@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160919161837.GA29553@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>, Jan Vorlicek <janvorli@microsoft.com>, Aditya Mandaleeka <adityam@microsoft.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Oleg Nesterov <oleg@redhat.com>
 
-The rmap_walk can access vm_page_prot (and potentially vm_flags in the
-pte/pmd manipulations). So it's not safe to wait the caller to update
-the vm_page_prot/vm_flags after vma_merge returned potentially
-removing the "next" vma and extending the "current" vma over the
-next->vm_start,vm_end range, but still with the "current" vma
-vm_page_prot, after releasing the rmap locks.
+On Mon 19-09-16 12:18:37, Johannes Weiner wrote:
+> On Fri, Sep 16, 2016 at 09:15:17AM +0200, Michal Hocko wrote:
+[...]
+> : For ages we have been relying on TIF_MEMDIE thread flag to mark OOM
+> : victims and then, among other things, to give these threads full
+> : access to memory reserves. There are few shortcomings of this
+> : implementation, though.
+> : 
+> : First of all and the most serious one is that the full access to memory
+> : reserves is quite dangerous because we leave no safety room for the
+> : system to operate and potentially do last emergency steps to move on.
+> 
+> Do we encounter this in practice?
 
-The vm_page_prot/vm_flags must be transferred from the "next" vma to
-the current vma while vma_merge still holds the rmap locks.
+We rarely experience anything from this in practice. Even OOM is an
+outstanding situation. Most of the lockups I am trying to solve are
+close to non-existent. But this doesn't mean they are non-existent so as
+far as the resulting code makes sense and doesn't make the situation
+overly more complicated then I would go with enhancements.
 
-The side effect of this race condition is pte corruption during
-migrate as remove_migration_ptes when run on a address of the "next"
-vma that got removed, used the vm_page_prot of the current vma.
+> I think one of the clues is that you
+> introduce the patch with "for ages we have been doing X", so I'd like
+> to see a more practical explanation of how we did it was flawed.
 
-migrate	     	      	        mprotect
-------------			-------------
-migrating in "next" vma
-				vma_merge() # removes "next" vma and
-			        	    # extends "current" vma
-					    # current vma is not with
-					    # vm_page_prot updated
-remove_migration_ptes
-read vm_page_prot of current "vma"
-establish pte with wrong permissions
-				vm_set_page_prot(vma) # too late!
-				change_protection in the old vma range
-				only, next range is not updated
+OK, I will try harder to explain that. The core idea is that we couldn't
+do anything better without the async oom killing because we were
+strictly synchronous and only the victim could make some progress.
 
-This caused segmentation faults and potentially memory corruption in
-heavy mprotect loads with some light page migration caused by
-compaction in the background.
+> : Secondly this flag is per task_struct while the OOM killer operates
+> : on mm_struct granularity so all processes sharing the given mm are
+> : killed. Giving the full access to all these task_structs could leave to
+> : a quick memory reserves depletion. We have tried to reduce this risk by
+> : giving TIF_MEMDIE only to the main thread and the currently allocating
+> : task but that doesn't really solve this problem while it surely opens up
+> : a room for corner cases - e.g. GFP_NO{FS,IO} requests might loop inside
+> : the allocator without access to memory reserves because a particular
+> : thread was not the group leader.
+> 
+> Same here I guess.
+> 
+> It *sounds* to me like there are two different things going on
+> here. One being the access to emergency reserves, the other being the
+> synchronization token to count OOM victims. Maybe it would be easier
+> to separate those issues out in the line of argument?
 
-Hugh Dickins pointed out the comment about the Odd case 8 in vma_merge
-which confirms the case 8 is only buggy one where the race can
-trigger, in all other vma_merge cases the above cannot happen.
+Yes this is precisely the problem. The meaning of the flag is overloaded
+for multiple purposes and it is not as easy to describe all of this and
+get tangled in all the details. Over time we have reduced the locking
+side of the flag but we still use it for oom_disable synchronization
+and memory reserves access.
 
-This fix removes the oddness factor from case 8 and it converts it
-from:
+> For emergency reserves, you make the point that we now have the reaper
+> and don't rely on the reserves as much anymore. However, we need to
+> consider that the reaper relies on the mmap_sem and is thus not as
+> robust as the concept of an emergency pool to guarantee fwd progress.
 
-    AAAA
-PPPPNNNNXXXX -> PPPPNNNNNNNN
+Yes it is not 100% but if we get stuck there then we will have a way to
+go on to another victim so we will not lockup. On the other hand lockup
+due to mmap_sem for write should be really rare because the lock is
+mostly killable and taken outside of the oom victim context even more
+rarely.
 
-to:
+> For synchronization, I don't quite get the argument. The patch 4
+> changelog uses term like "not optimal" and that we "should" be doing
+> certain things, but doesn't explain the consequences of the "wrong"
+> behavior, the impact is of frozen threads getting left behind etc.
 
-    AAAA
-PPPPNNNNXXXX -> PPPPXXXXXXXX
+Yes I will try harder. The primary point is a mismatch between oom
+killer being per-mm operation and the flag being per-thread thing. For
+the freezer context it means that only one thread is woken up while
+other are still in the fridge. This wouldn't be a big deal for the pm
+freezer but the cgroup freezer allows normal user to hide processes in
+the fridge so users might hide processes there intentionally. The other
+part of the puzzle is that not all resources are reclaimable by the
+async oom killer. Say pipe/socket buffers can consume a lot of memory
+while they are pinned by process not threads.
 
-XXXX has the right vma properties for the whole merged vma returned by
-vma_adjust, so it solves the problem fully. It has the added benefits
-that the callers could stop updating vma properties when vma_merge
-succeeds however the callers are not updated by this patch (there are
-bits like VM_SOFTDIRTY that still need special care for the whole
-range, as the vma merging ignores them, but as long as they're not
-processed by rmap walks and instead they're accessed with the mmap_sem
-at least for reading, they are fine not to be updated within
-vma_adjust before releasing the rmap_locks).
+> That stuff would be useful to know, both in the cover letter (higher
+> level user impact) and the changelogs (more detailed user impact).
+> 
+> I.e. sell the problem before selling the solution :-)
 
-Reported-by: Aditya Mandaleeka <adityam@microsoft.com>
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- include/linux/mm.h |  10 +++-
- mm/mmap.c          | 157 ++++++++++++++++++++++++++++++++++++++++++++---------
- mm/mprotect.c      |   1 +
- 3 files changed, 139 insertions(+), 29 deletions(-)
+Sure, I see what you are saying. I just feel there are so many subtle
+details that it is hard to squeeze all of them into the changelog and
+still make some sense ;)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index ef815b9..2334052 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1977,8 +1977,14 @@ void anon_vma_interval_tree_verify(struct anon_vma_chain *node);
- 
- /* mmap.c */
- extern int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin);
--extern int vma_adjust(struct vm_area_struct *vma, unsigned long start,
--	unsigned long end, pgoff_t pgoff, struct vm_area_struct *insert);
-+extern int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
-+	unsigned long end, pgoff_t pgoff, struct vm_area_struct *insert,
-+	struct vm_area_struct *expand);
-+static inline int vma_adjust(struct vm_area_struct *vma, unsigned long start,
-+	unsigned long end, pgoff_t pgoff, struct vm_area_struct *insert)
-+{
-+	return __vma_adjust(vma, start, end, pgoff, insert, NULL);
-+}
- extern struct vm_area_struct *vma_merge(struct mm_struct *,
- 	struct vm_area_struct *prev, unsigned long addr, unsigned long end,
- 	unsigned long vm_flags, struct anon_vma *, struct file *, pgoff_t,
-diff --git a/mm/mmap.c b/mm/mmap.c
-index f86fd39..eda3f07 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -597,14 +597,24 @@ static void __insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
- 	mm->map_count++;
- }
- 
--static inline void
--__vma_unlink(struct mm_struct *mm, struct vm_area_struct *vma,
--		struct vm_area_struct *prev)
-+static __always_inline void __vma_unlink_common(struct mm_struct *mm,
-+						struct vm_area_struct *vma,
-+						struct vm_area_struct *prev,
-+						bool has_prev)
- {
- 	struct vm_area_struct *next;
- 
- 	vma_rb_erase(vma, &mm->mm_rb);
--	prev->vm_next = next = vma->vm_next;
-+	next = vma->vm_next;
-+	if (has_prev)
-+		prev->vm_next = next;
-+	else {
-+		prev = vma->vm_prev;
-+		if (prev)
-+			prev->vm_next = next;
-+		else
-+			mm->mmap = next;
-+	}
- 	if (next)
- 		next->vm_prev = prev;
- 
-@@ -612,6 +622,19 @@ __vma_unlink(struct mm_struct *mm, struct vm_area_struct *vma,
- 	vmacache_invalidate(mm);
- }
- 
-+static inline void __vma_unlink_prev(struct mm_struct *mm,
-+				     struct vm_area_struct *vma,
-+				     struct vm_area_struct *prev)
-+{
-+	__vma_unlink_common(mm, vma, prev, true);
-+}
-+
-+static inline void __vma_unlink(struct mm_struct *mm,
-+				struct vm_area_struct *vma)
-+{
-+	__vma_unlink_common(mm, vma, NULL, false);
-+}
-+
- /*
-  * We cannot adjust vm_start, vm_end, vm_pgoff fields of a vma that
-  * is already present in an i_mmap tree without adjusting the tree.
-@@ -619,11 +642,12 @@ __vma_unlink(struct mm_struct *mm, struct vm_area_struct *vma,
-  * are necessary.  The "insert" vma (if any) is to be inserted
-  * before we drop the necessary locks.
-  */
--int vma_adjust(struct vm_area_struct *vma, unsigned long start,
--	unsigned long end, pgoff_t pgoff, struct vm_area_struct *insert)
-+int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
-+	unsigned long end, pgoff_t pgoff, struct vm_area_struct *insert,
-+	struct vm_area_struct *expand)
- {
- 	struct mm_struct *mm = vma->vm_mm;
--	struct vm_area_struct *next = vma->vm_next;
-+	struct vm_area_struct *next = vma->vm_next, *orig_vma = vma;
- 	struct address_space *mapping = NULL;
- 	struct rb_root *root = NULL;
- 	struct anon_vma *anon_vma = NULL;
-@@ -639,9 +663,38 @@ int vma_adjust(struct vm_area_struct *vma, unsigned long start,
- 			/*
- 			 * vma expands, overlapping all the next, and
- 			 * perhaps the one after too (mprotect case 6).
-+			 * The only two other cases that gets here are
-+			 * case 1, case 7 and case 8.
- 			 */
--			remove_next = 1 + (end > next->vm_end);
--			end = next->vm_end;
-+			if (next == expand) {
-+				/*
-+				 * The only case where we don't expand "vma"
-+				 * and we expand "next" instead is case 8.
-+				 */
-+				VM_WARN_ON(end != next->vm_end);
-+				/*
-+				 * remove_next == 3 means we're
-+				 * removing "vma" and that to do so we
-+				 * swapped "vma" and "next".
-+				 */
-+				remove_next = 3;
-+				VM_WARN_ON(file != next->vm_file);
-+				swap(vma, next);
-+			} else {
-+				VM_WARN_ON(expand != vma);
-+				/*
-+				 * case 1, 6, 7, remove_next == 2 is case 6,
-+				 * remove_next == 1 is case 1 or 7.
-+				 */
-+				remove_next = 1 + (end > next->vm_end);
-+				VM_WARN_ON(remove_next == 2 &&
-+					   end != next->vm_next->vm_end);
-+				VM_WARN_ON(remove_next == 1 &&
-+					   end != next->vm_end);
-+				/* trim end to next, for case 6 first pass */
-+				end = next->vm_end;
-+			}
-+
- 			exporter = next;
- 			importer = vma;
- 
-@@ -660,6 +713,7 @@ int vma_adjust(struct vm_area_struct *vma, unsigned long start,
- 			adjust_next = (end - next->vm_start) >> PAGE_SHIFT;
- 			exporter = next;
- 			importer = vma;
-+			VM_WARN_ON(expand != importer);
- 		} else if (end < vma->vm_end) {
- 			/*
- 			 * vma shrinks, and !insert tells it's not
-@@ -669,6 +723,7 @@ int vma_adjust(struct vm_area_struct *vma, unsigned long start,
- 			adjust_next = -((vma->vm_end - end) >> PAGE_SHIFT);
- 			exporter = vma;
- 			importer = next;
-+			VM_WARN_ON(expand != importer);
- 		}
- 
- 		/*
-@@ -686,7 +741,7 @@ int vma_adjust(struct vm_area_struct *vma, unsigned long start,
- 		}
- 	}
- again:
--	vma_adjust_trans_huge(vma, start, end, adjust_next);
-+	vma_adjust_trans_huge(orig_vma, start, end, adjust_next);
- 
- 	if (file) {
- 		mapping = file->f_mapping;
-@@ -712,8 +767,8 @@ again:
- 	if (!anon_vma && adjust_next)
- 		anon_vma = next->anon_vma;
- 	if (anon_vma) {
--		VM_BUG_ON_VMA(adjust_next && next->anon_vma &&
--			  anon_vma != next->anon_vma, next);
-+		VM_WARN_ON(adjust_next && next->anon_vma &&
-+			   anon_vma != next->anon_vma);
- 		anon_vma_lock_write(anon_vma);
- 		anon_vma_interval_tree_pre_update_vma(vma);
- 		if (adjust_next)
-@@ -753,7 +808,11 @@ again:
- 		 * vma_merge has merged next into vma, and needs
- 		 * us to remove next before dropping the locks.
- 		 */
--		__vma_unlink(mm, next, vma);
-+		if (remove_next != 3)
-+			__vma_unlink_prev(mm, next, vma);
-+		else
-+			/* vma is not before next if they've been swapped */
-+			__vma_unlink(mm, next);
- 		if (file)
- 			__remove_shared_vm_struct(next, file, mapping);
- 	} else if (insert) {
-@@ -805,7 +864,27 @@ again:
- 		 * we must remove another next too. It would clutter
- 		 * up the code too much to do both in one go.
- 		 */
--		next = vma->vm_next;
-+		if (remove_next != 3) {
-+			/*
-+			 * If "next" was removed and vma->vm_end was
-+			 * expanded (up) over it, in turn
-+			 * "next->vm_prev->vm_end" changed and the
-+			 * "vma->vm_next" gap must be updated.
-+			 */
-+			next = vma->vm_next;
-+		} else {
-+			/*
-+			 * For the scope of the comment "next" and
-+			 * "vma" considered pre-swap(): if "vma" was
-+			 * removed, next->vm_start was expanded (down)
-+			 * over it and the "next" gap must be updated.
-+			 * Because of the swap() the post-swap() "vma"
-+			 * actually points to pre-swap() "next"
-+			 * (post-swap() "next" as opposed is now a
-+			 * dangling pointer).
-+			 */
-+			next = vma;
-+		}
- 		if (remove_next == 2) {
- 			remove_next = 1;
- 			end = next->vm_end;
-@@ -934,13 +1013,24 @@ can_vma_merge_after(struct vm_area_struct *vma, unsigned long vm_flags,
-  *    cannot merge    might become    might become    might become
-  *                    PPNNNNNNNNNN    PPPPPPPPPPNN    PPPPPPPPPPPP 6 or
-  *    mmap, brk or    case 4 below    case 5 below    PPPPPPPPXXXX 7 or
-- *    mremap move:                                    PPPPNNNNNNNN 8
-+ *    mremap move:                                    PPPPXXXXXXXX 8
-  *        AAAA
-  *    PPPP    NNNN    PPPPPPPPPPPP    PPPPPPPPNNNN    PPPPNNNNNNNN
-  *    might become    case 1 below    case 2 below    case 3 below
-  *
-- * Odd one out? Case 8, because it extends NNNN but needs flags of XXXX:
-- * mprotect_fixup updates vm_flags & vm_page_prot on successful return.
-+ * It is important for case 8 that the the vma NNNN overlapping the
-+ * region AAAA is never going to extended over XXXX. Instead XXXX must
-+ * be extended in region AAAA and NNNN must be removed. This way in
-+ * all cases where vma_merge succeeds, the moment vma_adjust drops the
-+ * rmap_locks, the properties of the merged vma will be already
-+ * correct for the whole merged range. Some of those properties like
-+ * vm_page_prot/vm_flags may be accessed by rmap_walks and they must
-+ * be correct for the whole merged range immediately after the
-+ * rmap_locks are released. Otherwise if XXXX would be removed and
-+ * NNNN would be extended over the XXXX range, remove_migration_ptes
-+ * or other rmap walkers (if working on addresses beyond the "end"
-+ * parameter) may establish ptes with the wrong permissions of NNNN
-+ * instead of the right permissions of XXXX.
-  */
- struct vm_area_struct *vma_merge(struct mm_struct *mm,
- 			struct vm_area_struct *prev, unsigned long addr,
-@@ -965,9 +1055,14 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
- 	else
- 		next = mm->mmap;
- 	area = next;
--	if (next && next->vm_end == end)		/* cases 6, 7, 8 */
-+	if (area && area->vm_end == end)		/* cases 6, 7, 8 */
- 		next = next->vm_next;
- 
-+	/* verify some invariant that must be enforced by the caller */
-+	VM_WARN_ON(prev && addr <= prev->vm_start);
-+	VM_WARN_ON(area && end > area->vm_end);
-+	VM_WARN_ON(addr >= end);
-+
- 	/*
- 	 * Can it merge with the predecessor?
- 	 */
-@@ -988,11 +1083,12 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
- 				is_mergeable_anon_vma(prev->anon_vma,
- 						      next->anon_vma, NULL)) {
- 							/* cases 1, 6 */
--			err = vma_adjust(prev, prev->vm_start,
--				next->vm_end, prev->vm_pgoff, NULL);
-+			err = __vma_adjust(prev, prev->vm_start,
-+					 next->vm_end, prev->vm_pgoff, NULL,
-+					 prev);
- 		} else					/* cases 2, 5, 7 */
--			err = vma_adjust(prev, prev->vm_start,
--				end, prev->vm_pgoff, NULL);
-+			err = __vma_adjust(prev, prev->vm_start,
-+					 end, prev->vm_pgoff, NULL, prev);
- 		if (err)
- 			return NULL;
- 		khugepaged_enter_vma_merge(prev, vm_flags);
-@@ -1008,11 +1104,18 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
- 					     anon_vma, file, pgoff+pglen,
- 					     vm_userfaultfd_ctx)) {
- 		if (prev && addr < prev->vm_end)	/* case 4 */
--			err = vma_adjust(prev, prev->vm_start,
--				addr, prev->vm_pgoff, NULL);
--		else					/* cases 3, 8 */
--			err = vma_adjust(area, addr, next->vm_end,
--				next->vm_pgoff - pglen, NULL);
-+			err = __vma_adjust(prev, prev->vm_start,
-+					 addr, prev->vm_pgoff, NULL, next);
-+		else {					/* cases 3, 8 */
-+			err = __vma_adjust(area, addr, next->vm_end,
-+					 next->vm_pgoff - pglen, NULL, next);
-+			/*
-+			 * In case 3 area is already equal to next and
-+			 * this is a noop, but in case 8 "area" has
-+			 * been removed and next was expanded over it.
-+			 */
-+			area = next;
-+		}
- 		if (err)
- 			return NULL;
- 		khugepaged_enter_vma_merge(area, vm_flags);
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index a4830f0..e55e2c9 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -304,6 +304,7 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
- 			   vma->vm_userfaultfd_ctx);
- 	if (*pprev) {
- 		vma = *pprev;
-+		VM_WARN_ON((vma->vm_flags ^ newflags) & ~VM_SOFTDIRTY);
- 		goto success;
- 	}
- 
+Anyway, I will definitely try to be more specific in the next post.
+Thanks for the feedback!
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
