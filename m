@@ -1,61 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F1CCD6B0253
-	for <linux-mm@kvack.org>; Mon, 19 Sep 2016 11:59:26 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id fu14so247621409pad.0
-        for <linux-mm@kvack.org>; Mon, 19 Sep 2016 08:59:26 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id x6si29651052pac.8.2016.09.19.08.59.22
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BE2C6B0069
+	for <linux-mm@kvack.org>; Mon, 19 Sep 2016 12:18:45 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id b130so8824007wmc.2
+        for <linux-mm@kvack.org>; Mon, 19 Sep 2016 09:18:45 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id f67si20428252wmg.128.2016.09.19.09.18.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Sep 2016 08:59:24 -0700 (PDT)
-Message-ID: <1474300762.3916.103.camel@linux.intel.com>
-Subject: Re: [PATCH -v3 00/10] THP swap: Delay splitting THP during swapping
- out
-From: Tim Chen <tim.c.chen@linux.intel.com>
-Date: Mon, 19 Sep 2016 08:59:22 -0700
-In-Reply-To: <20160919071153.GB4083@bbox>
-References: <1473266769-2155-1-git-send-email-ying.huang@intel.com>
-	 <20160909054336.GA2114@bbox> <87sht824n3.fsf@yhuang-mobile.sh.intel.com>
-	 <20160913061349.GA4445@bbox> <87y42wgv5r.fsf@yhuang-dev.intel.com>
-	 <20160913070524.GA4973@bbox> <87vay0ji3m.fsf@yhuang-mobile.sh.intel.com>
-	 <20160913091652.GB7132@bbox>
-	 <045D8A5597B93E4EBEDDCBF1FC15F50935BF9343@fmsmsx104.amr.corp.intel.com>
-	 <20160919071153.GB4083@bbox>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Mon, 19 Sep 2016 09:18:44 -0700 (PDT)
+Date: Mon, 19 Sep 2016 12:18:37 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC 0/4] mm, oom: get rid of TIF_MEMDIE
+Message-ID: <20160919161837.GA29553@cmpxchg.org>
+References: <1472723464-22866-1-git-send-email-mhocko@kernel.org>
+ <20160915144118.GB25519@cmpxchg.org>
+ <20160916071517.GA29534@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160916071517.GA29534@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, "Chen, Tim C" <tim.c.chen@intel.com>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Hansen, Dave" <dave.hansen@intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, "Lu, Aaron" <aaron.lu@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Oleg Nesterov <oleg@redhat.com>
 
-On Mon, 2016-09-19 at 16:11 +0900, Minchan Kim wrote:
-> Hi Tim,
-> 
-> On Tue, Sep 13, 2016 at 11:52:27PM +0000, Chen, Tim C wrote:
+On Fri, Sep 16, 2016 at 09:15:17AM +0200, Michal Hocko wrote:
+> On Thu 15-09-16 10:41:18, Johannes Weiner wrote:
+> > Hi Michal,
 > > 
+> > On Thu, Sep 01, 2016 at 11:51:00AM +0200, Michal Hocko wrote:
+> > > Hi,
+> > > this is an early RFC to see whether the approach I've taken is acceptable.
+> > > The series is on top of the current mmotm tree (2016-08-31-16-06). I didn't
+> > > get to test it so it might be completely broken.
 > > > 
-> > > > 
-> > > > 
-> > > > - Avoid CPU time for splitting, collapsing THP across swap out/in.
-> > > Yes, if you want, please give us how bad it is.
+> > > The primary point of this series is to get rid of TIF_MEMDIE finally.
+> > > Recent changes in the oom proper allows for that finally, I believe. Now
+> > > that all the oom victims are reapable we are no longer depending on
+> > > ALLOC_NO_WATERMARKS because the memory held by the victim is reclaimed
+> > > asynchronously. A partial access to memory reserves should be sufficient
+> > > just to guarantee that the oom victim is not starved due to other
+> > > memory consumers. This also means that we do not have to pretend to be
+> > > conservative and give access to memory reserves only to one thread from
+> > > the process at the time. This is patch 1.
+> > >
+> > > Patch 2 is a simple cleanup which turns TIF_MEMDIE users to tsk_is_oom_victim
+> > > which is process rather than thread centric. None of those callers really
+> > > requires to be thread aware AFAICS.
 > > > 
-> > It could be pretty bad.A A In an experiment with THP turned on and we
-> > enter swap, 50% of the cpu are spent in the page compaction path.A A 
-> It's page compaction overhead, especially, pageblock_pfn_to_page.
-> Why is it related to overhead THP split for swapout?
-> I don't understand.
+> > > The tricky part then is exit_oom_victim vs. oom_killer_disable because
+> > > TIF_MEMDIE acted as a token there so we had a way to count threads from
+> > > the process. It didn't work 100% reliably and had it own issues but we
+> > > have to replace it with something which doesn't rely on counting threads
+> > > but rather find a moment when all threads have reached steady state in
+> > > do_exit. This is what patch 3 does and I would really appreciate if Oleg
+> > > could double check my thinking there. I am also CCing Al on that one
+> > > because I am moving exit_io_context up in do_exit right before exit_notify.
+> > 
+> > You're explaining the mechanical thing you are doing, but I'm having
+> > trouble understanding why you want to get rid of TIF_MEMDIE. For one,
+> > it's more code. And apparently, it's also more complicated than what
+> > we have right now.
+> > 
+> > Can you please explain in the cover letter what's broken/undesirable?
+> 
+> Sure, I will extend the cover when submitting the series again. This RFC
+> was mostly aimed at correctness so I focused more on technical details.
+> Patch 1 should contain some reasoning. Do you find it sufficient or I
+> should extend on top of that?
 
-Today you have to split a large page into 4K pages to swap it out.
-Then after you swap in all the 4K pages, you have to re-compact
-them back into a large page.
+: For ages we have been relying on TIF_MEMDIE thread flag to mark OOM
+: victims and then, among other things, to give these threads full
+: access to memory reserves. There are few shortcomings of this
+: implementation, though.
+: 
+: First of all and the most serious one is that the full access to memory
+: reserves is quite dangerous because we leave no safety room for the
+: system to operate and potentially do last emergency steps to move on.
 
-If you can swap the large page out as a contiguous unit, and swap
-it back in as a single large page, the splitting and re-compaction
-back into a large page can be avoided.
+Do we encounter this in practice? I think one of the clues is that you
+introduce the patch with "for ages we have been doing X", so I'd like
+to see a more practical explanation of how we did it was flawed.
 
-Tim
+: Secondly this flag is per task_struct while the OOM killer operates
+: on mm_struct granularity so all processes sharing the given mm are
+: killed. Giving the full access to all these task_structs could leave to
+: a quick memory reserves depletion. We have tried to reduce this risk by
+: giving TIF_MEMDIE only to the main thread and the currently allocating
+: task but that doesn't really solve this problem while it surely opens up
+: a room for corner cases - e.g. GFP_NO{FS,IO} requests might loop inside
+: the allocator without access to memory reserves because a particular
+: thread was not the group leader.
+
+Same here I guess.
+
+It *sounds* to me like there are two different things going on
+here. One being the access to emergency reserves, the other being the
+synchronization token to count OOM victims. Maybe it would be easier
+to separate those issues out in the line of argument?
+
+For emergency reserves, you make the point that we now have the reaper
+and don't rely on the reserves as much anymore. However, we need to
+consider that the reaper relies on the mmap_sem and is thus not as
+robust as the concept of an emergency pool to guarantee fwd progress.
+
+For synchronization, I don't quite get the argument. The patch 4
+changelog uses term like "not optimal" and that we "should" be doing
+certain things, but doesn't explain the consequences of the "wrong"
+behavior, the impact is of frozen threads getting left behind etc.
+
+That stuff would be useful to know, both in the cover letter (higher
+level user impact) and the changelogs (more detailed user impact).
+
+I.e. sell the problem before selling the solution :-)
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
