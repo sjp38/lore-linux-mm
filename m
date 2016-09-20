@@ -1,56 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8ACAD6B0038
-	for <linux-mm@kvack.org>; Mon, 19 Sep 2016 20:54:30 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id mi5so4737664pab.2
-        for <linux-mm@kvack.org>; Mon, 19 Sep 2016 17:54:30 -0700 (PDT)
-Received: from mail-pf0-x232.google.com (mail-pf0-x232.google.com. [2607:f8b0:400e:c00::232])
-        by mx.google.com with ESMTPS id v20si17484024pfi.178.2016.09.19.17.54.28
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 04BEB6B0038
+	for <linux-mm@kvack.org>; Mon, 19 Sep 2016 20:57:20 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id n24so5724239pfb.0
+        for <linux-mm@kvack.org>; Mon, 19 Sep 2016 17:57:19 -0700 (PDT)
+Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com. [2607:f8b0:400e:c03::233])
+        by mx.google.com with ESMTPS id b73si32044400pfb.21.2016.09.19.17.57.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 Sep 2016 17:54:29 -0700 (PDT)
-Received: by mail-pf0-x232.google.com with SMTP id q2so824284pfj.3
-        for <linux-mm@kvack.org>; Mon, 19 Sep 2016 17:54:28 -0700 (PDT)
-Date: Mon, 19 Sep 2016 17:54:26 -0700 (PDT)
+        Mon, 19 Sep 2016 17:57:19 -0700 (PDT)
+Received: by mail-pa0-x233.google.com with SMTP id id6so802815pad.3
+        for <linux-mm@kvack.org>; Mon, 19 Sep 2016 17:57:19 -0700 (PDT)
+Date: Mon, 19 Sep 2016 17:57:17 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH V4] mm: Add sysfs interface to dump each node's zonelist
- information
-In-Reply-To: <57DCC605.10305@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.10.1609191752080.53329@chino.kir.corp.google.com>
-References: <1473150666-3875-1-git-send-email-khandual@linux.vnet.ibm.com> <1473302818-23974-1-git-send-email-khandual@linux.vnet.ibm.com> <57D1C914.9090403@intel.com> <57D63CB2.8070003@linux.vnet.ibm.com> <alpine.DEB.2.10.1609121106500.39030@chino.kir.corp.google.com>
- <57DCC605.10305@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm/mempolicy.c: forbid static or relative flags for
+ local NUMA mode
+In-Reply-To: <20160918112943.1645-1-kwapulinski.piotr@gmail.com>
+Message-ID: <alpine.DEB.2.10.1609191755060.53329@chino.kir.corp.google.com>
+References: <20160918112943.1645-1-kwapulinski.piotr@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
+To: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, vbabka@suse.cz, mhocko@kernel.org, mgorman@techsingularity.net, liangchen.linux@gmail.com, nzimmer@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat, 17 Sep 2016, Anshuman Khandual wrote:
+On Sun, 18 Sep 2016, Piotr Kwapulinski wrote:
 
-> > I'm questioning if this information can be inferred from information 
-> > already in /proc/zoneinfo and sysfs.  We know the no-fallback zonelist is 
-> > going to include the local node, and we know the other zonelists are 
-> > either node ordered or zone ordered (or do we need to extend 
-> > vm.numa_zonelist_order for default?).  I may have missed what new 
-> > knowledge this interface is imparting on us.
+> The MPOL_F_STATIC_NODES and MPOL_F_RELATIVE_NODES flags are irrelevant
+> when setting them for MPOL_LOCAL NUMA memory policy via set_mempolicy.
+> Return the "invalid argument" from set_mempolicy whenever
+> any of these flags is passed along with MPOL_LOCAL.
+> It is consistent with MPOL_PREFERRED passed with empty nodemask.
+> It also slightly shortens the execution time in paths where these flags
+> are used e.g. when trying to rebind the NUMA nodes for changes in
+> cgroups cpuset mems (mpol_rebind_preferred()) or when just printing
+> the mempolicy structure (/proc/PID/numa_maps).
+> Isolated tests done.
 > 
-> IIUC /proc/zoneinfo lists down zone internal state and statistics for
-> all zones on the system at any given point of time. The no-fallback
-> list contains the zones from the local node and fallback (which gets
-> used more often than the no-fallback) list contains all zones either
-> in node-ordered or zone-ordered manner. In most of the platforms the
-> default being the node order but the sequence of present nodes in
-> that order is determined by various factors like NUMA distance, load,
-> presence of CPUs on the node etc. This order of nodes in the fallback
-> list is the most important information derived out of this interface.
-> 
+> Signed-off-by: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
 
-The point is that all of this can be inferred with information already 
-provided, so the additional interface seems unnecessary.  The only 
-extension I think that is needed is to determine if the order is node or 
-zone when vm.numa_zonelist_order == default and we shouldn't parse this 
-from dmesg.
+Acked-by: David Rientjes <rientjes@google.com>
+
+There wasn't an MPOL_LOCAL when I introduced either of these flags, it's 
+an oversight to allow them to be passed.
+
+Want to try to update set_mempolicy(2) with the procedure outlined in 
+https://www.kernel.org/doc/man-pages/patches.html as well?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
