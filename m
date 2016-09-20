@@ -1,101 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 13E6D6B0253
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 11:52:41 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id w84so20226280wmg.1
-        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 08:52:41 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C30A16B0038
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 11:54:24 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id w84so20257752wmg.1
+        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 08:54:24 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id i9si26888656wjw.275.2016.09.20.08.52.39
+        by mx.google.com with ESMTPS id b83si27802939wmi.3.2016.09.20.08.54.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Sep 2016 08:52:40 -0700 (PDT)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8KFmqDj103524
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 11:52:38 -0400
-Received: from e32.co.us.ibm.com (e32.co.us.ibm.com [32.97.110.150])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 25jkn4ych5-1
+        Tue, 20 Sep 2016 08:54:23 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8KFsCcR119297
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 11:54:22 -0400
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 25jmr0uvn7-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 11:52:38 -0400
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 11:54:22 -0400
 Received: from localhost
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rui.teng@linux.vnet.ibm.com>;
-	Tue, 20 Sep 2016 09:52:37 -0600
-Subject: Re: [PATCH] memory-hotplug: Fix bad area access on
- dissolve_free_huge_pages()
-References: <1473755948-13215-1-git-send-email-rui.teng@linux.vnet.ibm.com>
- <57D83821.4090804@linux.intel.com>
- <a789f3ef-bd49-8811-e1df-e949f0758ad1@linux.vnet.ibm.com>
- <57D97CAF.7080005@linux.intel.com>
- <566c04af-c937-cbe0-5646-2cc2c816cc3f@linux.vnet.ibm.com>
- <57DC1CE0.5070400@linux.intel.com>
- <7e642622-72ee-87f6-ceb0-890ce9c28382@linux.vnet.ibm.com>
- <57E14D64.6090609@linux.intel.com>
-From: Rui Teng <rui.teng@linux.vnet.ibm.com>
-Date: Tue, 20 Sep 2016 23:52:25 +0800
-MIME-Version: 1.0
-In-Reply-To: <57E14D64.6090609@linux.intel.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
-Message-Id: <fc05ee3c-097f-709b-7484-1cadc9f3ce22@linux.vnet.ibm.com>
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
+	Tue, 20 Sep 2016 16:54:20 +0100
+Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
+	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 86CA32190066
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 16:53:38 +0100 (BST)
+Received: from d06av11.portsmouth.uk.ibm.com (d06av11.portsmouth.uk.ibm.com [9.149.37.252])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u8KFsILj18284884
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 15:54:18 GMT
+Received: from d06av11.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av11.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u8KFsHjb032339
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 09:54:18 -0600
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Subject: [PATCH 0/1] memory offline issues with hugepage size > memory block size
+Date: Tue, 20 Sep 2016 17:53:53 +0200
+Message-Id: <20160920155354.54403-1-gerald.schaefer@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Michal Hocko <mhocko@suse.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Santhosh G <santhog4@in.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>
 
-On 9/20/16 10:53 PM, Dave Hansen wrote:
-> On 09/20/2016 07:45 AM, Rui Teng wrote:
->> On 9/17/16 12:25 AM, Dave Hansen wrote:
->>>
->>> That's an interesting data point, but it still doesn't quite explain
->>> what is going on.
->>>
->>> It seems like there might be parts of gigantic pages that have
->>> PageHuge() set on tail pages, while other parts don't.  If that's true,
->>> we have another bug and your patch just papers over the issue.
->>>
->>> I think you really need to find the root cause before we apply this
->>> patch.
->>>
->> The root cause is the test scripts(tools/testing/selftests/memory-
->> hotplug/mem-on-off-test.sh) changes online/offline status on memory
->> blocks other than page header. It will *randomly* select 10% memory
->> blocks from /sys/devices/system/memory/memory*, and change their
->> online/offline status.
->
-> Ahh, that does explain it!  Thanks for digging into that!
->
->> That's why we need a PageHead() check now, and why this problem does
->> not happened on systems with smaller huge page such as 16M.
->>
->> As far as the PageHuge() set, I think PageHuge() will return true for
->> all tail pages. Because it will get the compound_head for tail page,
->> and then get its huge page flag.
->>     page = compound_head(page);
->>
->> And as far as the failure message, if one memory block is in use, it
->> will return failure when offline it.
->
-> That's good, but aren't we still left with a situation where we've
-> offlined and dissolved the _middle_ of a gigantic huge page while the
-> head page is still in place and online?
->
-> That seems bad.
->
-What about refusing to change the status for such memory block, if it
-contains a huge page which larger than itself? (function
-memory_block_action())
+dissolve_free_huge_pages() will either run into the VM_BUG_ON() or a
+list corruption and addressing exception when trying to set a memory
+block offline that is part (but not the first part) of a gigantic
+hugetlb page with a size > memory block size.
 
-I think it will not affect the hot-plug function too much. We can
-change the nr_hugepages to zero first, if we really want to hot-plug a
-memory.
+When no other smaller hugepage sizes are present, the VM_BUG_ON() will
+trigger directly. In the other case we will run into an addressing
+exception later, because dissolve_free_huge_page() will not use the head
+page of the compound hugetlb page which will result in a NULL hstate
+from page_hstate(). list_del() would also not work well on a tail page.
 
-And I also found that the __test_page_isolated_in_pageblock() function
-can not handle a gigantic page well. It will cause a device busy error
-later. I am still investigating on that.
+To fix this, first remove the VM_BUG_ON() because it is wrong, and then
+use the compound head page in dissolve_free_huge_page().
 
-Any suggestion?
+However, this all assumes that it is the desired behaviour to remove
+a (gigantic) unused hugetlb page from the pool, just because a small
+(in relation to the  hugepage size) memory block is going offline. Not
+sure if this is the right thing, and it doesn't look very consistent
+given that in this scenario it is _not_ possible to migrate
+such a (gigantic) hugepage if it is in use. OTOH, has_unmovable_pages()
+will return false in both cases, i.e. the memory block will be reported
+as removable, no matter if the hugepage that it is part of is unused or
+in use.
 
-Thanks!
+This patch is assuming that it would be OK to remove the hugepage,
+i.e. memory offline beats pre-allocated unused (gigantic) hugepages.
+
+Any thoughts?
+
+
+Gerald Schaefer (1):
+  mm/hugetlb: fix memory offline with hugepage size > memory block size
+
+ mm/hugetlb.c | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)
+
+-- 
+2.8.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
