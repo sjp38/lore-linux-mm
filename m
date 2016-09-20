@@ -1,201 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EAF206B0038
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 02:32:26 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id h186so20920036oia.1
-        for <linux-mm@kvack.org>; Mon, 19 Sep 2016 23:32:26 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id x66si33093383ioi.203.2016.09.19.23.32.25
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 123CF6B0038
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 02:47:49 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id mi5so16731352pab.2
+        for <linux-mm@kvack.org>; Mon, 19 Sep 2016 23:47:49 -0700 (PDT)
+Received: from out4434.biz.mail.alibaba.com (out4434.biz.mail.alibaba.com. [47.88.44.34])
+        by mx.google.com with ESMTP id q1si33451671paz.267.2016.09.19.23.47.47
         for <linux-mm@kvack.org>;
-        Mon, 19 Sep 2016 23:32:26 -0700 (PDT)
-Date: Tue, 20 Sep 2016 15:26:26 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v3 07/15] lockdep: Implement crossrelease feature
-Message-ID: <20160920062626.GM2279@X58A-UD3R>
-References: <1473759914-17003-1-git-send-email-byungchul.park@lge.com>
- <1473759914-17003-8-git-send-email-byungchul.park@lge.com>
- <20160913150554.GI2794@worktop>
- <CANrsvRNarrDejL_ju-X=MtiBbwG-u2H4TNsZ1i_d=3nbd326PQ@mail.gmail.com>
- <20160913193829.GA5016@twins.programming.kicks-ass.net>
- <CANrsvROL43uYXsU7-kmFbHFgiKARBXYHNeqL71V9GxGzBYEdNA@mail.gmail.com>
- <20160914081117.GK5008@twins.programming.kicks-ass.net>
- <20160919024102.GF2279@X58A-UD3R>
- <20160919085009.GT5016@twins.programming.kicks-ass.net>
- <20160920055038.GL2279@X58A-UD3R>
+        Mon, 19 Sep 2016 23:47:48 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <57DF4FEA.9080509@huawei.com> <57E0A2EC.7050809@huawei.com> <055801d212f4$4b9c4b60$e2d4e220$@alibaba-inc.com> <57E0BB1C.3040104@huawei.com>
+In-Reply-To: <57E0BB1C.3040104@huawei.com>
+Subject: Re: [question] hugetlb: how to find who use hugetlb?
+Date: Tue, 20 Sep 2016 14:47:33 +0800
+Message-ID: <056901d2130a$ddbf53f0$993dfbd0$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160920055038.GL2279@X58A-UD3R>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Byungchul Park <max.byungchul.park@gmail.com>, Ingo Molnar <mingo@kernel.org>, tglx@linutronix.de, Michel Lespinasse <walken@google.com>, boqun.feng@gmail.com, kirill@shutemov.name, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
-
-On Tue, Sep 20, 2016 at 02:50:38PM +0900, Byungchul Park wrote:
-> On Mon, Sep 19, 2016 at 10:50:09AM +0200, Peter Zijlstra wrote:
-> > On Mon, Sep 19, 2016 at 11:41:02AM +0900, Byungchul Park wrote:
-> > 
-> > > > But since these threads are independently scheduled there is no point in
-> > > > transferring the point in time thread A does W to thread B. There is no
-> > > > relation there.
-> > > > 
-> > > > B could have already executed the complete or it could not yet have
-> > > > started execution at all or anything in between, entirely random.
-> > > 
-> > > Of course B could have already executed the complete or it could not yet
-> > > have started execution at all or anything in between. But it's not entirely
-> > > random.
-> > > 
-> > > It might be a random point since they are independently scheduled, but it's
-> > > not entirely random. And it's a random point among valid points which lockdep
-> > > needs to consider. For example,
-> > > 
-> > > 
-> > > CONTEXT 1			CONTEXT 2(forked one)
-> > > =========			=====================
-> > > (a)				acquire F
-> > > acquire A			acquire G
-> > > acquire B			wait_for_completion Z
-> > > acquire C
-> > > (b)				acquire H
-> > > fork 2				acquire I
-> > > acquire D			acquire J
-> > > complete Z			acquire K
-> > > 
-> > 
-> > I'm hoping you left out the releases for brevity? Because calling fork()
-> > with locks held is _really_ poor form.
-> 
-> Exactly. Sorry. I shouldn't have omitted releases.
-> 
-> > 
-> > > I can provide countless examples with which I can say you're wrong.
-> > > In this case, all acquires between (a) and (b) must be ignored when
-> > > generating dependencies with complete operation of Z.
-> > 
-> > I still don't get the point. Why does this matter?
-> > 
-> > Sure, A-C are irrelevant in this example, but I don't see how they're
-> > differently irrelevant from a whole bunch of other prior state action.
-> > 
-> > 
-> > Earlier you said the algorithm for selecting the dependency is the first
-> > acquire observed in the completing thread after the
-> > wait_for_completion(). Is this correct?
-> 
-> Sorry for insufficient description.
-> 
-> held_locks of left context will be,
-> 
-> time 1: a
-> time 2: a, x[0]
-> time 3: a, x[1]
-> ...
-> time n: b
-> 
-> Between time 1 and time (n-1), 'a' will be the first among held_locks. At
-> time n, 'b' will be the fist among held_locks. So 'a' and 'b' should be
-> connected to 'z' if we ignore IRQ context. (I will explain it soon.)
-> 
-> Acquire x[i] is also valid one but crossrelease doesn't take it into
-> account since original lockdep will cover using 'a -> x[i]'. So only
-> connections we need are 'z -> a' and 'z -> b'.
-> 
-> > 
-> > 
-> > 				W z
-> > 
-> > 	A a
-> > 	for (i<0;i<many;i++) {
-> > 	  A x[i]
-> > 	  R x[i]
-> > 	}
-> > 	R a
-> > 
-> > 	<IRQ>
-> > 	  A b
-> > 	  R b
-> > 	  C z
-> > 	</IRQ>
-> 
-> My crossrelease implementation distinguishes each IRQ from normal context
-> or other IRQs in different timeline, even though they might share
-> held_locks. So in this example, precisely speaking, there are two different
-> contexts. One is normal context and the other is IRQ context. So only 'A b'
-> is related with 'W z' in this example.
-> 
-> > 
-> > That would be 'a' in this case, but that isn't at all related. Its just
-> > as irrelevant as your A-C. And we can pick @many as big as needed to
-> > flush the prev held cyclic buffer (although I've no idea how that
-> > matters either).
-> 
-> I designed crossrelease so that x[i] is not added into ring buffer because
-> adding 'z -> a' is sufficient and x[i] doesn't need to be taken into
-> account in this case.
-> 
-> > 
-> > What we want here is to link z to b, no? That is the last, not the first
-> 
-> Exactly right. Only 'z -> b' must be added under considering IRQ context.
-> That is the first among held_locks in the IRQ context.
-> 
-> > acquire, it also is independent of when W happened.
-> 
-> If the IRQ is really random, then it can happen before W z and it can also
-> happen after W z. We cannot determine the time. Then we need to consider all
-> combination and possibility. It's a key point. We have to consider
-> dependencies for all possibility.
-> 
-> However, we don't know what synchronizes the flow. So it must be based on
-> what actually happened, to identify true dependencies.
-> 
-> > 
-> > At the same time, picking the last is no guarantee either, since that
-> > can equally miss dependencies. Suppose the IRQ handler did:
-> > 
-> > 	<IRQ>
-> > 	  A c
-> > 	  R c
-> > 	  A b
-> > 	  R b
-> > 	  C z
-> > 	</IRQ>
-> > 
-> 
-> time 1: c (in held_locks)
-> time 2: b (in held_locks)
-> 
-> So 'c' and 'b' can be the first among held_locks at each moment.
-> So 'z -> b' and 'z -> c' will be added.
-> 
-> > instead. We'd miss the z depends on c relation, and since they're
-> > independent lock sections, lockdep wouldn't make a b-c relation either.
-> > 
-> > 
-> > Clearly I'm still missing stuff...
-> 
-> Sorry for insufficient description. I tried to describ crossrelease in as
-> much detail as possible, really.
-> 
-> The reason why I consider only the first among valid locks in held_locks is
-> simple. For example,
-> 
-> Context 1
-> A a -> A b -> A crosslock -> R a -> R b
-
-Here, '->' represents the order executing A(cquire)s and R(elease)s.
-
-_Not_ dependency.
+To: 'Xishi Qiu' <qiuxishi@huawei.com>
+Cc: 'Linux MM' <linux-mm@kvack.org>
 
 > 
-> Context 2
-> A c -> A d -> R d -> R the crosslock -> R c
+> If someone use hugetlb, "cat /proc/*/smaps | grep KernelPageSize| grep 2048"
+> will show something, right? But now it is nothing, and /dev/hugepages is empty.
 > 
-> If 'A c' after 'A crosslock' is possible, then 'A crosslock' does not only
-> depends on 'A c' but also 'A d'. But all dependencies we need to add is only
-> 'crosslock -> c' because 'crosslock -> d' will be covered by 'crosslock ->
-> c' and 'a -> b'. 'a -> b' is added by original lockdep.
+With 4.7 or 4.8-rc7?
+
+thanks
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
