@@ -1,105 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 773BC6B0038
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 17:59:27 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id v67so62336461pfv.1
-        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 14:59:27 -0700 (PDT)
-Received: from out4435.biz.mail.alibaba.com (out4435.biz.mail.alibaba.com. [47.88.44.35])
-        by mx.google.com with ESMTP id rd11si36880423pac.109.2016.09.20.14.59.25
-        for <linux-mm@kvack.org>;
-        Tue, 20 Sep 2016 14:59:26 -0700 (PDT)
-Message-ID: <57E1B2F4.5070009@emindsoft.com.cn>
-Date: Wed, 21 Sep 2016 06:06:44 +0800
-From: Chen Gang <chengang@emindsoft.com.cn>
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 146B16B0038
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 19:01:46 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id n4so26012183lfb.3
+        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 16:01:46 -0700 (PDT)
+Received: from mail-wm0-x22e.google.com (mail-wm0-x22e.google.com. [2a00:1450:400c:c09::22e])
+        by mx.google.com with ESMTPS id 66si5521387wmy.42.2016.09.20.16.01.44
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 20 Sep 2016 16:01:44 -0700 (PDT)
+Received: by mail-wm0-x22e.google.com with SMTP id l132so60535252wmf.1
+        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 16:01:44 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: migrate: Return false instead of -EAGAIN for dummy
- functions
-References: <1474096836-31045-1-git-send-email-chengang@emindsoft.com.cn> <20160917154659.GA29145@dhcp22.suse.cz> <57E05CD2.5090408@emindsoft.com.cn> <20160920080923.GE5477@dhcp22.suse.cz>
-In-Reply-To: <20160920080923.GE5477@dhcp22.suse.cz>
+In-Reply-To: <1474386996-16049-1-git-send-email-labbott@redhat.com>
+References: <1474386996-16049-1-git-send-email-labbott@redhat.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Tue, 20 Sep 2016 16:01:43 -0700
+Message-ID: <CAGXu5jJBhNRF50q562THamJY-PKm9RpFW+id9GCaRzwezQ_xZA@mail.gmail.com>
+Subject: Re: [PATCH] mm: usercopy: Check for module addresses
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, gi-oh.kim@profitbricks.com, opensource.ganesh@gmail.com, hughd@google.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Gang <gang.chen.5i5j@gmail.com>
+To: Laura Abbott <labbott@redhat.com>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
-On 9/20/16 16:09, Michal Hocko wrote:
-> On Tue 20-09-16 05:46:58, Chen Gang wrote:
->>
->> For me, it really need return false:
->>
->>  - For real implementation, when do nothing, it will return false.
->>
->>  - I assume that the input page already is in a node (although maybe my
->>    assumption incorrect), and migrate to the same node. When the real
->>    implementation fails (e.g. -EAGAIN 10 times), it still returns false.
->>
->>  - Original dummy implementation always return -EAGAIN, And -EAGAIN in
->>    real implementation will trigger returning false, after 10 times.
->>
->>  - After grep TNF_MIGRATE_FAIL and TNF_MIGRATED, we only use them in
->>    task_numa_fault in kernel/sched/fair.c for numa_pages_migrated and
->>    numa_faults_locality, I guess they are only used for statistics.
->>
->> So for me the dummy implementation need return false instead of -EAGAIN.
-> 
-> I see that the return value semantic might be really confusing. But I am
-> not sure why bool would make it all of the sudden any less confusing.
-> migrate_page returns -EAGAIN on failure and 0 on success, migrate_pages
-> returns -EAGAIN or number of not migrated pages on failure and 0 on
-> success. So migrate_misplaced_page doesn't fit into this mode with the
-> bool return value. So I would argue that the code is not any better.
-> 
+On Tue, Sep 20, 2016 at 8:56 AM, Laura Abbott <labbott@redhat.com> wrote:
+> While running a compile on arm64, I hit a memory exposure
+>
+> usercopy: kernel memory exposure attempt detected from fffffc0000f3b1a8 (buffer_head) (1 bytes)
+> ------------[ cut here ]------------
+> kernel BUG at mm/usercopy.c:75!
+> Internal error: Oops - BUG: 0 [#1] SMP
+> Modules linked in: ip6t_rpfilter ip6t_REJECT
+> nf_reject_ipv6 xt_conntrack ip_set nfnetlink ebtable_broute bridge stp
+> llc ebtable_nat ip6table_security ip6table_raw ip6table_nat
+> nf_conntrack_ipv6 nf_defrag_ipv6 nf_nat_ipv6 ip6table_mangle
+> iptable_security iptable_raw iptable_nat nf_conntrack_ipv4
+> nf_defrag_ipv4 nf_nat_ipv4 nf_nat nf_conntrack iptable_mangle
+> ebtable_filter ebtables ip6table_filter ip6_tables vfat fat xgene_edac
+> xgene_enet edac_core i2c_xgene_slimpro i2c_core at803x realtek xgene_dma
+> mdio_xgene gpio_dwapb gpio_xgene_sb xgene_rng mailbox_xgene_slimpro nfsd
+> auth_rpcgss nfs_acl lockd grace sunrpc xfs libcrc32c sdhci_of_arasan
+> sdhci_pltfm sdhci mmc_core xhci_plat_hcd gpio_keys
+> CPU: 0 PID: 19744 Comm: updatedb Tainted: G        W 4.8.0-rc3-threadinfo+ #1
+> Hardware name: AppliedMicro X-Gene Mustang Board/X-Gene Mustang Board, BIOS 3.06.12 Aug 12 2016
+> task: fffffe03df944c00 task.stack: fffffe00d128c000
+> PC is at __check_object_size+0x70/0x3f0
+> LR is at __check_object_size+0x70/0x3f0
+> ...
+> [<fffffc00082b4280>] __check_object_size+0x70/0x3f0
+> [<fffffc00082cdc30>] filldir64+0x158/0x1a0
+> [<fffffc0000f327e8>] __fat_readdir+0x4a0/0x558 [fat]
+> [<fffffc0000f328d4>] fat_readdir+0x34/0x40 [fat]
+> [<fffffc00082cd8f8>] iterate_dir+0x190/0x1e0
+> [<fffffc00082cde58>] SyS_getdents64+0x88/0x120
+> [<fffffc0008082c70>] el0_svc_naked+0x24/0x28
+>
+> fffffc0000f3b1a8 is a module address. Modules may have compiled in
+> strings which could get copied to userspace. In this instance, it
+> looks like "." which matches with a size of 1 byte. Extend the
+> is_vmalloc_addr check to be is_vmalloc_or_module_addr to cover
+> all possible cases.
+>
+> Signed-off-by: Laura Abbott <labbott@redhat.com>
+> ---
+> Longer term, it would be good to expand the check for to regions like
+> regular kernel memory.
+> ---
+>  mm/usercopy.c | 5 ++++-
+>  1 file changed, 4 insertions(+), 1 deletion(-)
+>
+> diff --git a/mm/usercopy.c b/mm/usercopy.c
+> index 8ebae91..d8b5bd3 100644
+> --- a/mm/usercopy.c
+> +++ b/mm/usercopy.c
+> @@ -145,8 +145,11 @@ static inline const char *check_heap_object(const void *ptr, unsigned long n,
+>          * Some architectures (arm64) return true for virt_addr_valid() on
+>          * vmalloced addresses. Work around this by checking for vmalloc
+>          * first.
+> +        *
+> +        * We also need to check for module addresses explicitly since we
+> +        * may copy static data from modules to userspace
+>          */
+> -       if (is_vmalloc_addr(ptr))
+> +       if (is_vmalloc_or_module_addr(ptr))
+>                 return NULL;
 
-I guess, numamigrate_isolate_page can be bool, at least.
+I still don't understand why this happens on arm64 and not x86.
+(Really what I don't understand is what virt_addr_valid() is actually
+checking -- they seem to be checking very different things between x86
+and arm64.)
 
-And yes, commonly, bool functions are for asking something, and int
-functions are for doing something, but not must be. When the caller care
-about success, but never care about every failure details, bool is OK.
+Regardless, I'll get this pushed to Linus and try to make the -rc8 cut.
 
-In our case, for me, numa balancing is for performance. When return
-failure, the system has no any negative effect -- only lose a chance for
-improving performance.
+Thanks!
 
- - For user, the failure times statistics is enough, they need not care
-   about every failure details.
+-Kees
 
- - For tracer, the failure details statistics are meaningfulness, but
-   focusing on each failure details is meaningless. Now, it finishes a
-   part of failure details statistics -- which can be improved next.
+>
+>         if (!virt_addr_valid(ptr))
+> --
+> 2.7.4
+>
 
- - For debugger (or printing log), focusing on each failure details is
-   useful. But debugger already can check every details, returning every
-   failure details is still a little helpful, but not necessary.
 
->>
->> If our original implementation already used bool, our this issue (return
->> -EAGAIN) would be avoided (compiler would help us to find this issue).
-> 
-> OK, so you pushed me to look into it deeper and the fact is that
-> migrate_misplaced_page return value doesn't matter at all for
-> CONFIG_NUMA_BALANCING=n because task_numa_fault is noop for that
-> configuration. Moreover the whole do_numa_page should never execute with
-> that configuration because we will not have numa pte_protnone() ptes in
-> that path. do_huge_pmd_numa_page seems be in a similar case. So this
-> doesn't have any real impact on the runtime AFAICS.
-> 
 
-OK, thanks.
-
-> So what is the point of this whole exercise? Do not take me wrong, this
-> area could see some improvements but I believe that doing int->bool
-> change is not just the right thing to do and worth spending both your
-> and reviewers time.
-> 
-
-I am not quite sure about that.
-
-Thanks.
 -- 
-Chen Gang (e??a??)
-
-Managing Natural Environments is the Duty of Human Beings.
+Kees Cook
+Nexus Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
