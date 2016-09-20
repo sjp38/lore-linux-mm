@@ -1,104 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A4D028024B
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 04:09:26 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id l138so9888508wmg.3
-        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 01:09:26 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id w196si30359555wmf.100.2016.09.20.01.09.25
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 000806B0038
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 04:27:33 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id k12so8675492lfb.2
+        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 01:27:33 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id gv3si23330475wjb.110.2016.09.20.01.27.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Sep 2016 01:09:25 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id l132so1974493wmf.1
-        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 01:09:25 -0700 (PDT)
-Date: Tue, 20 Sep 2016 10:09:23 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: migrate: Return false instead of -EAGAIN for dummy
- functions
-Message-ID: <20160920080923.GE5477@dhcp22.suse.cz>
-References: <1474096836-31045-1-git-send-email-chengang@emindsoft.com.cn>
- <20160917154659.GA29145@dhcp22.suse.cz>
- <57E05CD2.5090408@emindsoft.com.cn>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 20 Sep 2016 01:27:32 -0700 (PDT)
+Subject: Re: [PATCH] mm, page_alloc: warn about empty nodemask
+References: <1473044391.4250.19.camel@TP420>
+ <d7393a3e-73a7-7923-bc32-d4dcbc6523f9@suse.cz>
+ <B1E0D42A-2F9D-4511-927B-962BC2FD13B3@linux.vnet.ibm.com>
+ <3a661375-95d9-d1ff-c799-a0c5d9cec5e3@suse.cz>
+ <1473208886.12692.2.camel@TP420>
+ <20160908162621.51ff52413559a7a6bb5a7df5@linux-foundation.org>
+ <D1029A5D-C180-440C-8B14-A6C9E17CDB06@linux.vnet.ibm.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <dbdc5abe-3dcd-2b93-32be-0d6da69458fd@suse.cz>
+Date: Tue, 20 Sep 2016 10:27:27 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <57E05CD2.5090408@emindsoft.com.cn>
+In-Reply-To: <D1029A5D-C180-440C-8B14-A6C9E17CDB06@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Gang <chengang@emindsoft.com.cn>
-Cc: akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, gi-oh.kim@profitbricks.com, opensource.ganesh@gmail.com, hughd@google.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Gang <gang.chen.5i5j@gmail.com>
+To: Li Zhong <zhong@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, John Allen <jallen@linux.vnet.ibm.com>, qiuxishi@huawei.com, iamjoonsoo.kim@lge.com, n-horiguchi@ah.jp.nec.com, rientjes@google.com, Michal Hocko <mhocko@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-On Tue 20-09-16 05:46:58, Chen Gang wrote:
-> On 9/17/16 23:46, Michal Hocko wrote:
-> > On Sat 17-09-16 15:20:36, chengang@emindsoft.com.cn wrote:
-> > 
-> >> Also change their related pure Boolean function numamigrate_isolate_page.
-> > 
-> > this is not true. Just look at the current usage
-> > 
-> > 	migrated = migrate_misplaced_page(page, vma, target_nid);
-> > 	if (migrated) {
-> > 		page_nid = target_nid;
-> > 		flags |= TNF_MIGRATED;
-> > 	} else
-> > 		flags |= TNF_MIGRATE_FAIL;
-> > 
-> > and now take your change which changes -EAGAIN into false. See the
-> > difference? Now I didn't even try to understand why
-> > CONFIG_NUMA_BALANCING=n pretends a success but then in order to keep the
-> > current semantic your patch should return true in that path. So NAK from
-> > me until you either explain why this is OK or change it.
-> >
-> 
-> For me, it really need return false:
-> 
->  - For real implementation, when do nothing, it will return false.
-> 
->  - I assume that the input page already is in a node (although maybe my
->    assumption incorrect), and migrate to the same node. When the real
->    implementation fails (e.g. -EAGAIN 10 times), it still returns false.
-> 
->  - Original dummy implementation always return -EAGAIN, And -EAGAIN in
->    real implementation will trigger returning false, after 10 times.
-> 
->  - After grep TNF_MIGRATE_FAIL and TNF_MIGRATED, we only use them in
->    task_numa_fault in kernel/sched/fair.c for numa_pages_migrated and
->    numa_faults_locality, I guess they are only used for statistics.
-> 
-> So for me the dummy implementation need return false instead of -EAGAIN.
+On 09/09/2016 06:03 AM, Li Zhong wrote:
+>
+>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>> index a2214c6..d624ff3 100644
+>>> --- a/mm/page_alloc.c
+>>> +++ b/mm/page_alloc.c
+>>> @@ -3448,6 +3448,12 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>>> 	if (page)
+>>> 		goto got_pg;
+>>>
+>>> +	if (ac->nodemask && nodes_empty(*ac->nodemask)) {
+>>> +		pr_warn("nodemask is empty\n");
+>>> +		gfp_mask &= ~__GFP_NOWARN;
+>>> +		goto nopage;
+>>> +	}
+>>> +
+>>
+>> Wouldn't it be better to do
+>>
+>> 	if (WARN_ON(ac->nodemask && nodes_empty(*ac->nodemask)) {
+>> 		...
+>>
+>> so we can identify the misbehaving call site?
+>
+> I think with __GFP_NOWARN cleared, we could know the call site from warn_alloc_failed().
+> And the message a??nodemask is emptya?? makes the error obvious without going to the source.
 
-I see that the return value semantic might be really confusing. But I am
-not sure why bool would make it all of the sudden any less confusing.
-migrate_page returns -EAGAIN on failure and 0 on success, migrate_pages
-returns -EAGAIN or number of not migrated pages on failure and 0 on
-success. So migrate_misplaced_page doesn't fit into this mode with the
-bool return value. So I would argue that the code is not any better.
+Yes, that was my suggestion. It uses the generic warn_alloc_failed() this way. 
+With a WARN_ON we would either have to "return NULL" (and get only the WARN_ON 
+without the extra warn_alloc_failed() stuff) or "goto nopage" and thus get two 
+backtraces. But this should be really rare occurence, so I don't have a 
+particularly strong preference.
 
-> > But to be honest I am not keen of this int -> bool changes much.
-> > Especially if they are bringing a risk of subtle behavior change like
-> > this patch. And without a good changelog explaining why this makes
-> > sense.
-> > 
-> 
-> If our original implementation already used bool, our this issue (return
-> -EAGAIN) would be avoided (compiler would help us to find this issue).
+Anyway, since I suggested it in the first place:
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-OK, so you pushed me to look into it deeper and the fact is that
-migrate_misplaced_page return value doesn't matter at all for
-CONFIG_NUMA_BALANCING=n because task_numa_fault is noop for that
-configuration. Moreover the whole do_numa_page should never execute with
-that configuration because we will not have numa pte_protnone() ptes in
-that path. do_huge_pmd_numa_page seems be in a similar case. So this
-doesn't have any real impact on the runtime AFAICS.
-
-So what is the point of this whole exercise? Do not take me wrong, this
-area could see some improvements but I believe that doing int->bool
-change is not just the right thing to do and worth spending both your
-and reviewers time.
-
--- 
-Michal Hocko
-SUSE Labs
+> Thanks, Zhong
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
