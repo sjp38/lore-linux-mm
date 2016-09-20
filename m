@@ -1,72 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AE6EF6B0038
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 10:53:26 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id c84so40446941pfj.2
-        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 07:53:26 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id yo4si29889012pab.139.2016.09.20.07.53.24
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 27AC86B0038
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 11:12:24 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id l132so1073927wmf.0
+        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 08:12:24 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l5si28005529wjt.239.2016.09.20.08.12.22
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 20 Sep 2016 07:53:25 -0700 (PDT)
-Subject: Re: [PATCH] memory-hotplug: Fix bad area access on
- dissolve_free_huge_pages()
-References: <1473755948-13215-1-git-send-email-rui.teng@linux.vnet.ibm.com>
- <57D83821.4090804@linux.intel.com>
- <a789f3ef-bd49-8811-e1df-e949f0758ad1@linux.vnet.ibm.com>
- <57D97CAF.7080005@linux.intel.com>
- <566c04af-c937-cbe0-5646-2cc2c816cc3f@linux.vnet.ibm.com>
- <57DC1CE0.5070400@linux.intel.com>
- <7e642622-72ee-87f6-ceb0-890ce9c28382@linux.vnet.ibm.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <57E14D64.6090609@linux.intel.com>
-Date: Tue, 20 Sep 2016 07:53:24 -0700
+        Tue, 20 Sep 2016 08:12:22 -0700 (PDT)
+Subject: Re: [PATCH] mm/mempolicy.c: forbid static or relative flags for local
+ NUMA mode
+References: <20160918112943.1645-1-kwapulinski.piotr@gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <65cb95b8-4521-cc4c-a30c-e6c23731479c@suse.cz>
+Date: Tue, 20 Sep 2016 17:12:16 +0200
 MIME-Version: 1.0
-In-Reply-To: <7e642622-72ee-87f6-ceb0-890ce9c28382@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <20160918112943.1645-1-kwapulinski.piotr@gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rui Teng <rui.teng@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Michal Hocko <mhocko@suse.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Santhosh G <santhog4@in.ibm.com>
+To: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>, akpm@linux-foundation.org
+Cc: kirill.shutemov@linux.intel.com, rientjes@google.com, mhocko@kernel.org, mgorman@techsingularity.net, liangchen.linux@gmail.com, nzimmer@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linux API <linux-api@vger.kernel.org>, linux-man@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>
 
-On 09/20/2016 07:45 AM, Rui Teng wrote:
-> On 9/17/16 12:25 AM, Dave Hansen wrote:
->>
->> That's an interesting data point, but it still doesn't quite explain
->> what is going on.
->>
->> It seems like there might be parts of gigantic pages that have
->> PageHuge() set on tail pages, while other parts don't.  If that's true,
->> we have another bug and your patch just papers over the issue.
->>
->> I think you really need to find the root cause before we apply this
->> patch.
->>
-> The root cause is the test scripts(tools/testing/selftests/memory-
-> hotplug/mem-on-off-test.sh) changes online/offline status on memory
-> blocks other than page header. It will *randomly* select 10% memory
-> blocks from /sys/devices/system/memory/memory*, and change their
-> online/offline status.
+[CC += linux-api@vger.kernel.org]
 
-Ahh, that does explain it!  Thanks for digging into that!
+     Since this is a kernel-user-space API change, please CC linux-api@. The 
+kernel source file Documentation/SubmitChecklist notes that all Linux kernel 
+patches that change userspace interfaces should be CCed to 
+linux-api@vger.kernel.org, so that the various parties who are interested in API 
+changes are informed. For further information, see 
+https://www.kernel.org/doc/man-pages/linux-api-ml.html
 
-> That's why we need a PageHead() check now, and why this problem does
-> not happened on systems with smaller huge page such as 16M.
-> 
-> As far as the PageHuge() set, I think PageHuge() will return true for
-> all tail pages. Because it will get the compound_head for tail page,
-> and then get its huge page flag.
->     page = compound_head(page);
-> 
-> And as far as the failure message, if one memory block is in use, it
-> will return failure when offline it.
+I think man page should document the change? Also I noticed that MPOL_NUMA 
+itself is missing in the man page...
 
-That's good, but aren't we still left with a situation where we've
-offlined and dissolved the _middle_ of a gigantic huge page while the
-head page is still in place and online?
+On 09/18/2016 01:29 PM, Piotr Kwapulinski wrote:
+> The MPOL_F_STATIC_NODES and MPOL_F_RELATIVE_NODES flags are irrelevant
+> when setting them for MPOL_LOCAL NUMA memory policy via set_mempolicy.
+> Return the "invalid argument" from set_mempolicy whenever
+> any of these flags is passed along with MPOL_LOCAL.
+> It is consistent with MPOL_PREFERRED passed with empty nodemask.
+> It also slightly shortens the execution time in paths where these flags
+> are used e.g. when trying to rebind the NUMA nodes for changes in
+> cgroups cpuset mems (mpol_rebind_preferred()) or when just printing
+> the mempolicy structure (/proc/PID/numa_maps).
 
-That seems bad.
+Hmm not sure I understand. How does change in mpol_new() affect 
+mpol_rebind_preferred()?
+
+Vlastimil
+
+> Isolated tests done.
+>
+> Signed-off-by: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+> ---
+>  mm/mempolicy.c | 4 +++-
+>  1 file changed, 3 insertions(+), 1 deletion(-)
+>
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index 2da72a5..27b07d1 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -276,7 +276,9 @@ static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
+>  				return ERR_PTR(-EINVAL);
+>  		}
+>  	} else if (mode == MPOL_LOCAL) {
+> -		if (!nodes_empty(*nodes))
+> +		if (!nodes_empty(*nodes) ||
+> +		    (flags & MPOL_F_STATIC_NODES) ||
+> +		    (flags & MPOL_F_RELATIVE_NODES))
+>  			return ERR_PTR(-EINVAL);
+>  		mode = MPOL_PREFERRED;
+>  	} else if (nodes_empty(*nodes))
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
