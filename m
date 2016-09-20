@@ -1,89 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CF3FD6B025E
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 11:56:41 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id j129so47616270qkd.3
-        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 08:56:41 -0700 (PDT)
-Received: from mail-yw0-f175.google.com (mail-yw0-f175.google.com. [209.85.161.175])
-        by mx.google.com with ESMTPS id y185si12868514ywg.138.2016.09.20.08.56.40
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F1396B0038
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 12:23:59 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id y6so19715778lff.0
+        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 09:23:59 -0700 (PDT)
+Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
+        by mx.google.com with ESMTPS id 8si13757966lff.273.2016.09.20.09.23.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Sep 2016 08:56:41 -0700 (PDT)
-Received: by mail-yw0-f175.google.com with SMTP id t67so14846912ywg.3
-        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 08:56:40 -0700 (PDT)
-From: Laura Abbott <labbott@redhat.com>
-Subject: [PATCH] mm: usercopy: Check for module addresses
-Date: Tue, 20 Sep 2016 08:56:36 -0700
-Message-Id: <1474386996-16049-1-git-send-email-labbott@redhat.com>
+        Tue, 20 Sep 2016 09:23:57 -0700 (PDT)
+Received: by mail-lf0-x243.google.com with SMTP id s64so1183898lfs.2
+        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 09:23:57 -0700 (PDT)
+Date: Tue, 20 Sep 2016 18:23:53 +0200
+From: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+Subject: Re: [PATCH] mm/mempolicy.c: forbid static or relative flags for
+ local NUMA mode
+Message-ID: <20160920162352.GC3899@home>
+References: <20160918112943.1645-1-kwapulinski.piotr@gmail.com>
+ <65cb95b8-4521-cc4c-a30c-e6c23731479c@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <65cb95b8-4521-cc4c-a30c-e6c23731479c@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Laura Abbott <labbott@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, rientjes@google.com, mhocko@kernel.org, mgorman@techsingularity.net, liangchen.linux@gmail.com, nzimmer@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linux API <linux-api@vger.kernel.org>, linux-man@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>
 
-While running a compile on arm64, I hit a memory exposure
+On Tue, Sep 20, 2016 at 05:12:16PM +0200, Vlastimil Babka wrote:
+> [CC += linux-api@vger.kernel.org]
+> 
+>     Since this is a kernel-user-space API change, please CC linux-api@. The
+> kernel source file Documentation/SubmitChecklist notes that all Linux kernel
+> patches that change userspace interfaces should be CCed to
+> linux-api@vger.kernel.org, so that the various parties who are interested in
+> API changes are informed. For further information, see
+> https://www.kernel.org/doc/man-pages/linux-api-ml.html
+> 
+> I think man page should document the change? Also I noticed that MPOL_NUMA
+> itself is missing in the man page...
+> 
+> On 09/18/2016 01:29 PM, Piotr Kwapulinski wrote:
+> > The MPOL_F_STATIC_NODES and MPOL_F_RELATIVE_NODES flags are irrelevant
+> > when setting them for MPOL_LOCAL NUMA memory policy via set_mempolicy.
+> > Return the "invalid argument" from set_mempolicy whenever
+> > any of these flags is passed along with MPOL_LOCAL.
+> > It is consistent with MPOL_PREFERRED passed with empty nodemask.
+> > It also slightly shortens the execution time in paths where these flags
+> > are used e.g. when trying to rebind the NUMA nodes for changes in
+> > cgroups cpuset mems (mpol_rebind_preferred()) or when just printing
+> > the mempolicy structure (/proc/PID/numa_maps).
+> 
+> Hmm not sure I understand. How does change in mpol_new() affect
+> mpol_rebind_preferred()?
+When MPOL_LOCAL is passed to set_mempolicy along with empty nodemask 
+it is transformed into MPOL_PREFERRED (inside mpol_new()).
+Unlike MPOL_PREFERRED the MPOL_LOCAL may be set along with 
+MPOL_F_STATIC_NODES or MPOL_F_RELATIVE_NODES flag (inconsistency).
+Later on when the set of allowed NUMA nodes is changed by cgroups 
+cpuset.mems the mpol_rebind_preferred() is called. Because one of
+the flags is set the unnecessary code is executed. The same is for
+mpol_to_str().
 
-usercopy: kernel memory exposure attempt detected from fffffc0000f3b1a8 (buffer_head) (1 bytes)
-------------[ cut here ]------------
-kernel BUG at mm/usercopy.c:75!
-Internal error: Oops - BUG: 0 [#1] SMP
-Modules linked in: ip6t_rpfilter ip6t_REJECT
-nf_reject_ipv6 xt_conntrack ip_set nfnetlink ebtable_broute bridge stp
-llc ebtable_nat ip6table_security ip6table_raw ip6table_nat
-nf_conntrack_ipv6 nf_defrag_ipv6 nf_nat_ipv6 ip6table_mangle
-iptable_security iptable_raw iptable_nat nf_conntrack_ipv4
-nf_defrag_ipv4 nf_nat_ipv4 nf_nat nf_conntrack iptable_mangle
-ebtable_filter ebtables ip6table_filter ip6_tables vfat fat xgene_edac
-xgene_enet edac_core i2c_xgene_slimpro i2c_core at803x realtek xgene_dma
-mdio_xgene gpio_dwapb gpio_xgene_sb xgene_rng mailbox_xgene_slimpro nfsd
-auth_rpcgss nfs_acl lockd grace sunrpc xfs libcrc32c sdhci_of_arasan
-sdhci_pltfm sdhci mmc_core xhci_plat_hcd gpio_keys
-CPU: 0 PID: 19744 Comm: updatedb Tainted: G        W 4.8.0-rc3-threadinfo+ #1
-Hardware name: AppliedMicro X-Gene Mustang Board/X-Gene Mustang Board, BIOS 3.06.12 Aug 12 2016
-task: fffffe03df944c00 task.stack: fffffe00d128c000
-PC is at __check_object_size+0x70/0x3f0
-LR is at __check_object_size+0x70/0x3f0
-...
-[<fffffc00082b4280>] __check_object_size+0x70/0x3f0
-[<fffffc00082cdc30>] filldir64+0x158/0x1a0
-[<fffffc0000f327e8>] __fat_readdir+0x4a0/0x558 [fat]
-[<fffffc0000f328d4>] fat_readdir+0x34/0x40 [fat]
-[<fffffc00082cd8f8>] iterate_dir+0x190/0x1e0
-[<fffffc00082cde58>] SyS_getdents64+0x88/0x120
-[<fffffc0008082c70>] el0_svc_naked+0x24/0x28
+> 
+> Vlastimil
+> 
+> > Isolated tests done.
+> > 
+> > Signed-off-by: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+> > ---
+> >  mm/mempolicy.c | 4 +++-
+> >  1 file changed, 3 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> > index 2da72a5..27b07d1 100644
+> > --- a/mm/mempolicy.c
+> > +++ b/mm/mempolicy.c
+> > @@ -276,7 +276,9 @@ static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
+> >  				return ERR_PTR(-EINVAL);
+> >  		}
+> >  	} else if (mode == MPOL_LOCAL) {
+> > -		if (!nodes_empty(*nodes))
+> > +		if (!nodes_empty(*nodes) ||
+> > +		    (flags & MPOL_F_STATIC_NODES) ||
+> > +		    (flags & MPOL_F_RELATIVE_NODES))
+> >  			return ERR_PTR(-EINVAL);
+> >  		mode = MPOL_PREFERRED;
+> >  	} else if (nodes_empty(*nodes))
+> > 
+> 
 
-fffffc0000f3b1a8 is a module address. Modules may have compiled in
-strings which could get copied to userspace. In this instance, it
-looks like "." which matches with a size of 1 byte. Extend the
-is_vmalloc_addr check to be is_vmalloc_or_module_addr to cover
-all possible cases.
-
-Signed-off-by: Laura Abbott <labbott@redhat.com>
----
-Longer term, it would be good to expand the check for to regions like
-regular kernel memory.
----
- mm/usercopy.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
-
-diff --git a/mm/usercopy.c b/mm/usercopy.c
-index 8ebae91..d8b5bd3 100644
---- a/mm/usercopy.c
-+++ b/mm/usercopy.c
-@@ -145,8 +145,11 @@ static inline const char *check_heap_object(const void *ptr, unsigned long n,
- 	 * Some architectures (arm64) return true for virt_addr_valid() on
- 	 * vmalloced addresses. Work around this by checking for vmalloc
- 	 * first.
-+	 *
-+	 * We also need to check for module addresses explicitly since we
-+	 * may copy static data from modules to userspace
- 	 */
--	if (is_vmalloc_addr(ptr))
-+	if (is_vmalloc_or_module_addr(ptr))
- 		return NULL;
- 
- 	if (!virt_addr_valid(ptr))
--- 
-2.7.4
+--
+Piotr Kwapulinski
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
