@@ -1,83 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AA916B0038
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 17:53:35 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id cg13so56064786pac.1
-        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 14:53:35 -0700 (PDT)
-Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com. [2607:f8b0:400e:c03::22f])
-        by mx.google.com with ESMTPS id er9si36862958pac.198.2016.09.20.14.53.34
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Sep 2016 14:53:34 -0700 (PDT)
-Received: by mail-pa0-x22f.google.com with SMTP id wk8so10947952pab.1
-        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 14:53:34 -0700 (PDT)
-Date: Tue, 20 Sep 2016 14:53:32 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mem-hotplug: Don't clear the only node in
- new_node_page()
-In-Reply-To: <c144f768-7591-8bb8-4238-b3f1ecaf8b4b@suse.cz>
-Message-ID: <alpine.DEB.2.10.1609201413210.84794@chino.kir.corp.google.com>
-References: <1473044391.4250.19.camel@TP420> <d7393a3e-73a7-7923-bc32-d4dcbc6523f9@suse.cz> <20160912091811.GE14524@dhcp22.suse.cz> <c144f768-7591-8bb8-4238-b3f1ecaf8b4b@suse.cz>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 773BC6B0038
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 17:59:27 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id v67so62336461pfv.1
+        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 14:59:27 -0700 (PDT)
+Received: from out4435.biz.mail.alibaba.com (out4435.biz.mail.alibaba.com. [47.88.44.35])
+        by mx.google.com with ESMTP id rd11si36880423pac.109.2016.09.20.14.59.25
+        for <linux-mm@kvack.org>;
+        Tue, 20 Sep 2016 14:59:26 -0700 (PDT)
+Message-ID: <57E1B2F4.5070009@emindsoft.com.cn>
+Date: Wed, 21 Sep 2016 06:06:44 +0800
+From: Chen Gang <chengang@emindsoft.com.cn>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] mm: migrate: Return false instead of -EAGAIN for dummy
+ functions
+References: <1474096836-31045-1-git-send-email-chengang@emindsoft.com.cn> <20160917154659.GA29145@dhcp22.suse.cz> <57E05CD2.5090408@emindsoft.com.cn> <20160920080923.GE5477@dhcp22.suse.cz>
+In-Reply-To: <20160920080923.GE5477@dhcp22.suse.cz>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@suse.cz>, Li Zhong <zhong@linux.vnet.ibm.com>, linux-mm <linux-mm@kvack.org>, jallen@linux.vnet.ibm.com, qiuxishi@huawei.com, iamjoonsoo.kim@lge.com, n-horiguchi@ah.jp.nec.com, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, gi-oh.kim@profitbricks.com, opensource.ganesh@gmail.com, hughd@google.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Gang <gang.chen.5i5j@gmail.com>
 
-On Tue, 20 Sep 2016, Vlastimil Babka wrote:
-
-> On 09/12/2016 11:18 AM, Michal Hocko wrote:
-> > On Mon 05-09-16 16:18:29, Vlastimil Babka wrote:
-> > 
-> > > Also OOM is skipped for __GFP_THISNODE
-> > > allocations, so we might also consider the same for nodemask-constrained
-> > > allocations?
-> > > 
-> > > > The patch checks whether it is the last node on the system, and if it
-> > > is, then
-> > > > don't clear the nid in the nodemask.
-> > > 
-> > > I'd rather see the allocation not OOM, and rely on the fallback in
-> > > new_node_page() that doesn't have nodemask. But I suspect it might also
-> > > make
-> > > sense to treat empty nodemask as something unexpected and put some WARN_ON
-> > > (instead of OOM) in the allocator.
-> > 
-> > To be honest I am really not all that happy about 394e31d2ceb4
-> > ("mem-hotplug: alloc new page from a nearest neighbor node when
-> > mem-offline") and find it a bit fishy. I would rather re-iterate that
-> > patch rather than build new hacks on top.
+On 9/20/16 16:09, Michal Hocko wrote:
+> On Tue 20-09-16 05:46:58, Chen Gang wrote:
+>>
+>> For me, it really need return false:
+>>
+>>  - For real implementation, when do nothing, it will return false.
+>>
+>>  - I assume that the input page already is in a node (although maybe my
+>>    assumption incorrect), and migrate to the same node. When the real
+>>    implementation fails (e.g. -EAGAIN 10 times), it still returns false.
+>>
+>>  - Original dummy implementation always return -EAGAIN, And -EAGAIN in
+>>    real implementation will trigger returning false, after 10 times.
+>>
+>>  - After grep TNF_MIGRATE_FAIL and TNF_MIGRATED, we only use them in
+>>    task_numa_fault in kernel/sched/fair.c for numa_pages_migrated and
+>>    numa_faults_locality, I guess they are only used for statistics.
+>>
+>> So for me the dummy implementation need return false instead of -EAGAIN.
 > 
-> OK, IIRC I suggested the main idea of clearing the current node from nodemask
-> and relying on nodelist to get us the other nodes sorted by their distance.
-> Which I thought was an easy way to get to the theoretically optimal result.
-> How would you rewrite it then? (but note that the fix is already mainline).
+> I see that the return value semantic might be really confusing. But I am
+> not sure why bool would make it all of the sudden any less confusing.
+> migrate_page returns -EAGAIN on failure and 0 on success, migrate_pages
+> returns -EAGAIN or number of not migrated pages on failure and 0 on
+> success. So migrate_misplaced_page doesn't fit into this mode with the
+> bool return value. So I would argue that the code is not any better.
 > 
 
-This is a mess.  Commit 9bb627be47a5 ("mem-hotplug: don't clear the only 
-node in new_node_page()") is wrong because it's clearing nid when the next 
-node in node_online_map doesn't match.  node_online_map is wrong because 
-it includes memoryless nodes.  (Nodes with closest NUMA distance also do 
-not need to have adjacent node ids.)
+I guess, numamigrate_isolate_page can be bool, at least.
 
-This is all protected by mem_hotplug_begin() and the zonelists will be 
-stable.  The solution is to rewrite new_node_page() to work correctly.  
-Use node_states[N_MEMORY] as mask, clear page_to_nid(page).  If mask is 
-not empty, do
+And yes, commonly, bool functions are for asking something, and int
+functions are for doing something, but not must be. When the caller care
+about success, but never care about every failure details, bool is OK.
 
-__alloc_pages_nodemask(gfp_mask, 0,
-node_zonelist(page_to_nid(page), gfp_mask), &mask) 
+In our case, for me, numa balancing is for performance. When return
+failure, the system has no any negative effect -- only lose a chance for
+improving performance.
 
-and fallback to alloc_page(gfp_mask), which should also be used if the 
-mask is empty -- do not try to allocate memory from the empty set of 
-nodes.
+ - For user, the failure times statistics is enough, they need not care
+   about every failure details.
 
-mm-page_alloc-warn-about-empty-nodemask.patch is a rather ridiculous 
-warning to need.  The largest user of a page allocator nodemask is 
-mempolicies which makes sure it doesn't pass an empty set.  If it's really 
-required, it should at least be unlikely() since the vast majority of 
-callers will have ac->nodemask == NULL.
+ - For tracer, the failure details statistics are meaningfulness, but
+   focusing on each failure details is meaningless. Now, it finishes a
+   part of failure details statistics -- which can be improved next.
+
+ - For debugger (or printing log), focusing on each failure details is
+   useful. But debugger already can check every details, returning every
+   failure details is still a little helpful, but not necessary.
+
+>>
+>> If our original implementation already used bool, our this issue (return
+>> -EAGAIN) would be avoided (compiler would help us to find this issue).
+> 
+> OK, so you pushed me to look into it deeper and the fact is that
+> migrate_misplaced_page return value doesn't matter at all for
+> CONFIG_NUMA_BALANCING=n because task_numa_fault is noop for that
+> configuration. Moreover the whole do_numa_page should never execute with
+> that configuration because we will not have numa pte_protnone() ptes in
+> that path. do_huge_pmd_numa_page seems be in a similar case. So this
+> doesn't have any real impact on the runtime AFAICS.
+> 
+
+OK, thanks.
+
+> So what is the point of this whole exercise? Do not take me wrong, this
+> area could see some improvements but I believe that doing int->bool
+> change is not just the right thing to do and worth spending both your
+> and reviewers time.
+> 
+
+I am not quite sure about that.
+
+Thanks.
+-- 
+Chen Gang (e??a??)
+
+Managing Natural Environments is the Duty of Human Beings.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
