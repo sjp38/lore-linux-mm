@@ -1,109 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C51D06B0038
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 16:34:38 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id fu14so53026809pad.0
-        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 13:34:38 -0700 (PDT)
-Received: from mail-pf0-x22c.google.com (mail-pf0-x22c.google.com. [2607:f8b0:400e:c00::22c])
-        by mx.google.com with ESMTPS id a5si36628243pac.173.2016.09.20.13.34.37
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BCFB66B025E
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 16:35:37 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id r126so68630710oib.2
+        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 13:35:37 -0700 (PDT)
+Received: from mail-oi0-x236.google.com (mail-oi0-x236.google.com. [2607:f8b0:4003:c06::236])
+        by mx.google.com with ESMTPS id c51si10624432ote.133.2016.09.20.13.35.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Sep 2016 13:34:37 -0700 (PDT)
-Received: by mail-pf0-x22c.google.com with SMTP id p64so10883749pfb.1
-        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 13:34:37 -0700 (PDT)
-Date: Tue, 20 Sep 2016 13:34:29 -0700 (PDT)
+        Tue, 20 Sep 2016 13:35:33 -0700 (PDT)
+Received: by mail-oi0-x236.google.com with SMTP id w11so36563905oia.2
+        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 13:35:33 -0700 (PDT)
+Date: Tue, 20 Sep 2016 13:35:30 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH v3] mm,ksm: fix endless looping in allocating memory when
- ksm enable
-In-Reply-To: <1474358125-29716-1-git-send-email-zhongjiang@huawei.com>
-Message-ID: <alpine.LSU.2.11.1609201333350.3225@eggly.anvils>
-References: <1474358125-29716-1-git-send-email-zhongjiang@huawei.com>
+Subject: Re: [PATCH] mm,ksm: add __GFP_HIGH to the allocation in
+ alloc_stable_node()
+In-Reply-To: <1474354484-58233-1-git-send-email-zhongjiang@huawei.com>
+Message-ID: <alpine.LSU.2.11.1609201334480.3225@eggly.anvils>
+References: <1474354484-58233-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: zhongjiang <zhongjiang@huawei.com>
-Cc: hughd@google.com, mhocko@suse.cz, penguin-kernel@i-love.sakura.ne.jp, rientjes@google.com, vbabka@suse.cz, akpm@linux-foundation.org, linux-mm@kvack.org
+Cc: hughd@google.com, akpm@linux-foundation.org, mhocko@suse.cz, vbabka@suse.cz, rientjes@google.com, linux-mm@kvack.org
 
 On Tue, 20 Sep 2016, zhongjiang wrote:
 
 > From: zhong jiang <zhongjiang@huawei.com>
 > 
-> I hit the following hung task when runing a OOM LTP test case with
-> 4.1 kernel.
+> Accoding to HUgh's suggestion, alloc_stable_node() with GFP_KERNEL
+> will cause the hungtask, despite less possiblity.
 > 
-> Call trace:
-> [<ffffffc000086a88>] __switch_to+0x74/0x8c
-> [<ffffffc000a1bae0>] __schedule+0x23c/0x7bc
-> [<ffffffc000a1c09c>] schedule+0x3c/0x94
-> [<ffffffc000a1eb84>] rwsem_down_write_failed+0x214/0x350
-> [<ffffffc000a1e32c>] down_write+0x64/0x80
-> [<ffffffc00021f794>] __ksm_exit+0x90/0x19c
-> [<ffffffc0000be650>] mmput+0x118/0x11c
-> [<ffffffc0000c3ec4>] do_exit+0x2dc/0xa74
-> [<ffffffc0000c46f8>] do_group_exit+0x4c/0xe4
-> [<ffffffc0000d0f34>] get_signal+0x444/0x5e0
-> [<ffffffc000089fcc>] do_signal+0x1d8/0x450
-> [<ffffffc00008a35c>] do_notify_resume+0x70/0x78
+> At present, if alloc_stable_node allocate fails, two break_cow may
+> want to allocate a couple of pages, and the issue will come up when
+> free memory is under pressure.
 > 
-> The oom victim cannot terminate because it needs to take mmap_sem for
-> write while the lock is held by ksmd for read which loops in the page
-> allocator
+> we fix it by adding the __GFP_HIGH to GFP. because it grant access to
+> some of meory reserves. it will make progess to make it allocation
+> successful at the utmost.
 > 
-> ksm_do_scan
-> 	scan_get_next_rmap_item
-> 		down_read
-> 		get_next_rmap_item
-> 			alloc_rmap_item   #ksmd will loop permanently.
-> 
-> There is not way forward because the oom victim cannot release any
-> memory in 4.1 based kernel. Since 4.6 we have the oom reaper which would
-> solve this problem because it would release the memory asynchronously.
-> Nevertheless we can relax alloc_rmap_item requirements and use
-> __GFP_NORETRY because the allocation failure is acceptable as
-> ksm_do_scan would just retry later after the lock got dropped.
-> 
-> Such a patch would be also easy to backport to older stable kernels
-> which do not have oom_reaper.
-> 
-> While we are at it add GFP_NOWARN as the admin doesn't have to be
-> alarmed by the allocation failure.
-> 
-> CC: <stable@vger.kernel.org>
 > Suggested-by: Hugh Dickins <hughd@google.com>
-> Suggested-by: Michal Hocko <mhocko@suse.cz>
 > Signed-off-by: zhong jiang <zhongjiang@huawei.com>
 
 Thanks,
 Acked-by: Hugh Dickins <hughd@google.com>
 
 > ---
->  mm/ksm.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
+>  mm/ksm.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
 > diff --git a/mm/ksm.c b/mm/ksm.c
-> index 73d43ba..5048083 100644
+> index 5048083..42bf16e 100644
 > --- a/mm/ksm.c
 > +++ b/mm/ksm.c
-> @@ -283,7 +283,8 @@ static inline struct rmap_item *alloc_rmap_item(void)
->  {
->  	struct rmap_item *rmap_item;
+> @@ -299,7 +299,7 @@ static inline void free_rmap_item(struct rmap_item *rmap_item)
 >  
-> -	rmap_item = kmem_cache_zalloc(rmap_item_cache, GFP_KERNEL);
-> +	rmap_item = kmem_cache_zalloc(rmap_item_cache, GFP_KERNEL |
-> +						__GFP_NORETRY | __GFP_NOWARN);
->  	if (rmap_item)
->  		ksm_rmap_items++;
->  	return rmap_item;
+>  static inline struct stable_node *alloc_stable_node(void)
+>  {
+> -	return kmem_cache_alloc(stable_node_cache, GFP_KERNEL);
+> +	return kmem_cache_alloc(stable_node_cache, GFP_KERNEL | __GFP_HIGH);
+>  }
+>  
+>  static inline void free_stable_node(struct stable_node *stable_node)
 > -- 
 > 1.8.3.1
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
