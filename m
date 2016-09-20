@@ -1,209 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 28DAF6B0038
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 00:05:42 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id mi5so11446215pab.2
-        for <linux-mm@kvack.org>; Mon, 19 Sep 2016 21:05:42 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id p64si32390464pfg.111.2016.09.19.21.05.40
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 19 Sep 2016 21:05:41 -0700 (PDT)
-Subject: Re: [RFC] Arm64 boot fail with numa enable in BIOS
-References: <7618d76d-bfa8-d8aa-59aa-06f9d90c1a98@huawei.com>
- <CACVXFVPnhagod6Gs7czdh+Gg3LrwPq514PvKiofeQwQC4w3Uog@mail.gmail.com>
-From: Yisheng Xie <xieyisheng1@huawei.com>
-Message-ID: <c8d072f7-bbcd-5ecc-facc-9072ca942223@huawei.com>
-Date: Tue, 20 Sep 2016 12:05:17 +0800
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D00EF6B0253
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 00:06:03 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id q92so23389429ioi.3
+        for <linux-mm@kvack.org>; Mon, 19 Sep 2016 21:06:03 -0700 (PDT)
+Received: from out0-133.mail.aliyun.com (out0-133.mail.aliyun.com. [140.205.0.133])
+        by mx.google.com with ESMTP id i123si30928885ioa.113.2016.09.19.21.06.02
+        for <linux-mm@kvack.org>;
+        Mon, 19 Sep 2016 21:06:03 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <57DF4FEA.9080509@huawei.com> <57E0A2EC.7050809@huawei.com>
+In-Reply-To: <57E0A2EC.7050809@huawei.com>
+Subject: Re: [question] hugetlb: how to find who use hugetlb?
+Date: Tue, 20 Sep 2016 12:05:59 +0800
+Message-ID: <055801d212f4$4b9c4b60$e2d4e220$@alibaba-inc.com>
 MIME-Version: 1.0
-In-Reply-To: <CACVXFVPnhagod6Gs7czdh+Gg3LrwPq514PvKiofeQwQC4w3Uog@mail.gmail.com>
-Content-Type: text/plain; charset="utf-8"
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ming Lei <tom.leiming@gmail.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Hanjun Guo <guohanjun@huawei.com>, Xishi Qiu <qiuxishi@huawei.com>
+To: 'Xishi Qiu' <qiuxishi@huawei.com>, 'Linux MM' <linux-mm@kvack.org>
 
+> > So how to find who use the additional hugetlb?
+> > 
+Take a peek please at 5d317b2b653 
+("mm: hugetlb: proc: add HugetlbPages field to /proc/PID/status")
 
+Hillf
 
-On 2016/9/20 10:01, Ming Lei wrote:
-> On Mon, Sep 19, 2016 at 9:05 PM, Yisheng Xie <xieyisheng1@huawei.com> wrote:
->> hi all,
->> When I enable NUMA in BIOS for arm64, it failed to boot on v4.8-rc4-162-g071e31e.
->> For the crash log, it seems caused by error number of cpumask.
->> Any ideas about it?
-> 
-> When I played v4.7 on ARM64 with NUMA, I saw the same issue[1] too,
-> but it can be avoided by reverting e9d867a(sched: Allow per-cpu kernel
-> threads to run on online && !active).
-> 
-> But with v4.8-rc6, looks the issue can't be observed any more, so I guess
-> it has been fixed with some recent patch.
-> 
-> 
-> [1] https://lkml.org/lkml/2016/8/8/74
-> 
-> Thanks,
-> 
-Hi Ming,
-Thanks for this info.
-Do you use the same config as me? I have tried on 4.8.0-rc6-00331-gb01cf67
-also have the same problem.
-
-Thanks
-Yisheng Xie
-
->>
->> Thanks.
->>
->> The related config and detail dmesg can be seen in the attachment.
->>
->> --- crash messages ---
->> [    1.279155] ------------[ cut here ]------------
->> [    1.537146] WARNING: CPU: 16 PID: 103 at ./include/linux/cpumask.h:121 try_to_wake_up+0x298/0x300
->> [    1.546112] Modules linked in:
->> [    1.549190]
->> [    1.550687] CPU: 16 PID: 103 Comm: cpuhp/16 Tainted: G        W       4.8.0-rc4-00163-g803ea3a #21
->> [    1.559741] Hardware name: Hisilicon Hi1616 Evaluation Board (DT)
->> [    1.565896] task: ffff8013e9678000 task.stack: ffff8013e9674000
->> [    1.571874] PC is at try_to_wake_up+0x298/0x300
->> [    1.576446] LR is at try_to_wake_up+0x278/0x300
->> [    1.581019] pc : [<ffff0000080df66c>] lr : [<ffff0000080df64c>] pstate: 200000c5
->> [    1.588490] sp : ffff8013e9677b90
->> [    1.591832] x29: ffff8013e9677b90 x28: ffff8413eb81a4b0
->> [    1.597196] x27: 000000000000008c x26: ffff000008d6e840
->> [    1.602561] x25: 0000000000000004 x24: ffff8013e96e82e0
->> [    1.607925] x23: 0000000000000040 x22: 00000000000000c0
->> [    1.613289] x21: ffff8013e96e868c x20: 0000000000000000
->> [    1.618653] x19: ffff8013e96e8000 x18: 0000000000000000
->> [    1.624018] x17: 0000000000000000 x16: 0000000003010066
->> [    1.629381] x15: ffff000008ca8000 x14: 0000000000000003
->> [    1.634745] x13: 0000000000000026 x12: 0000000000000009
->> [    1.640109] x11: 0000000000000009 x10: 0000000000000000
->> [    1.645472] x9 : 0000000000000000 x8 : 0000000000000014
->> [    1.650837] x7 : ffff8013e9452e00 x6 : 0000000000000000
->> [    1.656200] x5 : ffffffffffffffff x4 : 0000000000000000
->> [    1.661565] x3 : 0000000000000000 x2 : 0000000000000040
->> [    1.666929] x1 : 0000000000000001 x0 : ffff000008d63df9
->> [    1.672293]
->> [    1.673788] ---[ end trace b58e70f3295a8cd8 ]---
->> [    1.678448] Call trace:
->> [    1.680911] Exception stack(0xffff8013e96779c0 to 0xffff8013e9677af0)
->> [    1.687417] 79c0: ffff8013e96e8000 0001000000000000 ffff8013e9677b90 ffff0000080df66c
->> [    1.695329] 79e0: 0000000000000000 ffff00000808e1f4 0000000000000000 ffff8013e9d30c80
->> [    1.703242] 7a00: ffff8013e9677a20 ffff00000882b6f4 ffff8013e9677a60 ffff0000080dd384
->> [    1.711153] 7a20: 0000000000000000 ffff8013e9677b00 ffff000008cbaa00 ffff000008d6e000
->> [    1.719065] 7a40: 0000000000000000 00000000ffffffff 0000000000000001 0000000000000080
->> [    1.726977] 7a60: ffff000008d63df9 0000000000000001 0000000000000040 0000000000000000
->> [    1.734889] 7a80: 0000000000000000 ffffffffffffffff 0000000000000000 ffff8013e9452e00
->> [    1.742801] 7aa0: 0000000000000014 0000000000000000 0000000000000000 0000000000000009
->> [    1.750713] 7ac0: 0000000000000009 0000000000000026 0000000000000003 ffff000008ca8000
->> [    1.758624] 7ae0: 0000000003010066 0000000000000000
->> [    1.763548] [<ffff0000080df66c>] try_to_wake_up+0x298/0x300
->> [    1.769175] [<ffff0000080df6e8>] wake_up_process+0x14/0x1c
->> [    1.774716] [<ffff0000080d027c>] create_worker+0x108/0x194
->> [    1.780255] [<ffff0000080d2cf4>] alloc_unbound_pwq+0x1e4/0x398
->> [    1.786146] [<ffff0000080d2f84>] wq_update_unbound_numa+0xdc/0x190
->> [    1.792389] [<ffff0000080d4094>] workqueue_online_cpu+0x254/0x2a8
->> [    1.798545] [<ffff0000080bb8a4>] cpuhp_up_callbacks+0x54/0x100
->> [    1.804436] [<ffff0000080bbb40>] cpuhp_thread_fun+0x12c/0x13c
->> [    1.810240] [<ffff0000080daf00>] smpboot_thread_fn+0x1a8/0x1cc
->> [    1.816130] [<ffff0000080d7844>] kthread+0xd4/0xe8
->> [    1.820967] [<ffff000008082e90>] ret_from_fork+0x10/0x40
->> [    1.826334] Unable to handle kernel paging request at virtual address fffe841404c71524
->> [    1.834333] pgd = ffff000008dae000
->> [    1.837762] [fffe841404c71524] *pgd=00000413fbfee003, *pud=0000000000000000
->> [    1.844797] Internal error: Oops: 96000004 [#1] SMP
->> [    1.849720] Modules linked in:
->> [    1.852799] CPU: 16 PID: 103 Comm: cpuhp/16 Tainted: G        W       4.8.0-rc4-00163-g803ea3a #21
->> [    1.861853] Hardware name: Hisilicon Hi1616 Evaluation Board (DT)
->> [    1.868007] task: ffff8013e9678000 task.stack: ffff8013e9674000
->> [    1.873985] PC is at try_to_wake_up+0x148/0x300
->> [    1.878557] LR is at try_to_wake_up+0x11c/0x300
->> [    1.883129] pc : [<ffff0000080df51c>] lr : [<ffff0000080df4f0>] pstate: 600000c5
->> [    1.890602] sp : ffff8013e9677b90
->> [    1.893943] x29: ffff8013e9677b90 x28: ffff8413eb81a4b0
->> [    1.899307] x27: 000000000000008c x26: ffff000008d6e840
->> [    1.904670] x25: ffff000008ca5f10 x24: ffff000008c77600
->> [    1.910033] x23: 0000000000000040 x22: 00000000000000c0
->> [    1.915398] x21: ffff8013e96e868c x20: 0000000000000004
->> [    1.920761] x19: ffff8013e96e8000 x18: 0000000000000000
->> [    1.926125] x17: 0000000000000000 x16: 0000000003010066
->> [    1.931489] x15: ffff000008ca8000 x14: 0000000000000003
->> [    1.936853] x13: 0000000000000026 x12: 0000000000000009
->> [    1.942217] x11: 0000000000000009 x10: 0000000000000000
->> [    1.947581] x9 : 0000000000000000 x8 : 0000000000000014
->> [    1.952945] x7 : ffff8013e9452e00 x6 : 0000000000000000
->> [    1.958309] x5 : ffff8413eb6ca700 x4 : 0000000000000000
->> [    1.963674] x3 : 00008413e2ba3000 x2 : 0000000000000010
->> [    1.969037] x1 : ffff8413fbfffa80 x0 : ffff000008c71aa4
->> [    1.974401]
->> [    1.975897] Process cpuhp/16 (pid: 103, stack limit = 0xffff8013e9674020)
->> [    1.982754] Stack: (0xffff8013e9677b90 to 0xffff8013e9678000)
->> [    1.988556] 7b80:                                   ffff8013e9677bf0 ffff0000080df6e8
->> [    1.996468] 7ba0: ffff8013e96e0000 ffff8013e96d0000 0000000000000000 ffff8013e9677c40
->> [    2.004381] 7bc0: ffff8013e96d0318 ffff8013e96d0000 0000000000000004 ffff0000080d0254
->> [    2.012293] 7be0: ffff8013e9677c00 ffff0000080d0274 ffff8013e9677c00 ffff0000080d027c
->> [    2.020204] 7c00: ffff8013e9677c50 ffff0000080d2cf4 ffff000008d6e000 ffff8013e9cdf100
->> [    2.028116] 7c20: 0000000000000021 ffff8413e98b9000 0000000000000000 ffff0000080d2ce8
->> [    2.036028] 7c40: ff00303a39323175 ffff0000080d2e3c ffff8013e9677ca0 ffff0000080d2f84
->> [    2.043940] 7c60: ffff8413e98b9000 0000000000000001 ffff8013e9cdf100 ffff8013e9da4000
->> [    2.051852] 7c80: ffff8013e9677d6c ffff000008d6eaa8 0000000000000000 ffff000008d63dc9
->> [    2.059764] 7ca0: ffff8013e9677ce0 ffff0000080d4094 ffff8413e98b9000 ffff000008cb9978
->> [    2.067675] 7cc0: 0000000000000010 ffff000008d6e840 ffff8013e9677d6c ffff0000080d3ec0
->> [    2.075587] 7ce0: ffff8013e9677d70 ffff0000080bb8a4 ffff8413eb814a08 ffff000008cb5688
->> [    2.083499] 7d00: 0000000000000010 0000000000000045 0000000000000000 0000000000000079
->> [    2.091411] 7d20: 0000000000000001 0000000000000000 0000000000000000 0000000000000000
->> [    2.099323] 7d40: ffff8413eb814a08 01ff000008cb5688 0000000000000000 0000000000010000
->> [    2.107234] 7d60: 0000000000000000 0000008100000079 ffff8013e9677db0 ffff0000080bbb40
->> [    2.115147] 7d80: ffff8413eb814a08 0000000000000010 0000000000000001 ffff000008cb6ef8
->> [    2.123058] 7da0: 0000000000000001 0000000000000002 ffff8013e9677dd0 ffff0000080daf00
->> [    2.130970] 7dc0: ffff8013e9674000 ffff8013e9450000 ffff8013e9677e20 ffff0000080d7844
->> [    2.138883] 7de0: ffff8013e9450080 ffff000008d6eb20 ffff000008a8dba0 ffff8013e9450000
->> [    2.146795] 7e00: ffff0000080dad58 0000000000000000 0000000000000000 ffff8013e9450000
->> [    2.154706] 7e20: 0000000000000000 ffff000008082e90 ffff0000080d7770 ffff8013e9450080
->> [    2.162618] 7e40: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
->> [    2.170530] 7e60: ffff8013e9677ea0 0000000000000001 ffff000000000010 ffff8013e9450000
->> [    2.178442] 7e80: 0000000000000000 0000000000030003 ffff8013e9677e90 ffff8013e9677e90
->> [    2.186354] 7ea0: 0000000000000000 ffff000000000000 ffff8013e9677eb0 ffff8013e9677eb0
->> [    2.194265] 7ec0: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
->> [    2.202177] 7ee0: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
->> [    2.210089] 7f00: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
->> [    2.218001] 7f20: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
->> [    2.225913] 7f40: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
->> [    2.233824] 7f60: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
->> [    2.241736] 7f80: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
->> [    2.249648] 7fa0: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
->> [    2.257560] 7fc0: 0000000000000000 0000000000000005 0000000000000000 0000000000000000
->> [    2.265472] 7fe0: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
->> [    2.273383] Call trace:
->> [    2.275846] Exception stack(0xffff8013e96779c0 to 0xffff8013e9677af0)
->> [    2.282352] 79c0: ffff8013e96e8000 0001000000000000 ffff8013e9677b90 ffff0000080df51c
->> [    2.290264] 79e0: 0000000000000000 ffff00000808e1f4 0000000000000000 ffff8013e9d30c80
->> [    2.298177] 7a00: ffff8013e9677a20 ffff00000882b6f4 ffff8013e9677a60 ffff0000080dd384
->> [    2.306089] 7a20: 0000000000000000 ffff8013e9677b00 ffff000008cbaa00 ffff000008d6e000
->> [    2.314001] 7a40: 0000000000000000 00000000ffffffff 0000000000000001 0000000000000080
->> [    2.321912] 7a60: ffff000008c71aa4 ffff8413fbfffa80 0000000000000010 00008413e2ba3000
->> [    2.329824] 7a80: 0000000000000000 ffff8413eb6ca700 0000000000000000 ffff8013e9452e00
->> [    2.337736] 7aa0: 0000000000000014 0000000000000000 0000000000000000 0000000000000009
->> [    2.345648] 7ac0: 0000000000000009 0000000000000026 0000000000000003 ffff000008ca8000
->> [    2.353559] 7ae0: 0000000003010066 0000000000000000
->> [    2.358483] [<ffff0000080df51c>] try_to_wake_up+0x148/0x300
->> [    2.364110] [<ffff0000080df6e8>] wake_up_process+0x14/0x1c
->> [    2.369649] [<ffff0000080d027c>] create_worker+0x108/0x194
->> [    2.375189] [<ffff0000080d2cf4>] alloc_unbound_pwq+0x1e4/0x398
->> [    2.381080] [<ffff0000080d2f84>] wq_update_unbound_numa+0xdc/0x190
->> [    2.387322] [<ffff0000080d4094>] workqueue_online_cpu+0x254/0x2a8
->> [    2.393477] [<ffff0000080bb8a4>] cpuhp_up_callbacks+0x54/0x100
->> [    2.399368] [<ffff0000080bbb40>] cpuhp_thread_fun+0x12c/0x13c
->> [    2.405171] [<ffff0000080daf00>] smpboot_thread_fn+0x1a8/0x1cc
->> [    2.411061] [<ffff0000080d7844>] kthread+0xd4/0xe8
->> [    2.415897] [<ffff000008082e90>] ret_from_fork+0x10/0x40
->> [    2.421261] Code: f877db21 90005cd8 f8627b23 91180318 (b8616802)
->> [    2.427426] ---[ end trace b58e70f3295a8cd9 ]---
-> 
-> 
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
