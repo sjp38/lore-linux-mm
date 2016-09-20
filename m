@@ -1,146 +1,200 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 370DC6B0038
-	for <linux-mm@kvack.org>; Mon, 19 Sep 2016 21:20:59 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id y6so1815319lff.0
-        for <linux-mm@kvack.org>; Mon, 19 Sep 2016 18:20:59 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id n97si11760624lfg.162.2016.09.19.18.20.56
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 416606B0038
+	for <linux-mm@kvack.org>; Mon, 19 Sep 2016 22:01:24 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 21so8316162pfy.3
+        for <linux-mm@kvack.org>; Mon, 19 Sep 2016 19:01:24 -0700 (PDT)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id v66si33031698pfj.183.2016.09.19.19.01.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 19 Sep 2016 18:20:57 -0700 (PDT)
-Subject: Re: [RFC] Arm64 boot fail with numa enable in BIOS
-References: <7618d76d-bfa8-d8aa-59aa-06f9d90c1a98@huawei.com>
- <20160919140709.GA17464@leverpostej> <20160919144542.GK9005@arm.com>
-From: "Leizhen (ThunderTown)" <thunder.leizhen@huawei.com>
-Message-ID: <57E08EA8.8000807@huawei.com>
-Date: Tue, 20 Sep 2016 09:19:36 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 19 Sep 2016 19:01:23 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id q2so185662pfj.0
+        for <linux-mm@kvack.org>; Mon, 19 Sep 2016 19:01:23 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20160919144542.GK9005@arm.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <7618d76d-bfa8-d8aa-59aa-06f9d90c1a98@huawei.com>
+References: <7618d76d-bfa8-d8aa-59aa-06f9d90c1a98@huawei.com>
+From: Ming Lei <tom.leiming@gmail.com>
+Date: Tue, 20 Sep 2016 10:01:22 +0800
+Message-ID: <CACVXFVPnhagod6Gs7czdh+Gg3LrwPq514PvKiofeQwQC4w3Uog@mail.gmail.com>
+Subject: Re: [RFC] Arm64 boot fail with numa enable in BIOS
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>
-Cc: Yisheng Xie <xieyisheng1@huawei.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hanjun Guo <guohanjun@huawei.com>, Xishi Qiu <qiuxishi@huawei.com>, linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com
+To: Yisheng Xie <xieyisheng1@huawei.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Hanjun Guo <guohanjun@huawei.com>, Xishi Qiu <qiuxishi@huawei.com>
+
+On Mon, Sep 19, 2016 at 9:05 PM, Yisheng Xie <xieyisheng1@huawei.com> wrote:
+> hi all,
+> When I enable NUMA in BIOS for arm64, it failed to boot on v4.8-rc4-162-g071e31e.
+> For the crash log, it seems caused by error number of cpumask.
+> Any ideas about it?
+
+When I played v4.7 on ARM64 with NUMA, I saw the same issue[1] too,
+but it can be avoided by reverting e9d867a(sched: Allow per-cpu kernel
+threads to run on online && !active).
+
+But with v4.8-rc6, looks the issue can't be observed any more, so I guess
+it has been fixed with some recent patch.
+
+
+[1] https://lkml.org/lkml/2016/8/8/74
+
+Thanks,
+
+>
+> Thanks.
+>
+> The related config and detail dmesg can be seen in the attachment.
+>
+> --- crash messages ---
+> [    1.279155] ------------[ cut here ]------------
+> [    1.537146] WARNING: CPU: 16 PID: 103 at ./include/linux/cpumask.h:121 try_to_wake_up+0x298/0x300
+> [    1.546112] Modules linked in:
+> [    1.549190]
+> [    1.550687] CPU: 16 PID: 103 Comm: cpuhp/16 Tainted: G        W       4.8.0-rc4-00163-g803ea3a #21
+> [    1.559741] Hardware name: Hisilicon Hi1616 Evaluation Board (DT)
+> [    1.565896] task: ffff8013e9678000 task.stack: ffff8013e9674000
+> [    1.571874] PC is at try_to_wake_up+0x298/0x300
+> [    1.576446] LR is at try_to_wake_up+0x278/0x300
+> [    1.581019] pc : [<ffff0000080df66c>] lr : [<ffff0000080df64c>] pstate: 200000c5
+> [    1.588490] sp : ffff8013e9677b90
+> [    1.591832] x29: ffff8013e9677b90 x28: ffff8413eb81a4b0
+> [    1.597196] x27: 000000000000008c x26: ffff000008d6e840
+> [    1.602561] x25: 0000000000000004 x24: ffff8013e96e82e0
+> [    1.607925] x23: 0000000000000040 x22: 00000000000000c0
+> [    1.613289] x21: ffff8013e96e868c x20: 0000000000000000
+> [    1.618653] x19: ffff8013e96e8000 x18: 0000000000000000
+> [    1.624018] x17: 0000000000000000 x16: 0000000003010066
+> [    1.629381] x15: ffff000008ca8000 x14: 0000000000000003
+> [    1.634745] x13: 0000000000000026 x12: 0000000000000009
+> [    1.640109] x11: 0000000000000009 x10: 0000000000000000
+> [    1.645472] x9 : 0000000000000000 x8 : 0000000000000014
+> [    1.650837] x7 : ffff8013e9452e00 x6 : 0000000000000000
+> [    1.656200] x5 : ffffffffffffffff x4 : 0000000000000000
+> [    1.661565] x3 : 0000000000000000 x2 : 0000000000000040
+> [    1.666929] x1 : 0000000000000001 x0 : ffff000008d63df9
+> [    1.672293]
+> [    1.673788] ---[ end trace b58e70f3295a8cd8 ]---
+> [    1.678448] Call trace:
+> [    1.680911] Exception stack(0xffff8013e96779c0 to 0xffff8013e9677af0)
+> [    1.687417] 79c0: ffff8013e96e8000 0001000000000000 ffff8013e9677b90 ffff0000080df66c
+> [    1.695329] 79e0: 0000000000000000 ffff00000808e1f4 0000000000000000 ffff8013e9d30c80
+> [    1.703242] 7a00: ffff8013e9677a20 ffff00000882b6f4 ffff8013e9677a60 ffff0000080dd384
+> [    1.711153] 7a20: 0000000000000000 ffff8013e9677b00 ffff000008cbaa00 ffff000008d6e000
+> [    1.719065] 7a40: 0000000000000000 00000000ffffffff 0000000000000001 0000000000000080
+> [    1.726977] 7a60: ffff000008d63df9 0000000000000001 0000000000000040 0000000000000000
+> [    1.734889] 7a80: 0000000000000000 ffffffffffffffff 0000000000000000 ffff8013e9452e00
+> [    1.742801] 7aa0: 0000000000000014 0000000000000000 0000000000000000 0000000000000009
+> [    1.750713] 7ac0: 0000000000000009 0000000000000026 0000000000000003 ffff000008ca8000
+> [    1.758624] 7ae0: 0000000003010066 0000000000000000
+> [    1.763548] [<ffff0000080df66c>] try_to_wake_up+0x298/0x300
+> [    1.769175] [<ffff0000080df6e8>] wake_up_process+0x14/0x1c
+> [    1.774716] [<ffff0000080d027c>] create_worker+0x108/0x194
+> [    1.780255] [<ffff0000080d2cf4>] alloc_unbound_pwq+0x1e4/0x398
+> [    1.786146] [<ffff0000080d2f84>] wq_update_unbound_numa+0xdc/0x190
+> [    1.792389] [<ffff0000080d4094>] workqueue_online_cpu+0x254/0x2a8
+> [    1.798545] [<ffff0000080bb8a4>] cpuhp_up_callbacks+0x54/0x100
+> [    1.804436] [<ffff0000080bbb40>] cpuhp_thread_fun+0x12c/0x13c
+> [    1.810240] [<ffff0000080daf00>] smpboot_thread_fn+0x1a8/0x1cc
+> [    1.816130] [<ffff0000080d7844>] kthread+0xd4/0xe8
+> [    1.820967] [<ffff000008082e90>] ret_from_fork+0x10/0x40
+> [    1.826334] Unable to handle kernel paging request at virtual address fffe841404c71524
+> [    1.834333] pgd = ffff000008dae000
+> [    1.837762] [fffe841404c71524] *pgd=00000413fbfee003, *pud=0000000000000000
+> [    1.844797] Internal error: Oops: 96000004 [#1] SMP
+> [    1.849720] Modules linked in:
+> [    1.852799] CPU: 16 PID: 103 Comm: cpuhp/16 Tainted: G        W       4.8.0-rc4-00163-g803ea3a #21
+> [    1.861853] Hardware name: Hisilicon Hi1616 Evaluation Board (DT)
+> [    1.868007] task: ffff8013e9678000 task.stack: ffff8013e9674000
+> [    1.873985] PC is at try_to_wake_up+0x148/0x300
+> [    1.878557] LR is at try_to_wake_up+0x11c/0x300
+> [    1.883129] pc : [<ffff0000080df51c>] lr : [<ffff0000080df4f0>] pstate: 600000c5
+> [    1.890602] sp : ffff8013e9677b90
+> [    1.893943] x29: ffff8013e9677b90 x28: ffff8413eb81a4b0
+> [    1.899307] x27: 000000000000008c x26: ffff000008d6e840
+> [    1.904670] x25: ffff000008ca5f10 x24: ffff000008c77600
+> [    1.910033] x23: 0000000000000040 x22: 00000000000000c0
+> [    1.915398] x21: ffff8013e96e868c x20: 0000000000000004
+> [    1.920761] x19: ffff8013e96e8000 x18: 0000000000000000
+> [    1.926125] x17: 0000000000000000 x16: 0000000003010066
+> [    1.931489] x15: ffff000008ca8000 x14: 0000000000000003
+> [    1.936853] x13: 0000000000000026 x12: 0000000000000009
+> [    1.942217] x11: 0000000000000009 x10: 0000000000000000
+> [    1.947581] x9 : 0000000000000000 x8 : 0000000000000014
+> [    1.952945] x7 : ffff8013e9452e00 x6 : 0000000000000000
+> [    1.958309] x5 : ffff8413eb6ca700 x4 : 0000000000000000
+> [    1.963674] x3 : 00008413e2ba3000 x2 : 0000000000000010
+> [    1.969037] x1 : ffff8413fbfffa80 x0 : ffff000008c71aa4
+> [    1.974401]
+> [    1.975897] Process cpuhp/16 (pid: 103, stack limit = 0xffff8013e9674020)
+> [    1.982754] Stack: (0xffff8013e9677b90 to 0xffff8013e9678000)
+> [    1.988556] 7b80:                                   ffff8013e9677bf0 ffff0000080df6e8
+> [    1.996468] 7ba0: ffff8013e96e0000 ffff8013e96d0000 0000000000000000 ffff8013e9677c40
+> [    2.004381] 7bc0: ffff8013e96d0318 ffff8013e96d0000 0000000000000004 ffff0000080d0254
+> [    2.012293] 7be0: ffff8013e9677c00 ffff0000080d0274 ffff8013e9677c00 ffff0000080d027c
+> [    2.020204] 7c00: ffff8013e9677c50 ffff0000080d2cf4 ffff000008d6e000 ffff8013e9cdf100
+> [    2.028116] 7c20: 0000000000000021 ffff8413e98b9000 0000000000000000 ffff0000080d2ce8
+> [    2.036028] 7c40: ff00303a39323175 ffff0000080d2e3c ffff8013e9677ca0 ffff0000080d2f84
+> [    2.043940] 7c60: ffff8413e98b9000 0000000000000001 ffff8013e9cdf100 ffff8013e9da4000
+> [    2.051852] 7c80: ffff8013e9677d6c ffff000008d6eaa8 0000000000000000 ffff000008d63dc9
+> [    2.059764] 7ca0: ffff8013e9677ce0 ffff0000080d4094 ffff8413e98b9000 ffff000008cb9978
+> [    2.067675] 7cc0: 0000000000000010 ffff000008d6e840 ffff8013e9677d6c ffff0000080d3ec0
+> [    2.075587] 7ce0: ffff8013e9677d70 ffff0000080bb8a4 ffff8413eb814a08 ffff000008cb5688
+> [    2.083499] 7d00: 0000000000000010 0000000000000045 0000000000000000 0000000000000079
+> [    2.091411] 7d20: 0000000000000001 0000000000000000 0000000000000000 0000000000000000
+> [    2.099323] 7d40: ffff8413eb814a08 01ff000008cb5688 0000000000000000 0000000000010000
+> [    2.107234] 7d60: 0000000000000000 0000008100000079 ffff8013e9677db0 ffff0000080bbb40
+> [    2.115147] 7d80: ffff8413eb814a08 0000000000000010 0000000000000001 ffff000008cb6ef8
+> [    2.123058] 7da0: 0000000000000001 0000000000000002 ffff8013e9677dd0 ffff0000080daf00
+> [    2.130970] 7dc0: ffff8013e9674000 ffff8013e9450000 ffff8013e9677e20 ffff0000080d7844
+> [    2.138883] 7de0: ffff8013e9450080 ffff000008d6eb20 ffff000008a8dba0 ffff8013e9450000
+> [    2.146795] 7e00: ffff0000080dad58 0000000000000000 0000000000000000 ffff8013e9450000
+> [    2.154706] 7e20: 0000000000000000 ffff000008082e90 ffff0000080d7770 ffff8013e9450080
+> [    2.162618] 7e40: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+> [    2.170530] 7e60: ffff8013e9677ea0 0000000000000001 ffff000000000010 ffff8013e9450000
+> [    2.178442] 7e80: 0000000000000000 0000000000030003 ffff8013e9677e90 ffff8013e9677e90
+> [    2.186354] 7ea0: 0000000000000000 ffff000000000000 ffff8013e9677eb0 ffff8013e9677eb0
+> [    2.194265] 7ec0: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+> [    2.202177] 7ee0: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+> [    2.210089] 7f00: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+> [    2.218001] 7f20: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+> [    2.225913] 7f40: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+> [    2.233824] 7f60: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+> [    2.241736] 7f80: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+> [    2.249648] 7fa0: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+> [    2.257560] 7fc0: 0000000000000000 0000000000000005 0000000000000000 0000000000000000
+> [    2.265472] 7fe0: 0000000000000000 0000000000000000 0000000000000000 0000000000000000
+> [    2.273383] Call trace:
+> [    2.275846] Exception stack(0xffff8013e96779c0 to 0xffff8013e9677af0)
+> [    2.282352] 79c0: ffff8013e96e8000 0001000000000000 ffff8013e9677b90 ffff0000080df51c
+> [    2.290264] 79e0: 0000000000000000 ffff00000808e1f4 0000000000000000 ffff8013e9d30c80
+> [    2.298177] 7a00: ffff8013e9677a20 ffff00000882b6f4 ffff8013e9677a60 ffff0000080dd384
+> [    2.306089] 7a20: 0000000000000000 ffff8013e9677b00 ffff000008cbaa00 ffff000008d6e000
+> [    2.314001] 7a40: 0000000000000000 00000000ffffffff 0000000000000001 0000000000000080
+> [    2.321912] 7a60: ffff000008c71aa4 ffff8413fbfffa80 0000000000000010 00008413e2ba3000
+> [    2.329824] 7a80: 0000000000000000 ffff8413eb6ca700 0000000000000000 ffff8013e9452e00
+> [    2.337736] 7aa0: 0000000000000014 0000000000000000 0000000000000000 0000000000000009
+> [    2.345648] 7ac0: 0000000000000009 0000000000000026 0000000000000003 ffff000008ca8000
+> [    2.353559] 7ae0: 0000000003010066 0000000000000000
+> [    2.358483] [<ffff0000080df51c>] try_to_wake_up+0x148/0x300
+> [    2.364110] [<ffff0000080df6e8>] wake_up_process+0x14/0x1c
+> [    2.369649] [<ffff0000080d027c>] create_worker+0x108/0x194
+> [    2.375189] [<ffff0000080d2cf4>] alloc_unbound_pwq+0x1e4/0x398
+> [    2.381080] [<ffff0000080d2f84>] wq_update_unbound_numa+0xdc/0x190
+> [    2.387322] [<ffff0000080d4094>] workqueue_online_cpu+0x254/0x2a8
+> [    2.393477] [<ffff0000080bb8a4>] cpuhp_up_callbacks+0x54/0x100
+> [    2.399368] [<ffff0000080bbb40>] cpuhp_thread_fun+0x12c/0x13c
+> [    2.405171] [<ffff0000080daf00>] smpboot_thread_fn+0x1a8/0x1cc
+> [    2.411061] [<ffff0000080d7844>] kthread+0xd4/0xe8
+> [    2.415897] [<ffff000008082e90>] ret_from_fork+0x10/0x40
+> [    2.421261] Code: f877db21 90005cd8 f8627b23 91180318 (b8616802)
+> [    2.427426] ---[ end trace b58e70f3295a8cd9 ]---
 
 
 
-On 2016/9/19 22:45, Will Deacon wrote:
-> On Mon, Sep 19, 2016 at 03:07:19PM +0100, Mark Rutland wrote:
->> [adding LAKML, arm64 maintainers]
-> 
-> I've also looped in Euler ThunderTown, since (a) he's at Huawei and is
-> assumedly testing this stuff and (b) he has a fairly big NUMA patch
-> series doing the rounds (some of which I've queued).
-In my patch series, only one is used to resolve crashed problem, but it's related to device-tree.
-
-> 
->> On Mon, Sep 19, 2016 at 09:05:26PM +0800, Yisheng Xie wrote:
->> In future, please make sure to Cc LAKML along with relevant parties when
->> sending arm64 patches/queries.
->>
->> For everyone newly Cc'd, the original message (with attachments) can be
->> found at:
->>
->> http://lkml.kernel.org/r/7618d76d-bfa8-d8aa-59aa-06f9d90c1a98@huawei.com
->>
->>> When I enable NUMA in BIOS for arm64, it failed to boot on v4.8-rc4-162-g071e31e.
->>
->> That commit ID doesn't seem to be in mainline (I can't find it in my
->> local tree). Which tree are you using? Do you have local patches
->> applied?
-> 
-> That commit is in mainline:
-> 
->   http://git.kernel.org/linus/071e31e
-> 
-> It would be nice to know if the problem also exists on the arm64
-> for-next/core branch.
-> 
-> Will
-> 
-> 
->> I take it that by "enable NUMA in BIOS", you mean exposing SRAT to the
->> OS?
->>
->>> For the crash log, it seems caused by error number of cpumask.
->>> Any ideas about it?
->>
->> Much earlier in your log, there was a (non-fatal) warning, as below. Do
->> you see this without NUMA/SRAT enabled in your FW? I don't see how the
->> SRAT should affect the secondaries we try to bring online.
->>
->> Given your MPIDRs have Aff2 bits set, I wonder if we've conflated a
->> logical ID with a physical ID somewhere, and it just so happens that the
->> NUMA code is more likely to poke something based on that.
->>
->> Can you modify the warning in cpumask.h to dump the bad CPU number? That
->> would make it fairly clear if that's the case.
->>
->> Thanks,
->> Mark.
->>
->>> [    0.297337] Detected PIPT I-cache on CPU1
->>> [    0.297347] GICv3: CPU1: found redistributor 10001 region 1:0x000000004d140000
->>> [    0.297356] CPU1: Booted secondary processor [410fd082]
->>> [    0.297375] ------------[ cut here ]------------
->>> [    0.320390] WARNING: CPU: 1 PID: 0 at ./include/linux/cpumask.h:121 gic_raise_softirq+0x128/0x17c
->>> [    0.329356] Modules linked in:
->>> [    0.332434] 
->>> [    0.333932] CPU: 1 PID: 0 Comm: swapper/1 Not tainted 4.8.0-rc4-00163-g803ea3a #21
->>> [    0.341581] Hardware name: Hisilicon Hi1616 Evaluation Board (DT)
->>> [    0.347735] task: ffff8013e9dd0000 task.stack: ffff8013e9dcc000
->>> [    0.353714] PC is at gic_raise_softirq+0x128/0x17c
->>> [    0.358550] LR is at gic_raise_softirq+0xa0/0x17c
->>> [    0.363298] pc : [<ffff00000838c124>] lr : [<ffff00000838c09c>] pstate: 200001c5
->>> [    0.370770] sp : ffff8013e9dcfde0
->>> [    0.374112] x29: ffff8013e9dcfde0 x28: 0000000000000000 
->>> [    0.379476] x27: 000000000083207c x26: ffff000008ca5d70 
->>> [    0.384841] x25: 0000000100000001 x24: ffff000008d63ff3 
->>> [    0.390205] x23: 0000000000000000 x22: ffff000008cb0000 
->>> [    0.395569] x21: ffff00000884edb0 x20: 0000000000000001 
->>> [    0.400933] x19: 0000000100000000 x18: 0000000000000000 
->>> [    0.406298] x17: 0000000000000000 x16: 0000000003010066 
->>> [    0.411661] x15: ffff000008ca8000 x14: 0000000000000013 
->>> [    0.417025] x13: 0000000000000000 x12: 0000000000000013 
->>> [    0.422389] x11: 0000000000000013 x10: 0000000002e92aa7 
->>> [    0.427754] x9 : 0000000000000000 x8 : ffff8413eb6ca668 
->>> [    0.433118] x7 : ffff8413eb6ca690 x6 : 0000000000000000 
->>> [    0.438482] x5 : fffffffffffffffe x4 : 0000000000000000 
->>> [    0.443845] x3 : 0000000000000040 x2 : 0000000000000041 
->>> [    0.449209] x1 : 0000000000000000 x0 : 0000000000000001 
->>> [    0.454573] 
->>> [    0.456069] ---[ end trace b58e70f3295a8cd7 ]---
->>> [    0.460730] Call trace:
->>> [    0.463193] Exception stack(0xffff8013e9dcfc10 to 0xffff8013e9dcfd40)
->>> [    0.469699] fc00:                                   0000000100000000 0001000000000000
->>> [    0.477611] fc20: ffff8013e9dcfde0 ffff00000838c124 ffff000008d72228 ffff8013e9dcff70
->>> [    0.485524] fc40: ffff000008d72608 ffff000008ab02a4 0000000000000000 0000000000000000
->>> [    0.493436] fc60: 0000000000000000 3464313430303030 0000000000000000 0000000000000000
->>> [    0.501348] fc80: ffff8013e9dcfc90 ffff00000836e678 ffff8013e9dcfca0 ffff00000836e910
->>> [    0.509259] fca0: ffff8013e9dcfd30 ffff00000836ec10 0000000000000001 0000000000000000
->>> [    0.517171] fcc0: 0000000000000041 0000000000000040 0000000000000000 fffffffffffffffe
->>> [    0.525083] fce0: 0000000000000000 ffff8413eb6ca690 ffff8413eb6ca668 0000000000000000
->>> [    0.532995] fd00: 0000000002e92aa7 0000000000000013 0000000000000013 0000000000000000
->>> [    0.540907] fd20: 0000000000000013 ffff000008ca8000 0000000003010066 0000000000000000
->>> [    0.548819] [<ffff00000838c124>] gic_raise_softirq+0x128/0x17c
->>> [    0.554713] [<ffff00000808e1f4>] smp_send_reschedule+0x34/0x3c
->>> [    0.560605] [<ffff0000080ddf18>] resched_curr+0x40/0x5c
->>> [    0.565881] [<ffff0000080de650>] check_preempt_curr+0x58/0xa0
->>> [    0.571685] [<ffff0000080de6b0>] ttwu_do_wakeup+0x18/0x80
->>> [    0.577136] [<ffff0000080de790>] ttwu_do_activate+0x78/0x88
->>> [    0.582763] [<ffff0000080df5cc>] try_to_wake_up+0x1f8/0x300
->>> [    0.588390] [<ffff0000080df79c>] default_wake_function+0x10/0x18
->>> [    0.594458] [<ffff0000080f3210>] __wake_up_common+0x5c/0x9c
->>> [    0.600085] [<ffff0000080f3264>] __wake_up_locked+0x14/0x1c
->>> [    0.605712] [<ffff0000080f3e10>] complete+0x40/0x5c
->>> [    0.610635] [<ffff00000808dba8>] secondary_start_kernel+0x148/0x1a8
->>> [    0.616965] [<00000000000831a8>] 0x831a8
->>
-> 
-> .
-> 
+-- 
+Ming Lei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
