@@ -1,38 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C30A16B0038
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 11:54:24 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id w84so20257752wmg.1
-        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 08:54:24 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BC0D26B0253
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 11:54:30 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id b130so20271805wmc.2
+        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 08:54:30 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id b83si27802939wmi.3.2016.09.20.08.54.23
+        by mx.google.com with ESMTPS id ey2si24878116wjd.209.2016.09.20.08.54.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Sep 2016 08:54:23 -0700 (PDT)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8KFsCcR119297
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 11:54:22 -0400
-Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 25jmr0uvn7-1
+        Tue, 20 Sep 2016 08:54:29 -0700 (PDT)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8KFsFaU117993
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 11:54:28 -0400
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 25jkn4yem1-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 11:54:22 -0400
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 11:54:28 -0400
 Received: from localhost
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
-	Tue, 20 Sep 2016 16:54:20 +0100
+	Tue, 20 Sep 2016 16:54:26 +0100
 Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
-	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 86CA32190066
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 16:53:38 +0100 (BST)
+	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id C2B18219005E
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 16:53:41 +0100 (BST)
 Received: from d06av11.portsmouth.uk.ibm.com (d06av11.portsmouth.uk.ibm.com [9.149.37.252])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u8KFsILj18284884
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 15:54:18 GMT
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u8KFsLrQ24641980
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 15:54:21 GMT
 Received: from d06av11.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av11.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u8KFsHjb032339
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 09:54:18 -0600
+	by d06av11.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u8KFsLum032444
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 09:54:21 -0600
 From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Subject: [PATCH 0/1] memory offline issues with hugepage size > memory block size
-Date: Tue, 20 Sep 2016 17:53:53 +0200
-Message-Id: <20160920155354.54403-1-gerald.schaefer@de.ibm.com>
+Subject: [PATCH 1/1] mm/hugetlb: fix memory offline with hugepage size > memory block size
+Date: Tue, 20 Sep 2016 17:53:54 +0200
+In-Reply-To: <20160920155354.54403-1-gerald.schaefer@de.ibm.com>
+References: <20160920155354.54403-1-gerald.schaefer@de.ibm.com>
+Message-Id: <20160920155354.54403-2-gerald.schaefer@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
@@ -52,28 +54,50 @@ from page_hstate(). list_del() would also not work well on a tail page.
 To fix this, first remove the VM_BUG_ON() because it is wrong, and then
 use the compound head page in dissolve_free_huge_page().
 
-However, this all assumes that it is the desired behaviour to remove
-a (gigantic) unused hugetlb page from the pool, just because a small
-(in relation to the  hugepage size) memory block is going offline. Not
-sure if this is the right thing, and it doesn't look very consistent
-given that in this scenario it is _not_ possible to migrate
-such a (gigantic) hugepage if it is in use. OTOH, has_unmovable_pages()
-will return false in both cases, i.e. the memory block will be reported
-as removable, no matter if the hugepage that it is part of is unused or
-in use.
-
-This patch is assuming that it would be OK to remove the hugepage,
-i.e. memory offline beats pre-allocated unused (gigantic) hugepages.
-
-Any thoughts?
-
-
-Gerald Schaefer (1):
-  mm/hugetlb: fix memory offline with hugepage size > memory block size
-
+Signed-off-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+---
  mm/hugetlb.c | 16 +++++++++-------
  1 file changed, 9 insertions(+), 7 deletions(-)
 
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 87e11d8..65e723c 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1441,15 +1441,17 @@ static int free_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed,
+  */
+ static void dissolve_free_huge_page(struct page *page)
+ {
++	struct page *head = compound_head(page);
++
+ 	spin_lock(&hugetlb_lock);
+-	if (PageHuge(page) && !page_count(page)) {
+-		struct hstate *h = page_hstate(page);
+-		int nid = page_to_nid(page);
+-		list_del(&page->lru);
++	if (!page_count(head)) {
++		struct hstate *h = page_hstate(head);
++		int nid = page_to_nid(head);
++		list_del(&head->lru);
+ 		h->free_huge_pages--;
+ 		h->free_huge_pages_node[nid]--;
+ 		h->max_huge_pages--;
+-		update_and_free_page(h, page);
++		update_and_free_page(h, head);
+ 	}
+ 	spin_unlock(&hugetlb_lock);
+ }
+@@ -1466,9 +1468,9 @@ void dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
+ 	if (!hugepages_supported())
+ 		return;
+ 
+-	VM_BUG_ON(!IS_ALIGNED(start_pfn, 1 << minimum_order));
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn += 1 << minimum_order)
+-		dissolve_free_huge_page(pfn_to_page(pfn));
++		if (PageHuge(pfn_to_page(pfn)))
++			dissolve_free_huge_page(pfn_to_page(pfn));
+ }
+ 
+ /*
 -- 
 2.8.4
 
