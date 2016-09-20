@@ -1,97 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F1396B0038
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 12:23:59 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id y6so19715778lff.0
-        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 09:23:59 -0700 (PDT)
-Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
-        by mx.google.com with ESMTPS id 8si13757966lff.273.2016.09.20.09.23.57
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 62BC86B0038
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 13:37:31 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id p53so46639854qtp.0
+        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 10:37:31 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id j123si3822371vkc.170.2016.09.20.10.37.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Sep 2016 09:23:57 -0700 (PDT)
-Received: by mail-lf0-x243.google.com with SMTP id s64so1183898lfs.2
-        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 09:23:57 -0700 (PDT)
-Date: Tue, 20 Sep 2016 18:23:53 +0200
-From: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
-Subject: Re: [PATCH] mm/mempolicy.c: forbid static or relative flags for
- local NUMA mode
-Message-ID: <20160920162352.GC3899@home>
-References: <20160918112943.1645-1-kwapulinski.piotr@gmail.com>
- <65cb95b8-4521-cc4c-a30c-e6c23731479c@suse.cz>
+        Tue, 20 Sep 2016 10:37:15 -0700 (PDT)
+Subject: Re: [PATCH 0/1] memory offline issues with hugepage size > memory
+ block size
+References: <20160920155354.54403-1-gerald.schaefer@de.ibm.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <bc000c05-3186-da92-e868-f2dbf0c28a98@oracle.com>
+Date: Tue, 20 Sep 2016 10:37:04 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <65cb95b8-4521-cc4c-a30c-e6c23731479c@suse.cz>
+In-Reply-To: <20160920155354.54403-1-gerald.schaefer@de.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, rientjes@google.com, mhocko@kernel.org, mgorman@techsingularity.net, liangchen.linux@gmail.com, nzimmer@sgi.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linux API <linux-api@vger.kernel.org>, linux-man@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>
+To: Gerald Schaefer <gerald.schaefer@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Rui Teng <rui.teng@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@linux.intel.com>
 
-On Tue, Sep 20, 2016 at 05:12:16PM +0200, Vlastimil Babka wrote:
-> [CC += linux-api@vger.kernel.org]
+On 09/20/2016 08:53 AM, Gerald Schaefer wrote:
+> dissolve_free_huge_pages() will either run into the VM_BUG_ON() or a
+> list corruption and addressing exception when trying to set a memory
+> block offline that is part (but not the first part) of a gigantic
+> hugetlb page with a size > memory block size.
 > 
->     Since this is a kernel-user-space API change, please CC linux-api@. The
-> kernel source file Documentation/SubmitChecklist notes that all Linux kernel
-> patches that change userspace interfaces should be CCed to
-> linux-api@vger.kernel.org, so that the various parties who are interested in
-> API changes are informed. For further information, see
-> https://www.kernel.org/doc/man-pages/linux-api-ml.html
+> When no other smaller hugepage sizes are present, the VM_BUG_ON() will
+> trigger directly. In the other case we will run into an addressing
+> exception later, because dissolve_free_huge_page() will not use the head
+> page of the compound hugetlb page which will result in a NULL hstate
+> from page_hstate(). list_del() would also not work well on a tail page.
 > 
-> I think man page should document the change? Also I noticed that MPOL_NUMA
-> itself is missing in the man page...
+> To fix this, first remove the VM_BUG_ON() because it is wrong, and then
+> use the compound head page in dissolve_free_huge_page().
 > 
-> On 09/18/2016 01:29 PM, Piotr Kwapulinski wrote:
-> > The MPOL_F_STATIC_NODES and MPOL_F_RELATIVE_NODES flags are irrelevant
-> > when setting them for MPOL_LOCAL NUMA memory policy via set_mempolicy.
-> > Return the "invalid argument" from set_mempolicy whenever
-> > any of these flags is passed along with MPOL_LOCAL.
-> > It is consistent with MPOL_PREFERRED passed with empty nodemask.
-> > It also slightly shortens the execution time in paths where these flags
-> > are used e.g. when trying to rebind the NUMA nodes for changes in
-> > cgroups cpuset mems (mpol_rebind_preferred()) or when just printing
-> > the mempolicy structure (/proc/PID/numa_maps).
+> However, this all assumes that it is the desired behaviour to remove
+> a (gigantic) unused hugetlb page from the pool, just because a small
+> (in relation to the  hugepage size) memory block is going offline. Not
+> sure if this is the right thing, and it doesn't look very consistent
+> given that in this scenario it is _not_ possible to migrate
+> such a (gigantic) hugepage if it is in use. OTOH, has_unmovable_pages()
+> will return false in both cases, i.e. the memory block will be reported
+> as removable, no matter if the hugepage that it is part of is unused or
+> in use.
 > 
-> Hmm not sure I understand. How does change in mpol_new() affect
-> mpol_rebind_preferred()?
-When MPOL_LOCAL is passed to set_mempolicy along with empty nodemask 
-it is transformed into MPOL_PREFERRED (inside mpol_new()).
-Unlike MPOL_PREFERRED the MPOL_LOCAL may be set along with 
-MPOL_F_STATIC_NODES or MPOL_F_RELATIVE_NODES flag (inconsistency).
-Later on when the set of allowed NUMA nodes is changed by cgroups 
-cpuset.mems the mpol_rebind_preferred() is called. Because one of
-the flags is set the unnecessary code is executed. The same is for
-mpol_to_str().
+> This patch is assuming that it would be OK to remove the hugepage,
+> i.e. memory offline beats pre-allocated unused (gigantic) hugepages.
+> 
+> Any thoughts?
+
+Cc'ed Rui Teng and Dave Hansen as they were discussing the issue in
+this thread:
+https://lkml.org/lkml/2016/9/13/146
+
+Their approach (I believe) would be to fail the offline operation in
+this case.  However, I could argue that failing the operation, or
+dissolving the unused huge page containing the area to be offlined is
+the right thing to do.
+
+I never thought too much about the VM_BUG_ON(), but you are correct in
+that it should be removed in either case.
+
+The other thing that needs to be changed is the locking in
+dissolve_free_huge_page().  I believe the lock only needs to be held if
+we are removing the huge page from the pool.  It is not a correctness
+but performance issue.
+
+-- 
+Mike Kravetz
 
 > 
-> Vlastimil
 > 
-> > Isolated tests done.
-> > 
-> > Signed-off-by: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
-> > ---
-> >  mm/mempolicy.c | 4 +++-
-> >  1 file changed, 3 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> > index 2da72a5..27b07d1 100644
-> > --- a/mm/mempolicy.c
-> > +++ b/mm/mempolicy.c
-> > @@ -276,7 +276,9 @@ static struct mempolicy *mpol_new(unsigned short mode, unsigned short flags,
-> >  				return ERR_PTR(-EINVAL);
-> >  		}
-> >  	} else if (mode == MPOL_LOCAL) {
-> > -		if (!nodes_empty(*nodes))
-> > +		if (!nodes_empty(*nodes) ||
-> > +		    (flags & MPOL_F_STATIC_NODES) ||
-> > +		    (flags & MPOL_F_RELATIVE_NODES))
-> >  			return ERR_PTR(-EINVAL);
-> >  		mode = MPOL_PREFERRED;
-> >  	} else if (nodes_empty(*nodes))
-> > 
+> Gerald Schaefer (1):
+>   mm/hugetlb: fix memory offline with hugepage size > memory block size
 > 
-
---
-Piotr Kwapulinski
+>  mm/hugetlb.c | 16 +++++++++-------
+>  1 file changed, 9 insertions(+), 7 deletions(-)
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
