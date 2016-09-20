@@ -1,59 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B38F6B0038
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 02:57:37 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id 92so31358366iom.2
-        for <linux-mm@kvack.org>; Mon, 19 Sep 2016 23:57:37 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id v88si33297389iov.139.2016.09.19.23.57.35
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D79206B0038
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 03:07:45 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id w84so8674277wmg.1
+        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 00:07:45 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s70si25286302wme.94.2016.09.20.00.07.44
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 19 Sep 2016 23:57:36 -0700 (PDT)
-From: zhongjiang <zhongjiang@huawei.com>
-Subject: [PATCH] mm,ksm: add __GFP_HIGH to the allocation in alloc_stable_node()
-Date: Tue, 20 Sep 2016 14:54:44 +0800
-Message-ID: <1474354484-58233-1-git-send-email-zhongjiang@huawei.com>
+        Tue, 20 Sep 2016 00:07:44 -0700 (PDT)
+Date: Tue, 20 Sep 2016 09:07:43 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2] mm,ksm: fix endless looping in allocating memory when
+ ksm enable
+Message-ID: <20160920070743.GB5477@dhcp22.suse.cz>
+References: <1474350613-25041-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1474350613-25041-1-git-send-email-zhongjiang@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hughd@google.com, akpm@linux-foundation.org, mhocko@suse.cz, vbabka@suse.cz, rientjes@google.com
-Cc: linux-mm@kvack.org
+To: zhongjiang <zhongjiang@huawei.com>
+Cc: hughd@google.com, akpm@linux-foundation.org, linux-mm@kvack.org
 
-From: zhong jiang <zhongjiang@huawei.com>
+[CCing Tetsuo again - please make sure you CC everybody who did respond
+ in earlier versions of the patch]
 
-Accoding to HUgh's suggestion, alloc_stable_node() with GFP_KERNEL
-will cause the hungtask, despite less possiblity.
+I am sorry to insist here but this doesn't address the previous review
+feedback. Let me try to show you what I would find much better. I do not
+insist on this precise wording of course but I do insist on mentioning
+the current state and making clear why GFP_NORETRY is really ok.
 
-At present, if alloc_stable_node allocate fails, two break_cow may
-want to allocate a couple of pages, and the issue will come up when
-free memory is under pressure.
+On Tue 20-09-16 13:50:13, zhongjiang wrote:
+> From: zhong jiang <zhongjiang@huawei.com>
+> 
+> I hit the following issue when run a OOM case of the LTP and
+> ksm enable.
 
-we fix it by adding the __GFP_HIGH to GFP. because it grant access to
-some of meory reserves. it will make progess to make it allocation
-successful at the utmost.
+"
+I hit the following hung task when running an OOM LTP test case with 4.1
+kernel.
+"
 
-Suggested-by: Hugh Dickins <hughd@google.com>
-Signed-off-by: zhong jiang <zhongjiang@huawei.com>
----
- mm/ksm.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> Call trace:
+> [<ffffffc000086a88>] __switch_to+0x74/0x8c
+> [<ffffffc000a1bae0>] __schedule+0x23c/0x7bc
+> [<ffffffc000a1c09c>] schedule+0x3c/0x94
+> [<ffffffc000a1eb84>] rwsem_down_write_failed+0x214/0x350
+> [<ffffffc000a1e32c>] down_write+0x64/0x80
+> [<ffffffc00021f794>] __ksm_exit+0x90/0x19c
+> [<ffffffc0000be650>] mmput+0x118/0x11c
+> [<ffffffc0000c3ec4>] do_exit+0x2dc/0xa74
+> [<ffffffc0000c46f8>] do_group_exit+0x4c/0xe4
+> [<ffffffc0000d0f34>] get_signal+0x444/0x5e0
+> [<ffffffc000089fcc>] do_signal+0x1d8/0x450
+> [<ffffffc00008a35c>] do_notify_resume+0x70/0x78
+> 
+> it will leads to a hung task because the exiting task cannot get the
+> mmap sem for write. but the root cause is that the ksmd holds it for
+> read while allocateing memory which just takes ages to complete.
+> and ksmd will loop in the following path.
 
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 5048083..42bf16e 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -299,7 +299,7 @@ static inline void free_rmap_item(struct rmap_item *rmap_item)
- 
- static inline struct stable_node *alloc_stable_node(void)
- {
--	return kmem_cache_alloc(stable_node_cache, GFP_KERNEL);
-+	return kmem_cache_alloc(stable_node_cache, GFP_KERNEL | __GFP_HIGH);
- }
- 
- static inline void free_stable_node(struct stable_node *stable_node)
+"
+The oom victim cannot terminate because it needs to take mmap_sem for
+write while the lock is held by ksmd for read which loops in the page
+allocator
+
+ksm_do_scan
+	scan_get_next_rmap_item
+		down_read
+		get_next_rmap_item
+			alloc_rmap_item   #ksmd will loop permanently.
+
+There is not way forward because the oom victim cannot release any
+memory in 4.1 based kernel. Since 4.6 we have the oom reaper which would
+solve this problem because it would release the memory asynchronously.
+Nevertheless we can relax alloc_rmap_item requirements and use
+__GFP_NORETRY because the allocation failure is acceptable as
+ksm_do_scan would just retry later after the lock got dropped.
+
+Such a patch would be also easy to backport to older stable kernels
+which do not have oom_reaper.
+
+While we are at it add GFP_NOWARN as the admin doesn't have to be
+alarmed by the allocation failure.
+> 
+> CC: <stable@vger.kernel.org>
+> Suggested-by: Hugh Dickins <hughd@google.com>
+> Suggested-by: Michal Hocko <mhocko@suse.cz>
+> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+> ---
+>  mm/ksm.c | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/ksm.c b/mm/ksm.c
+> index 73d43ba..5048083 100644
+> --- a/mm/ksm.c
+> +++ b/mm/ksm.c
+> @@ -283,7 +283,8 @@ static inline struct rmap_item *alloc_rmap_item(void)
+>  {
+>  	struct rmap_item *rmap_item;
+>  
+> -	rmap_item = kmem_cache_zalloc(rmap_item_cache, GFP_KERNEL);
+> +	rmap_item = kmem_cache_zalloc(rmap_item_cache, GFP_KERNEL |
+> +						__GFP_NORETRY | __GFP_NOWARN);
+>  	if (rmap_item)
+>  		ksm_rmap_items++;
+>  	return rmap_item;
+> -- 
+> 1.8.3.1
+
 -- 
-1.8.3.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
