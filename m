@@ -1,89 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FCA66B0038
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 01:52:55 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id p53so14277147qtp.0
-        for <linux-mm@kvack.org>; Mon, 19 Sep 2016 22:52:55 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id u124si2296372vkg.88.2016.09.19.22.52.53
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 19 Sep 2016 22:52:54 -0700 (PDT)
-From: zhongjiang <zhongjiang@huawei.com>
-Subject: [PATCH v2] mm,ksm: fix endless looping in allocating memory when ksm enable
-Date: Tue, 20 Sep 2016 13:50:13 +0800
-Message-ID: <1474350613-25041-1-git-send-email-zhongjiang@huawei.com>
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D5946B0038
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 02:00:31 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id e20so26424956itc.3
+        for <linux-mm@kvack.org>; Mon, 19 Sep 2016 23:00:31 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id d74si33040586iod.26.2016.09.19.23.00.28
+        for <linux-mm@kvack.org>;
+        Mon, 19 Sep 2016 23:00:29 -0700 (PDT)
+Date: Tue, 20 Sep 2016 14:50:38 +0900
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: Re: [PATCH v3 07/15] lockdep: Implement crossrelease feature
+Message-ID: <20160920055038.GL2279@X58A-UD3R>
+References: <1473759914-17003-1-git-send-email-byungchul.park@lge.com>
+ <1473759914-17003-8-git-send-email-byungchul.park@lge.com>
+ <20160913150554.GI2794@worktop>
+ <CANrsvRNarrDejL_ju-X=MtiBbwG-u2H4TNsZ1i_d=3nbd326PQ@mail.gmail.com>
+ <20160913193829.GA5016@twins.programming.kicks-ass.net>
+ <CANrsvROL43uYXsU7-kmFbHFgiKARBXYHNeqL71V9GxGzBYEdNA@mail.gmail.com>
+ <20160914081117.GK5008@twins.programming.kicks-ass.net>
+ <20160919024102.GF2279@X58A-UD3R>
+ <20160919085009.GT5016@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160919085009.GT5016@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hughd@google.com, mhocko@suse.cz, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Byungchul Park <max.byungchul.park@gmail.com>, Ingo Molnar <mingo@kernel.org>, tglx@linutronix.de, Michel Lespinasse <walken@google.com>, boqun.feng@gmail.com, kirill@shutemov.name, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, npiggin@gmail.com
 
-From: zhong jiang <zhongjiang@huawei.com>
+On Mon, Sep 19, 2016 at 10:50:09AM +0200, Peter Zijlstra wrote:
+> On Mon, Sep 19, 2016 at 11:41:02AM +0900, Byungchul Park wrote:
+> 
+> > > But since these threads are independently scheduled there is no point in
+> > > transferring the point in time thread A does W to thread B. There is no
+> > > relation there.
+> > > 
+> > > B could have already executed the complete or it could not yet have
+> > > started execution at all or anything in between, entirely random.
+> > 
+> > Of course B could have already executed the complete or it could not yet
+> > have started execution at all or anything in between. But it's not entirely
+> > random.
+> > 
+> > It might be a random point since they are independently scheduled, but it's
+> > not entirely random. And it's a random point among valid points which lockdep
+> > needs to consider. For example,
+> > 
+> > 
+> > CONTEXT 1			CONTEXT 2(forked one)
+> > =========			=====================
+> > (a)				acquire F
+> > acquire A			acquire G
+> > acquire B			wait_for_completion Z
+> > acquire C
+> > (b)				acquire H
+> > fork 2				acquire I
+> > acquire D			acquire J
+> > complete Z			acquire K
+> > 
+> 
+> I'm hoping you left out the releases for brevity? Because calling fork()
+> with locks held is _really_ poor form.
 
-I hit the following issue when run a OOM case of the LTP and
-ksm enable.
+Exactly. Sorry. I shouldn't have omitted releases.
 
-Call trace:
-[<ffffffc000086a88>] __switch_to+0x74/0x8c
-[<ffffffc000a1bae0>] __schedule+0x23c/0x7bc
-[<ffffffc000a1c09c>] schedule+0x3c/0x94
-[<ffffffc000a1eb84>] rwsem_down_write_failed+0x214/0x350
-[<ffffffc000a1e32c>] down_write+0x64/0x80
-[<ffffffc00021f794>] __ksm_exit+0x90/0x19c
-[<ffffffc0000be650>] mmput+0x118/0x11c
-[<ffffffc0000c3ec4>] do_exit+0x2dc/0xa74
-[<ffffffc0000c46f8>] do_group_exit+0x4c/0xe4
-[<ffffffc0000d0f34>] get_signal+0x444/0x5e0
-[<ffffffc000089fcc>] do_signal+0x1d8/0x450
-[<ffffffc00008a35c>] do_notify_resume+0x70/0x78
+> 
+> > I can provide countless examples with which I can say you're wrong.
+> > In this case, all acquires between (a) and (b) must be ignored when
+> > generating dependencies with complete operation of Z.
+> 
+> I still don't get the point. Why does this matter?
+> 
+> Sure, A-C are irrelevant in this example, but I don't see how they're
+> differently irrelevant from a whole bunch of other prior state action.
+> 
+> 
+> Earlier you said the algorithm for selecting the dependency is the first
+> acquire observed in the completing thread after the
+> wait_for_completion(). Is this correct?
 
-it will leads to a hung task because the exiting task cannot get the
-mmap sem for write. but the root cause is that the ksmd holds it for
-read while allocateing memory which just takes ages to complete.
-and ksmd will loop in the following path.
+Sorry for insufficient description.
 
- scan_get_next_rmap_item
-          down_read
-                get_next_rmap_item
-                        alloc_rmap_item   #ksmd will loop permanently.
+held_locks of left context will be,
 
-The caller alloc_rmap_item with GFP_KERENL will trigger OOM killer when free
-memory is under pressure. and it can will successfully bail out without calling
-out_of_memory. because it find the OOM invoked by other process is in progress
-in the same zone. therefore, memory allocation will loop again and again.
+time 1: a
+time 2: a, x[0]
+time 3: a, x[1]
+...
+time n: b
 
-we fix it by changing the GFP to add __GFP_NORETRY. if it is so, alloc_rmap_item
-allow to sometimes memory allocation fails, if it fails , ksmd will jsut give up
-and takes a sleep. even though memory is low, OOM killer would not be triggered.
-at the same time, GFP_NOWARN shuld be also added. because we're not at all
-interested in hearing abot that.
+Between time 1 and time (n-1), 'a' will be the first among held_locks. At
+time n, 'b' will be the fist among held_locks. So 'a' and 'b' should be
+connected to 'z' if we ignore IRQ context. (I will explain it soon.)
 
-CC: <stable@vger.kernel.org>
-Suggested-by: Hugh Dickins <hughd@google.com>
-Suggested-by: Michal Hocko <mhocko@suse.cz>
-Signed-off-by: zhong jiang <zhongjiang@huawei.com>
----
- mm/ksm.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+Acquire x[i] is also valid one but crossrelease doesn't take it into
+account since original lockdep will cover using 'a -> x[i]'. So only
+connections we need are 'z -> a' and 'z -> b'.
 
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 73d43ba..5048083 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -283,7 +283,8 @@ static inline struct rmap_item *alloc_rmap_item(void)
- {
- 	struct rmap_item *rmap_item;
- 
--	rmap_item = kmem_cache_zalloc(rmap_item_cache, GFP_KERNEL);
-+	rmap_item = kmem_cache_zalloc(rmap_item_cache, GFP_KERNEL |
-+						__GFP_NORETRY | __GFP_NOWARN);
- 	if (rmap_item)
- 		ksm_rmap_items++;
- 	return rmap_item;
--- 
-1.8.3.1
+> 
+> 
+> 				W z
+> 
+> 	A a
+> 	for (i<0;i<many;i++) {
+> 	  A x[i]
+> 	  R x[i]
+> 	}
+> 	R a
+> 
+> 	<IRQ>
+> 	  A b
+> 	  R b
+> 	  C z
+> 	</IRQ>
+
+My crossrelease implementation distinguishes each IRQ from normal context
+or other IRQs in different timeline, even though they might share
+held_locks. So in this example, precisely speaking, there are two different
+contexts. One is normal context and the other is IRQ context. So only 'A b'
+is related with 'W z' in this example.
+
+> 
+> That would be 'a' in this case, but that isn't at all related. Its just
+> as irrelevant as your A-C. And we can pick @many as big as needed to
+> flush the prev held cyclic buffer (although I've no idea how that
+> matters either).
+
+I designed crossrelease so that x[i] is not added into ring buffer because
+adding 'z -> a' is sufficient and x[i] doesn't need to be taken into
+account in this case.
+
+> 
+> What we want here is to link z to b, no? That is the last, not the first
+
+Exactly right. Only 'z -> b' must be added under considering IRQ context.
+That is the first among held_locks in the IRQ context.
+
+> acquire, it also is independent of when W happened.
+
+If the IRQ is really random, then it can happen before W z and it can also
+happen after W z. We cannot determine the time. Then we need to consider all
+combination and possibility. It's a key point. We have to consider
+dependencies for all possibility.
+
+However, we don't know what synchronizes the flow. So it must be based on
+what actually happened, to identify true dependencies.
+
+> 
+> At the same time, picking the last is no guarantee either, since that
+> can equally miss dependencies. Suppose the IRQ handler did:
+> 
+> 	<IRQ>
+> 	  A c
+> 	  R c
+> 	  A b
+> 	  R b
+> 	  C z
+> 	</IRQ>
+> 
+
+time 1: c (in held_locks)
+time 2: b (in held_locks)
+
+So 'c' and 'b' can be the first among held_locks at each moment.
+So 'z -> b' and 'z -> c' will be added.
+
+> instead. We'd miss the z depends on c relation, and since they're
+> independent lock sections, lockdep wouldn't make a b-c relation either.
+> 
+> 
+> Clearly I'm still missing stuff...
+
+Sorry for insufficient description. I tried to describ crossrelease in as
+much detail as possible, really.
+
+The reason why I consider only the first among valid locks in held_locks is
+simple. For example,
+
+Context 1
+A a -> A b -> A crosslock -> R a -> R b
+
+Context 2
+A c -> A d -> R d -> R the crosslock -> R c
+
+If 'A c' after 'A crosslock' is possible, then 'A crosslock' does not only
+depends on 'A c' but also 'A d'. But all dependencies we need to add is only
+'crosslock -> c' because 'crosslock -> d' will be covered by 'crosslock ->
+c' and 'a -> b'. 'a -> b' is added by original lockdep.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
