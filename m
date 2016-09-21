@@ -1,22 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 036AD6B026B
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 19:30:23 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id l91so136004095qte.3
-        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 16:30:22 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 51AA86B026C
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 19:55:41 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id y10so137501853qty.2
+        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 16:55:41 -0700 (PDT)
 Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
-        by mx.google.com with ESMTPS id i129si27410645qkd.117.2016.09.21.16.30.22
+        by mx.google.com with ESMTPS id 4si27975324qta.2.2016.09.21.16.55.40
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 21 Sep 2016 16:30:22 -0700 (PDT)
-Subject: Re: [PATCH 3/5] mm/vmalloc.c: correct lazy_max_pages() return value
-References: <57E20C49.8010304@zoho.com>
- <alpine.DEB.2.10.1609211418480.20971@chino.kir.corp.google.com>
+        Wed, 21 Sep 2016 16:55:40 -0700 (PDT)
+Subject: Re: [PATCH 1/5] mm/vmalloc.c: correct a few logic error for
+ __insert_vmap_area()
+References: <57E20B54.5020408@zoho.com>
+ <alpine.DEB.2.10.1609211408140.20971@chino.kir.corp.google.com>
+ <034db3ec-e2dc-a6da-6dab-f0803900e19d@zoho.com>
+ <alpine.DEB.2.10.1609211544510.41473@chino.kir.corp.google.com>
+ <c5435f6f-d945-fae1-c17e-04530be08421@zoho.com>
+ <alpine.DEB.2.10.1609211612280.42217@chino.kir.corp.google.com>
 From: zijun_hu <zijun_hu@zoho.com>
-Message-ID: <3ef46c24-769d-701a-938b-826f4249bf0b@zoho.com>
-Date: Thu, 22 Sep 2016 07:30:05 +0800
+Message-ID: <c408c7df-3d1f-8985-a524-c6752e7809ba@zoho.com>
+Date: Thu, 22 Sep 2016 07:55:26 +0800
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1609211418480.20971@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1609211612280.42217@chino.kir.corp.google.com>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -24,44 +29,25 @@ List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
 Cc: zijun_hu@htc.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tj@kernel.org, mingo@kernel.org, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net
 
-On 2016/9/22 5:21, David Rientjes wrote:
-> On Wed, 21 Sep 2016, zijun_hu wrote:
+On 2016/9/22 7:15, David Rientjes wrote:
+> On Thu, 22 Sep 2016, zijun_hu wrote:
 > 
->> From: zijun_hu <zijun_hu@htc.com>
->>
->> correct lazy_max_pages() return value if the number of online
->> CPUs is power of 2
->>
->> Signed-off-by: zijun_hu <zijun_hu@htc.com>
->> ---
->>  mm/vmalloc.c | 4 +++-
->>  1 file changed, 3 insertions(+), 1 deletion(-)
->>
->> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
->> index a125ae8..2804224 100644
->> --- a/mm/vmalloc.c
->> +++ b/mm/vmalloc.c
->> @@ -594,7 +594,9 @@ static unsigned long lazy_max_pages(void)
->>  {
->>  	unsigned int log;
->>  
->> -	log = fls(num_online_cpus());
->> +	log = num_online_cpus();
->> +	if (log > 1)
->> +		log = (unsigned int)get_count_order(log);
->>  
->>  	return log * (32UL * 1024 * 1024 / PAGE_SIZE);
->>  }
+>>> We don't support inserting when va->va_start == tmp_va->va_end, plain and 
+>>> simple.  There's no reason to do so.  NACK to the patch.
+>>>
+>> i am sorry i disagree with you because
+>> 1) in almost all context of vmalloc, original logic treat the special case as normal
+>>    for example, __find_vmap_area() or alloc_vmap_area()
 > 
-> The implementation of lazy_max_pages() is somewhat arbitrarily defined, 
-> the existing approximation has been around for eight years and 
-> num_online_cpus() isn't intended to be rounded up to the next power of 2.  
-> I'd be inclined to just leave it as it is.
+> The ranges are [start, end) like everywhere else.  __find_vmap_area() is 
+> implemented as such for the passed address.  The address is aligned in 
+> alloc_vmap_area(), there's no surprise here.  The logic is correct in 
+> __insert_vmap_area().
 > 
-do i understand the intent in current code logic as below ?
-[8, 15) roundup to 16?
-[32, 63) roundup to 64?
-
+1) is the desire behavior of __insert_vmap_area() conform with that mentioned
+   in my comments?
+2) which way of code implementation can present the desire purpose more clear
+   and more understandable?
 
 
 --
