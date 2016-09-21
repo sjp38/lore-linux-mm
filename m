@@ -1,63 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 381E66B0263
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 04:13:59 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id t83so103464124oie.0
-        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 01:13:59 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e75si31290420wmg.2.2016.09.21.01.13.58
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 79B286B0263
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 04:38:59 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id y6so4381787lff.0
+        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 01:38:59 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id p8si32727159wjw.65.2016.09.21.01.38.57
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 21 Sep 2016 01:13:58 -0700 (PDT)
-Subject: Re: [PATCH] mm: migrate: Return false instead of -EAGAIN for dummy
- functions
-References: <1474096836-31045-1-git-send-email-chengang@emindsoft.com.cn>
- <20160917154659.GA29145@dhcp22.suse.cz> <57E05CD2.5090408@emindsoft.com.cn>
- <20160920080923.GE5477@dhcp22.suse.cz> <57E1B2F4.5070009@emindsoft.com.cn>
- <20160921081149.GE10300@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <000418bb-d513-136f-e3bb-f99b119c942a@suse.cz>
-Date: Wed, 21 Sep 2016 10:13:55 +0200
-MIME-Version: 1.0
-In-Reply-To: <20160921081149.GE10300@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Sep 2016 01:38:57 -0700 (PDT)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8L8bgVC023862
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 04:38:56 -0400
+Received: from e06smtp09.uk.ibm.com (e06smtp09.uk.ibm.com [195.75.94.105])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 25kjkwtqby-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 04:38:56 -0400
+Received: from localhost
+	by e06smtp09.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <zhong@linux.vnet.ibm.com>;
+	Wed, 21 Sep 2016 09:38:54 +0100
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (d06relay09.portsmouth.uk.ibm.com [9.149.109.194])
+	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 52EF02190061
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 09:38:12 +0100 (BST)
+Received: from d06av08.portsmouth.uk.ibm.com (d06av08.portsmouth.uk.ibm.com [9.149.37.249])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u8L8cqSY7143934
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 08:38:52 GMT
+Received: from d06av08.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av08.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u8L8chk2024249
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 02:38:44 -0600
+Subject: [PATCH] mem-hotplug: Use nodes that contain memory as mask in
+ new_node_page()
+From: Li Zhong <zhong@linux.vnet.ibm.com>
+Date: Wed, 21 Sep 2016 16:38:37 +0800
+In-Reply-To: <alpine.DEB.2.10.1609201413210.84794@chino.kir.corp.google.com>
+References: <1473044391.4250.19.camel@TP420>
+	 <d7393a3e-73a7-7923-bc32-d4dcbc6523f9@suse.cz>
+	 <20160912091811.GE14524@dhcp22.suse.cz>
+	 <c144f768-7591-8bb8-4238-b3f1ecaf8b4b@suse.cz>
+	 <alpine.DEB.2.10.1609201413210.84794@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
+Message-Id: <1474447117.28370.6.camel@TP420>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Chen Gang <chengang@emindsoft.com.cn>
-Cc: akpm@linux-foundation.org, minchan@kernel.org, mgorman@techsingularity.net, gi-oh.kim@profitbricks.com, opensource.ganesh@gmail.com, hughd@google.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Gang <gang.chen.5i5j@gmail.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.cz>, linux-mm <linux-mm@kvack.org>, jallen@linux.vnet.ibm.com, qiuxishi@huawei.com, iamjoonsoo.kim@lge.com, n-horiguchi@ah.jp.nec.com, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 
-On 09/21/2016 10:11 AM, Michal Hocko wrote:
-> On Wed 21-09-16 06:06:44, Chen Gang wrote:
->> On 9/20/16 16:09, Michal Hocko wrote:
-> [...]
->
-> skipping the large part of the email because I do not have a spare time
-> to discuss this.
->
->>> So what is the point of this whole exercise? Do not take me wrong, this
->>> area could see some improvements but I believe that doing int->bool
->>> change is not just the right thing to do and worth spending both your
->>> and reviewers time.
->>>
->>
->> I am not quite sure about that.
->
-> Maybe you should listen to the feedback your are getting. I do not think
-> I am not the first one here.
->
-> Look, MM surely needs some man power. There are issues to be solved,
-> patches to review. Doing the cleanups is really nice but there are more
-> serious problems to solve first. If you want to help then starting
-> with review would be much much more helpful and hugely appreciated. We
-> are really lacking people there a _lot_. Just generating more work for
-> reviewers with something that doesn't make any real difference in the
-> runtime is far less helpful IMHO.
+Commit 9bb627be47a5 ("mem-hotplug: don't clear the only node in
+new_node_page()") prevents allocating from an empty nodemask, but as David
+points out, it is still wrong. As node_online_map may include memoryless
+nodes, only allocating from these nodes is meaningless.
 
-Agreed, thanks.
+This patch uses node_states[N_MEMORY] mask to prevent the above case.
 
-> Thanks.
->
+Signed-off-by: Li Zhong <zhong@linux.vnet.ibm.com>
+---
+ mm/memory_hotplug.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index b58906b..9d29ba0 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1555,8 +1555,8 @@ static struct page *new_node_page(struct page *page, unsigned long private,
+ {
+ 	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
+ 	int nid = page_to_nid(page);
+-	nodemask_t nmask = node_online_map;
+-	struct page *new_page;
++	nodemask_t nmask = node_states[N_MEMORY];
++	struct page *new_page = NULL;
+ 
+ 	/*
+ 	 * TODO: allocate a destination hugepage from a nearest neighbor node,
+@@ -1567,14 +1567,14 @@ static struct page *new_node_page(struct page *page, unsigned long private,
+ 		return alloc_huge_page_node(page_hstate(compound_head(page)),
+ 					next_node_in(nid, nmask));
+ 
+-	if (nid != next_node_in(nid, nmask))
+-		node_clear(nid, nmask);
++	node_clear(nid, nmask);
+ 
+ 	if (PageHighMem(page)
+ 	    || (zone_idx(page_zone(page)) == ZONE_MOVABLE))
+ 		gfp_mask |= __GFP_HIGHMEM;
+ 
+-	new_page = __alloc_pages_nodemask(gfp_mask, 0,
++	if (!nodes_empty(nmask))
++		new_page = __alloc_pages_nodemask(gfp_mask, 0,
+ 					node_zonelist(nid, gfp_mask), &nmask);
+ 	if (!new_page)
+ 		new_page = __alloc_pages(gfp_mask, 0,
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
