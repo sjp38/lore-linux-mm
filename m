@@ -1,70 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 302EF6B0265
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 06:34:55 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id v67so94047650pfv.1
-        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 03:34:55 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id ln2si40236485pab.23.2016.09.21.03.34.54
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id F0A046B0267
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 06:59:18 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id b130so38903372wmc.2
+        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 03:59:18 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b75si32648550wmg.82.2016.09.21.03.59.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Sep 2016 03:34:54 -0700 (PDT)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8LAX1jk034644
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 06:34:54 -0400
-Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 25kkb5w3e5-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 06:34:53 -0400
-Received: from localhost
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
-	Wed, 21 Sep 2016 11:34:51 +0100
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (d06relay12.portsmouth.uk.ibm.com [9.149.109.197])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 242EB1B0804B
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 11:36:41 +0100 (BST)
-Received: from d06av02.portsmouth.uk.ibm.com (d06av02.portsmouth.uk.ibm.com [9.149.37.228])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u8LAYnNl43384918
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 10:34:49 GMT
-Received: from d06av02.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av02.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u8LAYmEv005984
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 04:34:49 -0600
-Date: Wed, 21 Sep 2016 12:34:47 +0200
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Subject: Re: [PATCH 0/1] memory offline issues with hugepage size > memory
- block size
-In-Reply-To: <57E175B3.1040802@linux.intel.com>
-References: <20160920155354.54403-1-gerald.schaefer@de.ibm.com>
-	<bc000c05-3186-da92-e868-f2dbf0c28a98@oracle.com>
-	<57E175B3.1040802@linux.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Message-Id: <20160921123447.2c3ff33c@thinkpad>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 21 Sep 2016 03:59:17 -0700 (PDT)
+Date: Wed, 21 Sep 2016 12:58:57 +0200
+From: Borislav Petkov <bp@suse.de>
+Subject: Re: [RFC PATCH v1 02/28] kvm: svm: Add kvm_fast_pio_in support
+Message-ID: <20160921105857.p4euktwugt7evj77@pd.tnic>
+References: <147190820782.9523.4967724730957229273.stgit@brijesh-build-machine>
+ <147190823395.9523.16184607551630730040.stgit@brijesh-build-machine>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <147190823395.9523.16184607551630730040.stgit@brijesh-build-machine>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Rui Teng <rui.teng@linux.vnet.ibm.com>
+To: Brijesh Singh <brijesh.singh@amd.com>
+Cc: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linus.walleij@linaro.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, devel@linuxdriverproject.org, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, linux-crypto@vger.kernel.org, pbonzini@redhat.com, akpm@linux-foundation.org, davem@davemloft.net
 
-On Tue, 20 Sep 2016 10:45:23 -0700
-Dave Hansen <dave.hansen@linux.intel.com> wrote:
-
-> On 09/20/2016 10:37 AM, Mike Kravetz wrote:
-> > 
-> > Their approach (I believe) would be to fail the offline operation in
-> > this case.  However, I could argue that failing the operation, or
-> > dissolving the unused huge page containing the area to be offlined is
-> > the right thing to do.
+On Mon, Aug 22, 2016 at 07:23:54PM -0400, Brijesh Singh wrote:
+> From: Tom Lendacky <thomas.lendacky@amd.com>
 > 
-> I think the right thing to do is dissolve the whole huge page if even a
-> part of it is offlined.  The only question is what to do with the
-> gigantic remnants.
+> Update the I/O interception support to add the kvm_fast_pio_in function
+> to speed up the in instruction similar to the out instruction.
 > 
+> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+> ---
+>  arch/x86/include/asm/kvm_host.h |    1 +
+>  arch/x86/kvm/svm.c              |    5 +++--
+>  arch/x86/kvm/x86.c              |   43 +++++++++++++++++++++++++++++++++++++++
+>  3 files changed, 47 insertions(+), 2 deletions(-)
 
-Hmm, not sure if I got this right, but I thought that by calling
-update_and_free_page() on the head page (even if it is not part of the
-memory block to be removed) all parts of the gigantic hugepage should be
-properly freed and there should not be any remnants left.
+FWIW: Reviewed-by: Borislav Petkov <bp@suse.de>
+
+-- 
+Regards/Gruss,
+    Boris.
+
+SUSE Linux GmbH, GF: Felix ImendA?rffer, Jane Smithard, Graham Norton, HRB 21284 (AG NA 1/4 rnberg)
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
