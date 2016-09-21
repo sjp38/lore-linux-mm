@@ -1,107 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 81BC728024E
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 11:14:07 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id wk8so97087964pab.3
-        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 08:14:07 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id s3si41160833pag.147.2016.09.21.08.14.06
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B4A928024E
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 11:22:47 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id fu14so99016253pad.0
+        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 08:22:47 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id 3si41102372pad.284.2016.09.21.08.22.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Sep 2016 08:14:06 -0700 (PDT)
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8LFDjYu028821
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 11:14:06 -0400
-Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 25k7bkjw5n-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 11:14:05 -0400
-Received: from localhost
-	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
-	Wed, 21 Sep 2016 16:14:03 +0100
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
-	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 0624A2190056
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 16:13:20 +0100 (BST)
-Received: from d06av10.portsmouth.uk.ibm.com (d06av10.portsmouth.uk.ibm.com [9.149.37.251])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u8LFE0wP18350422
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 15:14:00 GMT
-Received: from d06av10.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av10.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u8LEE1Dj020459
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 08:14:02 -0600
-Date: Wed, 21 Sep 2016 17:13:57 +0200
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Subject: Re: [PATCH v2 1/1] mm/hugetlb: fix memory offline with hugepage
- size > memory block size
-In-Reply-To: <f3b4221f-8f23-23ce-6bf5-052df7274470@linux.vnet.ibm.com>
-References: <20160920155354.54403-1-gerald.schaefer@de.ibm.com>
-	<20160920155354.54403-2-gerald.schaefer@de.ibm.com>
-	<05d701d213d1$7fb70880$7f251980$@alibaba-inc.com>
-	<20160921143534.0dd95fe7@thinkpad>
-	<f3b4221f-8f23-23ce-6bf5-052df7274470@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Message-Id: <20160921171357.1c01d481@thinkpad>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 21 Sep 2016 08:22:46 -0700 (PDT)
+Date: Wed, 21 Sep 2016 09:22:44 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v2 1/9] ext4: allow DAX writeback for hole punch
+Message-ID: <20160921152244.GB10516@linux.intel.com>
+References: <20160823220419.11717-1-ross.zwisler@linux.intel.com>
+ <20160823220419.11717-2-ross.zwisler@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160823220419.11717-2-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rui Teng <rui.teng@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.cz>
+Cc: linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Matthew Wilcox <mawilcox@microsoft.com>, stable@vger.kernel.org
 
-On Wed, 21 Sep 2016 21:17:29 +0800
-Rui Teng <rui.teng@linux.vnet.ibm.com> wrote:
+On Tue, Aug 23, 2016 at 04:04:11PM -0600, Ross Zwisler wrote:
+> Currently when doing a DAX hole punch with ext4 we fail to do a writeback.
+> This is because the logic around filemap_write_and_wait_range() in
+> ext4_punch_hole() only looks for dirty page cache pages in the radix tree,
+> not for dirty DAX exceptional entries.
+> 
+> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Reviewed-by: Jan Kara <jack@suse.cz>
+> Cc: <stable@vger.kernel.org>
 
-> >  /*
-> >   * Dissolve free hugepages in a given pfn range. Used by memory hotplug to
-> >   * make specified memory blocks removable from the system.
-> > - * Note that start_pfn should aligned with (minimum) hugepage size.
-> > + * Note that this will dissolve a free gigantic hugepage completely, if any
-> > + * part of it lies within the given range.
-> >   */
-> >  void dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
-> >  {
-> > @@ -1466,9 +1473,9 @@ void dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
-> >  	if (!hugepages_supported())
-> >  		return;
-> >
-> > -	VM_BUG_ON(!IS_ALIGNED(start_pfn, 1 << minimum_order));
-> >  	for (pfn = start_pfn; pfn < end_pfn; pfn += 1 << minimum_order)
-> > -		dissolve_free_huge_page(pfn_to_page(pfn));
-> > +		if (pfn_to_page(pfn)))
-> > +			pfn_to_page(pfn));
-> How many times will dissolve_free_huge_page() be invoked in this loop?
-> For each pfn, it will be converted to the head page, and then the list
-> will be deleted repeatedly.
+Ted & Jan,
 
-In the case where the memory block [start_pfn, end_pfn] is part of a
-gigantic hugepage, dissolve_free_huge_page() will only be invoked once.
+I'm still working on the latest version of the PMD work which integrates with
+the new struct iomap faults.  At this point it doesn't look like I'm going to
+make v4.9, but I think that this bug fix at least should probably go in alone?
 
-If there is only one gigantic hugepage pool, 1 << minimum_order will be
-larger than the memory block size, and the loop will stop after the first
-invocation of dissolve_free_huge_page().
+Thanks,
+- Ross
 
-If there are additional hugepage pools, with hugepage sizes < memory
-block size, then it will loop as many times as 1 << minimum_order fits
-inside a memory block, e.g. 256 times with 1 MB minimum hugepage size
-and 256 MB memory block size.
-
-However, the PageHuge() check should always return false after the first
-invocation of dissolve_free_huge_page(), since update_and_free_page()
-will take care of resetting compound_dtor, and so there will also be
-just one invocation.
-
-The only case where there will be more than one invocation is the case
-where we do not have any part of a gigantic hugepage inside the memory
-block, but rather multiple "normal sized" hugepages. Then there will be
-one invocation per hugepage, as opposed to one invocation per
-"1 << minimum_order" range as it was before the patch. So it also
-improves the behaviour in the case where there is no gigantic page
-involved.
-
-> >  }
-> >
-> >  /*
-> >
+> ---
+>  fs/ext4/inode.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+> index 3131747..0900cb4 100644
+> --- a/fs/ext4/inode.c
+> +++ b/fs/ext4/inode.c
+> @@ -3890,7 +3890,7 @@ int ext4_update_disksize_before_punch(struct inode *inode, loff_t offset,
+>  }
+>  
+>  /*
+> - * ext4_punch_hole: punches a hole in a file by releaseing the blocks
+> + * ext4_punch_hole: punches a hole in a file by releasing the blocks
+>   * associated with the given offset and length
+>   *
+>   * @inode:  File inode
+> @@ -3919,7 +3919,7 @@ int ext4_punch_hole(struct inode *inode, loff_t offset, loff_t length)
+>  	 * Write out all dirty pages to avoid race conditions
+>  	 * Then release them.
+>  	 */
+> -	if (mapping->nrpages && mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) {
+> +	if (mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) {
+>  		ret = filemap_write_and_wait_range(mapping, offset,
+>  						   offset + length - 1);
+>  		if (ret)
+> -- 
+> 2.9.0
 > 
 
 --
