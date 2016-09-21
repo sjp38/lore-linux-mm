@@ -1,102 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F187A6B0271
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 10:45:02 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id n4so13490243lfb.3
-        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 07:45:02 -0700 (PDT)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F7896B0272
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 10:47:45 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id l132so26516108wmf.0
+        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 07:47:45 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id bi8si35965224wjb.3.2016.09.21.07.45.01
+        by mx.google.com with ESMTPS id v132si29817708wmd.83.2016.09.21.07.47.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Sep 2016 07:45:01 -0700 (PDT)
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8LEijT5069471
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 10:45:00 -0400
-Received: from e36.co.us.ibm.com (e36.co.us.ibm.com [32.97.110.154])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 25kh284rpt-1
+        Wed, 21 Sep 2016 07:47:43 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8LEiORI121345
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 10:47:42 -0400
+Received: from e38.co.us.ibm.com (e38.co.us.ibm.com [32.97.110.159])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 25knvrjeyu-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 10:44:57 -0400
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 10:47:41 -0400
 Received: from localhost
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 21 Sep 2016 08:44:09 -0600
+	Wed, 21 Sep 2016 08:47:40 -0600
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 3/3] mm: enable CONFIG_MOVABLE_NODE on powerpc
-In-Reply-To: <20160921140846.m6wp2ij5f2fx4cps@arbab-laptop>
-References: <1473883618-14998-1-git-send-email-arbab@linux.vnet.ibm.com> <1473883618-14998-4-git-send-email-arbab@linux.vnet.ibm.com> <87h99cxv00.fsf@linux.vnet.ibm.com> <20160921054500.lrqktzjqjhuzewqg@arbab-laptop> <87oa3hwwxs.fsf@linux.vnet.ibm.com> <20160921140846.m6wp2ij5f2fx4cps@arbab-laptop>
-Date: Wed, 21 Sep 2016 20:13:37 +0530
+Subject: Re: [PATCH v5 0/6] Introduce ZONE_CMA
+In-Reply-To: <87eg54rx1w.fsf@linux.vnet.ibm.com>
+References: <1472447255-10584-1-git-send-email-iamjoonsoo.kim@lge.com> <8737lnudq6.fsf@linux.vnet.ibm.com> <CAAmzW4MZdwn2-Pd_58B+vXKOyPybdfx4FPRvxNaADnDCryo7Ng@mail.gmail.com> <87shtmsfpy.fsf@linux.vnet.ibm.com> <20160831080300.GB22757@js1304-P5Q-DELUXE> <87eg54rx1w.fsf@linux.vnet.ibm.com>
+Date: Wed, 21 Sep 2016 20:17:27 +0530
 MIME-Version: 1.0
 Content-Type: text/plain
-Message-Id: <87h999wbxi.fsf@linux.vnet.ibm.com>
+Message-Id: <87eg4dwbr4.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Reza Arbab <arbab@linux.vnet.ibm.com>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, devicetree@vger.kernel.org, linux-mm@kvack.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Reza Arbab <arbab@linux.vnet.ibm.com> writes:
+"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> writes:
 
-> On Wed, Sep 21, 2016 at 12:39:51PM +0530, Aneesh Kumar K.V wrote:
->>What I was checking was how will one mark a node movable in ppc64 ? I
->>don't see ppc64 code doing the equivalent of memblock_mark_hotplug().
+> Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
 >
-> Post boot, the marking mechanism is not necessary. You can create a 
-> movable node by putting all of the node's memory into ZONE_MOVABLE 
-> during the hotplug.
+>> On Tue, Aug 30, 2016 at 04:09:37PM +0530, Aneesh Kumar K.V wrote:
+>>> Joonsoo Kim <js1304@gmail.com> writes:
+>>> 
+>>> > 2016-08-29 18:27 GMT+09:00 Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>:
+>>> >> js1304@gmail.com writes:
+>>> >>
+>>> >>> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>>> >>>
+>>> >>> Hello,
+>>> >>>
+>>> >>> Changes from v4
+>>> >>> o Rebase on next-20160825
+>>> >>> o Add general fix patch for lowmem reserve
+>>> >>> o Fix lowmem reserve ratio
+>>> >>> o Fix zone span optimizaion per Vlastimil
+>>> >>> o Fix pageset initialization
+>>> >>> o Change invocation timing on cma_init_reserved_areas()
+>>> >>
+>>> >> I don't see much information regarding how we interleave between
+>>> >> ZONE_CMA and other zones for movable allocation. Is that explained in
+>>> >> any of the patch ? The fair zone allocator got removed by
+>>> >> e6cbd7f2efb433d717af72aa8510a9db6f7a7e05
+>>> >
+>>> > Interleaving would not work since the fair zone allocator policy is removed.
+>>> > I don't think that it's a big problem because it is just matter of
+>>> > timing to fill
+>>> > up the memory. Eventually, memory on ZONE_CMA will be fully used in
+>>> > any case.
+>>> 
+>>> Does that mean a CMA allocation will now be slower because in most case we
+>>> will need to reclaim ? The zone list will now have ZONE_CMA in the
+>>> beginning right ?
+>>
+>> ZONE_CMA will be used first but I don't think that CMA allocation will
+>> be slower. In most case, memory would be fully used (usually
+>> by page cache). So, we need reclaim or migration in any case.
 >
->>So when you say "Onlining memory into ZONE_MOVABLE requires
->>CONFIG_MOVABLE_NODE" where is that restriction ?. IIUC,
->>should_add_memory_movable() will only return ZONE_MOVABLE only if it is
->>non empty and MOVABLE_NODE will create a ZONE_MOVABLE zone by default
->>only if it finds a memblock marked hotpluggable. So wondering if we
->>are not calling memblock_mark_hotplug() how is it working. Or am I
->>missing something ?
->
-> You are looking at the addition step of hotplug. You're correct there, 
-> the memory is added to the default zone, not ZONE_MOVABLE. The 
-> transition to ZONE_MOVABLE takes place during the onlining step. In 
-> online_pages():
->
-> 	zone = move_pfn_range(zone_shift, pfn, pfn + nr_pages);
->
-> The reason we need CONFIG_MOVABLE_NODE is right before that:
->
-> 	if ((zone_idx(zone) > ZONE_NORMAL ||
-> 	    online_type == MMOP_ONLINE_MOVABLE) &&
-> 	    !can_online_high_movable(zone))
-> 		return -EINVAL;
+> Considering that the upstream kernel doesn't allow migration of THP
+> pages, this would mean that migrate will fail in most case if we have
+> THP enabled and the THP allocation request got satisfied via ZONE_CMA.
+> Isn't that going to be a problem ?
 >
 
-So we are looking at two step online process here. The above explained
-the details nicely. Can you capture these details in the commit message. ie,
-to say that when using 'echo online-movable > state' we allow the move from
-normal to movable only if movable node is set. Also you may want to
-mention that we still don't support the auto-online to movable.
+Even though we have the issues of migration failures due to pinned and
+THP pages in ZONE_CMA, overall the code is simpler. IMHO we should get
+this upstream now and work on solving those issues later.
 
+You can add for the complete series.
 
-> where can_online_high_movable() is defined like this:
->
-> 	#ifdef CONFIG_MOVABLE_NODE
-> 	/*
-> 	 * When CONFIG_MOVABLE_NODE, we permit onlining of a node which doesn't have
-> 	 * normal memory.
-> 	 */
-> 	static bool can_online_high_movable(struct zone *zone)
-> 	{
-> 		return true;
-> 	}
-> 	#else /* CONFIG_MOVABLE_NODE */
-> 	/* ensure every online node has NORMAL memory */
-> 	static bool can_online_high_movable(struct zone *zone)
-> 	{
-> 		return node_state(zone_to_nid(zone), N_NORMAL_MEMORY);
-> 	}
-> 	#endif /* CONFIG_MOVABLE_NODE */
->
-> To be more clear, I can change the commit log to say "Onlining all of a 
-> node's memory into ZONE_MOVABLE requires CONFIG_MOVABLE_NODE".
->
-> -- 
-> Reza Arbab
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
 -aneesh
 
