@@ -1,62 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CE14A6B0265
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 17:21:37 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id c84so126613059pfj.2
-        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 14:21:37 -0700 (PDT)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id q7si42388480pap.88.2016.09.21.14.21.37
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C48C628024D
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 18:30:04 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id l132so35560509wmf.0
+        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 15:30:04 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id z131si32403013wmb.25.2016.09.21.15.30.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Sep 2016 14:21:37 -0700 (PDT)
-Received: by mail-pa0-x229.google.com with SMTP id oz2so21963171pac.2
-        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 14:21:37 -0700 (PDT)
-Date: Wed, 21 Sep 2016 14:21:35 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 3/5] mm/vmalloc.c: correct lazy_max_pages() return
- value
-In-Reply-To: <57E20C49.8010304@zoho.com>
-Message-ID: <alpine.DEB.2.10.1609211418480.20971@chino.kir.corp.google.com>
-References: <57E20C49.8010304@zoho.com>
+        Wed, 21 Sep 2016 15:30:03 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8LMSdwu098847
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 18:30:02 -0400
+Received: from e18.ny.us.ibm.com (e18.ny.us.ibm.com [129.33.205.208])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 25kh28qe8t-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 18:30:01 -0400
+Received: from localhost
+	by e18.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
+	Wed, 21 Sep 2016 18:30:01 -0400
+Date: Wed, 21 Sep 2016 17:29:46 -0500
+From: Reza Arbab <arbab@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 3/3] mm: enable CONFIG_MOVABLE_NODE on powerpc
+References: <1473883618-14998-1-git-send-email-arbab@linux.vnet.ibm.com>
+ <1473883618-14998-4-git-send-email-arbab@linux.vnet.ibm.com>
+ <87h99cxv00.fsf@linux.vnet.ibm.com>
+ <20160921054500.lrqktzjqjhuzewqg@arbab-laptop>
+ <87oa3hwwxs.fsf@linux.vnet.ibm.com>
+ <20160921140846.m6wp2ij5f2fx4cps@arbab-laptop>
+ <87h999wbxi.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <87h999wbxi.fsf@linux.vnet.ibm.com>
+Message-Id: <20160921222946.on4jcxgk7nerrbh4@arbab-laptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zijun_hu <zijun_hu@zoho.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com, tj@kernel.org, mingo@kernel.org, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, devicetree@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 21 Sep 2016, zijun_hu wrote:
+On Wed, Sep 21, 2016 at 08:13:37PM +0530, Aneesh Kumar K.V wrote:
+>So we are looking at two step online process here. The above explained
+>the details nicely. Can you capture these details in the commit message. ie,
+>to say that when using 'echo online-movable > state' we allow the move from
+>normal to movable only if movable node is set. Also you may want to
+>mention that we still don't support the auto-online to movable.
 
-> From: zijun_hu <zijun_hu@htc.com>
-> 
-> correct lazy_max_pages() return value if the number of online
-> CPUs is power of 2
-> 
-> Signed-off-by: zijun_hu <zijun_hu@htc.com>
-> ---
->  mm/vmalloc.c | 4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index a125ae8..2804224 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -594,7 +594,9 @@ static unsigned long lazy_max_pages(void)
->  {
->  	unsigned int log;
->  
-> -	log = fls(num_online_cpus());
-> +	log = num_online_cpus();
-> +	if (log > 1)
-> +		log = (unsigned int)get_count_order(log);
->  
->  	return log * (32UL * 1024 * 1024 / PAGE_SIZE);
->  }
+Sure, no problem. I'll use a more verbose commit message in v3.
 
-The implementation of lazy_max_pages() is somewhat arbitrarily defined, 
-the existing approximation has been around for eight years and 
-num_online_cpus() isn't intended to be rounded up to the next power of 2.  
-I'd be inclined to just leave it as it is.
+-- 
+Reza Arbab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
