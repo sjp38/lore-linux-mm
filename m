@@ -1,49 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FDBD6B025E
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 00:15:34 -0400 (EDT)
-Received: by mail-yw0-f199.google.com with SMTP id t67so76034906ywg.3
-        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 21:15:34 -0700 (PDT)
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C3726B025E
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 00:20:59 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id y10so76319797qty.2
+        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 21:20:59 -0700 (PDT)
 Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
-        by mx.google.com with ESMTPS id b39si24858183qtc.150.2016.09.20.21.15.33
+        by mx.google.com with ESMTPS id c186si24058934qkf.208.2016.09.20.21.20.58
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 20 Sep 2016 21:15:33 -0700 (PDT)
+        Tue, 20 Sep 2016 21:20:59 -0700 (PDT)
 From: zijun_hu <zijun_hu@zoho.com>
-Subject: [RESEND PATCH 1/1] linux/mm.h: canonicalize macro PAGE_ALIGNED()
- definition
-Message-ID: <57E20923.6090807@zoho.com>
-Date: Wed, 21 Sep 2016 12:14:27 +0800
+Subject: [PATCH 1/1] lib/ioremap.c: avoid endless loop under ioremapping page
+ unaligned ranges
+Message-ID: <57E20A69.5010206@zoho.com>
+Date: Wed, 21 Sep 2016 12:19:53 +0800
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: zijun_hu@htc.com, tj@kernel.org, mingo@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com, tj@kernel.org, mingo@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net
 
 From: zijun_hu <zijun_hu@htc.com>
 
-canonicalize macro PAGE_ALIGNED() definition
+endless loop maybe happen if either of parameter addr and end is not
+page aligned for kernel API function ioremap_page_range()
+
+in order to fix this issue and alert improper range parameters to user
+WARN_ON() checkup and rounding down range lower boundary are performed
+firstly, loop end condition within ioremap_pte_range() is optimized due
+to lack of relevant macro pte_addr_end()
 
 Signed-off-by: zijun_hu <zijun_hu@htc.com>
 ---
- include/linux/mm.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ lib/ioremap.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index ef815b9..ec68186 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -126,7 +126,7 @@ extern int overcommit_kbytes_handler(struct ctl_table *, int, void __user *,
- #define PAGE_ALIGN(addr) ALIGN(addr, PAGE_SIZE)
+diff --git a/lib/ioremap.c b/lib/ioremap.c
+index 86c8911..911bdca 100644
+--- a/lib/ioremap.c
++++ b/lib/ioremap.c
+@@ -64,7 +64,7 @@ static int ioremap_pte_range(pmd_t *pmd, unsigned long addr,
+ 		BUG_ON(!pte_none(*pte));
+ 		set_pte_at(&init_mm, addr, pte, pfn_pte(pfn, prot));
+ 		pfn++;
+-	} while (pte++, addr += PAGE_SIZE, addr != end);
++	} while (pte++, addr += PAGE_SIZE, addr < end && addr >= PAGE_SIZE);
+ 	return 0;
+ }
  
- /* test whether an address (unsigned long or pointer) is aligned to PAGE_SIZE */
--#define PAGE_ALIGNED(addr)	IS_ALIGNED((unsigned long)addr, PAGE_SIZE)
-+#define PAGE_ALIGNED(addr)	IS_ALIGNED((unsigned long)(addr), PAGE_SIZE)
+@@ -129,7 +129,9 @@ int ioremap_page_range(unsigned long addr,
+ 	int err;
  
- /*
-  * Linux kernel virtual memory manager primitives.
+ 	BUG_ON(addr >= end);
++	WARN_ON(!PAGE_ALIGNED(addr) || !PAGE_ALIGNED(end));
+ 
++	addr = round_down(addr, PAGE_SIZE);
+ 	start = addr;
+ 	phys_addr -= addr;
+ 	pgd = pgd_offset_k(addr);
 -- 
 1.9.1
 
