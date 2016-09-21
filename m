@@ -1,79 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D1696B0263
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 03:10:16 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id y6so2555388lff.0
-        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 00:10:16 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id x75si30448879wmd.127.2016.09.21.00.10.14
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 93D5E6B0263
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 03:29:45 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id w84so34362381wmg.1
+        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 00:29:45 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 11si28103223wmn.108.2016.09.21.00.29.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Sep 2016 00:10:15 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8L78XV2040287
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 03:10:13 -0400
-Received: from e36.co.us.ibm.com (e36.co.us.ibm.com [32.97.110.154])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 25jua9rg70-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 03:10:13 -0400
-Received: from localhost
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 21 Sep 2016 01:10:11 -0600
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 3/3] mm: enable CONFIG_MOVABLE_NODE on powerpc
-In-Reply-To: <20160921054500.lrqktzjqjhuzewqg@arbab-laptop>
-References: <1473883618-14998-1-git-send-email-arbab@linux.vnet.ibm.com> <1473883618-14998-4-git-send-email-arbab@linux.vnet.ibm.com> <87h99cxv00.fsf@linux.vnet.ibm.com> <20160921054500.lrqktzjqjhuzewqg@arbab-laptop>
-Date: Wed, 21 Sep 2016 12:39:51 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 21 Sep 2016 00:29:43 -0700 (PDT)
+Date: Wed, 21 Sep 2016 09:29:41 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: More OOM problems
+Message-ID: <20160921072941.GB10300@dhcp22.suse.cz>
+References: <CA+55aFwu30Yz52yW+MRHt_JgpqZkq4DHdWR-pX4+gO_OK7agCQ@mail.gmail.com>
+ <20160921000458.15fdd159@metalhead.dragonrealms>
 MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <87oa3hwwxs.fsf@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160921000458.15fdd159@metalhead.dragonrealms>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Reza Arbab <arbab@linux.vnet.ibm.com>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, devicetree@vger.kernel.org, linux-mm@kvack.org
+To: Raymond Jennings <shentino@gmail.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Markus Trippelsdorf <markus@trippelsdorf.de>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Jiri Slaby <jslaby@suse.com>, Olaf Hering <olaf@aepfle.de>, Joonsoo Kim <js1304@gmail.com>, linux-mm <linux-mm@kvack.org>
 
-Reza Arbab <arbab@linux.vnet.ibm.com> writes:
+On Wed 21-09-16 00:04:58, Raymond Jennings wrote:
+> On Sun, 18 Sep 2016 13:03:01 -0700
+> Linus Torvalds <torvalds@linux-foundation.org> wrote:
+> 
+> > [ More or less random collection of people from previous oom patches
+> > and/or discussions, if you feel you shouldn't have been cc'd, blame me
+> > for just picking things from earlier threads and/or commits ]
+> > 
+> > I'm afraid that the oom situation is still not fixed, and the "let's
+> > die quickly" patches are still a nasty regression.
+> > 
+> > I have a 16GB desktop that I just noticed killed one of the chrome
+> > tabs yesterday. Tha machine had *tons* of freeable memory, with
+> > something like 7GB of page cache at the time, if I read this right.
+> 
+> Suggestions:
+> 
+> * Live compaction?
+> 
+> Have a background process that actively defragments free memory by
+> bubbling movable pages to one end of the zone and the free holes to the
+> other end?
+> 
+> Same spirit perhaps as khugepaged, periodically walk a zone from one
+> end and migrate any used movable pages into the hole closest to the
+> other end?
 
-> On Mon, Sep 19, 2016 at 11:59:35AM +0530, Aneesh Kumar K.V wrote:
->>Movable node also does.
->>	memblock_set_bottom_up(true);
->>What is the impact of that. Do we need changes equivalent to that ? Also
->>where are we marking the nodes which can be hotplugged, ie where do we
->>do memblock_mark_hotplug() ?
->
-> These are related to the mechanism x86 uses to create movable nodes at 
-> boot. The SRAT is parsed to mark any hotplug memory. That marking is 
-> used later when initializing ZONE_MOVABLE for each node. [1]
->
-> The bottom-up allocation is due to a timing issue [2]. There is a window 
-> where kernel memory may be allocated before the SRAT is parsed. Any 
-> bottom-up allocations done during that time will likely be in the same 
-> (nonmovable) node as the kernel image.
->
-> On power, I don't think we have a heuristic equivalent to that SRAT 
-> memory hotplug info. So, we'll be limited to dynamically adding movable 
-> nodes after boot.
->
-> 1. http://events.linuxfoundation.org/sites/events/files/lcjp13_chen.pdf
-> 2. commit 79442ed189ac ("mm/memblock.c: introduce bottom-up allocation 
-> mode")
->
+we have something like that already. It's called kcompactd
 
-What I was checking was how will one mark a node movable in ppc64 ? I
-don't see ppc64 code doing the equivalent of memblock_mark_hotplug().
+> I dunno, doing this manually with /proc/sys/vm/compact_blah seems a
+> little hamfisted to me, and maybe a background process doing it
+> incrementally would be better?
+> 
+> Also, question (for myself but also for the curious):
+> 
+> If you're allocating memory, can you synchronously reclaim, or does the
+> memory have to be free already?
 
-So when you say "Onlining memory into ZONE_MOVABLE requires
-CONFIG_MOVABLE_NODE" where is that restriction ?. IIUC,
-should_add_memory_movable() will only return ZONE_MOVABLE only if it is
-non empty and MOVABLE_NODE will create a ZONE_MOVABLE zone by default
-only if it finds a memblock marked hotpluggable. So wondering if we
-are not calling memblock_mark_hotplug() how is it working. Or am I
-missing something ?
+Yes we do direct reclaim if we are hitting watermarks. kswapd will start
+earlier to prevent from direct reclaim because that will incur
+latencies.
 
--aneesh
+[...]
+> > And yes, CONFIG_COMPACTION was enabled.
+> 
+> Does this compact manually or automatically?
 
-    
+Without this option there is no compaction at all and the reclaim is the
+only source of high order pages.
+
+> > So quite honestly, I *really* don't think that a 1kB allocation should
+> > have reasonably failed and killed anything at all (ok, it could have
+> > been an 8kB one, who knows - but it really looks like it *could* have
+> > been just 1kB).
+> > 
+> > Considering that kmalloc() pattern, I suspect that we need to consider
+> > order-3 allocations "small", and try a lot harder.
+> > 
+> > Because killing processes due to "out of memory" in this situation is
+> > unquestionably a bug.
+> 
+> In this case I'd wonder why the freeable-but-still-used-in-pagecache
+> memory isn't being reaped at alloc time.
+
+I've tried to explain in other email. But let me try again. Compaction
+code will back off and refrain from doing anything if we are close the
+watermarks. This was your case as I've pointed in other email. The
+workaround (retry as long as we are above order-0 watermark) which is
+sitting in the Linus' tree will prevent only high order ooms only if
+there is some memory left which should be normally the case because the
+reclaim should free up something but if you hit parallel allocation
+during reclaim somebody might have eaten up that memory. That's why I've
+said it's far from idea but it should at least plug the biggest hole.
+
+The patches from Vlastimil get us back to compaction feedback route
+which was my original design. That means we keep reclaiming while the
+compaction backs off and keep retrying as long as the compaction doesn't
+fail. His changes get rid of some heuristics if we are getting close to
+OOM situation so it should work much more reliably than my original
+implementation. He doesn't have to change the detection code but rather
+change compaction implementation details.
+
+HTH
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
