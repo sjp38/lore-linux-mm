@@ -1,127 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B5880280252
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 11:34:25 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id l91so108268084qte.3
-        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 08:34:25 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o197si12106263ybg.201.2016.09.21.08.34.24
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CC9628024E
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 12:04:37 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 21so111060564pfy.3
+        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 09:04:37 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id z4si41261109pau.35.2016.09.21.09.04.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Sep 2016 08:34:24 -0700 (PDT)
-Date: Wed, 21 Sep 2016 17:34:21 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 1/1] ksm: introduce ksm_max_page_sharing per page
- deduplication limit
-Message-ID: <20160921153421.GA4716@redhat.com>
-References: <1447181081-30056-1-git-send-email-aarcange@redhat.com>
- <1447181081-30056-2-git-send-email-aarcange@redhat.com>
- <1459974829.28435.6.camel@redhat.com>
- <20160406220202.GA2998@redhat.com>
- <CA+eFSM0e1XqnPweeLeYJJz=4zS6ixWzFRSeH6UaChey+o+FWPA@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 21 Sep 2016 09:04:36 -0700 (PDT)
+Subject: Re: [PATCH] memory-hotplug: Fix bad area access on
+ dissolve_free_huge_pages()
+References: <1473755948-13215-1-git-send-email-rui.teng@linux.vnet.ibm.com>
+ <57D83821.4090804@linux.intel.com>
+ <a789f3ef-bd49-8811-e1df-e949f0758ad1@linux.vnet.ibm.com>
+ <57D97CAF.7080005@linux.intel.com>
+ <566c04af-c937-cbe0-5646-2cc2c816cc3f@linux.vnet.ibm.com>
+ <57DC1CE0.5070400@linux.intel.com>
+ <7e642622-72ee-87f6-ceb0-890ce9c28382@linux.vnet.ibm.com>
+ <57E14D64.6090609@linux.intel.com>
+ <fc05ee3c-097f-709b-7484-1cadc9f3ce22@linux.vnet.ibm.com>
+ <57E17531.6050008@linux.intel.com> <20160921120507.GG10300@dhcp22.suse.cz>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <57E2AF8F.6030202@linux.intel.com>
+Date: Wed, 21 Sep 2016 09:04:31 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+eFSM0e1XqnPweeLeYJJz=4zS6ixWzFRSeH6UaChey+o+FWPA@mail.gmail.com>
+In-Reply-To: <20160921120507.GG10300@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gavin Guo <gavin.guo@canonical.com>
-Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm@kvack.org, Petr Holasek <pholasek@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@linux.intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Rui Teng <rui.teng@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Santhosh G <santhog4@in.ibm.com>
 
-Hello Gavin,
-
-On Wed, Sep 21, 2016 at 11:12:19PM +0800, Gavin Guo wrote:
-> Recently, a similar bug can also be observed under the numad process
-> with the v4.4 Ubuntu kernel or the latest upstream kernel. However, I
-> think the patch should be useful to mitigate the symptom. I tried to
-> search the mailing list and found the patch finally didn't be merged
-> into the upstream kernel. If there are any problems which drop the
-> patch?
-
-Zero known problems, in fact it's running in production in both RHEL7
-and RHEL6 for a while. The RHEL customers are not affected anymore for
-a while now.
-
-It's a critical computational complexity fix, if using KSM in
-enterprise production. Hugh already Acked it as well.
-
-It's included in -mm and Andrew submitted it once upstream, but it
-bounced probably perhaps it was not the right time in the merge window
-cycle.
-
-Or perhaps because it's complex but I wouldn't know how to simplify it
-but there's no bug at all in the code.
-
-I would suggest Andrew to send it once again when he feels it's a good
-time to do so.
-
-> The numad process tried to migrate a qemu process of 33GB memory.
-> Finally, it stuck in the csd_lock_wait function which causes the qemu
-> process hung and the virtual machine has high CPU usage and hung also.
-> With KSM disabled, the symptom disappeared.
-
-Until it's merged upstream you can cherrypick from my aa.git tree
-these three commits:
-
-https://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?id=9384142e4ce830898abcefc4f0479c4533fa5bbc
-https://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?id=4b293be7e20c8e8731a4fdc3c3bf6047304d0cc8
-https://git.kernel.org/cgit/linux/kernel/git/andrea/aa.git/commit/?id=44c0d79c2c223c54ffe3fabc893963fc5963d611
-
-They're in -mm too.
-
-> What happens here is that do_migrate_pages (frame #10) acquires the
-> mmap_sem semaphore that everything else is waiting for (and that
-> eventually produce the hang warnings), and it holds that semaphore for
-> the duration of the page migration.
+On 09/21/2016 05:05 AM, Michal Hocko wrote:
+> On Tue 20-09-16 10:43:13, Dave Hansen wrote:
+>> On 09/20/2016 08:52 AM, Rui Teng wrote:
+>>> On 9/20/16 10:53 PM, Dave Hansen wrote:
+>> ...
+>>>> That's good, but aren't we still left with a situation where we've
+>>>> offlined and dissolved the _middle_ of a gigantic huge page while the
+>>>> head page is still in place and online?
+>>>>
+>>>> That seems bad.
+>>>>
+>>> What about refusing to change the status for such memory block, if it
+>>> contains a huge page which larger than itself? (function
+>>> memory_block_action())
+>>
+>> How will this be visible to users, though?  That sounds like you simply
+>> won't be able to offline memory with gigantic huge pages.
 > 
-> crash> bt 2950
-> PID: 2950   TASK: ffff885f97745280  CPU: 49  COMMAND: "numad"
->     [exception RIP: smp_call_function_single+219]
->     RIP: ffffffff81103a0b  RSP: ffff885f8fb4fb28  RFLAGS: 00000202
->     RAX: 0000000000000000  RBX: 0000000000000013  RCX: 0000000000000000
->     RDX: 0000000000000003  RSI: 0000000000000100  RDI: 0000000000000286
->     RBP: ffff885f8fb4fb70   R8: 0000000000000000   R9: 0000000000080000
->     R10: 0000000000000000  R11: ffff883faf917c88  R12: ffffffff810725f0
->     R13: 0000000000000013  R14: ffffffff810725f0  R15: ffff885f8fb4fbc8
->     CS: 0010  SS: 0018
->  #0 [ffff885f8fb4fb30] kvm_unmap_rmapp at ffffffffc01f1c3e [kvm]
->  #1 [ffff885f8fb4fb78] smp_call_function_many at ffffffff81103db3
->  #2 [ffff885f8fb4fbc0] native_flush_tlb_others at ffffffff8107279d
->  #3 [ffff885f8fb4fc08] flush_tlb_page at ffffffff81072a95
->  #4 [ffff885f8fb4fc30] ptep_clear_flush at ffffffff811d048e
->  #5 [ffff885f8fb4fc60] try_to_unmap_one at ffffffff811cb1c7
->  #6 [ffff885f8fb4fcd0] rmap_walk_ksm at ffffffff811e6f91
->  #7 [ffff885f8fb4fd28] rmap_walk at ffffffff811cc1bf
->  #8 [ffff885f8fb4fd80] try_to_unmap at ffffffff811cc46b
->  #9 [ffff885f8fb4fdc8] migrate_pages at ffffffff811f26d8
-> #10 [ffff885f8fb4fe80] do_migrate_pages at ffffffff811e15f7
-> #11 [ffff885f8fb4fef8] sys_migrate_pages at ffffffff811e187d
-> #12 [ffff885f8fb4ff50] entry_SYSCALL_64_fastpath at ffffffff818244f2
-> 
-> After some investigations, I've tried to disassemble the coredump and
-> finally find the stable_node->hlist is as long as 2306920 entries.
+> I might be missing something but Is this any different from a regular
+> failure when the memory cannot be freed? I mean
+> /sys/devices/system/memory/memory API doesn't give you any hint whether
+> the memory in the particular block is used and
+> unmigrateable.
 
-Yep, this is definitely getting fixed by the three commits above and
-the problem is in rmap_walk_ksm like you found above. With that
-applied you can't ever run into hangs anymore with KSM enabled, no
-matter the workload and the amount of memory in guest and host.
+It's OK to have free hugetlbfs pages in an area that's being offline'd.
+ If we did that, it would not be OK to have a free gigantic hugetlbfs
+page that's larger than the area being offlined.
 
-numad isn't required to reproduce it, some swapping is enough.
-
-It limits the de-duplication factor to 256 times, like a x256 times
-compression, a x256 compression factor is clearly more than enough. So
-effectively the list you found that was too long, gets hard-limited to
-256 entries with my patch applied. The limit is configurable at runtime:
-
-/* Maximum number of page slots sharing a stable node */
-static int ksm_max_page_sharing = 256;
-
-If you want to increase the limit (careful: that will increase
-the rmap_walk_ksm computation time) you can echo $newsharinglimit >
-/sys/kernel/mm/ksm/max_page_sharing.
-
-Hope this helps,
-Andrea
+It would be a wee bit goofy to have the requirement that userspace go
+find all the gigantic pages and make them non-gigantic before trying to
+offline something.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
