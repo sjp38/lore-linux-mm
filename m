@@ -1,51 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 271786B025E
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 01:50:55 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id wk8so74104383pab.3
-        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 22:50:55 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id u129si74022865pfu.78.2016.09.20.22.50.54
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Sep 2016 22:50:54 -0700 (PDT)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8L5ntLw047602
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 01:50:53 -0400
-Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 25kkb5jjcc-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 01:50:53 -0400
-Received: from localhost
-	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Wed, 21 Sep 2016 01:50:52 -0400
-Date: Wed, 21 Sep 2016 00:50:38 -0500
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 2/3] powerpc/mm: allow memory hotplug into a
- memoryless node
-References: <1473883618-14998-1-git-send-email-arbab@linux.vnet.ibm.com>
- <1473883618-14998-3-git-send-email-arbab@linux.vnet.ibm.com>
- <15d62e9c-38e6-dfd3-0ee2-6885cbfbe315@gmail.com>
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 398146B025E
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 02:29:43 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id q92so114221387ioi.3
+        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 23:29:43 -0700 (PDT)
+Received: from out4439.biz.mail.alibaba.com (out4439.biz.mail.alibaba.com. [47.88.44.39])
+        by mx.google.com with ESMTP id m125si40133175iof.41.2016.09.20.23.29.41
+        for <linux-mm@kvack.org>;
+        Tue, 20 Sep 2016 23:29:42 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <20160920155354.54403-1-gerald.schaefer@de.ibm.com> <20160920155354.54403-2-gerald.schaefer@de.ibm.com>
+In-Reply-To: <20160920155354.54403-2-gerald.schaefer@de.ibm.com>
+Subject: Re: [PATCH 1/1] mm/hugetlb: fix memory offline with hugepage size > memory block size
+Date: Wed, 21 Sep 2016 14:29:25 +0800
+Message-ID: <05d701d213d1$7fb70880$7f251980$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <15d62e9c-38e6-dfd3-0ee2-6885cbfbe315@gmail.com>
-Message-Id: <20160921055038.o2z73uwmxpxlabmd@arbab-laptop>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, devicetree@vger.kernel.org, linux-mm@kvack.org
+To: 'Gerald Schaefer' <gerald.schaefer@de.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'Michal Hocko' <mhocko@suse.cz>, "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>, 'Vlastimil Babka' <vbabka@suse.cz>, 'Mike Kravetz' <mike.kravetz@oracle.com>, "'Aneesh Kumar K . V'" <aneesh.kumar@linux.vnet.ibm.com>, 'Martin Schwidefsky' <schwidefsky@de.ibm.com>, 'Heiko Carstens' <heiko.carstens@de.ibm.com>
 
-On Mon, Sep 19, 2016 at 09:53:49PM +1000, Balbir Singh wrote:
->I presume you've tested with CONFIG_NODES_SHIFT of 8 (255 nodes?)
+> @@ -1466,9 +1468,9 @@ void dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
+>  	if (!hugepages_supported())
+>  		return;
+> 
+> -	VM_BUG_ON(!IS_ALIGNED(start_pfn, 1 << minimum_order));
 
-Oh yes, definitely.
+Then the relevant comment has to be updated.
 
-The large number of possible nodes does not come into play here.
-
--- 
-Reza Arbab
+Hillf
+>  	for (pfn = start_pfn; pfn < end_pfn; pfn += 1 << minimum_order)
+> -		dissolve_free_huge_page(pfn_to_page(pfn));
+> +		if (PageHuge(pfn_to_page(pfn)))
+> +			dissolve_free_huge_page(pfn_to_page(pfn));
+>  }
+> 
+>  /*
+> --
+> 2.8.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
