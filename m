@@ -1,69 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CC9628024E
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 12:04:37 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id 21so111060564pfy.3
-        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 09:04:37 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id z4si41261109pau.35.2016.09.21.09.04.36
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 91FAB28024E
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 12:13:57 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id l91so110611513qte.3
+        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 09:13:57 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w186si14755680ywe.184.2016.09.21.09.13.56
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 21 Sep 2016 09:04:36 -0700 (PDT)
-Subject: Re: [PATCH] memory-hotplug: Fix bad area access on
- dissolve_free_huge_pages()
-References: <1473755948-13215-1-git-send-email-rui.teng@linux.vnet.ibm.com>
- <57D83821.4090804@linux.intel.com>
- <a789f3ef-bd49-8811-e1df-e949f0758ad1@linux.vnet.ibm.com>
- <57D97CAF.7080005@linux.intel.com>
- <566c04af-c937-cbe0-5646-2cc2c816cc3f@linux.vnet.ibm.com>
- <57DC1CE0.5070400@linux.intel.com>
- <7e642622-72ee-87f6-ceb0-890ce9c28382@linux.vnet.ibm.com>
- <57E14D64.6090609@linux.intel.com>
- <fc05ee3c-097f-709b-7484-1cadc9f3ce22@linux.vnet.ibm.com>
- <57E17531.6050008@linux.intel.com> <20160921120507.GG10300@dhcp22.suse.cz>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <57E2AF8F.6030202@linux.intel.com>
-Date: Wed, 21 Sep 2016 09:04:31 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Sep 2016 09:13:57 -0700 (PDT)
+Date: Wed, 21 Sep 2016 18:13:54 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [xiaolong.ye@intel.com: [mm] 0331ab667f: kernel BUG at
+ mm/mmap.c:327!]
+Message-ID: <20160921161354.GC4716@redhat.com>
+References: <20160920134638.GJ4716@redhat.com>
+ <CANN689EwtyO7NvUnmfeo+0ugFhWZhDex8Wovc0Q5VvtPJYH+ZQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20160921120507.GG10300@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CANN689EwtyO7NvUnmfeo+0ugFhWZhDex8Wovc0Q5VvtPJYH+ZQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Rui Teng <rui.teng@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Santhosh G <santhog4@in.ibm.com>
+To: Michel Lespinasse <walken@google.com>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>
 
-On 09/21/2016 05:05 AM, Michal Hocko wrote:
-> On Tue 20-09-16 10:43:13, Dave Hansen wrote:
->> On 09/20/2016 08:52 AM, Rui Teng wrote:
->>> On 9/20/16 10:53 PM, Dave Hansen wrote:
->> ...
->>>> That's good, but aren't we still left with a situation where we've
->>>> offlined and dissolved the _middle_ of a gigantic huge page while the
->>>> head page is still in place and online?
->>>>
->>>> That seems bad.
->>>>
->>> What about refusing to change the status for such memory block, if it
->>> contains a huge page which larger than itself? (function
->>> memory_block_action())
->>
->> How will this be visible to users, though?  That sounds like you simply
->> won't be able to offline memory with gigantic huge pages.
+On Tue, Sep 20, 2016 at 05:49:01PM -0700, Michel Lespinasse wrote:
+> Hi Andrea, nice hearing from you :)
+
+Same from my part :)
+
+> It sounds like the gaps get temporarily out of sync, which is not an actual
+> problem as long as they get fixed before releasing the appropriate locks
+> (which you can verify by checking if the validate_mm() call at the end of
+> vma_adjust() still passes).
+
+Ok I did this change to test it. It reports zero problems with the
+patch applied that skips "next" instead of "vma" in the case that sets
+next->vm_start = vma->vm_start.
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 0c5f6f7..62b7273 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -915,9 +915,10 @@ again:
+ 			end = next->vm_end;
+ 			goto again;
+ 		}
+-		else if (next)
++		else if (next) {
+ 			vma_gap_update(next);
+-		else
++			validate_mm(mm);
++		} else
+ 			mm->highest_vm_end = end;
+ 	}
+ 	if (insert && file)
+
+the validate_mm is always executed in case 8 that removes "vma"
+instead of "next".
+
+So I think this is definitive confirmation there was no bug and this
+was a false positive from DEBUG_VM_RR, that is fully corrected by the
+incremental patch I sent yesterday.
+
+> I'm guessing that for the update you're doing, the validate_mm_rb call
+> within vma_rb_erase may need to ignore vma->next rather than vma itself.
+
+Exactly, that's what the patch below does. Because vma->next->vm_start
+was reduced to vma->vm_start and vma is still in the tree (I'm calling
+the vma_rb_erase precisely to remove "vma").
+
+> I haven't looked in enough detail, but this seems workable. The important
+> part is that validate_mm must pass at the end up the update. Any other
+> intermediate checks are secondary - don't feel bad about overriding them if
+> they get in the way :)
+
+I didn't shut off any check to correct the validation code after my
+changes: I only shifted the "ignore" parameter from "vma" to "next"
+like you suggested above.
+
+> >         struct vm_area_struct *next;
+> >
+> > -       vma_rb_erase(vma, &mm->mm_rb);
+> > +       if (has_prev)
+> > +               vma_rb_erase_ignore(vma, &mm->mm_rb, ignore);
+> > +       else
+> > +               vma_rb_erase_ignore(vma, &mm->mm_rb, ignore);
+> >         next = vma->vm_next;
+> >         if (has_prev)
+> >                 prev->vm_next = next;
+> >
 > 
-> I might be missing something but Is this any different from a regular
-> failure when the memory cannot be freed? I mean
-> /sys/devices/system/memory/memory API doesn't give you any hint whether
-> the memory in the particular block is used and
-> unmigrateable.
+> You seem to have the same function call on both sides of the if ???
 
-It's OK to have free hugetlbfs pages in an area that's being offline'd.
- If we did that, it would not be OK to have a free gigantic hugetlbfs
-page that's larger than the area being offlined.
+Never mind, that was a leftover, but the code was still correct. I
+already sent a cleanup follow up patch to deduplicate the above if.
 
-It would be a wee bit goofy to have the requirement that userspace go
-find all the gigantic pages and make them non-gigantic before trying to
-offline something.
+> 
+> 
+> > @@ -626,13 +650,7 @@ static inline void __vma_unlink_prev(struct mm_struct
+> > *mm,
+> >                                      struct vm_area_struct *vma,
+> >                                      struct vm_area_struct *prev)
+> >  {
+> > -       __vma_unlink_common(mm, vma, prev, true);
+> > -}
+> > -
+> > -static inline void __vma_unlink(struct mm_struct *mm,
+> > -                               struct vm_area_struct *vma)
+> > -{
+> > -       __vma_unlink_common(mm, vma, NULL, false);
+> > +       __vma_unlink_common(mm, vma, prev, true, vma);
+> >  }
+> >
+> >  /*
+> >
+> 
+> confused as to why some of the __vma_unlink_common parameters change, other
+> than just adding the ignore parameter
+
+That changes __vma_unlink_prev, it's just the patch that is
+confusing. I just dropped __vma_unlink enterely and I call
+__vma_unlink_common directly now, in order to pass the different
+"ignore" parameter to it.
+
+The real change to __unlink_vma_prev is this:
+
+> > -       __vma_unlink_common(mm, vma, prev, true);
+> > +       __vma_unlink_common(mm, vma, prev, true, vma)
+
+Which only adds the "same" ignore parameter.
+
+In case8 when I remove "vma" instead of "next", I have no prev for
+vma, and vma->vm_prev in fact may be null. So I can't call
+__vma_unlink_prev, I got to call the common version directly that is
+capable of doing an unlink without a prev guaranteed not-null.
+
+> Sorry this is not a full review - but I do agree on the general principle
+> of working around the intermediate checks in any way you need as long as
+> validate_mm passes when you're done modifying the vma structures :)
+
+Thanks a lot for the quick review, and yes validate_mm passes if put
+immediately after the vma_gap_update(next) as shown at the top of the
+email, so it should be all good with this change that passes "next" as
+"ignore" parameter, instead of "vma" when next->vm_start is reduced
+(instead of vma->vm_end increased in all other cases).
+
+And so there is no bug in the fix in -mm, this was just a false
+positive debug check that needed an update to the validation code to
+cope with the new code.
+
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
