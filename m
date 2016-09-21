@@ -1,122 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 916686B025E
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 01:32:34 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id q92so111548375ioi.3
-        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 22:32:34 -0700 (PDT)
-Received: from g2t2355.austin.hpe.com (g2t2355.austin.hpe.com. [15.233.44.28])
-        by mx.google.com with ESMTPS id d30si26373789otb.112.2016.09.20.22.32.33
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 49DFC6B025E
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 01:45:17 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id y6so1088663lff.0
+        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 22:45:17 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id a9si28376577wje.165.2016.09.20.22.45.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Sep 2016 22:32:33 -0700 (PDT)
-From: Juerg Haefliger <juerg.haefliger@hpe.com>
-Subject: Re: [kernel-hardening] [RFC PATCH v2 2/3] xpfo: Only put previous
- userspace pages into the hot cache
-References: <20160902113909.32631-1-juerg.haefliger@hpe.com>
- <20160914071901.8127-1-juerg.haefliger@hpe.com>
- <20160914071901.8127-3-juerg.haefliger@hpe.com> <57D95FA3.3030103@intel.com>
- <7badeb6c-e343-4327-29ed-f9c9c0b6654b@hpe.com> <57D9633A.2010702@intel.com>
-Message-ID: <09d3ac8c-1111-b7aa-4720-b7a7b7c7798b@hpe.com>
-Date: Wed, 21 Sep 2016 07:32:09 +0200
+        Tue, 20 Sep 2016 22:45:15 -0700 (PDT)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8L5f7h7027828
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 01:45:14 -0400
+Received: from e33.co.us.ibm.com (e33.co.us.ibm.com [32.97.110.151])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 25kjkwmf54-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 01:45:14 -0400
+Received: from localhost
+	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
+	Tue, 20 Sep 2016 23:45:12 -0600
+Date: Wed, 21 Sep 2016 00:45:01 -0500
+From: Reza Arbab <arbab@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 3/3] mm: enable CONFIG_MOVABLE_NODE on powerpc
+References: <1473883618-14998-1-git-send-email-arbab@linux.vnet.ibm.com>
+ <1473883618-14998-4-git-send-email-arbab@linux.vnet.ibm.com>
+ <87h99cxv00.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <57D9633A.2010702@intel.com>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="c2csM3GwGuAP6k4UUq4uQ3pOeC0oH3gwe"
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <87h99cxv00.fsf@linux.vnet.ibm.com>
+Message-Id: <20160921054500.lrqktzjqjhuzewqg@arbab-laptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, kernel-hardening@lists.openwall.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-x86_64@vger.kernel.org
-Cc: vpk@cs.columbia.edu
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, devicetree@vger.kernel.org, linux-mm@kvack.org
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---c2csM3GwGuAP6k4UUq4uQ3pOeC0oH3gwe
-Content-Type: multipart/mixed; boundary="cp3KG1pRWNVkg2cUrE2FeqpfXPuIvKHFp";
- protected-headers="v1"
-From: Juerg Haefliger <juerg.haefliger@hpe.com>
-To: Dave Hansen <dave.hansen@intel.com>, kernel-hardening@lists.openwall.com,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- linux-x86_64@vger.kernel.org
-Cc: vpk@cs.columbia.edu
-Message-ID: <09d3ac8c-1111-b7aa-4720-b7a7b7c7798b@hpe.com>
-Subject: Re: [kernel-hardening] [RFC PATCH v2 2/3] xpfo: Only put previous
- userspace pages into the hot cache
-References: <20160902113909.32631-1-juerg.haefliger@hpe.com>
- <20160914071901.8127-1-juerg.haefliger@hpe.com>
- <20160914071901.8127-3-juerg.haefliger@hpe.com> <57D95FA3.3030103@intel.com>
- <7badeb6c-e343-4327-29ed-f9c9c0b6654b@hpe.com> <57D9633A.2010702@intel.com>
-In-Reply-To: <57D9633A.2010702@intel.com>
+On Mon, Sep 19, 2016 at 11:59:35AM +0530, Aneesh Kumar K.V wrote:
+>Movable node also does.
+>	memblock_set_bottom_up(true);
+>What is the impact of that. Do we need changes equivalent to that ? Also
+>where are we marking the nodes which can be hotplugged, ie where do we
+>do memblock_mark_hotplug() ?
 
---cp3KG1pRWNVkg2cUrE2FeqpfXPuIvKHFp
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: quoted-printable
+These are related to the mechanism x86 uses to create movable nodes at 
+boot. The SRAT is parsed to mark any hotplug memory. That marking is 
+used later when initializing ZONE_MOVABLE for each node. [1]
 
-On 09/14/2016 04:48 PM, Dave Hansen wrote:
->> On 09/02/2016 10:39 PM, Dave Hansen wrote:
->>> On 09/02/2016 04:39 AM, Juerg Haefliger wrote:
->>> Does this
->>> just mean that kernel allocations usually have to pay the penalty to
->>> convert a page?
->>
->> Only pages that are allocated for userspace (gfp & GFP_HIGHUSER =3D=3D=
- GFP_HIGHUSER) which were
->> previously allocated for the kernel (gfp & GFP_HIGHUSER !=3D GFP_HIGHU=
-SER) have to pay the penalty.
->>
->>> So, what's the logic here?  You're assuming that order-0 kernel
->>> allocations are more rare than allocations for userspace?
->>
->> The logic is to put reclaimed kernel pages into the cold cache to
->> postpone their allocation as long as possible to minimize (potential)
->> TLB flushes.
->=20
-> OK, but if we put them in the cold area but kernel allocations pull the=
-m
-> from the hot cache, aren't we virtually guaranteeing that kernel
-> allocations will have to to TLB shootdown to convert a page?
+The bottom-up allocation is due to a timing issue [2]. There is a window 
+where kernel memory may be allocated before the SRAT is parsed. Any 
+bottom-up allocations done during that time will likely be in the same 
+(nonmovable) node as the kernel image.
 
-No. Allocations for the kernel never require a TLB shootdown. Only alloca=
-tions for userspace (and
-only if the page was previously a kernel page).
+On power, I don't think we have a heuristic equivalent to that SRAT 
+memory hotplug info. So, we'll be limited to dynamically adding movable 
+nodes after boot.
 
+1. http://events.linuxfoundation.org/sites/events/files/lcjp13_chen.pdf
+2. commit 79442ed189ac ("mm/memblock.c: introduce bottom-up allocation 
+mode")
 
-> It seems like you also need to convert all kernel allocations to pull
-> from the cold area.
-
-Kernel allocations can continue to pull from the hot cache. Maybe introdu=
-ce another cache for the
-userspace pages? But I'm not sure what other implications this might have=
-=2E
-
-=2E..Juerg
-
-
-
---cp3KG1pRWNVkg2cUrE2FeqpfXPuIvKHFp--
-
---c2csM3GwGuAP6k4UUq4uQ3pOeC0oH3gwe
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQIcBAEBCAAGBQJX4httAAoJEHVMOpb5+LSMZ70P+wUBIgtKwmFUXkR1gRWJRVMx
-qaebjDcW32Edkxrg0579JSX3QHbpdQ9FU/oA/2gAGWpBi+w1WzJM/RzRHPxEG+ef
-e9vimmquTKzWdJSwEy1AqJSwF3QE39o0aJmsGBycvrc9mKQKb8rSSjpthSlOPCtb
-S8a9IRL3zghpOAeQSkKuiWYhYTHcfmYQpSBcBrzP3cCuX17LNKNHIGeRb4uFdbMA
-MMtSUCnXt8mkk5HgTXkAGv0UN+ox+bBIQ1hzHbdyTSahKzi6pIDlcufMaz9JSxHH
-CVVdll/vzPBB2hAQ7nTa+4bOULe091bHMDM4ibI9O3e70E1HIdGwjyKHZFdTMQeT
-Ft8GC4+LRQYphOlZi/UrhzLPaZMfew4PZAslo6EuPyixxZ+9B/hMy70O35p8y1zL
-3RYb+oAPF8WGUQXQ71DHj3eOVaHxPwTxFXSF2rdRoGeicQEN1UP8J3X6ztbrUXR6
-rPVoArezDHp1vaj7IzeLAK/HDUKGQvhMi4sur9AHgdu6GK0zKg59OYZEgUHcilOU
-TvatAm5stL1IA127BzN1LBE4TZgIx78PxIqtTHXX5SR6n0x0WstcEgXuV5gR1YF+
-vxHNnBNBlLWTI5ztKRu5fD5pJRlRdqdua9WZEJVjj94vR+WgkE0tD5yMr2YPGoDZ
-9F1XnrIX6PCxw9lxJ8mq
-=MRdI
------END PGP SIGNATURE-----
-
---c2csM3GwGuAP6k4UUq4uQ3pOeC0oH3gwe--
+-- 
+Reza Arbab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
