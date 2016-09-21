@@ -1,127 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D57736B025E
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 22:13:47 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id s64so28388961lfs.1
-        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 19:13:47 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id m10si28117571wja.285.2016.09.20.19.13.46
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 763766B025E
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 23:08:10 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id 16so74040224qtn.1
+        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 20:08:10 -0700 (PDT)
+Received: from mail-yw0-f182.google.com (mail-yw0-f182.google.com. [209.85.161.182])
+        by mx.google.com with ESMTPS id o9si12949653ybg.197.2016.09.20.20.08.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Sep 2016 19:13:46 -0700 (PDT)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8L2CmWi121127
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 22:13:45 -0400
-Received: from e32.co.us.ibm.com (e32.co.us.ibm.com [32.97.110.150])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 25jmr1mwhr-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 22:13:45 -0400
-Received: from localhost
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <zhong@linux.vnet.ibm.com>;
-	Tue, 20 Sep 2016 20:13:44 -0600
-Content-Type: text/plain; charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 9.3 \(3124\))
-Subject: Re: [PATCH] mem-hotplug: Don't clear the only node in new_node_page()
-From: Li Zhong <zhong@linux.vnet.ibm.com>
-In-Reply-To: <alpine.DEB.2.10.1609201413210.84794@chino.kir.corp.google.com>
-Date: Wed, 21 Sep 2016 10:11:29 +0800
-Content-Transfer-Encoding: quoted-printable
-References: <1473044391.4250.19.camel@TP420> <d7393a3e-73a7-7923-bc32-d4dcbc6523f9@suse.cz> <20160912091811.GE14524@dhcp22.suse.cz> <c144f768-7591-8bb8-4238-b3f1ecaf8b4b@suse.cz> <alpine.DEB.2.10.1609201413210.84794@chino.kir.corp.google.com>
-Message-Id: <078BDBDC-6274-4D06-917A-50B0E1112A66@linux.vnet.ibm.com>
+        Tue, 20 Sep 2016 20:08:09 -0700 (PDT)
+Received: by mail-yw0-f182.google.com with SMTP id g192so32307837ywh.1
+        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 20:08:09 -0700 (PDT)
+Subject: Re: [PATCH] mm: usercopy: Check for module addresses
+References: <1474386996-16049-1-git-send-email-labbott@redhat.com>
+ <CAGXu5jJBhNRF50q562THamJY-PKm9RpFW+id9GCaRzwezQ_xZA@mail.gmail.com>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <c9060494-5b69-b346-b44d-249d62a3f662@redhat.com>
+Date: Tue, 20 Sep 2016 20:08:06 -0700
+MIME-Version: 1.0
+In-Reply-To: <CAGXu5jJBhNRF50q562THamJY-PKm9RpFW+id9GCaRzwezQ_xZA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.cz>, linux-mm <linux-mm@kvack.org>, jallen@linux.vnet.ibm.com, qiuxishi@huawei.com, iamjoonsoo.kim@lge.com, n-horiguchi@ah.jp.nec.com, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+To: Kees Cook <keescook@chromium.org>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
 
+On 09/20/2016 04:01 PM, Kees Cook wrote:
+> On Tue, Sep 20, 2016 at 8:56 AM, Laura Abbott <labbott@redhat.com> wrote:
+>> While running a compile on arm64, I hit a memory exposure
+>>
+>> usercopy: kernel memory exposure attempt detected from fffffc0000f3b1a8 (buffer_head) (1 bytes)
+>> ------------[ cut here ]------------
+>> kernel BUG at mm/usercopy.c:75!
+>> Internal error: Oops - BUG: 0 [#1] SMP
+>> Modules linked in: ip6t_rpfilter ip6t_REJECT
+>> nf_reject_ipv6 xt_conntrack ip_set nfnetlink ebtable_broute bridge stp
+>> llc ebtable_nat ip6table_security ip6table_raw ip6table_nat
+>> nf_conntrack_ipv6 nf_defrag_ipv6 nf_nat_ipv6 ip6table_mangle
+>> iptable_security iptable_raw iptable_nat nf_conntrack_ipv4
+>> nf_defrag_ipv4 nf_nat_ipv4 nf_nat nf_conntrack iptable_mangle
+>> ebtable_filter ebtables ip6table_filter ip6_tables vfat fat xgene_edac
+>> xgene_enet edac_core i2c_xgene_slimpro i2c_core at803x realtek xgene_dma
+>> mdio_xgene gpio_dwapb gpio_xgene_sb xgene_rng mailbox_xgene_slimpro nfsd
+>> auth_rpcgss nfs_acl lockd grace sunrpc xfs libcrc32c sdhci_of_arasan
+>> sdhci_pltfm sdhci mmc_core xhci_plat_hcd gpio_keys
+>> CPU: 0 PID: 19744 Comm: updatedb Tainted: G        W 4.8.0-rc3-threadinfo+ #1
+>> Hardware name: AppliedMicro X-Gene Mustang Board/X-Gene Mustang Board, BIOS 3.06.12 Aug 12 2016
+>> task: fffffe03df944c00 task.stack: fffffe00d128c000
+>> PC is at __check_object_size+0x70/0x3f0
+>> LR is at __check_object_size+0x70/0x3f0
+>> ...
+>> [<fffffc00082b4280>] __check_object_size+0x70/0x3f0
+>> [<fffffc00082cdc30>] filldir64+0x158/0x1a0
+>> [<fffffc0000f327e8>] __fat_readdir+0x4a0/0x558 [fat]
+>> [<fffffc0000f328d4>] fat_readdir+0x34/0x40 [fat]
+>> [<fffffc00082cd8f8>] iterate_dir+0x190/0x1e0
+>> [<fffffc00082cde58>] SyS_getdents64+0x88/0x120
+>> [<fffffc0008082c70>] el0_svc_naked+0x24/0x28
+>>
+>> fffffc0000f3b1a8 is a module address. Modules may have compiled in
+>> strings which could get copied to userspace. In this instance, it
+>> looks like "." which matches with a size of 1 byte. Extend the
+>> is_vmalloc_addr check to be is_vmalloc_or_module_addr to cover
+>> all possible cases.
+>>
+>> Signed-off-by: Laura Abbott <labbott@redhat.com>
+>> ---
+>> Longer term, it would be good to expand the check for to regions like
+>> regular kernel memory.
+>> ---
+>>  mm/usercopy.c | 5 ++++-
+>>  1 file changed, 4 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/mm/usercopy.c b/mm/usercopy.c
+>> index 8ebae91..d8b5bd3 100644
+>> --- a/mm/usercopy.c
+>> +++ b/mm/usercopy.c
+>> @@ -145,8 +145,11 @@ static inline const char *check_heap_object(const void *ptr, unsigned long n,
+>>          * Some architectures (arm64) return true for virt_addr_valid() on
+>>          * vmalloced addresses. Work around this by checking for vmalloc
+>>          * first.
+>> +        *
+>> +        * We also need to check for module addresses explicitly since we
+>> +        * may copy static data from modules to userspace
+>>          */
+>> -       if (is_vmalloc_addr(ptr))
+>> +       if (is_vmalloc_or_module_addr(ptr))
+>>                 return NULL;
+>
+> I still don't understand why this happens on arm64 and not x86.
+> (Really what I don't understand is what virt_addr_valid() is actually
+> checking -- they seem to be checking very different things between x86
+> and arm64.)
 
-> On Sep 21, 2016, at 05:53, David Rientjes <rientjes@google.com> wrote:
->=20
-> On Tue, 20 Sep 2016, Vlastimil Babka wrote:
->=20
->> On 09/12/2016 11:18 AM, Michal Hocko wrote:
->>> On Mon 05-09-16 16:18:29, Vlastimil Babka wrote:
->>>=20
->>>> Also OOM is skipped for __GFP_THISNODE
->>>> allocations, so we might also consider the same for =
-nodemask-constrained
->>>> allocations?
->>>>=20
->>>>> The patch checks whether it is the last node on the system, and if =
-it
->>>> is, then
->>>>> don't clear the nid in the nodemask.
->>>>=20
->>>> I'd rather see the allocation not OOM, and rely on the fallback in
->>>> new_node_page() that doesn't have nodemask. But I suspect it might =
-also
->>>> make
->>>> sense to treat empty nodemask as something unexpected and put some =
-WARN_ON
->>>> (instead of OOM) in the allocator.
->>>=20
->>> To be honest I am really not all that happy about 394e31d2ceb4
->>> ("mem-hotplug: alloc new page from a nearest neighbor node when
->>> mem-offline") and find it a bit fishy. I would rather re-iterate =
-that
->>> patch rather than build new hacks on top.
->>=20
->> OK, IIRC I suggested the main idea of clearing the current node from =
-nodemask
->> and relying on nodelist to get us the other nodes sorted by their =
-distance.
->> Which I thought was an easy way to get to the theoretically optimal =
-result.
->> How would you rewrite it then? (but note that the fix is already =
-mainline).
->>=20
->=20
-> This is a mess.  Commit 9bb627be47a5 ("mem-hotplug: don't clear the =
-only=20
-> node in new_node_page()") is wrong because it's clearing nid when the =
-next=20
-> node in node_online_map doesn't match.  node_online_map is wrong =
-because=20
-> it includes memoryless nodes.  (Nodes with closest NUMA distance also =
-do=20
-> not need to have adjacent node ids.)
+virt_addr_valid is supposed to return true if and only if virt_to_page
+returns a valid pointer. arm64 is currently returning true in some
+cases it shouldn't. I finally got to work on a patch to fix it up so
+hopefully once that gets submitted we can drop these extra checks.
 
-Thanks for pointing out that, so it is still possible that we are =
-allocating from one
-or more memoryless nodes, which is the same as from an empty mask.=20
-
-I will try to fix it as you suggested below, test and send it soon.=20
-=20
->=20
-> This is all protected by mem_hotplug_begin() and the zonelists will be=20=
-
-> stable.  The solution is to rewrite new_node_page() to work correctly. =
-=20
-> Use node_states[N_MEMORY] as mask, clear page_to_nid(page).  If mask =
-is=20
-> not empty, do
->=20
-> __alloc_pages_nodemask(gfp_mask, 0,
-> node_zonelist(page_to_nid(page), gfp_mask), &mask)=20
->=20
-> and fallback to alloc_page(gfp_mask), which should also be used if the=20=
-
-> mask is empty -- do not try to allocate memory from the empty set of=20=
-
-> nodes.
->=20
-> mm-page_alloc-warn-about-empty-nodemask.patch is a rather ridiculous=20=
-
-> warning to need.  The largest user of a page allocator nodemask is=20
-> mempolicies which makes sure it doesn't pass an empty set.  If it's =
-really=20
-> required, it should at least be unlikely() since the vast majority of=20=
-
-> callers will have ac->nodemask =3D=3D NULL.
->=20
-OK, I=E2=80=99ll send a new version adding unlikely().
-
-Thanks, Zhong
+>
+> Regardless, I'll get this pushed to Linus and try to make the -rc8 cut.
+>
+> Thanks!
+>
+> -Kees
+>
+>>
+>>         if (!virt_addr_valid(ptr))
+>> --
+>> 2.7.4
+>>
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
