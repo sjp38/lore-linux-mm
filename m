@@ -1,94 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F7896B0272
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 10:47:45 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id l132so26516108wmf.0
-        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 07:47:45 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id v132si29817708wmd.83.2016.09.21.07.47.43
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3961328024E
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 11:12:21 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id n185so125315419qke.2
+        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 08:12:21 -0700 (PDT)
+Received: from mail-yb0-x232.google.com (mail-yb0-x232.google.com. [2607:f8b0:4002:c09::232])
+        by mx.google.com with ESMTPS id q190si14624752ywf.417.2016.09.21.08.12.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Sep 2016 07:47:43 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8LEiORI121345
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 10:47:42 -0400
-Received: from e38.co.us.ibm.com (e38.co.us.ibm.com [32.97.110.159])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 25knvrjeyu-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 10:47:41 -0400
-Received: from localhost
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 21 Sep 2016 08:47:40 -0600
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v5 0/6] Introduce ZONE_CMA
-In-Reply-To: <87eg54rx1w.fsf@linux.vnet.ibm.com>
-References: <1472447255-10584-1-git-send-email-iamjoonsoo.kim@lge.com> <8737lnudq6.fsf@linux.vnet.ibm.com> <CAAmzW4MZdwn2-Pd_58B+vXKOyPybdfx4FPRvxNaADnDCryo7Ng@mail.gmail.com> <87shtmsfpy.fsf@linux.vnet.ibm.com> <20160831080300.GB22757@js1304-P5Q-DELUXE> <87eg54rx1w.fsf@linux.vnet.ibm.com>
-Date: Wed, 21 Sep 2016 20:17:27 +0530
+        Wed, 21 Sep 2016 08:12:20 -0700 (PDT)
+Received: by mail-yb0-x232.google.com with SMTP id u125so33719135ybg.3
+        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 08:12:20 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <87eg4dwbr4.fsf@linux.vnet.ibm.com>
+In-Reply-To: <20160406220202.GA2998@redhat.com>
+References: <1447181081-30056-1-git-send-email-aarcange@redhat.com>
+ <1447181081-30056-2-git-send-email-aarcange@redhat.com> <1459974829.28435.6.camel@redhat.com>
+ <20160406220202.GA2998@redhat.com>
+From: Gavin Guo <gavin.guo@canonical.com>
+Date: Wed, 21 Sep 2016 23:12:19 +0800
+Message-ID: <CA+eFSM0e1XqnPweeLeYJJz=4zS6ixWzFRSeH6UaChey+o+FWPA@mail.gmail.com>
+Subject: Re: [PATCH 1/1] ksm: introduce ksm_max_page_sharing per page
+ deduplication limit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Vlastimil Babka <vbabka@suse.cz>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <dave@stgolabs.net>, linux-mm@kvack.org, Petr Holasek <pholasek@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@linux.intel.com>
 
-"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> writes:
+Hi Andrea,
 
-> Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
+On Thu, Apr 7, 2016 at 6:02 AM, Andrea Arcangeli <aarcange@redhat.com> wrote:
+> Hello Rik,
 >
->> On Tue, Aug 30, 2016 at 04:09:37PM +0530, Aneesh Kumar K.V wrote:
->>> Joonsoo Kim <js1304@gmail.com> writes:
->>> 
->>> > 2016-08-29 18:27 GMT+09:00 Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>:
->>> >> js1304@gmail.com writes:
->>> >>
->>> >>> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->>> >>>
->>> >>> Hello,
->>> >>>
->>> >>> Changes from v4
->>> >>> o Rebase on next-20160825
->>> >>> o Add general fix patch for lowmem reserve
->>> >>> o Fix lowmem reserve ratio
->>> >>> o Fix zone span optimizaion per Vlastimil
->>> >>> o Fix pageset initialization
->>> >>> o Change invocation timing on cma_init_reserved_areas()
->>> >>
->>> >> I don't see much information regarding how we interleave between
->>> >> ZONE_CMA and other zones for movable allocation. Is that explained in
->>> >> any of the patch ? The fair zone allocator got removed by
->>> >> e6cbd7f2efb433d717af72aa8510a9db6f7a7e05
->>> >
->>> > Interleaving would not work since the fair zone allocator policy is removed.
->>> > I don't think that it's a big problem because it is just matter of
->>> > timing to fill
->>> > up the memory. Eventually, memory on ZONE_CMA will be fully used in
->>> > any case.
->>> 
->>> Does that mean a CMA allocation will now be slower because in most case we
->>> will need to reclaim ? The zone list will now have ZONE_CMA in the
->>> beginning right ?
+> On Wed, Apr 06, 2016 at 04:33:49PM -0400, Rik van Riel wrote:
+>> On Tue, 2015-11-10 at 19:44 +0100, Andrea Arcangeli wrote:
+>> > Without a max deduplication limit for each KSM page, the list of the
+>> > rmap_items associated to each stable_node can grow infinitely
+>> > large.
+>> >
+>> > During the rmap walk each entry can take up to ~10usec to process
+>> > because of IPIs for the TLB flushing (both for the primary MMU and
+>> > the
+>> > secondary MMUs with the MMU notifier). With only 16GB of address
+>> > space
+>> > shared in the same KSM page, that would amount to dozens of seconds
+>> > of
+>> > kernel runtime.
 >>
->> ZONE_CMA will be used first but I don't think that CMA allocation will
->> be slower. In most case, memory would be fully used (usually
->> by page cache). So, we need reclaim or migration in any case.
+>> Silly question, but could we fix this problem
+>> by building up a bitmask of all CPUs that have
+>> a page-with-high-mapcount mapped, and simply
+>> send out a global TLB flush to those CPUs once
+>> we have changed the page tables, instead of
+>> sending out IPIs at every page table change?
 >
-> Considering that the upstream kernel doesn't allow migration of THP
-> pages, this would mean that migrate will fail in most case if we have
-> THP enabled and the THP allocation request got satisfied via ZONE_CMA.
-> Isn't that going to be a problem ?
+> That's great idea indeed, but it's an orthogonal optimization. Hugh
+> already posted a patch adding TTU_BATCH_FLUSH to try_to_unmap in
+> migrate and then call try_to_unmap_flush() at the end which is on the
+> same lines of you're suggesting. Problem is we still got millions of
+> entries potentially present in those lists with the current code, even
+> a list walk without IPI is prohibitive.
 >
+> The only alternative is to make rmap_walk non atomic, i.e. break it in
+> the middle, because it's not just the cost of IPIs that is
+> excessive. However doing that breaks all sort of assumptions in the VM
+> and overall it will make it weaker, as when we're OOM we're not sure
+> anymore if we have been aggressive enough in clearing referenced bits
+> if tons of KSM pages are slightly above the atomic-walk-limit. Even
+> ignoring the VM behavior, page migration and in turn compaction and
+> memory offlining require scanning all entries in the list before we
+> can return to userland and remove the DIMM or succeed the increase of
+> echo > nr_hugepages, so all those features would become unreliable and
+> they could incur in enormous latencies.
+>
+> Like Arjan mentioned, there's no significant downside in limiting the
+> "compression ratio" to x256 or x1024 or x2048 (depending on the sysctl
+> value) because the higher the limit the more we're hitting diminishing
+> returns.
+>
+> On the design side I believe there's no other black and white possible
+> solution than this one that solves all problems with no downside at
+> all for the VM fast paths we care about the most.
+>
+> On the implementation side if somebody can implement it better than I
+> did while still as optimal, so that the memory footprint of the KSM
+> metadata is unchanged (on 64bit), that would be welcome.
+>
+> One thing that could be improved is adding proper defrag to increase
+> the average density to nearly match the sysctl value at all times, but
+> the heuristic I added (that tries to achieve the same objective by
+> picking the busiest stable_node_dup and putting it in the head of the
+> chain for the next merges) is working well too. There will be at least
+> 2 entries for each stable_node_dup so the worst case density is still
+> x2. Real defrag that modifies pagetables would be as costly as page
+> migration, while this costs almost nothing as it's run once in a
+> while.
+>
+> Thanks,
+> Andrea
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Even though we have the issues of migration failures due to pinned and
-THP pages in ZONE_CMA, overall the code is simpler. IMHO we should get
-this upstream now and work on solving those issues later.
+Recently, a similar bug can also be observed under the numad process
+with the v4.4 Ubuntu kernel or the latest upstream kernel. However, I
+think the patch should be useful to mitigate the symptom. I tried to
+search the mailing list and found the patch finally didn't be merged
+into the upstream kernel. If there are any problems which drop the
+patch?
 
-You can add for the complete series.
+The numad process tried to migrate a qemu process of 33GB memory.
+Finally, it stuck in the csd_lock_wait function which causes the qemu
+process hung and the virtual machine has high CPU usage and hung also.
+With KSM disabled, the symptom disappeared.
 
-Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+>From the following backtrace, The RIP: smp_call_function_single+219 is
+actually in the csd_lock_wait function mentioned above, but the
+compiler has optimized that call and it does not appear in the stack.
 
--aneesh
+What happens here is that do_migrate_pages (frame #10) acquires the
+mmap_sem semaphore that everything else is waiting for (and that
+eventually produce the hang warnings), and it holds that semaphore for
+the duration of the page migration.
+
+crash> bt 2950
+PID: 2950   TASK: ffff885f97745280  CPU: 49  COMMAND: "numad"
+    [exception RIP: smp_call_function_single+219]
+    RIP: ffffffff81103a0b  RSP: ffff885f8fb4fb28  RFLAGS: 00000202
+    RAX: 0000000000000000  RBX: 0000000000000013  RCX: 0000000000000000
+    RDX: 0000000000000003  RSI: 0000000000000100  RDI: 0000000000000286
+    RBP: ffff885f8fb4fb70   R8: 0000000000000000   R9: 0000000000080000
+    R10: 0000000000000000  R11: ffff883faf917c88  R12: ffffffff810725f0
+    R13: 0000000000000013  R14: ffffffff810725f0  R15: ffff885f8fb4fbc8
+    CS: 0010  SS: 0018
+ #0 [ffff885f8fb4fb30] kvm_unmap_rmapp at ffffffffc01f1c3e [kvm]
+ #1 [ffff885f8fb4fb78] smp_call_function_many at ffffffff81103db3
+ #2 [ffff885f8fb4fbc0] native_flush_tlb_others at ffffffff8107279d
+ #3 [ffff885f8fb4fc08] flush_tlb_page at ffffffff81072a95
+ #4 [ffff885f8fb4fc30] ptep_clear_flush at ffffffff811d048e
+ #5 [ffff885f8fb4fc60] try_to_unmap_one at ffffffff811cb1c7
+ #6 [ffff885f8fb4fcd0] rmap_walk_ksm at ffffffff811e6f91
+ #7 [ffff885f8fb4fd28] rmap_walk at ffffffff811cc1bf
+ #8 [ffff885f8fb4fd80] try_to_unmap at ffffffff811cc46b
+ #9 [ffff885f8fb4fdc8] migrate_pages at ffffffff811f26d8
+#10 [ffff885f8fb4fe80] do_migrate_pages at ffffffff811e15f7
+#11 [ffff885f8fb4fef8] sys_migrate_pages at ffffffff811e187d
+#12 [ffff885f8fb4ff50] entry_SYSCALL_64_fastpath at ffffffff818244f2
+
+After some investigations, I've tried to disassemble the coredump and
+finally find the stable_node->hlist is as long as 2306920 entries.
+
+rmap_item list(stable_node->hlist):
+stable_node: 0xffff881f836ba000 stable_node->hlist->first =
+0xffff883f3e5746b0
+
+struct hlist_head {
+[0] struct hlist_node *first;
+}
+struct hlist_node {
+[0] struct hlist_node *next;
+[8] struct hlist_node **pprev;
+}
+
+crash> list hlist_node.next 0xffff883f3e5746b0 > rmap_item.lst
+
+$ wc -l rmap_item.lst
+2306920 rmap_item.lst
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
