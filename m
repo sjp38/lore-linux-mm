@@ -1,95 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DC616280256
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 13:15:04 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id s64so17224861lfs.1
-        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 10:15:04 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id b205si32836668wmh.146.2016.09.21.10.15.03
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E610E280256
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 13:17:16 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id w84so49107128wmg.1
+        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 10:17:16 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id js8si28585465wjc.127.2016.09.21.10.17.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Sep 2016 10:15:03 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id 133so9741514wmq.2
-        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 10:15:03 -0700 (PDT)
-Date: Wed, 21 Sep 2016 19:15:01 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 3/4] mm, compaction: restrict full priority to non-costly
- orders
-Message-ID: <20160921171501.GG24210@dhcp22.suse.cz>
-References: <20160906135258.18335-1-vbabka@suse.cz>
- <20160906135258.18335-4-vbabka@suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 21 Sep 2016 10:17:15 -0700 (PDT)
+Date: Wed, 21 Sep 2016 19:16:59 +0200
+From: Borislav Petkov <bp@suse.de>
+Subject: Re: [RFC PATCH v1 03/28] kvm: svm: Use the hardware provided GPA
+ instead of page walk
+Message-ID: <20160921171659.cvtkp5nf3r3afawi@pd.tnic>
+References: <147190820782.9523.4967724730957229273.stgit@brijesh-build-machine>
+ <147190824754.9523.13923968456167130181.stgit@brijesh-build-machine>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20160906135258.18335-4-vbabka@suse.cz>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <147190824754.9523.13923968456167130181.stgit@brijesh-build-machine>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Olaf Hering <olaf@aepfle.de>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
+To: Brijesh Singh <brijesh.singh@amd.com>
+Cc: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linus.walleij@linaro.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, devel@linuxdriverproject.org, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, linux-crypto@vger.kernel.org, pbonzini@redhat.com, akpm@linux-foundation.org, davem@davemloft.net
 
-On Tue 06-09-16 15:52:57, Vlastimil Babka wrote:
-> The new ultimate compaction priority disables some heuristics, which may result
-> in excessive cost. This is fine for non-costly orders where we want to try hard
-> before resulting for OOM, but might be disruptive for costly orders which do
-> not trigger OOM and should generally have some fallback. Thus, we disable the
-> full priority for costly orders.
+On Mon, Aug 22, 2016 at 07:24:07PM -0400, Brijesh Singh wrote:
+> From: Tom Lendacky <thomas.lendacky@amd.com>
 > 
-> Suggested-by: Michal Hocko <mhocko@kernel.org>
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Rik van Riel <riel@redhat.com>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
+> When a guest causes a NPF which requires emulation, KVM sometimes walks
+> the guest page tables to translate the GVA to a GPA. This is unnecessary
+> most of the time on AMD hardware since the hardware provides the GPA in
+> EXITINFO2.
+> 
+> The only exception cases involve string operations involving rep or
+> operations that use two memory locations. With rep, the GPA will only be
+> the value of the initial NPF and with dual memory locations we won't know
+> which memory address was translated into EXITINFO2.
+> 
+> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
 > ---
->  include/linux/compaction.h | 1 +
->  mm/page_alloc.c            | 5 ++++-
->  2 files changed, 5 insertions(+), 1 deletion(-)
-> 
-> diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-> index 585d55cb0dc0..0d8415820fc3 100644
-> --- a/include/linux/compaction.h
-> +++ b/include/linux/compaction.h
-> @@ -9,6 +9,7 @@ enum compact_priority {
->  	COMPACT_PRIO_SYNC_FULL,
->  	MIN_COMPACT_PRIORITY = COMPACT_PRIO_SYNC_FULL,
->  	COMPACT_PRIO_SYNC_LIGHT,
-> +	MIN_COMPACT_COSTLY_PRIORITY = COMPACT_PRIO_SYNC_LIGHT,
->  	DEF_COMPACT_PRIORITY = COMPACT_PRIO_SYNC_LIGHT,
->  	COMPACT_PRIO_ASYNC,
->  	INIT_COMPACT_PRIORITY = COMPACT_PRIO_ASYNC
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index f8bed910e3cf..ff60a2837c58 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3165,6 +3165,7 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
->  		     int compaction_retries)
->  {
->  	int max_retries = MAX_COMPACT_RETRIES;
-> +	int min_priority;
->  
->  	if (!order)
->  		return false;
-> @@ -3204,7 +3205,9 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
->  	 * if we exhausted all retries at the lower priorities
->  	 */
->  check_priority:
-> -	if (*compact_priority > MIN_COMPACT_PRIORITY) {
-> +	min_priority = (order > PAGE_ALLOC_COSTLY_ORDER) ?
-> +			MIN_COMPACT_COSTLY_PRIORITY : MIN_COMPACT_PRIORITY;
-> +	if (*compact_priority > min_priority) {
->  		(*compact_priority)--;
->  		return true;
->  	}
-> -- 
-> 2.9.3
+>  arch/x86/include/asm/kvm_emulate.h |    3 +++
+>  arch/x86/include/asm/kvm_host.h    |    3 +++
+>  arch/x86/kvm/svm.c                 |    2 ++
+>  arch/x86/kvm/x86.c                 |   17 ++++++++++++++++-
+>  4 files changed, 24 insertions(+), 1 deletion(-)
+
+FWIW, LGTM. (Gotta love replying in acronyms :-))
+
+Reviewed-by: Borislav Petkov <bp@suse.de>
 
 -- 
-Michal Hocko
-SUSE Labs
+Regards/Gruss,
+    Boris.
+
+SUSE Linux GmbH, GF: Felix ImendA?rffer, Jane Smithard, Graham Norton, HRB 21284 (AG NA 1/4 rnberg)
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
