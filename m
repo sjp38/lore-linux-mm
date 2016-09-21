@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 827836B0266
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 17:15:26 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id j129so150963704qkd.3
-        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 14:15:26 -0700 (PDT)
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E3DE6B0266
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 17:15:28 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id o68so151749116qkf.0
+        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 14:15:28 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v71si15107583ywc.440.2016.09.21.14.15.25
+        by mx.google.com with ESMTPS id o186si15108010ybb.295.2016.09.21.14.15.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 21 Sep 2016 14:15:25 -0700 (PDT)
 From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 1/4] mm: vm_page_prot: update with WRITE_ONCE/READ_ONCE
-Date: Wed, 21 Sep 2016 23:15:19 +0200
-Message-Id: <1474492522-2261-2-git-send-email-aarcange@redhat.com>
+Subject: [PATCH 3/4] mm: vma_merge: correct false positive from __vma_unlink->validate_mm_rb
+Date: Wed, 21 Sep 2016 23:15:21 +0200
+Message-Id: <1474492522-2261-4-git-send-email-aarcange@redhat.com>
 In-Reply-To: <1474492522-2261-1-git-send-email-aarcange@redhat.com>
 References: <1474492522-2261-1-git-send-email-aarcange@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,67 +20,137 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>
 
-vma->vm_page_prot is read lockless from the rmap_walk, it may be
-updated concurrently and this prevents the risk of reading
-intermediate values.
+The old code was always doing:
+
+   vma->vm_end = next->vm_end
+   vma_rb_erase(next) // in __vma_unlink
+   vma->vm_next = next->vm_next // in __vma_unlink
+   next = vma->vm_next
+   vma_gap_update(next)
+
+The new code still does the above for remove_next == 1 and 2, but for
+remove_next == 3 it has been changed and it does:
+
+   next->vm_start = vma->vm_start
+   vma_rb_erase(vma) // in __vma_unlink
+   vma_gap_update(next)
+
+In the latter case, while unlinking "vma", validate_mm_rb() is told to
+ignore "vma" that is being removed, but next->vm_start was reduced
+instead. So for the new case, to avoid the false positive from
+validate_mm_rb, it should be "next" that is ignored when "vma" is
+being unlinked.
+
+"vma" and "next" in the above comment, considered pre-swap().
 
 Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 ---
- mm/huge_memory.c | 2 +-
- mm/migrate.c     | 2 +-
- mm/mmap.c        | 9 ++++++---
- 3 files changed, 8 insertions(+), 5 deletions(-)
+ mm/mmap.c | 59 +++++++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 41 insertions(+), 18 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index a6abd76..ccdc703 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1566,7 +1566,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
- 			if (soft_dirty)
- 				entry = pte_swp_mksoft_dirty(entry);
- 		} else {
--			entry = mk_pte(page + i, vma->vm_page_prot);
-+			entry = mk_pte(page + i, READ_ONCE(vma->vm_page_prot));
- 			entry = maybe_mkwrite(entry, vma);
- 			if (!write)
- 				entry = pte_wrprotect(entry);
-diff --git a/mm/migrate.c b/mm/migrate.c
-index f7ee04a..99250ae 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -234,7 +234,7 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
- 		goto unlock;
- 
- 	get_page(new);
--	pte = pte_mkold(mk_pte(new, vma->vm_page_prot));
-+	pte = pte_mkold(mk_pte(new, READ_ONCE(vma->vm_page_prot)));
- 	if (pte_swp_soft_dirty(*ptep))
- 		pte = pte_mksoft_dirty(pte);
- 
 diff --git a/mm/mmap.c b/mm/mmap.c
-index d8b5fb3..4f512ca 100644
+index 1b88754..57b1eaf 100644
 --- a/mm/mmap.c
 +++ b/mm/mmap.c
-@@ -111,13 +111,16 @@ static pgprot_t vm_pgprot_modify(pgprot_t oldprot, unsigned long vm_flags)
- void vma_set_page_prot(struct vm_area_struct *vma)
- {
- 	unsigned long vm_flags = vma->vm_flags;
-+	pgprot_t vm_page_prot;
+@@ -398,15 +398,9 @@ static inline void vma_rb_insert(struct vm_area_struct *vma,
+ 	rb_insert_augmented(&vma->vm_rb, root, &vma_gap_callbacks);
+ }
  
--	vma->vm_page_prot = vm_pgprot_modify(vma->vm_page_prot, vm_flags);
-+	vm_page_prot = vm_pgprot_modify(vma->vm_page_prot, vm_flags);
- 	if (vma_wants_writenotify(vma)) {
- 		vm_flags &= ~VM_SHARED;
--		vma->vm_page_prot = vm_pgprot_modify(vma->vm_page_prot,
--						     vm_flags);
-+		vm_page_prot = vm_pgprot_modify(vma->vm_page_prot,
-+						vm_flags);
- 	}
-+	/* remove_protection_ptes reads vma->vm_page_prot without mmap_sem */
-+	WRITE_ONCE(vma->vm_page_prot, vm_page_prot);
+-static void vma_rb_erase(struct vm_area_struct *vma, struct rb_root *root)
++static void __vma_rb_erase(struct vm_area_struct *vma, struct rb_root *root)
+ {
+ 	/*
+-	 * All rb_subtree_gap values must be consistent prior to erase,
+-	 * with the possible exception of the vma being erased.
+-	 */
+-	validate_mm_rb(root, vma);
+-
+-	/*
+ 	 * Note rb_erase_augmented is a fairly large inline function,
+ 	 * so make sure we instantiate it only once with our desired
+ 	 * augmented rbtree callbacks.
+@@ -414,6 +408,32 @@ static void vma_rb_erase(struct vm_area_struct *vma, struct rb_root *root)
+ 	rb_erase_augmented(&vma->vm_rb, root, &vma_gap_callbacks);
+ }
+ 
++static __always_inline void vma_rb_erase_ignore(struct vm_area_struct *vma,
++						struct rb_root *root,
++						struct vm_area_struct *ignore)
++{
++	/*
++	 * All rb_subtree_gap values must be consistent prior to erase,
++	 * with the possible exception of the "next" vma being erased if
++	 * next->vm_start was reduced.
++	 */
++	validate_mm_rb(root, ignore);
++
++	__vma_rb_erase(vma, root);
++}
++
++static __always_inline void vma_rb_erase(struct vm_area_struct *vma,
++					 struct rb_root *root)
++{
++	/*
++	 * All rb_subtree_gap values must be consistent prior to erase,
++	 * with the possible exception of the vma being erased.
++	 */
++	validate_mm_rb(root, vma);
++
++	__vma_rb_erase(vma, root);
++}
++
+ /*
+  * vma has some anon_vma assigned, and is already inserted on that
+  * anon_vma's interval trees.
+@@ -600,11 +620,12 @@ static void __insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
+ static __always_inline void __vma_unlink_common(struct mm_struct *mm,
+ 						struct vm_area_struct *vma,
+ 						struct vm_area_struct *prev,
+-						bool has_prev)
++						bool has_prev,
++						struct vm_area_struct *ignore)
+ {
+ 	struct vm_area_struct *next;
+ 
+-	vma_rb_erase(vma, &mm->mm_rb);
++	vma_rb_erase_ignore(vma, &mm->mm_rb, ignore);
+ 	next = vma->vm_next;
+ 	if (has_prev)
+ 		prev->vm_next = next;
+@@ -626,13 +647,7 @@ static inline void __vma_unlink_prev(struct mm_struct *mm,
+ 				     struct vm_area_struct *vma,
+ 				     struct vm_area_struct *prev)
+ {
+-	__vma_unlink_common(mm, vma, prev, true);
+-}
+-
+-static inline void __vma_unlink(struct mm_struct *mm,
+-				struct vm_area_struct *vma)
+-{
+-	__vma_unlink_common(mm, vma, NULL, false);
++	__vma_unlink_common(mm, vma, prev, true, vma);
  }
  
  /*
+@@ -811,8 +826,16 @@ again:
+ 		if (remove_next != 3)
+ 			__vma_unlink_prev(mm, next, vma);
+ 		else
+-			/* vma is not before next if they've been swapped */
+-			__vma_unlink(mm, next);
++			/*
++			 * vma is not before next if they've been
++			 * swapped.
++			 *
++			 * pre-swap() next->vm_start was reduced so
++			 * tell validate_mm_rb to ignore pre-swap()
++			 * "next" (which is stored in post-swap()
++			 * "vma").
++			 */
++			__vma_unlink_common(mm, next, NULL, false, vma);
+ 		if (file)
+ 			__remove_shared_vm_struct(next, file, mapping);
+ 	} else if (insert) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
