@@ -1,55 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0556228024D
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 18:35:37 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id l91so133355347qte.3
-        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 15:35:37 -0700 (PDT)
-Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
-        by mx.google.com with ESMTPS id b47si25218124qte.116.2016.09.21.15.35.36
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0581328024D
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 18:45:22 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id wk8so119057615pab.3
+        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 15:45:21 -0700 (PDT)
+Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
+        by mx.google.com with ESMTPS id to7si37503901pac.282.2016.09.21.15.45.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 21 Sep 2016 15:35:36 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 21 Sep 2016 15:45:21 -0700 (PDT)
+Received: by mail-pf0-x22d.google.com with SMTP id p64so23569154pfb.1
+        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 15:45:21 -0700 (PDT)
+Date: Wed, 21 Sep 2016 15:45:19 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
 Subject: Re: [PATCH 1/5] mm/vmalloc.c: correct a few logic error for
  __insert_vmap_area()
-References: <57E20B54.5020408@zoho.com>
- <alpine.DEB.2.10.1609211408140.20971@chino.kir.corp.google.com>
-From: zijun_hu <zijun_hu@zoho.com>
-Message-ID: <034db3ec-e2dc-a6da-6dab-f0803900e19d@zoho.com>
-Date: Thu, 22 Sep 2016 06:35:19 +0800
+In-Reply-To: <034db3ec-e2dc-a6da-6dab-f0803900e19d@zoho.com>
+Message-ID: <alpine.DEB.2.10.1609211544510.41473@chino.kir.corp.google.com>
+References: <57E20B54.5020408@zoho.com> <alpine.DEB.2.10.1609211408140.20971@chino.kir.corp.google.com> <034db3ec-e2dc-a6da-6dab-f0803900e19d@zoho.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1609211408140.20971@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
+To: zijun_hu <zijun_hu@zoho.com>
 Cc: zijun_hu@htc.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tj@kernel.org, mingo@kernel.org, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net
 
-On 2016/9/22 5:10, David Rientjes wrote:
-> On Wed, 21 Sep 2016, zijun_hu wrote:
-> 
->> From: zijun_hu <zijun_hu@htc.com>
->>
->> correct a few logic error for __insert_vmap_area() since the else
->> if condition is always true and meaningless
->>
->> in order to fix this issue, if vmap_area inserted is lower than one
->> on rbtree then walk around left branch; if higher then right branch
->> otherwise intersects with the other then BUG_ON() is triggered
->>
-> 
-> Under normal operation, you're right that the "else if" conditional should 
-> always succeed: we don't want to BUG() unless there's a bug.  The original 
-> code can catch instances when va->va_start == tmp_va->va_end where we 
-> should BUG().  Your code silently ignores it.
-> 
-Hmm, the BUG_ON() appears in the original code, i don't introduce it.
-it maybe be better to consider va->va_start == tmp_va->va_end as normal case
-and should not BUG_ON() it since the available range of vmap_erea include
-the start boundary but the end, BTW, represented as [start, end)
+On Thu, 22 Sep 2016, zijun_hu wrote:
 
-this patch correct the logic to that mentioned in the comments, it maybe be
-more logical and more understandable
+> >> correct a few logic error for __insert_vmap_area() since the else
+> >> if condition is always true and meaningless
+> >>
+> >> in order to fix this issue, if vmap_area inserted is lower than one
+> >> on rbtree then walk around left branch; if higher then right branch
+> >> otherwise intersects with the other then BUG_ON() is triggered
+> >>
+> > 
+> > Under normal operation, you're right that the "else if" conditional should 
+> > always succeed: we don't want to BUG() unless there's a bug.  The original 
+> > code can catch instances when va->va_start == tmp_va->va_end where we 
+> > should BUG().  Your code silently ignores it.
+> > 
+> Hmm, the BUG_ON() appears in the original code, i don't introduce it.
+> it maybe be better to consider va->va_start == tmp_va->va_end as normal case
+> and should not BUG_ON() it since the available range of vmap_erea include
+> the start boundary but the end, BTW, represented as [start, end)
+> 
+
+We don't support inserting when va->va_start == tmp_va->va_end, plain and 
+simple.  There's no reason to do so.  NACK to the patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
