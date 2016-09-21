@@ -1,370 +1,571 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7302A6B0038
-	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 19:22:57 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id c84so65856908pfj.2
-        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 16:22:57 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id n3si3767252paw.123.2016.09.20.16.22.54
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DE0616B0038
+	for <linux-mm@kvack.org>; Tue, 20 Sep 2016 20:49:03 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id n185so79382171qke.2
+        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 17:49:03 -0700 (PDT)
+Received: from mail-yw0-x232.google.com (mail-yw0-x232.google.com. [2607:f8b0:4002:c05::232])
+        by mx.google.com with ESMTPS id n81si10558943ywd.457.2016.09.20.17.49.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 20 Sep 2016 16:22:56 -0700 (PDT)
-Date: Tue, 20 Sep 2016 16:22:53 -0700
-From: akpm@linux-foundation.org
-Subject: mmotm 2016-09-20-16-22 uploaded
-Message-ID: <57e1c4cd.gd6CvN8FTfvikVJ1%akpm@linux-foundation.org>
+        Tue, 20 Sep 2016 17:49:03 -0700 (PDT)
+Received: by mail-yw0-x232.google.com with SMTP id g192so28636742ywh.1
+        for <linux-mm@kvack.org>; Tue, 20 Sep 2016 17:49:02 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20160920134638.GJ4716@redhat.com>
+References: <20160920134638.GJ4716@redhat.com>
+From: Michel Lespinasse <walken@google.com>
+Date: Tue, 20 Sep 2016 17:49:01 -0700
+Message-ID: <CANN689EwtyO7NvUnmfeo+0ugFhWZhDex8Wovc0Q5VvtPJYH+ZQ@mail.gmail.com>
+Subject: Re: [xiaolong.ye@intel.com: [mm] 0331ab667f: kernel BUG at mm/mmap.c:327!]
+Content-Type: multipart/alternative; boundary=94eb2c07e31e546101053cf9e93c
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, broonie@kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>
 
-The mm-of-the-moment snapshot 2016-09-20-16-22 has been uploaded to
+--94eb2c07e31e546101053cf9e93c
+Content-Type: text/plain; charset=UTF-8
 
-   http://www.ozlabs.org/~akpm/mmotm/
+On Tue, Sep 20, 2016 at 6:46 AM, Andrea Arcangeli <aarcange@redhat.com>
+wrote:
 
-mmotm-readme.txt says
+> Hello Michel,
+>
 
-README for mm-of-the-moment:
+Hi Andrea, nice hearing from you :)
 
-http://www.ozlabs.org/~akpm/mmotm/
+I altered the vma_adjust code and it's triggering what looks like to
+> be a false positive in vma_rb_erase->validate_mm_rb with
+> CONFIG_DEBUG_VM_RB=y.
+>
+> So what happens is normally remove_next == 1 or == 2, and set
+> vma->vm_end to next->vm_end and then call validate_mm_rb(next) and it
+> passes and then unlink "next" (removed from vm_next/prev and rbtree).
+>
+> I introduced a new case to fix a bug remove_next == 3 that actually
+> removes "vma" and sets next->vm_start = vma->vm_start.
+>
+> So the old code was always doing:
+>
+>    vma->vm_end = next->vm_end
+>    vma_rb_erase(next) // in __vma_unlink
+>    vma->vm_next = next->vm_next // in __vma_unlink
+>    next = vma->vm_next
+>    vma_gap_update(next)
+>
+> The new code still does the above for remove_next == 1 and 2, but for
+> remove_next ==3 it has been changed and it does:
+>
+>    next->vm_start = vma->vm_start
+>    vma_rb_erase(vma) // in __vma_unlink
+>    vma_gap_update(next)
+>
+> However it bugs out in vma_rb_erase(vma) because next->vm_start was
+> reduced. However I tend to think what I'm executing is correct.
+>
 
-This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-more than once a week.
+It sounds like the gaps get temporarily out of sync, which is not an actual
+problem as long as they get fixed before releasing the appropriate locks
+(which you can verify by checking if the validate_mm() call at the end of
+vma_adjust() still passes).
 
-You will need quilt to apply these patches to the latest Linus release (4.x
-or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
-http://ozlabs.org/~akpm/mmotm/series
-
-The file broken-out.tar.gz contains two datestamp files: .DATE and
-.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
-followed by the base kernel version against which this patch series is to
-be applied.
-
-This tree is partially included in linux-next.  To see which patches are
-included in linux-next, consult the `series' file.  Only the patches
-within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
-linux-next.
-
-A git tree which contains the memory management portion of this tree is
-maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-by Michal Hocko.  It contains the patches which are between the
-"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
-file, http://www.ozlabs.org/~akpm/mmotm/series.
-
-
-A full copy of the full kernel tree with the linux-next and mmotm patches
-already applied is available through git within an hour of the mmotm
-release.  Individual mmotm releases are tagged.  The master branch always
-points to the latest release, so it's constantly rebasing.
-
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
-
-To develop on top of mmotm git:
-
-  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-  $ git remote update mmotm
-  $ git checkout -b topic mmotm/master
-  <make changes, commit>
-  $ git send-email mmotm/master.. [...]
-
-To rebase a branch with older patches to a new mmotm release:
-
-  $ git remote update mmotm
-  $ git rebase --onto mmotm/master <topic base> topic
+I'm guessing that for the update you're doing, the validate_mm_rb call
+within vma_rb_erase may need to ignore vma->next rather than vma itself.
 
 
+> It's pointless to call vma_gap_update before I can call vm_rb_erase
+> anyway so certainly I can't fix it that way. I'm forced to remove
+> "vma" from the rbtree before I can call vma_gap_update(next).
+>
 
 
-The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
-contains daily snapshots of the -mm tree.  It is updated more frequently
-than mmotm, and is untested.
-
-A git copy of this tree is available at
-
-	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
-
-and use of this tree is similar to
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
 
 
-This mmotm tree contains the following patches against 4.8-rc7:
-(patches marked "*" will be included in linux-next)
+>
+> So I did other tests:
+>
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 27f0509..a38c8a0 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -400,15 +400,9 @@ static inline void vma_rb_insert(struct
+> vm_area_struct *vma,
+>         rb_insert_augmented(&vma->vm_rb, root, &vma_gap_callbacks);
+>  }
+>
+> -static void vma_rb_erase(struct vm_area_struct *vma, struct rb_root *root)
+> +static void __vma_rb_erase(struct vm_area_struct *vma, struct rb_root
+> *root)
+>  {
+>         /*
+> -        * All rb_subtree_gap values must be consistent prior to erase,
+> -        * with the possible exception of the vma being erased.
+> -        */
+> -       validate_mm_rb(root, vma);
+> -
+> -       /*
+>          * Note rb_erase_augmented is a fairly large inline function,
+>          * so make sure we instantiate it only once with our desired
+>          * augmented rbtree callbacks.
+> @@ -416,6 +410,18 @@ static void vma_rb_erase(struct vm_area_struct *vma,
+> struct rb_root *root)
+>         rb_erase_augmented(&vma->vm_rb, root, &vma_gap_callbacks);
+>  }
+>
+> +static __always_inline void vma_rb_erase(struct vm_area_struct *vma,
+> +                                        struct rb_root *root)
+> +{
+> +       /*
+> +        * All rb_subtree_gap values must be consistent prior to erase,
+> +        * with the possible exception of the vma being erased.
+> +        */
+> +       validate_mm_rb(root, vma);
+> +
+> +       __vma_rb_erase(vma, root);
+> +}
+> +
+>  /*
+>   * vma has some anon_vma assigned, and is already inserted on that
+>   * anon_vma's interval trees.
+> @@ -606,7 +612,10 @@ static __always_inline void
+> __vma_unlink_common(struct mm_struct *mm,
+>  {
+>         struct vm_area_struct *next;
+>
+> -       vma_rb_erase(vma, &mm->mm_rb);
+> +       if (has_prev)
+> +               vma_rb_erase(vma, &mm->mm_rb);
+> +       else
+> +               __vma_rb_erase(vma, &mm->mm_rb);
+>         next = vma->vm_next;
+>         if (has_prev)
+>                 prev->vm_next = next;
+> @@ -892,9 +901,11 @@ again:
+>                         end = next->vm_end;
+>                         goto again;
+>                 }
+> -               else if (next)
+> +               else if (next) {
+>                         vma_gap_update(next);
+> -               else
+> +                       if (remove_next == 3)
+> +                               validate_mm_rb(&mm->mm_rb, next);
+> +               } else
+>                         mm->highest_vm_end = end;
+>         }
+>         if (insert && file)
+>
+>
+> The above shifts the validate_mm_rb(next) for the remove_next == 3
+> case from before the rb_removal of "vma" to after vma_gap_update is
+> called on "next". This works fine.
+>
+> So if you agree this is a false positive of CONFIG_DEBUG_MM_RB and
+> there was no actual bug, I just suggest to shut off the warning by
+> telling validate_mm_rb not to ignore the vma that is being removed but
+> the next one, if the next->vm_start was reduced to overlap over the
+> vma that is being removed.
+>
 
-  origin.patch
-  arch-alpha-kernel-systblss-remove-debug-check.patch
-  i-need-old-gcc.patch
-* mmksm-fix-endless-looping-in-allocating-memory-when-ksm-enable.patch
-* dma-mappingh-preserve-unmap-info-for-config_dma_api_debug.patch
-* mm-workingset-fix-crash-in-shadow-node-shrinker-caused-by-replace_page_cache_page.patch
-* ocfs2-fix-deadlock-on-mmapped-page-in-ocfs2_write_begin_nolock.patch
-* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
-* fsnotify-drop-notification_mutex-before-destroying-event.patch
-* fsnotify-convert-notification_mutex-to-a-spinlock.patch
-* fsnotify-convert-notification_mutex-to-a-spinlock-fix.patch
-* fanotify-use-notification_lock-instead-of-access_lock.patch
-* fanotify-fix-possible-false-warning-when-freeing-events.patch
-* kbuild-simpler-generation-of-assembly-constants.patch
-* fs-ocfs2-dlmfs-remove-deprecated-create_singlethread_workqueue.patch
-* fs-ocfs2-cluster-remove-deprecated-create_singlethread_workqueue.patch
-* fs-ocfs2-super-remove-deprecated-create_singlethread_workqueue.patch
-* fs-ocfs2-dlm-remove-deprecated-create_singlethread_workqueue.patch
-* ocfs2-free-the-mle-while-the-res-had-one-to-avoid-mle-memory-leak.patch
-* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
-* kernel-watchdog-use-nmi-registers-snapshot-in-hardlockup-handler.patch
-  mm.patch
-* mm-oom-deduplicate-victim-selection-code-for-memcg-and-global-oom.patch
-* mm-zsmalloc-add-trace-events-for-zs_compact.patch
-* mm-zsmalloc-add-per-class-compact-trace-event.patch
-* mm-vmalloc-fix-align-value-calculation-error.patch
-* mm-vmalloc-fix-align-value-calculation-error-fix.patch
-* mm-vmalloc-fix-align-value-calculation-error-v2.patch
-* mm-vmalloc-fix-align-value-calculation-error-v2-fix.patch
-* mm-vmalloc-fix-align-value-calculation-error-v2-fix-fix.patch
-* mm-vmalloc-fix-align-value-calculation-error-v2-fix-fix-fix.patch
-* mm-memcontrol-add-sanity-checks-for-memcg-idref-on-get-put.patch
-* mm-oom_killc-fix-task_will_free_mem-comment.patch
-* mm-compaction-make-whole_zone-flag-ignore-cached-scanner-positions.patch
-* mm-compaction-make-whole_zone-flag-ignore-cached-scanner-positions-checkpatch-fixes.patch
-* mm-compaction-cleanup-unused-functions.patch
-* mm-compaction-rename-compact_partial-to-compact_success.patch
-* mm-compaction-dont-recheck-watermarks-after-compact_success.patch
-* mm-compaction-add-the-ultimate-direct-compaction-priority.patch
-* mm-compaction-add-the-ultimate-direct-compaction-priority-fix.patch
-* mm-compaction-use-correct-watermark-when-checking-compaction-success.patch
-* mm-compaction-create-compact_gap-wrapper.patch
-* mm-compaction-create-compact_gap-wrapper-fix.patch
-* mm-compaction-use-proper-alloc_flags-in-__compaction_suitable.patch
-* mm-compaction-require-only-min-watermarks-for-non-costly-orders.patch
-* mm-compaction-require-only-min-watermarks-for-non-costly-orders-fix.patch
-* mm-vmscan-make-compaction_ready-more-accurate-and-readable.patch
-* mem-hotplug-fix-node-spanned-pages-when-we-have-a-movable-node.patch
-* mm-fix-set-pageblock-migratetype-in-deferred-struct-page-init.patch
-* mm-vmscan-get-rid-of-throttle_vm_writeout.patch
-* mm-debug_pagealloc-clean-up-guard-page-handling-code.patch
-* mm-debug_pagealloc-dont-allocate-page_ext-if-we-dont-use-guard-page.patch
-* mm-page_owner-move-page_owner-specific-function-to-page_ownerc.patch
-* mm-page_ext-rename-offset-to-index.patch
-* mm-page_ext-support-extra-space-allocation-by-page_ext-user.patch
-* mm-page_owner-dont-define-fields-on-struct-page_ext-by-hard-coding.patch
-* do_generic_file_read-fail-immediately-if-killed.patch
-* mm-pagewalk-fix-the-comment-for-test_walk.patch
-* mm-unrig-vma-cache-hit-ratio.patch
-* mm-swap-add-swap_cluster_list.patch
-* mm-swap-add-swap_cluster_list-checkpatch-fixes.patch
-* mmoom_reaper-reduce-find_lock_task_mm-usage.patch
-* mmoom_reaper-do-not-attempt-to-reap-a-task-twice.patch
-* oom-keep-mm-of-the-killed-task-available.patch
-* kernel-oom-fix-potential-pgd_lock-deadlock-from-__mmdrop.patch
-* mm-oom-get-rid-of-signal_struct-oom_victims.patch
-* oom-suspend-fix-oom_killer_disable-vs-pm-suspend-properly.patch
-* mm-oom-enforce-exit_oom_victim-on-current-task.patch
-* mm-make-sure-that-kthreads-will-not-refault-oom-reaped-memory.patch
-* oom-oom_reaper-allow-to-reap-mm-shared-by-the-kthreads.patch
-* mm-use-zonelist-name-instead-of-using-hardcoded-index.patch
-* mm-introduce-arch_reserved_kernel_pages.patch
-* mm-memblock-expose-total-reserved-memory.patch
-* powerpc-implement-arch_reserved_kernel_pages.patch
-* mm-nobootmemc-remove-duplicate-macro-arch_low_address_limit-statements.patch
-* mm-bootmemc-replace-kzalloc-by-kzalloc_node.patch
-* mm-dont-use-radix-tree-writeback-tags-for-pages-in-swap-cache.patch
-* oom-warn-if-we-go-oom-for-higher-order-and-compaction-is-disabled.patch
-* mm-mlock-check-against-vma-for-actual-mlock-size.patch
-* mm-mlock-check-against-vma-for-actual-mlock-size-fix.patch
-* mm-mlock-check-against-vma-for-actual-mlock-size-fix-2.patch
-* mm-mlock-avoid-increase-mm-locked_vm-on-mlock-when-already-mlock2mlock_onfault.patch
-* selftest-split-mlock2_-funcs-into-separate-mlock2h.patch
-* selftests-vm-add-test-for-mlock-when-areas-are-intersected.patch
-* selftest-move-seek_to_smaps_entry-out-of-mlock2-testsc.patch
-* selftests-expanding-more-mlock-selftest.patch
-* thp-dax-add-thp_get_unmapped_area-for-pmd-mappings.patch
-* ext2-4-xfs-call-thp_get_unmapped_area-for-pmd-mappings.patch
-* cpu-fix-node-state-for-whether-it-contains-cpu.patch
-* mm-proc-make-the-task_mmu-walk_page_range-limit-in-clear_refs_write-obvious.patch
-* thp-reduce-usage-of-huge-zero-pages-atomic-counter.patch
-* mm-memcontrol-make-the-walk_page_range-limit-obvious.patch
-* memory-hotplug-fix-store_mem_state-return-value.patch
-* mm-fix-cache-mode-tracking-in-vm_insert_mixed.patch
-* mm-swap-use-offset-of-swap-entry-as-key-of-swap-cache.patch
-* mm-remove-page_file_index.patch
-* revert-mm-oom-prevent-premature-oom-killer-invocation-for-high-order-request.patch
-* mm-compaction-more-reliably-increase-direct-compaction-priority.patch
-* mm-compaction-restrict-full-priority-to-non-costly-orders.patch
-* mm-compaction-make-full-priority-ignore-pageblock-suitability.patch
-* mm-dont-emit-warning-from-pagefault_out_of_memory.patch
-* mm-page_ioc-replace-some-bug_ons-with-vm_bug_on_page.patch
-* fs-use-mapping_set_error-instead-of-opencoded-set_bit.patch
-* fs-use-mapping_set_error-instead-of-opencoded-set_bit-fix.patch
-* mm-split-gfp_mask-and-mapping-flags-into-separate-fields.patch
-* mm-move-phys_mem_access_prot_allowed-declaration-to-pgtableh.patch
-* fs-bufferc-make-__getblk_slow-static.patch
-* mm-memcontrol-consolidate-cgroup-socket-tracking.patch
-* mm-memcontrol-consolidate-cgroup-socket-tracking-fix-2.patch
-* mm-memcontrol-consolidate-cgroup-socket-tracking-checkpatch-fixes.patch
-* mm-shmemc-constify-anon_ops.patch
-* mm-nobootmem-move-the-comment-of-free_all_bootmem.patch
-* mm-page_alloc-warn-about-empty-nodemask.patch
-* mmksm-add-__gfp_high-to-the-allocation-in-alloc_stable_node.patch
-* mm-vma_merge-fix-vm_page_prot-smp-race-condition-against-rmap_walk.patch
-* mm-vma_adjust-remove-superfluous-check-for-next-not-null.patch
-* mm-page_owner-align-with-pageblock_nr-pages.patch
-* mm-walk-the-zone-in-pageblock_nr_pages-steps.patch
-* ia64-implement-atomic64_dec_if_positive.patch
-* atomic64-no-need-for-config_arch_has_atomic64_dec_if_positive.patch
-* proc-much-faster-proc-vmstat.patch
-* proc-faster-proc-status.patch
-* seq-proc-modify-seq_put_decimal_ll-to-take-a-const-char-not-char.patch
-* seq-proc-modify-seq_put_decimal_ll-to-take-a-const-char-not-char-fix.patch
-* meminfo-break-apart-a-very-long-seq_printf-with-ifdefs.patch
-* proc-relax-proc-tid-timerslack_ns-capability-requirements.patch
-* proc-add-lsm-hook-checks-to-proc-tid-timerslack_ns.patch
-* proc-fix-timerslack_ns-cap_sys_nice-check-when-adjusting-self.patch
-* proc-unsigned-file-descriptors.patch
-* min-max-remove-sparse-warnings-when-theyre-nested.patch
-* nmi_backtrace-add-more-trigger__cpu_backtrace-methods.patch
-* nmi_backtrace-do-a-local-dump_stack-instead-of-a-self-nmi.patch
-* arch-tile-adopt-the-new-nmi_backtrace-framework.patch
-* nmi_backtrace-generate-one-line-reports-for-idle-cpus.patch
-* spellingtxt-modeled-is-spelt-correctly.patch
-* uprobes-remove-function-declarations-from-arch-mipss390.patch
-* set-git-diff-driver-for-c-source-code-files.patch
-* mailmap-add-johan-hovold.patch
-* cred-simpler-1d-supplementary-groups.patch
-* softirq-fix-tasklet_kill-and-its-users.patch
-* console-dont-prefer-first-registered-if-dt-specifies-stdout-path.patch
-* radix-tree-slot-can-be-null-in-radix_tree_next_slot.patch
-* radix-tree-tests-add-iteration-test.patch
-* radix-tree-tests-properly-initialize-mutex.patch
-* lib-harden-strncpy_from_user.patch
-* make-isdigit-table-lookupless.patch
-* kstrtox-smaller-_parse_integer.patch
-* lib-bitmapc-enhance-bitmap-syntax.patch
-* lib-bitmapc-enhance-bitmap-syntax-fix.patch
-* lib-add-crc64-ecma-module.patch
-* compat-remove-compat_printk.patch
-* checkpatch-see-if-modified-files-are-marked-obsolete-in-maintainers.patch
-* checkpatch-look-for-symbolic-permissions-and-suggest-octal-instead.patch
-* checkpatch-test-multiple-line-block-comment-alignment.patch
-* checkpatch-dont-test-for-prefer-ether_addr_foo.patch
-* checkpatch-externalize-the-structs-that-should-be-const.patch
-* const_structscheckpatch-add-frequently-used-from-julia-lawalls-list.patch
-* checkpatch-speed-up-checking-for-filenames-in-sections-marked-obsolete.patch
-* checkpatch-improve-the-block-comment-alignment-test.patch
-* checkpatch-add-strict-test-for-macro-argument-reuse.patch
-* checkpatch-add-strict-test-for-precedence-challenged-macro-arguments.patch
-* checkpatch-improve-macro_arg_precedence-test.patch
-* kprobes-include-asm-sectionsh-instead-of-asm-generic-sectionsh.patch
-* autofs-fix-typos-in-documentation-filesystems-autofs4txt.patch
-* autofs-drop-unnecessary-extern-in-autofs_ih.patch
-* autofs-test-autofs-versions-first-on-sb-initialization.patch
-* autofs-fix-autofs4_fill_super-error-exit-handling.patch
-* autofs-add-warn_on1-for-non-dir-link-inode-case.patch
-* autofs-remove-ino-free-in-autofs4_dir_symlink.patch
-* autofs-use-autofs4_free_ino-to-kfree-dentry-data.patch
-* autofs-remove-obsolete-sb-fields.patch
-* autofs-dont-fail-to-free_dev_ioctlparam.patch
-* autofs-remove-autofs_devid_len.patch
-* autofs-fix-documentation-regarding-devid-on-ioctl.patch
-* autofs-update-struct-autofs_dev_ioctl-in-documentation.patch
-* autofs-fix-pr_debug-message.patch
-* autofs-fix-dev-ioctl-number-range-check.patch
-* autofs-fix-dev-ioctl-number-range-check-fix.patch
-* autofs-add-autofs_dev_ioctl_version-for-autofs_dev_ioctl_version_cmd.patch
-* autofs-fix-print-format-for-ioctl-warning-message.patch
-* autofs-move-inclusion-of-linux-limitsh-to-uapi.patch
-* autofs4-move-linux-auto_dev-ioctlh-to-uapi-linux.patch
-* autofs-remove-possibly-misleading-define-debug.patch
-* autofs-refactor-ioctl-fn-vector-in-iookup_dev_ioctl.patch
-* fs-make-is_local_mountpoint-usable-by-others.patch
-* fs-add-have_local_submounts.patch
-* autofs-make-mountpoint-checks-namespace-aware.patch
-* fs-remove-unused-have_submounts-function.patch
-* pipe-relocate-round_pipe_size-above-pipe_set_size.patch
-* pipe-move-limit-checking-logic-into-pipe_set_size.patch
-* pipe-refactor-argument-for-account_pipe_buffers.patch
-* pipe-fix-limit-checking-in-pipe_set_size.patch
-* pipe-simplify-logic-in-alloc_pipe_info.patch
-* pipe-fix-limit-checking-in-alloc_pipe_info.patch
-* pipe-make-account_pipe_buffers-return-a-value-and-use-it.patch
-* pipe-cap-initial-pipe-capacity-according-to-pipe-max-size-limit.patch
-* ptrace-clear-tif_syscall_trace-on-ptrace-detach.patch
-* kexec_file-allow-arch-specific-memory-walking-for-kexec_add_buffer.patch
-* kexec_file-change-kexec_add_buffer-to-take-kexec_buf-as-argument.patch
-* kexec_file-factor-out-kexec_locate_mem_hole-from-kexec_add_buffer.patch
-* powerpc-change-places-using-config_kexec-to-use-config_kexec_core-instead.patch
-* powerpc-factor-out-relocation-code-from-module_64c-to-elf_util_64c.patch
-* powerpc-generalize-elf64_apply_relocate_add.patch
-* powerpc-adapt-elf64_apply_relocate_add-for-kexec_file_load.patch
-* powerpc-add-functions-to-read-elf-files-of-any-endianness.patch
-* powerpc-implement-kexec_file_load.patch
-* powerpc-add-code-to-work-with-device-trees-in-kexec_file_load.patch
-* powerpc-add-support-for-loading-elf-kernels-with-kexec_file_load.patch
-* powerpc-add-support-for-loading-elf-kernels-with-kexec_file_load-fix.patch
-* powerpc-add-purgatory-for-kexec_file_load-implementation.patch
-* powerpc-add-purgatory-for-kexec_file_load-implementation-fix.patch
-* powerpc-enable-config_kexec_file-in-powerpc-server-defconfigs.patch
-* kexec_file-include-the-purgatory-segment-in-the-kexec-image-checksum.patch
-* kexec_file-add-buffer-hand-over-support-for-the-next-kernel.patch
-* powerpc-kexec_file-add-buffer-hand-over-support-for-the-next-kernel.patch
-* kexec_file-add-mechanism-to-update-kexec-segments.patch
-* ima-on-soft-reboot-restore-the-measurement-list.patch
-* ima-permit-duplicate-measurement-list-entries.patch
-* ima-maintain-memory-size-needed-for-serializing-the-measurement-list.patch
-* ima-serialize-the-binary_runtime_measurements.patch
-* ima-on-soft-reboot-save-the-measurement-list.patch
-* ima-store-the-builtin-custom-template-definitions-in-a-list.patch
-* ima-support-restoring-multiple-template-formats.patch
-* ima-define-a-canonical-binary_runtime_measurements-list-format.patch
-* ima-platform-independent-hash-value.patch
-* kdump-vmcoreinfo-report-actual-value-of-phys_base.patch
-* rapidio-rio_cm-use-memdup_user-instead-of-duplicating-code.patch
-* random-simplify-api-for-random-address-requests.patch
-* x86-use-simpler-api-for-random-address-requests.patch
-* arm-use-simpler-api-for-random-address-requests.patch
-* arm64-use-simpler-api-for-random-address-requests.patch
-* tile-use-simpler-api-for-random-address-requests.patch
-* unicore32-use-simpler-api-for-random-address-requests.patch
-* random-remove-unused-randomize_range.patch
-* dma-mapping-introduce-the-dma_attr_no_warn-attribute.patch
-* powerpc-implement-the-dma_attr_no_warn-attribute.patch
-* nvme-use-the-dma_attr_no_warn-attribute.patch
-* x86-panic-replace-smp_send_stop-with-kdump-friendly-version-in-panic-path.patch
-* mips-panic-replace-smp_send_stop-with-kdump-friendly-version-in-panic-path.patch
-* relay-use-irq_work-instead-of-plain-timer-for-deferred-wakeup.patch
-* relay-use-irq_work-instead-of-plain-timer-for-deferred-wakeup-fix.patch
-* relay-use-irq_work-instead-of-plain-timer-for-deferred-wakeup-checkpatch-fixes.patch
-* config-android-remove-config_ipv6_privacy.patch
-* config-android-move-device-mapper-options-to-recommended.patch
-* config-android-set-selinux-as-default-security-mode.patch
-* config-android-enable-config_seccomp.patch
-* ipc-semc-fix-complex_count-vs-simple-op-race.patch
-* ipc-msg-implement-lockless-pipelined-wakeups.patch
-* ipc-msg-batch-queue-sender-wakeups.patch
-* ipc-msg-make-ss_wakeup-kill-arg-boolean.patch
-* ipc-msg-lockless-security-checks-for-msgsnd.patch
-* ipc-msg-avoid-waking-sender-upon-full-queue.patch
-* ipc-msg-avoid-waking-sender-upon-full-queue-checkpatch-fixes.patch
-  linux-next.patch
-  linux-next-rejects.patch
-* drivers-net-wireless-intel-iwlwifi-dvm-calibc-fix-min-warning.patch
-* include-linux-mlx5-deviceh-kill-build_bug_ons.patch
-* kdump-vmcoreinfo-report-memory-sections-virtual-addresses.patch
-* mm-kmemleak-avoid-using-__va-on-addresses-that-dont-have-a-lowmem-mapping.patch
-* enable-code-completion-in-vim.patch
-* kthread-add-kerneldoc-for-kthread_create.patch
-* hung_task-allow-hung_task_panic-when-hung_task_warnings-is-0.patch
-* hung_task-allow-hung_task_panic-when-hung_task_warnings-is-0-fix.patch
-* treewide-remove-redundant-include-linux-kconfigh.patch
-  mm-add-strictlimit-knob-v2.patch
-  make-sure-nobodys-leaking-resources.patch
-  releasing-resources-with-children.patch
-  make-frame_pointer-default=y.patch
-  kernel-forkc-export-kernel_thread-to-modules.patch
-  mutex-subsystem-synchro-test-module.patch
-  slab-leaks3-default-y.patch
-  add-debugging-aid-for-memory-initialisation-problems.patch
-  workaround-for-a-pci-restoring-bug.patch
+I haven't looked in enough detail, but this seems workable. The important
+part is that validate_mm must pass at the end up the update. Any other
+intermediate checks are secondary - don't feel bad about overriding them if
+they get in the way :)
+
+This shut off the warning just fine for me and it leaves the
+> validation in place and always enabled. Just it skips the check on the
+> next vma that was updated instead of the one that is being removed if
+> it was the next one that had next->vm_start reduced.
+>
+> On a side note I also noticed "mm->highest_vm_end = end" is erroneous,
+> it should be VM_WARN_ON(mm->highest_vm_end != end) but that's
+> offtopic.
+>
+> So this would be the patch I'd suggest to shut off the false positive,
+> it's a noop when CONFIG_DEBUG_VM_RB=n.
+>
+> From fc256d7f71cd6295a5258387c0cb2af9134d16a2 Mon Sep 17 00:00:00 2001
+> From: Andrea Arcangeli <aarcange@redhat.com>
+> Date: Tue, 20 Sep 2016 15:01:33 +0200
+> Subject: [PATCH 1/1] mm: vma_merge: correct false positive from
+>  __vma_unlink->validate_mm_rb
+>
+> The old code was always doing:
+>
+>    vma->vm_end = next->vm_end
+>    vma_rb_erase(next) // in __vma_unlink
+>    vma->vm_next = next->vm_next // in __vma_unlink
+>    next = vma->vm_next
+>    vma_gap_update(next)
+>
+> The new code still does the above for remove_next == 1 and 2, but for
+> remove_next == 3 it has been changed and it does:
+>
+>    next->vm_start = vma->vm_start
+>    vma_rb_erase(vma) // in __vma_unlink
+>    vma_gap_update(next)
+>
+> In the latter case, while unlinking "vma", validate_mm_rb() is told to
+> ignore "vma" that is being removed, but next->vm_start was reduced
+> instead. So for the new case, to avoid the false positive from
+> validate_mm_rb, it should be "next" that is ignored when "vma" is
+> being unlinked.
+>
+> "vma" and "next" in the above comment, considered pre-swap().
+>
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+>
+
+Still confused by some parts of the proposed patch:
+
+
+> @@ -600,11 +620,15 @@ static void __insert_vm_struct(struct mm_struct *mm,
+> struct vm_area_struct *vma)
+>  static __always_inline void __vma_unlink_common(struct mm_struct *mm,
+>                                                 struct vm_area_struct *vma,
+>                                                 struct vm_area_struct
+> *prev,
+> -                                               bool has_prev)
+> +                                               bool has_prev,
+> +                                               struct vm_area_struct
+> *ignore)
+>  {
+>         struct vm_area_struct *next;
+>
+> -       vma_rb_erase(vma, &mm->mm_rb);
+> +       if (has_prev)
+> +               vma_rb_erase_ignore(vma, &mm->mm_rb, ignore);
+> +       else
+> +               vma_rb_erase_ignore(vma, &mm->mm_rb, ignore);
+>         next = vma->vm_next;
+>         if (has_prev)
+>                 prev->vm_next = next;
+>
+
+You seem to have the same function call on both sides of the if ???
+
+
+> @@ -626,13 +650,7 @@ static inline void __vma_unlink_prev(struct mm_struct
+> *mm,
+>                                      struct vm_area_struct *vma,
+>                                      struct vm_area_struct *prev)
+>  {
+> -       __vma_unlink_common(mm, vma, prev, true);
+> -}
+> -
+> -static inline void __vma_unlink(struct mm_struct *mm,
+> -                               struct vm_area_struct *vma)
+> -{
+> -       __vma_unlink_common(mm, vma, NULL, false);
+> +       __vma_unlink_common(mm, vma, prev, true, vma);
+>  }
+>
+>  /*
+>
+
+confused as to why some of the __vma_unlink_common parameters change, other
+than just adding the ignore parameter
+
+Sorry this is not a full review - but I do agree on the general principle
+of working around the intermediate checks in any way you need as long as
+validate_mm passes when you're done modifying the vma structures :)
+
+Hope this helps,
+
+--94eb2c07e31e546101053cf9e93c
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div class=3D"gmail_extra"><div class=3D"gmail_quote">On T=
+ue, Sep 20, 2016 at 6:46 AM, Andrea Arcangeli <span dir=3D"ltr">&lt;<a href=
+=3D"mailto:aarcange@redhat.com" target=3D"_blank">aarcange@redhat.com</a>&g=
+t;</span> wrote:<br><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0=
+ .8ex;border-left:1px #ccc solid;padding-left:1ex">Hello Michel,<br></block=
+quote><div>=C2=A0</div><div>Hi Andrea, nice hearing from you :)<br><br></di=
+v><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:=
+1px #ccc solid;padding-left:1ex">
+I altered the vma_adjust code and it&#39;s triggering what looks like to<br=
+>
+be a false positive in vma_rb_erase-&gt;validate_mm_rb with<br>
+CONFIG_DEBUG_VM_RB=3Dy.<br>
+<br>
+So what happens is normally remove_next =3D=3D 1 or =3D=3D 2, and set<br>
+vma-&gt;vm_end to next-&gt;vm_end and then call validate_mm_rb(next) and it=
+<br>
+passes and then unlink &quot;next&quot; (removed from vm_next/prev and rbtr=
+ee).<br>
+<br>
+I introduced a new case to fix a bug remove_next =3D=3D 3 that actually<br>
+removes &quot;vma&quot; and sets next-&gt;vm_start =3D vma-&gt;vm_start.<br=
+>
+<br>
+So the old code was always doing:<br>
+<br>
+=C2=A0 =C2=A0vma-&gt;vm_end =3D next-&gt;vm_end<br>
+=C2=A0 =C2=A0vma_rb_erase(next) // in __vma_unlink<br>
+=C2=A0 =C2=A0vma-&gt;vm_next =3D next-&gt;vm_next // in __vma_unlink<br>
+=C2=A0 =C2=A0next =3D vma-&gt;vm_next<br>
+=C2=A0 =C2=A0vma_gap_update(next)<br>
+<br>
+The new code still does the above for remove_next =3D=3D 1 and 2, but for<b=
+r>
+remove_next =3D=3D3 it has been changed and it does:<br>
+<br>
+=C2=A0 =C2=A0next-&gt;vm_start =3D vma-&gt;vm_start<br>
+=C2=A0 =C2=A0vma_rb_erase(vma) // in __vma_unlink<br>
+=C2=A0 =C2=A0vma_gap_update(next)<br>
+<br>
+However it bugs out in vma_rb_erase(vma) because next-&gt;vm_start was<br>
+reduced. However I tend to think what I&#39;m executing is correct.<br></bl=
+ockquote><div><br></div><div>It sounds like the gaps get temporarily out of=
+ sync, which is not an actual problem as long as they get fixed before rele=
+asing the appropriate locks (which you can verify by checking if the valida=
+te_mm() call at the end of vma_adjust() still passes).<br><br></div><div>I&=
+#39;m guessing that for the update you&#39;re doing, the validate_mm_rb cal=
+l within vma_rb_erase may need to ignore vma-&gt;next rather than vma itsel=
+f.<br></div><div>=C2=A0<br></div><blockquote class=3D"gmail_quote" style=3D=
+"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+It&#39;s pointless to call vma_gap_update before I can call vm_rb_erase<br>
+anyway so certainly I can&#39;t fix it that way. I&#39;m forced to remove<b=
+r>
+&quot;vma&quot; from the rbtree before I can call vma_gap_update(next).<br>=
+</blockquote><div><br><br>=C2=A0</div><blockquote class=3D"gmail_quote" sty=
+le=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+<br>
+So I did other tests:<br>
+<br>
+diff --git a/mm/mmap.c b/mm/mmap.c<br>
+index 27f0509..a38c8a0 100644<br>
+--- a/mm/mmap.c<br>
++++ b/mm/mmap.c<br>
+@@ -400,15 +400,9 @@ static inline void vma_rb_insert(struct vm_area_struct=
+ *vma,<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 rb_insert_augmented(&amp;vma-&gt;vm_<wbr>rb, ro=
+ot, &amp;vma_gap_callbacks);<br>
+=C2=A0}<br>
+<br>
+-static void vma_rb_erase(struct vm_area_struct *vma, struct rb_root *root)=
+<br>
++static void __vma_rb_erase(struct vm_area_struct *vma, struct rb_root *roo=
+t)<br>
+=C2=A0{<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 /*<br>
+-=C2=A0 =C2=A0 =C2=A0 =C2=A0 * All rb_subtree_gap values must be consistent=
+ prior to erase,<br>
+-=C2=A0 =C2=A0 =C2=A0 =C2=A0 * with the possible exception of the vma being=
+ erased.<br>
+-=C2=A0 =C2=A0 =C2=A0 =C2=A0 */<br>
+-=C2=A0 =C2=A0 =C2=A0 =C2=A0validate_mm_rb(root, vma);<br>
+-<br>
+-=C2=A0 =C2=A0 =C2=A0 =C2=A0/*<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* Note rb_erase_augmented is a fairly lar=
+ge inline function,<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* so make sure we instantiate it only onc=
+e with our desired<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0* augmented rbtree callbacks.<br>
+@@ -416,6 +410,18 @@ static void vma_rb_erase(struct vm_area_struct *vma, s=
+truct rb_root *root)<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 rb_erase_augmented(&amp;vma-&gt;vm_<wbr>rb, roo=
+t, &amp;vma_gap_callbacks);<br>
+=C2=A0}<br>
+<br>
++static __always_inline void vma_rb_erase(struct vm_area_struct *vma,<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 struct r=
+b_root *root)<br>
++{<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0/*<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0 * All rb_subtree_gap values must be consistent=
+ prior to erase,<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0 * with the possible exception of the vma being=
+ erased.<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0 */<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0validate_mm_rb(root, vma);<br>
++<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0__vma_rb_erase(vma, root);<br>
++}<br>
++<br>
+=C2=A0/*<br>
+=C2=A0 * vma has some anon_vma assigned, and is already inserted on that<br=
+>
+=C2=A0 * anon_vma&#39;s interval trees.<br>
+@@ -606,7 +612,10 @@ static __always_inline void __vma_unlink_common(struct=
+ mm_struct *mm,<br>
+=C2=A0{<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 struct vm_area_struct *next;<br>
+<br>
+-=C2=A0 =C2=A0 =C2=A0 =C2=A0vma_rb_erase(vma, &amp;mm-&gt;mm_rb);<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0if (has_prev)<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0vma_rb_erase(vma, &=
+amp;mm-&gt;mm_rb);<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0else<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0__vma_rb_erase(vma,=
+ &amp;mm-&gt;mm_rb);<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 next =3D vma-&gt;vm_next;<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 if (has_prev)<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 prev-&gt;vm_next =
+=3D next;<br>
+@@ -892,9 +901,11 @@ again:<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 end =3D next-&gt;vm_end;<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 goto again;<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 }<br>
+-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0else if (next)<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0else if (next) {<br=
+>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 vma_gap_update(next);<br>
+-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0else<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0if (remove_next =3D=3D 3)<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0validate_mm_rb(&amp;mm-&gt;mm_rb, nex=
+t);<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0} else<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 mm-&gt;highest_vm_end =3D end;<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 }<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 if (insert &amp;&amp; file)<br>
+<br>
+<br>
+The above shifts the validate_mm_rb(next) for the remove_next =3D=3D 3<br>
+case from before the rb_removal of &quot;vma&quot; to after vma_gap_update =
+is<br>
+called on &quot;next&quot;. This works fine.<br>
+<br>
+So if you agree this is a false positive of CONFIG_DEBUG_MM_RB and<br>
+there was no actual bug, I just suggest to shut off the warning by<br>
+telling validate_mm_rb not to ignore the vma that is being removed but<br>
+the next one, if the next-&gt;vm_start was reduced to overlap over the<br>
+vma that is being removed.<br></blockquote><div><br></div><div>I haven&#39;=
+t looked in enough detail, but this seems workable. The important part is t=
+hat validate_mm must pass at the end up the update. Any other intermediate =
+checks are secondary - don&#39;t feel bad about overriding them if they get=
+ in the way :)<br></div><div><br></div><blockquote class=3D"gmail_quote" st=
+yle=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+This shut off the warning just fine for me and it leaves the<br>
+validation in place and always enabled. Just it skips the check on the<br>
+next vma that was updated instead of the one that is being removed if<br>
+it was the next one that had next-&gt;vm_start reduced.<br>
+<br>
+On a side note I also noticed &quot;mm-&gt;highest_vm_end =3D end&quot; is =
+erroneous,<br>
+it should be VM_WARN_ON(mm-&gt;highest_vm_end !=3D end) but that&#39;s<br>
+offtopic.<br>
+<br>
+So this would be the patch I&#39;d suggest to shut off the false positive,<=
+br>
+it&#39;s a noop when CONFIG_DEBUG_VM_RB=3Dn.<br>
+<br>
+>From fc256d7f71cd6295a5258387c0cb2a<wbr>f9134d16a2 Mon Sep 17 00:00:00 2001=
+<br>
+From: Andrea Arcangeli &lt;<a href=3D"mailto:aarcange@redhat.com">aarcange@=
+redhat.com</a>&gt;<br>
+Date: Tue, 20 Sep 2016 15:01:33 +0200<br>
+Subject: [PATCH 1/1] mm: vma_merge: correct false positive from<br>
+=C2=A0__vma_unlink-&gt;validate_mm_rb<br>
+<br>
+The old code was always doing:<br>
+<br>
+=C2=A0 =C2=A0vma-&gt;vm_end =3D next-&gt;vm_end<br>
+=C2=A0 =C2=A0vma_rb_erase(next) // in __vma_unlink<br>
+=C2=A0 =C2=A0vma-&gt;vm_next =3D next-&gt;vm_next // in __vma_unlink<br>
+=C2=A0 =C2=A0next =3D vma-&gt;vm_next<br>
+=C2=A0 =C2=A0vma_gap_update(next)<br>
+<br>
+The new code still does the above for remove_next =3D=3D 1 and 2, but for<b=
+r>
+remove_next =3D=3D 3 it has been changed and it does:<br>
+<br>
+=C2=A0 =C2=A0next-&gt;vm_start =3D vma-&gt;vm_start<br>
+=C2=A0 =C2=A0vma_rb_erase(vma) // in __vma_unlink<br>
+=C2=A0 =C2=A0vma_gap_update(next)<br>
+<br>
+In the latter case, while unlinking &quot;vma&quot;, validate_mm_rb() is to=
+ld to<br>
+ignore &quot;vma&quot; that is being removed, but next-&gt;vm_start was red=
+uced<br>
+instead. So for the new case, to avoid the false positive from<br>
+validate_mm_rb, it should be &quot;next&quot; that is ignored when &quot;vm=
+a&quot; is<br>
+being unlinked.<br>
+<br>
+&quot;vma&quot; and &quot;next&quot; in the above comment, considered pre-s=
+wap().<br>
+<br>
+Signed-off-by: Andrea Arcangeli &lt;<a href=3D"mailto:aarcange@redhat.com">=
+aarcange@redhat.com</a>&gt;<br></blockquote><div><br></div><div>Still confu=
+sed by some parts of the proposed patch:<br></div><div>=C2=A0</div><blockqu=
+ote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc s=
+olid;padding-left:1ex">@@ -600,11 +620,15 @@ static void __insert_vm_struct=
+(struct mm_struct *mm, struct vm_area_struct *vma)<br>
+=C2=A0static __always_inline void __vma_unlink_common(struct mm_struct *mm,=
+<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 struct vm_area_struct *vma,<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 struct vm_area_struct *prev,<br>
+-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0bool has_prev)<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0bool has_prev,<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0struct vm_area_struct *ignore)<br>
+=C2=A0{<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 struct vm_area_struct *next;<br>
+<br>
+-=C2=A0 =C2=A0 =C2=A0 =C2=A0vma_rb_erase(vma, &amp;mm-&gt;mm_rb);<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0if (has_prev)<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0vma_rb_erase_ignore=
+(vma, &amp;mm-&gt;mm_rb, ignore);<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0else<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0vma_rb_erase_ignore=
+(vma, &amp;mm-&gt;mm_rb, ignore);<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 next =3D vma-&gt;vm_next;<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 if (has_prev)<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 prev-&gt;vm_next =
+=3D next;<br></blockquote><div><br></div><div>You seem to have the same fun=
+ction call on both sides of the if ???<br></div><div>=C2=A0</div><blockquot=
+e class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc sol=
+id;padding-left:1ex">
+@@ -626,13 +650,7 @@ static inline void __vma_unlink_prev(struct mm_struct =
+*mm,<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0struct vm_area_s=
+truct *vma,<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0struct vm_area_s=
+truct *prev)<br>
+=C2=A0{<br>
+-=C2=A0 =C2=A0 =C2=A0 =C2=A0__vma_unlink_common(mm, vma, prev, true);<br>
+-}<br>
+-<br>
+-static inline void __vma_unlink(struct mm_struct *mm,<br>
+-=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=
+=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0struct vm_area_struct *vma)<br>
+-{<br>
+-=C2=A0 =C2=A0 =C2=A0 =C2=A0__vma_unlink_common(mm, vma, NULL, false);<br>
++=C2=A0 =C2=A0 =C2=A0 =C2=A0__vma_unlink_common(mm, vma, prev, true, vma);<=
+br>
+=C2=A0}<br>
+<br>
+=C2=A0/*<br>
+</blockquote><div><br></div><div>confused as to why some of the __vma_unlin=
+k_common parameters change, other than just adding the ignore parameter<br>=
+</div><br></div>Sorry this is not a full review - but I do agree on the gen=
+eral principle of working around the intermediate checks in any way you nee=
+d as long as validate_mm passes when you&#39;re done modifying the vma stru=
+ctures :)<br><br></div><div class=3D"gmail_extra">Hope this helps,<br></div=
+></div>
+
+--94eb2c07e31e546101053cf9e93c--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
