@@ -1,97 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C45196B026D
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 10:08:58 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id v67so104558624pfv.1
-        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 07:08:58 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id f6si40897550pay.257.2016.09.21.07.08.57
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 99E276B026F
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 10:27:34 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id b130so44741737wmc.2
+        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 07:27:34 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id hm5si34291036wjb.85.2016.09.21.07.27.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Sep 2016 07:08:57 -0700 (PDT)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8LE8YD5087135
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 10:08:57 -0400
-Received: from e19.ny.us.ibm.com (e19.ny.us.ibm.com [129.33.205.209])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 25kqvp33bu-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 10:08:57 -0400
-Received: from localhost
-	by e19.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Wed, 21 Sep 2016 10:08:55 -0400
-Date: Wed, 21 Sep 2016 09:08:47 -0500
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 3/3] mm: enable CONFIG_MOVABLE_NODE on powerpc
-References: <1473883618-14998-1-git-send-email-arbab@linux.vnet.ibm.com>
- <1473883618-14998-4-git-send-email-arbab@linux.vnet.ibm.com>
- <87h99cxv00.fsf@linux.vnet.ibm.com>
- <20160921054500.lrqktzjqjhuzewqg@arbab-laptop>
- <87oa3hwwxs.fsf@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 21 Sep 2016 07:27:33 -0700 (PDT)
+Subject: Re: [PATCH] mm: avoid endless recursion in dump_page()
+References: <20160908082137.131076-1-kirill.shutemov@linux.intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <df20f638-0c22-36fd-24b1-3e748419a23c@suse.cz>
+Date: Wed, 21 Sep 2016 16:27:31 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <87oa3hwwxs.fsf@linux.vnet.ibm.com>
-Message-Id: <20160921140846.m6wp2ij5f2fx4cps@arbab-laptop>
+In-Reply-To: <20160908082137.131076-1-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, devicetree@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
 
-On Wed, Sep 21, 2016 at 12:39:51PM +0530, Aneesh Kumar K.V wrote:
->What I was checking was how will one mark a node movable in ppc64 ? I
->don't see ppc64 code doing the equivalent of memblock_mark_hotplug().
+On 09/08/2016 10:21 AM, Kirill A. Shutemov wrote:
+> dump_page() uses page_mapcount() to get mapcount of the page.
+> page_mapcount() has VM_BUG_ON_PAGE(PageSlab(page)) as mapcount doesn't
+> make sense for slab pages and the field in struct page used for other
+> information.
+>
+> It leads to recursion if dump_page() called for slub page and DEBUG_VM
+> is enabled:
+>
+> dump_page() -> page_mapcount() -> VM_BUG_ON_PAGE() -> dump_page -> ...
+>
+> Let's avoid calling page_mapcount() for slab pages in dump_page().
 
-Post boot, the marking mechanism is not necessary. You can create a 
-movable node by putting all of the node's memory into ZONE_MOVABLE 
-during the hotplug.
+How about instead splitting page_mapcount() so that there is a version 
+without VM_BUG_ON_PAGE()?
 
->So when you say "Onlining memory into ZONE_MOVABLE requires
->CONFIG_MOVABLE_NODE" where is that restriction ?. IIUC,
->should_add_memory_movable() will only return ZONE_MOVABLE only if it is
->non empty and MOVABLE_NODE will create a ZONE_MOVABLE zone by default
->only if it finds a memblock marked hotpluggable. So wondering if we
->are not calling memblock_mark_hotplug() how is it working. Or am I
->missing something ?
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  mm/debug.c | 6 ++++--
+>  1 file changed, 4 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/debug.c b/mm/debug.c
+> index 8865bfb41b0b..74c7cae4f683 100644
+> --- a/mm/debug.c
+> +++ b/mm/debug.c
+> @@ -42,9 +42,11 @@ const struct trace_print_flags vmaflag_names[] = {
+>
+>  void __dump_page(struct page *page, const char *reason)
+>  {
 
-You are looking at the addition step of hotplug. You're correct there, 
-the memory is added to the default zone, not ZONE_MOVABLE. The 
-transition to ZONE_MOVABLE takes place during the onlining step. In 
-online_pages():
+At least there should be a comment explaining why.
 
-	zone = move_pfn_range(zone_shift, pfn, pfn + nr_pages);
-
-The reason we need CONFIG_MOVABLE_NODE is right before that:
-
-	if ((zone_idx(zone) > ZONE_NORMAL ||
-	    online_type == MMOP_ONLINE_MOVABLE) &&
-	    !can_online_high_movable(zone))
-		return -EINVAL;
-
-where can_online_high_movable() is defined like this:
-
-	#ifdef CONFIG_MOVABLE_NODE
-	/*
-	 * When CONFIG_MOVABLE_NODE, we permit onlining of a node which doesn't have
-	 * normal memory.
-	 */
-	static bool can_online_high_movable(struct zone *zone)
-	{
-		return true;
-	}
-	#else /* CONFIG_MOVABLE_NODE */
-	/* ensure every online node has NORMAL memory */
-	static bool can_online_high_movable(struct zone *zone)
-	{
-		return node_state(zone_to_nid(zone), N_NORMAL_MEMORY);
-	}
-	#endif /* CONFIG_MOVABLE_NODE */
-
-To be more clear, I can change the commit log to say "Onlining all of a 
-node's memory into ZONE_MOVABLE requires CONFIG_MOVABLE_NODE".
-
--- 
-Reza Arbab
+> +	int mapcount = PageSlab(page) ? 0 : page_mapcount(page);
+> +
+>  	pr_emerg("page:%p count:%d mapcount:%d mapping:%p index:%#lx",
+> -		  page, page_ref_count(page), page_mapcount(page),
+> -		  page->mapping, page->index);
+> +		  page, page_ref_count(page), mapcount,
+> +		  page->mapping, page_to_pgoff(page));
+>  	if (PageCompound(page))
+>  		pr_cont(" compound_mapcount: %d", compound_mapcount(page));
+>  	pr_cont("\n");
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
