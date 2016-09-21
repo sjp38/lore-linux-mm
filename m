@@ -1,157 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9643C6B0261
-	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 03:05:04 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id wk8so76756247pab.3
-        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 00:05:04 -0700 (PDT)
-Received: from mail-pf0-x233.google.com (mail-pf0-x233.google.com. [2607:f8b0:400e:c00::233])
-        by mx.google.com with ESMTPS id u5si39330397pau.218.2016.09.21.00.05.03
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D1696B0263
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 03:10:16 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id y6so2555388lff.0
+        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 00:10:16 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id x75si30448879wmd.127.2016.09.21.00.10.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 Sep 2016 00:05:03 -0700 (PDT)
-Received: by mail-pf0-x233.google.com with SMTP id z123so16143625pfz.2
-        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 00:05:03 -0700 (PDT)
-Date: Wed, 21 Sep 2016 00:04:58 -0700
-From: Raymond Jennings <shentino@gmail.com>
-Subject: Re: More OOM problems
-Message-ID: <20160921000458.15fdd159@metalhead.dragonrealms>
-In-Reply-To: <CA+55aFwu30Yz52yW+MRHt_JgpqZkq4DHdWR-pX4+gO_OK7agCQ@mail.gmail.com>
-References: <CA+55aFwu30Yz52yW+MRHt_JgpqZkq4DHdWR-pX4+gO_OK7agCQ@mail.gmail.com>
+        Wed, 21 Sep 2016 00:10:15 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8L78XV2040287
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 03:10:13 -0400
+Received: from e36.co.us.ibm.com (e36.co.us.ibm.com [32.97.110.154])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 25jua9rg70-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 21 Sep 2016 03:10:13 -0400
+Received: from localhost
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 21 Sep 2016 01:10:11 -0600
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 3/3] mm: enable CONFIG_MOVABLE_NODE on powerpc
+In-Reply-To: <20160921054500.lrqktzjqjhuzewqg@arbab-laptop>
+References: <1473883618-14998-1-git-send-email-arbab@linux.vnet.ibm.com> <1473883618-14998-4-git-send-email-arbab@linux.vnet.ibm.com> <87h99cxv00.fsf@linux.vnet.ibm.com> <20160921054500.lrqktzjqjhuzewqg@arbab-laptop>
+Date: Wed, 21 Sep 2016 12:39:51 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
+Message-Id: <87oa3hwwxs.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Markus Trippelsdorf <markus@trippelsdorf.de>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Jiri Slaby <jslaby@suse.com>, Olaf Hering <olaf@aepfle.de>, Joonsoo Kim <js1304@gmail.com>, linux-mm <linux-mm@kvack.org>
+To: Reza Arbab <arbab@linux.vnet.ibm.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, devicetree@vger.kernel.org, linux-mm@kvack.org
 
-On Sun, 18 Sep 2016 13:03:01 -0700
-Linus Torvalds <torvalds@linux-foundation.org> wrote:
+Reza Arbab <arbab@linux.vnet.ibm.com> writes:
 
-> [ More or less random collection of people from previous oom patches
-> and/or discussions, if you feel you shouldn't have been cc'd, blame me
-> for just picking things from earlier threads and/or commits ]
-> 
-> I'm afraid that the oom situation is still not fixed, and the "let's
-> die quickly" patches are still a nasty regression.
-> 
-> I have a 16GB desktop that I just noticed killed one of the chrome
-> tabs yesterday. Tha machine had *tons* of freeable memory, with
-> something like 7GB of page cache at the time, if I read this right.
+> On Mon, Sep 19, 2016 at 11:59:35AM +0530, Aneesh Kumar K.V wrote:
+>>Movable node also does.
+>>	memblock_set_bottom_up(true);
+>>What is the impact of that. Do we need changes equivalent to that ? Also
+>>where are we marking the nodes which can be hotplugged, ie where do we
+>>do memblock_mark_hotplug() ?
+>
+> These are related to the mechanism x86 uses to create movable nodes at 
+> boot. The SRAT is parsed to mark any hotplug memory. That marking is 
+> used later when initializing ZONE_MOVABLE for each node. [1]
+>
+> The bottom-up allocation is due to a timing issue [2]. There is a window 
+> where kernel memory may be allocated before the SRAT is parsed. Any 
+> bottom-up allocations done during that time will likely be in the same 
+> (nonmovable) node as the kernel image.
+>
+> On power, I don't think we have a heuristic equivalent to that SRAT 
+> memory hotplug info. So, we'll be limited to dynamically adding movable 
+> nodes after boot.
+>
+> 1. http://events.linuxfoundation.org/sites/events/files/lcjp13_chen.pdf
+> 2. commit 79442ed189ac ("mm/memblock.c: introduce bottom-up allocation 
+> mode")
+>
 
-Suggestions:
+What I was checking was how will one mark a node movable in ppc64 ? I
+don't see ppc64 code doing the equivalent of memblock_mark_hotplug().
 
-* Live compaction?
+So when you say "Onlining memory into ZONE_MOVABLE requires
+CONFIG_MOVABLE_NODE" where is that restriction ?. IIUC,
+should_add_memory_movable() will only return ZONE_MOVABLE only if it is
+non empty and MOVABLE_NODE will create a ZONE_MOVABLE zone by default
+only if it finds a memblock marked hotpluggable. So wondering if we
+are not calling memblock_mark_hotplug() how is it working. Or am I
+missing something ?
 
-Have a background process that actively defragments free memory by
-bubbling movable pages to one end of the zone and the free holes to the
-other end?
+-aneesh
 
-Same spirit perhaps as khugepaged, periodically walk a zone from one
-end and migrate any used movable pages into the hole closest to the
-other end?
-
-I dunno, doing this manually with /proc/sys/vm/compact_blah seems a
-little hamfisted to me, and maybe a background process doing it
-incrementally would be better?
-
-Also, question (for myself but also for the curious):
-
-If you're allocating memory, can you synchronously reclaim, or does the
-memory have to be free already?  I have a hunch that if you get caught
-with freeable memory that's still being used as clean pagecache, you
-should be able to free it immediately if memory is scarce...but then
-again it might choke because a process in userland could always touch
-it through vfs or something like that.
-
-> The trigger is a kcalloc() in the i915 driver:
-> 
->     Xorg invoked oom-killer:
-> gfp_mask=0x240c0d0(GFP_TEMPORARY|__GFP_COMP|__GFP_ZERO), order=3,
-> oom_score_adj=0
-> 
->       __kmalloc+0x1cd/0x1f0
->       alloc_gen8_temp_bitmaps+0x47/0x80 [i915]
-> 
-> which looks like it is one of these:
-> 
->   slabinfo - version: 2.1
->   # name            <active_objs> <num_objs> <objsize> <objperslab>
-> <pagesperslab>
->   kmalloc-8192         268    268   8192    4    8
->   kmalloc-4096         732    786   4096    8    8
->   kmalloc-2048        1402   1456   2048   16    8
->   kmalloc-1024        2505   2976   1024   32    8
-> 
-> so even just a 1kB allocation can cause an order-3 page allocation.
-> 
-> And yeah, I had what, 137MB free memory, it's just that it's all
-> fairly fragmented. There's actually even order-4 pages, but they are
-> in low DMA memory and the system tries to protect them:
-> 
->   Node 0 DMA: 0*4kB 1*8kB (U) 2*16kB (U) 1*32kB (U) 3*64kB (U) 2*128kB
-> (U) 0*256kB 0*512kB 1*1024kB (U) 1*2048kB (M) 3*4096kB (M) = 15880kB
->   Node 0 DMA32: 11110*4kB (UMEH) 2929*8kB (UMEH) 44*16kB (MH) 1*32kB
-> (H) 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB =
-> 68608kB
->   Node 0 Normal: 14031*4kB (UMEH) 49*8kB (UMEH) 18*16kB (UH) 0*32kB
-> 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 56804kB
->   Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0
-> hugepages_size=1048576kB
->   Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0
-> hugepages_size=2048kB
->   2084682 total pagecache pages
->   11 pages in swap cache
->   Swap cache stats: add 35, delete 24, find 2/3
->   Free swap  = 8191868kB
->   Total swap = 8191996kB
->   4168499 pages RAM
-> 
-> And it looks like there's a fair amount of memory busy under writeback
-> (470MB or so)
-> 
->   active_anon:1539159 inactive_anon:374915 isolated_anon:0
->                             active_file:1251771 inactive_file:450068
-> isolated_file:0
->                             unevictable:175 dirty:26 writeback:118690
-> unstable:0 slab_reclaimable:220784 slab_unreclaimable:39819
->                             mapped:491617 shmem:382891
-> pagetables:20439 bounce:0 free:35301 free_pcp:895 free_cma:0
-> 
-> And yes, CONFIG_COMPACTION was enabled.
-
-Does this compact manually or automatically?
-
-> So quite honestly, I *really* don't think that a 1kB allocation should
-> have reasonably failed and killed anything at all (ok, it could have
-> been an 8kB one, who knows - but it really looks like it *could* have
-> been just 1kB).
-> 
-> Considering that kmalloc() pattern, I suspect that we need to consider
-> order-3 allocations "small", and try a lot harder.
-> 
-> Because killing processes due to "out of memory" in this situation is
-> unquestionably a bug.
-
-In this case I'd wonder why the freeable-but-still-used-in-pagecache
-memory isn't being reaped at alloc time.
-
-> And no, I can't recreate this, obviously.
-> 
-> I think there's a series in -mm that hasn't been merged and that is
-> pending (presumably for 4.9). I think Arkadiusz tested it for his
-> (repeatable) workload. It may need to be considered for 4.8, because
-> the above is ridiculously bad, imho.
-> 
-> Andrew? Vlastimil? Michal? Others?
-> 
->             Linus
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+    
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
