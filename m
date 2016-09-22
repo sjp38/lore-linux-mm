@@ -1,118 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EA29280255
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 01:00:51 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id wk8so184377581pab.3
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 22:00:51 -0700 (PDT)
-Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
-        by mx.google.com with ESMTPS id kg8si5818189pad.210.2016.09.22.22.00.50
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4319D6B0271
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 01:51:01 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id 82so93783936ioh.1
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 22:51:01 -0700 (PDT)
+Received: from mail-it0-x243.google.com (mail-it0-x243.google.com. [2607:f8b0:4001:c0b::243])
+        by mx.google.com with ESMTPS id i123si6740461ioi.78.2016.09.22.22.51.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 22 Sep 2016 22:00:50 -0700 (PDT)
-Subject: Re: [PATCH 3/5] mm/vmalloc.c: correct lazy_max_pages() return value
-References: <57E20C49.8010304@zoho.com>
- <alpine.DEB.2.10.1609211418480.20971@chino.kir.corp.google.com>
- <3ef46c24-769d-701a-938b-826f4249bf0b@zoho.com>
- <alpine.DEB.2.10.1609211731230.130215@chino.kir.corp.google.com>
- <57E3304E.4060401@zoho.com> <20160922123736.GA11204@dhcp22.suse.cz>
- <7671e782-b58f-7c41-b132-c7ebbcf61b99@zoho.com>
- <20160923133022.47cfd3dd@roar.ozlabs.ibm.com>
-From: zijun_hu <zijun_hu@zoho.com>
-Message-ID: <a98b4ca9-11d1-6510-63c9-f63897129be3@zoho.com>
-Date: Fri, 23 Sep 2016 13:00:35 +0800
-MIME-Version: 1.0
-In-Reply-To: <20160923133022.47cfd3dd@roar.ozlabs.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 22 Sep 2016 22:51:00 -0700 (PDT)
+Received: by mail-it0-x243.google.com with SMTP id n143so396286ita.3
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 22:51:00 -0700 (PDT)
+Content-Type: text/plain; charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 8.2 \(2104\))
+Subject: Re: [RFC] scripts: Include postprocessing script for memory allocation tracing
+From: Janani Ravichandran <janani.rvchndrn@gmail.com>
+In-Reply-To: <20160919094224.GH10785@dhcp22.suse.cz>
+Date: Thu, 22 Sep 2016 11:30:36 -0400
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <BFAF8DCA-F4A6-41C6-9AA0-C694D33035A3@gmail.com>
+References: <20160911222411.GA2854@janani-Inspiron-3521> <20160912121635.GL14524@dhcp22.suse.cz> <0ACE5927-A6E5-4B49-891D-F990527A9F50@gmail.com> <20160919094224.GH10785@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>
-Cc: zijun_hu@htc.com, Michal Hocko <mhocko@kernel.org>, npiggin@suse.de, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, tj@kernel.org, mingo@kernel.org, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net
-
-On 2016/9/23 11:30, Nicholas Piggin wrote:
-> On Fri, 23 Sep 2016 00:30:20 +0800
-> zijun_hu <zijun_hu@zoho.com> wrote:
-> 
->> On 2016/9/22 20:37, Michal Hocko wrote:
->>> On Thu 22-09-16 09:13:50, zijun_hu wrote:  
->>>> On 09/22/2016 08:35 AM, David Rientjes wrote:  
->>> [...]  
->>>>> The intent is as it is implemented; with your change, lazy_max_pages() is 
->>>>> potentially increased depending on the number of online cpus.  This is 
->>>>> only a heuristic, changing it would need justification on why the new
->>>>> value is better.  It is opposite to what the comment says: "to be 
->>>>> conservative and not introduce a big latency on huge systems, so go with
->>>>> a less aggressive log scale."  NACK to the patch.
->>>>>  
->>>> my change potentially make lazy_max_pages() decreased not increased, i seems
->>>> conform with the comment
->>>>
->>>> if the number of online CPUs is not power of 2, both have no any difference
->>>> otherwise, my change remain power of 2 value, and the original code rounds up
->>>> to next power of 2 value, for instance
->>>>
->>>> my change : (32, 64] -> 64
->>>> 	     32 -> 32, 64 -> 64
->>>> the original code: [32, 63) -> 64
->>>>                    32 -> 64, 64 -> 128  
->>>
->>> You still completely failed to explain _why_ this is an improvement/fix
->>> or why it matters. This all should be in the changelog.
->>>   
->>
->> Hi npiggin,
->> could you give some comments for this patch since lazy_max_pages() is introduced
->> by you
->>
->> my patch is based on the difference between fls() and get_count_order() mainly
->> the difference between fls() and get_count_order() will be shown below
->> more MM experts maybe help to decide which is more suitable
->>
->> if parameter > 1, both have different return value only when parameter is
->> power of two, for example
->>
->> fls(32) = 6 VS get_count_order(32) = 5
->> fls(33) = 6 VS get_count_order(33) = 6
->> fls(63) = 6 VS get_count_order(63) = 6
->> fls(64) = 7 VS get_count_order(64) = 6
->>
->> @@ -594,7 +594,9 @@ static unsigned long lazy_max_pages(void) 
->> { 
->>     unsigned int log; 
->>
->> -    log = fls(num_online_cpus()); 
->> +    log = num_online_cpus(); 
->> +    if (log > 1) 
->> +        log = (unsigned int)get_count_order(log); 
->>
->>     return log * (32UL * 1024 * 1024 / PAGE_SIZE); 
->> } 
->>
-> 
-> To be honest, I don't think I chose it with a lot of analysis.
-> It will depend on the kernel usage patterns, the arch code,
-> and the CPU microarchitecture, all of which would have changed
-> significantly.
-> 
-> I wouldn't bother changing it unless you do some bench marking
-> on different system sizes to see where the best performance is.
-> (If performance is equal, fewer lazy pages would be better.)
-> 
-> Good to see you taking a look at this vmalloc stuff. Don't be
-> discouraged if you run into some dead ends.
-> 
-> Thanks,
-> Nick
-> 
-thanks for your reply
-please don't pay attention to this patch any more since i don't have
-condition to do many test and comparison
-
-i just feel my change maybe be consistent with operation of rounding up
-to power of 2
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Janani Ravichandran <janani.rvchndrn@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@surriel.com, akpm@linux-foundation.org, vdavydov@virtuozzo.com, vbabka@suse.cz, mgorman@techsingularity.net, rostedt@goodmis.org
 
 
- 
+> On Sep 19, 2016, at 5:42 AM, Michal Hocko <mhocko@kernel.org> wrote:
+>=20
+> On Tue 13-09-16 14:04:49, Janani Ravichandran wrote:
+>>=20
+>>> On Sep 12, 2016, at 8:16 AM, Michal Hocko <mhocko@kernel.org> wrote:
+>>=20
+>> I=E2=80=99m using the function graph tracer to see how long =
+__alloc_pages_nodemask()
+>> took.
+>=20
+> How can you map the function graph tracer to a specif context? Let's =
+say
+> I would like to know why a particular allocation took so long. Would
+> that be possible?
+
+Maybe not. If the latencies are due to direct reclaim or memory =
+compaction, you
+get some information from the tracepoints (like =
+mm_vmscan_direct_reclaim_begin,
+mm_compaction_begin, etc). But otherwise, you don=E2=80=99t get any =
+context information.=20
+Function graph only gives the time spent in alloc_pages_nodemask() in =
+that case.
+
+
+Regards,
+Janani.
+>=20
+> --=20
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
