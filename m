@@ -1,77 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F7A76B027C
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 15:13:32 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id n185so52671862qke.2
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 12:13:32 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id i50si2249097qta.44.2016.09.22.12.13.30
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A84C6B027C
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 15:16:01 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id 16so175939927qtn.1
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 12:16:01 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v33si2251270qtd.81.2016.09.22.12.16.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Sep 2016 12:13:31 -0700 (PDT)
-Subject: Re: [PATCH v3] mm/hugetlb: fix memory offline with hugepage size >
- memory block size
-References: <20160920155354.54403-1-gerald.schaefer@de.ibm.com>
- <20160920155354.54403-2-gerald.schaefer@de.ibm.com>
- <05d701d213d1$7fb70880$7f251980$@alibaba-inc.com>
- <20160921143534.0dd95fe7@thinkpad> <20160922095137.GC11875@dhcp22.suse.cz>
- <20160922154549.483ee313@thinkpad> <20160922182937.38af9d0e@thinkpad>
- <57E41EF6.1010903@linux.intel.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <aee7cebd-83de-f83e-9d18-eca540217ee4@oracle.com>
-Date: Thu, 22 Sep 2016 12:13:14 -0700
+        Thu, 22 Sep 2016 12:16:00 -0700 (PDT)
+Date: Thu, 22 Sep 2016 21:15:56 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 1/4] mm: vm_page_prot: update with WRITE_ONCE/READ_ONCE
+Message-ID: <20160922191556.GF3485@redhat.com>
+References: <1474492522-2261-1-git-send-email-aarcange@redhat.com>
+ <1474492522-2261-2-git-send-email-aarcange@redhat.com>
+ <002e01d214a1$6f39e100$4dada300$@alibaba-inc.com>
 MIME-Version: 1.0
-In-Reply-To: <57E41EF6.1010903@linux.intel.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <002e01d214a1$6f39e100$4dada300$@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Rui Teng <rui.teng@linux.vnet.ibm.com>
+To: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: 'Andrew Morton' <akpm@linux-foundation.org>, linux-mm@kvack.org, 'Rik van Riel' <riel@redhat.com>, 'Hugh Dickins' <hughd@google.com>, 'Mel Gorman' <mgorman@techsingularity.net>
 
-On 09/22/2016 11:12 AM, Dave Hansen wrote:
-> On 09/22/2016 09:29 AM, Gerald Schaefer wrote:
->>  static void dissolve_free_huge_page(struct page *page)
->>  {
->> +	struct page *head = compound_head(page);
->> +	struct hstate *h = page_hstate(head);
->> +	int nid = page_to_nid(head);
->> +
->>  	spin_lock(&hugetlb_lock);
->> -	if (PageHuge(page) && !page_count(page)) {
->> -		struct hstate *h = page_hstate(page);
->> -		int nid = page_to_nid(page);
->> -		list_del(&page->lru);
->> -		h->free_huge_pages--;
->> -		h->free_huge_pages_node[nid]--;
->> -		h->max_huge_pages--;
->> -		update_and_free_page(h, page);
->> -	}
->> +	list_del(&head->lru);
->> +	h->free_huge_pages--;
->> +	h->free_huge_pages_node[nid]--;
->> +	h->max_huge_pages--;
->> +	update_and_free_page(h, head);
->>  	spin_unlock(&hugetlb_lock);
->>  }
+Hello Hillf,
+
+On Thu, Sep 22, 2016 at 03:17:52PM +0800, Hillf Danton wrote:
+> Hey Andrea
+> > 
+> > @@ -111,13 +111,16 @@ static pgprot_t vm_pgprot_modify(pgprot_t oldprot, unsigned long vm_flags)
+> >  void vma_set_page_prot(struct vm_area_struct *vma)
+> >  {
+> >  	unsigned long vm_flags = vma->vm_flags;
+> > +	pgprot_t vm_page_prot;
+> > 
+> > -	vma->vm_page_prot = vm_pgprot_modify(vma->vm_page_prot, vm_flags);
+> > +	vm_page_prot = vm_pgprot_modify(vma->vm_page_prot, vm_flags);
+> >  	if (vma_wants_writenotify(vma)) {
 > 
-> Do you need to revalidate anything once you acquire the lock?  Can this,
-> for instance, race with another thread doing vm.nr_hugepages=0?  Or a
-> thread faulting in and allocating the large page that's being dissolved?
+> Since vma->vm_page_prot is currently used in vma_wants_writenotify(), is 
+> it possible that semantic change is introduced here with local variable? 
 
-I originally suggested the locking change, but this is not quite right.
-The page count for huge pages is adjusted while holding hugetlb_lock.
-So, that check or a revalidation needs to be done while holding the lock.
+>From a short review I think you're right.
 
-That question made me think about huge page reservations.  I don't think
-the offline code takes this into account.  But, you would not want your
-huge page count to drop below the reserved huge page count
-(resv_huge_pages).
-So, shouldn't this be another condition to check before allowing the huge
-page to be dissolved?
+Writing an intermediate value with WRITE_ONCE before clearing
+VM_SHARED wouldn't be correct either if the "vma" was returned by
+vma_merge, so to fix this, the intermediate vm_page_prot needs to be
+passed as parameter to vma_wants_writenotify(vma, vm_page_prot).
 
--- 
-Mike Kravetz
+For now it's safer to drop this patch 1/4. The atomic setting of
+vm_page_prot in mprotect is an orthogonal problem to the vma_merge
+case8 issues in the other patches. The side effect would be the same
+("next" vma ptes going out of sync with the write bit set, because
+vm_page_prot was the intermediate value created with VM_SHARED still
+set in vm_flags) but it's not a bug in vma_merge/vma_adjust here.
+
+I can correct and resend this one later.
+
+While at it, I've to say the handling of VM_SOFTDIRTY across vma_merge
+also seems dubious when it's not mmap_region calling vma_merge but
+that would be yet another third orthogonal problem, so especially that
+one should be handled separately as it'd be specific to soft dirty
+only, the atomicity issue above is somewhat more generic.
+
+On a side note, the fix for vma_merge in -mm changes nothing in regard
+of the above or soft dirty, they're orthogonal issues.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
