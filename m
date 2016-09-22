@@ -1,86 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 706006B026B
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 13:41:53 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 21so178330471pfy.3
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 10:41:53 -0700 (PDT)
-Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
-        by mx.google.com with ESMTPS id z8si2774886pac.112.2016.09.22.10.41.52
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D34936B026F
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 13:47:24 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id n132so78893236oih.1
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 10:47:24 -0700 (PDT)
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0074.outbound.protection.outlook.com. [104.47.41.74])
+        by mx.google.com with ESMTPS id x93si2535463ota.3.2016.09.22.10.47.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Sep 2016 10:41:52 -0700 (PDT)
-Received: by mail-pa0-x22d.google.com with SMTP id qn7so13903017pac.3
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 10:41:52 -0700 (PDT)
-Date: Thu, 22 Sep 2016 10:41:50 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] mm: delete unnecessary and unsafe init_tlb_ubc()
-Message-ID: <alpine.LSU.2.11.1609221037170.17333@eggly.anvils>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 22 Sep 2016 10:47:18 -0700 (PDT)
+Subject: Re: [RFC PATCH v1 09/28] x86/efi: Access EFI data as encrypted when
+ SEV is active
+References: <147190820782.9523.4967724730957229273.stgit@brijesh-build-machine>
+ <147190832511.9523.10850626471583956499.stgit@brijesh-build-machine>
+ <20160922143545.3kl7khff6vqk7b2t@pd.tnic>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <443d06f5-2db5-5107-296f-94fabd209407@amd.com>
+Date: Thu, 22 Sep 2016 12:46:59 -0500
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20160922143545.3kl7khff6vqk7b2t@pd.tnic>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Borislav Petkov <bp@suse.de>, Brijesh Singh <brijesh.singh@amd.com>
+Cc: simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linus.walleij@linaro.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, jroedel@suse.de, keescook@chromium.org, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, devel@linuxdriverproject.org, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, linux-crypto@vger.kernel.org, pbonzini@redhat.com, akpm@linux-foundation.org, davem@davemloft.net
 
-init_tlb_ubc() looked unnecessary to me: tlb_ubc is statically initialized
-with zeroes in the init_task, and copied from parent to child while it is
-quiescent in arch_dup_task_struct(); so I went to delete it.
+On 09/22/2016 09:35 AM, Borislav Petkov wrote:
+> On Mon, Aug 22, 2016 at 07:25:25PM -0400, Brijesh Singh wrote:
+>> From: Tom Lendacky <thomas.lendacky@amd.com>
+>>
+>> EFI data is encrypted when the kernel is run under SEV. Update the
+>> page table references to be sure the EFI memory areas are accessed
+>> encrypted.
+>>
+>> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+>> ---
+>>  arch/x86/platform/efi/efi_64.c |   14 ++++++++++++--
+>>  1 file changed, 12 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/arch/x86/platform/efi/efi_64.c b/arch/x86/platform/efi/efi_64.c
+>> index 0871ea4..98363f3 100644
+>> --- a/arch/x86/platform/efi/efi_64.c
+>> +++ b/arch/x86/platform/efi/efi_64.c
+>> @@ -213,7 +213,7 @@ void efi_sync_low_kernel_mappings(void)
+>>  
+>>  int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
+>>  {
+>> -	unsigned long pfn, text;
+>> +	unsigned long pfn, text, flags;
+>>  	efi_memory_desc_t *md;
+>>  	struct page *page;
+>>  	unsigned npages;
+>> @@ -230,6 +230,10 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
+>>  	efi_scratch.efi_pgt = (pgd_t *)__sme_pa(efi_pgd);
+>>  	pgd = efi_pgd;
+>>  
+>> +	flags = _PAGE_NX | _PAGE_RW;
+>> +	if (sev_active)
+>> +		flags |= _PAGE_ENC;
+> 
+> So this is confusing me. There's this patch which says EFI data is
+> accessed in the clear:
+> 
+> https://lkml.kernel.org/r/20160822223738.29880.6909.stgit@tlendack-t1.amdoffice.net
+> 
+> but now here it is encrypted when SEV is enabled.
+> 
+> Do you mean, it is encrypted here because we're in the guest kernel?
 
-But inserted temporary debug WARN_ONs in place of init_tlb_ubc() to check
-that it was always empty at that point, and found them firing: because
-memcg reclaim can recurse into global reclaim (when allocating biosets
-for swapout in my case), and arrive back at the init_tlb_ubc() in
-shrink_node_memcg().
+Yes, the idea is that the SEV guest will be running encrypted from the
+start, including the BIOS/UEFI, and so all of the EFI related data will
+be encrypted.
 
-Resetting tlb_ubc.flush_required at that point is wrong: if the upper
-level needs a deferred TLB flush, but the lower level turns out not to,
-we miss a TLB flush.  But fortunately, that's the only part of the
-protocol that does not nest: with the initialization removed, cpumask 
-collects bits from upper and lower levels, and flushes TLB when needed.
+Thanks,
+Tom
 
-Fixes: 72b252aed506 ("mm: send one IPI per CPU to TLB flush all entries after unmapping pages")
-Signed-off-by: Hugh Dickins <hughd@google.com>
-Cc: stable@vger.kernel.org # 4.3+
----
-
- mm/vmscan.c |   19 -------------------
- 1 file changed, 19 deletions(-)
-
---- 4.8-rc7/mm/vmscan.c	2016-09-05 16:42:52.496692429 -0700
-+++ linux/mm/vmscan.c	2016-09-22 09:32:37.900894833 -0700
-@@ -2303,23 +2303,6 @@ out:
- 	}
- }
- 
--#ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
--static void init_tlb_ubc(void)
--{
--	/*
--	 * This deliberately does not clear the cpumask as it's expensive
--	 * and unnecessary. If there happens to be data in there then the
--	 * first SWAP_CLUSTER_MAX pages will send an unnecessary IPI and
--	 * then will be cleared.
--	 */
--	current->tlb_ubc.flush_required = false;
--}
--#else
--static inline void init_tlb_ubc(void)
--{
--}
--#endif /* CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH */
--
- /*
-  * This is a basic per-node page freer.  Used by both kswapd and direct reclaim.
-  */
-@@ -2355,8 +2338,6 @@ static void shrink_node_memcg(struct pgl
- 	scan_adjusted = (global_reclaim(sc) && !current_is_kswapd() &&
- 			 sc->priority == DEF_PRIORITY);
- 
--	init_tlb_ubc();
--
- 	blk_start_plug(&plug);
- 	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
- 					nr[LRU_INACTIVE_FILE]) {
+> 
+> Thanks.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
