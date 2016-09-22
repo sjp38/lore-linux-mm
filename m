@@ -1,72 +1,234 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C7E96B0274
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 09:38:39 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id w84so71287593wmg.1
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 06:38:39 -0700 (PDT)
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id c184si2463233wme.22.2016.09.22.06.38.36
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F49B6B0277
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 09:45:58 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id r126so199130672oib.2
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 06:45:58 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id z204si1615195oiz.263.2016.09.22.06.45.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Sep 2016 06:38:37 -0700 (PDT)
-Subject: Re: [PATCH 4/4] writeback: introduce super_operations->write_metadata
-References: <1474405068-27841-1-git-send-email-jbacik@fb.com>
- <1474405068-27841-5-git-send-email-jbacik@fb.com>
- <20160922114828.GN2834@quack2.suse.cz>
-From: Josef Bacik <jbacik@fb.com>
-Message-ID: <3dd716eb-dc3e-991c-ac97-a0245890383c@fb.com>
-Date: Thu, 22 Sep 2016 09:36:53 -0400
-MIME-Version: 1.0
-In-Reply-To: <20160922114828.GN2834@quack2.suse.cz>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
+        Thu, 22 Sep 2016 06:45:57 -0700 (PDT)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8MDgrA7038440
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 09:45:56 -0400
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 25mb2utu2v-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 09:45:56 -0400
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
+	Thu, 22 Sep 2016 14:45:53 +0100
+Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
+	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id 4C2D72190023
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 14:45:12 +0100 (BST)
+Received: from d06av02.portsmouth.uk.ibm.com (d06av02.portsmouth.uk.ibm.com [9.149.37.228])
+	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u8MDjqAd24969654
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 13:45:52 GMT
+Received: from d06av02.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av02.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u8MDjpOO019793
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 07:45:52 -0600
+Date: Thu, 22 Sep 2016 15:45:49 +0200
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Subject: Re: [PATCH v2 1/1] mm/hugetlb: fix memory offline with hugepage
+ size > memory block size
+In-Reply-To: <20160922095137.GC11875@dhcp22.suse.cz>
+References: <20160920155354.54403-1-gerald.schaefer@de.ibm.com>
+	<20160920155354.54403-2-gerald.schaefer@de.ibm.com>
+	<05d701d213d1$7fb70880$7f251980$@alibaba-inc.com>
+	<20160921143534.0dd95fe7@thinkpad>
+	<20160922095137.GC11875@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
+Message-Id: <20160922154549.483ee313@thinkpad>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, kernel-team@fb.com, jack@suse.com, viro@zeniv.linux.org.uk, dchinner@redhat.com, hch@lst.de, linux-mm@kvack.org, hannes@cmpxchg.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Dave Hansen <dave.hansen@linux.intel.com>, Rui Teng <rui.teng@linux.vnet.ibm.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>
 
-On 09/22/2016 07:48 AM, Jan Kara wrote:
-> On Tue 20-09-16 16:57:48, Josef Bacik wrote:
->> Now that we have metadata counters in the VM, we need to provide a way to kick
->> writeback on dirty metadata.  Introduce super_operations->write_metadata.  This
->> allows file systems to deal with writing back any dirty metadata we need based
->> on the writeback needs of the system.  Since there is no inode to key off of we
->> need a list in the bdi for dirty super blocks to be added.  From there we can
->> find any dirty sb's on the bdi we are currently doing writeback on and call into
->> their ->write_metadata callback.
->>
->> Signed-off-by: Josef Bacik <jbacik@fb.com>
->> ---
->>  fs/fs-writeback.c                | 72 ++++++++++++++++++++++++++++++++++++----
->>  fs/super.c                       |  7 ++++
->>  include/linux/backing-dev-defs.h |  2 ++
->>  include/linux/fs.h               |  4 +++
->>  mm/backing-dev.c                 |  2 ++
->>  5 files changed, 81 insertions(+), 6 deletions(-)
->>
->
-> ...
->
->> +	if (!done && sb->s_op->write_metadata) {
->> +		spin_unlock(&wb->list_lock);
->> +		wrote += writeback_sb_metadata(sb, wb, work);
->> +		spin_unlock(&wb->list_lock);
-> 		^^^
-> 		spin_lock();
->
-> Otherwise the patch looks good to me. So feel free to add:
->
-> Reviewed-by: Jan Kara <jack@suse.cz>
->
-> after fixing the above.
->
+On Thu, 22 Sep 2016 11:51:37 +0200
+Michal Hocko <mhocko@kernel.org> wrote:
 
-Yup I hit this as soon as I started testing so I'll go ahead and add your 
-reviewed-by.  I'll resend the whole series after these changes have actually 
-gone through some testing since it seems you are happy with the overall 
-direction.  Thanks,
+> On Wed 21-09-16 14:35:34, Gerald Schaefer wrote:
+> > dissolve_free_huge_pages() will either run into the VM_BUG_ON() or a
+> > list corruption and addressing exception when trying to set a memory
+> > block offline that is part (but not the first part) of a hugetlb page
+> > with a size > memory block size.
+> > 
+> > When no other smaller hugetlb page sizes are present, the VM_BUG_ON()
+> > will trigger directly. In the other case we will run into an addressing
+> > exception later, because dissolve_free_huge_page() will not work on the
+> > head page of the compound hugetlb page which will result in a NULL
+> > hstate from page_hstate().
+> > 
+> > To fix this, first remove the VM_BUG_ON() because it is wrong, and then
+> > use the compound head page in dissolve_free_huge_page().
+> 
+> OK so dissolve_free_huge_page will work also on tail pages now which
+> makes some sense. I would appreciate also few words why do we want to
+> sacrifice something as precious as gigantic page rather than fail the
+> page block offline. Dave pointed out dim offline usecase for example.
+> 
+> > Also change locking in dissolve_free_huge_page(), so that it only takes
+> > the lock when actually removing a hugepage.
+> 
+> From a quick look it seems this has been broken since introduced by
+> c8721bbbdd36 ("mm: memory-hotplug: enable memory hotplug to handle
+> hugepage"). Do we want to have this backported to stable? In any way
+> Fixes: SHA1 would be really nice.
 
-Josef
+That's true, I'll send a v3.
+
+> 
+> > Signed-off-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+> 
+> Other than that looks good to me, although there is a room for
+> improvements here. See below
+> 
+> > ---
+> > Changes in v2:
+> > - Update comment in dissolve_free_huge_pages()
+> > - Change locking in dissolve_free_huge_page()
+> > 
+> >  mm/hugetlb.c | 31 +++++++++++++++++++------------
+> >  1 file changed, 19 insertions(+), 12 deletions(-)
+> > 
+> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> > index 87e11d8..1522af8 100644
+> > --- a/mm/hugetlb.c
+> > +++ b/mm/hugetlb.c
+> > @@ -1441,23 +1441,30 @@ static int free_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed,
+> >   */
+> >  static void dissolve_free_huge_page(struct page *page)
+> >  {
+> > +	struct page *head = compound_head(page);
+> > +	struct hstate *h;
+> > +	int nid;
+> > +
+> > +	if (page_count(head))
+> > +		return;
+> > +
+> > +	h = page_hstate(head);
+> > +	nid = page_to_nid(head);
+> > +
+> >  	spin_lock(&hugetlb_lock);
+> > -	if (PageHuge(page) && !page_count(page)) {
+> > -		struct hstate *h = page_hstate(page);
+> > -		int nid = page_to_nid(page);
+> > -		list_del(&page->lru);
+> > -		h->free_huge_pages--;
+> > -		h->free_huge_pages_node[nid]--;
+> > -		h->max_huge_pages--;
+> > -		update_and_free_page(h, page);
+> > -	}
+> > +	list_del(&head->lru);
+> > +	h->free_huge_pages--;
+> > +	h->free_huge_pages_node[nid]--;
+> > +	h->max_huge_pages--;
+> > +	update_and_free_page(h, head);
+> >  	spin_unlock(&hugetlb_lock);
+> >  }
+> >  
+> >  /*
+> >   * Dissolve free hugepages in a given pfn range. Used by memory hotplug to
+> >   * make specified memory blocks removable from the system.
+> > - * Note that start_pfn should aligned with (minimum) hugepage size.
+> > + * Note that this will dissolve a free gigantic hugepage completely, if any
+> > + * part of it lies within the given range.
+> >   */
+> >  void dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
+> >  {
+> > @@ -1466,9 +1473,9 @@ void dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
+> >  	if (!hugepages_supported())
+> >  		return;
+> >  
+> > -	VM_BUG_ON(!IS_ALIGNED(start_pfn, 1 << minimum_order));
+> >  	for (pfn = start_pfn; pfn < end_pfn; pfn += 1 << minimum_order)
+> > -		dissolve_free_huge_page(pfn_to_page(pfn));
+> > +		if (PageHuge(pfn_to_page(pfn)))
+> > +			dissolve_free_huge_page(pfn_to_page(pfn));
+> >  }
+> 
+> we can return the number of freed pages from dissolve_free_huge_page and
+> move by the approapriate number of pfns. Nothing to really lose sleep
+> about but no rocket science either. An early break out if the page is
+> used would be nice as well. Something like the following, probably a
+> separate patch on top of yours.
+
+Hmm, not sure if this is really worth the effort and the (small) added
+complexity. It would surely be worth it for the current code, where we
+also have the spinlock involved even for non-huge pages. After this patch
+however, dissolve_free_huge_page() will only be called for hugepages,
+and the early break-out is also there, although the page_count() check
+could probably be moved out from dissolve_free_huge_page() and into the
+loop, I'll try this for v3.
+
+The loop count will also not be greatly reduced, at least when there
+are only hugepages of minimum_order in the memory block, or no hugepages
+at all, it will not improve anything. In any other case the PageHuge()
+check in the loop will already prevent unnecessary calls to
+dissolve_free_huge_page().
+
+> ---
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 029a80b90cea..d230900f571e 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1434,17 +1434,17 @@ static int free_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed,
+>  }
+> 
+>  /*
+> - * Dissolve a given free hugepage into free buddy pages. This function does
+> - * nothing for in-use (including surplus) hugepages.
+> + * Dissolve a given free hugepage into free buddy pages. Returns number
+> + * of freed pages or EBUSY if the page is in use.
+>   */
+> -static void dissolve_free_huge_page(struct page *page)
+> +static int dissolve_free_huge_page(struct page *page)
+>  {
+>  	struct page *head = compound_head(page);
+>  	struct hstate *h;
+>  	int nid;
+> 
+>  	if (page_count(head))
+> -		return;
+> +		return -EBUSY;
+> 
+>  	h = page_hstate(head);
+>  	nid = page_to_nid(head);
+> @@ -1456,6 +1456,8 @@ static void dissolve_free_huge_page(struct page *page)
+>  	h->max_huge_pages--;
+>  	update_and_free_page(h, head);
+>  	spin_unlock(&hugetlb_lock);
+> +
+> +	return 1 << h->order;
+>  }
+> 
+>  /*
+> @@ -1471,9 +1473,18 @@ void dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
+>  	if (!hugepages_supported())
+>  		return;
+> 
+> -	for (pfn = start_pfn; pfn < end_pfn; pfn += 1 << minimum_order)
+> -		if (PageHuge(pfn_to_page(pfn)))
+> -			dissolve_free_huge_page(pfn_to_page(pfn));
+> +	for (pfn = start_pfn; pfn < end_pfn; )
+> +		int nr_pages;
+> +
+> +		if (!PageHuge(pfn_to_page(pfn))) {
+> +			pfn += 1 << minimum_order;
+> +			continue;
+> +		}
+> +
+> +		nr_pages = dissolve_free_huge_page(pfn_to_page(pfn));
+> +		if (IS_ERR(nr_pages))
+> +			break;
+> +		pfn += nr_pages;
+>  }
+> 
+>  /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
