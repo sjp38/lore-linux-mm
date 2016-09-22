@@ -1,52 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 395B4280250
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 03:58:34 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id i193so187349515oib.3
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 00:58:34 -0700 (PDT)
-Received: from out4435.biz.mail.alibaba.com (out4435.biz.mail.alibaba.com. [47.88.44.35])
-        by mx.google.com with ESMTP id 3si484677ioz.100.2016.09.22.00.58.32
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C082280250
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 04:00:37 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id i193so187468840oib.3
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 01:00:37 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id o133si363803oif.18.2016.09.22.01.00.35
         for <linux-mm@kvack.org>;
-        Thu, 22 Sep 2016 00:58:33 -0700 (PDT)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <20160920155354.54403-1-gerald.schaefer@de.ibm.com>	<20160920155354.54403-2-gerald.schaefer@de.ibm.com>	<05d701d213d1$7fb70880$7f251980$@alibaba-inc.com> <20160921143534.0dd95fe7@thinkpad>
-In-Reply-To: <20160921143534.0dd95fe7@thinkpad>
-Subject: Re: [PATCH v2 1/1] mm/hugetlb: fix memory offline with hugepage size > memory block size
-Date: Thu, 22 Sep 2016 15:58:15 +0800
-Message-ID: <003e01d214a7$13a72220$3af56660$@alibaba-inc.com>
+        Thu, 22 Sep 2016 01:00:36 -0700 (PDT)
+Date: Thu, 22 Sep 2016 17:01:24 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 5/7] slab, workqueue: remove keventd_up() usage
+Message-ID: <20160922080124.GA30663@js1304-P5Q-DELUXE>
+References: <1473967821-24363-1-git-send-email-tj@kernel.org>
+ <1473967821-24363-6-git-send-email-tj@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1473967821-24363-6-git-send-email-tj@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Gerald Schaefer' <gerald.schaefer@de.ibm.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Naoya Horiguchi' <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'Michal Hocko' <mhocko@suse.cz>, "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>, 'Vlastimil Babka' <vbabka@suse.cz>, 'Mike Kravetz' <mike.kravetz@oracle.com>, "'Aneesh Kumar K . V'" <aneesh.kumar@linux.vnet.ibm.com>, 'Martin Schwidefsky' <schwidefsky@de.ibm.com>, 'Heiko Carstens' <heiko.carstens@de.ibm.com>, 'Dave Hansen' <dave.hansen@linux.intel.com>, 'Rui Teng' <rui.teng@linux.vnet.ibm.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: torvalds@linux-foundation.org, linux-kernel@vger.kernel.org, jiangshanlai@gmail.com, akpm@linux-foundation.org, kernel-team@fb.com, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
 
+On Thu, Sep 15, 2016 at 03:30:19PM -0400, Tejun Heo wrote:
+> Now that workqueue can handle work item queueing from very early
+> during boot, there is no need to gate schedule_delayed_work_on() while
+> !keventd_up().  Remove it.
 > 
-> dissolve_free_huge_pages() will either run into the VM_BUG_ON() or a
-> list corruption and addressing exception when trying to set a memory
-> block offline that is part (but not the first part) of a hugetlb page
-> with a size > memory block size.
-> 
-> When no other smaller hugetlb page sizes are present, the VM_BUG_ON()
-> will trigger directly. In the other case we will run into an addressing
-> exception later, because dissolve_free_huge_page() will not work on the
-> head page of the compound hugetlb page which will result in a NULL
-> hstate from page_hstate().
-> 
-> To fix this, first remove the VM_BUG_ON() because it is wrong, and then
-> use the compound head page in dissolve_free_huge_page().
-> 
-> Also change locking in dissolve_free_huge_page(), so that it only takes
-> the lock when actually removing a hugepage.
-> 
-> Signed-off-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+> Cc: Christoph Lameter <cl@linux.com>
+> Cc: Pekka Enberg <penberg@kernel.org>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: linux-mm@kvack.org
 > ---
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+> Hello,
+> 
+> This change depends on an earlier workqueue patch and is followed by a
+> patch to remove keventd_up().  It'd be great if it can be routed
+> through the wq/for-4.9 branch.
 
+Acked-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
