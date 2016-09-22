@@ -1,85 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 688576B026E
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 02:59:48 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id l138so61128770wmg.3
-        for <linux-mm@kvack.org>; Wed, 21 Sep 2016 23:59:48 -0700 (PDT)
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B3EB56B026E
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 03:11:59 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id s64so28926802lfs.1
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 00:11:59 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id bi5si440413wjc.78.2016.09.21.23.59.47
+        by mx.google.com with ESMTPS id ey9si434624wjb.265.2016.09.22.00.11.57
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 21 Sep 2016 23:59:47 -0700 (PDT)
-Date: Thu, 22 Sep 2016 08:59:43 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v2 1/9] ext4: allow DAX writeback for hole punch
-Message-ID: <20160922065943.GA2834@quack2.suse.cz>
-References: <20160823220419.11717-1-ross.zwisler@linux.intel.com>
- <20160823220419.11717-2-ross.zwisler@linux.intel.com>
- <20160921152244.GB10516@linux.intel.com>
+        Thu, 22 Sep 2016 00:11:57 -0700 (PDT)
+From: Jiri Slaby <jslaby@suse.cz>
+Subject: [patch added to 3.12-stable] x86/mm: Disable preemption during CR3 read+write
+Date: Thu, 22 Sep 2016 09:11:14 +0200
+Message-Id: <20160922071154.1297-2-jslaby@suse.cz>
+In-Reply-To: <20160922071154.1297-1-jslaby@suse.cz>
+References: <20160922071154.1297-1-jslaby@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160921152244.GB10516@linux.intel.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Theodore Ts'o <tytso@mit.edu>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Matthew Wilcox <mawilcox@microsoft.com>, stable@vger.kernel.org
+To: stable@vger.kernel.org
+Cc: Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Borislav Petkov <bp@alien8.de>, Borislav Petkov <bp@suse.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Jiri Slaby <jslaby@suse.cz>
 
-On Wed 21-09-16 09:22:44, Ross Zwisler wrote:
-> On Tue, Aug 23, 2016 at 04:04:11PM -0600, Ross Zwisler wrote:
-> > Currently when doing a DAX hole punch with ext4 we fail to do a writeback.
-> > This is because the logic around filemap_write_and_wait_range() in
-> > ext4_punch_hole() only looks for dirty page cache pages in the radix tree,
-> > not for dirty DAX exceptional entries.
-> > 
-> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> > Reviewed-by: Jan Kara <jack@suse.cz>
-> > Cc: <stable@vger.kernel.org>
-> 
-> Ted & Jan,
-> 
-> I'm still working on the latest version of the PMD work which integrates with
-> the new struct iomap faults.  At this point it doesn't look like I'm going to
-> make v4.9, but I think that this bug fix at least should probably go in alone?
+From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
 
-Yeah. Ted, feel free to add:
+This patch has been added to the 3.12 stable tree. If you have any
+objections, please let us know.
 
-Reviewed-by: Jan Kara <jack@suse.cz>
+===============
 
-and merge this change. Thanks!
+commit 5cf0791da5c162ebc14b01eb01631cfa7ed4fa6e upstream.
 
-								Honza
-> >  fs/ext4/inode.c | 4 ++--
-> >  1 file changed, 2 insertions(+), 2 deletions(-)
-> > 
-> > diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-> > index 3131747..0900cb4 100644
-> > --- a/fs/ext4/inode.c
-> > +++ b/fs/ext4/inode.c
-> > @@ -3890,7 +3890,7 @@ int ext4_update_disksize_before_punch(struct inode *inode, loff_t offset,
-> >  }
-> >  
-> >  /*
-> > - * ext4_punch_hole: punches a hole in a file by releaseing the blocks
-> > + * ext4_punch_hole: punches a hole in a file by releasing the blocks
-> >   * associated with the given offset and length
-> >   *
-> >   * @inode:  File inode
-> > @@ -3919,7 +3919,7 @@ int ext4_punch_hole(struct inode *inode, loff_t offset, loff_t length)
-> >  	 * Write out all dirty pages to avoid race conditions
-> >  	 * Then release them.
-> >  	 */
-> > -	if (mapping->nrpages && mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) {
-> > +	if (mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) {
-> >  		ret = filemap_write_and_wait_range(mapping, offset,
-> >  						   offset + length - 1);
-> >  		if (ret)
-> > -- 
-> > 2.9.0
-> > 
+There's a subtle preemption race on UP kernels:
+
+Usually current->mm (and therefore mm->pgd) stays the same during the
+lifetime of a task so it does not matter if a task gets preempted during
+the read and write of the CR3.
+
+But then, there is this scenario on x86-UP:
+
+TaskA is in do_exit() and exit_mm() sets current->mm = NULL followed by:
+
+ -> mmput()
+ -> exit_mmap()
+ -> tlb_finish_mmu()
+ -> tlb_flush_mmu()
+ -> tlb_flush_mmu_tlbonly()
+ -> tlb_flush()
+ -> flush_tlb_mm_range()
+ -> __flush_tlb_up()
+ -> __flush_tlb()
+ ->  __native_flush_tlb()
+
+At this point current->mm is NULL but current->active_mm still points to
+the "old" mm.
+
+Let's preempt taskA _after_ native_read_cr3() by taskB. TaskB has its
+own mm so CR3 has changed.
+
+Now preempt back to taskA. TaskA has no ->mm set so it borrows taskB's
+mm and so CR3 remains unchanged. Once taskA gets active it continues
+where it was interrupted and that means it writes its old CR3 value
+back. Everything is fine because userland won't need its memory
+anymore.
+
+Now the fun part:
+
+Let's preempt taskA one more time and get back to taskB. This
+time switch_mm() won't do a thing because oldmm (->active_mm)
+is the same as mm (as per context_switch()). So we remain
+with a bad CR3 / PGD and return to userland.
+
+The next thing that happens is handle_mm_fault() with an address for
+the execution of its code in userland. handle_mm_fault() realizes that
+it has a PTE with proper rights so it returns doing nothing. But the
+CPU looks at the wrong PGD and insists that something is wrong and
+faults again. And again. And one more timea?|
+
+This pagefault circle continues until the scheduler gets tired of it and
+puts another task on the CPU. It gets little difficult if the task is a
+RT task with a high priority. The system will either freeze or it gets
+fixed by the software watchdog thread which usually runs at RT-max prio.
+But waiting for the watchdog will increase the latency of the RT task
+which is no good.
+
+Fix this by disabling preemption across the critical code section.
+
+Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Andy Lutomirski <luto@kernel.org>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Borislav Petkov <bp@suse.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-mm@kvack.org
+Link: http://lkml.kernel.org/r/1470404259-26290-1-git-send-email-bigeasy@linutronix.de
+[ Prettified the changelog. ]
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Jiri Slaby <jslaby@suse.cz>
+---
+ arch/x86/include/asm/tlbflush.h | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
+index 04905bfc508b..5e4b0cc54e43 100644
+--- a/arch/x86/include/asm/tlbflush.h
++++ b/arch/x86/include/asm/tlbflush.h
+@@ -17,7 +17,14 @@
+ 
+ static inline void __native_flush_tlb(void)
+ {
++	/*
++	 * If current->mm == NULL then we borrow a mm which may change during a
++	 * task switch and therefore we must not be preempted while we write CR3
++	 * back:
++	 */
++	preempt_disable();
+ 	native_write_cr3(native_read_cr3());
++	preempt_enable();
+ }
+ 
+ static inline void __native_flush_tlb_global_irq_disabled(void)
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+2.10.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
