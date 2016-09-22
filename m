@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B7D676B026B
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 13:03:34 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id e1so53848063itb.1
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 10:03:34 -0700 (PDT)
-Received: from p3plsmtps2ded04.prod.phx3.secureserver.net (p3plsmtps2ded04.prod.phx3.secureserver.net. [208.109.80.198])
-        by mx.google.com with ESMTPS id d95si2973871ioj.42.2016.09.22.10.03.34
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 271496B026F
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 13:03:36 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id m186so228418597ioa.0
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 10:03:36 -0700 (PDT)
+Received: from p3plsmtps2ded03.prod.phx3.secureserver.net (p3plsmtps2ded03.prod.phx3.secureserver.net. [208.109.80.60])
+        by mx.google.com with ESMTPS id d22si3959619iof.82.2016.09.22.10.03.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Sep 2016 10:03:34 -0700 (PDT)
+        Thu, 22 Sep 2016 10:03:35 -0700 (PDT)
 From: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Subject: [PATCH 2/2] radix-tree: Fix optimisation problem
-Date: Thu, 22 Sep 2016 11:53:35 -0700
-Message-Id: <1474570415-14938-3-git-send-email-mawilcox@linuxonhyperv.com>
+Subject: [PATCH 1/2] radix tree test suite: Test radix_tree_replace_slot() for multiorder entries
+Date: Thu, 22 Sep 2016 11:53:34 -0700
+Message-Id: <1474570415-14938-2-git-send-email-mawilcox@linuxonhyperv.com>
 In-Reply-To: <1474570415-14938-1-git-send-email-mawilcox@linuxonhyperv.com>
 References: <1474570415-14938-1-git-send-email-mawilcox@linuxonhyperv.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,52 +22,51 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-When compiling the radix tree with -O2, GCC thinks it can optimise:
+When we replace a multiorder entry, check that all indices reflect the
+new value.
 
-	void *entry = parent->slots[offset];
-	int siboff = entry - parent->slots;
-	void *slot = parent->slots + siboff;
-
-into
-
-	void *slot = entry;
-
-Unfortunately, 'entry' is a tagged pointer, so this optimisation leads
-to getting an unaligned pointer back from radix_tree_lookup_slot().
-The test suite wasn't being compiled with optimisation, so we hadn't
-spotted it before now.  Change the test suite to compile with -O2, and
-fix the optimisation problem by passing 'entry' through entry_to_node()
-so gcc knows this isn't a plain pointer.
+Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- lib/radix-tree.c                  | 3 ++-
- tools/testing/radix-tree/Makefile | 2 +-
- 2 files changed, 3 insertions(+), 2 deletions(-)
+ tools/testing/radix-tree/multiorder.c | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)
 
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index 1b7bf73..8bf1f32 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -105,7 +105,8 @@ static unsigned int radix_tree_descend(struct radix_tree_node *parent,
+diff --git a/tools/testing/radix-tree/multiorder.c b/tools/testing/radix-tree/multiorder.c
+index 39d9b95..05d7bc4 100644
+--- a/tools/testing/radix-tree/multiorder.c
++++ b/tools/testing/radix-tree/multiorder.c
+@@ -124,6 +124,8 @@ static void multiorder_check(unsigned long index, int order)
+ 	unsigned long i;
+ 	unsigned long min = index & ~((1UL << order) - 1);
+ 	unsigned long max = min + (1UL << order);
++	void **slot;
++	struct item *item2 = item_create(min);
+ 	RADIX_TREE(tree, GFP_KERNEL);
  
- #ifdef CONFIG_RADIX_TREE_MULTIORDER
- 	if (radix_tree_is_internal_node(entry)) {
--		unsigned long siboff = get_slot_offset(parent, entry);
-+		unsigned long siboff = get_slot_offset(parent,
-+						(void **)entry_to_node(entry));
- 		if (siboff < RADIX_TREE_MAP_SIZE) {
- 			offset = siboff;
- 			entry = rcu_dereference_raw(parent->slots[offset]);
-diff --git a/tools/testing/radix-tree/Makefile b/tools/testing/radix-tree/Makefile
-index 3b53046..9d0919ed 100644
---- a/tools/testing/radix-tree/Makefile
-+++ b/tools/testing/radix-tree/Makefile
-@@ -1,5 +1,5 @@
+ 	printf("Multiorder index %ld, order %d\n", index, order);
+@@ -139,13 +141,19 @@ static void multiorder_check(unsigned long index, int order)
+ 		item_check_absent(&tree, i);
+ 	for (i = max; i < 2*max; i++)
+ 		item_check_absent(&tree, i);
++	for (i = min; i < max; i++)
++		assert(radix_tree_insert(&tree, i, item2) == -EEXIST);
++
++	slot = radix_tree_lookup_slot(&tree, index);
++	free(*slot);
++	radix_tree_replace_slot(slot, item2);
+ 	for (i = min; i < max; i++) {
+-		static void *entry = (void *)
+-					(0xA0 | RADIX_TREE_EXCEPTIONAL_ENTRY);
+-		assert(radix_tree_insert(&tree, i, entry) == -EEXIST);
++		struct item *item = item_lookup(&tree, i);
++		assert(item != 0);
++		assert(item->index == min);
+ 	}
  
--CFLAGS += -I. -g -Wall -D_LGPL_SOURCE
-+CFLAGS += -I. -g -O2 -Wall -D_LGPL_SOURCE
- LDFLAGS += -lpthread -lurcu
- TARGETS = main
- OFILES = main.o radix-tree.o linux.o test.o tag_check.o find_next_bit.o \
+-	assert(item_delete(&tree, index) != 0);
++	assert(item_delete(&tree, min) != 0);
+ 
+ 	for (i = 0; i < 2*max; i++)
+ 		item_check_absent(&tree, i);
 -- 
 2.9.3
 
