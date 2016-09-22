@@ -1,137 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B3EB56B026E
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 03:11:59 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id s64so28926802lfs.1
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 00:11:59 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ey9si434624wjb.265.2016.09.22.00.11.57
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 22 Sep 2016 00:11:57 -0700 (PDT)
-From: Jiri Slaby <jslaby@suse.cz>
-Subject: [patch added to 3.12-stable] x86/mm: Disable preemption during CR3 read+write
-Date: Thu, 22 Sep 2016 09:11:14 +0200
-Message-Id: <20160922071154.1297-2-jslaby@suse.cz>
-In-Reply-To: <20160922071154.1297-1-jslaby@suse.cz>
-References: <20160922071154.1297-1-jslaby@suse.cz>
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5783D6B026E
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 03:18:09 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id i193so185481760oib.3
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 00:18:09 -0700 (PDT)
+Received: from out4434.biz.mail.alibaba.com (out4434.biz.mail.alibaba.com. [47.88.44.34])
+        by mx.google.com with ESMTP id v5si521592ith.37.2016.09.22.00.18.07
+        for <linux-mm@kvack.org>;
+        Thu, 22 Sep 2016 00:18:08 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <1474492522-2261-1-git-send-email-aarcange@redhat.com> <1474492522-2261-2-git-send-email-aarcange@redhat.com>
+In-Reply-To: <1474492522-2261-2-git-send-email-aarcange@redhat.com>
+Subject: Re: [PATCH 1/4] mm: vm_page_prot: update with WRITE_ONCE/READ_ONCE
+Date: Thu, 22 Sep 2016 15:17:52 +0800
+Message-ID: <002e01d214a1$6f39e100$4dada300$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: stable@vger.kernel.org
-Cc: Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Borislav Petkov <bp@alien8.de>, Borislav Petkov <bp@suse.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Jiri Slaby <jslaby@suse.cz>
+To: 'Andrea Arcangeli' <aarcange@redhat.com>, 'Andrew Morton' <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, 'Rik van Riel' <riel@redhat.com>, 'Hugh Dickins' <hughd@google.com>, 'Mel Gorman' <mgorman@techsingularity.net>
 
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Hey Andrea
+> 
+> @@ -111,13 +111,16 @@ static pgprot_t vm_pgprot_modify(pgprot_t oldprot, unsigned long vm_flags)
+>  void vma_set_page_prot(struct vm_area_struct *vma)
+>  {
+>  	unsigned long vm_flags = vma->vm_flags;
+> +	pgprot_t vm_page_prot;
+> 
+> -	vma->vm_page_prot = vm_pgprot_modify(vma->vm_page_prot, vm_flags);
+> +	vm_page_prot = vm_pgprot_modify(vma->vm_page_prot, vm_flags);
+>  	if (vma_wants_writenotify(vma)) {
 
-This patch has been added to the 3.12 stable tree. If you have any
-objections, please let us know.
+Since vma->vm_page_prot is currently used in vma_wants_writenotify(), is 
+it possible that semantic change is introduced here with local variable? 
 
-===============
-
-commit 5cf0791da5c162ebc14b01eb01631cfa7ed4fa6e upstream.
-
-There's a subtle preemption race on UP kernels:
-
-Usually current->mm (and therefore mm->pgd) stays the same during the
-lifetime of a task so it does not matter if a task gets preempted during
-the read and write of the CR3.
-
-But then, there is this scenario on x86-UP:
-
-TaskA is in do_exit() and exit_mm() sets current->mm = NULL followed by:
-
- -> mmput()
- -> exit_mmap()
- -> tlb_finish_mmu()
- -> tlb_flush_mmu()
- -> tlb_flush_mmu_tlbonly()
- -> tlb_flush()
- -> flush_tlb_mm_range()
- -> __flush_tlb_up()
- -> __flush_tlb()
- ->  __native_flush_tlb()
-
-At this point current->mm is NULL but current->active_mm still points to
-the "old" mm.
-
-Let's preempt taskA _after_ native_read_cr3() by taskB. TaskB has its
-own mm so CR3 has changed.
-
-Now preempt back to taskA. TaskA has no ->mm set so it borrows taskB's
-mm and so CR3 remains unchanged. Once taskA gets active it continues
-where it was interrupted and that means it writes its old CR3 value
-back. Everything is fine because userland won't need its memory
-anymore.
-
-Now the fun part:
-
-Let's preempt taskA one more time and get back to taskB. This
-time switch_mm() won't do a thing because oldmm (->active_mm)
-is the same as mm (as per context_switch()). So we remain
-with a bad CR3 / PGD and return to userland.
-
-The next thing that happens is handle_mm_fault() with an address for
-the execution of its code in userland. handle_mm_fault() realizes that
-it has a PTE with proper rights so it returns doing nothing. But the
-CPU looks at the wrong PGD and insists that something is wrong and
-faults again. And again. And one more timea?|
-
-This pagefault circle continues until the scheduler gets tired of it and
-puts another task on the CPU. It gets little difficult if the task is a
-RT task with a high priority. The system will either freeze or it gets
-fixed by the software watchdog thread which usually runs at RT-max prio.
-But waiting for the watchdog will increase the latency of the RT task
-which is no good.
-
-Fix this by disabling preemption across the critical code section.
-
-Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Andy Lutomirski <luto@kernel.org>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Borislav Petkov <bp@suse.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/1470404259-26290-1-git-send-email-bigeasy@linutronix.de
-[ Prettified the changelog. ]
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Jiri Slaby <jslaby@suse.cz>
----
- arch/x86/include/asm/tlbflush.h | 7 +++++++
- 1 file changed, 7 insertions(+)
-
-diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
-index 04905bfc508b..5e4b0cc54e43 100644
---- a/arch/x86/include/asm/tlbflush.h
-+++ b/arch/x86/include/asm/tlbflush.h
-@@ -17,7 +17,14 @@
- 
- static inline void __native_flush_tlb(void)
- {
-+	/*
-+	 * If current->mm == NULL then we borrow a mm which may change during a
-+	 * task switch and therefore we must not be preempted while we write CR3
-+	 * back:
-+	 */
-+	preempt_disable();
- 	native_write_cr3(native_read_cr3());
-+	preempt_enable();
- }
- 
- static inline void __native_flush_tlb_global_irq_disabled(void)
--- 
-2.10.0
+thanks
+Hillf
+>  		vm_flags &= ~VM_SHARED;
+> -		vma->vm_page_prot = vm_pgprot_modify(vma->vm_page_prot,
+> -						     vm_flags);
+> +		vm_page_prot = vm_pgprot_modify(vma->vm_page_prot,
+> +						vm_flags);
+>  	}
+> +	/* remove_protection_ptes reads vma->vm_page_prot without mmap_sem */
+> +	WRITE_ONCE(vma->vm_page_prot, vm_page_prot);
+>  }
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
