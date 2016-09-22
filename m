@@ -1,92 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A2AF1280250
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 07:27:05 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id b71so52716509lfg.2
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 04:27:05 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A0AE280250
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 07:34:30 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id l132so49391170wmf.0
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 04:34:30 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l64si1841652wma.21.2016.09.22.04.27.04
+        by mx.google.com with ESMTPS id mh12si1386959wjb.128.2016.09.22.04.34.29
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 22 Sep 2016 04:27:04 -0700 (PDT)
-Subject: Re: [PATCH] mm: avoid endless recursion in dump_page()
-References: <20160908082137.131076-1-kirill.shutemov@linux.intel.com>
- <df20f638-0c22-36fd-24b1-3e748419a23c@suse.cz> <20160922105532.GB24593@node>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <5a28daab-6502-3e14-9e12-cd2b7ccc6a9d@suse.cz>
-Date: Thu, 22 Sep 2016 13:26:48 +0200
+        Thu, 22 Sep 2016 04:34:29 -0700 (PDT)
+Date: Thu, 22 Sep 2016 13:34:26 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 3/4] writeback: convert WB_WRITTEN/WB_DIRITED counters to
+ bytes
+Message-ID: <20160922113426.GM2834@quack2.suse.cz>
+References: <1474405068-27841-1-git-send-email-jbacik@fb.com>
+ <1474405068-27841-4-git-send-email-jbacik@fb.com>
 MIME-Version: 1.0
-In-Reply-To: <20160922105532.GB24593@node>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1474405068-27841-4-git-send-email-jbacik@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Josef Bacik <jbacik@fb.com>
+Cc: linux-btrfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, kernel-team@fb.com, jack@suse.com, viro@zeniv.linux.org.uk, dchinner@redhat.com, hch@lst.de, linux-mm@kvack.org, hannes@cmpxchg.org
 
-On 09/22/2016 12:55 PM, Kirill A. Shutemov wrote:
-> On Wed, Sep 21, 2016 at 04:27:31PM +0200, Vlastimil Babka wrote:
->> On 09/08/2016 10:21 AM, Kirill A. Shutemov wrote:
->> >dump_page() uses page_mapcount() to get mapcount of the page.
->> >page_mapcount() has VM_BUG_ON_PAGE(PageSlab(page)) as mapcount doesn't
->> >make sense for slab pages and the field in struct page used for other
->> >information.
->> >
->> >It leads to recursion if dump_page() called for slub page and DEBUG_VM
->> >is enabled:
->> >
->> >dump_page() -> page_mapcount() -> VM_BUG_ON_PAGE() -> dump_page -> ...
->> >
->> >Let's avoid calling page_mapcount() for slab pages in dump_page().
->>
->> How about instead splitting page_mapcount() so that there is a version
->> without VM_BUG_ON_PAGE()?
->
-> Why? page->_mapping is garbage for slab page and might be confusing.
->
-> If you want the information from page->_mapping union for slab page to be
-> shown during dump_page() we should present in proper way.
-
-Hmm, fair enough.
-
->
->> >+	int mapcount = PageSlab(page) ? 0 : page_mapcount(page);
->
-> From d550530cc40ca2e9d60c84a893901c2dad6e7767 Mon Sep 17 00:00:00 2001
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Date: Thu, 22 Sep 2016 13:52:40 +0300
-> Subject: [PATCH] mm: clarify why we avoid page_mapcount() for slab pages in
->  dump_page()
->
-> Let's add comment on why we skip page_mapcount() for sl[aou]b pages.
->
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-
-Thanks.
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
+On Tue 20-09-16 16:57:47, Josef Bacik wrote:
+> These are counters that constantly go up in order to do bandwidth calculations.
+> It isn't important what the units are in, as long as they are consistent between
+> the two of them, so convert them to count bytes written/dirtied, and allow the
+> metadata accounting stuff to change the counters as well.
+> 
+> Signed-off-by: Josef Bacik <jbacik@fb.com>
 > ---
->  mm/debug.c | 5 +++++
->  1 file changed, 5 insertions(+)
->
-> diff --git a/mm/debug.c b/mm/debug.c
-> index 74c7cae4f683..9feb699c5d25 100644
-> --- a/mm/debug.c
-> +++ b/mm/debug.c
-> @@ -42,6 +42,11 @@ const struct trace_print_flags vmaflag_names[] = {
->
->  void __dump_page(struct page *page, const char *reason)
->  {
-> +	/*
-> +	 * Avoid VM_BUG_ON() in page_mapcount().
-> +	 * page->_mapcount space in struct page is used by sl[aou]b pages to
-> +	 * encode own info.
-> +	 */
->  	int mapcount = PageSlab(page) ? 0 : page_mapcount(page);
->
->  	pr_emerg("page:%p count:%d mapcount:%d mapping:%p index:%#lx",
->
+>  fs/fuse/file.c                   |  4 ++--
+>  include/linux/backing-dev-defs.h |  4 ++--
+>  include/linux/backing-dev.h      |  2 +-
+>  mm/backing-dev.c                 |  8 ++++----
+>  mm/page-writeback.c              | 26 ++++++++++++++++----------
+>  5 files changed, 25 insertions(+), 19 deletions(-)
+> 
+> diff --git a/fs/fuse/file.c b/fs/fuse/file.c
+> index f394aff..3f5991e 100644
+> --- a/fs/fuse/file.c
+> +++ b/fs/fuse/file.c
+> @@ -1466,7 +1466,7 @@ static void fuse_writepage_finish(struct fuse_conn *fc, struct fuse_req *req)
+>  	for (i = 0; i < req->num_pages; i++) {
+>  		dec_wb_stat(&bdi->wb, WB_WRITEBACK);
+>  		dec_node_page_state(req->pages[i], NR_WRITEBACK_TEMP);
+> -		wb_writeout_inc(&bdi->wb);
+> +		wb_writeout_inc(&bdi->wb, PAGE_SIZE);
+
+Nitpick: Rename this to wb_writeout_add()? You have to change all the call
+sites anyway and it is more consistent with other naming.
+
+> @@ -2523,6 +2523,7 @@ void account_metadata_dirtied(struct page *page, struct backing_dev_info *bdi,
+>  	__mod_node_page_state(page_pgdat(page), NR_METADATA_DIRTY_BYTES,
+>  			      bytes);
+>  	__add_wb_stat(&bdi->wb, WB_METADATA_DIRTY_BYTES, bytes);
+> +	__add_wb_stat(&bdi->wb, WB_DIRTIED_BYTES, bytes);
+>  	current->nr_dirtied++;
+>  	task_io_account_write(bytes);
+>  	this_cpu_inc(bdp_ratelimits);
+> @@ -2593,6 +2594,7 @@ void account_metadata_end_writeback(struct page *page,
+>  	__add_wb_stat(&bdi->wb, WB_METADATA_WRITEBACK_BYTES, -bytes);
+>  	__mod_node_page_state(page_pgdat(page), NR_METADATA_WRITEBACK_BYTES,
+>  					 -bytes);
+> +	__add_wb_stat(&bdi->wb, WB_WRITTEN_BYTES, bytes);
+>  	local_irq_restore(flags);
+>  }
+>  EXPORT_SYMBOL(account_metadata_end_writeback);
+
+It seems it would make sense to move this patch to be second in the
+series so that above two functions could do the right thing from the
+beginning.
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
