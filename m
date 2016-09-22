@@ -1,74 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 271496B026F
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 13:03:36 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id m186so228418597ioa.0
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 10:03:36 -0700 (PDT)
-Received: from p3plsmtps2ded03.prod.phx3.secureserver.net (p3plsmtps2ded03.prod.phx3.secureserver.net. [208.109.80.60])
-        by mx.google.com with ESMTPS id d22si3959619iof.82.2016.09.22.10.03.35
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 53A1C280256
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 13:07:34 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id l138so77357763wmg.3
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 10:07:34 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j77si3377665wmd.76.2016.09.22.10.07.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Sep 2016 10:03:35 -0700 (PDT)
-From: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Subject: [PATCH 1/2] radix tree test suite: Test radix_tree_replace_slot() for multiorder entries
-Date: Thu, 22 Sep 2016 11:53:34 -0700
-Message-Id: <1474570415-14938-2-git-send-email-mawilcox@linuxonhyperv.com>
-In-Reply-To: <1474570415-14938-1-git-send-email-mawilcox@linuxonhyperv.com>
-References: <1474570415-14938-1-git-send-email-mawilcox@linuxonhyperv.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 22 Sep 2016 10:07:33 -0700 (PDT)
+Date: Thu, 22 Sep 2016 19:07:18 +0200
+From: Borislav Petkov <bp@suse.de>
+Subject: Re: [RFC PATCH v1 09/28] x86/efi: Access EFI data as encrypted when
+ SEV is active
+Message-ID: <20160922170718.34d4ppockeurrg25@pd.tnic>
+References: <147190820782.9523.4967724730957229273.stgit@brijesh-build-machine>
+ <147190832511.9523.10850626471583956499.stgit@brijesh-build-machine>
+ <20160922143545.3kl7khff6vqk7b2t@pd.tnic>
+ <464461b7-1efb-0af1-dd3e-eb919a2578e9@redhat.com>
+ <20160922145947.52v42l7p7dl7u3r4@pd.tnic>
+ <938ee0cf-85e6-eefa-7df9-9d5e09ed7a9d@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <938ee0cf-85e6-eefa-7df9-9d5e09ed7a9d@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>
+To: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Brijesh Singh <brijesh.singh@amd.com>, thomas.lendacky@amd.com, simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linus.walleij@linaro.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, jroedel@suse.de, keescook@chromium.org, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, devel@linuxdriverproject.org, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, linux-crypto@vger.kernel.org, akpm@linux-foundation.org, davem@davemloft.net
 
-From: Matthew Wilcox <mawilcox@microsoft.com>
+On Thu, Sep 22, 2016 at 05:05:54PM +0200, Paolo Bonzini wrote:
+> Which paragraph?
 
-When we replace a multiorder entry, check that all indices reflect the
-new value.
+"Linux relies on BIOS to set this bit if BIOS has determined that the
+reduction in the physical address space as a result of enabling memory
+encryption..."
 
-Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
----
- tools/testing/radix-tree/multiorder.c | 16 ++++++++++++----
- 1 file changed, 12 insertions(+), 4 deletions(-)
+Basically, you can enable SME in the BIOS and you're all set.
 
-diff --git a/tools/testing/radix-tree/multiorder.c b/tools/testing/radix-tree/multiorder.c
-index 39d9b95..05d7bc4 100644
---- a/tools/testing/radix-tree/multiorder.c
-+++ b/tools/testing/radix-tree/multiorder.c
-@@ -124,6 +124,8 @@ static void multiorder_check(unsigned long index, int order)
- 	unsigned long i;
- 	unsigned long min = index & ~((1UL << order) - 1);
- 	unsigned long max = min + (1UL << order);
-+	void **slot;
-+	struct item *item2 = item_create(min);
- 	RADIX_TREE(tree, GFP_KERNEL);
- 
- 	printf("Multiorder index %ld, order %d\n", index, order);
-@@ -139,13 +141,19 @@ static void multiorder_check(unsigned long index, int order)
- 		item_check_absent(&tree, i);
- 	for (i = max; i < 2*max; i++)
- 		item_check_absent(&tree, i);
-+	for (i = min; i < max; i++)
-+		assert(radix_tree_insert(&tree, i, item2) == -EEXIST);
-+
-+	slot = radix_tree_lookup_slot(&tree, index);
-+	free(*slot);
-+	radix_tree_replace_slot(slot, item2);
- 	for (i = min; i < max; i++) {
--		static void *entry = (void *)
--					(0xA0 | RADIX_TREE_EXCEPTIONAL_ENTRY);
--		assert(radix_tree_insert(&tree, i, entry) == -EEXIST);
-+		struct item *item = item_lookup(&tree, i);
-+		assert(item != 0);
-+		assert(item->index == min);
- 	}
- 
--	assert(item_delete(&tree, index) != 0);
-+	assert(item_delete(&tree, min) != 0);
- 
- 	for (i = 0; i < 2*max; i++)
- 		item_check_absent(&tree, i);
 -- 
-2.9.3
+Regards/Gruss,
+    Boris.
+
+SUSE Linux GmbH, GF: Felix ImendA?rffer, Jane Smithard, Graham Norton, HRB 21284 (AG NA 1/4 rnberg)
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
