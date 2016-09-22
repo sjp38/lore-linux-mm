@@ -1,102 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 37C6F280250
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 08:47:39 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id l138so70535624wmg.3
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 05:47:39 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id x129si7593919wmg.113.2016.09.22.05.47.38
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 539A56B0270
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 08:51:53 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id y6so37093802lff.0
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 05:51:53 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id rq15si1737363wjb.112.2016.09.22.05.51.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Sep 2016 05:47:38 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id l132so13866085wmf.1
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 05:47:38 -0700 (PDT)
-Date: Thu, 22 Sep 2016 14:47:36 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/1] lib/ioremap.c: avoid endless loop under ioremapping
- page unaligned ranges
-Message-ID: <20160922124735.GB11204@dhcp22.suse.cz>
-References: <57E20A69.5010206@zoho.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 22 Sep 2016 05:51:52 -0700 (PDT)
+Subject: Re: [PATCH 2/4] mm, compaction: more reliably increase direct
+ compaction priority
+References: <20160906135258.18335-1-vbabka@suse.cz>
+ <20160906135258.18335-3-vbabka@suse.cz>
+ <20160921171348.GF24210@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <f1670976-b4da-5d2c-0a85-37f9a87d6868@suse.cz>
+Date: Thu, 22 Sep 2016 14:51:48 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <57E20A69.5010206@zoho.com>
+In-Reply-To: <20160921171348.GF24210@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zijun_hu <zijun_hu@zoho.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com, tj@kernel.org, mingo@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Olaf Hering <olaf@aepfle.de>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>
 
-On Wed 21-09-16 12:19:53, zijun_hu wrote:
-> From: zijun_hu <zijun_hu@htc.com>
+On 09/21/2016 07:13 PM, Michal Hocko wrote:
+> On Tue 06-09-16 15:52:56, Vlastimil Babka wrote:
+> [...]
+>> @@ -3204,6 +3199,15 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
+>>  	if (compaction_retries <= max_retries)
+>>  		return true;
+>>  
+>> +	/*
+>> +	 * Make sure there is at least one attempt at the highest priority
+>> +	 * if we exhausted all retries at the lower priorities
+>> +	 */
+>> +check_priority:
+>> +	if (*compact_priority > MIN_COMPACT_PRIORITY) {
+>> +		(*compact_priority)--;
+>> +		return true;
 > 
-> endless loop maybe happen if either of parameter addr and end is not
-> page aligned for kernel API function ioremap_page_range()
+> Don't we want to reset compaction_retries here? Otherwise we can consume
+> all retries on the lower priorities.
 
-Does this happen in practise or this you found it by reading the code?
+Good point, patch-fix below.
 
-> in order to fix this issue and alert improper range parameters to user
-> WARN_ON() checkup and rounding down range lower boundary are performed
-> firstly, loop end condition within ioremap_pte_range() is optimized due
-> to lack of relevant macro pte_addr_end()
+> Other than that it looks good to me. With that you can add
+> Acked-by: Michal Hocko <mhocko@suse.com>
+
+Thanks!
+ 
+>> +	}
+>>  	return false;
+>>  }
+>>  #else
 > 
-> Signed-off-by: zijun_hu <zijun_hu@htc.com>
-> ---
->  lib/ioremap.c | 4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
-> 
-> diff --git a/lib/ioremap.c b/lib/ioremap.c
-> index 86c8911..911bdca 100644
-> --- a/lib/ioremap.c
-> +++ b/lib/ioremap.c
-> @@ -64,7 +64,7 @@ static int ioremap_pte_range(pmd_t *pmd, unsigned long addr,
->  		BUG_ON(!pte_none(*pte));
->  		set_pte_at(&init_mm, addr, pte, pfn_pte(pfn, prot));
->  		pfn++;
-> -	} while (pte++, addr += PAGE_SIZE, addr != end);
-> +	} while (pte++, addr += PAGE_SIZE, addr < end && addr >= PAGE_SIZE);
->  	return 0;
->  }
 
-Ble, this just overcomplicate things. Can we just make sure that the
-proper alignment is done in ioremap_page_range which is the only caller
-of this (and add VM_BUG_ON in ioremap_pud_range to make sure no new
-caller will forget about that).
-
->  
-> @@ -129,7 +129,9 @@ int ioremap_page_range(unsigned long addr,
->  	int err;
->  
->  	BUG_ON(addr >= end);
-> +	WARN_ON(!PAGE_ALIGNED(addr) || !PAGE_ALIGNED(end));
-
-maybe WARN_ON_ONCE would be sufficient to prevent from swamping logs if
-something just happens to do this too often in some pathological path.
-
->  
-> +	addr = round_down(addr, PAGE_SIZE);
-
-	end = round_up(end, PAGE_SIZE);
-
-wouldn't work?
-
->  	start = addr;
->  	phys_addr -= addr;
->  	pgd = pgd_offset_k(addr);
-> -- 
-> 1.9.1
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Michal Hocko
-SUSE Labs
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+----8<----
