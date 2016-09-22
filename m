@@ -1,75 +1,356 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A84C6B027C
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 15:16:01 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id 16so175939927qtn.1
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 12:16:01 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v33si2251270qtd.81.2016.09.22.12.16.00
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BACA6B027C
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 15:25:24 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id l138so80472657wmg.3
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 12:25:24 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id w10si3467063wjq.277.2016.09.22.12.25.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Sep 2016 12:16:00 -0700 (PDT)
-Date: Thu, 22 Sep 2016 21:15:56 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 1/4] mm: vm_page_prot: update with WRITE_ONCE/READ_ONCE
-Message-ID: <20160922191556.GF3485@redhat.com>
-References: <1474492522-2261-1-git-send-email-aarcange@redhat.com>
- <1474492522-2261-2-git-send-email-aarcange@redhat.com>
- <002e01d214a1$6f39e100$4dada300$@alibaba-inc.com>
+        Thu, 22 Sep 2016 12:25:23 -0700 (PDT)
+Date: Thu, 22 Sep 2016 15:25:09 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH -v3 01/10] mm, swap: Make swap cluster size same of THP
+ size on x86_64
+Message-ID: <20160922192509.GA6054@cmpxchg.org>
+References: <1473266769-2155-1-git-send-email-ying.huang@intel.com>
+ <1473266769-2155-2-git-send-email-ying.huang@intel.com>
+ <57D0FB10.5010609@linux.vnet.ibm.com>
+ <20160919170951.GA1059@cmpxchg.org>
+ <87y42n2uth.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <002e01d214a1$6f39e100$4dada300$@alibaba-inc.com>
+In-Reply-To: <87y42n2uth.fsf@yhuang-dev.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: 'Andrew Morton' <akpm@linux-foundation.org>, linux-mm@kvack.org, 'Rik van Riel' <riel@redhat.com>, 'Hugh Dickins' <hughd@google.com>, 'Mel Gorman' <mgorman@techsingularity.net>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>
 
-Hello Hillf,
+Hi Ying,
 
-On Thu, Sep 22, 2016 at 03:17:52PM +0800, Hillf Danton wrote:
-> Hey Andrea
-> > 
-> > @@ -111,13 +111,16 @@ static pgprot_t vm_pgprot_modify(pgprot_t oldprot, unsigned long vm_flags)
-> >  void vma_set_page_prot(struct vm_area_struct *vma)
-> >  {
-> >  	unsigned long vm_flags = vma->vm_flags;
-> > +	pgprot_t vm_page_prot;
-> > 
-> > -	vma->vm_page_prot = vm_pgprot_modify(vma->vm_page_prot, vm_flags);
-> > +	vm_page_prot = vm_pgprot_modify(vma->vm_page_prot, vm_flags);
-> >  	if (vma_wants_writenotify(vma)) {
-> 
-> Since vma->vm_page_prot is currently used in vma_wants_writenotify(), is 
-> it possible that semantic change is introduced here with local variable? 
+On Tue, Sep 20, 2016 at 10:01:30AM +0800, Huang, Ying wrote:
+> It appears all patches other than [10/10] in the series is used by the
+> last patch [10/10], directly or indirectly.  And Without [10/10], they
+> don't make much sense.  So you suggest me to use one large patch?
+> Something like below?  Does that help you to review?
 
->From a short review I think you're right.
+I find this version a lot easier to review, thank you.
 
-Writing an intermediate value with WRITE_ONCE before clearing
-VM_SHARED wouldn't be correct either if the "vma" was returned by
-vma_merge, so to fix this, the intermediate vm_page_prot needs to be
-passed as parameter to vma_wants_writenotify(vma, vm_page_prot).
+> As the first step, in this patch, the splitting huge page is
+> delayed from almost the first step of swapping out to after allocating
+> the swap space for the THP and adding the THP into the swap cache.
+> This will reduce lock acquiring/releasing for the locks used for the
+> swap cache management.
 
-For now it's safer to drop this patch 1/4. The atomic setting of
-vm_page_prot in mprotect is an orthogonal problem to the vma_merge
-case8 issues in the other patches. The side effect would be the same
-("next" vma ptes going out of sync with the write bit set, because
-vm_page_prot was the intermediate value created with VM_SHARED still
-set in vm_flags) but it's not a bug in vma_merge/vma_adjust here.
+I agree that that's a fine goal for this patch series. We can worry
+about 2MB IO submissions later on.
 
-I can correct and resend this one later.
+> @@ -503,6 +503,19 @@ config FRONTSWAP
+>  
+>  	  If unsure, say Y to enable frontswap.
+>  
+> +config ARCH_USES_THP_SWAP_CLUSTER
+> +	bool
+> +	default n
+> +
+> +config THP_SWAP_CLUSTER
+> +	bool
+> +	depends on SWAP && TRANSPARENT_HUGEPAGE && ARCH_USES_THP_SWAP_CLUSTER
+> +	default y
+> +	help
+> +	  Use one swap cluster to hold the contents of the THP
+> +	  (Transparent Huge Page) swapped out.  The size of the swap
+> +	  cluster will be same as that of THP.
 
-While at it, I've to say the handling of VM_SOFTDIRTY across vma_merge
-also seems dubious when it's not mmap_region calling vma_merge but
-that would be yet another third orthogonal problem, so especially that
-one should be handled separately as it'd be specific to soft dirty
-only, the atomicity issue above is somewhat more generic.
+Making swap space allocation and swapcache handling THP-native is not
+dependent on the architecture, it's generic VM code. Can you please
+just define the cluster size depending on CONFIG_TRANSPARENT_HUGEPAGE?
 
-On a side note, the fix for vma_merge in -mm changes nothing in regard
-of the above or soft dirty, they're orthogonal issues.
+> @@ -196,7 +196,11 @@ static void discard_swap_cluster(struct
+>  	}
+>  }
+>  
+> +#ifdef CONFIG_THP_SWAP_CLUSTER
+> +#define SWAPFILE_CLUSTER	(HPAGE_SIZE / PAGE_SIZE)
+> +#else
+>  #define SWAPFILE_CLUSTER	256
+> +#endif
+>  #define LATENCY_LIMIT		256
 
-Thanks,
-Andrea
+I.e. this?
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+#define SWAPFILE_CLUSTER	HPAGE_PMD_NR
+#else
+#define SWAPFILE_CLUSTER	256
+#endif
+
+> @@ -18,6 +18,13 @@ struct swap_cgroup {
+>  };
+>  #define SC_PER_PAGE	(PAGE_SIZE/sizeof(struct swap_cgroup))
+>  
+> +struct swap_cgroup_iter {
+> +	struct swap_cgroup_ctrl *ctrl;
+> +	struct swap_cgroup *sc;
+> +	swp_entry_t entry;
+> +	unsigned long flags;
+> +};
+> +
+>  /*
+>   * SwapCgroup implements "lookup" and "exchange" operations.
+>   * In typical usage, this swap_cgroup is accessed via memcg's charge/uncharge
+> @@ -75,6 +82,35 @@ static struct swap_cgroup *lookup_swap_c
+>  	return sc + offset % SC_PER_PAGE;
+>  }
+>  
+> +static void swap_cgroup_iter_init(struct swap_cgroup_iter *iter,
+> +				  swp_entry_t ent)
+> +{
+> +	iter->entry = ent;
+> +	iter->sc = lookup_swap_cgroup(ent, &iter->ctrl);
+> +	spin_lock_irqsave(&iter->ctrl->lock, iter->flags);
+> +}
+> +
+> +static void swap_cgroup_iter_exit(struct swap_cgroup_iter *iter)
+> +{
+> +	spin_unlock_irqrestore(&iter->ctrl->lock, iter->flags);
+> +}
+> +
+> +/*
+> + * swap_cgroup is stored in a kind of discontinuous array.  That is,
+> + * they are continuous in one page, but not across page boundary.  And
+> + * there is one lock for each page.
+> + */
+> +static void swap_cgroup_iter_advance(struct swap_cgroup_iter *iter)
+> +{
+> +	iter->sc++;
+> +	iter->entry.val++;
+> +	if (!(((unsigned long)iter->sc) & PAGE_MASK)) {
+> +		spin_unlock_irqrestore(&iter->ctrl->lock, iter->flags);
+> +		iter->sc = lookup_swap_cgroup(iter->entry, &iter->ctrl);
+> +		spin_lock_irqsave(&iter->ctrl->lock, iter->flags);
+> +	}
+> +}
+> +
+>  /**
+>   * swap_cgroup_cmpxchg - cmpxchg mem_cgroup's id for this swp_entry.
+>   * @ent: swap entry to be cmpxchged
+> @@ -87,45 +123,49 @@ static struct swap_cgroup *lookup_swap_c
+>  unsigned short swap_cgroup_cmpxchg(swp_entry_t ent,
+>  					unsigned short old, unsigned short new)
+>  {
+> -	struct swap_cgroup_ctrl *ctrl;
+> -	struct swap_cgroup *sc;
+> -	unsigned long flags;
+> +	struct swap_cgroup_iter iter;
+>  	unsigned short retval;
+>  
+> -	sc = lookup_swap_cgroup(ent, &ctrl);
+> +	swap_cgroup_iter_init(&iter, ent);
+>  
+> -	spin_lock_irqsave(&ctrl->lock, flags);
+> -	retval = sc->id;
+> +	retval = iter.sc->id;
+>  	if (retval == old)
+> -		sc->id = new;
+> +		iter.sc->id = new;
+>  	else
+>  		retval = 0;
+> -	spin_unlock_irqrestore(&ctrl->lock, flags);
+> +
+> +	swap_cgroup_iter_exit(&iter);
+>  	return retval;
+>  }
+>  
+>  /**
+> - * swap_cgroup_record - record mem_cgroup for this swp_entry.
+> - * @ent: swap entry to be recorded into
+> + * swap_cgroup_record - record mem_cgroup for a set of swap entries
+> + * @ent: the first swap entry to be recorded into
+>   * @id: mem_cgroup to be recorded
+> + * @nr_ents: number of swap entries to be recorded
+>   *
+>   * Returns old value at success, 0 at failure.
+>   * (Of course, old value can be 0.)
+>   */
+> -unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id)
+> +unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id,
+> +				  unsigned int nr_ents)
+>  {
+> -	struct swap_cgroup_ctrl *ctrl;
+> -	struct swap_cgroup *sc;
+> +	struct swap_cgroup_iter iter;
+>  	unsigned short old;
+> -	unsigned long flags;
+>  
+> -	sc = lookup_swap_cgroup(ent, &ctrl);
+> +	swap_cgroup_iter_init(&iter, ent);
+>  
+> -	spin_lock_irqsave(&ctrl->lock, flags);
+> -	old = sc->id;
+> -	sc->id = id;
+> -	spin_unlock_irqrestore(&ctrl->lock, flags);
+> +	old = iter.sc->id;
+> +	for (;;) {
+> +		VM_BUG_ON(iter.sc->id != old);
+> +		iter.sc->id = id;
+> +		nr_ents--;
+> +		if (!nr_ents)
+> +			break;
+> +		swap_cgroup_iter_advance(&iter);
+> +	}
+>  
+> +	swap_cgroup_iter_exit(&iter);
+>  	return old;
+>  }
+
+The iterator seems overkill for one real user, and it's undesirable in
+the single-slot access from swap_cgroup_cmpxchg(). How about something
+like the following?
+
+static struct swap_cgroup *lookup_swap_cgroup(struct swap_cgroup_ctrl *ctrl,
+					      pgoff_t offset)
+{
+	struct page *page;
+
+	page = page_address(ctrl->map[offset / SC_PER_PAGE]);
+	return page + (offset % SC_PER_PAGE);
+}
+
+unsigned short swap_cgroup_cmpxchg(swp_entry_t ent,
+					unsigned short old, unsigned short new)
+{
+	struct swap_cgroup_ctrl *ctrl;
+	struct swap_cgroup *sc;
+	unsigned long flags;
+	unsigned short retval;
+	pgoff_t off = swp_offset(ent);
+
+	ctrl = &swap_cgroup_ctrl[swp_type(ent)];
+	sc = lookup_swap_cgroup(ctrl, swp_offset(ent));
+
+	spin_lock_irqsave(&ctrl->lock, flags);
+	retval = sc->id;
+	if (retval == old)
+		sc->id = new;
+	else
+		retval = 0;
+	spin_unlock_irqrestore(&ctrl->lock, flags);
+
+	return retval;
+}
+
+unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id,
+				  unsigned int nr_entries)
+{
+	struct swap_cgroup_ctrl *ctrl;
+	struct swap_cgroup *sc;
+	unsigned short old;
+	unsigned long flags;
+
+	ctrl = &swap_cgroup_ctrl[swp_type(ent)];
+	sc = lookup_swap_cgroup(ctrl, offset);
+	end = offset + nr_entries;
+
+	spin_lock_irqsave(&ctrl->lock, flags);
+	old = sc->id;
+	while (offset != end) {
+		sc->id = id;
+		offset++;
+		if (offset % SC_PER_PAGE)
+			sc++;
+		else
+			sc = lookup_swap_cgroup(ctrl, offset);
+	}
+	spin_unlock_irqrestore(&ctrl->lock, flags);
+
+	return old;
+}
+
+> @@ -145,20 +162,66 @@ void __delete_from_swap_cache(struct pag
+>  
+>  	entry.val = page_private(page);
+>  	address_space = swap_address_space(entry);
+> -	radix_tree_delete(&address_space->page_tree, page_private(page));
+> -	set_page_private(page, 0);
+>  	ClearPageSwapCache(page);
+> -	address_space->nrpages--;
+> -	__dec_node_page_state(page, NR_FILE_PAGES);
+> -	INC_CACHE_INFO(del_total);
+> +	for (i = 0; i < nr; i++) {
+> +		struct page *cur_page = page + i;
+> +
+> +		radix_tree_delete(&address_space->page_tree,
+> +				  page_private(cur_page));
+> +		set_page_private(cur_page, 0);
+> +	}
+> +	address_space->nrpages -= nr;
+> +	__mod_node_page_state(page_pgdat(page), NR_FILE_PAGES, -nr);
+> +	ADD_CACHE_INFO(del_total, nr);
+> +}
+> +
+> +#ifdef CONFIG_THP_SWAP_CLUSTER
+> +int add_to_swap_trans_huge(struct page *page, struct list_head *list)
+> +{
+> +	swp_entry_t entry;
+> +	int ret = 0;
+> +
+> +	/* cannot split, which may be needed during swap in, skip it */
+> +	if (!can_split_huge_page(page))
+> +		return -EBUSY;
+> +	/* fallback to split huge page firstly if no PMD map */
+> +	if (!compound_mapcount(page))
+> +		return 0;
+
+The can_split_huge_page() (and maybe also the compound_mapcount())
+optimizations look like they could be split out into separate followup
+patches. They're definitely nice to have, but don't seem necessary to
+make this patch minimally complete.
+
+> @@ -168,11 +231,23 @@ int add_to_swap(struct page *page, struc
+>  	VM_BUG_ON_PAGE(!PageLocked(page), page);
+>  	VM_BUG_ON_PAGE(!PageUptodate(page), page);
+>  
+> +	if (unlikely(PageTransHuge(page))) {
+> +		err = add_to_swap_trans_huge(page, list);
+> +		switch (err) {
+> +		case 1:
+> +			return 1;
+> +		case 0:
+> +			/* fallback to split firstly if return 0 */
+> +			break;
+> +		default:
+> +			return 0;
+> +		}
+> +	}
+>  	entry = get_swap_page();
+>  	if (!entry.val)
+>  		return 0;
+>  
+> -	if (mem_cgroup_try_charge_swap(page, entry)) {
+> +	if (mem_cgroup_try_charge_swap(page, entry, 1)) {
+>  		swapcache_free(entry);
+>  		return 0;
+>  	}
+
+Instead of duplicating the control flow at such a high level -
+add_to_swap() and add_to_swap_trans_huge() are basically identical -
+it's better push down the THP handling as low as possible:
+
+Pass the page to get_swap_page(), and then decide in there whether
+it's THP and you need to allocate a single entry or a cluster.
+
+And mem_cgroup_try_charge_swap() already gets the page. Again, check
+in there how much swap to charge based on the passed page instead of
+passing the same information twice.
+
+Doing that will change the structure of the patch too much to review
+the paths below in their current form. I'll have a closer look in the
+next version.
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
