@@ -1,70 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BEE46B026C
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 06:55:36 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id l138so67987349wmg.3
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 03:55:36 -0700 (PDT)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id r134si36311707wmd.40.2016.09.22.03.55.35
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E79D96B026E
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 06:58:36 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id n24so158163395pfb.0
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 03:58:36 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id d9si1653496pag.62.2016.09.22.03.58.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Sep 2016 03:55:35 -0700 (PDT)
-Received: by mail-wm0-x241.google.com with SMTP id b184so13349677wma.3
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 03:55:35 -0700 (PDT)
-Date: Thu, 22 Sep 2016 13:55:32 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm: avoid endless recursion in dump_page()
-Message-ID: <20160922105532.GB24593@node>
-References: <20160908082137.131076-1-kirill.shutemov@linux.intel.com>
- <df20f638-0c22-36fd-24b1-3e748419a23c@suse.cz>
+        Thu, 22 Sep 2016 03:58:36 -0700 (PDT)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8MAwXB0124230
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 06:58:35 -0400
+Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 25mcrrbrc9-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 06:58:34 -0400
+Received: from localhost
+	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Thu, 22 Sep 2016 06:58:19 -0400
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/2] shmem: fix tmpfs to handle the huge= option properly
+In-Reply-To: <1473459863-11287-2-git-send-email-toshi.kani@hpe.com>
+References: <1473459863-11287-1-git-send-email-toshi.kani@hpe.com> <1473459863-11287-2-git-send-email-toshi.kani@hpe.com>
+Date: Thu, 22 Sep 2016 16:28:10 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <df20f638-0c22-36fd-24b1-3e748419a23c@suse.cz>
+Content-Type: text/plain
+Message-Id: <8737ksw69p.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+To: Toshi Kani <toshi.kani@hpe.com>, akpm@linux-foundation.org
+Cc: dan.j.williams@intel.com, mawilcox@microsoft.com, hughd@google.com, kirill.shutemov@linux.intel.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Sep 21, 2016 at 04:27:31PM +0200, Vlastimil Babka wrote:
-> On 09/08/2016 10:21 AM, Kirill A. Shutemov wrote:
-> >dump_page() uses page_mapcount() to get mapcount of the page.
-> >page_mapcount() has VM_BUG_ON_PAGE(PageSlab(page)) as mapcount doesn't
-> >make sense for slab pages and the field in struct page used for other
-> >information.
-> >
-> >It leads to recursion if dump_page() called for slub page and DEBUG_VM
-> >is enabled:
-> >
-> >dump_page() -> page_mapcount() -> VM_BUG_ON_PAGE() -> dump_page -> ...
-> >
-> >Let's avoid calling page_mapcount() for slab pages in dump_page().
-> 
-> How about instead splitting page_mapcount() so that there is a version
-> without VM_BUG_ON_PAGE()?
+Toshi Kani <toshi.kani@hpe.com> writes:
 
-Why? page->_mapping is garbage for slab page and might be confusing.
+> shmem_get_unmapped_area() checks SHMEM_SB(sb)->huge incorrectly,
+> which leads to a reversed effect of "huge=" mount option.
+>
+> Fix the check in shmem_get_unmapped_area().
+>
+> Note, the default value of SHMEM_SB(sb)->huge remains as
+> SHMEM_HUGE_NEVER.  User will need to specify "huge=" option to
+> enable huge page mappings.
+>
 
-If you want the information from page->_mapping union for slab page to be
-shown during dump_page() we should present in proper way.
+Any update on getting this merged ?
 
-> 
-> >Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> >---
-> > mm/debug.c | 6 ++++--
-> > 1 file changed, 4 insertions(+), 2 deletions(-)
-> >
-> >diff --git a/mm/debug.c b/mm/debug.c
-> >index 8865bfb41b0b..74c7cae4f683 100644
-> >--- a/mm/debug.c
-> >+++ b/mm/debug.c
-> >@@ -42,9 +42,11 @@ const struct trace_print_flags vmaflag_names[] = {
-> >
-> > void __dump_page(struct page *page, const char *reason)
-> > {
-> 
-> At least there should be a comment explaining why.
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-Fair enough.
+> Reported-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+> Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> ---
+>  mm/shmem.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+>
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index fd8b2b5..aec5b49 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -1980,7 +1980,7 @@ unsigned long shmem_get_unmapped_area(struct file *file,
+>  				return addr;
+>  			sb = shm_mnt->mnt_sb;
+>  		}
+> -		if (SHMEM_SB(sb)->huge != SHMEM_HUGE_NEVER)
+> +		if (SHMEM_SB(sb)->huge == SHMEM_HUGE_NEVER)
+>  			return addr;
+>  	}
+>  
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-> >+	int mapcount = PageSlab(page) ? 0 : page_mapcount(page);
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
