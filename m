@@ -1,157 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 92552280256
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 12:29:51 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id cg13so158163517pac.1
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 09:29:51 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id qp8si2750889pac.89.2016.09.22.09.29.50
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E3E9C280256
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 12:30:38 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id n24so172906191pfb.0
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 09:30:38 -0700 (PDT)
+Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
+        by mx.google.com with ESMTPS id i62si2774658pfi.6.2016.09.22.09.30.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Sep 2016 09:29:50 -0700 (PDT)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8MGSIeE013963
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 12:29:50 -0400
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 25mcyfq562-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 12:29:50 -0400
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
-	Thu, 22 Sep 2016 17:29:42 +0100
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (d06relay11.portsmouth.uk.ibm.com [9.149.109.196])
-	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 07C0917D8024
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 17:31:39 +0100 (BST)
-Received: from d06av08.portsmouth.uk.ibm.com (d06av08.portsmouth.uk.ibm.com [9.149.37.249])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u8MGTdk623396640
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 16:29:39 GMT
-Received: from d06av08.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av08.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u8MGTcXG018454
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 10:29:39 -0600
-Date: Thu, 22 Sep 2016 18:29:37 +0200
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Subject: [PATCH v3] mm/hugetlb: fix memory offline with hugepage size >
- memory block size
-In-Reply-To: <20160922154549.483ee313@thinkpad>
-References: <20160920155354.54403-1-gerald.schaefer@de.ibm.com>
-	<20160920155354.54403-2-gerald.schaefer@de.ibm.com>
-	<05d701d213d1$7fb70880$7f251980$@alibaba-inc.com>
-	<20160921143534.0dd95fe7@thinkpad>
-	<20160922095137.GC11875@dhcp22.suse.cz>
-	<20160922154549.483ee313@thinkpad>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 22 Sep 2016 09:30:38 -0700 (PDT)
+Subject: Re: [PATCH 3/5] mm/vmalloc.c: correct lazy_max_pages() return value
+References: <57E20C49.8010304@zoho.com>
+ <alpine.DEB.2.10.1609211418480.20971@chino.kir.corp.google.com>
+ <3ef46c24-769d-701a-938b-826f4249bf0b@zoho.com>
+ <alpine.DEB.2.10.1609211731230.130215@chino.kir.corp.google.com>
+ <57E3304E.4060401@zoho.com> <20160922123736.GA11204@dhcp22.suse.cz>
+From: zijun_hu <zijun_hu@zoho.com>
+Message-ID: <7671e782-b58f-7c41-b132-c7ebbcf61b99@zoho.com>
+Date: Fri, 23 Sep 2016 00:30:20 +0800
+MIME-Version: 1.0
+In-Reply-To: <20160922123736.GA11204@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
-Message-Id: <20160922182937.38af9d0e@thinkpad>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>, Michal Hocko <mhocko@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Dave Hansen <dave.hansen@linux.intel.com>, Rui Teng <rui.teng@linux.vnet.ibm.com>
+To: Michal Hocko <mhocko@kernel.org>, npiggin@suse.de, npiggin@gmail.com
+Cc: zijun_hu@htc.com, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, tj@kernel.org, mingo@kernel.org, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net
 
-dissolve_free_huge_pages() will either run into the VM_BUG_ON() or a
-list corruption and addressing exception when trying to set a memory
-block offline that is part (but not the first part) of a "gigantic"
-hugetlb page with a size > memory block size.
+On 2016/9/22 20:37, Michal Hocko wrote:
+> On Thu 22-09-16 09:13:50, zijun_hu wrote:
+>> On 09/22/2016 08:35 AM, David Rientjes wrote:
+> [...]
+>>> The intent is as it is implemented; with your change, lazy_max_pages() is 
+>>> potentially increased depending on the number of online cpus.  This is 
+>>> only a heuristic, changing it would need justification on why the new
+>>> value is better.  It is opposite to what the comment says: "to be 
+>>> conservative and not introduce a big latency on huge systems, so go with
+>>> a less aggressive log scale."  NACK to the patch.
+>>>
+>> my change potentially make lazy_max_pages() decreased not increased, i seems
+>> conform with the comment
+>>
+>> if the number of online CPUs is not power of 2, both have no any difference
+>> otherwise, my change remain power of 2 value, and the original code rounds up
+>> to next power of 2 value, for instance
+>>
+>> my change : (32, 64] -> 64
+>> 	     32 -> 32, 64 -> 64
+>> the original code: [32, 63) -> 64
+>>                    32 -> 64, 64 -> 128
+> 
+> You still completely failed to explain _why_ this is an improvement/fix
+> or why it matters. This all should be in the changelog.
+> 
 
-When no other smaller hugetlb page sizes are present, the VM_BUG_ON()
-will trigger directly. In the other case we will run into an addressing
-exception later, because dissolve_free_huge_page() will not work on the
-head page of the compound hugetlb page which will result in a NULL
-hstate from page_hstate().
+Hi npiggin,
+could you give some comments for this patch since lazy_max_pages() is introduced
+by you
 
-To fix this, first remove the VM_BUG_ON() because it is wrong, and then
-use the compound head page in dissolve_free_huge_page(). This means that
-an unused pre-allocated gigantic page that has any part of itself inside
-the memory block that is going offline will be dissolved completely.
-Losing the gigantic hugepage is preferable to failing the memory offline,
-for example in the situation where a (possibly faulty) memory DIMM needs
-to go offline.
+my patch is based on the difference between fls() and get_count_order() mainly
+the difference between fls() and get_count_order() will be shown below
+more MM experts maybe help to decide which is more suitable
 
-Also move the PageHuge() and page_count() checks out of
-dissolve_free_huge_page() in order to only take the spin_lock when
-actually removing a hugepage.
+if parameter > 1, both have different return value only when parameter is
+power of two, for example
 
-Fixes: c8721bbb ("mm: memory-hotplug: enable memory hotplug to handle hugepage")
-Cc: <stable@vger.kernel.org>
-Signed-off-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
----
-Changes in v3:
-- Add Fixes: c8721bbb
-- Add Cc: stable
-- Elaborate on losing the gigantic page vs. failing memory offline
-- Move page_count() check out of dissolve_free_huge_page()
+fls(32) = 6 VS get_count_order(32) = 5
+fls(33) = 6 VS get_count_order(33) = 6
+fls(63) = 6 VS get_count_order(63) = 6
+fls(64) = 7 VS get_count_order(64) = 6
 
-Changes in v2:
-- Update comment in dissolve_free_huge_pages()
-- Change locking in dissolve_free_huge_page()
+@@ -594,7 +594,9 @@ static unsigned long lazy_max_pages(void) 
+{ 
+    unsigned int log; 
 
- mm/hugetlb.c | 34 +++++++++++++++++++---------------
- 1 file changed, 19 insertions(+), 15 deletions(-)
+-    log = fls(num_online_cpus()); 
++    log = num_online_cpus(); 
++    if (log > 1) 
++        log = (unsigned int)get_count_order(log); 
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 87e11d8..29e10a2 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1436,39 +1436,43 @@ static int free_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed,
- }
- 
- /*
-- * Dissolve a given free hugepage into free buddy pages. This function does
-- * nothing for in-use (including surplus) hugepages.
-+ * Dissolve a given free hugepage into free buddy pages.
-  */
- static void dissolve_free_huge_page(struct page *page)
- {
-+	struct page *head = compound_head(page);
-+	struct hstate *h = page_hstate(head);
-+	int nid = page_to_nid(head);
-+
- 	spin_lock(&hugetlb_lock);
--	if (PageHuge(page) && !page_count(page)) {
--		struct hstate *h = page_hstate(page);
--		int nid = page_to_nid(page);
--		list_del(&page->lru);
--		h->free_huge_pages--;
--		h->free_huge_pages_node[nid]--;
--		h->max_huge_pages--;
--		update_and_free_page(h, page);
--	}
-+	list_del(&head->lru);
-+	h->free_huge_pages--;
-+	h->free_huge_pages_node[nid]--;
-+	h->max_huge_pages--;
-+	update_and_free_page(h, head);
- 	spin_unlock(&hugetlb_lock);
- }
- 
- /*
-  * Dissolve free hugepages in a given pfn range. Used by memory hotplug to
-  * make specified memory blocks removable from the system.
-- * Note that start_pfn should aligned with (minimum) hugepage size.
-+ * Note that this will dissolve a free gigantic hugepage completely, if any
-+ * part of it lies within the given range.
-+ * This function does nothing for in-use (including surplus) hugepages.
-  */
- void dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
- {
- 	unsigned long pfn;
-+	struct page *page;
- 
- 	if (!hugepages_supported())
- 		return;
- 
--	VM_BUG_ON(!IS_ALIGNED(start_pfn, 1 << minimum_order));
--	for (pfn = start_pfn; pfn < end_pfn; pfn += 1 << minimum_order)
--		dissolve_free_huge_page(pfn_to_page(pfn));
-+	for (pfn = start_pfn; pfn < end_pfn; pfn += 1 << minimum_order) {
-+		page = pfn_to_page(pfn);
-+		if (PageHuge(page) && !page_count(page))
-+			dissolve_free_huge_page(page);
-+	}
- }
- 
- /*
+    return log * (32UL * 1024 * 1024 / PAGE_SIZE); 
+} 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
