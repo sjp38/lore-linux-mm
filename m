@@ -1,54 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 99B7E6B0287
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 09:13:51 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id cg13so202753343pac.1
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 06:13:51 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id o4si7900128paa.223.2016.09.23.06.13.50
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 122AB28024B
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 09:33:34 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id l138so17837612wmg.3
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 06:33:34 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id x129si3336949wmg.113.2016.09.23.06.33.32
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 23 Sep 2016 06:13:51 -0700 (PDT)
-From: Robert Ho <robert.hu@intel.com>
-Subject: [PATCH v3 2/2] Documentation/filesystems/proc.txt: Add more description for maps/smaps
-Date: Fri, 23 Sep 2016 21:12:34 +0800
-Message-Id: <1474636354-25573-2-git-send-email-robert.hu@intel.com>
-In-Reply-To: <1474636354-25573-1-git-send-email-robert.hu@intel.com>
-References: <1474636354-25573-1-git-send-email-robert.hu@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Sep 2016 06:33:33 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id l132so2847080wmf.1
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 06:33:32 -0700 (PDT)
+Date: Fri, 23 Sep 2016 15:33:31 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/1] lib/ioremap.c: avoid endless loop under ioremapping
+ page unaligned ranges
+Message-ID: <20160923133330.GO4478@dhcp22.suse.cz>
+References: <57E20A69.5010206@zoho.com>
+ <20160922124735.GB11204@dhcp22.suse.cz>
+ <35661a34-c3e0-0ec2-b58f-ee59bef4e4d4@zoho.com>
+ <20160923084551.GG4478@dhcp22.suse.cz>
+ <f9e708e1-121e-367e-1141-5470e5baffe5@zoho.com>
+ <20160923124244.GN4478@dhcp22.suse.cz>
+ <57E52762.9000702@zoho.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <57E52762.9000702@zoho.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: pbonzini@redhat.com, akpm@linux-foundation.org, mhocko@suse.com, oleg@redhat.com, dan.j.williams@intel.com, dave.hansen@intel.com
-Cc: guangrong.xiao@linux.intel.com, gleb@kernel.org, mtosatti@redhat.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, stefanha@redhat.com, yuhuang@redhat.com, linux-mm@kvack.org, ross.zwisler@linux.intel.com, robert.hu@intel.com
+To: zijun_hu <zijun_hu@zoho.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com, Andrew Morton <akpm@linux-foundation.org>, tj@kernel.org, mingo@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net
 
-Add some more description on the limitations for smaps/maps readings, as well
-as some guaruntees we can make.
+On Fri 23-09-16 21:00:18, zijun_hu wrote:
+> On 09/23/2016 08:42 PM, Michal Hocko wrote:
+> >>>> no, it don't work for many special case
+> >>>> for example, provided  PMD_SIZE=2M
+> >>>> mapping [0x1f8800, 0x208800) virtual range will be split to two ranges
+> >>>> [0x1f8800, 0x200000) and [0x200000,0x208800) and map them separately
+> >>>> the first range will cause dead loop
+> >>>
+> >>> I am not sure I see your point. How can we deadlock if _both_ addresses
+> >>> get aligned to the page boundary and how does PMD_SIZE make any
+> >>> difference.
+> >>>
+> >> i will take a example to illustrate my considerations
+> >> provided PUD_SIZE == 1G, PMD_SIZE == 2M, PAGE_SIZE == 4K
+> >> it is used by arm64 normally
+> >>
+> >> we want to map virtual range [0xffffffff_ffc08800, 0xffffffff_fffff800) by
+> >> ioremap_page_range(),ioremap_pmd_range() is called to map the range
+> >> finally, ioremap_pmd_range() will call
+> >> ioremap_pte_range(pmd, 0xffffffff_ffc08800, 0xffffffff_fffe0000) and
+> >> ioremap_pte_range(pmd, 0xffffffff_fffe0000, 0xffffffff fffff800) separately
+> > 
+> > but those ranges are not aligned and it ioremap_page_range fix them up
+> > to _be_ aligned then there is no problem, right? So either I am missing
+> > something or we are talking past each other.
+> > 
+> my complementary considerations are show below
+> 
+> why not to round up the range start boundary to page aligned?
+> 1, it don't remain consistent with the original logic
+>    take map [0x1800, 0x4800) as example
+>    the original logic map range [0x1000, 0x2000), but rounding up start boundary
+>    don't mapping the range [0x1000, 0x2000)
 
-Signed-off-by: Robert Ho <robert.hu@intel.com>
----
- Documentation/filesystems/proc.txt | 8 ++++++++
- 1 file changed, 8 insertions(+)
+just look at how we do that for the mmap...
 
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index 68080ad..90eabc7 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -515,6 +515,14 @@ be vanished or the reverse -- new added.
- This file is only present if the CONFIG_MMU kernel configuration option is
- enabled.
- 
-+Note: for both /proc/PID/maps and /proc/PID/smaps readings, it's
-+possible in race conditions, that the mappings printed may not be that
-+up-to-date, because during each read walking, the task's mappings may have
-+changed, this typically happens in multithread cases. But anyway in each single
-+read these can be guarunteed: 1) the mapped addresses doesn't go backward; 2) no
-+overlaps 3) if there is something at a given vaddr during the entirety of the
-+life of the smaps/maps walk, there will be some output for it.
-+
- The /proc/PID/clear_refs is used to reset the PG_Referenced and ACCESSED/YOUNG
- bits on both physical and virtual pages associated with a process, and the
- soft-dirty bit on pte (see Documentation/vm/soft-dirty.txt for details).
+> 2, the rounding up start boundary maybe cause overflow, consider start boundary =
+>    0xffffffff_fffff800  
+
+this is just insane
+
 -- 
-1.8.3.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
