@@ -1,137 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BEBF06B028B
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 15:51:50 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id cg13so220033055pac.1
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 12:51:50 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z188si6378442itc.0.2016.09.23.12.51.49
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 481156B028B
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 16:16:29 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id mi5so221472865pab.2
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 13:16:29 -0700 (PDT)
+Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0104.outbound.protection.outlook.com. [104.47.40.104])
+        by mx.google.com with ESMTPS id h124si9320464pfg.215.2016.09.23.13.16.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Sep 2016 12:51:50 -0700 (PDT)
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: [PATCH 1/4] mm: vm_page_prot: update with WRITE_ONCE/READ_ONCE
-Date: Fri, 23 Sep 2016 21:51:45 +0200
-Message-Id: <1474660305-19222-1-git-send-email-aarcange@redhat.com>
-In-Reply-To: <20160922191556.GF3485@redhat.com>
-References: <20160922191556.GF3485@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 23 Sep 2016 13:16:28 -0700 (PDT)
+From: Matthew Wilcox <mawilcox@microsoft.com>
+Subject: RE: [PATCH 2/2] radix-tree: Fix optimisation problem
+Date: Fri, 23 Sep 2016 20:16:26 +0000
+Message-ID: <DM2PR21MB0089CA7DCF4845DB02E0E05FCBC80@DM2PR21MB0089.namprd21.prod.outlook.com>
+References: <1474570415-14938-1-git-send-email-mawilcox@linuxonhyperv.com>
+ <1474570415-14938-3-git-send-email-mawilcox@linuxonhyperv.com>
+ <CA+55aFwNYAFc4KePvx50kwZ3A+8yvCCK_6nYYxG9fqTPhFzQoQ@mail.gmail.com>
+In-Reply-To: <CA+55aFwNYAFc4KePvx50kwZ3A+8yvCCK_6nYYxG9fqTPhFzQoQ@mail.gmail.com>
+Content-Language: en-US
+Content-Type: multipart/mixed;
+	boundary="_002_DM2PR21MB0089CA7DCF4845DB02E0E05FCBC80DM2PR21MB0089namp_"
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@techsingularity.net>, Hillf Danton <hillf.zj@alibaba-inc.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Matthew Wilcox <mawilcox@linuxonhyperv.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross
+ Zwisler <ross.zwisler@linux.intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-vma->vm_page_prot is read lockless from the rmap_walk, it may be
-updated concurrently and this prevents the risk of reading
-intermediate values.
+--_002_DM2PR21MB0089CA7DCF4845DB02E0E05FCBC80DM2PR21MB0089namp_
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 
-v2: avoid semantic change noticed by Hillf Danton in
-    vma_wants_writenotify().
+RnJvbTogbGludXM5NzFAZ21haWwuY29tIFttYWlsdG86bGludXM5NzFAZ21haWwuY29tXSBPbiBC
+ZWhhbGYgT2YgTGludXMgVG9ydmFsZHMNCj4gT24gVGh1LCBTZXAgMjIsIDIwMTYgYXQgMTE6NTMg
+QU0sIE1hdHRoZXcgV2lsY294DQo+IDxtYXdpbGNveEBsaW51eG9uaHlwZXJ2LmNvbT4gd3JvdGU6
+DQo+ID4NCj4gPiAgICAgICAgICAgQ2hhbmdlIHRoZSB0ZXN0IHN1aXRlIHRvIGNvbXBpbGUgd2l0
+aCAtTzIsIGFuZA0KPiA+IGZpeCB0aGUgb3B0aW1pc2F0aW9uIHByb2JsZW0gYnkgcGFzc2luZyAn
+ZW50cnknIHRocm91Z2ggZW50cnlfdG9fbm9kZSgpDQo+ID4gc28gZ2NjIGtub3dzIHRoaXMgaXNu
+J3QgYSBwbGFpbiBwb2ludGVyLg0KPiANCj4gVWdoLiBJIHJlYWxseSBkb24ndCBsaWtlIHRoaXMg
+cGF0Y2ggdmVyeSBtdWNoLg0KPiANCj4gV291bGRuJ3QgaXQgYmUgY2xlYW5lciB0byBqdXN0IGZp
+eCAiZ2V0X3Nsb3Rfb2Zmc2V0KCkiIGluc3RlYWQ/IEFzIGl0DQo+IGlzLCBsb29raW5nIGF0IHRo
+ZSBjb2RlLCBJIHN1c3BlY3QgdGhhdCBpdCdzIHJlYWxseSBoYXJkIHRvIGNvbnZpbmNlDQo+IHBl
+b3BsZSB0aGF0IHRoZXJlIGlzbid0IHNvbWUgb3RoZXIgcGxhY2UgdGhpcyBtaWdodCBoYXBwZW4u
+IEJlY2F1c2UNCj4gdGhlICJwb2ludGVyIHN1YnRyYWN0aW9uIGZvbGxvd2VkIGJ5IHBvaW50ZXIg
+YWRkaXRpb24iIHBhdHRlcm4gaXMgYWxsDQo+IGhpZGRlbiBpbiB0aGVzZSBpbmxpbmUgZnVuY3Rp
+b25zLg0KPiANCj4gT3IgYXQgbGVhc3QgYWRkIGEgYmlnIGNvbW1lbnQgYWJvdXQgd2h5IHRoaXMg
+aXMgdGhlIG9ubHkgc3VjaCBjYXNlLg0KPiANCj4gQmVjYXVzZSB3aXRob3V0IHRoYXQsIHRoZSBj
+b2RlIG5vdyBsb29rcyB2ZXJ5IGJhZC4NCg0KVGhhdCdzIGZhaXIuICBJIGxvb2tlZCBhdCBhbGwg
+dGhlIG90aGVyIGNhbGxlcnMgb2YgZ2V0X3Nsb3Rfb2Zmc2V0LCBhbmQgYWxsIHRoZSBvdGhlcnMg
+YXJlIHVzaW5nIGEgcmVhbCBzbG90IHBvaW50ZXIuICByYWRpeF90cmVlX2Rlc2NlbmQoKSByZWFs
+bHkgaXMgdGhlIG91dGxpZXIgaGVyZS4gIEkgdGhpbmsgdGhlIHJlYWwgcHJvYmxlbSBpcyB0aGF0
+IHRoZSB0eXBlcyBpbiB0aGUgdHJlZSBhcmUgd3Jvbmc7IGluc3RlYWQgb2Ygc3RvcmluZyB2b2lk
+ICosIHdlIHNob3VsZCBiZSBzdG9yaW5nIHVpbnRwdHJfdC4gIEJ1dCBmaXhpbmcgdGhhdCBpcyBh
+IGxpdHRsZSBiZXlvbmQgdGhlIHNjb3BlIG9mIC1yYzguICBIZXJlJ3MgYSBzbGlnaHRseSBiZXR0
+ZXIgdmVyc2lvbiB3aGljaCBhc3NlcnRzIHRoYXQgdGhlIHBhc3NlZCBwb2ludGVyIHJlYWxseSBp
+cyBhIHBvaW50ZXIuDQoNCihhdHRhY2hlZCBhcyB3ZWxsLCBJIGhhdmUgbm8gaWRlYSB3aGV0aGVy
+IHRoaXMgcGF0Y2ggd2lsbCBnZXQgbWFuZ2xlZCkNCg0KZGlmZiAtLWdpdCBhL2xpYi9yYWRpeC10
+cmVlLmMgYi9saWIvcmFkaXgtdHJlZS5jDQppbmRleCAxYjdiZjczLi4zNjhmNjQxIDEwMDY0NA0K
+LS0tIGEvbGliL3JhZGl4LXRyZWUuYw0KKysrIGIvbGliL3JhZGl4LXRyZWUuYw0KQEAgLTkxLDkg
+KzkxLDE1IEBAIHN0YXRpYyBpbmxpbmUgYm9vbCBpc19zaWJsaW5nX2VudHJ5KHN0cnVjdCByYWRp
+eF90cmVlX25vZGUgKnBhcmVudCwgdm9pZCAqbm9kZSkNCiB9DQogI2VuZGlmDQogDQorLyoNCisg
+KiBUaGUgc2xvdCBwb2ludGVyIG11c3QgYmUgYSByZWFsIHBvaW50ZXIgYXMgR0NDIHdpbGwgb3B0
+aW1pc2UNCisgKiB0aHJvdWdoIGlubGluZWQgZnVuY3Rpb25zIGFuZCBtYXkgZGVkdWNlIHRoYXQN
+CisgKiBwYXJlbnQtPnNsb3RzICsgZ2V0X3Nsb3Rfb2Zmc2V0KHBhcmVudCwgc2xvdCkgPT0gc2xv
+dA0KKyAqLw0KIHN0YXRpYyBpbmxpbmUgdW5zaWduZWQgbG9uZyBnZXRfc2xvdF9vZmZzZXQoc3Ry
+dWN0IHJhZGl4X3RyZWVfbm9kZSAqcGFyZW50LA0KIAkJCQkJCSB2b2lkICoqc2xvdCkNCiB7DQor
+CUJVR19PTihyYWRpeF90cmVlX2V4Y2VwdGlvbihzbG90KSk7DQogCXJldHVybiBzbG90IC0gcGFy
+ZW50LT5zbG90czsNCiB9DQogDQpAQCAtMTAxLDExICsxMDcsMTIgQEAgc3RhdGljIHVuc2lnbmVk
+IGludCByYWRpeF90cmVlX2Rlc2NlbmQoc3RydWN0IHJhZGl4X3RyZWVfbm9kZSAqcGFyZW50LA0K
+IAkJCXN0cnVjdCByYWRpeF90cmVlX25vZGUgKipub2RlcCwgdW5zaWduZWQgbG9uZyBpbmRleCkN
+CiB7DQogCXVuc2lnbmVkIGludCBvZmZzZXQgPSAoaW5kZXggPj4gcGFyZW50LT5zaGlmdCkgJiBS
+QURJWF9UUkVFX01BUF9NQVNLOw0KLQl2b2lkICoqZW50cnkgPSByY3VfZGVyZWZlcmVuY2VfcmF3
+KHBhcmVudC0+c2xvdHNbb2Zmc2V0XSk7DQorCXZvaWQgKmVudHJ5ID0gcmN1X2RlcmVmZXJlbmNl
+X3JhdyhwYXJlbnQtPnNsb3RzW29mZnNldF0pOw0KIA0KICNpZmRlZiBDT05GSUdfUkFESVhfVFJF
+RV9NVUxUSU9SREVSDQogCWlmIChyYWRpeF90cmVlX2lzX2ludGVybmFsX25vZGUoZW50cnkpKSB7
+DQotCQl1bnNpZ25lZCBsb25nIHNpYm9mZiA9IGdldF9zbG90X29mZnNldChwYXJlbnQsIGVudHJ5
+KTsNCisJCXVuc2lnbmVkIGxvbmcgc2lib2ZmID0gZ2V0X3Nsb3Rfb2Zmc2V0KHBhcmVudCwNCisJ
+CQkJCQkodm9pZCAqKillbnRyeV90b19ub2RlKGVudHJ5KSk7DQogCQlpZiAoc2lib2ZmIDwgUkFE
+SVhfVFJFRV9NQVBfU0laRSkgew0KIAkJCW9mZnNldCA9IHNpYm9mZjsNCiAJCQllbnRyeSA9IHJj
+dV9kZXJlZmVyZW5jZV9yYXcocGFyZW50LT5zbG90c1tvZmZzZXRdKTsNCkBAIC0xMTMsNyArMTIw
+LDcgQEAgc3RhdGljIHVuc2lnbmVkIGludCByYWRpeF90cmVlX2Rlc2NlbmQoc3RydWN0IHJhZGl4
+X3RyZWVfbm9kZSAqcGFyZW50LA0KIAl9DQogI2VuZGlmDQogDQotCSpub2RlcCA9ICh2b2lkICop
+ZW50cnk7DQorCSpub2RlcCA9IGVudHJ5Ow0KIAlyZXR1cm4gb2Zmc2V0Ow0KIH0NCiANCmRpZmYg
+LS1naXQgYS90b29scy90ZXN0aW5nL3JhZGl4LXRyZWUvTWFrZWZpbGUgYi90b29scy90ZXN0aW5n
+L3JhZGl4LXRyZWUvTWFrZWZpbGUNCmluZGV4IDNiNTMwNDYuLjlkMDkxOWVkIDEwMDY0NA0KLS0t
+IGEvdG9vbHMvdGVzdGluZy9yYWRpeC10cmVlL01ha2VmaWxlDQorKysgYi90b29scy90ZXN0aW5n
+L3JhZGl4LXRyZWUvTWFrZWZpbGUNCkBAIC0xLDUgKzEsNSBAQA0KIA0KLUNGTEFHUyArPSAtSS4g
+LWcgLVdhbGwgLURfTEdQTF9TT1VSQ0UNCitDRkxBR1MgKz0gLUkuIC1nIC1PMiAtV2FsbCAtRF9M
+R1BMX1NPVVJDRQ0KIExERkxBR1MgKz0gLWxwdGhyZWFkIC1sdXJjdQ0KIFRBUkdFVFMgPSBtYWlu
+DQogT0ZJTEVTID0gbWFpbi5vIHJhZGl4LXRyZWUubyBsaW51eC5vIHRlc3QubyB0YWdfY2hlY2su
+byBmaW5kX25leHRfYml0Lm8gXA0K
 
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
----
- include/linux/mm.h |  2 +-
- mm/huge_memory.c   |  2 +-
- mm/migrate.c       |  2 +-
- mm/mmap.c          | 16 +++++++++-------
- mm/mprotect.c      |  2 +-
- 5 files changed, 13 insertions(+), 11 deletions(-)
+--_002_DM2PR21MB0089CA7DCF4845DB02E0E05FCBC80DM2PR21MB0089namp_
+Content-Type: application/octet-stream; name="for-linus.diff"
+Content-Description: for-linus.diff
+Content-Disposition: attachment; filename="for-linus.diff"; size=1871;
+	creation-date="Fri, 23 Sep 2016 20:09:17 GMT";
+	modification-date="Fri, 23 Sep 2016 20:09:17 GMT"
+Content-Transfer-Encoding: base64
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 2334052..67b48fb 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1529,7 +1529,7 @@ static inline int pte_devmap(pte_t pte)
- }
- #endif
- 
--int vma_wants_writenotify(struct vm_area_struct *vma);
-+int vma_wants_writenotify(struct vm_area_struct *vma, pgprot_t vm_page_prot);
- 
- extern pte_t *__get_locked_pte(struct mm_struct *mm, unsigned long addr,
- 			       spinlock_t **ptl);
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index a6abd76..ccdc703 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1566,7 +1566,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
- 			if (soft_dirty)
- 				entry = pte_swp_mksoft_dirty(entry);
- 		} else {
--			entry = mk_pte(page + i, vma->vm_page_prot);
-+			entry = mk_pte(page + i, READ_ONCE(vma->vm_page_prot));
- 			entry = maybe_mkwrite(entry, vma);
- 			if (!write)
- 				entry = pte_wrprotect(entry);
-diff --git a/mm/migrate.c b/mm/migrate.c
-index f7ee04a..99250ae 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -234,7 +234,7 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
- 		goto unlock;
- 
- 	get_page(new);
--	pte = pte_mkold(mk_pte(new, vma->vm_page_prot));
-+	pte = pte_mkold(mk_pte(new, READ_ONCE(vma->vm_page_prot)));
- 	if (pte_swp_soft_dirty(*ptep))
- 		pte = pte_mksoft_dirty(pte);
- 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index d8b5fb3..12f32dd 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -111,13 +111,15 @@ static pgprot_t vm_pgprot_modify(pgprot_t oldprot, unsigned long vm_flags)
- void vma_set_page_prot(struct vm_area_struct *vma)
- {
- 	unsigned long vm_flags = vma->vm_flags;
-+	pgprot_t vm_page_prot;
- 
--	vma->vm_page_prot = vm_pgprot_modify(vma->vm_page_prot, vm_flags);
--	if (vma_wants_writenotify(vma)) {
-+	vm_page_prot = vm_pgprot_modify(vma->vm_page_prot, vm_flags);
-+	if (vma_wants_writenotify(vma, vm_page_prot)) {
- 		vm_flags &= ~VM_SHARED;
--		vma->vm_page_prot = vm_pgprot_modify(vma->vm_page_prot,
--						     vm_flags);
-+		vm_page_prot = vm_pgprot_modify(vm_page_prot, vm_flags);
- 	}
-+	/* remove_protection_ptes reads vma->vm_page_prot without mmap_sem */
-+	WRITE_ONCE(vma->vm_page_prot, vm_page_prot);
- }
- 
- /*
-@@ -1484,7 +1486,7 @@ SYSCALL_DEFINE1(old_mmap, struct mmap_arg_struct __user *, arg)
-  * to the private version (using protection_map[] without the
-  * VM_SHARED bit).
-  */
--int vma_wants_writenotify(struct vm_area_struct *vma)
-+int vma_wants_writenotify(struct vm_area_struct *vma, pgprot_t vm_page_prot)
- {
- 	vm_flags_t vm_flags = vma->vm_flags;
- 	const struct vm_operations_struct *vm_ops = vma->vm_ops;
-@@ -1499,8 +1501,8 @@ int vma_wants_writenotify(struct vm_area_struct *vma)
- 
- 	/* The open routine did something to the protections that pgprot_modify
- 	 * won't preserve? */
--	if (pgprot_val(vma->vm_page_prot) !=
--	    pgprot_val(vm_pgprot_modify(vma->vm_page_prot, vm_flags)))
-+	if (pgprot_val(vm_page_prot) !=
-+	    pgprot_val(vm_pgprot_modify(vm_page_prot, vm_flags)))
- 		return 0;
- 
- 	/* Do we need to track softdirty? */
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index e55e2c9..ec91dfd 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -328,7 +328,7 @@ success:
- 	 * held in write mode.
- 	 */
- 	vma->vm_flags = newflags;
--	dirty_accountable = vma_wants_writenotify(vma);
-+	dirty_accountable = vma_wants_writenotify(vma, vma->vm_page_prot);
- 	vma_set_page_prot(vma);
- 
- 	change_protection(vma, start, end, vma->vm_page_prot,
+ZGlmZiAtLWdpdCBhL2xpYi9yYWRpeC10cmVlLmMgYi9saWIvcmFkaXgtdHJlZS5jCmluZGV4IDFi
+N2JmNzMuLjM2OGY2NDEgMTAwNjQ0Ci0tLSBhL2xpYi9yYWRpeC10cmVlLmMKKysrIGIvbGliL3Jh
+ZGl4LXRyZWUuYwpAQCAtOTEsOSArOTEsMTUgQEAgc3RhdGljIGlubGluZSBib29sIGlzX3NpYmxp
+bmdfZW50cnkoc3RydWN0IHJhZGl4X3RyZWVfbm9kZSAqcGFyZW50LCB2b2lkICpub2RlKQogfQog
+I2VuZGlmCiAKKy8qCisgKiBUaGUgc2xvdCBwb2ludGVyIG11c3QgYmUgYSByZWFsIHBvaW50ZXIg
+YXMgR0NDIHdpbGwgb3B0aW1pc2UKKyAqIHRocm91Z2ggaW5saW5lZCBmdW5jdGlvbnMgYW5kIG1h
+eSBkZWR1Y2UgdGhhdAorICogcGFyZW50LT5zbG90cyArIGdldF9zbG90X29mZnNldChwYXJlbnQs
+IHNsb3QpID09IHNsb3QKKyAqLwogc3RhdGljIGlubGluZSB1bnNpZ25lZCBsb25nIGdldF9zbG90
+X29mZnNldChzdHJ1Y3QgcmFkaXhfdHJlZV9ub2RlICpwYXJlbnQsCiAJCQkJCQkgdm9pZCAqKnNs
+b3QpCiB7CisJQlVHX09OKHJhZGl4X3RyZWVfZXhjZXB0aW9uKHNsb3QpKTsKIAlyZXR1cm4gc2xv
+dCAtIHBhcmVudC0+c2xvdHM7CiB9CiAKQEAgLTEwMSwxMSArMTA3LDEyIEBAIHN0YXRpYyB1bnNp
+Z25lZCBpbnQgcmFkaXhfdHJlZV9kZXNjZW5kKHN0cnVjdCByYWRpeF90cmVlX25vZGUgKnBhcmVu
+dCwKIAkJCXN0cnVjdCByYWRpeF90cmVlX25vZGUgKipub2RlcCwgdW5zaWduZWQgbG9uZyBpbmRl
+eCkKIHsKIAl1bnNpZ25lZCBpbnQgb2Zmc2V0ID0gKGluZGV4ID4+IHBhcmVudC0+c2hpZnQpICYg
+UkFESVhfVFJFRV9NQVBfTUFTSzsKLQl2b2lkICoqZW50cnkgPSByY3VfZGVyZWZlcmVuY2VfcmF3
+KHBhcmVudC0+c2xvdHNbb2Zmc2V0XSk7CisJdm9pZCAqZW50cnkgPSByY3VfZGVyZWZlcmVuY2Vf
+cmF3KHBhcmVudC0+c2xvdHNbb2Zmc2V0XSk7CiAKICNpZmRlZiBDT05GSUdfUkFESVhfVFJFRV9N
+VUxUSU9SREVSCiAJaWYgKHJhZGl4X3RyZWVfaXNfaW50ZXJuYWxfbm9kZShlbnRyeSkpIHsKLQkJ
+dW5zaWduZWQgbG9uZyBzaWJvZmYgPSBnZXRfc2xvdF9vZmZzZXQocGFyZW50LCBlbnRyeSk7CisJ
+CXVuc2lnbmVkIGxvbmcgc2lib2ZmID0gZ2V0X3Nsb3Rfb2Zmc2V0KHBhcmVudCwKKwkJCQkJCSh2
+b2lkICoqKWVudHJ5X3RvX25vZGUoZW50cnkpKTsKIAkJaWYgKHNpYm9mZiA8IFJBRElYX1RSRUVf
+TUFQX1NJWkUpIHsKIAkJCW9mZnNldCA9IHNpYm9mZjsKIAkJCWVudHJ5ID0gcmN1X2RlcmVmZXJl
+bmNlX3JhdyhwYXJlbnQtPnNsb3RzW29mZnNldF0pOwpAQCAtMTEzLDcgKzEyMCw3IEBAIHN0YXRp
+YyB1bnNpZ25lZCBpbnQgcmFkaXhfdHJlZV9kZXNjZW5kKHN0cnVjdCByYWRpeF90cmVlX25vZGUg
+KnBhcmVudCwKIAl9CiAjZW5kaWYKIAotCSpub2RlcCA9ICh2b2lkICopZW50cnk7CisJKm5vZGVw
+ID0gZW50cnk7CiAJcmV0dXJuIG9mZnNldDsKIH0KIApkaWZmIC0tZ2l0IGEvdG9vbHMvdGVzdGlu
+Zy9yYWRpeC10cmVlL01ha2VmaWxlIGIvdG9vbHMvdGVzdGluZy9yYWRpeC10cmVlL01ha2VmaWxl
+CmluZGV4IDNiNTMwNDYuLjlkMDkxOWVkIDEwMDY0NAotLS0gYS90b29scy90ZXN0aW5nL3JhZGl4
+LXRyZWUvTWFrZWZpbGUKKysrIGIvdG9vbHMvdGVzdGluZy9yYWRpeC10cmVlL01ha2VmaWxlCkBA
+IC0xLDUgKzEsNSBAQAogCi1DRkxBR1MgKz0gLUkuIC1nIC1XYWxsIC1EX0xHUExfU09VUkNFCitD
+RkxBR1MgKz0gLUkuIC1nIC1PMiAtV2FsbCAtRF9MR1BMX1NPVVJDRQogTERGTEFHUyArPSAtbHB0
+aHJlYWQgLWx1cmN1CiBUQVJHRVRTID0gbWFpbgogT0ZJTEVTID0gbWFpbi5vIHJhZGl4LXRyZWUu
+byBsaW51eC5vIHRlc3QubyB0YWdfY2hlY2subyBmaW5kX25leHRfYml0Lm8gXAo=
+
+--_002_DM2PR21MB0089CA7DCF4845DB02E0E05FCBC80DM2PR21MB0089namp_--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
