@@ -1,139 +1,209 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 481156B028B
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 16:16:29 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id mi5so221472865pab.2
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 13:16:29 -0700 (PDT)
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-co1nam03on0104.outbound.protection.outlook.com. [104.47.40.104])
-        by mx.google.com with ESMTPS id h124si9320464pfg.215.2016.09.23.13.16.28
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B0B5C6B028D
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 16:25:37 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id 21so244561485pfy.3
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 13:25:37 -0700 (PDT)
+Received: from mail-pf0-x235.google.com (mail-pf0-x235.google.com. [2607:f8b0:400e:c00::235])
+        by mx.google.com with ESMTPS id m28si9349564pfk.200.2016.09.23.13.25.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 23 Sep 2016 13:16:28 -0700 (PDT)
-From: Matthew Wilcox <mawilcox@microsoft.com>
-Subject: RE: [PATCH 2/2] radix-tree: Fix optimisation problem
-Date: Fri, 23 Sep 2016 20:16:26 +0000
-Message-ID: <DM2PR21MB0089CA7DCF4845DB02E0E05FCBC80@DM2PR21MB0089.namprd21.prod.outlook.com>
-References: <1474570415-14938-1-git-send-email-mawilcox@linuxonhyperv.com>
- <1474570415-14938-3-git-send-email-mawilcox@linuxonhyperv.com>
- <CA+55aFwNYAFc4KePvx50kwZ3A+8yvCCK_6nYYxG9fqTPhFzQoQ@mail.gmail.com>
-In-Reply-To: <CA+55aFwNYAFc4KePvx50kwZ3A+8yvCCK_6nYYxG9fqTPhFzQoQ@mail.gmail.com>
-Content-Language: en-US
-Content-Type: multipart/mixed;
-	boundary="_002_DM2PR21MB0089CA7DCF4845DB02E0E05FCBC80DM2PR21MB0089namp_"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Sep 2016 13:25:36 -0700 (PDT)
+Received: by mail-pf0-x235.google.com with SMTP id q2so45174836pfj.3
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 13:25:36 -0700 (PDT)
+Date: Fri, 23 Sep 2016 13:25:28 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 1/2] mm: vma_merge: fix vm_page_prot SMP race condition
+ against rmap_walk
+In-Reply-To: <20160923191840.GK3485@redhat.com>
+Message-ID: <alpine.LSU.2.11.1609231238390.20686@eggly.anvils>
+References: <20160918003654.GA25048@redhat.com> <1474309513-20313-1-git-send-email-aarcange@redhat.com> <alpine.LSU.2.11.1609220224230.12486@eggly.anvils> <20160923191840.GK3485@redhat.com>
 MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross
- Zwisler <ross.zwisler@linux.intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Jan Vorlicek <janvorli@microsoft.com>, Aditya Mandaleeka <adityam@microsoft.com>
 
---_002_DM2PR21MB0089CA7DCF4845DB02E0E05FCBC80DM2PR21MB0089namp_
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+On Fri, 23 Sep 2016, Andrea Arcangeli wrote:
 
-RnJvbTogbGludXM5NzFAZ21haWwuY29tIFttYWlsdG86bGludXM5NzFAZ21haWwuY29tXSBPbiBC
-ZWhhbGYgT2YgTGludXMgVG9ydmFsZHMNCj4gT24gVGh1LCBTZXAgMjIsIDIwMTYgYXQgMTE6NTMg
-QU0sIE1hdHRoZXcgV2lsY294DQo+IDxtYXdpbGNveEBsaW51eG9uaHlwZXJ2LmNvbT4gd3JvdGU6
-DQo+ID4NCj4gPiAgICAgICAgICAgQ2hhbmdlIHRoZSB0ZXN0IHN1aXRlIHRvIGNvbXBpbGUgd2l0
-aCAtTzIsIGFuZA0KPiA+IGZpeCB0aGUgb3B0aW1pc2F0aW9uIHByb2JsZW0gYnkgcGFzc2luZyAn
-ZW50cnknIHRocm91Z2ggZW50cnlfdG9fbm9kZSgpDQo+ID4gc28gZ2NjIGtub3dzIHRoaXMgaXNu
-J3QgYSBwbGFpbiBwb2ludGVyLg0KPiANCj4gVWdoLiBJIHJlYWxseSBkb24ndCBsaWtlIHRoaXMg
-cGF0Y2ggdmVyeSBtdWNoLg0KPiANCj4gV291bGRuJ3QgaXQgYmUgY2xlYW5lciB0byBqdXN0IGZp
-eCAiZ2V0X3Nsb3Rfb2Zmc2V0KCkiIGluc3RlYWQ/IEFzIGl0DQo+IGlzLCBsb29raW5nIGF0IHRo
-ZSBjb2RlLCBJIHN1c3BlY3QgdGhhdCBpdCdzIHJlYWxseSBoYXJkIHRvIGNvbnZpbmNlDQo+IHBl
-b3BsZSB0aGF0IHRoZXJlIGlzbid0IHNvbWUgb3RoZXIgcGxhY2UgdGhpcyBtaWdodCBoYXBwZW4u
-IEJlY2F1c2UNCj4gdGhlICJwb2ludGVyIHN1YnRyYWN0aW9uIGZvbGxvd2VkIGJ5IHBvaW50ZXIg
-YWRkaXRpb24iIHBhdHRlcm4gaXMgYWxsDQo+IGhpZGRlbiBpbiB0aGVzZSBpbmxpbmUgZnVuY3Rp
-b25zLg0KPiANCj4gT3IgYXQgbGVhc3QgYWRkIGEgYmlnIGNvbW1lbnQgYWJvdXQgd2h5IHRoaXMg
-aXMgdGhlIG9ubHkgc3VjaCBjYXNlLg0KPiANCj4gQmVjYXVzZSB3aXRob3V0IHRoYXQsIHRoZSBj
-b2RlIG5vdyBsb29rcyB2ZXJ5IGJhZC4NCg0KVGhhdCdzIGZhaXIuICBJIGxvb2tlZCBhdCBhbGwg
-dGhlIG90aGVyIGNhbGxlcnMgb2YgZ2V0X3Nsb3Rfb2Zmc2V0LCBhbmQgYWxsIHRoZSBvdGhlcnMg
-YXJlIHVzaW5nIGEgcmVhbCBzbG90IHBvaW50ZXIuICByYWRpeF90cmVlX2Rlc2NlbmQoKSByZWFs
-bHkgaXMgdGhlIG91dGxpZXIgaGVyZS4gIEkgdGhpbmsgdGhlIHJlYWwgcHJvYmxlbSBpcyB0aGF0
-IHRoZSB0eXBlcyBpbiB0aGUgdHJlZSBhcmUgd3Jvbmc7IGluc3RlYWQgb2Ygc3RvcmluZyB2b2lk
-ICosIHdlIHNob3VsZCBiZSBzdG9yaW5nIHVpbnRwdHJfdC4gIEJ1dCBmaXhpbmcgdGhhdCBpcyBh
-IGxpdHRsZSBiZXlvbmQgdGhlIHNjb3BlIG9mIC1yYzguICBIZXJlJ3MgYSBzbGlnaHRseSBiZXR0
-ZXIgdmVyc2lvbiB3aGljaCBhc3NlcnRzIHRoYXQgdGhlIHBhc3NlZCBwb2ludGVyIHJlYWxseSBp
-cyBhIHBvaW50ZXIuDQoNCihhdHRhY2hlZCBhcyB3ZWxsLCBJIGhhdmUgbm8gaWRlYSB3aGV0aGVy
-IHRoaXMgcGF0Y2ggd2lsbCBnZXQgbWFuZ2xlZCkNCg0KZGlmZiAtLWdpdCBhL2xpYi9yYWRpeC10
-cmVlLmMgYi9saWIvcmFkaXgtdHJlZS5jDQppbmRleCAxYjdiZjczLi4zNjhmNjQxIDEwMDY0NA0K
-LS0tIGEvbGliL3JhZGl4LXRyZWUuYw0KKysrIGIvbGliL3JhZGl4LXRyZWUuYw0KQEAgLTkxLDkg
-KzkxLDE1IEBAIHN0YXRpYyBpbmxpbmUgYm9vbCBpc19zaWJsaW5nX2VudHJ5KHN0cnVjdCByYWRp
-eF90cmVlX25vZGUgKnBhcmVudCwgdm9pZCAqbm9kZSkNCiB9DQogI2VuZGlmDQogDQorLyoNCisg
-KiBUaGUgc2xvdCBwb2ludGVyIG11c3QgYmUgYSByZWFsIHBvaW50ZXIgYXMgR0NDIHdpbGwgb3B0
-aW1pc2UNCisgKiB0aHJvdWdoIGlubGluZWQgZnVuY3Rpb25zIGFuZCBtYXkgZGVkdWNlIHRoYXQN
-CisgKiBwYXJlbnQtPnNsb3RzICsgZ2V0X3Nsb3Rfb2Zmc2V0KHBhcmVudCwgc2xvdCkgPT0gc2xv
-dA0KKyAqLw0KIHN0YXRpYyBpbmxpbmUgdW5zaWduZWQgbG9uZyBnZXRfc2xvdF9vZmZzZXQoc3Ry
-dWN0IHJhZGl4X3RyZWVfbm9kZSAqcGFyZW50LA0KIAkJCQkJCSB2b2lkICoqc2xvdCkNCiB7DQor
-CUJVR19PTihyYWRpeF90cmVlX2V4Y2VwdGlvbihzbG90KSk7DQogCXJldHVybiBzbG90IC0gcGFy
-ZW50LT5zbG90czsNCiB9DQogDQpAQCAtMTAxLDExICsxMDcsMTIgQEAgc3RhdGljIHVuc2lnbmVk
-IGludCByYWRpeF90cmVlX2Rlc2NlbmQoc3RydWN0IHJhZGl4X3RyZWVfbm9kZSAqcGFyZW50LA0K
-IAkJCXN0cnVjdCByYWRpeF90cmVlX25vZGUgKipub2RlcCwgdW5zaWduZWQgbG9uZyBpbmRleCkN
-CiB7DQogCXVuc2lnbmVkIGludCBvZmZzZXQgPSAoaW5kZXggPj4gcGFyZW50LT5zaGlmdCkgJiBS
-QURJWF9UUkVFX01BUF9NQVNLOw0KLQl2b2lkICoqZW50cnkgPSByY3VfZGVyZWZlcmVuY2VfcmF3
-KHBhcmVudC0+c2xvdHNbb2Zmc2V0XSk7DQorCXZvaWQgKmVudHJ5ID0gcmN1X2RlcmVmZXJlbmNl
-X3JhdyhwYXJlbnQtPnNsb3RzW29mZnNldF0pOw0KIA0KICNpZmRlZiBDT05GSUdfUkFESVhfVFJF
-RV9NVUxUSU9SREVSDQogCWlmIChyYWRpeF90cmVlX2lzX2ludGVybmFsX25vZGUoZW50cnkpKSB7
-DQotCQl1bnNpZ25lZCBsb25nIHNpYm9mZiA9IGdldF9zbG90X29mZnNldChwYXJlbnQsIGVudHJ5
-KTsNCisJCXVuc2lnbmVkIGxvbmcgc2lib2ZmID0gZ2V0X3Nsb3Rfb2Zmc2V0KHBhcmVudCwNCisJ
-CQkJCQkodm9pZCAqKillbnRyeV90b19ub2RlKGVudHJ5KSk7DQogCQlpZiAoc2lib2ZmIDwgUkFE
-SVhfVFJFRV9NQVBfU0laRSkgew0KIAkJCW9mZnNldCA9IHNpYm9mZjsNCiAJCQllbnRyeSA9IHJj
-dV9kZXJlZmVyZW5jZV9yYXcocGFyZW50LT5zbG90c1tvZmZzZXRdKTsNCkBAIC0xMTMsNyArMTIw
-LDcgQEAgc3RhdGljIHVuc2lnbmVkIGludCByYWRpeF90cmVlX2Rlc2NlbmQoc3RydWN0IHJhZGl4
-X3RyZWVfbm9kZSAqcGFyZW50LA0KIAl9DQogI2VuZGlmDQogDQotCSpub2RlcCA9ICh2b2lkICop
-ZW50cnk7DQorCSpub2RlcCA9IGVudHJ5Ow0KIAlyZXR1cm4gb2Zmc2V0Ow0KIH0NCiANCmRpZmYg
-LS1naXQgYS90b29scy90ZXN0aW5nL3JhZGl4LXRyZWUvTWFrZWZpbGUgYi90b29scy90ZXN0aW5n
-L3JhZGl4LXRyZWUvTWFrZWZpbGUNCmluZGV4IDNiNTMwNDYuLjlkMDkxOWVkIDEwMDY0NA0KLS0t
-IGEvdG9vbHMvdGVzdGluZy9yYWRpeC10cmVlL01ha2VmaWxlDQorKysgYi90b29scy90ZXN0aW5n
-L3JhZGl4LXRyZWUvTWFrZWZpbGUNCkBAIC0xLDUgKzEsNSBAQA0KIA0KLUNGTEFHUyArPSAtSS4g
-LWcgLVdhbGwgLURfTEdQTF9TT1VSQ0UNCitDRkxBR1MgKz0gLUkuIC1nIC1PMiAtV2FsbCAtRF9M
-R1BMX1NPVVJDRQ0KIExERkxBR1MgKz0gLWxwdGhyZWFkIC1sdXJjdQ0KIFRBUkdFVFMgPSBtYWlu
-DQogT0ZJTEVTID0gbWFpbi5vIHJhZGl4LXRyZWUubyBsaW51eC5vIHRlc3QubyB0YWdfY2hlY2su
-byBmaW5kX25leHRfYml0Lm8gXA0K
+> Hello Hugh,
+> 
+> On Thu, Sep 22, 2016 at 03:36:36AM -0700, Hugh Dickins wrote:
+> > I suppose: this one seems overblown to me, and risks more change
+> > (as the CONFIG_DEBUG_VM_RB=y crashes showed).
+> 
+> When DEBUG_VM_RB=n there was no bug that I know of. So I don't think
+> the fact there was a false positive in the validation code that didn't
+> immediately cope with the new changes, should be a major concern.
+> 
+> > But I've come back to it several times, not found any incorrectness,
+> > and was just about ready to Ack it (once the VM_RB fix is folded in,
+> > though I've not studied that yet): when I noticed that what I'd liked
+> > least about this one, looks unnecessary too - see below.
+> 
+> The reason the VM_RB=y incremental fix to the validation code is not a
+> few liner, is to micro-optimize it. I call directly
+> __vma_unlink_common to be sure the additional parameter is eliminated
+> at build time if CONFIG_DEBUG_VM_RB=n, and it never risks to go
+> through the stack in production.
+> 
+> > At the bottom I've appended my corrected version of Andrea's
+> > earlier patches for comparison: maybe better for stable?
+> 
+> I think it's perfectly suitable for -stable, if there is urgency to
+> merge it in -stable. OTOH with regard to urgency, this isn't
+> exploitable and the bug was there for 10+ years?
 
---_002_DM2PR21MB0089CA7DCF4845DB02E0E05FCBC80DM2PR21MB0089namp_
-Content-Type: application/octet-stream; name="for-linus.diff"
-Content-Description: for-linus.diff
-Content-Disposition: attachment; filename="for-linus.diff"; size=1871;
-	creation-date="Fri, 23 Sep 2016 20:09:17 GMT";
-	modification-date="Fri, 23 Sep 2016 20:09:17 GMT"
-Content-Transfer-Encoding: base64
+Thanks; and agreed, no desperate urgency.
 
-ZGlmZiAtLWdpdCBhL2xpYi9yYWRpeC10cmVlLmMgYi9saWIvcmFkaXgtdHJlZS5jCmluZGV4IDFi
-N2JmNzMuLjM2OGY2NDEgMTAwNjQ0Ci0tLSBhL2xpYi9yYWRpeC10cmVlLmMKKysrIGIvbGliL3Jh
-ZGl4LXRyZWUuYwpAQCAtOTEsOSArOTEsMTUgQEAgc3RhdGljIGlubGluZSBib29sIGlzX3NpYmxp
-bmdfZW50cnkoc3RydWN0IHJhZGl4X3RyZWVfbm9kZSAqcGFyZW50LCB2b2lkICpub2RlKQogfQog
-I2VuZGlmCiAKKy8qCisgKiBUaGUgc2xvdCBwb2ludGVyIG11c3QgYmUgYSByZWFsIHBvaW50ZXIg
-YXMgR0NDIHdpbGwgb3B0aW1pc2UKKyAqIHRocm91Z2ggaW5saW5lZCBmdW5jdGlvbnMgYW5kIG1h
-eSBkZWR1Y2UgdGhhdAorICogcGFyZW50LT5zbG90cyArIGdldF9zbG90X29mZnNldChwYXJlbnQs
-IHNsb3QpID09IHNsb3QKKyAqLwogc3RhdGljIGlubGluZSB1bnNpZ25lZCBsb25nIGdldF9zbG90
-X29mZnNldChzdHJ1Y3QgcmFkaXhfdHJlZV9ub2RlICpwYXJlbnQsCiAJCQkJCQkgdm9pZCAqKnNs
-b3QpCiB7CisJQlVHX09OKHJhZGl4X3RyZWVfZXhjZXB0aW9uKHNsb3QpKTsKIAlyZXR1cm4gc2xv
-dCAtIHBhcmVudC0+c2xvdHM7CiB9CiAKQEAgLTEwMSwxMSArMTA3LDEyIEBAIHN0YXRpYyB1bnNp
-Z25lZCBpbnQgcmFkaXhfdHJlZV9kZXNjZW5kKHN0cnVjdCByYWRpeF90cmVlX25vZGUgKnBhcmVu
-dCwKIAkJCXN0cnVjdCByYWRpeF90cmVlX25vZGUgKipub2RlcCwgdW5zaWduZWQgbG9uZyBpbmRl
-eCkKIHsKIAl1bnNpZ25lZCBpbnQgb2Zmc2V0ID0gKGluZGV4ID4+IHBhcmVudC0+c2hpZnQpICYg
-UkFESVhfVFJFRV9NQVBfTUFTSzsKLQl2b2lkICoqZW50cnkgPSByY3VfZGVyZWZlcmVuY2VfcmF3
-KHBhcmVudC0+c2xvdHNbb2Zmc2V0XSk7CisJdm9pZCAqZW50cnkgPSByY3VfZGVyZWZlcmVuY2Vf
-cmF3KHBhcmVudC0+c2xvdHNbb2Zmc2V0XSk7CiAKICNpZmRlZiBDT05GSUdfUkFESVhfVFJFRV9N
-VUxUSU9SREVSCiAJaWYgKHJhZGl4X3RyZWVfaXNfaW50ZXJuYWxfbm9kZShlbnRyeSkpIHsKLQkJ
-dW5zaWduZWQgbG9uZyBzaWJvZmYgPSBnZXRfc2xvdF9vZmZzZXQocGFyZW50LCBlbnRyeSk7CisJ
-CXVuc2lnbmVkIGxvbmcgc2lib2ZmID0gZ2V0X3Nsb3Rfb2Zmc2V0KHBhcmVudCwKKwkJCQkJCSh2
-b2lkICoqKWVudHJ5X3RvX25vZGUoZW50cnkpKTsKIAkJaWYgKHNpYm9mZiA8IFJBRElYX1RSRUVf
-TUFQX1NJWkUpIHsKIAkJCW9mZnNldCA9IHNpYm9mZjsKIAkJCWVudHJ5ID0gcmN1X2RlcmVmZXJl
-bmNlX3JhdyhwYXJlbnQtPnNsb3RzW29mZnNldF0pOwpAQCAtMTEzLDcgKzEyMCw3IEBAIHN0YXRp
-YyB1bnNpZ25lZCBpbnQgcmFkaXhfdHJlZV9kZXNjZW5kKHN0cnVjdCByYWRpeF90cmVlX25vZGUg
-KnBhcmVudCwKIAl9CiAjZW5kaWYKIAotCSpub2RlcCA9ICh2b2lkICopZW50cnk7CisJKm5vZGVw
-ID0gZW50cnk7CiAJcmV0dXJuIG9mZnNldDsKIH0KIApkaWZmIC0tZ2l0IGEvdG9vbHMvdGVzdGlu
-Zy9yYWRpeC10cmVlL01ha2VmaWxlIGIvdG9vbHMvdGVzdGluZy9yYWRpeC10cmVlL01ha2VmaWxl
-CmluZGV4IDNiNTMwNDYuLjlkMDkxOWVkIDEwMDY0NAotLS0gYS90b29scy90ZXN0aW5nL3JhZGl4
-LXRyZWUvTWFrZWZpbGUKKysrIGIvdG9vbHMvdGVzdGluZy9yYWRpeC10cmVlL01ha2VmaWxlCkBA
-IC0xLDUgKzEsNSBAQAogCi1DRkxBR1MgKz0gLUkuIC1nIC1XYWxsIC1EX0xHUExfU09VUkNFCitD
-RkxBR1MgKz0gLUkuIC1nIC1PMiAtV2FsbCAtRF9MR1BMX1NPVVJDRQogTERGTEFHUyArPSAtbHB0
-aHJlYWQgLWx1cmN1CiBUQVJHRVRTID0gbWFpbgogT0ZJTEVTID0gbWFpbi5vIHJhZGl4LXRyZWUu
-byBsaW51eC5vIHRlc3QubyB0YWdfY2hlY2subyBmaW5kX25leHRfYml0Lm8gXAo=
+> 
+> > > +static inline void __vma_unlink_prev(struct mm_struct *mm,
+> > > +				     struct vm_area_struct *vma,
+> > > +				     struct vm_area_struct *prev)
+> > > +{
+> > > +	__vma_unlink_common(mm, vma, prev, true);
+> > > +}
+> > > +
+> > > +static inline void __vma_unlink(struct mm_struct *mm,
+> > > +				struct vm_area_struct *vma)
+> > > +{
+> > > +	__vma_unlink_common(mm, vma, NULL, false);
+> > > +}
+> > > +
+> > 
+> > Umm, how many functions do we need to unlink a vma?
+> > Perhaps I'm missing some essential, but what's wrong with a single
+> > __vma_unlink(mm, vma)?  (Could omit mm, but probably better with it.)
+> 
+> Of course that would work, I did that initially. I only had
+> __vma_unlink and I just removed the "prev" parameter from it.
+> 
+> > The existing __vma_unlink(mm, vma, prev) dates, of course, from
+> > long before Linus added vma->vm_prev in 2.6.36.  It doesn't really
+> > need its prev arg nowadays, and I wonder if that misled you into
+> > all this prev and has_prev stuff?
+> 
+> After removing "prev" from __vma_unlink I reintroduced
+> __vma_unlink_prev as a microoptimization for remove_next = 1/2
+> cases.
+> 
+> In those two cases we have already "prev" and it's guaranteed not
+> null. So by keeping the _common version __always_inline the parameters
+> of the _common disappears in the assembly and in turn the
+> __vma_unlink_prev is a bit faster.
+> 
+> Perhaps it's not worth to do these kind of microoptimizations? The
+> only reason I reintroduced a version of __vma_unlink_prev that gets
+> prev not NULL as parameter was explicitly to microoptimize with
+> __always_inline.
 
---_002_DM2PR21MB0089CA7DCF4845DB02E0E05FCBC80DM2PR21MB0089namp_--
+Thanks for explaining your process.
+
+In my opinion, it is definitely not worth such micro-optimizations as
+clutter up the code in this way, unless it is really an important hot
+codepath that will benefit (memset for example) - which I doubt this is.
+If I were wicked, I'd ask you for the performance numbers to justify it.
+
+> 
+> > (Yes, of course it needs to handle the NULL vma->vm_prev mm->mmap
+> > case, but that doesn't need these three functions.)
+> > 
+> > But I see this area gets touched again in yesterday's 3/4 to fix
+> > the VM_RB issue.  I haven't tried applying that patch on top to
+> > see what the result looks like, but I hope simpler than this.
+> 
+> Right, to handle the case of DEBUG_VM_RB=y I need to pass a different
+> "ignore" parameter in remove_next == 3, so it's even more worth to
+> microoptimize now that I'm forced to have a different kind of call
+> anyway, and I can't just call __vma_unlink(next).
+> 
+> Once the two patches are folded, __vma_unlink is renamed to
+> __vma_unlink_prev that is a more accurate name anyway I think, given
+> the parameters and that assumption it does on prev being not NULL.
+> 
+> > > +		if (remove_next != 3)
+> > > +			__vma_unlink_prev(mm, next, vma);
+> > > +		else
+> > > +			/* vma is not before next if they've been swapped */
+> > > +			__vma_unlink(mm, next);
+> > 
+> > And if the VM_RB issue doesn't complicate it, this would just amount to
+> >    		__vma_unlink(mm, next);
+> > without any remove_next 3 variation.
+> 
+> Yes, and VM_RB complicates it.
+
+Yes, it annoys me too, when I have to pass some additional arg down,
+just to be available to a rarely set debug option.
+
+> 
+> > > +		if (remove_next != 3) {
+> > 
+> > if (vma == orig_vma), and you won't need the remove_next 3 state at all.
+> 
+> I think that would be less readable. I don't want to risk to mistake
+> case 1/2/3. I could use an enum and REMOVE_NEXT, REMOVE_NEXT_NEXT,
+> REMOVE_PREV, or I could use -1 instead of 3 to show it's removing prev
+> if you wish, but I would prefer not to use vma == orig_vma to detect
+> remove_next != 3. It can't improve performance either.
+> 
+> orig_vma is purely for trans_huge split when the vma->vm_start/end
+> (and next->vm_start if adjust_next) boundary changes.
+> 
+> The only point of orig_vma is to replace this statement: "remove_next
+> != 3 : vma : next". I wouldn't mix up the detection of case 1/2/3 with
+> that micro-optimization.
+
+Fair enough.  As you know, I wasn't all that keen on remove_next 3,
+since remove_next 1 and remove_next 2 actually described what they
+were doing.  But I've no objection to retaining it, and understand
+why you'd prefer to keep orig_vma for its specific use, rather than
+to control the flow.  I merely spotted a possibility for removing
+remove_next 3 once the vma_unlink()s were simplified.
+
+> 
+> > Here's my fixup of Andrea's earlier version, not swapping vma and next
+> > as the above does, but applying properties of next to vma as before.
+> > Maybe this version should go in first, so that it's available as an
+> > easier and safer candidate for stable backports: whatever akpm prefers.
+> 
+> I think this is a more conservative and in turn safer approach for
+> urgent -stable or for urgent backports. Performance-wise I doubt any
+> difference is measurable.
+> 
+> For the longer term upstream, I think removing the oddness factor from
+> case 8 for good is better, as we may get bitten by it again and it's
+> also quite counter intuitive for the callers of vma_merge to receive a
+> vma that isn't already fully in sync with all the parameters passed to
+> vma_merge. And having to overwrite the "different" bits by hand. I
+> feel the oddness in case 8 should be dropped for good and it's not
+> much more complicated to do so (especially if we ignore the
+> __vma_unlink details which are a fully self contained problem and they
+> cannot add up to the complexity of vma_merge/vma_adjust).
+
+As I remarked in other mail, case 8 will always be odd, but you're
+shifting the oddness to where you believe it will be more future-proof.
+And you may be proved right.  Or...
+
+> 
+> I successfully tested your fix with the testcase that exercises the
+> race and reviewed your fix and it's certainly correct too to solve the
+> race against rmap_walks that access vma_page_prot/vm_flags. The fix in
+> -mm however is solving the race condition for all fields, if any
+> rmap_walk accessed more than those two fields, and without having to
+> copy them off.
+> 
+> Tested-by: Andrea Arcangeli <aarcange@redhat.com>
+> Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+> 
+> Overall I'm fine either ways, but I had to elaborate my preference :).
+
+Sure, and thank you for doing so.  We each have our preference,
+and we can each live with the other.  Andrew can decide whichever,
+and no great hurry.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
