@@ -1,104 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D245A28024B
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 06:36:34 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id mi5so197149245pab.2
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 03:36:34 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id yi8si7382989pac.65.2016.09.23.03.36.33
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 474B86B0267
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 06:47:55 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id l132so13423349wmf.0
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 03:47:55 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w81si2728334wmg.8.2016.09.23.03.47.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Sep 2016 03:36:33 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8NAX5Qi004918
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 06:36:33 -0400
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 25mqb6tx8v-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 06:36:32 -0400
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
-	Fri, 23 Sep 2016 11:36:30 +0100
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (d06relay12.portsmouth.uk.ibm.com [9.149.109.197])
-	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id B10AC219005E
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 11:35:48 +0100 (BST)
-Received: from d06av02.portsmouth.uk.ibm.com (d06av02.portsmouth.uk.ibm.com [9.149.37.228])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u8NAaS6H4391382
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 10:36:28 GMT
-Received: from d06av02.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av02.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u8NAaS2u015943
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 04:36:28 -0600
-Date: Fri, 23 Sep 2016 12:36:22 +0200
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Subject: Re: [PATCH v3] mm/hugetlb: fix memory offline with hugepage size >
- memory block size
-In-Reply-To: <57E41EF6.1010903@linux.intel.com>
-References: <20160920155354.54403-1-gerald.schaefer@de.ibm.com>
-	<20160920155354.54403-2-gerald.schaefer@de.ibm.com>
-	<05d701d213d1$7fb70880$7f251980$@alibaba-inc.com>
-	<20160921143534.0dd95fe7@thinkpad>
-	<20160922095137.GC11875@dhcp22.suse.cz>
-	<20160922154549.483ee313@thinkpad>
-	<20160922182937.38af9d0e@thinkpad>
-	<57E41EF6.1010903@linux.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 23 Sep 2016 03:47:54 -0700 (PDT)
+Subject: Re: [PATCH 2/4] mm, compaction: more reliably increase direct
+ compaction priority
+References: <20160906135258.18335-1-vbabka@suse.cz>
+ <20160906135258.18335-3-vbabka@suse.cz>
+ <20160921171348.GF24210@dhcp22.suse.cz>
+ <f1670976-b4da-5d2c-0a85-37f9a87d6868@suse.cz>
+ <20160922140821.GG11875@dhcp22.suse.cz>
+ <20160922145237.GH11875@dhcp22.suse.cz>
+ <1f47ebe3-61bc-ba8a-defb-9fd8e78614d7@suse.cz>
+ <005b01d2154f$8d38b830$a7aa2890$@alibaba-inc.com>
+ <98b0c783-28dc-62c4-5a94-74c9e27bebe0@suse.cz>
+ <20160923082312.GD4478@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <03ee39d2-1bf2-802f-deca-5379f73fecfb@suse.cz>
+Date: Fri, 23 Sep 2016 12:47:23 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20160923082312.GD4478@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
-Message-Id: <20160923123622.00289d21@thinkpad>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Rui Teng <rui.teng@linux.vnet.ibm.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Arkadiusz Miskiewicz' <a.miskiewicz@gmail.com>, 'Ralf-Peter Rohbeck' <Ralf-Peter.Rohbeck@quantum.com>, 'Olaf Hering' <olaf@aepfle.de>, linux-kernel@vger.kernel.org, 'Linus Torvalds' <torvalds@linux-foundation.org>, linux-mm@kvack.org, 'Mel Gorman' <mgorman@techsingularity.net>, 'Joonsoo Kim' <iamjoonsoo.kim@lge.com>, 'David Rientjes' <rientjes@google.com>, 'Rik van Riel' <riel@redhat.com>
 
-On Thu, 22 Sep 2016 11:12:06 -0700
-Dave Hansen <dave.hansen@linux.intel.com> wrote:
-
-> On 09/22/2016 09:29 AM, Gerald Schaefer wrote:
-> >  static void dissolve_free_huge_page(struct page *page)
-> >  {
-> > +	struct page *head = compound_head(page);
-> > +	struct hstate *h = page_hstate(head);
-> > +	int nid = page_to_nid(head);
-> > +
-> >  	spin_lock(&hugetlb_lock);
-> > -	if (PageHuge(page) && !page_count(page)) {
-> > -		struct hstate *h = page_hstate(page);
-> > -		int nid = page_to_nid(page);
-> > -		list_del(&page->lru);
-> > -		h->free_huge_pages--;
-> > -		h->free_huge_pages_node[nid]--;
-> > -		h->max_huge_pages--;
-> > -		update_and_free_page(h, page);
-> > -	}
-> > +	list_del(&head->lru);
-> > +	h->free_huge_pages--;
-> > +	h->free_huge_pages_node[nid]--;
-> > +	h->max_huge_pages--;
-> > +	update_and_free_page(h, head);
-> >  	spin_unlock(&hugetlb_lock);
-> >  }
+On 09/23/2016 10:23 AM, Michal Hocko wrote:
+> On Fri 23-09-16 08:55:33, Vlastimil Babka wrote:
+> [...]
+>> >From 1623d5bd441160569ffad3808aeeec852048e558 Mon Sep 17 00:00:00 2001
+>> From: Vlastimil Babka <vbabka@suse.cz>
+>> Date: Thu, 22 Sep 2016 17:02:37 +0200
+>> Subject: [PATCH] mm, page_alloc: pull no_progress_loops update to
+>>  should_reclaim_retry()
+>>
+>> The should_reclaim_retry() makes decisions based on no_progress_loops, so it
+>> makes sense to also update the counter there. It will be also consistent with
+>> should_compact_retry() and compaction_retries. No functional change.
+>>
+>> [hillf.zj@alibaba-inc.com: fix missing pointer dereferences]
+>> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+>> Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
 > 
-> Do you need to revalidate anything once you acquire the lock?  Can this,
-> for instance, race with another thread doing vm.nr_hugepages=0?  Or a
-> thread faulting in and allocating the large page that's being dissolved?
+> OK, this looks reasonable to me. Could you post both patches in a
+
+Both? I would argue that [1] might be relevant because it resets the
+number of retries. Only the should_reclaim_retry() cleanup is not
+stricly needed.
+
+[1] http://lkml.kernel.org/r/<deec7319-2976-6d34-ab7b-afbb3f6c32f8@suse.cz>
+
+> separate thread please? They shouldn't be really needed to mitigate the
+> pre-mature oom killer issues. Feel free to add
+> Acked-by: Michal Hocko <mhocko@suse.com>
 > 
-
-Yes, good point. I was relying on the range being isolated, but that only
-seems to be checked in dequeue_huge_page_node(), as introduced with the
-original commit. So this would only protect against anyone allocating the
-hugepage at this point. This is also somehow expected, since we already
-are beyond the "point of no return" in offline_pages().
-
-vm.nr_hugepages=0 seems to be an issue though, as set_max_hugepages()
-will not care about isolation, and so I guess we could have a race here
-and double-free the hugepage. Revalidation of at least PageHuge() after
-taking the lock should protect from that, not sure about page_count(),
-but I think I'll just check both which will give the same behaviour as
-before.
-
-Will send v4, after thinking a bit more on the page reservation point
-brought up by Mike.
+> Thanks!
+> 
+>> ---
+>>  mm/page_alloc.c | 28 ++++++++++++++--------------
+>>  1 file changed, 14 insertions(+), 14 deletions(-)
+>>
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index 582820080601..6039ff40452c 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -3401,16 +3401,26 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+>>  static inline bool
+>>  should_reclaim_retry(gfp_t gfp_mask, unsigned order,
+>>  		     struct alloc_context *ac, int alloc_flags,
+>> -		     bool did_some_progress, int no_progress_loops)
+>> +		     bool did_some_progress, int *no_progress_loops)
+>>  {
+>>  	struct zone *zone;
+>>  	struct zoneref *z;
+>>  
+>>  	/*
+>> +	 * Costly allocations might have made a progress but this doesn't mean
+>> +	 * their order will become available due to high fragmentation so
+>> +	 * always increment the no progress counter for them
+>> +	 */
+>> +	if (did_some_progress && order <= PAGE_ALLOC_COSTLY_ORDER)
+>> +		*no_progress_loops = 0;
+>> +	else
+>> +		(*no_progress_loops)++;
+>> +
+>> +	/*
+>>  	 * Make sure we converge to OOM if we cannot make any progress
+>>  	 * several times in the row.
+>>  	 */
+>> -	if (no_progress_loops > MAX_RECLAIM_RETRIES)
+>> +	if (*no_progress_loops > MAX_RECLAIM_RETRIES)
+>>  		return false;
+>>  
+>>  	/*
+>> @@ -3425,7 +3435,7 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
+>>  		unsigned long reclaimable;
+>>  
+>>  		available = reclaimable = zone_reclaimable_pages(zone);
+>> -		available -= DIV_ROUND_UP(no_progress_loops * available,
+>> +		available -= DIV_ROUND_UP((*no_progress_loops) * available,
+>>  					  MAX_RECLAIM_RETRIES);
+>>  		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
+>>  
+>> @@ -3641,18 +3651,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>>  	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
+>>  		goto nopage;
+>>  
+>> -	/*
+>> -	 * Costly allocations might have made a progress but this doesn't mean
+>> -	 * their order will become available due to high fragmentation so
+>> -	 * always increment the no progress counter for them
+>> -	 */
+>> -	if (did_some_progress && order <= PAGE_ALLOC_COSTLY_ORDER)
+>> -		no_progress_loops = 0;
+>> -	else
+>> -		no_progress_loops++;
+>> -
+>>  	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
+>> -				 did_some_progress > 0, no_progress_loops))
+>> +				 did_some_progress > 0, &no_progress_loops))
+>>  		goto retry;
+>>  
+>>  	/*
+>> -- 
+>> 2.10.0
+>>
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
