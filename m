@@ -1,87 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EF1228024B
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 11:02:50 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id w84so20264254wmg.1
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 08:02:50 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id v187si3689765wma.50.2016.09.23.08.02.36
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 496F228024B
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 11:12:41 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id w84so20570977wmg.1
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 08:12:41 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id t129si3741466wme.25.2016.09.23.08.12.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Sep 2016 08:02:37 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id 133so3238866wmq.2
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 08:02:36 -0700 (PDT)
-Date: Fri, 23 Sep 2016 17:02:34 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: warn about allocations which stall for too long
-Message-ID: <20160923150234.GV4478@dhcp22.suse.cz>
-References: <20160923081555.14645-1-mhocko@kernel.org>
- <201609232336.FIH57364.FOVHtMFQLFSJOO@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Fri, 23 Sep 2016 08:12:23 -0700 (PDT)
+Date: Fri, 23 Sep 2016 17:08:04 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: acpi: Fix broken error check in map_processor()
+Message-ID: <alpine.DEB.2.20.1609231705570.5640@nanos>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201609232336.FIH57364.FOVHtMFQLFSJOO@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, linux-kernel@vger.kernel.org
+To: Dou Liyang <douly.fnst@cn.fujitsu.com>
+Cc: cl@linux.com, tj@kernel.org, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, len.brown@intel.com, lenb@kernel.org, chen.tang@easystack.cn, rafael@kernel.org, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gu Zheng <guz.fnst@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
 
-On Fri 23-09-16 23:36:22, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > @@ -3659,6 +3661,15 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
-> >  	else
-> >  		no_progress_loops++;
-> >  
-> > +	/* Make sure we know about allocations which stall for too long */
-> > +	if (!(gfp_mask & __GFP_NOWARN) && time_after(jiffies, alloc_start + stall_timeout)) {
-> 
-> Should we check !__GFP_NOWARN ? I think __GFP_NOWARN is likely used with
-> __GFP_NORETRY, and __GFP_NORETRY is already checked by now.
-> 
-> I think printing warning regardless of __GFP_NOWARN is better because
-> this check is similar to hungtask warning.
+map_processor() checks the cpuid value returned by acpi_map_cpuid() for -1
+but acpi_map_cpuid() returns -EINVAL in case of error.
 
-Well, if the user said to not warn we should really obey that. Why would
-that matter?
+As a consequence the error is ignored and the following access into percpu
+data with that negative cpuid results in a boot crash.
+
+This happens always when NR_CPUS/nr_cpu_ids is smaller than the number of
+processors listed in the ACPI tables.
+
+Use a proper error check for id < 0 so the function returns instead of
+trying to map CPU#(-EINVAL).
+
+Reported-by: Ingo Molnar <mingo@kernel.org>
+Fixes: dc6db24d2476 ("x86/acpi: Set persistent cpuid <-> nodeid mapping when booting")
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+---
+ drivers/acpi/processor_core.c |    9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+--- a/drivers/acpi/processor_core.c
++++ b/drivers/acpi/processor_core.c
+@@ -284,7 +284,7 @@ EXPORT_SYMBOL_GPL(acpi_get_cpuid);
+ static bool __init
+ map_processor(acpi_handle handle, phys_cpuid_t *phys_id, int *cpuid)
+ {
+-	int type;
++	int type, id;
+ 	u32 acpi_id;
+ 	acpi_status status;
+ 	acpi_object_type acpi_type;
+@@ -320,10 +320,11 @@ map_processor(acpi_handle handle, phys_c
+ 	type = (acpi_type == ACPI_TYPE_DEVICE) ? 1 : 0;
  
-> > +		pr_warn("%s: page alloction stalls for %ums: order:%u mode:%#x(%pGg)\n",
-> > +				current->comm, jiffies_to_msecs(jiffies-alloc_start),
-> > +				order, gfp_mask, &gfp_mask);
-> > +		stall_timeout += 10 * HZ;
-> > +		dump_stack();
-> 
-> Can we move this pr_warn() + dump_stack() to a separate function like
-> 
-> static void __warn_memalloc_stall(unsigned int order, gfp_t gfp_mask, unsigned long alloc_start)
-> {
-> 	pr_warn("%s: page alloction stalls for %ums: order:%u mode:%#x(%pGg)\n",
-> 		current->comm, jiffies_to_msecs(jiffies-alloc_start),
-> 		order, gfp_mask, &gfp_mask);
-> 	dump_stack();
-> }
-> 
-> in order to allow SystemTap scripts to perform additional actions by name (e.g.
-> 
-> # stap -g -e 'probe kernel.function("__warn_memalloc_stall").return { panic(); }
-
-I find this reasoning and the use case really _absurd_, seriously! Pulling
-the warning into a separate function might be reasonable regardless,
-though. It matches warn_alloc_failed. Also if we find out we need some
-rate limitting or more checks it might just turn out being easier to
-follow rather than in the middle of an already complicated allocation
-slow path. I just do not like that the stall_timeout would have to stay
-in the original place or have it an in/out parameter.
-
-> ) rather than by line number, and surround __warn_memalloc_stall() call with
-> mutex in order to serialize warning messages because it is possible that
-> multiple allocation requests are stalling?
-
-we do not use any lock in warn_alloc_failed so why this should be any
-different?
-
--- 
-Michal Hocko
-SUSE Labs
+ 	*phys_id = __acpi_get_phys_id(handle, type, acpi_id, false);
+-	*cpuid = acpi_map_cpuid(*phys_id, acpi_id);
+-	if (*cpuid == -1)
+-		return false;
++	id = acpi_map_cpuid(*phys_id, acpi_id);
+ 
++	if (id < 0)
++		return false;
++	*cpuid = id;
+ 	return true;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
