@@ -1,86 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 253276B0287
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 12:23:10 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id i129so254229637ywb.1
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 09:23:10 -0700 (PDT)
-Received: from mail-yb0-x241.google.com (mail-yb0-x241.google.com. [2607:f8b0:4002:c09::241])
-        by mx.google.com with ESMTPS id j191si1494141ybg.173.2016.09.23.09.23.09
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Sep 2016 09:23:09 -0700 (PDT)
-Received: by mail-yb0-x241.google.com with SMTP id 2so3573044ybv.1
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 09:23:09 -0700 (PDT)
-Date: Fri, 23 Sep 2016 12:23:07 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 1/1] lib/ioremap.c: avoid endless loop under ioremapping
- page unaligned ranges
-Message-ID: <20160923162307.GB31387@htj.duckdns.org>
-References: <57E20A69.5010206@zoho.com>
- <20160923144202.GA31387@htj.duckdns.org>
- <238b0d3e-2e6b-7f73-8168-d21517e862bb@zoho.com>
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CE8C46B0289
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 12:47:57 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id l91so203314187qte.3
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 09:47:57 -0700 (PDT)
+Received: from prod-mail-xrelay05.akamai.com (prod-mail-xrelay05.akamai.com. [23.79.238.179])
+        by mx.google.com with ESMTP id 91si5689067qkz.220.2016.09.23.09.47.56
+        for <linux-mm@kvack.org>;
+        Fri, 23 Sep 2016 09:47:56 -0700 (PDT)
+Subject: Re: [PATCH] fs/select: add vmalloc fallback for select(2)
+References: <20160922152831.24165-1-vbabka@suse.cz>
+ <006101d21565$b60a8a70$221f9f50$@alibaba-inc.com>
+ <20160923172434.7ad8f2e0@roar.ozlabs.ibm.com>
+From: Jason Baron <jbaron@akamai.com>
+Message-ID: <57E55CBB.5060309@akamai.com>
+Date: Fri, 23 Sep 2016 12:47:55 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <238b0d3e-2e6b-7f73-8168-d21517e862bb@zoho.com>
+In-Reply-To: <20160923172434.7ad8f2e0@roar.ozlabs.ibm.com>
+Content-Type: text/plain; charset="windows-1252"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zijun_hu <zijun_hu@zoho.com>
-Cc: zijun_hu@htc.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net
+To: Nicholas Piggin <npiggin@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: 'Vlastimil Babka' <vbabka@suse.cz>, 'Alexander Viro' <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, 'Michal Hocko' <mhocko@kernel.org>, netdev@vger.kernel.org, Eric Dumazet <eric.dumazet@gmail.com>
 
-Hello,
+Hi,
 
-On Fri, Sep 23, 2016 at 11:41:33PM +0800, zijun_hu wrote:
-> 1. ioremap_page_range() is not a kernel internal function
+On 09/23/2016 03:24 AM, Nicholas Piggin wrote:
+> On Fri, 23 Sep 2016 14:42:53 +0800
+> "Hillf Danton" <hillf.zj@alibaba-inc.com> wrote:
+>
+>>>
+>>> The select(2) syscall performs a kmalloc(size, GFP_KERNEL) where size grows
+>>> with the number of fds passed. We had a customer report page allocation
+>>> failures of order-4 for this allocation. This is a costly order, so it might
+>>> easily fail, as the VM expects such allocation to have a lower-order fallback.
+>>>
+>>> Such trivial fallback is vmalloc(), as the memory doesn't have to be
+>>> physically contiguous. Also the allocation is temporary for the duration of the
+>>> syscall, so it's unlikely to stress vmalloc too much.
+>>>
+>>> Note that the poll(2) syscall seems to use a linked list of order-0 pages, so
+>>> it doesn't need this kind of fallback.
+>
+> How about something like this? (untested)
+>
+> Eric isn't wrong about vmalloc sucking :)
+>
+> Thanks,
+> Nick
+>
+>
+> ---
+>   fs/select.c | 57 +++++++++++++++++++++++++++++++++++++++++++--------------
+>   1 file changed, 43 insertions(+), 14 deletions(-)
+>
+> diff --git a/fs/select.c b/fs/select.c
+> index 8ed9da5..3b4834c 100644
+> --- a/fs/select.c
+> +++ b/fs/select.c
+> @@ -555,6 +555,7 @@ int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
+>   	void *bits;
+>   	int ret, max_fds;
+>   	unsigned int size;
+> +	size_t nr_bytes;
+>   	struct fdtable *fdt;
+>   	/* Allocate small arguments on the stack to save memory and be faster */
+>   	long stack_fds[SELECT_STACK_ALLOC/sizeof(long)];
+> @@ -576,21 +577,39 @@ int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
+>   	 * since we used fdset we need to allocate memory in units of
+>   	 * long-words.
+>   	 */
+> -	size = FDS_BYTES(n);
+> +	ret = -ENOMEM;
+>   	bits = stack_fds;
+> -	if (size > sizeof(stack_fds) / 6) {
+> -		/* Not enough space in on-stack array; must use kmalloc */
+> +	size = FDS_BYTES(n);
+> +	nr_bytes = 6 * size;
+> +
+> +	if (unlikely(nr_bytes > PAGE_SIZE)) {
+> +		/* Avoid multi-page allocation if possible */
+>   		ret = -ENOMEM;
+> -		bits = kmalloc(6 * size, GFP_KERNEL);
+> -		if (!bits)
+> -			goto out_nofds;
+> +		fds.in = kmalloc(size, GFP_KERNEL);
+> +		fds.out = kmalloc(size, GFP_KERNEL);
+> +		fds.ex = kmalloc(size, GFP_KERNEL);
+> +		fds.res_in = kmalloc(size, GFP_KERNEL);
+> +		fds.res_out = kmalloc(size, GFP_KERNEL);
+> +		fds.res_ex = kmalloc(size, GFP_KERNEL);
+> +
+> +		if (!(fds.in && fds.out && fds.ex &&
+> +				fds.res_in && fds.res_out && fds.res_ex))
+> +			goto out;
+> +	} else {
+> +		if (nr_bytes > sizeof(stack_fds)) {
+> +			/* Not enough space in on-stack array */
+> +			if (nr_bytes > PAGE_SIZE * 2)
 
-What matters is whether the input is from userland or easy to get
-wrong (IOW the checks serve practical purposes).  Whether a function
-is exported via EXPORT_SYMBOL doesn't matter that much in this regard.
-EXPORT_SYMBOL doesn't really demark an API layer (we don't put any
-effort into keeping it stable or versioned).  Modules are loaded
-separately but still part of the same program.
+The 'if' looks extraneous?
 
-> 2. sanity check "BUG_ON(addr >= end)" have existed already, but don't check enough
+Also, I wonder if we can just avoid some allocations altogether by 
+checking by if the user fd_set pointers are NULL? That can avoid failures :)
 
-That particular check being there doesn't imply that it needs to be
-expanded.  If you actually have cases where this mattered and extra
-checks would have substantially helped debugging, sure, but that's not
-the case here.
+Thanks,
 
-> 3. are there any obvious hint for rang parameter requirements but BUG_ON(addr >= end)
-
-You're welcome to add documentation.
-
-> 4. if range which seems right but wrong really is used such as mapping 
->    virtual range [0x80000800, 0x80007800) to physical area[0x20000800, 0x20007800)
->    what actions should we take? warning message and trying to finish user request
->    or panic kernel or hang system in endless loop or return -EINVALi 1/4 ?
->    how to help user find their problem?
-> 5. if both boundary of the range are aligned to page, ioremap_page_range() works well
->    otherwise endless loop maybe happens
-
-I don't think it's helpful to imgaine pathological conditions and try
-to address all of them.  There's no evidence, not even a tenuous one,
-that anyone is suffering from this.  Sometimes it is useful to
-implement precautions preemptively but in those cases the rationles
-should be along the line of "it's easy to get the inputs wrong for
-this function because ABC and those cases are difficult to debug due
-to XYZ", not "let's harden all the functions against all input
-combinations regardless of likelihood or usefulness".
-
-The thing is that the latter approach not only wastes time of everyone
-involved without any real gain but also actually deteriorates the code
-base by adding unnecessary complications and introduces bugs through
-gratuitous changes.  Please note that I'm not trying to say
-re-factoring or cleanups are to be avoided.  We need them for long
-term maintainability, even at the cost of introducing some bugs in the
-process, but the patches you're submitting are quite off the mark.
-
-Thanks.
-
--- 
-tejun
+-Jason
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
