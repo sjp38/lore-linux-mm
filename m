@@ -1,93 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BD97B6B0286
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 05:59:02 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id l138so12316807wmg.3
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 02:59:02 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a185si2533858wmc.55.2016.09.23.02.59.01
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D245A28024B
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 06:36:34 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id mi5so197149245pab.2
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 03:36:34 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id yi8si7382989pac.65.2016.09.23.03.36.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 23 Sep 2016 02:59:01 -0700 (PDT)
-Subject: Re: [PATCH v2] fs/select: add vmalloc fallback for select(2)
-References: <20160922164359.9035-1-vbabka@suse.cz>
- <1474562982.23058.140.camel@edumazet-glaptop3.roam.corp.google.com>
- <12efc491-a0e7-1012-5a8b-6d3533c720db@suse.cz>
- <1474564068.23058.144.camel@edumazet-glaptop3.roam.corp.google.com>
- <a212f313-1f34-7c83-3aab-b45374875493@suse.cz>
- <063D6719AE5E284EB5DD2968C1650D6DB0107DC8@AcuExch.aculab.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <3bbcc269-ec8b-12dd-e0ae-190c18bc3f47@suse.cz>
-Date: Fri, 23 Sep 2016 11:58:34 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Sep 2016 03:36:33 -0700 (PDT)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8NAX5Qi004918
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 06:36:33 -0400
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 25mqb6tx8v-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 06:36:32 -0400
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
+	Fri, 23 Sep 2016 11:36:30 +0100
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (d06relay12.portsmouth.uk.ibm.com [9.149.109.197])
+	by d06dlp02.portsmouth.uk.ibm.com (Postfix) with ESMTP id B10AC219005E
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 11:35:48 +0100 (BST)
+Received: from d06av02.portsmouth.uk.ibm.com (d06av02.portsmouth.uk.ibm.com [9.149.37.228])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u8NAaS6H4391382
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 10:36:28 GMT
+Received: from d06av02.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av02.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u8NAaS2u015943
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 04:36:28 -0600
+Date: Fri, 23 Sep 2016 12:36:22 +0200
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Subject: Re: [PATCH v3] mm/hugetlb: fix memory offline with hugepage size >
+ memory block size
+In-Reply-To: <57E41EF6.1010903@linux.intel.com>
+References: <20160920155354.54403-1-gerald.schaefer@de.ibm.com>
+	<20160920155354.54403-2-gerald.schaefer@de.ibm.com>
+	<05d701d213d1$7fb70880$7f251980$@alibaba-inc.com>
+	<20160921143534.0dd95fe7@thinkpad>
+	<20160922095137.GC11875@dhcp22.suse.cz>
+	<20160922154549.483ee313@thinkpad>
+	<20160922182937.38af9d0e@thinkpad>
+	<57E41EF6.1010903@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <063D6719AE5E284EB5DD2968C1650D6DB0107DC8@AcuExch.aculab.com>
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
+Message-Id: <20160923123622.00289d21@thinkpad>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Laight <David.Laight@ACULAB.COM>, Eric Dumazet <eric.dumazet@gmail.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, "linux-man@vger.kernel.org" <linux-man@vger.kernel.org>
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Rui Teng <rui.teng@linux.vnet.ibm.com>
 
-On 09/23/2016 11:42 AM, David Laight wrote:
-> From: Vlastimil Babka
->> Sent: 22 September 2016 18:55
-> ...
->> So in the case of select() it seems like the memory we need 6 bits per file
->> descriptor, multiplied by the highest possible file descriptor (nfds) as passed
->> to the syscall. According to the man page of select:
->>
->>         EINVAL nfds is negative or exceeds the RLIMIT_NOFILE resource limit (see
->> getrlimit(2)).
+On Thu, 22 Sep 2016 11:12:06 -0700
+Dave Hansen <dave.hansen@linux.intel.com> wrote:
+
+> On 09/22/2016 09:29 AM, Gerald Schaefer wrote:
+> >  static void dissolve_free_huge_page(struct page *page)
+> >  {
+> > +	struct page *head = compound_head(page);
+> > +	struct hstate *h = page_hstate(head);
+> > +	int nid = page_to_nid(head);
+> > +
+> >  	spin_lock(&hugetlb_lock);
+> > -	if (PageHuge(page) && !page_count(page)) {
+> > -		struct hstate *h = page_hstate(page);
+> > -		int nid = page_to_nid(page);
+> > -		list_del(&page->lru);
+> > -		h->free_huge_pages--;
+> > -		h->free_huge_pages_node[nid]--;
+> > -		h->max_huge_pages--;
+> > -		update_and_free_page(h, page);
+> > -	}
+> > +	list_del(&head->lru);
+> > +	h->free_huge_pages--;
+> > +	h->free_huge_pages_node[nid]--;
+> > +	h->max_huge_pages--;
+> > +	update_and_free_page(h, head);
+> >  	spin_unlock(&hugetlb_lock);
+> >  }
 > 
-> That second clause is relatively recent.
-
-Interesting... so it was added without actually being true in the kernel
-code?
-
->> The code actually seems to silently cap the value instead of returning EINVAL
->> though? (IIUC):
->>
->>         /* max_fds can increase, so grab it once to avoid race */
->>          rcu_read_lock();
->>          fdt = files_fdtable(current->files);
->>          max_fds = fdt->max_fds;
->>          rcu_read_unlock();
->>          if (n > max_fds)
->>                  n = max_fds;
->>
->> The default for this cap seems to be 1024 where I checked (again, IIUC, it's
->> what ulimit -n returns?). I wasn't able to change it to more than 2048, which
->> makes the bitmaps still below PAGE_SIZE.
->>
->> So if I get that right, the system admin would have to allow really large
->> RLIMIT_NOFILE to even make vmalloc() possible here. So I don't see it as a large
->> concern?
+> Do you need to revalidate anything once you acquire the lock?  Can this,
+> for instance, race with another thread doing vm.nr_hugepages=0?  Or a
+> thread faulting in and allocating the large page that's being dissolved?
 > 
-> 4k open files isn't that many.
-> Especially for programs that are using pipes to emulate windows events.
 
-Sure but IIUC we need 6 bits per file. That means up to almost 42k
-files, we should fit into order-3 allocation, which effectively cannot
-fail right now.
+Yes, good point. I was relying on the range being isolated, but that only
+seems to be checked in dequeue_huge_page_node(), as introduced with the
+original commit. So this would only protect against anyone allocating the
+hugepage at this point. This is also somehow expected, since we already
+are beyond the "point of no return" in offline_pages().
 
-> I suspect that fdt->max_fds is an upper bound for the highest fd the
-> process has open - not the RLIMIT_NOFILE value.
+vm.nr_hugepages=0 seems to be an issue though, as set_max_hugepages()
+will not care about isolation, and so I guess we could have a race here
+and double-free the hugepage. Revalidation of at least PageHuge() after
+taking the lock should protect from that, not sure about page_count(),
+but I think I'll just check both which will give the same behaviour as
+before.
 
-I gathered that the highest fd effectively limits the number of files,
-so it's the same. I might be wrong.
-
-> select() shouldn't be silently ignoring large values of 'n' unless
-> the fd_set bits are zero.
-
-Yeah that doesn't seem to conform to the manpage.
-
-> Of course, select does scale well for high numbered fds
-> and neither poll nor select scale well for large numbers of fds.
-
-True.
-
-> 	David
-> 
+Will send v4, after thinking a bit more on the page reservation point
+brought up by Mike.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
