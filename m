@@ -1,94 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F3796B027B
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 22:33:42 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id e1so7263683itb.1
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 19:33:42 -0700 (PDT)
-Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com. [2607:f8b0:400e:c03::230])
-        by mx.google.com with ESMTPS id o14si1277338itb.13.2016.09.22.19.33.41
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B7C12280255
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 23:30:32 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 21so201909161pfy.3
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 20:30:32 -0700 (PDT)
+Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
+        by mx.google.com with ESMTPS id x80si5423732pff.54.2016.09.22.20.30.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Sep 2016 19:33:41 -0700 (PDT)
-Received: by mail-pa0-x230.google.com with SMTP id hm5so35123832pac.0
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 19:33:41 -0700 (PDT)
-Date: Thu, 22 Sep 2016 19:33:34 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 1/2] shmem: fix tmpfs to handle the huge= option
- properly
-In-Reply-To: <8737ksw69p.fsf@linux.vnet.ibm.com>
-Message-ID: <alpine.LSU.2.11.1609221904020.19987@eggly.anvils>
-References: <1473459863-11287-1-git-send-email-toshi.kani@hpe.com> <1473459863-11287-2-git-send-email-toshi.kani@hpe.com> <8737ksw69p.fsf@linux.vnet.ibm.com>
+        Thu, 22 Sep 2016 20:30:31 -0700 (PDT)
+Received: by mail-pf0-x244.google.com with SMTP id 21so4596980pfy.1
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 20:30:31 -0700 (PDT)
+Date: Fri, 23 Sep 2016 13:30:22 +1000
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [PATCH 3/5] mm/vmalloc.c: correct lazy_max_pages() return value
+Message-ID: <20160923133022.47cfd3dd@roar.ozlabs.ibm.com>
+In-Reply-To: <7671e782-b58f-7c41-b132-c7ebbcf61b99@zoho.com>
+References: <57E20C49.8010304@zoho.com>
+	<alpine.DEB.2.10.1609211418480.20971@chino.kir.corp.google.com>
+	<3ef46c24-769d-701a-938b-826f4249bf0b@zoho.com>
+	<alpine.DEB.2.10.1609211731230.130215@chino.kir.corp.google.com>
+	<57E3304E.4060401@zoho.com>
+	<20160922123736.GA11204@dhcp22.suse.cz>
+	<7671e782-b58f-7c41-b132-c7ebbcf61b99@zoho.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Toshi Kani <toshi.kani@hpe.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, dan.j.williams@intel.com, mawilcox@microsoft.com, hughd@google.com, kirill.shutemov@linux.intel.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: zijun_hu <zijun_hu@zoho.com>
+Cc: Michal Hocko <mhocko@kernel.org>, npiggin@suse.de, zijun_hu@htc.com, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, tj@kernel.org, mingo@kernel.org, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net
 
-On Thu, 22 Sep 2016, Aneesh Kumar K.V wrote:
-> Toshi Kani <toshi.kani@hpe.com> writes:
+On Fri, 23 Sep 2016 00:30:20 +0800
+zijun_hu <zijun_hu@zoho.com> wrote:
+
+> On 2016/9/22 20:37, Michal Hocko wrote:
+> > On Thu 22-09-16 09:13:50, zijun_hu wrote:  
+> >> On 09/22/2016 08:35 AM, David Rientjes wrote:  
+> > [...]  
+> >>> The intent is as it is implemented; with your change, lazy_max_pages() is 
+> >>> potentially increased depending on the number of online cpus.  This is 
+> >>> only a heuristic, changing it would need justification on why the new
+> >>> value is better.  It is opposite to what the comment says: "to be 
+> >>> conservative and not introduce a big latency on huge systems, so go with
+> >>> a less aggressive log scale."  NACK to the patch.
+> >>>  
+> >> my change potentially make lazy_max_pages() decreased not increased, i seems
+> >> conform with the comment
+> >>
+> >> if the number of online CPUs is not power of 2, both have no any difference
+> >> otherwise, my change remain power of 2 value, and the original code rounds up
+> >> to next power of 2 value, for instance
+> >>
+> >> my change : (32, 64] -> 64
+> >> 	     32 -> 32, 64 -> 64
+> >> the original code: [32, 63) -> 64
+> >>                    32 -> 64, 64 -> 128  
+> > 
+> > You still completely failed to explain _why_ this is an improvement/fix
+> > or why it matters. This all should be in the changelog.
+> >   
 > 
-> > shmem_get_unmapped_area() checks SHMEM_SB(sb)->huge incorrectly,
-> > which leads to a reversed effect of "huge=" mount option.
-> >
-> > Fix the check in shmem_get_unmapped_area().
-> >
-> > Note, the default value of SHMEM_SB(sb)->huge remains as
-> > SHMEM_HUGE_NEVER.  User will need to specify "huge=" option to
-> > enable huge page mappings.
-> >
+> Hi npiggin,
+> could you give some comments for this patch since lazy_max_pages() is introduced
+> by you
 > 
-> Any update on getting this merged ?
+> my patch is based on the difference between fls() and get_count_order() mainly
+> the difference between fls() and get_count_order() will be shown below
+> more MM experts maybe help to decide which is more suitable
 > 
-> Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-
-Yikes, how did we ever not notice this?  Very embarrassing.
-
-Huge thank you to Hillf for spotting it (only now do I rediscover
-your June mail: I'm sorry, my attention has been fully elsewhere).
-
-Big thank you to Toshi for sending the patch,
-and to Aneesh for now sounding the alarm.
-
-The only reassurance is that at least all the rest of it has
-been under test for the last few months, via the SHMEM_HUGE_FORCE
-override.  So it's not as if none of the code has been tested,
-but I am still mystified why it hasn't been obvious without.
-
-To the patch,
-Acked-by: Hugh Dickins <hughd@google.com>
-but I wish I could dream up a more emphatic tag.
-
-Andrew, please please grab this and send it in!
-
-Thank you,
-Hugh
-
+> if parameter > 1, both have different return value only when parameter is
+> power of two, for example
 > 
-> > Reported-by: Hillf Danton <hillf.zj@alibaba-inc.com>
-> > Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
-> > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > Cc: Hugh Dickins <hughd@google.com>
-> > ---
-> >  mm/shmem.c |    2 +-
-> >  1 file changed, 1 insertion(+), 1 deletion(-)
-> >
-> > diff --git a/mm/shmem.c b/mm/shmem.c
-> > index fd8b2b5..aec5b49 100644
-> > --- a/mm/shmem.c
-> > +++ b/mm/shmem.c
-> > @@ -1980,7 +1980,7 @@ unsigned long shmem_get_unmapped_area(struct file *file,
-> >  				return addr;
-> >  			sb = shm_mnt->mnt_sb;
-> >  		}
-> > -		if (SHMEM_SB(sb)->huge != SHMEM_HUGE_NEVER)
-> > +		if (SHMEM_SB(sb)->huge == SHMEM_HUGE_NEVER)
-> >  			return addr;
-> >  	}
-> >  
-> >
-> > --
+> fls(32) = 6 VS get_count_order(32) = 5
+> fls(33) = 6 VS get_count_order(33) = 6
+> fls(63) = 6 VS get_count_order(63) = 6
+> fls(64) = 7 VS get_count_order(64) = 6
+> 
+> @@ -594,7 +594,9 @@ static unsigned long lazy_max_pages(void) 
+> { 
+>     unsigned int log; 
+> 
+> -    log = fls(num_online_cpus()); 
+> +    log = num_online_cpus(); 
+> +    if (log > 1) 
+> +        log = (unsigned int)get_count_order(log); 
+> 
+>     return log * (32UL * 1024 * 1024 / PAGE_SIZE); 
+> } 
+> 
+
+To be honest, I don't think I chose it with a lot of analysis.
+It will depend on the kernel usage patterns, the arch code,
+and the CPU microarchitecture, all of which would have changed
+significantly.
+
+I wouldn't bother changing it unless you do some benchmarking
+on different system sizes to see where the best performance is.
+(If performance is equal, fewer lazy pages would be better.)
+
+Good to see you taking a look at this vmalloc stuff. Don't be
+discouraged if you run into some dead ends.
+
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
