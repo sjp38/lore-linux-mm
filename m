@@ -1,145 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 474B86B0267
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 06:47:55 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id l132so13423349wmf.0
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 03:47:55 -0700 (PDT)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 914906B0267
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 06:55:52 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id l138so13730262wmg.3
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 03:55:52 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w81si2728334wmg.8.2016.09.23.03.47.53
+        by mx.google.com with ESMTPS id a139si2744786wme.30.2016.09.23.03.55.51
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 23 Sep 2016 03:47:54 -0700 (PDT)
-Subject: Re: [PATCH 2/4] mm, compaction: more reliably increase direct
- compaction priority
+        Fri, 23 Sep 2016 03:55:51 -0700 (PDT)
+Subject: Re: [PATCH 0/4] reintroduce compaction feedback for OOM decisions
 References: <20160906135258.18335-1-vbabka@suse.cz>
- <20160906135258.18335-3-vbabka@suse.cz>
- <20160921171348.GF24210@dhcp22.suse.cz>
- <f1670976-b4da-5d2c-0a85-37f9a87d6868@suse.cz>
- <20160922140821.GG11875@dhcp22.suse.cz>
- <20160922145237.GH11875@dhcp22.suse.cz>
- <1f47ebe3-61bc-ba8a-defb-9fd8e78614d7@suse.cz>
- <005b01d2154f$8d38b830$a7aa2890$@alibaba-inc.com>
- <98b0c783-28dc-62c4-5a94-74c9e27bebe0@suse.cz>
- <20160923082312.GD4478@dhcp22.suse.cz>
+ <20160921171830.GH24210@dhcp22.suse.cz>
+ <56f2c2ed-8a58-cf9c-dd00-c0d0e274607a@suse.cz>
+ <20160923082627.GE4478@dhcp22.suse.cz>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <03ee39d2-1bf2-802f-deca-5379f73fecfb@suse.cz>
-Date: Fri, 23 Sep 2016 12:47:23 +0200
+Message-ID: <9194950c-06b5-31d7-de17-1f8710dd5682@suse.cz>
+Date: Fri, 23 Sep 2016 12:55:23 +0200
 MIME-Version: 1.0
-In-Reply-To: <20160923082312.GD4478@dhcp22.suse.cz>
+In-Reply-To: <20160923082627.GE4478@dhcp22.suse.cz>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Arkadiusz Miskiewicz' <a.miskiewicz@gmail.com>, 'Ralf-Peter Rohbeck' <Ralf-Peter.Rohbeck@quantum.com>, 'Olaf Hering' <olaf@aepfle.de>, linux-kernel@vger.kernel.org, 'Linus Torvalds' <torvalds@linux-foundation.org>, linux-mm@kvack.org, 'Mel Gorman' <mgorman@techsingularity.net>, 'Joonsoo Kim' <iamjoonsoo.kim@lge.com>, 'David Rientjes' <rientjes@google.com>, 'Rik van Riel' <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Olaf Hering <olaf@aepfle.de>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Rik van Riel <riel@redhat.com>
 
-On 09/23/2016 10:23 AM, Michal Hocko wrote:
-> On Fri 23-09-16 08:55:33, Vlastimil Babka wrote:
-> [...]
->> >From 1623d5bd441160569ffad3808aeeec852048e558 Mon Sep 17 00:00:00 2001
->> From: Vlastimil Babka <vbabka@suse.cz>
->> Date: Thu, 22 Sep 2016 17:02:37 +0200
->> Subject: [PATCH] mm, page_alloc: pull no_progress_loops update to
->>  should_reclaim_retry()
->>
->> The should_reclaim_retry() makes decisions based on no_progress_loops, so it
->> makes sense to also update the counter there. It will be also consistent with
->> should_compact_retry() and compaction_retries. No functional change.
->>
->> [hillf.zj@alibaba-inc.com: fix missing pointer dereferences]
->> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
->> Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+On 09/23/2016 10:26 AM, Michal Hocko wrote:
+>>  include/linux/compaction.h |  5 +++--
+>>  mm/compaction.c            | 44 +++++++++++++++++++++++---------------------
+>>  mm/internal.h              |  1 +
+>>  mm/vmscan.c                |  6 ++++--
+>>  4 files changed, 31 insertions(+), 25 deletions(-)
 > 
-> OK, this looks reasonable to me. Could you post both patches in a
+> This is much more code churn than I expected. I was thiking about it
+> some more and I am really wondering whether it actually make any sense
+> to check the fragidx for !costly orders. Wouldn't it be much simpler to
+> just put it out of the way for those regardless of the compaction
+> priority. In other words does this check makes any measurable difference
+> for !costly orders?
 
-Both? I would argue that [1] might be relevant because it resets the
-number of retries. Only the should_reclaim_retry() cleanup is not
-stricly needed.
+I've did some stress tests and sampling
+/sys/kernel/debug/extfrag/extfrag_index once per second. The lowest
+value I've got for order-2 was 0.705. The default threshold is 0.5, so
+this would still result in compaction considered as suitable.
 
-[1] http://lkml.kernel.org/r/<deec7319-2976-6d34-ab7b-afbb3f6c32f8@suse.cz>
+But it's sampling so I might not got to the interesting moments, most of
+the time it was -1.000 which means the page should be just available.
+Also we would be changing behavior for the user-controlled
+vm.extfrag_threshold, so I'm not entirely sure about that.
 
-> separate thread please? They shouldn't be really needed to mitigate the
-> pre-mature oom killer issues. Feel free to add
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> 
-> Thanks!
-> 
->> ---
->>  mm/page_alloc.c | 28 ++++++++++++++--------------
->>  1 file changed, 14 insertions(+), 14 deletions(-)
->>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index 582820080601..6039ff40452c 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -3401,16 +3401,26 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
->>  static inline bool
->>  should_reclaim_retry(gfp_t gfp_mask, unsigned order,
->>  		     struct alloc_context *ac, int alloc_flags,
->> -		     bool did_some_progress, int no_progress_loops)
->> +		     bool did_some_progress, int *no_progress_loops)
->>  {
->>  	struct zone *zone;
->>  	struct zoneref *z;
->>  
->>  	/*
->> +	 * Costly allocations might have made a progress but this doesn't mean
->> +	 * their order will become available due to high fragmentation so
->> +	 * always increment the no progress counter for them
->> +	 */
->> +	if (did_some_progress && order <= PAGE_ALLOC_COSTLY_ORDER)
->> +		*no_progress_loops = 0;
->> +	else
->> +		(*no_progress_loops)++;
->> +
->> +	/*
->>  	 * Make sure we converge to OOM if we cannot make any progress
->>  	 * several times in the row.
->>  	 */
->> -	if (no_progress_loops > MAX_RECLAIM_RETRIES)
->> +	if (*no_progress_loops > MAX_RECLAIM_RETRIES)
->>  		return false;
->>  
->>  	/*
->> @@ -3425,7 +3435,7 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
->>  		unsigned long reclaimable;
->>  
->>  		available = reclaimable = zone_reclaimable_pages(zone);
->> -		available -= DIV_ROUND_UP(no_progress_loops * available,
->> +		available -= DIV_ROUND_UP((*no_progress_loops) * available,
->>  					  MAX_RECLAIM_RETRIES);
->>  		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
->>  
->> @@ -3641,18 +3651,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->>  	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
->>  		goto nopage;
->>  
->> -	/*
->> -	 * Costly allocations might have made a progress but this doesn't mean
->> -	 * their order will become available due to high fragmentation so
->> -	 * always increment the no progress counter for them
->> -	 */
->> -	if (did_some_progress && order <= PAGE_ALLOC_COSTLY_ORDER)
->> -		no_progress_loops = 0;
->> -	else
->> -		no_progress_loops++;
->> -
->>  	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
->> -				 did_some_progress > 0, no_progress_loops))
->> +				 did_some_progress > 0, &no_progress_loops))
->>  		goto retry;
->>  
->>  	/*
->> -- 
->> 2.10.0
->>
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+I could probably reduce the churn so that compaction_suitable() doesn't
+need a new parameter. We could just skip compaction_suitable() check
+from compact_zone() on the highest priority, and go on even without
+sufficient free page gap?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
