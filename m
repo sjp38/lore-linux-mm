@@ -1,187 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EBC3F6B0285
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 13:46:59 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id 188so47793037iti.0
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 10:46:59 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id l2si5426096itd.101.2016.09.23.10.19.33
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C18AE6B0285
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 14:15:19 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id n24so234478949pfb.0
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 11:15:19 -0700 (PDT)
+Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
+        by mx.google.com with ESMTPS id ot5si8856253pac.256.2016.09.23.11.15.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Sep 2016 10:19:34 -0700 (PDT)
-Subject: Re: [RFC] remove unnecessary condition in remove_inode_hugepages
-References: <57E48B30.2000303@huawei.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <d1e61e42-b644-478d-6294-3f8099318a3b@oracle.com>
-Date: Fri, 23 Sep 2016 10:19:14 -0700
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 23 Sep 2016 11:15:19 -0700 (PDT)
+From: zijun_hu <zijun_hu@zoho.com>
+Subject: [PATCH 1/1] mm/percpu.c: simplify grouping cpu logic in
+ pcpu_build_alloc_info()
+Message-ID: <5dcf5870-67ad-97e4-518b-645d60b0a520@zoho.com>
+Date: Sat, 24 Sep 2016 02:15:09 +0800
 MIME-Version: 1.0
-In-Reply-To: <57E48B30.2000303@huawei.com>
-Content-Type: text/plain; charset=windows-1252
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhong jiang <zhongjiang@huawei.com>, Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: zijun_hu@htc.com, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, cl@linux.com
 
-On 09/22/2016 06:53 PM, zhong jiang wrote:
-> 
-> At present, we need to call hugetlb_fix_reserve_count when hugetlb_unrserve_pages fails,
-> and PagePrivate will decide hugetlb reserves counts.
-> 
-> we obtain the page from page cache. and use page both lock_page and mutex_lock.
-> alloc_huge_page add page to page chace always hold lock page, then bail out clearpageprivate
-> before unlock page. 
-> 
-> but I' m not sure  it is right  or I miss the points.
+From: zijun_hu <zijun_hu@htc.com>
 
-Let me try to explain the code you suggest is unnecessary.
+simplify grouping cpu logic in pcpu_build_alloc_info() to improve
+readability and performance, it discards the goto statement too
 
-The PagePrivate flag is used in huge page allocation/deallocation to
-indicate that the page was globally reserved.  For example, in
-dequeue_huge_page_vma() there is this code:
+for every possible cpu, decide whether it can share group id of any
+lower index CPU, use the group id if so, otherwise a new group id
+is allocated to it
 
-                        if (page) {
-                                if (avoid_reserve)
-                                        break;
-                                if (!vma_has_reserves(vma, chg))
-                                        break;
+Signed-off-by: zijun_hu <zijun_hu@htc.com>
+---
+ mm/percpu.c | 28 +++++++++++++++-------------
+ 1 file changed, 15 insertions(+), 13 deletions(-)
 
-                                SetPagePrivate(page);
-                                h->resv_huge_pages--;
-                                break;
-                        }
-
-and in free_huge_page():
-
-        restore_reserve = PagePrivate(page);
-        ClearPagePrivate(page);
-	.
-	<snip>
-	.
-        if (restore_reserve)
-                h->resv_huge_pages++;
-
-This helps maintains the global huge page reserve count.
-
-In addition to the global reserve count, there are per VMA reservation
-structures.  Unfortunately, these structures have different meanings
-depending on the context in which they are used.
-
-If there is a VMA reservation entry for a page, and the page has not
-been instantiated in the VMA this indicates there is a huge page reserved
-and the global resv_huge_pages count reflects that reservation.  Even
-if a page was not reserved, a VMA reservation entry is added when a page
-is instantiated in the VMA.
-
-With that background, let's look at the existing code/proposed changes.
-
-> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> index 4ea71eb..010723b 100644
-> --- a/fs/hugetlbfs/inode.c
-> +++ b/fs/hugetlbfs/inode.c
-> @@ -462,14 +462,12 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
->                          * the page, note PagePrivate which is used in case
->                          * of error.
->                          */
-> -                       rsv_on_error = !PagePrivate(page);
-
-This rsv_on_error flag indicates that when the huge page was allocated,
-it was NOT counted against the global reserve count.  So, when
-remove_huge_page eventually calls free_huge_page(), the global count
-resv_huge_pages is not incremented.  So far, no problem.
-
->                         remove_huge_page(page);
->                         freed++;
->                         if (!truncate_op) {
->                                 if (unlikely(hugetlb_unreserve_pages(inode,
->                                                         next, next + 1, 1)))
-
-We now have this VERY unlikely situation that hugetlb_unreserve_pages fails.
-This means that the VMA reservation entry for the page was not removed.
-So, we are in a bit of a mess.  The page has already been removed, but the
-VMA reservation entry can not.  This LOOKS like there is a reservation for
-the page in the VMA reservation structure.  But, the global count
-resv_huge_pages does not reflect this reservation.
-
-If we do nothing, when the VMA is eventually removed the VMA reservation
-structure will be completely removed and the global count resv_huge_pages
-will be decremented for each entry in the structure.  Since, there is a
-VMA reservation entry without a corresponding global count, the global
-count will be one less than it should (will eventually go to -1).
-
-To 'fix' this, hugetlb_fix_reserve_counts is called.  In this case, it will
-increment the global count so that it is consistent with the entries in
-the VMA reservation structure.
-
-This is all quite confusing and really unlikely to happen.  I tried to
-explain in code comments:
-
-Before removing the page:
-                        /*
-                         * We must free the huge page and remove from page
-                         * cache (remove_huge_page) BEFORE removing the
-                         * region/reserve map (hugetlb_unreserve_pages).  In
-                         * rare out of memory conditions, removal of the
-                         * region/reserve map could fail.  Before free'ing
-                         * the page, note PagePrivate which is used in case
-                         * of error.
-                         */
-
-And, the routine hugetlb_fix_reserve_counts:
-/*
- * A rare out of memory error was encountered which prevented removal of
- * the reserve map region for a page.  The huge page itself was free'ed
- * and removed from the page cache.  This routine will adjust the subpool
- * usage count, and the global reserve count if needed.  By incrementing
- * these counts, the reserve map entry which could not be deleted will
- * appear as a "reserved" entry instead of simply dangling with incorrect
- * counts.
- */
-
+diff --git a/mm/percpu.c b/mm/percpu.c
+index 9903830aaebb..fcaaac977954 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -1824,23 +1824,25 @@ static struct pcpu_alloc_info * __init pcpu_build_alloc_info(
+ 	max_upa = upa;
+ 
+ 	/* group cpus according to their proximity */
+-	for_each_possible_cpu(cpu) {
+-		group = 0;
+-	next_group:
++	group = 0;
++	for_each_possible_cpu(cpu)
+ 		for_each_possible_cpu(tcpu) {
+-			if (cpu == tcpu)
+-				break;
+-			if (group_map[tcpu] == group && cpu_distance_fn &&
+-			    (cpu_distance_fn(cpu, tcpu) > LOCAL_DISTANCE ||
+-			     cpu_distance_fn(tcpu, cpu) > LOCAL_DISTANCE)) {
++			if (tcpu == cpu) {
++				group_map[cpu] = group;
++				group_cnt[group] = 1;
+ 				group++;
+-				nr_groups = max(nr_groups, group + 1);
+-				goto next_group;
++				break;
++			}
++
++			if (!cpu_distance_fn ||
++			    (cpu_distance_fn(cpu, tcpu) == LOCAL_DISTANCE &&
++			     cpu_distance_fn(tcpu, cpu) == LOCAL_DISTANCE)) {
++				group_map[cpu] = group_map[tcpu];
++				group_cnt[group_map[cpu]]++;
++				break;
+ 			}
+ 		}
+-		group_map[cpu] = group;
+-		group_cnt[group]++;
+-	}
++	nr_groups = group;
+ 
+ 	/*
+ 	 * Expand unit size until address space usage goes over 75%
 -- 
-Mike Kravetz
-
-> -                                       hugetlb_fix_reserve_counts(inode,
-> -                                                               rsv_on_error);
-> +                                       hugetlb_fix_reserve_counts(inode)
->                         }
-> 
->                         unlock_page(page);
-> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index c26d463..d2e0fc5 100644
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-> @@ -90,7 +90,7 @@ int dequeue_hwpoisoned_huge_page(struct page *page);
->  bool isolate_huge_page(struct page *page, struct list_head *list);
->  void putback_active_hugepage(struct page *page);
->  void free_huge_page(struct page *page);
-> -void hugetlb_fix_reserve_counts(struct inode *inode, bool restore_reserve);
-> +void hugetlb_fix_reserve_counts(struct inode *inode);
->  extern struct mutex *hugetlb_fault_mutex_table;
->  u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
->                                 struct vm_area_struct *vma,
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 87e11d8..28a079a 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -567,13 +567,13 @@ retry:
->   * appear as a "reserved" entry instead of simply dangling with incorrect
->   * counts.
->   */
-> -void hugetlb_fix_reserve_counts(struct inode *inode, bool restore_reserve)
-> +void hugetlb_fix_reserve_counts(struct inode *inode)
->  {
->         struct hugepage_subpool *spool = subpool_inode(inode);
->         long rsv_adjust;
-> 
->         rsv_adjust = hugepage_subpool_get_pages(spool, 1);
-> -       if (restore_reserve && rsv_adjust) {
-> +       if (rsv_adjust) {
->                 struct hstate *h = hstate_inode(inode);
-> 
->                 hugetlb_acct_memory(h, 1);
-> 
-> 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
