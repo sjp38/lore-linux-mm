@@ -1,62 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C9BA528024D
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 17:30:32 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id g18so8999442ywb.1
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 14:30:32 -0700 (PDT)
-Received: from mail-yw0-x22d.google.com (mail-yw0-x22d.google.com. [2607:f8b0:4002:c05::22d])
-        by mx.google.com with ESMTPS id y78si3502672ywd.375.2016.09.23.14.30.32
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D45F28024B
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 19:20:59 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id wk8so227403043pab.3
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 16:20:59 -0700 (PDT)
+Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
+        by mx.google.com with ESMTPS id 27si10030765pfn.124.2016.09.23.16.20.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Sep 2016 14:30:32 -0700 (PDT)
-Received: by mail-yw0-x22d.google.com with SMTP id t67so123709737ywg.3
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 14:30:32 -0700 (PDT)
-Date: Fri, 23 Sep 2016 17:30:30 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 1/1] mm/percpu.c: correct max_distance calculation for
- pcpu_embed_first_chunk()
-Message-ID: <20160923213030.GG31387@htj.duckdns.org>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 23 Sep 2016 16:20:58 -0700 (PDT)
+Subject: Re: [RESEND PATCH 1/1] mm/percpu.c: correct max_distance calculation
+ for pcpu_embed_first_chunk()
 References: <7180d3c9-45d3-ffd2-cf8c-0d925f888a4d@zoho.com>
- <20160923192351.GE31387@htj.duckdns.org>
- <39277252-5bf4-b355-c076-8059e693f4aa@zoho.com>
+From: zijun_hu <zijun_hu@zoho.com>
+Message-ID: <0310bf92-c8da-459f-58e3-40b8bfbb7223@zoho.com>
+Date: Sat, 24 Sep 2016 07:20:49 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <39277252-5bf4-b355-c076-8059e693f4aa@zoho.com>
+In-Reply-To: <7180d3c9-45d3-ffd2-cf8c-0d925f888a4d@zoho.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zijun_hu <zijun_hu@zoho.com>
-Cc: zijun_hu@htc.com, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, cl@linux.com
+To: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: zijun_hu@htc.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, cl@linux.com
 
-Hello,
+From: zijun_hu <zijun_hu@htc.com>
 
-On Sat, Sep 24, 2016 at 05:16:56AM +0800, zijun_hu wrote:
-> On 2016/9/24 3:23, Tejun Heo wrote:
-> > On Sat, Sep 24, 2016 at 02:20:24AM +0800, zijun_hu wrote:
-> >> From: zijun_hu <zijun_hu@htc.com>
-> >>
-> >> correct max_distance from (base of the highest group + ai->unit_size)
-> >> to (base of the highest group + the group size)
-> >>
-> >> Signed-off-by: zijun_hu <zijun_hu@htc.com>
-> > 
-> > Nacked-by: Tejun Heo <tj@kernel.org>
-> > 
-> > Thanks.
-> >
-> frankly, the current max_distance is error, doesn't represents the ranges spanned by
-> areas owned by the groups
+it is error to represent the max range max_distance spanned by all the
+group areas as the offset of the highest group area plus unit size in
+pcpu_embed_first_chunk(), it should equal to the offset plus the size
+of the highest group area
 
-I think you're right but can you please update the patch description
-so that it explains what the bug and the implications are and how the
-patch fixes the bug.  Also, please make sure that all changes made by
-the patch are explained in the description - e.g. why the type of
-@max_distance is changed from size_t to ulong.
+in order to fix this issue,let us find the highest group area who has the
+biggest base address among all the ones, then max_distance is formed by
+add it's offset and size value
 
-Thanks.
+the type of variant max_distance is changed from size_t to unsigned long
+to prevent potential overflow
 
+Signed-off-by: zijun_hu <zijun_hu@htc.com>
+---
+ more detailed commit messages is provided against the previous one as
+ advised by tj@kernel.org
+
+ mm/percpu.c | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/mm/percpu.c b/mm/percpu.c
+index fcaaac977954..ee0d1c93f070 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -1963,7 +1963,8 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
+ 	void *base = (void *)ULONG_MAX;
+ 	void **areas = NULL;
+ 	struct pcpu_alloc_info *ai;
+-	size_t size_sum, areas_size, max_distance;
++	size_t size_sum, areas_size;
++	unsigned long max_distance;
+ 	int group, i, rc;
+ 
+ 	ai = pcpu_build_alloc_info(reserved_size, dyn_size, atom_size,
+@@ -2025,17 +2026,18 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
+ 	}
+ 
+ 	/* base address is now known, determine group base offsets */
+-	max_distance = 0;
++	i = 0;
+ 	for (group = 0; group < ai->nr_groups; group++) {
+ 		ai->groups[group].base_offset = areas[group] - base;
+-		max_distance = max_t(size_t, max_distance,
+-				     ai->groups[group].base_offset);
++		if (areas[group] > areas[i])
++			i = group;
+ 	}
+-	max_distance += ai->unit_size;
++	max_distance = ai->groups[i].base_offset +
++		(unsigned long)ai->unit_size * ai->groups[i].nr_units;
+ 
+ 	/* warn if maximum distance is further than 75% of vmalloc space */
+ 	if (max_distance > VMALLOC_TOTAL * 3 / 4) {
+-		pr_warn("max_distance=0x%zx too large for vmalloc space 0x%lx\n",
++		pr_warn("max_distance=0x%lx too large for vmalloc space 0x%lx\n",
+ 			max_distance, VMALLOC_TOTAL);
+ #ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
+ 		/* and fail if we have fallback */
 -- 
-tejun
+1.9.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
