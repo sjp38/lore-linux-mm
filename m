@@ -1,85 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A7A956B0297
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 03:43:36 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id w84so8807738wmg.1
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 00:43:36 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id li10si6335922wjb.23.2016.09.23.00.43.35
+	by kanga.kvack.org (Postfix) with ESMTP id 3F4B1280255
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 04:07:17 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id l138so9378784wmg.3
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 01:07:17 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id xt6si6379139wjb.168.2016.09.23.01.07.11
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 23 Sep 2016 00:43:35 -0700 (PDT)
-Date: Fri, 23 Sep 2016 09:43:33 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm,page_alloc: Allow !__GFP_FS allocations to invoke the
- OOM killer
-Message-ID: <20160923074333.GA4478@dhcp22.suse.cz>
-References: <1474557777-8288-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Sep 2016 01:07:12 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id l132so1432905wmf.1
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 01:07:11 -0700 (PDT)
+Date: Fri, 23 Sep 2016 10:07:10 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC] scripts: Include postprocessing script for memory
+ allocation tracing
+Message-ID: <20160923080709.GB4478@dhcp22.suse.cz>
+References: <20160911222411.GA2854@janani-Inspiron-3521>
+ <20160912121635.GL14524@dhcp22.suse.cz>
+ <0ACE5927-A6E5-4B49-891D-F990527A9F50@gmail.com>
+ <20160919094224.GH10785@dhcp22.suse.cz>
+ <BFAF8DCA-F4A6-41C6-9AA0-C694D33035A3@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <1474557777-8288-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <BFAF8DCA-F4A6-41C6-9AA0-C694D33035A3@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Janani Ravichandran <janani.rvchndrn@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@surriel.com, akpm@linux-foundation.org, vdavydov@virtuozzo.com, vbabka@suse.cz, mgorman@techsingularity.net, rostedt@goodmis.org
 
-On Fri 23-09-16 00:22:57, Tetsuo Handa wrote:
-[...]
-> As a first step, I do want to eliminate possibility of silent OOM livelock.
-
-Absolutely no! Unless you have a clear evidence that the oom livelock is
-real and easily triggerable from the userspace. Pre-mature OOM killer is
-imho much worse problem than a theoretical GFP_NOFS livelock.
-
-So NAK to this patch from me. We just have too many GFP_NOFS users
-currently and the risk of pre-mature OOM is just too high wrt to gain
-this will give us. I really think we need a real solution rather than
-just blindly disable this code and hope everything will happen to work.
-As I've said in the past I am not fond of this heuristic either but we
-do not have anything better now.
-
-I am all for warning when an allocation stalls for too long to identify
-potential problems. Will post a patch later today.
-
-> If this patch causes !__GFP_FS memory allocation requests to invoke the
-> OOM killer trivially, at least we will be able to emit warning messages
-> periodically as long as we are telling the lie instead of invoking the
-> OOM killer. Without knowing which caller is falling into OOM livelock,
-> we will remain too cowardly to determine when we can stop telling the
-> lie and we will bother administrators with silent OOM livelock.
+On Thu 22-09-16 11:30:36, Janani Ravichandran wrote:
 > 
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  mm/oom_kill.c | 9 ---------
->  1 file changed, 9 deletions(-)
+> > On Sep 19, 2016, at 5:42 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > 
+> > On Tue 13-09-16 14:04:49, Janani Ravichandran wrote:
+> >> 
+> >>> On Sep 12, 2016, at 8:16 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> >> 
+> >> Ia??m using the function graph tracer to see how long __alloc_pages_nodemask()
+> >> took.
+> > 
+> > How can you map the function graph tracer to a specif context? Let's say
+> > I would like to know why a particular allocation took so long. Would
+> > that be possible?
 > 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index f284e92..7893c5c 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -1005,15 +1005,6 @@ bool out_of_memory(struct oom_control *oc)
->  	}
->  
->  	/*
-> -	 * The OOM killer does not compensate for IO-less reclaim.
-> -	 * pagefault_out_of_memory lost its gfp context so we have to
-> -	 * make sure exclude 0 mask - all other users should have at least
-> -	 * ___GFP_DIRECT_RECLAIM to get here.
-> -	 */
-> -	if (oc->gfp_mask && !(oc->gfp_mask & (__GFP_FS|__GFP_NOFAIL)))
-> -		return true;
-> -
-> -	/*
->  	 * Check if there were limitations on the allocation (only relevant for
->  	 * NUMA and memcg) that may require different handling.
->  	 */
-> -- 
-> 1.8.3.1
+> Maybe not. If the latencies are due to direct reclaim or memory compaction, you
+> get some information from the tracepoints (like mm_vmscan_direct_reclaim_begin,
+> mm_compaction_begin, etc). But otherwise, you dona??t get any context information. 
+> Function graph only gives the time spent in alloc_pages_nodemask() in that case.
 
+Then I really think that we need a starting trace point. I think that
+having the full context information is really helpful in order to
+understand latencies induced by allocations.
 -- 
 Michal Hocko
 SUSE Labs
