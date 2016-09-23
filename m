@@ -1,84 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C18AE6B0285
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 14:15:19 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id n24so234478949pfb.0
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 11:15:19 -0700 (PDT)
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 090EA6B0285
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 14:20:33 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id cg13so215939578pac.1
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 11:20:32 -0700 (PDT)
 Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
-        by mx.google.com with ESMTPS id ot5si8856253pac.256.2016.09.23.11.15.18
+        by mx.google.com with ESMTPS id d1si8871875pfb.285.2016.09.23.11.20.32
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 23 Sep 2016 11:15:19 -0700 (PDT)
+        Fri, 23 Sep 2016 11:20:32 -0700 (PDT)
 From: zijun_hu <zijun_hu@zoho.com>
-Subject: [PATCH 1/1] mm/percpu.c: simplify grouping cpu logic in
- pcpu_build_alloc_info()
-Message-ID: <5dcf5870-67ad-97e4-518b-645d60b0a520@zoho.com>
-Date: Sat, 24 Sep 2016 02:15:09 +0800
+Subject: [PATCH 1/1] mm/percpu.c: correct max_distance calculation for
+ pcpu_embed_first_chunk()
+Message-ID: <7180d3c9-45d3-ffd2-cf8c-0d925f888a4d@zoho.com>
+Date: Sat, 24 Sep 2016 02:20:24 +0800
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: zijun_hu@htc.com, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, cl@linux.com
+Cc: zijun_hu@htc.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, cl@linux.com
 
 From: zijun_hu <zijun_hu@htc.com>
 
-simplify grouping cpu logic in pcpu_build_alloc_info() to improve
-readability and performance, it discards the goto statement too
-
-for every possible cpu, decide whether it can share group id of any
-lower index CPU, use the group id if so, otherwise a new group id
-is allocated to it
+correct max_distance from (base of the highest group + ai->unit_size)
+to (base of the highest group + the group size)
 
 Signed-off-by: zijun_hu <zijun_hu@htc.com>
 ---
- mm/percpu.c | 28 +++++++++++++++-------------
- 1 file changed, 15 insertions(+), 13 deletions(-)
+ mm/percpu.c | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
 
 diff --git a/mm/percpu.c b/mm/percpu.c
-index 9903830aaebb..fcaaac977954 100644
+index fcaaac977954..ee0d1c93f070 100644
 --- a/mm/percpu.c
 +++ b/mm/percpu.c
-@@ -1824,23 +1824,25 @@ static struct pcpu_alloc_info * __init pcpu_build_alloc_info(
- 	max_upa = upa;
+@@ -1963,7 +1963,8 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
+ 	void *base = (void *)ULONG_MAX;
+ 	void **areas = NULL;
+ 	struct pcpu_alloc_info *ai;
+-	size_t size_sum, areas_size, max_distance;
++	size_t size_sum, areas_size;
++	unsigned long max_distance;
+ 	int group, i, rc;
  
- 	/* group cpus according to their proximity */
--	for_each_possible_cpu(cpu) {
--		group = 0;
--	next_group:
-+	group = 0;
-+	for_each_possible_cpu(cpu)
- 		for_each_possible_cpu(tcpu) {
--			if (cpu == tcpu)
--				break;
--			if (group_map[tcpu] == group && cpu_distance_fn &&
--			    (cpu_distance_fn(cpu, tcpu) > LOCAL_DISTANCE ||
--			     cpu_distance_fn(tcpu, cpu) > LOCAL_DISTANCE)) {
-+			if (tcpu == cpu) {
-+				group_map[cpu] = group;
-+				group_cnt[group] = 1;
- 				group++;
--				nr_groups = max(nr_groups, group + 1);
--				goto next_group;
-+				break;
-+			}
-+
-+			if (!cpu_distance_fn ||
-+			    (cpu_distance_fn(cpu, tcpu) == LOCAL_DISTANCE &&
-+			     cpu_distance_fn(tcpu, cpu) == LOCAL_DISTANCE)) {
-+				group_map[cpu] = group_map[tcpu];
-+				group_cnt[group_map[cpu]]++;
-+				break;
- 			}
- 		}
--		group_map[cpu] = group;
--		group_cnt[group]++;
--	}
-+	nr_groups = group;
+ 	ai = pcpu_build_alloc_info(reserved_size, dyn_size, atom_size,
+@@ -2025,17 +2026,18 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
+ 	}
  
- 	/*
- 	 * Expand unit size until address space usage goes over 75%
+ 	/* base address is now known, determine group base offsets */
+-	max_distance = 0;
++	i = 0;
+ 	for (group = 0; group < ai->nr_groups; group++) {
+ 		ai->groups[group].base_offset = areas[group] - base;
+-		max_distance = max_t(size_t, max_distance,
+-				     ai->groups[group].base_offset);
++		if (areas[group] > areas[i])
++			i = group;
+ 	}
+-	max_distance += ai->unit_size;
++	max_distance = ai->groups[i].base_offset +
++		(unsigned long)ai->unit_size * ai->groups[i].nr_units;
+ 
+ 	/* warn if maximum distance is further than 75% of vmalloc space */
+ 	if (max_distance > VMALLOC_TOTAL * 3 / 4) {
+-		pr_warn("max_distance=0x%zx too large for vmalloc space 0x%lx\n",
++		pr_warn("max_distance=0x%lx too large for vmalloc space 0x%lx\n",
+ 			max_distance, VMALLOC_TOTAL);
+ #ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
+ 		/* and fail if we have fallback */
 -- 
 1.9.1
 
