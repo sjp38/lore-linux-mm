@@ -1,88 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id ABB016B027F
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 02:56:03 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id b130so7635889wmc.2
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 23:56:03 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id jk1si6123209wjb.221.2016.09.22.23.56.02
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6712E6B0280
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 03:24:45 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id fu14so192112951pad.0
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 00:24:45 -0700 (PDT)
+Received: from mail-pa0-x244.google.com (mail-pa0-x244.google.com. [2607:f8b0:400e:c03::244])
+        by mx.google.com with ESMTPS id b74si6507412pfc.187.2016.09.23.00.24.44
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 22 Sep 2016 23:56:02 -0700 (PDT)
-Subject: Re: [PATCH 2/4] mm, compaction: more reliably increase direct
- compaction priority
-References: <20160906135258.18335-1-vbabka@suse.cz>
- <20160906135258.18335-3-vbabka@suse.cz>
- <20160921171348.GF24210@dhcp22.suse.cz>
- <f1670976-b4da-5d2c-0a85-37f9a87d6868@suse.cz>
- <20160922140821.GG11875@dhcp22.suse.cz>
- <20160922145237.GH11875@dhcp22.suse.cz>
- <1f47ebe3-61bc-ba8a-defb-9fd8e78614d7@suse.cz>
- <005b01d2154f$8d38b830$a7aa2890$@alibaba-inc.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <98b0c783-28dc-62c4-5a94-74c9e27bebe0@suse.cz>
-Date: Fri, 23 Sep 2016 08:55:33 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Sep 2016 00:24:44 -0700 (PDT)
+Received: by mail-pa0-x244.google.com with SMTP id my20so4684887pab.3
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 00:24:44 -0700 (PDT)
+Date: Fri, 23 Sep 2016 17:24:34 +1000
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [PATCH] fs/select: add vmalloc fallback for select(2)
+Message-ID: <20160923172434.7ad8f2e0@roar.ozlabs.ibm.com>
+In-Reply-To: <006101d21565$b60a8a70$221f9f50$@alibaba-inc.com>
+References: <20160922152831.24165-1-vbabka@suse.cz>
+	<006101d21565$b60a8a70$221f9f50$@alibaba-inc.com>
 MIME-Version: 1.0
-In-Reply-To: <005b01d2154f$8d38b830$a7aa2890$@alibaba-inc.com>
-Content-Type: text/plain; charset=windows-1252
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Michal Hocko' <mhocko@kernel.org>
-Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Arkadiusz Miskiewicz' <a.miskiewicz@gmail.com>, 'Ralf-Peter Rohbeck' <Ralf-Peter.Rohbeck@quantum.com>, 'Olaf Hering' <olaf@aepfle.de>, linux-kernel@vger.kernel.org, 'Linus Torvalds' <torvalds@linux-foundation.org>, linux-mm@kvack.org, 'Mel Gorman' <mgorman@techsingularity.net>, 'Joonsoo Kim' <iamjoonsoo.kim@lge.com>, 'David Rientjes' <rientjes@google.com>, 'Rik van Riel' <riel@redhat.com>
+To: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: 'Vlastimil Babka' <vbabka@suse.cz>, 'Alexander Viro' <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, 'Michal Hocko' <mhocko@kernel.org>, netdev@vger.kernel.org, Eric Dumazet <eric.dumazet@gmail.com>
 
-On 09/23/2016 06:04 AM, Hillf Danton wrote:
->>
->> ----8<----
->> From a7921e57ba1189b9c08fc4879358a908c390e47c Mon Sep 17 00:00:00 2001
->> From: Vlastimil Babka <vbabka@suse.cz>
->> Date: Thu, 22 Sep 2016 17:02:37 +0200
->> Subject: [PATCH] mm, page_alloc: pull no_progress_loops update to
->>  should_reclaim_retry()
->>
->> The should_reclaim_retry() makes decisions based on no_progress_loops, so it
->> makes sense to also update the counter there. It will be also consistent with
->> should_compact_retry() and compaction_retries. No functional change.
->>
->> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
->> ---
->>  mm/page_alloc.c | 28 ++++++++++++++--------------
->>  1 file changed, 14 insertions(+), 14 deletions(-)
->>
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index 582820080601..a01359ab3ed6 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -3401,16 +3401,26 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
->>  static inline bool
->>  should_reclaim_retry(gfp_t gfp_mask, unsigned order,
->>  		     struct alloc_context *ac, int alloc_flags,
->> -		     bool did_some_progress, int no_progress_loops)
->> +		     bool did_some_progress, int *no_progress_loops)
->>  {
->>  	struct zone *zone;
->>  	struct zoneref *z;
->>
->>  	/*
->> +	 * Costly allocations might have made a progress but this doesn't mean
->> +	 * their order will become available due to high fragmentation so
->> +	 * always increment the no progress counter for them
->> +	 */
->> +	if (did_some_progress && order <= PAGE_ALLOC_COSTLY_ORDER)
->> +		no_progress_loops = 0;
-> 
-> s/no/*no/
->> +	else
->> +		no_progress_loops++;
-> 
-> s/no_progress_loops/(*no_progress_loops)/
+On Fri, 23 Sep 2016 14:42:53 +0800
+"Hillf Danton" <hillf.zj@alibaba-inc.com> wrote:
 
-Crap, thanks. I'm asking our gcc guy about possible warnings for this,
-and some past mistake I've seen which would be *no_progress_loops++.
+> > 
+> > The select(2) syscall performs a kmalloc(size, GFP_KERNEL) where size grows
+> > with the number of fds passed. We had a customer report page allocation
+> > failures of order-4 for this allocation. This is a costly order, so it might
+> > easily fail, as the VM expects such allocation to have a lower-order fallback.
+> > 
+> > Such trivial fallback is vmalloc(), as the memory doesn't have to be
+> > physically contiguous. Also the allocation is temporary for the duration of the
+> > syscall, so it's unlikely to stress vmalloc too much.
+> > 
+> > Note that the poll(2) syscall seems to use a linked list of order-0 pages, so
+> > it doesn't need this kind of fallback.
+
+How about something like this? (untested)
+
+Eric isn't wrong about vmalloc sucking :)
+
+Thanks,
+Nick
+
+
+---
+ fs/select.c | 57 +++++++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 43 insertions(+), 14 deletions(-)
+
+diff --git a/fs/select.c b/fs/select.c
+index 8ed9da5..3b4834c 100644
+--- a/fs/select.c
++++ b/fs/select.c
+@@ -555,6 +555,7 @@ int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
+ 	void *bits;
+ 	int ret, max_fds;
+ 	unsigned int size;
++	size_t nr_bytes;
+ 	struct fdtable *fdt;
+ 	/* Allocate small arguments on the stack to save memory and be faster */
+ 	long stack_fds[SELECT_STACK_ALLOC/sizeof(long)];
+@@ -576,21 +577,39 @@ int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
+ 	 * since we used fdset we need to allocate memory in units of
+ 	 * long-words. 
+ 	 */
+-	size = FDS_BYTES(n);
++	ret = -ENOMEM;
+ 	bits = stack_fds;
+-	if (size > sizeof(stack_fds) / 6) {
+-		/* Not enough space in on-stack array; must use kmalloc */
++	size = FDS_BYTES(n);
++	nr_bytes = 6 * size;
++
++	if (unlikely(nr_bytes > PAGE_SIZE)) {
++		/* Avoid multi-page allocation if possible */
+ 		ret = -ENOMEM;
+-		bits = kmalloc(6 * size, GFP_KERNEL);
+-		if (!bits)
+-			goto out_nofds;
++		fds.in = kmalloc(size, GFP_KERNEL);
++		fds.out = kmalloc(size, GFP_KERNEL);
++		fds.ex = kmalloc(size, GFP_KERNEL);
++		fds.res_in = kmalloc(size, GFP_KERNEL);
++		fds.res_out = kmalloc(size, GFP_KERNEL);
++		fds.res_ex = kmalloc(size, GFP_KERNEL);
++
++		if (!(fds.in && fds.out && fds.ex &&
++				fds.res_in && fds.res_out && fds.res_ex))
++			goto out;
++	} else {
++		if (nr_bytes > sizeof(stack_fds)) {
++			/* Not enough space in on-stack array */
++			if (nr_bytes > PAGE_SIZE * 2)
++			bits = kmalloc(nr_bytes, GFP_KERNEL);
++			if (!bits)
++				goto out_nofds;
++		}
++		fds.in      = bits;
++		fds.out     = bits +   size;
++		fds.ex      = bits + 2*size;
++		fds.res_in  = bits + 3*size;
++		fds.res_out = bits + 4*size;
++		fds.res_ex  = bits + 5*size;
+ 	}
+-	fds.in      = bits;
+-	fds.out     = bits +   size;
+-	fds.ex      = bits + 2*size;
+-	fds.res_in  = bits + 3*size;
+-	fds.res_out = bits + 4*size;
+-	fds.res_ex  = bits + 5*size;
  
-> With that feel free to add
-> Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+ 	if ((ret = get_fd_set(n, inp, fds.in)) ||
+ 	    (ret = get_fd_set(n, outp, fds.out)) ||
+@@ -617,8 +636,18 @@ int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
+ 		ret = -EFAULT;
+ 
+ out:
+-	if (bits != stack_fds)
+-		kfree(bits);
++	if (unlikely(nr_bytes > PAGE_SIZE)) {
++		kfree(fds.in);
++		kfree(fds.out);
++		kfree(fds.ex);
++		kfree(fds.res_in);
++		kfree(fds.res_out);
++		kfree(fds.res_ex);
++	} else {
++		if (bits != stack_fds)
++			kfree(bits);
++	}
++
+ out_nofds:
+ 	return ret;
+ }
+-- 
+2.9.3
 
-Thanks!
-
-----8<----
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
