@@ -1,74 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AB376B027E
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 08:10:02 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id w84so15535373wmg.1
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 05:10:02 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id l2si7297611wjg.109.2016.09.23.05.10.00
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CF26F6B027E
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 08:29:35 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id n24so219248985pfb.0
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 05:29:35 -0700 (PDT)
+Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
+        by mx.google.com with ESMTPS id v4si7729805paa.285.2016.09.23.05.29.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Sep 2016 05:10:01 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id b184so2481652wma.3
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 05:10:00 -0700 (PDT)
-Date: Fri, 23 Sep 2016 14:09:59 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/4] reintroduce compaction feedback for OOM decisions
-Message-ID: <20160923120958.GM4478@dhcp22.suse.cz>
-References: <20160906135258.18335-1-vbabka@suse.cz>
- <20160921171830.GH24210@dhcp22.suse.cz>
- <56f2c2ed-8a58-cf9c-dd00-c0d0e274607a@suse.cz>
- <20160923082627.GE4478@dhcp22.suse.cz>
- <9194950c-06b5-31d7-de17-1f8710dd5682@suse.cz>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 23 Sep 2016 05:29:35 -0700 (PDT)
+Subject: Re: [PATCH 1/1] lib/ioremap.c: avoid endless loop under ioremapping
+ page unaligned ranges
+References: <57E20A69.5010206@zoho.com>
+ <20160922124735.GB11204@dhcp22.suse.cz>
+ <35661a34-c3e0-0ec2-b58f-ee59bef4e4d4@zoho.com>
+ <20160923084551.GG4478@dhcp22.suse.cz>
+From: zijun_hu <zijun_hu@zoho.com>
+Message-ID: <f9e708e1-121e-367e-1141-5470e5baffe5@zoho.com>
+Date: Fri, 23 Sep 2016 20:29:20 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <9194950c-06b5-31d7-de17-1f8710dd5682@suse.cz>
+In-Reply-To: <20160923084551.GG4478@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Olaf Hering <olaf@aepfle.de>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Rik van Riel <riel@redhat.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: zijun_hu@htc.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tj@kernel.org, mingo@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net
 
-On Fri 23-09-16 12:55:23, Vlastimil Babka wrote:
-> On 09/23/2016 10:26 AM, Michal Hocko wrote:
-> >>  include/linux/compaction.h |  5 +++--
-> >>  mm/compaction.c            | 44 +++++++++++++++++++++++---------------------
-> >>  mm/internal.h              |  1 +
-> >>  mm/vmscan.c                |  6 ++++--
-> >>  4 files changed, 31 insertions(+), 25 deletions(-)
-> > 
-> > This is much more code churn than I expected. I was thiking about it
-> > some more and I am really wondering whether it actually make any sense
-> > to check the fragidx for !costly orders. Wouldn't it be much simpler to
-> > just put it out of the way for those regardless of the compaction
-> > priority. In other words does this check makes any measurable difference
-> > for !costly orders?
+On 2016/9/23 16:45, Michal Hocko wrote:
+> On Thu 22-09-16 23:13:17, zijun_hu wrote:
+>> On 2016/9/22 20:47, Michal Hocko wrote:
+>>> On Wed 21-09-16 12:19:53, zijun_hu wrote:
+>>>> From: zijun_hu <zijun_hu@htc.com>
+>>>>
+>>>> endless loop maybe happen if either of parameter addr and end is not
+>>>> page aligned for kernel API function ioremap_page_range()
+>>>
+>>> Does this happen in practise or this you found it by reading the code?
+>>>
+>> i found it by reading the code, this is a kernel API function and there
+>> are no enough hint for parameter requirements, so any parameters
+>> combination maybe be used by user, moreover, it seems appropriate for
+>> many bad parameter combination, for example, provided  PMD_SIZE=2M and
+>> PAGE_SIZE=4K, 0x00 is used for aligned very well address
+>> a user maybe want to map virtual range[0x1ff800, 0x200800) to physical address
+>> 0x300800, it will cause endless loop
 > 
-> I've did some stress tests and sampling
-> /sys/kernel/debug/extfrag/extfrag_index once per second. The lowest
-> value I've got for order-2 was 0.705. The default threshold is 0.5, so
-> this would still result in compaction considered as suitable.
+> Well, we are relying on the kernel to do the sane thing otherwise we
+> would be screwed anyway. If this can be triggered by a userspace then it
+> would be a different story. Just look at how we are doing mmap, we
+> sanitize the page alignment at the high level and the lower level
+> functions just assume sane values.
 > 
-> But it's sampling so I might not got to the interesting moments, most of
-> the time it was -1.000 which means the page should be just available.
-> Also we would be changing behavior for the user-controlled
-> vm.extfrag_threshold, so I'm not entirely sure about that.
+ioremap_page_range() is exported by EXPORT_SYMBOL_GPL() as a kernel interface
+so perhaps it is called by not only any kernel module authors but also other
+kernel parts
 
-Does anybody depend on that or even use it out there? I strongly suspect
-this is one of those dark corners people even do not know they exist...
+if the bad range is used by a careless kernel user really, it seems a better
+choice to alert the warning message or panic the kernel than hanging the system
+due to endless loop, it can help them locate problem usefully
 
-> I could probably reduce the churn so that compaction_suitable() doesn't
-> need a new parameter. We could just skip compaction_suitable() check
-> from compact_zone() on the highest priority, and go on even without
-> sufficient free page gap?
+so additional sane check BUG_ON(!PAGE_ALIGNED(addr) || !PAGE_ALIGNED(end))
+is appended to existing check BUG_ON(addr >= end)
 
-Whatever makes the code easier to understand. Please do not take me
-wrong I do not want to push back on this too hard I just always love to
-get rid of an obscure heuristic which even might not matter. And as your
-testing suggests this might really be the case for !costly orders AFAIU.
--- 
-Michal Hocko
-SUSE Labs
+>>>> in order to fix this issue and alert improper range parameters to user
+>>>> WARN_ON() checkup and rounding down range lower boundary are performed
+>>>> firstly, loop end condition within ioremap_pte_range() is optimized due
+>>>> to lack of relevant macro pte_addr_end()
+>>>>
+>>>> Signed-off-by: zijun_hu <zijun_hu@htc.com>
+>>>> ---
+>>>>  lib/ioremap.c | 4 +++-
+>>>>  1 file changed, 3 insertions(+), 1 deletion(-)
+>>>>
+>>>> diff --git a/lib/ioremap.c b/lib/ioremap.c
+>>>> index 86c8911..911bdca 100644
+>>>> --- a/lib/ioremap.c
+>>>> +++ b/lib/ioremap.c
+>>>> @@ -64,7 +64,7 @@ static int ioremap_pte_range(pmd_t *pmd, unsigned long addr,
+>>>>  		BUG_ON(!pte_none(*pte));
+>>>>  		set_pte_at(&init_mm, addr, pte, pfn_pte(pfn, prot));
+>>>>  		pfn++;
+>>>> -	} while (pte++, addr += PAGE_SIZE, addr != end);
+>>>> +	} while (pte++, addr += PAGE_SIZE, addr < end && addr >= PAGE_SIZE);
+>>>>  	return 0;
+>>>>  }
+>>>
+>>> Ble, this just overcomplicate things. Can we just make sure that the
+>>> proper alignment is done in ioremap_page_range which is the only caller
+>>> of this (and add VM_BUG_ON in ioremap_pud_range to make sure no new
+>>> caller will forget about that).
+>>>
+>>   this complicate express is used to avoid addr overflow, consider map
+>>   virtual rang [0xffe00800, 0xfffff800) for 32bit machine
+>>   actually, my previous approach is just like that you pointed mailed at 20/09
+>>   as below, besides, i apply my previous approach for mm/vmalloc.c and 
+>>   npiggin@gmail.com have "For API functions perhaps it's reasonable" comments
+>>   i don't tell which is better
+>>
+>>  diff --git a/lib/ioremap.c b/lib/ioremap.c 
+>>  --- a/lib/ioremap.c 
+>>  +++ b/lib/ioremap.c 
+>>  @@ -64,7 +64,7 @@ static int ioremap_pte_range(pmd_t *pmd, unsigned long addr, 
+>>          BUG_ON(!pte_none(*pte)); 
+>>          set_pte_at(&init_mm, addr, pte, pfn_pte(pfn, prot)); 
+>>          pfn++; 
+>>  -    } while (pte++, addr += PAGE_SIZE, addr != end); 
+>>  +    } while (pte++, addr += PAGE_SIZE, addr < end); 
+>>      return 0; 
+>>  } 
+> 
+> yes this looks good to me
+> 
+>>  
+>>  @@ -129,6 +129,7 @@ int ioremap_page_range(unsigned long addr, 
+>>      int err; 
+>>  
+>>      BUG_ON(addr >= end); 
+>>  +   BUG_ON(!PAGE_ALIGNED(addr) || !PAGE_ALIGNED(end));
+> 
+> Well, BUG_ON is rather harsh for something that would be trivially
+> fixable.
+> 
+i append the additional BUG_ON() by resembling exiting BUG_ON(addr >= end);
+>>  
+>>      start = addr; 
+>>      phys_addr -= addr; 
+>>  
+>>>>  
+>>>> @@ -129,7 +129,9 @@ int ioremap_page_range(unsigned long addr,
+>>>>  	int err;
+>>>>  
+>>>>  	BUG_ON(addr >= end);
+>>>> +	WARN_ON(!PAGE_ALIGNED(addr) || !PAGE_ALIGNED(end));
+>>>
+>>> maybe WARN_ON_ONCE would be sufficient to prevent from swamping logs if
+>>> something just happens to do this too often in some pathological path.
+>>>
+>> if WARN_ON_ONCE is used, the later bad ranges for many other purposes can't
+>> be alerted, and ioremap_page_range() can map large enough ranges so not too many
+>> calls happens for a purpose
+>>>>  
+>>>> +	addr = round_down(addr, PAGE_SIZE);
+>>>
+>>> 	end = round_up(end, PAGE_SIZE);
+>>>
+>>> wouldn't work?
+>>>
+>> no, it don't work for many special case
+>> for example, provided  PMD_SIZE=2M
+>> mapping [0x1f8800, 0x208800) virtual range will be split to two ranges
+>> [0x1f8800, 0x200000) and [0x200000,0x208800) and map them separately
+>> the first range will cause dead loop
+> 
+> I am not sure I see your point. How can we deadlock if _both_ addresses
+> get aligned to the page boundary and how does PMD_SIZE make any
+> difference.
+> 
+i will take a example to illustrate my considerations
+provided PUD_SIZE == 1G, PMD_SIZE == 2M, PAGE_SIZE == 4K
+it is used by arm64 normally
+
+we want to map virtual range [0xffffffff_ffc08800, 0xffffffff_fffff800) by
+ioremap_page_range(),ioremap_pmd_range() is called to map the range
+finally, ioremap_pmd_range() will call
+ioremap_pte_range(pmd, 0xffffffff_ffc08800, 0xffffffff_fffe0000) and
+ioremap_pte_range(pmd, 0xffffffff_fffe0000, 0xffffffff fffff800) separately
+
+let's loop end condition(pte++, addr += PAGE_SIZE, addr != end) within
+ioremap_pte_range() for the two ioremap_pte_range() calls separately
+
+for ioremap_pte_range(pmd, 0xffffffff_ffc08800, 0xffffffff_fffe0000)
+addr != end don't end the while loop due to parameter addr = 0xffffffff_ffc08800
+is not page aligned, even any number of PAGE_SIZE is added to addr, addr can't 
+equal to page aligned parameter end 0xffffffff_fffe0000
+
+so we change the "addr != end" to "addr < end"
+
+for ioremap_pte_range(pmd, 0xffffffff_fffe0000, 0xffffffff fffff800)
+let us consider the state after the final page with the range is mapped via 
+a number of while loops, at that moment, addr == 0xffffffff_fffff000, 
+end == 0xffffffff_fffff800, let us see the fixed loop end condition
+(pte++, addr += PAGE_SIZE, addr < end), addr overflow to 0 after PAGE_SIZE is added
+, it cause the condition is true and loop continues, it should be terminated the loop
+
+so we correct the "addr < end" to "addr < end && addr >= PAGE_SIZE"
+
+in summary, there are two approaches for fixing this issue
+i don't tell which is better
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
