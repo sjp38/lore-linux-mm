@@ -1,58 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 45B536B0281
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 05:33:18 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id wk8so193674737pab.3
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 02:33:18 -0700 (PDT)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id l14si6551270pfi.217.2016.09.23.02.33.17
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E4866B0286
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 05:44:55 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id n4so54694057lfb.3
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 02:44:55 -0700 (PDT)
+Received: from smtp-out6.electric.net (smtp-out6.electric.net. [192.162.217.189])
+        by mx.google.com with ESMTPS id o140si3170017lff.163.2016.09.23.02.44.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Sep 2016 02:33:17 -0700 (PDT)
-Received: by mail-pf0-x242.google.com with SMTP id q2so5025190pfj.0
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 02:33:17 -0700 (PDT)
-Subject: Re: [RFC PATCH v1 09/28] x86/efi: Access EFI data as encrypted when
- SEV is active
-References: <147190820782.9523.4967724730957229273.stgit@brijesh-build-machine>
- <147190832511.9523.10850626471583956499.stgit@brijesh-build-machine>
- <20160922143545.3kl7khff6vqk7b2t@pd.tnic>
- <443d06f5-2db5-5107-296f-94fabd209407@amd.com>
- <45a56110-95e9-e1f3-83ab-e777b48bf79a@redhat.com>
- <20160922183759.7ahw2kbxit3epnzk@pd.tnic>
-From: Kai Huang <kaih.linux@gmail.com>
-Message-ID: <c2f7bb1d-cf3c-2373-c563-a1e72ff7b83a@gmail.com>
-Date: Fri, 23 Sep 2016 21:33:00 +1200
+        Fri, 23 Sep 2016 02:44:53 -0700 (PDT)
+From: David Laight <David.Laight@ACULAB.COM>
+Subject: RE: [PATCH v2] fs/select: add vmalloc fallback for select(2)
+Date: Fri, 23 Sep 2016 09:42:07 +0000
+Message-ID: <063D6719AE5E284EB5DD2968C1650D6DB0107DC8@AcuExch.aculab.com>
+References: <20160922164359.9035-1-vbabka@suse.cz>
+ <1474562982.23058.140.camel@edumazet-glaptop3.roam.corp.google.com>
+ <12efc491-a0e7-1012-5a8b-6d3533c720db@suse.cz>
+ <1474564068.23058.144.camel@edumazet-glaptop3.roam.corp.google.com>
+ <a212f313-1f34-7c83-3aab-b45374875493@suse.cz>
+In-Reply-To: <a212f313-1f34-7c83-3aab-b45374875493@suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <20160922183759.7ahw2kbxit3epnzk@pd.tnic>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@suse.de>, Paolo Bonzini <pbonzini@redhat.com>
-Cc: Tom Lendacky <thomas.lendacky@amd.com>, Brijesh Singh <brijesh.singh@amd.com>, simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linus.walleij@linaro.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, dyoung@redhat.com, jroedel@suse.de, keescook@chromium.org, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, devel@linuxdriverproject.org, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com, alexandre.bounine@idt.com, kuleshovmail@gmail.com, linux-kernel@vger.kernel.org, mcgrof@kernel.org, linux-crypto@vger.kernel.org, akpm@linux-foundation.org, davem@davemloft.net
+To: 'Vlastimil Babka' <vbabka@suse.cz>, Eric Dumazet <eric.dumazet@gmail.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, "linux-man@vger.kernel.org" <linux-man@vger.kernel.org>
 
-
-
-On 23/09/16 06:37, Borislav Petkov wrote:
-> On Thu, Sep 22, 2016 at 08:23:36PM +0200, Paolo Bonzini wrote:
->> Unless this is part of some spec, it's easier if things are the same in
->> SME and SEV.
-> Yeah, I was pondering over how sprinkling sev_active checks might not be
-> so clean.
->
-> I'm wondering if we could make the EFI regions presented to the guest
-> unencrypted too, as part of some SEV-specific init routine so that the
-> guest kernel doesn't need to do anything different.
-How is this even possible? The spec clearly says under SEV only in long 
-mode or PAE mode guest can control whether memory is encrypted via 
-c-bit, and in other modes guest will be always in encrypted mode. Guest 
-EFI is also virtual, so are you suggesting EFI code (or code which loads 
-EFI) should also be modified to load EFI as unencrypted? Looks it's not 
-even possible to happen.
-
-Thanks,
--Kai
->
+RnJvbTogVmxhc3RpbWlsIEJhYmthDQo+IFNlbnQ6IDIyIFNlcHRlbWJlciAyMDE2IDE4OjU1DQou
+Li4NCj4gU28gaW4gdGhlIGNhc2Ugb2Ygc2VsZWN0KCkgaXQgc2VlbXMgbGlrZSB0aGUgbWVtb3J5
+IHdlIG5lZWQgNiBiaXRzIHBlciBmaWxlDQo+IGRlc2NyaXB0b3IsIG11bHRpcGxpZWQgYnkgdGhl
+IGhpZ2hlc3QgcG9zc2libGUgZmlsZSBkZXNjcmlwdG9yIChuZmRzKSBhcyBwYXNzZWQNCj4gdG8g
+dGhlIHN5c2NhbGwuIEFjY29yZGluZyB0byB0aGUgbWFuIHBhZ2Ugb2Ygc2VsZWN0Og0KPiANCj4g
+ICAgICAgICBFSU5WQUwgbmZkcyBpcyBuZWdhdGl2ZSBvciBleGNlZWRzIHRoZSBSTElNSVRfTk9G
+SUxFIHJlc291cmNlIGxpbWl0IChzZWUNCj4gZ2V0cmxpbWl0KDIpKS4NCg0KVGhhdCBzZWNvbmQg
+Y2xhdXNlIGlzIHJlbGF0aXZlbHkgcmVjZW50Lg0KDQo+IFRoZSBjb2RlIGFjdHVhbGx5IHNlZW1z
+IHRvIHNpbGVudGx5IGNhcCB0aGUgdmFsdWUgaW5zdGVhZCBvZiByZXR1cm5pbmcgRUlOVkFMDQo+
+IHRob3VnaD8gKElJVUMpOg0KPiANCj4gICAgICAgICAvKiBtYXhfZmRzIGNhbiBpbmNyZWFzZSwg
+c28gZ3JhYiBpdCBvbmNlIHRvIGF2b2lkIHJhY2UgKi8NCj4gICAgICAgICAgcmN1X3JlYWRfbG9j
+aygpOw0KPiAgICAgICAgICBmZHQgPSBmaWxlc19mZHRhYmxlKGN1cnJlbnQtPmZpbGVzKTsNCj4g
+ICAgICAgICAgbWF4X2ZkcyA9IGZkdC0+bWF4X2ZkczsNCj4gICAgICAgICAgcmN1X3JlYWRfdW5s
+b2NrKCk7DQo+ICAgICAgICAgIGlmIChuID4gbWF4X2ZkcykNCj4gICAgICAgICAgICAgICAgICBu
+ID0gbWF4X2ZkczsNCj4gDQo+IFRoZSBkZWZhdWx0IGZvciB0aGlzIGNhcCBzZWVtcyB0byBiZSAx
+MDI0IHdoZXJlIEkgY2hlY2tlZCAoYWdhaW4sIElJVUMsIGl0J3MNCj4gd2hhdCB1bGltaXQgLW4g
+cmV0dXJucz8pLiBJIHdhc24ndCBhYmxlIHRvIGNoYW5nZSBpdCB0byBtb3JlIHRoYW4gMjA0OCwg
+d2hpY2gNCj4gbWFrZXMgdGhlIGJpdG1hcHMgc3RpbGwgYmVsb3cgUEFHRV9TSVpFLg0KPiANCj4g
+U28gaWYgSSBnZXQgdGhhdCByaWdodCwgdGhlIHN5c3RlbSBhZG1pbiB3b3VsZCBoYXZlIHRvIGFs
+bG93IHJlYWxseSBsYXJnZQ0KPiBSTElNSVRfTk9GSUxFIHRvIGV2ZW4gbWFrZSB2bWFsbG9jKCkg
+cG9zc2libGUgaGVyZS4gU28gSSBkb24ndCBzZWUgaXQgYXMgYSBsYXJnZQ0KPiBjb25jZXJuPw0K
+DQo0ayBvcGVuIGZpbGVzIGlzbid0IHRoYXQgbWFueS4NCkVzcGVjaWFsbHkgZm9yIHByb2dyYW1z
+IHRoYXQgYXJlIHVzaW5nIHBpcGVzIHRvIGVtdWxhdGUgd2luZG93cyBldmVudHMuDQoNCkkgc3Vz
+cGVjdCB0aGF0IGZkdC0+bWF4X2ZkcyBpcyBhbiB1cHBlciBib3VuZCBmb3IgdGhlIGhpZ2hlc3Qg
+ZmQgdGhlDQpwcm9jZXNzIGhhcyBvcGVuIC0gbm90IHRoZSBSTElNSVRfTk9GSUxFIHZhbHVlLg0K
+c2VsZWN0KCkgc2hvdWxkbid0IGJlIHNpbGVudGx5IGlnbm9yaW5nIGxhcmdlIHZhbHVlcyBvZiAn
+bicgdW5sZXNzDQp0aGUgZmRfc2V0IGJpdHMgYXJlIHplcm8uDQoNCk9mIGNvdXJzZSwgc2VsZWN0
+IGRvZXMgc2NhbGUgd2VsbCBmb3IgaGlnaCBudW1iZXJlZCBmZHMNCmFuZCBuZWl0aGVyIHBvbGwg
+bm9yIHNlbGVjdCBzY2FsZSB3ZWxsIGZvciBsYXJnZSBudW1iZXJzIG9mIGZkcy4NCg0KCURhdmlk
+DQoNCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
