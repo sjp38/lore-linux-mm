@@ -1,58 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D1676B0283
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 11:54:53 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id u18so39181901ita.2
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 08:54:53 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 27si9394881iot.201.2016.09.23.08.54.52
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 83A666B0286
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 12:06:11 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id 21so232484417pfy.3
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 09:06:11 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id o63si8412329pfi.291.2016.09.23.09.06.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Sep 2016 08:54:52 -0700 (PDT)
-Date: Fri, 23 Sep 2016 17:53:51 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH v3 1/2] mm, proc: Fix region lost in /proc/self/smaps
-Message-ID: <20160923155351.GA1584@redhat.com>
-References: <1474636354-25573-1-git-send-email-robert.hu@intel.com> <20160923135635.GB28734@redhat.com> <20160923145301.GU4478@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 23 Sep 2016 09:06:10 -0700 (PDT)
+Subject: Re: [PATCH v3 2/2] Documentation/filesystems/proc.txt: Add more
+ description for maps/smaps
+References: <1474636354-25573-1-git-send-email-robert.hu@intel.com>
+ <1474636354-25573-2-git-send-email-robert.hu@intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <57E552F2.4030302@intel.com>
+Date: Fri, 23 Sep 2016 09:06:10 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160923145301.GU4478@dhcp22.suse.cz>
+In-Reply-To: <1474636354-25573-2-git-send-email-robert.hu@intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Robert Ho <robert.hu@intel.com>, pbonzini@redhat.com, akpm@linux-foundation.org, dan.j.williams@intel.com, dave.hansen@intel.com, guangrong.xiao@linux.intel.com, gleb@kernel.org, mtosatti@redhat.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, stefanha@redhat.com, yuhuang@redhat.com, linux-mm@kvack.org, ross.zwisler@linux.intel.com
+To: Robert Ho <robert.hu@intel.com>, pbonzini@redhat.com, akpm@linux-foundation.org, mhocko@suse.com, oleg@redhat.com, dan.j.williams@intel.com
+Cc: guangrong.xiao@linux.intel.com, gleb@kernel.org, mtosatti@redhat.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, stefanha@redhat.com, yuhuang@redhat.com, linux-mm@kvack.org, ross.zwisler@linux.intel.com
 
-On 09/23, Michal Hocko wrote:
->
-> On Fri 23-09-16 15:56:36, Oleg Nesterov wrote:
-> > 
-> > I think we can simplify this patch. And imo make it better. How about
-> 
-> it is certainly less subtle because it doesn't report "sub-vmas".
-> 
-> > 	if (last_addr) {
-> > 		vma = find_vma(mm, last_addr - 1);
-> > 		if (vma && vma->vm_start <= last_addr)
-> > 			vma = m_next_vma(priv, vma);
-> > 		if (vma)
-> > 			return vma;
-> > 	}
-> 
-> we would still miss a VMA if the last one got shrunk/split
+On 09/23/2016 06:12 AM, Robert Ho wrote:
+> +Note: for both /proc/PID/maps and /proc/PID/smaps readings, it's
+> +possible in race conditions, that the mappings printed may not be that
+> +up-to-date, because during each read walking, the task's mappings may have
+> +changed, this typically happens in multithread cases. But anyway in each single
+> +read these can be guarunteed: 1) the mapped addresses doesn't go backward; 2) no
+> +overlaps 3) if there is something at a given vaddr during the entirety of the
+> +life of the smaps/maps walk, there will be some output for it.
 
-Not sure I understand what you mean... If the last one was split
-we probably should not report the new vma. Nevermind, in any case
-yes, sure, this can't "fix" other corner cases.
+Could we spuce this description up a bit?  Perhaps:
 
-> So definitely an improvement but
-> I guess we really want to document that only full reads provide a
-> consistent (at some moment in time) output.
-
-or all the threads were stopped. Agreed. And again, this applies to
-any file in /proc.
-
-Oleg.
+Note: reading /proc/PID/maps or /proc/PID/smaps is inherently racy.
+This typically manifests when doing partial reads of these files while
+the memory map is being modified.  Despite the races, we do provide the
+following guarantees:
+1) The mapped addresses never go backwards, which implies no two
+   regions will ever overlap.
+2) If there is something at a given vaddr during the entirety of the
+   life of the smaps/maps walk, there will be some output for it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
