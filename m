@@ -1,64 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 100456B027A
-	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 22:32:44 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id mi5so180736126pab.2
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 19:32:44 -0700 (PDT)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id n84si5090811pfj.223.2016.09.22.19.32.43
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F3796B027B
+	for <linux-mm@kvack.org>; Thu, 22 Sep 2016 22:33:42 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id e1so7263683itb.1
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 19:33:42 -0700 (PDT)
+Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com. [2607:f8b0:400e:c03::230])
+        by mx.google.com with ESMTPS id o14si1277338itb.13.2016.09.22.19.33.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Sep 2016 19:32:43 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -v3 00/10] THP swap: Delay splitting THP during swapping out
-References: <1473266769-2155-1-git-send-email-ying.huang@intel.com>
-	<20160922225608.GA3898@kernel.org>
-	<1474591086.17726.1.camel@redhat.com>
-Date: Fri, 23 Sep 2016 10:32:39 +0800
-In-Reply-To: <1474591086.17726.1.camel@redhat.com> (Rik van Riel's message of
-	"Thu, 22 Sep 2016 20:38:06 -0400")
-Message-ID: <87d1jvuz08.fsf@yhuang-dev.intel.com>
+        Thu, 22 Sep 2016 19:33:41 -0700 (PDT)
+Received: by mail-pa0-x230.google.com with SMTP id hm5so35123832pac.0
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 19:33:41 -0700 (PDT)
+Date: Thu, 22 Sep 2016 19:33:34 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 1/2] shmem: fix tmpfs to handle the huge= option
+ properly
+In-Reply-To: <8737ksw69p.fsf@linux.vnet.ibm.com>
+Message-ID: <alpine.LSU.2.11.1609221904020.19987@eggly.anvils>
+References: <1473459863-11287-1-git-send-email-toshi.kani@hpe.com> <1473459863-11287-2-git-send-email-toshi.kani@hpe.com> <8737ksw69p.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Shaohua Li <shli@kernel.org>, "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Toshi Kani <toshi.kani@hpe.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, dan.j.williams@intel.com, mawilcox@microsoft.com, hughd@google.com, kirill.shutemov@linux.intel.com, linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Rik van Riel <riel@redhat.com> writes:
+On Thu, 22 Sep 2016, Aneesh Kumar K.V wrote:
+> Toshi Kani <toshi.kani@hpe.com> writes:
+> 
+> > shmem_get_unmapped_area() checks SHMEM_SB(sb)->huge incorrectly,
+> > which leads to a reversed effect of "huge=" mount option.
+> >
+> > Fix the check in shmem_get_unmapped_area().
+> >
+> > Note, the default value of SHMEM_SB(sb)->huge remains as
+> > SHMEM_HUGE_NEVER.  User will need to specify "huge=" option to
+> > enable huge page mappings.
+> >
+> 
+> Any update on getting this merged ?
+> 
+> Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-> On Thu, 2016-09-22 at 15:56 -0700, Shaohua Li wrote:
->> On Wed, Sep 07, 2016 at 09:45:59AM -0700, Huang, Ying wrote:
->> >A 
->> > - It will help the memory fragmentation, especially when the THP is
->> > A  heavily used by the applications.A A The 2M continuous pages will
->> > be
->> > A  free up after THP swapping out.
->> 
->> So this is impossible without THP swapin. While 2M swapout makes a
->> lot of
->> sense, I doubt 2M swapin is really useful. What kind of application
->> is
->> 'optimized' to do sequential memory access?
->
-> I suspect a lot of this will depend on the ratio of storage
-> speed to CPU & RAM speed.
->
-> When swapping to a spinning disk, it makes sense to avoid
-> extra memory use on swapin, and work in 4kB blocks.
+Yikes, how did we ever not notice this?  Very embarrassing.
 
-For spinning disk, the THP swap optimization will be turned off in
-current implementation.  Because huge swap cluster allocation based on
-swap cluster management, which is available only for non-rotating block
-devices (blk_queue_nonrot()).
+Huge thank you to Hillf for spotting it (only now do I rediscover
+your June mail: I'm sorry, my attention has been fully elsewhere).
 
-> When swapping to NVRAM, it makes sense to use 2MB blocks,
-> because that storage can handle data faster than we can
-> manage 4kB pages in the VM.
+Big thank you to Toshi for sending the patch,
+and to Aneesh for now sounding the alarm.
 
-Best Regards,
-Huang, Ying
+The only reassurance is that at least all the rest of it has
+been under test for the last few months, via the SHMEM_HUGE_FORCE
+override.  So it's not as if none of the code has been tested,
+but I am still mystified why it hasn't been obvious without.
+
+To the patch,
+Acked-by: Hugh Dickins <hughd@google.com>
+but I wish I could dream up a more emphatic tag.
+
+Andrew, please please grab this and send it in!
+
+Thank you,
+Hugh
+
+> 
+> > Reported-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+> > Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > Cc: Hugh Dickins <hughd@google.com>
+> > ---
+> >  mm/shmem.c |    2 +-
+> >  1 file changed, 1 insertion(+), 1 deletion(-)
+> >
+> > diff --git a/mm/shmem.c b/mm/shmem.c
+> > index fd8b2b5..aec5b49 100644
+> > --- a/mm/shmem.c
+> > +++ b/mm/shmem.c
+> > @@ -1980,7 +1980,7 @@ unsigned long shmem_get_unmapped_area(struct file *file,
+> >  				return addr;
+> >  			sb = shm_mnt->mnt_sb;
+> >  		}
+> > -		if (SHMEM_SB(sb)->huge != SHMEM_HUGE_NEVER)
+> > +		if (SHMEM_SB(sb)->huge == SHMEM_HUGE_NEVER)
+> >  			return addr;
+> >  	}
+> >  
+> >
+> > --
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
