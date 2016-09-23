@@ -1,62 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4319D6B0271
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 01:51:01 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id 82so93783936ioh.1
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 22:51:01 -0700 (PDT)
-Received: from mail-it0-x243.google.com (mail-it0-x243.google.com. [2607:f8b0:4001:c0b::243])
-        by mx.google.com with ESMTPS id i123si6740461ioi.78.2016.09.22.22.51.00
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 695486B0272
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 01:53:18 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id wk8so186081858pab.3
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 22:53:18 -0700 (PDT)
+Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
+        by mx.google.com with ESMTPS id 69si6064633pfj.165.2016.09.22.22.53.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 Sep 2016 22:51:00 -0700 (PDT)
-Received: by mail-it0-x243.google.com with SMTP id n143so396286ita.3
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 22:51:00 -0700 (PDT)
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 22 Sep 2016 22:53:17 -0700 (PDT)
+Subject: Re: [PATCH v2 1/1] lib/ioremap.c: avoid endless loop under
+ ioremapping page unaligned ranges
+References: <57E20A69.5010206@zoho.com>
+From: zijun_hu <zijun_hu@zoho.com>
+Message-ID: <57E4C33F.4080401@zoho.com>
+Date: Fri, 23 Sep 2016 13:53:03 +0800
+MIME-Version: 1.0
+In-Reply-To: <57E20A69.5010206@zoho.com>
 Content-Type: text/plain; charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 8.2 \(2104\))
-Subject: Re: [RFC] scripts: Include postprocessing script for memory allocation tracing
-From: Janani Ravichandran <janani.rvchndrn@gmail.com>
-In-Reply-To: <20160919094224.GH10785@dhcp22.suse.cz>
-Date: Thu, 22 Sep 2016 11:30:36 -0400
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <BFAF8DCA-F4A6-41C6-9AA0-C694D33035A3@gmail.com>
-References: <20160911222411.GA2854@janani-Inspiron-3521> <20160912121635.GL14524@dhcp22.suse.cz> <0ACE5927-A6E5-4B49-891D-F990527A9F50@gmail.com> <20160919094224.GH10785@dhcp22.suse.cz>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Janani Ravichandran <janani.rvchndrn@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@surriel.com, akpm@linux-foundation.org, vdavydov@virtuozzo.com, vbabka@suse.cz, mgorman@techsingularity.net, rostedt@goodmis.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com, tj@kernel.org, mingo@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net
 
+On 09/21/2016 12:19 PM, zijun_hu wrote:
+> From: zijun_hu <zijun_hu@htc.com>
+> 
+> endless loop maybe happen if either of parameter addr and end is not
+> page aligned for kernel API function ioremap_page_range()
+> 
+> in order to fix this issue and alert improper range parameters to user
+> WARN_ON() checkup and rounding down range lower boundary are performed
+> firstly, loop end condition within ioremap_pte_range() is optimized due
+> to lack of relevant macro pte_addr_end()
+> 
+> Signed-off-by: zijun_hu <zijun_hu@htc.com>
+> ---
+>  lib/ioremap.c | 4 +++-
+>  1 file changed, 3 insertions(+), 1 deletion(-)
+> 
+> diff --git a/lib/ioremap.c b/lib/ioremap.c
+> index 86c8911..911bdca 100644
+> --- a/lib/ioremap.c
+> +++ b/lib/ioremap.c
+> @@ -64,7 +64,7 @@ static int ioremap_pte_range(pmd_t *pmd, unsigned long addr,
+>  		BUG_ON(!pte_none(*pte));
+>  		set_pte_at(&init_mm, addr, pte, pfn_pte(pfn, prot));
+>  		pfn++;
+> -	} while (pte++, addr += PAGE_SIZE, addr != end);
+> +	} while (pte++, addr += PAGE_SIZE, addr < end && addr >= PAGE_SIZE);
+>  	return 0;
+>  }
+>  
+> @@ -129,7 +129,9 @@ int ioremap_page_range(unsigned long addr,
+>  	int err;
+>  
+>  	BUG_ON(addr >= end);
+> +	WARN_ON(!PAGE_ALIGNED(addr) || !PAGE_ALIGNED(end));
+>  
+> +	addr = round_down(addr, PAGE_SIZE);
+>  	start = addr;
+>  	phys_addr -= addr;
+>  	pgd = pgd_offset_k(addr);
+>
+From: zijun_hu <zijun_hu@htc.com>
 
-> On Sep 19, 2016, at 5:42 AM, Michal Hocko <mhocko@kernel.org> wrote:
->=20
-> On Tue 13-09-16 14:04:49, Janani Ravichandran wrote:
->>=20
->>> On Sep 12, 2016, at 8:16 AM, Michal Hocko <mhocko@kernel.org> wrote:
->>=20
->> I=E2=80=99m using the function graph tracer to see how long =
-__alloc_pages_nodemask()
->> took.
->=20
-> How can you map the function graph tracer to a specif context? Let's =
-say
-> I would like to know why a particular allocation took so long. Would
-> that be possible?
+s/WARN_ON()/WARN_ON_ONCE()/ to reduce warning messages
 
-Maybe not. If the latencies are due to direct reclaim or memory =
-compaction, you
-get some information from the tracepoints (like =
-mm_vmscan_direct_reclaim_begin,
-mm_compaction_begin, etc). But otherwise, you don=E2=80=99t get any =
-context information.=20
-Function graph only gives the time spent in alloc_pages_nodemask() in =
-that case.
+Signed-off-by: zijun_hu <zijun_hu@htc.com>
+---
+ lib/ioremap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
+diff --git a/lib/ioremap.c b/lib/ioremap.c
+index 911bdca..974e88b 100644
+--- a/lib/ioremap.c
++++ b/lib/ioremap.c
+@@ -129,7 +129,7 @@ int ioremap_page_range(unsigned long addr,
+ 	int err;
+ 
+ 	BUG_ON(addr >= end);
+-	WARN_ON(!PAGE_ALIGNED(addr) || !PAGE_ALIGNED(end));
++	WARN_ON_ONCE(!PAGE_ALIGNED(addr) || !PAGE_ALIGNED(end));
+ 
+ 	addr = round_down(addr, PAGE_SIZE);
+ 	start = addr;
+-- 
+1.9.1
 
-Regards,
-Janani.
->=20
-> --=20
-> Michal Hocko
-> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
