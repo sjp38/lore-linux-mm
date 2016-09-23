@@ -1,66 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E89D6B0276
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 08:06:32 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id b130so15457144wmc.2
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 05:06:32 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AB376B027E
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 08:10:02 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id w84so15535373wmg.1
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 05:10:02 -0700 (PDT)
 Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id w2si3062835wmw.0.2016.09.23.05.06.30
+        by mx.google.com with ESMTPS id l2si7297611wjg.109.2016.09.23.05.10.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Sep 2016 05:06:31 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id l132so2466308wmf.1
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 05:06:30 -0700 (PDT)
-Date: Fri, 23 Sep 2016 14:06:29 +0200
+        Fri, 23 Sep 2016 05:10:01 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id b184so2481652wma.3
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 05:10:00 -0700 (PDT)
+Date: Fri, 23 Sep 2016 14:09:59 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/4] mm, compaction: more reliably increase direct
- compaction priority
-Message-ID: <20160923120629.GL4478@dhcp22.suse.cz>
-References: <20160906135258.18335-3-vbabka@suse.cz>
- <20160921171348.GF24210@dhcp22.suse.cz>
- <f1670976-b4da-5d2c-0a85-37f9a87d6868@suse.cz>
- <20160922140821.GG11875@dhcp22.suse.cz>
- <20160922145237.GH11875@dhcp22.suse.cz>
- <1f47ebe3-61bc-ba8a-defb-9fd8e78614d7@suse.cz>
- <005b01d2154f$8d38b830$a7aa2890$@alibaba-inc.com>
- <98b0c783-28dc-62c4-5a94-74c9e27bebe0@suse.cz>
- <20160923082312.GD4478@dhcp22.suse.cz>
- <03ee39d2-1bf2-802f-deca-5379f73fecfb@suse.cz>
+Subject: Re: [PATCH 0/4] reintroduce compaction feedback for OOM decisions
+Message-ID: <20160923120958.GM4478@dhcp22.suse.cz>
+References: <20160906135258.18335-1-vbabka@suse.cz>
+ <20160921171830.GH24210@dhcp22.suse.cz>
+ <56f2c2ed-8a58-cf9c-dd00-c0d0e274607a@suse.cz>
+ <20160923082627.GE4478@dhcp22.suse.cz>
+ <9194950c-06b5-31d7-de17-1f8710dd5682@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <03ee39d2-1bf2-802f-deca-5379f73fecfb@suse.cz>
+In-Reply-To: <9194950c-06b5-31d7-de17-1f8710dd5682@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Arkadiusz Miskiewicz' <a.miskiewicz@gmail.com>, 'Ralf-Peter Rohbeck' <Ralf-Peter.Rohbeck@quantum.com>, 'Olaf Hering' <olaf@aepfle.de>, linux-kernel@vger.kernel.org, 'Linus Torvalds' <torvalds@linux-foundation.org>, linux-mm@kvack.org, 'Mel Gorman' <mgorman@techsingularity.net>, 'Joonsoo Kim' <iamjoonsoo.kim@lge.com>, 'David Rientjes' <rientjes@google.com>, 'Rik van Riel' <riel@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Olaf Hering <olaf@aepfle.de>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Mel Gorman <mgorman@techsingularity.net>, Rik van Riel <riel@redhat.com>
 
-On Fri 23-09-16 12:47:23, Vlastimil Babka wrote:
-> On 09/23/2016 10:23 AM, Michal Hocko wrote:
-> > On Fri 23-09-16 08:55:33, Vlastimil Babka wrote:
-> > [...]
-> >> >From 1623d5bd441160569ffad3808aeeec852048e558 Mon Sep 17 00:00:00 2001
-> >> From: Vlastimil Babka <vbabka@suse.cz>
-> >> Date: Thu, 22 Sep 2016 17:02:37 +0200
-> >> Subject: [PATCH] mm, page_alloc: pull no_progress_loops update to
-> >>  should_reclaim_retry()
-> >>
-> >> The should_reclaim_retry() makes decisions based on no_progress_loops, so it
-> >> makes sense to also update the counter there. It will be also consistent with
-> >> should_compact_retry() and compaction_retries. No functional change.
-> >>
-> >> [hillf.zj@alibaba-inc.com: fix missing pointer dereferences]
-> >> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> >> Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+On Fri 23-09-16 12:55:23, Vlastimil Babka wrote:
+> On 09/23/2016 10:26 AM, Michal Hocko wrote:
+> >>  include/linux/compaction.h |  5 +++--
+> >>  mm/compaction.c            | 44 +++++++++++++++++++++++---------------------
+> >>  mm/internal.h              |  1 +
+> >>  mm/vmscan.c                |  6 ++++--
+> >>  4 files changed, 31 insertions(+), 25 deletions(-)
 > > 
-> > OK, this looks reasonable to me. Could you post both patches in a
+> > This is much more code churn than I expected. I was thiking about it
+> > some more and I am really wondering whether it actually make any sense
+> > to check the fragidx for !costly orders. Wouldn't it be much simpler to
+> > just put it out of the way for those regardless of the compaction
+> > priority. In other words does this check makes any measurable difference
+> > for !costly orders?
 > 
-> Both? I would argue that [1] might be relevant because it resets the
-> number of retries. Only the should_reclaim_retry() cleanup is not
-> stricly needed.
+> I've did some stress tests and sampling
+> /sys/kernel/debug/extfrag/extfrag_index once per second. The lowest
+> value I've got for order-2 was 0.705. The default threshold is 0.5, so
+> this would still result in compaction considered as suitable.
+> 
+> But it's sampling so I might not got to the interesting moments, most of
+> the time it was -1.000 which means the page should be just available.
+> Also we would be changing behavior for the user-controlled
+> vm.extfrag_threshold, so I'm not entirely sure about that.
 
-Even if it is needed which I am not really sure about it would be
-easier to track than in the middle of another thread.
+Does anybody depend on that or even use it out there? I strongly suspect
+this is one of those dark corners people even do not know they exist...
+
+> I could probably reduce the churn so that compaction_suitable() doesn't
+> need a new parameter. We could just skip compaction_suitable() check
+> from compact_zone() on the highest priority, and go on even without
+> sufficient free page gap?
+
+Whatever makes the code easier to understand. Please do not take me
+wrong I do not want to push back on this too hard I just always love to
+get rid of an obscure heuristic which even might not matter. And as your
+testing suggests this might really be the case for !costly orders AFAIU.
 -- 
 Michal Hocko
 SUSE Labs
