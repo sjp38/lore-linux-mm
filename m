@@ -1,72 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1479228024B
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 10:36:32 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id 92so61939527iom.3
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 07:36:32 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id r124si4717795itg.109.2016.09.23.07.36.31
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D7BB28024B
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 10:39:10 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id b130so19670136wmc.2
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 07:39:10 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id f70si3634627wmd.26.2016.09.23.07.39.09
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 23 Sep 2016 07:36:31 -0700 (PDT)
-Subject: Re: [PATCH] mm: warn about allocations which stall for too long
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20160923081555.14645-1-mhocko@kernel.org>
-In-Reply-To: <20160923081555.14645-1-mhocko@kernel.org>
-Message-Id: <201609232336.FIH57364.FOVHtMFQLFSJOO@I-love.SAKURA.ne.jp>
-Date: Fri, 23 Sep 2016 23:36:22 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Sep 2016 07:39:09 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id b184so3141799wma.3
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 07:39:09 -0700 (PDT)
+Date: Fri, 23 Sep 2016 16:39:08 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3 1/2] mm, proc: Fix region lost in /proc/self/smaps
+Message-ID: <20160923143907.GT4478@dhcp22.suse.cz>
+References: <1474636354-25573-1-git-send-email-robert.hu@intel.com>
+ <20160923135051.GQ4478@dhcp22.suse.cz>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160923135051.GQ4478@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, linux-mm@kvack.org
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, linux-kernel@vger.kernel.org, mhocko@suse.com
+To: Robert Ho <robert.hu@intel.com>
+Cc: pbonzini@redhat.com, akpm@linux-foundation.org, oleg@redhat.com, dan.j.williams@intel.com, dave.hansen@intel.com, guangrong.xiao@linux.intel.com, gleb@kernel.org, mtosatti@redhat.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, stefanha@redhat.com, yuhuang@redhat.com, linux-mm@kvack.org, ross.zwisler@linux.intel.com
 
-Michal Hocko wrote:
-> @@ -3659,6 +3661,15 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	else
->  		no_progress_loops++;
->  
-> +	/* Make sure we know about allocations which stall for too long */
-> +	if (!(gfp_mask & __GFP_NOWARN) && time_after(jiffies, alloc_start + stall_timeout)) {
+On Fri 23-09-16 15:50:51, Michal Hocko wrote:
+> On Fri 23-09-16 21:12:33, Robert Ho wrote:
+[...]
+> > @@ -786,7 +791,7 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
+> >  		   "KernelPageSize: %8lu kB\n"
+> >  		   "MMUPageSize:    %8lu kB\n"
+> >  		   "Locked:         %8lu kB\n",
+> > -		   (vma->vm_end - vma->vm_start) >> 10,
+> > +		   (vma->vm_end - max(vma->vm_start, m->version)) >> 10,
+> >  		   mss.resident >> 10,
+> >  		   (unsigned long)(mss.pss >> (10 + PSS_SHIFT)),
+> >  		   mss.shared_clean  >> 10,
 
-Should we check !__GFP_NOWARN ? I think __GFP_NOWARN is likely used with
-__GFP_NORETRY, and __GFP_NORETRY is already checked by now.
-
-I think printing warning regardless of __GFP_NOWARN is better because
-this check is similar to hungtask warning.
-
-> +		pr_warn("%s: page alloction stalls for %ums: order:%u mode:%#x(%pGg)\n",
-> +				current->comm, jiffies_to_msecs(jiffies-alloc_start),
-> +				order, gfp_mask, &gfp_mask);
-> +		stall_timeout += 10 * HZ;
-> +		dump_stack();
-
-Can we move this pr_warn() + dump_stack() to a separate function like
-
-static void __warn_memalloc_stall(unsigned int order, gfp_t gfp_mask, unsigned long alloc_start)
-{
-	pr_warn("%s: page alloction stalls for %ums: order:%u mode:%#x(%pGg)\n",
-		current->comm, jiffies_to_msecs(jiffies-alloc_start),
-		order, gfp_mask, &gfp_mask);
-	dump_stack();
-}
-
-in order to allow SystemTap scripts to perform additional actions by name (e.g.
-
-# stap -g -e 'probe kernel.function("__warn_memalloc_stall").return { panic(); }
-
-) rather than by line number, and surround __warn_memalloc_stall() call with
-mutex in order to serialize warning messages because it is possible that
-multiple allocation requests are stalling?
-
-> +	}
-> +
->  	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
->  				 did_some_progress > 0, no_progress_loops))
->  		goto retry;
-> -- 
-> 2.9.3
+And forgot to mention that this is not sufficient either. You also need
+to restrict the pte walk to get sane numbers...
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
