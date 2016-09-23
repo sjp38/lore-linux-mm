@@ -1,49 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D7BB28024B
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 10:39:10 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id b130so19670136wmc.2
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 07:39:10 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id f70si3634627wmd.26.2016.09.23.07.39.09
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AEC9E28024B
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 10:42:06 -0400 (EDT)
+Received: by mail-yw0-f197.google.com with SMTP id t67so245127649ywg.3
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 07:42:06 -0700 (PDT)
+Received: from mail-yw0-x244.google.com (mail-yw0-x244.google.com. [2607:f8b0:4002:c05::244])
+        by mx.google.com with ESMTPS id p134si3085404ywp.82.2016.09.23.07.42.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 23 Sep 2016 07:39:09 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id b184so3141799wma.3
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 07:39:09 -0700 (PDT)
-Date: Fri, 23 Sep 2016 16:39:08 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v3 1/2] mm, proc: Fix region lost in /proc/self/smaps
-Message-ID: <20160923143907.GT4478@dhcp22.suse.cz>
-References: <1474636354-25573-1-git-send-email-robert.hu@intel.com>
- <20160923135051.GQ4478@dhcp22.suse.cz>
+        Fri, 23 Sep 2016 07:42:06 -0700 (PDT)
+Received: by mail-yw0-x244.google.com with SMTP id u82so6015000ywc.2
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 07:42:06 -0700 (PDT)
+Date: Fri, 23 Sep 2016 10:42:02 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 1/1] lib/ioremap.c: avoid endless loop under ioremapping
+ page unaligned ranges
+Message-ID: <20160923144202.GA31387@htj.duckdns.org>
+References: <57E20A69.5010206@zoho.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160923135051.GQ4478@dhcp22.suse.cz>
+In-Reply-To: <57E20A69.5010206@zoho.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robert Ho <robert.hu@intel.com>
-Cc: pbonzini@redhat.com, akpm@linux-foundation.org, oleg@redhat.com, dan.j.williams@intel.com, dave.hansen@intel.com, guangrong.xiao@linux.intel.com, gleb@kernel.org, mtosatti@redhat.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, stefanha@redhat.com, yuhuang@redhat.com, linux-mm@kvack.org, ross.zwisler@linux.intel.com
+To: zijun_hu <zijun_hu@zoho.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com, mingo@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net
 
-On Fri 23-09-16 15:50:51, Michal Hocko wrote:
-> On Fri 23-09-16 21:12:33, Robert Ho wrote:
-[...]
-> > @@ -786,7 +791,7 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
-> >  		   "KernelPageSize: %8lu kB\n"
-> >  		   "MMUPageSize:    %8lu kB\n"
-> >  		   "Locked:         %8lu kB\n",
-> > -		   (vma->vm_end - vma->vm_start) >> 10,
-> > +		   (vma->vm_end - max(vma->vm_start, m->version)) >> 10,
-> >  		   mss.resident >> 10,
-> >  		   (unsigned long)(mss.pss >> (10 + PSS_SHIFT)),
-> >  		   mss.shared_clean  >> 10,
+Hello,
 
-And forgot to mention that this is not sufficient either. You also need
-to restrict the pte walk to get sane numbers...
+On Wed, Sep 21, 2016 at 12:19:53PM +0800, zijun_hu wrote:
+> From: zijun_hu <zijun_hu@htc.com>
+> 
+> endless loop maybe happen if either of parameter addr and end is not
+> page aligned for kernel API function ioremap_page_range()
+> 
+> in order to fix this issue and alert improper range parameters to user
+> WARN_ON() checkup and rounding down range lower boundary are performed
+> firstly, loop end condition within ioremap_pte_range() is optimized due
+> to lack of relevant macro pte_addr_end()
+> 
+> Signed-off-by: zijun_hu <zijun_hu@htc.com>
+
+Unfortunately, I can't see what the points are in this series of
+patches.  Most seem to be gratuitous changes which don't address real
+issues or improve anything.  "I looked at the code and realized that,
+if the input were wrong, the function would misbehave" isn't good
+enough a reason.  What's next?  Are we gonna harden all pointer taking
+functions too?
+
+For internal functions, we don't by default do input sanitization /
+sanity check.  There sure are cases where doing so is beneficial but
+reading a random function and thinking "oh this combo of parameters
+can make it go bonkers" isn't the right approach for it.  We end up
+with cruft and code changes which nobody needed in the first place and
+can easily introduce actual real bugs in the process.
+
+It'd be an a lot more productive use of time and effort for everyone
+involved if the work is around actual issues.
+
+Thanks.
+
 -- 
-Michal Hocko
-SUSE Labs
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
