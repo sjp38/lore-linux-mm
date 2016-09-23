@@ -1,119 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 20B4C6B0289
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 00:04:36 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id t83so247589181oie.0
-        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 21:04:36 -0700 (PDT)
-Received: from out4439.biz.mail.alibaba.com (out4439.biz.mail.alibaba.com. [47.88.44.39])
-        by mx.google.com with ESMTP id q2si4468542ota.230.2016.09.22.21.04.33
-        for <linux-mm@kvack.org>;
-        Thu, 22 Sep 2016 21:04:34 -0700 (PDT)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <20160906135258.18335-1-vbabka@suse.cz> <20160906135258.18335-3-vbabka@suse.cz> <20160921171348.GF24210@dhcp22.suse.cz> <f1670976-b4da-5d2c-0a85-37f9a87d6868@suse.cz> <20160922140821.GG11875@dhcp22.suse.cz> <20160922145237.GH11875@dhcp22.suse.cz> <1f47ebe3-61bc-ba8a-defb-9fd8e78614d7@suse.cz>
-In-Reply-To: <1f47ebe3-61bc-ba8a-defb-9fd8e78614d7@suse.cz>
-Subject: Re: [PATCH 2/4] mm, compaction: more reliably increase direct compaction priority
-Date: Fri, 23 Sep 2016 12:04:15 +0800
-Message-ID: <005b01d2154f$8d38b830$a7aa2890$@alibaba-inc.com>
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EA29280255
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 01:00:51 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id wk8so184377581pab.3
+        for <linux-mm@kvack.org>; Thu, 22 Sep 2016 22:00:51 -0700 (PDT)
+Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
+        by mx.google.com with ESMTPS id kg8si5818189pad.210.2016.09.22.22.00.50
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 22 Sep 2016 22:00:50 -0700 (PDT)
+Subject: Re: [PATCH 3/5] mm/vmalloc.c: correct lazy_max_pages() return value
+References: <57E20C49.8010304@zoho.com>
+ <alpine.DEB.2.10.1609211418480.20971@chino.kir.corp.google.com>
+ <3ef46c24-769d-701a-938b-826f4249bf0b@zoho.com>
+ <alpine.DEB.2.10.1609211731230.130215@chino.kir.corp.google.com>
+ <57E3304E.4060401@zoho.com> <20160922123736.GA11204@dhcp22.suse.cz>
+ <7671e782-b58f-7c41-b132-c7ebbcf61b99@zoho.com>
+ <20160923133022.47cfd3dd@roar.ozlabs.ibm.com>
+From: zijun_hu <zijun_hu@zoho.com>
+Message-ID: <a98b4ca9-11d1-6510-63c9-f63897129be3@zoho.com>
+Date: Fri, 23 Sep 2016 13:00:35 +0800
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
+In-Reply-To: <20160923133022.47cfd3dd@roar.ozlabs.ibm.com>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Vlastimil Babka' <vbabka@suse.cz>, 'Michal Hocko' <mhocko@kernel.org>
-Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Arkadiusz Miskiewicz' <a.miskiewicz@gmail.com>, 'Ralf-Peter Rohbeck' <Ralf-Peter.Rohbeck@quantum.com>, 'Olaf Hering' <olaf@aepfle.de>, linux-kernel@vger.kernel.org, 'Linus Torvalds' <torvalds@linux-foundation.org>, linux-mm@kvack.org, 'Mel Gorman' <mgorman@techsingularity.net>, 'Joonsoo Kim' <iamjoonsoo.kim@lge.com>, 'David Rientjes' <rientjes@google.com>, 'Rik van Riel' <riel@redhat.com>
+To: Nicholas Piggin <npiggin@gmail.com>
+Cc: zijun_hu@htc.com, Michal Hocko <mhocko@kernel.org>, npiggin@suse.de, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, tj@kernel.org, mingo@kernel.org, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net
 
+On 2016/9/23 11:30, Nicholas Piggin wrote:
+> On Fri, 23 Sep 2016 00:30:20 +0800
+> zijun_hu <zijun_hu@zoho.com> wrote:
 > 
-> ----8<----
-> From a7921e57ba1189b9c08fc4879358a908c390e47c Mon Sep 17 00:00:00 2001
-> From: Vlastimil Babka <vbabka@suse.cz>
-> Date: Thu, 22 Sep 2016 17:02:37 +0200
-> Subject: [PATCH] mm, page_alloc: pull no_progress_loops update to
->  should_reclaim_retry()
+>> On 2016/9/22 20:37, Michal Hocko wrote:
+>>> On Thu 22-09-16 09:13:50, zijun_hu wrote:  
+>>>> On 09/22/2016 08:35 AM, David Rientjes wrote:  
+>>> [...]  
+>>>>> The intent is as it is implemented; with your change, lazy_max_pages() is 
+>>>>> potentially increased depending on the number of online cpus.  This is 
+>>>>> only a heuristic, changing it would need justification on why the new
+>>>>> value is better.  It is opposite to what the comment says: "to be 
+>>>>> conservative and not introduce a big latency on huge systems, so go with
+>>>>> a less aggressive log scale."  NACK to the patch.
+>>>>>  
+>>>> my change potentially make lazy_max_pages() decreased not increased, i seems
+>>>> conform with the comment
+>>>>
+>>>> if the number of online CPUs is not power of 2, both have no any difference
+>>>> otherwise, my change remain power of 2 value, and the original code rounds up
+>>>> to next power of 2 value, for instance
+>>>>
+>>>> my change : (32, 64] -> 64
+>>>> 	     32 -> 32, 64 -> 64
+>>>> the original code: [32, 63) -> 64
+>>>>                    32 -> 64, 64 -> 128  
+>>>
+>>> You still completely failed to explain _why_ this is an improvement/fix
+>>> or why it matters. This all should be in the changelog.
+>>>   
+>>
+>> Hi npiggin,
+>> could you give some comments for this patch since lazy_max_pages() is introduced
+>> by you
+>>
+>> my patch is based on the difference between fls() and get_count_order() mainly
+>> the difference between fls() and get_count_order() will be shown below
+>> more MM experts maybe help to decide which is more suitable
+>>
+>> if parameter > 1, both have different return value only when parameter is
+>> power of two, for example
+>>
+>> fls(32) = 6 VS get_count_order(32) = 5
+>> fls(33) = 6 VS get_count_order(33) = 6
+>> fls(63) = 6 VS get_count_order(63) = 6
+>> fls(64) = 7 VS get_count_order(64) = 6
+>>
+>> @@ -594,7 +594,9 @@ static unsigned long lazy_max_pages(void) 
+>> { 
+>>     unsigned int log; 
+>>
+>> -    log = fls(num_online_cpus()); 
+>> +    log = num_online_cpus(); 
+>> +    if (log > 1) 
+>> +        log = (unsigned int)get_count_order(log); 
+>>
+>>     return log * (32UL * 1024 * 1024 / PAGE_SIZE); 
+>> } 
+>>
 > 
-> The should_reclaim_retry() makes decisions based on no_progress_loops, so it
-> makes sense to also update the counter there. It will be also consistent with
-> should_compact_retry() and compaction_retries. No functional change.
+> To be honest, I don't think I chose it with a lot of analysis.
+> It will depend on the kernel usage patterns, the arch code,
+> and the CPU microarchitecture, all of which would have changed
+> significantly.
 > 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> ---
->  mm/page_alloc.c | 28 ++++++++++++++--------------
->  1 file changed, 14 insertions(+), 14 deletions(-)
+> I wouldn't bother changing it unless you do some bench marking
+> on different system sizes to see where the best performance is.
+> (If performance is equal, fewer lazy pages would be better.)
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 582820080601..a01359ab3ed6 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3401,16 +3401,26 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
->  static inline bool
->  should_reclaim_retry(gfp_t gfp_mask, unsigned order,
->  		     struct alloc_context *ac, int alloc_flags,
-> -		     bool did_some_progress, int no_progress_loops)
-> +		     bool did_some_progress, int *no_progress_loops)
->  {
->  	struct zone *zone;
->  	struct zoneref *z;
+> Good to see you taking a look at this vmalloc stuff. Don't be
+> discouraged if you run into some dead ends.
 > 
->  	/*
-> +	 * Costly allocations might have made a progress but this doesn't mean
-> +	 * their order will become available due to high fragmentation so
-> +	 * always increment the no progress counter for them
-> +	 */
-> +	if (did_some_progress && order <= PAGE_ALLOC_COSTLY_ORDER)
-> +		no_progress_loops = 0;
+> Thanks,
+> Nick
+> 
+thanks for your reply
+please don't pay attention to this patch any more since i don't have
+condition to do many test and comparison
 
-s/no/*no/
-> +	else
-> +		no_progress_loops++;
+i just feel my change maybe be consistent with operation of rounding up
+to power of 2
 
-s/no_progress_loops/(*no_progress_loops)/
 
-With that feel free to add
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
-
-> +
-> +	/*
->  	 * Make sure we converge to OOM if we cannot make any progress
->  	 * several times in the row.
->  	 */
-> -	if (no_progress_loops > MAX_RECLAIM_RETRIES)
-> +	if (*no_progress_loops > MAX_RECLAIM_RETRIES)
->  		return false;
-> 
->  	/*
-> @@ -3425,7 +3435,7 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
->  		unsigned long reclaimable;
-> 
->  		available = reclaimable = zone_reclaimable_pages(zone);
-> -		available -= DIV_ROUND_UP(no_progress_loops * available,
-> +		available -= DIV_ROUND_UP((*no_progress_loops) * available,
->  					  MAX_RECLAIM_RETRIES);
->  		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
-> 
-> @@ -3641,18 +3651,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
->  		goto nopage;
-> 
-> -	/*
-> -	 * Costly allocations might have made a progress but this doesn't mean
-> -	 * their order will become available due to high fragmentation so
-> -	 * always increment the no progress counter for them
-> -	 */
-> -	if (did_some_progress && order <= PAGE_ALLOC_COSTLY_ORDER)
-> -		no_progress_loops = 0;
-> -	else
-> -		no_progress_loops++;
-> -
->  	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
-> -				 did_some_progress > 0, no_progress_loops))
-> +				 did_some_progress > 0, &no_progress_loops))
->  		goto retry;
-> 
->  	/*
-> --
-> 2.10.0
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
