@@ -1,56 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C10D16B0297
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 04:47:40 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id l132so10400204wmf.0
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 01:47:40 -0700 (PDT)
-Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
-        by mx.google.com with ESMTPS id 13si2253402wme.99.2016.09.23.01.47.39
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E3416B0279
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 05:15:58 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id l132so11112345wmf.0
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 02:15:58 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id y77si2369509wme.72.2016.09.23.02.15.57
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 23 Sep 2016 01:47:39 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 5A622999DB
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 08:47:39 +0000 (UTC)
-Date: Fri, 23 Sep 2016 09:47:29 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm: delete unnecessary and unsafe init_tlb_ubc()
-Message-ID: <20160923084729.GA2838@techsingularity.net>
-References: <alpine.LSU.2.11.1609221037170.17333@eggly.anvils>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Sep 2016 02:15:57 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id b184so1737688wma.3
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 02:15:57 -0700 (PDT)
+Date: Fri, 23 Sep 2016 11:15:55 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: warn about allocations which stall for too long
+Message-ID: <20160923091555.GH4478@dhcp22.suse.cz>
+References: <20160923081555.14645-1-mhocko@kernel.org>
+ <007901d21574$9ef82d60$dce88820$@alibaba-inc.com>
+ <20160923083224.GF4478@dhcp22.suse.cz>
+ <007a01d21576$b12ac4a0$13804de0$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1609221037170.17333@eggly.anvils>
+In-Reply-To: <007a01d21576$b12ac4a0$13804de0$@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hillf Danton <hillf.zj@alibaba-inc.com>
+Cc: linux-mm@kvack.org, 'Andrew Morton' <akpm@linux-foundation.org>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Mel Gorman' <mgorman@suse.de>, 'Tetsuo Handa' <penguin-kernel@I-love.SAKURA.ne.jp>, 'LKML' <linux-kernel@vger.kernel.org>
 
-On Thu, Sep 22, 2016 at 10:41:50AM -0700, Hugh Dickins wrote:
-> init_tlb_ubc() looked unnecessary to me: tlb_ubc is statically initialized
-> with zeroes in the init_task, and copied from parent to child while it is
-> quiescent in arch_dup_task_struct(); so I went to delete it.
-> 
-> But inserted temporary debug WARN_ONs in place of init_tlb_ubc() to check
-> that it was always empty at that point, and found them firing: because
-> memcg reclaim can recurse into global reclaim (when allocating biosets
-> for swapout in my case), and arrive back at the init_tlb_ubc() in
-> shrink_node_memcg().
-> 
-> Resetting tlb_ubc.flush_required at that point is wrong: if the upper
-> level needs a deferred TLB flush, but the lower level turns out not to,
-> we miss a TLB flush.  But fortunately, that's the only part of the
-> protocol that does not nest: with the initialization removed, cpumask 
-> collects bits from upper and lower levels, and flushes TLB when needed.
-> 
-> Fixes: 72b252aed506 ("mm: send one IPI per CPU to TLB flush all entries after unmapping pages")
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> Cc: stable@vger.kernel.org # 4.3+
+On Fri 23-09-16 16:44:26, Hillf Danton wrote:
+> On Friday, September 23, 2016 4:32 PM, Michal Hocko wrote
+> > On Fri 23-09-16 16:29:36, Hillf Danton wrote:
+> > [...]
+> > > > @@ -3659,6 +3661,15 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+> > > >  	else
+> > > >  		no_progress_loops++;
+> > > >
+> > > > +	/* Make sure we know about allocations which stall for too long */
+> > > > +	if (!(gfp_mask & __GFP_NOWARN) && time_after(jiffies, alloc_start + stall_timeout)) {
+> > > > +		pr_warn("%s: page alloction stalls for %ums: order:%u mode:%#x(%pGg)\n",
+> > > > +				current->comm, jiffies_to_msecs(jiffies-alloc_start),
+> > >
+> > > Better if pid is also printed.
+> > 
+> > I've tried to be consistent with warn_alloc_failed and that doesn't
+> > print pid either. Maybe both of them should. Dunno
+> > 
+> With pid imho we can distinguish two tasks with same name in a simpler way. 
 
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
-
+I've just checked dump_stack and dump_stack_print_info provides that
+information already.
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
