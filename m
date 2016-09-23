@@ -1,70 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 496F228024B
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 11:12:41 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id w84so20570977wmg.1
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 08:12:41 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id t129si3741466wme.25.2016.09.23.08.12.23
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D46A6B0277
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 11:41:49 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id v67so229951743pfv.1
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 08:41:49 -0700 (PDT)
+Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
+        by mx.google.com with ESMTPS id x8si8353622paa.245.2016.09.23.08.41.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Fri, 23 Sep 2016 08:12:23 -0700 (PDT)
-Date: Fri, 23 Sep 2016 17:08:04 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: acpi: Fix broken error check in map_processor()
-Message-ID: <alpine.DEB.2.20.1609231705570.5640@nanos>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 23 Sep 2016 08:41:48 -0700 (PDT)
+Subject: Re: [PATCH 1/1] lib/ioremap.c: avoid endless loop under ioremapping
+ page unaligned ranges
+References: <57E20A69.5010206@zoho.com>
+ <20160923144202.GA31387@htj.duckdns.org>
+From: zijun_hu <zijun_hu@zoho.com>
+Message-ID: <238b0d3e-2e6b-7f73-8168-d21517e862bb@zoho.com>
+Date: Fri, 23 Sep 2016 23:41:33 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20160923144202.GA31387@htj.duckdns.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dou Liyang <douly.fnst@cn.fujitsu.com>
-Cc: cl@linux.com, tj@kernel.org, mika.j.penttila@gmail.com, mingo@redhat.com, akpm@linux-foundation.org, rjw@rjwysocki.net, hpa@zytor.com, yasu.isimatu@gmail.com, isimatu.yasuaki@jp.fujitsu.com, kamezawa.hiroyu@jp.fujitsu.com, izumi.taku@jp.fujitsu.com, gongzhaogang@inspur.com, len.brown@intel.com, lenb@kernel.org, chen.tang@easystack.cn, rafael@kernel.org, x86@kernel.org, linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Gu Zheng <guz.fnst@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Zhu Guihua <zhugh.fnst@cn.fujitsu.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: zijun_hu@htc.com, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mingo@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net
 
-map_processor() checks the cpuid value returned by acpi_map_cpuid() for -1
-but acpi_map_cpuid() returns -EINVAL in case of error.
+On 2016/9/23 22:42, Tejun Heo wrote:
+> Hello,
+> 
+> On Wed, Sep 21, 2016 at 12:19:53PM +0800, zijun_hu wrote:
+>> From: zijun_hu <zijun_hu@htc.com>
+>>
+>> endless loop maybe happen if either of parameter addr and end is not
+>> page aligned for kernel API function ioremap_page_range()
+>>
+>> in order to fix this issue and alert improper range parameters to user
+>> WARN_ON() checkup and rounding down range lower boundary are performed
+>> firstly, loop end condition within ioremap_pte_range() is optimized due
+>> to lack of relevant macro pte_addr_end()
+>>
+>> Signed-off-by: zijun_hu <zijun_hu@htc.com>
+> 
+> Unfortunately, I can't see what the points are in this series of
+> patches.  Most seem to be gratuitous changes which don't address real
+> issues or improve anything.  "I looked at the code and realized that,
+> if the input were wrong, the function would misbehave" isn't good
+> enough a reason.  What's next?  Are we gonna harden all pointer taking
+> functions too?
+> 
+> For internal functions, we don't by default do input sanitization /
+> sanity check.  There sure are cases where doing so is beneficial but
+> reading a random function and thinking "oh this combo of parameters
+> can make it go bonkers" isn't the right approach for it.  We end up
+> with cruft and code changes which nobody needed in the first place and
+> can easily introduce actual real bugs in the process.
+> 
+> It'd be an a lot more productive use of time and effort for everyone
+> involved if the work is around actual issues.
+> 
+> Thanks.
+> 
+thanks for your reply firstly
+1. ioremap_page_range() is not a kernel internal function
+2. sanity check "BUG_ON(addr >= end)" have existed already, but don't check enough
+3. are there any obvious hint for rang parameter requirements but BUG_ON(addr >= end)
+4. if range which seems right but wrong really is used such as mapping 
+   virtual range [0x80000800, 0x80007800) to physical area[0x20000800, 0x20007800)
+   what actions should we take? warning message and trying to finish user request
+   or panic kernel or hang system in endless loop or return -EINVALi 1/4 ?
+   how to help user find their problem?
+5. if both boundary of the range are aligned to page, ioremap_page_range() works well
+   otherwise endless loop maybe happens
 
-As a consequence the error is ignored and the following access into percpu
-data with that negative cpuid results in a boot crash.
-
-This happens always when NR_CPUS/nr_cpu_ids is smaller than the number of
-processors listed in the ACPI tables.
-
-Use a proper error check for id < 0 so the function returns instead of
-trying to map CPU#(-EINVAL).
-
-Reported-by: Ingo Molnar <mingo@kernel.org>
-Fixes: dc6db24d2476 ("x86/acpi: Set persistent cpuid <-> nodeid mapping when booting")
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
----
- drivers/acpi/processor_core.c |    9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
-
---- a/drivers/acpi/processor_core.c
-+++ b/drivers/acpi/processor_core.c
-@@ -284,7 +284,7 @@ EXPORT_SYMBOL_GPL(acpi_get_cpuid);
- static bool __init
- map_processor(acpi_handle handle, phys_cpuid_t *phys_id, int *cpuid)
- {
--	int type;
-+	int type, id;
- 	u32 acpi_id;
- 	acpi_status status;
- 	acpi_object_type acpi_type;
-@@ -320,10 +320,11 @@ map_processor(acpi_handle handle, phys_c
- 	type = (acpi_type == ACPI_TYPE_DEVICE) ? 1 : 0;
- 
- 	*phys_id = __acpi_get_phys_id(handle, type, acpi_id, false);
--	*cpuid = acpi_map_cpuid(*phys_id, acpi_id);
--	if (*cpuid == -1)
--		return false;
-+	id = acpi_map_cpuid(*phys_id, acpi_id);
- 
-+	if (id < 0)
-+		return false;
-+	*cpuid = id;
- 	return true;
- }
- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
