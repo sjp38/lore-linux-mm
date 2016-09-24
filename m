@@ -1,53 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BD0A28024B
-	for <linux-mm@kvack.org>; Sat, 24 Sep 2016 09:18:39 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 21so281525757pfy.3
-        for <linux-mm@kvack.org>; Sat, 24 Sep 2016 06:18:39 -0700 (PDT)
-Received: from mail-pa0-x243.google.com (mail-pa0-x243.google.com. [2607:f8b0:400e:c03::243])
-        by mx.google.com with ESMTPS id p72si13606496pfi.197.2016.09.24.06.18.38
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5ADF228024B
+	for <linux-mm@kvack.org>; Sat, 24 Sep 2016 16:21:38 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id r126so383274849oib.2
+        for <linux-mm@kvack.org>; Sat, 24 Sep 2016 13:21:38 -0700 (PDT)
+Received: from mail-oi0-x241.google.com (mail-oi0-x241.google.com. [2607:f8b0:4003:c06::241])
+        by mx.google.com with ESMTPS id 127si9577690oig.248.2016.09.24.13.21.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 24 Sep 2016 06:18:38 -0700 (PDT)
-Received: by mail-pa0-x243.google.com with SMTP id my20so6324268pab.3
-        for <linux-mm@kvack.org>; Sat, 24 Sep 2016 06:18:38 -0700 (PDT)
-Subject: Re: [PATCH] mm: warn about allocations which stall for too long
-References: <20160923081555.14645-1-mhocko@kernel.org>
- <57E56789.1070205@intel.com>
-From: Balbir Singh <bsingharora@gmail.com>
-Message-ID: <31729f1f-c0da-29e4-5777-69446daab122@gmail.com>
-Date: Sat, 24 Sep 2016 23:19:04 +1000
+        Sat, 24 Sep 2016 13:21:37 -0700 (PDT)
+Received: by mail-oi0-x241.google.com with SMTP id a62so11136125oib.1
+        for <linux-mm@kvack.org>; Sat, 24 Sep 2016 13:21:37 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <57E56789.1070205@intel.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <DM2PR21MB0089CA7DCF4845DB02E0E05FCBC80@DM2PR21MB0089.namprd21.prod.outlook.com>
+References: <1474570415-14938-1-git-send-email-mawilcox@linuxonhyperv.com>
+ <1474570415-14938-3-git-send-email-mawilcox@linuxonhyperv.com>
+ <CA+55aFwNYAFc4KePvx50kwZ3A+8yvCCK_6nYYxG9fqTPhFzQoQ@mail.gmail.com> <DM2PR21MB0089CA7DCF4845DB02E0E05FCBC80@DM2PR21MB0089.namprd21.prod.outlook.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Sat, 24 Sep 2016 13:21:36 -0700
+Message-ID: <CA+55aFwiro5MvOozcF50z4kMBk7rVBViLw8yXX1w-1mCZVAsDA@mail.gmail.com>
+Subject: Re: [PATCH 2/2] radix-tree: Fix optimisation problem
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Matthew Wilcox <mawilcox@microsoft.com>
+Cc: Matthew Wilcox <mawilcox@linuxonhyperv.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
+On Fri, Sep 23, 2016 at 1:16 PM, Matthew Wilcox <mawilcox@microsoft.com> wrote:
+>
+>  #ifdef CONFIG_RADIX_TREE_MULTIORDER
+>         if (radix_tree_is_internal_node(entry)) {
+> -               unsigned long siboff = get_slot_offset(parent, entry);
+> +               unsigned long siboff = get_slot_offset(parent,
+> +                                               (void **)entry_to_node(entry));
 
+I feel that it is *this* part that I think needs a huge honking comment.
 
-On 24/09/16 03:34, Dave Hansen wrote:
-> On 09/23/2016 01:15 AM, Michal Hocko wrote:
->> +	/* Make sure we know about allocations which stall for too long */
->> +	if (!(gfp_mask & __GFP_NOWARN) && time_after(jiffies, alloc_start + stall_timeout)) {
->> +		pr_warn("%s: page alloction stalls for %ums: order:%u mode:%#x(%pGg)\n",
->> +				current->comm, jiffies_to_msecs(jiffies-alloc_start),
->> +				order, gfp_mask, &gfp_mask);
->> +		stall_timeout += 10 * HZ;
->> +		dump_stack();
->> +	}
-> 
-> This would make an awesome tracepoint.  There's probably still plenty of
-> value to having it in dmesg, but the configurability of tracepoints is
-> hard to beat.
+If you are going to make get_slot_offset() different, then you could
+just rewrite get_slot_offset() to do
 
-An awesome tracepoint and a great place to trigger other tracepoints. With stall timeout
-increasing every time, do we only care about the first instance when we exceeded stall_timeout?
-Do we debug just that instance?
+        unsigned long diff = (unsigned long) slot - (unsigned
+long)parent->slots;
+        return diff / sizeof(void *);
 
-Balbir Singh.
+and add a comment to say "don't do this as a pointer diff, because
+'slot' may not be an aligned pointer". No BUG_ON() necessary, because
+it "just works".
+
+At that point, gcc should just generate the right code, because it
+doesn't see it as a pointer subtraction followed by a pointer
+addition.
+
+And yes, that crazy " (void **)entry_to_node(entry)" fixes it *too*,
+but it needs a *comment*.
+
+Why is that special, when all the other uses of get_slot_offset()
+don't have that? *That* is what should be explained. Not some internal
+detail.
+
+That said, if this code isn't even used, as Konstantin says (THP
+selects it - doesn't THP use it?), then the fix really should be to
+just remove the odd code instead of adding to it.
+
+Looking around for uses that set "order" to anything but zero, I
+really don't see it. So maybe we should just do *that* trivial thing
+instead, and remove CONFIG_RADIX_TREE_MULTIORDER, since it's appears
+to be buggy and always has been.
+
+                  Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
