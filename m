@@ -1,131 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C7E556B028E
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 23:00:25 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id cg13so236719200pac.1
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 20:00:25 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id w9si10978204paa.82.2016.09.23.20.00.24
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2516A6B028F
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 23:00:29 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id fu14so239329814pad.0
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 20:00:29 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id n3si10953622paw.123.2016.09.23.20.00.27
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 23 Sep 2016 20:00:24 -0700 (PDT)
-Subject: Re: [PATCH] mm: warn about allocations which stall for too long
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20160923081555.14645-1-mhocko@kernel.org>
-	<201609232336.FIH57364.FOVHtMFQLFSJOO@I-love.SAKURA.ne.jp>
-	<20160923150234.GV4478@dhcp22.suse.cz>
-In-Reply-To: <20160923150234.GV4478@dhcp22.suse.cz>
-Message-Id: <201609241200.AEE21807.OSOtQVOLHMFJFF@I-love.SAKURA.ne.jp>
-Date: Sat, 24 Sep 2016 12:00:07 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        Fri, 23 Sep 2016 20:00:28 -0700 (PDT)
+Message-ID: <57E5EB74.5070003@huawei.com>
+Date: Sat, 24 Sep 2016 10:56:52 +0800
+From: zhong jiang <zhongjiang@huawei.com>
+MIME-Version: 1.0
+Subject: Re: [RFC] remove unnecessary condition in remove_inode_hugepages
+References: <57E48B30.2000303@huawei.com> <d1e61e42-b644-478d-6294-3f8099318a3b@oracle.com>
+In-Reply-To: <d1e61e42-b644-478d-6294-3f8099318a3b@oracle.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, linux-kernel@vger.kernel.org
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>, Linux
+ Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Michal Hocko wrote:
-> On Fri 23-09-16 23:36:22, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > @@ -3659,6 +3661,15 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
-> > >  	else
-> > >  		no_progress_loops++;
-> > >  
-> > > +	/* Make sure we know about allocations which stall for too long */
-> > > +	if (!(gfp_mask & __GFP_NOWARN) && time_after(jiffies, alloc_start + stall_timeout)) {
-> > 
-> > Should we check !__GFP_NOWARN ? I think __GFP_NOWARN is likely used with
-> > __GFP_NORETRY, and __GFP_NORETRY is already checked by now.
-> > 
-> > I think printing warning regardless of __GFP_NOWARN is better because
-> > this check is similar to hungtask warning.
-> 
-> Well, if the user said to not warn we should really obey that. Why would
-> that matter?
+On 2016/9/24 1:19, Mike Kravetz wrote:
+> On 09/22/2016 06:53 PM, zhong jiang wrote:
+>> At present, we need to call hugetlb_fix_reserve_count when hugetlb_unrserve_pages fails,
+>> and PagePrivate will decide hugetlb reserves counts.
+>>
+>> we obtain the page from page cache. and use page both lock_page and mutex_lock.
+>> alloc_huge_page add page to page chace always hold lock page, then bail out clearpageprivate
+>> before unlock page. 
+>>
+>> but I' m not sure  it is right  or I miss the points.
+> Let me try to explain the code you suggest is unnecessary.
+>
+> The PagePrivate flag is used in huge page allocation/deallocation to
+> indicate that the page was globally reserved.  For example, in
+> dequeue_huge_page_vma() there is this code:
+>
+>                         if (page) {
+>                                 if (avoid_reserve)
+>                                         break;
+>                                 if (!vma_has_reserves(vma, chg))
+>                                         break;
+>
+>                                 SetPagePrivate(page);
+>                                 h->resv_huge_pages--;
+>                                 break;
+>                         }
+>
+> and in free_huge_page():
+>
+>         restore_reserve = PagePrivate(page);
+>         ClearPagePrivate(page);
+> 	.
+> 	<snip>
+> 	.
+>         if (restore_reserve)
+>                 h->resv_huge_pages++;
+>
+> This helps maintains the global huge page reserve count.
+>
+> In addition to the global reserve count, there are per VMA reservation
+> structures.  Unfortunately, these structures have different meanings
+> depending on the context in which they are used.
+>
+> If there is a VMA reservation entry for a page, and the page has not
+> been instantiated in the VMA this indicates there is a huge page reserved
+> and the global resv_huge_pages count reflects that reservation.  Even
+> if a page was not reserved, a VMA reservation entry is added when a page
+> is instantiated in the VMA.
+>
+> With that background, let's look at the existing code/proposed changes.
+ Clearly. 
+>> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+>> index 4ea71eb..010723b 100644
+>> --- a/fs/hugetlbfs/inode.c
+>> +++ b/fs/hugetlbfs/inode.c
+>> @@ -462,14 +462,12 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
+>>                          * the page, note PagePrivate which is used in case
+>>                          * of error.
+>>                          */
+>> -                       rsv_on_error = !PagePrivate(page);
+> This rsv_on_error flag indicates that when the huge page was allocated,
+   yes
+> it was NOT counted against the global reserve count.  So, when
+> remove_huge_page eventually calls free_huge_page(), the global count
+> resv_huge_pages is not incremented.  So far, no problem.
+ but the page comes from the page cache.  if it is.  it should implement
+ ClearPageprivate(page) when lock page.   This condition always true.
 
-__GFP_NOWARN is defined as "Do not print failure messages when memory
-allocation failed". It is not defined as "Do not print OOM killer messages
-when OOM killer is invoked". It is undefined that "Do not print stall
-messages when memory allocation is stalling".
+  The key point is why it need still check the PagePrivate(page) when page from
+  page cache and hold lock.
 
-If memory allocating threads were blocked on locks instead of doing direct
-reclaim, hungtask will be able to find stalling memory allocations without
-this change. Since direct reclaim prevents allocating threads from sleeping
-for long enough to be warned by hungtask, it is important that this change
-shall find allocating threads which cannot be warned by hungtask. That is,
-not printing warning messages for __GFP_NOWARN allocation requests looses
-the value of this change.
+  Thanks you
+ zhongjiang
+>>                         remove_huge_page(page);
+>>                         freed++;
+>>                         if (!truncate_op) {
+>>                                 if (unlikely(hugetlb_unreserve_pages(inode,
+>>                                                         next, next + 1, 1)))
+> We now have this VERY unlikely situation that hugetlb_unreserve_pages fails.
+> This means that the VMA reservation entry for the page was not removed.
+> So, we are in a bit of a mess.  The page has already been removed, but the
+> VMA reservation entry can not.  This LOOKS like there is a reservation for
+> the page in the VMA reservation structure.  But, the global count
+> resv_huge_pages does not reflect this reservation.
+>
+> If we do nothing, when the VMA is eventually removed the VMA reservation
+> structure will be completely removed and the global count resv_huge_pages
+> will be decremented for each entry in the structure.  Since, there is a
+> VMA reservation entry without a corresponding global count, the global
+> count will be one less than it should (will eventually go to -1).
+>
+> To 'fix' this, hugetlb_fix_reserve_counts is called.  In this case, it will
+> increment the global count so that it is consistent with the entries in
+> the VMA reservation structure.
+>
+> This is all quite confusing and really unlikely to happen.  I tried to
+> explain in code comments:
+>
+> Before removing the page:
+>                         /*
+>                          * We must free the huge page and remove from page
+>                          * cache (remove_huge_page) BEFORE removing the
+>                          * region/reserve map (hugetlb_unreserve_pages).  In
+>                          * rare out of memory conditions, removal of the
+>                          * region/reserve map could fail.  Before free'ing
+>                          * the page, note PagePrivate which is used in case
+>                          * of error.
+>                          */
+>
+> And, the routine hugetlb_fix_reserve_counts:
+> /*
+>  * A rare out of memory error was encountered which prevented removal of
+>  * the reserve map region for a page.  The huge page itself was free'ed
+>  * and removed from the page cache.  This routine will adjust the subpool
+>  * usage count, and the global reserve count if needed.  By incrementing
+>  * these counts, the reserve map entry which could not be deleted will
+>  * appear as a "reserved" entry instead of simply dangling with incorrect
+>  * counts.
+>  */
+>
 
->  
-> > > +		pr_warn("%s: page alloction stalls for %ums: order:%u mode:%#x(%pGg)\n",
-> > > +				current->comm, jiffies_to_msecs(jiffies-alloc_start),
-> > > +				order, gfp_mask, &gfp_mask);
-> > > +		stall_timeout += 10 * HZ;
-> > > +		dump_stack();
-> > 
-> > Can we move this pr_warn() + dump_stack() to a separate function like
-> > 
-> > static void __warn_memalloc_stall(unsigned int order, gfp_t gfp_mask, unsigned long alloc_start)
-> > {
-> > 	pr_warn("%s: page alloction stalls for %ums: order:%u mode:%#x(%pGg)\n",
-> > 		current->comm, jiffies_to_msecs(jiffies-alloc_start),
-> > 		order, gfp_mask, &gfp_mask);
-> > 	dump_stack();
-> > }
-> > 
-> > in order to allow SystemTap scripts to perform additional actions by name (e.g.
-> > 
-> > # stap -g -e 'probe kernel.function("__warn_memalloc_stall").return { panic(); }
-> 
-> I find this reasoning and the use case really _absurd_, seriously! Pulling
-> the warning into a separate function might be reasonable regardless,
-> though. It matches warn_alloc_failed. Also if we find out we need some
-> rate limitting or more checks it might just turn out being easier to
-> follow rather than in the middle of an already complicated allocation
-> slow path. I just do not like that the stall_timeout would have to stay
-> in the original place or have it an in/out parameter.
-
-SystemTap script shown above is just an example. What is nice is that
-we can do whatever actions for examining what is going on by using a
-function as if an interrupt handler. For example, when I was working at
-support center, there was a support case where the customer's system always
-reboots for unknown reason whenever specific action is taken. I inserted
-SystemTap script shown above into a function which is called when a system
-reboots, and I identified that the reason was SysRq-b which was triggered by
-HA manager daemon due to misconfiguration. I used a reboot function as an
-interrupt handler for examining why that handler was called. Likewise, we
-can use __warn_memalloc_stall() as an interrupt handler for examining what
-is going on. I think that there will be situations where existing printk()
-does not provide enough information and thus examining a memory snapshot is
-needed. Allowing tracing tools like SystemTap to insert a hook by function
-name (instead of line number) is helpful anyway.
-
-Going back to !(gfp_mask & __GFP_NOWARN) check, if you don't want to
-print stall messages, you can move that check to inside
-__warn_memalloc_stall(). Then, I can insert a SystemTap hook to print
-stall messages for !(gfp_mask & __GFP_NOWARN) case. Even more, if you
-are not sure what is best threshold, you can call a hook function every
-second. The SystemTap script can check threshold and print warning if
-necessary information are passed to that hook function. This resembles
-LSM hooks. In the past, LSM hook was calling an empty function with
-necessary information when LSM hook user (e.g. SELinux) is not registered.
-
-> 
-> > ) rather than by line number, and surround __warn_memalloc_stall() call with
-> > mutex in order to serialize warning messages because it is possible that
-> > multiple allocation requests are stalling?
-> 
-> we do not use any lock in warn_alloc_failed so why this should be any
-> different?
-
-warn_alloc_failed() is called for both __GFP_DIRECT_RECLAIM and
-!__GFP_DIRECT_RECLAIM allocation requests, and it is not allowed
-to sleep if !__GFP_DIRECT_RECLAIM. Thus, we have to tolerate that
-concurrent memory allocation failure messages make dmesg output
-unreadable. But __warn_memalloc_stall() is called for only
-__GFP_DIRECT_RECLAIM allocation requests. Thus, we are allowed to
-sleep in order to serialize concurrent memory allocation stall
-messages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
