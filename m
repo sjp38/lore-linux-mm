@@ -1,150 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2516A6B028F
-	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 23:00:29 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id fu14so239329814pad.0
-        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 20:00:29 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id n3si10953622paw.123.2016.09.23.20.00.27
+	by kanga.kvack.org (Postfix) with ESMTP id DCCD828024B
+	for <linux-mm@kvack.org>; Fri, 23 Sep 2016 23:21:59 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id wk8so236199022pab.3
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 20:21:59 -0700 (PDT)
+Received: from mail-pf0-x22e.google.com (mail-pf0-x22e.google.com. [2607:f8b0:400e:c00::22e])
+        by mx.google.com with ESMTPS id dc7si11003058pad.277.2016.09.23.20.21.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 23 Sep 2016 20:00:28 -0700 (PDT)
-Message-ID: <57E5EB74.5070003@huawei.com>
-Date: Sat, 24 Sep 2016 10:56:52 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 Sep 2016 20:21:58 -0700 (PDT)
+Received: by mail-pf0-x22e.google.com with SMTP id s13so13265936pfd.2
+        for <linux-mm@kvack.org>; Fri, 23 Sep 2016 20:21:58 -0700 (PDT)
+Date: Fri, 23 Sep 2016 20:21:56 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: [PATCH 1/3] shmem: fix tmpfs to handle the huge= option properly
+In-Reply-To: <alpine.LSU.2.11.1609232014130.2495@eggly.anvils>
+Message-ID: <alpine.LSU.2.11.1609232017410.2495@eggly.anvils>
+References: <alpine.LSU.2.11.1609232014130.2495@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [RFC] remove unnecessary condition in remove_inode_hugepages
-References: <57E48B30.2000303@huawei.com> <d1e61e42-b644-478d-6294-3f8099318a3b@oracle.com>
-In-Reply-To: <d1e61e42-b644-478d-6294-3f8099318a3b@oracle.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Michal Hocko <mhocko@kernel.org>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, Hugh Dickins <hughd@google.com>, Linux
- Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Toshi Kani <toshi.kani@hpe.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 2016/9/24 1:19, Mike Kravetz wrote:
-> On 09/22/2016 06:53 PM, zhong jiang wrote:
->> At present, we need to call hugetlb_fix_reserve_count when hugetlb_unrserve_pages fails,
->> and PagePrivate will decide hugetlb reserves counts.
->>
->> we obtain the page from page cache. and use page both lock_page and mutex_lock.
->> alloc_huge_page add page to page chace always hold lock page, then bail out clearpageprivate
->> before unlock page. 
->>
->> but I' m not sure  it is right  or I miss the points.
-> Let me try to explain the code you suggest is unnecessary.
->
-> The PagePrivate flag is used in huge page allocation/deallocation to
-> indicate that the page was globally reserved.  For example, in
-> dequeue_huge_page_vma() there is this code:
->
->                         if (page) {
->                                 if (avoid_reserve)
->                                         break;
->                                 if (!vma_has_reserves(vma, chg))
->                                         break;
->
->                                 SetPagePrivate(page);
->                                 h->resv_huge_pages--;
->                                 break;
->                         }
->
-> and in free_huge_page():
->
->         restore_reserve = PagePrivate(page);
->         ClearPagePrivate(page);
-> 	.
-> 	<snip>
-> 	.
->         if (restore_reserve)
->                 h->resv_huge_pages++;
->
-> This helps maintains the global huge page reserve count.
->
-> In addition to the global reserve count, there are per VMA reservation
-> structures.  Unfortunately, these structures have different meanings
-> depending on the context in which they are used.
->
-> If there is a VMA reservation entry for a page, and the page has not
-> been instantiated in the VMA this indicates there is a huge page reserved
-> and the global resv_huge_pages count reflects that reservation.  Even
-> if a page was not reserved, a VMA reservation entry is added when a page
-> is instantiated in the VMA.
->
-> With that background, let's look at the existing code/proposed changes.
- Clearly. 
->> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
->> index 4ea71eb..010723b 100644
->> --- a/fs/hugetlbfs/inode.c
->> +++ b/fs/hugetlbfs/inode.c
->> @@ -462,14 +462,12 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
->>                          * the page, note PagePrivate which is used in case
->>                          * of error.
->>                          */
->> -                       rsv_on_error = !PagePrivate(page);
-> This rsv_on_error flag indicates that when the huge page was allocated,
-   yes
-> it was NOT counted against the global reserve count.  So, when
-> remove_huge_page eventually calls free_huge_page(), the global count
-> resv_huge_pages is not incremented.  So far, no problem.
- but the page comes from the page cache.  if it is.  it should implement
- ClearPageprivate(page) when lock page.   This condition always true.
+From: Toshi Kani <toshi.kani@hpe.com>
 
-  The key point is why it need still check the PagePrivate(page) when page from
-  page cache and hold lock.
+shmem_get_unmapped_area() checks SHMEM_SB(sb)->huge incorrectly,
+which leads to a reversed effect of "huge=" mount option.
 
-  Thanks you
- zhongjiang
->>                         remove_huge_page(page);
->>                         freed++;
->>                         if (!truncate_op) {
->>                                 if (unlikely(hugetlb_unreserve_pages(inode,
->>                                                         next, next + 1, 1)))
-> We now have this VERY unlikely situation that hugetlb_unreserve_pages fails.
-> This means that the VMA reservation entry for the page was not removed.
-> So, we are in a bit of a mess.  The page has already been removed, but the
-> VMA reservation entry can not.  This LOOKS like there is a reservation for
-> the page in the VMA reservation structure.  But, the global count
-> resv_huge_pages does not reflect this reservation.
->
-> If we do nothing, when the VMA is eventually removed the VMA reservation
-> structure will be completely removed and the global count resv_huge_pages
-> will be decremented for each entry in the structure.  Since, there is a
-> VMA reservation entry without a corresponding global count, the global
-> count will be one less than it should (will eventually go to -1).
->
-> To 'fix' this, hugetlb_fix_reserve_counts is called.  In this case, it will
-> increment the global count so that it is consistent with the entries in
-> the VMA reservation structure.
->
-> This is all quite confusing and really unlikely to happen.  I tried to
-> explain in code comments:
->
-> Before removing the page:
->                         /*
->                          * We must free the huge page and remove from page
->                          * cache (remove_huge_page) BEFORE removing the
->                          * region/reserve map (hugetlb_unreserve_pages).  In
->                          * rare out of memory conditions, removal of the
->                          * region/reserve map could fail.  Before free'ing
->                          * the page, note PagePrivate which is used in case
->                          * of error.
->                          */
->
-> And, the routine hugetlb_fix_reserve_counts:
-> /*
->  * A rare out of memory error was encountered which prevented removal of
->  * the reserve map region for a page.  The huge page itself was free'ed
->  * and removed from the page cache.  This routine will adjust the subpool
->  * usage count, and the global reserve count if needed.  By incrementing
->  * these counts, the reserve map entry which could not be deleted will
->  * appear as a "reserved" entry instead of simply dangling with incorrect
->  * counts.
->  */
->
+Fix the check in shmem_get_unmapped_area().
 
+Note, the default value of SHMEM_SB(sb)->huge remains as
+SHMEM_HUGE_NEVER.  User will need to specify "huge=" option to
+enable huge page mappings.
+
+Reported-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+Signed-off-by: Toshi Kani <toshi.kani@hpe.com>
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
+
+ mm/shmem.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- 4.8-rc7/mm/shmem.c	2016-08-14 20:17:02.388843463 -0700
++++ linux/mm/shmem.c	2016-09-22 19:41:29.057848626 -0700
+@@ -1980,7 +1980,7 @@ unsigned long shmem_get_unmapped_area(st
+ 				return addr;
+ 			sb = shm_mnt->mnt_sb;
+ 		}
+-		if (SHMEM_SB(sb)->huge != SHMEM_HUGE_NEVER)
++		if (SHMEM_SB(sb)->huge == SHMEM_HUGE_NEVER)
+ 			return addr;
+ 	}
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
