@@ -1,44 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 25CF16B0283
-	for <linux-mm@kvack.org>; Sat, 24 Sep 2016 18:54:19 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id t83so394167458oie.0
-        for <linux-mm@kvack.org>; Sat, 24 Sep 2016 15:54:19 -0700 (PDT)
-Received: from mail-oi0-x244.google.com (mail-oi0-x244.google.com. [2607:f8b0:4003:c06::244])
-        by mx.google.com with ESMTPS id o49si9143058oto.193.2016.09.24.15.54.18
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C168128025E
+	for <linux-mm@kvack.org>; Sat, 24 Sep 2016 19:35:29 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 21so305430019pfy.3
+        for <linux-mm@kvack.org>; Sat, 24 Sep 2016 16:35:29 -0700 (PDT)
+Received: from mail-pf0-x234.google.com (mail-pf0-x234.google.com. [2607:f8b0:400e:c00::234])
+        by mx.google.com with ESMTPS id g21si16043685pfj.59.2016.09.24.16.35.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 24 Sep 2016 15:54:18 -0700 (PDT)
-Received: by mail-oi0-x244.google.com with SMTP id a62so11270382oib.1
-        for <linux-mm@kvack.org>; Sat, 24 Sep 2016 15:54:18 -0700 (PDT)
+        Sat, 24 Sep 2016 16:35:28 -0700 (PDT)
+Received: by mail-pf0-x234.google.com with SMTP id q2so53174892pfj.3
+        for <linux-mm@kvack.org>; Sat, 24 Sep 2016 16:35:28 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20160924210443.GA106728@black.fi.intel.com>
-References: <1474570415-14938-1-git-send-email-mawilcox@linuxonhyperv.com>
- <1474570415-14938-3-git-send-email-mawilcox@linuxonhyperv.com>
- <CA+55aFwNYAFc4KePvx50kwZ3A+8yvCCK_6nYYxG9fqTPhFzQoQ@mail.gmail.com>
- <DM2PR21MB0089CA7DCF4845DB02E0E05FCBC80@DM2PR21MB0089.namprd21.prod.outlook.com>
- <CA+55aFwiro5MvOozcF50z4kMBk7rVBViLw8yXX1w-1mCZVAsDA@mail.gmail.com> <20160924210443.GA106728@black.fi.intel.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sat, 24 Sep 2016 15:54:17 -0700
-Message-ID: <CA+55aFzOvPJbVFvssmiOHuCKG_z-FbGO8-EzVnShDCVmAc1MQQ@mail.gmail.com>
+In-Reply-To: <1474570415-14938-3-git-send-email-mawilcox@linuxonhyperv.com>
+References: <1474570415-14938-1-git-send-email-mawilcox@linuxonhyperv.com> <1474570415-14938-3-git-send-email-mawilcox@linuxonhyperv.com>
+From: Cedric Blancher <cedric.blancher@gmail.com>
+Date: Sun, 25 Sep 2016 01:35:27 +0200
+Message-ID: <CALXu0Ucx-6PeEk9nTD-4nZvwyVr9LLXcFGFzhctX-ucKfCygGA@mail.gmail.com>
 Subject: Re: [PATCH 2/2] radix-tree: Fix optimisation problem
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, Matthew Wilcox <mawilcox@linuxonhyperv.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
+To: Matthew Wilcox <mawilcox@linuxonhyperv.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Matthew Wilcox <mawilcox@microsoft.com>
 
-On Sat, Sep 24, 2016 at 2:04 PM, Kirill A. Shutemov
-<kirill.shutemov@linux.intel.com> wrote:
+On 22 September 2016 at 20:53, Matthew Wilcox
+<mawilcox@linuxonhyperv.com> wrote:
+> From: Matthew Wilcox <mawilcox@microsoft.com>
 >
-> Well, my ext4-with-huge-pages patchset[1] uses multi-order entries.
-> It also converts shmem-with-huge-pages and hugetlb to them.
+> When compiling the radix tree with -O2, GCC thinks it can optimise:
+>
+>         void *entry = parent->slots[offset];
+>         int siboff = entry - parent->slots;
 
-Ok, so that code actually has a chance of being used. I guess we'll
-not remove it. But I *would* like this subtle issue to have a comment
-around that odd cast/and/mask thing.
+If entry is a pointer to void, how can you do pointer arithmetic with it?
+Also, if you use pointer distances, the use of int is not valid, it
+should then be ptrdiff_t siboff.
 
-            Linus
+lint(1) would bite your arse off in both cases.
+Sadly only UNIX (Solaris, AIX, ...) use lint(1) as mandatory part of
+the build process and make warnings and errors of lint(1) fatal...
+
+Ced
+-- 
+Cedric Blancher <cedric.blancher@gmail.com>
+[https://plus.google.com/u/0/+CedricBlancher/]
+Institute Pasteur
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
