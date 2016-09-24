@@ -1,88 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B5A236B028A
-	for <linux-mm@kvack.org>; Sat, 24 Sep 2016 04:36:30 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id n4so70221206lfb.3
-        for <linux-mm@kvack.org>; Sat, 24 Sep 2016 01:36:30 -0700 (PDT)
-Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
-        by mx.google.com with ESMTPS id j200si4983488lfg.177.2016.09.24.01.36.28
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BD0A28024B
+	for <linux-mm@kvack.org>; Sat, 24 Sep 2016 09:18:39 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 21so281525757pfy.3
+        for <linux-mm@kvack.org>; Sat, 24 Sep 2016 06:18:39 -0700 (PDT)
+Received: from mail-pa0-x243.google.com (mail-pa0-x243.google.com. [2607:f8b0:400e:c03::243])
+        by mx.google.com with ESMTPS id p72si13606496pfi.197.2016.09.24.06.18.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 24 Sep 2016 01:36:28 -0700 (PDT)
-Received: by mail-lf0-x241.google.com with SMTP id l131so6792706lfl.0
-        for <linux-mm@kvack.org>; Sat, 24 Sep 2016 01:36:28 -0700 (PDT)
+        Sat, 24 Sep 2016 06:18:38 -0700 (PDT)
+Received: by mail-pa0-x243.google.com with SMTP id my20so6324268pab.3
+        for <linux-mm@kvack.org>; Sat, 24 Sep 2016 06:18:38 -0700 (PDT)
+Subject: Re: [PATCH] mm: warn about allocations which stall for too long
+References: <20160923081555.14645-1-mhocko@kernel.org>
+ <57E56789.1070205@intel.com>
+From: Balbir Singh <bsingharora@gmail.com>
+Message-ID: <31729f1f-c0da-29e4-5777-69446daab122@gmail.com>
+Date: Sat, 24 Sep 2016 23:19:04 +1000
 MIME-Version: 1.0
-In-Reply-To: <1474570415-14938-3-git-send-email-mawilcox@linuxonhyperv.com>
-References: <1474570415-14938-1-git-send-email-mawilcox@linuxonhyperv.com> <1474570415-14938-3-git-send-email-mawilcox@linuxonhyperv.com>
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Date: Sat, 24 Sep 2016 11:36:27 +0300
-Message-ID: <CALYGNiNczCgx31dVPtdoN2kOhUEk2uCTk_Xd_28JrRTy5_Ee8g@mail.gmail.com>
-Subject: Re: [PATCH 2/2] radix-tree: Fix optimisation problem
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <57E56789.1070205@intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <mawilcox@linuxonhyperv.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Matthew Wilcox <mawilcox@microsoft.com>
+To: Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Thu, Sep 22, 2016 at 9:53 PM, Matthew Wilcox
-<mawilcox@linuxonhyperv.com> wrote:
-> From: Matthew Wilcox <mawilcox@microsoft.com>
->
-> When compiling the radix tree with -O2, GCC thinks it can optimise:
->
->         void *entry = parent->slots[offset];
->         int siboff = entry - parent->slots;
->         void *slot = parent->slots + siboff;
->
-> into
->
->         void *slot = entry;
->
-> Unfortunately, 'entry' is a tagged pointer, so this optimisation leads
-> to getting an unaligned pointer back from radix_tree_lookup_slot().
-> The test suite wasn't being compiled with optimisation, so we hadn't
-> spotted it before now.  Change the test suite to compile with -O2, and
-> fix the optimisation problem by passing 'entry' through entry_to_node()
-> so gcc knows this isn't a plain pointer.
-> ---
->  lib/radix-tree.c                  | 3 ++-
->  tools/testing/radix-tree/Makefile | 2 +-
->  2 files changed, 3 insertions(+), 2 deletions(-)
->
-> diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-> index 1b7bf73..8bf1f32 100644
-> --- a/lib/radix-tree.c
-> +++ b/lib/radix-tree.c
-> @@ -105,7 +105,8 @@ static unsigned int radix_tree_descend(struct radix_tree_node *parent,
->
->  #ifdef CONFIG_RADIX_TREE_MULTIORDER
->         if (radix_tree_is_internal_node(entry)) {
-> -               unsigned long siboff = get_slot_offset(parent, entry);
-> +               unsigned long siboff = get_slot_offset(parent,
-> +                                               (void **)entry_to_node(entry));
 
-As I see this is the only place where get_slot_offset used for
-unaligned pointer.
-Nobody uses "multiorder entries" so this never happens. And I have
-plan to kill this code.
 
->                 if (siboff < RADIX_TREE_MAP_SIZE) {
->                         offset = siboff;
->                         entry = rcu_dereference_raw(parent->slots[offset]);
-> diff --git a/tools/testing/radix-tree/Makefile b/tools/testing/radix-tree/Makefile
-> index 3b53046..9d0919ed 100644
-> --- a/tools/testing/radix-tree/Makefile
-> +++ b/tools/testing/radix-tree/Makefile
-> @@ -1,5 +1,5 @@
->
-> -CFLAGS += -I. -g -Wall -D_LGPL_SOURCE
-> +CFLAGS += -I. -g -O2 -Wall -D_LGPL_SOURCE
->  LDFLAGS += -lpthread -lurcu
->  TARGETS = main
->  OFILES = main.o radix-tree.o linux.o test.o tag_check.o find_next_bit.o \
-> --
-> 2.9.3
->
+On 24/09/16 03:34, Dave Hansen wrote:
+> On 09/23/2016 01:15 AM, Michal Hocko wrote:
+>> +	/* Make sure we know about allocations which stall for too long */
+>> +	if (!(gfp_mask & __GFP_NOWARN) && time_after(jiffies, alloc_start + stall_timeout)) {
+>> +		pr_warn("%s: page alloction stalls for %ums: order:%u mode:%#x(%pGg)\n",
+>> +				current->comm, jiffies_to_msecs(jiffies-alloc_start),
+>> +				order, gfp_mask, &gfp_mask);
+>> +		stall_timeout += 10 * HZ;
+>> +		dump_stack();
+>> +	}
+> 
+> This would make an awesome tracepoint.  There's probably still plenty of
+> value to having it in dmesg, but the configurability of tracepoints is
+> hard to beat.
+
+An awesome tracepoint and a great place to trigger other tracepoints. With stall timeout
+increasing every time, do we only care about the first instance when we exceeded stall_timeout?
+Do we debug just that instance?
+
+Balbir Singh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
