@@ -1,103 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8299A280266
-	for <linux-mm@kvack.org>; Sun, 25 Sep 2016 05:19:57 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id r126so417253056oib.2
-        for <linux-mm@kvack.org>; Sun, 25 Sep 2016 02:19:57 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id z12si4168201otc.207.2016.09.25.02.19.55
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 25 Sep 2016 02:19:56 -0700 (PDT)
-From: zhongjiang <zhongjiang@huawei.com>
-Subject: [PATCH] mm: remove unnecessary condition in remove_inode_hugepages
-Date: Sun, 25 Sep 2016 17:17:02 +0800
-Message-ID: <1474795022-8128-1-git-send-email-zhongjiang@huawei.com>
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D0D7280266
+	for <linux-mm@kvack.org>; Sun, 25 Sep 2016 09:52:22 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id fi2so58778443pad.3
+        for <linux-mm@kvack.org>; Sun, 25 Sep 2016 06:52:22 -0700 (PDT)
+Received: from out4441.biz.mail.alibaba.com (out4441.biz.mail.alibaba.com. [47.88.44.41])
+        by mx.google.com with ESMTP id n125si19583033pfn.267.2016.09.25.06.52.17
+        for <linux-mm@kvack.org>;
+        Sun, 25 Sep 2016 06:52:18 -0700 (PDT)
+Message-ID: <57E7D84D.30903@emindsoft.com.cn>
+Date: Sun, 25 Sep 2016 21:59:41 +0800
+From: Chen Gang <chengang@emindsoft.com.cn>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [PATCH] mm: migrate: Return false instead of -EAGAIN for dummy
+ functions
+References: <1474096836-31045-1-git-send-email-chengang@emindsoft.com.cn> <20160917154659.GA29145@dhcp22.suse.cz> <57E05CD2.5090408@emindsoft.com.cn> <20160920080923.GE5477@dhcp22.suse.cz> <57E1B2F4.5070009@emindsoft.com.cn> <20160921081149.GE10300@dhcp22.suse.cz>
+In-Reply-To: <20160921081149.GE10300@dhcp22.suse.cz>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mike.kravetz@oracle.com, akpm@linux-foundation.org
-Cc: mhocko@kernel.org, n-horiguchi@ah.jp.nec.com, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, minchan@kernel.org, vbabka@suse.cz, mgorman@techsingularity.net, gi-oh.kim@profitbricks.com, opensource.ganesh@gmail.com, hughd@google.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Gang <gang.chen.5i5j@gmail.com>
 
-From: zhong jiang <zhongjiang@huawei.com>
 
-when the huge page is added to the page cahce (huge_add_to_page_cache),
-the page private flag will be cleared. since this code
-(remove_inode_hugepages) will only be called for pages in the
-page cahce, PagePrivate(page) will always be false.
-
-The patch remove the code without any functional change.
-
-Signed-off-by: zhong jiang <zhongjiang@huawei.com>
----
- fs/hugetlbfs/inode.c    | 10 ++++------
- include/linux/hugetlb.h |  2 +-
- mm/hugetlb.c            |  4 ++--
- 3 files changed, 7 insertions(+), 9 deletions(-)
-
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 4ea71eb..59bc923 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -458,18 +458,16 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
- 			 * cache (remove_huge_page) BEFORE removing the
- 			 * region/reserve map (hugetlb_unreserve_pages).  In
- 			 * rare out of memory conditions, removal of the
--			 * region/reserve map could fail.  Before free'ing
--			 * the page, note PagePrivate which is used in case
--			 * of error.
-+			 * region/reserve map could fail. Correspondingly, 
-+			 * the subpool and global reserve usage count can need
-+			 * to be adjusted.
- 			 */
--			rsv_on_error = !PagePrivate(page);
- 			remove_huge_page(page);
- 			freed++;
- 			if (!truncate_op) {
- 				if (unlikely(hugetlb_unreserve_pages(inode,
- 							next, next + 1, 1)))
--					hugetlb_fix_reserve_counts(inode,
--								rsv_on_error);
-+					hugetlb_fix_reserve_counts(inode)
- 			}
+Firstly, excuse me for replying late -- since I also agree, this patch
+is not urgent ;-)
  
- 			unlock_page(page);
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index c26d463..d2e0fc5 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -90,7 +90,7 @@ int dequeue_hwpoisoned_huge_page(struct page *page);
- bool isolate_huge_page(struct page *page, struct list_head *list);
- void putback_active_hugepage(struct page *page);
- void free_huge_page(struct page *page);
--void hugetlb_fix_reserve_counts(struct inode *inode, bool restore_reserve);
-+void hugetlb_fix_reserve_counts(struct inode *inode);
- extern struct mutex *hugetlb_fault_mutex_table;
- u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
- 				struct vm_area_struct *vma,
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 87e11d8..28a079a 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -567,13 +567,13 @@ retry:
-  * appear as a "reserved" entry instead of simply dangling with incorrect
-  * counts.
-  */
--void hugetlb_fix_reserve_counts(struct inode *inode, bool restore_reserve)
-+void hugetlb_fix_reserve_counts(struct inode *inode)
- {
- 	struct hugepage_subpool *spool = subpool_inode(inode);
- 	long rsv_adjust;
- 
- 	rsv_adjust = hugepage_subpool_get_pages(spool, 1);
--	if (restore_reserve && rsv_adjust) {
-+	if (rsv_adjust) {
- 		struct hstate *h = hstate_inode(inode);
- 
- 		hugetlb_acct_memory(h, 1);
+On 9/21/16 16:11, Michal Hocko wrote:
+> On Wed 21-09-16 06:06:44, Chen Gang wrote:
+>> On 9/20/16 16:09, Michal Hocko wrote:
+> [...]
+> 
+> skipping the large part of the email because I do not have a spare time
+> to discuss this.
+>
+
+I agree, they are not urgent, so if we have no time on it, just leave
+it.
+
+But for me, they are still important (not urgent != not important), so
+every member can continue to discuss about it, when he/she have time,
+e.g. Do we have another better solving way for this issue?
+
+>>> So what is the point of this whole exercise? Do not take me wrong, this
+>>> area could see some improvements but I believe that doing int->bool
+>>> change is not just the right thing to do and worth spending both your
+>>> and reviewers time.
+>>>
+>>
+>> I am not quite sure about that.
+> 
+> Maybe you should listen to the feedback your are getting. I do not think
+> I am not the first one here.
+> 
+
+OK, for me, normally, when a mailing list contents 100+ members, every
+feedback has not only one member (especially, we have about 10K members).
+
+> Look, MM surely needs some man power. There are issues to be solved,
+> patches to review. Doing the cleanups is really nice but there are more
+> serious problems to solve first.
+
+OK, we really need a task management, for me, we need notice about the
+urgent and important. If the patch or issue is either urgent nor
+important, we can just drop it.
+
+If they are not urgent, but still important, just discuss about it when
+have time, but do not forget it (I guess, quite a few of volunteers can
+not for urgent things -- their time resources are not stable, e.g. me).
+
+>                                  If you want to help then starting
+> with review would be much much more helpful and hugely appreciated. We
+> are really lacking people there a _lot_.
+
+I guess, I can try (at least, I want to try). But excuse me, in honest,
+I am not quite familiar with mm, and my time resources are not stable
+enough, either. So I am not quite sure I can do.
+
+>                                          Just generating more work for
+> reviewers with something that doesn't make any real difference in the
+> runtime is far less helpful IMHO.
+> 
+
+For urgent things, really it is less helpful (in fact, it will generate
+negative effect).
+
+But if it is related with important things, we need discuss about it
+when we have time (do not treat it as urgent thing).
+
+For me, all issues in public header files are important, at least. When
+a developer want to put or modify something in public header files, they
+need think more -- since the members outside of mm may see them.
+
+
+Thanks.
 -- 
-1.8.3.1
+Chen Gang (e??a??)
+
+Managing Natural Environments is the Duty of Human Beings.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
