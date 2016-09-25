@@ -1,84 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F8A26B0286
-	for <linux-mm@kvack.org>; Sun, 25 Sep 2016 14:04:38 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id t83so450550029oie.0
-        for <linux-mm@kvack.org>; Sun, 25 Sep 2016 11:04:38 -0700 (PDT)
-Received: from mail-oi0-x22b.google.com (mail-oi0-x22b.google.com. [2607:f8b0:4003:c06::22b])
-        by mx.google.com with ESMTPS id n6si10478853otn.273.2016.09.25.11.04.37
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 88579280266
+	for <linux-mm@kvack.org>; Sun, 25 Sep 2016 14:37:07 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id g67so62829128qkd.0
+        for <linux-mm@kvack.org>; Sun, 25 Sep 2016 11:37:07 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id v8si12145995qkv.36.2016.09.25.11.37.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 25 Sep 2016 11:04:37 -0700 (PDT)
-Received: by mail-oi0-x22b.google.com with SMTP id t83so185472926oie.3
-        for <linux-mm@kvack.org>; Sun, 25 Sep 2016 11:04:37 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CALXu0UfuwGM+H0YnfSNW6O=hgcUrmws+ihHLVB=OJWOp8YCwgw@mail.gmail.com>
-References: <1474570415-14938-1-git-send-email-mawilcox@linuxonhyperv.com>
- <1474570415-14938-3-git-send-email-mawilcox@linuxonhyperv.com>
- <CALXu0Ucx-6PeEk9nTD-4nZvwyVr9LLXcFGFzhctX-ucKfCygGA@mail.gmail.com>
- <CA+55aFyRG=us-EKnomo=QPE0GR1Qdxyw1Ozmuzw0EJcSr7U3hQ@mail.gmail.com> <CALXu0UfuwGM+H0YnfSNW6O=hgcUrmws+ihHLVB=OJWOp8YCwgw@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sun, 25 Sep 2016 11:04:36 -0700
-Message-ID: <CA+55aFzge97L-JLKZq0CTW1wtMOsnt8QzOw3b5qCMmzbKxZ5aw@mail.gmail.com>
-Subject: Re: [PATCH 2/2] radix-tree: Fix optimisation problem
-Content-Type: multipart/alternative; boundary=001a113d35aa364de1053d58d878
+        Sun, 25 Sep 2016 11:37:06 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8PIXMdI036249
+	for <linux-mm@kvack.org>; Sun, 25 Sep 2016 14:37:06 -0400
+Received: from e31.co.us.ibm.com (e31.co.us.ibm.com [32.97.110.149])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 25p6u0unt1-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 25 Sep 2016 14:37:06 -0400
+Received: from localhost
+	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
+	Sun, 25 Sep 2016 12:37:05 -0600
+From: Reza Arbab <arbab@linux.vnet.ibm.com>
+Subject: [PATCH v3 4/5] powerpc/mm: restore top-down allocation when using movable_node
+Date: Sun, 25 Sep 2016 13:36:55 -0500
+In-Reply-To: <1474828616-16608-1-git-send-email-arbab@linux.vnet.ibm.com>
+References: <1474828616-16608-1-git-send-email-arbab@linux.vnet.ibm.com>
+Message-Id: <1474828616-16608-5-git-send-email-arbab@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cedric Blancher <cedric.blancher@gmail.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <mawilcox@linuxonhyperv.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Matthew Wilcox <mawilcox@microsoft.com>
+To: Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, devicetree@vger.kernel.org, linux-mm@kvack.org
 
---001a113d35aa364de1053d58d878
-Content-Type: text/plain; charset=UTF-8
+At boot, the movable_node option sets bottom-up memblock allocation.
 
-On Sep 25, 2016 10:59 AM, "Cedric Blancher" <cedric.blancher@gmail.com>
-wrote:
-> >
-> > The use of "int" is perfectly valid, since it's limited by
-> > RADIX_TREE_MAP_SIZE, so it's going to be a small integer.
->
-> A specific data type would be wise (aka radtr_mapsz_t) to prevent a
-> disaster as SystemV had early during development.
+This reduces the chance that, in the window before movable memory has
+been identified, an allocation for the kernel might come from a movable
+node. By going bottom-up, early allocations will most likely come from
+the same node as the kernel image, which is necessarily in a nonmovable
+node.
 
-Actually, you're right that the code is shit and shouldn't use an "int"
-there.
+Then, once any known hotplug memory has been marked, allocation can be
+reset back to top-down. On x86, this is done in numa_init(). This patch
+does the same on power, in numa initmem_init().
 
-The value range is indeed just up to RADIX_TREE_MAP_SIZE, but since the
-code actually can get entries that are *not* sibling entries, it could
-overflow
+Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
+---
+ arch/powerpc/mm/numa.c | 3 +++
+ 1 file changed, 3 insertions(+)
 
-The more I look at that particular piece of code, the less I like it. It's
-buggy shit. It needs to be rewritten entirely too actually check for
-sibling entries, not that ad-hoc arithmetic crap.
-
-     Linus
-
---001a113d35aa364de1053d58d878
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-<p dir=3D"ltr"></p>
-<p dir=3D"ltr">On Sep 25, 2016 10:59 AM, &quot;Cedric Blancher&quot; &lt;<a=
- href=3D"mailto:cedric.blancher@gmail.com">cedric.blancher@gmail.com</a>&gt=
-; wrote:<br>
-&gt; &gt;<br>
-&gt; &gt; The use of &quot;int&quot; is perfectly valid, since it&#39;s lim=
-ited by<br>
-&gt; &gt; RADIX_TREE_MAP_SIZE, so it&#39;s going to be a small integer.<br>
-&gt;<br>
-&gt; A specific data type would be wise (aka radtr_mapsz_t) to prevent a<br=
->
-&gt; disaster as SystemV had early during development.</p>
-<p dir=3D"ltr">Actually, you&#39;re right that the code is shit and shouldn=
-&#39;t use an &quot;int&quot; there. </p>
-<p dir=3D"ltr">The value range is indeed just up to RADIX_TREE_MAP_SIZE, bu=
-t since the code actually can get entries that are *not* sibling entries, i=
-t could overflow </p>
-<p dir=3D"ltr">The more I look at that particular piece of code, the less I=
- like it. It&#39;s buggy shit. It needs to be rewritten entirely too actual=
-ly check for sibling entries, not that ad-hoc arithmetic crap.</p>
-<p dir=3D"ltr">=C2=A0=C2=A0=C2=A0=C2=A0 Linus</p>
-
---001a113d35aa364de1053d58d878--
+diff --git a/arch/powerpc/mm/numa.c b/arch/powerpc/mm/numa.c
+index d7ac419..fdf1e69 100644
+--- a/arch/powerpc/mm/numa.c
++++ b/arch/powerpc/mm/numa.c
+@@ -945,6 +945,9 @@ void __init initmem_init(void)
+ 	max_low_pfn = memblock_end_of_DRAM() >> PAGE_SHIFT;
+ 	max_pfn = max_low_pfn;
+ 
++	/* bottom-up allocation may have been set by movable_node */
++	memblock_set_bottom_up(false);
++
+ 	if (parse_numa_properties())
+ 		setup_nonnuma();
+ 	else
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
