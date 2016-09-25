@@ -1,81 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BBD1028026C
-	for <linux-mm@kvack.org>; Sun, 25 Sep 2016 14:37:14 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id c84so337812272pfj.2
-        for <linux-mm@kvack.org>; Sun, 25 Sep 2016 11:37:14 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id x68si20730922pfx.172.2016.09.25.11.37.13
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A6046280267
+	for <linux-mm@kvack.org>; Sun, 25 Sep 2016 14:47:35 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id b130so63022926wmc.2
+        for <linux-mm@kvack.org>; Sun, 25 Sep 2016 11:47:35 -0700 (PDT)
+Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
+        by mx.google.com with ESMTPS id y6si5375023wmh.60.2016.09.25.11.47.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 25 Sep 2016 11:37:14 -0700 (PDT)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8PIXNGi143561
-	for <linux-mm@kvack.org>; Sun, 25 Sep 2016 14:37:13 -0400
-Received: from e36.co.us.ibm.com (e36.co.us.ibm.com [32.97.110.154])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 25p6ahmhcv-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 25 Sep 2016 14:37:13 -0400
-Received: from localhost
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Sun, 25 Sep 2016 12:37:12 -0600
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: [PATCH v3 5/5] mm: enable CONFIG_MOVABLE_NODE on powerpc
-Date: Sun, 25 Sep 2016 13:36:56 -0500
-In-Reply-To: <1474828616-16608-1-git-send-email-arbab@linux.vnet.ibm.com>
-References: <1474828616-16608-1-git-send-email-arbab@linux.vnet.ibm.com>
-Message-Id: <1474828616-16608-6-git-send-email-arbab@linux.vnet.ibm.com>
+        Sun, 25 Sep 2016 11:47:34 -0700 (PDT)
+Received: by mail-wm0-x244.google.com with SMTP id b184so10916495wma.3
+        for <linux-mm@kvack.org>; Sun, 25 Sep 2016 11:47:34 -0700 (PDT)
+Date: Sun, 25 Sep 2016 19:47:31 +0100
+From: Lorenzo Stoakes <lstoakes@gmail.com>
+Subject: Re: [PATCH] mm: check VMA flags to avoid invalid PROT_NONE NUMA
+ balancing
+Message-ID: <20160925184731.GA20480@lucifer>
+References: <20160911225425.10388-1-lstoakes@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160911225425.10388-1-lstoakes@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, devicetree@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: mgorman@techsingularity.net, torvalds@linux-foundation.org, riel@redhat.com, tbsaunde@tbsaunde.org, robert@ocallahan.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 
-To create a movable node, we need to hotplug all of its memory into
-ZONE_MOVABLE.
+Just a quick ping on this, let me know if you need anything more from me!
 
-Note that to do this, auto_online_blocks should be off. Since the memory
-will first be added to the default zone, we must explicitly use
-online_movable to online.
+Thanks, Lorenzo
 
-Because such a node contains no normal memory, can_online_high_movable()
-will only allow us to do the onlining if CONFIG_MOVABLE_NODE is set.
-Enable the use of this config option on PPC64 platforms.
-
-Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
----
- Documentation/kernel-parameters.txt | 2 +-
- mm/Kconfig                          | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
-index a4f4d69..3d8460d 100644
---- a/Documentation/kernel-parameters.txt
-+++ b/Documentation/kernel-parameters.txt
-@@ -2344,7 +2344,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
- 			that the amount of memory usable for all allocations
- 			is not too small.
- 
--	movable_node	[KNL,X86] Boot-time switch to enable the effects
-+	movable_node	[KNL,X86,PPC] Boot-time switch to enable the effects
- 			of CONFIG_MOVABLE_NODE=y. See mm/Kconfig for details.
- 
- 	MTD_Partition=	[MTD]
-diff --git a/mm/Kconfig b/mm/Kconfig
-index be0ee11..4b19cd3 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -153,7 +153,7 @@ config MOVABLE_NODE
- 	bool "Enable to assign a node which has only movable memory"
- 	depends on HAVE_MEMBLOCK
- 	depends on NO_BOOTMEM
--	depends on X86_64
-+	depends on X86_64 || PPC64
- 	depends on NUMA
- 	default n
- 	help
--- 
-1.8.3.1
+On Sun, Sep 11, 2016 at 11:54:25PM +0100, Lorenzo Stoakes wrote:
+> The NUMA balancing logic uses an arch-specific PROT_NONE page table flag defined
+> by pte_protnone() or pmd_protnone() to mark PTEs or huge page PMDs respectively
+> as requiring balancing upon a subsequent page fault. User-defined PROT_NONE
+> memory regions which also have this flag set will not normally invoke the NUMA
+> balancing code as do_page_fault() will send a segfault to the process before
+> handle_mm_fault() is even called.
+>
+> However if access_remote_vm() is invoked to access a PROT_NONE region of memory,
+> handle_mm_fault() is called via faultin_page() and __get_user_pages() without
+> any access checks being performed, meaning the NUMA balancing logic is
+> incorrectly invoked on a non-NUMA memory region.
+>
+> A simple means of triggering this problem is to access PROT_NONE mmap'd memory
+> using /proc/self/mem which reliably results in the NUMA handling functions being
+> invoked when CONFIG_NUMA_BALANCING is set.
+>
+> This issue was reported in bugzilla (issue 99101) which includes some simple
+> repro code.
+>
+> There are BUG_ON() checks in do_numa_page() and do_huge_pmd_numa_page() added at
+> commit c0e7cad to avoid accidentally provoking strange behaviour by attempting
+> to apply NUMA balancing to pages that are in fact PROT_NONE. The BUG_ON()'s are
+> consistently triggered by the repro.
+>
+> This patch moves the PROT_NONE check into mm/memory.c rather than invoking
+> BUG_ON() as faulting in these pages via faultin_page() is a valid reason for
+> reaching the NUMA check with the PROT_NONE page table flag set and is therefore
+> not always a bug.
+>
+> Link: https://bugzilla.kernel.org/show_bug.cgi?id=99101
+> Reported-by: Trevor Saunders <tbsaunde@tbsaunde.org>
+> Signed-off-by: Lorenzo Stoakes <lstoakes@gmail.com>
+> ---
+>  mm/huge_memory.c |  3 ---
+>  mm/memory.c      | 12 +++++++-----
+>  2 files changed, 7 insertions(+), 8 deletions(-)
+>
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index d76700d..954be55 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -1198,9 +1198,6 @@ int do_huge_pmd_numa_page(struct fault_env *fe, pmd_t pmd)
+>  	bool was_writable;
+>  	int flags = 0;
+>
+> -	/* A PROT_NONE fault should not end up here */
+> -	BUG_ON(!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)));
+> -
+>  	fe->ptl = pmd_lock(vma->vm_mm, fe->pmd);
+>  	if (unlikely(!pmd_same(pmd, *fe->pmd)))
+>  		goto out_unlock;
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 020226b..aebc04f 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -3351,9 +3351,6 @@ static int do_numa_page(struct fault_env *fe, pte_t pte)
+>  	bool was_writable = pte_write(pte);
+>  	int flags = 0;
+>
+> -	/* A PROT_NONE fault should not end up here */
+> -	BUG_ON(!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)));
+> -
+>  	/*
+>  	* The "pte" at this point cannot be used safely without
+>  	* validation through pte_unmap_same(). It's of NUMA type but
+> @@ -3458,6 +3455,11 @@ static int wp_huge_pmd(struct fault_env *fe, pmd_t orig_pmd)
+>  	return VM_FAULT_FALLBACK;
+>  }
+>
+> +static inline bool vma_is_accessible(struct vm_area_struct *vma)
+> +{
+> +	return vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE);
+> +}
+> +
+>  /*
+>   * These routines also need to handle stuff like marking pages dirty
+>   * and/or accessed for architectures that don't do it in hardware (most
+> @@ -3524,7 +3526,7 @@ static int handle_pte_fault(struct fault_env *fe)
+>  	if (!pte_present(entry))
+>  		return do_swap_page(fe, entry);
+>
+> -	if (pte_protnone(entry))
+> +	if (pte_protnone(entry) && vma_is_accessible(fe->vma))
+>  		return do_numa_page(fe, entry);
+>
+>  	fe->ptl = pte_lockptr(fe->vma->vm_mm, fe->pmd);
+> @@ -3590,7 +3592,7 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
+>
+>  		barrier();
+>  		if (pmd_trans_huge(orig_pmd) || pmd_devmap(orig_pmd)) {
+> -			if (pmd_protnone(orig_pmd))
+> +			if (pmd_protnone(orig_pmd) && vma_is_accessible(vma))
+>  				return do_huge_pmd_numa_page(&fe, orig_pmd);
+>
+>  			if ((fe.flags & FAULT_FLAG_WRITE) &&
+> --
+> 2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
