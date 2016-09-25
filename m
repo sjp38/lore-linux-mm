@@ -1,68 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A573280266
-	for <linux-mm@kvack.org>; Sun, 25 Sep 2016 15:18:55 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id fi2so71270102pad.3
-        for <linux-mm@kvack.org>; Sun, 25 Sep 2016 12:18:55 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTPS id 65si6218059pfh.155.2016.09.25.12.18.54
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 723D5280266
+	for <linux-mm@kvack.org>; Sun, 25 Sep 2016 15:41:00 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id fi2so72185872pad.3
+        for <linux-mm@kvack.org>; Sun, 25 Sep 2016 12:41:00 -0700 (PDT)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com. [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id z86si20803958pfa.5.2016.09.25.12.40.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 25 Sep 2016 12:18:54 -0700 (PDT)
-Date: Sun, 25 Sep 2016 12:18:49 -0700
-From: Shaohua Li <shli@kernel.org>
-Subject: Re: [PATCH -v3 00/10] THP swap: Delay splitting THP during swapping
- out
-Message-ID: <20160925191849.GA83300@kernel.org>
-References: <1473266769-2155-1-git-send-email-ying.huang@intel.com>
- <20160922225608.GA3898@kernel.org>
- <1474591086.17726.1.camel@redhat.com>
- <87d1jvuz08.fsf@yhuang-dev.intel.com>
+        Sun, 25 Sep 2016 12:40:59 -0700 (PDT)
+Received: by mail-pa0-x235.google.com with SMTP id qn7so38021949pac.3
+        for <linux-mm@kvack.org>; Sun, 25 Sep 2016 12:40:59 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <87d1jvuz08.fsf@yhuang-dev.intel.com>
+In-Reply-To: <CA+55aFxOJTOvxhv+hECHuGV+=xBHMuQitu86J=qBNmMYQ1ACSg@mail.gmail.com>
+References: <1474570415-14938-1-git-send-email-mawilcox@linuxonhyperv.com>
+ <1474570415-14938-3-git-send-email-mawilcox@linuxonhyperv.com>
+ <CALXu0Ucx-6PeEk9nTD-4nZvwyVr9LLXcFGFzhctX-ucKfCygGA@mail.gmail.com>
+ <CA+55aFyRG=us-EKnomo=QPE0GR1Qdxyw1Ozmuzw0EJcSr7U3hQ@mail.gmail.com>
+ <CALXu0UfuwGM+H0YnfSNW6O=hgcUrmws+ihHLVB=OJWOp8YCwgw@mail.gmail.com>
+ <CA+55aFzge97L-JLKZq0CTW1wtMOsnt8QzOw3b5qCMmzbKxZ5aw@mail.gmail.com> <CA+55aFxOJTOvxhv+hECHuGV+=xBHMuQitu86J=qBNmMYQ1ACSg@mail.gmail.com>
+From: Cedric Blancher <cedric.blancher@gmail.com>
+Date: Sun, 25 Sep 2016 21:40:58 +0200
+Message-ID: <CALXu0UdXLt0Lccqnx2TMSgK1Or0whKLRuF-+rXuzqmkhYksgSQ@mail.gmail.com>
+Subject: Re: [PATCH 2/2] radix-tree: Fix optimisation problem
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <mawilcox@linuxonhyperv.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Matthew Wilcox <mawilcox@microsoft.com>
 
-On Fri, Sep 23, 2016 at 10:32:39AM +0800, Huang, Ying wrote:
-> Rik van Riel <riel@redhat.com> writes:
-> 
-> > On Thu, 2016-09-22 at 15:56 -0700, Shaohua Li wrote:
-> >> On Wed, Sep 07, 2016 at 09:45:59AM -0700, Huang, Ying wrote:
-> >> > 
-> >> > - It will help the memory fragmentation, especially when the THP is
-> >> >   heavily used by the applications.  The 2M continuous pages will
-> >> > be
-> >> >   free up after THP swapping out.
-> >> 
-> >> So this is impossible without THP swapin. While 2M swapout makes a
-> >> lot of
-> >> sense, I doubt 2M swapin is really useful. What kind of application
-> >> is
-> >> 'optimized' to do sequential memory access?
-> >
-> > I suspect a lot of this will depend on the ratio of storage
-> > speed to CPU & RAM speed.
-> >
-> > When swapping to a spinning disk, it makes sense to avoid
-> > extra memory use on swapin, and work in 4kB blocks.
-> 
-> For spinning disk, the THP swap optimization will be turned off in
-> current implementation.  Because huge swap cluster allocation based on
-> swap cluster management, which is available only for non-rotating block
-> devices (blk_queue_nonrot()).
+LGTM, except that #define is_sibling_entry should be IS_SIBLING_ENTRY
 
-For 2m swapin, as long as one byte is changed in the 2m, next time we must do
-2m swapout. There is huge waste of memory and IO bandwidth and increases
-unnecessary memory pressure. 2M IO will very easily saturate a very fast SSD
-and makes IO the bottleneck. Not sure about NVRAM though.
+Ced
 
-Thanks,
-Shaohua
+On 25 September 2016 at 21:04, Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
+> On Sun, Sep 25, 2016 at 11:04 AM, Linus Torvalds
+> <torvalds@linux-foundation.org> wrote:
+>>
+>> The more I look at that particular piece of code, the less I like it. It's
+>> buggy shit. It needs to be rewritten entirely too actually check for sibling
+>> entries, not that ad-hoc arithmetic crap.
+>
+> Here's my attempt at cleaning the mess up.
+>
+> I'm not claiming it's perfect, but I think it's better. It gets rid of
+> the ad-hoc arithmetic in radix_tree_descend(), and just makes all that
+> be inside the is_sibling_entry() logic instead. Which got renamed and
+> made to actually return the main sibling. So now there is at least
+> only *one* piece of code that does that range comparison, and I don't
+> think there is any huge need to explain what's going on, because the
+> "magic" is unconditional.
+>
+> Willy?
+>
+>                  Linus
+
+
+
+-- 
+Cedric Blancher <cedric.blancher@gmail.com>
+[https://plus.google.com/u/0/+CedricBlancher/]
+Institute Pasteur
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
