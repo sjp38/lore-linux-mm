@@ -1,70 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BE6B280273
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 04:19:50 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id l132so74931034wmf.0
-        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 01:19:50 -0700 (PDT)
-Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
-        by mx.google.com with ESMTPS id ud2si18499956wjc.0.2016.09.26.01.19.48
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 430236B027F
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 04:46:19 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id w84so76198141wmg.1
+        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 01:46:19 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id l70si7614704wmg.18.2016.09.26.01.46.17
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 26 Sep 2016 01:19:49 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id B727598B6F
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 08:19:48 +0000 (UTC)
-Date: Mon, 26 Sep 2016 09:19:47 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm: check VMA flags to avoid invalid PROT_NONE NUMA
- balancing
-Message-ID: <20160926081947.GB2838@techsingularity.net>
-References: <20160911225425.10388-1-lstoakes@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 Sep 2016 01:46:17 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id b184so12966441wma.3
+        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 01:46:17 -0700 (PDT)
+Date: Mon, 26 Sep 2016 10:46:16 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3 1/2] mm, proc: Fix region lost in /proc/self/smaps
+Message-ID: <20160926084616.GA28550@dhcp22.suse.cz>
+References: <1474636354-25573-1-git-send-email-robert.hu@intel.com>
+ <20160923135635.GB28734@redhat.com>
+ <20160923145301.GU4478@dhcp22.suse.cz>
+ <20160923155351.GA1584@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160911225425.10388-1-lstoakes@gmail.com>
+In-Reply-To: <20160923155351.GA1584@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lorenzo Stoakes <lstoakes@gmail.com>
-Cc: linux-mm@kvack.org, torvalds@linux-foundation.org, riel@redhat.com, tbsaunde@tbsaunde.org, robert@ocallahan.org
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Robert Ho <robert.hu@intel.com>, pbonzini@redhat.com, akpm@linux-foundation.org, dan.j.williams@intel.com, dave.hansen@intel.com, guangrong.xiao@linux.intel.com, gleb@kernel.org, mtosatti@redhat.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, stefanha@redhat.com, yuhuang@redhat.com, linux-mm@kvack.org, ross.zwisler@linux.intel.com
 
-On Sun, Sep 11, 2016 at 11:54:25PM +0100, Lorenzo Stoakes wrote:
-> The NUMA balancing logic uses an arch-specific PROT_NONE page table flag defined
-> by pte_protnone() or pmd_protnone() to mark PTEs or huge page PMDs respectively
-> as requiring balancing upon a subsequent page fault. User-defined PROT_NONE
-> memory regions which also have this flag set will not normally invoke the NUMA
-> balancing code as do_page_fault() will send a segfault to the process before
-> handle_mm_fault() is even called.
+On Fri 23-09-16 17:53:51, Oleg Nesterov wrote:
+> On 09/23, Michal Hocko wrote:
+> >
+> > On Fri 23-09-16 15:56:36, Oleg Nesterov wrote:
+> > > 
+> > > I think we can simplify this patch. And imo make it better. How about
+> > 
+> > it is certainly less subtle because it doesn't report "sub-vmas".
+> > 
+> > > 	if (last_addr) {
+> > > 		vma = find_vma(mm, last_addr - 1);
+> > > 		if (vma && vma->vm_start <= last_addr)
+> > > 			vma = m_next_vma(priv, vma);
+> > > 		if (vma)
+> > > 			return vma;
+> > > 	}
+> > 
+> > we would still miss a VMA if the last one got shrunk/split
 > 
-> However if access_remote_vm() is invoked to access a PROT_NONE region of memory,
-> handle_mm_fault() is called via faultin_page() and __get_user_pages() without
-> any access checks being performed, meaning the NUMA balancing logic is
-> incorrectly invoked on a non-NUMA memory region.
-> 
-> A simple means of triggering this problem is to access PROT_NONE mmap'd memory
-> using /proc/self/mem which reliably results in the NUMA handling functions being
-> invoked when CONFIG_NUMA_BALANCING is set.
-> 
-> This issue was reported in bugzilla (issue 99101) which includes some simple
-> repro code.
-> 
-> There are BUG_ON() checks in do_numa_page() and do_huge_pmd_numa_page() added at
-> commit c0e7cad to avoid accidentally provoking strange behaviour by attempting
-> to apply NUMA balancing to pages that are in fact PROT_NONE. The BUG_ON()'s are
-> consistently triggered by the repro.
-> 
-> This patch moves the PROT_NONE check into mm/memory.c rather than invoking
-> BUG_ON() as faulting in these pages via faultin_page() is a valid reason for
-> reaching the NUMA check with the PROT_NONE page table flag set and is therefore
-> not always a bug.
-> 
-> Link: https://bugzilla.kernel.org/show_bug.cgi?id=99101
-> Reported-by: Trevor Saunders <tbsaunde@tbsaunde.org>
-> Signed-off-by: Lorenzo Stoakes <lstoakes@gmail.com>
+> Not sure I understand what you mean... If the last one was split
+> we probably should not report the new vma.
 
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
+Right, VMA split is less of a problem. I meant to say that if the
+last_vma->vm_end got lower for whatever reason then we could miss a VMA
+right after. We actually might want to display such a VMA because it
+could be a completely new one. We just do not know whether it is a
+former split with enlarged VMA or a completely new one
 
+[      old VMA     ]   Hole       [   VMA    ]
+[ old VMA   ][  New VMa    ]      [   VMA    ]
+
+> Nevermind, in any case yes, sure, this can't "fix" other corner cases.
+
+Agreed, or at least I do not see an easy way for that.
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
