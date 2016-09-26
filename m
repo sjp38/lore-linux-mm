@@ -1,117 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6271B280274
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 16:58:04 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id i193so557051087oib.3
-        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 13:58:04 -0700 (PDT)
-Received: from mail-oi0-x242.google.com (mail-oi0-x242.google.com. [2607:f8b0:4003:c06::242])
-        by mx.google.com with ESMTPS id e205si6192071oif.220.2016.09.26.13.58.01
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A2C7F280274
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 17:13:00 -0400 (EDT)
+Received: by mail-ua0-f200.google.com with SMTP id n13so3717684uaa.1
+        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 14:13:00 -0700 (PDT)
+Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
+        by mx.google.com with ESMTPS id g16si4506605vke.165.2016.09.26.14.12.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Sep 2016 13:58:01 -0700 (PDT)
-Received: by mail-oi0-x242.google.com with SMTP id a62so14354766oib.1
-        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 13:58:01 -0700 (PDT)
-MIME-Version: 1.0
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Mon, 26 Sep 2016 13:58:00 -0700
-Message-ID: <CA+55aFwVSXZPONk2OEyxcP-aAQU7-aJsF3OFXVi8Z5vA11v_-Q@mail.gmail.com>
-Subject: page_waitqueue() considered harmful
-Content-Type: text/plain; charset=UTF-8
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 26 Sep 2016 14:12:59 -0700 (PDT)
+Message-ID: <1474924351.2857.255.camel@kernel.crashing.org>
+Subject: Re: [PATCH v3 4/5] powerpc/mm: restore top-down allocation when
+ using movable_node
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Tue, 27 Sep 2016 07:12:31 +1000
+In-Reply-To: <1474828616-16608-5-git-send-email-arbab@linux.vnet.ibm.com>
+References: <1474828616-16608-1-git-send-email-arbab@linux.vnet.ibm.com>
+	 <1474828616-16608-5-git-send-email-arbab@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Reza Arbab <arbab@linux.vnet.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, devicetree@vger.kernel.org, linux-mm@kvack.org
 
-So I've been doing some profiling of the git "make test" load, which
-is interesting because it's just a lot of small scripts, and it shows
-our fork/execve/exit costs.
+On Sun, 2016-09-25 at 13:36 -0500, Reza Arbab wrote:
+> At boot, the movable_node option sets bottom-up memblock allocation.
+> 
+> This reduces the chance that, in the window before movable memory has
+> been identified, an allocation for the kernel might come from a movable
+> node. By going bottom-up, early allocations will most likely come from
+> the same node as the kernel image, which is necessarily in a nonmovable
+> node.
+> 
+> Then, once any known hotplug memory has been marked, allocation can be
+> reset back to top-down. On x86, this is done in numa_init(). This patch
+> does the same on power, in numa initmem_init().
 
-Some of the top offenders are pretty understandable: we have long had
-unmap_page_range() show up at the top on these loads, because the
-zap_pte_range() function ends up touching each page as it unmaps
-things (it does it to check whether it's an anonymous page, but then
-also for the page map count update etc), and that's a disaster from a
-cache standpoint. That single function is something between 3-4% of
-CPU time, and the one instruction that accesses "struct page" the
-first time is a large portion of that. Yes, a single instruction is
-blamed for about 1% of all CPU time on a fork/exec/exit workload.
+That's fragile and a bit gross.
 
-Anyway, there really isn't a ton to be done about it. Same goes for
-the reverse side of the coin: filemap_map_pages() (to map in the new
-executable pages) is #2, and copy_page() (COW after fork()) is #3.
-Those are all kind of inevitable for the load.
+But then I'm not *that* fan of making accelerator memory be "memory" nodes
+in the first place. Oh well...
 
-#4 on my list is "native_irq_return_iret", which is just a sign of
-serializing instructions being really expensive, and this being a
-workload with a lot of exceptions (most of which are the page faults).
-So I guess there are *two* instructions in the kernel that are really
-really hot. Maybe Intel will fix the cost of "iret" some day, at least
-partially, but that day has not yet come to pass.
+In any case, if the memory hasn't been hotplug, this shouldn't be necessary
+as we shouldn't be considering it for allocation.
 
-Anyway, things get kind of interesting once you get past the very top
-offenders, and the profile starts to be less about "yeah, tough, can't
-fix that" and instead hit things that make you go "ehh, really?"
+If we want to prevent it for other reason, we should add logic for that
+in memblock, or reserve it early or something like that.
 
-#5 and #6 on my profile are user space (_int_malloc in glibc, and
-do_lookup_x in the loader - I think user space should probably start
-thinking more about doing static libraries for the really core basic
-things, but whatever. Not a kernel issue.
+Just relying magically on the direction of the allocator is bad, really bad.
 
-#7 is in the kernel again. And that one struck me as really odd. It's
-"unlock_page()", while #9 is __wake_up_bit(). WTF? There's no IO in
-this load, it's all cached, why do we use 3% of the time (1.7% and
-1.4% respectively) on unlocking a page. And why can't I see the
-locking part?
+Ben.
 
-It turns out that I *can* see the locking part, but it's pretty cheap.
-It's inside of filemap_map_pages(), which does a trylock, and it shows
-up as about 1/6th of the cost of that function. Still, it's much less
-than the unlocking side. Why is unlocking so expensive?
-
-Yeah, unlocking is expensive because of the nasty __wake_up_bit()
-code. In fact, even inside "unlock_page()" itself, most of the costs
-aren't even the atomic bit clearing (like you'd expect), it's the
-inlined part of wake_up_bit(). Which does some really nasty crud.
-
-Why is the page_waitqueue() handling so expensive? Let me count the ways:
-
- (a) stupid code generation interacting really badly with microarchitecture
-
-     We clear the bit in page->flags with a byte-sized "lock andb",
-and then page_waitqueue() looks up the zone by reading the full value
-of "page->flags" immediately afterwards, which causes bad bad behavior
-with the whole read-after-partial-write thing. Nasty.
-
- (b) It's cache miss heaven. It takes a cache miss on three different
-things:looking up the zone 'wait_table', then looking up the hash
-queue there, and finally (inside __wake_up_bit) looking up the wait
-queue itself (which will effectively always be NULL).
-
-Now, (a) could be fairly easy to fix several ways (the byte-size
-operation on an "unsigned long" field have caused problems before, and
-may just be a mistake), but (a) wouldn't even be a problem if we
-didn't have the complexity of (b) and having to look up the zone and
-everything. So realistically, it's actually (b) that is the primary
-problem, and indirectly causes (a) to happen too.
-
-Is there really any reason for that incredible indirection? Do we
-really want to make the page_waitqueue() be a per-zone thing at all?
-Especially since all those wait-queues won't even be *used* unless
-there is actual IO going on and people are really getting into
-contention on the page lock.. Why isn't the page_waitqueue() just one
-statically sized array?
-
-Also, if those bitlock ops had a different bit that showed contention,
-we could actually skip *all* of this, and just see that "oh, nobody is
-waiting on this page anyway, so there's no point in looking up those
-wait queues". We don't have that many "__wait_on_bit()" users, maybe
-we could say that the bitlocks do have to haev *two* bits: one for the
-lock bit itself, and one for "there is contention".
-
-Looking at the history of this code, most of it actually predates the
-git history, it goes back to ~2004. Time to revisit that thing?
-
-                  Linus
+> Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
+> ---
+> A arch/powerpc/mm/numa.c | 3 +++
+> A 1 file changed, 3 insertions(+)
+> 
+> diff --git a/arch/powerpc/mm/numa.c b/arch/powerpc/mm/numa.c
+> index d7ac419..fdf1e69 100644
+> --- a/arch/powerpc/mm/numa.c
+> +++ b/arch/powerpc/mm/numa.c
+> @@ -945,6 +945,9 @@ void __init initmem_init(void)
+> > A 	max_low_pfn = memblock_end_of_DRAM() >> PAGE_SHIFT;
+> > A 	max_pfn = max_low_pfn;
+> A 
+> > +	/* bottom-up allocation may have been set by movable_node */
+> > +	memblock_set_bottom_up(false);
+> +
+> > A 	if (parse_numa_properties())
+> > A 		setup_nonnuma();
+> > A 	else
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
