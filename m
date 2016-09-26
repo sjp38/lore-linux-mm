@@ -1,76 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DC8D280274
-	for <linux-mm@kvack.org>; Sun, 25 Sep 2016 23:25:43 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id fi2so88289463pad.3
-        for <linux-mm@kvack.org>; Sun, 25 Sep 2016 20:25:43 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id i70si22736204pfk.182.2016.09.25.20.25.42
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D4DC6B029C
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 00:26:42 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id f187so171958030qkd.3
+        for <linux-mm@kvack.org>; Sun, 25 Sep 2016 21:26:42 -0700 (PDT)
+Received: from mail-qt0-x244.google.com (mail-qt0-x244.google.com. [2607:f8b0:400d:c0d::244])
+        by mx.google.com with ESMTPS id u5si13356727qkb.5.2016.09.25.21.26.41
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 25 Sep 2016 20:25:42 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -v3 00/10] THP swap: Delay splitting THP during swapping out
-References: <1473266769-2155-1-git-send-email-ying.huang@intel.com>
-	<20160922225608.GA3898@kernel.org>
-	<1474591086.17726.1.camel@redhat.com>
-	<87d1jvuz08.fsf@yhuang-dev.intel.com>
-	<20160925191849.GA83300@kernel.org>
-Date: Mon, 26 Sep 2016 11:25:27 +0800
-In-Reply-To: <20160925191849.GA83300@kernel.org> (Shaohua Li's message of
-	"Sun, 25 Sep 2016 12:18:49 -0700")
-Message-ID: <877f9zs5p4.fsf@yhuang-dev.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 25 Sep 2016 21:26:41 -0700 (PDT)
+Received: by mail-qt0-x244.google.com with SMTP id 38so5463161qte.2
+        for <linux-mm@kvack.org>; Sun, 25 Sep 2016 21:26:41 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <CA+55aFzOvPJbVFvssmiOHuCKG_z-FbGO8-EzVnShDCVmAc1MQQ@mail.gmail.com>
+References: <1474570415-14938-1-git-send-email-mawilcox@linuxonhyperv.com>
+ <1474570415-14938-3-git-send-email-mawilcox@linuxonhyperv.com>
+ <CA+55aFwNYAFc4KePvx50kwZ3A+8yvCCK_6nYYxG9fqTPhFzQoQ@mail.gmail.com>
+ <DM2PR21MB0089CA7DCF4845DB02E0E05FCBC80@DM2PR21MB0089.namprd21.prod.outlook.com>
+ <CA+55aFwiro5MvOozcF50z4kMBk7rVBViLw8yXX1w-1mCZVAsDA@mail.gmail.com>
+ <20160924210443.GA106728@black.fi.intel.com> <CA+55aFzOvPJbVFvssmiOHuCKG_z-FbGO8-EzVnShDCVmAc1MQQ@mail.gmail.com>
+From: Ross Zwisler <zwisler@gmail.com>
+Date: Sun, 25 Sep 2016 22:26:40 -0600
+Message-ID: <CAOxpaSVnjq9EWHTd+dOChkxg_XN1BNpQxZ30O1ttunUxQ3cR6w@mail.gmail.com>
+Subject: Re: [PATCH 2/2] radix-tree: Fix optimisation problem
+Content-Type: multipart/alternative; boundary=94eb2c19078ae62b7b053d618856
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, Matthew Wilcox <mawilcox@linuxonhyperv.com>, Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-Shaohua Li <shli@kernel.org> writes:
+--94eb2c19078ae62b7b053d618856
+Content-Type: text/plain; charset=UTF-8
 
-> On Fri, Sep 23, 2016 at 10:32:39AM +0800, Huang, Ying wrote:
->> Rik van Riel <riel@redhat.com> writes:
->>=20
->> > On Thu, 2016-09-22 at 15:56 -0700, Shaohua Li wrote:
->> >> On Wed, Sep 07, 2016 at 09:45:59AM -0700, Huang, Ying wrote:
->> >> >.
->> >> > - It will help the memory fragmentation, especially when the THP is
->> >> > . heavily used by the applications..=A0The 2M continuous pages will
->> >> > be
->> >> > . free up after THP swapping out.
->> >>=20
->> >> So this is impossible without THP swapin. While 2M swapout makes a
->> >> lot of
->> >> sense, I doubt 2M swapin is really useful. What kind of application
->> >> is
->> >> 'optimized' to do sequential memory access?
->> >
->> > I suspect a lot of this will depend on the ratio of storage
->> > speed to CPU & RAM speed.
->> >
->> > When swapping to a spinning disk, it makes sense to avoid
->> > extra memory use on swapin, and work in 4kB blocks.
->>=20
->> For spinning disk, the THP swap optimization will be turned off in
->> current implementation.  Because huge swap cluster allocation based on
->> swap cluster management, which is available only for non-rotating block
->> devices (blk_queue_nonrot()).
+On Saturday, September 24, 2016, Linus Torvalds <
+torvalds@linux-foundation.org> wrote:
+
+> On Sat, Sep 24, 2016 at 2:04 PM, Kirill A. Shutemov
+> <kirill.shutemov@linux.intel.com <javascript:;>> wrote:
+> >
+> > Well, my ext4-with-huge-pages patchset[1] uses multi-order entries.
+> > It also converts shmem-with-huge-pages and hugetlb to them.
 >
-> For 2m swapin, as long as one byte is changed in the 2m, next time we mus=
-t do
-> 2m swapout. There is huge waste of memory and IO bandwidth and increases
-> unnecessary memory pressure. 2M IO will very easily saturate a very fast =
-SSD
-> and makes IO the bottleneck. Not sure about NVRAM though.
+> Ok, so that code actually has a chance of being used. I guess we'll
+> not remove it. But I *would* like this subtle issue to have a comment
+> around that odd cast/and/mask thing.
+>
+>             Linus
+>
 
-One solution is to make 2M swapin configurable, maybe via a sysfs file
-in /sys/kernel/mm/transparent_hugepage/, so that we can turn on it only
-for really fast storage devices, such as NVRAM, etc.
+My DAX PMD patches will use multi-order entries as well.
 
-Best Regards,
-Huang, Ying
+--94eb2c19078ae62b7b053d618856
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+
+On Saturday, September 24, 2016, Linus Torvalds &lt;<a href=3D"mailto:torva=
+lds@linux-foundation.org">torvalds@linux-foundation.org</a>&gt; wrote:<br><=
+blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px=
+ #ccc solid;padding-left:1ex">On Sat, Sep 24, 2016 at 2:04 PM, Kirill A. Sh=
+utemov<br>
+&lt;<a href=3D"javascript:;" onclick=3D"_e(event, &#39;cvml&#39;, &#39;kiri=
+ll.shutemov@linux.intel.com&#39;)">kirill.shutemov@linux.intel.com</a>&gt; =
+wrote:<br>
+&gt;<br>
+&gt; Well, my ext4-with-huge-pages patchset[1] uses multi-order entries.<br=
+>
+&gt; It also converts shmem-with-huge-pages and hugetlb to them.<br>
+<br>
+Ok, so that code actually has a chance of being used. I guess we&#39;ll<br>
+not remove it. But I *would* like this subtle issue to have a comment<br>
+around that odd cast/and/mask thing.<br>
+<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 Linus<br>
+</blockquote><div><br></div><div>My DAX PMD patches will use multi-order en=
+tries as well.<span></span>=C2=A0</div>
+
+--94eb2c19078ae62b7b053d618856--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
