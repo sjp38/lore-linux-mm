@@ -1,96 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 88C3E280273
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 16:29:16 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id y6so104792781lff.0
-        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 13:29:16 -0700 (PDT)
-Received: from mail-lf0-f65.google.com (mail-lf0-f65.google.com. [209.85.215.65])
-        by mx.google.com with ESMTPS id m127si9239375lfd.164.2016.09.26.13.29.14
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 79E5C280274
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 16:48:56 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id v67so407034032pfv.1
+        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 13:48:56 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id e3si26699903pad.32.2016.09.26.13.48.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Sep 2016 13:29:14 -0700 (PDT)
-Received: by mail-lf0-f65.google.com with SMTP id s64so10812000lfs.2
-        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 13:29:14 -0700 (PDT)
-Date: Mon, 26 Sep 2016 22:29:12 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 4/4] mm, compaction: restrict fragindex to costly orders
-Message-ID: <20160926202912.GC23827@dhcp22.suse.cz>
-References: <20160926162025.21555-1-vbabka@suse.cz>
- <20160926162025.21555-5-vbabka@suse.cz>
+        Mon, 26 Sep 2016 13:48:55 -0700 (PDT)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8QKm26r055689
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 16:48:55 -0400
+Received: from e35.co.us.ibm.com (e35.co.us.ibm.com [32.97.110.153])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 25q58c08h8-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 16:48:55 -0400
+Received: from localhost
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
+	Mon, 26 Sep 2016 14:48:53 -0600
+Date: Mon, 26 Sep 2016 15:48:40 -0500
+From: Reza Arbab <arbab@linux.vnet.ibm.com>
+Subject: Re: [PATCH v3 4/5] powerpc/mm: restore top-down allocation when
+ using movable_node
+References: <1474828616-16608-1-git-send-email-arbab@linux.vnet.ibm.com>
+ <1474828616-16608-5-git-send-email-arbab@linux.vnet.ibm.com>
+ <8760piacio.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Disposition: inline
-In-Reply-To: <20160926162025.21555-5-vbabka@suse.cz>
+In-Reply-To: <8760piacio.fsf@linux.vnet.ibm.com>
+Message-Id: <20160926204839.bugxlsyd4p3or5p2@arbab-laptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Olaf Hering <olaf@aepfle.de>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <hillf.zj@alibaba-inc.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, devicetree@vger.kernel.org, linux-mm@kvack.org
 
-On Mon 26-09-16 18:20:25, Vlastimil Babka wrote:
-> Fragmentation index and the vm.extfrag_threshold sysctl is meant as a heuristic
-> to prevent excessive compaction for costly orders (i.e. THP). It's unlikely to
-> make any difference for non-costly orders, especially with the default
-> threshold. But we cannot afford any uncertainty for the non-costly orders where
-> the only alternative to successful reclaim/compaction is OOM. After the recent
-> patches we are guaranteed maximum effort without heuristics from compaction
-> before deciding OOM, and fragindex is the last remaining heuristic. Therefore
-> skip fragindex altogether for non-costly orders.
+On Mon, Sep 26, 2016 at 09:17:43PM +0530, Aneesh Kumar K.V wrote:
+>> +	/* bottom-up allocation may have been set by movable_node */
+>> +	memblock_set_bottom_up(false);
+>> +
+>
+>By then we have done few memblock allocation right ?
 
-It would be nicer to reduce this just to the highest compaction priority
-but as your previous attempt shows this adds a lot of code churn.
-Not skipping the compaction for these !costly orders might lead to a
-higher latency for the allocation due to pointless zone scanning but
-considering that an alternative would be the order-0 reclaim which
-doesn't guarantee any larger blocks then doing a more targeted approach
-sounds quite reasonable to me.
+Yes, some allocations do occur while bottom-up is set.
 
-This patch is not really needed to prevent pre-mature OOMs because
-compaction_zonelist_suitable doesn't rely on the fragmentation index
-after the previous patch but it makes sense to me regardless. The
-fagindex was quite an obscure measure and having !costly order easier to
-understand is valuable imho.
+>IMHO, we should do this early enough in prom.c after we do 
+>parse_early_param, with a comment there explaining that, we don't 
+>really support hotplug memblock and when we do that, this should be 
+>moved to a place where we can handle memblock allocation such that we 
+>avoid spreading memblock allocation to movable node.
 
-> Suggested-by: Michal Hocko <mhocko@suse.com>
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Rik van Riel <riel@redhat.com>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/compaction.c | 9 +++++++--
->  1 file changed, 7 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 5ff7f801c345..badb92bf14b4 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -1435,9 +1435,14 @@ enum compact_result compaction_suitable(struct zone *zone, int order,
->  	 * index towards 0 implies failure is due to lack of memory
->  	 * index towards 1000 implies failure is due to fragmentation
->  	 *
-> -	 * Only compact if a failure would be due to fragmentation.
-> +	 * Only compact if a failure would be due to fragmentation. Also
-> +	 * ignore fragindex for non-costly orders where the alternative to
-> +	 * a successful reclaim/compaction is OOM. Fragindex and the
-> +	 * vm.extfrag_threshold sysctl is meant as a heuristic to prevent
-> +	 * excessive compaction for costly orders, but it should not be at the
-> +	 * expense of system stability.
->  	 */
-> -	if (ret == COMPACT_CONTINUE) {
-> +	if (ret == COMPACT_CONTINUE && (order > PAGE_ALLOC_COSTLY_ORDER)) {
->  		fragindex = fragmentation_index(zone, order);
->  		if (fragindex >= 0 && fragindex <= sysctl_extfrag_threshold)
->  			return COMPACT_NOT_SUITABLE_ZONE;
-> -- 
-> 2.10.0
+Sure, we can do it earlier. The only consideration is that any potential 
+calls to memblock_mark_hotplug() happen before we reset to top-down.  
+Since we don't do that at all on power, the call can go anywhere.
 
 -- 
-Michal Hocko
-SUSE Labs
+Reza Arbab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
