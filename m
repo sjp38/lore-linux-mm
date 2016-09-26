@@ -1,138 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E93FC280273
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 16:15:08 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id n4so106946400lfb.3
-        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 13:15:08 -0700 (PDT)
-Received: from mail-lf0-f67.google.com (mail-lf0-f67.google.com. [209.85.215.67])
-        by mx.google.com with ESMTPS id e6si7997246lfg.167.2016.09.26.13.15.07
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 941E2280273
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 16:16:35 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id n4so106987186lfb.3
+        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 13:16:35 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id y3si9350383wjm.10.2016.09.26.13.16.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Sep 2016 13:15:07 -0700 (PDT)
-Received: by mail-lf0-f67.google.com with SMTP id s29so10758299lfg.3
-        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 13:15:07 -0700 (PDT)
-Date: Mon, 26 Sep 2016 22:15:05 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 3/4] mm, compaction: ignore fragindex from
- compaction_zonelist_suitable()
-Message-ID: <20160926201503.GB23827@dhcp22.suse.cz>
-References: <20160926162025.21555-1-vbabka@suse.cz>
- <20160926162025.21555-4-vbabka@suse.cz>
+        Mon, 26 Sep 2016 13:16:34 -0700 (PDT)
+Subject: Re: [PATCH] mm: remove unnecessary condition in
+ remove_inode_hugepages
+References: <1474857253-35702-1-git-send-email-zhongjiang@huawei.com>
+ <20160926090121.GC28550@dhcp22.suse.cz>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <9d43eafa-a3c2-01c8-53c7-6654ad0114e9@oracle.com>
+Date: Mon, 26 Sep 2016 13:16:02 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160926162025.21555-4-vbabka@suse.cz>
+In-Reply-To: <20160926090121.GC28550@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Olaf Hering <olaf@aepfle.de>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <hillf.zj@alibaba-inc.com>
+To: Michal Hocko <mhocko@kernel.org>, zhongjiang <zhongjiang@huawei.com>
+Cc: akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, linux-mm@kvack.org
 
-On Mon 26-09-16 18:20:24, Vlastimil Babka wrote:
-> The compaction_zonelist_suitable() function tries to determine if compaction
-> will be able to proceed after sufficient reclaim, i.e. whether there are
-> enough reclaimable pages to provide enough order-0 freepages for compaction.
+On 09/26/2016 02:01 AM, Michal Hocko wrote:
+> On Mon 26-09-16 10:34:13, zhongjiang wrote:
+>> From: zhong jiang <zhongjiang@huawei.com>
+>>
+>> when the huge page is added to the page cahce (huge_add_to_page_cache),
+>> the page private flag will be cleared. since this code
+>> (remove_inode_hugepages) will only be called for pages in the
+>> page cahce, PagePrivate(page) will always be false.
+>>
+>> The patch remove the code without any functional change.
+>>
+>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+>> ---
+>>  fs/hugetlbfs/inode.c    | 10 ++++------
+>>  include/linux/hugetlb.h |  2 +-
+>>  mm/hugetlb.c            |  4 ++--
+>>  3 files changed, 7 insertions(+), 9 deletions(-)
+>>
+>> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+>> index 4ea71eb..81f8bbf4 100644
+>> --- a/fs/hugetlbfs/inode.c
+>> +++ b/fs/hugetlbfs/inode.c
+>> @@ -458,18 +458,16 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
+>>  			 * cache (remove_huge_page) BEFORE removing the
+>>  			 * region/reserve map (hugetlb_unreserve_pages).  In
+>>  			 * rare out of memory conditions, removal of the
+>> -			 * region/reserve map could fail.  Before free'ing
+>> -			 * the page, note PagePrivate which is used in case
+>> -			 * of error.
+>> +			 * region/reserve map could fail. Correspondingly,
+>> +			 * the subpool and global reserve usage count can need
+>> +			 * to be adjusted.
+>>  			 */
+>> -			rsv_on_error = !PagePrivate(page);
 > 
-> This addition of reclaimable pages to the free pages works well for the order-0
-> watermark check, but in the fragmentation index check we only consider truly
-> free pages. Thus we can get fragindex value close to 0 which indicates failure
-> do to lack of memory, and wrongly decide that compaction won't be suitable even
-> after reclaim.
-> 
-> Instead of trying to somehow adjust fragindex for reclaimable pages, let's just
-> skip it from compaction_zonelist_suitable().
+> This whole code is tricky as hell. I would be calmer if we just stick a
+> VM_BUG_ON here to make sure that this assumption will not break later
+> on.
 
-Yes this makes a lot of sense to me. The fragidx should be mostly about
-a balance between reclaim and the compaction so it shouldn't be used for
-fail or retry decisions.
+I'm OK with adding the VM_BUG_ON.
 
-> 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Rik van Riel <riel@redhat.com>
+This has run through the fallocate stress testing without issue.  In
+addition, I ran it through the (in development) userfaultfd huge page
+tests that use fallocate hole punch on a privately mapped hugetlbfs
+file.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/compaction.c | 35 ++++++++++++++++++-----------------
->  1 file changed, 18 insertions(+), 17 deletions(-)
-> 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 86d4d0bbfc7c..5ff7f801c345 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -1379,7 +1379,6 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
->  					int classzone_idx,
->  					unsigned long wmark_target)
->  {
-> -	int fragindex;
->  	unsigned long watermark;
->  
->  	if (is_via_compact_memory(order))
-> @@ -1415,6 +1414,18 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
->  						ALLOC_CMA, wmark_target))
->  		return COMPACT_SKIPPED;
->  
-> +	return COMPACT_CONTINUE;
-> +}
-> +
-> +enum compact_result compaction_suitable(struct zone *zone, int order,
-> +					unsigned int alloc_flags,
-> +					int classzone_idx)
-> +{
-> +	enum compact_result ret;
-> +	int fragindex;
-> +
-> +	ret = __compaction_suitable(zone, order, alloc_flags, classzone_idx,
-> +				    zone_page_state(zone, NR_FREE_PAGES));
->  	/*
->  	 * fragmentation index determines if allocation failures are due to
->  	 * low memory or external fragmentation
-> @@ -1426,21 +1437,12 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
->  	 *
->  	 * Only compact if a failure would be due to fragmentation.
->  	 */
-> -	fragindex = fragmentation_index(zone, order);
-> -	if (fragindex >= 0 && fragindex <= sysctl_extfrag_threshold)
-> -		return COMPACT_NOT_SUITABLE_ZONE;
-> -
-> -	return COMPACT_CONTINUE;
-> -}
-> -
-> -enum compact_result compaction_suitable(struct zone *zone, int order,
-> -					unsigned int alloc_flags,
-> -					int classzone_idx)
-> -{
-> -	enum compact_result ret;
-> +	if (ret == COMPACT_CONTINUE) {
-> +		fragindex = fragmentation_index(zone, order);
-> +		if (fragindex >= 0 && fragindex <= sysctl_extfrag_threshold)
-> +			return COMPACT_NOT_SUITABLE_ZONE;
-> +	}
->  
-> -	ret = __compaction_suitable(zone, order, alloc_flags, classzone_idx,
-> -				    zone_page_state(zone, NR_FREE_PAGES));
->  	trace_mm_compaction_suitable(zone, order, ret);
->  	if (ret == COMPACT_NOT_SUITABLE_ZONE)
->  		ret = COMPACT_SKIPPED;
-> @@ -1473,8 +1475,7 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
->  		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
->  		compact_result = __compaction_suitable(zone, order, alloc_flags,
->  				ac_classzone_idx(ac), available);
-> -		if (compact_result != COMPACT_SKIPPED &&
-> -				compact_result != COMPACT_NOT_SUITABLE_ZONE)
-> +		if (compact_result != COMPACT_SKIPPED)
->  			return true;
->  	}
->  
-> -- 
-> 2.10.0
+The original check for PagePrivate was likely added due to observations
+about the way the flag is used in dequeue_huge_page_vma/free_huge_page.
+Unfortunately, I did not recognize that they did not apply in this case.
 
 -- 
-Michal Hocko
-SUSE Labs
+Mike Kravetz
+
+> 
+>>  			remove_huge_page(page);
+>>  			freed++;
+>>  			if (!truncate_op) {
+>>  				if (unlikely(hugetlb_unreserve_pages(inode,
+>>  							next, next + 1, 1)))
+>> -					hugetlb_fix_reserve_counts(inode,
+>> -								rsv_on_error);
+>> +					hugetlb_fix_reserve_counts(inode);
+>>  			}
+>>  
+>>  			unlock_page(page);
+>> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+>> index c26d463..d2e0fc5 100644
+>> --- a/include/linux/hugetlb.h
+>> +++ b/include/linux/hugetlb.h
+>> @@ -90,7 +90,7 @@ int dequeue_hwpoisoned_huge_page(struct page *page);
+>>  bool isolate_huge_page(struct page *page, struct list_head *list);
+>>  void putback_active_hugepage(struct page *page);
+>>  void free_huge_page(struct page *page);
+>> -void hugetlb_fix_reserve_counts(struct inode *inode, bool restore_reserve);
+>> +void hugetlb_fix_reserve_counts(struct inode *inode);
+>>  extern struct mutex *hugetlb_fault_mutex_table;
+>>  u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
+>>  				struct vm_area_struct *vma,
+>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+>> index 87e11d8..28a079a 100644
+>> --- a/mm/hugetlb.c
+>> +++ b/mm/hugetlb.c
+>> @@ -567,13 +567,13 @@ retry:
+>>   * appear as a "reserved" entry instead of simply dangling with incorrect
+>>   * counts.
+>>   */
+>> -void hugetlb_fix_reserve_counts(struct inode *inode, bool restore_reserve)
+>> +void hugetlb_fix_reserve_counts(struct inode *inode)
+>>  {
+>>  	struct hugepage_subpool *spool = subpool_inode(inode);
+>>  	long rsv_adjust;
+>>  
+>>  	rsv_adjust = hugepage_subpool_get_pages(spool, 1);
+>> -	if (restore_reserve && rsv_adjust) {
+>> +	if (rsv_adjust) {
+>>  		struct hstate *h = hstate_inode(inode);
+>>  
+>>  		hugetlb_acct_memory(h, 1);
+>> -- 
+>> 1.8.3.1
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
