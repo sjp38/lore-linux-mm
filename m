@@ -1,173 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 647986B0275
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 11:54:08 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id l132so87132734wmf.0
-        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 08:54:08 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id m9si14598360wju.160.2016.09.26.08.54.06
+	by kanga.kvack.org (Postfix) with ESMTP id DCC0D6B0273
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 12:20:33 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id l132so87860328wmf.0
+        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 09:20:33 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j23si9166655wmj.17.2016.09.26.09.20.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Sep 2016 08:54:07 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8QFs0Np125961
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 11:54:05 -0400
-Received: from e38.co.us.ibm.com (e38.co.us.ibm.com [32.97.110.159])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 25q5ppju8a-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 11:54:05 -0400
-Received: from localhost
-	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 26 Sep 2016 09:54:03 -0600
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH] powerpc/mm: THP page cache support
-In-Reply-To: <20160926105054.GA16074@node.shutemov.name>
-References: <1474560160-7327-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com> <20160926105054.GA16074@node.shutemov.name>
-Date: Mon, 26 Sep 2016 21:23:53 +0530
-MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <87wphy8xny.fsf@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 26 Sep 2016 09:20:32 -0700 (PDT)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH 3/4] mm, compaction: ignore fragindex from compaction_zonelist_suitable()
+Date: Mon, 26 Sep 2016 18:20:24 +0200
+Message-Id: <20160926162025.21555-4-vbabka@suse.cz>
+In-Reply-To: <20160926162025.21555-1-vbabka@suse.cz>
+References: <20160926162025.21555-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: benh@kernel.crashing.org, paulus@samba.org, mpe@ellerman.id.au, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Olaf Hering <olaf@aepfle.de>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Michal Hocko <mhocko@suse.com>
 
-"Kirill A. Shutemov" <kirill@shutemov.name> writes:
+The compaction_zonelist_suitable() function tries to determine if compaction
+will be able to proceed after sufficient reclaim, i.e. whether there are
+enough reclaimable pages to provide enough order-0 freepages for compaction.
 
-> On Thu, Sep 22, 2016 at 09:32:40PM +0530, Aneesh Kumar K.V wrote:
->> Update arch hook in the generic THP page cache code, that will
->> deposit and withdarw preallocated page table. Archs like ppc64 use
->> this preallocated table to store the hash pte slot information.
->> 
->> This is an RFC patch and I am sharing this early to get feedback on the
->> approach taken. I have used stress-ng mmap-file operation and that
->> resulted in some thp_file_mmap as show below.
->> 
->> [/mnt/stress]$ grep thp_file /proc/vmstat
->> thp_file_alloc 25403
->> thp_file_mapped 16967
->> [/mnt/stress]$
->> 
->> I did observe wrong nr_ptes count once. I need to recreate the problem
->> again.
->
-> I don't see anything that could cause that.
->
+This addition of reclaimable pages to the free pages works well for the order-0
+watermark check, but in the fragmentation index check we only consider truly
+free pages. Thus we can get fragindex value close to 0 which indicates failure
+do to lack of memory, and wrongly decide that compaction won't be suitable even
+after reclaim.
 
-I still need to debug this.
+Instead of trying to somehow adjust fragindex for reclaimable pages, let's just
+skip it from compaction_zonelist_suitable().
 
-> The patch looks good to me (apart from nr_ptes issue). Few minor nitpicks
-> below.
->
->> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
->> ---
->>  arch/powerpc/include/asm/book3s/64/pgtable.h |  3 ++
->>  include/asm-generic/pgtable.h                |  8 +++-
->>  mm/Kconfig                                   |  6 +--
->>  mm/huge_memory.c                             | 19 +++++++++-
->>  mm/khugepaged.c                              | 21 ++++++++++-
->>  mm/memory.c                                  | 56 +++++++++++++++++++++++-----
->>  6 files changed, 93 insertions(+), 20 deletions(-)
->> 
->> diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
->> index 263bf39ced40..1f45b06ce78e 100644
->> --- a/arch/powerpc/include/asm/book3s/64/pgtable.h
->> +++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
->> @@ -1017,6 +1017,9 @@ static inline int pmd_move_must_withdraw(struct spinlock *new_pmd_ptl,
->>  	 */
->>  	return true;
->>  }
->> +
->> +#define arch_needs_pgtable_deposit() (true)
->> +
->>  #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
->>  #endif /* __ASSEMBLY__ */
->>  #endif /* _ASM_POWERPC_BOOK3S_64_PGTABLE_H_ */
->> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
->> index d4458b6dbfb4..0d1e400e82a2 100644
->> --- a/include/asm-generic/pgtable.h
->> +++ b/include/asm-generic/pgtable.h
->> @@ -660,11 +660,17 @@ static inline int pmd_move_must_withdraw(spinlock_t *new_pmd_ptl,
->>  	/*
->>  	 * With split pmd lock we also need to move preallocated
->>  	 * PTE page table if new_pmd is on different PMD page table.
->> +	 *
->> +	 * We also don't deposit and withdraw tables for file pages.
->>  	 */
->> -	return new_pmd_ptl != old_pmd_ptl;
->> +	return (new_pmd_ptl != old_pmd_ptl) && vma_is_anonymous(vma);
->>  }
->>  #endif
->>  
->> +#ifndef arch_needs_pgtable_deposit
->> +#define arch_needs_pgtable_deposit() (false)
->> +#endif
->> +
->>  /*
->>   * This function is meant to be used by sites walking pagetables with
->>   * the mmap_sem hold in read mode to protect against MADV_DONTNEED and
->> diff --git a/mm/Kconfig b/mm/Kconfig
->> index be0ee11fa0d9..0a279d399722 100644
->> --- a/mm/Kconfig
->> +++ b/mm/Kconfig
->> @@ -447,13 +447,9 @@ choice
->>  	  benefit.
->>  endchoice
->>  
->> -#
->> -# We don't deposit page tables on file THP mapping,
->> -# but Power makes use of them to address MMU quirk.
->> -#
->>  config	TRANSPARENT_HUGE_PAGECACHE
->>  	def_bool y
->> -	depends on TRANSPARENT_HUGEPAGE && !PPC
->> +	depends on TRANSPARENT_HUGEPAGE
->>  
->>  #
->>  # UP and nommu archs use km based percpu allocator
->> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
->> index a6abd76baa72..37176f455d16 100644
->> --- a/mm/huge_memory.c
->> +++ b/mm/huge_memory.c
->> @@ -1320,6 +1320,14 @@ out_unlocked:
->>  	return ret;
->>  }
->>  
->> +void zap_deposited_table(struct mm_struct *mm, pmd_t *pmd)
->
-> static?
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Rik van Riel <riel@redhat.com>
+---
+ mm/compaction.c | 35 ++++++++++++++++++-----------------
+ 1 file changed, 18 insertions(+), 17 deletions(-)
 
-Ok I will fix that.
->
->> +{
->> +	pgtable_t pgtable;
->> +	pgtable = pgtable_trans_huge_withdraw(mm, pmd);
->> +	pte_free(mm, pgtable);
->> +	atomic_long_dec(&mm->nr_ptes);
->> +}
->> +
->>  int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
->>  		 pmd_t *pmd, unsigned long addr)
->>  {
->> @@ -1359,6 +1367,8 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
->>  			atomic_long_dec(&tlb->mm->nr_ptes);
->>  			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
->>  		} else {
->> +			if (arch_needs_pgtable_deposit())
->
-> Just hide the arch_needs_pgtable_deposit() check in zap_deposited_table().
-
-
-ok.
-
->
->> +				zap_deposited_table(tlb->mm, pmd);
->>  			add_mm_counter(tlb->mm, MM_FILEPAGES, -HPAGE_PMD_NR);
->>  		}
->>  		spin_unlock(ptl);
-
--aneesh
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 86d4d0bbfc7c..5ff7f801c345 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1379,7 +1379,6 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
+ 					int classzone_idx,
+ 					unsigned long wmark_target)
+ {
+-	int fragindex;
+ 	unsigned long watermark;
+ 
+ 	if (is_via_compact_memory(order))
+@@ -1415,6 +1414,18 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
+ 						ALLOC_CMA, wmark_target))
+ 		return COMPACT_SKIPPED;
+ 
++	return COMPACT_CONTINUE;
++}
++
++enum compact_result compaction_suitable(struct zone *zone, int order,
++					unsigned int alloc_flags,
++					int classzone_idx)
++{
++	enum compact_result ret;
++	int fragindex;
++
++	ret = __compaction_suitable(zone, order, alloc_flags, classzone_idx,
++				    zone_page_state(zone, NR_FREE_PAGES));
+ 	/*
+ 	 * fragmentation index determines if allocation failures are due to
+ 	 * low memory or external fragmentation
+@@ -1426,21 +1437,12 @@ static enum compact_result __compaction_suitable(struct zone *zone, int order,
+ 	 *
+ 	 * Only compact if a failure would be due to fragmentation.
+ 	 */
+-	fragindex = fragmentation_index(zone, order);
+-	if (fragindex >= 0 && fragindex <= sysctl_extfrag_threshold)
+-		return COMPACT_NOT_SUITABLE_ZONE;
+-
+-	return COMPACT_CONTINUE;
+-}
+-
+-enum compact_result compaction_suitable(struct zone *zone, int order,
+-					unsigned int alloc_flags,
+-					int classzone_idx)
+-{
+-	enum compact_result ret;
++	if (ret == COMPACT_CONTINUE) {
++		fragindex = fragmentation_index(zone, order);
++		if (fragindex >= 0 && fragindex <= sysctl_extfrag_threshold)
++			return COMPACT_NOT_SUITABLE_ZONE;
++	}
+ 
+-	ret = __compaction_suitable(zone, order, alloc_flags, classzone_idx,
+-				    zone_page_state(zone, NR_FREE_PAGES));
+ 	trace_mm_compaction_suitable(zone, order, ret);
+ 	if (ret == COMPACT_NOT_SUITABLE_ZONE)
+ 		ret = COMPACT_SKIPPED;
+@@ -1473,8 +1475,7 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
+ 		available += zone_page_state_snapshot(zone, NR_FREE_PAGES);
+ 		compact_result = __compaction_suitable(zone, order, alloc_flags,
+ 				ac_classzone_idx(ac), available);
+-		if (compact_result != COMPACT_SKIPPED &&
+-				compact_result != COMPACT_NOT_SUITABLE_ZONE)
++		if (compact_result != COMPACT_SKIPPED)
+ 			return true;
+ 	}
+ 
+-- 
+2.10.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
