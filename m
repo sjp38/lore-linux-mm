@@ -1,96 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id ED904280273
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 04:17:54 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id w84so75434888wmg.1
-        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 01:17:54 -0700 (PDT)
-Received: from mail-wm0-f52.google.com (mail-wm0-f52.google.com. [74.125.82.52])
-        by mx.google.com with ESMTPS id p8si18466367wjf.153.2016.09.26.01.17.53
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BE6B280273
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 04:19:50 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id l132so74931034wmf.0
+        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 01:19:50 -0700 (PDT)
+Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
+        by mx.google.com with ESMTPS id ud2si18499956wjc.0.2016.09.26.01.19.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Sep 2016 01:17:53 -0700 (PDT)
-Received: by mail-wm0-f52.google.com with SMTP id w84so137359557wmg.1
-        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 01:17:53 -0700 (PDT)
-Date: Mon, 26 Sep 2016 10:17:52 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: warn about allocations which stall for too long
-Message-ID: <20160926081751.GD27030@dhcp22.suse.cz>
-References: <20160923081555.14645-1-mhocko@kernel.org>
- <201609232336.FIH57364.FOVHtMFQLFSJOO@I-love.SAKURA.ne.jp>
- <20160923150234.GV4478@dhcp22.suse.cz>
- <201609241200.AEE21807.OSOtQVOLHMFJFF@I-love.SAKURA.ne.jp>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 26 Sep 2016 01:19:49 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id B727598B6F
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 08:19:48 +0000 (UTC)
+Date: Mon, 26 Sep 2016 09:19:47 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm: check VMA flags to avoid invalid PROT_NONE NUMA
+ balancing
+Message-ID: <20160926081947.GB2838@techsingularity.net>
+References: <20160911225425.10388-1-lstoakes@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <201609241200.AEE21807.OSOtQVOLHMFJFF@I-love.SAKURA.ne.jp>
+In-Reply-To: <20160911225425.10388-1-lstoakes@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, linux-kernel@vger.kernel.org
+To: Lorenzo Stoakes <lstoakes@gmail.com>
+Cc: linux-mm@kvack.org, torvalds@linux-foundation.org, riel@redhat.com, tbsaunde@tbsaunde.org, robert@ocallahan.org
 
-On Sat 24-09-16 12:00:07, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Fri 23-09-16 23:36:22, Tetsuo Handa wrote:
-> > > Michal Hocko wrote:
-> > > > @@ -3659,6 +3661,15 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
-> > > >  	else
-> > > >  		no_progress_loops++;
-> > > >  
-> > > > +	/* Make sure we know about allocations which stall for too long */
-> > > > +	if (!(gfp_mask & __GFP_NOWARN) && time_after(jiffies, alloc_start + stall_timeout)) {
-> > > 
-> > > Should we check !__GFP_NOWARN ? I think __GFP_NOWARN is likely used with
-> > > __GFP_NORETRY, and __GFP_NORETRY is already checked by now.
-> > > 
-> > > I think printing warning regardless of __GFP_NOWARN is better because
-> > > this check is similar to hungtask warning.
-> > 
-> > Well, if the user said to not warn we should really obey that. Why would
-> > that matter?
+On Sun, Sep 11, 2016 at 11:54:25PM +0100, Lorenzo Stoakes wrote:
+> The NUMA balancing logic uses an arch-specific PROT_NONE page table flag defined
+> by pte_protnone() or pmd_protnone() to mark PTEs or huge page PMDs respectively
+> as requiring balancing upon a subsequent page fault. User-defined PROT_NONE
+> memory regions which also have this flag set will not normally invoke the NUMA
+> balancing code as do_page_fault() will send a segfault to the process before
+> handle_mm_fault() is even called.
 > 
-> __GFP_NOWARN is defined as "Do not print failure messages when memory
-> allocation failed". It is not defined as "Do not print OOM killer messages
-> when OOM killer is invoked". It is undefined that "Do not print stall
-> messages when memory allocation is stalling".
-
-Which is kind of expected as we warned only about allocation failures up
-to now.
-
-> If memory allocating threads were blocked on locks instead of doing direct
-> reclaim, hungtask will be able to find stalling memory allocations without
-> this change. Since direct reclaim prevents allocating threads from sleeping
-> for long enough to be warned by hungtask, it is important that this change
-> shall find allocating threads which cannot be warned by hungtask. That is,
-> not printing warning messages for __GFP_NOWARN allocation requests looses
-> the value of this change.
-
-I dunno. If the user explicitly requests to not have allocation warning
-then I think we should obey that. But this is not something I would be
-really insisting hard. If others think that the check should be dropped
-I can live with that.
-
-[...]
-> > > ) rather than by line number, and surround __warn_memalloc_stall() call with
-> > > mutex in order to serialize warning messages because it is possible that
-> > > multiple allocation requests are stalling?
-> > 
-> > we do not use any lock in warn_alloc_failed so why this should be any
-> > different?
+> However if access_remote_vm() is invoked to access a PROT_NONE region of memory,
+> handle_mm_fault() is called via faultin_page() and __get_user_pages() without
+> any access checks being performed, meaning the NUMA balancing logic is
+> incorrectly invoked on a non-NUMA memory region.
 > 
-> warn_alloc_failed() is called for both __GFP_DIRECT_RECLAIM and
-> !__GFP_DIRECT_RECLAIM allocation requests, and it is not allowed
-> to sleep if !__GFP_DIRECT_RECLAIM. Thus, we have to tolerate that
-> concurrent memory allocation failure messages make dmesg output
-> unreadable. But __warn_memalloc_stall() is called for only
-> __GFP_DIRECT_RECLAIM allocation requests. Thus, we are allowed to
-> sleep in order to serialize concurrent memory allocation stall
-> messages.
+> A simple means of triggering this problem is to access PROT_NONE mmap'd memory
+> using /proc/self/mem which reliably results in the NUMA handling functions being
+> invoked when CONFIG_NUMA_BALANCING is set.
+> 
+> This issue was reported in bugzilla (issue 99101) which includes some simple
+> repro code.
+> 
+> There are BUG_ON() checks in do_numa_page() and do_huge_pmd_numa_page() added at
+> commit c0e7cad to avoid accidentally provoking strange behaviour by attempting
+> to apply NUMA balancing to pages that are in fact PROT_NONE. The BUG_ON()'s are
+> consistently triggered by the repro.
+> 
+> This patch moves the PROT_NONE check into mm/memory.c rather than invoking
+> BUG_ON() as faulting in these pages via faultin_page() is a valid reason for
+> reaching the NUMA check with the PROT_NONE page table flag set and is therefore
+> not always a bug.
+> 
+> Link: https://bugzilla.kernel.org/show_bug.cgi?id=99101
+> Reported-by: Trevor Saunders <tbsaunde@tbsaunde.org>
+> Signed-off-by: Lorenzo Stoakes <lstoakes@gmail.com>
 
-I still do not see a point. A single line about the warning and locked
-dump_stack sounds sufficient to me.
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
