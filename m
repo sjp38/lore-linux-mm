@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E920E6B02A4
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 11:24:06 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id n185so193137049qke.2
-        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 08:24:06 -0700 (PDT)
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 24BEC6B02A6
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 11:24:08 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id g67so96026855qkd.0
+        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 08:24:08 -0700 (PDT)
 Received: from out2-smtp.messagingengine.com (out2-smtp.messagingengine.com. [66.111.4.26])
-        by mx.google.com with ESMTPS id q54si14804583qte.113.2016.09.26.08.24.06
+        by mx.google.com with ESMTPS id 123si14791833qkl.267.2016.09.26.08.24.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Sep 2016 08:24:06 -0700 (PDT)
+        Mon, 26 Sep 2016 08:24:07 -0700 (PDT)
 From: zi.yan@sent.com
-Subject: [PATCH v1 02/12] mm: thp: introduce CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
-Date: Mon, 26 Sep 2016 11:22:24 -0400
-Message-Id: <20160926152234.14809-3-zi.yan@sent.com>
+Subject: [PATCH v1 03/12] mm: thp: add helpers related to thp/pmd migration
+Date: Mon, 26 Sep 2016 11:22:25 -0400
+Message-Id: <20160926152234.14809-4-zi.yan@sent.com>
 In-Reply-To: <20160926152234.14809-1-zi.yan@sent.com>
 References: <20160926152234.14809-1-zi.yan@sent.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,73 +22,254 @@ Cc: benh@kernel.crashing.org, mgorman@techsingularity.net, kirill.shutemov@linux
 
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-Introduces CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION to limit thp migration
-functionality to x86_64, which should be safer at the first step.
+This patch prepares thp migration's core code. These code will be open when
+unmap_and_move() stops unconditionally splitting thp and get_new_page() starts
+to allocate destination thps.
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 ---
- arch/x86/Kconfig        |  4 ++++
- include/linux/huge_mm.h | 10 ++++++++++
- mm/Kconfig              |  3 +++
- 3 files changed, 17 insertions(+)
+ arch/x86/include/asm/pgtable.h    | 11 ++++++
+ arch/x86/include/asm/pgtable_64.h |  2 +
+ include/linux/swapops.h           | 62 +++++++++++++++++++++++++++++++
+ mm/huge_memory.c                  | 77 +++++++++++++++++++++++++++++++++++++++
+ mm/migrate.c                      | 23 ++++++++++++
+ 5 files changed, 175 insertions(+)
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 2a1f0ce..ad99c05 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -2234,6 +2234,10 @@ config ARCH_ENABLE_HUGEPAGE_MIGRATION
- 	def_bool y
- 	depends on X86_64 && HUGETLB_PAGE && MIGRATION
- 
-+config ARCH_ENABLE_THP_MIGRATION
-+	def_bool y
-+	depends on X86_64 && TRANSPARENT_HUGEPAGE && MIGRATION
-+
- menu "Power management and ACPI options"
- 
- config ARCH_HIBERNATION_HEADER
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 6f14de4..4ae156e 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -157,6 +157,11 @@ void put_huge_zero_page(void);
- 
- #define mk_huge_pmd(page, prot) pmd_mkhuge(mk_pmd(page, prot))
- 
-+static inline bool thp_migration_supported(void)
-+{
-+	return IS_ENABLED(CONFIG_ARCH_ENABLE_THP_MIGRATION);
-+}
-+
- #else /* CONFIG_TRANSPARENT_HUGEPAGE */
- #define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
- #define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
-@@ -223,6 +228,11 @@ static inline struct page *follow_devmap_pmd(struct vm_area_struct *vma,
- {
- 	return NULL;
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index 437feb4..5ff861f 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -530,6 +530,17 @@ static inline int pmd_present(pmd_t pmd)
+ 	return pmd_flags(pmd) & (_PAGE_PRESENT | _PAGE_PROTNONE | _PAGE_PSE);
  }
-+
-+static inline bool thp_migration_supported(void)
+ 
++/*
++ * Unlike pmd_present(), __pmd_present() checks only _PAGE_PRESENT bit.
++ * Combined with is_migration_entry(), this routine is used to detect pmd
++ * migration entries. To make it work fine, callers should make sure that
++ * pmd_trans_huge() returns true beforehand.
++ */
++static inline int __pmd_present(pmd_t pmd)
 +{
-+	return false;
++	return pmd_flags(pmd) & _PAGE_PRESENT;
 +}
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
- 
- #endif /* _LINUX_HUGE_MM_H */
-diff --git a/mm/Kconfig b/mm/Kconfig
-index be0ee11..1965310 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -289,6 +289,9 @@ config MIGRATION
- config ARCH_ENABLE_HUGEPAGE_MIGRATION
- 	bool
- 
-+config ARCH_ENABLE_THP_MIGRATION
-+	bool
 +
- config PHYS_ADDR_T_64BIT
- 	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
+ #ifdef CONFIG_NUMA_BALANCING
+ /*
+  * These work without NUMA balancing but the kernel does not care. See the
+diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
+index 1cc82ec..3a1b48e 100644
+--- a/arch/x86/include/asm/pgtable_64.h
++++ b/arch/x86/include/asm/pgtable_64.h
+@@ -167,7 +167,9 @@ static inline int pgd_large(pgd_t pgd) { return 0; }
+ 					 ((type) << (SWP_TYPE_FIRST_BIT)) \
+ 					 | ((offset) << SWP_OFFSET_FIRST_BIT) })
+ #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val((pte)) })
++#define __pmd_to_swp_entry(pte)		((swp_entry_t) { pmd_val((pmd)) })
+ #define __swp_entry_to_pte(x)		((pte_t) { .pte = (x).val })
++#define __swp_entry_to_pmd(x)		((pmd_t) { .pmd = (x).val })
  
+ extern int kern_addr_valid(unsigned long addr);
+ extern void cleanup_highmap(void);
+diff --git a/include/linux/swapops.h b/include/linux/swapops.h
+index 5c3a5f3..b402a2c 100644
+--- a/include/linux/swapops.h
++++ b/include/linux/swapops.h
+@@ -163,6 +163,68 @@ static inline int is_write_migration_entry(swp_entry_t entry)
+ 
+ #endif
+ 
++#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
++extern int set_pmd_migration_entry(struct page *page,
++		struct mm_struct *mm, unsigned long address);
++
++extern int remove_migration_pmd(struct page *new,
++		struct vm_area_struct *vma, unsigned long addr, void *old);
++
++extern void pmd_migration_entry_wait(struct mm_struct *mm, pmd_t *pmd);
++
++static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)
++{
++	swp_entry_t arch_entry;
++
++	arch_entry = __pmd_to_swp_entry(pmd);
++	return swp_entry(__swp_type(arch_entry), __swp_offset(arch_entry));
++}
++
++static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
++{
++	swp_entry_t arch_entry;
++
++	arch_entry = __swp_entry(swp_type(entry), swp_offset(entry));
++	return __swp_entry_to_pmd(arch_entry);
++}
++
++static inline int is_pmd_migration_entry(pmd_t pmd)
++{
++	return !__pmd_present(pmd) && is_migration_entry(pmd_to_swp_entry(pmd));
++}
++#else
++static inline int set_pmd_migration_entry(struct page *page,
++				struct mm_struct *mm, unsigned long address)
++{
++	return 0;
++}
++
++static inline int remove_migration_pmd(struct page *new,
++		struct vm_area_struct *vma, unsigned long addr, void *old)
++{
++	return 0;
++}
++
++static inline void pmd_migration_entry_wait(struct mm_struct *m, pmd_t *p) { }
++
++static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)
++{
++	return swp_entry(0, 0);
++}
++
++static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
++{
++	pmd_t pmd = {};
++
++	return pmd;
++}
++
++static inline int is_pmd_migration_entry(pmd_t pmd)
++{
++	return 0;
++}
++#endif
++
+ #ifdef CONFIG_MEMORY_FAILURE
+ 
+ extern atomic_long_t num_poisoned_pages __read_mostly;
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index a6abd76..0cd39ef 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2252,3 +2252,80 @@ static int __init split_huge_pages_debugfs(void)
+ }
+ late_initcall(split_huge_pages_debugfs);
+ #endif
++
++#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
++int set_pmd_migration_entry(struct page *page, struct mm_struct *mm,
++				unsigned long addr)
++{
++	pte_t *pte;
++	pmd_t *pmd;
++	pmd_t pmdval;
++	pmd_t pmdswp;
++	swp_entry_t entry;
++	spinlock_t *ptl;
++
++	mmu_notifier_invalidate_range_start(mm, addr, addr + HPAGE_PMD_SIZE);
++	if (!page_check_address_transhuge(page, mm, addr, &pmd, &pte, &ptl))
++		goto out;
++	if (pte)
++		goto out;
++	pmdval = pmdp_huge_get_and_clear(mm, addr, pmd);
++	entry = make_migration_entry(page, pmd_write(pmdval));
++	pmdswp = swp_entry_to_pmd(entry);
++	pmdswp = pmd_mkhuge(pmdswp);
++	set_pmd_at(mm, addr, pmd, pmdswp);
++	page_remove_rmap(page, true);
++	put_page(page);
++	spin_unlock(ptl);
++out:
++	mmu_notifier_invalidate_range_end(mm, addr, addr + HPAGE_PMD_SIZE);
++	return SWAP_AGAIN;
++}
++
++int remove_migration_pmd(struct page *new, struct vm_area_struct *vma,
++			unsigned long addr, void *old)
++{
++	struct mm_struct *mm = vma->vm_mm;
++	spinlock_t *ptl;
++	pgd_t *pgd;
++	pud_t *pud;
++	pmd_t *pmd;
++	pmd_t pmde;
++	swp_entry_t entry;
++	unsigned long mmun_start = addr & HPAGE_PMD_MASK;
++	unsigned long mmun_end = mmun_start + HPAGE_PMD_SIZE;
++
++	pgd = pgd_offset(mm, addr);
++	if (!pgd_present(*pgd))
++		goto out;
++	pud = pud_offset(pgd, addr);
++	if (!pud_present(*pud))
++		goto out;
++	pmd = pmd_offset(pud, addr);
++	if (!pmd)
++		goto out;
++	ptl = pmd_lock(mm, pmd);
++	pmde = *pmd;
++	if (!is_pmd_migration_entry(pmde))
++		goto unlock_ptl;
++	entry = pmd_to_swp_entry(pmde);
++	if (migration_entry_to_page(entry) != old)
++		goto unlock_ptl;
++	get_page(new);
++	pmde = mk_huge_pmd(new, vma->vm_page_prot);
++	if (is_write_migration_entry(entry))
++		pmde = maybe_pmd_mkwrite(pmde, vma);
++	flush_cache_range(vma, mmun_start, mmun_end);
++	page_add_anon_rmap(new, vma, mmun_start, true);
++	pmdp_huge_clear_flush_notify(vma, mmun_start, pmd);
++	set_pmd_at(mm, mmun_start, pmd, pmde);
++	flush_tlb_range(vma, mmun_start, mmun_end);
++	if (vma->vm_flags & VM_LOCKED)
++		mlock_vma_page(new);
++	update_mmu_cache_pmd(vma, addr, pmd);
++unlock_ptl:
++	spin_unlock(ptl);
++out:
++	return SWAP_AGAIN;
++}
++#endif
+diff --git a/mm/migrate.c b/mm/migrate.c
+index f7ee04a..95613e7 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -207,6 +207,8 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
+ 		if (!ptep)
+ 			goto out;
+ 		ptl = huge_pte_lockptr(hstate_vma(vma), mm, ptep);
++	} else if (PageTransHuge(new)) {
++		return remove_migration_pmd(new, vma, addr, old);
+ 	} else {
+ 		pmd = mm_find_pmd(mm, addr);
+ 		if (!pmd)
+@@ -344,6 +346,27 @@ void migration_entry_wait_huge(struct vm_area_struct *vma,
+ 	__migration_entry_wait(mm, pte, ptl);
+ }
+ 
++#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
++void pmd_migration_entry_wait(struct mm_struct *mm, pmd_t *pmd)
++{
++	spinlock_t *ptl;
++	struct page *page;
++
++	ptl = pmd_lock(mm, pmd);
++	if (!is_pmd_migration_entry(*pmd))
++		goto unlock;
++	page = migration_entry_to_page(pmd_to_swp_entry(*pmd));
++	if (!get_page_unless_zero(page))
++		goto unlock;
++	spin_unlock(ptl);
++	wait_on_page_locked(page);
++	put_page(page);
++	return;
++unlock:
++	spin_unlock(ptl);
++}
++#endif
++
+ #ifdef CONFIG_BLOCK
+ /* Returns true if all buffers are successfully locked */
+ static bool buffer_migrate_lock_buffers(struct buffer_head *head,
 -- 
 2.9.3
 
