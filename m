@@ -1,119 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EF398280273
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 05:01:24 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id b130so76755000wmc.2
-        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 02:01:24 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id uw3si13272879wjb.68.2016.09.26.02.01.23
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Sep 2016 02:01:23 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id b184so13030949wma.3
-        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 02:01:23 -0700 (PDT)
-Date: Mon, 26 Sep 2016 11:01:22 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: remove unnecessary condition in
- remove_inode_hugepages
-Message-ID: <20160926090121.GC28550@dhcp22.suse.cz>
-References: <1474857253-35702-1-git-send-email-zhongjiang@huawei.com>
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DCFF6280273
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 05:21:04 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id t83so501316713oie.0
+        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 02:21:04 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTP id z52si7022385otz.12.2016.09.26.02.21.02
+        for <linux-mm@kvack.org>;
+        Mon, 26 Sep 2016 02:21:04 -0700 (PDT)
+Message-ID: <57E8E786.8030703@huawei.com>
+Date: Mon, 26 Sep 2016 17:16:54 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1474857253-35702-1-git-send-email-zhongjiang@huawei.com>
+Subject: Re: [RFC] mm: a question about high-order check in __zone_watermark_ok()
+References: <57E8E0BD.2070603@huawei.com> <20160926085850.GB28550@dhcp22.suse.cz>
+In-Reply-To: <20160926085850.GB28550@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhongjiang <zhongjiang@huawei.com>
-Cc: mike.kravetz@oracle.com, akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Yisheng Xie <xieyisheng1@huawei.com>
 
-On Mon 26-09-16 10:34:13, zhongjiang wrote:
-> From: zhong jiang <zhongjiang@huawei.com>
-> 
-> when the huge page is added to the page cahce (huge_add_to_page_cache),
-> the page private flag will be cleared. since this code
-> (remove_inode_hugepages) will only be called for pages in the
-> page cahce, PagePrivate(page) will always be false.
-> 
-> The patch remove the code without any functional change.
-> 
-> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
-> ---
->  fs/hugetlbfs/inode.c    | 10 ++++------
->  include/linux/hugetlb.h |  2 +-
->  mm/hugetlb.c            |  4 ++--
->  3 files changed, 7 insertions(+), 9 deletions(-)
-> 
-> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> index 4ea71eb..81f8bbf4 100644
-> --- a/fs/hugetlbfs/inode.c
-> +++ b/fs/hugetlbfs/inode.c
-> @@ -458,18 +458,16 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
->  			 * cache (remove_huge_page) BEFORE removing the
->  			 * region/reserve map (hugetlb_unreserve_pages).  In
->  			 * rare out of memory conditions, removal of the
-> -			 * region/reserve map could fail.  Before free'ing
-> -			 * the page, note PagePrivate which is used in case
-> -			 * of error.
-> +			 * region/reserve map could fail. Correspondingly,
-> +			 * the subpool and global reserve usage count can need
-> +			 * to be adjusted.
->  			 */
-> -			rsv_on_error = !PagePrivate(page);
+On 2016/9/26 16:58, Michal Hocko wrote:
 
-This whole code is tricky as hell. I would be calmer if we just stick a
-VM_BUG_ON here to make sure that this assumption will not break later
-on.
+> On Mon 26-09-16 16:47:57, Xishi Qiu wrote:
+>> commit 97a16fc82a7c5b0cfce95c05dfb9561e306ca1b1
+>> (mm, page_alloc: only enforce watermarks for order-0 allocations)
+>> rewrite the high-order check in __zone_watermark_ok(), but I think it
+>> quietly fix a bug. Please see the following.
+>>
+>> Before this patch, the high-order check is this:
+>> __zone_watermark_ok()
+>> 	...
+>> 	for (o = 0; o < order; o++) {
+>> 		/* At the next order, this order's pages become unavailable */
+>> 		free_pages -= z->free_area[o].nr_free << o;
+>>
+>> 		/* Require fewer higher order pages to be free */
+>> 		min >>= 1;
+>>
+>> 		if (free_pages <= min)
+>> 			return false;
+>> 	}
+>> 	...
+>>
+>> If we have cma memory, and we alloc a high-order movable page, then it's right.
+>>
+>> But if we alloc a high-order unmovable page(e.g. alloc kernel stack in dup_task_struct()),
+>> and there are a lot of high-order cma pages, but little high-order unmovable
+>> pages, the it is still return *true*, but we will alloc *failed* finally, because
+>> we cannot fallback from migrate_unmovable to migrate_cma, right?
+> 
+> AFAIR CMA wmark check was always tricky and the above commit has made
+> the situation at least a bit more clear. Anyway IIRC 
+> 
+> #ifdef CONFIG_CMA
+> 	/* If allocation can't use CMA areas don't use free CMA pages */
+> 	if (!(alloc_flags & ALLOC_CMA))
+> 		free_cma = zone_page_state(z, NR_FREE_CMA_PAGES);
+> #endif
+> 
+> 	if (free_pages - free_cma <= min + z->lowmem_reserve[classzone_idx])
+> 		return false;
+> 
+> should reduce the prioblem because a lot of CMA pages should just get us
+> below the wmark + reserve boundary.
 
->  			remove_huge_page(page);
->  			freed++;
->  			if (!truncate_op) {
->  				if (unlikely(hugetlb_unreserve_pages(inode,
->  							next, next + 1, 1)))
-> -					hugetlb_fix_reserve_counts(inode,
-> -								rsv_on_error);
-> +					hugetlb_fix_reserve_counts(inode);
->  			}
->  
->  			unlock_page(page);
-> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index c26d463..d2e0fc5 100644
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-> @@ -90,7 +90,7 @@ int dequeue_hwpoisoned_huge_page(struct page *page);
->  bool isolate_huge_page(struct page *page, struct list_head *list);
->  void putback_active_hugepage(struct page *page);
->  void free_huge_page(struct page *page);
-> -void hugetlb_fix_reserve_counts(struct inode *inode, bool restore_reserve);
-> +void hugetlb_fix_reserve_counts(struct inode *inode);
->  extern struct mutex *hugetlb_fault_mutex_table;
->  u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
->  				struct vm_area_struct *vma,
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 87e11d8..28a079a 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -567,13 +567,13 @@ retry:
->   * appear as a "reserved" entry instead of simply dangling with incorrect
->   * counts.
->   */
-> -void hugetlb_fix_reserve_counts(struct inode *inode, bool restore_reserve)
-> +void hugetlb_fix_reserve_counts(struct inode *inode)
->  {
->  	struct hugepage_subpool *spool = subpool_inode(inode);
->  	long rsv_adjust;
->  
->  	rsv_adjust = hugepage_subpool_get_pages(spool, 1);
-> -	if (restore_reserve && rsv_adjust) {
-> +	if (rsv_adjust) {
->  		struct hstate *h = hstate_inode(inode);
->  
->  		hugetlb_acct_memory(h, 1);
-> -- 
-> 1.8.3.1
+Hi Michal,
 
--- 
-Michal Hocko
-SUSE Labs
+If we have many high-order cma pages, and the left pages (unmovable/movable/reclaimable)
+are also enough, but they are fragment, then it will triger the problem.
+If we alloc a high-order unmovable page, water mark check return *true*, but we
+will alloc *failed*, right?
+
+Thanks,
+Xishi Qiu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
