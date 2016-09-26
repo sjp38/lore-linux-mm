@@ -1,89 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 45F68280273
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 13:28:34 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id n4so101426592lfb.3
-        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 10:28:34 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id fm7si20395850wjc.6.2016.09.26.10.28.31
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 05987280273
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 13:33:18 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id n4so101578779lfb.3
+        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 10:33:17 -0700 (PDT)
+Received: from albireo.enyo.de (albireo.enyo.de. [5.158.152.32])
+        by mx.google.com with ESMTPS id m10si20293505wja.285.2016.09.26.10.33.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Sep 2016 10:28:31 -0700 (PDT)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8QHMSHD098310
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 13:28:30 -0400
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 25q5duyq4f-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 13:28:29 -0400
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
-	Mon, 26 Sep 2016 18:28:28 +0100
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (d06relay12.portsmouth.uk.ibm.com [9.149.109.197])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 527B91B08061
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 18:30:19 +0100 (BST)
-Received: from d06av03.portsmouth.uk.ibm.com (d06av03.portsmouth.uk.ibm.com [9.149.37.213])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u8QHSPRx11010546
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 17:28:25 GMT
-Received: from d06av03.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av03.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u8QHSOkO008450
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 11:28:25 -0600
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Subject: [PATCH v4 3/3] mm/hugetlb: improve locking in dissolve_free_huge_pages()
-Date: Mon, 26 Sep 2016 19:28:11 +0200
-In-Reply-To: <20160926172811.94033-1-gerald.schaefer@de.ibm.com>
-References: <20160926172811.94033-1-gerald.schaefer@de.ibm.com>
-Message-Id: <20160926172811.94033-4-gerald.schaefer@de.ibm.com>
+        Mon, 26 Sep 2016 10:33:16 -0700 (PDT)
+From: Florian Weimer <fw@deneb.enyo.de>
+Subject: Re: Excessive xfs_inode allocations trigger OOM killer
+References: <87a8f2pd2d.fsf@mid.deneb.enyo.de> <20160920203039.GI340@dastard>
+	<87mvj2mgsg.fsf@mid.deneb.enyo.de> <20160920214612.GJ340@dastard>
+	<20160921080425.GC10300@dhcp22.suse.cz>
+Date: Mon, 26 Sep 2016 19:33:09 +0200
+In-Reply-To: <20160921080425.GC10300@dhcp22.suse.cz> (Michal Hocko's message
+	of "Wed, 21 Sep 2016 10:04:25 +0200")
+Message-ID: <878tuetvl6.fsf@mid.deneb.enyo.de>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Hocko <mhocko@suse.cz>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Rui Teng <rui.teng@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Dave Chinner <david@fromorbit.com>, xfs@oss.sgi.com, linux-xfs@vger.kernel.org, linux-mm@kvack.org
 
-For every pfn aligned to minimum_order, dissolve_free_huge_pages() will
-call dissolve_free_huge_page() which takes the hugetlb spinlock, even if
-the page is not huge at all or a hugepage that is in-use.
+* Michal Hocko:
 
-Improve this by doing the PageHuge() and page_count() checks already in
-dissolve_free_huge_pages() before calling dissolve_free_huge_page(). In
-dissolve_free_huge_page(), when holding the spinlock, those checks need
-to be revalidated.
+> On Wed 21-09-16 07:46:12, Dave Chinner wrote:
+>> [cc Michal, linux-mm@kvack.org]
+>> 
+>> On Tue, Sep 20, 2016 at 10:56:31PM +0200, Florian Weimer wrote:
+> [...]
+>> > [51669.515086] make invoked oom-killer:
+>> > gfp_mask=0x27000c0(GFP_KERNEL_ACCOUNT|__GFP_NOTRACK), order=2,
+>> > oom_score_adj=0
+>> > [51669.515092] CPU: 1 PID: 1202 Comm: make Tainted: G I 4.7.1fw #1
+>> > [51669.515093] Hardware name: System manufacturer System Product
+>> > Name/P6X58D-E, BIOS 0701 05/10/2011
+>> > [51669.515095] 0000000000000000 ffffffff812a7d39 0000000000000000
+>> > 0000000000000000
+>> > [51669.515098] ffffffff8114e4da ffff880018707d98 0000000000000000
+>> > 000000000066ca81
+>> > [51669.515100] ffffffff8170e88d ffffffff810fe69e ffff88033fc38728
+>> > 0000000200000006
+>> > [51669.515102] Call Trace:
+>> > [51669.515108]  [<ffffffff812a7d39>] ? dump_stack+0x46/0x5d
+>> > [51669.515113]  [<ffffffff8114e4da>] ? dump_header.isra.12+0x51/0x176
+>> > [51669.515116]  [<ffffffff810fe69e>] ? oom_kill_process+0x32e/0x420
+>> > [51669.515119]  [<ffffffff811003a0>] ? page_alloc_cpu_notify+0x40/0x40
+>> > [51669.515120]  [<ffffffff810fdcdc>] ? find_lock_task_mm+0x2c/0x70
+>> > [51669.515122]  [<ffffffff810fea6d>] ? out_of_memory+0x28d/0x2d0
+>> > [51669.515125]  [<ffffffff81103137>] ? __alloc_pages_nodemask+0xb97/0xc90
+>> > [51669.515128]  [<ffffffff81076d9c>] ? copy_process.part.54+0xec/0x17a0
+>> > [51669.515131]  [<ffffffff81123318>] ? handle_mm_fault+0xaa8/0x1900
+>> > [51669.515133]  [<ffffffff81078614>] ? _do_fork+0xd4/0x320
+>> > [51669.515137]  [<ffffffff81084ecc>] ? __set_current_blocked+0x2c/0x40
+>> > [51669.515140]  [<ffffffff810013ce>] ? do_syscall_64+0x3e/0x80
+>> > [51669.515144]  [<ffffffff8151433c>] ? entry_SYSCALL64_slow_path+0x25/0x25
+>> .....
+>> > [51669.515194] DMA: 1*4kB (U) 1*8kB (U) 1*16kB (U) 0*32kB 2*64kB
+>> > (U) 1*128kB (U) 1*256kB (U) 0*512kB 1*1024kB (U) 1*2048kB (M)
+>> > 3*4096kB (M) = 15900kB
+>> > [51669.515202] DMA32: 45619*4kB (UME) 73*8kB (UM) 0*16kB 0*32kB
+>> > 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB =
+>> > 183060kB
+>> > [51669.515209] Normal: 39979*4kB (UE) 0*8kB 0*16kB 0*32kB 0*64kB
+>> > 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 159916kB
+>> .....
+>> 
+>> Alright, that's what I suspected. high order allocation for a new
+>> kernel stack and memory is so fragmented that a contiguous
+>> allocation fails. Really, this is a memory reclaim issue, not an XFS
+>> issue.  There is lots of reclaimable memory available, but memory
+>> reclaim is:
+>> 
+>> 	a) not trying hard enough to reclaim reclaimable memory; and
+>> 	b) not waiting for memory compaction to rebuild contiguous
+>> 	   memory regions for high order allocations.
+>> 
+>> Instead, it is declaring OOM and kicking the killer to free memory
+>> held busy userspace.
+>
+> Yes this was the case with 4.7 kernel. There is a workaround sitting in
+> the linus tree 6b4e3181d7bd ("mm, oom: prevent premature OOM killer
+> invocation for high order request") which should get to stable
+> eventually. More approapriate fix is currently in the linux-next.
+>
+> Testing the same workload with linux-next would be very helpful.
 
-Signed-off-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
----
- mm/hugetlb.c | 12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+I'm not sure if I can reproduce this issue in a sufficiently reliable
+way, but I can try.  (I still have not found the process which causes
+the xfs_inode allocations go up.)
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 91ae1f5..770d83e 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1476,14 +1476,20 @@ static int dissolve_free_huge_page(struct page *page)
- int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
- {
- 	unsigned long pfn;
-+	struct page *page;
- 	int rc = 0;
- 
- 	if (!hugepages_supported())
- 		return rc;
- 
--	for (pfn = start_pfn; pfn < end_pfn; pfn += 1 << minimum_order)
--		if (rc = dissolve_free_huge_page(pfn_to_page(pfn)))
--			break;
-+	for (pfn = start_pfn; pfn < end_pfn; pfn += 1 << minimum_order) {
-+		page = pfn_to_page(pfn);
-+		if (PageHuge(page) && !page_count(page)) {
-+			rc = dissolve_free_huge_page(page);
-+			if (rc)
-+				break;
-+		}
-+	}
- 
- 	return rc;
- }
--- 
-2.8.4
+Is linux-next still the tree to test?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
