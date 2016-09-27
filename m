@@ -1,98 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9381B28024E
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 20:01:07 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id cg13so378902865pac.1
-        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 17:01:07 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 82si27190508pfs.145.2016.09.26.17.01.06
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3019328024E
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 20:14:26 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id b71so128793445lfg.2
+        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 17:14:26 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id ia7si21895047wjb.123.2016.09.26.17.14.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Sep 2016 17:01:06 -0700 (PDT)
-Date: Mon, 26 Sep 2016 17:01:05 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] fs/select: add vmalloc fallback for select(2)
-Message-Id: <20160926170105.517f74cd67ecdd5ef73e1865@linux-foundation.org>
-In-Reply-To: <20160922164359.9035-1-vbabka@suse.cz>
-References: <20160922164359.9035-1-vbabka@suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Mon, 26 Sep 2016 17:14:24 -0700 (PDT)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8R0Cst2015367
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 20:14:23 -0400
+Received: from e18.ny.us.ibm.com (e18.ny.us.ibm.com [129.33.205.208])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 25q5mr5pkr-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 20:14:23 -0400
+Received: from localhost
+	by e18.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
+	Mon, 26 Sep 2016 20:14:23 -0400
+Date: Mon, 26 Sep 2016 19:14:14 -0500
+From: Reza Arbab <arbab@linux.vnet.ibm.com>
+Subject: Re: [PATCH v3 4/5] powerpc/mm: restore top-down allocation when
+ using movable_node
+References: <1474828616-16608-1-git-send-email-arbab@linux.vnet.ibm.com>
+ <1474828616-16608-5-git-send-email-arbab@linux.vnet.ibm.com>
+ <1474924351.2857.255.camel@kernel.crashing.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <1474924351.2857.255.camel@kernel.crashing.org>
+Message-Id: <20160927001413.o72fqpfsnsxpu5qq@arbab-laptop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko <mhocko@kernel.org>, netdev@vger.kernel.org, Eric Dumazet <eric.dumazet@gmail.com>
+To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, devicetree@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 22 Sep 2016 18:43:59 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
+On Tue, Sep 27, 2016 at 07:12:31AM +1000, Benjamin Herrenschmidt wrote:
+>In any case, if the memory hasn't been hotplug, this shouldn't be 
+>necessary as we shouldn't be considering it for allocation.
 
-> The select(2) syscall performs a kmalloc(size, GFP_KERNEL) where size grows
-> with the number of fds passed. We had a customer report page allocation
-> failures of order-4 for this allocation. This is a costly order, so it might
-> easily fail, as the VM expects such allocation to have a lower-order fallback.
-> 
-> Such trivial fallback is vmalloc(), as the memory doesn't have to be
-> physically contiguous. Also the allocation is temporary for the duration of the
-> syscall, so it's unlikely to stress vmalloc too much.
-> 
-> Note that the poll(2) syscall seems to use a linked list of order-0 pages, so
-> it doesn't need this kind of fallback.
-> 
-> ...
->
-> --- a/fs/select.c
-> +++ b/fs/select.c
-> @@ -29,6 +29,7 @@
->  #include <linux/sched/rt.h>
->  #include <linux/freezer.h>
->  #include <net/busy_poll.h>
-> +#include <linux/vmalloc.h>
->  
->  #include <asm/uaccess.h>
->  
-> @@ -558,6 +559,7 @@ int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
->  	struct fdtable *fdt;
->  	/* Allocate small arguments on the stack to save memory and be faster */
->  	long stack_fds[SELECT_STACK_ALLOC/sizeof(long)];
-> +	unsigned long alloc_size;
->  
->  	ret = -EINVAL;
->  	if (n < 0)
-> @@ -580,8 +582,12 @@ int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
->  	bits = stack_fds;
->  	if (size > sizeof(stack_fds) / 6) {
->  		/* Not enough space in on-stack array; must use kmalloc */
-> +		alloc_size = 6 * size;
+Right. To be clear, the background info I put in the commit log refers 
+to x86, where the SRAT can describe movable nodes which exist at boot.  
+They're trying to avoid allocations from those nodes before they've been 
+identified.
 
-Well.  `size' is `unsigned'.  The multiplication will be done as 32-bit
-so there was no point in making `alloc_size' unsigned long.
+On power, movable nodes can only exist via hotplug, so that scenario 
+can't happen. We can immediately go back to top-down allocation. That is 
+the missing call being added in the patch.
 
-So can we tighten up the types in this function?  size_t might make
-sense, but vmalloc() takes a ulong.
-
->  		ret = -ENOMEM;
-> -		bits = kmalloc(6 * size, GFP_KERNEL);
-> +		bits = kmalloc(alloc_size, GFP_KERNEL|__GFP_NOWARN);
-> +		if (!bits && alloc_size > PAGE_SIZE)
-> +			bits = vmalloc(alloc_size);
-
-I don't share Eric's concerns about performance here.  If the vmalloc()
-is called, we're about to write to that quite large amount of memory
-which we just allocated, and the vmalloc() overhead will be relatively
-low.
-
->  		if (!bits)
->  			goto out_nofds;
->  	}
-> @@ -618,7 +624,7 @@ int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
->  
->  out:
->  	if (bits != stack_fds)
-> -		kfree(bits);
-> +		kvfree(bits);
->  out_nofds:
->  	return ret;
-
-It otherwise looks OK to me.
+-- 
+Reza Arbab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
