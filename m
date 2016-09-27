@@ -1,67 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CE6A96B028C
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 20:19:32 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 21so419385336pfy.3
-        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 17:19:32 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id d132si27519674pfg.218.2016.09.26.17.19.32
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DDD5028026B
+	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 21:01:42 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id 188so3524051iti.0
+        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 18:01:42 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u126si250472iod.223.2016.09.26.18.01.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 26 Sep 2016 17:19:32 -0700 (PDT)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8R0IsqU112036
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 20:19:31 -0400
-Received: from e32.co.us.ibm.com (e32.co.us.ibm.com [32.97.110.150])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 25q5ms62pr-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 26 Sep 2016 20:19:31 -0400
-Received: from localhost
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Mon, 26 Sep 2016 18:19:30 -0600
-Date: Mon, 26 Sep 2016 19:19:19 -0500
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: Re: [PATCH v3 5/5] mm: enable CONFIG_MOVABLE_NODE on powerpc
-References: <1474828616-16608-1-git-send-email-arbab@linux.vnet.ibm.com>
- <1474828616-16608-6-git-send-email-arbab@linux.vnet.ibm.com>
- <1474924541.2857.258.camel@kernel.crashing.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <1474924541.2857.258.camel@kernel.crashing.org>
-Message-Id: <20160927001919.sriijnhnu3c2jkck@arbab-laptop>
+        Mon, 26 Sep 2016 18:01:42 -0700 (PDT)
+Message-ID: <1474938096.17726.62.camel@redhat.com>
+Subject: Re: page_waitqueue() considered harmful
+From: Rik van Riel <riel@redhat.com>
+Date: Mon, 26 Sep 2016 21:01:36 -0400
+In-Reply-To: <20160926231132.GA17069@node.shutemov.name>
+References: 
+	<CA+55aFwVSXZPONk2OEyxcP-aAQU7-aJsF3OFXVi8Z5vA11v_-Q@mail.gmail.com>
+	 <1474925009.17726.61.camel@redhat.com>
+	 <20160926231132.GA17069@node.shutemov.name>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-ujyPCaCXpD6Dcfd1Z7Wg"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, devicetree@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>
 
-On Tue, Sep 27, 2016 at 07:15:41AM +1000, Benjamin Herrenschmidt wrote:
->What is that business with a command line argument ? Do that mean that
->we'll need some magic command line argument to properly handle LPC memory
->on CAPI devices or GPUs ? If yes that's bad ... kernel arguments should
->be a last resort.
 
-Well, movable_node is just a boolean, meaning "allow nodes which contain 
-only movable memory". It's _not_ like "movable_node=10,13-15,17", if 
-that's what you were thinking.
+--=-ujyPCaCXpD6Dcfd1Z7Wg
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
->We should have all the information we need from the device-tree.
->
->Note also that we shouldn't need to create those nodes at boot time,
->we need to add the ability to create the whole thing at runtime, we may know
->that there's an NPU with an LPC window in the system but we won't know if it's
->used until it is and for CAPI we just simply don't know until some PCI device
->gets turned into CAPI mode and starts claiming LPC memory...
+On Tue, 2016-09-27 at 02:11 +0300, Kirill A. Shutemov wrote:
+> On Mon, Sep 26, 2016 at 05:23:29PM -0400, Rik van Riel wrote:
+> >=20
+> > On Mon, 2016-09-26 at 13:58 -0700, Linus Torvalds wrote:
+> >=20
+> > >=20
+> > > Is there really any reason for that incredible indirection? Do we
+> > > really want to make the page_waitqueue() be a per-zone thing at
+> > > all?
+> > > Especially since all those wait-queues won't even be *used*
+> > > unless
+> > > there is actual IO going on and people are really getting into
+> > > contention on the page lock.. Why isn't the page_waitqueue() just
+> > > one
+> > > statically sized array?
+> >=20
+> > Why are we touching file pages at all during fork()?
+>=20
+> We are not.
+> Unless the vma has private pages (vma->anon_vma is not NULL).
+>=20
+> See first lines for copy_page_range().
 
-Yes, this is what is planned for, if I'm understanding you correctly.
+Ahhh, indeed. I thought I remembered an optimization like
+that.
 
-In the dt, the PCI device node has a phandle pointing to the memory 
-node. The memory node describes the window into which we can hotplug at 
-runtime.
+--=20
+All Rights Reversed.
+--=-ujyPCaCXpD6Dcfd1Z7Wg
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
 
--- 
-Reza Arbab
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQEcBAABCAAGBQJX6cTxAAoJEM553pKExN6D2WcH/jt6JL9rw3xMuFsO9pfsBSIo
+ZRXxXsE3bo0oHSEmGJxN20SzFcpdrHKe6uFOQ3spFV+iIX1bWh7th4PZopNyn/uf
+rj7Zx+rAl1syFodV/rhFTPpxikIFL5V/TZ6lr7cJ12LhH5MGYk/Pz0A6zBAO/629
+BtoamnGFhH9Udk4je/78XxB8w3LBLfCNiarPokIotgAWvlEqQTu1UTeJ756A3VZC
+gbDARHFaF8KKYLX0zz9au4GuGUt003585yW76rE7FLmpvc3Q6k9+RhcdyaJUDRNL
+qiRmpzJsxKBP6qaTKhJbE1M97wqlopY0pOcjv9llzOl8DP0KIV74BosssUv0/O0=
+=e4dC
+-----END PGP SIGNATURE-----
+
+--=-ujyPCaCXpD6Dcfd1Z7Wg--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
