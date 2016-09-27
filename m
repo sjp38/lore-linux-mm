@@ -1,57 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 09A4D280252
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 05:52:16 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id o21so24664798itb.2
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 02:52:16 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id t205si2687046iod.210.2016.09.27.02.52.14
-        for <linux-mm@kvack.org>;
-        Tue, 27 Sep 2016 02:52:15 -0700 (PDT)
-Date: Tue, 27 Sep 2016 18:52:06 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: page_waitqueue() considered harmful
-Message-ID: <20160927095206.GA12598@bbox>
-References: <CA+55aFwVSXZPONk2OEyxcP-aAQU7-aJsF3OFXVi8Z5vA11v_-Q@mail.gmail.com>
- <20160927073055.GM2794@worktop>
- <20160927085412.GD2838@techsingularity.net>
- <20160927091117.GA23640@node.shutemov.name>
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F9A828027B
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 06:16:22 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id b130so2566379wmc.2
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 03:16:22 -0700 (PDT)
+Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
+        by mx.google.com with ESMTPS id uw3si1609588wjb.68.2016.09.27.03.16.18
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Sep 2016 03:16:19 -0700 (PDT)
+Received: by mail-wm0-x232.google.com with SMTP id b130so4331873wmc.0
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 03:16:18 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20160927091117.GA23640@node.shutemov.name>
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
+From: Shaun Tancheff <shaun@tancheff.com>
+Date: Tue, 27 Sep 2016 05:16:15 -0500
+Message-ID: <CAJ48U8XgWQZBFuWt2Gk_5JAXz3wONgd15OmBY0M-Urq+_VGe9A@mail.gmail.com>
+Subject: BUG Re: mm: vma_merge: fix vm_page_prot SMP race condition against rmap_walk
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Ingo Molnar <mingo@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Chen Gang <gang.chen.5i5j@gmail.com>, Shaun Tancheff <shaun@tancheff.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Mel Gorman <mgorman@techsingularity.net>, Piotr Kwapulinski <kwapulinski.piotr@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Shaun Tancheff <shaun.tancheff@seagate.com>
 
-On Tue, Sep 27, 2016 at 12:11:17PM +0300, Kirill A. Shutemov wrote:
-> On Tue, Sep 27, 2016 at 09:54:12AM +0100, Mel Gorman wrote:
-> > On Tue, Sep 27, 2016 at 09:30:55AM +0200, Peter Zijlstra wrote:
-> > > > Also, if those bitlock ops had a different bit that showed contention,
-> > > > we could actually skip *all* of this, and just see that "oh, nobody is
-> > > > waiting on this page anyway, so there's no point in looking up those
-> > > > wait queues". We don't have that many "__wait_on_bit()" users, maybe
-> > > > we could say that the bitlocks do have to haev *two* bits: one for the
-> > > > lock bit itself, and one for "there is contention".
-> > > 
-> > > That would be fairly simple to implement, the difficulty would be
-> > > actually getting a page-flag to use for this. We're running pretty low
-> > > in available bits :/
-> > 
-> > Simple is relative unless I drastically overcomplicated things and it
-> > wouldn't be the first time. 64-bit only side-steps the page flag issue
-> > as long as we can live with that.
-> 
-> Looks like we don't ever lock slab pages. Unless I miss something.
-> 
-> We can try to use PG_locked + PG_slab to indicate contation.
-> 
-> I tried to boot kernel with CONFIG_SLUB + BUG_ON(PageSlab()) in
-> trylock/unlock_page() codepath. Works fine, but more inspection is
-> required.
+git bisect points at commit  c9634dcf00c9c93b ("mm: vma_merge: fix
+vm_page_prot SMP race condition against rmap_walk")
 
-SLUB used bit_spin_lock via slab_lock instead of trylock/unlock.
+Last lines to console are [transcribed]:
+
+vma ffff8c3d989a7c78 start 00007fe02ed4c000 end 00007fe02ed52000
+next ffff8c3d96de0c38 prev ffff8c3d989a6e40 mm ffff8c3d071cbac0
+prot 8000000000000025 anon_vma ffff8c3d96fc9b28 vm_ops           (null)
+pgoff 7fe02ed4c file           (null) private_data           (null)
+flags: 0x8100073(read|write|mayread|maywrite|mayexec|account|softdirty)
+
+Reproducer is an Ubuntu 16.04.1 LTS x86_64 running on a VM (VirtualBox).
+Symptom is a solid hang after boot and switch to starting gnome session.
+
+Hang at about 35s.
+
+kdbg traceback is all null entries.
+
+Let me know what additional information I can provide.
+
+Regards,
+Shaun Tancheff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
