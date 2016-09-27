@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A38A228028C
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B5F3828028F
 	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 12:08:40 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id l138so12992866wmg.3
+Received: by mail-wm0-f72.google.com with SMTP id w84so12713207wmg.1
         for <linux-mm@kvack.org>; Tue, 27 Sep 2016 09:08:40 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ua11si3052033wjb.62.2016.09.27.09.08.33
+        by mx.google.com with ESMTPS id 125si14431356wmz.124.2016.09.27.09.08.34
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Tue, 27 Sep 2016 09:08:34 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 12/20] mm: Factor out common parts of write fault handling
-Date: Tue, 27 Sep 2016 18:08:16 +0200
-Message-Id: <1474992504-20133-13-git-send-email-jack@suse.cz>
+Subject: [PATCH 13/20] mm: Pass vm_fault structure into do_page_mkwrite()
+Date: Tue, 27 Sep 2016 18:08:17 +0200
+Message-Id: <1474992504-20133-14-git-send-email-jack@suse.cz>
 In-Reply-To: <1474992504-20133-1-git-send-email-jack@suse.cz>
 References: <1474992504-20133-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,129 +20,64 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>
 
-Currently we duplicate handling of shared write faults in
-wp_page_reuse() and do_shared_fault(). Factor them out into a common
-function.
+We will need more information in the ->page_mkwrite() helper for DAX to
+be able to fully finish faults there. Pass vm_fault structure to
+do_page_mkwrite() and use it there so that information propagates
+properly from upper layers.
 
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- mm/memory.c | 78 +++++++++++++++++++++++++++++--------------------------------
- 1 file changed, 37 insertions(+), 41 deletions(-)
+ mm/memory.c | 19 +++++++------------
+ 1 file changed, 7 insertions(+), 12 deletions(-)
 
 diff --git a/mm/memory.c b/mm/memory.c
-index 63d9c1a54caf..0643b3b5a12a 100644
+index 0643b3b5a12a..7c87edaa7a8f 100644
 --- a/mm/memory.c
 +++ b/mm/memory.c
-@@ -2063,6 +2063,41 @@ static int do_page_mkwrite(struct vm_area_struct *vma, struct page *page,
- }
- 
- /*
-+ * Handle dirtying of a page in shared file mapping on a write fault.
-+ *
-+ * The function expects the page to be locked and unlocks it.
-+ */
-+static void fault_dirty_shared_page(struct vm_area_struct *vma,
-+				    struct page *page)
-+{
-+	struct address_space *mapping;
-+	bool dirtied;
-+	bool page_mkwrite = vma->vm_ops->page_mkwrite;
-+
-+	dirtied = set_page_dirty(page);
-+	VM_BUG_ON_PAGE(PageAnon(page), page);
-+	/*
-+	 * Take a local copy of the address_space - page.mapping may be zeroed
-+	 * by truncate after unlock_page().   The address_space itself remains
-+	 * pinned by vma->vm_file's reference.  We rely on unlock_page()'s
-+	 * release semantics to prevent the compiler from undoing this copying.
-+	 */
-+	mapping = page_rmapping(page);
-+	unlock_page(page);
-+
-+	if ((dirtied || page_mkwrite) && mapping) {
-+		/*
-+		 * Some device drivers do not set page.mapping
-+		 * but still dirty their pages
-+		 */
-+		balance_dirty_pages_ratelimited(mapping);
-+	}
-+
-+	if (!page_mkwrite)
-+		file_update_time(vma->vm_file);
-+}
-+
-+/*
-  * Handle write page faults for pages that can be reused in the current vma
+@@ -2034,20 +2034,14 @@ static gfp_t __get_fault_gfp_mask(struct vm_area_struct *vma)
   *
-  * This can happen either due to the mapping being with the VM_SHARED flag,
-@@ -2092,28 +2127,11 @@ static inline int wp_page_reuse(struct vm_fault *vmf, struct page *page,
- 	pte_unmap_unlock(vmf->pte, vmf->ptl);
- 
- 	if (dirty_shared) {
--		struct address_space *mapping;
--		int dirtied;
--
- 		if (!page_mkwrite)
- 			lock_page(page);
- 
--		dirtied = set_page_dirty(page);
--		VM_BUG_ON_PAGE(PageAnon(page), page);
--		mapping = page->mapping;
--		unlock_page(page);
-+		fault_dirty_shared_page(vma, page);
- 		put_page(page);
--
--		if ((dirtied || page_mkwrite) && mapping) {
--			/*
--			 * Some device drivers do not set page.mapping
--			 * but still dirty their pages
--			 */
--			balance_dirty_pages_ratelimited(mapping);
--		}
--
--		if (!page_mkwrite)
--			file_update_time(vma->vm_file);
- 	}
- 
- 	return VM_FAULT_WRITE;
-@@ -3256,8 +3274,6 @@ uncharge_out:
- static int do_shared_fault(struct vm_fault *vmf)
+  * We do this without the lock held, so that it can sleep if it needs to.
+  */
+-static int do_page_mkwrite(struct vm_area_struct *vma, struct page *page,
+-	       unsigned long address)
++static int do_page_mkwrite(struct vm_fault *vmf)
  {
- 	struct vm_area_struct *vma = vmf->vma;
--	struct address_space *mapping;
--	int dirtied = 0;
- 	int ret, tmp;
+-	struct vm_fault vmf;
+ 	int ret;
++	struct page *page = vmf->page;
  
- 	ret = __do_fault(vmf);
-@@ -3286,27 +3302,7 @@ static int do_shared_fault(struct vm_fault *vmf)
+-	vmf.virtual_address = address & PAGE_MASK;
+-	vmf.pgoff = page->index;
+-	vmf.flags = FAULT_FLAG_WRITE|FAULT_FLAG_MKWRITE;
+-	vmf.gfp_mask = __get_fault_gfp_mask(vma);
+-	vmf.page = page;
+-	vmf.cow_page = NULL;
++	vmf->flags = FAULT_FLAG_WRITE|FAULT_FLAG_MKWRITE;
+ 
+-	ret = vma->vm_ops->page_mkwrite(vma, &vmf);
++	ret = vmf->vma->vm_ops->page_mkwrite(vmf->vma, vmf);
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
  		return ret;
- 	}
+ 	if (unlikely(!(ret & VM_FAULT_LOCKED))) {
+@@ -2323,7 +2317,8 @@ static int wp_page_shared(struct vm_fault *vmf, struct page *old_page)
+ 		int tmp;
  
--	if (set_page_dirty(vmf->page))
--		dirtied = 1;
--	/*
--	 * Take a local copy of the address_space - page.mapping may be zeroed
--	 * by truncate after unlock_page().   The address_space itself remains
--	 * pinned by vma->vm_file's reference.  We rely on unlock_page()'s
--	 * release semantics to prevent the compiler from undoing this copying.
--	 */
--	mapping = page_rmapping(vmf->page);
--	unlock_page(vmf->page);
--	if ((dirtied || vma->vm_ops->page_mkwrite) && mapping) {
--		/*
--		 * Some device drivers do not set page.mapping but still
--		 * dirty their pages
--		 */
--		balance_dirty_pages_ratelimited(mapping);
--	}
--
--	if (!vma->vm_ops->page_mkwrite)
--		file_update_time(vma->vm_file);
--
-+	fault_dirty_shared_page(vma, vmf->page);
- 	return ret;
- }
- 
+ 		pte_unmap_unlock(vmf->pte, vmf->ptl);
+-		tmp = do_page_mkwrite(vma, old_page, vmf->address);
++		vmf->page = old_page;
++		tmp = do_page_mkwrite(vmf);
+ 		if (unlikely(!tmp || (tmp &
+ 				      (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))) {
+ 			put_page(old_page);
+@@ -3286,7 +3281,7 @@ static int do_shared_fault(struct vm_fault *vmf)
+ 	 */
+ 	if (vma->vm_ops->page_mkwrite) {
+ 		unlock_page(vmf->page);
+-		tmp = do_page_mkwrite(vma, vmf->page, vmf->address);
++		tmp = do_page_mkwrite(vmf);
+ 		if (unlikely(!tmp ||
+ 				(tmp & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))) {
+ 			put_page(vmf->page);
 -- 
 2.6.6
 
