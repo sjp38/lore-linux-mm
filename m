@@ -1,114 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 71A90280259
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 15:24:02 -0400 (EDT)
-Received: by mail-ua0-f198.google.com with SMTP id l16so1834673uaa.3
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 12:24:02 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id j186si1019466vkh.56.2016.09.27.12.24.01
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BFE4628025A
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 16:05:49 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id bv10so42652754pad.2
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 13:05:49 -0700 (PDT)
+Received: from mx0a-000cda01.pphosted.com (mx0a-00003501.pphosted.com. [67.231.144.15])
+        by mx.google.com with ESMTPS id oo5si4072062pac.274.2016.09.27.13.05.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Sep 2016 12:24:01 -0700 (PDT)
-Subject: Re: [PATCH v2] mm: remove unnecessary condition in
- remove_inode_hugepages
-References: <1474985786-5052-1-git-send-email-zhongjiang@huawei.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <63e015fd-3920-9753-fb58-c11d95d61d8b@oracle.com>
-Date: Tue, 27 Sep 2016 12:23:17 -0700
+        Tue, 27 Sep 2016 13:05:48 -0700 (PDT)
+Received: from pps.filterd (m0075554.ppops.net [127.0.0.1])
+	by mx0a-000cda01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8RK46lg020433
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 16:05:48 -0400
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by mx0a-000cda01.pphosted.com with ESMTP id 25qv27hewy-10
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 16:05:47 -0400
+Received: by mail-yw0-f197.google.com with SMTP id k17so9003487ywe.0
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 13:05:47 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <1474985786-5052-1-git-send-email-zhongjiang@huawei.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20160927160529.GJ4618@redhat.com>
+References: <CAJ48U8XgWQZBFuWt2Gk_5JAXz3wONgd15OmBY0M-Urq+_VGe9A@mail.gmail.com>
+ <20160927160529.GJ4618@redhat.com>
+From: Shaun Tancheff <shaun.tancheff@seagate.com>
+Date: Tue, 27 Sep 2016 15:05:26 -0500
+Message-ID: <CAJVOszADPn=H4Mgk-kTPh08X18ppxu5zix9b22CstG5KQSwMCw@mail.gmail.com>
+Subject: Re: BUG Re: mm: vma_merge: fix vm_page_prot SMP race condition
+ against rmap_walk
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhongjiang <zhongjiang@huawei.com>, mhocko@kernel.org, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, n-horiguchi@ah.jp.nec.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Shaun Tancheff <shaun@tancheff.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Ingo Molnar <mingo@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Chen Gang <gang.chen.5i5j@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Mel Gorman <mgorman@techsingularity.net>, Piotr Kwapulinski <kwapulinski.piotr@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 09/27/2016 07:16 AM, zhongjiang wrote:
-> From: zhong jiang <zhongjiang@huawei.com>
-> 
-> when the huge page is added to the page cahce (huge_add_to_page_cache),
-> the page private flag will be cleared. since this code
-> (remove_inode_hugepages) will only be called for pages in the
-> page cahce, PagePrivate(page) will always be false.
-> 
-> The patch remove the code without any functional change.
-> 
-> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
-> ---
->  fs/hugetlbfs/inode.c    | 11 +++++------
->  include/linux/hugetlb.h |  2 +-
->  mm/hugetlb.c            |  4 ++--
->  3 files changed, 8 insertions(+), 9 deletions(-)
-> 
-> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> index 4ea71eb..40d0afe 100644
-> --- a/fs/hugetlbfs/inode.c
-> +++ b/fs/hugetlbfs/inode.c
-> @@ -458,18 +458,17 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
->  			 * cache (remove_huge_page) BEFORE removing the
->  			 * region/reserve map (hugetlb_unreserve_pages).  In
->  			 * rare out of memory conditions, removal of the
-> -			 * region/reserve map could fail.  Before free'ing
-> -			 * the page, note PagePrivate which is used in case
-> -			 * of error.
-> +			 * region/reserve map could fail. Correspondingly,
-> +			 * the subpool and global reserve usage count can need
-> +			 * to be adjusted.
->  			 */
-> -			rsv_on_error = !PagePrivate(page);
-> +			VM_BUG_ON(PagePrivate(page));
->  			remove_huge_page(page);
->  			freed++;
->  			if (!truncate_op) {
->  				if (unlikely(hugetlb_unreserve_pages(inode,
->  							next, next + 1, 1)))
-> -					hugetlb_fix_reserve_counts(inode,
-> -								rsv_on_error);
-> +					hugetlb_fix_reserve_counts(inode);
->  			}
->  
->  			unlock_page(page);
-> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index c26d463..d2e0fc5 100644
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-> @@ -90,7 +90,7 @@ int dequeue_hwpoisoned_huge_page(struct page *page);
->  bool isolate_huge_page(struct page *page, struct list_head *list);
->  void putback_active_hugepage(struct page *page);
->  void free_huge_page(struct page *page);
-> -void hugetlb_fix_reserve_counts(struct inode *inode, bool restore_reserve);
-> +void hugetlb_fix_reserve_counts(struct inode *inode);
->  extern struct mutex *hugetlb_fault_mutex_table;
->  u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
->  				struct vm_area_struct *vma,
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 87e11d8..28a079a 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -567,13 +567,13 @@ retry:
->   * appear as a "reserved" entry instead of simply dangling with incorrect
->   * counts.
->   */
-> -void hugetlb_fix_reserve_counts(struct inode *inode, bool restore_reserve)
-> +void hugetlb_fix_reserve_counts(struct inode *inode)
->  {
->  	struct hugepage_subpool *spool = subpool_inode(inode);
->  	long rsv_adjust;
->  
->  	rsv_adjust = hugepage_subpool_get_pages(spool, 1);
-> -	if (restore_reserve && rsv_adjust) {
-> +	if (rsv_adjust) {
->  		struct hstate *h = hstate_inode(inode);
->  
->  		hugetlb_acct_memory(h, 1);
-> 
+Confirmed:
+  - Removing DEBUG_VM_RB fixes the hang.
 
-Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
-Tested-by: Mike Kravetz <mike.kravetz@oracle.com>
+Also confirmed:
+ - Above patch fixes the hang when DEBUG_VM_RB is re-enabled.
 
--- 
-Mike Kravetz
+Thanks!
+
+
+
+On Tue, Sep 27, 2016 at 11:05 AM, Andrea Arcangeli <aarcange@redhat.com> wr=
+ote:
+> Hello,
+>
+> On Tue, Sep 27, 2016 at 05:16:15AM -0500, Shaun Tancheff wrote:
+>> git bisect points at commit  c9634dcf00c9c93b ("mm: vma_merge: fix
+>> vm_page_prot SMP race condition against rmap_walk")
+>
+> I assume linux-next? But I can't find the commit, but I should know
+> what this is.
+>
+>>
+>> Last lines to console are [transcribed]:
+>>
+>> vma ffff8c3d989a7c78 start 00007fe02ed4c000 end 00007fe02ed52000
+>> next ffff8c3d96de0c38 prev ffff8c3d989a6e40 mm ffff8c3d071cbac0
+>> prot 8000000000000025 anon_vma ffff8c3d96fc9b28 vm_ops           (null)
+>> pgoff 7fe02ed4c file           (null) private_data           (null)
+>> flags: 0x8100073(read|write|mayread|maywrite|mayexec|account|softdirty)
+>
+> It's a false positive, you have DEBUG_VM_RB=3Dy, you can disable it or
+> cherry-pick the fix:
+>
+> https://urldefense.proofpoint.com/v2/url?u=3Dhttps-3A__git.kernel.org_cgi=
+t_linux_kernel_git_andrea_aa.git_commit_-3Fid-3D74d8b44224f31153e23ca8a7f7f=
+0700091f5a9b2&d=3DDQIBAg&c=3DIGDlg0lD0b-nebmJJ0Kp8A&r=3DWg5NqlNlVTT7Ugl8V50=
+qIHLe856QW0qfG3WVYGOrWzA&m=3DmhyVFRknYnKxpypFw43nt0xMGGZX0r4k-qe6PIyp5ew&s=
+=3DQjS2W4fUFnnJl4YxCk4WB30v5281AC4B7bAQeP8KWlQ&e=3D
+>
+> The assumption validate_mm_rb did isn't valid anymore on the new code
+> during __vma_unlink, the validation code must be updated to skip the
+> next vma instead of the current one after this change. It's a bug in
+> DEBUG_VM_RB=3Dy, if you keep DEBUG_VM_RB=3Dn there's no bug.
+>
+>> Reproducer is an Ubuntu 16.04.1 LTS x86_64 running on a VM (VirtualBox).
+>> Symptom is a solid hang after boot and switch to starting gnome session.
+>>
+>> Hang at about 35s.
+>>
+>> kdbg traceback is all null entries.
+>>
+>> Let me know what additional information I can provide.
+>
+> I already submitted the fix to Andrew last week:
+>
+> https://urldefense.proofpoint.com/v2/url?u=3Dhttps-3A__marc.info_-3Fl-3Dl=
+inux-2Dmm-26m-3D147449253801920-26w-3D2&d=3DDQIBAg&c=3DIGDlg0lD0b-nebmJJ0Kp=
+8A&r=3DWg5NqlNlVTT7Ugl8V50qIHLe856QW0qfG3WVYGOrWzA&m=3DmhyVFRknYnKxpypFw43n=
+t0xMGGZX0r4k-qe6PIyp5ew&s=3DEIo2P9JsNNIZSPoTgxO2vC5DJE4p6-HeOznwL1qhowo&e=
+=3D
+>
+> I assume it's pending for merging in -mm.
+>
+> If you can test this patch and confirm the problem goes away with
+> DEBUG_VM_RB=3Dy it'd be great.
+>
+> Thanks,
+> Andrea
+
+
+
+--=20
+Shaun Tancheff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
