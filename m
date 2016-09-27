@@ -1,36 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1303E6B0268
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 11:08:27 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id c84so33543332pfj.2
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 08:08:27 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 48B6B6B026A
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 11:18:00 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id c84so34084541pfj.2
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 08:18:00 -0700 (PDT)
 Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id ce5si3082524pad.132.2016.09.27.08.08.26
+        by mx.google.com with ESMTPS id aa1si3092485pad.208.2016.09.27.08.17.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Sep 2016 08:08:26 -0700 (PDT)
-Received: by mail-pf0-x242.google.com with SMTP id 21so869566pfy.1
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 08:08:26 -0700 (PDT)
-Date: Wed, 28 Sep 2016 01:08:19 +1000
+        Tue, 27 Sep 2016 08:17:59 -0700 (PDT)
+Received: by mail-pf0-x242.google.com with SMTP id q2so878988pfj.0
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 08:17:59 -0700 (PDT)
+Date: Wed, 28 Sep 2016 01:17:50 +1000
 From: Nicholas Piggin <npiggin@gmail.com>
 Subject: Re: page_waitqueue() considered harmful
-Message-ID: <20160928010819.6e75eaa9@roar.ozlabs.ibm.com>
-In-Reply-To: <20160927143426.GP2794@worktop>
+Message-ID: <20160928011750.2a04c07a@roar.ozlabs.ibm.com>
+In-Reply-To: <20160928005318.2f474a70@roar.ozlabs.ibm.com>
 References: <CA+55aFwVSXZPONk2OEyxcP-aAQU7-aJsF3OFXVi8Z5vA11v_-Q@mail.gmail.com>
 	<20160927083104.GC2838@techsingularity.net>
-	<20160927143426.GP2794@worktop>
+	<20160928005318.2f474a70@roar.ozlabs.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>
 
-On Tue, 27 Sep 2016 16:34:26 +0200
-Peter Zijlstra <peterz@infradead.org> wrote:
+On Wed, 28 Sep 2016 00:53:18 +1000
+Nicholas Piggin <npiggin@gmail.com> wrote:
 
-> On Tue, Sep 27, 2016 at 09:31:04AM +0100, Mel Gorman wrote:
+> On Tue, 27 Sep 2016 09:31:04 +0100
+> Mel Gorman <mgorman@techsingularity.net> wrote:
+> 
+> > Hi Linus,
+> > 
+> > On Mon, Sep 26, 2016 at 01:58:00PM -0700, Linus Torvalds wrote:  
+> > > So I've been doing some profiling of the git "make test" load, which
+> > > is interesting because it's just a lot of small scripts, and it shows
+> > > our fork/execve/exit costs.
+> > > 
+> > > Some of the top offenders are pretty understandable: we have long had
+> > > unmap_page_range() show up at the top on these loads, because the
+> > > zap_pte_range() function ends up touching each page as it unmaps
+> > > things (it does it to check whether it's an anonymous page, but then
+> > > also for the page map count update etc), and that's a disaster from a
+> > > cache standpoint. That single function is something between 3-4% of
+> > > CPU time, and the one instruction that accesses "struct page" the
+> > > first time is a large portion of that. Yes, a single instruction is
+> > > blamed for about 1% of all CPU time on a fork/exec/exit workload.
+> > >     
+> > 
+> > It was found at one point that the fault-around made these costs worse as
+> > there were simply more pages to tear down. However, this only applied to
+> > fork/exit microbenchmarks.  Matt Fleming prototyped an unreleased patch
+> > that tried to be clever about this but the cost was never worthwhile. A
+> > plain revert helped a microbenchmark but hurt workloads like the git
+> > testsuite which was shell intensive.
+> > 
+> > It got filed under "we're not fixing a fork/exit microbenchmark at the
+> > expense of "real" workloads like git checkout and git testsuite".
+> >   
+> > > <SNIP>
+> > >
+> > > #5 and #6 on my profile are user space (_int_malloc in glibc, and
+> > > do_lookup_x in the loader - I think user space should probably start
+> > > thinking more about doing static libraries for the really core basic
+> > > things, but whatever. Not a kernel issue.
+> > >     
+> > 
+> > Recent problems have been fixed with _int_malloc in glibc, particularly as it
+> > applies to threads but no fix springs to mind that might impact "make test".
+> >   
+> > > #7 is in the kernel again. And that one struck me as really odd. It's
+> > > "unlock_page()", while #9 is __wake_up_bit(). WTF? There's no IO in
+> > > this load, it's all cached, why do we use 3% of the time (1.7% and
+> > > 1.4% respectively) on unlocking a page. And why can't I see the
+> > > locking part?
+> > > 
+> > > It turns out that I *can* see the locking part, but it's pretty cheap.
+> > > It's inside of filemap_map_pages(), which does a trylock, and it shows
+> > > up as about 1/6th of the cost of that function. Still, it's much less
+> > > than the unlocking side. Why is unlocking so expensive?
+> > > 
+> > > Yeah, unlocking is expensive because of the nasty __wake_up_bit()
+> > > code. In fact, even inside "unlock_page()" itself, most of the costs
+> > > aren't even the atomic bit clearing (like you'd expect), it's the
+> > > inlined part of wake_up_bit(). Which does some really nasty crud.
+> > > 
+> > > Why is the page_waitqueue() handling so expensive? Let me count the ways:
+> > >     
+> > 
 > > page_waitqueue() has been a hazard for years. I think the last attempt to
 > > fix it was back in 2014 http://www.spinics.net/lists/linux-mm/msg73207.html
 > > 
@@ -40,208 +100,157 @@ Peter Zijlstra <peterz@infradead.org> wrote:
 > > but a consistent piece of feedback was that it was very complex for the
 > > level of impact it had.  
 > 
-> Right, I never really liked that patch. In any case, the below seems to
-> boot, although the lock_page_wait() thing did get my brain in a bit of a
-> twist. Doing explicit loops with PG_contended inside wq->lock would be
-> more obvious but results in much more code.
+> Huh, I was just wondering about this again the other day. Powerpc has
+> some interesting issues with atomic ops and barriers (not to mention
+> random cache misses that hurt everybody).
 > 
-> We could muck about with PG_contended naming/placement if any of this
-> shows benefit.
+> It actually wasn't for big Altix machines (at least not when I wrote it),
+> but it came from some effort to optimize page reclaim performance on an
+> opteron with a lot (back then) of cores per node.
 > 
-> It does boot on my x86_64 and builds a kernel, so it must be perfect ;-)
+> And it's not only for scalability, it's a single threaded performance
+> optimisation as much as anything.
+> 
+> By the way I think that patch linked is taking the wrong approach. Better
+> to put all the complexity of maintaining the waiters bit into the sleep/wake
+> functions. The fastpath simply tests the bit in no less racy a manner than
+> the unlocked waitqueue_active() test. Really incomplete patch attached for
+> reference.
+> 
+> The part where we hack the wait code into maintaining the extra bit for us
+> is pretty mechanical and boring so long as it's under the waitqueue lock.
+> 
+> The more interesting is the ability to avoid the barrier between fastpath
+> clearing a bit and testing for waiters.
+> 
+> unlock():                        lock() (slowpath):
+> clear_bit(PG_locked)             set_bit(PG_waiter)
+> test_bit(PG_waiter)              test_bit(PG_locked)
+> 
+> If this was memory ops to different words, it would require smp_mb each
+> side.. Being the same word, can we avoid them? ISTR Linus you were worried
+> about stores being forwarded to loads before it is visible to the other CPU.
+> I think that should be okay because the stores will be ordered, and the load
+> can't move earlier than the store on the same CPU. Maybe I completely
+> misremember it.
+> 
+> 
+> Subject: [PATCH] blah
 > 
 > ---
->  include/linux/page-flags.h     |  2 ++
->  include/linux/pagemap.h        | 21 +++++++++----
->  include/linux/wait.h           |  2 +-
->  include/trace/events/mmflags.h |  1 +
->  kernel/sched/wait.c            | 17 ++++++----
->  mm/filemap.c                   | 71 ++++++++++++++++++++++++++++++++++++------
->  6 files changed, 92 insertions(+), 22 deletions(-)
+>  include/linux/pagemap.h | 10 +++---
+>  mm/filemap.c            | 92 +++++++++++++++++++++++++++++++++++++++++++------
+>  2 files changed, 87 insertions(+), 15 deletions(-)
 > 
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index 74e4dda..0ed3900 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -73,6 +73,7 @@
->   */
->  enum pageflags {
->  	PG_locked,		/* Page is locked. Don't touch. */
-> +	PG_contended,		/* Page lock is contended. */
->  	PG_error,
->  	PG_referenced,
->  	PG_uptodate,
-> @@ -253,6 +254,7 @@ static inline int TestClearPage##uname(struct page *page) { return 0; }
->  	TESTSETFLAG_FALSE(uname) TESTCLEARFLAG_FALSE(uname)
->  
->  __PAGEFLAG(Locked, locked, PF_NO_TAIL)
-> +PAGEFLAG(Contended, contended, PF_NO_TAIL)
-
-
->  PAGEFLAG(Error, error, PF_NO_COMPOUND) TESTCLEARFLAG(Error, error, PF_NO_COMPOUND)
->  PAGEFLAG(Referenced, referenced, PF_HEAD)
->  	TESTCLEARFLAG(Referenced, referenced, PF_HEAD)
 > diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-> index 66a1260..3b38a96 100644
+> index 66a1260..a536df9 100644
 > --- a/include/linux/pagemap.h
 > +++ b/include/linux/pagemap.h
-> @@ -417,7 +417,7 @@ extern void __lock_page(struct page *page);
->  extern int __lock_page_killable(struct page *page);
->  extern int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
->  				unsigned int flags);
-> -extern void unlock_page(struct page *page);
-> +extern void __unlock_page(struct page *page);
->  
->  static inline int trylock_page(struct page *page)
->  {
-> @@ -448,6 +448,16 @@ static inline int lock_page_killable(struct page *page)
->  	return 0;
+> @@ -479,10 +479,11 @@ static inline int wait_on_page_locked_killable(struct page *page)
+>  	return wait_on_page_bit_killable(compound_head(page), PG_locked);
 >  }
 >  
-> +static inline void unlock_page(struct page *page)
-> +{
-> +	page = compound_head(page);
-> +	VM_BUG_ON_PAGE(!PageLocked(page), page);
-> +	clear_bit_unlock(PG_locked, &page->flags);
-> +	smp_mb__after_atomic();
-
-If the wakeup does not do a reorderable waitqueue_active check outside
-the lock, why is this barrier needed? 
-
-> +	if (PageContended(page))
-> +		__unlock_page(page);
-> +}
-> +
-
-
-> @@ -62,18 +62,23 @@ EXPORT_SYMBOL(remove_wait_queue);
->   * started to run but is not in state TASK_RUNNING. try_to_wake_up() returns
->   * zero in this (rare) case, and we handle it by continuing to scan the queue.
+> -extern wait_queue_head_t *page_waitqueue(struct page *page);
+>  static inline void wake_up_page(struct page *page, int bit)
+>  {
+> -	__wake_up_bit(page_waitqueue(page), &page->flags, bit);
+> +	if (!PageWaiters(page))
+> +		return;
+> +	wake_up_page_bit(page, bit);
+>  }
+>  
+>  /* 
+> @@ -494,8 +495,9 @@ static inline void wake_up_page(struct page *page, int bit)
 >   */
-> -static void __wake_up_common(wait_queue_head_t *q, unsigned int mode,
-> +static int __wake_up_common(wait_queue_head_t *q, unsigned int mode,
->  			int nr_exclusive, int wake_flags, void *key)
+>  static inline void wait_on_page_locked(struct page *page)
 >  {
->  	wait_queue_t *curr, *next;
-> +	int woken = 0;
->  
->  	list_for_each_entry_safe(curr, next, &q->task_list, task_list) {
->  		unsigned flags = curr->flags;
->  
-> -		if (curr->func(curr, mode, wake_flags, key) &&
-> -				(flags & WQ_FLAG_EXCLUSIVE) && !--nr_exclusive)
-> -			break;
-> +		if (curr->func(curr, mode, wake_flags, key)) {
-> +			woken++;
-> +			if ((flags & WQ_FLAG_EXCLUSIVE) && !--nr_exclusive)
-> +				break;
-> +		}
->  	}
-> +
-> +	return woken;
+> -	if (PageLocked(page))
+> -		wait_on_page_bit(compound_head(page), PG_locked);
+> +	if (!PageLocked(page))
+> +		return 0;
+> +	wait_on_page_bit(compound_head(page), PG_locked);
 >  }
 >  
->  /**
-> @@ -106,9 +111,9 @@ void __wake_up_locked(wait_queue_head_t *q, unsigned int mode, int nr)
->  }
->  EXPORT_SYMBOL_GPL(__wake_up_locked);
->  
-> -void __wake_up_locked_key(wait_queue_head_t *q, unsigned int mode, void *key)
-> +int __wake_up_locked_key(wait_queue_head_t *q, unsigned int mode, void *key)
->  {
-> -	__wake_up_common(q, mode, 1, 0, key);
-> +	return __wake_up_common(q, mode, 1, 0, key);
->  }
->  EXPORT_SYMBOL_GPL(__wake_up_locked_key);
->  
+>  /* 
 > diff --git a/mm/filemap.c b/mm/filemap.c
-> index 8a287df..d3e3203 100644
+> index 8a287df..09bca8a 100644
 > --- a/mm/filemap.c
 > +++ b/mm/filemap.c
-> @@ -847,15 +847,18 @@ EXPORT_SYMBOL_GPL(add_page_wait_queue);
->   * The mb is necessary to enforce ordering between the clear_bit and the read
->   * of the waitqueue (to avoid SMP races with a parallel wait_on_page_locked()).
+> @@ -775,24 +775,98 @@ EXPORT_SYMBOL(__page_cache_alloc);
+>   * at a cost of "thundering herd" phenomena during rare hash
+>   * collisions.
 >   */
-> -void unlock_page(struct page *page)
-> +void __unlock_page(struct page *page)
+> -wait_queue_head_t *page_waitqueue(struct page *page)
+> +static wait_queue_head_t *page_waitqueue(struct page *page)
 >  {
-> -	page = compound_head(page);
-> -	VM_BUG_ON_PAGE(!PageLocked(page), page);
-> -	clear_bit_unlock(PG_locked, &page->flags);
-> -	smp_mb__after_atomic();
-> -	wake_up_page(page, PG_locked);
-> +	struct wait_bit_key key = __WAIT_BIT_KEY_INITIALIZER(&page->flags, PG_locked);
-> +	wait_queue_head_t *wq = page_waitqueue(page);
-> +	unsigned long flags;
+>  	const struct zone *zone = page_zone(page);
+>  
+>  	return &zone->wait_table[hash_ptr(page, zone->wait_table_bits)];
+>  }
+> -EXPORT_SYMBOL(page_waitqueue);
 > +
-> +	spin_lock_irqsave(&wq->lock, flags);
-> +	if (!__wake_up_locked_key(wq, TASK_NORMAL, &key))
-> +		ClearPageContended(page);
-> +	spin_unlock_irqrestore(&wq->lock, flags);
-
-This approach of just counting wakeups doesn't work when you use the
-waiter bit for other than just PG_locked (e.g., PG_writeback). I guess
-that's why I didn't call it contented too: it really should be just
-about whether it is on the waitqueue or not.
-
->  }
-> -EXPORT_SYMBOL(unlock_page);
-> +EXPORT_SYMBOL(__unlock_page);
->  
->  /**
->   * end_page_writeback - end writeback against a page
-> @@ -908,6 +911,44 @@ void page_endio(struct page *page, bool is_write, int err)
->  }
->  EXPORT_SYMBOL_GPL(page_endio);
->  
-> +static int lock_page_wait(struct wait_bit_key *word, int mode)
+> +struct wait_page_key {
+> +	struct page *page;
+> +	int bit_nr;
+> +	int page_match;
+> +};
+> +
+> +struct wait_page_queue {
+> +	struct wait_page_key key;
+> +	wait_queue_t wait;
+> +};
+> +
+> +static int wake_page_function(wait_queue_t *wait, unsigned mode, int sync, void *arg)
 > +{
-> +	struct page *page = container_of(word->flags, struct page, flags);
+> +	struct wait_page_queue *wait = container_of(wait, struct wait_page_queue, wait);
+> +	struct wait_page_key *key = arg;
+> +	int ret;
 > +
-> +	/*
-> +	 * Set PG_contended now that we're enqueued on the waitqueue, this
-> +	 * way we cannot race against ClearPageContended in wakeup.
-> +	 */
-> +	if (!PageContended(page)) {
-> +		SetPageContended(page);
-> +
-> +		/*
-> +		 * If we set PG_contended, we must order against any later list
-> +		 * addition and/or a later PG_lock load.
-> +		 *
-> +		 *  [unlock]			[wait]
-> +		 *
-> +		 *  clear PG_locked		set PG_contended
-> +		 *  test  PG_contended		test-and-set PG_locked
-> +		 *
-> +		 * and
-> +		 *
-> +		 *  [unlock]			[wait]
-> +		 *
-> +		 *  test PG_contended		set PG_contended
-> +		 *  wakeup			add
-> +		 *  clear PG_contended		sleep
-> +		 *
-> +		 * In either case we must not reorder nor sleep before
-> +		 * PG_contended is visible.
-> +		 */
-> +		smp_mb__after_atomic();
-
-
+> +	if (wait->key.page != key->page)
+> +	       return 0;
+> +	key->page_match = 1;
+> +	if (wait->key.bit_nr != key->bit_nr ||
+> +			test_bit(key->bit_nr, &key->page->flags))
 > +		return 0;
+> +
+> +	ret = try_to_wake_up(wait->wait.private, mode, sync);
+> +	if (ret)
+> +		list_del_init(&wait->task_list);
+> +	return ret;
+> +}
+>  
+>  void wait_on_page_bit(struct page *page, int bit_nr)
+>  {
+> -	DEFINE_WAIT_BIT(wait, &page->flags, bit_nr);
+> +	wait_queue_head_t *wq = page_waitqueue(page);
+> +	struct wait_page_queue wait;
+>  
+> -	if (test_bit(bit_nr, &page->flags))
+> -		__wait_on_bit(page_waitqueue(page), &wait, bit_wait_io,
+> -							TASK_UNINTERRUPTIBLE);
+> +	init_wait(&wait.wait);
+> +	wait.wait.func = wake_page_function;
+> +	wait.key.page = page;
+> +	wait.key.bit_nr = bit_nr;
+> +	/* wait.key.page_match unused */
+> +
+> +	wait.flags &= ~WQ_FLAG_EXCLUSIVE;
+> +
+> +again:
+> +	spin_lock_irq(&wq->lock);
+> +	if (unlikely(!test_bit(bit_nr, &page->flags))) {
+> +		spin_unlock_irq(&wq->lock);
+> +		return;
 > +	}
 > +
-> +	return bit_wait_io(word, mode);
-> +}
+> +	if (list_empty(&wait->task_list)) {
+> +		__add_wait_queue(wq, &wait);
+> +		if (!PageWaiters(page))
+> +			SetPageWaiters(page);
+> +	}
 
-I probably slightly prefer how my patch maintains the bit, but don't really
-fussed how it works exactly as long as it can support waiting on other bits
-as well.
-
-The more interesting question is the memory barriers -- see my other post.
-
-Thanks,
-Nick
+Ugh, I even wrote the correct ordering in the email, but did it the wrong
+way here. Anyway, you get the idea.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
