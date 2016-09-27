@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A03228028A
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A729228028D
 	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 12:08:40 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id w84so12713152wmg.1
+Received: by mail-wm0-f71.google.com with SMTP id w84so12713176wmg.1
         for <linux-mm@kvack.org>; Tue, 27 Sep 2016 09:08:40 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 131si14458108wmv.51.2016.09.27.09.08.34
+        by mx.google.com with ESMTPS id lp3si3007134wjb.242.2016.09.27.09.08.33
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 27 Sep 2016 09:08:34 -0700 (PDT)
+        Tue, 27 Sep 2016 09:08:33 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 18/20] dax: Make cache flushing protected by entry lock
-Date: Tue, 27 Sep 2016 18:08:22 +0200
-Message-Id: <1474992504-20133-19-git-send-email-jack@suse.cz>
+Subject: [PATCH 05/20] mm: Trim __do_fault() arguments
+Date: Tue, 27 Sep 2016 18:08:09 +0200
+Message-Id: <1474992504-20133-6-git-send-email-jack@suse.cz>
 In-Reply-To: <1474992504-20133-1-git-send-email-jack@suse.cz>
 References: <1474992504-20133-1-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,125 +20,179 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jan Kara <jack@suse.cz>
 
-Currently, flushing of caches for DAX mappings was ignoring entry lock.
-So far this was ok (modulo a bug that a difference in entry lock could
-cause cache flushing to be mistakenly skipped) but in the following
-patches we will write-protect PTEs on cache flushing and clear dirty
-tags. For that we will need more exclusion. So do cache flushing under
-an entry lock. This allows us to remove one lock-unlock pair of
-mapping->tree_lock as a bonus.
+Use vm_fault structure to pass cow_page, page, and entry in and out of
+the function. That reduces number of __do_fault() arguments from 4 to 1.
 
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/dax.c | 66 +++++++++++++++++++++++++++++++++++++++++-----------------------
- 1 file changed, 42 insertions(+), 24 deletions(-)
+ mm/memory.c | 53 +++++++++++++++++++++++------------------------------
+ 1 file changed, 23 insertions(+), 30 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index b1c503930d1d..c6cadf8413a3 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -672,43 +672,63 @@ static int dax_writeback_one(struct block_device *bdev,
- 		struct address_space *mapping, pgoff_t index, void *entry)
+diff --git a/mm/memory.c b/mm/memory.c
+index b7f1f535e079..ba7760fb7db2 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2844,26 +2844,22 @@ oom:
+  * released depending on flags and vma->vm_ops->fault() return value.
+  * See filemap_fault() and __lock_page_retry().
+  */
+-static int __do_fault(struct vm_fault *vmf, struct page *cow_page,
+-		      struct page **page, void **entry)
++static int __do_fault(struct vm_fault *vmf)
  {
- 	struct radix_tree_root *page_tree = &mapping->page_tree;
--	int type = RADIX_DAX_TYPE(entry);
--	struct radix_tree_node *node;
- 	struct blk_dax_ctl dax;
--	void **slot;
-+	void *entry2, **slot;
- 	int ret = 0;
-+	int type;
+ 	struct vm_area_struct *vma = vmf->vma;
+ 	int ret;
  
--	spin_lock_irq(&mapping->tree_lock);
- 	/*
--	 * Regular page slots are stabilized by the page lock even
--	 * without the tree itself locked.  These unlocked entries
--	 * need verification under the tree lock.
-+	 * A page got tagged dirty in DAX mapping? Something is seriously
-+	 * wrong.
- 	 */
--	if (!__radix_tree_lookup(page_tree, index, &node, &slot))
--		goto unlock;
--	if (*slot != entry)
--		goto unlock;
+-	vmf->cow_page = cow_page;
 -
--	/* another fsync thread may have already written back this entry */
--	if (!radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE))
--		goto unlock;
-+	if (WARN_ON(!radix_tree_exceptional_entry(entry)))
-+		return -EIO;
- 
-+	spin_lock_irq(&mapping->tree_lock);
-+	entry2 = get_unlocked_mapping_entry(mapping, index, &slot);
-+	/* Entry got punched out / reallocated? */
-+	if (!entry2 || !radix_tree_exceptional_entry(entry2))
-+		goto put_unlock;
-+	/*
-+	 * Entry got reallocated elsewhere? No need to writeback. We have to
-+	 * compare sectors as we must not bail out due to difference in lockbit
-+	 * or entry type.
-+	 */
-+	if (RADIX_DAX_SECTOR(entry2) != RADIX_DAX_SECTOR(entry))
-+		goto put_unlock;
-+	type = RADIX_DAX_TYPE(entry2);
- 	if (WARN_ON_ONCE(type != RADIX_DAX_PTE && type != RADIX_DAX_PMD)) {
- 		ret = -EIO;
--		goto unlock;
-+		goto put_unlock;
- 	}
- 
-+	/* Another fsync thread may have already written back this entry */
-+	if (!radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE))
-+		goto put_unlock;
-+	/* Lock the entry to serialize with page faults */
-+	entry = lock_slot(mapping, slot);
-+	/*
-+	 * We can clear the tag now but we have to be careful so that concurrent
-+	 * dax_writeback_one() calls for the same index cannot finish before we
-+	 * actually flush the caches. This is achieved as the calls will look
-+	 * at the entry only under tree_lock and once they do that they will
-+	 * see the entry locked and wait for it to unlock.
-+	 */
-+	radix_tree_tag_clear(page_tree, index, PAGECACHE_TAG_TOWRITE);
-+	spin_unlock_irq(&mapping->tree_lock);
-+
- 	dax.sector = RADIX_DAX_SECTOR(entry);
- 	dax.size = (type == RADIX_DAX_PMD ? PMD_SIZE : PAGE_SIZE);
--	spin_unlock_irq(&mapping->tree_lock);
- 
- 	/*
- 	 * We cannot hold tree_lock while calling dax_map_atomic() because it
- 	 * eventually calls cond_resched().
- 	 */
- 	ret = dax_map_atomic(bdev, &dax);
--	if (ret < 0)
-+	if (ret < 0) {
-+		put_locked_mapping_entry(mapping, index, entry);
+ 	ret = vma->vm_ops->fault(vma, vmf);
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
  		return ret;
-+	}
+-	if (ret & VM_FAULT_DAX_LOCKED) {
+-		*entry = vmf->entry;
++	if (ret & VM_FAULT_DAX_LOCKED)
+ 		return ret;
+-	}
  
- 	if (WARN_ON_ONCE(ret < dax.size)) {
- 		ret = -EIO;
-@@ -716,15 +736,13 @@ static int dax_writeback_one(struct block_device *bdev,
+ 	if (unlikely(PageHWPoison(vmf->page))) {
+ 		if (ret & VM_FAULT_LOCKED)
+ 			unlock_page(vmf->page);
+ 		put_page(vmf->page);
++		vmf->page = NULL;
+ 		return VM_FAULT_HWPOISON;
  	}
  
- 	wb_cache_pmem(dax.addr, dax.size);
--
--	spin_lock_irq(&mapping->tree_lock);
--	radix_tree_tag_clear(page_tree, index, PAGECACHE_TAG_TOWRITE);
--	spin_unlock_irq(&mapping->tree_lock);
-- unmap:
-+unmap:
- 	dax_unmap_atomic(bdev, &dax);
-+	put_locked_mapping_entry(mapping, index, entry);
- 	return ret;
+@@ -2872,7 +2868,6 @@ static int __do_fault(struct vm_fault *vmf, struct page *cow_page,
+ 	else
+ 		VM_BUG_ON_PAGE(!PageLocked(vmf->page), vmf->page);
  
-- unlock:
-+put_unlock:
-+	put_unlocked_mapping_entry(mapping, index, entry2);
- 	spin_unlock_irq(&mapping->tree_lock);
+-	*page = vmf->page;
  	return ret;
  }
+ 
+@@ -3169,7 +3164,6 @@ out:
+ static int do_read_fault(struct vm_fault *vmf)
+ {
+ 	struct vm_area_struct *vma = vmf->vma;
+-	struct page *fault_page;
+ 	int ret = 0;
+ 
+ 	/*
+@@ -3183,24 +3177,23 @@ static int do_read_fault(struct vm_fault *vmf)
+ 			return ret;
+ 	}
+ 
+-	ret = __do_fault(vmf, NULL, &fault_page, NULL);
++	ret = __do_fault(vmf);
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
+ 		return ret;
+ 
+-	ret |= alloc_set_pte(vmf, NULL, fault_page);
++	ret |= alloc_set_pte(vmf, NULL, vmf->page);
+ 	if (vmf->pte)
+ 		pte_unmap_unlock(vmf->pte, vmf->ptl);
+-	unlock_page(fault_page);
++	unlock_page(vmf->page);
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
+-		put_page(fault_page);
++		put_page(vmf->page);
+ 	return ret;
+ }
+ 
+ static int do_cow_fault(struct vm_fault *vmf)
+ {
+ 	struct vm_area_struct *vma = vmf->vma;
+-	struct page *fault_page, *new_page;
+-	void *fault_entry;
++	struct page *new_page;
+ 	struct mem_cgroup *memcg;
+ 	int ret;
+ 
+@@ -3217,20 +3210,21 @@ static int do_cow_fault(struct vm_fault *vmf)
+ 		return VM_FAULT_OOM;
+ 	}
+ 
+-	ret = __do_fault(vmf, new_page, &fault_page, &fault_entry);
++	vmf->cow_page = new_page;
++	ret = __do_fault(vmf);
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
+ 		goto uncharge_out;
+ 
+ 	if (!(ret & VM_FAULT_DAX_LOCKED))
+-		copy_user_highpage(new_page, fault_page, vmf->address, vma);
++		copy_user_highpage(new_page, vmf->page, vmf->address, vma);
+ 	__SetPageUptodate(new_page);
+ 
+ 	ret |= alloc_set_pte(vmf, memcg, new_page);
+ 	if (vmf->pte)
+ 		pte_unmap_unlock(vmf->pte, vmf->ptl);
+ 	if (!(ret & VM_FAULT_DAX_LOCKED)) {
+-		unlock_page(fault_page);
+-		put_page(fault_page);
++		unlock_page(vmf->page);
++		put_page(vmf->page);
+ 	} else {
+ 		dax_unlock_mapping_entry(vma->vm_file->f_mapping, vmf->pgoff);
+ 	}
+@@ -3246,12 +3240,11 @@ uncharge_out:
+ static int do_shared_fault(struct vm_fault *vmf)
+ {
+ 	struct vm_area_struct *vma = vmf->vma;
+-	struct page *fault_page;
+ 	struct address_space *mapping;
+ 	int dirtied = 0;
+ 	int ret, tmp;
+ 
+-	ret = __do_fault(vmf, NULL, &fault_page, NULL);
++	ret = __do_fault(vmf);
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
+ 		return ret;
+ 
+@@ -3260,26 +3253,26 @@ static int do_shared_fault(struct vm_fault *vmf)
+ 	 * about to become writable
+ 	 */
+ 	if (vma->vm_ops->page_mkwrite) {
+-		unlock_page(fault_page);
+-		tmp = do_page_mkwrite(vma, fault_page, vmf->address);
++		unlock_page(vmf->page);
++		tmp = do_page_mkwrite(vma, vmf->page, vmf->address);
+ 		if (unlikely(!tmp ||
+ 				(tmp & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))) {
+-			put_page(fault_page);
++			put_page(vmf->page);
+ 			return tmp;
+ 		}
+ 	}
+ 
+-	ret |= alloc_set_pte(vmf, NULL, fault_page);
++	ret |= alloc_set_pte(vmf, NULL, vmf->page);
+ 	if (vmf->pte)
+ 		pte_unmap_unlock(vmf->pte, vmf->ptl);
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE |
+ 					VM_FAULT_RETRY))) {
+-		unlock_page(fault_page);
+-		put_page(fault_page);
++		unlock_page(vmf->page);
++		put_page(vmf->page);
+ 		return ret;
+ 	}
+ 
+-	if (set_page_dirty(fault_page))
++	if (set_page_dirty(vmf->page))
+ 		dirtied = 1;
+ 	/*
+ 	 * Take a local copy of the address_space - page.mapping may be zeroed
+@@ -3287,8 +3280,8 @@ static int do_shared_fault(struct vm_fault *vmf)
+ 	 * pinned by vma->vm_file's reference.  We rely on unlock_page()'s
+ 	 * release semantics to prevent the compiler from undoing this copying.
+ 	 */
+-	mapping = page_rmapping(fault_page);
+-	unlock_page(fault_page);
++	mapping = page_rmapping(vmf->page);
++	unlock_page(vmf->page);
+ 	if ((dirtied || vma->vm_ops->page_mkwrite) && mapping) {
+ 		/*
+ 		 * Some device drivers do not set page.mapping but still
 -- 
 2.6.6
 
