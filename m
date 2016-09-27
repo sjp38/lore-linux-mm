@@ -1,78 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 79DE26B0270
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 10:29:44 -0400 (EDT)
-Received: by mail-yb0-f198.google.com with SMTP id c79so27310575ybf.2
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 07:29:44 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id q84si820938ywc.190.2016.09.27.07.21.42
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AB38D6B0274
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 10:30:14 -0400 (EDT)
+Received: by mail-vk0-f70.google.com with SMTP id b133so18374973vka.3
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 07:30:14 -0700 (PDT)
+Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
+        by mx.google.com with ESMTPS id o15si14385044wmd.3.2016.09.27.07.22.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 27 Sep 2016 07:21:44 -0700 (PDT)
-Message-ID: <57EA7FFE.60401@huawei.com>
-Date: Tue, 27 Sep 2016 22:19:42 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Sep 2016 07:22:33 -0700 (PDT)
+Received: by mail-wm0-x241.google.com with SMTP id w84so1413256wmg.0
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 07:22:22 -0700 (PDT)
+Date: Tue, 27 Sep 2016 16:22:20 +0200
+From: Frederic Weisbecker <fweisbec@gmail.com>
+Subject: Re: [PATCH v15 04/13] task_isolation: add initial support
+Message-ID: <20160927142219.GC6242@lerouge>
+References: <fe4b8667-57d5-7767-657a-d89c8b62f8e3@mellanox.com>
+ <20160830075854.GZ10153@twins.programming.kicks-ass.net>
+ <a321c8a7-fa9c-21f7-61f8-54a8f80763fe@mellanox.com>
+ <CALCETrWyKExm9Od3VJ2P9xbL23NPKScgxdQ4R1v5QdNuNXKjmA@mail.gmail.com>
+ <e659a498-d951-7d9f-dc0c-9734be3fd826@mellanox.com>
+ <CALCETrXA38kv_PEd65j8RHvJKkW5mMxXEmYSr5mec1h3X1hj1w@mail.gmail.com>
+ <d15b35ce-5c5d-c451-e47e-d2f915bf70f3@mellanox.com>
+ <CALCETrX80akvpLNRQfJsDV560npSa33hSsUB5OYkAtnAn8R7Dg@mail.gmail.com>
+ <3f84f736-ed7f-adff-d5f0-4f7db664208f@mellanox.com>
+ <CALCETrXrsZjMjdd1jACbrz8GMXQC5FmF8BbkHobmMCbG5GPN7w@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: remove unnecessary condition in remove_inode_hugepages
-References: <1474857253-35702-1-git-send-email-zhongjiang@huawei.com> <20160926090121.GC28550@dhcp22.suse.cz> <9d43eafa-a3c2-01c8-53c7-6654ad0114e9@oracle.com>
-In-Reply-To: <9d43eafa-a3c2-01c8-53c7-6654ad0114e9@oracle.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALCETrXrsZjMjdd1jACbrz8GMXQC5FmF8BbkHobmMCbG5GPN7w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com, linux-mm@kvack.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Chris Metcalf <cmetcalf@mellanox.com>, Thomas Gleixner <tglx@linutronix.de>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Gilad Ben Yossef <giladb@mellanox.com>, Andrew Morton <akpm@linux-foundation.org>, Viresh Kumar <viresh.kumar@linaro.org>, Linux API <linux-api@vger.kernel.org>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, Tejun Heo <tj@kernel.org>, Rik van Riel <riel@redhat.com>, Will Deacon <will.deacon@arm.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, Peter Zijlstra <peterz@infradead.org>
 
-On 2016/9/27 4:16, Mike Kravetz wrote:
-> On 09/26/2016 02:01 AM, Michal Hocko wrote:
->> On Mon 26-09-16 10:34:13, zhongjiang wrote:
->>> From: zhong jiang <zhongjiang@huawei.com>
->>>
->>> when the huge page is added to the page cahce (huge_add_to_page_cache),
->>> the page private flag will be cleared. since this code
->>> (remove_inode_hugepages) will only be called for pages in the
->>> page cahce, PagePrivate(page) will always be false.
->>>
->>> The patch remove the code without any functional change.
->>>
->>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
->>> ---
->>>  fs/hugetlbfs/inode.c    | 10 ++++------
->>>  include/linux/hugetlb.h |  2 +-
->>>  mm/hugetlb.c            |  4 ++--
->>>  3 files changed, 7 insertions(+), 9 deletions(-)
->>>
->>> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
->>> index 4ea71eb..81f8bbf4 100644
->>> --- a/fs/hugetlbfs/inode.c
->>> +++ b/fs/hugetlbfs/inode.c
->>> @@ -458,18 +458,16 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
->>>  			 * cache (remove_huge_page) BEFORE removing the
->>>  			 * region/reserve map (hugetlb_unreserve_pages).  In
->>>  			 * rare out of memory conditions, removal of the
->>> -			 * region/reserve map could fail.  Before free'ing
->>> -			 * the page, note PagePrivate which is used in case
->>> -			 * of error.
->>> +			 * region/reserve map could fail. Correspondingly,
->>> +			 * the subpool and global reserve usage count can need
->>> +			 * to be adjusted.
->>>  			 */
->>> -			rsv_on_error = !PagePrivate(page);
->> This whole code is tricky as hell. I would be calmer if we just stick a
->> VM_BUG_ON here to make sure that this assumption will not break later
->> on.
-> I'm OK with adding the VM_BUG_ON.
->
-> This has run through the fallocate stress testing without issue.  In
-> addition, I ran it through the (in development) userfaultfd huge page
-> tests that use fallocate hole punch on a privately mapped hugetlbfs
-> file.
-  Thank you for test and review.
-> The original check for PagePrivate was likely added due to observations
-> about the way the flag is used in dequeue_huge_page_vma/free_huge_page.
-> Unfortunately, I did not recognize that they did not apply in this case.
->
+On Fri, Sep 02, 2016 at 10:28:00AM -0700, Andy Lutomirski wrote:
+> 
+> Unless I'm missing something (which is reasonably likely), couldn't
+> the isolation code just force or require rcu_nocbs on the isolated
+> CPUs to avoid this problem entirely.
 
+rcu_nocb is already implied by nohz_full. Which means that RCU callbacks
+are offlined outside the nohz_full set of CPUs.
+
+> 
+> I admit I still don't understand why the RCU context tracking code
+> can't just run the callback right away instead of waiting however many
+> microseconds in general.  I feel like paulmck has explained it to me
+> at least once, but that doesn't mean I remember the answer.
+
+The RCU context tracking doesn't take care of callbacks. It's only there
+to tell the RCU core whether the CPU runs code that may or may not run
+RCU read side critical sections. This is assumed by "kernel may use RCU,
+userspace can't".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
