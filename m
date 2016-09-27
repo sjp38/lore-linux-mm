@@ -1,118 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BAB6A28025A
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 14:11:01 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id fu14so38011515pad.0
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 11:11:01 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id t62si3717506pfa.55.2016.09.27.11.11.00
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 516D96B0273
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 14:33:13 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 21so44205546pfy.3
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 11:33:13 -0700 (PDT)
+Received: from mail.windriver.com (mail.windriver.com. [147.11.1.11])
+        by mx.google.com with ESMTPS id tb2si3744461pab.244.2016.09.27.11.33.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Sep 2016 11:11:00 -0700 (PDT)
-Date: Tue, 27 Sep 2016 11:10:59 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [Bug 172981] New: [bisected] SLAB: extreme load averages and
- over 2000 kworker threads
-Message-Id: <20160927111059.282a35c89266202d3cb2f953@linux-foundation.org>
-In-Reply-To: <bug-172981-27@https.bugzilla.kernel.org/>
-References: <bug-172981-27@https.bugzilla.kernel.org/>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1_1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 27 Sep 2016 11:33:12 -0700 (PDT)
+Received: from ALA-HCA.corp.ad.wrs.com (ala-hca.corp.ad.wrs.com [147.11.189.40])
+	by mail.windriver.com (8.15.2/8.15.1) with ESMTPS id u8RIXBPR021631
+	(version=TLSv1 cipher=AES128-SHA bits=128 verify=FAIL)
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 11:33:11 -0700 (PDT)
+Message-ID: <57EABB64.7070607@windriver.com>
+Date: Tue, 27 Sep 2016 12:33:08 -0600
+From: Chris Friesen <chris.friesen@windriver.com>
+MIME-Version: 1.0
+Subject: Re: Oops in slab.c in CentOS kernel, looking for ideas -- correction,
+ it's in slub.c
+References: <57EA9A78.8080509@windriver.com>
+In-Reply-To: <57EA9A78.8080509@windriver.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: bugzilla-daemon@bugzilla.kernel.org, dsmythies@telus.net, linux-mm@kvack.org
+To: linux-mm@kvack.org
 
 
-(switched to email.  Please respond via emailed reply-to-all, not via the
-bugzilla web interface).
+Sorry, I had a typo in my earlier message.  The issue is actually in slub.c.
 
-On Tue, 27 Sep 2016 17:57:08 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+Chris
 
-> https://bugzilla.kernel.org/show_bug.cgi?id=172981
-> 
->             Bug ID: 172981
->            Summary: [bisected] SLAB: extreme load averages and over 2000
->                     kworker threads
->            Product: Memory Management
->            Version: 2.5
->     Kernel Version: 4.7+
->           Hardware: All
->                 OS: Linux
->               Tree: Mainline
->             Status: NEW
->           Severity: normal
->           Priority: P1
->          Component: Slab Allocator
->           Assignee: akpm@linux-foundation.org
->           Reporter: dsmythies@telus.net
->         Regression: No
-> 
-> Immediately after boot, extreme load average numbers and over 2000 kworker
-> processes are being observed on my main linux test computer (basically a Ubuntu
-> 16.04 server, no GUI). The worker threads appear to be idle, and do disappear
-> after the nominal 5 minute timeout, depending on whatever other stuff might run
-> in the meantime. However, the number of threads can hugely increase again. The
-> issue occurs with ease for kernels compiled using SLAB.
-> 
-> For SLAB, kernel bisection gave:
-> 801faf0db8947e01877920e848a4d338dd7a99e7
-> "mm/slab: lockless decision to grow cache"
-> 
-> The following monitoring script was used for the below examples:
-> 
-> #!/bin/dash
-> 
-> while [ 1 ];
-> do
->   echo $(uptime) ::: $(ps -A --no-headers | wc -l) ::: $(ps aux | grep kworker
-> | grep -v u | grep -v H | wc -l)
->   sleep 10.0
-> done
-> 
-> Example (SLAB):
-> 
-> After boot:
-> 
-> 22:26:21 up 1 min, 2 users, load average: 295.98, 85.67, 29.47 ::: 2240 :::
-> 2074
-> 22:26:31 up 1 min, 2 users, load average: 250.47, 82.85, 29.15 ::: 2240 :::
-> 2074
-> 22:26:41 up 1 min, 2 users, load average: 211.96, 80.12, 28.84 ::: 2240 :::
-> 2074
-> ...
-> 22:52:34 up 27 min, 3 users, load average: 0.00, 0.43, 5.40 ::: 165 ::: 17
-> 22:52:44 up 27 min, 3 users, load average: 0.00, 0.42, 5.34 ::: 165 ::: 17
-> 
-> Now type: sudo echo "bla":
-> 
-> 22:53:14 up 27 min, 3 users, load average: 0.00, 0.38, 5.17 ::: 493 ::: 345
-> 22:53:24 up 28 min, 3 users, load average: 0.00, 0.36, 5.11 ::: 493 ::: 345
-> 
-> Caused 328 new kworker threads.
-> Now queue just a few (8 in this case) very simple jobs.
-> 
-> 22:55:45 up 30 min, 3 users, load average: 0.11, 0.27, 4.38 ::: 493 ::: 345
-> 22:55:55 up 30 min, 3 users, load average: 0.09, 0.26, 4.34 ::: 2207 ::: 2059
-> 22:56:05 up 30 min, 3 users, load average: 0.08, 0.25, 4.29 ::: 2207 ::: 2059
-> 
-> If I look at linux/Documentation/workqueue.txt and do:
-> 
-> echo workqueue:workqueue_queue_work > /sys/kernel/debug/tracing/set_event
-> 
-> and:
-> 
-> cat /sys/kernel/debug/tracing/trace_pipe > out.txt
-> 
-> I get somewhere between 10,000 and 20,000 occurrences of
-> memcg_kmem_cache_create_func in the file (using my simple test method).
-> 
-> Also tested with kernel 4.8-rc7.
-> 
-> -- 
-> You are receiving this mail because:
-> You are the assignee for the bug.
+On 09/27/2016 10:12 AM, Chris Friesen wrote:
+>
+> I've got a CentOS 7 kernel that has been slightly modified, but the mm
+> subsystem hasn't been touched.  I'm hoping you can give me some guidance.
+>
+> I have an intermittent Oops that looks like what is below.  The issue
+> is currently occurring on one CPU of one system, but has been seen
+> before infrequently.  Once the corruption occurs it causes an Oops on
+> every call to __mpol_dup() on this CPU.
+>
+> Basically it appears that __mpol_dup() is failing because the value of
+> c->freelist in slab_alloc_node() is corrupt, causing the call to
+> get_freepointer_safe(s, object) to Oops because it tries to dereference
+> "object + s->offset".  (Where s->offset is zero.)
+>
+> In the trace, "kmem_cache_alloc+0x87" maps to the following assembly:
+>     0xffffffff8118be17 <+135>:   mov    (%r12,%rax,1),%rbx
+>
+> This corresponds to this line in get_freepointer():
+> 	return *(void **)(object + s->offset);
+>
+> In the assembly code, R12 is "object", and RAX is s->offset.
+>
+> So the question becomes, why is "object" (which corresponds to c->freelist)
+> corrupt?
+>
+> Looking at the value of R12 (0x1ada8000), it's nonzero but also not a
+> valid pointer. Does the value mean anything to you?  (I'm not really
+> a memory subsystem guy, so I'm hoping you might have some ideas.)
+>
+> Do you have any suggestions on how to track down what's going on here?
+>
+> Thanks,
+> Chris
+>
+> PS: Please CC me on replies, I'm not subscribed to the list.
+>
+>
+>
+>
+> 2016-09-24T16:43:45.125 controller-1 kernel: alert [90390.702162] BUG: unable to handle kernel paging request at 000000001ada8000
+> 2016-09-24T16:43:45.125 controller-1 kernel: alert [90390.709965] IP: [<ffffffff8118be17>] kmem_cache_alloc+0x87/0x250
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90390.716689] PGD 0
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90390.718945] Oops: 0000 [#43] PREEMPT SMP
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90390.723454] Modules linked in: target_core_pscsi target_core_file target_core_iblock iscsi_target_mod target_core_mod dm_thin_pool dm_persistent_data dm_bio_prison dm_bufio iptable_raw xt_CHECKSUM xt_connmark iptable_
+> mangle nbd ebtable_filter ebtables igb_uio(OE) uio drbd(OE) libcrc32c nf_log_ipv6 nf_conntrack_ipv6 nf_defrag_ipv6 ip6table_filter ip6_tables virtio_net nf_log_ipv4 nf_log_common xt_LOG xt_limit xt_conntrack iptable_filter xt_nat xt_comment xt_multiport iptable_nat nf_conn
+> track_ipv4 nf_defrag_ipv4 nf_nat_ipv4 nf_nat nf_conntrack veth nfsv3 nfs fscache 8021q garp stp mrp llc cls_u32 sch_sfq sch_htb dm_mod iTCO_wdt iTCO_vendor_support ipmi_devintf intel_powerclamp coretemp kvm_intel kvm crc32_pclmul ghash_clmulni_intel aesni_intel glue_helper
+>   lrw gf128mul ablk_helper cryptd lpc_ich mfd_core mei_me mei i2c_i801 ipmi_si ipmi_msghandler acpi_power_meter wrs_avp(OE) nfsd auth_rpcgss nfs_acl lockd grace sunrpc ip_tables ext4 jbd2 sd_mod crc_t10dif crct10dif_generic crct10dif_pclmul crct10dif_common crc32c_intel ahc
+> i libahci ixgbe mdio igb i2c_algo_bit i2c_core libata dca i40e(OE) vxlan ip6_udp_tunnel udp_tunnel ptp pps_core
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90390.836474] CPU: 48 PID: 42192 Comm: qemu-kvm Tainted: G      D    OE  ------------   3.10.0-327.28.3.6.tis.x86_64 #1
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90390.848328] Hardware name: Intel Corporation S2600WT2R/S2600WT2R, BIOS SE5C610.86B.01.01.0016.033120161139 03/31/2016
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90390.860181] task: ffff880463f75a90 ti: ffff8804120f0000 task.ti: ffff8804120f0000
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90390.868540] RIP: 0010:[<ffffffff8118be17>]  [<ffffffff8118be17>] kmem_cache_alloc+0x87/0x250
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90390.877980] RSP: 0018:ffff8804120f3d40  EFLAGS: 00010286
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90390.883913] RAX: 0000000000000000 RBX: 0000000000000000 RCX: 0000000000019230
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90390.891883] RDX: 0000000000019130 RSI: 00000000000000d0 RDI: ffff8804120f3fd8
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90390.899853] RBP: ffff8804120f3d88 R08: 0000000000018710 R09: ffffffff811832e8
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90390.907823] R10: 0000000000000000 R11: ffffffffffffff83 R12: 000000001ada8000
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90390.915794] R13: 00000000000000d0 R14: ffff88103ec06200 R15: ffff88103ec06200
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90390.923765] FS:  00007fb6cb236e00(0000) GS:ffff88103f540000(0000) knlGS:0000000000000000
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90390.932804] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90390.939222] CR2: 000000001ada8000 CR3: 0000000464152000 CR4: 00000000003427e0
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90390.947194] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90390.955166] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90390.963135] Stack:
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90390.965380]  00ff880400000002 0000000000000246 ffff88107ffda000 00000000997694b3
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90390.973688]  0000000000000000 ffff88046d4815a8 00000000003d0f00 ffff8802c8003c60
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90390.981996]  ffff880463f75a90 ffff8804120f3e38 ffffffff811832e8 ffff88107ffda000
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90390.990304] Call Trace:
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90390.993039]  [<ffffffff811832e8>] __mpol_dup+0x38/0x140
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90390.998876]  [<ffffffff8118bea2>] ? kmem_cache_alloc+0x112/0x250
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90391.005591]  [<ffffffff8100be69>] ? read_tsc+0x9/0x10
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90391.011235]  [<ffffffff8105ef91>] copy_process.part.30+0x611/0x1570
+> 2016-09-24T16:43:45.125 controller-1 kernel: warning [90391.018230]  [<ffffffff810600d1>] do_fork+0xe1/0x350
+> 2016-09-24T16:43:45.142 controller-1 kernel: warning [90391.023778]  [<ffffffff810603c6>] SyS_clone+0x16/0x20
+> 2016-09-24T16:43:45.142 controller-1 kernel: warning [90391.029421]  [<ffffffff816792d9>] stub_clone+0x69/0x90
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
