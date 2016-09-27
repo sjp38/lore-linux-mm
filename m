@@ -1,33 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CF989280252
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 05:42:55 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id w84so1656191wmg.1
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 02:42:55 -0700 (PDT)
-Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
-        by mx.google.com with ESMTPS id s9si1497798wjv.17.2016.09.27.02.42.54
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Sep 2016 02:42:54 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 243EF1C18B2
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 10:42:54 +0100 (IST)
-Date: Tue, 27 Sep 2016 10:42:49 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 09A4D280252
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 05:52:16 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id o21so24664798itb.2
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 02:52:16 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id t205si2687046iod.210.2016.09.27.02.52.14
+        for <linux-mm@kvack.org>;
+        Tue, 27 Sep 2016 02:52:15 -0700 (PDT)
+Date: Tue, 27 Sep 2016 18:52:06 +0900
+From: Minchan Kim <minchan@kernel.org>
 Subject: Re: page_waitqueue() considered harmful
-Message-ID: <20160927094249.GA3903@techsingularity.net>
+Message-ID: <20160927095206.GA12598@bbox>
 References: <CA+55aFwVSXZPONk2OEyxcP-aAQU7-aJsF3OFXVi8Z5vA11v_-Q@mail.gmail.com>
  <20160927073055.GM2794@worktop>
  <20160927085412.GD2838@techsingularity.net>
  <20160927091117.GA23640@node.shutemov.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
 In-Reply-To: <20160927091117.GA23640@node.shutemov.name>
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>
 
 On Tue, Sep 27, 2016 at 12:11:17PM +0300, Kirill A. Shutemov wrote:
 > On Tue, Sep 27, 2016 at 09:54:12AM +0100, Mel Gorman wrote:
@@ -49,21 +45,13 @@ On Tue, Sep 27, 2016 at 12:11:17PM +0300, Kirill A. Shutemov wrote:
 > 
 > Looks like we don't ever lock slab pages. Unless I miss something.
 > 
+> We can try to use PG_locked + PG_slab to indicate contation.
+> 
+> I tried to boot kernel with CONFIG_SLUB + BUG_ON(PageSlab()) in
+> trylock/unlock_page() codepath. Works fine, but more inspection is
+> required.
 
-I don't think we do but direct PageSlab checks might be problematic if
-it was a false-positive due to a locked page and we'd have to be very
-careful about any races due to two bits being used.
-
-While we shouldn't rule it out, I think it's important to first look at
-that original patch and see if it's remotely acceptable and makes enough
-difference to a real workload to matter. If so, then we could consider
-additional complexity on top to make it work on 32-bit -- maybe separated
-by one release as it took a long time to flush out subtle bugs with the
-PG_waiters approach.
-
--- 
-Mel Gorman
-SUSE Labs
+SLUB used bit_spin_lock via slab_lock instead of trylock/unlock.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
