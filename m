@@ -1,83 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 28C7028024E
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 13:19:12 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id cg13so35465851pac.1
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 10:19:12 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id l5si3513280pay.57.2016.09.27.10.19.11
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id BAB6A28025A
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 14:11:01 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id fu14so38011515pad.0
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 11:11:01 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id t62si3717506pfa.55.2016.09.27.11.11.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 27 Sep 2016 10:19:11 -0700 (PDT)
-Date: Tue, 27 Sep 2016 10:19:10 -0700
-From: Tim Chen <tim.c.chen@linux.intel.com>
-Subject: [PATCH 8/8] mm/swap: Enable swap slots cache usage
-Message-ID: <20160927171909.GA17961@linux.intel.com>
-Reply-To: tim.c.chen@linux.intel.com
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Sep 2016 11:11:00 -0700 (PDT)
+Date: Tue, 27 Sep 2016 11:10:59 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bug 172981] New: [bisected] SLAB: extreme load averages and
+ over 2000 kworker threads
+Message-Id: <20160927111059.282a35c89266202d3cb2f953@linux-foundation.org>
+In-Reply-To: <bug-172981-27@https.bugzilla.kernel.org/>
+References: <bug-172981-27@https.bugzilla.kernel.org/>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov@virtuozzo.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: bugzilla-daemon@bugzilla.kernel.org, dsmythies@telus.net, linux-mm@kvack.org
 
-Initialize swap slots cache and enable it on swap on.
-Drain swap slots on swap off.
 
-Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
----
- mm/swapfile.c | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+(switched to email.  Please respond via emailed reply-to-all, not via the
+bugzilla web interface).
 
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index fa6935f..985215b 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -2132,7 +2132,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 	struct address_space *mapping;
- 	struct inode *inode;
- 	struct filename *pathname;
--	int err, found = 0;
-+	int err, found = 0, has_swap = 0;
- 	unsigned int old_block_size;
- 
- 	if (!capable(CAP_SYS_ADMIN))
-@@ -2144,6 +2144,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 	if (IS_ERR(pathname))
- 		return PTR_ERR(pathname);
- 
-+	disable_swap_slots_cache();
- 	victim = file_open_name(pathname, O_RDWR|O_LARGEFILE, 0);
- 	err = PTR_ERR(victim);
- 	if (IS_ERR(victim))
-@@ -2152,6 +2153,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
- 	mapping = victim->f_mapping;
- 	spin_lock(&swap_lock);
- 	plist_for_each_entry(p, &swap_active_head, list) {
-+		has_swap = 1;
- 		if (p->flags & SWP_WRITEOK) {
- 			if (p->swap_file->f_mapping == mapping) {
- 				found = 1;
-@@ -2275,6 +2277,8 @@ out_dput:
- 	filp_close(victim, NULL);
- out:
- 	putname(pathname);
-+	if (has_swap)
-+		reenable_swap_slots_cache();
- 	return err;
- }
- 
-@@ -2692,6 +2696,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
- 	if (!capable(CAP_SYS_ADMIN))
- 		return -EPERM;
- 
-+	init_swap_slot_caches();
- 	p = alloc_swap_info();
- 	if (IS_ERR(p))
- 		return PTR_ERR(p);
--- 
-2.5.5
+On Tue, 27 Sep 2016 17:57:08 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+
+> https://bugzilla.kernel.org/show_bug.cgi?id=172981
+> 
+>             Bug ID: 172981
+>            Summary: [bisected] SLAB: extreme load averages and over 2000
+>                     kworker threads
+>            Product: Memory Management
+>            Version: 2.5
+>     Kernel Version: 4.7+
+>           Hardware: All
+>                 OS: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: normal
+>           Priority: P1
+>          Component: Slab Allocator
+>           Assignee: akpm@linux-foundation.org
+>           Reporter: dsmythies@telus.net
+>         Regression: No
+> 
+> Immediately after boot, extreme load average numbers and over 2000 kworker
+> processes are being observed on my main linux test computer (basically a Ubuntu
+> 16.04 server, no GUI). The worker threads appear to be idle, and do disappear
+> after the nominal 5 minute timeout, depending on whatever other stuff might run
+> in the meantime. However, the number of threads can hugely increase again. The
+> issue occurs with ease for kernels compiled using SLAB.
+> 
+> For SLAB, kernel bisection gave:
+> 801faf0db8947e01877920e848a4d338dd7a99e7
+> "mm/slab: lockless decision to grow cache"
+> 
+> The following monitoring script was used for the below examples:
+> 
+> #!/bin/dash
+> 
+> while [ 1 ];
+> do
+>   echo $(uptime) ::: $(ps -A --no-headers | wc -l) ::: $(ps aux | grep kworker
+> | grep -v u | grep -v H | wc -l)
+>   sleep 10.0
+> done
+> 
+> Example (SLAB):
+> 
+> After boot:
+> 
+> 22:26:21 up 1 min, 2 users, load average: 295.98, 85.67, 29.47 ::: 2240 :::
+> 2074
+> 22:26:31 up 1 min, 2 users, load average: 250.47, 82.85, 29.15 ::: 2240 :::
+> 2074
+> 22:26:41 up 1 min, 2 users, load average: 211.96, 80.12, 28.84 ::: 2240 :::
+> 2074
+> ...
+> 22:52:34 up 27 min, 3 users, load average: 0.00, 0.43, 5.40 ::: 165 ::: 17
+> 22:52:44 up 27 min, 3 users, load average: 0.00, 0.42, 5.34 ::: 165 ::: 17
+> 
+> Now type: sudo echo "bla":
+> 
+> 22:53:14 up 27 min, 3 users, load average: 0.00, 0.38, 5.17 ::: 493 ::: 345
+> 22:53:24 up 28 min, 3 users, load average: 0.00, 0.36, 5.11 ::: 493 ::: 345
+> 
+> Caused 328 new kworker threads.
+> Now queue just a few (8 in this case) very simple jobs.
+> 
+> 22:55:45 up 30 min, 3 users, load average: 0.11, 0.27, 4.38 ::: 493 ::: 345
+> 22:55:55 up 30 min, 3 users, load average: 0.09, 0.26, 4.34 ::: 2207 ::: 2059
+> 22:56:05 up 30 min, 3 users, load average: 0.08, 0.25, 4.29 ::: 2207 ::: 2059
+> 
+> If I look at linux/Documentation/workqueue.txt and do:
+> 
+> echo workqueue:workqueue_queue_work > /sys/kernel/debug/tracing/set_event
+> 
+> and:
+> 
+> cat /sys/kernel/debug/tracing/trace_pipe > out.txt
+> 
+> I get somewhere between 10,000 and 20,000 occurrences of
+> memcg_kmem_cache_create_func in the file (using my simple test method).
+> 
+> Also tested with kernel 4.8-rc7.
+> 
+> -- 
+> You are receiving this mail because:
+> You are the assignee for the bug.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
