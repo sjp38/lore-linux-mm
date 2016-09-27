@@ -1,112 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BFE4628025A
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 16:05:49 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id bv10so42652754pad.2
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 13:05:49 -0700 (PDT)
-Received: from mx0a-000cda01.pphosted.com (mx0a-00003501.pphosted.com. [67.231.144.15])
-        by mx.google.com with ESMTPS id oo5si4072062pac.274.2016.09.27.13.05.48
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 052E828025A
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 16:48:15 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id cg13so44754934pac.1
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 13:48:14 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id ez7si4297005pab.6.2016.09.27.13.48.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Sep 2016 13:05:48 -0700 (PDT)
-Received: from pps.filterd (m0075554.ppops.net [127.0.0.1])
-	by mx0a-000cda01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8RK46lg020433
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 16:05:48 -0400
-Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
-	by mx0a-000cda01.pphosted.com with ESMTP id 25qv27hewy-10
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 16:05:47 -0400
-Received: by mail-yw0-f197.google.com with SMTP id k17so9003487ywe.0
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 13:05:47 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20160927160529.GJ4618@redhat.com>
-References: <CAJ48U8XgWQZBFuWt2Gk_5JAXz3wONgd15OmBY0M-Urq+_VGe9A@mail.gmail.com>
- <20160927160529.GJ4618@redhat.com>
-From: Shaun Tancheff <shaun.tancheff@seagate.com>
-Date: Tue, 27 Sep 2016 15:05:26 -0500
-Message-ID: <CAJVOszADPn=H4Mgk-kTPh08X18ppxu5zix9b22CstG5KQSwMCw@mail.gmail.com>
-Subject: Re: BUG Re: mm: vma_merge: fix vm_page_prot SMP race condition
- against rmap_walk
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+        Tue, 27 Sep 2016 13:48:13 -0700 (PDT)
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: [PATCH v3 00/11] re-enable DAX PMD support
+Date: Tue, 27 Sep 2016 14:47:51 -0600
+Message-Id: <1475009282-9818-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Shaun Tancheff <shaun@tancheff.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Ingo Molnar <mingo@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Chen Gang <gang.chen.5i5j@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Mel Gorman <mgorman@techsingularity.net>, Piotr Kwapulinski <kwapulinski.piotr@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-Confirmed:
-  - Removing DEBUG_VM_RB fixes the hang.
+DAX PMDs have been disabled since Jan Kara introduced DAX radix tree based
+locking.  This series allows DAX PMDs to participate in the DAX radix tree
+based locking scheme so that they can be re-enabled.
 
-Also confirmed:
- - Above patch fixes the hang when DEBUG_VM_RB is re-enabled.
+Jan and Christoph, can you please help review these changes?
 
-Thanks!
+Andrew, when the time is right can you please push these changes to Linus via
+the -mm tree?
 
+In some simple mmap I/O testing with FIO the use of PMD faults more than
+doubles I/O performance as compared with PTE faults.  Here is the FIO script I
+used for my testing:
 
+  [global]
+  bs=4k
+  size=2G
+  directory=/mnt/pmem0
+  ioengine=mmap
+  [randrw]
+  rw=randrw
 
-On Tue, Sep 27, 2016 at 11:05 AM, Andrea Arcangeli <aarcange@redhat.com> wr=
-ote:
-> Hello,
->
-> On Tue, Sep 27, 2016 at 05:16:15AM -0500, Shaun Tancheff wrote:
->> git bisect points at commit  c9634dcf00c9c93b ("mm: vma_merge: fix
->> vm_page_prot SMP race condition against rmap_walk")
->
-> I assume linux-next? But I can't find the commit, but I should know
-> what this is.
->
->>
->> Last lines to console are [transcribed]:
->>
->> vma ffff8c3d989a7c78 start 00007fe02ed4c000 end 00007fe02ed52000
->> next ffff8c3d96de0c38 prev ffff8c3d989a6e40 mm ffff8c3d071cbac0
->> prot 8000000000000025 anon_vma ffff8c3d96fc9b28 vm_ops           (null)
->> pgoff 7fe02ed4c file           (null) private_data           (null)
->> flags: 0x8100073(read|write|mayread|maywrite|mayexec|account|softdirty)
->
-> It's a false positive, you have DEBUG_VM_RB=3Dy, you can disable it or
-> cherry-pick the fix:
->
-> https://urldefense.proofpoint.com/v2/url?u=3Dhttps-3A__git.kernel.org_cgi=
-t_linux_kernel_git_andrea_aa.git_commit_-3Fid-3D74d8b44224f31153e23ca8a7f7f=
-0700091f5a9b2&d=3DDQIBAg&c=3DIGDlg0lD0b-nebmJJ0Kp8A&r=3DWg5NqlNlVTT7Ugl8V50=
-qIHLe856QW0qfG3WVYGOrWzA&m=3DmhyVFRknYnKxpypFw43nt0xMGGZX0r4k-qe6PIyp5ew&s=
-=3DQjS2W4fUFnnJl4YxCk4WB30v5281AC4B7bAQeP8KWlQ&e=3D
->
-> The assumption validate_mm_rb did isn't valid anymore on the new code
-> during __vma_unlink, the validation code must be updated to skip the
-> next vma instead of the current one after this change. It's a bug in
-> DEBUG_VM_RB=3Dy, if you keep DEBUG_VM_RB=3Dn there's no bug.
->
->> Reproducer is an Ubuntu 16.04.1 LTS x86_64 running on a VM (VirtualBox).
->> Symptom is a solid hang after boot and switch to starting gnome session.
->>
->> Hang at about 35s.
->>
->> kdbg traceback is all null entries.
->>
->> Let me know what additional information I can provide.
->
-> I already submitted the fix to Andrew last week:
->
-> https://urldefense.proofpoint.com/v2/url?u=3Dhttps-3A__marc.info_-3Fl-3Dl=
-inux-2Dmm-26m-3D147449253801920-26w-3D2&d=3DDQIBAg&c=3DIGDlg0lD0b-nebmJJ0Kp=
-8A&r=3DWg5NqlNlVTT7Ugl8V50qIHLe856QW0qfG3WVYGOrWzA&m=3DmhyVFRknYnKxpypFw43n=
-t0xMGGZX0r4k-qe6PIyp5ew&s=3DEIo2P9JsNNIZSPoTgxO2vC5DJE4p6-HeOznwL1qhowo&e=
-=3D
->
-> I assume it's pending for merging in -mm.
->
-> If you can test this patch and confirm the problem goes away with
-> DEBUG_VM_RB=3Dy it'd be great.
->
-> Thanks,
-> Andrea
+Here are the performance results with XFS using only pte faults:
+   READ: io=1022.7MB, aggrb=557610KB/s, minb=557610KB/s, maxb=557610KB/s, mint=1878msec, maxt=1878msec
+  WRITE: io=1025.4MB, aggrb=559084KB/s, minb=559084KB/s, maxb=559084KB/s, mint=1878msec, maxt=1878msec
 
+Here are performance numbers for that same test using PMD faults:
+   READ: io=1022.7MB, aggrb=1406.7MB/s, minb=1406.7MB/s, maxb=1406.7MB/s, mint=727msec, maxt=727msec
+  WRITE: io=1025.4MB, aggrb=1410.4MB/s, minb=1410.4MB/s, maxb=1410.4MB/s, mint=727msec, maxt=727msec
 
+This was done on a random lab machine with a PMEM device made from memmap'd
+RAM.  To get XFS to use PMD faults, I did the following:
 
---=20
-Shaun Tancheff
+  mkfs.xfs -f -d su=2m,sw=1 /dev/pmem0
+  mount -o dax /dev/pmem0 /mnt/pmem0
+  xfs_io -c "extsize 2m" /mnt/pmem0
+
+Changes since v2:
+- Removed the struct buffer_head + get_block_t based dax_pmd_fault() handler.
+  All DAX PMD faults will now happen via the new struct iomap based
+  iomap_dax_pmd_fault().
+- Added a new struct iomap based PMD path which is now used by XFS.
+- Now that it is using struct iomap, ext2 no longer needs to modified so that
+  ext2_get_block() will give us the size of a hole.
+- Remove support for DAX PMD faults for ext2.  I can't get them to reliably
+  happen in my testing.
+- Removed unused xfs_get_blocks_dax_fault() wrapper
+- Added a bunch of comments around my changes in dax.c.
+
+This was built upon xfs/for-next with PMD performance fixes from Toshi Kani and
+Dan Williams.  Dan's patch has already been merged for v4.8, and Toshi's
+patches are currently queued in Andrew Morton's mm tree for v4.9 inclusion.
+
+Here is a tree containing my changes and all the fixes that I've been testing:
+https://git.kernel.org/cgit/linux/kernel/git/zwisler/linux.git/log/?h=dax_pmd_v3
+
+Ross Zwisler (11):
+  ext4: allow DAX writeback for hole punch
+  ext4: tell DAX the size of allocation holes
+  dax: remove buffer_size_valid()
+  ext2: remove support for DAX PMD faults
+  dax: make 'wait_table' global variable static
+  dax: consistent variable naming for DAX entries
+  dax: coordinate locking for offsets in PMD range
+  dax: remove dax_pmd_fault()
+  dax: add struct iomap based DAX PMD support
+  xfs: use struct iomap based DAX PMD fault path
+  dax: remove "depends on BROKEN" from FS_DAX_PMD
+
+ fs/Kconfig          |   1 -
+ fs/dax.c            | 696 +++++++++++++++++++++++++++++-----------------------
+ fs/ext2/file.c      |  24 +-
+ fs/ext4/inode.c     |   7 +-
+ fs/xfs/xfs_aops.c   |  25 +-
+ fs/xfs/xfs_aops.h   |   3 -
+ fs/xfs/xfs_file.c   |   2 +-
+ include/linux/dax.h |  37 ++-
+ mm/filemap.c        |   6 +-
+ 9 files changed, 434 insertions(+), 367 deletions(-)
+
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
