@@ -1,186 +1,390 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 69E7D6B026C
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 18:14:29 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 21so55432998pfy.3
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 15:14:29 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id uf7si4606767pab.103.2016.09.27.15.14.27
-        for <linux-mm@kvack.org>;
-        Tue, 27 Sep 2016 15:14:28 -0700 (PDT)
-Date: Wed, 28 Sep 2016 08:14:24 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v3 09/11] dax: add struct iomap based DAX PMD support
-Message-ID: <20160927221424.GE27872@dastard>
-References: <1475009282-9818-1-git-send-email-ross.zwisler@linux.intel.com>
- <1475009282-9818-10-git-send-email-ross.zwisler@linux.intel.com>
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A756F28024E
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 19:09:45 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id bv10so50339374pad.2
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 16:09:45 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id o87si4841609pfk.13.2016.09.27.16.09.44
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Sep 2016 16:09:44 -0700 (PDT)
+Date: Tue, 27 Sep 2016 16:09:43 -0700
+From: akpm@linux-foundation.org
+Subject: mmotm 2016-09-27-16-08 uploaded
+Message-ID: <57eafc37.YPYtJvMSLLEDMWp4%akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1475009282-9818-10-git-send-email-ross.zwisler@linux.intel.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, broonie@kernel.org
 
-On Tue, Sep 27, 2016 at 02:48:00PM -0600, Ross Zwisler wrote:
-> DAX PMDs have been disabled since Jan Kara introduced DAX radix tree based
-> locking.  This patch allows DAX PMDs to participate in the DAX radix tree
-> based locking scheme so that they can be re-enabled using the new struct
-> iomap based fault handlers.
-> 
-> There are currently three types of DAX 4k entries: 4k zero pages, 4k DAX
-> mappings that have an associated block allocation, and 4k DAX empty
-> entries.  The empty entries exist to provide locking for the duration of a
-> given page fault.
-> 
-> This patch adds three equivalent 2MiB DAX entries: Huge Zero Page (HZP)
-> entries, PMD DAX entries that have associated block allocations, and 2 MiB
-> DAX empty entries.
-> 
-> Unlike the 4k case where we insert a struct page* into the radix tree for
-> 4k zero pages, for HZP we insert a DAX exceptional entry with the new
-> RADIX_DAX_HZP flag set.  This is because we use a single 2 MiB zero page in
-> every 2MiB hole mapping, and it doesn't make sense to have that same struct
-> page* with multiple entries in multiple trees.  This would cause contention
-> on the single page lock for the one Huge Zero Page, and it would break the
-> page->index and page->mapping associations that are assumed to be valid in
-> many other places in the kernel.
-> 
-> One difficult use case is when one thread is trying to use 4k entries in
-> radix tree for a given offset, and another thread is using 2 MiB entries
-> for that same offset.  The current code handles this by making the 2 MiB
-> user fall back to 4k entries for most cases.  This was done because it is
-> the simplest solution, and because the use of 2MiB pages is already
-> opportunistic.
-> 
-> If we were to try to upgrade from 4k pages to 2MiB pages for a given range,
-> we run into the problem of how we lock out 4k page faults for the entire
-> 2MiB range while we clean out the radix tree so we can insert the 2MiB
-> entry.  We can solve this problem if we need to, but I think that the cases
-> where both 2MiB entries and 4K entries are being used for the same range
-> will be rare enough and the gain small enough that it probably won't be
-> worth the complexity.
-> 
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-....
-> +#if defined(CONFIG_TRANSPARENT_HUGEPAGE)
-> +/*
-> + * The 'colour' (ie low bits) within a PMD of a page offset.  This comes up
-> + * more often than one might expect in the below functions.
-> + */
-> +#define PG_PMD_COLOUR	((PMD_SIZE >> PAGE_SHIFT) - 1)
-> +
-> +static void __dax_pmd_dbg(struct iomap *iomap, unsigned long address,
-> +		const char *reason, const char *fn)
-> +{
-> +	if (iomap) {
-> +		char bname[BDEVNAME_SIZE];
-> +
-> +		bdevname(iomap->bdev, bname);
-> +		pr_debug("%s: %s addr %lx dev %s type %#x blkno %ld "
-> +			"offset %lld length %lld fallback: %s\n", fn,
-> +			current->comm, address, bname, iomap->type,
-> +			iomap->blkno, iomap->offset, iomap->length, reason);
-> +	} else {
-> +		pr_debug("%s: %s addr: %lx fallback: %s\n", fn,
-> +			current->comm, address, reason);
-> +	}
-> +}
+The mm-of-the-moment snapshot 2016-09-27-16-08 has been uploaded to
 
-Yuck! Tracepoints for debugging information like this, please, not
-printk awfulness.
+   http://www.ozlabs.org/~akpm/mmotm/
 
-> +
-> +#define dax_pmd_dbg(bh, address, reason) \
-> +	__dax_pmd_dbg(bh, address, reason, __func__)
-> +
-> +static int iomap_pmd_insert_mapping(struct vm_area_struct *vma, pmd_t *pmd,
-> +		struct vm_fault *vmf, unsigned long address,
-> +		struct iomap *iomap, loff_t pos, bool write, void **entryp)
+mmotm-readme.txt says
 
-Please put a "dax" in the function name. grepping, cscope, etc are
-much easier when static function names are namespaced properly.
+README for mm-of-the-moment:
 
-> +{
-> +	struct address_space *mapping = vma->vm_file->f_mapping;
-> +	struct block_device *bdev = iomap->bdev;
-> +	struct blk_dax_ctl dax = {
-> +		.sector = iomap_dax_sector(iomap, pos),
-> +		.size = PMD_SIZE,
-> +	};
-> +	long length = dax_map_atomic(bdev, &dax);
-> +	void *ret;
-> +
-> +	if (length < 0) {
-> +		dax_pmd_dbg(iomap, address, "dax-error fallback");
-> +		return VM_FAULT_FALLBACK;
-> +	}
+http://www.ozlabs.org/~akpm/mmotm/
 
-Fails to unmap. Please use an goto based error stack. And
-tracepoints make this much neater:
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
 
-	trace_dax_pmd_insert_mapping(iomap, address, &dax, length);
-	if (length < 0)
-		goto unmap_fallback;
-	if (length < PMD_SIZE)
-		goto unmap_fallback;
-	.....
+You will need quilt to apply these patches to the latest Linus release (4.x
+or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
 
-	trace_dax_pmd_insert_mapping_done(iomap, address, &dax, length);
-	return vmf_insert_pfn_pmd(vma, address, pmd, dax.pfn, write);
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
 
-unmap_fallback:
-	dax_unmap_atomic(bdev, &dax);
-fallback:
-	trace_dax_pmd_insert_fallback(iomap, address, &dax, length);
-	return VM_FAULT_FALLBACK;
-}
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
 
-i.e. we don't need need all those debug printks to tell us what
-failed - the first tracepoint tells use everything about the context
-we are about to check, and the last tracepoint tells us whether we
-are falling back or about to try mapping a PMD.
+A git tree which contains the memory management portion of this tree is
+maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+by Michal Hocko.  It contains the patches which are between the
+"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+file, http://www.ozlabs.org/~akpm/mmotm/series.
 
-If you really need custom printk output for debugging, then use
-trace_printk() so that it shows up in the trace output along with
-all the trace points....
 
-Same goes for all the other pr_debug() cals in this code - they need
-to go and be replaced with tracepoints.
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
 
-> +int iomap_dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
-> +		pmd_t *pmd, unsigned int flags, struct iomap_ops *ops)
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
 
-dax_iomap_pmd_fault() - dax_ is the namespace prefix for the code in
-fs/dax.c, not iomap_...
+To develop on top of mmotm git:
 
-> +{
-> +	struct address_space *mapping = vma->vm_file->f_mapping;
-> +	unsigned long pmd_addr = address & PMD_MASK;
-> +	bool write = flags & FAULT_FLAG_WRITE;
-> +	struct inode *inode = mapping->host;
-> +	struct iomap iomap = { 0 };
-> +	int error, result = 0;
-> +	pgoff_t size, pgoff;
-> +	struct vm_fault vmf;
-> +	void *entry;
-> +	loff_t pos;
-> +
-> +	/* dax pmd mappings require pfn_t_devmap() */
-> +	if (!IS_ENABLED(CONFIG_FS_DAX_PMD))
-> +		return VM_FAULT_FALLBACK;
+  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+  $ git remote update mmotm
+  $ git checkout -b topic mmotm/master
+  <make changes, commit>
+  $ git send-email mmotm/master.. [...]
 
-So we build all this stuff in, even if CONFIG_FS_DAX_PMD=n?
-Shouldn't we just have a simple function that returns
-VM_FAULT_FALLBACK when CONFIG_FS_DAX_PMD=n?
+To rebase a branch with older patches to a new mmotm release:
 
-Cheers,
+  $ git remote update mmotm
+  $ git rebase --onto mmotm/master <topic base> topic
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+
+
+
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
+
+A git copy of this tree is available at
+
+	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
+
+and use of this tree is similar to
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
+
+
+This mmotm tree contains the following patches against 4.8-rc8:
+(patches marked "*" will be included in linux-next)
+
+  i-need-old-gcc.patch
+* mmksm-fix-endless-looping-in-allocating-memory-when-ksm-enable.patch
+* dma-mappingh-preserve-unmap-info-for-config_dma_api_debug.patch
+* scripts-recordmcountc-account-for-softirqentrytext.patch
+* mem-hotplug-use-nodes-that-contain-memory-as-mask-in-new_node_page.patch
+* mm-workingset-fix-crash-in-shadow-node-shrinker-caused-by-replace_page_cache_page.patch
+* ocfs2-fix-deadlock-on-mmapped-page-in-ocfs2_write_begin_nolock.patch
+* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
+* fsnotify-drop-notification_mutex-before-destroying-event.patch
+* fsnotify-convert-notification_mutex-to-a-spinlock.patch
+* fsnotify-convert-notification_mutex-to-a-spinlock-fix.patch
+* fanotify-use-notification_lock-instead-of-access_lock.patch
+* fanotify-fix-possible-false-warning-when-freeing-events.patch
+* fsnotify-cleanup-spinlock-assertions.patch
+* kbuild-simpler-generation-of-assembly-constants.patch
+* fs-ocfs2-dlmfs-remove-deprecated-create_singlethread_workqueue.patch
+* fs-ocfs2-cluster-remove-deprecated-create_singlethread_workqueue.patch
+* fs-ocfs2-super-remove-deprecated-create_singlethread_workqueue.patch
+* fs-ocfs2-dlm-remove-deprecated-create_singlethread_workqueue.patch
+* ocfs2-fix-undefined-struct-variable-in-inodeh.patch
+* ocfs2-free-the-mle-while-the-res-had-one-to-avoid-mle-memory-leak.patch
+* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
+* fs-select-add-vmalloc-fallback-for-select2.patch
+* kernel-watchdog-use-nmi-registers-snapshot-in-hardlockup-handler.patch
+  mm.patch
+* mm-oom-deduplicate-victim-selection-code-for-memcg-and-global-oom.patch
+* mm-zsmalloc-add-trace-events-for-zs_compact.patch
+* mm-zsmalloc-add-per-class-compact-trace-event.patch
+* mm-vmalloc-fix-align-value-calculation-error.patch
+* mm-vmalloc-fix-align-value-calculation-error-fix.patch
+* mm-vmalloc-fix-align-value-calculation-error-v2.patch
+* mm-vmalloc-fix-align-value-calculation-error-v2-fix.patch
+* mm-vmalloc-fix-align-value-calculation-error-v2-fix-fix.patch
+* mm-vmalloc-fix-align-value-calculation-error-v2-fix-fix-fix.patch
+* mm-memcontrol-add-sanity-checks-for-memcg-idref-on-get-put.patch
+* mm-oom_killc-fix-task_will_free_mem-comment.patch
+* mm-compaction-make-whole_zone-flag-ignore-cached-scanner-positions.patch
+* mm-compaction-make-whole_zone-flag-ignore-cached-scanner-positions-checkpatch-fixes.patch
+* mm-compaction-cleanup-unused-functions.patch
+* mm-compaction-rename-compact_partial-to-compact_success.patch
+* mm-compaction-dont-recheck-watermarks-after-compact_success.patch
+* mm-compaction-add-the-ultimate-direct-compaction-priority.patch
+* mm-compaction-add-the-ultimate-direct-compaction-priority-fix.patch
+* mm-compaction-use-correct-watermark-when-checking-compaction-success.patch
+* mm-compaction-create-compact_gap-wrapper.patch
+* mm-compaction-create-compact_gap-wrapper-fix.patch
+* mm-compaction-use-proper-alloc_flags-in-__compaction_suitable.patch
+* mm-compaction-require-only-min-watermarks-for-non-costly-orders.patch
+* mm-compaction-require-only-min-watermarks-for-non-costly-orders-fix.patch
+* mm-vmscan-make-compaction_ready-more-accurate-and-readable.patch
+* mem-hotplug-fix-node-spanned-pages-when-we-have-a-movable-node.patch
+* mm-fix-set-pageblock-migratetype-in-deferred-struct-page-init.patch
+* mm-vmscan-get-rid-of-throttle_vm_writeout.patch
+* mm-debug_pagealloc-clean-up-guard-page-handling-code.patch
+* mm-debug_pagealloc-dont-allocate-page_ext-if-we-dont-use-guard-page.patch
+* mm-page_owner-move-page_owner-specific-function-to-page_ownerc.patch
+* mm-page_ext-rename-offset-to-index.patch
+* mm-page_ext-support-extra-space-allocation-by-page_ext-user.patch
+* mm-page_owner-dont-define-fields-on-struct-page_ext-by-hard-coding.patch
+* do_generic_file_read-fail-immediately-if-killed.patch
+* mm-pagewalk-fix-the-comment-for-test_walk.patch
+* mm-unrig-vma-cache-hit-ratio.patch
+* mm-swap-add-swap_cluster_list.patch
+* mm-swap-add-swap_cluster_list-checkpatch-fixes.patch
+* mmoom_reaper-reduce-find_lock_task_mm-usage.patch
+* mmoom_reaper-do-not-attempt-to-reap-a-task-twice.patch
+* oom-keep-mm-of-the-killed-task-available.patch
+* kernel-oom-fix-potential-pgd_lock-deadlock-from-__mmdrop.patch
+* mm-oom-get-rid-of-signal_struct-oom_victims.patch
+* oom-suspend-fix-oom_killer_disable-vs-pm-suspend-properly.patch
+* mm-oom-enforce-exit_oom_victim-on-current-task.patch
+* mm-make-sure-that-kthreads-will-not-refault-oom-reaped-memory.patch
+* oom-oom_reaper-allow-to-reap-mm-shared-by-the-kthreads.patch
+* mm-use-zonelist-name-instead-of-using-hardcoded-index.patch
+* mm-introduce-arch_reserved_kernel_pages.patch
+* mm-memblock-expose-total-reserved-memory.patch
+* powerpc-implement-arch_reserved_kernel_pages.patch
+* mm-nobootmemc-remove-duplicate-macro-arch_low_address_limit-statements.patch
+* mm-bootmemc-replace-kzalloc-by-kzalloc_node.patch
+* mm-dont-use-radix-tree-writeback-tags-for-pages-in-swap-cache.patch
+* oom-warn-if-we-go-oom-for-higher-order-and-compaction-is-disabled.patch
+* mm-mlock-check-against-vma-for-actual-mlock-size.patch
+* mm-mlock-check-against-vma-for-actual-mlock-size-fix.patch
+* mm-mlock-check-against-vma-for-actual-mlock-size-fix-2.patch
+* mm-mlock-avoid-increase-mm-locked_vm-on-mlock-when-already-mlock2mlock_onfault.patch
+* selftest-split-mlock2_-funcs-into-separate-mlock2h.patch
+* selftests-vm-add-test-for-mlock-when-areas-are-intersected.patch
+* selftest-move-seek_to_smaps_entry-out-of-mlock2-testsc.patch
+* selftests-expanding-more-mlock-selftest.patch
+* thp-dax-add-thp_get_unmapped_area-for-pmd-mappings.patch
+* ext2-4-xfs-call-thp_get_unmapped_area-for-pmd-mappings.patch
+* cpu-fix-node-state-for-whether-it-contains-cpu.patch
+* mm-proc-make-the-task_mmu-walk_page_range-limit-in-clear_refs_write-obvious.patch
+* thp-reduce-usage-of-huge-zero-pages-atomic-counter.patch
+* mm-memcontrol-make-the-walk_page_range-limit-obvious.patch
+* memory-hotplug-fix-store_mem_state-return-value.patch
+* mm-fix-cache-mode-tracking-in-vm_insert_mixed.patch
+* mm-swap-use-offset-of-swap-entry-as-key-of-swap-cache.patch
+* mm-remove-page_file_index.patch
+* revert-mm-oom-prevent-premature-oom-killer-invocation-for-high-order-request.patch
+* mm-compaction-more-reliably-increase-direct-compaction-priority.patch
+* mm-compaction-more-reliably-increase-direct-compaction-priority-fix.patch
+* mm-compaction-restrict-full-priority-to-non-costly-orders.patch
+* mm-compaction-make-full-priority-ignore-pageblock-suitability.patch
+* mm-page_alloc-pull-no_progress_loops-update-to-should_reclaim_retry.patch
+* mm-compaction-ignore-fragindex-from-compaction_zonelist_suitable.patch
+* mm-compaction-restrict-fragindex-to-costly-orders.patch
+* mm-dont-emit-warning-from-pagefault_out_of_memory.patch
+* mm-page_ioc-replace-some-bug_ons-with-vm_bug_on_page.patch
+* fs-use-mapping_set_error-instead-of-opencoded-set_bit.patch
+* fs-use-mapping_set_error-instead-of-opencoded-set_bit-fix.patch
+* mm-split-gfp_mask-and-mapping-flags-into-separate-fields.patch
+* mm-move-phys_mem_access_prot_allowed-declaration-to-pgtableh.patch
+* fs-bufferc-make-__getblk_slow-static.patch
+* mm-memcontrol-consolidate-cgroup-socket-tracking.patch
+* mm-memcontrol-consolidate-cgroup-socket-tracking-fix-2.patch
+* mm-memcontrol-consolidate-cgroup-socket-tracking-checkpatch-fixes.patch
+* mm-shmemc-constify-anon_ops.patch
+* mm-nobootmem-move-the-comment-of-free_all_bootmem.patch
+* mm-hugetlb-fix-memory-offline-with-hugepage-size-memory-block-size.patch
+* mm-hugetlb-check-for-reserved-hugepages-during-memory-offline.patch
+* mm-hugetlb-improve-locking-in-dissolve_free_huge_pages.patch
+* mm-page_isolation-fix-typo-paes-pages.patch
+* mm-percpuc-correct-max_distance-calculation-for-pcpu_embed_first_chunk.patch
+* mmksm-add-__gfp_high-to-the-allocation-in-alloc_stable_node.patch
+* mm-vm_page_prot-update-with-write_once-read_once.patch
+* mm-vma_adjust-remove-superfluous-confusing-update-in-remove_next-==-1-case.patch
+* mm-vma_merge-fix-vm_page_prot-smp-race-condition-against-rmap_walk.patch
+* mm-vma_adjust-remove-superfluous-check-for-next-not-null.patch
+* mm-vma_adjust-minor-comment-correction.patch
+* mm-vma_merge-correct-false-positive-from-__vma_unlink-validate_mm_rb.patch
+* mm-clarify-why-we-avoid-page_mapcount-for-slab-pages-in-dump_page.patch
+* mm-page_owner-align-with-pageblock_nr-pages.patch
+* mm-walk-the-zone-in-pageblock_nr_pages-steps.patch
+* ia64-implement-atomic64_dec_if_positive.patch
+* atomic64-no-need-for-config_arch_has_atomic64_dec_if_positive.patch
+* proc-much-faster-proc-vmstat.patch
+* proc-faster-proc-status.patch
+* seq-proc-modify-seq_put_decimal_ll-to-take-a-const-char-not-char.patch
+* seq-proc-modify-seq_put_decimal_ll-to-take-a-const-char-not-char-fix.patch
+* meminfo-break-apart-a-very-long-seq_printf-with-ifdefs.patch
+* proc-relax-proc-tid-timerslack_ns-capability-requirements.patch
+* proc-add-lsm-hook-checks-to-proc-tid-timerslack_ns.patch
+* proc-fix-timerslack_ns-cap_sys_nice-check-when-adjusting-self.patch
+* proc-unsigned-file-descriptors.patch
+* min-max-remove-sparse-warnings-when-theyre-nested.patch
+* nmi_backtrace-add-more-trigger__cpu_backtrace-methods.patch
+* nmi_backtrace-do-a-local-dump_stack-instead-of-a-self-nmi.patch
+* arch-tile-adopt-the-new-nmi_backtrace-framework.patch
+* nmi_backtrace-generate-one-line-reports-for-idle-cpus.patch
+* spellingtxt-modeled-is-spelt-correctly.patch
+* uprobes-remove-function-declarations-from-arch-mipss390.patch
+* set-git-diff-driver-for-c-source-code-files.patch
+* mailmap-add-johan-hovold.patch
+* cred-simpler-1d-supplementary-groups.patch
+* console-dont-prefer-first-registered-if-dt-specifies-stdout-path.patch
+* radix-tree-slot-can-be-null-in-radix_tree_next_slot.patch
+* radix-tree-tests-add-iteration-test.patch
+* radix-tree-tests-properly-initialize-mutex.patch
+* lib-harden-strncpy_from_user.patch
+* make-isdigit-table-lookupless.patch
+* kstrtox-smaller-_parse_integer.patch
+* lib-bitmapc-enhance-bitmap-syntax.patch
+* lib-bitmapc-enhance-bitmap-syntax-fix.patch
+* include-linux-provide-a-safe-version-of-container_of.patch
+* llist-introduce-llist_entry_safe.patch
+* lib-add-crc64-ecma-module.patch
+* compat-remove-compat_printk.patch
+* checkpatch-see-if-modified-files-are-marked-obsolete-in-maintainers.patch
+* checkpatch-look-for-symbolic-permissions-and-suggest-octal-instead.patch
+* checkpatch-test-multiple-line-block-comment-alignment.patch
+* checkpatch-dont-test-for-prefer-ether_addr_foo.patch
+* checkpatch-externalize-the-structs-that-should-be-const.patch
+* const_structscheckpatch-add-frequently-used-from-julia-lawalls-list.patch
+* checkpatch-speed-up-checking-for-filenames-in-sections-marked-obsolete.patch
+* checkpatch-improve-the-block-comment-alignment-test.patch
+* checkpatch-add-strict-test-for-macro-argument-reuse.patch
+* checkpatch-add-strict-test-for-precedence-challenged-macro-arguments.patch
+* checkpatch-improve-macro_arg_precedence-test.patch
+* checkpatch-add-warning-for-unnamed-function-definition-arguments.patch
+* kprobes-include-asm-sectionsh-instead-of-asm-generic-sectionsh.patch
+* autofs-fix-typos-in-documentation-filesystems-autofs4txt.patch
+* autofs-drop-unnecessary-extern-in-autofs_ih.patch
+* autofs-test-autofs-versions-first-on-sb-initialization.patch
+* autofs-fix-autofs4_fill_super-error-exit-handling.patch
+* autofs-add-warn_on1-for-non-dir-link-inode-case.patch
+* autofs-remove-ino-free-in-autofs4_dir_symlink.patch
+* autofs-use-autofs4_free_ino-to-kfree-dentry-data.patch
+* autofs-remove-obsolete-sb-fields.patch
+* autofs-dont-fail-to-free_dev_ioctlparam.patch
+* autofs-remove-autofs_devid_len.patch
+* autofs-fix-documentation-regarding-devid-on-ioctl.patch
+* autofs-update-struct-autofs_dev_ioctl-in-documentation.patch
+* autofs-fix-pr_debug-message.patch
+* autofs-fix-dev-ioctl-number-range-check.patch
+* autofs-fix-dev-ioctl-number-range-check-fix.patch
+* autofs-add-autofs_dev_ioctl_version-for-autofs_dev_ioctl_version_cmd.patch
+* autofs-fix-print-format-for-ioctl-warning-message.patch
+* autofs-move-inclusion-of-linux-limitsh-to-uapi.patch
+* autofs4-move-linux-auto_dev-ioctlh-to-uapi-linux.patch
+* autofs-remove-possibly-misleading-define-debug.patch
+* autofs-refactor-ioctl-fn-vector-in-iookup_dev_ioctl.patch
+* fs-make-is_local_mountpoint-usable-by-others.patch
+* fs-add-have_local_submounts.patch
+* autofs-make-mountpoint-checks-namespace-aware.patch
+* fs-remove-unused-have_submounts-function.patch
+* pipe-relocate-round_pipe_size-above-pipe_set_size.patch
+* pipe-move-limit-checking-logic-into-pipe_set_size.patch
+* pipe-refactor-argument-for-account_pipe_buffers.patch
+* pipe-fix-limit-checking-in-pipe_set_size.patch
+* pipe-simplify-logic-in-alloc_pipe_info.patch
+* pipe-fix-limit-checking-in-alloc_pipe_info.patch
+* pipe-make-account_pipe_buffers-return-a-value-and-use-it.patch
+* pipe-cap-initial-pipe-capacity-according-to-pipe-max-size-limit.patch
+* ptrace-clear-tif_syscall_trace-on-ptrace-detach.patch
+* kexec_file-allow-arch-specific-memory-walking-for-kexec_add_buffer.patch
+* kexec_file-change-kexec_add_buffer-to-take-kexec_buf-as-argument.patch
+* kexec_file-factor-out-kexec_locate_mem_hole-from-kexec_add_buffer.patch
+* powerpc-change-places-using-config_kexec-to-use-config_kexec_core-instead.patch
+* powerpc-factor-out-relocation-code-from-module_64c-to-elf_util_64c.patch
+* powerpc-generalize-elf64_apply_relocate_add.patch
+* powerpc-adapt-elf64_apply_relocate_add-for-kexec_file_load.patch
+* powerpc-add-functions-to-read-elf-files-of-any-endianness.patch
+* powerpc-implement-kexec_file_load.patch
+* powerpc-add-code-to-work-with-device-trees-in-kexec_file_load.patch
+* powerpc-add-support-for-loading-elf-kernels-with-kexec_file_load.patch
+* powerpc-add-support-for-loading-elf-kernels-with-kexec_file_load-fix.patch
+* powerpc-add-purgatory-for-kexec_file_load-implementation.patch
+* powerpc-add-purgatory-for-kexec_file_load-implementation-fix.patch
+* powerpc-enable-config_kexec_file-in-powerpc-server-defconfigs.patch
+* kexec_file-include-the-purgatory-segment-in-the-kexec-image-checksum.patch
+* kexec_file-add-buffer-hand-over-support-for-the-next-kernel.patch
+* powerpc-kexec_file-add-buffer-hand-over-support-for-the-next-kernel.patch
+* kexec_file-add-mechanism-to-update-kexec-segments.patch
+* ima-on-soft-reboot-restore-the-measurement-list.patch
+* ima-permit-duplicate-measurement-list-entries.patch
+* ima-maintain-memory-size-needed-for-serializing-the-measurement-list.patch
+* ima-serialize-the-binary_runtime_measurements.patch
+* ima-on-soft-reboot-save-the-measurement-list.patch
+* ima-store-the-builtin-custom-template-definitions-in-a-list.patch
+* ima-support-restoring-multiple-template-formats.patch
+* ima-define-a-canonical-binary_runtime_measurements-list-format.patch
+* ima-platform-independent-hash-value.patch
+* kdump-vmcoreinfo-report-actual-value-of-phys_base.patch
+* rapidio-rio_cm-use-memdup_user-instead-of-duplicating-code.patch
+* random-simplify-api-for-random-address-requests.patch
+* x86-use-simpler-api-for-random-address-requests.patch
+* arm-use-simpler-api-for-random-address-requests.patch
+* arm64-use-simpler-api-for-random-address-requests.patch
+* tile-use-simpler-api-for-random-address-requests.patch
+* unicore32-use-simpler-api-for-random-address-requests.patch
+* random-remove-unused-randomize_range.patch
+* dma-mapping-introduce-the-dma_attr_no_warn-attribute.patch
+* powerpc-implement-the-dma_attr_no_warn-attribute.patch
+* nvme-use-the-dma_attr_no_warn-attribute.patch
+* x86-panic-replace-smp_send_stop-with-kdump-friendly-version-in-panic-path.patch
+* mips-panic-replace-smp_send_stop-with-kdump-friendly-version-in-panic-path.patch
+* pps-kc-fix-non-tickless-system-config-dependency.patch
+* relay-use-irq_work-instead-of-plain-timer-for-deferred-wakeup.patch
+* relay-use-irq_work-instead-of-plain-timer-for-deferred-wakeup-fix.patch
+* relay-use-irq_work-instead-of-plain-timer-for-deferred-wakeup-checkpatch-fixes.patch
+* config-android-remove-config_ipv6_privacy.patch
+* config-android-move-device-mapper-options-to-recommended.patch
+* config-android-set-selinux-as-default-security-mode.patch
+* config-android-enable-config_seccomp.patch
+* kcov-do-not-instrument-lib-stackdepotc.patch
+* ipc-semc-fix-complex_count-vs-simple-op-race.patch
+* ipc-msg-implement-lockless-pipelined-wakeups.patch
+* ipc-msg-batch-queue-sender-wakeups.patch
+* ipc-msg-make-ss_wakeup-kill-arg-boolean.patch
+* ipc-msg-lockless-security-checks-for-msgsnd.patch
+* ipc-msg-avoid-waking-sender-upon-full-queue.patch
+* ipc-msg-avoid-waking-sender-upon-full-queue-checkpatch-fixes.patch
+  linux-next.patch
+  linux-next-rejects.patch
+* drivers-net-wireless-intel-iwlwifi-dvm-calibc-fix-min-warning.patch
+* include-linux-mlx5-deviceh-kill-build_bug_ons.patch
+* kdump-vmcoreinfo-report-memory-sections-virtual-addresses.patch
+* mm-kmemleak-avoid-using-__va-on-addresses-that-dont-have-a-lowmem-mapping.patch
+* enable-code-completion-in-vim.patch
+* kthread-add-kerneldoc-for-kthread_create.patch
+* hung_task-allow-hung_task_panic-when-hung_task_warnings-is-0.patch
+* hung_task-allow-hung_task_panic-when-hung_task_warnings-is-0-fix.patch
+* treewide-remove-redundant-include-linux-kconfigh.patch
+  mm-add-strictlimit-knob-v2.patch
+  make-sure-nobodys-leaking-resources.patch
+  releasing-resources-with-children.patch
+  make-frame_pointer-default=y.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  mutex-subsystem-synchro-test-module.patch
+  slab-leaks3-default-y.patch
+  add-debugging-aid-for-memory-initialisation-problems.patch
+  workaround-for-a-pci-restoring-bug.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
