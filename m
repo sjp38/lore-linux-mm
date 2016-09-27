@@ -1,52 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 43A07280266
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 02:07:22 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id c84so9486635pfj.2
-        for <linux-mm@kvack.org>; Mon, 26 Sep 2016 23:07:22 -0700 (PDT)
-Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
-        by mx.google.com with ESMTPS id ra7si1079840pab.39.2016.09.26.23.07.21
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 33D146B029A
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 03:31:01 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id 92so19822971iom.3
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 00:31:01 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id u185si1492576itc.12.2016.09.27.00.31.00
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 26 Sep 2016 23:07:21 -0700 (PDT)
-Subject: Re: [PATCH 1/5] mm/vmalloc.c: correct a few logic error for
- __insert_vmap_area()
-References: <57E20B54.5020408@zoho.com>
- <alpine.DEB.2.10.1609211408140.20971@chino.kir.corp.google.com>
- <034db3ec-e2dc-a6da-6dab-f0803900e19d@zoho.com>
- <alpine.DEB.2.10.1609211544510.41473@chino.kir.corp.google.com>
- <c5435f6f-d945-fae1-c17e-04530be08421@zoho.com>
- <alpine.DEB.2.10.1609211612280.42217@chino.kir.corp.google.com>
-From: zijun_hu <zijun_hu@zoho.com>
-Message-ID: <57EA0C86.3010303@zoho.com>
-Date: Tue, 27 Sep 2016 14:07:02 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Sep 2016 00:31:00 -0700 (PDT)
+Date: Tue, 27 Sep 2016 09:30:55 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: page_waitqueue() considered harmful
+Message-ID: <20160927073055.GM2794@worktop>
+References: <CA+55aFwVSXZPONk2OEyxcP-aAQU7-aJsF3OFXVi8Z5vA11v_-Q@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1609211612280.42217@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFwVSXZPONk2OEyxcP-aAQU7-aJsF3OFXVi8Z5vA11v_-Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com, Andrew Morton <akpm@linux-foundation.org>, tj@kernel.org, mingo@kernel.org, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>
 
-On 09/22/2016 07:15 AM, David Rientjes wrote:
-> On Thu, 22 Sep 2016, zijun_hu wrote:
-> 
->>> We don't support inserting when va->va_start == tmp_va->va_end, plain and 
->>> simple.  There's no reason to do so.  NACK to the patch.
->>>
->> i am sorry i disagree with you because
->> 1) in almost all context of vmalloc, original logic treat the special case as normal
->>    for example, __find_vmap_area() or alloc_vmap_area()
-> 
-> The ranges are [start, end) like everywhere else.  __find_vmap_area() is 
-> implemented as such for the passed address.  The address is aligned in 
-> alloc_vmap_area(), there's no surprise here.  The logic is correct in 
-> __insert_vmap_area().
-> 
-i am sorry to disagree with you
-i will resend this patch with more detailed illustration
+On Mon, Sep 26, 2016 at 01:58:00PM -0700, Linus Torvalds wrote:
 
+> Why is the page_waitqueue() handling so expensive? Let me count the ways:
+
+>  (b) It's cache miss heaven. It takes a cache miss on three different
+> things:looking up the zone 'wait_table', then looking up the hash
+> queue there, and finally (inside __wake_up_bit) looking up the wait
+> queue itself (which will effectively always be NULL).
+
+> Is there really any reason for that incredible indirection? Do we
+> really want to make the page_waitqueue() be a per-zone thing at all?
+> Especially since all those wait-queues won't even be *used* unless
+> there is actual IO going on and people are really getting into
+> contention on the page lock.. Why isn't the page_waitqueue() just one
+> statically sized array?
+
+I suspect the reason is to have per node hash tables, just like we get
+per node page-frame arrays with sparsemem.
+
+> Also, if those bitlock ops had a different bit that showed contention,
+> we could actually skip *all* of this, and just see that "oh, nobody is
+> waiting on this page anyway, so there's no point in looking up those
+> wait queues". We don't have that many "__wait_on_bit()" users, maybe
+> we could say that the bitlocks do have to haev *two* bits: one for the
+> lock bit itself, and one for "there is contention".
+
+That would be fairly simple to implement, the difficulty would be
+actually getting a page-flag to use for this. We're running pretty low
+in available bits :/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
