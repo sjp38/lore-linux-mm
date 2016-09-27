@@ -1,104 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 22C036B0297
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 10:34:54 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id w84so9862463wmg.1
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 07:34:54 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id be1si2657887wjb.101.2016.09.27.07.25.49
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A6FA6B02A8
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 10:39:39 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id 92so41058234iom.3
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 07:39:39 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id 18si3908792ion.58.2016.09.27.07.39.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 27 Sep 2016 07:26:41 -0700 (PDT)
-From: zhongjiang <zhongjiang@huawei.com>
-Subject: [PATCH v2] mm: remove unnecessary condition in remove_inode_hugepages
-Date: Tue, 27 Sep 2016 22:16:26 +0800
-Message-ID: <1474985786-5052-1-git-send-email-zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Sep 2016 07:39:39 -0700 (PDT)
+Date: Tue, 27 Sep 2016 16:39:26 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v15 04/13] task_isolation: add initial support
+Message-ID: <20160927143926.GQ2794@worktop>
+References: <20160830075854.GZ10153@twins.programming.kicks-ass.net>
+ <a321c8a7-fa9c-21f7-61f8-54a8f80763fe@mellanox.com>
+ <CALCETrWyKExm9Od3VJ2P9xbL23NPKScgxdQ4R1v5QdNuNXKjmA@mail.gmail.com>
+ <e659a498-d951-7d9f-dc0c-9734be3fd826@mellanox.com>
+ <CALCETrXA38kv_PEd65j8RHvJKkW5mMxXEmYSr5mec1h3X1hj1w@mail.gmail.com>
+ <d15b35ce-5c5d-c451-e47e-d2f915bf70f3@mellanox.com>
+ <CALCETrX80akvpLNRQfJsDV560npSa33hSsUB5OYkAtnAn8R7Dg@mail.gmail.com>
+ <3f84f736-ed7f-adff-d5f0-4f7db664208f@mellanox.com>
+ <CALCETrXrsZjMjdd1jACbrz8GMXQC5FmF8BbkHobmMCbG5GPN7w@mail.gmail.com>
+ <20160927142219.GC6242@lerouge>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160927142219.GC6242@lerouge>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mike.kravetz@oracle.com, mhocko@kernel.org, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, n-horiguchi@ah.jp.nec.com
+To: Frederic Weisbecker <fweisbec@gmail.com>
+Cc: Andy Lutomirski <luto@amacapital.net>, Chris Metcalf <cmetcalf@mellanox.com>, Thomas Gleixner <tglx@linutronix.de>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.com>, Gilad Ben Yossef <giladb@mellanox.com>, Andrew Morton <akpm@linux-foundation.org>, Viresh Kumar <viresh.kumar@linaro.org>, Linux API <linux-api@vger.kernel.org>, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@kernel.org>, Tejun Heo <tj@kernel.org>, Rik van Riel <riel@redhat.com>, Will Deacon <will.deacon@arm.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Catalin Marinas <catalin.marinas@arm.com>
 
-From: zhong jiang <zhongjiang@huawei.com>
+On Tue, Sep 27, 2016 at 04:22:20PM +0200, Frederic Weisbecker wrote:
 
-when the huge page is added to the page cahce (huge_add_to_page_cache),
-the page private flag will be cleared. since this code
-(remove_inode_hugepages) will only be called for pages in the
-page cahce, PagePrivate(page) will always be false.
+> The RCU context tracking doesn't take care of callbacks. It's only there
+> to tell the RCU core whether the CPU runs code that may or may not run
+> RCU read side critical sections. This is assumed by "kernel may use RCU,
+> userspace can't".
 
-The patch remove the code without any functional change.
+Userspace never can use the kernels RCU in any case. What you mean to
+say is that userspace is treated like an idle CPU in that the CPU will
+no longer be part of the RCU quescent state machine.
 
-Signed-off-by: zhong jiang <zhongjiang@huawei.com>
----
- fs/hugetlbfs/inode.c    | 11 +++++------
- include/linux/hugetlb.h |  2 +-
- mm/hugetlb.c            |  4 ++--
- 3 files changed, 8 insertions(+), 9 deletions(-)
-
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 4ea71eb..40d0afe 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -458,18 +458,17 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
- 			 * cache (remove_huge_page) BEFORE removing the
- 			 * region/reserve map (hugetlb_unreserve_pages).  In
- 			 * rare out of memory conditions, removal of the
--			 * region/reserve map could fail.  Before free'ing
--			 * the page, note PagePrivate which is used in case
--			 * of error.
-+			 * region/reserve map could fail. Correspondingly,
-+			 * the subpool and global reserve usage count can need
-+			 * to be adjusted.
- 			 */
--			rsv_on_error = !PagePrivate(page);
-+			VM_BUG_ON(PagePrivate(page));
- 			remove_huge_page(page);
- 			freed++;
- 			if (!truncate_op) {
- 				if (unlikely(hugetlb_unreserve_pages(inode,
- 							next, next + 1, 1)))
--					hugetlb_fix_reserve_counts(inode,
--								rsv_on_error);
-+					hugetlb_fix_reserve_counts(inode);
- 			}
- 
- 			unlock_page(page);
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index c26d463..d2e0fc5 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -90,7 +90,7 @@ int dequeue_hwpoisoned_huge_page(struct page *page);
- bool isolate_huge_page(struct page *page, struct list_head *list);
- void putback_active_hugepage(struct page *page);
- void free_huge_page(struct page *page);
--void hugetlb_fix_reserve_counts(struct inode *inode, bool restore_reserve);
-+void hugetlb_fix_reserve_counts(struct inode *inode);
- extern struct mutex *hugetlb_fault_mutex_table;
- u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
- 				struct vm_area_struct *vma,
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 87e11d8..28a079a 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -567,13 +567,13 @@ retry:
-  * appear as a "reserved" entry instead of simply dangling with incorrect
-  * counts.
-  */
--void hugetlb_fix_reserve_counts(struct inode *inode, bool restore_reserve)
-+void hugetlb_fix_reserve_counts(struct inode *inode)
- {
- 	struct hugepage_subpool *spool = subpool_inode(inode);
- 	long rsv_adjust;
- 
- 	rsv_adjust = hugepage_subpool_get_pages(spool, 1);
--	if (restore_reserve && rsv_adjust) {
-+	if (rsv_adjust) {
- 		struct hstate *h = hstate_inode(inode);
- 
- 		hugetlb_acct_memory(h, 1);
--- 
-1.8.3.1
+The transition to userspace (as per context tracking) must ensure that
+CPUs RCU state is 'complete', just like our transition to idle (mostly)
+does.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
