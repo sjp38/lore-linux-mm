@@ -1,67 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8326A28024E
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 22:43:26 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id x203so19954124oia.2
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 19:43:26 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id u55si4023771otu.2.2016.09.27.19.43.24
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CA1A428024E
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 22:56:20 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id 82so80018609ioh.1
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 19:56:20 -0700 (PDT)
+Received: from quartz.orcorp.ca (quartz.orcorp.ca. [184.70.90.242])
+        by mx.google.com with ESMTPS id n21si7213687ioe.68.2016.09.27.19.56.19
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 27 Sep 2016 19:43:25 -0700 (PDT)
-Message-ID: <57EB2D35.4070006@huawei.com>
-Date: Wed, 28 Sep 2016 10:38:45 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 Sep 2016 19:56:20 -0700 (PDT)
+Date: Tue, 27 Sep 2016 20:55:44 -0600
+From: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
+Subject: Re: [PATCH v5] powerpc: Do not make the entire heap executable
+Message-ID: <20160928025544.GA24199@obsidianresearch.com>
+References: <20160822185105.29600-1-dvlasenk@redhat.com>
+ <87d1jo7qbw.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm,ksm: add __GFP_HIGH to the allocation in alloc_stable_node()
-References: <1474354484-58233-1-git-send-email-zhongjiang@huawei.com> <20160920140639.2f1ea83784d994699e713c2e@linux-foundation.org>
-In-Reply-To: <20160920140639.2f1ea83784d994699e713c2e@linux-foundation.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87d1jo7qbw.fsf@concordia.ellerman.id.au>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: hughd@google.com, mhocko@suse.cz, vbabka@suse.cz, rientjes@google.com, linux-mm@kvack.org
+To: Michael Ellerman <mpe@ellerman.id.au>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, linuxppc-dev@lists.ozlabs.org, Andrew Morton <akpm@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, Oleg Nesterov <oleg@redhat.com>, Florian Weimer <fweimer@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 2016/9/21 5:06, Andrew Morton wrote:
-> On Tue, 20 Sep 2016 14:54:44 +0800 zhongjiang <zhongjiang@huawei.com> wrote:
->
->> From: zhong jiang <zhongjiang@huawei.com>
->>
->> Accoding to HUgh's suggestion, alloc_stable_node() with GFP_KERNEL
->> will cause the hungtask, despite less possiblity.
->>
->> At present, if alloc_stable_node allocate fails, two break_cow may
->> want to allocate a couple of pages, and the issue will come up when
->> free memory is under pressure.
->>
->> we fix it by adding the __GFP_HIGH to GFP. because it grant access to
->> some of meory reserves. it will make progess to make it allocation
->> successful at the utmost.
->>
->> --- a/mm/ksm.c
->> +++ b/mm/ksm.c
->> @@ -299,7 +299,7 @@ static inline void free_rmap_item(struct rmap_item *rmap_item)
->>  
->>  static inline struct stable_node *alloc_stable_node(void)
->>  {
->> -	return kmem_cache_alloc(stable_node_cache, GFP_KERNEL);
->> +	return kmem_cache_alloc(stable_node_cache, GFP_KERNEL | __GFP_HIGH);
->>  }
->>  
->>  static inline void free_stable_node(struct stable_node *stable_node)
-> It is very hard for a reader to understand why this __GFP_HIGH is being
-> used here, so we should have a code comment explaining the reasoning,
-> please.
-  ok,  I will add  some code comment later.
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
->
+On Wed, Sep 28, 2016 at 11:42:11AM +1000, Michael Ellerman wrote:
 
+> But this is not really a powerpc patch, and I'm not an ELF expert. So
+> I'm not comfortable merging it via the powerpc tree. It doesn't look
+> like we really have a maintainer for binfmt_elf.c, so I'm not sure who
+> should be acking that part.
+
+Thanks a bunch for looking at this Michael.
+
+> I've added Al Viro to Cc, he maintains fs/ and might be interested.
+
+> I've also added Andrew Morton who might be happy to put this in his
+> tree, and see if anyone complains?
+
+For those added to the CC, I would re-state my original commit message
+more clearly.
+
+My research showed that the ELF loader bug fixed in this patch is the
+root cause bug fix required to implement this hunk:
+
+> > -#define VM_DATA_DEFAULT_FLAGS32	(VM_READ | VM_WRITE | VM_EXEC | \
+> > +#define VM_DATA_DEFAULT_FLAGS32 \
+> > +	(((current->personality & READ_IMPLIES_EXEC) ? VM_EXEC : 0) | \
+> > +				 VM_READ | VM_WRITE | \
+> >  				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
+
+Eg that 32 bit powerpc currently unconditionally injects writable,
+executable pages into a user space process.
+
+This critically undermines all the W^X security work that has been
+done in the tool chain and user space by the PPC community.
+
+I would encourage people to view this as an important security patch
+for 32 bit powerpc environments.
+
+Regards,
+Jason
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
