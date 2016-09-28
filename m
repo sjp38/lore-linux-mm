@@ -1,99 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CBDCC28025C
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 05:00:51 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id l132so32778434wmf.0
-        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 02:00:51 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o2si7433774wjr.120.2016.09.28.02.00.47
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 38E9B6B0297
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 05:35:40 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 21so81664117pfy.3
+        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 02:35:40 -0700 (PDT)
+Received: from SHSQR01.spreadtrum.com ([222.66.158.135])
+        by mx.google.com with ESMTPS id a69si7689608pfc.119.2016.09.28.02.35.38
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 28 Sep 2016 02:00:48 -0700 (PDT)
-Subject: Re: Regression in mobility grouping?
-References: <20160928014148.GA21007@cmpxchg.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <8c3b7dd8-ef6f-6666-2f60-8168d41202cf@suse.cz>
-Date: Wed, 28 Sep 2016 11:00:15 +0200
+        Wed, 28 Sep 2016 02:35:39 -0700 (PDT)
+From: "ming.ling" <ming.ling@spreadtrum.com>
+Subject: [PATCH] mm: exclude isolated non-lru pages from NR_ISOLATED_ANON or NR_ISOLATED_FILE.
+Date: Wed, 28 Sep 2016 17:31:03 +0800
+Message-ID: <1475055063-1588-1-git-send-email-ming.ling@spreadtrum.com>
 MIME-Version: 1.0
-In-Reply-To: <20160928014148.GA21007@cmpxchg.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <js1304@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: akpm@linux-foundation.org, mgorman@techsingularity.net, vbabka@suse.cz, hannes@cmpxchg.org, mhocko@suse.com, baiyaowei@cmss.chinamobile.com, iamjoonsoo.kim@lge.com, minchan@kernel.org, rientjes@google.com, hughd@google.com, kirill.shutemov@linux.intel.com
+Cc: riel@redhat.com, mgorman@suse.de, aquini@redhat.com, corbet@lwn.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "ming.ling" <ming.ling@spreadtrum.com>
 
-On 09/28/2016 03:41 AM, Johannes Weiner wrote:
-> Hi guys,
-> 
-> we noticed what looks like a regression in page mobility grouping
-> during an upgrade from 3.10 to 4.0. Identical machines, workloads, and
-> uptime, but /proc/pagetypeinfo on 3.10 looks like this:
-> 
-> Number of blocks type     Unmovable  Reclaimable      Movable      Reserve      Isolate 
-> Node 1, zone   Normal          815          433        31518            2            0 
-> 
-> and on 4.0 like this:
-> 
-> Number of blocks type     Unmovable  Reclaimable      Movable      Reserve          CMA      Isolate 
-> Node 1, zone   Normal         3880         3530        25356            2            0            0 
+Non-lru pages don't belong to any lru, so accounting them to
+NR_ISOLATED_ANON or NR_ISOLATED_FILE doesn't make any sense.
+It may misguide functions such as pgdat_reclaimable_pages and
+too_many_isolated.
 
-It's worth to keep in mind that this doesn't reflect where the actual
-unmovable pages reside. It might be that in 3.10 they are spread within
-the movable pages. IIRC enabling page_owner (not sure if in 4.0, there
-were some later fixes I think) can augment pagetypeinfo with at least
-some statistics of polluted pageblocks.
+This patch adds NR_ISOLATED_NONLRU to vmstat and moves isolated non-lru
+pages from NR_ISOLATED_ANON or NR_ISOLATED_FILE to NR_ISOLATED_NONLRU.
+And with non-lru pages in vmstat, it helps to optimize algorithm of
+function too_many_isolated oneday.
 
-Does e.g. /proc/meminfo suggest how much unmovable/reclaimable memory
-there should be allocated and if it would fill the respective
-pageblocks, or if they are poorly utilized?
+Signed-off-by: ming.ling <ming.ling@spreadtrum.com>
+---
+ include/linux/mmzone.h |  1 +
+ mm/compaction.c        | 12 +++++++++---
+ mm/migrate.c           | 14 ++++++++++----
+ 3 files changed, 20 insertions(+), 7 deletions(-)
 
-> 4.0 is either polluting pageblocks more aggressively at allocation, or
-> is not able to make pageblocks movable again when the reclaimable and
-> unmovable allocations are released. Invoking compaction manually
-> (/proc/sys/vm/compact_memory) is not bringing them back, either.
->
-> The problem we are debugging is that these machines have a very high
-> rate of order-3 allocations (fdtable during fork, network rx), and
-> after the upgrade allocstalls have increased dramatically. I'm not
-> entirely sure this is the same issue, since even order-0 allocations
-> are struggling, but the mobility grouping in itself looks problematic.
-> 
-> I'm still going through the changes relevant to mobility grouping in
-> that timeframe, but if this rings a bell for anyone, it would help. I
-> hate blaming random patches, but these caught my eye:
-> 
-> 9c0415e mm: more aggressive page stealing for UNMOVABLE allocations
-> 3a1086f mm: always steal split buddies in fallback allocations
-> 99592d5 mm: when stealing freepages, also take pages created by splitting buddy page
-
-Check also the changelogs for mentions of earlier commits, e.g. 99592d5
-should be restoring behavior that changed in 3.12-3.13 and you are
-upgrading from 3.10.
-
-> The changelog states that by aggressively stealing split buddy pages
-> during a fallback allocation we avoid subsequent stealing. But since
-> there are generally more movable/reclaimable pages available, and so
-> less falling back and stealing freepages on behalf of movable, won't
-> this mean that we could expect exactly that result - growing numbers
-> of unmovable blocks, while rarely stealing them back in movable alloc
-> fallbacks? And the expansion of !MOVABLE blocks would over time make
-> compaction less and less effective too, seeing as it doesn't consider
-> anything !MOVABLE suitable migration targets?
-
-Yeah this is an issue with compaction that was brought up recently and I
-want to tackle next.
-
-> Attached are the full /proc/pagetypeinfo and /proc/buddyinfo from both
-> kernels on machines with similar uptimes and directly after invoking
-> compaction. As you can see, the buddy lists are much more fragmented
-> on 4.0, with unmovable/reclaimable allocations polluting more blocks.
-> 
-> Any thoughts on this would be greatly appreciated. I can test patches.
-
-I guess testing revert of 9c0415e could give us some idea. Commit
-3a1086f shouldn't result in pageblock marking differences and as I said
-above, 99592d5 should be just restoring to what 3.10 did.
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 7f2ae99..dc0adba 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -169,6 +169,7 @@ enum node_stat_item {
+ 	NR_VMSCAN_IMMEDIATE,	/* Prioritise for reclaim when writeback ends */
+ 	NR_DIRTIED,		/* page dirtyings since bootup */
+ 	NR_WRITTEN,		/* page writings since bootup */
++	NR_ISOLATED_NONLRU,	/* Temporary isolated pages from non-lru */
+ 	NR_VM_NODE_STAT_ITEMS
+ };
+ 
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 9affb29..8da1dca 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -638,16 +638,21 @@ isolate_freepages_range(struct compact_control *cc,
+ static void acct_isolated(struct zone *zone, struct compact_control *cc)
+ {
+ 	struct page *page;
+-	unsigned int count[2] = { 0, };
++	unsigned int count[3] = { 0, };
+ 
+ 	if (list_empty(&cc->migratepages))
+ 		return;
+ 
+-	list_for_each_entry(page, &cc->migratepages, lru)
+-		count[!!page_is_file_cache(page)]++;
++	list_for_each_entry(page, &cc->migratepages, lru) {
++		if (PageLRU(page))
++			count[!!page_is_file_cache(page)]++;
++		else
++			count[2]++;
++	}
+ 
+ 	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_ANON, count[0]);
+ 	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE, count[1]);
++	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_NONLRU, count[2]);
+ }
+ 
+ /* Similar to reclaim, but different enough that they don't share logic */
+@@ -659,6 +664,7 @@ static bool too_many_isolated(struct zone *zone)
+ 			node_page_state(zone->zone_pgdat, NR_INACTIVE_ANON);
+ 	active = node_page_state(zone->zone_pgdat, NR_ACTIVE_FILE) +
+ 			node_page_state(zone->zone_pgdat, NR_ACTIVE_ANON);
++	/* Is it necessary to add NR_ISOLATED_NONLRU?? */
+ 	isolated = node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE) +
+ 			node_page_state(zone->zone_pgdat, NR_ISOLATED_ANON);
+ 
+diff --git a/mm/migrate.c b/mm/migrate.c
+index f7ee04a..cd5abb2 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -168,8 +168,11 @@ void putback_movable_pages(struct list_head *l)
+ 			continue;
+ 		}
+ 		list_del(&page->lru);
+-		dec_node_page_state(page, NR_ISOLATED_ANON +
+-				page_is_file_cache(page));
++		if (PageLRU(page))
++			dec_node_page_state(page, NR_ISOLATED_ANON +
++					page_is_file_cache(page));
++		else
++			dec_node_page_state(page, NR_ISOLATED_NONLRU);
+ 		/*
+ 		 * We isolated non-lru movable page so here we can use
+ 		 * __PageMovable because LRU page's mapping cannot have
+@@ -1121,8 +1124,11 @@ out:
+ 		 * restored.
+ 		 */
+ 		list_del(&page->lru);
+-		dec_node_page_state(page, NR_ISOLATED_ANON +
+-				page_is_file_cache(page));
++		if (PageLRU(page))
++			dec_node_page_state(page, NR_ISOLATED_ANON +
++					page_is_file_cache(page));
++		else
++			dec_node_page_state(page, NR_ISOLATED_NONLRU);
+ 	}
+ 
+ 	/*
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
