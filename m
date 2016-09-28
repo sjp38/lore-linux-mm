@@ -1,135 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 41E916B027B
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 11:39:34 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id l138so45304253wmg.3
-        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 08:39:34 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id u1si9205276wja.29.2016.09.28.08.39.31
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D6A556B0280
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 12:10:58 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id i129so4452423ywe.2
+        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 09:10:58 -0700 (PDT)
+Received: from mail-oi0-x235.google.com (mail-oi0-x235.google.com. [2607:f8b0:4003:c06::235])
+        by mx.google.com with ESMTPS id g68si2195616otb.98.2016.09.28.09.10.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Sep 2016 08:39:31 -0700 (PDT)
-Date: Wed, 28 Sep 2016 11:39:25 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: Regression in mobility grouping?
-Message-ID: <20160928153925.GA24966@cmpxchg.org>
-References: <20160928014148.GA21007@cmpxchg.org>
- <8c3b7dd8-ef6f-6666-2f60-8168d41202cf@suse.cz>
+        Wed, 28 Sep 2016 09:10:31 -0700 (PDT)
+Received: by mail-oi0-x235.google.com with SMTP id t83so59276120oie.3
+        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 09:10:30 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <8c3b7dd8-ef6f-6666-2f60-8168d41202cf@suse.cz>
+In-Reply-To: <20160928111115.GS5016@twins.programming.kicks-ass.net>
+References: <CA+55aFwVSXZPONk2OEyxcP-aAQU7-aJsF3OFXVi8Z5vA11v_-Q@mail.gmail.com>
+ <20160927083104.GC2838@techsingularity.net> <20160927143426.GP2794@worktop>
+ <20160928104500.GC3903@techsingularity.net> <20160928111115.GS5016@twins.programming.kicks-ass.net>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 28 Sep 2016 09:10:29 -0700
+Message-ID: <CA+55aFxTPk-3zXEAWfXN2Hfm5Qw__B_2BJw7vNN_hFY+NTctgw@mail.gmail.com>
+Subject: Re: page_waitqueue() considered harmful
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Mel Gorman <mgorman@suse.de>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>
 
-Hi Vlastimil,
+On Wed, Sep 28, 2016 at 4:11 AM, Peter Zijlstra <peterz@infradead.org> wrote:
+> -void unlock_page(struct page *page)
+> +void __unlock_page(struct page *page)
+>  {
+> +       struct wait_bit_key key = __WAIT_BIT_KEY_INITIALIZER(&page->flags, PG_locked);
+> +       wait_queue_head_t *wq = page_waitqueue(page);
+> +
+> +       if (waitqueue_active(wq))
+> +               __wake_up(wq, TASK_NORMAL, 1, &key);
+> +       else
+> +               ClearPageContended(page);
+>  }
+> +EXPORT_SYMBOL(__unlock_page);
 
-On Wed, Sep 28, 2016 at 11:00:15AM +0200, Vlastimil Babka wrote:
-> On 09/28/2016 03:41 AM, Johannes Weiner wrote:
-> > Hi guys,
-> > 
-> > we noticed what looks like a regression in page mobility grouping
-> > during an upgrade from 3.10 to 4.0. Identical machines, workloads, and
-> > uptime, but /proc/pagetypeinfo on 3.10 looks like this:
-> > 
-> > Number of blocks type     Unmovable  Reclaimable      Movable      Reserve      Isolate 
-> > Node 1, zone   Normal          815          433        31518            2            0 
-> > 
-> > and on 4.0 like this:
-> > 
-> > Number of blocks type     Unmovable  Reclaimable      Movable      Reserve          CMA      Isolate 
-> > Node 1, zone   Normal         3880         3530        25356            2            0            0 
-> 
-> It's worth to keep in mind that this doesn't reflect where the actual
-> unmovable pages reside. It might be that in 3.10 they are spread within
-> the movable pages. IIRC enabling page_owner (not sure if in 4.0, there
-> were some later fixes I think) can augment pagetypeinfo with at least
-> some statistics of polluted pageblocks.
+I think the above needs to be protected. Something like
 
-Thanks, I'll look at the mixed block counts. I failed to make clear,
-we saw that issue in the switch from 3.10 to 4.0, and I mentioned
-those two kernels as last known good / first known bad. But later
-kernels - we tried with 4.6 - look the same. This appears to be a
-regression in (higher-order) allocation service quality somewhere
-after 3.10 that persists into current kernels.
+    spin_lock_irqsave(&q->lock, flags);
+    if (waitqueue_active(wq))
+          __wake_up_locked(wq, TASK_NORMAL, 1, &key);
+    else
+          ClearPageContended(page);
+    spin_unlock_irqrestore(&q->lock, flags);
 
-> Does e.g. /proc/meminfo suggest how much unmovable/reclaimable memory
-> there should be allocated and if it would fill the respective
-> pageblocks, or if they are poorly utilized?
+because otherwise a new waiter could come in and add itself to the
+wait-queue, and then set the bit, and now we clear it (because we
+didn't see the new waiter).
 
-They are very poorly utilized. On a machine with 90% anon/cache pages
-alone we saw 50% of the page blocks unmovable.
+The *waiter* doesn't need any extra locking, because doing
 
-> > 4.0 is either polluting pageblocks more aggressively at allocation, or
-> > is not able to make pageblocks movable again when the reclaimable and
-> > unmovable allocations are released. Invoking compaction manually
-> > (/proc/sys/vm/compact_memory) is not bringing them back, either.
-> >
-> > The problem we are debugging is that these machines have a very high
-> > rate of order-3 allocations (fdtable during fork, network rx), and
-> > after the upgrade allocstalls have increased dramatically. I'm not
-> > entirely sure this is the same issue, since even order-0 allocations
-> > are struggling, but the mobility grouping in itself looks problematic.
-> > 
-> > I'm still going through the changes relevant to mobility grouping in
-> > that timeframe, but if this rings a bell for anyone, it would help. I
-> > hate blaming random patches, but these caught my eye:
-> > 
-> > 9c0415e mm: more aggressive page stealing for UNMOVABLE allocations
-> > 3a1086f mm: always steal split buddies in fallback allocations
-> > 99592d5 mm: when stealing freepages, also take pages created by splitting buddy page
-> 
-> Check also the changelogs for mentions of earlier commits, e.g. 99592d5
-> should be restoring behavior that changed in 3.12-3.13 and you are
-> upgrading from 3.10.
+    add_wait_queue(..);
+    SetPageContended(page);
 
-Good point.
+is not racy (the add_wait_queue() will now already guarantee that
+nobody else clears the bit).
 
-> > The changelog states that by aggressively stealing split buddy pages
-> > during a fallback allocation we avoid subsequent stealing. But since
-> > there are generally more movable/reclaimable pages available, and so
-> > less falling back and stealing freepages on behalf of movable, won't
-> > this mean that we could expect exactly that result - growing numbers
-> > of unmovable blocks, while rarely stealing them back in movable alloc
-> > fallbacks? And the expansion of !MOVABLE blocks would over time make
-> > compaction less and less effective too, seeing as it doesn't consider
-> > anything !MOVABLE suitable migration targets?
-> 
-> Yeah this is an issue with compaction that was brought up recently and I
-> want to tackle next.
+Hmm?
 
-Agreed, it would be nice if compaction could reclaim unmovable and
-reclaimable blocks whose polluting allocations have since been freed.
-
-But there is a limit to how lazy mobility grouping can be and still
-expect compaction to fix it up. If 50% of the page blocks are marked
-unmovable, we don't pack incoming polluting allocations. When spread
-out the right way, even just a few of those can have a devastating
-impact on overall compactability.
-
-So regardless of future compaction improvements, we need to get
-anti-frag accuracy in the allocator closer to 3.10 levels again.
-
-> > Attached are the full /proc/pagetypeinfo and /proc/buddyinfo from both
-> > kernels on machines with similar uptimes and directly after invoking
-> > compaction. As you can see, the buddy lists are much more fragmented
-> > on 4.0, with unmovable/reclaimable allocations polluting more blocks.
-> > 
-> > Any thoughts on this would be greatly appreciated. I can test patches.
-> 
-> I guess testing revert of 9c0415e could give us some idea. Commit
-> 3a1086f shouldn't result in pageblock marking differences and as I said
-> above, 99592d5 should be just restoring to what 3.10 did.
-
-I can give this a shot, but note that this commit makes only unmovable
-stealing more aggressive. We see reclaimable blocks up as well.
-
-The workload is fairly variable, so it'll take about a day to smooth
-out a meaningful average.
-
-Thanks for your insights, Vlastimil!
+                  Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
