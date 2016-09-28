@@ -1,69 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D6A556B0280
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 12:10:58 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id i129so4452423ywe.2
-        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 09:10:58 -0700 (PDT)
-Received: from mail-oi0-x235.google.com (mail-oi0-x235.google.com. [2607:f8b0:4003:c06::235])
-        by mx.google.com with ESMTPS id g68si2195616otb.98.2016.09.28.09.10.30
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 834E328025A
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 12:33:25 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id n4so42786671lfb.3
+        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 09:33:25 -0700 (PDT)
+Received: from smtp-out4.electric.net (smtp-out4.electric.net. [192.162.216.194])
+        by mx.google.com with ESMTPS id j90si4181506lfi.303.2016.09.28.09.33.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Sep 2016 09:10:31 -0700 (PDT)
-Received: by mail-oi0-x235.google.com with SMTP id t83so59276120oie.3
-        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 09:10:30 -0700 (PDT)
+        Wed, 28 Sep 2016 09:33:24 -0700 (PDT)
+From: David Laight <David.Laight@ACULAB.COM>
+Subject: RE: [PATCH] fs/select: add vmalloc fallback for select(2)
+Date: Wed, 28 Sep 2016 16:30:16 +0000
+Message-ID: <063D6719AE5E284EB5DD2968C1650D6DB010AAC6@AcuExch.aculab.com>
+References: <20160922152831.24165-1-vbabka@suse.cz>
+ <006101d21565$b60a8a70$221f9f50$@alibaba-inc.com>
+ <20160923172434.7ad8f2e0@roar.ozlabs.ibm.com> <57E55CBB.5060309@akamai.com>
+ <5014387d-43da-03f6-a74b-2dc4fbf4fe32@suse.cz>
+ <20160927212458.3ab42b41@roar.ozlabs.ibm.com>
+ <063D6719AE5E284EB5DD2968C1650D6DB010A97D@AcuExch.aculab.com>
+ <20160927214229.2b0b49ac@roar.ozlabs.ibm.com>
+ <92d1ec2c-3246-bd1f-eae5-53ca425ab315@suse.cz>
+In-Reply-To: <92d1ec2c-3246-bd1f-eae5-53ca425ab315@suse.cz>
+Content-Language: en-US
+Content-Type: text/plain; charset="Windows-1252"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20160928111115.GS5016@twins.programming.kicks-ass.net>
-References: <CA+55aFwVSXZPONk2OEyxcP-aAQU7-aJsF3OFXVi8Z5vA11v_-Q@mail.gmail.com>
- <20160927083104.GC2838@techsingularity.net> <20160927143426.GP2794@worktop>
- <20160928104500.GC3903@techsingularity.net> <20160928111115.GS5016@twins.programming.kicks-ass.net>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 28 Sep 2016 09:10:29 -0700
-Message-ID: <CA+55aFxTPk-3zXEAWfXN2Hfm5Qw__B_2BJw7vNN_hFY+NTctgw@mail.gmail.com>
-Subject: Re: page_waitqueue() considered harmful
-Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>
+To: 'Vlastimil Babka' <vbabka@suse.cz>, Nicholas Piggin <npiggin@gmail.com>
+Cc: Jason Baron <jbaron@akamai.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, 'Alexander Viro' <viro@zeniv.linux.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, 'Michal Hocko' <mhocko@kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>
 
-On Wed, Sep 28, 2016 at 4:11 AM, Peter Zijlstra <peterz@infradead.org> wrote:
-> -void unlock_page(struct page *page)
-> +void __unlock_page(struct page *page)
->  {
-> +       struct wait_bit_key key = __WAIT_BIT_KEY_INITIALIZER(&page->flags, PG_locked);
-> +       wait_queue_head_t *wq = page_waitqueue(page);
-> +
-> +       if (waitqueue_active(wq))
-> +               __wake_up(wq, TASK_NORMAL, 1, &key);
-> +       else
-> +               ClearPageContended(page);
->  }
-> +EXPORT_SYMBOL(__unlock_page);
+From: Vlastimil Babka
+> Sent: 27 September 2016 12:51
+...
+> Process name suggests it's part of db2 database. It seems it has to imple=
+ment
+> its own interface to select() syscall, because glibc itself seems to have=
+ a
+> FD_SETSIZE limit of 1024, which is probably why this wasn't an issue for =
+all the
+> years...
 
-I think the above needs to be protected. Something like
+ISTR the canonical way to increase the size being to set FD_SETSIZE
+to a larger value before including any of the headers.
 
-    spin_lock_irqsave(&q->lock, flags);
-    if (waitqueue_active(wq))
-          __wake_up_locked(wq, TASK_NORMAL, 1, &key);
-    else
-          ClearPageContended(page);
-    spin_unlock_irqrestore(&q->lock, flags);
+Or doesn't that work with linux and glibc ??
 
-because otherwise a new waiter could come in and add itself to the
-wait-queue, and then set the bit, and now we clear it (because we
-didn't see the new waiter).
-
-The *waiter* doesn't need any extra locking, because doing
-
-    add_wait_queue(..);
-    SetPageContended(page);
-
-is not racy (the add_wait_queue() will now already guarantee that
-nobody else clears the bit).
-
-Hmm?
-
-                  Linus
+	David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
