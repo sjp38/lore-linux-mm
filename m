@@ -1,55 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E0C7C6B0279
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 16:05:24 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id l138so51927063wmg.3
-        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 13:05:24 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u1si10345785wjx.280.2016.09.28.13.05.23
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E372828024F
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 18:10:37 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id l187so1917030oia.2
+        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 15:10:37 -0700 (PDT)
+Received: from mail5.wrs.com (mail5.windriver.com. [192.103.53.11])
+        by mx.google.com with ESMTPS id v134si7734347oia.269.2016.09.28.15.10.19
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 28 Sep 2016 13:05:23 -0700 (PDT)
-Subject: Re: [PATCH] fs/select: add vmalloc fallback for select(2)
-References: <20160922152831.24165-1-vbabka@suse.cz>
- <006101d21565$b60a8a70$221f9f50$@alibaba-inc.com>
- <20160923172434.7ad8f2e0@roar.ozlabs.ibm.com> <57E55CBB.5060309@akamai.com>
- <5014387d-43da-03f6-a74b-2dc4fbf4fe32@suse.cz>
- <20160927212458.3ab42b41@roar.ozlabs.ibm.com>
- <063D6719AE5E284EB5DD2968C1650D6DB010A97D@AcuExch.aculab.com>
- <20160927214229.2b0b49ac@roar.ozlabs.ibm.com>
- <92d1ec2c-3246-bd1f-eae5-53ca425ab315@suse.cz>
- <063D6719AE5E284EB5DD2968C1650D6DB010AAC6@AcuExch.aculab.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <32941b8b-ec1a-fc5c-90aa-e2372680f1b3@suse.cz>
-Date: Wed, 28 Sep 2016 22:04:50 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 28 Sep 2016 15:10:19 -0700 (PDT)
+Message-ID: <57EC3FC7.8010000@windriver.com>
+Date: Wed, 28 Sep 2016 16:10:15 -0600
+From: Chris Friesen <chris.friesen@windriver.com>
 MIME-Version: 1.0
-In-Reply-To: <063D6719AE5E284EB5DD2968C1650D6DB010AAC6@AcuExch.aculab.com>
-Content-Type: text/plain; charset=windows-1252
+Subject: Re: Oops in slab.c in CentOS kernel, looking for ideas -- correction,
+ it's in slub.c
+References: <57EA9A78.8080509@windriver.com> <57EABB64.7070607@windriver.com> <20160928051445.GA22706@js1304-P5Q-DELUXE>
+In-Reply-To: <20160928051445.GA22706@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset="utf-8"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Laight <David.Laight@ACULAB.COM>, Nicholas Piggin <npiggin@gmail.com>
-Cc: Jason Baron <jbaron@akamai.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, 'Alexander Viro' <viro@zeniv.linux.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, 'Michal Hocko' <mhocko@kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: linux-mm@kvack.org
 
-On 09/28/2016 06:30 PM, David Laight wrote:
-> From: Vlastimil Babka
->> Sent: 27 September 2016 12:51
-> ...
->> Process name suggests it's part of db2 database. It seems it has to implement
->> its own interface to select() syscall, because glibc itself seems to have a
->> FD_SETSIZE limit of 1024, which is probably why this wasn't an issue for all the
->> years...
-> 
-> ISTR the canonical way to increase the size being to set FD_SETSIZE
-> to a larger value before including any of the headers.
-> 
-> Or doesn't that work with linux and glibc ??
+On 09/27/2016 11:14 PM, Joonsoo Kim wrote:
+> On Tue, Sep 27, 2016 at 12:33:08PM -0600, Chris Friesen wrote:
+>> On 09/27/2016 10:12 AM, Chris Friesen wrote:
 
-Doesn't seem so.
+>>> Basically it appears that __mpol_dup() is failing because the value of
+>>> c->freelist in slab_alloc_node() is corrupt, causing the call to
+>>> get_freepointer_safe(s, object) to Oops because it tries to dereference
+>>> "object + s->offset".  (Where s->offset is zero.)
+>>>
+>>> In the trace, "kmem_cache_alloc+0x87" maps to the following assembly:
+>>>     0xffffffff8118be17 <+135>:   mov    (%r12,%rax,1),%rbx
+>>>
+>>> This corresponds to this line in get_freepointer():
+>>> 	return *(void **)(object + s->offset);
+>>>
+>>> In the assembly code, R12 is "object", and RAX is s->offset.
+>>>
+>>> So the question becomes, why is "object" (which corresponds to c->freelist)
+>>> corrupt?
+>>>
+>>> Looking at the value of R12 (0x1ada8000), it's nonzero but also not a
+>>> valid pointer. Does the value mean anything to you?  (I'm not really
+>>> a memory subsystem guy, so I'm hoping you might have some ideas.)
+>>>
+>>> Do you have any suggestions on how to track down what's going on here?
+>
+> Please run with kernel parameter "slub_debug=F" or something.
+> See Documentation/vm/slub.txt.
 
-> 
-> 	David
-> 
+I enabled /sys/kernel/slab/numa_policy/sanity_checks, but that's only going to 
+maybe help if I can cause another CPU to get into the bad state.
+
+I created a kernel module to walk the list of objects starting at 
+__this_cpu_ptr(policy_cache->cpu_slab)->freelist.
+
+All other cpus had a freelist value of NULL, or else they pointed at a linked 
+list which eventually ended with a NULL pointer.  ("s->offset" is 0, so 
+get_freepointer() just dereferences "object")  For example:
+
+cpu: 45, object: ffff88046d483cd8->ffff88046d483de0->ffff88046d483ee8->NULL
+cpu: 46, object: NULL
+
+In the case of CPU 48, the value of 
+__this_cpu_ptr(policy_cache->cpu_slab)->freelist was good, but dereferencing it 
+gave an invalid address:
+
+cpu: 48, object: ffff8804102f0528->000000001ada8000
+
+
+In the code path that causes problems we call mpol_new(), which calls 
+kmem_cache_alloc(policy_cache, GFP_KERNEL) and consumes the object at 
+0xffff8804102f0528.  This results in 
+__this_cpu_ptr(policy_cache->cpu_slab)->freelist being set to 
+0x000000001ada8000.   Then we fork, which calls __mpol_dup() which calls 
+kmem_cache_alloc(policy_cache, GFP_KERNEL) with 'object' set to 
+0x000000001ada8000, which segfaults when we try to dereference it in 
+get_freepointer().
+
+So how do items get added to the freelist?  Do they always get added at the 
+head, or is there a path where they could get added at the tail?
+
+Chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
