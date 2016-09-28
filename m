@@ -1,67 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 77EF86B02BE
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 09:49:20 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id t83so135932004oie.0
-        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 06:49:20 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id e1si6420848oih.57.2016.09.28.06.48.55
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 28 Sep 2016 06:48:56 -0700 (PDT)
-From: zhongjiang <zhongjiang@huawei.com>
-Subject: [PATCH v2] mm,ksm: add __GFP_HIGH to the allocation in alloc_stable_node()
-Date: Wed, 28 Sep 2016 21:46:02 +0800
-Message-ID: <1475070362-44469-1-git-send-email-zhongjiang@huawei.com>
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 511506B0263
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 11:22:53 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id 20so125261673ioj.0
+        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 08:22:53 -0700 (PDT)
+Received: from cmta16.telus.net (cmta16.telus.net. [209.171.16.89])
+        by mx.google.com with ESMTP id w202si10754253itb.36.2016.09.28.08.22.28
+        for <linux-mm@kvack.org>;
+        Wed, 28 Sep 2016 08:22:28 -0700 (PDT)
+From: "Doug Smythies" <dsmythies@telus.net>
+References: <bug-172981-27@https.bugzilla.kernel.org/> <20160927111059.282a35c89266202d3cb2f953@linux-foundation.org> <002a01d21936$5ca792a0$15f6b7e0$@net> <20160928051841.GB22706@js1304-P5Q-DELUXE> p862bY4Wd9akxp868bmekv
+In-Reply-To: p862bY4Wd9akxp868bmekv
+Subject: RE: [Bug 172981] New: [bisected] SLAB: extreme load averages and over 2000 kworker threads
+Date: Wed, 28 Sep 2016 08:22:24 -0700
+Message-ID: <000601d2199c$1f01cd10$5d056730$@net>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: en-ca
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: hughd@google.com, mhocko@suse.cz, linux-mm@kvack.org
+To: 'Joonsoo Kim' <iamjoonsoo.kim@lge.com>
+Cc: 'Johannes Weiner' <hannes@cmpxchg.org>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Vladimir Davydov' <vdavydov.dev@gmail.com>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
 
-From: zhong jiang <zhongjiang@huawei.com>
+On 2016.09.27 23:20 Joonsoo Kim wrote:
+> On Wed, Sep 28, 2016 at 02:18:42PM +0900, Joonsoo Kim wrote:
+>> On Tue, Sep 27, 2016 at 08:13:58PM -0700, Doug Smythies wrote:
+>>> By the way, I can eliminate the problem by doing this:
+>>> (see also: https://bugzilla.kernel.org/show_bug.cgi?id=172991)
+>> 
+>> I think that Johannes found the root cause of the problem and they
+>> (Johannes and Vladimir) will solve the root cause.
+>> 
+>> However, there is something useful to do in SLAB side.
+>> Could you test following patch, please?
+>> 
+>> Thanks.
+>> 
+>> ---------->8--------------
+>> diff --git a/mm/slab.c b/mm/slab.c
+>> index 0eb6691..39e3bf2 100644
+>> --- a/mm/slab.c
+>> +++ b/mm/slab.c
+>> @@ -965,7 +965,7 @@ static int setup_kmem_cache_node(struct kmem_cache *cachep,
+>>          * guaranteed to be valid until irq is re-enabled, because it will be
+>>          * freed after synchronize_sched().
+>>          */
+>> -       if (force_change)
+>> +       if (n->shared && force_change)
+>>                 synchronize_sched();
+>
+> Oops...
+>
+> s/n->shared/old_shared/
 
-According to HUgh's suggestion, alloc_stable_node() with GFP_KERNEL
-will cause the hungtask, despite less possiblity.
+Yes, that seems to work fine. After boot everything is good.
+Then I tried and tried to get it to mess up, but could not.
 
-At present, if alloc_stable_node allocate fails, two break_cow may
-want to allocate a couple of pages, and the issue will come up when
-free memory is under pressure.
-
-we fix it by adding the __GFP_HIGH to GFP. because it grant access to
-some of meory reserves. it will make progress to make it allocation
-successful at the utmost.
-
-Acked-by: Hugh Dickins <hughd@google.com>
-Suggested-by: Hugh Dickins <hughd@google.com>
-Signed-off-by: zhong jiang <zhongjiang@huawei.com>
----
- mm/ksm.c | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
-
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 5048083..5e98c0b 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -299,7 +299,14 @@ static inline void free_rmap_item(struct rmap_item *rmap_item)
- 
- static inline struct stable_node *alloc_stable_node(void)
- {
--	return kmem_cache_alloc(stable_node_cache, GFP_KERNEL);
-+	/*
-+	 * The caller can take too long time with GFP_KERNEL when memory
-+	 * is under pressure, it may be lead to the hung task. Therefore,
-+	 * Adding the __GFP_HIGH to this. it grant access to some of
-+	 * memory reserves. and it will make progress to make it allocation
-+	 * successful at the utmost.
-+	 */
-+	return kmem_cache_alloc(stable_node_cache, GFP_KERNEL | __GFP_HIGH);
- }
- 
- static inline void free_stable_node(struct stable_node *stable_node)
--- 
-1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
