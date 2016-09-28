@@ -1,66 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 300396B026F
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 03:06:16 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id j28so93978738iod.2
-        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 00:06:16 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id w184si8475527iod.17.2016.09.28.00.05.53
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 67B7628025C
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 03:15:06 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id b130so30686584wmc.2
+        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 00:15:06 -0700 (PDT)
+Received: from mail-wm0-f45.google.com (mail-wm0-f45.google.com. [74.125.82.45])
+        by mx.google.com with ESMTPS id s1si7040127wjm.218.2016.09.28.00.15.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Sep 2016 00:05:53 -0700 (PDT)
-Date: Wed, 28 Sep 2016 09:05:46 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: page_waitqueue() considered harmful
-Message-ID: <20160928070546.GT2794@worktop>
-References: <CA+55aFwVSXZPONk2OEyxcP-aAQU7-aJsF3OFXVi8Z5vA11v_-Q@mail.gmail.com>
- <20160927083104.GC2838@techsingularity.net>
- <20160928005318.2f474a70@roar.ozlabs.ibm.com>
- <20160927165221.GP5016@twins.programming.kicks-ass.net>
- <20160928030621.579ece3a@roar.ozlabs.ibm.com>
+        Wed, 28 Sep 2016 00:15:04 -0700 (PDT)
+Received: by mail-wm0-f45.google.com with SMTP id l132so218345043wmf.0
+        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 00:15:04 -0700 (PDT)
+Subject: Re: Soft lockup in __slab_free (SLUB)
+References: <57E8D270.8040802@kyup.com>
+ <20160928053114.GC22706@js1304-P5Q-DELUXE>
+From: Nikolay Borisov <kernel@kyup.com>
+Message-ID: <57EB6DF5.2010503@kyup.com>
+Date: Wed, 28 Sep 2016 10:15:01 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160928030621.579ece3a@roar.ozlabs.ibm.com>
+In-Reply-To: <20160928053114.GC22706@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Will Deacon <will.deacon@arm.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Alan Stern <stern@rowland.harvard.edu>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Christoph Lameter <cl@linux.com>, Linux MM <linux-mm@kvack.org>, brouer@redhat.com, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-On Wed, Sep 28, 2016 at 03:06:21AM +1000, Nicholas Piggin wrote:
-> On Tue, 27 Sep 2016 18:52:21 +0200
-> Peter Zijlstra <peterz@infradead.org> wrote:
+
+
+On 09/28/2016 08:31 AM, Joonsoo Kim wrote:
+> Hello,
 > 
-> > On Wed, Sep 28, 2016 at 12:53:18AM +1000, Nicholas Piggin wrote:
-> > > The more interesting is the ability to avoid the barrier between fastpath
-> > > clearing a bit and testing for waiters.
-> > > 
-> > > unlock():                        lock() (slowpath):
-> > > clear_bit(PG_locked)             set_bit(PG_waiter)
-> > > test_bit(PG_waiter)              test_bit(PG_locked)
-> > > 
-> > > If this was memory ops to different words, it would require smp_mb each
-> > > side.. Being the same word, can we avoid them?   
-> > 
-> > Ah, that is the reason I put that smp_mb__after_atomic() there. You have
-> > a cute point on them being to the same word though. Need to think about
-> > that.
+> Ccing Paul, because it looks like RCU problem.
 > 
-> This is all assuming the store accesses are ordered, which you should get
-> if the stores to the different bits operate on the same address and size.
-> That might not be the case for some architectures, but they might not
-> require barriers for other reasons. That would call for an smp_mb variant
-> that is used for bitops on different bits but same aligned long. 
+> On Mon, Sep 26, 2016 at 10:46:56AM +0300, Nikolay Borisov wrote:
+>> Hello, 
+>>
+>> On 4.4.14 stable kernel I observed the following soft-lockup, however I
+>> also checked that the code is the same in 4.8-rc so the problem is 
+>> present there as well: 
+>>
+>> [434575.862377] NMI watchdog: BUG: soft lockup - CPU#13 stuck for 23s! [swapper/13:0]
+>> [434575.866352] CPU: 13 PID: 0 Comm: swapper/13 Tainted: P           O    4.4.14-clouder5 #2
+>> [434575.866643] Hardware name: Supermicro X9DRD-iF/LF/X9DRD-iF, BIOS 3.0b 12/05/2013
+>> [434575.866932] task: ffff8803714aadc0 ti: ffff8803714c4000 task.ti: ffff8803714c4000
+>> [434575.867221] RIP: 0010:[<ffffffff81613f4c>]  [<ffffffff81613f4c>] _raw_spin_unlock_irqrestore+0x1c/0x30
+>> [434575.867566] RSP: 0018:ffff880373ce3dc0  EFLAGS: 00000203
+>> [434575.867736] RAX: ffff88066e0c9a40 RBX: 0000000000000203 RCX: 0000000000000000
+>> [434575.868023] RDX: 0000000000000008 RSI: 0000000000000203 RDI: ffff88066e0c9a40
+>> [434575.868311] RBP: ffff880373ce3dc8 R08: ffff8803e5c1d118 R09: ffff8803e5c1d538
+>> [434575.868609] R10: 0000000000000000 R11: ffffea000f970600 R12: ffff88066e0c9a40
+>> [434575.868895] R13: ffffea000f970600 R14: 000000000046cf3b R15: ffff88036f8e3200
+>> [434575.869183] FS:  0000000000000000(0000) GS:ffff880373ce0000(0000) knlGS:0000000000000000
+>> [434575.869472] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+>> [434575.869643] CR2: ffffffffff600400 CR3: 0000000367201000 CR4: 00000000001406e0
+>> [434575.869931] Stack:
+>> [434575.870095]  ffff88066e0c9a40 ffff880373ce3e78 ffffffff8117ea8a ffff880373ce3e08
+>> [434575.870567]  000000000046bd03 0000000100170017 ffff8803e5c1d118 ffff8803e5c1d118
+>> [434575.871037]  00ff000100000000 0000000000000203 0000000000000000 ffffffff8123d9ac
+>> [434575.874253] Call Trace:
+>> [434575.874418]  <IRQ> 
+>> [434575.874473]  [<ffffffff8117ea8a>] __slab_free+0xca/0x290
+>> [434575.874806]  [<ffffffff8123d9ac>] ? ext4_i_callback+0x1c/0x20
+>> [434575.874978]  [<ffffffff8117ee3a>] kmem_cache_free+0x1ea/0x200
+>> [434575.875149]  [<ffffffff8123d9ac>] ext4_i_callback+0x1c/0x20
+>> [434575.875325]  [<ffffffff810ad09b>] rcu_process_callbacks+0x21b/0x620
+>> [434575.875506]  [<ffffffff81057337>] __do_softirq+0x147/0x310
+>> [434575.875680]  [<ffffffff8105764f>] irq_exit+0x5f/0x70
+>> [434575.875851]  [<ffffffff81616a82>] smp_apic_timer_interrupt+0x42/0x50
+>> [434575.876025]  [<ffffffff816151e9>] apic_timer_interrupt+0x89/0x90
+>> [434575.876197]  <EOI> 
+>> [434575.876250]  [<ffffffff81510601>] ? cpuidle_enter_state+0x141/0x2c0
+>> [434575.876583]  [<ffffffff815105f6>] ? cpuidle_enter_state+0x136/0x2c0
+>> [434575.876755]  [<ffffffff815107b7>] cpuidle_enter+0x17/0x20
+>> [434575.876929]  [<ffffffff810949fc>] cpu_startup_entry+0x2fc/0x360
+>> [434575.877105]  [<ffffffff810330e3>] start_secondary+0xf3/0x100
+>>
+>> The ip in __slab_free points to this piece of code (in mm/slub.c): 
+>>
+>> if (unlikely(n)) {
+>> 	spin_unlock_irqrestore(&n->list_lock, flags);
+>>         n = NULL;
+>> }
+>>
+>> I think it's a pure chance that the spin_unlock_restore is being shown in this trace, 
+>> do you think that a cond_resched is needed in this unlikely if clause? Apparently there 
+>> are cases where this loop can take a considerable amount of time.
+> 
+> I think that __slab_free() doesn't take too long time even if there is
+> lock contention. And, cond_resched() is valid on softirq context?
 
-Since the {set,clear}_bit operations are atomic, they must be ordered
-against one another. The subsequent test_bit is a load, which, since its
-to the same variable, and a CPU must appear to preserve Program-Order,
-must come after the RmW.
+Now that I think of it - it's not valid since it might sleep and softirq
+is atomic context. So my suggestion is actually invalid, too bad.
 
-So I think you're right and that we can forgo the memory barriers here.
-I even think this must be true on all architectures.
+> 
+> I think that problem would be caused by too many rcu callback is
+> executed without scheduling. Paul?
 
-Paul and Alan have a validation tool someplace, put them on Cc.
+I don't think it's an RCU problem per-se since ext4_i_callback is being
+called from RCU due to the way inodes are being freed.
+
+On a slightly different note - on a different physical server, running
+zfsonlinux I experienced a very similar issue but without being in an
+RCU context, here what the stacktrace looked there:
+
+ Call Trace:
+  [<ffffffff8117ea8a>] __slab_free+0xca/0x290
+  [<ffffffff8117ee3a>] ? kmem_cache_free+0x1ea/0x200
+  [<ffffffff8117ee3a>] kmem_cache_free+0x1ea/0x200
+  [<ffffffffa0245c97>] spl_kmem_cache_free+0x147/0x1d0 [spl]
+  [<ffffffffa02cbecc>] dnode_destroy+0x1dc/0x230 [zfs]
+  [<ffffffffa02cbf64>] dnode_buf_pageout+0x44/0xc0 [zfs]
+  [<ffffffffa0248301>] taskq_thread+0x291/0x4e0 [spl]
+  [<ffffffff8107ccd0>] ? wake_up_q+0x70/0x70
+  [<ffffffffa0248070>] ? taskq_thread_spawn+0x50/0x50 [spl]
+  [<ffffffff810715bf>] kthread+0xef/0x110
+  [<ffffffff810714d0>] ? kthread_park+0x60/0x60
+  [<ffffffff8161483f>] ret_from_fork+0x3f/0x70
+  [<ffffffff810714d0>] ? kthread_park+0x60/0x60
+
+It's hard to believe this is a coincidence. I've inspected the callpaths
+in the taskq_thread/dnode_buf_pageout/dnode_destroy and there doesn't
+seem to be a loop apart from the one in __slab_free.
+
+[SNIP]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
