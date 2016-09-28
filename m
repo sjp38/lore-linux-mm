@@ -1,42 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CE8346B027F
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 09:13:16 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id l132so39427677wmf.0
-        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 06:13:16 -0700 (PDT)
-Received: from albireo.enyo.de (albireo.enyo.de. [5.158.152.32])
-        by mx.google.com with ESMTPS id w7si8500941wjg.48.2016.09.28.06.13.12
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 77EF86B02BE
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 09:49:20 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id t83so135932004oie.0
+        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 06:49:20 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id e1si6420848oih.57.2016.09.28.06.48.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Sep 2016 06:13:12 -0700 (PDT)
-From: Florian Weimer <fw@deneb.enyo.de>
-Subject: Re: [PATCH v5] powerpc: Do not make the entire heap executable
-References: <20160822185105.29600-1-dvlasenk@redhat.com>
-	<87d1jo7qbw.fsf@concordia.ellerman.id.au>
-	<20160928025544.GA24199@obsidianresearch.com>
-Date: Wed, 28 Sep 2016 15:12:57 +0200
-In-Reply-To: <20160928025544.GA24199@obsidianresearch.com> (Jason Gunthorpe's
-	message of "Tue, 27 Sep 2016 20:55:44 -0600")
-Message-ID: <87k2dwgobq.fsf@mid.deneb.enyo.de>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 28 Sep 2016 06:48:56 -0700 (PDT)
+From: zhongjiang <zhongjiang@huawei.com>
+Subject: [PATCH v2] mm,ksm: add __GFP_HIGH to the allocation in alloc_stable_node()
+Date: Wed, 28 Sep 2016 21:46:02 +0800
+Message-ID: <1475070362-44469-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, Florian Weimer <fweimer@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Kees Cook <keescook@chromium.org>, Oleg Nesterov <oleg@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Paul Mackerras <paulus@samba.org>, Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: akpm@linux-foundation.org
+Cc: hughd@google.com, mhocko@suse.cz, linux-mm@kvack.org
 
-* Jason Gunthorpe:
+From: zhong jiang <zhongjiang@huawei.com>
 
-> Eg that 32 bit powerpc currently unconditionally injects writable,
-> executable pages into a user space process.
->
-> This critically undermines all the W^X security work that has been
-> done in the tool chain and user space by the PPC community.
+According to HUgh's suggestion, alloc_stable_node() with GFP_KERNEL
+will cause the hungtask, despite less possiblity.
 
-Exactly, this is how we found it.  I have pretty extensive execmod
-tests, and I'm going to put them into glibc eventually.  It would be
-nice to cut down the number of architectures where it will fail.
-(Even if you don't believe in security hardening.)
+At present, if alloc_stable_node allocate fails, two break_cow may
+want to allocate a couple of pages, and the issue will come up when
+free memory is under pressure.
+
+we fix it by adding the __GFP_HIGH to GFP. because it grant access to
+some of meory reserves. it will make progress to make it allocation
+successful at the utmost.
+
+Acked-by: Hugh Dickins <hughd@google.com>
+Suggested-by: Hugh Dickins <hughd@google.com>
+Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+---
+ mm/ksm.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 5048083..5e98c0b 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -299,7 +299,14 @@ static inline void free_rmap_item(struct rmap_item *rmap_item)
+ 
+ static inline struct stable_node *alloc_stable_node(void)
+ {
+-	return kmem_cache_alloc(stable_node_cache, GFP_KERNEL);
++	/*
++	 * The caller can take too long time with GFP_KERNEL when memory
++	 * is under pressure, it may be lead to the hung task. Therefore,
++	 * Adding the __GFP_HIGH to this. it grant access to some of
++	 * memory reserves. and it will make progress to make it allocation
++	 * successful at the utmost.
++	 */
++	return kmem_cache_alloc(stable_node_cache, GFP_KERNEL | __GFP_HIGH);
+ }
+ 
+ static inline void free_stable_node(struct stable_node *stable_node)
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
