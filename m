@@ -1,125 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 38E9B6B0297
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 05:35:40 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id 21so81664117pfy.3
-        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 02:35:40 -0700 (PDT)
-Received: from SHSQR01.spreadtrum.com ([222.66.158.135])
-        by mx.google.com with ESMTPS id a69si7689608pfc.119.2016.09.28.02.35.38
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 62AF528024E
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 06:26:17 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id l138so36176847wmg.3
+        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 03:26:17 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s8si7767177wjx.171.2016.09.28.03.26.15
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 28 Sep 2016 02:35:39 -0700 (PDT)
-From: "ming.ling" <ming.ling@spreadtrum.com>
-Subject: [PATCH] mm: exclude isolated non-lru pages from NR_ISOLATED_ANON or NR_ISOLATED_FILE.
-Date: Wed, 28 Sep 2016 17:31:03 +0800
-Message-ID: <1475055063-1588-1-git-send-email-ming.ling@spreadtrum.com>
+        Wed, 28 Sep 2016 03:26:15 -0700 (PDT)
+Date: Wed, 28 Sep 2016 11:26:09 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: Regression in mobility grouping?
+Message-ID: <20160928102609.GA3840@suse.de>
+References: <20160928014148.GA21007@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20160928014148.GA21007@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mgorman@techsingularity.net, vbabka@suse.cz, hannes@cmpxchg.org, mhocko@suse.com, baiyaowei@cmss.chinamobile.com, iamjoonsoo.kim@lge.com, minchan@kernel.org, rientjes@google.com, hughd@google.com, kirill.shutemov@linux.intel.com
-Cc: riel@redhat.com, mgorman@suse.de, aquini@redhat.com, corbet@lwn.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "ming.ling" <ming.ling@spreadtrum.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-Non-lru pages don't belong to any lru, so accounting them to
-NR_ISOLATED_ANON or NR_ISOLATED_FILE doesn't make any sense.
-It may misguide functions such as pgdat_reclaimable_pages and
-too_many_isolated.
+On Tue, Sep 27, 2016 at 09:41:48PM -0400, Johannes Weiner wrote:
+> Hi guys,
+> 
+> we noticed what looks like a regression in page mobility grouping
+> during an upgrade from 3.10 to 4.0. Identical machines, workloads, and
+> uptime, but /proc/pagetypeinfo on 3.10 looks like this:
+> 
+> Number of blocks type     Unmovable  Reclaimable      Movable      Reserve      Isolate 
+> Node 1, zone   Normal          815          433        31518            2            0 
+> 
+> and on 4.0 like this:
+> 
+> Number of blocks type     Unmovable  Reclaimable      Movable      Reserve          CMA      Isolate 
+> Node 1, zone   Normal         3880         3530        25356            2            0            0 
+> 
 
-This patch adds NR_ISOLATED_NONLRU to vmstat and moves isolated non-lru
-pages from NR_ISOLATED_ANON or NR_ISOLATED_FILE to NR_ISOLATED_NONLRU.
-And with non-lru pages in vmstat, it helps to optimize algorithm of
-function too_many_isolated oneday.
+Unmovable pageblocks is not necessarily related to the number of
+unmovable pages in the system although it is obviously a concern.
+Basically there are two usual approaches to investigating this -- close
+attention to the extfrag tracepoint and analysing high-order allocation
+failures.
 
-Signed-off-by: ming.ling <ming.ling@spreadtrum.com>
----
- include/linux/mmzone.h |  1 +
- mm/compaction.c        | 12 +++++++++---
- mm/migrate.c           | 14 ++++++++++----
- 3 files changed, 20 insertions(+), 7 deletions(-)
+It's drastic, but when migration grouping was first implemented it was
+necessary to use a variation of PAGE_OWNER to walk the movable pageblocks
+identifying unmovable allocations in there. I also used to have a
+debugging patch that would print out the owner of all pages that failed
+to migrate within an unmovable block. Unfortunately I don't have these
+patches any more and they wouldn't apply anyway but it'd be easier to
+implement today than it was 7-8 years ago.
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 7f2ae99..dc0adba 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -169,6 +169,7 @@ enum node_stat_item {
- 	NR_VMSCAN_IMMEDIATE,	/* Prioritise for reclaim when writeback ends */
- 	NR_DIRTIED,		/* page dirtyings since bootup */
- 	NR_WRITTEN,		/* page writings since bootup */
-+	NR_ISOLATED_NONLRU,	/* Temporary isolated pages from non-lru */
- 	NR_VM_NODE_STAT_ITEMS
- };
- 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 9affb29..8da1dca 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -638,16 +638,21 @@ isolate_freepages_range(struct compact_control *cc,
- static void acct_isolated(struct zone *zone, struct compact_control *cc)
- {
- 	struct page *page;
--	unsigned int count[2] = { 0, };
-+	unsigned int count[3] = { 0, };
- 
- 	if (list_empty(&cc->migratepages))
- 		return;
- 
--	list_for_each_entry(page, &cc->migratepages, lru)
--		count[!!page_is_file_cache(page)]++;
-+	list_for_each_entry(page, &cc->migratepages, lru) {
-+		if (PageLRU(page))
-+			count[!!page_is_file_cache(page)]++;
-+		else
-+			count[2]++;
-+	}
- 
- 	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_ANON, count[0]);
- 	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE, count[1]);
-+	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_NONLRU, count[2]);
- }
- 
- /* Similar to reclaim, but different enough that they don't share logic */
-@@ -659,6 +664,7 @@ static bool too_many_isolated(struct zone *zone)
- 			node_page_state(zone->zone_pgdat, NR_INACTIVE_ANON);
- 	active = node_page_state(zone->zone_pgdat, NR_ACTIVE_FILE) +
- 			node_page_state(zone->zone_pgdat, NR_ACTIVE_ANON);
-+	/* Is it necessary to add NR_ISOLATED_NONLRU?? */
- 	isolated = node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE) +
- 			node_page_state(zone->zone_pgdat, NR_ISOLATED_ANON);
- 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index f7ee04a..cd5abb2 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -168,8 +168,11 @@ void putback_movable_pages(struct list_head *l)
- 			continue;
- 		}
- 		list_del(&page->lru);
--		dec_node_page_state(page, NR_ISOLATED_ANON +
--				page_is_file_cache(page));
-+		if (PageLRU(page))
-+			dec_node_page_state(page, NR_ISOLATED_ANON +
-+					page_is_file_cache(page));
-+		else
-+			dec_node_page_state(page, NR_ISOLATED_NONLRU);
- 		/*
- 		 * We isolated non-lru movable page so here we can use
- 		 * __PageMovable because LRU page's mapping cannot have
-@@ -1121,8 +1124,11 @@ out:
- 		 * restored.
- 		 */
- 		list_del(&page->lru);
--		dec_node_page_state(page, NR_ISOLATED_ANON +
--				page_is_file_cache(page));
-+		if (PageLRU(page))
-+			dec_node_page_state(page, NR_ISOLATED_ANON +
-+					page_is_file_cache(page));
-+		else
-+			dec_node_page_state(page, NR_ISOLATED_NONLRU);
- 	}
- 
- 	/*
+> 4.0 is either polluting pageblocks more aggressively at allocation, or
+> is not able to make pageblocks movable again when the reclaimable and
+> unmovable allocations are released. Invoking compaction manually
+> (/proc/sys/vm/compact_memory) is not bringing them back, either.
+> 
+> The problem we are debugging is that these machines have a very high
+> rate of order-3 allocations (fdtable during fork, network rx), and
+> after the upgrade allocstalls have increased dramatically. I'm not
+> entirely sure this is the same issue, since even order-0 allocations
+> are struggling, but the mobility grouping in itself looks problematic.
+> 
+
+Network RX is likely to be atomic allocations. Another potentially place
+to focus on is the use of HighAtomic pageblocks and either increasing
+them in size or protecting them more aggressively.
+
+> I'm still going through the changes relevant to mobility grouping in
+> that timeframe, but if this rings a bell for anyone, it would help. I
+> hate blaming random patches, but these caught my eye:
+> 
+> 9c0415e mm: more aggressive page stealing for UNMOVABLE allocations
+> 3a1086f mm: always steal split buddies in fallback allocations
+> 99592d5 mm: when stealing freepages, also take pages created by splitting buddy page
+> 
+> The changelog states that by aggressively stealing split buddy pages
+> during a fallback allocation we avoid subsequent stealing. But since
+> there are generally more movable/reclaimable pages available, and so
+> less falling back and stealing freepages on behalf of movable, won't
+> this mean that we could expect exactly that result - growing numbers
+> of unmovable blocks, while rarely stealing them back in movable alloc
+> fallbacks? And the expansion of !MOVABLE blocks would over time make
+> compaction less and less effective too, seeing as it doesn't consider
+> anything !MOVABLE suitable migration targets?
+> 
+
+It's a solid theory. There has been a lot of activity to weaken fragmentation
+avoidance protection to reduce latency. Unfortunately external fragmentation
+continues to be one of those topics that is very difficult to precisely
+define because it's a matter of definition whether it's important or
+not.
+
+Another avenue worth considering is that compaction used to scan unmovable
+pageblocks and migrate movable pages out of there but that was weakened
+over time trying to allocate THP pages from direct allocation context
+quickly enough. I'm not exactly sure what we do there at the moment and
+whether kcompactd cleans unmovable pageblocks or not. It takes time but
+it also reduces unmovable pageblock steals over time (or at least it did
+a few years ago when I last investigated this in depth).
+
+Unfortunately I do not have any suggestions offhand on how it could be
+easily improved without going back to first principals and identifying
+what pages end up in awkward positions, why and whether the cost of
+"cleaning" unmovable pageblocks during compaction for a high-order
+allocation is justified or not.
+
 -- 
-1.9.1
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
