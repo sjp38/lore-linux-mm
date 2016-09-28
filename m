@@ -1,56 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 35E5B28025C
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 04:09:58 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id s64so32839286lfs.1
-        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 01:09:58 -0700 (PDT)
-Received: from mail-lf0-x243.google.com (mail-lf0-x243.google.com. [2a00:1450:4010:c07::243])
-        by mx.google.com with ESMTPS id i132si3166833lfd.367.2016.09.28.01.09.56
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Sep 2016 01:09:56 -0700 (PDT)
-Received: by mail-lf0-x243.google.com with SMTP id s29so2909676lfg.3
-        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 01:09:56 -0700 (PDT)
-Date: Wed, 28 Sep 2016 11:09:53 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [Bug 172981] New: [bisected] SLAB: extreme load averages and
- over 2000 kworker threads
-Message-ID: <20160928080953.GA20312@esperanza>
-References: <bug-172981-27@https.bugzilla.kernel.org/>
- <20160927111059.282a35c89266202d3cb2f953@linux-foundation.org>
- <20160928020347.GA21129@cmpxchg.org>
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DFC128025C
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 04:43:06 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id 92so100268474iom.3
+        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 01:43:06 -0700 (PDT)
+Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
+        by mx.google.com with ESMTP id d190si8902786itc.11.2016.09.28.01.42.43
+        for <linux-mm@kvack.org>;
+        Wed, 28 Sep 2016 01:42:45 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <20160927171804.GA17845@linux.intel.com>
+In-Reply-To: <20160927171804.GA17845@linux.intel.com>
+Subject: Re: [PATCH 2/8] mm/swap: Add cluster lock
+Date: Wed, 28 Sep 2016 16:42:21 +0800
+Message-ID: <004101d21964$3b3d68f0$b1b83ad0$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160928020347.GA21129@cmpxchg.org>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, bugzilla-daemon@bugzilla.kernel.org, dsmythies@telus.net, linux-mm@kvack.org
+To: tim.c.chen@linux.intel.com, 'Andrew Morton' <akpm@linux-foundation.org>
+Cc: dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'Huang Ying' <ying.huang@intel.com>, 'Hugh Dickins' <hughd@google.com>, 'Shaohua Li' <shli@kernel.org>, 'Minchan Kim' <minchan@kernel.org>, 'Rik van Riel' <riel@redhat.com>, 'Andrea Arcangeli' <aarcange@redhat.com>, "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>, 'Vladimir Davydov' <vdavydov@virtuozzo.com>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Michal Hocko' <mhocko@kernel.org>
 
-On Tue, Sep 27, 2016 at 10:03:47PM -0400, Johannes Weiner wrote:
-> [CC Vladimir]
+On Wednesday, September 28, 2016 1:18 AM Tim Chen wrote
 > 
-> These are the delayed memcg cache allocations, where in a fresh memcg
-> that doesn't have per-memcg caches yet, every accounted allocation
-> schedules a kmalloc work item in __memcg_schedule_kmem_cache_create()
-> until the cache is finally available. It looks like those can be many
-> more than the number of slab caches in existence, if there is a storm
-> of slab allocations before the workers get a chance to run.
+> @@ -447,8 +505,9 @@ static void scan_swap_map_try_ssd_cluster(struct swap_info_struct *si,
+>  	unsigned long *offset, unsigned long *scan_base)
+>  {
+>  	struct percpu_cluster *cluster;
+> +	struct swap_cluster_info *ci;
+>  	bool found_free;
+> -	unsigned long tmp;
+> +	unsigned long tmp, max;
 > 
-> Vladimir, what do you think of embedding the work item into the
-> memcg_cache_array? That way we make sure we have exactly one work per
-> cache and not an unbounded number of them. The downside of course is
-> that we'd have to keep these things around as long as the memcg is in
-> existence, but that's the only place I can think of that allows us to
-> serialize this.
+>  new_cluster:
+>  	cluster = this_cpu_ptr(si->percpu_cluster);
+> @@ -476,14 +535,21 @@ new_cluster:
+>  	 * check if there is still free entry in the cluster
+>  	 */
+>  	tmp = cluster->next;
+> -	while (tmp < si->max && tmp < (cluster_next(&cluster->index) + 1) *
+> -	       SWAPFILE_CLUSTER) {
 
-We could set the entry of the root_cache->memcg_params.memcg_caches
-array corresponding to the cache being created to a special value, say
-(void*)1, and skip scheduling cache creation work on kmalloc if the
-caller sees it. I'm not sure it's really worth it though, because
-work_struct isn't that big (at least, in comparison with the cache
-itself) to avoid embedding it at all costs.
+Currently tmp is checked to be less than both values.
+
+> +	max = max_t(unsigned long, si->max,
+> +		    (cluster_next(&cluster->index) + 1) * SWAPFILE_CLUSTER);
+> +	if (tmp >= max) {
+> +		cluster_set_null(&cluster->index);
+> +		goto new_cluster;
+> +	}
+> +	ci = lock_cluster(si, tmp);
+> +	while (tmp < max) {
+
+In this work tmp is checked to be less than the max value.
+Semantic change hoped?
+
+>  		if (!si->swap_map[tmp]) {
+>  			found_free = true;
+>  			break;
+>  		}
+>  		tmp++;
+>  	}
+> +	unlock_cluster(ci);
+>  	if (!found_free) {
+>  		cluster_set_null(&cluster->index);
+>  		goto new_cluster;
+> 
+thanks
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
