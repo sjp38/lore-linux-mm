@@ -1,84 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DFE2828025C
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 04:51:22 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id n24so78916672pfb.0
-        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 01:51:22 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id kg11si7468506pab.248.2016.09.28.01.51.22
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CBDCC28025C
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 05:00:51 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id l132so32778434wmf.0
+        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 02:00:51 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o2si7433774wjr.120.2016.09.28.02.00.47
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 28 Sep 2016 01:51:22 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH 2/8] mm/swap: Add cluster lock
-References: <20160927171804.GA17845@linux.intel.com>
-	<004101d21964$3b3d68f0$b1b83ad0$@alibaba-inc.com>
-Date: Wed, 28 Sep 2016 16:51:18 +0800
-In-Reply-To: <004101d21964$3b3d68f0$b1b83ad0$@alibaba-inc.com> (Hillf Danton's
-	message of "Wed, 28 Sep 2016 16:42:21 +0800")
-Message-ID: <87mvispfuh.fsf@yhuang-dev.intel.com>
+        Wed, 28 Sep 2016 02:00:48 -0700 (PDT)
+Subject: Re: Regression in mobility grouping?
+References: <20160928014148.GA21007@cmpxchg.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <8c3b7dd8-ef6f-6666-2f60-8168d41202cf@suse.cz>
+Date: Wed, 28 Sep 2016 11:00:15 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+In-Reply-To: <20160928014148.GA21007@cmpxchg.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: tim.c.chen@linux.intel.com, 'Andrew Morton' <akpm@linux-foundation.org>, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'Huang Ying' <ying.huang@intel.com>, 'Hugh Dickins' <hughd@google.com>, 'Shaohua Li' <shli@kernel.org>, 'Minchan Kim' <minchan@kernel.org>, 'Rik van Riel' <riel@redhat.com>, 'Andrea Arcangeli' <aarcange@redhat.com>, "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>, 'Vladimir Davydov' <vdavydov@virtuozzo.com>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Michal Hocko' <mhocko@kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <js1304@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-Hillf Danton <hillf.zj@alibaba-inc.com> writes:
+On 09/28/2016 03:41 AM, Johannes Weiner wrote:
+> Hi guys,
+> 
+> we noticed what looks like a regression in page mobility grouping
+> during an upgrade from 3.10 to 4.0. Identical machines, workloads, and
+> uptime, but /proc/pagetypeinfo on 3.10 looks like this:
+> 
+> Number of blocks type     Unmovable  Reclaimable      Movable      Reserve      Isolate 
+> Node 1, zone   Normal          815          433        31518            2            0 
+> 
+> and on 4.0 like this:
+> 
+> Number of blocks type     Unmovable  Reclaimable      Movable      Reserve          CMA      Isolate 
+> Node 1, zone   Normal         3880         3530        25356            2            0            0 
 
-> On Wednesday, September 28, 2016 1:18 AM Tim Chen wrote
->> 
->> @@ -447,8 +505,9 @@ static void scan_swap_map_try_ssd_cluster(struct swap_info_struct *si,
->>  	unsigned long *offset, unsigned long *scan_base)
->>  {
->>  	struct percpu_cluster *cluster;
->> +	struct swap_cluster_info *ci;
->>  	bool found_free;
->> -	unsigned long tmp;
->> +	unsigned long tmp, max;
->> 
->>  new_cluster:
->>  	cluster = this_cpu_ptr(si->percpu_cluster);
->> @@ -476,14 +535,21 @@ new_cluster:
->>  	 * check if there is still free entry in the cluster
->>  	 */
->>  	tmp = cluster->next;
->> -	while (tmp < si->max && tmp < (cluster_next(&cluster->index) + 1) *
->> -	       SWAPFILE_CLUSTER) {
+It's worth to keep in mind that this doesn't reflect where the actual
+unmovable pages reside. It might be that in 3.10 they are spread within
+the movable pages. IIRC enabling page_owner (not sure if in 4.0, there
+were some later fixes I think) can augment pagetypeinfo with at least
+some statistics of polluted pageblocks.
+
+Does e.g. /proc/meminfo suggest how much unmovable/reclaimable memory
+there should be allocated and if it would fill the respective
+pageblocks, or if they are poorly utilized?
+
+> 4.0 is either polluting pageblocks more aggressively at allocation, or
+> is not able to make pageblocks movable again when the reclaimable and
+> unmovable allocations are released. Invoking compaction manually
+> (/proc/sys/vm/compact_memory) is not bringing them back, either.
 >
-> Currently tmp is checked to be less than both values.
->
->> +	max = max_t(unsigned long, si->max,
->> +		    (cluster_next(&cluster->index) + 1) * SWAPFILE_CLUSTER);
->> +	if (tmp >= max) {
->> +		cluster_set_null(&cluster->index);
->> +		goto new_cluster;
->> +	}
->> +	ci = lock_cluster(si, tmp);
->> +	while (tmp < max) {
->
-> In this work tmp is checked to be less than the max value.
-> Semantic change hoped?
+> The problem we are debugging is that these machines have a very high
+> rate of order-3 allocations (fdtable during fork, network rx), and
+> after the upgrade allocstalls have increased dramatically. I'm not
+> entirely sure this is the same issue, since even order-0 allocations
+> are struggling, but the mobility grouping in itself looks problematic.
+> 
+> I'm still going through the changes relevant to mobility grouping in
+> that timeframe, but if this rings a bell for anyone, it would help. I
+> hate blaming random patches, but these caught my eye:
+> 
+> 9c0415e mm: more aggressive page stealing for UNMOVABLE allocations
+> 3a1086f mm: always steal split buddies in fallback allocations
+> 99592d5 mm: when stealing freepages, also take pages created by splitting buddy page
 
-Oops!  tmp should be checked to be more than the min value.  Will fix it
-in the next version.  Thanks for pointing out this!
+Check also the changelogs for mentions of earlier commits, e.g. 99592d5
+should be restoring behavior that changed in 3.12-3.13 and you are
+upgrading from 3.10.
 
-Best Regards,
-Huang, Ying
+> The changelog states that by aggressively stealing split buddy pages
+> during a fallback allocation we avoid subsequent stealing. But since
+> there are generally more movable/reclaimable pages available, and so
+> less falling back and stealing freepages on behalf of movable, won't
+> this mean that we could expect exactly that result - growing numbers
+> of unmovable blocks, while rarely stealing them back in movable alloc
+> fallbacks? And the expansion of !MOVABLE blocks would over time make
+> compaction less and less effective too, seeing as it doesn't consider
+> anything !MOVABLE suitable migration targets?
 
->>  		if (!si->swap_map[tmp]) {
->>  			found_free = true;
->>  			break;
->>  		}
->>  		tmp++;
->>  	}
->> +	unlock_cluster(ci);
->>  	if (!found_free) {
->>  		cluster_set_null(&cluster->index);
->>  		goto new_cluster;
->> 
-> thanks
-> Hillf
+Yeah this is an issue with compaction that was brought up recently and I
+want to tackle next.
+
+> Attached are the full /proc/pagetypeinfo and /proc/buddyinfo from both
+> kernels on machines with similar uptimes and directly after invoking
+> compaction. As you can see, the buddy lists are much more fragmented
+> on 4.0, with unmovable/reclaimable allocations polluting more blocks.
+> 
+> Any thoughts on this would be greatly appreciated. I can test patches.
+
+I guess testing revert of 9c0415e could give us some idea. Commit
+3a1086f shouldn't result in pageblock marking differences and as I said
+above, 99592d5 should be just restoring to what 3.10 did.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
