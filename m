@@ -1,57 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 62FC928025C
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 00:56:01 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id j69so79700519itb.1
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 21:56:01 -0700 (PDT)
-Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
-        by mx.google.com with ESMTP id e193si7851604iof.159.2016.09.27.21.55.59
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5689F28025C
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 01:06:21 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id n24so70785293pfb.0
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 22:06:21 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id 7si6455432pfy.231.2016.09.27.22.06.19
         for <linux-mm@kvack.org>;
-        Tue, 27 Sep 2016 21:56:00 -0700 (PDT)
-Date: Wed, 28 Sep 2016 14:55:50 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v3 00/11] re-enable DAX PMD support
-Message-ID: <20160928045550.GF27872@dastard>
-References: <1475009282-9818-1-git-send-email-ross.zwisler@linux.intel.com>
- <20160928020842.GA4428@infradead.org>
+        Tue, 27 Sep 2016 22:06:20 -0700 (PDT)
+Date: Wed, 28 Sep 2016 14:14:45 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: Oops in slab.c in CentOS kernel, looking for ideas --
+ correction, it's in slub.c
+Message-ID: <20160928051445.GA22706@js1304-P5Q-DELUXE>
+References: <57EA9A78.8080509@windriver.com>
+ <57EABB64.7070607@windriver.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160928020842.GA4428@infradead.org>
+In-Reply-To: <57EABB64.7070607@windriver.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, linux-xfs@vger.kernel.org
+To: Chris Friesen <chris.friesen@windriver.com>
+Cc: linux-mm@kvack.org
 
-On Tue, Sep 27, 2016 at 07:08:42PM -0700, Christoph Hellwig wrote:
-> On Tue, Sep 27, 2016 at 02:47:51PM -0600, Ross Zwisler wrote:
-> > DAX PMDs have been disabled since Jan Kara introduced DAX radix tree based
-> > locking.  This series allows DAX PMDs to participate in the DAX radix tree
-> > based locking scheme so that they can be re-enabled.
-> > 
-> > Jan and Christoph, can you please help review these changes?
+On Tue, Sep 27, 2016 at 12:33:08PM -0600, Chris Friesen wrote:
 > 
-> About to get on a plane, so it might take a bit to do a real review.
-> In general this looks fine, but I guess the first two ext4 patches
-> should just go straight to Ted independent of the rest?
+> Sorry, I had a typo in my earlier message.  The issue is actually in slub.c.
 > 
-> Also Jan just posted a giant DAX patchbomb, we'll need to find a way
-> to integrate all that work, and maybe prioritize things if we want
-> to get bits into 4.9 still.
+> Chris
+> 
+> On 09/27/2016 10:12 AM, Chris Friesen wrote:
+> >
+> >I've got a CentOS 7 kernel that has been slightly modified, but the mm
+> >subsystem hasn't been touched.  I'm hoping you can give me some guidance.
+> >
+> >I have an intermittent Oops that looks like what is below.  The issue
+> >is currently occurring on one CPU of one system, but has been seen
+> >before infrequently.  Once the corruption occurs it causes an Oops on
+> >every call to __mpol_dup() on this CPU.
+> >
+> >Basically it appears that __mpol_dup() is failing because the value of
+> >c->freelist in slab_alloc_node() is corrupt, causing the call to
+> >get_freepointer_safe(s, object) to Oops because it tries to dereference
+> >"object + s->offset".  (Where s->offset is zero.)
+> >
+> >In the trace, "kmem_cache_alloc+0x87" maps to the following assembly:
+> >    0xffffffff8118be17 <+135>:   mov    (%r12,%rax,1),%rbx
+> >
+> >This corresponds to this line in get_freepointer():
+> >	return *(void **)(object + s->offset);
+> >
+> >In the assembly code, R12 is "object", and RAX is s->offset.
+> >
+> >So the question becomes, why is "object" (which corresponds to c->freelist)
+> >corrupt?
+> >
+> >Looking at the value of R12 (0x1ada8000), it's nonzero but also not a
+> >valid pointer. Does the value mean anything to you?  (I'm not really
+> >a memory subsystem guy, so I'm hoping you might have some ideas.)
+> >
+> >Do you have any suggestions on how to track down what's going on here?
 
-I'm not going to have time to do much review or testing of the DAX
-changes (apart from the cursor comments I've already made) because
-of the huge pile of XFS reflink changes I've got ot get through
-first. However, I've already got the iomap dax bits in the XFS tree
-so I can pull everything through there if review and testing is
-covered otherwise......
+Please run with kernel parameter "slub_debug=F" or something.
+See Documentation/vm/slub.txt.
 
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
