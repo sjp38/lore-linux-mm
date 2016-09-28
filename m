@@ -1,206 +1,306 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 905B86B027D
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 21:41:57 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id l138so24901990wmg.3
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 18:41:57 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id o11si17255282wme.98.2016.09.27.18.41.55
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 019C06B027F
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 21:42:19 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id j69so72547544itb.1
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 18:42:18 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id 41si6800106iop.143.2016.09.27.18.42.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Sep 2016 18:41:56 -0700 (PDT)
-Date: Tue, 27 Sep 2016 21:41:48 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Regression in mobility grouping?
-Message-ID: <20160928014148.GA21007@cmpxchg.org>
+        Tue, 27 Sep 2016 18:42:17 -0700 (PDT)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [PATCH v5] powerpc: Do not make the entire heap executable
+In-Reply-To: <20160822185105.29600-1-dvlasenk@redhat.com>
+References: <20160822185105.29600-1-dvlasenk@redhat.com>
+Date: Wed, 28 Sep 2016 11:42:11 +1000
+Message-ID: <87d1jo7qbw.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="Kj7319i9nmIyA2yE"
-Content-Disposition: inline
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <js1304@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Al Viro <viro@zeniv.linux.org.uk>, linuxppc-dev@lists.ozlabs.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, Oleg Nesterov <oleg@redhat.com>, Florian Weimer <fweimer@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+Denys Vlasenko <dvlasenk@redhat.com> writes:
 
---Kj7319i9nmIyA2yE
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+> On 32-bit powerpc the ELF PLT sections of binaries (built with --bss-plt,
+> or with a toolchain which defaults to it) look like this:
 
-Hi guys,
+Or (it seems), for all programs built with -pg (profiling).
 
-we noticed what looks like a regression in page mobility grouping
-during an upgrade from 3.10 to 4.0. Identical machines, workloads, and
-uptime, but /proc/pagetypeinfo on 3.10 looks like this:
+>   [17] .sbss             NOBITS          0002aff8 01aff8 000014 00  WA  0   0  4
+>   [18] .plt              NOBITS          0002b00c 01aff8 000084 00 WAX  0   0  4
+>   [19] .bss              NOBITS          0002b090 01aff8 0000a4 00  WA  0   0  4
+>
+> Which results in an ELF load header:
+>
+>   Type           Offset   VirtAddr   PhysAddr   FileSiz MemSiz  Flg Align
+>   LOAD           0x019c70 0x00029c70 0x00029c70 0x01388 0x014c4 RWE 0x10000
+>
+> This is all correct, the load region containing the PLT is marked as
+> executable. Note that the PLT starts at 0002b00c but the file mapping ends at
+> 0002aff8, so the PLT falls in the 0 fill section described by the load header,
+> and after a page boundary.
+>
+> Unfortunately the generic ELF loader ignores the X bit in the load headers
+> when it creates the 0 filled non-file backed mappings. It assumes all of these
+> mappings are RW BSS sections, which is not the case for PPC.
+>
+> gcc/ld has an option (--secure-plt) to not do this, this is said to incur
+> a small performance penalty.
+>
+> Currently, to support 32-bit binaries with PLT in BSS kernel maps *entire
+> brk area* with executable rights for all binaries, even --secure-plt ones.
+>
+> Stop doing that.
+>
+> Teach the ELF loader to check the X bit in the relevant load header
+> and create 0 filled anonymous mappings that are executable
+> if the load header requests that.
+...
+>
+> Signed-off-by: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
+> Signed-off-by: Denys Vlasenko <dvlasenk@redhat.com>
+> Reviewed-by: Kees Cook <keescook@chromium.org>
+> CC: Michael Ellerman <mpe@ellerman.id.au>
 
-Number of blocks type     Unmovable  Reclaimable      Movable      Reserve      Isolate 
-Node 1, zone   Normal          815          433        31518            2            0 
+This looks OK to me, I've tested it with --bss-plt and --secure-plt and
+also -pg.
 
-and on 4.0 like this:
+So for the powerpc part I'll give you an:
 
-Number of blocks type     Unmovable  Reclaimable      Movable      Reserve          CMA      Isolate 
-Node 1, zone   Normal         3880         3530        25356            2            0            0 
+Acked-by: Michael Ellerman <mpe@ellerman.id.au>
 
-4.0 is either polluting pageblocks more aggressively at allocation, or
-is not able to make pageblocks movable again when the reclaimable and
-unmovable allocations are released. Invoking compaction manually
-(/proc/sys/vm/compact_memory) is not bringing them back, either.
+But this is not really a powerpc patch, and I'm not an ELF expert. So
+I'm not comfortable merging it via the powerpc tree. It doesn't look
+like we really have a maintainer for binfmt_elf.c, so I'm not sure who
+should be acking that part.
 
-The problem we are debugging is that these machines have a very high
-rate of order-3 allocations (fdtable during fork, network rx), and
-after the upgrade allocstalls have increased dramatically. I'm not
-entirely sure this is the same issue, since even order-0 allocations
-are struggling, but the mobility grouping in itself looks problematic.
+I've added Al Viro to Cc, he maintains fs/ and might be interested.
 
-I'm still going through the changes relevant to mobility grouping in
-that timeframe, but if this rings a bell for anyone, it would help. I
-hate blaming random patches, but these caught my eye:
+I've also added Andrew Morton who might be happy to put this in his
+tree, and see if anyone complains?
 
-9c0415e mm: more aggressive page stealing for UNMOVABLE allocations
-3a1086f mm: always steal split buddies in fallback allocations
-99592d5 mm: when stealing freepages, also take pages created by splitting buddy page
+Also here: https://patchwork.ozlabs.org/patch/661595/
 
-The changelog states that by aggressively stealing split buddy pages
-during a fallback allocation we avoid subsequent stealing. But since
-there are generally more movable/reclaimable pages available, and so
-less falling back and stealing freepages on behalf of movable, won't
-this mean that we could expect exactly that result - growing numbers
-of unmovable blocks, while rarely stealing them back in movable alloc
-fallbacks? And the expansion of !MOVABLE blocks would over time make
-compaction less and less effective too, seeing as it doesn't consider
-anything !MOVABLE suitable migration targets?
+cheers
 
-Attached are the full /proc/pagetypeinfo and /proc/buddyinfo from both
-kernels on machines with similar uptimes and directly after invoking
-compaction. As you can see, the buddy lists are much more fragmented
-on 4.0, with unmovable/reclaimable allocations polluting more blocks.
-
-Any thoughts on this would be greatly appreciated. I can test patches.
-
-Thanks!
-
---Kj7319i9nmIyA2yE
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="buddyinfo-3.10.txt"
-
-Node 0, zone      DMA      0      0      0      1      2      1      1      0      1      1      3 
-Node 0, zone    DMA32   1062   1491   1641   1725    478     77      5      1      0      0      0 
-Node 0, zone   Normal  10436  16239   5903    696    130    729   1298    550    109      0      0 
-Node 1, zone   Normal   5956     15      5     28     11      8      2      0      0      0      0 
-
---Kj7319i9nmIyA2yE
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="buddyinfo-4.0.txt"
-
-Node 0, zone      DMA      1      1      0      1      1      1      1      0      0      1      3 
-Node 0, zone    DMA32   9462   6148   2297     27      0      0      0      0      0      0      0 
-Node 0, zone   Normal 130376  36589   3777     94      1      0      0      0      0      0      0 
-Node 1, zone   Normal 190988  77269   3896    332      6      0      0      0      0      0      0 
-
---Kj7319i9nmIyA2yE
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="pagetypeinfo-3.10.txt"
-
-Page block order: 9
-Pages per block:  512
-
-Free pages count per migrate type at order       0      1      2      3      4      5      6      7      8      9     10 
-Node    0, zone      DMA, type    Unmovable      0      0      0      1      2      1      1      0      1      0      0 
-Node    0, zone      DMA, type  Reclaimable      0      0      0      0      0      0      0      0      0      0      0 
-Node    0, zone      DMA, type      Movable      0      0      0      0      0      0      0      0      0      0      3 
-Node    0, zone      DMA, type      Reserve      0      0      0      0      0      0      0      0      0      1      0 
-Node    0, zone      DMA, type      Isolate      0      0      0      0      0      0      0      0      0      0      0 
-Node    0, zone    DMA32, type    Unmovable    488    221    286      0      0      0      0      0      0      0      0 
-Node    0, zone    DMA32, type  Reclaimable      1    725    741      0      0      0      0      0      0      0      0 
-Node    0, zone    DMA32, type      Movable    431   1735   1073    105      0      0      0      0      0      0      0 
-Node    0, zone    DMA32, type      Reserve      0      0      0     17      1      0      0      0      0      0      0 
-Node    0, zone    DMA32, type      Isolate      0      0      0      0      0      0      0      0      0      0      0 
-Node    0, zone   Normal, type    Unmovable   1922     16      1     19      0      0      0      0      0      0      0 
-Node    0, zone   Normal, type  Reclaimable   4549      0      0      1      0      0      0      0      0      0      0 
-Node    0, zone   Normal, type      Movable      3      0      2      3      0      0      0      0      0      0      0 
-Node    0, zone   Normal, type      Reserve      0      0      1     22      1      2      1      0      0      0      0 
-Node    0, zone   Normal, type      Isolate      0      0      0      0      0      0      0      0      0      0      0 
-
-Number of blocks type     Unmovable  Reclaimable      Movable      Reserve      Isolate 
-Node 0, zone      DMA            1            0            6            1            0 
-Node 0, zone    DMA32           96           21          898            1            0 
-Node 0, zone   Normal         1105          497        30140            2            0 
-Page block order: 9
-Pages per block:  512
-
-Free pages count per migrate type at order       0      1      2      3      4      5      6      7      8      9     10 
-Node    1, zone   Normal, type    Unmovable   5746      3      0      0      0      0      0      0      0      0      0 
-Node    1, zone   Normal, type  Reclaimable     53     10      0      0      0      0      0      0      0      0      0 
-Node    1, zone   Normal, type      Movable      1   2919   1131      0      0      0      0      0      0      0      0 
-Node    1, zone   Normal, type      Reserve      0      0      0      0      0      1      2      0      0      0      0 
-Node    1, zone   Normal, type      Isolate      0      0      0      0      0      0      0      0      0      0      0 
-
-Number of blocks type     Unmovable  Reclaimable      Movable      Reserve      Isolate 
-Node 1, zone   Normal          868          433        31465            2            0 
-
---Kj7319i9nmIyA2yE
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="pagetypeinfo-4.0.txt"
-
-Page block order: 9
-Pages per block:  512
-
-Free pages count per migrate type at order       0      1      2      3      4      5      6      7      8      9     10 
-Node    0, zone      DMA, type    Unmovable      1      1      0      1      1      1      1      0      0      0      0 
-Node    0, zone      DMA, type  Reclaimable      0      0      0      0      0      0      0      0      0      0      0 
-Node    0, zone      DMA, type      Movable      0      0      0      0      0      0      0      0      0      0      3 
-Node    0, zone      DMA, type      Reserve      0      0      0      0      0      0      0      0      0      1      0 
-Node    0, zone      DMA, type          CMA      0      0      0      0      0      0      0      0      0      0      0 
-Node    0, zone      DMA, type      Isolate      0      0      0      0      0      0      0      0      0      0      0 
-Node    0, zone    DMA32, type    Unmovable   2717   4401    895      1      0      0      0      0      0      0      0 
-Node    0, zone    DMA32, type  Reclaimable   6004   1784      0      0      0      0      0      0      0      0      0 
-Node    0, zone    DMA32, type      Movable      1      0      0      0      0      0      0      0      0      0      0 
-Node    0, zone    DMA32, type      Reserve      0      0      3      0      0      0      0      0      0      0      0 
-Node    0, zone    DMA32, type          CMA      0      0      0      0      0      0      0      0      0      0      0 
-Node    0, zone    DMA32, type      Isolate      0      0      0      0      0      0      0      0      0      0      0 
-Node    0, zone   Normal, type    Unmovable 115050  40237   3785      0      0      0      0      0      0      0      0 
-Node    0, zone   Normal, type  Reclaimable  51921  14109    659      0      0      0      0      0      0      0      0 
-Node    0, zone   Normal, type      Movable      1  41954    984      0      0      0      0      0      0      0      0 
-Node    0, zone   Normal, type      Reserve      0      0      0      0      0      0      0      0      0      0      0 
-Node    0, zone   Normal, type          CMA      0      0      0      0      0      0      0      0      0      0      0 
-Node    0, zone   Normal, type      Isolate      0      0      0      0      0      0      0      0      0      0      0 
-
-Number of blocks type     Unmovable  Reclaimable      Movable      Reserve          CMA      Isolate 
-Node 0, zone      DMA            1            0            6            1            0            0 
-Node 0, zone    DMA32          620          184          211            1            0            0 
-Node 0, zone   Normal         6634         3757        21351            2            0            0 
-Page block order: 9
-Pages per block:  512
-
-Free pages count per migrate type at order       0      1      2      3      4      5      6      7      8      9     10 
-Node    1, zone   Normal, type    Unmovable  58723    366     15      6      0      0      0      0      0      0      0 
-Node    1, zone   Normal, type  Reclaimable    163     74      5      1      0      0      0      0      0      0      0 
-Node    1, zone   Normal, type      Movable   1217    283     10      0      0      0      0      0      0      0      0 
-Node    1, zone   Normal, type      Reserve      0      0      0      3      0      0      0      0      0      0      0 
-Node    1, zone   Normal, type          CMA      0      0      0      0      0      0      0      0      0      0      0 
-Node    1, zone   Normal, type      Isolate      0      0      0      0      0      0      0      0      0      0      0 
-
-Number of blocks type     Unmovable  Reclaimable      Movable      Reserve          CMA      Isolate 
-Node 1, zone   Normal         3903         3518        25345            2            0            0 
-
---Kj7319i9nmIyA2yE
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="extfrag-3.10.txt"
-
-Node 0, zone      DMA -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 
-Node 0, zone    DMA32 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 0.981 0.991 0.996 0.998 
-Node 0, zone   Normal -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 0.977 0.989 0.995 0.998 
-Node 1, zone   Normal -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 0.982 0.991 0.996 0.998 
-
---Kj7319i9nmIyA2yE
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="extfrag-4.0.txt"
-
-Node 0, zone      DMA -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 
-Node 0, zone    DMA32 -1.000 -1.000 -1.000 -1.000 0.868 0.934 0.967 0.984 0.992 0.996 0.998 
-Node 0, zone   Normal -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 0.972 0.986 0.993 0.997 0.999 
-Node 1, zone   Normal -1.000 -1.000 -1.000 -1.000 -1.000 -1.000 0.972 0.986 0.993 0.997 0.999 
-
---Kj7319i9nmIyA2yE--
+> ---
+> Changes since v4:
+> * if (current->personality & READ_IMPLIES_EXEC), still use VM_EXEC
+>   for 32-bit executables.
+>
+> Changes since v3:
+> * typo fix in commit message
+> * rebased to current Linus tree
+>
+> Changes since v2:
+> * moved capability to map with VM_EXEC into vm_brk_flags()
+>
+> Changes since v1:
+> * wrapped lines to not exceed 79 chars
+> * improved comment
+> * expanded CC list
+>
+>  arch/powerpc/include/asm/page.h |  3 ++-
+>  fs/binfmt_elf.c                 | 30 ++++++++++++++++++++++--------
+>  include/linux/mm.h              |  1 +
+>  mm/mmap.c                       | 21 ++++++++++++++++-----
+>  4 files changed, 41 insertions(+), 14 deletions(-)
+>
+> diff --git a/arch/powerpc/include/asm/page.h b/arch/powerpc/include/asm/page.h
+> index 56398e7..d188f51 100644
+> --- a/arch/powerpc/include/asm/page.h
+> +++ b/arch/powerpc/include/asm/page.h
+> @@ -230,7 +230,9 @@ extern long long virt_phys_offset;
+>   * and needs to be executable.  This means the whole heap ends
+>   * up being executable.
+>   */
+> -#define VM_DATA_DEFAULT_FLAGS32	(VM_READ | VM_WRITE | VM_EXEC | \
+> +#define VM_DATA_DEFAULT_FLAGS32 \
+> +	(((current->personality & READ_IMPLIES_EXEC) ? VM_EXEC : 0) | \
+> +				 VM_READ | VM_WRITE | \
+>  				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
+>  
+>  #define VM_DATA_DEFAULT_FLAGS64	(VM_READ | VM_WRITE | \
+> diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
+> index 7f6aff3f..2b57b5a 100644
+> --- a/fs/binfmt_elf.c
+> +++ b/fs/binfmt_elf.c
+> @@ -91,12 +91,18 @@ static struct linux_binfmt elf_format = {
+>  
+>  #define BAD_ADDR(x) ((unsigned long)(x) >= TASK_SIZE)
+>  
+> -static int set_brk(unsigned long start, unsigned long end)
+> +static int set_brk(unsigned long start, unsigned long end, int prot)
+>  {
+>  	start = ELF_PAGEALIGN(start);
+>  	end = ELF_PAGEALIGN(end);
+>  	if (end > start) {
+> -		int error = vm_brk(start, end - start);
+> +		/*
+> +		 * Map the last of the bss segment.
+> +		 * If the header is requesting these pages to be
+> +		 * executable, honour that (ppc32 needs this).
+> +		 */
+> +		int error = vm_brk_flags(start, end - start,
+> +				prot & PROT_EXEC ? VM_EXEC : 0);
+>  		if (error)
+>  			return error;
+>  	}
+> @@ -524,6 +530,7 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
+>  	unsigned long load_addr = 0;
+>  	int load_addr_set = 0;
+>  	unsigned long last_bss = 0, elf_bss = 0;
+> +	int bss_prot = 0;
+>  	unsigned long error = ~0UL;
+>  	unsigned long total_size;
+>  	int i;
+> @@ -606,8 +613,10 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
+>  			 * elf_bss and last_bss is the bss section.
+>  			 */
+>  			k = load_addr + eppnt->p_vaddr + eppnt->p_memsz;
+> -			if (k > last_bss)
+> +			if (k > last_bss) {
+>  				last_bss = k;
+> +				bss_prot = elf_prot;
+> +			}
+>  		}
+>  	}
+>  
+> @@ -623,13 +632,14 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
+>  	/*
+>  	 * Next, align both the file and mem bss up to the page size,
+>  	 * since this is where elf_bss was just zeroed up to, and where
+> -	 * last_bss will end after the vm_brk() below.
+> +	 * last_bss will end after the vm_brk_flags() below.
+>  	 */
+>  	elf_bss = ELF_PAGEALIGN(elf_bss);
+>  	last_bss = ELF_PAGEALIGN(last_bss);
+>  	/* Finally, if there is still more bss to allocate, do it. */
+>  	if (last_bss > elf_bss) {
+> -		error = vm_brk(elf_bss, last_bss - elf_bss);
+> +		error = vm_brk_flags(elf_bss, last_bss - elf_bss,
+> +				bss_prot & PROT_EXEC ? VM_EXEC : 0);
+>  		if (error)
+>  			goto out;
+>  	}
+> @@ -674,6 +684,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
+>  	unsigned long error;
+>  	struct elf_phdr *elf_ppnt, *elf_phdata, *interp_elf_phdata = NULL;
+>  	unsigned long elf_bss, elf_brk;
+> +	int bss_prot = 0;
+>  	int retval, i;
+>  	unsigned long elf_entry;
+>  	unsigned long interp_load_addr = 0;
+> @@ -881,7 +892,8 @@ static int load_elf_binary(struct linux_binprm *bprm)
+>  			   before this one. Map anonymous pages, if needed,
+>  			   and clear the area.  */
+>  			retval = set_brk(elf_bss + load_bias,
+> -					 elf_brk + load_bias);
+> +					 elf_brk + load_bias,
+> +					 bss_prot);
+>  			if (retval)
+>  				goto out_free_dentry;
+>  			nbyte = ELF_PAGEOFFSET(elf_bss);
+> @@ -975,8 +987,10 @@ static int load_elf_binary(struct linux_binprm *bprm)
+>  		if (end_data < k)
+>  			end_data = k;
+>  		k = elf_ppnt->p_vaddr + elf_ppnt->p_memsz;
+> -		if (k > elf_brk)
+> +		if (k > elf_brk) {
+> +			bss_prot = elf_prot;
+>  			elf_brk = k;
+> +		}
+>  	}
+>  
+>  	loc->elf_ex.e_entry += load_bias;
+> @@ -992,7 +1006,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
+>  	 * mapping in the interpreter, to make sure it doesn't wind
+>  	 * up getting placed where the bss needs to go.
+>  	 */
+> -	retval = set_brk(elf_bss, elf_brk);
+> +	retval = set_brk(elf_bss, elf_brk, bss_prot);
+>  	if (retval)
+>  		goto out_free_dentry;
+>  	if (likely(elf_bss != elf_brk) && unlikely(padzero(elf_bss))) {
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 08ed53e..3ffa76c 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -2058,6 +2058,7 @@ static inline void mm_populate(unsigned long addr, unsigned long len) {}
+>  
+>  /* These take the mm semaphore themselves */
+>  extern int __must_check vm_brk(unsigned long, unsigned long);
+> +extern int __must_check vm_brk_flags(unsigned long, unsigned long, unsigned long);
+>  extern int vm_munmap(unsigned long, size_t);
+>  extern unsigned long __must_check vm_mmap(struct file *, unsigned long,
+>          unsigned long, unsigned long,
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index ca9d91b..4d5b3f3 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -2653,11 +2653,11 @@ static inline void verify_mm_writelocked(struct mm_struct *mm)
+>   *  anonymous maps.  eventually we may be able to do some
+>   *  brk-specific accounting here.
+>   */
+> -static int do_brk(unsigned long addr, unsigned long request)
+> +static int do_brk_flags(unsigned long addr, unsigned long request, unsigned long flags)
+>  {
+>  	struct mm_struct *mm = current->mm;
+>  	struct vm_area_struct *vma, *prev;
+> -	unsigned long flags, len;
+> +	unsigned long len;
+>  	struct rb_node **rb_link, *rb_parent;
+>  	pgoff_t pgoff = addr >> PAGE_SHIFT;
+>  	int error;
+> @@ -2668,7 +2668,7 @@ static int do_brk(unsigned long addr, unsigned long request)
+>  	if (!len)
+>  		return 0;
+>  
+> -	flags = VM_DATA_DEFAULT_FLAGS | VM_ACCOUNT | mm->def_flags;
+> +	flags |= VM_DATA_DEFAULT_FLAGS | VM_ACCOUNT | mm->def_flags;
+>  
+>  	error = get_unmapped_area(NULL, addr, len, 0, MAP_FIXED);
+>  	if (offset_in_page(error))
+> @@ -2736,7 +2736,12 @@ out:
+>  	return 0;
+>  }
+>  
+> -int vm_brk(unsigned long addr, unsigned long len)
+> +static int do_brk(unsigned long addr, unsigned long len)
+> +{
+> +	return do_brk_flags(addr, len, 0);
+> +}
+> +
+> +int vm_brk_flags(unsigned long addr, unsigned long len, unsigned long flags)
+>  {
+>  	struct mm_struct *mm = current->mm;
+>  	int ret;
+> @@ -2745,13 +2750,19 @@ int vm_brk(unsigned long addr, unsigned long len)
+>  	if (down_write_killable(&mm->mmap_sem))
+>  		return -EINTR;
+>  
+> -	ret = do_brk(addr, len);
+> +	ret = do_brk_flags(addr, len, flags);
+>  	populate = ((mm->def_flags & VM_LOCKED) != 0);
+>  	up_write(&mm->mmap_sem);
+>  	if (populate && !ret)
+>  		mm_populate(addr, len);
+>  	return ret;
+>  }
+> +EXPORT_SYMBOL(vm_brk_flags);
+> +
+> +int vm_brk(unsigned long addr, unsigned long len)
+> +{
+> +	return vm_brk_flags(addr, len, 0);
+> +}
+>  EXPORT_SYMBOL(vm_brk);
+>  
+>  /* Release all mmaps. */
+> -- 
+> 2.9.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
