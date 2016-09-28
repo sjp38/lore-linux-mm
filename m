@@ -1,73 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D82828025A
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 14:46:48 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id fu14so97801077pad.0
-        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 11:46:48 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id ba4si9705727pab.253.2016.09.28.11.46.45
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E0C7C6B0279
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 16:05:24 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id l138so51927063wmg.3
+        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 13:05:24 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u1si10345785wjx.280.2016.09.28.13.05.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Sep 2016 11:46:46 -0700 (PDT)
-Date: Wed, 28 Sep 2016 12:46:43 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v3 04/11] ext2: remove support for DAX PMD faults
-Message-ID: <20160928184643.GA16000@linux.intel.com>
-References: <1475009282-9818-1-git-send-email-ross.zwisler@linux.intel.com>
- <1475009282-9818-5-git-send-email-ross.zwisler@linux.intel.com>
- <20160927214720.GD27872@dastard>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 28 Sep 2016 13:05:23 -0700 (PDT)
+Subject: Re: [PATCH] fs/select: add vmalloc fallback for select(2)
+References: <20160922152831.24165-1-vbabka@suse.cz>
+ <006101d21565$b60a8a70$221f9f50$@alibaba-inc.com>
+ <20160923172434.7ad8f2e0@roar.ozlabs.ibm.com> <57E55CBB.5060309@akamai.com>
+ <5014387d-43da-03f6-a74b-2dc4fbf4fe32@suse.cz>
+ <20160927212458.3ab42b41@roar.ozlabs.ibm.com>
+ <063D6719AE5E284EB5DD2968C1650D6DB010A97D@AcuExch.aculab.com>
+ <20160927214229.2b0b49ac@roar.ozlabs.ibm.com>
+ <92d1ec2c-3246-bd1f-eae5-53ca425ab315@suse.cz>
+ <063D6719AE5E284EB5DD2968C1650D6DB010AAC6@AcuExch.aculab.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <32941b8b-ec1a-fc5c-90aa-e2372680f1b3@suse.cz>
+Date: Wed, 28 Sep 2016 22:04:50 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160927214720.GD27872@dastard>
+In-Reply-To: <063D6719AE5E284EB5DD2968C1650D6DB010AAC6@AcuExch.aculab.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: David Laight <David.Laight@ACULAB.COM>, Nicholas Piggin <npiggin@gmail.com>
+Cc: Jason Baron <jbaron@akamai.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, 'Alexander Viro' <viro@zeniv.linux.org.uk>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, 'Michal Hocko' <mhocko@kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Eric Dumazet <eric.dumazet@gmail.com>
 
-On Wed, Sep 28, 2016 at 07:47:20AM +1000, Dave Chinner wrote:
-> On Tue, Sep 27, 2016 at 02:47:55PM -0600, Ross Zwisler wrote:
-> > DAX PMD support was added via the following commit:
-> > 
-> > commit e7b1ea2ad658 ("ext2: huge page fault support")
-> > 
-> > I believe this path to be untested as ext2 doesn't reliably provide block
-> > allocations that are aligned to 2MiB.  In my testing I've been unable to
-> > get ext2 to actually fault in a PMD.  It always fails with a "pfn
-> > unaligned" message because the sector returned by ext2_get_block() isn't
-> > aligned.
-> > 
-> > I've tried various settings for the "stride" and "stripe_width" extended
-> > options to mkfs.ext2, without any luck.
-> > 
-> > Since we can't reliably get PMDs, remove support so that we don't have an
-> > untested code path that we may someday traverse when we happen to get an
-> > aligned block allocation.  This should also make 4k DAX faults in ext2 a
-> > bit faster since they will no longer have to call the PMD fault handler
-> > only to get a response of VM_FAULT_FALLBACK.
-> > 
-> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> ....
-> > @@ -154,7 +133,6 @@ static int ext2_dax_pfn_mkwrite(struct vm_area_struct *vma,
-> >  
-> >  static const struct vm_operations_struct ext2_dax_vm_ops = {
-> >  	.fault		= ext2_dax_fault,
-> > -	.pmd_fault	= ext2_dax_pmd_fault,
-> >  	.page_mkwrite	= ext2_dax_fault,
-> >  	.pfn_mkwrite	= ext2_dax_pfn_mkwrite,
-> >  };
+On 09/28/2016 06:30 PM, David Laight wrote:
+> From: Vlastimil Babka
+>> Sent: 27 September 2016 12:51
+> ...
+>> Process name suggests it's part of db2 database. It seems it has to implement
+>> its own interface to select() syscall, because glibc itself seems to have a
+>> FD_SETSIZE limit of 1024, which is probably why this wasn't an issue for all the
+>> years...
 > 
-> Would it be better to put a comment mentioning this here? So as the
-> years go by, this reminds people not to bother trying to implement
-> it?
+> ISTR the canonical way to increase the size being to set FD_SETSIZE
+> to a larger value before including any of the headers.
 > 
-> /*
->  * .pmd_fault is not supported for DAX because allocation in ext2
->  * cannot be reliably aligned to huge page sizes and so pmd faults
->  * will always fail and fail back to regular faults.
->  */
+> Or doesn't that work with linux and glibc ??
 
-Sure, this seems like a good idea.  I'll add it, thanks.
+Doesn't seem so.
+
+> 
+> 	David
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
