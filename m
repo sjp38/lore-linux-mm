@@ -1,105 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 93CEA280251
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 01:43:39 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id 82so87907238ioh.1
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 22:43:39 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id l39si8106199ioi.184.2016.09.27.22.43.38
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F835280251
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 02:12:01 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 21so73998113pfy.3
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 23:12:01 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id k87si6780760pfj.210.2016.09.27.23.11.59
         for <linux-mm@kvack.org>;
-        Tue, 27 Sep 2016 22:43:39 -0700 (PDT)
-Date: Wed, 28 Sep 2016 14:52:03 +0900
+        Tue, 27 Sep 2016 23:12:00 -0700 (PDT)
+Date: Wed, 28 Sep 2016 15:20:25 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC] mm: a question about high-order check in
- __zone_watermark_ok()
-Message-ID: <20160928055203.GE22706@js1304-P5Q-DELUXE>
-References: <57E8E0BD.2070603@huawei.com>
- <20160926085850.GB28550@dhcp22.suse.cz>
- <57E8E786.8030703@huawei.com>
- <20160926094333.GD28550@dhcp22.suse.cz>
- <57E8F5CE.908@huawei.com>
- <20160926110231.GE28550@dhcp22.suse.cz>
+Subject: Re: [Bug 172981] New: [bisected] SLAB: extreme load averages and
+ over 2000 kworker threads
+Message-ID: <20160928062024.GF22706@js1304-P5Q-DELUXE>
+References: <bug-172981-27@https.bugzilla.kernel.org/>
+ <20160927111059.282a35c89266202d3cb2f953@linux-foundation.org>
+ <002a01d21936$5ca792a0$15f6b7e0$@net>
+ <20160928051841.GB22706@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160926110231.GE28550@dhcp22.suse.cz>
+In-Reply-To: <20160928051841.GB22706@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Xishi Qiu <qiuxishi@huawei.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Yisheng Xie <xieyisheng1@huawei.com>
+To: Doug Smythies <dsmythies@telus.net>
+Cc: 'Johannes Weiner' <hannes@cmpxchg.org>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Vladimir Davydov' <vdavydov.dev@gmail.com>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
 
-On Mon, Sep 26, 2016 at 01:02:31PM +0200, Michal Hocko wrote:
-> On Mon 26-09-16 18:17:50, Xishi Qiu wrote:
-> > On 2016/9/26 17:43, Michal Hocko wrote:
-> > 
-> > > On Mon 26-09-16 17:16:54, Xishi Qiu wrote:
-> > >> On 2016/9/26 16:58, Michal Hocko wrote:
-> > >>
-> > >>> On Mon 26-09-16 16:47:57, Xishi Qiu wrote:
-> > >>>> commit 97a16fc82a7c5b0cfce95c05dfb9561e306ca1b1
-> > >>>> (mm, page_alloc: only enforce watermarks for order-0 allocations)
-> > >>>> rewrite the high-order check in __zone_watermark_ok(), but I think it
-> > >>>> quietly fix a bug. Please see the following.
-> > >>>>
-> > >>>> Before this patch, the high-order check is this:
-> > >>>> __zone_watermark_ok()
-> > >>>> 	...
-> > >>>> 	for (o = 0; o < order; o++) {
-> > >>>> 		/* At the next order, this order's pages become unavailable */
-> > >>>> 		free_pages -= z->free_area[o].nr_free << o;
-> > >>>>
-> > >>>> 		/* Require fewer higher order pages to be free */
-> > >>>> 		min >>= 1;
-> > >>>>
-> > >>>> 		if (free_pages <= min)
-> > >>>> 			return false;
-> > >>>> 	}
-> > >>>> 	...
-> > >>>>
-> > >>>> If we have cma memory, and we alloc a high-order movable page, then it's right.
-> > >>>>
-> > >>>> But if we alloc a high-order unmovable page(e.g. alloc kernel stack in dup_task_struct()),
-> > >>>> and there are a lot of high-order cma pages, but little high-order unmovable
-> > >>>> pages, the it is still return *true*, but we will alloc *failed* finally, because
-> > >>>> we cannot fallback from migrate_unmovable to migrate_cma, right?
-> > >>>
-> > >>> AFAIR CMA wmark check was always tricky and the above commit has made
-> > >>> the situation at least a bit more clear. Anyway IIRC 
-> > >>>
-> > >>> #ifdef CONFIG_CMA
-> > >>> 	/* If allocation can't use CMA areas don't use free CMA pages */
-> > >>> 	if (!(alloc_flags & ALLOC_CMA))
-> > >>> 		free_cma = zone_page_state(z, NR_FREE_CMA_PAGES);
-> > >>> #endif
-> > >>>
-> > >>> 	if (free_pages - free_cma <= min + z->lowmem_reserve[classzone_idx])
-> > >>> 		return false;
-> > >>>
-> > >>> should reduce the prioblem because a lot of CMA pages should just get us
-> > >>> below the wmark + reserve boundary.
-> > >>
-> > >> Hi Michal,
-> > >>
-> > >> If we have many high-order cma pages, and the left pages (unmovable/movable/reclaimable)
-> > >> are also enough, but they are fragment, then it will triger the problem.
-> > >> If we alloc a high-order unmovable page, water mark check return *true*, but we
-> > >> will alloc *failed*, right?
-> > > 
-> > > As Vlastimil has written. There were known issues with the wmark checks
-> > > and high order requests.
-> > 
-> > Shall we backport to stable?
+On Wed, Sep 28, 2016 at 02:18:42PM +0900, Joonsoo Kim wrote:
+> On Tue, Sep 27, 2016 at 08:13:58PM -0700, Doug Smythies wrote:
+> > By the way, I can eliminate the problem by doing this:
+> > (see also: https://bugzilla.kernel.org/show_bug.cgi?id=172991)
 > 
-> I dunno, it was a part of a larger series with high atomic reserves and
-> changes which sound a bit intrusive for the stable kernel. Considering
-> that CMA was known to be problematic and there are still some issues
-> left I do not think this is worth the trouble/risk.
+> I think that Johannes found the root cause of the problem and they
+> (Johannes and Vladimir) will solve the root cause.
+> 
+> However, there is something useful to do in SLAB side.
+> Could you test following patch, please?
+> 
+> Thanks.
+> 
+> ---------->8--------------
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 0eb6691..39e3bf2 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -965,7 +965,7 @@ static int setup_kmem_cache_node(struct kmem_cache *cachep,
+>          * guaranteed to be valid until irq is re-enabled, because it will be
+>          * freed after synchronize_sched().
+>          */
+> -       if (force_change)
+> +       if (n->shared && force_change)
+>                 synchronize_sched();
 
-CMA problem is known one. I mentioned it on my ZONE_CMA series v1 but
-removed due to Mel's high atomic reserve series.
+Oops...
 
-That series is rather large and has some problems so I think that it
-is not suitable for stable tree.
+s/n->shared/old_shared/
 
 Thanks.
 
