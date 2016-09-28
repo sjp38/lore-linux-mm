@@ -1,66 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CA1A428024E
-	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 22:56:20 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id 82so80018609ioh.1
-        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 19:56:20 -0700 (PDT)
-Received: from quartz.orcorp.ca (quartz.orcorp.ca. [184.70.90.242])
-        by mx.google.com with ESMTPS id n21si7213687ioe.68.2016.09.27.19.56.19
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 Sep 2016 19:56:20 -0700 (PDT)
-Date: Tue, 27 Sep 2016 20:55:44 -0600
-From: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
-Subject: Re: [PATCH v5] powerpc: Do not make the entire heap executable
-Message-ID: <20160928025544.GA24199@obsidianresearch.com>
-References: <20160822185105.29600-1-dvlasenk@redhat.com>
- <87d1jo7qbw.fsf@concordia.ellerman.id.au>
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E861D6B027C
+	for <linux-mm@kvack.org>; Tue, 27 Sep 2016 23:14:03 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id y10so40544246qty.2
+        for <linux-mm@kvack.org>; Tue, 27 Sep 2016 20:14:03 -0700 (PDT)
+Received: from cmta17.telus.net (cmta17.telus.net. [209.171.16.90])
+        by mx.google.com with ESMTP id r55si3687342qta.62.2016.09.27.20.14.03
+        for <linux-mm@kvack.org>;
+        Tue, 27 Sep 2016 20:14:03 -0700 (PDT)
+From: "Doug Smythies" <dsmythies@telus.net>
+References: <bug-172981-27@https.bugzilla.kernel.org/> <20160927111059.282a35c89266202d3cb2f953@linux-foundation.org> p4E0bHJB4CNDxp4E5bcDDz
+In-Reply-To: p4E0bHJB4CNDxp4E5bcDDz
+Subject: RE: [Bug 172981] New: [bisected] SLAB: extreme load averages and over 2000 kworker threads
+Date: Tue, 27 Sep 2016 20:13:58 -0700
+Message-ID: <002a01d21936$5ca792a0$15f6b7e0$@net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87d1jo7qbw.fsf@concordia.ellerman.id.au>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: en-ca
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, linuxppc-dev@lists.ozlabs.org, Andrew Morton <akpm@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Kees Cook <keescook@chromium.org>, Oleg Nesterov <oleg@redhat.com>, Florian Weimer <fweimer@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: 'Johannes Weiner' <hannes@cmpxchg.org>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Vladimir Davydov' <vdavydov.dev@gmail.com>
+Cc: 'Joonsoo Kim' <iamjoonsoo.kim@lge.com>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Doug Smythies <dsmythies@telus.net>
 
-On Wed, Sep 28, 2016 at 11:42:11AM +1000, Michael Ellerman wrote:
+By the way, I can eliminate the problem by doing this:
+(see also: https://bugzilla.kernel.org/show_bug.cgi?id=172991)
 
-> But this is not really a powerpc patch, and I'm not an ELF expert. So
-> I'm not comfortable merging it via the powerpc tree. It doesn't look
-> like we really have a maintainer for binfmt_elf.c, so I'm not sure who
-> should be acking that part.
+diff --git a/mm/slab.c b/mm/slab.c
+index b672710..a4edbfa 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -965,7 +965,7 @@ static int setup_kmem_cache_node(struct kmem_cache *cachep,
+         * freed after synchronize_sched().
+         */
+        if (force_change)
+-               synchronize_sched();
++               kick_all_cpus_sync();
 
-Thanks a bunch for looking at this Michael.
+ fail:
+        kfree(old_shared);
 
-> I've added Al Viro to Cc, he maintains fs/ and might be interested.
-
-> I've also added Andrew Morton who might be happy to put this in his
-> tree, and see if anyone complains?
-
-For those added to the CC, I would re-state my original commit message
-more clearly.
-
-My research showed that the ELF loader bug fixed in this patch is the
-root cause bug fix required to implement this hunk:
-
-> > -#define VM_DATA_DEFAULT_FLAGS32	(VM_READ | VM_WRITE | VM_EXEC | \
-> > +#define VM_DATA_DEFAULT_FLAGS32 \
-> > +	(((current->personality & READ_IMPLIES_EXEC) ? VM_EXEC : 0) | \
-> > +				 VM_READ | VM_WRITE | \
-> >  				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
-
-Eg that 32 bit powerpc currently unconditionally injects writable,
-executable pages into a user space process.
-
-This critically undermines all the W^X security work that has been
-done in the tool chain and user space by the PPC community.
-
-I would encourage people to view this as an important security patch
-for 32 bit powerpc environments.
-
-Regards,
-Jason
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
