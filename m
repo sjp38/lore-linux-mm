@@ -1,63 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 511506B0263
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 11:22:53 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id 20so125261673ioj.0
-        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 08:22:53 -0700 (PDT)
-Received: from cmta16.telus.net (cmta16.telus.net. [209.171.16.89])
-        by mx.google.com with ESMTP id w202si10754253itb.36.2016.09.28.08.22.28
-        for <linux-mm@kvack.org>;
-        Wed, 28 Sep 2016 08:22:28 -0700 (PDT)
-From: "Doug Smythies" <dsmythies@telus.net>
-References: <bug-172981-27@https.bugzilla.kernel.org/> <20160927111059.282a35c89266202d3cb2f953@linux-foundation.org> <002a01d21936$5ca792a0$15f6b7e0$@net> <20160928051841.GB22706@js1304-P5Q-DELUXE> p862bY4Wd9akxp868bmekv
-In-Reply-To: p862bY4Wd9akxp868bmekv
-Subject: RE: [Bug 172981] New: [bisected] SLAB: extreme load averages and over 2000 kworker threads
-Date: Wed, 28 Sep 2016 08:22:24 -0700
-Message-ID: <000601d2199c$1f01cd10$5d056730$@net>
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 41E916B027B
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 11:39:34 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id l138so45304253wmg.3
+        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 08:39:34 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id u1si9205276wja.29.2016.09.28.08.39.31
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 28 Sep 2016 08:39:31 -0700 (PDT)
+Date: Wed, 28 Sep 2016 11:39:25 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: Regression in mobility grouping?
+Message-ID: <20160928153925.GA24966@cmpxchg.org>
+References: <20160928014148.GA21007@cmpxchg.org>
+ <8c3b7dd8-ef6f-6666-2f60-8168d41202cf@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: en-ca
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <8c3b7dd8-ef6f-6666-2f60-8168d41202cf@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Joonsoo Kim' <iamjoonsoo.kim@lge.com>
-Cc: 'Johannes Weiner' <hannes@cmpxchg.org>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Vladimir Davydov' <vdavydov.dev@gmail.com>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Mel Gorman <mgorman@suse.de>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On 2016.09.27 23:20 Joonsoo Kim wrote:
-> On Wed, Sep 28, 2016 at 02:18:42PM +0900, Joonsoo Kim wrote:
->> On Tue, Sep 27, 2016 at 08:13:58PM -0700, Doug Smythies wrote:
->>> By the way, I can eliminate the problem by doing this:
->>> (see also: https://bugzilla.kernel.org/show_bug.cgi?id=172991)
->> 
->> I think that Johannes found the root cause of the problem and they
->> (Johannes and Vladimir) will solve the root cause.
->> 
->> However, there is something useful to do in SLAB side.
->> Could you test following patch, please?
->> 
->> Thanks.
->> 
->> ---------->8--------------
->> diff --git a/mm/slab.c b/mm/slab.c
->> index 0eb6691..39e3bf2 100644
->> --- a/mm/slab.c
->> +++ b/mm/slab.c
->> @@ -965,7 +965,7 @@ static int setup_kmem_cache_node(struct kmem_cache *cachep,
->>          * guaranteed to be valid until irq is re-enabled, because it will be
->>          * freed after synchronize_sched().
->>          */
->> -       if (force_change)
->> +       if (n->shared && force_change)
->>                 synchronize_sched();
->
-> Oops...
->
-> s/n->shared/old_shared/
+Hi Vlastimil,
 
-Yes, that seems to work fine. After boot everything is good.
-Then I tried and tried to get it to mess up, but could not.
+On Wed, Sep 28, 2016 at 11:00:15AM +0200, Vlastimil Babka wrote:
+> On 09/28/2016 03:41 AM, Johannes Weiner wrote:
+> > Hi guys,
+> > 
+> > we noticed what looks like a regression in page mobility grouping
+> > during an upgrade from 3.10 to 4.0. Identical machines, workloads, and
+> > uptime, but /proc/pagetypeinfo on 3.10 looks like this:
+> > 
+> > Number of blocks type     Unmovable  Reclaimable      Movable      Reserve      Isolate 
+> > Node 1, zone   Normal          815          433        31518            2            0 
+> > 
+> > and on 4.0 like this:
+> > 
+> > Number of blocks type     Unmovable  Reclaimable      Movable      Reserve          CMA      Isolate 
+> > Node 1, zone   Normal         3880         3530        25356            2            0            0 
+> 
+> It's worth to keep in mind that this doesn't reflect where the actual
+> unmovable pages reside. It might be that in 3.10 they are spread within
+> the movable pages. IIRC enabling page_owner (not sure if in 4.0, there
+> were some later fixes I think) can augment pagetypeinfo with at least
+> some statistics of polluted pageblocks.
 
+Thanks, I'll look at the mixed block counts. I failed to make clear,
+we saw that issue in the switch from 3.10 to 4.0, and I mentioned
+those two kernels as last known good / first known bad. But later
+kernels - we tried with 4.6 - look the same. This appears to be a
+regression in (higher-order) allocation service quality somewhere
+after 3.10 that persists into current kernels.
+
+> Does e.g. /proc/meminfo suggest how much unmovable/reclaimable memory
+> there should be allocated and if it would fill the respective
+> pageblocks, or if they are poorly utilized?
+
+They are very poorly utilized. On a machine with 90% anon/cache pages
+alone we saw 50% of the page blocks unmovable.
+
+> > 4.0 is either polluting pageblocks more aggressively at allocation, or
+> > is not able to make pageblocks movable again when the reclaimable and
+> > unmovable allocations are released. Invoking compaction manually
+> > (/proc/sys/vm/compact_memory) is not bringing them back, either.
+> >
+> > The problem we are debugging is that these machines have a very high
+> > rate of order-3 allocations (fdtable during fork, network rx), and
+> > after the upgrade allocstalls have increased dramatically. I'm not
+> > entirely sure this is the same issue, since even order-0 allocations
+> > are struggling, but the mobility grouping in itself looks problematic.
+> > 
+> > I'm still going through the changes relevant to mobility grouping in
+> > that timeframe, but if this rings a bell for anyone, it would help. I
+> > hate blaming random patches, but these caught my eye:
+> > 
+> > 9c0415e mm: more aggressive page stealing for UNMOVABLE allocations
+> > 3a1086f mm: always steal split buddies in fallback allocations
+> > 99592d5 mm: when stealing freepages, also take pages created by splitting buddy page
+> 
+> Check also the changelogs for mentions of earlier commits, e.g. 99592d5
+> should be restoring behavior that changed in 3.12-3.13 and you are
+> upgrading from 3.10.
+
+Good point.
+
+> > The changelog states that by aggressively stealing split buddy pages
+> > during a fallback allocation we avoid subsequent stealing. But since
+> > there are generally more movable/reclaimable pages available, and so
+> > less falling back and stealing freepages on behalf of movable, won't
+> > this mean that we could expect exactly that result - growing numbers
+> > of unmovable blocks, while rarely stealing them back in movable alloc
+> > fallbacks? And the expansion of !MOVABLE blocks would over time make
+> > compaction less and less effective too, seeing as it doesn't consider
+> > anything !MOVABLE suitable migration targets?
+> 
+> Yeah this is an issue with compaction that was brought up recently and I
+> want to tackle next.
+
+Agreed, it would be nice if compaction could reclaim unmovable and
+reclaimable blocks whose polluting allocations have since been freed.
+
+But there is a limit to how lazy mobility grouping can be and still
+expect compaction to fix it up. If 50% of the page blocks are marked
+unmovable, we don't pack incoming polluting allocations. When spread
+out the right way, even just a few of those can have a devastating
+impact on overall compactability.
+
+So regardless of future compaction improvements, we need to get
+anti-frag accuracy in the allocator closer to 3.10 levels again.
+
+> > Attached are the full /proc/pagetypeinfo and /proc/buddyinfo from both
+> > kernels on machines with similar uptimes and directly after invoking
+> > compaction. As you can see, the buddy lists are much more fragmented
+> > on 4.0, with unmovable/reclaimable allocations polluting more blocks.
+> > 
+> > Any thoughts on this would be greatly appreciated. I can test patches.
+> 
+> I guess testing revert of 9c0415e could give us some idea. Commit
+> 3a1086f shouldn't result in pageblock marking differences and as I said
+> above, 99592d5 should be just restoring to what 3.10 did.
+
+I can give this a shot, but note that this commit makes only unmovable
+stealing more aggressive. We see reclaimable blocks up as well.
+
+The workload is fairly variable, so it'll take about a day to smooth
+out a meaningful average.
+
+Thanks for your insights, Vlastimil!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
