@@ -1,102 +1,190 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C6849280251
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 02:34:27 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 21so137083450pfy.3
-        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 23:34:27 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A566A280251
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 02:34:29 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id n24so134989017pfb.0
+        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 23:34:29 -0700 (PDT)
 Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id v1si12804035pav.74.2016.09.28.23.34.27
+        by mx.google.com with ESMTPS id v1si12804035pav.74.2016.09.28.23.34.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Sep 2016 23:34:27 -0700 (PDT)
+        Wed, 28 Sep 2016 23:34:28 -0700 (PDT)
 From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -v4 8/9] mm, THP, swap: Support to split THP in swap cache
-Date: Thu, 29 Sep 2016 14:33:53 +0800
-Message-Id: <20160929063354.1875-9-ying.huang@intel.com>
+Subject: [PATCH -v4 9/9] mm, THP, swap: Delay splitting THP during swap out
+Date: Thu, 29 Sep 2016 14:33:54 +0800
+Message-Id: <20160929063354.1875-10-ying.huang@intel.com>
 In-Reply-To: <20160929063354.1875-1-ying.huang@intel.com>
 References: <20160929063354.1875-1-ying.huang@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Ebru Akagunduz <ebru.akagunduz@gmail.com>
+Cc: tim.c.chen@intel.com, dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>
 
 From: Huang Ying <ying.huang@intel.com>
 
-This patch enhanced the split_huge_page_to_list() to work properly for
-the THP (Transparent Huge Page) in the swap cache during swapping out.
+In this patch, splitting huge page is delayed from almost the first step
+of swapping out to after allocating the swap space for the
+THP (Transparent Huge Page) and adding the THP into the swap cache.
+This will reduce lock acquiring/releasing for the locks used for the
+swap cache management.
 
-This is used for delaying splitting the THP during swapping out.  Where
-for a THP to be swapped out, we will allocate a swap cluster, add the
-THP into the swap cache, then split the THP.  The page lock will be held
-during this process.  So in the code path other than swapping out, if
-the THP need to be split, the PageSwapCache(THP) will be always false.
+This is the first step for the THP swap support.  The plan is to delay
+splitting the THP step by step and avoid splitting the THP finally.
 
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Ebru Akagunduz <ebru.akagunduz@gmail.com>
+The advantages of the THP swap support include:
+
+- Batch the swap operations for the THP to reduce lock
+  acquiring/releasing, including allocating/freeing the swap space,
+  adding/deleting to/from the swap cache, and writing/reading the swap
+  space, etc.  This will help to improve the THP swap performance.
+
+- The THP swap space read/write will be 2M sequential IO.  It is
+  particularly helpful for the swap read, which usually are 4k random
+  IO.  This will help to improve the THP swap performance too.
+
+- It will help the memory fragmentation, especially when the THP is
+  heavily used by the applications.  The 2M continuous pages will be
+  free up after the THP swapping out.
+
+With the patchset, the swap out throughput improved 12.1% (from 1.12GB/s
+to 1.25GB/s) in the vm-scalability swap-w-seq test case with 16
+processes.  The test is done on a Xeon E5 v3 system.  The RAM simulated
+PMEM (persistent memory) device is used as the swap device.  To test
+sequential swapping out, the test case uses 16 processes sequentially
+allocate and write to the anonymous pages until the RAM and part of the
+swap device is used up.
+
+The detailed compare result is as follow,
+
+base             base+patchset
+---------------- --------------------------
+         %stddev     %change         %stddev
+             \          |                \
+   1118821 A+-  0%     +12.1%    1254241 A+-  1%  vmstat.swap.so
+   2460636 A+-  1%     +10.6%    2720983 A+-  1%  vm-scalability.throughput
+    308.79 A+-  1%      -7.9%     284.53 A+-  1%  vm-scalability.time.elapsed_time
+      1639 A+-  4%    +232.3%       5446 A+-  1%  meminfo.SwapCached
+      0.70 A+-  3%      +8.7%       0.77 A+-  5%  perf-stat.ipc
+      9.82 A+-  8%     -31.6%       6.72 A+-  2%  perf-profile.cycles-pp._raw_spin_lock_irq.__add_to_swap_cache.add_to_swap_cache.add_to_swap.shrink_page_list
+
 Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
 ---
- mm/huge_memory.c | 17 ++++++++++++-----
- 1 file changed, 12 insertions(+), 5 deletions(-)
+ mm/swap_state.c | 65 ++++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 62 insertions(+), 3 deletions(-)
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index c856a7c..c58e032 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1834,7 +1834,7 @@ static void __split_huge_page_tail(struct page *head, int tail,
- 	 * atomic_set() here would be safe on all archs (and not only on x86),
- 	 * it's safer to use atomic_inc()/atomic_add().
- 	 */
--	if (PageAnon(head)) {
-+	if (PageAnon(head) && !PageSwapCache(head)) {
- 		page_ref_inc(page_tail);
- 	} else {
- 		/* Additional pin to radix tree */
-@@ -1845,6 +1845,7 @@ static void __split_huge_page_tail(struct page *head, int tail,
- 	page_tail->flags |= (head->flags &
- 			((1L << PG_referenced) |
- 			 (1L << PG_swapbacked) |
-+			 (1L << PG_swapcache) |
- 			 (1L << PG_mlocked) |
- 			 (1L << PG_uptodate) |
- 			 (1L << PG_active) |
-@@ -1907,7 +1908,11 @@ static void __split_huge_page(struct page *page, struct list_head *list,
- 	ClearPageCompound(head);
- 	/* See comment in __split_huge_page_tail() */
- 	if (PageAnon(head)) {
--		page_ref_inc(head);
-+		/* Additional pin to radix tree of swap cache */
-+		if (PageSwapCache(head))
-+			page_ref_add(head, 2);
-+		else
-+			page_ref_inc(head);
- 	} else {
- 		/* Additional pin to radix tree */
- 		page_ref_add(head, 2);
-@@ -2019,10 +2024,12 @@ int page_trans_huge_mapcount(struct page *page, int *total_mapcount)
- /* Racy check whether the huge page can be split */
- bool can_split_huge_page(struct page *page)
- {
--	int extra_pins = 0;
-+	int extra_pins;
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 3115762..b338523 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -17,6 +17,7 @@
+ #include <linux/blkdev.h>
+ #include <linux/pagevec.h>
+ #include <linux/migrate.h>
++#include <linux/huge_mm.h>
  
- 	/* Additional pins from radix tree */
--	if (!PageAnon(page))
-+	if (PageAnon(page))
-+		extra_pins = PageSwapCache(page) ? HPAGE_PMD_NR : 0;
-+	else
- 		extra_pins = HPAGE_PMD_NR;
- 	return total_mapcount(page) == page_count(page) - extra_pins - 1;
+ #include <asm/pgtable.h>
+ 
+@@ -175,12 +176,53 @@ void __delete_from_swap_cache(struct page *page)
+ 	ADD_CACHE_INFO(del_total, nr);
  }
-@@ -2075,7 +2082,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
- 			ret = -EBUSY;
- 			goto out;
- 		}
--		extra_pins = 0;
-+		extra_pins = PageSwapCache(head) ? HPAGE_PMD_NR : 0;
- 		mapping = NULL;
- 		anon_vma_lock_write(anon_vma);
- 	} else {
+ 
++#ifdef CONFIG_THP_SWAP_CLUSTER
++int add_to_swap_trans_huge(struct page *page, struct list_head *list)
++{
++	swp_entry_t entry;
++	int ret = 0;
++
++	/* cannot split, which may be needed during swap in, skip it */
++	if (!can_split_huge_page(page))
++		return -EBUSY;
++	/* fallback to split huge page firstly if no PMD map */
++	if (!compound_mapcount(page))
++		return 0;
++	entry = get_huge_swap_page();
++	if (!entry.val)
++		return 0;
++	if (mem_cgroup_try_charge_swap(page, entry, HPAGE_PMD_NR)) {
++		__swapcache_free(entry, true);
++		return -EOVERFLOW;
++	}
++	ret = add_to_swap_cache(page, entry,
++				__GFP_HIGH | __GFP_NOMEMALLOC|__GFP_NOWARN);
++	/* -ENOMEM radix-tree allocation failure */
++	if (ret) {
++		__swapcache_free(entry, true);
++		return 0;
++	}
++	ret = split_huge_page_to_list(page, list);
++	if (ret) {
++		delete_from_swap_cache(page);
++		return -EBUSY;
++	}
++	return 1;
++}
++#else
++static inline int add_to_swap_trans_huge(struct page *page,
++					 struct list_head *list)
++{
++	return 0;
++}
++#endif
++
+ /**
+  * add_to_swap - allocate swap space for a page
+  * @page: page we want to move to swap
+  *
+  * Allocate swap space for the page and add the page to the
+- * swap cache.  Caller needs to hold the page lock. 
++ * swap cache.  Caller needs to hold the page lock.
+  */
+ int add_to_swap(struct page *page, struct list_head *list)
+ {
+@@ -190,6 +232,18 @@ int add_to_swap(struct page *page, struct list_head *list)
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+ 	VM_BUG_ON_PAGE(!PageUptodate(page), page);
+ 
++	if (unlikely(PageTransHuge(page))) {
++		err = add_to_swap_trans_huge(page, list);
++		switch (err) {
++		case 1:
++			return 1;
++		case 0:
++			/* fallback to split firstly if return 0 */
++			break;
++		default:
++			return 0;
++		}
++	}
+ 	entry = get_swap_page();
+ 	if (!entry.val)
+ 		return 0;
+@@ -307,7 +361,7 @@ struct page * lookup_swap_cache(swp_entry_t entry)
+ 
+ 	page = find_get_page(swap_address_space(entry), swp_offset(entry));
+ 
+-	if (page) {
++	if (page && likely(!PageTransCompound(page))) {
+ 		INC_CACHE_INFO(find_success);
+ 		if (TestClearPageReadahead(page))
+ 			atomic_inc(&swapin_readahead_hits);
+@@ -333,8 +387,13 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 		 * that would confuse statistics.
+ 		 */
+ 		found_page = find_get_page(swapper_space, swp_offset(entry));
+-		if (found_page)
++		if (found_page) {
++			if (unlikely(PageTransCompound(found_page))) {
++				put_page(found_page);
++				found_page = NULL;
++			}
+ 			break;
++		}
+ 
+ 		/*
+ 		 * Get a new page to read into from swap.
 -- 
 2.9.3
 
