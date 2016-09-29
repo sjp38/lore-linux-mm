@@ -1,79 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E4A36B0038
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 11:06:16 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id 124so66207012itl.1
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 08:06:16 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v124si26623609itc.68.2016.09.29.08.05.47
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CE4A86B0038
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 11:54:47 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id f187so111673339qkd.3
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 08:54:47 -0700 (PDT)
+Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
+        by mx.google.com with ESMTPS id q125si369599qkd.4.2016.09.29.08.54.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Sep 2016 08:05:47 -0700 (PDT)
-Message-ID: <1475161541.10218.117.camel@redhat.com>
-Subject: Re: page_waitqueue() considered harmful
-From: Rik van Riel <riel@redhat.com>
-Date: Thu, 29 Sep 2016 11:05:41 -0400
-In-Reply-To: <20160929225544.70a23dac@roar.ozlabs.ibm.com>
-References: 
-	<CA+55aFwVSXZPONk2OEyxcP-aAQU7-aJsF3OFXVi8Z5vA11v_-Q@mail.gmail.com>
-	 <20160927073055.GM2794@worktop> <20160927085412.GD2838@techsingularity.net>
-	 <20160929080130.GJ3318@worktop.controleur.wifipass.org>
-	 <20160929225544.70a23dac@roar.ozlabs.ibm.com>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-205UbcDYhsUtsMFgFzSW"
-Mime-Version: 1.0
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 29 Sep 2016 08:54:47 -0700 (PDT)
+From: zijun_hu <zijun_hu@zoho.com>
+Subject: mm/percpu.c: fix potential memory leakage for
+ pcpu_embed_first_chunk()
+Message-ID: <c667e4f6-0446-ffd6-d05d-d87e97041a67@zoho.com>
+Date: Thu, 29 Sep 2016 23:54:26 +0800
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>, Peter Zijlstra <peterz@infradead.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>
+To: tj@kernel.org, akpm@linux-foundation.org
+Cc: zijun_hu@htc.com, cl@linux.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+From: zijun_hu <zijun_hu@htc.com>
 
---=-205UbcDYhsUtsMFgFzSW
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+it will cause memory leakage for pcpu_embed_first_chunk() to go to
+label @out_free if the chunk spans over 3/4 VMALLOC area. all memory
+are allocated and recorded into array @areas for each CPU group, but
+the memory allocated aren't be freed before returning after going to
+label @out_free
 
-On Thu, 2016-09-29 at 22:55 +1000, Nicholas Piggin wrote:
+in order to fix this bug, we check chunk spanned area immediately
+after completing memory allocation for all CPU group, we go to label
+@out_free_areas other than @out_free to free all memory allocated if
+the checking is failed.
 
-> PG_swapcache - can this be replaced with ane of the private bits, I
-> wonder?
+Signed-off-by: zijun_hu <zijun_hu@htc.com>
+---
+ Hi Andrew,
+ this patch is based on mmotm/linux-next branch so can be
+ applied directly
 
-Perhaps. page->mapping needs to be free to point
-at the anon_vma, but from the mapping pointer we
-can see that the page is swap backed.
+ mm/percpu.c | 36 ++++++++++++++++++------------------
+ 1 file changed, 18 insertions(+), 18 deletions(-)
 
-Is there any use for page->private for swap
-backed pages that is not the page cache index?
-
-If so, (PageAnon(page) && page->private)
-might work as a replacement for PG_swapcache.
-
-That might catch some false positives with
-the special swap types used for migration, but
-maybe we do not need to care about those (much),
-or we can filter them out with a more in-depth
-check?
-
---=20
-All rights reversed
-
---=-205UbcDYhsUtsMFgFzSW
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQEcBAABCAAGBQJX7S3GAAoJEM553pKExN6DTbEH/2hYVFxrgxo6nHkEsvXZzIP5
-yTagwEYMiLadpQSwDBxfI/iWvQvlQy6e9innRPnINYa4KcAbqdB7dnKpzT0FM8WP
-xPWEU8Vz9GKgobHs9pkGNBWI/1c7TLtU4bNCRoUhvYS9ElSxc25F5BorF1pMMpOV
-1qZIIgfPr9bx6SNR32QnG3C4YxuRCHrI5kUCZpzV0JH7buAyGXGhWd9E/b56Pkio
-rDTruDnjpt1AfvdCWCTXullltRDjo/BzH1+PlNYiaeHZnVRpb54bh7qtWEzKxDKy
-TgjIH6+yOAy+g6Z2IuhlzSS4RvhUm5QcspIQVCLt1yfoJuCYdvLGvXipYKgpGZg=
-=qv6d
------END PGP SIGNATURE-----
-
---=-205UbcDYhsUtsMFgFzSW--
+diff --git a/mm/percpu.c b/mm/percpu.c
+index 41d9d0b35801..7a5dae185ce1 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -1963,7 +1963,7 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
+ 	struct pcpu_alloc_info *ai;
+ 	size_t size_sum, areas_size;
+ 	unsigned long max_distance;
+-	int group, i, rc;
++	int group, i, j, rc;
+ 
+ 	ai = pcpu_build_alloc_info(reserved_size, dyn_size, atom_size,
+ 				   cpu_distance_fn);
+@@ -1979,7 +1979,8 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
+ 		goto out_free;
+ 	}
+ 
+-	/* allocate, copy and determine base address */
++	/* allocate, copy and determine base address & max_distance */
++	j = 0;
+ 	for (group = 0; group < ai->nr_groups; group++) {
+ 		struct pcpu_group_info *gi = &ai->groups[group];
+ 		unsigned int cpu = NR_CPUS;
+@@ -2000,6 +2001,21 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
+ 		areas[group] = ptr;
+ 
+ 		base = min(ptr, base);
++		if (ptr > areas[j])
++			j = group;
++	}
++	max_distance = areas[j] - base;
++	max_distance += ai->unit_size * ai->groups[j].nr_units;
++
++	/* warn if maximum distance is further than 75% of vmalloc space */
++	if (max_distance > VMALLOC_TOTAL * 3 / 4) {
++		pr_warn("max_distance=0x%lx too large for vmalloc space 0x%lx\n",
++				max_distance, VMALLOC_TOTAL);
++#ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
++		/* and fail if we have fallback */
++		rc = -EINVAL;
++		goto out_free_areas;
++#endif
+ 	}
+ 
+ 	/*
+@@ -2024,24 +2040,8 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
+ 	}
+ 
+ 	/* base address is now known, determine group base offsets */
+-	i = 0;
+ 	for (group = 0; group < ai->nr_groups; group++) {
+ 		ai->groups[group].base_offset = areas[group] - base;
+-		if (areas[group] > areas[i])
+-			i = group;
+-	}
+-	max_distance = ai->groups[i].base_offset +
+-		(unsigned long)ai->unit_size * ai->groups[i].nr_units;
+-
+-	/* warn if maximum distance is further than 75% of vmalloc space */
+-	if (max_distance > VMALLOC_TOTAL * 3 / 4) {
+-		pr_warn("max_distance=0x%lx too large for vmalloc space 0x%lx\n",
+-			max_distance, VMALLOC_TOTAL);
+-#ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
+-		/* and fail if we have fallback */
+-		rc = -EINVAL;
+-		goto out_free;
+-#endif
+ 	}
+ 
+ 	pr_info("Embedded %zu pages/cpu @%p s%zu r%zu d%zu u%zu\n",
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
