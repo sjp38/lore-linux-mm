@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CE4A86B0038
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 11:54:47 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id f187so111673339qkd.3
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 08:54:47 -0700 (PDT)
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F4806B0253
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 12:03:37 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id 30so58228725qth.2
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 09:03:37 -0700 (PDT)
 Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
-        by mx.google.com with ESMTPS id q125si369599qkd.4.2016.09.29.08.54.46
+        by mx.google.com with ESMTPS id k35si190074qte.12.2016.09.29.09.03.36
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 29 Sep 2016 08:54:47 -0700 (PDT)
+        Thu, 29 Sep 2016 09:03:36 -0700 (PDT)
 From: zijun_hu <zijun_hu@zoho.com>
-Subject: mm/percpu.c: fix potential memory leakage for
+Subject: [RFC PATCH 1/1] mm/percpu.c: fix potential memory leakage for
  pcpu_embed_first_chunk()
-Message-ID: <c667e4f6-0446-ffd6-d05d-d87e97041a67@zoho.com>
-Date: Thu, 29 Sep 2016 23:54:26 +0800
+Message-ID: <d6742bae-1b32-10d8-1857-9993a2d06117@zoho.com>
+Date: Fri, 30 Sep 2016 00:03:20 +0800
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tj@kernel.org, akpm@linux-foundation.org
+To: Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 Cc: zijun_hu@htc.com, cl@linux.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 From: zijun_hu <zijun_hu@htc.com>
@@ -38,8 +38,10 @@ the checking is failed.
 Signed-off-by: zijun_hu <zijun_hu@htc.com>
 ---
  Hi Andrew,
- this patch is based on mmotm/linux-next branch so can be
- applied directly
+  i am sorry to forget to prefix title with "PATCH" keyword in previous
+  mail, so i resend it with correction
+  this patch is based on mmotm/linux-next branch so can be
+  applied directly
 
  mm/percpu.c | 36 ++++++++++++++++++------------------
  1 file changed, 18 insertions(+), 18 deletions(-)
