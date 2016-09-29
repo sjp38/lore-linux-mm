@@ -1,59 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AB896B02A4
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 03:39:14 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id b130so64207134wmc.2
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 00:39:14 -0700 (PDT)
-Received: from mx0b-0016f401.pphosted.com (mx0b-0016f401.pphosted.com. [67.231.156.173])
-        by mx.google.com with ESMTPS id v6si4859138wjy.7.2016.09.29.00.39.12
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E7ACB6B02A4
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 03:44:05 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id cg13so127178789pac.1
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 00:44:05 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id uf7si13069503pab.103.2016.09.29.00.44.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Sep 2016 00:39:13 -0700 (PDT)
-From: Jisheng Zhang <jszhang@marvell.com>
-Subject: [PATCH] mm/vmalloc: reduce the number of lazy_max_pages to reduce latency
-Date: Thu, 29 Sep 2016 15:34:11 +0800
-Message-ID: <20160929073411.3154-1-jszhang@marvell.com>
+        Thu, 29 Sep 2016 00:44:04 -0700 (PDT)
+Date: Thu, 29 Sep 2016 09:43:56 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: page_waitqueue() considered harmful
+Message-ID: <20160929074356.GA2784@worktop>
+References: <CA+55aFwVSXZPONk2OEyxcP-aAQU7-aJsF3OFXVi8Z5vA11v_-Q@mail.gmail.com>
+ <20160927083104.GC2838@techsingularity.net>
+ <20160928005318.2f474a70@roar.ozlabs.ibm.com>
+ <20160927165221.GP5016@twins.programming.kicks-ass.net>
+ <20160928030621.579ece3a@roar.ozlabs.ibm.com>
+ <20160928070546.GT2794@worktop>
+ <20160929113132.5a85b887@roar.ozlabs.ibm.com>
+ <20160929062132.GG3318@worktop.controleur.wifipass.org>
+ <20160929164231.166d2910@roar.ozlabs.ibm.com>
+ <20160929071451.GI3318@worktop.controleur.wifipass.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160929071451.GI3318@worktop.controleur.wifipass.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mgorman@techsingularity.net, chris@chris-wilson.co.uk, rientjes@google.com, iamjoonsoo.kim@lge.com, npiggin@kernel.dk, agnel.joel@gmail.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, Jisheng Zhang <jszhang@marvell.com>
+To: Nicholas Piggin <npiggin@gmail.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Will Deacon <will.deacon@arm.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Alan Stern <stern@rowland.harvard.edu>
 
-On Marvell berlin arm64 platforms, I see the preemptoff tracer report
-a max 26543 us latency at __purge_vmap_area_lazy, this latency is an
-awfully bad for STB. And the ftrace log also shows __free_vmap_area
-contributes most latency now. I noticed that Joel mentioned the same
-issue[1] on x86 platform and gave two solutions, but it seems no patch
-is sent out for this purpose.
+On Thu, Sep 29, 2016 at 09:14:51AM +0200, Peter Zijlstra wrote:
+> On Thu, Sep 29, 2016 at 04:42:31PM +1000, Nicholas Piggin wrote:
+> > Take Alpha instead. It's using 32-bit ops.
+> 
+> Hmm, my Alpha docs are on the other machine, but I suppose the problem
+> is 64bit immediates (which would be a common problem I suppose, those
+> don't really work well on x86 either).
 
-This patch adopts Joel's first solution, but I use 16MB per core
-rather than 8MB per core for the number of lazy_max_pages. After this
-patch, the preemptoff tracer reports a max 6455us latency, reduced to
-1/4 of original result.
+OK, so from the architecture that have 64bit support, I think Alpha is
+the only one that uses 32bit ops and cares.
 
-[1] http://lkml.iu.edu/hypermail/linux/kernel/1603.2/04803.html
+alpha is weak and uses 32bit ops (fail)
+arm64 is weak but uses 64bit ops
+ia64 has full barriers and 64bit ops
+mips is weak but uses 64bit ops
+parisc is horrid but uses 64bit ops
+powerpc is weak but uses 64bit ops
+s390 has full barriers and uses 64bit ops
+sparc has full barriers and uses 64bit ops (if I read the asm right)
+tile is weak but uses 64bit ops
+x86 has full barriers and uses byte ops
 
-Signed-off-by: Jisheng Zhang <jszhang@marvell.com>
----
- mm/vmalloc.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 91f44e7..66f377a 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -596,7 +596,7 @@ static unsigned long lazy_max_pages(void)
- 
- 	log = fls(num_online_cpus());
- 
--	return log * (32UL * 1024 * 1024 / PAGE_SIZE);
-+	return log * (16UL * 1024 * 1024 / PAGE_SIZE);
- }
- 
- static atomic_t vmap_lazy_nr = ATOMIC_INIT(0);
--- 
-2.9.3
+So we could just fix Alpha..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
