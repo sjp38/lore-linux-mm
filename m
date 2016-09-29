@@ -1,88 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EDA9128024C
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 06:35:09 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id w84so69165339wmg.1
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 03:35:09 -0700 (PDT)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id v10si13987582wja.54.2016.09.29.03.35.08
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EFE9328024C
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 06:50:37 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id b4so10218548wmb.0
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 03:50:37 -0700 (PDT)
+Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com. [74.125.82.51])
+        by mx.google.com with ESMTPS id d62si527508wmd.4.2016.09.29.03.50.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Sep 2016 03:35:08 -0700 (PDT)
-Received: by mail-wm0-x243.google.com with SMTP id b184so10035563wma.3
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 03:35:08 -0700 (PDT)
-Date: Thu, 29 Sep 2016 12:35:07 +0200
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RESEND PATCH 1/1] mm/percpu.c: correct max_distance calculation
- for pcpu_embed_first_chunk()
-Message-ID: <20160929103507.GA25170@mtj.duckdns.org>
-References: <7180d3c9-45d3-ffd2-cf8c-0d925f888a4d@zoho.com>
- <0310bf92-c8da-459f-58e3-40b8bfbb7223@zoho.com>
+        Thu, 29 Sep 2016 03:50:36 -0700 (PDT)
+Received: by mail-wm0-f51.google.com with SMTP id b130so124204446wmc.0
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 03:50:36 -0700 (PDT)
+Subject: Re: Soft lockup in __slab_free (SLUB)
+References: <57E8D270.8040802@kyup.com>
+ <20160928053114.GC22706@js1304-P5Q-DELUXE> <57EB6DF5.2010503@kyup.com>
+ <20160929014024.GA29250@js1304-P5Q-DELUXE>
+ <20160929021100.GI14933@linux.vnet.ibm.com>
+ <20160929025559.GE29250@js1304-P5Q-DELUXE> <57ECBE8D.6000703@kyup.com>
+ <20160929102743.GL14933@linux.vnet.ibm.com>
+From: Nikolay Borisov <kernel@kyup.com>
+Message-ID: <57ECF1FA.6010908@kyup.com>
+Date: Thu, 29 Sep 2016 13:50:34 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <0310bf92-c8da-459f-58e3-40b8bfbb7223@zoho.com>
+In-Reply-To: <20160929102743.GL14933@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zijun_hu <zijun_hu@zoho.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, zijun_hu@htc.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, cl@linux.com
+To: paulmck@linux.vnet.ibm.com
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christoph Lameter <cl@linux.com>, Linux MM <linux-mm@kvack.org>, brouer@redhat.com
 
-Hello,
 
-On Sat, Sep 24, 2016 at 07:20:49AM +0800, zijun_hu wrote:
-> it is error to represent the max range max_distance spanned by all the
-> group areas as the offset of the highest group area plus unit size in
-> pcpu_embed_first_chunk(), it should equal to the offset plus the size
-> of the highest group area
+
+On 09/29/2016 01:27 PM, Paul E. McKenney wrote:
+> On Thu, Sep 29, 2016 at 10:11:09AM +0300, Nikolay Borisov wrote:
+[SNIP]
+
+>> What in particular should I be looking for in ftrace? tracing the stacks
+>> on the stuck cpu?
 > 
-> in order to fix this issue,let us find the highest group area who has the
-> biggest base address among all the ones, then max_distance is formed by
-> add it's offset and size value
+> To start with, how about the sequence of functions that the stuck
+> CPU is executing?
 
- [PATCH] percpu: fix max_distance calculation in pcpu_embed_first_chunk()
+Unfortunately I do not know how to reproduce the issue, but it is being
+reproduced byt our production load - which is creating backups in this
+case. They are created by rsyncing files to a loop-back attached files
+wihch are then unmounted and unmapped.From this crash it is evident that
+the hang occurs while a volume is being unmounted.
 
- pcpu_embed_first_chunk() calculates the range a percpu chunk spans
- into max_distance and uses it to ensure that a chunk is not too big
- compared to the total vmalloc area.  However, during calculation, it
- used incorrect top address by adding a unit size to the higest
- group's base address.
+But the callstack is in my hang report, no? I have the crashdump with me
+so if you are interested in anything in particular I can go look for it.
+I believe an inode eviction was requested, since destroy_inode, which
+utilizes ext4_i_callback is called in the eviction + some errors paths.
+And this eviction is executed on this particular CPU. What in particular
+are you looking for?
 
- This can make the calculated max_distance slightly smaller than the
- actual distance although given the scale of values involved the error
- is very unlikely to have an actual impact.
+Unfortunately it's impossible for me to run:
 
- Fix this issue by adding the group's size instead of a unit size.
+trace-cmd record -p function_graph -F <command that causes the issue>
 
-> the type of variant max_distance is changed from size_t to unsigned long
-> to prevent potential overflow
-
-This doesn't make any sense.  All the values involved are valid
-addresses (or +1 of it), they can't overflow and size_t is the same
-size as ulong.
-
-> @@ -2025,17 +2026,18 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
->  	}
->  
->  	/* base address is now known, determine group base offsets */
-> -	max_distance = 0;
-> +	i = 0;
->  	for (group = 0; group < ai->nr_groups; group++) {
->  		ai->groups[group].base_offset = areas[group] - base;
-> -		max_distance = max_t(size_t, max_distance,
-> -				     ai->groups[group].base_offset);
-> +		if (areas[group] > areas[i])
-> +			i = group;
->  	}
-> -	max_distance += ai->unit_size;
-> +	max_distance = ai->groups[i].base_offset +
-> +		(unsigned long)ai->unit_size * ai->groups[i].nr_units;
-
-I don't think you need ulong cast here.
-
-Thanks.
-
--- 
-tejun
+[SNIP]
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
