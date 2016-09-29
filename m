@@ -1,101 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4501C6B02A4
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 03:49:07 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id l138so65165472wmg.3
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 00:49:07 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id e189si24757998wmg.45.2016.09.29.00.49.06
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 862FA28024D
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 04:01:46 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id b130so64773462wmc.2
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 01:01:46 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id b5si13958456wmh.38.2016.09.29.01.01.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Sep 2016 00:49:06 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id w84so9345366wmg.0
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 00:49:06 -0700 (PDT)
-Date: Thu, 29 Sep 2016 09:49:04 +0200
+        Thu, 29 Sep 2016 01:01:45 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id b184so9414951wma.3
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 01:01:45 -0700 (PDT)
+Date: Thu, 29 Sep 2016 10:01:43 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: +
- mem-hotplug-use-nodes-that-contain-memory-as-mask-in-new_node_page.patch
- added to -mm tree
-Message-ID: <20160929074904.GA408@dhcp22.suse.cz>
-References: <57eaed8d.jsvNqvcRh8NfPZzb%akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: exclude isolated non-lru pages from NR_ISOLATED_ANON
+ or NR_ISOLATED_FILE.
+Message-ID: <20160929080142.GB408@dhcp22.suse.cz>
+References: <1475055063-1588-1-git-send-email-ming.ling@spreadtrum.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <57eaed8d.jsvNqvcRh8NfPZzb%akpm@linux-foundation.org>
+In-Reply-To: <1475055063-1588-1-git-send-email-ming.ling@spreadtrum.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: zhong@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com, jallen@linux.vnet.ibm.com, n-horiguchi@ah.jp.nec.com, penguin-kernel@i-love.sakura.ne.jp, qiuxishi@huawei.com, rientjes@google.com, vbabka@suse.cz, mm-commits@vger.kernel.org, linux-mm@kvack.org
+To: "ming.ling" <ming.ling@spreadtrum.com>
+Cc: akpm@linux-foundation.org, mgorman@techsingularity.net, vbabka@suse.cz, hannes@cmpxchg.org, baiyaowei@cmss.chinamobile.com, iamjoonsoo.kim@lge.com, minchan@kernel.org, rientjes@google.com, hughd@google.com, kirill.shutemov@linux.intel.com, riel@redhat.com, mgorman@suse.de, aquini@redhat.com, corbet@lwn.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 27-09-16 15:07:09, Andrew Morton wrote:
-> From: Li Zhong <zhong@linux.vnet.ibm.com>
-> Subject: mem-hotplug: use nodes that contain memory as mask in new_node_page()
-> 
-> 9bb627be47a5 ("mem-hotplug: don't clear the only node in new_node_page()")
-> prevents allocating from an empty nodemask, but as David points out, it is
-> still wrong.  As node_online_map may include memoryless nodes, only
-> allocating from these nodes is meaningless.
-> 
-> This patch uses node_states[N_MEMORY] mask to prevent the above case.
-> 
-> Fixes: 9bb627be47a5 ("mem-hotplug: don't clear the only node in new_node_page()")
-> Fixes: 394e31d2ceb4 ("mem-hotplug: alloc new page from a nearest neighbor node when mem-offline")
-> Link: http://lkml.kernel.org/r/1474447117.28370.6.camel@TP420
-> Signed-off-by: Li Zhong <zhong@linux.vnet.ibm.com>
-> Suggested-by: David Rientjes <rientjes@google.com>
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Michal Hocko <mhocko@suse.cz>
+On Wed 28-09-16 17:31:03, ming.ling wrote:
+> Non-lru pages don't belong to any lru, so accounting them to
+> NR_ISOLATED_ANON or NR_ISOLATED_FILE doesn't make any sense.
+> It may misguide functions such as pgdat_reclaimable_pages and
+> too_many_isolated.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+OK, but it would be better to mention that this related to pfn based
+migration (e.g. compaction). It is also highly appreciated to describe
+the actual problem that you are seeing and tryin to fix. Is a reclaim
+artificially throttled (hung) because of too many non LRU pages being
+isolated? Is there a way to trigger that condition? So please tell us
+more.
+ 
+> This patch adds NR_ISOLATED_NONLRU to vmstat and moves isolated non-lru
+> pages from NR_ISOLATED_ANON or NR_ISOLATED_FILE to NR_ISOLATED_NONLRU.
+> And with non-lru pages in vmstat, it helps to optimize algorithm of
+> function too_many_isolated oneday.
 
-> Cc: John Allen <jallen@linux.vnet.ibm.com>
-> Cc: Xishi Qiu <qiuxishi@huawei.com>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+I am not entirely sure a new vmstat counter is really needed but I have
+to admit that the role of too_many_isolated in isolate_migratepages_block
+is quite unclear to me. Besides that I believe the patch is not correct
+because you are checking PageLRU after those pages have already been
+isolated from the LRU. For example putback_movable_pages operates on
+pages which are put back to the LRU. I haven't checked others but I
+suspect they would be in a similar situation.
+
+> Signed-off-by: ming.ling <ming.ling@spreadtrum.com>
 > ---
+>  include/linux/mmzone.h |  1 +
+>  mm/compaction.c        | 12 +++++++++---
+>  mm/migrate.c           | 14 ++++++++++----
+>  3 files changed, 20 insertions(+), 7 deletions(-)
 > 
->  mm/memory_hotplug.c |   10 +++++-----
->  1 file changed, 5 insertions(+), 5 deletions(-)
-> 
-> diff -puN mm/memory_hotplug.c~mem-hotplug-use-nodes-that-contain-memory-as-mask-in-new_node_page mm/memory_hotplug.c
-> --- a/mm/memory_hotplug.c~mem-hotplug-use-nodes-that-contain-memory-as-mask-in-new_node_page
-> +++ a/mm/memory_hotplug.c
-> @@ -1555,8 +1555,8 @@ static struct page *new_node_page(struct
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 7f2ae99..dc0adba 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -169,6 +169,7 @@ enum node_stat_item {
+>  	NR_VMSCAN_IMMEDIATE,	/* Prioritise for reclaim when writeback ends */
+>  	NR_DIRTIED,		/* page dirtyings since bootup */
+>  	NR_WRITTEN,		/* page writings since bootup */
+> +	NR_ISOLATED_NONLRU,	/* Temporary isolated pages from non-lru */
+>  	NR_VM_NODE_STAT_ITEMS
+>  };
+>  
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 9affb29..8da1dca 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -638,16 +638,21 @@ isolate_freepages_range(struct compact_control *cc,
+>  static void acct_isolated(struct zone *zone, struct compact_control *cc)
 >  {
->  	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
->  	int nid = page_to_nid(page);
-> -	nodemask_t nmask = node_online_map;
-> -	struct page *new_page;
-> +	nodemask_t nmask = node_states[N_MEMORY];
-> +	struct page *new_page = NULL;
+>  	struct page *page;
+> -	unsigned int count[2] = { 0, };
+> +	unsigned int count[3] = { 0, };
+>  
+>  	if (list_empty(&cc->migratepages))
+>  		return;
+>  
+> -	list_for_each_entry(page, &cc->migratepages, lru)
+> -		count[!!page_is_file_cache(page)]++;
+> +	list_for_each_entry(page, &cc->migratepages, lru) {
+> +		if (PageLRU(page))
+> +			count[!!page_is_file_cache(page)]++;
+> +		else
+> +			count[2]++;
+> +	}
+>  
+>  	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_ANON, count[0]);
+>  	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE, count[1]);
+> +	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_NONLRU, count[2]);
+>  }
+>  
+>  /* Similar to reclaim, but different enough that they don't share logic */
+> @@ -659,6 +664,7 @@ static bool too_many_isolated(struct zone *zone)
+>  			node_page_state(zone->zone_pgdat, NR_INACTIVE_ANON);
+>  	active = node_page_state(zone->zone_pgdat, NR_ACTIVE_FILE) +
+>  			node_page_state(zone->zone_pgdat, NR_ACTIVE_ANON);
+> +	/* Is it necessary to add NR_ISOLATED_NONLRU?? */
+>  	isolated = node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE) +
+>  			node_page_state(zone->zone_pgdat, NR_ISOLATED_ANON);
+>  
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index f7ee04a..cd5abb2 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -168,8 +168,11 @@ void putback_movable_pages(struct list_head *l)
+>  			continue;
+>  		}
+>  		list_del(&page->lru);
+> -		dec_node_page_state(page, NR_ISOLATED_ANON +
+> -				page_is_file_cache(page));
+> +		if (PageLRU(page))
+> +			dec_node_page_state(page, NR_ISOLATED_ANON +
+> +					page_is_file_cache(page));
+> +		else
+> +			dec_node_page_state(page, NR_ISOLATED_NONLRU);
+>  		/*
+>  		 * We isolated non-lru movable page so here we can use
+>  		 * __PageMovable because LRU page's mapping cannot have
+> @@ -1121,8 +1124,11 @@ out:
+>  		 * restored.
+>  		 */
+>  		list_del(&page->lru);
+> -		dec_node_page_state(page, NR_ISOLATED_ANON +
+> -				page_is_file_cache(page));
+> +		if (PageLRU(page))
+> +			dec_node_page_state(page, NR_ISOLATED_ANON +
+> +					page_is_file_cache(page));
+> +		else
+> +			dec_node_page_state(page, NR_ISOLATED_NONLRU);
+>  	}
 >  
 >  	/*
->  	 * TODO: allocate a destination hugepage from a nearest neighbor node,
-> @@ -1567,14 +1567,14 @@ static struct page *new_node_page(struct
->  		return alloc_huge_page_node(page_hstate(compound_head(page)),
->  					next_node_in(nid, nmask));
->  
-> -	if (nid != next_node_in(nid, nmask))
-> -		node_clear(nid, nmask);
-> +	node_clear(nid, nmask);
->  
->  	if (PageHighMem(page)
->  	    || (zone_idx(page_zone(page)) == ZONE_MOVABLE))
->  		gfp_mask |= __GFP_HIGHMEM;
->  
-> -	new_page = __alloc_pages_nodemask(gfp_mask, 0,
-> +	if (!nodes_empty(nmask))
-> +		new_page = __alloc_pages_nodemask(gfp_mask, 0,
->  					node_zonelist(nid, gfp_mask), &nmask);
->  	if (!new_page)
->  		new_page = __alloc_pages(gfp_mask, 0,
-> _
+> -- 
+> 1.9.1
 > 
-> Patches currently in -mm which might be from zhong@linux.vnet.ibm.com are
-> 
-> mem-hotplug-use-nodes-that-contain-memory-as-mask-in-new_node_page.patch
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
 Michal Hocko
