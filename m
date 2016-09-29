@@ -1,115 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DE8D46B026B
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 21:45:06 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id b130so57545248wmc.2
-        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 18:45:06 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id p78si23540357wmd.97.2016.09.28.18.45.03
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 28 Sep 2016 18:45:05 -0700 (PDT)
-From: zhongjiang <zhongjiang@huawei.com>
-Subject: [PATCH v3] mm: remove unnecessary condition in remove_inode_hugepages
-Date: Thu, 29 Sep 2016 09:42:03 +0800
-Message-ID: <1475113323-29368-1-git-send-email-zhongjiang@huawei.com>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D695E6B0269
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 21:52:23 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id 2so62685088pfs.1
+        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 18:52:23 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id z8si11493249pac.112.2016.09.28.18.52.22
+        for <linux-mm@kvack.org>;
+        Wed, 28 Sep 2016 18:52:23 -0700 (PDT)
+Date: Thu, 29 Sep 2016 11:00:50 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [Bug 172981] New: [bisected] SLAB: extreme load averages and
+ over 2000 kworker threads
+Message-ID: <20160929020050.GD29250@js1304-P5Q-DELUXE>
+References: <bug-172981-27@https.bugzilla.kernel.org/>
+ <20160927111059.282a35c89266202d3cb2f953@linux-foundation.org>
+ <20160928020347.GA21129@cmpxchg.org>
+ <20160928080953.GA20312@esperanza>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160928080953.GA20312@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com, mhocko@kernel.org, linux-mm@kvack.org
+To: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, dsmythies@telus.net, linux-mm@kvack.org
 
-From: zhong jiang <zhongjiang@huawei.com>
+On Wed, Sep 28, 2016 at 11:09:53AM +0300, Vladimir Davydov wrote:
+> On Tue, Sep 27, 2016 at 10:03:47PM -0400, Johannes Weiner wrote:
+> > [CC Vladimir]
+> > 
+> > These are the delayed memcg cache allocations, where in a fresh memcg
+> > that doesn't have per-memcg caches yet, every accounted allocation
+> > schedules a kmalloc work item in __memcg_schedule_kmem_cache_create()
+> > until the cache is finally available. It looks like those can be many
+> > more than the number of slab caches in existence, if there is a storm
+> > of slab allocations before the workers get a chance to run.
+> > 
+> > Vladimir, what do you think of embedding the work item into the
+> > memcg_cache_array? That way we make sure we have exactly one work per
+> > cache and not an unbounded number of them. The downside of course is
+> > that we'd have to keep these things around as long as the memcg is in
+> > existence, but that's the only place I can think of that allows us to
+> > serialize this.
+> 
+> We could set the entry of the root_cache->memcg_params.memcg_caches
+> array corresponding to the cache being created to a special value, say
+> (void*)1, and skip scheduling cache creation work on kmalloc if the
+> caller sees it. I'm not sure it's really worth it though, because
+> work_struct isn't that big (at least, in comparison with the cache
+> itself) to avoid embedding it at all costs.
 
-when the huge page is added to the page cahce (huge_add_to_page_cache),
-the page private flag will be cleared. since this code
-(remove_inode_hugepages) will only be called for pages in the
-page cahce, PagePrivate(page) will always be false.
+Hello, Johannes and Vladimir.
 
-The patch remove the code without any functional change.
+I'm not familiar with memcg so have a question about this solution.
+This solution will solve the current issue but if burst memcg creation
+happens, similar issue would happen again. My understanding is correct?
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
-Tested-by: Mike Kravetz <mike.kravetz@oracle.com>
-Signed-off-by: zhong jiang <zhongjiang@huawei.com>
----
- fs/hugetlbfs/inode.c    | 12 +++++-------
- include/linux/hugetlb.h |  2 +-
- mm/hugetlb.c            |  4 ++--
- 3 files changed, 8 insertions(+), 10 deletions(-)
+I think that the other cause of the problem is that we call
+synchronize_sched() which is rather slow with holding a slab_mutex and
+it blocks further kmem_cache creation. Should we fix that, too?
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index 4ea71eb..7337cac 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -416,7 +416,6 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
- 
- 		for (i = 0; i < pagevec_count(&pvec); ++i) {
- 			struct page *page = pvec.pages[i];
--			bool rsv_on_error;
- 			u32 hash;
- 
- 			/*
-@@ -458,18 +457,17 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
- 			 * cache (remove_huge_page) BEFORE removing the
- 			 * region/reserve map (hugetlb_unreserve_pages).  In
- 			 * rare out of memory conditions, removal of the
--			 * region/reserve map could fail.  Before free'ing
--			 * the page, note PagePrivate which is used in case
--			 * of error.
-+			 * region/reserve map could fail. Correspondingly,
-+			 * the subpool and global reserve usage count can need
-+			 * to be adjusted.
- 			 */
--			rsv_on_error = !PagePrivate(page);
-+			VM_BUG_ON(PagePrivate(page));
- 			remove_huge_page(page);
- 			freed++;
- 			if (!truncate_op) {
- 				if (unlikely(hugetlb_unreserve_pages(inode,
- 							next, next + 1, 1)))
--					hugetlb_fix_reserve_counts(inode,
--								rsv_on_error);
-+					hugetlb_fix_reserve_counts(inode);
- 			}
- 
- 			unlock_page(page);
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index c26d463..d2e0fc5 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -90,7 +90,7 @@ int dequeue_hwpoisoned_huge_page(struct page *page);
- bool isolate_huge_page(struct page *page, struct list_head *list);
- void putback_active_hugepage(struct page *page);
- void free_huge_page(struct page *page);
--void hugetlb_fix_reserve_counts(struct inode *inode, bool restore_reserve);
-+void hugetlb_fix_reserve_counts(struct inode *inode);
- extern struct mutex *hugetlb_fault_mutex_table;
- u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
- 				struct vm_area_struct *vma,
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 87e11d8..28a079a 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -567,13 +567,13 @@ retry:
-  * appear as a "reserved" entry instead of simply dangling with incorrect
-  * counts.
-  */
--void hugetlb_fix_reserve_counts(struct inode *inode, bool restore_reserve)
-+void hugetlb_fix_reserve_counts(struct inode *inode)
- {
- 	struct hugepage_subpool *spool = subpool_inode(inode);
- 	long rsv_adjust;
- 
- 	rsv_adjust = hugepage_subpool_get_pages(spool, 1);
--	if (restore_reserve && rsv_adjust) {
-+	if (rsv_adjust) {
- 		struct hstate *h = hstate_inode(inode);
- 
- 		hugetlb_acct_memory(h, 1);
--- 
-1.8.3.1
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
