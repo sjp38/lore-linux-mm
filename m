@@ -1,70 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 42A8C6B0253
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 08:56:07 -0400 (EDT)
-Received: by mail-yb0-f199.google.com with SMTP id z8so56107783ybh.1
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 05:56:07 -0700 (PDT)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com. [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id e16si3731148ybh.287.2016.09.29.05.56.06
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 419126B0253
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 09:06:33 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id p135so60190135itb.2
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 06:06:33 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id v66si14322754pfj.183.2016.09.29.06.06.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Sep 2016 05:56:06 -0700 (PDT)
-Received: by mail-pa0-x229.google.com with SMTP id dw4so14001175pac.1
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 05:56:06 -0700 (PDT)
-Date: Thu, 29 Sep 2016 22:55:44 +1000
-From: Nicholas Piggin <npiggin@gmail.com>
-Subject: Re: page_waitqueue() considered harmful
-Message-ID: <20160929225544.70a23dac@roar.ozlabs.ibm.com>
-In-Reply-To: <20160929080130.GJ3318@worktop.controleur.wifipass.org>
-References: <CA+55aFwVSXZPONk2OEyxcP-aAQU7-aJsF3OFXVi8Z5vA11v_-Q@mail.gmail.com>
- <20160927073055.GM2794@worktop>
- <20160927085412.GD2838@techsingularity.net>
- <20160929080130.GJ3318@worktop.controleur.wifipass.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Thu, 29 Sep 2016 06:06:13 -0700 (PDT)
+Message-ID: <1475154343.16655.1.camel@vmm.sh.intel.com>
+Subject: Re: [PATCH v3 1/2] mm, proc: Fix region lost in /proc/self/smaps
+From: Robert Hu <robert.hu@vmm.sh.intel.com>
+Reply-To: robert.hu@intel.com
+Date: Thu, 29 Sep 2016 21:05:43 +0800
+In-Reply-To: <20160923145301.GU4478@dhcp22.suse.cz>
+References: <1474636354-25573-1-git-send-email-robert.hu@intel.com>
+	 <20160923135635.GB28734@redhat.com> <20160923145301.GU4478@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-15"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Oleg Nesterov <oleg@redhat.com>, Robert Ho <robert.hu@intel.com>, pbonzini@redhat.com, akpm@linux-foundation.org, dan.j.williams@intel.com, dave.hansen@intel.com, guangrong.xiao@linux.intel.com, gleb@kernel.org, mtosatti@redhat.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, stefanha@redhat.com, yuhuang@redhat.com, linux-mm@kvack.org, ross.zwisler@linux.intel.com
 
-On Thu, 29 Sep 2016 10:01:30 +0200
-Peter Zijlstra <peterz@infradead.org> wrote:
-
-> On Tue, Sep 27, 2016 at 09:54:12AM +0100, Mel Gorman wrote:
-> > On Tue, Sep 27, 2016 at 09:30:55AM +0200, Peter Zijlstra wrote:
-> > Simple is relative unless I drastically overcomplicated things and it
-> > wouldn't be the first time. 64-bit only side-steps the page flag issue
-> > as long as we can live with that.  
+On Fri, 2016-09-23 at 16:53 +0200, Michal Hocko wrote:
+> On Fri 23-09-16 15:56:36, Oleg Nesterov wrote:
+> > On 09/23, Robert Ho wrote:
+> > >
+> > > --- a/fs/proc/task_mmu.c
+> > > +++ b/fs/proc/task_mmu.c
+> > > @@ -147,7 +147,7 @@ m_next_vma(struct proc_maps_private *priv, struct vm_area_struct *vma)
+> > >  static void m_cache_vma(struct seq_file *m, struct vm_area_struct *vma)
+> > >  {
+> > >  	if (m->count < m->size)	/* vma is copied successfully */
+> > > -		m->version = m_next_vma(m->private, vma) ? vma->vm_start : -1UL;
+> > > +		m->version = m_next_vma(m->private, vma) ? vma->vm_end : -1UL;
+> > >  }
+> > 
+> > OK.
+> > 
+> > >  static void *m_start(struct seq_file *m, loff_t *ppos)
+> > > @@ -176,14 +176,14 @@ static void *m_start(struct seq_file *m, loff_t *ppos)
+> > >  
+> > >  	if (last_addr) {
+> > >  		vma = find_vma(mm, last_addr);
+> > > -		if (vma && (vma = m_next_vma(priv, vma)))
+> > > +		if (vma)
+> > >  			return vma;
+> > >  	}
+> > 
+> > I think we can simplify this patch. And imo make it better. How about
 > 
-> So one problem with the 64bit only pageflags is that they do eat space
-> from page-flags-layout, we do try and fit a bunch of other crap in
-> there, and at some point that all will not fit anymore and we'll revert
-> to worse.
+> it is certainly less subtle because it doesn't report "sub-vmas".
 > 
-> I've no idea how far away from that we are for distro kernels. I suppose
-> they have fairly large NR_NODES and NR_CPUS.
+> > 	if (last_addr) {
+> > 		vma = find_vma(mm, last_addr - 1);
+> > 		if (vma && vma->vm_start <= last_addr)
+> > 			vma = m_next_vma(priv, vma);
+> > 		if (vma)
+> > 			return vma;
+> > 	}
+> 
+> we would still miss a VMA if the last one got shrunk/split but at least
+> it would provide monotonic results. So definitely an improvement but
+> I guess we really want to document that only full reads provide a
+> consistent (at some moment in time) output.
 
-I know it's not fashionable to care about them anymore, but it's sad if
-32-bit architectures miss out fundamental optimisations like this because
-we're out of page flags. It would also be sad to increase the size of
-struct page because we're too lazy to reduce flags. There's some that
-might be able to be removed.
+Indeed an improvement. I prefer Oleg's approach as well.
+> 
 
-PG_reserved - We should have killed this years ago. More users have crept
-back in.
-
-PG_mappedtodisk - Rarely used, to slightly shortcut some mapping lookups.
-Possible for filesystems to derive this some other way, e.g.,
-PG_private == 1 && ->private == NULL, or another filesystem private bit.
-We should really kill this before more users spring up and it gets stuck
-forever. 
-
-PG_swapcache - can this be replaced with ane of the private bits, I wonder?
-
-PG_uncached - this is PG_arch_2 really, but unfortunately x86 uses both.
-Still, that and PG_arch_1 could be removed from most architectures, so
-many of the 32-bit ones could use the extra flags.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
