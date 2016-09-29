@@ -1,91 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BB6A66B0038
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 08:08:24 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id g18so52099232ywb.3
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 05:08:24 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id t128si3688861ywe.354.2016.09.29.05.08.22
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9384F6B0038
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 08:11:07 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id b130so71480520wmc.2
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 05:11:07 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id xv2si14356240wjc.175.2016.09.29.05.11.06
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 29 Sep 2016 05:08:23 -0700 (PDT)
-From: Wei Fang <fangwei1@huawei.com>
-Subject: [RFC][PATCH] vfs,mm: fix a dead loop in truncate_inode_pages_range()
-Date: Thu, 29 Sep 2016 20:10:10 +0800
-Message-ID: <1475151010-40166-1-git-send-email-fangwei1@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 29 Sep 2016 05:11:06 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id b4so10452400wmb.2
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 05:11:06 -0700 (PDT)
+Date: Thu, 29 Sep 2016 14:11:04 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v4 1/3] mm/hugetlb: fix memory offline with hugepage size
+ > memory block size
+Message-ID: <20160929121104.GF408@dhcp22.suse.cz>
+References: <20160926172811.94033-1-gerald.schaefer@de.ibm.com>
+ <20160926172811.94033-2-gerald.schaefer@de.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160926172811.94033-2-gerald.schaefer@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: viro@ZenIV.linux.org.uk, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Wei Fang <fangwei1@huawei.com>, stable@vger.kernel.org
+To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Rui Teng <rui.teng@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@linux.intel.com>
 
-We triggered a deadloop in truncate_inode_pages_range() on 32 bits
-architecture with the test case bellow:
-	...
-	fd = open();
-	write(fd, buf, 4096);
-	preadv64(fd, &iovec, 1, 0xffffffff000);
-	ftruncate(fd, 0);
-	...
-Then ftruncate() will not return forever.
+On Mon 26-09-16 19:28:09, Gerald Schaefer wrote:
+> dissolve_free_huge_pages() will either run into the VM_BUG_ON() or a
+> list corruption and addressing exception when trying to set a memory
+> block offline that is part (but not the first part) of a "gigantic"
+> hugetlb page with a size > memory block size.
+> 
+> When no other smaller hugetlb page sizes are present, the VM_BUG_ON()
+> will trigger directly. In the other case we will run into an addressing
+> exception later, because dissolve_free_huge_page() will not work on the
+> head page of the compound hugetlb page which will result in a NULL
+> hstate from page_hstate().
+> 
+> To fix this, first remove the VM_BUG_ON() because it is wrong, and then
+> use the compound head page in dissolve_free_huge_page(). This means that
+> an unused pre-allocated gigantic page that has any part of itself inside
+> the memory block that is going offline will be dissolved completely.
+> Losing an unused gigantic hugepage is preferable to failing the memory
+> offline, for example in the situation where a (possibly faulty) memory
+> DIMM needs to go offline.
+> 
+> Fixes: c8721bbb ("mm: memory-hotplug: enable memory hotplug to handle hugepage")
+> Cc: <stable@vger.kernel.org>
+> Signed-off-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
 
-The filesystem used in this case is ubifs, but it can be triggered
-on many other filesystems.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-When preadv64() is called with offset=0xffffffff000, a page with
-index=0xffffffff will be added to the radix tree of ->mapping.
-Then this page can be found in ->mapping with pagevec_lookup().
-After that, truncate_inode_pages_range(), which is called in
-ftruncate(), will fall into an infinite loop:
-* find a page with index=0xffffffff, since index>=end, this page
-  won't be truncated
-* index++, and index become 0
-* the page with index=0xffffffff will be found again
+> ---
+>  mm/hugetlb.c | 13 +++++++------
+>  1 file changed, 7 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 87e11d8..603bdd0 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1443,13 +1443,14 @@ static void dissolve_free_huge_page(struct page *page)
+>  {
+>  	spin_lock(&hugetlb_lock);
+>  	if (PageHuge(page) && !page_count(page)) {
+> -		struct hstate *h = page_hstate(page);
+> -		int nid = page_to_nid(page);
+> -		list_del(&page->lru);
+> +		struct page *head = compound_head(page);
+> +		struct hstate *h = page_hstate(head);
+> +		int nid = page_to_nid(head);
+> +		list_del(&head->lru);
+>  		h->free_huge_pages--;
+>  		h->free_huge_pages_node[nid]--;
+>  		h->max_huge_pages--;
+> -		update_and_free_page(h, page);
+> +		update_and_free_page(h, head);
+>  	}
+>  	spin_unlock(&hugetlb_lock);
+>  }
+> @@ -1457,7 +1458,8 @@ static void dissolve_free_huge_page(struct page *page)
+>  /*
+>   * Dissolve free hugepages in a given pfn range. Used by memory hotplug to
+>   * make specified memory blocks removable from the system.
+> - * Note that start_pfn should aligned with (minimum) hugepage size.
+> + * Note that this will dissolve a free gigantic hugepage completely, if any
+> + * part of it lies within the given range.
+>   */
+>  void dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
+>  {
+> @@ -1466,7 +1468,6 @@ void dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
+>  	if (!hugepages_supported())
+>  		return;
+>  
+> -	VM_BUG_ON(!IS_ALIGNED(start_pfn, 1 << minimum_order));
+>  	for (pfn = start_pfn; pfn < end_pfn; pfn += 1 << minimum_order)
+>  		dissolve_free_huge_page(pfn_to_page(pfn));
+>  }
+> -- 
+> 2.8.4
 
-The data type of index is unsigned long, so index won't overflow to
-0 on 64 bits architecture in this case, and the dead loop won't
-happen.
-
-Since truncate_inode_pages_range() is executed with holding lock
-of inode->i_rwsem, any operation related with this lock will be
-blocked, and a hung task will happen, e.g.:
-
-INFO: task truncate_test:3364 blocked for more than 120 seconds.
-...
-[<c03c2c44>] call_rwsem_down_write_failed+0x17/0x30
-[<c00b93bc>] generic_file_write_iter+0x32/0x1c0
-[<c01b7078>] ubifs_write_iter+0xcc/0x170
-[<c00fae48>] __vfs_write+0xc4/0x120
-[<c00fb784>] vfs_write+0xb2/0x1b0
-[<c00fbbe4>] SyS_write+0x46/0xa0
-
-The page with index=0xffffffff added to ->mapping is useless.
-Fix this by checking the read position before allocating pages.
-
-Cc: stable@vger.kernel.org
-Signed-off-by: Wei Fang <fangwei1@huawei.com>
----
- mm/filemap.c | 4 ++++
- 1 file changed, 4 insertions(+)
-
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 1345f09..6946346 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1674,6 +1674,10 @@ static ssize_t do_generic_file_read(struct file *filp, loff_t *ppos,
- 	unsigned int prev_offset;
- 	int error = 0;
- 
-+	if (unlikely(*ppos >= inode->i_sb->s_maxbytes))
-+		return -EINVAL;
-+	iov_iter_truncate(iter, inode->i_sb->s_maxbytes);
-+
- 	index = *ppos >> PAGE_SHIFT;
- 	prev_index = ra->prev_pos >> PAGE_SHIFT;
- 	prev_offset = ra->prev_pos & (PAGE_SIZE-1);
 -- 
-1.9.3
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
