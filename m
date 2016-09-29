@@ -1,50 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5ACB028024F
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 05:57:07 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id b130so67922964wmc.2
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 02:57:07 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 2CA6128024C
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 06:26:00 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id l138so69433484wmg.3
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 03:26:00 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id wi9si13801080wjb.186.2016.09.29.02.57.05
+        by mx.google.com with ESMTPS id z5si13882236wjk.259.2016.09.29.03.25.58
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 29 Sep 2016 02:57:06 -0700 (PDT)
-Subject: Re: [PATCH 3/4] mm, compaction: ignore fragindex from
- compaction_zonelist_suitable()
-References: <20160926162025.21555-1-vbabka@suse.cz>
- <20160926162025.21555-4-vbabka@suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <cadadd38-6456-f58e-504f-cc18ddc47b3f@suse.cz>
-Date: Thu, 29 Sep 2016 11:57:01 +0200
+        Thu, 29 Sep 2016 03:25:58 -0700 (PDT)
+From: Jiri Slaby <jslaby@suse.cz>
+Subject: [PATCH 3.12 002/119] x86/mm: Disable preemption during CR3 read+write
+Date: Thu, 29 Sep 2016 12:23:58 +0200
+Message-Id: <08180d21d4dc457bd6ed494c1363e942f518534c.1475144721.git.jslaby@suse.cz>
+In-Reply-To: <a528a0fa6d67ebe60bfc762c72b316d28ed21dea.1475144721.git.jslaby@suse.cz>
+References: <a528a0fa6d67ebe60bfc762c72b316d28ed21dea.1475144721.git.jslaby@suse.cz>
+In-Reply-To: <cover.1475144721.git.jslaby@suse.cz>
+References: <cover.1475144721.git.jslaby@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20160926162025.21555-4-vbabka@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Olaf Hering <olaf@aepfle.de>, Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Michal Hocko <mhocko@suse.com>
+To: stable@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Borislav Petkov <bp@alien8.de>, Borislav Petkov <bp@suse.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Jiri Slaby <jslaby@suse.cz>
 
-On 09/26/2016 06:20 PM, Vlastimil Babka wrote:
-> The compaction_zonelist_suitable() function tries to determine if compaction
-> will be able to proceed after sufficient reclaim, i.e. whether there are
-> enough reclaimable pages to provide enough order-0 freepages for compaction.
-> 
-> This addition of reclaimable pages to the free pages works well for the order-0
-> watermark check, but in the fragmentation index check we only consider truly
-> free pages. Thus we can get fragindex value close to 0 which indicates failure
-> do to lack of memory, and wrongly decide that compaction won't be suitable even
-> after reclaim.
-> 
-> Instead of trying to somehow adjust fragindex for reclaimable pages, let's just
-> skip it from compaction_zonelist_suitable().
-> 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Rik van Riel <riel@redhat.com>
+From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
 
-Bah, a fix below, sorry.
-----8<----
+3.12-stable review patch.  If anyone has any objections, please let me know.
+
+===============
+
+commit 5cf0791da5c162ebc14b01eb01631cfa7ed4fa6e upstream.
+
+There's a subtle preemption race on UP kernels:
+
+Usually current->mm (and therefore mm->pgd) stays the same during the
+lifetime of a task so it does not matter if a task gets preempted during
+the read and write of the CR3.
+
+But then, there is this scenario on x86-UP:
+
+TaskA is in do_exit() and exit_mm() sets current->mm = NULL followed by:
+
+ -> mmput()
+ -> exit_mmap()
+ -> tlb_finish_mmu()
+ -> tlb_flush_mmu()
+ -> tlb_flush_mmu_tlbonly()
+ -> tlb_flush()
+ -> flush_tlb_mm_range()
+ -> __flush_tlb_up()
+ -> __flush_tlb()
+ ->  __native_flush_tlb()
+
+At this point current->mm is NULL but current->active_mm still points to
+the "old" mm.
+
+Let's preempt taskA _after_ native_read_cr3() by taskB. TaskB has its
+own mm so CR3 has changed.
+
+Now preempt back to taskA. TaskA has no ->mm set so it borrows taskB's
+mm and so CR3 remains unchanged. Once taskA gets active it continues
+where it was interrupted and that means it writes its old CR3 value
+back. Everything is fine because userland won't need its memory
+anymore.
+
+Now the fun part:
+
+Let's preempt taskA one more time and get back to taskB. This
+time switch_mm() won't do a thing because oldmm (->active_mm)
+is the same as mm (as per context_switch()). So we remain
+with a bad CR3 / PGD and return to userland.
+
+The next thing that happens is handle_mm_fault() with an address for
+the execution of its code in userland. handle_mm_fault() realizes that
+it has a PTE with proper rights so it returns doing nothing. But the
+CPU looks at the wrong PGD and insists that something is wrong and
+faults again. And again. And one more timea?|
+
+This pagefault circle continues until the scheduler gets tired of it and
+puts another task on the CPU. It gets little difficult if the task is a
+RT task with a high priority. The system will either freeze or it gets
+fixed by the software watchdog thread which usually runs at RT-max prio.
+But waiting for the watchdog will increase the latency of the RT task
+which is no good.
+
+Fix this by disabling preemption across the critical code section.
+
+Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Acked-by: Rik van Riel <riel@redhat.com>
+Acked-by: Andy Lutomirski <luto@kernel.org>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Borislav Petkov <bp@suse.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-mm@kvack.org
+Link: http://lkml.kernel.org/r/1470404259-26290-1-git-send-email-bigeasy@linutronix.de
+[ Prettified the changelog. ]
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Jiri Slaby <jslaby@suse.cz>
+---
+ arch/x86/include/asm/tlbflush.h | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
+index 04905bfc508b..5e4b0cc54e43 100644
+--- a/arch/x86/include/asm/tlbflush.h
++++ b/arch/x86/include/asm/tlbflush.h
+@@ -17,7 +17,14 @@
+ 
+ static inline void __native_flush_tlb(void)
+ {
++	/*
++	 * If current->mm == NULL then we borrow a mm which may change during a
++	 * task switch and therefore we must not be preempted while we write CR3
++	 * back:
++	 */
++	preempt_disable();
+ 	native_write_cr3(native_read_cr3());
++	preempt_enable();
+ }
+ 
+ static inline void __native_flush_tlb_global_irq_disabled(void)
+-- 
+2.10.0
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
