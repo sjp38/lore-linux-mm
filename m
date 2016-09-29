@@ -1,85 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DE0426B025E
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 09:46:32 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id y6so57779150lff.0
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 06:46:32 -0700 (PDT)
-Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
-        by mx.google.com with ESMTPS id x141si6674030lfd.245.2016.09.29.06.45.53
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D0B46B0253
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 09:55:01 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id cg13so142106239pac.1
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 06:55:01 -0700 (PDT)
+Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
+        by mx.google.com with ESMTPS id p72si14489322pfi.197.2016.09.29.06.55.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Sep 2016 06:45:53 -0700 (PDT)
-Received: by mail-lf0-x244.google.com with SMTP id h96so729070lfi.1
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 06:45:53 -0700 (PDT)
-Date: Thu, 29 Sep 2016 16:45:50 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [Bug 172981] New: [bisected] SLAB: extreme load averages and
- over 2000 kworker threads
-Message-ID: <20160929134550.GB20312@esperanza>
-References: <bug-172981-27@https.bugzilla.kernel.org/>
- <20160927111059.282a35c89266202d3cb2f953@linux-foundation.org>
- <20160928020347.GA21129@cmpxchg.org>
- <20160928080953.GA20312@esperanza>
- <20160929020050.GD29250@js1304-P5Q-DELUXE>
+        Thu, 29 Sep 2016 06:55:00 -0700 (PDT)
+Received: by mail-pf0-x22d.google.com with SMTP id q2so29361491pfj.3
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 06:55:00 -0700 (PDT)
+Date: Thu, 29 Sep 2016 23:54:48 +1000
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: page_waitqueue() considered harmful
+Message-ID: <20160929235448.62197e3e@roar.ozlabs.ibm.com>
+In-Reply-To: <20160929131635.GY5016@twins.programming.kicks-ass.net>
+References: <CA+55aFwVSXZPONk2OEyxcP-aAQU7-aJsF3OFXVi8Z5vA11v_-Q@mail.gmail.com>
+	<20160927073055.GM2794@worktop>
+	<20160927085412.GD2838@techsingularity.net>
+	<20160929080130.GJ3318@worktop.controleur.wifipass.org>
+	<20160929225544.70a23dac@roar.ozlabs.ibm.com>
+	<20160929131635.GY5016@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160929020050.GD29250@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, dsmythies@telus.net, linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>
 
-On Thu, Sep 29, 2016 at 11:00:50AM +0900, Joonsoo Kim wrote:
-> On Wed, Sep 28, 2016 at 11:09:53AM +0300, Vladimir Davydov wrote:
-> > On Tue, Sep 27, 2016 at 10:03:47PM -0400, Johannes Weiner wrote:
-> > > [CC Vladimir]
+On Thu, 29 Sep 2016 15:16:35 +0200
+Peter Zijlstra <peterz@infradead.org> wrote:
+
+> On Thu, Sep 29, 2016 at 10:55:44PM +1000, Nicholas Piggin wrote:
+> > On Thu, 29 Sep 2016 10:01:30 +0200
+> > Peter Zijlstra <peterz@infradead.org> wrote:
+> >   
+> > > On Tue, Sep 27, 2016 at 09:54:12AM +0100, Mel Gorman wrote:  
+> > > > On Tue, Sep 27, 2016 at 09:30:55AM +0200, Peter Zijlstra wrote:
+> > > > Simple is relative unless I drastically overcomplicated things and it
+> > > > wouldn't be the first time. 64-bit only side-steps the page flag issue
+> > > > as long as we can live with that.    
 > > > 
-> > > These are the delayed memcg cache allocations, where in a fresh memcg
-> > > that doesn't have per-memcg caches yet, every accounted allocation
-> > > schedules a kmalloc work item in __memcg_schedule_kmem_cache_create()
-> > > until the cache is finally available. It looks like those can be many
-> > > more than the number of slab caches in existence, if there is a storm
-> > > of slab allocations before the workers get a chance to run.
+> > > So one problem with the 64bit only pageflags is that they do eat space
+> > > from page-flags-layout, we do try and fit a bunch of other crap in
+> > > there, and at some point that all will not fit anymore and we'll revert
+> > > to worse.
 > > > 
-> > > Vladimir, what do you think of embedding the work item into the
-> > > memcg_cache_array? That way we make sure we have exactly one work per
-> > > cache and not an unbounded number of them. The downside of course is
-> > > that we'd have to keep these things around as long as the memcg is in
-> > > existence, but that's the only place I can think of that allows us to
-> > > serialize this.
+> > > I've no idea how far away from that we are for distro kernels. I suppose
+> > > they have fairly large NR_NODES and NR_CPUS.  
 > > 
-> > We could set the entry of the root_cache->memcg_params.memcg_caches
-> > array corresponding to the cache being created to a special value, say
-> > (void*)1, and skip scheduling cache creation work on kmalloc if the
-> > caller sees it. I'm not sure it's really worth it though, because
-> > work_struct isn't that big (at least, in comparison with the cache
-> > itself) to avoid embedding it at all costs.
+> > I know it's not fashionable to care about them anymore, but it's sad if
+> > 32-bit architectures miss out fundamental optimisations like this because
+> > we're out of page flags. It would also be sad to increase the size of
+> > struct page because we're too lazy to reduce flags. There's some that
+> > might be able to be removed.  
 > 
-> Hello, Johannes and Vladimir.
-> 
-> I'm not familiar with memcg so have a question about this solution.
-> This solution will solve the current issue but if burst memcg creation
-> happens, similar issue would happen again. My understanding is correct?
+> I'm all for cleaning some of that up, but its been a long while since I
+> poked in that general area.
 
-Yes, I think you're right - embedding the work_struct responsible for
-cache creation in kmem_cache struct won't help if a thousand of
-different cgroups call kmem_cache_alloc() simultaneously for a cache
-they haven't used yet.
-
-Come to think of it, we could fix the issue by simply introducing a
-special single-threaded workqueue used exclusively for cache creation
-works - cache creation is done mostly under the slab_mutex, anyway. This
-way, we wouldn't have to keep those used-once work_structs for the whole
-kmem_cache life time.
-
-> 
-> I think that the other cause of the problem is that we call
-> synchronize_sched() which is rather slow with holding a slab_mutex and
-> it blocks further kmem_cache creation. Should we fix that, too?
-
-Well, the patch you posted looks pretty obvious and it helps the
-reporter, so personally I don't see any reason for not applying it.
+Forgive my rant! Cleaning page flags is a topic of its own...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
