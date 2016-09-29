@@ -1,84 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 37BEB6B0038
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 16:08:28 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 2so110026996pfs.1
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 13:08:28 -0700 (PDT)
-Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com. [2607:f8b0:400e:c03::22d])
-        by mx.google.com with ESMTPS id x22si15788101pff.113.2016.09.29.13.08.27
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 162676B0038
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 17:05:59 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id w72so4195055wmf.1
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 14:05:59 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w9si16690336wjp.145.2016.09.29.14.05.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Sep 2016 13:08:27 -0700 (PDT)
-Received: by mail-pa0-x22d.google.com with SMTP id qn7so30795049pac.3
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 13:08:27 -0700 (PDT)
-Date: Thu, 29 Sep 2016 13:08:24 -0700
-From: Raymond Jennings <shentino@gmail.com>
-Subject: Re: More OOM problems (sorry fro the mail bomb)
-Message-Id: <1475179704.7681.0@smtp.gmail.com>
-In-Reply-To: <f35c1c03-c1ef-e4fb-44c8-187b75180130@suse.cz>
-References: 
-	<CA+55aFwu30Yz52yW+MRHt_JgpqZkq4DHdWR-pX4+gO_OK7agCQ@mail.gmail.com>
-	<20160921000458.15fdd159@metalhead.dragonrealms>
-	<20160928231229.55d767c1@metalhead.dragonrealms>
-	<f35c1c03-c1ef-e4fb-44c8-187b75180130@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8; format=flowed
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 29 Sep 2016 14:05:57 -0700 (PDT)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [RFC 0/4] try to reduce fragmenting fallbacks
+Date: Thu, 29 Sep 2016 23:05:44 +0200
+Message-Id: <20160929210548.26196-1-vbabka@suse.cz>
+In-Reply-To: <20160928014148.GA21007@cmpxchg.org>
+References: <20160928014148.GA21007@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Markus Trippelsdorf <markus@trippelsdorf.de>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Jiri Slaby <jslaby@suse.com>, Olaf Hering <olaf@aepfle.de>, Joonsoo Kim <js1304@gmail.com>, linux-mm <linux-mm@kvack.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, Vlastimil Babka <vbabka@suse.cz>
 
-On Thu, Sep 29, 2016 at 12:03 AM, Vlastimil Babka <vbabka@suse.cz> 
-wrote:
-> On 09/29/2016 08:12 AM, Raymond Jennings wrote:
->> On Wed, 21 Sep 2016 00:04:58 -0700
->> Raymond Jennings <shentino@gmail.com> wrote:
->> 
->> I would like to apologize to everyone for the mailbombing.  Something
->> went screwy with my email client and I had to bitchslap my 
->> installation
->> when I saw my gmail box full of half-composed messages being sent 
->> out.
-> 
-> FWIW, I apparently didn't receive any.
+Hi Johannes,
 
-Trying geary this time, keeping my fingers crossed
+here's something quick to try or ponder about. However, untested since it's too
+late here. Based on mmotm-2016-09-27-16-08 plus this fix [1]
 
->> For the curious, by the by, how does kcompactd work?  Does it just 
->> get
->> run on request or is it a continuous background process akin to
->> khugepaged?  Is there a way to keep it running in the background
->> defragmenting on a continuous trickle basis?
-> 
-> Right now it gets run on request. Kswapd is woken up when watermarks 
-> get between "min" and "low" and when it finishes reclaim and it was a 
-> high-order request, it wakes up kcompactd, which compacts until page 
-> of given order is available. That mimics how it was before when 
-> kswapd did the compaction itself, but I know it's not ideal and plan 
-> to make kcompactd more proactive.
+[1] http://lkml.kernel.org/r/<cadadd38-6456-f58e-504f-cc18ddc47b3f@suse.cz>
 
-Suggestion:
+Vlastimil Babka (4):
+  mm, compaction: change migrate_async_suitable() to
+    suitable_migration_source()
+  mm, compaction: add migratetype to compact_control
+  mm, compaction: restrict async compaction to matching migratetype
+  mm, page_alloc: disallow migratetype fallback in fastpath
 
-1.  Make it a background process "kcompactd"
-2.  It is activated/woke up/semaphored awake any time a page is freed.
-3.  Once it is activated, it enters a loop:
-3.1.  Reset the semaphore.
-3.2.  Once a cycle, it takes the highest movable page
-3.3.  It then finds the lowest free page
-3.4.  Then, it migrates the highest used page to the lowest free space
-3.5.  maybe pace itself by sleeping for a teensy, then go back to step 
-3.2
-3.6.  Do one page at a time to keep it neatly interruptible and keep it 
-from blocking other stuff.  Since compaction is a housekeeping task, it 
-should probably be eager to yield to other things.
-3.7.  Probably leave hugepages alone if detected since they are by 
-definition fairly defragmented already.
-4.  Once all gaps are backfilled, go back to sleep and park back at 
-step 2 waiting for the next wakeup.
+ include/linux/mmzone.h |  5 +++++
+ mm/compaction.c        | 41 +++++++++++++++++++++++++----------------
+ mm/internal.h          |  2 ++
+ mm/page_alloc.c        | 34 +++++++++++++++++++++++-----------
+ 4 files changed, 55 insertions(+), 27 deletions(-)
 
-Would this be a good way to do it?
-
-
+-- 
+2.10.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
