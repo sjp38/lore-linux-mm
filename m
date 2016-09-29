@@ -1,52 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C5E7A6B0253
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 09:13:44 -0400 (EDT)
-Received: by mail-it0-f72.google.com with SMTP id u134so65327223itb.0
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 06:13:44 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id 10si2047360itm.26.2016.09.29.06.13.18
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D89C06B025E
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 09:15:10 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id cg13so140417962pac.1
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 06:15:10 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id tj3si14348525pab.171.2016.09.29.06.15.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Sep 2016 06:13:18 -0700 (PDT)
-In-Reply-To: <2e840fe0-40cf-abf0-4fe6-a621ce46ae13@gmail.com>
-From: Michael Ellerman <patch-notifications@ellerman.id.au>
-Subject: Re: [v3] KVM: PPC: Book3S HV: Migrate pinned pages out of CMA
-Message-Id: <3slFPR2kWQz9sC3@ozlabs.org>
-Date: Thu, 29 Sep 2016 23:13:15 +1000 (AEST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 29 Sep 2016 06:15:09 -0700 (PDT)
+Message-ID: <1475154880.16655.9.camel@vmm.sh.intel.com>
+Subject: Re: [PATCH v3 1/2] mm, proc: Fix region lost in /proc/self/smaps
+From: Robert Hu <robert.hu@vmm.sh.intel.com>
+Reply-To: robert.hu@intel.com
+Date: Thu, 29 Sep 2016 21:14:40 +0800
+In-Reply-To: <20160926084616.GA28550@dhcp22.suse.cz>
+References: <1474636354-25573-1-git-send-email-robert.hu@intel.com>
+	 <20160923135635.GB28734@redhat.com> <20160923145301.GU4478@dhcp22.suse.cz>
+	 <20160923155351.GA1584@redhat.com> <20160926084616.GA28550@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-15"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>, Alexey Kardashevskiy <aik@ozlabs.ru>, linuxppc-dev@lists.ozlabs.org, kvm-ppc@vger.kernel.org, kvm@vger.kernel.org
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Oleg Nesterov <oleg@redhat.com>, Robert Ho <robert.hu@intel.com>, pbonzini@redhat.com, akpm@linux-foundation.org, dan.j.williams@intel.com, dave.hansen@intel.com, guangrong.xiao@linux.intel.com, gleb@kernel.org, mtosatti@redhat.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, stefanha@redhat.com, yuhuang@redhat.com, linux-mm@kvack.org, ross.zwisler@linux.intel.com
 
-On Tue, 2016-06-09 at 06:27:31 UTC, Balbir Singh wrote:
-> When PCI Device pass-through is enabled via VFIO, KVM-PPC will
-> pin pages using get_user_pages_fast(). One of the downsides of
-> the pinning is that the page could be in CMA region. The CMA
-> region is used for other allocations like the hash page table.
-> Ideally we want the pinned pages to be from non CMA region.
+On Mon, 2016-09-26 at 10:46 +0200, Michal Hocko wrote:
+> On Fri 23-09-16 17:53:51, Oleg Nesterov wrote:
+> > On 09/23, Michal Hocko wrote:
+> > >
+> > > On Fri 23-09-16 15:56:36, Oleg Nesterov wrote:
+> > > > 
+> > > > I think we can simplify this patch. And imo make it better. How about
+> > > 
+> > > it is certainly less subtle because it doesn't report "sub-vmas".
+> > > 
+> > > > 	if (last_addr) {
+> > > > 		vma = find_vma(mm, last_addr - 1);
+> > > > 		if (vma && vma->vm_start <= last_addr)
+> > > > 			vma = m_next_vma(priv, vma);
+> > > > 		if (vma)
+> > > > 			return vma;
+> > > > 	}
+> > > 
+> > > we would still miss a VMA if the last one got shrunk/split
+> > 
+> > Not sure I understand what you mean... If the last one was split
+> > we probably should not report the new vma.
 > 
-> This patch (currently only for KVM PPC with VFIO) forcefully
-> migrates the pages out (huge pages are omitted for the moment).
-> There are more efficient ways of doing this, but that might
-> be elaborate and might impact a larger audience beyond just
-> the kvm ppc implementation.
+> Right, VMA split is less of a problem. I meant to say that if the
+> last_vma->vm_end got lower for whatever reason then we could miss a VMA
+> right after. We actually might want to display such a VMA because it
+> could be a completely new one. We just do not know whether it is a
+> former split with enlarged VMA or a completely new one
 > 
-> The magic is in new_iommu_non_cma_page() which allocates the
-> new page from a non CMA region.
-> 
-> I've tested the patches lightly at my end. The full solution
-> requires migration of THP pages in the CMA region. That work
-> will be done incrementally on top of this.
-> 
-> Signed-off-by: Balbir Singh <bsingharora@gmail.com>
-> Acked-by: Alexey Kardashevskiy <aik@ozlabs.ru>
+> [      old VMA     ]   Hole       [   VMA    ]
+> [ old VMA   ][  New VMa    ]      [   VMA    ]
 
-Applied to powerpc next, thanks.
+This is indeed possible. But I see this is like the last_vma enlargement
+case. I suggest we accept such missing, as we accept the enlargement
+part of last_vma is not printed.
 
-https://git.kernel.org/powerpc/c/2e5bbb5461f138cac631fe21b4ad95
+How about we set such target: 1) no duplicate print; 2) no old vma
+missing (unless it's unmapped); 3) monotonic printing.
+We accept those newly added/changed parts between 2 partial reads is not
+printed.
 
-cheers
+How about above suggestion? If you, Dave, Oleg and others accept it,
+then Oleg's improvement can achieve it, I think.
+> 
+> > Nevermind, in any case yes, sure, this can't "fix" other corner cases.
+> 
+> Agreed, or at least I do not see an easy way for that.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
