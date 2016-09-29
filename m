@@ -1,58 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 64C5F280251
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 02:22:08 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id o21so18978407itb.3
-        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 23:22:08 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id p63si21424794itc.2.2016.09.28.23.21.44
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A797280251
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 02:25:14 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id l138so63183458wmg.3
+        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 23:25:14 -0700 (PDT)
+Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
+        by mx.google.com with ESMTPS id i64si21422745wmc.138.2016.09.28.23.25.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 Sep 2016 23:21:44 -0700 (PDT)
-Date: Thu, 29 Sep 2016 08:21:32 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: page_waitqueue() considered harmful
-Message-ID: <20160929062132.GG3318@worktop.controleur.wifipass.org>
-References: <CA+55aFwVSXZPONk2OEyxcP-aAQU7-aJsF3OFXVi8Z5vA11v_-Q@mail.gmail.com>
- <20160927083104.GC2838@techsingularity.net>
- <20160928005318.2f474a70@roar.ozlabs.ibm.com>
- <20160927165221.GP5016@twins.programming.kicks-ass.net>
- <20160928030621.579ece3a@roar.ozlabs.ibm.com>
- <20160928070546.GT2794@worktop>
- <20160929113132.5a85b887@roar.ozlabs.ibm.com>
+        Wed, 28 Sep 2016 23:25:13 -0700 (PDT)
+Received: by mail-wm0-x22f.google.com with SMTP id b4so5586945wmb.0
+        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 23:25:13 -0700 (PDT)
+Date: Thu, 29 Sep 2016 08:25:10 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH v2 2/3] mm: add LSM hook for writes to readonly memory
+Message-ID: <20160929062510.GB21794@gmail.com>
+References: <1475103281-7989-1-git-send-email-jann@thejh.net>
+ <1475103281-7989-3-git-send-email-jann@thejh.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160929113132.5a85b887@roar.ozlabs.ibm.com>
+In-Reply-To: <1475103281-7989-3-git-send-email-jann@thejh.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Will Deacon <will.deacon@arm.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Alan Stern <stern@rowland.harvard.edu>
+To: Jann Horn <jann@thejh.net>
+Cc: security@kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Paul Moore <paul@paul-moore.com>, Stephen Smalley <sds@tycho.nsa.gov>, Eric Paris <eparis@parisplace.org>, James Morris <james.l.morris@oracle.com>, "Serge E. Hallyn" <serge@hallyn.com>, Nick Kralevich <nnk@google.com>, Janis Danisevskis <jdanis@google.com>, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Sep 29, 2016 at 11:31:32AM +1000, Nicholas Piggin wrote:
-> > Since the {set,clear}_bit operations are atomic, they must be ordered
-> > against one another. The subsequent test_bit is a load, which, since its
-> > to the same variable, and a CPU must appear to preserve Program-Order,
-> > must come after the RmW.
-> > 
-> > So I think you're right and that we can forgo the memory barriers here.
-> > I even think this must be true on all architectures.
-> 
-> In generic code, I don't think so. We'd need an
-> smp_mb__between_bitops_to_the_same_aligned_long, wouldn't we?
-> 
-> x86 implements set_bit as 'orb (addr),bit_nr', and compiler could
-> implement test_bit as a byte load as well. If those bits are in
-> different bytes, then they could be reordered, no?
-> 
-> ia64 does 32-bit ops. If you make PG_waiter 64-bit only and put it
-> in the different side of the long, then this could be a problem too.
 
-Not on ia64, its atomics are full barriers too, just like x86 (even
-though its docs imply otherwise). But I get the point.
+* Jann Horn <jann@thejh.net> wrote:
 
-I would however rather audit and attempt to fix affected archs before
-introducing such a barrier if at all possible.
+> +/*
+> + * subject_cred must be the subjective credentials using which access is
+> + * requested.
+> + * object_cred must be the objective credentials of the target task at the time
+> + * the mm_struct was acquired.
+> + * Both of these may be NULL if FOLL_FORCE is unset or FOLL_WRITE is unset.
+
+Hm, I have trouble parsing the first sentence.
+
+> -	return __get_user_pages_locked(current, current->mm, start, nr_pages,
+> -				       write, force, pages, vmas, NULL, false,
+> -				       FOLL_TOUCH);
+> +	return __get_user_pages_locked(current, current->mm, current_cred(),
+> +				       current_real_cred(), start,
+> +				       nr_pages, write, force, pages, vmas,
+> +				       NULL, false, FOLL_TOUCH);
+
+So the parameter passing was disgustig before, and now it became super disgusing! 
+
+Would it improve the code if we added a friendly helper structure (or two if 
+that's better) to clean up all the interactions within these various functions?
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
