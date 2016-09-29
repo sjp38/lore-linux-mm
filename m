@@ -1,51 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F412280251
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 03:03:26 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id b130so63336870wmc.2
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 00:03:26 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t7si13747879wmb.25.2016.09.29.00.03.24
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 29 Sep 2016 00:03:24 -0700 (PDT)
-Subject: Re: More OOM problems (sorry fro the mail bomb)
-References: <CA+55aFwu30Yz52yW+MRHt_JgpqZkq4DHdWR-pX4+gO_OK7agCQ@mail.gmail.com>
- <20160921000458.15fdd159@metalhead.dragonrealms>
- <20160928231229.55d767c1@metalhead.dragonrealms>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <f35c1c03-c1ef-e4fb-44c8-187b75180130@suse.cz>
-Date: Thu, 29 Sep 2016 09:03:22 +0200
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 64B94280251
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 03:04:51 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id u134so38926087itb.0
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 00:04:51 -0700 (PDT)
+Received: from out4439.biz.mail.alibaba.com (out4439.biz.mail.alibaba.com. [47.88.44.39])
+        by mx.google.com with ESMTP id d136si14790137iog.76.2016.09.29.00.04.22
+        for <linux-mm@kvack.org>;
+        Thu, 29 Sep 2016 00:04:24 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <20160927171858.GA17943@linux.intel.com>
+In-Reply-To: <20160927171858.GA17943@linux.intel.com>
+Subject: Re: [PATCH 7/8] mm/swap: Add cache for swap slots allocation
+Date: Thu, 29 Sep 2016 15:04:03 +0800
+Message-ID: <008401d21a1f$aa29a510$fe7cef30$@alibaba-inc.com>
 MIME-Version: 1.0
-In-Reply-To: <20160928231229.55d767c1@metalhead.dragonrealms>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Raymond Jennings <shentino@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Markus Trippelsdorf <markus@trippelsdorf.de>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Jiri Slaby <jslaby@suse.com>, Olaf Hering <olaf@aepfle.de>, Joonsoo Kim <js1304@gmail.com>, linux-mm <linux-mm@kvack.org>
+To: tim.c.chen@linux.intel.com, 'Andrew Morton' <akpm@linux-foundation.org>
+Cc: dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'Huang Ying' <ying.huang@intel.com>, 'Hugh Dickins' <hughd@google.com>, 'Shaohua Li' <shli@kernel.org>, 'Minchan Kim' <minchan@kernel.org>, 'Rik van Riel' <riel@redhat.com>, 'Andrea Arcangeli' <aarcange@redhat.com>, "'Kirill A . Shutemov'" <kirill.shutemov@linux.intel.com>, 'Vladimir Davydov' <vdavydov@virtuozzo.com>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Michal Hocko' <mhocko@kernel.org>
 
-On 09/29/2016 08:12 AM, Raymond Jennings wrote:
-> On Wed, 21 Sep 2016 00:04:58 -0700
-> Raymond Jennings <shentino@gmail.com> wrote:
->
-> I would like to apologize to everyone for the mailbombing.  Something
-> went screwy with my email client and I had to bitchslap my installation
-> when I saw my gmail box full of half-composed messages being sent out.
+On Wednesday, September 28, 2016 1:19 AM Tim Chen wrote
+[...]
+> +
+> +static int alloc_swap_slot_cache(int cpu)
+> +{
+> +	struct swap_slots_cache *cache;
+> +
+> +	cache = &per_cpu(swp_slots, cpu);
+> +	mutex_init(&cache->alloc_lock);
+> +	spin_lock_init(&cache->free_lock);
+> +	cache->nr = 0;
+> +	cache->cur = 0;
+> +	cache->n_ret = 0;
+> +	cache->slots = vzalloc(sizeof(swp_entry_t) * SWAP_SLOTS_CACHE_SIZE);
+> +	if (!cache->slots) {
+> +		swap_slot_cache_enabled = false;
+> +		return -ENOMEM;
+> +	}
+> +	cache->slots_ret = vzalloc(sizeof(swp_entry_t) * SWAP_SLOTS_CACHE_SIZE);
+> +	if (!cache->slots_ret) {
+> +		vfree(cache->slots);
+> +		swap_slot_cache_enabled = false;
+> +		return -ENOMEM;
+> +	}
+> +	return 0;
+> +}
+> +
+[...]
+> +
+> +static void free_slot_cache(int cpu)
+> +{
+> +	struct swap_slots_cache *cache;
+> +
+> +	mutex_lock(&swap_slots_cache_mutex);
+> +	drain_slots_cache_cpu(cpu, SLOTS_CACHE | SLOTS_CACHE_RET);
+> +	cache = &per_cpu(swp_slots, cpu);
+> +	cache->nr = 0;
+> +	cache->cur = 0;
+> +	cache->n_ret = 0;
+> +	vfree(cache->slots);
 
-FWIW, I apparently didn't receive any.
-
-> For the curious, by the by, how does kcompactd work?  Does it just get
-> run on request or is it a continuous background process akin to
-> khugepaged?  Is there a way to keep it running in the background
-> defragmenting on a continuous trickle basis?
-
-Right now it gets run on request. Kswapd is woken up when watermarks get 
-between "min" and "low" and when it finishes reclaim and it was a 
-high-order request, it wakes up kcompactd, which compacts until page of 
-given order is available. That mimics how it was before when kswapd did 
-the compaction itself, but I know it's not ideal and plan to make 
-kcompactd more proactive.
+Also free cache->slots_ret?
+Or fold the relevant two allocations into one?
+ 
+> +	mutex_unlock(&swap_slots_cache_mutex);
+> +}
+> 
+thanks
+Hillf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
