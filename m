@@ -1,65 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EFE9328024C
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 06:50:37 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id b4so10218548wmb.0
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 03:50:37 -0700 (PDT)
-Received: from mail-wm0-f51.google.com (mail-wm0-f51.google.com. [74.125.82.51])
-        by mx.google.com with ESMTPS id d62si527508wmd.4.2016.09.29.03.50.36
+	by kanga.kvack.org (Postfix) with ESMTP id 5C2376B029E
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 07:07:55 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id w84so70021023wmg.1
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 04:07:55 -0700 (PDT)
+Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
+        by mx.google.com with ESMTPS id r4si13601253wmd.5.2016.09.29.04.07.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Sep 2016 03:50:36 -0700 (PDT)
-Received: by mail-wm0-f51.google.com with SMTP id b130so124204446wmc.0
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 03:50:36 -0700 (PDT)
-Subject: Re: Soft lockup in __slab_free (SLUB)
-References: <57E8D270.8040802@kyup.com>
- <20160928053114.GC22706@js1304-P5Q-DELUXE> <57EB6DF5.2010503@kyup.com>
- <20160929014024.GA29250@js1304-P5Q-DELUXE>
- <20160929021100.GI14933@linux.vnet.ibm.com>
- <20160929025559.GE29250@js1304-P5Q-DELUXE> <57ECBE8D.6000703@kyup.com>
- <20160929102743.GL14933@linux.vnet.ibm.com>
-From: Nikolay Borisov <kernel@kyup.com>
-Message-ID: <57ECF1FA.6010908@kyup.com>
-Date: Thu, 29 Sep 2016 13:50:34 +0300
+        Thu, 29 Sep 2016 04:07:53 -0700 (PDT)
+Date: Thu, 29 Sep 2016 12:07:14 +0100
+From: Chris Wilson <chris@chris-wilson.co.uk>
+Subject: Re: [PATCH] mm/vmalloc: reduce the number of lazy_max_pages to
+ reduce latency
+Message-ID: <20160929110714.GF28107@nuc-i3427.alporthouse.com>
+References: <20160929073411.3154-1-jszhang@marvell.com>
+ <20160929081818.GE28107@nuc-i3427.alporthouse.com>
+ <20160929162808.745c869b@xhacker>
 MIME-Version: 1.0
-In-Reply-To: <20160929102743.GL14933@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160929162808.745c869b@xhacker>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paulmck@linux.vnet.ibm.com
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christoph Lameter <cl@linux.com>, Linux MM <linux-mm@kvack.org>, brouer@redhat.com
+To: Jisheng Zhang <jszhang@marvell.com>
+Cc: akpm@linux-foundation.org, mgorman@techsingularity.net, rientjes@google.com, iamjoonsoo.kim@lge.com, agnel.joel@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org
 
-
-
-On 09/29/2016 01:27 PM, Paul E. McKenney wrote:
-> On Thu, Sep 29, 2016 at 10:11:09AM +0300, Nikolay Borisov wrote:
-[SNIP]
-
->> What in particular should I be looking for in ftrace? tracing the stacks
->> on the stuck cpu?
+On Thu, Sep 29, 2016 at 04:28:08PM +0800, Jisheng Zhang wrote:
+> On Thu, 29 Sep 2016 09:18:18 +0100 Chris Wilson wrote:
 > 
-> To start with, how about the sequence of functions that the stuck
-> CPU is executing?
+> > On Thu, Sep 29, 2016 at 03:34:11PM +0800, Jisheng Zhang wrote:
+> > > On Marvell berlin arm64 platforms, I see the preemptoff tracer report
+> > > a max 26543 us latency at __purge_vmap_area_lazy, this latency is an
+> > > awfully bad for STB. And the ftrace log also shows __free_vmap_area
+> > > contributes most latency now. I noticed that Joel mentioned the same
+> > > issue[1] on x86 platform and gave two solutions, but it seems no patch
+> > > is sent out for this purpose.
+> > > 
+> > > This patch adopts Joel's first solution, but I use 16MB per core
+> > > rather than 8MB per core for the number of lazy_max_pages. After this
+> > > patch, the preemptoff tracer reports a max 6455us latency, reduced to
+> > > 1/4 of original result.  
+> > 
+> > My understanding is that
+> > 
+> > diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> > index 91f44e78c516..3f7c6d6969ac 100644
+> > --- a/mm/vmalloc.c
+> > +++ b/mm/vmalloc.c
+> > @@ -626,7 +626,6 @@ void set_iounmap_nonlazy(void)
+> >  static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
+> >                                         int sync, int force_flush)
+> >  {
+> > -       static DEFINE_SPINLOCK(purge_lock);
+> >         struct llist_node *valist;
+> >         struct vmap_area *va;
+> >         struct vmap_area *n_va;
+> > @@ -637,12 +636,6 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
+> >          * should not expect such behaviour. This just simplifies locking for
+> >          * the case that isn't actually used at the moment anyway.
+> >          */
+> > -       if (!sync && !force_flush) {
+> > -               if (!spin_trylock(&purge_lock))
+> > -                       return;
+> > -       } else
+> > -               spin_lock(&purge_lock);
+> > -
+> >         if (sync)
+> >                 purge_fragmented_blocks_allcpus();
+> >  
+> > @@ -667,7 +660,6 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
+> >                         __free_vmap_area(va);
+> >                 spin_unlock(&vmap_area_lock);
+> 
+> Hi Chris,
+> 
+> Per my test, the bottleneck now is __free_vmap_area() over the valist, the
+> iteration is protected with spinlock vmap_area_lock. So the larger lazy max
+> pages, the longer valist, the bigger the latency.
+> 
+> So besides above patch, we still need to remove vmap_are_lock or replace with
+> mutex.
 
-Unfortunately I do not know how to reproduce the issue, but it is being
-reproduced byt our production load - which is creating backups in this
-case. They are created by rsyncing files to a loop-back attached files
-wihch are then unmounted and unmapped.From this crash it is evident that
-the hang occurs while a volume is being unmounted.
+Or follow up with
 
-But the callstack is in my hang report, no? I have the crashdump with me
-so if you are interested in anything in particular I can go look for it.
-I believe an inode eviction was requested, since destroy_inode, which
-utilizes ext4_i_callback is called in the eviction + some errors paths.
-And this eviction is executed on this particular CPU. What in particular
-are you looking for?
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 3f7c6d6969ac..67b5475f0b0a 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -656,8 +656,10 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
+ 
+        if (nr) {
+                spin_lock(&vmap_area_lock);
+-               llist_for_each_entry_safe(va, n_va, valist, purge_list)
++               llist_for_each_entry_safe(va, n_va, valist, purge_list) {
+                        __free_vmap_area(va);
++                       cond_resched_lock(&vmap_area_lock);
++               }
+                spin_unlock(&vmap_area_lock);
+        }
+ }
 
-Unfortunately it's impossible for me to run:
+?
+-Chris
 
-trace-cmd record -p function_graph -F <command that causes the issue>
-
-[SNIP]
+-- 
+Chris Wilson, Intel Open Source Technology Centre
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
