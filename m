@@ -1,180 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 924506B0038
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 13:09:54 -0400 (EDT)
-Received: by mail-ua0-f199.google.com with SMTP id n13so125786394uaa.1
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 10:09:54 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id q26si4656631uab.197.2016.09.29.10.09.53
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D99796B0038
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 13:39:21 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id p135so79796262itb.2
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 10:39:21 -0700 (PDT)
+Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
+        by mx.google.com with ESMTPS id b133si11866009iti.117.2016.09.29.10.38.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Sep 2016 10:09:53 -0700 (PDT)
-Subject: Re: [PATCH v4 2/3] mm/hugetlb: check for reserved hugepages during
- memory offline
-References: <20160926172811.94033-1-gerald.schaefer@de.ibm.com>
- <20160926172811.94033-3-gerald.schaefer@de.ibm.com>
- <20160929123001.GG408@dhcp22.suse.cz>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <9dcd5ca2-6f0a-cc44-e4c7-774e706315c7@oracle.com>
-Date: Thu, 29 Sep 2016 10:09:37 -0700
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 29 Sep 2016 10:38:48 -0700 (PDT)
+Subject: Re: [RFC PATCH 1/1] mm/percpu.c: fix potential memory leakage for
+ pcpu_embed_first_chunk()
+References: <d6742bae-1b32-10d8-1857-9993a2d06117@zoho.com>
+ <20160929164422.GA3773@mtj.duckdns.org>
+From: zijun_hu <zijun_hu@zoho.com>
+Message-ID: <b88da9b0-0964-8b42-7054-81605fe7eb85@zoho.com>
+Date: Fri, 30 Sep 2016 01:38:35 +0800
 MIME-Version: 1.0
-In-Reply-To: <20160929123001.GG408@dhcp22.suse.cz>
+In-Reply-To: <20160929164422.GA3773@mtj.duckdns.org>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Rui Teng <rui.teng@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Tejun Heo <tj@kernel.org>
+Cc: zijun_hu@htc.com, Andrew Morton <akpm@linux-foundation.org>, cl@linux.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 09/29/2016 05:30 AM, Michal Hocko wrote:
-> On Mon 26-09-16 19:28:10, Gerald Schaefer wrote:
->> In dissolve_free_huge_pages(), free hugepages will be dissolved without
->> making sure that there are enough of them left to satisfy hugepage
->> reservations.
+On 2016/9/30 0:44, Tejun Heo wrote:
+> Hello,
 > 
-> otherwise a poor process with a reservation might get unexpected SIGBUS,
-> right?
-
-Yes, that is correct.
-
-> 
->> Fix this by adding a return value to dissolve_free_huge_pages() and
->> checking h->free_huge_pages vs. h->resv_huge_pages. Note that this may
->> lead to the situation where dissolve_free_huge_page() returns an error
->> and all free hugepages that were dissolved before that error are lost,
->> while the memory block still cannot be set offline.
-> 
-> Hmm, OK offline failure is certainly a better option than an application
-> failure.
-
-I agree.
-
-However, if the reason for the offline is that a dimm within the huge page
-is starting to fail, then one could make an argument that forced offline of
-the huge page would be more desirable.  We really don't know the reason for
-the offline.  So, I think the approach of this patch is best.
-
---
-Mike Kravetz
-
->  
->> Fixes: c8721bbb ("mm: memory-hotplug: enable memory hotplug to handle hugepage")
->> Signed-off-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-> 
-> Acked-by: Michal Hocko <mhocko@suse.com>
->> ---
->>  include/linux/hugetlb.h |  6 +++---
->>  mm/hugetlb.c            | 26 +++++++++++++++++++++-----
->>  mm/memory_hotplug.c     |  4 +++-
->>  3 files changed, 27 insertions(+), 9 deletions(-)
+> On Fri, Sep 30, 2016 at 12:03:20AM +0800, zijun_hu wrote:
+>> From: zijun_hu <zijun_hu@htc.com>
 >>
->> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
->> index c26d463..fe99e6f 100644
->> --- a/include/linux/hugetlb.h
->> +++ b/include/linux/hugetlb.h
->> @@ -450,8 +450,8 @@ static inline pgoff_t basepage_index(struct page *page)
->>  	return __basepage_index(page);
->>  }
+>> it will cause memory leakage for pcpu_embed_first_chunk() to go to
+>> label @out_free if the chunk spans over 3/4 VMALLOC area. all memory
+>> are allocated and recorded into array @areas for each CPU group, but
+>> the memory allocated aren't be freed before returning after going to
+>> label @out_free
+>>
+>> in order to fix this bug, we check chunk spanned area immediately
+>> after completing memory allocation for all CPU group, we go to label
+>> @out_free_areas other than @out_free to free all memory allocated if
+>> the checking is failed.
+>>
+>> Signed-off-by: zijun_hu <zijun_hu@htc.com>
+> ...
+>> @@ -2000,6 +2001,21 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
+>>  		areas[group] = ptr;
 >>  
->> -extern void dissolve_free_huge_pages(unsigned long start_pfn,
->> -				     unsigned long end_pfn);
->> +extern int dissolve_free_huge_pages(unsigned long start_pfn,
->> +				    unsigned long end_pfn);
->>  static inline bool hugepage_migration_supported(struct hstate *h)
->>  {
->>  #ifdef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
->> @@ -518,7 +518,7 @@ static inline pgoff_t basepage_index(struct page *page)
->>  {
->>  	return page->index;
->>  }
->> -#define dissolve_free_huge_pages(s, e)	do {} while (0)
->> +#define dissolve_free_huge_pages(s, e)	0
->>  #define hugepage_migration_supported(h)	false
->>  
->>  static inline spinlock_t *huge_pte_lockptr(struct hstate *h,
->> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->> index 603bdd0..91ae1f5 100644
->> --- a/mm/hugetlb.c
->> +++ b/mm/hugetlb.c
->> @@ -1437,22 +1437,32 @@ static int free_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed,
->>  
->>  /*
->>   * Dissolve a given free hugepage into free buddy pages. This function does
->> - * nothing for in-use (including surplus) hugepages.
->> + * nothing for in-use (including surplus) hugepages. Returns -EBUSY if the
->> + * number of free hugepages would be reduced below the number of reserved
->> + * hugepages.
->>   */
->> -static void dissolve_free_huge_page(struct page *page)
->> +static int dissolve_free_huge_page(struct page *page)
->>  {
->> +	int rc = 0;
+>>  		base = min(ptr, base);
+>> +		if (ptr > areas[j])
+>> +			j = group;
+>> +	}
+>> +	max_distance = areas[j] - base;
+>> +	max_distance += ai->unit_size * ai->groups[j].nr_units;
 >> +
->>  	spin_lock(&hugetlb_lock);
->>  	if (PageHuge(page) && !page_count(page)) {
->>  		struct page *head = compound_head(page);
->>  		struct hstate *h = page_hstate(head);
->>  		int nid = page_to_nid(head);
->> +		if (h->free_huge_pages - h->resv_huge_pages == 0) {
->> +			rc = -EBUSY;
->> +			goto out;
->> +		}
->>  		list_del(&head->lru);
->>  		h->free_huge_pages--;
->>  		h->free_huge_pages_node[nid]--;
->>  		h->max_huge_pages--;
->>  		update_and_free_page(h, head);
->>  	}
->> +out:
->>  	spin_unlock(&hugetlb_lock);
->> +	return rc;
->>  }
->>  
->>  /*
->> @@ -1460,16 +1470,22 @@ static void dissolve_free_huge_page(struct page *page)
->>   * make specified memory blocks removable from the system.
->>   * Note that this will dissolve a free gigantic hugepage completely, if any
->>   * part of it lies within the given range.
->> + * Also note that if dissolve_free_huge_page() returns with an error, all
->> + * free hugepages that were dissolved before that error are lost.
->>   */
->> -void dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
->> +int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
->>  {
->>  	unsigned long pfn;
->> +	int rc = 0;
->>  
->>  	if (!hugepages_supported())
->> -		return;
->> +		return rc;
->>  
->>  	for (pfn = start_pfn; pfn < end_pfn; pfn += 1 << minimum_order)
->> -		dissolve_free_huge_page(pfn_to_page(pfn));
->> +		if (rc = dissolve_free_huge_page(pfn_to_page(pfn)))
->> +			break;
->> +
->> +	return rc;
->>  }
->>  
->>  /*
->> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->> index b58906b..13998d9 100644
->> --- a/mm/memory_hotplug.c
->> +++ b/mm/memory_hotplug.c
->> @@ -1945,7 +1945,9 @@ static int __ref __offline_pages(unsigned long start_pfn,
->>  	 * dissolve free hugepages in the memory block before doing offlining
->>  	 * actually in order to make hugetlbfs's object counting consistent.
->>  	 */
->> -	dissolve_free_huge_pages(start_pfn, end_pfn);
->> +	ret = dissolve_free_huge_pages(start_pfn, end_pfn);
->> +	if (ret)
->> +		goto failed_removal;
->>  	/* check again */
->>  	offlined_pages = check_pages_isolated(start_pfn, end_pfn);
->>  	if (offlined_pages < 0) {
->> -- 
->> 2.8.4
+>> +	/* warn if maximum distance is further than 75% of vmalloc space */
+>> +	if (max_distance > VMALLOC_TOTAL * 3 / 4) {
+>> +		pr_warn("max_distance=0x%lx too large for vmalloc space 0x%lx\n",
+>> +				max_distance, VMALLOC_TOTAL);
+>> +#ifdef CONFIG_NEED_PER_CPU_PAGE_FIRST_CHUNK
+>> +		/* and fail if we have fallback */
+>> +		rc = -EINVAL;
+>> +		goto out_free_areas;
+>> +#endif
 > 
+> Isn't it way simpler to make the error path jump to out_free_areas?
+> There's another similar case after pcpu_setup_first_chunk() failure
+> too.  Also, can you please explain how you tested the changes?
+> 
+> Thanks.
+> 
+1) the simpler way don't work because it maybe free many memory block twice
+
+let us take a CPU group as a example, after we allocate All memory
+needed by a CPU group, we maybe free a unit memory block which
+don't map to a available CPU, we maybe free a part of unit memory which 
+we don't used too, you can refer to following code segments for detailed
+info.
+for (group = 0; group < ai->nr_groups; group++) {
+	struct pcpu_group_info *gi = &ai->groups[group];
+	void *ptr = areas[group];
+
+	for (i = 0; i < gi->nr_units; i++, ptr += ai->unit_size) {
+	if (gi->cpu_map[i] == NR_CPUS) {
+				/* unused unit, free whole */
+				free_fn(ptr, ai->unit_size);
+				continue;
+	}
+	/* copy and return the unused part */
+	memcpy(ptr, __per_cpu_load, ai->static_size);
+	free_fn(ptr + size_sum, ai->unit_size - size_sum);
+	}
+}
+
+2) as we seen, pcpu_setup_first_chunk() doesn't cause a failure, it  return 0
+   always or panic by BUG_ON(), even if it fails, we can conclude the allocated
+   memory based on information recorded by it, such as pcpu_base_addr and many of
+   static variable, we can complete the free operations; but we can't if we
+   fail in the case pointed by this patch
+
+3) my test way is simple, i force "if (max_distance > VMALLOC_TOTAL * 3 / 4)"
+   to if (1) and print which memory i allocate before the jumping, then print which memory
+   i free after the jumping and before returning, then check whether i free the memory i 
+   allocate in this function, the result is okay
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
