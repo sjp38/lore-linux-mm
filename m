@@ -1,67 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 700E16B026B
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 21:39:59 -0400 (EDT)
-Received: by mail-ua0-f200.google.com with SMTP id p102so94844583uap.2
-        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 18:39:59 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id d203si3543623vke.223.2016.09.28.18.39.56
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 28 Sep 2016 18:39:58 -0700 (PDT)
-Message-ID: <57EC6F06.6020703@huawei.com>
-Date: Thu, 29 Sep 2016 09:31:50 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D81B36B026B
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 21:42:45 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id 124so15216129itl.1
+        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 18:42:45 -0700 (PDT)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id d194si23061142ite.75.2016.09.28.18.42.14
+        for <linux-mm@kvack.org>;
+        Wed, 28 Sep 2016 18:42:15 -0700 (PDT)
+Date: Thu, 29 Sep 2016 10:50:43 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [Bug 172981] New: [bisected] SLAB: extreme load averages and
+ over 2000 kworker threads
+Message-ID: <20160929015043.GC29250@js1304-P5Q-DELUXE>
+References: <bug-172981-27@https.bugzilla.kernel.org/>
+ <20160927111059.282a35c89266202d3cb2f953@linux-foundation.org>
+ <002a01d21936$5ca792a0$15f6b7e0$@net>
+ <20160928051841.GB22706@js1304-P5Q-DELUXE>
+ <000601d2199c$1f01cd10$5d056730$@net>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm: remove unnecessary condition in remove_inode_hugepages
-References: <1474985786-5052-1-git-send-email-zhongjiang@huawei.com> <63e015fd-3920-9753-fb58-c11d95d61d8b@oracle.com> <dc693ecb-5353-a274-9ce3-9a1c5aa59aa2@oracle.com>
-In-Reply-To: <dc693ecb-5353-a274-9ce3-9a1c5aa59aa2@oracle.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <000601d2199c$1f01cd10$5d056730$@net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: mhocko@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, n-horiguchi@ah.jp.nec.com
+To: Doug Smythies <dsmythies@telus.net>
+Cc: 'Johannes Weiner' <hannes@cmpxchg.org>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Vladimir Davydov' <vdavydov.dev@gmail.com>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
 
-On 2016/9/29 7:55, Mike Kravetz wrote:
-> On 09/27/2016 12:23 PM, Mike Kravetz wrote:
->> On 09/27/2016 07:16 AM, zhongjiang wrote:
->>> From: zhong jiang <zhongjiang@huawei.com>
->>>
->>> when the huge page is added to the page cahce (huge_add_to_page_cache),
->>> the page private flag will be cleared. since this code
->>> (remove_inode_hugepages) will only be called for pages in the
->>> page cahce, PagePrivate(page) will always be false.
->>>
->>> The patch remove the code without any functional change.
->>>
->>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
->>> ---
->>>  fs/hugetlbfs/inode.c    | 11 +++++------
->>>  include/linux/hugetlb.h |  2 +-
->>>  mm/hugetlb.c            |  4 ++--
->>>  3 files changed, 8 insertions(+), 9 deletions(-)
->>>
->>> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
->>> index 4ea71eb..40d0afe 100644
->>> --- a/fs/hugetlbfs/inode.c
->>> +++ b/fs/hugetlbfs/inode.c
->>> @@ -458,18 +458,17 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
->>>  			 * cache (remove_huge_page) BEFORE removing the
->>>  			 * region/reserve map (hugetlb_unreserve_pages).  In
->>>  			 * rare out of memory conditions, removal of the
->>> -			 * region/reserve map could fail.  Before free'ing
->>> -			 * the page, note PagePrivate which is used in case
->>> -			 * of error.
->>> +			 * region/reserve map could fail. Correspondingly,
->>> +			 * the subpool and global reserve usage count can need
->>> +			 * to be adjusted.
->>>  			 */
->>> -			rsv_on_error = !PagePrivate(page);
-> You also need to remove the definition of rsv_on_error.
->
-> Sorry, I missed that on the review.
-  Thanks,  I will remove it now.
+On Wed, Sep 28, 2016 at 08:22:24AM -0700, Doug Smythies wrote:
+> On 2016.09.27 23:20 Joonsoo Kim wrote:
+> > On Wed, Sep 28, 2016 at 02:18:42PM +0900, Joonsoo Kim wrote:
+> >> On Tue, Sep 27, 2016 at 08:13:58PM -0700, Doug Smythies wrote:
+> >>> By the way, I can eliminate the problem by doing this:
+> >>> (see also: https://bugzilla.kernel.org/show_bug.cgi?id=172991)
+> >> 
+> >> I think that Johannes found the root cause of the problem and they
+> >> (Johannes and Vladimir) will solve the root cause.
+> >> 
+> >> However, there is something useful to do in SLAB side.
+> >> Could you test following patch, please?
+> >> 
+> >> Thanks.
+> >> 
+> >> ---------->8--------------
+> >> diff --git a/mm/slab.c b/mm/slab.c
+> >> index 0eb6691..39e3bf2 100644
+> >> --- a/mm/slab.c
+> >> +++ b/mm/slab.c
+> >> @@ -965,7 +965,7 @@ static int setup_kmem_cache_node(struct kmem_cache *cachep,
+> >>          * guaranteed to be valid until irq is re-enabled, because it will be
+> >>          * freed after synchronize_sched().
+> >>          */
+> >> -       if (force_change)
+> >> +       if (n->shared && force_change)
+> >>                 synchronize_sched();
+> >
+> > Oops...
+> >
+> > s/n->shared/old_shared/
+> 
+> Yes, that seems to work fine. After boot everything is good.
+> Then I tried and tried to get it to mess up, but could not.
+
+Thanks for confirm.
+I will send a formal patch, soon.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
