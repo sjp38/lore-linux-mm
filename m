@@ -1,74 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DE096280256
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 04:48:17 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id l138so66732310wmg.3
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 01:48:17 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id gj2si9597844wjb.25.2016.09.29.01.48.16
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EA01328024F
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 05:03:25 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id t83so213649257oie.0
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 02:03:25 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id b90si8970163otc.211.2016.09.29.02.02.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Sep 2016 01:48:16 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id w72so960748wmf.1
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 01:48:16 -0700 (PDT)
-Date: Thu, 29 Sep 2016 10:48:15 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: warn about allocations which stall for too long
-Message-ID: <20160929084815.GD408@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 29 Sep 2016 02:03:00 -0700 (PDT)
+Subject: Re: [PATCH 2/2] mm: warn about allocations which stall for too long
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 References: <20160923081555.14645-1-mhocko@kernel.org>
- <201609232336.FIH57364.FOVHtMFQLFSJOO@I-love.SAKURA.ne.jp>
- <20160923150234.GV4478@dhcp22.suse.cz>
- <201609241200.AEE21807.OSOtQVOLHMFJFF@I-love.SAKURA.ne.jp>
- <20160926081751.GD27030@dhcp22.suse.cz>
- <201609272157.DHI95301.HOFFFOVJLtSMQO@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
+	<20160929084407.7004-1-mhocko@kernel.org>
+	<20160929084407.7004-3-mhocko@kernel.org>
+In-Reply-To: <20160929084407.7004-3-mhocko@kernel.org>
+Message-Id: <201609291802.GFG81203.FLHtOMSJOVFFQO@I-love.SAKURA.ne.jp>
+Date: Thu, 29 Sep 2016 18:02:44 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201609272157.DHI95301.HOFFFOVJLtSMQO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, linux-kernel@vger.kernel.org
+To: mhocko@kernel.org, akpm@linux-foundation.org
+Cc: hannes@cmpxchg.org, mgorman@suse.de, dave.hansen@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.com
 
-On Tue 27-09-16 21:57:26, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > > > > ) rather than by line number, and surround __warn_memalloc_stall() call with
-> > > > > mutex in order to serialize warning messages because it is possible that
-> > > > > multiple allocation requests are stalling?
-> > > > 
-> > > > we do not use any lock in warn_alloc_failed so why this should be any
-> > > > different?
-> > > 
-> > > warn_alloc_failed() is called for both __GFP_DIRECT_RECLAIM and
-> > > !__GFP_DIRECT_RECLAIM allocation requests, and it is not allowed
-> > > to sleep if !__GFP_DIRECT_RECLAIM. Thus, we have to tolerate that
-> > > concurrent memory allocation failure messages make dmesg output
-> > > unreadable. But __warn_memalloc_stall() is called for only
-> > > __GFP_DIRECT_RECLAIM allocation requests. Thus, we are allowed to
-> > > sleep in order to serialize concurrent memory allocation stall
-> > > messages.
-> > 
-> > I still do not see a point. A single line about the warning and locked
-> > dump_stack sounds sufficient to me.
+Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
 > 
-> printk() is slow operation. It is possible that two allocation requests
-> start within time period needed for completing warn_alloc_failed().
-> It is possible that multiple concurrent allocations are stalling when
-> one of them cannot be satisfied. The consequence is multiple concurrent
-> timeouts corrupting dmesg.
-> http://I-love.SAKURA.ne.jp/tmp/serial-20160927-nolock.txt.xz
-> (Please ignore Oops at do_task_stat(); it is irrelevant to this topic.)
+> Currently we do warn only about allocation failures but small
+> allocations are basically nofail and they might loop in the page
+> allocator for a long time.  Especially when the reclaim cannot make
+> any progress - e.g. GFP_NOFS cannot invoke the oom killer and rely on
+> a different context to make a forward progress in case there is a lot
+> memory used by filesystems.
 > 
-> If we guard it with mutex_lock(&oom_lock)/mutex_unlock(&oom_lock),
-> no corruption.
-> http://I-love.SAKURA.ne.jp/tmp/serial-20160927-lock.txt.xz
+> Give us at least a clue when something like this happens and warn about
+> allocations which take more than 10s. Print the basic allocation context
+> information along with the cumulative time spent in the allocation as
+> well as the allocation stack. Repeat the warning after every 10 seconds so
+> that we know that the problem is permanent rather than ephemeral.
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  mm/page_alloc.c | 10 ++++++++++
+>  1 file changed, 10 insertions(+)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 969ffc97045b..73f60ad6315f 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3495,6 +3495,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  	enum compact_result compact_result;
+>  	int compaction_retries = 0;
+>  	int no_progress_loops = 0;
+> +	unsigned long alloc_start = jiffies;
+> +	unsigned int stall_timeout = 10 * HZ;
+>  
+>  	/*
+>  	 * In the slowpath, we sanity check order to avoid ever trying to
+> @@ -3650,6 +3652,14 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  	if (order > PAGE_ALLOC_COSTLY_ORDER && !(gfp_mask & __GFP_REPEAT))
+>  		goto nopage;
+>  
+> +	/* Make sure we know about allocations which stall for too long */
+> +	if (time_after(jiffies, alloc_start + stall_timeout)) {
+> +		warn_alloc(gfp_mask,
 
-I have just posted v2 which reuses warn_alloc_failed infrastructure. If
-we want to have a lock there then it should be a separate patch imho.
-Ideally with and example from your above kernel log.
--- 
-Michal Hocko
-SUSE Labs
+I expect "gfp_mask & ~__GFP_NOWARN" rather than "gfp_mask" here.
+Otherwise, we can't get a clue for __GFP_NOWARN allocations.
+
+> +			"page alloction stalls for %ums, order:%u\n",
+> +			jiffies_to_msecs(jiffies-alloc_start), order);
+> +		stall_timeout += 10 * HZ;
+> +	}
+> +
+>  	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
+>  				 did_some_progress > 0, &no_progress_loops))
+>  		goto retry;
+> -- 
+> 2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
