@@ -1,80 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 21A946B0038
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 12:50:38 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id cg13so150371644pac.1
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 09:50:38 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id de8si15040265pad.84.2016.09.29.09.50.37
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 924506B0038
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 13:09:54 -0400 (EDT)
+Received: by mail-ua0-f199.google.com with SMTP id n13so125786394uaa.1
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 10:09:54 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id q26si4656631uab.197.2016.09.29.10.09.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 29 Sep 2016 09:50:37 -0700 (PDT)
-Message-ID: <1475167836.3916.270.camel@linux.intel.com>
-Subject: Re: [PATCH 7/8] mm/swap: Add cache for swap slots allocation
-From: Tim Chen <tim.c.chen@linux.intel.com>
-Date: Thu, 29 Sep 2016 09:50:36 -0700
-In-Reply-To: <008401d21a1f$aa29a510$fe7cef30$@alibaba-inc.com>
-References: <20160927171858.GA17943@linux.intel.com>
-	 <008401d21a1f$aa29a510$fe7cef30$@alibaba-inc.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 29 Sep 2016 10:09:53 -0700 (PDT)
+Subject: Re: [PATCH v4 2/3] mm/hugetlb: check for reserved hugepages during
+ memory offline
+References: <20160926172811.94033-1-gerald.schaefer@de.ibm.com>
+ <20160926172811.94033-3-gerald.schaefer@de.ibm.com>
+ <20160929123001.GG408@dhcp22.suse.cz>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <9dcd5ca2-6f0a-cc44-e4c7-774e706315c7@oracle.com>
+Date: Thu, 29 Sep 2016 10:09:37 -0700
+MIME-Version: 1.0
+In-Reply-To: <20160929123001.GG408@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>, 'Andrew Morton' <akpm@linux-foundation.org>
-Cc: dave.hansen@intel.com, andi.kleen@intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 'Huang Ying' <ying.huang@intel.com>, 'Hugh Dickins' <hughd@google.com>, 'Shaohua Li' <shli@kernel.org>, 'Minchan Kim' <minchan@kernel.org>, 'Rik van Riel' <riel@redhat.com>, 'Andrea Arcangeli' <aarcange@redhat.com>, "'Kirill A .
- Shutemov'" <kirill.shutemov@linux.intel.com>, 'Vladimir Davydov' <vdavydov@virtuozzo.com>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Michal Hocko' <mhocko@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>, Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Rui Teng <rui.teng@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@linux.intel.com>
 
-On Thu, 2016-09-29 at 15:04 +0800, Hillf Danton wrote:
-> On Wednesday, September 28, 2016 1:19 AM Tim Chen wrote
-> [...]
-> > 
-> > +
-> > +static int alloc_swap_slot_cache(int cpu)
-> > +{
-> > +	struct swap_slots_cache *cache;
-> > +
-> > +	cache = &per_cpu(swp_slots, cpu);
-> > +	mutex_init(&cache->alloc_lock);
-> > +	spin_lock_init(&cache->free_lock);
-> > +	cache->nr = 0;
-> > +	cache->cur = 0;
-> > +	cache->n_ret = 0;
-> > +	cache->slots = vzalloc(sizeof(swp_entry_t) * SWAP_SLOTS_CACHE_SIZE);
-> > +	if (!cache->slots) {
-> > +		swap_slot_cache_enabled = false;
-> > +		return -ENOMEM;
-> > +	}
-> > +	cache->slots_ret = vzalloc(sizeof(swp_entry_t) * SWAP_SLOTS_CACHE_SIZE);
-> > +	if (!cache->slots_ret) {
-> > +		vfree(cache->slots);
-> > +		swap_slot_cache_enabled = false;
-> > +		return -ENOMEM;
-> > +	}
-> > +	return 0;
-> > +}
-> > +
-> [...]
-> > 
-> > +
-> > +static void free_slot_cache(int cpu)
-> > +{
-> > +	struct swap_slots_cache *cache;
-> > +
-> > +	mutex_lock(&swap_slots_cache_mutex);
-> > +	drain_slots_cache_cpu(cpu, SLOTS_CACHE | SLOTS_CACHE_RET);
-> > +	cache = &per_cpu(swp_slots, cpu);
-> > +	cache->nr = 0;
-> > +	cache->cur = 0;
-> > +	cache->n_ret = 0;
-> > +	vfree(cache->slots);
-> Also free cache->slots_ret?
+On 09/29/2016 05:30 AM, Michal Hocko wrote:
+> On Mon 26-09-16 19:28:10, Gerald Schaefer wrote:
+>> In dissolve_free_huge_pages(), free hugepages will be dissolved without
+>> making sure that there are enough of them left to satisfy hugepage
+>> reservations.
+> 
+> otherwise a poor process with a reservation might get unexpected SIGBUS,
+> right?
 
-Good point. A Should free cache->slots_ret here.
+Yes, that is correct.
 
-Tim
+> 
+>> Fix this by adding a return value to dissolve_free_huge_pages() and
+>> checking h->free_huge_pages vs. h->resv_huge_pages. Note that this may
+>> lead to the situation where dissolve_free_huge_page() returns an error
+>> and all free hugepages that were dissolved before that error are lost,
+>> while the memory block still cannot be set offline.
+> 
+> Hmm, OK offline failure is certainly a better option than an application
+> failure.
 
->A 
+I agree.
+
+However, if the reason for the offline is that a dimm within the huge page
+is starting to fail, then one could make an argument that forced offline of
+the huge page would be more desirable.  We really don't know the reason for
+the offline.  So, I think the approach of this patch is best.
+
+--
+Mike Kravetz
+
+>  
+>> Fixes: c8721bbb ("mm: memory-hotplug: enable memory hotplug to handle hugepage")
+>> Signed-off-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+> 
+> Acked-by: Michal Hocko <mhocko@suse.com>
+>> ---
+>>  include/linux/hugetlb.h |  6 +++---
+>>  mm/hugetlb.c            | 26 +++++++++++++++++++++-----
+>>  mm/memory_hotplug.c     |  4 +++-
+>>  3 files changed, 27 insertions(+), 9 deletions(-)
+>>
+>> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+>> index c26d463..fe99e6f 100644
+>> --- a/include/linux/hugetlb.h
+>> +++ b/include/linux/hugetlb.h
+>> @@ -450,8 +450,8 @@ static inline pgoff_t basepage_index(struct page *page)
+>>  	return __basepage_index(page);
+>>  }
+>>  
+>> -extern void dissolve_free_huge_pages(unsigned long start_pfn,
+>> -				     unsigned long end_pfn);
+>> +extern int dissolve_free_huge_pages(unsigned long start_pfn,
+>> +				    unsigned long end_pfn);
+>>  static inline bool hugepage_migration_supported(struct hstate *h)
+>>  {
+>>  #ifdef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
+>> @@ -518,7 +518,7 @@ static inline pgoff_t basepage_index(struct page *page)
+>>  {
+>>  	return page->index;
+>>  }
+>> -#define dissolve_free_huge_pages(s, e)	do {} while (0)
+>> +#define dissolve_free_huge_pages(s, e)	0
+>>  #define hugepage_migration_supported(h)	false
+>>  
+>>  static inline spinlock_t *huge_pte_lockptr(struct hstate *h,
+>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+>> index 603bdd0..91ae1f5 100644
+>> --- a/mm/hugetlb.c
+>> +++ b/mm/hugetlb.c
+>> @@ -1437,22 +1437,32 @@ static int free_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed,
+>>  
+>>  /*
+>>   * Dissolve a given free hugepage into free buddy pages. This function does
+>> - * nothing for in-use (including surplus) hugepages.
+>> + * nothing for in-use (including surplus) hugepages. Returns -EBUSY if the
+>> + * number of free hugepages would be reduced below the number of reserved
+>> + * hugepages.
+>>   */
+>> -static void dissolve_free_huge_page(struct page *page)
+>> +static int dissolve_free_huge_page(struct page *page)
+>>  {
+>> +	int rc = 0;
+>> +
+>>  	spin_lock(&hugetlb_lock);
+>>  	if (PageHuge(page) && !page_count(page)) {
+>>  		struct page *head = compound_head(page);
+>>  		struct hstate *h = page_hstate(head);
+>>  		int nid = page_to_nid(head);
+>> +		if (h->free_huge_pages - h->resv_huge_pages == 0) {
+>> +			rc = -EBUSY;
+>> +			goto out;
+>> +		}
+>>  		list_del(&head->lru);
+>>  		h->free_huge_pages--;
+>>  		h->free_huge_pages_node[nid]--;
+>>  		h->max_huge_pages--;
+>>  		update_and_free_page(h, head);
+>>  	}
+>> +out:
+>>  	spin_unlock(&hugetlb_lock);
+>> +	return rc;
+>>  }
+>>  
+>>  /*
+>> @@ -1460,16 +1470,22 @@ static void dissolve_free_huge_page(struct page *page)
+>>   * make specified memory blocks removable from the system.
+>>   * Note that this will dissolve a free gigantic hugepage completely, if any
+>>   * part of it lies within the given range.
+>> + * Also note that if dissolve_free_huge_page() returns with an error, all
+>> + * free hugepages that were dissolved before that error are lost.
+>>   */
+>> -void dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
+>> +int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
+>>  {
+>>  	unsigned long pfn;
+>> +	int rc = 0;
+>>  
+>>  	if (!hugepages_supported())
+>> -		return;
+>> +		return rc;
+>>  
+>>  	for (pfn = start_pfn; pfn < end_pfn; pfn += 1 << minimum_order)
+>> -		dissolve_free_huge_page(pfn_to_page(pfn));
+>> +		if (rc = dissolve_free_huge_page(pfn_to_page(pfn)))
+>> +			break;
+>> +
+>> +	return rc;
+>>  }
+>>  
+>>  /*
+>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>> index b58906b..13998d9 100644
+>> --- a/mm/memory_hotplug.c
+>> +++ b/mm/memory_hotplug.c
+>> @@ -1945,7 +1945,9 @@ static int __ref __offline_pages(unsigned long start_pfn,
+>>  	 * dissolve free hugepages in the memory block before doing offlining
+>>  	 * actually in order to make hugetlbfs's object counting consistent.
+>>  	 */
+>> -	dissolve_free_huge_pages(start_pfn, end_pfn);
+>> +	ret = dissolve_free_huge_pages(start_pfn, end_pfn);
+>> +	if (ret)
+>> +		goto failed_removal;
+>>  	/* check again */
+>>  	offlined_pages = check_pages_isolated(start_pfn, end_pfn);
+>>  	if (offlined_pages < 0) {
+>> -- 
+>> 2.8.4
 > 
 
 --
