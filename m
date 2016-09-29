@@ -1,120 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E44276B029E
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 07:23:19 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id fu14so135872506pad.0
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 04:23:19 -0700 (PDT)
-Received: from mx0b-0016f401.pphosted.com (mx0a-0016f401.pphosted.com. [67.231.148.174])
-        by mx.google.com with ESMTPS id vx9si13940288pac.197.2016.09.29.04.23.19
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B0B06B029E
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 07:29:30 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id p53so93857010qtp.0
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 04:29:30 -0700 (PDT)
+Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
+        by mx.google.com with ESMTPS id e2si8515880qkc.69.2016.09.29.04.29.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Sep 2016 04:23:19 -0700 (PDT)
-Date: Thu, 29 Sep 2016 19:18:06 +0800
-From: Jisheng Zhang <jszhang@marvell.com>
-Subject: Re: [PATCH] mm/vmalloc: reduce the number of lazy_max_pages to
- reduce latency
-Message-ID: <20160929191806.25da2700@xhacker>
-In-Reply-To: <20160929110714.GF28107@nuc-i3427.alporthouse.com>
-References: <20160929073411.3154-1-jszhang@marvell.com>
-	<20160929081818.GE28107@nuc-i3427.alporthouse.com>
-	<20160929162808.745c869b@xhacker>
-	<20160929110714.GF28107@nuc-i3427.alporthouse.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 29 Sep 2016 04:29:29 -0700 (PDT)
+Subject: Re: [RESEND PATCH 1/1] mm/percpu.c: correct max_distance calculation
+ for pcpu_embed_first_chunk()
+References: <7180d3c9-45d3-ffd2-cf8c-0d925f888a4d@zoho.com>
+ <0310bf92-c8da-459f-58e3-40b8bfbb7223@zoho.com>
+ <20160929103507.GA25170@mtj.duckdns.org>
+From: zijun_hu <zijun_hu@zoho.com>
+Message-ID: <d17c5531-7a3b-7463-ba38-3a0eb8de0b84@zoho.com>
+Date: Thu, 29 Sep 2016 19:29:12 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+In-Reply-To: <20160929103507.GA25170@mtj.duckdns.org>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: akpm@linux-foundation.org, mgorman@techsingularity.net, rientjes@google.com, iamjoonsoo.kim@lge.com, agnel.joel@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+To: Tejun Heo <tj@kernel.org>
+Cc: zijun_hu@htc.com, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, cl@linux.com
 
-On Thu, 29 Sep 2016 12:07:14 +0100 Chris Wilson wrote:
-
-> On Thu, Sep 29, 2016 at 04:28:08PM +0800, Jisheng Zhang wrote:
-> > On Thu, 29 Sep 2016 09:18:18 +0100 Chris Wilson wrote:
-> >   
-> > > On Thu, Sep 29, 2016 at 03:34:11PM +0800, Jisheng Zhang wrote:  
-> > > > On Marvell berlin arm64 platforms, I see the preemptoff tracer report
-> > > > a max 26543 us latency at __purge_vmap_area_lazy, this latency is an
-> > > > awfully bad for STB. And the ftrace log also shows __free_vmap_area
-> > > > contributes most latency now. I noticed that Joel mentioned the same
-> > > > issue[1] on x86 platform and gave two solutions, but it seems no patch
-> > > > is sent out for this purpose.
-> > > > 
-> > > > This patch adopts Joel's first solution, but I use 16MB per core
-> > > > rather than 8MB per core for the number of lazy_max_pages. After this
-> > > > patch, the preemptoff tracer reports a max 6455us latency, reduced to
-> > > > 1/4 of original result.    
-> > > 
-> > > My understanding is that
-> > > 
-> > > diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> > > index 91f44e78c516..3f7c6d6969ac 100644
-> > > --- a/mm/vmalloc.c
-> > > +++ b/mm/vmalloc.c
-> > > @@ -626,7 +626,6 @@ void set_iounmap_nonlazy(void)
-> > >  static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
-> > >                                         int sync, int force_flush)
-> > >  {
-> > > -       static DEFINE_SPINLOCK(purge_lock);
-> > >         struct llist_node *valist;
-> > >         struct vmap_area *va;
-> > >         struct vmap_area *n_va;
-> > > @@ -637,12 +636,6 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
-> > >          * should not expect such behaviour. This just simplifies locking for
-> > >          * the case that isn't actually used at the moment anyway.
-> > >          */
-> > > -       if (!sync && !force_flush) {
-> > > -               if (!spin_trylock(&purge_lock))
-> > > -                       return;
-> > > -       } else
-> > > -               spin_lock(&purge_lock);
-> > > -
-> > >         if (sync)
-> > >                 purge_fragmented_blocks_allcpus();
-> > >  
-> > > @@ -667,7 +660,6 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
-> > >                         __free_vmap_area(va);
-> > >                 spin_unlock(&vmap_area_lock);  
-> > 
-> > Hi Chris,
-> > 
-> > Per my test, the bottleneck now is __free_vmap_area() over the valist, the
-> > iteration is protected with spinlock vmap_area_lock. So the larger lazy max
-> > pages, the longer valist, the bigger the latency.
-> > 
-> > So besides above patch, we still need to remove vmap_are_lock or replace with
-> > mutex.  
+On 2016/9/29 18:35, Tejun Heo wrote:
+> Hello,
 > 
-> Or follow up with
+> On Sat, Sep 24, 2016 at 07:20:49AM +0800, zijun_hu wrote:
+>> it is error to represent the max range max_distance spanned by all the
+>> group areas as the offset of the highest group area plus unit size in
+>> pcpu_embed_first_chunk(), it should equal to the offset plus the size
+>> of the highest group area
+>>
+>> in order to fix this issue,let us find the highest group area who has the
+>> biggest base address among all the ones, then max_distance is formed by
+>> add it's offset and size value
 > 
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index 3f7c6d6969ac..67b5475f0b0a 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -656,8 +656,10 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
->  
->         if (nr) {
->                 spin_lock(&vmap_area_lock);
-> -               llist_for_each_entry_safe(va, n_va, valist, purge_list)
-> +               llist_for_each_entry_safe(va, n_va, valist, purge_list) {
->                         __free_vmap_area(va);
-> +                       cond_resched_lock(&vmap_area_lock);
-
-oh, great! This seems works fine. I'm not sure there's any side effect or
-performance regression, but this patch plus previous purge_lock removing do
-addressed my problem.
-
-Thanks,
-Jisheng
-
-> +               }
->                 spin_unlock(&vmap_area_lock);
->         }
->  }
+>  [PATCH] percpu: fix max_distance calculation in pcpu_embed_first_chunk()
 > 
-> ?
-> -Chris
+>  pcpu_embed_first_chunk() calculates the range a percpu chunk spans
+>  into max_distance and uses it to ensure that a chunk is not too big
+>  compared to the total vmalloc area.  However, during calculation, it
+>  used incorrect top address by adding a unit size to the higest
+>  group's base address.
 > 
+>  This can make the calculated max_distance slightly smaller than the
+>  actual distance although given the scale of values involved the error
+>  is very unlikely to have an actual impact.
+> 
+>  Fix this issue by adding the group's size instead of a unit size.
+> 
+>> the type of variant max_distance is changed from size_t to unsigned long
+>> to prevent potential overflow
+> 
+> This doesn't make any sense.  All the values involved are valid
+> addresses (or +1 of it), they can't overflow and size_t is the same
+> size as ulong.
+> 
+>> @@ -2025,17 +2026,18 @@ int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
+>>  	}
+>>  
+>>  	/* base address is now known, determine group base offsets */
+>> -	max_distance = 0;
+>> +	i = 0;
+>>  	for (group = 0; group < ai->nr_groups; group++) {
+>>  		ai->groups[group].base_offset = areas[group] - base;
+>> -		max_distance = max_t(size_t, max_distance,
+>> -				     ai->groups[group].base_offset);
+>> +		if (areas[group] > areas[i])
+>> +			i = group;
+>>  	}
+>> -	max_distance += ai->unit_size;
+>> +	max_distance = ai->groups[i].base_offset +
+>> +		(unsigned long)ai->unit_size * ai->groups[i].nr_units;
+> 
+> I don't think you need ulong cast here.
+> 
+> Thanks.
+> 
+okay, thanks for your reply
+i will correct this in another patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
