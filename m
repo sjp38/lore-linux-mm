@@ -1,41 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EFDC6B0253
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 12:10:28 -0400 (EDT)
-Received: by mail-yw0-f197.google.com with SMTP id t63so3610462ywb.1
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 09:10:28 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o65si17143035ioe.219.2016.09.29.09.10.09
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 50DCB6B0253
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 12:14:15 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id w84so79072833wmg.1
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 09:14:15 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id c2si15409158wjd.229.2016.09.29.09.14.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Sep 2016 09:10:09 -0700 (PDT)
-Date: Thu, 29 Sep 2016 18:09:01 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH v2 1/3] fs/exec: don't force writing memory access
-Message-ID: <20160929160901.GB30031@redhat.com>
-References: <1475103281-7989-1-git-send-email-jann@thejh.net> <1475103281-7989-2-git-send-email-jann@thejh.net>
+        Thu, 29 Sep 2016 09:14:13 -0700 (PDT)
+Date: Thu, 29 Sep 2016 12:14:02 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: Regression in mobility grouping?
+Message-ID: <20160929161402.GA29091@cmpxchg.org>
+References: <20160928014148.GA21007@cmpxchg.org>
+ <8c3b7dd8-ef6f-6666-2f60-8168d41202cf@suse.cz>
+ <20160928153925.GA24966@cmpxchg.org>
+ <20160929022540.GA30883@cmpxchg.org>
+ <20160929061433.GF29250@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1475103281-7989-2-git-send-email-jann@thejh.net>
+In-Reply-To: <20160929061433.GF29250@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jann Horn <jann@thejh.net>
-Cc: security@kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>, Paul Moore <paul@paul-moore.com>, Stephen Smalley <sds@tycho.nsa.gov>, Eric Paris <eparis@parisplace.org>, James Morris <james.l.morris@oracle.com>, "Serge E. Hallyn" <serge@hallyn.com>, Nick Kralevich <nnk@google.com>, Janis Danisevskis <jdanis@google.com>, linux-security-module@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On 09/29, Jann Horn wrote:
->
-> @@ -204,7 +204,7 @@ static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
->  	 * doing the exec and bprm->mm is the new process's mm.
->  	 */
->  	ret = get_user_pages_remote(current, bprm->mm, pos, 1, write,
-> -			1, &page, NULL);
-> +			0, &page, NULL);
+On Thu, Sep 29, 2016 at 03:14:33PM +0900, Joonsoo Kim wrote:
+> On Wed, Sep 28, 2016 at 10:25:40PM -0400, Johannes Weiner wrote:
+> > On Wed, Sep 28, 2016 at 11:39:25AM -0400, Johannes Weiner wrote:
+> > > On Wed, Sep 28, 2016 at 11:00:15AM +0200, Vlastimil Babka wrote:
+> > > > I guess testing revert of 9c0415e could give us some idea. Commit
+> > > > 3a1086f shouldn't result in pageblock marking differences and as I said
+> > > > above, 99592d5 should be just restoring to what 3.10 did.
+> > > 
+> > > I can give this a shot, but note that this commit makes only unmovable
+> > > stealing more aggressive. We see reclaimable blocks up as well.
+> > 
+> > Quick update, I reverted back to stealing eagerly only on behalf of
+> > MIGRATE_RECLAIMABLE allocations in a 4.6 kernel:
+> 
+> Hello, Johannes.
+> 
+> I think that it would be better to check 3.10 with above patches.
+> Fragmentation depends on not only policy itself but also
+> allocation/free pattern. There might be a large probability that
+> allocation/free pattern is changed in this large kernel version
+> difference.
 
-To me this looks like a reasonable cleanup regardless, FOLL_FORCE
-just adds the unnecessary confusion here.
+You mean backport suspicious patches to 3.10 until I can reproduce it
+there? I'm not sure. You're correct, the patterns very likely *have*
+changed. But that alone cannot explain mobility grouping breaking that
+badly. There is a reproducable bad behavior. It should be easier to
+track down than to try to recreate it in the last-known-good kernel.
 
-Oleg.
+> > This is an UNMOVABLE order-3 allocation falling back to RECLAIMABLE.
+> > According to can_steal_fallback(), this allocation shouldn't steal the
+> > pageblock, yet change_ownership=1 indicates the block is UNMOVABLE.
+> > 
+> > Who converted it? I wonder if there is a bug in ownership management,
+> > and there was an UNMOVABLE block on the RECLAIMABLE freelist from the
+> > beginning. AFAICS we never validate list/mt consistency anywhere.
+> 
+> According to my code review, it would be possible. When stealing
+> happens, we moved those buddy pages to current requested migratetype
+> buddy list. If the other migratetype allocation request comes and
+> stealing from the buddy list of previous requested migratetype
+> happens, change_ownership will show '1' even if there is no ownership
+> changing.
+
+These two paths should exclude each other through the zone->lock, no?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
