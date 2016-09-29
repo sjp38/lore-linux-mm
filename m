@@ -1,71 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D81B36B026B
-	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 21:42:45 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id 124so15216129itl.1
-        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 18:42:45 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id d194si23061142ite.75.2016.09.28.18.42.14
-        for <linux-mm@kvack.org>;
-        Wed, 28 Sep 2016 18:42:15 -0700 (PDT)
-Date: Thu, 29 Sep 2016 10:50:43 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [Bug 172981] New: [bisected] SLAB: extreme load averages and
- over 2000 kworker threads
-Message-ID: <20160929015043.GC29250@js1304-P5Q-DELUXE>
-References: <bug-172981-27@https.bugzilla.kernel.org/>
- <20160927111059.282a35c89266202d3cb2f953@linux-foundation.org>
- <002a01d21936$5ca792a0$15f6b7e0$@net>
- <20160928051841.GB22706@js1304-P5Q-DELUXE>
- <000601d2199c$1f01cd10$5d056730$@net>
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DE8D46B026B
+	for <linux-mm@kvack.org>; Wed, 28 Sep 2016 21:45:06 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id b130so57545248wmc.2
+        for <linux-mm@kvack.org>; Wed, 28 Sep 2016 18:45:06 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id p78si23540357wmd.97.2016.09.28.18.45.03
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 28 Sep 2016 18:45:05 -0700 (PDT)
+From: zhongjiang <zhongjiang@huawei.com>
+Subject: [PATCH v3] mm: remove unnecessary condition in remove_inode_hugepages
+Date: Thu, 29 Sep 2016 09:42:03 +0800
+Message-ID: <1475113323-29368-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <000601d2199c$1f01cd10$5d056730$@net>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Doug Smythies <dsmythies@telus.net>
-Cc: 'Johannes Weiner' <hannes@cmpxchg.org>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Vladimir Davydov' <vdavydov.dev@gmail.com>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com, mhocko@kernel.org, linux-mm@kvack.org
 
-On Wed, Sep 28, 2016 at 08:22:24AM -0700, Doug Smythies wrote:
-> On 2016.09.27 23:20 Joonsoo Kim wrote:
-> > On Wed, Sep 28, 2016 at 02:18:42PM +0900, Joonsoo Kim wrote:
-> >> On Tue, Sep 27, 2016 at 08:13:58PM -0700, Doug Smythies wrote:
-> >>> By the way, I can eliminate the problem by doing this:
-> >>> (see also: https://bugzilla.kernel.org/show_bug.cgi?id=172991)
-> >> 
-> >> I think that Johannes found the root cause of the problem and they
-> >> (Johannes and Vladimir) will solve the root cause.
-> >> 
-> >> However, there is something useful to do in SLAB side.
-> >> Could you test following patch, please?
-> >> 
-> >> Thanks.
-> >> 
-> >> ---------->8--------------
-> >> diff --git a/mm/slab.c b/mm/slab.c
-> >> index 0eb6691..39e3bf2 100644
-> >> --- a/mm/slab.c
-> >> +++ b/mm/slab.c
-> >> @@ -965,7 +965,7 @@ static int setup_kmem_cache_node(struct kmem_cache *cachep,
-> >>          * guaranteed to be valid until irq is re-enabled, because it will be
-> >>          * freed after synchronize_sched().
-> >>          */
-> >> -       if (force_change)
-> >> +       if (n->shared && force_change)
-> >>                 synchronize_sched();
-> >
-> > Oops...
-> >
-> > s/n->shared/old_shared/
-> 
-> Yes, that seems to work fine. After boot everything is good.
-> Then I tried and tried to get it to mess up, but could not.
+From: zhong jiang <zhongjiang@huawei.com>
 
-Thanks for confirm.
-I will send a formal patch, soon.
+when the huge page is added to the page cahce (huge_add_to_page_cache),
+the page private flag will be cleared. since this code
+(remove_inode_hugepages) will only be called for pages in the
+page cahce, PagePrivate(page) will always be false.
 
-Thanks.
+The patch remove the code without any functional change.
+
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
+Tested-by: Mike Kravetz <mike.kravetz@oracle.com>
+Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+---
+ fs/hugetlbfs/inode.c    | 12 +++++-------
+ include/linux/hugetlb.h |  2 +-
+ mm/hugetlb.c            |  4 ++--
+ 3 files changed, 8 insertions(+), 10 deletions(-)
+
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index 4ea71eb..7337cac 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -416,7 +416,6 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
+ 
+ 		for (i = 0; i < pagevec_count(&pvec); ++i) {
+ 			struct page *page = pvec.pages[i];
+-			bool rsv_on_error;
+ 			u32 hash;
+ 
+ 			/*
+@@ -458,18 +457,17 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
+ 			 * cache (remove_huge_page) BEFORE removing the
+ 			 * region/reserve map (hugetlb_unreserve_pages).  In
+ 			 * rare out of memory conditions, removal of the
+-			 * region/reserve map could fail.  Before free'ing
+-			 * the page, note PagePrivate which is used in case
+-			 * of error.
++			 * region/reserve map could fail. Correspondingly,
++			 * the subpool and global reserve usage count can need
++			 * to be adjusted.
+ 			 */
+-			rsv_on_error = !PagePrivate(page);
++			VM_BUG_ON(PagePrivate(page));
+ 			remove_huge_page(page);
+ 			freed++;
+ 			if (!truncate_op) {
+ 				if (unlikely(hugetlb_unreserve_pages(inode,
+ 							next, next + 1, 1)))
+-					hugetlb_fix_reserve_counts(inode,
+-								rsv_on_error);
++					hugetlb_fix_reserve_counts(inode);
+ 			}
+ 
+ 			unlock_page(page);
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index c26d463..d2e0fc5 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -90,7 +90,7 @@ int dequeue_hwpoisoned_huge_page(struct page *page);
+ bool isolate_huge_page(struct page *page, struct list_head *list);
+ void putback_active_hugepage(struct page *page);
+ void free_huge_page(struct page *page);
+-void hugetlb_fix_reserve_counts(struct inode *inode, bool restore_reserve);
++void hugetlb_fix_reserve_counts(struct inode *inode);
+ extern struct mutex *hugetlb_fault_mutex_table;
+ u32 hugetlb_fault_mutex_hash(struct hstate *h, struct mm_struct *mm,
+ 				struct vm_area_struct *vma,
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 87e11d8..28a079a 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -567,13 +567,13 @@ retry:
+  * appear as a "reserved" entry instead of simply dangling with incorrect
+  * counts.
+  */
+-void hugetlb_fix_reserve_counts(struct inode *inode, bool restore_reserve)
++void hugetlb_fix_reserve_counts(struct inode *inode)
+ {
+ 	struct hugepage_subpool *spool = subpool_inode(inode);
+ 	long rsv_adjust;
+ 
+ 	rsv_adjust = hugepage_subpool_get_pages(spool, 1);
+-	if (restore_reserve && rsv_adjust) {
++	if (rsv_adjust) {
+ 		struct hstate *h = hstate_inode(inode);
+ 
+ 		hugetlb_acct_memory(h, 1);
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
