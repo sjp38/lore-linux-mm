@@ -1,42 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 25BFF6B0038
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 21:00:00 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id i8so15144080oih.1
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 18:00:00 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id o184si11951158oia.38.2016.09.29.17.59.46
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 29 Sep 2016 17:59:47 -0700 (PDT)
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 616496B025E
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 21:03:51 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id l13so17982403itl.0
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 18:03:51 -0700 (PDT)
+Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
+        by mx.google.com with ESMTP id g15si1398745itg.19.2016.09.29.18.03.23
+        for <linux-mm@kvack.org>;
+        Thu, 29 Sep 2016 18:03:24 -0700 (PDT)
+Date: Fri, 30 Sep 2016 11:02:47 +1000
+From: Dave Chinner <david@fromorbit.com>
 Subject: Re: [RFC][PATCH] vfs,mm: fix a dead loop in
  truncate_inode_pages_range()
+Message-ID: <20160930010247.GQ9806@dastard>
 References: <1475151010-40166-1-git-send-email-fangwei1@huawei.com>
  <20160929134357.GA11463@infradead.org>
-From: Wei Fang <fangwei1@huawei.com>
-Message-ID: <57EDB7C1.9040606@huawei.com>
-Date: Fri, 30 Sep 2016 08:54:25 +0800
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <20160929134357.GA11463@infradead.org>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Hellwig <hch@infradead.org>
-Cc: viro@ZenIV.linux.org.uk, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, stable@vger.kernel.org
+Cc: Wei Fang <fangwei1@huawei.com>, viro@ZenIV.linux.org.uk, akpm@linux-foundation.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, stable@vger.kernel.org
 
-OK, I'll do this.
-
-Thanks,
-Wei
-
-On 2016/9/29 21:43, Christoph Hellwig wrote:
+On Thu, Sep 29, 2016 at 06:43:57AM -0700, Christoph Hellwig wrote:
 > Can you please add a testcase for this to xfstests?
-> 
-> Thanks!
-> 
-> .
-> 
+
+Seems like a copy of tests/xfs/071 (exercises read/write at the
+highest page of the page cache) with an added ftruncate as a
+generic tests would be a good start?
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
