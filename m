@@ -1,151 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 113B06B0038
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 22:38:02 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id 124so37731637itl.1
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 19:38:02 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id 141si19465508ion.176.2016.09.29.19.37.39
-        for <linux-mm@kvack.org>;
-        Thu, 29 Sep 2016 19:37:40 -0700 (PDT)
-Date: Fri, 30 Sep 2016 11:37:37 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: exclude isolated non-lru pages from NR_ISOLATED_ANON
- or NR_ISOLATED_FILE.
-Message-ID: <20160930023737.GA6357@bbox>
-References: <1475055063-1588-1-git-send-email-ming.ling@spreadtrum.com>
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C83E6B0038
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 23:03:45 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id 2so127017610pfs.1
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 20:03:45 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id dd9si17558692pad.31.2016.09.29.20.03.44
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 29 Sep 2016 20:03:44 -0700 (PDT)
+Date: Thu, 29 Sep 2016 21:03:43 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v4 00/12] re-enable DAX PMD support
+Message-ID: <20160930030343.GA12464@linux.intel.com>
+References: <1475189370-31634-1-git-send-email-ross.zwisler@linux.intel.com>
+ <20160929234345.GG27872@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1475055063-1588-1-git-send-email-ming.ling@spreadtrum.com>
+In-Reply-To: <20160929234345.GG27872@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "ming.ling" <ming.ling@spreadtrum.com>
-Cc: akpm@linux-foundation.org, mgorman@techsingularity.net, vbabka@suse.cz, hannes@cmpxchg.org, mhocko@suse.com, baiyaowei@cmss.chinamobile.com, iamjoonsoo.kim@lge.com, rientjes@google.com, hughd@google.com, kirill.shutemov@linux.intel.com, riel@redhat.com, mgorman@suse.de, aquini@redhat.com, corbet@lwn.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-Hello,
-
-On Wed, Sep 28, 2016 at 05:31:03PM +0800, ming.ling wrote:
-> Non-lru pages don't belong to any lru, so accounting them to
-> NR_ISOLATED_ANON or NR_ISOLATED_FILE doesn't make any sense.
-> It may misguide functions such as pgdat_reclaimable_pages and
-> too_many_isolated.
-
-I agree this part. It would be happier if you give any story you suffered
-from. Although you don't have, it's okay because you are correcting
-clearly wrong part. Thanks. :)
-
+On Fri, Sep 30, 2016 at 09:43:45AM +1000, Dave Chinner wrote:
+> Finally: none of the patches in your tree have reviewed-by tags.
+> That says to me that none of this code has been reviewed yet.
+> Reviewed-by tags are non-negotiable requirement for anything going
+> through my trees. I don't have time right now to review this code,
+> so you're going to need to chase up other reviewers before merging.
 > 
-> This patch adds NR_ISOLATED_NONLRU to vmstat and moves isolated non-lru
-> pages from NR_ISOLATED_ANON or NR_ISOLATED_FILE to NR_ISOLATED_NONLRU.
-> And with non-lru pages in vmstat, it helps to optimize algorithm of
-> function too_many_isolated oneday.
+> And, really, this is getting very late in the cycle to be merging
+> new code - we're less than one working day away from the merge
+> window opening and we've missed the last linux-next build. I'd
+> suggest that we'd might be best served by slipping this to the PMD
+> support code to the next cycle when there's no time pressure for
+> review and we can get a decent linux-next soak on the code.
 
-Need more justfication to add new vmstat because once we add it, it's
-really hard to change/remove it(i.e., maintainace trobule) so I want
-to add it when it really would be helpful sometime, not now.
+I absolutely support your policy of only sending code to Linux that has passed
+peer review.
 
-Could you resend the patch without part adding new vmstat?
+However, I do feel compelled to point out that this is not new code.  I didn't
+just spring it on everyone in the hours before the v4.8 merge window.  I
+posted the first version of this patch set on August 15th, *seven weeks ago*:
 
-Thanks.
+https://lkml.org/lkml/2016/8/15/613
 
-> 
-> Signed-off-by: ming.ling <ming.ling@spreadtrum.com>
-> ---
->  include/linux/mmzone.h |  1 +
->  mm/compaction.c        | 12 +++++++++---
->  mm/migrate.c           | 14 ++++++++++----
->  3 files changed, 20 insertions(+), 7 deletions(-)
-> 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 7f2ae99..dc0adba 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -169,6 +169,7 @@ enum node_stat_item {
->  	NR_VMSCAN_IMMEDIATE,	/* Prioritise for reclaim when writeback ends */
->  	NR_DIRTIED,		/* page dirtyings since bootup */
->  	NR_WRITTEN,		/* page writings since bootup */
-> +	NR_ISOLATED_NONLRU,	/* Temporary isolated pages from non-lru */
->  	NR_VM_NODE_STAT_ITEMS
->  };
->  
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 9affb29..8da1dca 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -638,16 +638,21 @@ isolate_freepages_range(struct compact_control *cc,
->  static void acct_isolated(struct zone *zone, struct compact_control *cc)
->  {
->  	struct page *page;
-> -	unsigned int count[2] = { 0, };
-> +	unsigned int count[3] = { 0, };
->  
->  	if (list_empty(&cc->migratepages))
->  		return;
->  
-> -	list_for_each_entry(page, &cc->migratepages, lru)
-> -		count[!!page_is_file_cache(page)]++;
-> +	list_for_each_entry(page, &cc->migratepages, lru) {
-> +		if (PageLRU(page))
-> +			count[!!page_is_file_cache(page)]++;
-> +		else
-> +			count[2]++;
-> +	}
->  
->  	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_ANON, count[0]);
->  	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE, count[1]);
-> +	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_NONLRU, count[2]);
->  }
->  
->  /* Similar to reclaim, but different enough that they don't share logic */
-> @@ -659,6 +664,7 @@ static bool too_many_isolated(struct zone *zone)
->  			node_page_state(zone->zone_pgdat, NR_INACTIVE_ANON);
->  	active = node_page_state(zone->zone_pgdat, NR_ACTIVE_FILE) +
->  			node_page_state(zone->zone_pgdat, NR_ACTIVE_ANON);
-> +	/* Is it necessary to add NR_ISOLATED_NONLRU?? */
->  	isolated = node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE) +
->  			node_page_state(zone->zone_pgdat, NR_ISOLATED_ANON);
->  
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index f7ee04a..cd5abb2 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -168,8 +168,11 @@ void putback_movable_pages(struct list_head *l)
->  			continue;
->  		}
->  		list_del(&page->lru);
-> -		dec_node_page_state(page, NR_ISOLATED_ANON +
-> -				page_is_file_cache(page));
-> +		if (PageLRU(page))
-> +			dec_node_page_state(page, NR_ISOLATED_ANON +
-> +					page_is_file_cache(page));
-> +		else
-> +			dec_node_page_state(page, NR_ISOLATED_NONLRU);
->  		/*
->  		 * We isolated non-lru movable page so here we can use
->  		 * __PageMovable because LRU page's mapping cannot have
-> @@ -1121,8 +1124,11 @@ out:
->  		 * restored.
->  		 */
->  		list_del(&page->lru);
-> -		dec_node_page_state(page, NR_ISOLATED_ANON +
-> -				page_is_file_cache(page));
-> +		if (PageLRU(page))
-> +			dec_node_page_state(page, NR_ISOLATED_ANON +
-> +					page_is_file_cache(page));
-> +		else
-> +			dec_node_page_state(page, NR_ISOLATED_NONLRU);
->  	}
->  
->  	/*
-> -- 
-> 1.9.1
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+This was the day after v4.7-rc2 was released.
+
+Since then I have responded promptly to the little review feedback that I've
+received.  I've also reviewed and tested other DAX changes, like the struct
+iomap changes from Christoph.  Those changes were first posted to the mailing
+list on September 9th, four weeks after mine.  Nevertheless, I was happy to
+rebase my changes on top of his, which meant a full rewrite of the DAX PMD
+fault handler so it would be based on struct iomap.  His changes are going to
+be merged for v4.9, and mine are not.
+
+Please, help me understand what I can do to get my code reviewed.  Do I need
+to more aggressively ping my patch series, asking people by name for reviews?
+Do we need to rework our code flow to Linus so that the DAX changes go through
+a filesystem tree like XFS or ext4, and ask the developers of that filesystem
+to help with reviews?  Something else?
+
+I'm honestly very frustrated by this because I've done my best to be open to
+constructive criticism and I've tried to respond promptly to the feedback that
+I've received.  In the end, though, a system where it's a requirement that all
+upstreamed code be peer reviewed but in which I can't get any feedback is
+essentially a system where I'm not allowed to contribute.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
