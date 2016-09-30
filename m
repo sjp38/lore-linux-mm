@@ -1,72 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DEEE66B0069
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2016 15:48:57 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 7so93404927pfa.2
-        for <linux-mm@kvack.org>; Fri, 30 Sep 2016 12:48:57 -0700 (PDT)
-Received: from mail-pf0-x22e.google.com (mail-pf0-x22e.google.com. [2607:f8b0:400e:c00::22e])
-        by mx.google.com with ESMTPS id e9si21422924pay.179.2016.09.30.12.48.56
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AF4A6B0069
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2016 15:58:39 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id m80so38267463lfi.2
+        for <linux-mm@kvack.org>; Fri, 30 Sep 2016 12:58:39 -0700 (PDT)
+Received: from mail-lf0-x242.google.com (mail-lf0-x242.google.com. [2a00:1450:4010:c07::242])
+        by mx.google.com with ESMTPS id n125si511500lfd.278.2016.09.30.12.58.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Sep 2016 12:48:57 -0700 (PDT)
-Received: by mail-pf0-x22e.google.com with SMTP id u78so17894584pfa.1
-        for <linux-mm@kvack.org>; Fri, 30 Sep 2016 12:48:56 -0700 (PDT)
-Date: Fri, 30 Sep 2016 12:48:53 -0700
-From: Raymond Jennings <shentino@gmail.com>
-Subject: Re: More OOM problems (sorry fro the mail bomb)
-Message-Id: <1475264933.8647.0@smtp.gmail.com>
-In-Reply-To: <1ea311ce-f8cf-979c-b25c-e894cf089f23@suse.cz>
-References: 
-	<CA+55aFwu30Yz52yW+MRHt_JgpqZkq4DHdWR-pX4+gO_OK7agCQ@mail.gmail.com>
-	<20160921000458.15fdd159@metalhead.dragonrealms>
-	<20160928231229.55d767c1@metalhead.dragonrealms>
-	<f35c1c03-c1ef-e4fb-44c8-187b75180130@suse.cz>
-	<1475179704.7681.0@smtp.gmail.com>
-	<1ea311ce-f8cf-979c-b25c-e894cf089f23@suse.cz>
+        Fri, 30 Sep 2016 12:58:37 -0700 (PDT)
+Received: by mail-lf0-x242.google.com with SMTP id s64so6442432lfs.2
+        for <linux-mm@kvack.org>; Fri, 30 Sep 2016 12:58:37 -0700 (PDT)
+Date: Fri, 30 Sep 2016 22:58:33 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: [Bug 172981] New: [bisected] SLAB: extreme load averages and
+ over 2000 kworker threads
+Message-ID: <20160930195833.GC20312@esperanza>
+References: <bug-172981-27@https.bugzilla.kernel.org/>
+ <20160927111059.282a35c89266202d3cb2f953@linux-foundation.org>
+ <20160928020347.GA21129@cmpxchg.org>
+ <20160928080953.GA20312@esperanza>
+ <20160929020050.GD29250@js1304-P5Q-DELUXE>
+ <20160929134550.GB20312@esperanza>
+ <20160930081940.GA3606@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160930081940.GA3606@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@parallels.com>, Andrew Morton <akpm@linux-foundation.org>, Markus Trippelsdorf <markus@trippelsdorf.de>, Arkadiusz Miskiewicz <a.miskiewicz@gmail.com>, Ralf-Peter Rohbeck <Ralf-Peter.Rohbeck@quantum.com>, Jiri Slaby <jslaby@suse.com>, Olaf Hering <olaf@aepfle.de>, Joonsoo Kim <js1304@gmail.com>, linux-mm <linux-mm@kvack.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, dsmythies@telus.net, linux-mm@kvack.org
 
-On Thu, Sep 29, 2016 at 2:20 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
-> On 09/29/2016 10:08 PM, Raymond Jennings wrote:
->>  Suggestion:
->> 
->>  1.  Make it a background process "kcompactd"
->>  2.  It is activated/woke up/semaphored awake any time a page is 
->> freed.
->>  3.  Once it is activated, it enters a loop:
->>  3.1.  Reset the semaphore.
->>  3.2.  Once a cycle, it takes the highest movable page
->>  3.3.  It then finds the lowest free page
->>  3.4.  Then, it migrates the highest used page to the lowest free 
->> space
->>  3.5.  maybe pace itself by sleeping for a teensy, then go back to 
->> step
->>  3.2
->>  3.6.  Do one page at a time to keep it neatly interruptible and 
->> keep it
->>  from blocking other stuff.  Since compaction is a housekeeping 
->> task, it
->>  should probably be eager to yield to other things.
->>  3.7.  Probably leave hugepages alone if detected since they are by
->>  definition fairly defragmented already.
->>  4.  Once all gaps are backfilled, go back to sleep and park back at
->>  step 2 waiting for the next wakeup.
->> 
->>  Would this be a good way to do it?
+On Fri, Sep 30, 2016 at 05:19:41PM +0900, Joonsoo Kim wrote:
+> On Thu, Sep 29, 2016 at 04:45:50PM +0300, Vladimir Davydov wrote:
+> > On Thu, Sep 29, 2016 at 11:00:50AM +0900, Joonsoo Kim wrote:
+> > > On Wed, Sep 28, 2016 at 11:09:53AM +0300, Vladimir Davydov wrote:
+> > > > On Tue, Sep 27, 2016 at 10:03:47PM -0400, Johannes Weiner wrote:
+> > > > > [CC Vladimir]
+> > > > > 
+> > > > > These are the delayed memcg cache allocations, where in a fresh memcg
+> > > > > that doesn't have per-memcg caches yet, every accounted allocation
+> > > > > schedules a kmalloc work item in __memcg_schedule_kmem_cache_create()
+> > > > > until the cache is finally available. It looks like those can be many
+> > > > > more than the number of slab caches in existence, if there is a storm
+> > > > > of slab allocations before the workers get a chance to run.
+> > > > > 
+> > > > > Vladimir, what do you think of embedding the work item into the
+> > > > > memcg_cache_array? That way we make sure we have exactly one work per
+> > > > > cache and not an unbounded number of them. The downside of course is
+> > > > > that we'd have to keep these things around as long as the memcg is in
+> > > > > existence, but that's the only place I can think of that allows us to
+> > > > > serialize this.
+> > > > 
+> > > > We could set the entry of the root_cache->memcg_params.memcg_caches
+> > > > array corresponding to the cache being created to a special value, say
+> > > > (void*)1, and skip scheduling cache creation work on kmalloc if the
+> > > > caller sees it. I'm not sure it's really worth it though, because
+> > > > work_struct isn't that big (at least, in comparison with the cache
+> > > > itself) to avoid embedding it at all costs.
+> > > 
+> > > Hello, Johannes and Vladimir.
+> > > 
+> > > I'm not familiar with memcg so have a question about this solution.
+> > > This solution will solve the current issue but if burst memcg creation
+> > > happens, similar issue would happen again. My understanding is correct?
+> > 
+> > Yes, I think you're right - embedding the work_struct responsible for
+> > cache creation in kmem_cache struct won't help if a thousand of
+> > different cgroups call kmem_cache_alloc() simultaneously for a cache
+> > they haven't used yet.
+> > 
+> > Come to think of it, we could fix the issue by simply introducing a
+> > special single-threaded workqueue used exclusively for cache creation
+> > works - cache creation is done mostly under the slab_mutex, anyway. This
+> > way, we wouldn't have to keep those used-once work_structs for the whole
+> > kmem_cache life time.
+> > 
+> > > 
+> > > I think that the other cause of the problem is that we call
+> > > synchronize_sched() which is rather slow with holding a slab_mutex and
+> > > it blocks further kmem_cache creation. Should we fix that, too?
+> > 
+> > Well, the patch you posted looks pretty obvious and it helps the
+> > reporter, so personally I don't see any reason for not applying it.
 > 
-> Yes, that's pretty much how it already works, except movable pages are
-> taken from low pfn and free pages from high. Then there's ton of 
-> subtle
-> issues to tackle, mostly the balance between overhead and benefit.
+> Oops... I forgot to mention why I asked that.
+> 
+> There is another report that similar problem also happens in SLUB. In there,
+> synchronize_sched() is called in cache shrinking path with holding the
+> slab_mutex. I guess that it blocks further kmem_cache creation.
+> 
+> If we uses special single-threaded workqueue, number of kworker would
+> be limited but kmem_cache creation will be delayed for a long time in
+> burst memcg creation/destroy scenario.
+> 
+> https://bugzilla.kernel.org/show_bug.cgi?id=172991
+> 
+> Do we need to remove synchronize_sched() in SLUB and find other
+> solution?
 
-Besides the kswapd hook, what would nudge kcompactd to run?  If its not 
-proactively nudged after a page is freed how will it know that there's 
-fragmentation that could be taken care of in advance before being 
-shoved by kswapd?
+Yeah, you're right. We'd better do something about this
+synchronize_sched(). I think moving it out of the slab_mutex and calling
+it once for all caches in memcg_deactivate_kmem_caches() would resolve
+the issue. I'll post the patches tomorrow.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
