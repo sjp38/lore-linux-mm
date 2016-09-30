@@ -1,100 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 15DA96B0038
-	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 22:32:39 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id p53so125127005qtp.0
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 19:32:39 -0700 (PDT)
-Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
-        by mx.google.com with ESMTPS id y190si10440152qke.276.2016.09.29.19.32.37
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Sep 2016 19:32:37 -0700 (PDT)
-From: "Zi Yan" <zi.yan@sent.com>
-Subject: Re: [PATCH v1 00/12] THP migration support
-Date: Thu, 29 Sep 2016 22:32:36 -0400
-Message-ID: <4F505AB2-9A71-4B89-8C93-83AB161A6DEA@sent.com>
-In-Reply-To: <20160929082529.GA8389@hori1.linux.bs1.fc.nec.co.jp>
-References: <20160926152234.14809-1-zi.yan@sent.com>
- <A0AA1E30-A897-4A48-9972-9BE1813AA57C@sent.com>
- <20160929082529.GA8389@hori1.linux.bs1.fc.nec.co.jp>
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 113B06B0038
+	for <linux-mm@kvack.org>; Thu, 29 Sep 2016 22:38:02 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id 124so37731637itl.1
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 19:38:02 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id 141si19465508ion.176.2016.09.29.19.37.39
+        for <linux-mm@kvack.org>;
+        Thu, 29 Sep 2016 19:37:40 -0700 (PDT)
+Date: Fri, 30 Sep 2016 11:37:37 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm: exclude isolated non-lru pages from NR_ISOLATED_ANON
+ or NR_ISOLATED_FILE.
+Message-ID: <20160930023737.GA6357@bbox>
+References: <1475055063-1588-1-git-send-email-ming.ling@spreadtrum.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed;
- boundary="=_MailMate_802E6A38-DE76-4CB7-8818-60D8DA061D09_=";
- micalg=pgp-sha512; protocol="application/pgp-signature"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1475055063-1588-1-git-send-email-ming.ling@spreadtrum.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "benh@kernel.crashing.org" <benh@kernel.crashing.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>
+To: "ming.ling" <ming.ling@spreadtrum.com>
+Cc: akpm@linux-foundation.org, mgorman@techsingularity.net, vbabka@suse.cz, hannes@cmpxchg.org, mhocko@suse.com, baiyaowei@cmss.chinamobile.com, iamjoonsoo.kim@lge.com, rientjes@google.com, hughd@google.com, kirill.shutemov@linux.intel.com, riel@redhat.com, mgorman@suse.de, aquini@redhat.com, corbet@lwn.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This is an OpenPGP/MIME signed message (RFC 3156 and 4880).
+Hello,
 
---=_MailMate_802E6A38-DE76-4CB7-8818-60D8DA061D09_=
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+On Wed, Sep 28, 2016 at 05:31:03PM +0800, ming.ling wrote:
+> Non-lru pages don't belong to any lru, so accounting them to
+> NR_ISOLATED_ANON or NR_ISOLATED_FILE doesn't make any sense.
+> It may misguide functions such as pgdat_reclaimable_pages and
+> too_many_isolated.
 
->
-> Thanks for helping,
+I agree this part. It would be happier if you give any story you suffered
+from. Although you don't have, it's okay because you are correcting
+clearly wrong part. Thanks. :)
 
-:)
+> 
+> This patch adds NR_ISOLATED_NONLRU to vmstat and moves isolated non-lru
+> pages from NR_ISOLATED_ANON or NR_ISOLATED_FILE to NR_ISOLATED_NONLRU.
+> And with non-lru pages in vmstat, it helps to optimize algorithm of
+> function too_many_isolated oneday.
 
->
-> I think that you seem to do some testing with these patches on powerpc,=
+Need more justfication to add new vmstat because once we add it, it's
+really hard to change/remove it(i.e., maintainace trobule) so I want
+to add it when it really would be helpful sometime, not now.
 
-> which shows that thp migration can be enabled relatively easily for
-> non-x86_64. This is a good news to me.
+Could you resend the patch without part adding new vmstat?
 
-Right. I did some THP migration tests on both x86_64 and IBM ppc64.
+Thanks.
 
-You can use the code here to test the THP migration,
-and compare the migration time between 512 base pages and 1 THP.
-https://github.com/x-y-z/thp-migration-bench
-
-NUMA (or fake NUMA) setup and libnuma are needed. Since it simply tries t=
-o
-migrate pages from node 0 to node 1.
-
-make bench should give you the result like:
-
-THP Migration
-Total time: 676.870346 us
-Test successful.
--------------------
-Base Page Migration
-Total time: 2340.078354 us
-Test successful.
-
->
-> And I apology for my slow development over this patchset.
-> My previous post was about 5 months ago, and I've not done ver.2 due to=
-
-> many interruptions. Someone also privately asked me about the progress
-> of this work, so I promised ver.2 will be posted in a few weeks.
-> Your patch 12/12 will come with it.
-
-Looking forward to it. :)
-
-=E2=80=94
-Best Regards,
-Yan Zi
-
---=_MailMate_802E6A38-DE76-4CB7-8818-60D8DA061D09_=
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename=signature.asc
-Content-Type: application/pgp-signature; name=signature.asc
-
------BEGIN PGP SIGNATURE-----
-Comment: GPGTools - https://gpgtools.org
-
-iQEcBAEBCgAGBQJX7c7EAAoJEEGLLxGcTqbMaYAIAKPmFm3m4yWPHnM9FGNYxLVa
-/6NZML1zguFUvRR95YStSqqBGZmlh4OC7M0zR8ttLoB7LgZ5lPoTRWrQIZUpUVX4
-MRN/nrx87WRNU/fQtP0baSwgf6ka97kDAYKnsF+FZEi9r9rnh+Il/1j9hr0gRKMp
-WxioBI+SB85bWP+NDTFgWaG37YGAa2qsg7Zeb5RqJqb1mZsawgw4fyIlIHfVkT0c
-e4Oqev1yFYtc6PQe2sZovv1/rPSn2R091UeIjwNkC2ZTkvQz0fZVQtGcUVi9N4is
-5+wE5uIXKdlU31CM6liVyvLBw5QwvJ4qnYg+vX46DfXr/4/XVCrcia+HRt7L6ZY=
-=2FKZ
------END PGP SIGNATURE-----
-
---=_MailMate_802E6A38-DE76-4CB7-8818-60D8DA061D09_=--
+> 
+> Signed-off-by: ming.ling <ming.ling@spreadtrum.com>
+> ---
+>  include/linux/mmzone.h |  1 +
+>  mm/compaction.c        | 12 +++++++++---
+>  mm/migrate.c           | 14 ++++++++++----
+>  3 files changed, 20 insertions(+), 7 deletions(-)
+> 
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index 7f2ae99..dc0adba 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -169,6 +169,7 @@ enum node_stat_item {
+>  	NR_VMSCAN_IMMEDIATE,	/* Prioritise for reclaim when writeback ends */
+>  	NR_DIRTIED,		/* page dirtyings since bootup */
+>  	NR_WRITTEN,		/* page writings since bootup */
+> +	NR_ISOLATED_NONLRU,	/* Temporary isolated pages from non-lru */
+>  	NR_VM_NODE_STAT_ITEMS
+>  };
+>  
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 9affb29..8da1dca 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -638,16 +638,21 @@ isolate_freepages_range(struct compact_control *cc,
+>  static void acct_isolated(struct zone *zone, struct compact_control *cc)
+>  {
+>  	struct page *page;
+> -	unsigned int count[2] = { 0, };
+> +	unsigned int count[3] = { 0, };
+>  
+>  	if (list_empty(&cc->migratepages))
+>  		return;
+>  
+> -	list_for_each_entry(page, &cc->migratepages, lru)
+> -		count[!!page_is_file_cache(page)]++;
+> +	list_for_each_entry(page, &cc->migratepages, lru) {
+> +		if (PageLRU(page))
+> +			count[!!page_is_file_cache(page)]++;
+> +		else
+> +			count[2]++;
+> +	}
+>  
+>  	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_ANON, count[0]);
+>  	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE, count[1]);
+> +	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_NONLRU, count[2]);
+>  }
+>  
+>  /* Similar to reclaim, but different enough that they don't share logic */
+> @@ -659,6 +664,7 @@ static bool too_many_isolated(struct zone *zone)
+>  			node_page_state(zone->zone_pgdat, NR_INACTIVE_ANON);
+>  	active = node_page_state(zone->zone_pgdat, NR_ACTIVE_FILE) +
+>  			node_page_state(zone->zone_pgdat, NR_ACTIVE_ANON);
+> +	/* Is it necessary to add NR_ISOLATED_NONLRU?? */
+>  	isolated = node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE) +
+>  			node_page_state(zone->zone_pgdat, NR_ISOLATED_ANON);
+>  
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index f7ee04a..cd5abb2 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -168,8 +168,11 @@ void putback_movable_pages(struct list_head *l)
+>  			continue;
+>  		}
+>  		list_del(&page->lru);
+> -		dec_node_page_state(page, NR_ISOLATED_ANON +
+> -				page_is_file_cache(page));
+> +		if (PageLRU(page))
+> +			dec_node_page_state(page, NR_ISOLATED_ANON +
+> +					page_is_file_cache(page));
+> +		else
+> +			dec_node_page_state(page, NR_ISOLATED_NONLRU);
+>  		/*
+>  		 * We isolated non-lru movable page so here we can use
+>  		 * __PageMovable because LRU page's mapping cannot have
+> @@ -1121,8 +1124,11 @@ out:
+>  		 * restored.
+>  		 */
+>  		list_del(&page->lru);
+> -		dec_node_page_state(page, NR_ISOLATED_ANON +
+> -				page_is_file_cache(page));
+> +		if (PageLRU(page))
+> +			dec_node_page_state(page, NR_ISOLATED_ANON +
+> +					page_is_file_cache(page));
+> +		else
+> +			dec_node_page_state(page, NR_ISOLATED_NONLRU);
+>  	}
+>  
+>  	/*
+> -- 
+> 1.9.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
