@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E757A6B0038
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2016 04:49:35 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id b80so17313911wme.2
-        for <linux-mm@kvack.org>; Fri, 30 Sep 2016 01:49:35 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C1B96B0253
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2016 04:49:49 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id d64so6672396wmh.1
+        for <linux-mm@kvack.org>; Fri, 30 Sep 2016 01:49:49 -0700 (PDT)
 Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id y64si3596226wmy.70.2016.09.30.01.49.34
+        by mx.google.com with ESMTPS id d136si3625131wmd.27.2016.09.30.01.49.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Sep 2016 01:49:34 -0700 (PDT)
-Date: Fri, 30 Sep 2016 10:49:34 +0200
+        Fri, 30 Sep 2016 01:49:48 -0700 (PDT)
+Date: Fri, 30 Sep 2016 10:49:47 +0200
 From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH v4 03/12] dax: remove buffer_size_valid()
-Message-ID: <20160930084934.GA19738@lst.de>
-References: <1475189370-31634-1-git-send-email-ross.zwisler@linux.intel.com> <1475189370-31634-4-git-send-email-ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v4 04/12] ext2: remove support for DAX PMD faults
+Message-ID: <20160930084947.GB19738@lst.de>
+References: <1475189370-31634-1-git-send-email-ross.zwisler@linux.intel.com> <1475189370-31634-5-git-send-email-ross.zwisler@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1475189370-31634-4-git-send-email-ross.zwisler@linux.intel.com>
+In-Reply-To: <1475189370-31634-5-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ross Zwisler <ross.zwisler@linux.intel.com>
