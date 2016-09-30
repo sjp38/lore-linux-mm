@@ -1,125 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AC526B0038
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2016 01:18:27 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id 188so30876216iti.3
-        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 22:18:27 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id a73si3003114wme.1.2016.09.29.22.18.20
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 837A86B0038
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2016 02:45:34 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id l138so14549991wmg.3
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 23:45:34 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id d7si19143237wjy.157.2016.09.29.23.38.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 Sep 2016 22:18:21 -0700 (PDT)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u8U5HTUw077408
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2016 01:18:19 -0400
-Received: from e36.co.us.ibm.com (e36.co.us.ibm.com [32.97.110.154])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 25sgqstajd-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2016 01:18:19 -0400
-Received: from localhost
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 29 Sep 2016 23:18:18 -0600
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v1 12/12] mm: ppc64: Add THP migration support for ppc64.
-In-Reply-To: <20160926152234.14809-13-zi.yan@sent.com>
-References: <20160926152234.14809-1-zi.yan@sent.com> <20160926152234.14809-13-zi.yan@sent.com>
-Date: Fri, 30 Sep 2016 10:48:09 +0530
+        Thu, 29 Sep 2016 23:38:11 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id p197so461843wmg.1
+        for <linux-mm@kvack.org>; Thu, 29 Sep 2016 23:38:11 -0700 (PDT)
+Date: Fri, 30 Sep 2016 08:38:08 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v4 2/3] mm/hugetlb: check for reserved hugepages during
+ memory offline
+Message-ID: <20160930063807.GB19118@dhcp22.suse.cz>
+References: <20160926172811.94033-1-gerald.schaefer@de.ibm.com>
+ <20160926172811.94033-3-gerald.schaefer@de.ibm.com>
+ <20160929123001.GG408@dhcp22.suse.cz>
+ <9dcd5ca2-6f0a-cc44-e4c7-774e706315c7@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <87k2duaru6.fsf@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <9dcd5ca2-6f0a-cc44-e4c7-774e706315c7@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zi.yan@sent.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: benh@kernel.crashing.org, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, dave.hansen@linux.intel.com, n-horiguchi@ah.jp.nec.com, Zi Yan <zi.yan@cs.rutgers.edu>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Rui Teng <rui.teng@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@linux.intel.com>
 
-zi.yan@sent.com writes:
+On Thu 29-09-16 10:09:37, Mike Kravetz wrote:
+> On 09/29/2016 05:30 AM, Michal Hocko wrote:
+> > On Mon 26-09-16 19:28:10, Gerald Schaefer wrote:
+[...]
+> >> Fix this by adding a return value to dissolve_free_huge_pages() and
+> >> checking h->free_huge_pages vs. h->resv_huge_pages. Note that this may
+> >> lead to the situation where dissolve_free_huge_page() returns an error
+> >> and all free hugepages that were dissolved before that error are lost,
+> >> while the memory block still cannot be set offline.
+> > 
+> > Hmm, OK offline failure is certainly a better option than an application
+> > failure.
+> 
+> I agree.
+> 
+> However, if the reason for the offline is that a dimm within the huge page
+> is starting to fail, then one could make an argument that forced offline of
+> the huge page would be more desirable.  We really don't know the reason for
+> the offline.  So, I think the approach of this patch is best.
 
-> From: Zi Yan <zi.yan@cs.rutgers.edu>
->
-> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
-> ---
->  arch/powerpc/Kconfig                         |  4 ++++
->  arch/powerpc/include/asm/book3s/64/pgtable.h | 23 +++++++++++++++++++++++
->  2 files changed, 27 insertions(+)
->
-> diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
-> index 927d2ab..84ffd4c 100644
-> --- a/arch/powerpc/Kconfig
-> +++ b/arch/powerpc/Kconfig
-> @@ -553,6 +553,10 @@ config ARCH_SPARSEMEM_DEFAULT
->  config SYS_SUPPORTS_HUGETLBFS
->  	bool
->  
-> +config ARCH_ENABLE_THP_MIGRATION
-> +	def_bool y
-> +	depends on PPC64 && TRANSPARENT_HUGEPAGE && MIGRATION
-> +
->  source "mm/Kconfig"
->  
->  config ARCH_MEMORY_PROBE
-> diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
-> index 263bf39..9dee0467 100644
-> --- a/arch/powerpc/include/asm/book3s/64/pgtable.h
-> +++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
-> @@ -521,7 +521,9 @@ static inline bool pte_user(pte_t pte)
->   * Clear bits not found in swap entries here.
->   */
->  #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val((pte)) & ~_PAGE_PTE })
-> +#define __pmd_to_swp_entry(pte)	((swp_entry_t) { pmd_val((pte)) & ~_PAGE_PTE })
->  #define __swp_entry_to_pte(x)	__pte((x).val | _PAGE_PTE)
-> +#define __swp_entry_to_pmd(x)	__pmd((x).val | _PAGE_PTE)
-
-
-We definitely need a comment around that. This will work only for 64K
-linux page size, on 4k we may consider it a hugepd directory entry. But
-This should be ok because we support THP only with 64K linux page size.
-Hence my suggestion to add proper comments or move it to right headers.
-
-
->  
->  #ifdef CONFIG_MEM_SOFT_DIRTY
->  #define _PAGE_SWP_SOFT_DIRTY   (1UL << (SWP_TYPE_BITS + _PAGE_BIT_SWAP_TYPE))
-> @@ -662,6 +664,10 @@ static inline int pmd_bad(pmd_t pmd)
->  		return radix__pmd_bad(pmd);
->  	return hash__pmd_bad(pmd);
->  }
-> +static inline int __pmd_present(pmd_t pte)
-> +{
-> +	return !!(pmd_val(pte) & _PAGE_PRESENT);
-> +}
->  
->  static inline void pud_set(pud_t *pudp, unsigned long val)
->  {
-> @@ -850,6 +856,23 @@ static inline pte_t *pmdp_ptep(pmd_t *pmd)
->  #define pmd_soft_dirty(pmd)    pte_soft_dirty(pmd_pte(pmd))
->  #define pmd_mksoft_dirty(pmd)  pte_pmd(pte_mksoft_dirty(pmd_pte(pmd)))
->  #define pmd_clear_soft_dirty(pmd) pte_pmd(pte_clear_soft_dirty(pmd_pte(pmd)))
-> +
-> +#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
-> +static inline pmd_t pmd_swp_mksoft_dirty(pmd_t pmd)
-> +{
-> +	return pte_pmd(pte_swp_mksoft_dirty(pmd_pte(pmd)));
-> +}
-> +
-> +static inline int pmd_swp_soft_dirty(pmd_t pmd)
-> +{
-> +	return pte_swp_soft_dirty(pmd_pte(pmd));
-> +}
-> +
-> +static inline pmd_t pmd_swp_clear_soft_dirty(pmd_t pmd)
-> +{
-> +	return pte_pmd(pte_swp_clear_soft_dirty(pmd_pte(pmd)));
-> +}
-> +#endif
->  #endif /* CONFIG_HAVE_ARCH_SOFT_DIRTY */
->  
->  #ifdef CONFIG_NUMA_BALANCING
-
-Did we test this with Radix config ? If not I will suggest we hold off
-the ppc64 patch and you can merge rest of the changes.
-
--aneesh
+I though that memory which was already reported to be faulty would be
+marked HWPoison and removed from the allocator. But it's been quite some
+time since I've looked in that area...
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
