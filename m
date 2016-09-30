@@ -1,45 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F43A6B0253
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2016 05:43:49 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id fu14so189443603pad.0
-        for <linux-mm@kvack.org>; Fri, 30 Sep 2016 02:43:49 -0700 (PDT)
-Received: from out4434.biz.mail.alibaba.com (out4434.biz.mail.alibaba.com. [47.88.44.34])
-        by mx.google.com with ESMTP id vw1si19285899pac.278.2016.09.30.02.43.46
-        for <linux-mm@kvack.org>;
-        Fri, 30 Sep 2016 02:43:47 -0700 (PDT)
-Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
-References: <1475227569-63446-1-git-send-email-xieyisheng1@huawei.com> <1475227569-63446-3-git-send-email-xieyisheng1@huawei.com>
-In-Reply-To: <1475227569-63446-3-git-send-email-xieyisheng1@huawei.com>
-Subject: Re: [PATCH v4 2/2] arm64 Kconfig: Select gigantic page
-Date: Fri, 30 Sep 2016 17:43:26 +0800
-Message-ID: <00d101d21aff$188a86c0$499f9440$@alibaba-inc.com>
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C77896B0038
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2016 05:44:37 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id fu14so189472860pad.0
+        for <linux-mm@kvack.org>; Fri, 30 Sep 2016 02:44:37 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id 7si19329598pfy.231.2016.09.30.02.44.37
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 30 Sep 2016 02:44:37 -0700 (PDT)
+Date: Fri, 30 Sep 2016 02:44:19 -0700
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH v4 07/12] dax: coordinate locking for offsets in PMD range
+Message-ID: <20160930094419.GA5299@infradead.org>
+References: <1475189370-31634-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1475189370-31634-8-git-send-email-ross.zwisler@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Content-Language: zh-cn
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1475189370-31634-8-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Yisheng Xie' <xieyisheng1@huawei.com>, akpm@linux-foundation.org, mhocko@kernel.org
-Cc: guohanjun@huawei.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, will.deacon@arm.com, dave.hansen@intel.com, sudeep.holla@arm.com, catalin.marinas@arm.com, mark.rutland@arm.com, robh+dt@kernel.org, linux-arm-kernel@lists.infradead.org, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@ml01.01.org, linux-xfs@vger.kernel.org
 
-On Friday, September 30, 2016 5:26 PM Yisheng Xie wrote
-> 
-> Arm64 supports gigantic page after
-> commit 084bd29810a5 ("ARM64: mm: HugeTLB support.")
-> however, it can only be allocated at boottime and can't be freed.
-> 
-> This patch selects ARCH_HAS_GIGANTIC_PAGE to make gigantic pages
-> can be allocated and freed at runtime for arch arm64.
-> 
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> Acked-by: Catalin Marinas <catalin.marinas@arm.com>
-> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
-> ---
-Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com> 
+> +static pgoff_t dax_entry_start(pgoff_t index, void *entry)
+> +{
+> +	if (RADIX_DAX_TYPE(entry) == RADIX_DAX_PMD)
+> +		index &= (PMD_MASK >> PAGE_SHIFT);
+> +	return index;
+> +}
+> +
+>  static wait_queue_head_t *dax_entry_waitqueue(struct address_space *mapping,
+> -					      pgoff_t index)
+> +					      pgoff_t entry_start)
+>  {
+> -	unsigned long hash = hash_long((unsigned long)mapping ^ index,
+> +	unsigned long hash = hash_long((unsigned long)mapping ^ entry_start,
+>  				       DAX_WAIT_TABLE_BITS);
+>  	return wait_table + hash;
+>  }
 
+All callers of dax_entry_waitqueue need to calculate entry_start
+using this new dax_entry_start helper.  Either we should move the
+call to dax_entry_start into this helper.  Or at least use local
+variables for in the callers as both of them also fill out a
+wait_exceptional_entry_queue structure with it.  Or do both by
+letting dax_entry_waitqueue fill out that structure as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
