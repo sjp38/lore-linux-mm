@@ -1,41 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 405396B0038
-	for <linux-mm@kvack.org>; Fri, 30 Sep 2016 05:14:20 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 7so64272585pfa.2
-        for <linux-mm@kvack.org>; Fri, 30 Sep 2016 02:14:20 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id h3si1454503pfg.132.2016.09.30.02.14.19
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F9216B0038
+	for <linux-mm@kvack.org>; Fri, 30 Sep 2016 05:30:27 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id l187so50976733oia.0
+        for <linux-mm@kvack.org>; Fri, 30 Sep 2016 02:30:27 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id i40si12937074otd.114.2016.09.30.02.30.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 Sep 2016 02:14:19 -0700 (PDT)
-Date: Fri, 30 Sep 2016 02:14:18 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 0/20 v3] dax: Clear dirty bits after flushing caches
-Message-ID: <20160930091418.GC24352@infradead.org>
-References: <1474992504-20133-1-git-send-email-jack@suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 30 Sep 2016 02:30:22 -0700 (PDT)
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Subject: [PATCH v4 0/2] arm64/hugetlb: enable gigantic page 
+Date: Fri, 30 Sep 2016 17:26:07 +0800
+Message-ID: <1475227569-63446-1-git-send-email-xieyisheng1@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1474992504-20133-1-git-send-email-jack@suse.cz>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@ml01.01.org, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: akpm@linux-foundation.org, mhocko@kernel.org
+Cc: guohanjun@huawei.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, will.deacon@arm.com, dave.hansen@intel.com, sudeep.holla@arm.com, catalin.marinas@arm.com, mark.rutland@arm.com, robh+dt@kernel.org, linux-arm-kernel@lists.infradead.org, mike.kravetz@oracle.com, n-horiguchi@ah.jp.nec.com
 
-On Tue, Sep 27, 2016 at 06:08:04PM +0200, Jan Kara wrote:
-> Hello,
-> 
-> this is a third revision of my patches to clear dirty bits from radix tree of
-> DAX inodes when caches for corresponding pfns have been flushed. This patch set
-> is significantly larger than the previous version because I'm changing how
-> ->fault, ->page_mkwrite, and ->pfn_mkwrite handlers may choose to handle the
-> fault
+changelog
+=========
+v3->v4:
+add changelog in the cover leter to make the change history more clear.
 
-Btw, is there ny good reason to keep ->fault, ->pmd_fault, page->mkwrite
-and pfn_mkwrite separate these days?  All of them now take a struct
-vm_fault, and the differences aren't exactly obvious for callers and
-users.
+v2->v3:
+change the Kconfig file to avoid comile warning when select
+ARCH_HAS_GIGANTIC_PAGE with !CONFIG_HUGETLB_PAGE
+
+v1->v2:
+introduce the ARCH_HAS_GIGANTIC_PAGE as Michal Hocko <mhocko@suse.com> suggested
+
+Arm64 supports different size of gigantic page which can be seen from:
+commit 084bd29810a5 ("ARM64: mm: HugeTLB support.")
+commit 66b3923a1a0f ("arm64: hugetlb: add support for PTE contiguous bit")
+
+So I tried to use this function by adding hugepagesz=1G in kernel
+parameters, with CONFIG_CMA=y. However, when I
+echo xx > \
+  /sys/kernel/mm/hugepages/hugepages-1048576kB/nr_hugepages
+it failed with the following info:
+-bash: echo: write error: Invalid argument
+
+This is a v4 patchset which make gigantic page can be
+allocated and freed at runtime for arch arm64,
+with CONFIG_CMA=y or other related configs is enabled.
+
+You can see the former discussions at:
+https://lkml.org/lkml/2016/8/18/310
+https://lkml.org/lkml/2016/8/21/410
+https://lkml.org/lkml/2016/8/22/319
+
+Yisheng Xie (2):
+  mm/hugetlb: Introduce ARCH_HAS_GIGANTIC_PAGE
+  arm64 Kconfig: Select gigantic page
+
+ arch/arm64/Kconfig | 1 +
+ arch/s390/Kconfig  | 1 +
+ arch/x86/Kconfig   | 1 +
+ fs/Kconfig         | 3 +++
+ mm/hugetlb.c       | 2 +-
+ 5 files changed, 7 insertions(+), 1 deletion(-)
+
+-- 
+1.7.12.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
