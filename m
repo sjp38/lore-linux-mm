@@ -1,32 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A52B56B0069
-	for <linux-mm@kvack.org>; Sat,  1 Oct 2016 09:56:52 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id s64so95535993lfs.1
-        for <linux-mm@kvack.org>; Sat, 01 Oct 2016 06:56:52 -0700 (PDT)
-Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
-        by mx.google.com with ESMTPS id o67si11661458lfg.160.2016.10.01.06.56.50
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5644E6B0253
+	for <linux-mm@kvack.org>; Sat,  1 Oct 2016 09:56:53 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id x23so5848482lfi.0
+        for <linux-mm@kvack.org>; Sat, 01 Oct 2016 06:56:53 -0700 (PDT)
+Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
+        by mx.google.com with ESMTPS id o21si11638529lfo.228.2016.10.01.06.56.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Sat, 01 Oct 2016 06:56:51 -0700 (PDT)
-Received: by mail-lf0-x244.google.com with SMTP id h96so3085561lfi.1
-        for <linux-mm@kvack.org>; Sat, 01 Oct 2016 06:56:50 -0700 (PDT)
+Received: by mail-lf0-x241.google.com with SMTP id l131so7077526lfl.0
+        for <linux-mm@kvack.org>; Sat, 01 Oct 2016 06:56:51 -0700 (PDT)
 From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: [PATCH 1/2] mm: memcontrol: use special workqueue for creating per-memcg caches
-Date: Sat,  1 Oct 2016 16:56:47 +0300
-Message-Id: <c509c51d47b387c3d8e879678aca0b5e881b4613.1475329751.git.vdavydov.dev@gmail.com>
+Subject: [PATCH 2/2] slub: move synchronize_sched out of slab_mutex on shrink
+Date: Sat,  1 Oct 2016 16:56:48 +0300
+Message-Id: <0a10d71ecae3db00fb4421bcd3f82bcc911f4be4.1475329751.git.vdavydov.dev@gmail.com>
+In-Reply-To: <c509c51d47b387c3d8e879678aca0b5e881b4613.1475329751.git.vdavydov.dev@gmail.com>
+References: <c509c51d47b387c3d8e879678aca0b5e881b4613.1475329751.git.vdavydov.dev@gmail.com>
+In-Reply-To: <c509c51d47b387c3d8e879678aca0b5e881b4613.1475329751.git.vdavydov.dev@gmail.com>
+References: <c509c51d47b387c3d8e879678aca0b5e881b4613.1475329751.git.vdavydov.dev@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@kernel.org>, Pekka Enberg <penberg@kernel.org>
 
-Creating a lot of cgroups at the same time might stall all worker
-threads with kmem cache creation works, because kmem cache creation is
-done with the slab_mutex held. To prevent that from happening, let's use
-a special workqueue for kmem cache creation with max in-flight work
-items equal to 1.
+synchronize_sched() is a heavy operation and calling it per each cache
+owned by a memory cgroup being destroyed may take quite some time. What
+is worse, it's currently called under the slab_mutex, stalling all works
+doing cache creation/destruction.
 
-Link: https://bugzilla.kernel.org/show_bug.cgi?id=172981
+Actually, there isn't much point in calling synchronize_sched() for each
+cache - it's enough to call it just once - after setting cpu_partial for
+all caches and before shrinking them. This way, we can also move it out
+of the slab_mutex, which we have to hold for iterating over the slab
+cache list.
+
+Link: https://bugzilla.kernel.org/show_bug.cgi?id=172991
 Signed-off-by: Vladimir Davydov <vdavydov.dev@gmail.com>
 Reported-by: Doug Smythies <dsmythies@telus.net>
 Cc: Christoph Lameter <cl@linux.com>
@@ -36,49 +45,157 @@ Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: Michal Hocko <mhocko@kernel.org>
 Cc: Pekka Enberg <penberg@kernel.org>
 ---
- mm/memcontrol.c | 15 ++++++++++++++-
- 1 file changed, 14 insertions(+), 1 deletion(-)
+ mm/slab.c        |  4 ++--
+ mm/slab.h        |  2 +-
+ mm/slab_common.c | 27 +++++++++++++++++++++++++--
+ mm/slob.c        |  2 +-
+ mm/slub.c        | 19 ++-----------------
+ 5 files changed, 31 insertions(+), 23 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 4be518d4e68a..c1efe59e3a20 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2175,6 +2175,8 @@ struct memcg_kmem_cache_create_work {
- 	struct work_struct work;
- };
- 
-+static struct workqueue_struct *memcg_kmem_cache_create_wq;
-+
- static void memcg_kmem_cache_create_func(struct work_struct *w)
- {
- 	struct memcg_kmem_cache_create_work *cw =
-@@ -2206,7 +2208,7 @@ static void __memcg_schedule_kmem_cache_create(struct mem_cgroup *memcg,
- 	cw->cachep = cachep;
- 	INIT_WORK(&cw->work, memcg_kmem_cache_create_func);
- 
--	schedule_work(&cw->work);
-+	queue_work(memcg_kmem_cache_create_wq, &cw->work);
+diff --git a/mm/slab.c b/mm/slab.c
+index b67271024135..fb9b0b06f6b9 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -2339,7 +2339,7 @@ out:
+ 	return nr_freed;
  }
  
- static void memcg_schedule_kmem_cache_create(struct mem_cgroup *memcg,
-@@ -5794,6 +5796,17 @@ static int __init mem_cgroup_init(void)
+-int __kmem_cache_shrink(struct kmem_cache *cachep, bool deactivate)
++int __kmem_cache_shrink(struct kmem_cache *cachep)
  {
- 	int cpu, node;
+ 	int ret = 0;
+ 	int node;
+@@ -2359,7 +2359,7 @@ int __kmem_cache_shrink(struct kmem_cache *cachep, bool deactivate)
  
-+#ifndef CONFIG_SLOB
+ int __kmem_cache_shutdown(struct kmem_cache *cachep)
+ {
+-	return __kmem_cache_shrink(cachep, false);
++	return __kmem_cache_shrink(cachep);
+ }
+ 
+ void __kmem_cache_release(struct kmem_cache *cachep)
+diff --git a/mm/slab.h b/mm/slab.h
+index 9653f2e2591a..36382b24ba98 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -146,7 +146,7 @@ static inline unsigned long kmem_cache_flags(unsigned long object_size,
+ 
+ int __kmem_cache_shutdown(struct kmem_cache *);
+ void __kmem_cache_release(struct kmem_cache *);
+-int __kmem_cache_shrink(struct kmem_cache *, bool);
++int __kmem_cache_shrink(struct kmem_cache *);
+ void slab_kmem_cache_release(struct kmem_cache *);
+ 
+ struct seq_file;
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 71f0b28a1bec..3fac1e2ca67b 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -573,6 +573,29 @@ void memcg_deactivate_kmem_caches(struct mem_cgroup *memcg)
+ 	get_online_cpus();
+ 	get_online_mems();
+ 
++#ifdef CONFIG_SLUB
 +	/*
-+	 * Kmem cache creation is mostly done with the slab_mutex held,
-+	 * so use a special workqueue to avoid stalling all worker
-+	 * threads in case lots of cgroups are created simultaneously.
++	 * In case of SLUB, we need to disable empty slab caching to
++	 * avoid pinning the offline memory cgroup by freeable kmem
++	 * pages charged to it. SLAB doesn't need this, as it
++	 * periodically purges unused slabs.
 +	 */
-+	memcg_kmem_cache_create_wq =
-+		alloc_workqueue("memcg_kmem_cache_create", 0, 1);
-+	BUG_ON(!memcg_kmem_cache_create_wq);
++	mutex_lock(&slab_mutex);
++	list_for_each_entry(s, &slab_caches, list) {
++		c = is_root_cache(s) ? cache_from_memcg_idx(s, idx) : NULL;
++		if (c) {
++			c->cpu_partial = 0;
++			c->min_partial = 0;
++		}
++	}
++	mutex_unlock(&slab_mutex);
++	/*
++	 * kmem_cache->cpu_partial is checked locklessly (see
++	 * put_cpu_partial()). Make sure the change is visible.
++	 */
++	synchronize_sched();
 +#endif
 +
- 	hotcpu_notifier(memcg_cpu_hotplug_callback, 0);
+ 	mutex_lock(&slab_mutex);
+ 	list_for_each_entry(s, &slab_caches, list) {
+ 		if (!is_root_cache(s))
+@@ -584,7 +607,7 @@ void memcg_deactivate_kmem_caches(struct mem_cgroup *memcg)
+ 		if (!c)
+ 			continue;
  
- 	for_each_possible_cpu(cpu)
+-		__kmem_cache_shrink(c, true);
++		__kmem_cache_shrink(c);
+ 		arr->entries[idx] = NULL;
+ 	}
+ 	mutex_unlock(&slab_mutex);
+@@ -755,7 +778,7 @@ int kmem_cache_shrink(struct kmem_cache *cachep)
+ 	get_online_cpus();
+ 	get_online_mems();
+ 	kasan_cache_shrink(cachep);
+-	ret = __kmem_cache_shrink(cachep, false);
++	ret = __kmem_cache_shrink(cachep);
+ 	put_online_mems();
+ 	put_online_cpus();
+ 	return ret;
+diff --git a/mm/slob.c b/mm/slob.c
+index 5ec158054ffe..eac04d4357ec 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -634,7 +634,7 @@ void __kmem_cache_release(struct kmem_cache *c)
+ {
+ }
+ 
+-int __kmem_cache_shrink(struct kmem_cache *d, bool deactivate)
++int __kmem_cache_shrink(struct kmem_cache *d)
+ {
+ 	return 0;
+ }
+diff --git a/mm/slub.c b/mm/slub.c
+index 9adae58462f8..379b7963e48e 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3868,7 +3868,7 @@ EXPORT_SYMBOL(kfree);
+  * being allocated from last increasing the chance that the last objects
+  * are freed in them.
+  */
+-int __kmem_cache_shrink(struct kmem_cache *s, bool deactivate)
++int __kmem_cache_shrink(struct kmem_cache *s)
+ {
+ 	int node;
+ 	int i;
+@@ -3880,21 +3880,6 @@ int __kmem_cache_shrink(struct kmem_cache *s, bool deactivate)
+ 	unsigned long flags;
+ 	int ret = 0;
+ 
+-	if (deactivate) {
+-		/*
+-		 * Disable empty slabs caching. Used to avoid pinning offline
+-		 * memory cgroups by kmem pages that can be freed.
+-		 */
+-		s->cpu_partial = 0;
+-		s->min_partial = 0;
+-
+-		/*
+-		 * s->cpu_partial is checked locklessly (see put_cpu_partial),
+-		 * so we have to make sure the change is visible.
+-		 */
+-		synchronize_sched();
+-	}
+-
+ 	flush_all(s);
+ 	for_each_kmem_cache_node(s, node, n) {
+ 		INIT_LIST_HEAD(&discard);
+@@ -3951,7 +3936,7 @@ static int slab_mem_going_offline_callback(void *arg)
+ 
+ 	mutex_lock(&slab_mutex);
+ 	list_for_each_entry(s, &slab_caches, list)
+-		__kmem_cache_shrink(s, false);
++		__kmem_cache_shrink(s);
+ 	mutex_unlock(&slab_mutex);
+ 
+ 	return 0;
 -- 
 2.1.4
 
