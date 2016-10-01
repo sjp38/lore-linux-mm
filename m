@@ -1,79 +1,130 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C7386B029B
-	for <linux-mm@kvack.org>; Mon, 31 Oct 2016 20:53:02 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id l66so31362075pfl.7
-        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 17:53:02 -0700 (PDT)
-Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
-        by mx.google.com with ESMTPS id 1si27433648pgr.30.2016.10.31.17.53.01
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 31 Oct 2016 17:53:01 -0700 (PDT)
-Received: by mail-pf0-x244.google.com with SMTP id a136so6653516pfa.0
-        for <linux-mm@kvack.org>; Mon, 31 Oct 2016 17:53:01 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH v1] mm: hwpoison: fix thp split handling in memory_failure()
-Date: Tue,  1 Nov 2016 09:52:57 +0900
-Message-Id: <1477961577-7183-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Naoya Horiguchi <nao.horiguchi@gmail.com>
+From: Helge Deller <deller@gmx.de>
+Subject: kernel BUG at linux-4.7.5/mm/vmscan.c:1395!
+Date: Sat, 1 Oct 2016 22:51:23 +0200
+Message-ID: <57F021CB.6000704@gmx.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Return-path: <linux-parisc-owner@vger.kernel.org>
+Sender: linux-parisc-owner@vger.kernel.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-parisc@vger.kernel.org" <linux-parisc@vger.kernel.org>
+List-Id: linux-mm.kvack.org
 
-When memory_failure() runs on a thp tail page after pmd is split, we trigger
-the following VM_BUG_ON_PAGE():
+I tried running the debian 4.7.5 kernel on our parisc debian buildd servers,
+but when it reaches some load I usually see after some time this kernel crash:
 
-  [  619.550520] page:ffffd7cd819b0040 count:0 mapcount:0 mapping:         (null) index:0x1
-  [  619.555486] flags: 0x1fffc000400000(hwpoison)
-  [  619.556408] page dumped because: VM_BUG_ON_PAGE(!page_count(p))
-  [  619.558998] ------------[ cut here ]------------
-  [  619.561388] kernel BUG at /src/linux-dev/mm/memory-failure.c:1132!
+[ 2142.421978] ------------[ cut here ]------------
+[ 2142.422194] kernel BUG at /build/linux/linux-4.7.5/mm/vmscan.c:1395!
+[ 2142.422714] CPU: 0 PID: 47 Comm: kswapd1 Not tainted 4.7.0-1-parisc64-smp #1 Debian 4.7.5-1
+[ 2142.423047] task: 00000000bb2761b0 ti: 00000000bb27c000 task.ti: 00000000bb27c000
+[ 2142.431931] 
+[ 2142.432001]      YZrvWESTHLNXBCVMcbcbcbcbOGFRQPDI
+[ 2142.442117] PSW: 00001000000001001111111100001110 Not tainted
+[ 2142.442329] r00-03  000000ff0804ff0e 0000000040cef520 000000004041ad6c 00000000bb27c530
+[ 2142.451906] r04-07  0000000040cd1520 00000000bf2ac010 00000000bb27c5f0 0000000000000001
+[ 2142.461626] r08-11  00000000bf2ac000 0000000000000010 0000000000000020 0000000000000001
+[ 2142.493204] r12-15  0000000000000000 0000000000000001 00000000bb27c3f8 00000000bb27c410
+[ 2142.634877] r16-19  00000000bb27c254 0000000041a5f260 00000000bb27c280 0000000000000000
+[ 2142.635189] r20-23  0000000000000001 0000000000000000 00000000bb27c254 00000000bb27c410
+[ 2142.778062] r24-27  00000000bb27c620 000000004041aa38 000000004041ad6c 0000000040cd1520
+[ 2142.922203] r28-31  ffffffffffffffea 00000000bb27c690 00000000bb27c620 0000000000040048
+[ 2143.065747] sr00-03  000000000325d000 000000000325d000 0000000000000000 000000000325d000
+[ 2143.209974] sr04-07  0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[ 2143.210245] 
+[ 2143.353754] IASQ: 0000000000000000 0000000000000000 IAOQ: 000000004041ae58 000000004041ae5c
+[ 2143.354040]  IIR: 03ffe01f    ISR: 0000000010340000  IOR: 000001ec9f27c6f0
+[ 2143.497716]  CPU:        0   CR30: 00000000bb27c000 CR31: ffffff7fffffffff
+[ 2143.642443]  ORIG_R28: 00000000bb27c830
+[ 2143.642625]  IAOQ[0]: isolate_lru_pages.isra.20+0x1d8/0x2c0
+[ 2143.786212]  IAOQ[1]: isolate_lru_pages.isra.20+0x1dc/0x2c0
+[ 2143.786408]  RP(r2): isolate_lru_pages.isra.20+0xec/0x2c0
+[ 2143.930262] Backtrace:
+[ 2143.930371]  [<000000004041dddc>] shrink_active_list+0x184/0x720
+[ 2144.073396]  [<0000000040420938>] kswapd+0x6d8/0x1008
+[ 2144.073600]  [<00000000402c9864>] __wake_up_locked+0x84/0xa8
+[ 2144.217657]  [<000000004028fa84>] kthread+0x1ec/0x248
+[ 2144.217848]  [<0000000040205020>] end_fault_vector+0x20/0xc0
+[ 2144.360930]  [<000000004021e494>] execute_on_irq_stack+0x54/0x108
+[ 2144.361148]  [<0000000040300a98>] rcu_irq_exit+0x40/0xa0
+[ 2144.505159]  [<000000004025d1d8>] irq_exit+0x108/0x120
+[ 2144.505345]  [<000000004021faa4>] do_cpu_irq_mask+0x2bc/0x4a8
+[ 2144.648511]  [<0000000040206074>] intr_return+0x0/0xc
+[ 2144.648700]  [<00000000402d9e50>] cpuacct_charge+0x50/0xe8
+[ 2144.793737]  [<00000000402b4fa0>] check_preempt_wakeup+0x260/0x2d0
+[ 2144.793962]  [<00000000402a3390>] check_preempt_curr+0x120/0x128
+[ 2144.936497]  [<00000000402b47a4>] update_curr+0x18c/0x2d8
+[ 2145.080725]  [<00000000402d9e50>] cpuacct_charge+0x50/0xe8
+[ 2145.080922]  [<00000000402b47a4>] update_curr+0x18c/0x2d8
+[ 2145.225161] 
+[ 2145.225240] CPU: 0 PID: 47 Comm: kswapd1 Not tainted 4.7.0-1-parisc64-smp #1 Debian 4.7.5-1
+[ 2145.229139] Backtrace:
+[ 2145.229139]  [<000000004021c738>] show_stack+0x68/0x80
+[ 2145.229139]  [<00000000406e937c>] dump_stack+0xec/0x168
+[ 2145.229139]  [<000000004021ca04>] die_if_kernel+0x25c/0x430
+[ 2145.229139]  [<000000004021dd90>] handle_interruption+0xc98/0xcc0
+[ 2145.229139] 
+[ 2145.657495] ---[ end trace bf38fbc7135d5765 ]---
 
-memory_failure() passed refcount and page lock from tail page to head page,
-which is not needed because we can pass any subpage to split_huge_page().
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Fixes: 61f5d698cc97 ("mm: re-enable THP")
-Cc: stable@vger.kernel.org # 4.5+
----
- mm/memory-failure.c | 12 +++++-------
- 1 file changed, 5 insertions(+), 7 deletions(-)
+Once I could capture this warning as well (which crashed the machine later on):
 
-diff --git v4.8-rc8-mmotm-2016-09-27-16-08/mm/memory-failure.c v4.8-rc8-mmotm-2016-09-27-16-08_patched/mm/memory-failure.c
-index de88f33..19e796d 100644
---- v4.8-rc8-mmotm-2016-09-27-16-08/mm/memory-failure.c
-+++ v4.8-rc8-mmotm-2016-09-27-16-08_patched/mm/memory-failure.c
-@@ -1112,10 +1112,10 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
- 	}
- 
- 	if (!PageHuge(p) && PageTransHuge(hpage)) {
--		lock_page(hpage);
--		if (!PageAnon(hpage) || unlikely(split_huge_page(hpage))) {
--			unlock_page(hpage);
--			if (!PageAnon(hpage))
-+		lock_page(p);
-+		if (!PageAnon(p) || unlikely(split_huge_page(p))) {
-+			unlock_page(p);
-+			if (!PageAnon(p))
- 				pr_err("Memory failure: %#lx: non anonymous thp\n",
- 					pfn);
- 			else
-@@ -1126,9 +1126,7 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
- 			put_hwpoison_page(p);
- 			return -EBUSY;
- 		}
--		unlock_page(hpage);
--		get_hwpoison_page(p);
--		put_hwpoison_page(hpage);
-+		unlock_page(p);
- 		VM_BUG_ON_PAGE(!page_count(p), p);
- 		hpage = compound_head(p);
- 	}
--- 
-2.7.0
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+[  559.048134] list_add corruption. next->prev should be prev (00000000ba709020), but was 0000000042c98860. (next=0000000043604ee0).
+[  559.048999] ------------[ cut here ]------------
+[  559.049227] WARNING: CPU: 2 PID: 17367 at /build/linux/linux-4.7.5/lib/list_debug.c:29 __list_add+0x11c/0x128
+[  559.058096] Modules linked in: autofs4 nfsd auth_rpcgss oid_registry nfs_acl nfs lockd grace fscache sunrpc sg ext4 ecb crc16 jbd2 crc32c_generic mbcache sr_mod cdrom sd_mod sym53c8xx scsi_transport_spi scsi_mod tulip
+[  559.077491] CPU: 2 PID: 17367 Comm: cp Not tainted 4.7.0-1-parisc64-smp #2 Debian 4.7.5-1
+[  559.087139] task: 00000000bb06e370 ti: 00000000b8cb0000 task.ti: 00000000b8cb0000
+[  559.120020] 
+[  559.120084]      YZrvWESTHLNXBCVMcbcbcbcbOGFRQPDI
+[  559.120254] PSW: 00001000000001001111100000001110 Not tainted
+[  559.260535] r00-03  000000ff0804f80e 0000000040d42520 000000004071a118 00000000b8cb0d80
+[  559.404336] r04-07  0000000040cd1520 00000000420b2e60 00000000ba709020 0000000043604ee0
+[  559.404647] r08-11  0000000000000002 0000000000000001 0000000000000000 0000000040c4d940
+[  559.547814] r12-15  0000000000000000 00000000420b2e40 000000000800000f 0000000000000000
+[  559.691424] r16-19  0000000000000000 0000000000000000 00000000b8cb0650 000000000800000e
+[  559.835467] r20-23  0000000000000001 000000000800000e 0000000000000174 0000000000000174
+[  559.979173] r24-27  00000000b8cb1370 00000000406fdaa8 000000004070be24 0000000040cd1520
+[  559.979457] r28-31  0000000000000075 00000000b8cb13e0 00000000b8cb0e20 0000000000000075
+[  560.121995] sr00-03  0000000003e8c800 0000000000000000 0000000000000000 0000000003e8c800
+[  560.265947] sr04-07  0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[  560.410434] 
+[  560.410503] IASQ: 0000000000000000 0000000000000000 IAOQ: 000000004071a11c 000000004071a120
+[  560.554676]  IIR: 03ffe01f    ISR: 0000000010240000  IOR: 00000003d47518d0
+[  560.554917]  CPU:        2   CR30: 00000000b8cb0000 CR31: fffffffffff3ffff
+[  560.697554]  ORIG_R28: 0000000040cf4520
+[  560.697701]  IAOQ[0]: __list_add+0x11c/0x128
+[  560.842128]  IAOQ[1]: __list_add+0x120/0x128
+[  560.842285]  RP(r2): __list_add+0x118/0x128
+[  560.986271] Backtrace:
+[  560.986388]  [<000000004040fee0>] __pagevec_lru_add_fn+0x1c8/0x2c8
+[  561.130001]  [<000000004041076c>] pagevec_lru_move_fn+0x1c4/0x288
+[  561.130221]  [<0000000040410aa8>] __lru_cache_add+0x118/0x158
+[  561.274461]  [<00000000404120ac>] lru_cache_add+0x64/0x80
+[  561.274664]  [<00000000403ef490>] add_to_page_cache_lru+0x148/0x250
+[  561.417955]  [<00000000403f114c>] pagecache_get_page+0x2a4/0x600
+[  561.418174]  [<00000000403f2a40>] grab_cache_page_write_begin+0x90/0xe0
+[  561.564306]  [<0000000028984080>] ext4_da_write_begin+0x130/0x7e0 [ext4]
+[  561.705674]  [<00000000403f2e28>] generic_perform_write+0x158/0x370
+[  561.705905]  [<00000000403f4ac8>] __generic_file_write_iter+0x260/0x2d8
+[  561.849151]  [<000000002896fdf4>] ext4_file_write_iter+0x10c/0x548 [ext4]
+[  561.992629]  [<00000000404ba758>] new_sync_write+0x168/0x1d0
+[  561.992839]  [<00000000404ba8a4>] __vfs_write+0xe4/0xf0
+[  562.136521]  [<00000000404bc05c>] vfs_write+0xfc/0x278
+[  562.136710]  [<00000000404be4f4>] SyS_write+0xcc/0x170
+[  562.279474]  [<0000000040207024>] syscall_exit+0x0/0x14
+[  562.279655] 
+[  562.279721] ---[ end trace bce15645442c2913 ]---
+
+
+I see there was one commit pushed into the stable tree:
+mm: workingset: fix crash in shadow node shrinker caused by replace_page_cache_page()
+http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=22f2ac51b6d643666f4db093f13144f773ff3f3a
+
+Might this patch help to fix the issues as well?
+If not, maybe someone has an idea based on the traces above?
+I don't think it's triggered due to parisc specific changes...
+
+Thanks,
+Helge
