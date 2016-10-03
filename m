@@ -1,220 +1,380 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CA9A66B0069
-	for <linux-mm@kvack.org>; Mon,  3 Oct 2016 06:47:46 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id l138so88479515wmg.3
-        for <linux-mm@kvack.org>; Mon, 03 Oct 2016 03:47:46 -0700 (PDT)
-Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
-        by mx.google.com with ESMTPS id lm3si10336873wjc.1.2016.10.03.03.47.45
+	by kanga.kvack.org (Postfix) with ESMTP id 37D0E6B0069
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2016 06:59:53 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id d64so77601554wmh.1
+        for <linux-mm@kvack.org>; Mon, 03 Oct 2016 03:59:53 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id yz4si34143429wjc.87.2016.10.03.03.59.51
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 03 Oct 2016 03:47:45 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id C6B299908E
-	for <linux-mm@kvack.org>; Mon,  3 Oct 2016 10:47:44 +0000 (UTC)
-Date: Mon, 3 Oct 2016 11:47:43 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: page_waitqueue() considered harmful
-Message-ID: <20161003104743.GD3903@techsingularity.net>
-References: <CA+55aFwVSXZPONk2OEyxcP-aAQU7-aJsF3OFXVi8Z5vA11v_-Q@mail.gmail.com>
- <20160927083104.GC2838@techsingularity.net>
- <20160927143426.GP2794@worktop>
- <20160928104500.GC3903@techsingularity.net>
- <20160928111115.GS5016@twins.programming.kicks-ass.net>
- <CA+55aFxTPk-3zXEAWfXN2Hfm5Qw__B_2BJw7vNN_hFY+NTctgw@mail.gmail.com>
- <20160929130827.GX5016@twins.programming.kicks-ass.net>
+        Mon, 03 Oct 2016 03:59:51 -0700 (PDT)
+Date: Mon, 3 Oct 2016 12:59:49 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v4 10/12] dax: add struct iomap based DAX PMD support
+Message-ID: <20161003105949.GP6457@quack2.suse.cz>
+References: <1475189370-31634-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1475189370-31634-11-git-send-email-ross.zwisler@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160929130827.GX5016@twins.programming.kicks-ass.net>
+In-Reply-To: <1475189370-31634-11-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Nicholas Piggin <npiggin@gmail.com>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-On Thu, Sep 29, 2016 at 03:08:27PM +0200, Peter Zijlstra wrote:
-> > is not racy (the add_wait_queue() will now already guarantee that
-> > nobody else clears the bit).
-> > 
-> > Hmm?
+On Thu 29-09-16 16:49:28, Ross Zwisler wrote:
+> DAX PMDs have been disabled since Jan Kara introduced DAX radix tree based
+> locking.  This patch allows DAX PMDs to participate in the DAX radix tree
+> based locking scheme so that they can be re-enabled using the new struct
+> iomap based fault handlers.
 > 
-> Yes. I got my brain in a complete twist, but you're right, that is
-> indeed required.
+> There are currently three types of DAX 4k entries: 4k zero pages, 4k DAX
+> mappings that have an associated block allocation, and 4k DAX empty
+> entries.  The empty entries exist to provide locking for the duration of a
+> given page fault.
 > 
-> Here's a new version with hopefully clearer comments.
+> This patch adds three equivalent 2MiB DAX entries: Huge Zero Page (HZP)
+> entries, PMD DAX entries that have associated block allocations, and 2 MiB
+> DAX empty entries.
 > 
-> Same caveat about 32bit, naming etc..
+> Unlike the 4k case where we insert a struct page* into the radix tree for
+> 4k zero pages, for HZP we insert a DAX exceptional entry with the new
+> RADIX_DAX_HZP flag set.  This is because we use a single 2 MiB zero page in
+> every 2MiB hole mapping, and it doesn't make sense to have that same struct
+> page* with multiple entries in multiple trees.  This would cause contention
+> on the single page lock for the one Huge Zero Page, and it would break the
+> page->index and page->mapping associations that are assumed to be valid in
+> many other places in the kernel.
 > 
+> One difficult use case is when one thread is trying to use 4k entries in
+> radix tree for a given offset, and another thread is using 2 MiB entries
+> for that same offset.  The current code handles this by making the 2 MiB
+> user fall back to 4k entries for most cases.  This was done because it is
+> the simplest solution, and because the use of 2MiB pages is already
+> opportunistic.
+> 
+> If we were to try to upgrade from 4k pages to 2MiB pages for a given range,
+> we run into the problem of how we lock out 4k page faults for the entire
+> 2MiB range while we clean out the radix tree so we can insert the 2MiB
+> entry.  We can solve this problem if we need to, but I think that the cases
+> where both 2MiB entries and 4K entries are being used for the same range
+> will be rare enough and the gain small enough that it probably won't be
+> worth the complexity.
+...
+>  restart:
+>  	spin_lock_irq(&mapping->tree_lock);
+>  	entry = get_unlocked_mapping_entry(mapping, index, &slot);
+> +
+> +	if (entry && new_type == RADIX_DAX_PMD) {
+> +		if (!radix_tree_exceptional_entry(entry) ||
+> +				RADIX_DAX_TYPE(entry) == RADIX_DAX_PTE) {
+> +			spin_unlock_irq(&mapping->tree_lock);
+> +			return ERR_PTR(-EEXIST);
+> +		}
+> +	} else if (entry && new_type == RADIX_DAX_PTE) {
+> +		if (radix_tree_exceptional_entry(entry) &&
+> +		    RADIX_DAX_TYPE(entry) == RADIX_DAX_PMD &&
+> +		    (unsigned long)entry & (RADIX_DAX_HZP|RADIX_DAX_EMPTY)) {
+> +			pmd_downgrade = true;
+> +		}
+> +	}
+> +
+>  	/* No entry for given index? Make sure radix tree is big enough. */
+> -	if (!entry) {
+> +	if (!entry || pmd_downgrade) {
+>  		int err;
+>  
+>  		spin_unlock_irq(&mapping->tree_lock);
+> @@ -420,15 +439,39 @@ restart:
+>  				mapping_gfp_mask(mapping) & ~__GFP_HIGHMEM);
+>  		if (err)
+>  			return ERR_PTR(err);
+> -		entry = (void *)(RADIX_TREE_EXCEPTIONAL_ENTRY |
+> -			       RADIX_DAX_ENTRY_LOCK);
+> +
+> +		/*
+> +		 * Besides huge zero pages the only other thing that gets
+> +		 * downgraded are empty entries which don't need to be
+> +		 * unmapped.
+> +		 */
+> +		if (pmd_downgrade && ((unsigned long)entry & RADIX_DAX_HZP))
+> +			unmap_mapping_range(mapping,
+> +				(index << PAGE_SHIFT) & PMD_MASK, PMD_SIZE, 0);
+> +
+>  		spin_lock_irq(&mapping->tree_lock);
+> -		err = radix_tree_insert(&mapping->page_tree, index, entry);
+> +
+> +		if (pmd_downgrade) {
+> +			radix_tree_delete(&mapping->page_tree, index);
+> +			mapping->nrexceptional--;
+> +			dax_wake_mapping_entry_waiter(entry, mapping, index,
+> +					false);
+> +		}
 
-I was able to run this with basic workloads over the weekend on small
-UMA machines. Both machines behaved similarly so I'm only reporting one
-from a single socket Skylake machine. NUMA machines rarely show anything
-much more interesting for these type of workloads but as always, the full
-impact is machine and workload dependant. Generally, I expect this type
-of patch to have marginal but detectable impact.
+Hum, this looks really problematic. Once you have dropped tree_lock,
+anything could have happened with the radix tree - in particular the entry
+you've got from get_unlocked_mapping_entry() can be different by now. Also
+there's no guarantee that someone does not map the huge entry again just
+after your call to unmap_mapping_range() finished.
 
-This is a workload doing parallel dd of files large enough to trigger
-reclaim which locks/unlocks pages
+So it seems you need to lock the entry (if you have one) before releasing
+tree_lock to stabilize it. That is enough also to block other mappings of
+that entry. Then once you reacquire the tree_lock, you can safely delete it
+and replace it with a different entry.
 
-paralleldd
-                              4.8.0-rc8             4.8.0-rc8
-                                vanilla        waitqueue-v1r2
-Amean    Elapsd-1      215.05 (  0.00%)      214.53 (  0.24%)
-Amean    Elapsd-3      214.72 (  0.00%)      214.42 (  0.14%)
-Amean    Elapsd-5      215.29 (  0.00%)      214.88 (  0.19%)
-Amean    Elapsd-7      215.75 (  0.00%)      214.79 (  0.44%)
-Amean    Elapsd-8      214.96 (  0.00%)      215.21 ( -0.12%)
+> +
+> +		entry = RADIX_DAX_EMPTY_ENTRY(new_type);
+> +
+> +		err = __radix_tree_insert(&mapping->page_tree, index,
+> +				RADIX_DAX_ORDER(new_type), entry);
+>  		radix_tree_preload_end();
+>  		if (err) {
+>  			spin_unlock_irq(&mapping->tree_lock);
+> -			/* Someone already created the entry? */
+> -			if (err == -EEXIST)
+> +			/*
+> +			 * Someone already created the entry?  This is a
+> +			 * normal failure when inserting PMDs in a range
+> +			 * that already contains PTEs.  In that case we want
+> +			 * to return -EEXIST immediately.
+> +			 */
+> +			if (err == -EEXIST && new_type == RADIX_DAX_PTE)
+>  				goto restart;
+>  			return ERR_PTR(err);
+>  		}
+> @@ -596,11 +639,17 @@ static int copy_user_dax(struct block_device *bdev, sector_t sector, size_t size
+>  	return 0;
+>  }
+>  
+> -#define DAX_PMD_INDEX(page_index) (page_index & (PMD_MASK >> PAGE_SHIFT))
+> -
+> +/*
+> + * By this point grab_mapping_entry() has ensured that we have a locked entry
+> + * of the appropriate size so we don't have to worry about downgrading PMDs to
+> + * PTEs.  If we happen to be trying to insert a PTE and there is a PMD
+> + * already in the tree, we will skip the insertion and just dirty the PMD as
+> + * appropriate.
+> + */
+>  static void *dax_insert_mapping_entry(struct address_space *mapping,
+>  				      struct vm_fault *vmf,
+> -				      void *entry, sector_t sector)
+> +				      void *entry, sector_t sector,
+> +				      unsigned long new_type, bool hzp)
+>  {
+>  	struct radix_tree_root *page_tree = &mapping->page_tree;
+>  	int error = 0;
+> @@ -623,22 +672,30 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
+>  		error = radix_tree_preload(vmf->gfp_mask & ~__GFP_HIGHMEM);
+>  		if (error)
+>  			return ERR_PTR(error);
+> +	} else if ((unsigned long)entry & RADIX_DAX_HZP && !hzp) {
+> +		/* replacing huge zero page with PMD block mapping */
+> +		unmap_mapping_range(mapping,
+> +			(vmf->pgoff << PAGE_SHIFT) & PMD_MASK, PMD_SIZE, 0);
+>  	}
+>  
+>  	spin_lock_irq(&mapping->tree_lock);
+> -	new_entry = (void *)((unsigned long)RADIX_DAX_ENTRY(sector, false) |
+> -		       RADIX_DAX_ENTRY_LOCK);
+> +	if (hzp)
+> +		new_entry = RADIX_DAX_HZP_ENTRY();
+> +	else
+> +		new_entry = RADIX_DAX_ENTRY(sector, new_type);
+> +
+>  	if (hole_fill) {
+>  		__delete_from_page_cache(entry, NULL);
+>  		/* Drop pagecache reference */
+>  		put_page(entry);
+> -		error = radix_tree_insert(page_tree, index, new_entry);
+> +		error = __radix_tree_insert(page_tree, index,
+> +				RADIX_DAX_ORDER(new_type), new_entry);
+>  		if (error) {
+>  			new_entry = ERR_PTR(error);
+>  			goto unlock;
+>  		}
+>  		mapping->nrexceptional++;
+> -	} else {
+> +	} else if ((unsigned long)entry & (RADIX_DAX_HZP|RADIX_DAX_EMPTY)) {
+>  		void **slot;
+>  		void *ret;
 
-That's basically within the noise. CPU usage overall looks like
+Hum, I somewhat dislike how PTE and PMD paths differ here. But it's OK for
+now I guess. Long term we might be better off to do away with zero pages
+for PTEs as well and use exceptional entry and a single zero page like you
+do for PMD. Because the special cases these zero pages cause are a
+headache.
 
-           4.8.0-rc8   4.8.0-rc8
-             vanillawaitqueue-v1r2
-User         3409.66     3421.72
-System      18298.66    18251.99
-Elapsed      7178.82     7181.14
+>  
+> @@ -694,6 +751,18 @@ static int dax_writeback_one(struct block_device *bdev,
+>  		goto unlock;
+>  	}
+>  
+> +	if (WARN_ON_ONCE((unsigned long)entry & RADIX_DAX_EMPTY)) {
+> +		ret = -EIO;
+> +		goto unlock;
+> +	}
+> +
+> +	/*
+> +	 * Even if dax_writeback_mapping_range() was given a wbc->range_start
+> +	 * in the middle of a PMD, the 'index' we are given will be aligned to
+> +	 * the start index of the PMD, as will the sector we pull from
+> +	 * 'entry'.  This allows us to flush for PMD_SIZE and not have to
+> +	 * worry about partial PMD writebacks.
+> +	 */
+>  	dax.sector = RADIX_DAX_SECTOR(entry);
+>  	dax.size = (type == RADIX_DAX_PMD ? PMD_SIZE : PAGE_SIZE);
+>  	spin_unlock_irq(&mapping->tree_lock);
 
-Marginal decrease in system CPU usage. Profiles showed the vanilla
-kernel spending less than 0.1% on unlock_page but it's eliminated by the
-patch.
+<snip>
 
-This is some microbenchmarks from the vm-scalability benchmark. It's
-similar to dd in that it triggers reclaim from a single thread
+> +int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+> +		pmd_t *pmd, unsigned int flags, struct iomap_ops *ops)
+> +{
+> +	struct address_space *mapping = vma->vm_file->f_mapping;
+> +	unsigned long pmd_addr = address & PMD_MASK;
+> +	bool write = flags & FAULT_FLAG_WRITE;
+> +	struct inode *inode = mapping->host;
+> +	struct iomap iomap = { 0 };
+> +	int error, result = 0;
+> +	pgoff_t size, pgoff;
+> +	struct vm_fault vmf;
+> +	void *entry;
+> +	loff_t pos;
+> +
+> +	/* Fall back to PTEs if we're going to COW */
+> +	if (write && !(vma->vm_flags & VM_SHARED)) {
+> +		split_huge_pmd(vma, pmd, address);
+> +		return VM_FAULT_FALLBACK;
+> +	}
+> +
+> +	/* If the PMD would extend outside the VMA */
+> +	if (pmd_addr < vma->vm_start)
+> +		return VM_FAULT_FALLBACK;
+> +	if ((pmd_addr + PMD_SIZE) > vma->vm_end)
+> +		return VM_FAULT_FALLBACK;
+> +
+> +	/*
+> +	 * Check whether offset isn't beyond end of file now. Caller is
+> +	 * supposed to hold locks serializing us with truncate / punch hole so
+> +	 * this is a reliable test.
+> +	 */
+> +	pgoff = linear_page_index(vma, pmd_addr);
+> +	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+> +
+> +	if (pgoff >= size)
+> +		return VM_FAULT_SIGBUS;
+> +
+> +	/* If the PMD would extend beyond the file size */
+> +	if ((pgoff | PG_PMD_COLOUR) >= size)
+> +		return VM_FAULT_FALLBACK;
+> +
+> +	/*
+> +	 * grab_mapping_entry() will make sure we get a 2M empty entry, a DAX
+> +	 * PMD or a HZP entry.  If it can't (because a 4k page is already in
+> +	 * the tree, for instance), it will return -EEXIST and we just fall
+> +	 * back to 4k entries.
+> +	 */
+> +	entry = grab_mapping_entry(mapping, pgoff, RADIX_DAX_PMD);
+> +	if (IS_ERR(entry))
+> +		return VM_FAULT_FALLBACK;
+> +
+> +	/*
+> +	 * Note that we don't use iomap_apply here.  We aren't doing I/O, only
+> +	 * setting up a mapping, so really we're using iomap_begin() as a way
+> +	 * to look up our filesystem block.
+> +	 */
+> +	pos = (loff_t)pgoff << PAGE_SHIFT;
+> +	error = ops->iomap_begin(inode, pos, PMD_SIZE, write ? IOMAP_WRITE : 0,
+> +			&iomap);
 
-vmscale
-                                                           4.8.0-rc8                          4.8.0-rc8
-                                                             vanilla                     waitqueue-v1r2
-Ops lru-file-mmap-read-elapsed                       19.50 (  0.00%)                    19.43 (  0.36%)
-Ops lru-file-readonce-elapsed                        12.44 (  0.00%)                    12.29 (  1.21%)
-Ops lru-file-readtwice-elapsed                       22.27 (  0.00%)                    22.19 (  0.36%)
-Ops lru-memcg-elapsed                                12.18 (  0.00%)                    12.00 (  1.48%)
+I'm not quite sure if it is OK to call ->iomap_begin() without ever calling
+->iomap_end. Specifically the comment before iomap_apply() says:
 
-           4.8.0-rc8   4.8.0-rc8
-             vanillawaitqueue-v1r2
-User           50.54       50.88
-System        398.72      388.81
-Elapsed        69.48       68.99
+"It is assumed that the filesystems will lock whatever resources they
+require in the iomap_begin call, and release them in the iomap_end call."
 
-Again, differences are marginal but detectable. I accidentally did not
-collect profile data but I have no reason to believe it's significantly
-different to dd.
+so what you do could result in unbalanced allocations / locks / whatever.
+Christoph?
 
-This is "gitsource" from mmtests but it's a checkout of the git source
-tree and a run of make test which is where Linus first noticed the
-problem. The metric here is time-based, I don't actually check the
-results of the regression suite.
+> +	if (error)
+> +		goto fallback;
+> +	if (iomap.offset + iomap.length < pos + PMD_SIZE)
+> +		goto fallback;
+> +
+> +	vmf.pgoff = pgoff;
+> +	vmf.flags = flags;
+> +	vmf.gfp_mask = mapping_gfp_mask(mapping) | __GFP_FS | __GFP_IO;
 
-gitsource
-                             4.8.0-rc8             4.8.0-rc8
-                               vanilla        waitqueue-v1r2
-User    min           192.28 (  0.00%)      192.49 ( -0.11%)
-User    mean          193.55 (  0.00%)      194.88 ( -0.69%)
-User    stddev          1.52 (  0.00%)        2.39 (-57.58%)
-User    coeffvar        0.79 (  0.00%)        1.23 (-56.51%)
-User    max           196.34 (  0.00%)      199.06 ( -1.39%)
-System  min           122.70 (  0.00%)      118.69 (  3.27%)
-System  mean          123.87 (  0.00%)      120.68 (  2.57%)
-System  stddev          0.84 (  0.00%)        1.65 (-97.67%)
-System  coeffvar        0.67 (  0.00%)        1.37 (-102.89%)
-System  max           124.95 (  0.00%)      123.14 (  1.45%)
-Elapsed min           718.09 (  0.00%)      711.48 (  0.92%)
-Elapsed mean          724.23 (  0.00%)      716.52 (  1.07%)
-Elapsed stddev          4.20 (  0.00%)        4.84 (-15.42%)
-Elapsed coeffvar        0.58 (  0.00%)        0.68 (-16.66%)
-Elapsed max           730.51 (  0.00%)      724.45 (  0.83%)
+I don't think you want __GFP_FS here - we have already gone through the
+filesystem's pmd_fault() handler which called dax_iomap_pmd_fault() and
+thus we hold various fs locks, freeze protection, ...
 
-           4.8.0-rc8   4.8.0-rc8
-             vanillawaitqueue-v1r2
-User         2730.60     2808.48
-System       2184.85     2108.68
-Elapsed      9938.01     9929.56
+> +
+> +	switch (iomap.type) {
+> +	case IOMAP_MAPPED:
+> +		result = dax_pmd_insert_mapping(vma, pmd, &vmf, address,
+> +				&iomap, pos, write, &entry);
+> +		break;
+> +	case IOMAP_UNWRITTEN:
+> +	case IOMAP_HOLE:
+> +		if (WARN_ON_ONCE(write))
+> +			goto fallback;
+> +		result = dax_pmd_load_hole(vma, pmd, &vmf, address, &iomap,
+> +				&entry);
+> +		break;
+> +	default:
+> +		WARN_ON_ONCE(1);
+> +		result = VM_FAULT_FALLBACK;
+> +		break;
+> +	}
+> +
+> +	if (result == VM_FAULT_FALLBACK)
+> +		count_vm_event(THP_FAULT_FALLBACK);
+> +
+> + unlock_entry:
+> +	put_locked_mapping_entry(mapping, pgoff, entry);
+> +	return result;
+> +
+> + fallback:
+> +	count_vm_event(THP_FAULT_FALLBACK);
+> +	result = VM_FAULT_FALLBACK;
+> +	goto unlock_entry;
+> +}
+> +EXPORT_SYMBOL_GPL(dax_iomap_pmd_fault);
+> +#endif /* CONFIG_FS_DAX_PMD */
+>  #endif /* CONFIG_FS_IOMAP */
+> diff --git a/include/linux/dax.h b/include/linux/dax.h
+> index c4a51bb..cacff9e 100644
+> --- a/include/linux/dax.h
+> +++ b/include/linux/dax.h
+> @@ -8,8 +8,33 @@
+>  
+>  struct iomap_ops;
+>  
+> -/* We use lowest available exceptional entry bit for locking */
+> +/*
+> + * We use lowest available bit in exceptional entry for locking, two bits for
+> + * the entry type (PMD & PTE), and two more for flags (HZP and empty).  In
+> + * total five special bits.
+> + */
+> +#define RADIX_DAX_SHIFT	(RADIX_TREE_EXCEPTIONAL_SHIFT + 5)
+>  #define RADIX_DAX_ENTRY_LOCK (1 << RADIX_TREE_EXCEPTIONAL_SHIFT)
+> +/* PTE and PMD types */
+> +#define RADIX_DAX_PTE (1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 1))
+> +#define RADIX_DAX_PMD (1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 2))
+> +/* huge zero page and empty entry flags */
+> +#define RADIX_DAX_HZP (1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 3))
+> +#define RADIX_DAX_EMPTY (1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 4))
 
-Overall, it's showing a drop in system CPU usage as expected. The detailed
-results show a drop of 2.57% in system CPU usage running the benchmark
-itself and 3.48% overall which is measuring everything and not just "make
-test". The drop in elapsed time is marginal but measurable.
+I think we can do with just 2 bits for type instead of 4 but for now this
+is OK I guess.
 
-It may raise an eyebrow that the overall elapsed time doesn't match the
-detailed results. The detailed results report 5 iterations of "make test"
-without profiling enabled which takes takes about an hour. The way I
-configured it, the profiled run happened immediately after it and it's much
-slower as well as having to compile git itself which takes a few minutes.
-
-This is the top lock/unlock activity in the vanilla kernel
-
-     0.80%  git              [kernel.vmlinux]              [k] unlock_page
-     0.28%  sh               [kernel.vmlinux]              [k] unlock_page
-     0.20%  git-rebase       [kernel.vmlinux]              [k] unlock_page
-     0.13%  git              [kernel.vmlinux]              [k] lock_page_memcg
-     0.10%  git              [kernel.vmlinux]              [k] unlock_page_memcg
-     0.07%  git-submodule    [kernel.vmlinux]              [k] unlock_page
-     0.04%  sh               [kernel.vmlinux]              [k] lock_page_memcg
-     0.03%  git-rebase       [kernel.vmlinux]              [k] lock_page_memcg
-     0.03%  sh               [kernel.vmlinux]              [k] unlock_page_memcg
-     0.03%  sed              [kernel.vmlinux]              [k] unlock_page
-     0.03%  perf             [kernel.vmlinux]              [k] unlock_page
-     0.02%  git-rebase       [kernel.vmlinux]              [k] unlock_page_memcg
-     0.02%  rm               [kernel.vmlinux]              [k] unlock_page
-     0.02%  git-stash        [kernel.vmlinux]              [k] unlock_page
-     0.02%  git-bisect       [kernel.vmlinux]              [k] unlock_page
-     0.02%  diff             [kernel.vmlinux]              [k] unlock_page
-     0.02%  cat              [kernel.vmlinux]              [k] unlock_page
-     0.02%  wc               [kernel.vmlinux]              [k] unlock_page
-     0.01%  mv               [kernel.vmlinux]              [k] unlock_page
-     0.01%  git-submodule    [kernel.vmlinux]              [k] lock_page_memcg
-
-This is with the patch applied
-
-     0.49%  git              [kernel.vmlinux]             [k] unlock_page
-     0.14%  sh               [kernel.vmlinux]             [k] unlock_page
-     0.13%  git              [kernel.vmlinux]             [k] lock_page_memcg
-     0.11%  git-rebase       [kernel.vmlinux]             [k] unlock_page
-     0.10%  git              [kernel.vmlinux]             [k] unlock_page_memcg
-     0.04%  sh               [kernel.vmlinux]             [k] lock_page_memcg
-     0.04%  git-submodule    [kernel.vmlinux]             [k] unlock_page
-     0.03%  sh               [kernel.vmlinux]             [k] unlock_page_memcg
-     0.03%  git-rebase       [kernel.vmlinux]             [k] lock_page_memcg
-     0.02%  git-rebase       [kernel.vmlinux]             [k] unlock_page_memcg
-     0.02%  sed              [kernel.vmlinux]             [k] unlock_page
-     0.01%  rm               [kernel.vmlinux]             [k] unlock_page
-     0.01%  git-stash        [kernel.vmlinux]             [k] unlock_page
-     0.01%  git-submodule    [kernel.vmlinux]             [k] lock_page_memcg
-     0.01%  git-bisect       [kernel.vmlinux]             [k] unlock_page
-     0.01%  diff             [kernel.vmlinux]             [k] unlock_page
-     0.01%  cat              [kernel.vmlinux]             [k] unlock_page
-     0.01%  wc               [kernel.vmlinux]             [k] unlock_page
-     0.01%  git-submodule    [kernel.vmlinux]             [k] unlock_page_memcg
-     0.01%  mv               [kernel.vmlinux]             [k] unlock_page
-
-The drop in time spent by git in unlock_page is noticable. I did not
-drill down into the annotated profile but this roughly matches what I
-measured before when avoiding page_waitqueue lookups.
-
-The full profile is not exactly great but I didn't see anything in there
-I haven't seen before. Top entries with the patch applied looks like
-this
-
-     7.44%  swapper          [kernel.vmlinux]             [k] intel_idle
-     1.25%  git              [kernel.vmlinux]             [k] filemap_map_pages
-     1.08%  git              [kernel.vmlinux]             [k] native_irq_return_iret
-     0.79%  git              [kernel.vmlinux]             [k] unmap_page_range
-     0.56%  git              [kernel.vmlinux]             [k] release_pages
-     0.51%  git              [kernel.vmlinux]             [k] handle_mm_fault
-     0.49%  git              [kernel.vmlinux]             [k] unlock_page
-     0.46%  git              [kernel.vmlinux]             [k] page_remove_rmap
-     0.46%  git              [kernel.vmlinux]             [k] _raw_spin_lock
-     0.42%  git              [kernel.vmlinux]             [k] clear_page_c_e
-
-Lot of map/unmap activity like you'd expect and release_pages being a pig
-as usual.
-
-Overall, this patch shows similar behaviour to my own patch from 2014.
-There is a definite benefit but it's marginal. The big difference is
-that this patch is a lot similar than the 2014 version and may meet less
-resistance as a result.
-
+								Honza
 -- 
-Mel Gorman
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
