@@ -1,220 +1,220 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 59FBE6B0253
-	for <linux-mm@kvack.org>; Mon,  3 Oct 2016 05:57:51 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id l138so87159541wmg.3
-        for <linux-mm@kvack.org>; Mon, 03 Oct 2016 02:57:51 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k133si17923020wmf.125.2016.10.03.02.57.50
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CA9A66B0069
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2016 06:47:46 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id l138so88479515wmg.3
+        for <linux-mm@kvack.org>; Mon, 03 Oct 2016 03:47:46 -0700 (PDT)
+Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
+        by mx.google.com with ESMTPS id lm3si10336873wjc.1.2016.10.03.03.47.45
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 03 Oct 2016 02:57:50 -0700 (PDT)
-Date: Mon, 3 Oct 2016 11:57:49 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v4 09/12] dax: correct dax iomap code namespace
-Message-ID: <20161003095749.GO6457@quack2.suse.cz>
-References: <1475189370-31634-1-git-send-email-ross.zwisler@linux.intel.com>
- <1475189370-31634-10-git-send-email-ross.zwisler@linux.intel.com>
+        Mon, 03 Oct 2016 03:47:45 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id C6B299908E
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2016 10:47:44 +0000 (UTC)
+Date: Mon, 3 Oct 2016 11:47:43 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: page_waitqueue() considered harmful
+Message-ID: <20161003104743.GD3903@techsingularity.net>
+References: <CA+55aFwVSXZPONk2OEyxcP-aAQU7-aJsF3OFXVi8Z5vA11v_-Q@mail.gmail.com>
+ <20160927083104.GC2838@techsingularity.net>
+ <20160927143426.GP2794@worktop>
+ <20160928104500.GC3903@techsingularity.net>
+ <20160928111115.GS5016@twins.programming.kicks-ass.net>
+ <CA+55aFxTPk-3zXEAWfXN2Hfm5Qw__B_2BJw7vNN_hFY+NTctgw@mail.gmail.com>
+ <20160929130827.GX5016@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1475189370-31634-10-git-send-email-ross.zwisler@linux.intel.com>
+In-Reply-To: <20160929130827.GX5016@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Nicholas Piggin <npiggin@gmail.com>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>
 
-On Thu 29-09-16 16:49:27, Ross Zwisler wrote:
-> The recently added DAX functions that use the new struct iomap data
-> structure were named iomap_dax_rw(), iomap_dax_fault() and
-> iomap_dax_actor().  These are actually defined in fs/dax.c, though, so
-> should be part of the "dax" namespace and not the "iomap" namespace.
-> Rename them to dax_iomap_rw(), dax_iomap_fault() and dax_iomap_actor()
-> respectively.
+On Thu, Sep 29, 2016 at 03:08:27PM +0200, Peter Zijlstra wrote:
+> > is not racy (the add_wait_queue() will now already guarantee that
+> > nobody else clears the bit).
+> > 
+> > Hmm?
 > 
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> Suggested-by: Dave Chinner <david@fromorbit.com>
-
-Looks good. You can add:
-
-Reviewed-by: Jan Kara <jack@suse.cz>
-
-								Honza
-
-> ---
->  fs/dax.c            | 16 ++++++++--------
->  fs/ext2/file.c      |  6 +++---
->  fs/xfs/xfs_file.c   |  8 ++++----
->  include/linux/dax.h |  4 ++--
->  4 files changed, 17 insertions(+), 17 deletions(-)
+> Yes. I got my brain in a complete twist, but you're right, that is
+> indeed required.
 > 
-> diff --git a/fs/dax.c b/fs/dax.c
-> index b5e7b13..6977e5e 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -1024,7 +1024,7 @@ EXPORT_SYMBOL_GPL(dax_truncate_page);
->  
->  #ifdef CONFIG_FS_IOMAP
->  static loff_t
-> -iomap_dax_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
-> +dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
->  		struct iomap *iomap)
->  {
->  	struct iov_iter *iter = data;
-> @@ -1081,7 +1081,7 @@ iomap_dax_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
->  }
->  
->  /**
-> - * iomap_dax_rw - Perform I/O to a DAX file
-> + * dax_iomap_rw - Perform I/O to a DAX file
->   * @iocb:	The control block for this I/O
->   * @iter:	The addresses to do I/O from or to
->   * @ops:	iomap ops passed from the file system
-> @@ -1091,7 +1091,7 @@ iomap_dax_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
->   * and evicting any page cache pages in the region under I/O.
->   */
->  ssize_t
-> -iomap_dax_rw(struct kiocb *iocb, struct iov_iter *iter,
-> +dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
->  		struct iomap_ops *ops)
->  {
->  	struct address_space *mapping = iocb->ki_filp->f_mapping;
-> @@ -1121,7 +1121,7 @@ iomap_dax_rw(struct kiocb *iocb, struct iov_iter *iter,
->  
->  	while (iov_iter_count(iter)) {
->  		ret = iomap_apply(inode, pos, iov_iter_count(iter), flags, ops,
-> -				iter, iomap_dax_actor);
-> +				iter, dax_iomap_actor);
->  		if (ret <= 0)
->  			break;
->  		pos += ret;
-> @@ -1131,10 +1131,10 @@ iomap_dax_rw(struct kiocb *iocb, struct iov_iter *iter,
->  	iocb->ki_pos += done;
->  	return done ? done : ret;
->  }
-> -EXPORT_SYMBOL_GPL(iomap_dax_rw);
-> +EXPORT_SYMBOL_GPL(dax_iomap_rw);
->  
->  /**
-> - * iomap_dax_fault - handle a page fault on a DAX file
-> + * dax_iomap_fault - handle a page fault on a DAX file
->   * @vma: The virtual memory area where the fault occurred
->   * @vmf: The description of the fault
->   * @ops: iomap ops passed from the file system
-> @@ -1143,7 +1143,7 @@ EXPORT_SYMBOL_GPL(iomap_dax_rw);
->   * or mkwrite handler for DAX files. Assumes the caller has done all the
->   * necessary locking for the page fault to proceed successfully.
->   */
-> -int iomap_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
-> +int dax_iomap_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
->  			struct iomap_ops *ops)
->  {
->  	struct address_space *mapping = vma->vm_file->f_mapping;
-> @@ -1245,5 +1245,5 @@ int iomap_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
->  		return VM_FAULT_SIGBUS | major;
->  	return VM_FAULT_NOPAGE | major;
->  }
-> -EXPORT_SYMBOL_GPL(iomap_dax_fault);
-> +EXPORT_SYMBOL_GPL(dax_iomap_fault);
->  #endif /* CONFIG_FS_IOMAP */
-> diff --git a/fs/ext2/file.c b/fs/ext2/file.c
-> index 0f257f8..32a4913 100644
-> --- a/fs/ext2/file.c
-> +++ b/fs/ext2/file.c
-> @@ -38,7 +38,7 @@ static ssize_t ext2_dax_read_iter(struct kiocb *iocb, struct iov_iter *to)
->  		return 0; /* skip atime */
->  
->  	inode_lock_shared(inode);
-> -	ret = iomap_dax_rw(iocb, to, &ext2_iomap_ops);
-> +	ret = dax_iomap_rw(iocb, to, &ext2_iomap_ops);
->  	inode_unlock_shared(inode);
->  
->  	file_accessed(iocb->ki_filp);
-> @@ -62,7 +62,7 @@ static ssize_t ext2_dax_write_iter(struct kiocb *iocb, struct iov_iter *from)
->  	if (ret)
->  		goto out_unlock;
->  
-> -	ret = iomap_dax_rw(iocb, from, &ext2_iomap_ops);
-> +	ret = dax_iomap_rw(iocb, from, &ext2_iomap_ops);
->  	if (ret > 0 && iocb->ki_pos > i_size_read(inode)) {
->  		i_size_write(inode, iocb->ki_pos);
->  		mark_inode_dirty(inode);
-> @@ -99,7 +99,7 @@ static int ext2_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
->  	}
->  	down_read(&ei->dax_sem);
->  
-> -	ret = iomap_dax_fault(vma, vmf, &ext2_iomap_ops);
-> +	ret = dax_iomap_fault(vma, vmf, &ext2_iomap_ops);
->  
->  	up_read(&ei->dax_sem);
->  	if (vmf->flags & FAULT_FLAG_WRITE)
-> diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
-> index 882f264..00293d2 100644
-> --- a/fs/xfs/xfs_file.c
-> +++ b/fs/xfs/xfs_file.c
-> @@ -342,7 +342,7 @@ xfs_file_dax_read(
->  		return 0; /* skip atime */
->  
->  	xfs_rw_ilock(ip, XFS_IOLOCK_SHARED);
-> -	ret = iomap_dax_rw(iocb, to, &xfs_iomap_ops);
-> +	ret = dax_iomap_rw(iocb, to, &xfs_iomap_ops);
->  	xfs_rw_iunlock(ip, XFS_IOLOCK_SHARED);
->  
->  	file_accessed(iocb->ki_filp);
-> @@ -721,7 +721,7 @@ xfs_file_dax_write(
->  
->  	trace_xfs_file_dax_write(ip, count, pos);
->  
-> -	ret = iomap_dax_rw(iocb, from, &xfs_iomap_ops);
-> +	ret = dax_iomap_rw(iocb, from, &xfs_iomap_ops);
->  	if (ret > 0 && iocb->ki_pos > i_size_read(inode)) {
->  		i_size_write(inode, iocb->ki_pos);
->  		error = xfs_setfilesize(ip, pos, ret);
-> @@ -1468,7 +1468,7 @@ xfs_filemap_page_mkwrite(
->  	xfs_ilock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
->  
->  	if (IS_DAX(inode)) {
-> -		ret = iomap_dax_fault(vma, vmf, &xfs_iomap_ops);
-> +		ret = dax_iomap_fault(vma, vmf, &xfs_iomap_ops);
->  	} else {
->  		ret = iomap_page_mkwrite(vma, vmf, &xfs_iomap_ops);
->  		ret = block_page_mkwrite_return(ret);
-> @@ -1502,7 +1502,7 @@ xfs_filemap_fault(
->  		 * changes to xfs_get_blocks_direct() to map unwritten extent
->  		 * ioend for conversion on read-only mappings.
->  		 */
-> -		ret = iomap_dax_fault(vma, vmf, &xfs_iomap_ops);
-> +		ret = dax_iomap_fault(vma, vmf, &xfs_iomap_ops);
->  	} else
->  		ret = filemap_fault(vma, vmf);
->  	xfs_iunlock(XFS_I(inode), XFS_MMAPLOCK_SHARED);
-> diff --git a/include/linux/dax.h b/include/linux/dax.h
-> index d9a8350..c4a51bb 100644
-> --- a/include/linux/dax.h
-> +++ b/include/linux/dax.h
-> @@ -11,13 +11,13 @@ struct iomap_ops;
->  /* We use lowest available exceptional entry bit for locking */
->  #define RADIX_DAX_ENTRY_LOCK (1 << RADIX_TREE_EXCEPTIONAL_SHIFT)
->  
-> -ssize_t iomap_dax_rw(struct kiocb *iocb, struct iov_iter *iter,
-> +ssize_t dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
->  		struct iomap_ops *ops);
->  ssize_t dax_do_io(struct kiocb *, struct inode *, struct iov_iter *,
->  		  get_block_t, dio_iodone_t, int flags);
->  int dax_zero_page_range(struct inode *, loff_t from, unsigned len, get_block_t);
->  int dax_truncate_page(struct inode *, loff_t from, get_block_t);
-> -int iomap_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
-> +int dax_iomap_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
->  			struct iomap_ops *ops);
->  int dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t);
->  int dax_delete_mapping_entry(struct address_space *mapping, pgoff_t index);
-> -- 
-> 2.7.4
+> Here's a new version with hopefully clearer comments.
 > 
+> Same caveat about 32bit, naming etc..
 > 
+
+I was able to run this with basic workloads over the weekend on small
+UMA machines. Both machines behaved similarly so I'm only reporting one
+from a single socket Skylake machine. NUMA machines rarely show anything
+much more interesting for these type of workloads but as always, the full
+impact is machine and workload dependant. Generally, I expect this type
+of patch to have marginal but detectable impact.
+
+This is a workload doing parallel dd of files large enough to trigger
+reclaim which locks/unlocks pages
+
+paralleldd
+                              4.8.0-rc8             4.8.0-rc8
+                                vanilla        waitqueue-v1r2
+Amean    Elapsd-1      215.05 (  0.00%)      214.53 (  0.24%)
+Amean    Elapsd-3      214.72 (  0.00%)      214.42 (  0.14%)
+Amean    Elapsd-5      215.29 (  0.00%)      214.88 (  0.19%)
+Amean    Elapsd-7      215.75 (  0.00%)      214.79 (  0.44%)
+Amean    Elapsd-8      214.96 (  0.00%)      215.21 ( -0.12%)
+
+That's basically within the noise. CPU usage overall looks like
+
+           4.8.0-rc8   4.8.0-rc8
+             vanillawaitqueue-v1r2
+User         3409.66     3421.72
+System      18298.66    18251.99
+Elapsed      7178.82     7181.14
+
+Marginal decrease in system CPU usage. Profiles showed the vanilla
+kernel spending less than 0.1% on unlock_page but it's eliminated by the
+patch.
+
+This is some microbenchmarks from the vm-scalability benchmark. It's
+similar to dd in that it triggers reclaim from a single thread
+
+vmscale
+                                                           4.8.0-rc8                          4.8.0-rc8
+                                                             vanilla                     waitqueue-v1r2
+Ops lru-file-mmap-read-elapsed                       19.50 (  0.00%)                    19.43 (  0.36%)
+Ops lru-file-readonce-elapsed                        12.44 (  0.00%)                    12.29 (  1.21%)
+Ops lru-file-readtwice-elapsed                       22.27 (  0.00%)                    22.19 (  0.36%)
+Ops lru-memcg-elapsed                                12.18 (  0.00%)                    12.00 (  1.48%)
+
+           4.8.0-rc8   4.8.0-rc8
+             vanillawaitqueue-v1r2
+User           50.54       50.88
+System        398.72      388.81
+Elapsed        69.48       68.99
+
+Again, differences are marginal but detectable. I accidentally did not
+collect profile data but I have no reason to believe it's significantly
+different to dd.
+
+This is "gitsource" from mmtests but it's a checkout of the git source
+tree and a run of make test which is where Linus first noticed the
+problem. The metric here is time-based, I don't actually check the
+results of the regression suite.
+
+gitsource
+                             4.8.0-rc8             4.8.0-rc8
+                               vanilla        waitqueue-v1r2
+User    min           192.28 (  0.00%)      192.49 ( -0.11%)
+User    mean          193.55 (  0.00%)      194.88 ( -0.69%)
+User    stddev          1.52 (  0.00%)        2.39 (-57.58%)
+User    coeffvar        0.79 (  0.00%)        1.23 (-56.51%)
+User    max           196.34 (  0.00%)      199.06 ( -1.39%)
+System  min           122.70 (  0.00%)      118.69 (  3.27%)
+System  mean          123.87 (  0.00%)      120.68 (  2.57%)
+System  stddev          0.84 (  0.00%)        1.65 (-97.67%)
+System  coeffvar        0.67 (  0.00%)        1.37 (-102.89%)
+System  max           124.95 (  0.00%)      123.14 (  1.45%)
+Elapsed min           718.09 (  0.00%)      711.48 (  0.92%)
+Elapsed mean          724.23 (  0.00%)      716.52 (  1.07%)
+Elapsed stddev          4.20 (  0.00%)        4.84 (-15.42%)
+Elapsed coeffvar        0.58 (  0.00%)        0.68 (-16.66%)
+Elapsed max           730.51 (  0.00%)      724.45 (  0.83%)
+
+           4.8.0-rc8   4.8.0-rc8
+             vanillawaitqueue-v1r2
+User         2730.60     2808.48
+System       2184.85     2108.68
+Elapsed      9938.01     9929.56
+
+Overall, it's showing a drop in system CPU usage as expected. The detailed
+results show a drop of 2.57% in system CPU usage running the benchmark
+itself and 3.48% overall which is measuring everything and not just "make
+test". The drop in elapsed time is marginal but measurable.
+
+It may raise an eyebrow that the overall elapsed time doesn't match the
+detailed results. The detailed results report 5 iterations of "make test"
+without profiling enabled which takes takes about an hour. The way I
+configured it, the profiled run happened immediately after it and it's much
+slower as well as having to compile git itself which takes a few minutes.
+
+This is the top lock/unlock activity in the vanilla kernel
+
+     0.80%  git              [kernel.vmlinux]              [k] unlock_page
+     0.28%  sh               [kernel.vmlinux]              [k] unlock_page
+     0.20%  git-rebase       [kernel.vmlinux]              [k] unlock_page
+     0.13%  git              [kernel.vmlinux]              [k] lock_page_memcg
+     0.10%  git              [kernel.vmlinux]              [k] unlock_page_memcg
+     0.07%  git-submodule    [kernel.vmlinux]              [k] unlock_page
+     0.04%  sh               [kernel.vmlinux]              [k] lock_page_memcg
+     0.03%  git-rebase       [kernel.vmlinux]              [k] lock_page_memcg
+     0.03%  sh               [kernel.vmlinux]              [k] unlock_page_memcg
+     0.03%  sed              [kernel.vmlinux]              [k] unlock_page
+     0.03%  perf             [kernel.vmlinux]              [k] unlock_page
+     0.02%  git-rebase       [kernel.vmlinux]              [k] unlock_page_memcg
+     0.02%  rm               [kernel.vmlinux]              [k] unlock_page
+     0.02%  git-stash        [kernel.vmlinux]              [k] unlock_page
+     0.02%  git-bisect       [kernel.vmlinux]              [k] unlock_page
+     0.02%  diff             [kernel.vmlinux]              [k] unlock_page
+     0.02%  cat              [kernel.vmlinux]              [k] unlock_page
+     0.02%  wc               [kernel.vmlinux]              [k] unlock_page
+     0.01%  mv               [kernel.vmlinux]              [k] unlock_page
+     0.01%  git-submodule    [kernel.vmlinux]              [k] lock_page_memcg
+
+This is with the patch applied
+
+     0.49%  git              [kernel.vmlinux]             [k] unlock_page
+     0.14%  sh               [kernel.vmlinux]             [k] unlock_page
+     0.13%  git              [kernel.vmlinux]             [k] lock_page_memcg
+     0.11%  git-rebase       [kernel.vmlinux]             [k] unlock_page
+     0.10%  git              [kernel.vmlinux]             [k] unlock_page_memcg
+     0.04%  sh               [kernel.vmlinux]             [k] lock_page_memcg
+     0.04%  git-submodule    [kernel.vmlinux]             [k] unlock_page
+     0.03%  sh               [kernel.vmlinux]             [k] unlock_page_memcg
+     0.03%  git-rebase       [kernel.vmlinux]             [k] lock_page_memcg
+     0.02%  git-rebase       [kernel.vmlinux]             [k] unlock_page_memcg
+     0.02%  sed              [kernel.vmlinux]             [k] unlock_page
+     0.01%  rm               [kernel.vmlinux]             [k] unlock_page
+     0.01%  git-stash        [kernel.vmlinux]             [k] unlock_page
+     0.01%  git-submodule    [kernel.vmlinux]             [k] lock_page_memcg
+     0.01%  git-bisect       [kernel.vmlinux]             [k] unlock_page
+     0.01%  diff             [kernel.vmlinux]             [k] unlock_page
+     0.01%  cat              [kernel.vmlinux]             [k] unlock_page
+     0.01%  wc               [kernel.vmlinux]             [k] unlock_page
+     0.01%  git-submodule    [kernel.vmlinux]             [k] unlock_page_memcg
+     0.01%  mv               [kernel.vmlinux]             [k] unlock_page
+
+The drop in time spent by git in unlock_page is noticable. I did not
+drill down into the annotated profile but this roughly matches what I
+measured before when avoiding page_waitqueue lookups.
+
+The full profile is not exactly great but I didn't see anything in there
+I haven't seen before. Top entries with the patch applied looks like
+this
+
+     7.44%  swapper          [kernel.vmlinux]             [k] intel_idle
+     1.25%  git              [kernel.vmlinux]             [k] filemap_map_pages
+     1.08%  git              [kernel.vmlinux]             [k] native_irq_return_iret
+     0.79%  git              [kernel.vmlinux]             [k] unmap_page_range
+     0.56%  git              [kernel.vmlinux]             [k] release_pages
+     0.51%  git              [kernel.vmlinux]             [k] handle_mm_fault
+     0.49%  git              [kernel.vmlinux]             [k] unlock_page
+     0.46%  git              [kernel.vmlinux]             [k] page_remove_rmap
+     0.46%  git              [kernel.vmlinux]             [k] _raw_spin_lock
+     0.42%  git              [kernel.vmlinux]             [k] clear_page_c_e
+
+Lot of map/unmap activity like you'd expect and release_pages being a pig
+as usual.
+
+Overall, this patch shows similar behaviour to my own patch from 2014.
+There is a definite benefit but it's marginal. The big difference is
+that this patch is a lot similar than the 2014 version and may meet less
+resistance as a result.
+
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
