@@ -1,104 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 157356B0069
-	for <linux-mm@kvack.org>; Mon,  3 Oct 2016 09:19:34 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id l138so92584937wmg.3
-        for <linux-mm@kvack.org>; Mon, 03 Oct 2016 06:19:34 -0700 (PDT)
-Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
-        by mx.google.com with ESMTPS id w2si18840876wmw.0.2016.10.03.06.19.32
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F9246B0069
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2016 11:29:11 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id fi2so345833551pad.3
+        for <linux-mm@kvack.org>; Mon, 03 Oct 2016 08:29:11 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
+        by mx.google.com with ESMTPS id h189si37345806pfb.251.2016.10.03.08.29.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Oct 2016 06:19:32 -0700 (PDT)
-Received: by mail-wm0-f68.google.com with SMTP id b184so14690801wma.3
-        for <linux-mm@kvack.org>; Mon, 03 Oct 2016 06:19:32 -0700 (PDT)
-Date: Mon, 3 Oct 2016 15:19:31 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] mm: memcontrol: use special workqueue for creating
- per-memcg caches
-Message-ID: <20161003131930.GE26768@dhcp22.suse.cz>
-References: <c509c51d47b387c3d8e879678aca0b5e881b4613.1475329751.git.vdavydov.dev@gmail.com>
- <20161003120641.GC26768@dhcp22.suse.cz>
- <20161003123505.GA1862@esperanza>
+        Mon, 03 Oct 2016 08:29:09 -0700 (PDT)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id A1FB220251
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2016 15:29:08 +0000 (UTC)
+Received: from mail-yw0-f174.google.com (mail-yw0-f174.google.com [209.85.161.174])
+	(using TLSv1.2 with cipher AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 9CB4320254
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2016 15:29:06 +0000 (UTC)
+Received: by mail-yw0-f174.google.com with SMTP id t193so30875268ywc.2
+        for <linux-mm@kvack.org>; Mon, 03 Oct 2016 08:29:06 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161003123505.GA1862@esperanza>
+In-Reply-To: <1474828616-16608-2-git-send-email-arbab@linux.vnet.ibm.com>
+References: <1474828616-16608-1-git-send-email-arbab@linux.vnet.ibm.com> <1474828616-16608-2-git-send-email-arbab@linux.vnet.ibm.com>
+From: Rob Herring <robh+dt@kernel.org>
+Date: Mon, 3 Oct 2016 10:28:45 -0500
+Message-ID: <CAL_JsqKkYFeENE226QFsoqEMJEPpXET0-xJOWoA0j_tbOPu0_g@mail.gmail.com>
+Subject: Re: [PATCH v3 1/5] drivers/of: introduce of_fdt_is_available()
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>
+To: Reza Arbab <arbab@linux.vnet.ibm.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Frank Rowand <frowand.list@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon 03-10-16 15:35:06, Vladimir Davydov wrote:
-> On Mon, Oct 03, 2016 at 02:06:42PM +0200, Michal Hocko wrote:
-> > On Sat 01-10-16 16:56:47, Vladimir Davydov wrote:
-> > > Creating a lot of cgroups at the same time might stall all worker
-> > > threads with kmem cache creation works, because kmem cache creation is
-> > > done with the slab_mutex held. To prevent that from happening, let's use
-> > > a special workqueue for kmem cache creation with max in-flight work
-> > > items equal to 1.
-> > > 
-> > > Link: https://bugzilla.kernel.org/show_bug.cgi?id=172981
-> > 
-> > This looks like a regression but I am not really sure I understand what
-> > has caused it. We had the WQ based cache creation since kmem was
-> > introduced more or less. So is it 801faf0db894 ("mm/slab: lockless
-> > decision to grow cache") which was pointed by bisection that changed the
-> > timing resp. relaxed the cache creation to the point that would allow
-> > this runaway?
-> 
-> It is in case of SLAB. For SLUB the issue was caused by commit
-> 81ae6d03952c ("mm/slub.c: replace kick_all_cpus_sync() with
-> synchronize_sched() in kmem_cache_shrink()").
+On Sun, Sep 25, 2016 at 1:36 PM, Reza Arbab <arbab@linux.vnet.ibm.com> wrote:
+> In __fdt_scan_reserved_mem(), the availability of a node is determined
+> by testing its "status" property.
+>
+> Move this check into its own function, borrowing logic from the
+> unflattened version, of_device_is_available().
+>
+> Another caller will be added in a subsequent patch.
+>
+> Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
+> ---
+>  drivers/of/fdt.c       | 26 +++++++++++++++++++++++---
+>  include/linux/of_fdt.h |  2 ++
+>  2 files changed, 25 insertions(+), 3 deletions(-)
+>
+> diff --git a/drivers/of/fdt.c b/drivers/of/fdt.c
+> index 085c638..9241c6e 100644
+> --- a/drivers/of/fdt.c
+> +++ b/drivers/of/fdt.c
+> @@ -151,6 +151,23 @@ int of_fdt_match(const void *blob, unsigned long node,
+>         return score;
+>  }
+>
+> +bool of_fdt_is_available(const void *blob, unsigned long node)
 
-OK, thanks for the confirmation. This would be useful in the changelog
-imho.
+of_fdt_device_is_available
 
-> > This would be really useful for the stable backport
-> > consideration.
-> > 
-> > Also, if I understand the fix correctly, now we do limit the number of
-> > workers to 1 thread. Is this really what we want? Wouldn't it be
-> > possible that few memcgs could starve others fromm having their cache
-> > created? What would be the result, missed charges?
-> 
-> Now kmem caches are created in FIFO order, i.e. if one memcg called
-> kmem_cache_alloc on a non-existent cache before another, it will be
-> served first.
+[...]
 
-I do not see where this FIFO is guaranteed.
-__memcg_schedule_kmem_cache_create doesn't seem to be using ordered WQ.
+> +bool __init of_flat_dt_is_available(unsigned long node)
 
-> Since the number of caches that can be created by a single
-> memcg is obviously limited,
+And of_flat_dt_device_is_available
 
-by the number of existing caches, right?
+With that,
 
-> I don't see any possibility of starvation.
-
-What I meant was that while now workers can contend on the slab_mutex
-with the patch there will be a real ordering in place AFAIU and so an
-unlucky memcg can be waiting for N(memcgs) * N (caches) to be served.
-Not that the current implementation gives us anything because the
-ordering should be more or less scheduling and workers dependent. Or I
-am missing something. A per-cache memcg WQ would mitigate to some
-extent.
-
-> Actually, this patch doesn't introduce any functional changes regarding
-> the order in which kmem caches are created, as the work function holds
-> the global slab_mutex during its whole runtime anyway. We only avoid
-> creating a thread per each work by making the queue single-threaded.
-
-OK please put this information into the changelog.
-
-That being said I am not opposing the current solution I just wanted to
-understand all the consequences and would appreciate more information in
-the changelog as this seems like the stable material.
-
-Thanks!
-
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Rob Herring <robh@kernel.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
