@@ -1,245 +1,197 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 49B5C6B0038
-	for <linux-mm@kvack.org>; Mon,  3 Oct 2016 17:06:01 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id fi2so360111134pad.3
-        for <linux-mm@kvack.org>; Mon, 03 Oct 2016 14:06:01 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id m5si38536649pfm.117.2016.10.03.14.06.00
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 482796B0038
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2016 17:11:14 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id rz1so41584668pab.0
+        for <linux-mm@kvack.org>; Mon, 03 Oct 2016 14:11:14 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id k87si38540402pfj.210.2016.10.03.14.11.13
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 03 Oct 2016 14:06:00 -0700 (PDT)
-Date: Mon, 3 Oct 2016 15:05:57 -0600
+        Mon, 03 Oct 2016 14:11:13 -0700 (PDT)
+Date: Mon, 3 Oct 2016 15:11:11 -0600
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v4 10/12] dax: add struct iomap based DAX PMD support
-Message-ID: <20161003210557.GA28177@linux.intel.com>
+Subject: Re: [PATCH v4 00/12] re-enable DAX PMD support
+Message-ID: <20161003211111.GB28177@linux.intel.com>
 References: <1475189370-31634-1-git-send-email-ross.zwisler@linux.intel.com>
- <1475189370-31634-11-git-send-email-ross.zwisler@linux.intel.com>
- <20161003105949.GP6457@quack2.suse.cz>
+ <20160929234345.GG27872@dastard>
+ <20160930030343.GA12464@linux.intel.com>
+ <20160930064858.GJ27872@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161003105949.GP6457@quack2.suse.cz>
+In-Reply-To: <20160930064858.GJ27872@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-On Mon, Oct 03, 2016 at 12:59:49PM +0200, Jan Kara wrote:
-> On Thu 29-09-16 16:49:28, Ross Zwisler wrote:
-> > @@ -420,15 +439,39 @@ restart:
-> >  				mapping_gfp_mask(mapping) & ~__GFP_HIGHMEM);
-> >  		if (err)
-> >  			return ERR_PTR(err);
-> > -		entry = (void *)(RADIX_TREE_EXCEPTIONAL_ENTRY |
-> > -			       RADIX_DAX_ENTRY_LOCK);
-> > +
-> > +		/*
-> > +		 * Besides huge zero pages the only other thing that gets
-> > +		 * downgraded are empty entries which don't need to be
-> > +		 * unmapped.
-> > +		 */
-> > +		if (pmd_downgrade && ((unsigned long)entry & RADIX_DAX_HZP))
-> > +			unmap_mapping_range(mapping,
-> > +				(index << PAGE_SHIFT) & PMD_MASK, PMD_SIZE, 0);
-> > +
-> >  		spin_lock_irq(&mapping->tree_lock);
-> > -		err = radix_tree_insert(&mapping->page_tree, index, entry);
-> > +
-> > +		if (pmd_downgrade) {
-> > +			radix_tree_delete(&mapping->page_tree, index);
-> > +			mapping->nrexceptional--;
-> > +			dax_wake_mapping_entry_waiter(entry, mapping, index,
-> > +					false);
-> > +		}
+On Fri, Sep 30, 2016 at 04:48:58PM +1000, Dave Chinner wrote:
+> On Thu, Sep 29, 2016 at 09:03:43PM -0600, Ross Zwisler wrote:
+> > On Fri, Sep 30, 2016 at 09:43:45AM +1000, Dave Chinner wrote:
+> > > Finally: none of the patches in your tree have reviewed-by tags.
+> > > That says to me that none of this code has been reviewed yet.
+> > > Reviewed-by tags are non-negotiable requirement for anything going
+> > > through my trees. I don't have time right now to review this code,
+> > > so you're going to need to chase up other reviewers before merging.
+> > > 
+> > > And, really, this is getting very late in the cycle to be merging
+> > > new code - we're less than one working day away from the merge
+> > > window opening and we've missed the last linux-next build. I'd
+> > > suggest that we'd might be best served by slipping this to the PMD
+> > > support code to the next cycle when there's no time pressure for
+> > > review and we can get a decent linux-next soak on the code.
+> > 
+> > I absolutely support your policy of only sending code to Linux that has passed
+> > peer review.
+> > 
+> > However, I do feel compelled to point out that this is not new code.  I didn't
+> > just spring it on everyone in the hours before the v4.8 merge window.  I
+> > posted the first version of this patch set on August 15th, *seven weeks ago*:
+> > 
+> > https://lkml.org/lkml/2016/8/15/613
+> >
+> > This was the day after v4.7-rc2 was released.
 > 
-> Hum, this looks really problematic. Once you have dropped tree_lock,
-> anything could have happened with the radix tree - in particular the entry
-> you've got from get_unlocked_mapping_entry() can be different by now. Also
-> there's no guarantee that someone does not map the huge entry again just
-> after your call to unmap_mapping_range() finished.
+> I understand, Ross. We've all been there - welcome to the club. :/
 > 
-> So it seems you need to lock the entry (if you have one) before releasing
-> tree_lock to stabilize it. That is enough also to block other mappings of
-> that entry. Then once you reacquire the tree_lock, you can safely delete it
-> and replace it with a different entry.
-
-Yep, great catch.  I'll lock the entry before I drop tree_lock.
-
-> > @@ -623,22 +672,30 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
-> >  		error = radix_tree_preload(vmf->gfp_mask & ~__GFP_HIGHMEM);
-> >  		if (error)
-> >  			return ERR_PTR(error);
-> > +	} else if ((unsigned long)entry & RADIX_DAX_HZP && !hzp) {
-> > +		/* replacing huge zero page with PMD block mapping */
-> > +		unmap_mapping_range(mapping,
-> > +			(vmf->pgoff << PAGE_SHIFT) & PMD_MASK, PMD_SIZE, 0);
-> >  	}
-> >  
-> >  	spin_lock_irq(&mapping->tree_lock);
-> > -	new_entry = (void *)((unsigned long)RADIX_DAX_ENTRY(sector, false) |
-> > -		       RADIX_DAX_ENTRY_LOCK);
-> > +	if (hzp)
-> > +		new_entry = RADIX_DAX_HZP_ENTRY();
-> > +	else
-> > +		new_entry = RADIX_DAX_ENTRY(sector, new_type);
-> > +
-> >  	if (hole_fill) {
-> >  		__delete_from_page_cache(entry, NULL);
-> >  		/* Drop pagecache reference */
-> >  		put_page(entry);
-> > -		error = radix_tree_insert(page_tree, index, new_entry);
-> > +		error = __radix_tree_insert(page_tree, index,
-> > +				RADIX_DAX_ORDER(new_type), new_entry);
-> >  		if (error) {
-> >  			new_entry = ERR_PTR(error);
-> >  			goto unlock;
-> >  		}
-> >  		mapping->nrexceptional++;
-> > -	} else {
-> > +	} else if ((unsigned long)entry & (RADIX_DAX_HZP|RADIX_DAX_EMPTY)) {
-> >  		void **slot;
-> >  		void *ret;
+> The problem is there are lots of people writing code and very few
+> people who spent time reviewing it. And for many of those reviewers,
+> they also have to spend time on other code bases, whether it be the
+> distro's they maintain, the userspace that the kernel code needs to
+> function, or even the test code needed to make this all work
+> properly.
 > 
-> Hum, I somewhat dislike how PTE and PMD paths differ here. But it's OK for
-> now I guess. Long term we might be better off to do away with zero pages
-> for PTEs as well and use exceptional entry and a single zero page like you
-> do for PMD. Because the special cases these zero pages cause are a
-> headache.
-
-I've been thinking about this as well, and I do think we'd be better off with
-a single zero page for PTEs, as we have with PMDs.  It'd reduce the special
-casing in the DAX code, and it'd also ensure that we don't waste a bunch of
-time and memory creating read-only zero pages to service reads from holes.
-
-I'll look into adding this for v5.
-
-> > +int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
-> > +		pmd_t *pmd, unsigned int flags, struct iomap_ops *ops)
-> > +{
-> > +	struct address_space *mapping = vma->vm_file->f_mapping;
-> > +	unsigned long pmd_addr = address & PMD_MASK;
-> > +	bool write = flags & FAULT_FLAG_WRITE;
-> > +	struct inode *inode = mapping->host;
-> > +	struct iomap iomap = { 0 };
-> > +	int error, result = 0;
-> > +	pgoff_t size, pgoff;
-> > +	struct vm_fault vmf;
-> > +	void *entry;
-> > +	loff_t pos;
-> > +
-> > +	/* Fall back to PTEs if we're going to COW */
-> > +	if (write && !(vma->vm_flags & VM_SHARED)) {
-> > +		split_huge_pmd(vma, pmd, address);
-> > +		return VM_FAULT_FALLBACK;
-> > +	}
-> > +
-> > +	/* If the PMD would extend outside the VMA */
-> > +	if (pmd_addr < vma->vm_start)
-> > +		return VM_FAULT_FALLBACK;
-> > +	if ((pmd_addr + PMD_SIZE) > vma->vm_end)
-> > +		return VM_FAULT_FALLBACK;
-> > +
-> > +	/*
-> > +	 * Check whether offset isn't beyond end of file now. Caller is
-> > +	 * supposed to hold locks serializing us with truncate / punch hole so
-> > +	 * this is a reliable test.
-> > +	 */
-> > +	pgoff = linear_page_index(vma, pmd_addr);
-> > +	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
-> > +
-> > +	if (pgoff >= size)
-> > +		return VM_FAULT_SIGBUS;
-> > +
-> > +	/* If the PMD would extend beyond the file size */
-> > +	if ((pgoff | PG_PMD_COLOUR) >= size)
-> > +		return VM_FAULT_FALLBACK;
-> > +
-> > +	/*
-> > +	 * grab_mapping_entry() will make sure we get a 2M empty entry, a DAX
-> > +	 * PMD or a HZP entry.  If it can't (because a 4k page is already in
-> > +	 * the tree, for instance), it will return -EEXIST and we just fall
-> > +	 * back to 4k entries.
-> > +	 */
-> > +	entry = grab_mapping_entry(mapping, pgoff, RADIX_DAX_PMD);
-> > +	if (IS_ERR(entry))
-> > +		return VM_FAULT_FALLBACK;
-> > +
-> > +	/*
-> > +	 * Note that we don't use iomap_apply here.  We aren't doing I/O, only
-> > +	 * setting up a mapping, so really we're using iomap_begin() as a way
-> > +	 * to look up our filesystem block.
-> > +	 */
-> > +	pos = (loff_t)pgoff << PAGE_SHIFT;
-> > +	error = ops->iomap_begin(inode, pos, PMD_SIZE, write ? IOMAP_WRITE : 0,
-> > +			&iomap);
+> Stuff that spans multiple subsystems such as DAX (i.e. vm,
+> filesystems and block devices) are particularly troublesome in this
+> respect because there are very few people with expertise in all
+> three aspects and hence able to review a change that spans all three
+> subsystems. Those people also tend to be the busiest and have to
+> prioritise what they do.
 > 
-> I'm not quite sure if it is OK to call ->iomap_begin() without ever calling
-> ->iomap_end. Specifically the comment before iomap_apply() says:
+> Consider the XFS side of review in recent times: in the past 4
+> months, there's been ~30,000 lines of code change between kernel and
+> userspace.  And there's already another 15,000+ lines of code in the
+> backlog for the next 2-3 months.  That review load is falling on 3-4
+> people, who all have other work to do as well. This is for work that
+> was started well over a year ago, and that picked up from work that
+> was originally done 3 years ago. We're swamped on pure XFS review
+> right now, let alone all the other infratructure stuff we need to
+> get reviewed at the same time...
 > 
-> "It is assumed that the filesystems will lock whatever resources they
-> require in the iomap_begin call, and release them in the iomap_end call."
+> Having someone say "lets get sorted after the merge window" is far
+> better than having your patches ignored - it tells you someone wants
+> your code and is actually planning to review it in the near term!
+> Have patience. Keep the patches up to date, keep building what you
+> need to build on top of them. Missing a merge window is not the end
+> of the world.
 > 
-> so what you do could result in unbalanced allocations / locks / whatever.
-> Christoph?
-
-I'll add the iomap_end() calls to both the PTE and PMD iomap fault handlers.
-
-> > +	if (error)
-> > +		goto fallback;
-> > +	if (iomap.offset + iomap.length < pos + PMD_SIZE)
-> > +		goto fallback;
-> > +
-> > +	vmf.pgoff = pgoff;
-> > +	vmf.flags = flags;
-> > +	vmf.gfp_mask = mapping_gfp_mask(mapping) | __GFP_FS | __GFP_IO;
+> > Since then I have responded promptly to the little review feedback that I've
+> > received.  I've also reviewed and tested other DAX changes, like the struct
+> > iomap changes from Christoph.
 > 
-> I don't think you want __GFP_FS here - we have already gone through the
-> filesystem's pmd_fault() handler which called dax_iomap_pmd_fault() and
-> thus we hold various fs locks, freeze protection, ...
-
-I copied this from __get_fault_gfp_mask() in mm/memory.c.  That function is
-used by do_page_mkwrite() and __do_fault(), and we eventually get this
-vmf->gfp_mask in the PTE fault code.  With the code as it is we get the same
-vmf->gfp_mask in both dax_iomap_fault() and dax_iomap_pmd_fault().  It seems
-like they should remain consistent - is it wrong to have __GFP_FS in
-dax_iomap_fault()?
-
-> > diff --git a/include/linux/dax.h b/include/linux/dax.h
-> > index c4a51bb..cacff9e 100644
-> > --- a/include/linux/dax.h
-> > +++ b/include/linux/dax.h
-> > @@ -8,8 +8,33 @@
-> >  
-> >  struct iomap_ops;
-> >  
-> > -/* We use lowest available exceptional entry bit for locking */
-> > +/*
-> > + * We use lowest available bit in exceptional entry for locking, two bits for
-> > + * the entry type (PMD & PTE), and two more for flags (HZP and empty).  In
-> > + * total five special bits.
-> > + */
-> > +#define RADIX_DAX_SHIFT	(RADIX_TREE_EXCEPTIONAL_SHIFT + 5)
-> >  #define RADIX_DAX_ENTRY_LOCK (1 << RADIX_TREE_EXCEPTIONAL_SHIFT)
-> > +/* PTE and PMD types */
-> > +#define RADIX_DAX_PTE (1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 1))
-> > +#define RADIX_DAX_PMD (1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 2))
-> > +/* huge zero page and empty entry flags */
-> > +#define RADIX_DAX_HZP (1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 3))
-> > +#define RADIX_DAX_EMPTY (1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 4))
+> And I'm grateful for your doing that - it sped the process up a lot
+> because they then weren't blocked waiting for me to get to them. As
+> a result, I owe you some review time in return but unfortunately I
+> can't fully return the favour immediately. If more people treated
+> review as a selfless act that should be returned in kind, then we
+> wouldn't have a review bottleneck like we do...
 > 
-> I think we can do with just 2 bits for type instead of 4 but for now this
-> is OK I guess.
+> > Those changes were first posted to the mailing
+> > list on September 9th, four weeks after mine.  Nevertheless, I was happy to
+> > rebase my changes on top of his, which meant a full rewrite of the DAX PMD
+> > fault handler so it would be based on struct iomap.  His changes are going to
+> > be merged for v4.9, and mine are not.
+> 
+> Yes, this can happen, too - core infrastructure changes can appear
+> suddenly and be implemented very quickly, but that does not mean
+> there hasn't been a lot of background work and effort put into the
+> code. The iomap code goes way back. Back to early 2010, in fact:
+> 
+> http://lkml.iu.edu/hypermail/linux/kernel/1005.1/02720.html
+> 
+> At that time I implemented a working multipage write IO path for
+> XFS, and Christoph integrated that int various OEM products shortly
+> afterwards. Yes, there have been iomap based XFS implementations out
+> there in production for over 5 years now, but that code was not
+> clean enough to even consider merging.
+> 
+> Another reference in 2013, when someone proposed a hack for embedded
+> systems to optimise the write path:
+> 
+> https://lkml.org/lkml/2013/7/23/809
+> 
+> Then Christoph introduced the struct iomap for pNFS and the XFS
+> block layout driver in late 2013, and when DAX first came along I
+> really wanted iomaps to be used up front rather than buffer heads
+> for block mapping.
+> 
+> Now we've finally got iomaps in the IO path and that's rapidly
+> cascading through all the XFS IO interfaces and into other
+> filesystems. This is exactly what we first talked about 6 years ago.
+> 
+> So while it might look like the iomap infrastructure has come out of
+> nowhere, it's really been a long, long road to get to this point. We
+> work to a different time scale over here - it's not uncommon to be
+> planning 5 years ahead for new XFS features. We know how long it
+> takes to develop, test, review and stabilise significant new
+> features, so while it might look like something appears and is
+> committed quickly, that's because you haven't seen the work that has
+> been done leading up to patches being presented for review and
+> merge.
+> 
+> Hopefully this will give you some more perspective on why I think
+> slipping a single release isn't something to get worried about. :)
+> 
+> > Please, help me understand what I can do to get my code reviewed.  Do I need
+> > to more aggressively ping my patch series, asking people by name for reviews?
+> 
+> On the XFS and fstests lists, if nobody has responded within a few
+> days (usually a week) then it's OK to ping it and see if anyone has
+> time to review it. In general, a single ping is enough if the
+> patchset is in good shape. Fix it all, repost, ping in a week if
+> there's no followup. Repeat until merge.
+> 
+> > Do we need to rework our code flow to Linus so that the DAX changes go through
+> > a filesystem tree like XFS or ext4, and ask the developers of that filesystem
+> > to help with reviews?  Something else?
+> 
+> The question we have to ask here is whether a lack of development
+> support from a filesystem stop us from driving the DAX
+> implementation forward?  I've said it before, and I'll say it again:
+> I'm happy to drive DAX on XFS forwards at the rate at which we can
+> sustain review via the XFS tree and I don't care if we break support
+> on ext2 or ext4. If we keep having to wait for ext4 to fix stuff to
+> catch up with what we want/need to do then progress will continue to
+> be sporadic and frustrating.  Perhaps it's time to stop waiting for
+> ext4 to play catchup every time we take a step forwards....
+> 
+> > I'm honestly very frustrated by this because I've done my best to be open to
+> > constructive criticism and I've tried to respond promptly to the feedback that
+> > I've received.  In the end, though, a system where it's a requirement that all
+> > upstreamed code be peer reviewed but in which I can't get any feedback is
+> > essentially a system where I'm not allowed to contribute.
+> 
+> There's always been a review bottleneck, and everyone ends up on the
+> end of that frustration from time to time. Delays will happen - it's
+> just part of the process we all need to deal with. I used to get
+> frustrated, too, but now I just accept it, roll with it and we've
+> made it an acceptible part of the process to ping patches when it
+> looks like they have been forgotten...
+> 
+> Cheers,
+> 
+> Dave.
+> -- 
+> Dave Chinner
+> david@fromorbit.com
 
-I guess we could combine the PMD/PTE choice into the same bit (0=PTE, 1=PMD),
-but we have three cases for the other types (zero page, empty entry just for
-locking, real DAX based entry with storage), so we need at least 2 bits for
-those.
+Thank you for the advice and perspective, Dave.  :)
 
-Christoph also suggested some reworks to the "type" logic - I'll look at
-simplifying the way the flags are used for DAX entries.
-
-Thank you for the review!
+I've gotten a bunch of review feedback from Christoph and Jan (thank you!), so
+I'm busily addressing that.  Since we're now targeting v4.10 I'll also
+incorporate tracepoints so we can observe what's going on in our various fault
+paths.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
