@@ -1,84 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F4156B0069
-	for <linux-mm@kvack.org>; Mon,  3 Oct 2016 09:00:02 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id f193so58890508wmg.0
-        for <linux-mm@kvack.org>; Mon, 03 Oct 2016 06:00:02 -0700 (PDT)
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com. [74.125.82.47])
-        by mx.google.com with ESMTPS id q197si18644564wmb.145.2016.10.03.06.00.00
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 157356B0069
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2016 09:19:34 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id l138so92584937wmg.3
+        for <linux-mm@kvack.org>; Mon, 03 Oct 2016 06:19:34 -0700 (PDT)
+Received: from mail-wm0-f68.google.com (mail-wm0-f68.google.com. [74.125.82.68])
+        by mx.google.com with ESMTPS id w2si18840876wmw.0.2016.10.03.06.19.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Oct 2016 06:00:00 -0700 (PDT)
-Received: by mail-wm0-f47.google.com with SMTP id b201so80106086wmb.0
-        for <linux-mm@kvack.org>; Mon, 03 Oct 2016 06:00:00 -0700 (PDT)
-Date: Mon, 3 Oct 2016 14:59:59 +0200
+        Mon, 03 Oct 2016 06:19:32 -0700 (PDT)
+Received: by mail-wm0-f68.google.com with SMTP id b184so14690801wma.3
+        for <linux-mm@kvack.org>; Mon, 03 Oct 2016 06:19:32 -0700 (PDT)
+Date: Mon, 3 Oct 2016 15:19:31 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Crashes in refresh_zone_stat_thresholds when some nodes have no
- memory
-Message-ID: <20161003125959.GD26768@dhcp22.suse.cz>
-References: <20160804064410.GA20509@fergus.ozlabs.ibm.com>
- <20161003124716.GD26759@dhcp22.suse.cz>
+Subject: Re: [PATCH 1/2] mm: memcontrol: use special workqueue for creating
+ per-memcg caches
+Message-ID: <20161003131930.GE26768@dhcp22.suse.cz>
+References: <c509c51d47b387c3d8e879678aca0b5e881b4613.1475329751.git.vdavydov.dev@gmail.com>
+ <20161003120641.GC26768@dhcp22.suse.cz>
+ <20161003123505.GA1862@esperanza>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161003124716.GD26759@dhcp22.suse.cz>
+In-Reply-To: <20161003123505.GA1862@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Mackerras <paulus@ozlabs.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linuxppc-dev@ozlabs.org, Balbir Singh <bsingharora@gmail.com>, Nicholas Piggin <npiggin@gmail.com>
+To: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Pekka Enberg <penberg@kernel.org>
 
-On Mon 03-10-16 14:47:16, Michal Hocko wrote:
-> [Sorry I have only now noticed this email]
-> 
-> On Thu 04-08-16 16:44:10, Paul Mackerras wrote:
-[...]
-> > [    1.717648] Call Trace:
-> > [    1.717687] [c000000ff0707b80] [c000000000270d08] refresh_zone_stat_thresholds+0xb8/0x240 (unreliable)
-> > [    1.717818] [c000000ff0707bd0] [c000000000a1e4d4] init_per_zone_wmark_min+0x94/0xb0
-> > [    1.717932] [c000000ff0707c30] [c00000000000b90c] do_one_initcall+0x6c/0x1d0
-> > [    1.718036] [c000000ff0707cf0] [c000000000d04244] kernel_init_freeable+0x294/0x384
-> > [    1.718150] [c000000ff0707dc0] [c00000000000c1a8] kernel_init+0x28/0x160
-> > [    1.718249] [c000000ff0707e30] [c000000000009968] ret_from_kernel_thread+0x5c/0x74
-> > [    1.718358] Instruction dump:
-> > [    1.718408] 3fc20003 3bde4e34 3b800000 60420000 3860ffff 3fbb0001 4800001c 60420000 
-> > [    1.718575] 3d220003 3929f8e0 7d49502a e93d9c00 <7f8a49ae> 38a30001 38800800 7ca507b4 
+On Mon 03-10-16 15:35:06, Vladimir Davydov wrote:
+> On Mon, Oct 03, 2016 at 02:06:42PM +0200, Michal Hocko wrote:
+> > On Sat 01-10-16 16:56:47, Vladimir Davydov wrote:
+> > > Creating a lot of cgroups at the same time might stall all worker
+> > > threads with kmem cache creation works, because kmem cache creation is
+> > > done with the slab_mutex held. To prevent that from happening, let's use
+> > > a special workqueue for kmem cache creation with max in-flight work
+> > > items equal to 1.
+> > > 
+> > > Link: https://bugzilla.kernel.org/show_bug.cgi?id=172981
 > > 
-> > It turns out that we can get a pgdat in the online pgdat list where
-> > pgdat->per_cpu_nodestats is NULL.  On my machine the pgdats for nodes
-> > 1 and 17 are like this.  All the memory is in nodes 0 and 16.
+> > This looks like a regression but I am not really sure I understand what
+> > has caused it. We had the WQ based cache creation since kmem was
+> > introduced more or less. So is it 801faf0db894 ("mm/slab: lockless
+> > decision to grow cache") which was pointed by bisection that changed the
+> > timing resp. relaxed the cache creation to the point that would allow
+> > this runaway?
 > 
-> How is this possible? setup_per_cpu_pageset does
-> 
-> 	for_each_online_pgdat(pgdat)
-> 		pgdat->per_cpu_nodestats =
-> 			alloc_percpu(struct per_cpu_nodestat);
-> 
-> so each online node should have the per_cpu_nodestat allocated.
-> refresh_zone_stat_thresholds then does for_each_online_pgdat and
-> for_each_populated_zone also shouldn't give any offline pgdat. Is it
-> possible that this is yet another manifest of 6aa303defb74 ("mm, vmscan:
-> only allocate and reclaim from zones with pages managed by the buddy
-> allocator")? I guess the following should be sufficient?
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 73aab319969d..c170932a0101 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -185,6 +185,9 @@ void refresh_zone_stat_thresholds(void)
->  		struct pglist_data *pgdat = zone->zone_pgdat;
->  		unsigned long max_drift, tolerate_drift;
->  
-> +		if (!managed_zone(zone))
-> +			continue;
-> +
->  		threshold = calculate_normal_threshold(zone);
->  
->  		for_each_online_cpu(cpu) {
+> It is in case of SLAB. For SLUB the issue was caused by commit
+> 81ae6d03952c ("mm/slub.c: replace kick_all_cpus_sync() with
+> synchronize_sched() in kmem_cache_shrink()").
 
-Hmm, now that I am thinking about this some more I fail to understand
-the crash. Even if a zone was poppulated but not managed it shouldn't
-point to an offline node. So this smells like some race when a node is
-brought up. What does addr2line tells about the instruction which
-failed?
+OK, thanks for the confirmation. This would be useful in the changelog
+imho.
+
+> > This would be really useful for the stable backport
+> > consideration.
+> > 
+> > Also, if I understand the fix correctly, now we do limit the number of
+> > workers to 1 thread. Is this really what we want? Wouldn't it be
+> > possible that few memcgs could starve others fromm having their cache
+> > created? What would be the result, missed charges?
+> 
+> Now kmem caches are created in FIFO order, i.e. if one memcg called
+> kmem_cache_alloc on a non-existent cache before another, it will be
+> served first.
+
+I do not see where this FIFO is guaranteed.
+__memcg_schedule_kmem_cache_create doesn't seem to be using ordered WQ.
+
+> Since the number of caches that can be created by a single
+> memcg is obviously limited,
+
+by the number of existing caches, right?
+
+> I don't see any possibility of starvation.
+
+What I meant was that while now workers can contend on the slab_mutex
+with the patch there will be a real ordering in place AFAIU and so an
+unlucky memcg can be waiting for N(memcgs) * N (caches) to be served.
+Not that the current implementation gives us anything because the
+ordering should be more or less scheduling and workers dependent. Or I
+am missing something. A per-cache memcg WQ would mitigate to some
+extent.
+
+> Actually, this patch doesn't introduce any functional changes regarding
+> the order in which kmem caches are created, as the work function holds
+> the global slab_mutex during its whole runtime anyway. We only avoid
+> creating a thread per each work by making the queue single-threaded.
+
+OK please put this information into the changelog.
+
+That being said I am not opposing the current solution I just wanted to
+understand all the consequences and would appreciate more information in
+the changelog as this seems like the stable material.
+
+Thanks!
+
 -- 
 Michal Hocko
 SUSE Labs
