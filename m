@@ -1,47 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F0186B0069
-	for <linux-mm@kvack.org>; Mon,  3 Oct 2016 03:43:54 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id b201so33305627wmb.2
-        for <linux-mm@kvack.org>; Mon, 03 Oct 2016 00:43:54 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 4F4346B0069
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2016 03:59:06 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id f193so51009279wmg.0
+        for <linux-mm@kvack.org>; Mon, 03 Oct 2016 00:59:06 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c184si17380056wmd.123.2016.10.03.00.43.53
+        by mx.google.com with ESMTPS id di5si33419397wjb.50.2016.10.03.00.59.04
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 03 Oct 2016 00:43:53 -0700 (PDT)
-Date: Mon, 3 Oct 2016 09:43:51 +0200
+        Mon, 03 Oct 2016 00:59:05 -0700 (PDT)
+Date: Mon, 3 Oct 2016 09:59:02 +0200
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 02/20] mm: Join struct fault_env and vm_fault
-Message-ID: <20161003074351.GF6457@quack2.suse.cz>
+Subject: Re: [PATCH 0/20 v3] dax: Clear dirty bits after flushing caches
+Message-ID: <20161003075902.GG6457@quack2.suse.cz>
 References: <1474992504-20133-1-git-send-email-jack@suse.cz>
- <1474992504-20133-3-git-send-email-jack@suse.cz>
- <20160930091014.GB24352@infradead.org>
+ <20160930091418.GC24352@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160930091014.GB24352@infradead.org>
+In-Reply-To: <20160930091418.GC24352@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Hellwig <hch@infradead.org>
 Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@ml01.01.org, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Fri 30-09-16 02:10:14, Christoph Hellwig wrote:
-> On Tue, Sep 27, 2016 at 06:08:06PM +0200, Jan Kara wrote:
-> > Currently we have two different structures for passing fault information
-> > around - struct vm_fault and struct fault_env. DAX will need more
-> > information in struct vm_fault to handle its faults so the content of
-> > that structure would become event closer to fault_env. Furthermore it
-> > would need to generate struct fault_env to be able to call some of the
-> > generic functions. So at this point I don't think there's much use in
-> > keeping these two structures separate. Just embed into struct vm_fault
-> > all that is needed to use it for both purposes.
+On Fri 30-09-16 02:14:18, Christoph Hellwig wrote:
+> On Tue, Sep 27, 2016 at 06:08:04PM +0200, Jan Kara wrote:
+> > Hello,
+> > 
+> > this is a third revision of my patches to clear dirty bits from radix tree of
+> > DAX inodes when caches for corresponding pfns have been flushed. This patch set
+> > is significantly larger than the previous version because I'm changing how
+> > ->fault, ->page_mkwrite, and ->pfn_mkwrite handlers may choose to handle the
+> > fault
 > 
-> Looks sensible, and I wonder why it's not been like that from
-> the start.  But given that you touched all users of the virtual_address
-> member earlier:  any reason not to move everyone to the unmasked variant
-> there and avoid having to pass the address twice?
+> Btw, is there ny good reason to keep ->fault, ->pmd_fault, page->mkwrite
+> and pfn_mkwrite separate these days?  All of them now take a struct
+> vm_fault, and the differences aren't exactly obvious for callers and
+> users.
 
-Hum, right, probably makes sense. I'll do that for the next version.
+IMO ->fault and ->pmd_fault can be merged, ->page_mkwrite and ->pfn_mkwrite
+can be merged. There were even patches flying around for that. I want to do
+that but it's not a priority now as the patch set it already large enough.
+
+I'm not sure whether merging ->fault and ->page_mkwrite would be really
+helpful and it would certainly require some non-trivial changes in the
+fault path. For example currently a write fault of a file mapping will
+result in first ->fault being called which handles the read part of the
+fault and then ->page_mkwrite is called to handle write-enabling of the
+PTE. When the handlers would be merged, calling one handler twice would be
+really strange.
 
 								Honza
 -- 
