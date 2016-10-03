@@ -1,73 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F9246B0069
-	for <linux-mm@kvack.org>; Mon,  3 Oct 2016 11:29:11 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id fi2so345833551pad.3
-        for <linux-mm@kvack.org>; Mon, 03 Oct 2016 08:29:11 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTPS id h189si37345806pfb.251.2016.10.03.08.29.09
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D70256B0069
+	for <linux-mm@kvack.org>; Mon,  3 Oct 2016 11:52:24 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id f6so94602836qtd.2
+        for <linux-mm@kvack.org>; Mon, 03 Oct 2016 08:52:24 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j31si12135923qtb.6.2016.10.03.08.52.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Oct 2016 08:29:09 -0700 (PDT)
-Received: from mail.kernel.org (localhost [127.0.0.1])
-	by mail.kernel.org (Postfix) with ESMTP id A1FB220251
-	for <linux-mm@kvack.org>; Mon,  3 Oct 2016 15:29:08 +0000 (UTC)
-Received: from mail-yw0-f174.google.com (mail-yw0-f174.google.com [209.85.161.174])
-	(using TLSv1.2 with cipher AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 9CB4320254
-	for <linux-mm@kvack.org>; Mon,  3 Oct 2016 15:29:06 +0000 (UTC)
-Received: by mail-yw0-f174.google.com with SMTP id t193so30875268ywc.2
-        for <linux-mm@kvack.org>; Mon, 03 Oct 2016 08:29:06 -0700 (PDT)
+        Mon, 03 Oct 2016 08:52:24 -0700 (PDT)
+Date: Mon, 3 Oct 2016 17:51:12 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH v4 1/2] mm, proc: Fix region lost in /proc/self/smaps
+Message-ID: <20161003155111.GA4758@redhat.com>
+References: <1475296958-27652-1-git-send-email-robert.hu@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <1474828616-16608-2-git-send-email-arbab@linux.vnet.ibm.com>
-References: <1474828616-16608-1-git-send-email-arbab@linux.vnet.ibm.com> <1474828616-16608-2-git-send-email-arbab@linux.vnet.ibm.com>
-From: Rob Herring <robh+dt@kernel.org>
-Date: Mon, 3 Oct 2016 10:28:45 -0500
-Message-ID: <CAL_JsqKkYFeENE226QFsoqEMJEPpXET0-xJOWoA0j_tbOPu0_g@mail.gmail.com>
-Subject: Re: [PATCH v3 1/5] drivers/of: introduce of_fdt_is_available()
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1475296958-27652-1-git-send-email-robert.hu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Reza Arbab <arbab@linux.vnet.ibm.com>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Frank Rowand <frowand.list@gmail.com>, Jonathan Corbet <corbet@lwn.net>, Andrew Morton <akpm@linux-foundation.org>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Robert Ho <robert.hu@intel.com>
+Cc: pbonzini@redhat.com, akpm@linux-foundation.org, mhocko@suse.com, dave.hansen@intel.com, dan.j.williams@intel.com, guangrong.xiao@linux.intel.com, gleb@kernel.org, mtosatti@redhat.com, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, stefanha@redhat.com, yuhuang@redhat.com, linux-mm@kvack.org, ross.zwisler@linux.intel.com
 
-On Sun, Sep 25, 2016 at 1:36 PM, Reza Arbab <arbab@linux.vnet.ibm.com> wrote:
-> In __fdt_scan_reserved_mem(), the availability of a node is determined
-> by testing its "status" property.
+On 10/01, Robert Ho wrote:
 >
-> Move this check into its own function, borrowing logic from the
-> unflattened version, of_device_is_available().
->
-> Another caller will be added in a subsequent patch.
->
-> Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
-> ---
->  drivers/of/fdt.c       | 26 +++++++++++++++++++++++---
->  include/linux/of_fdt.h |  2 ++
->  2 files changed, 25 insertions(+), 3 deletions(-)
->
-> diff --git a/drivers/of/fdt.c b/drivers/of/fdt.c
-> index 085c638..9241c6e 100644
-> --- a/drivers/of/fdt.c
-> +++ b/drivers/of/fdt.c
-> @@ -151,6 +151,23 @@ int of_fdt_match(const void *blob, unsigned long node,
->         return score;
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -147,7 +147,7 @@ m_next_vma(struct proc_maps_private *priv, struct vm_area_struct *vma)
+>  static void m_cache_vma(struct seq_file *m, struct vm_area_struct *vma)
+>  {
+>  	if (m->count < m->size)	/* vma is copied successfully */
+> -		m->version = m_next_vma(m->private, vma) ? vma->vm_start : -1UL;
+> +		m->version = m_next_vma(m->private, vma) ? vma->vm_end : -1UL;
 >  }
->
-> +bool of_fdt_is_available(const void *blob, unsigned long node)
+>  
+>  static void *m_start(struct seq_file *m, loff_t *ppos)
+> @@ -175,8 +175,10 @@ static void *m_start(struct seq_file *m, loff_t *ppos)
+>  	priv->tail_vma = get_gate_vma(mm);
+>  
+>  	if (last_addr) {
+> -		vma = find_vma(mm, last_addr);
+> -		if (vma && (vma = m_next_vma(priv, vma)))
+> +		vma = find_vma(mm, last_addr - 1);
+> +		if (vma && vma->vm_start <= last_addr)
+> +			vma = m_next_vma(priv, vma);
+> +		if (vma)
+>  			return vma;
+>  	}
 
-of_fdt_device_is_available
-
-[...]
-
-> +bool __init of_flat_dt_is_available(unsigned long node)
-
-And of_flat_dt_device_is_available
-
-With that,
-
-Acked-by: Rob Herring <robh@kernel.org>
+Acked-by: Oleg Nesterov <oleg@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
