@@ -1,76 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CBB2E6B0038
-	for <linux-mm@kvack.org>; Tue,  4 Oct 2016 16:32:38 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id s30so125214981ioi.0
-        for <linux-mm@kvack.org>; Tue, 04 Oct 2016 13:32:38 -0700 (PDT)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id l30si7693534iod.131.2016.10.04.13.32.37
-        for <linux-mm@kvack.org>;
-        Tue, 04 Oct 2016 13:32:38 -0700 (PDT)
-Date: Wed, 5 Oct 2016 07:32:02 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [RFC PATCH] mm, compaction: allow compaction for GFP_NOFS
- requests
-Message-ID: <20161004203202.GY9806@dastard>
-References: <20161004081215.5563-1-mhocko@kernel.org>
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AF1D76B0038
+	for <linux-mm@kvack.org>; Tue,  4 Oct 2016 17:54:30 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id b80so21114573wme.1
+        for <linux-mm@kvack.org>; Tue, 04 Oct 2016 14:54:30 -0700 (PDT)
+Received: from mout.gmx.net (mout.gmx.net. [212.227.15.19])
+        by mx.google.com with ESMTPS id b11si7170900wjs.147.2016.10.04.14.54.29
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 04 Oct 2016 14:54:29 -0700 (PDT)
+Subject: Re: Frequent ext4 oopses with 4.4.0 on Intel NUC6i3SYB
+References: <fcb653b9-cd9e-5cec-1036-4b4c9e1d3e7b@gmx.de>
+ <20161004084136.GD17515@quack2.suse.cz>
+ <90dfe18f-9fe7-819d-c410-cdd160644ab7@gmx.de>
+ <2b7d6bd6-7d16-3c60-1b84-a172ba378402@gmx.de>
+ <CABYiri-UUT6zVGyNENp-aBJDj6Oikodc5ZA27Gzq5-bVDqjZ4g@mail.gmail.com>
+ <087b53e5-b23b-d3c2-6b8e-980bdcbf75c1@gmx.de>
+ <CABYiri_3qS6XgT04hCeF1AMuxY6W0k7QVEO-N0ZodeJTdG=xsw@mail.gmail.com>
+From: Johannes Bauer <dfnsonfsduifb@gmx.de>
+Message-ID: <26892620-eac1-eed4-da46-da9f183d52b1@gmx.de>
+Date: Tue, 4 Oct 2016 23:54:24 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161004081215.5563-1-mhocko@kernel.org>
+In-Reply-To: <CABYiri_3qS6XgT04hCeF1AMuxY6W0k7QVEO-N0ZodeJTdG=xsw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Andrey Korolyov <andrey@xdel.ru>
+Cc: Jan Kara <jack@suse.cz>, linux-ext4@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Oct 04, 2016 at 10:12:15AM +0200, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On 04.10.2016 22:17, Andrey Korolyov wrote:
+>> I'm super puzzled right now :-(
+>>
 > 
-> compaction has been disabled for GFP_NOFS and GFP_NOIO requests since
-> the direct compaction was introduced by 56de7263fcf3 ("mm: compaction:
-> direct compact when a high-order allocation fails"). The main reason
-> is that the migration of page cache pages might recurse back to fs/io
-> layer and we could potentially deadlock. This is overly conservative
-> because all the anonymous memory is migrateable in the GFP_NOFS context
-> just fine.  This might be a large portion of the memory in many/most
-> workkloads.
-> 
-> Remove the GFP_NOFS restriction and make sure that we skip all fs pages
-> (those with a mapping) while isolating pages to be migrated. We cannot
-> consider clean fs pages because they might need a metadata update so
-> only isolate pages without any mapping for nofs requests.
-> 
-> The effect of this patch will be probably very limited in many/most
-> workloads because higher order GFP_NOFS requests are quite rare,
+> There are three strawman` ideas out of head, down by a level of
+> naiveness increase:
+> - disk controller corrupts DMA chunks themselves, could be tested
+> against usb stick/sd card with same fs or by switching disk controller
+> to a legacy mode if possible, but cascading failure shown previously
+> should be rather unusual for this,
 
-You say they are rare only because you don't know how to trigger
-them easily.  :/
+I'll check out if this is possible somehow tomorrow.
 
-Try this:
+> - SMP could be partially broken in such manner that it would cause
+> overlapped accesses under certain conditions, may be checked with
+> 'nosmp',
 
-# mkfs.xfs -f -n size=64k <dev>
-# mount <dev> /mnt/scratch
-# time ./fs_mark  -D  10000  -S0  -n  100000  -s  0  -L  32 \
-        -d  /mnt/scratch/0  -d  /mnt/scratch/1 \
-        -d  /mnt/scratch/2  -d  /mnt/scratch/3 \
-        -d  /mnt/scratch/4  -d  /mnt/scratch/5 \
-        -d  /mnt/scratch/6  -d  /mnt/scratch/7 \
-        -d  /mnt/scratch/8  -d  /mnt/scratch/9 \
-        -d  /mnt/scratch/10  -d  /mnt/scratch/11 \
-        -d  /mnt/scratch/12  -d  /mnt/scratch/13 \
-        -d  /mnt/scratch/14  -d  /mnt/scratch/15
+Unfortunately not:
 
-As soon as tail pushing on the journal starts (a few seconds in,
-most likely), you'll start to see lots of 65kB allocations being
-requested in GFP_NOFS context by the xfs-cil-worker context doing
-journal checkpoint formatting....
+  CC [M]  drivers/infiniband/core/multicast.o
+  CC [M]  drivers/infiniband/core/mad.o
+drivers/infiniband/core/mad.c: In function a??ib_mad_port_closea??:
+drivers/infiniband/core/mad.c:3252:1: internal compiler error: Bus error
+ }
+ ^
 
-Cheers,
+nuc [~]: cat /proc/cmdline
+BOOT_IMAGE=/vmlinuz-4.8.0 root=UUID=f6a792b3-3027-4293-a118-f0df1de9b25c
+ro ip=:::::eno1:dhcp nosmp
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+> - disk accesses and corresponding power spikes are causing partial
+> undervoltage condition somewhere where bits are relatively freely
+> flipping on paths without parity checking, though this could be
+> addressed only to an onboard power distributor, not to power source
+> itself.
+
+Huh that sounds like "defective hardware" to me, wouldn't it?
+
+Cheers and thank you for your help,
+Johannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
