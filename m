@@ -1,106 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BE4C66B0069
-	for <linux-mm@kvack.org>; Tue,  4 Oct 2016 10:58:23 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id f193so94960178wmg.0
-        for <linux-mm@kvack.org>; Tue, 04 Oct 2016 07:58:23 -0700 (PDT)
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com. [74.125.82.47])
-        by mx.google.com with ESMTPS id bm2si4964112wjc.110.2016.10.04.07.58.22
+	by kanga.kvack.org (Postfix) with ESMTP id 175256B0069
+	for <linux-mm@kvack.org>; Tue,  4 Oct 2016 11:02:45 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id b80so11507661wme.1
+        for <linux-mm@kvack.org>; Tue, 04 Oct 2016 08:02:45 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 201si5670903wmi.59.2016.10.04.08.02.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Oct 2016 07:58:22 -0700 (PDT)
-Received: by mail-wm0-f47.google.com with SMTP id f193so172713400wmg.0
-        for <linux-mm@kvack.org>; Tue, 04 Oct 2016 07:58:22 -0700 (PDT)
-Subject: Re: Soft lockup in __slab_free (SLUB)
-References: <57E8D270.8040802@kyup.com>
- <20160928053114.GC22706@js1304-P5Q-DELUXE>
-From: Nikolay Borisov <kernel@kyup.com>
-Message-ID: <57F3C38C.6090203@kyup.com>
-Date: Tue, 4 Oct 2016 17:58:20 +0300
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 04 Oct 2016 08:02:43 -0700 (PDT)
+Subject: Re: [PATCH] oom: print nodemask in the oom report
+References: <20160930214146.28600-1-mhocko@kernel.org>
+ <65c637df-a9a3-777d-f6d3-322033980f86@suse.cz>
+ <20161004141607.GC32214@dhcp22.suse.cz>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <6fc2bb5f-a91c-f4e8-8d3c-029e2bdb3526@suse.cz>
+Date: Tue, 4 Oct 2016 17:02:42 +0200
 MIME-Version: 1.0
-In-Reply-To: <20160928053114.GC22706@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <20161004141607.GC32214@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Linux MM <linux-mm@kvack.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Sellami Abdelkader <abdelkader.sellami@sap.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
+On 10/04/2016 04:16 PM, Michal Hocko wrote:
+> On Tue 04-10-16 15:24:53, Vlastimil Babka wrote:
+>> On 09/30/2016 11:41 PM, Michal Hocko wrote:
+> [...]
+>>> Fix this by always priting the nodemask. It is either mempolicy mask
+>>> (and non-null) or the one defined by the cpusets.
+>>
+>> I wonder if it's helpful to print the cpuset one when that's printed
+>> separately, and seeing both pieces of information (nodemask and cpuset)
+>> unmodified might tell us more. Is it to make it easier to deal with NULL
+>> nodemask? Or to make sure the info gets through pr_warn() and not pr_info()?
+>
+> I am not sure I understand the question. I wanted to print the nodemask
+> separatelly in the same line with all other allocation request
+> parameters like order and gfp mask because that is what the page
+> allocator got (via policy_nodemask). cpusets builds on top - aka applies
+> __cpuset_zone_allowed on top of the nodemask. So imho it makes sense to
+> look at the cpuset as an allocation domain while the mempolicy as a
+> restriction within this domain.
+>
+> Does that answer your question?
 
+Ah, I wasn't clear. What I questioned is the fallback to cpusets for 
+NULL nodemask:
 
-On 09/28/2016 08:31 AM, Joonsoo Kim wrote:
-> Hello,
-> 
-> Ccing Paul, because it looks like RCU problem.
-> 
-> On Mon, Sep 26, 2016 at 10:46:56AM +0300, Nikolay Borisov wrote:
->> Hello, 
->>
->> On 4.4.14 stable kernel I observed the following soft-lockup, however I
->> also checked that the code is the same in 4.8-rc so the problem is 
->> present there as well: 
->>
->> [434575.862377] NMI watchdog: BUG: soft lockup - CPU#13 stuck for 23s! [swapper/13:0]
->> [434575.866352] CPU: 13 PID: 0 Comm: swapper/13 Tainted: P           O    4.4.14-clouder5 #2
->> [434575.866643] Hardware name: Supermicro X9DRD-iF/LF/X9DRD-iF, BIOS 3.0b 12/05/2013
->> [434575.866932] task: ffff8803714aadc0 ti: ffff8803714c4000 task.ti: ffff8803714c4000
->> [434575.867221] RIP: 0010:[<ffffffff81613f4c>]  [<ffffffff81613f4c>] _raw_spin_unlock_irqrestore+0x1c/0x30
->> [434575.867566] RSP: 0018:ffff880373ce3dc0  EFLAGS: 00000203
->> [434575.867736] RAX: ffff88066e0c9a40 RBX: 0000000000000203 RCX: 0000000000000000
->> [434575.868023] RDX: 0000000000000008 RSI: 0000000000000203 RDI: ffff88066e0c9a40
->> [434575.868311] RBP: ffff880373ce3dc8 R08: ffff8803e5c1d118 R09: ffff8803e5c1d538
->> [434575.868609] R10: 0000000000000000 R11: ffffea000f970600 R12: ffff88066e0c9a40
->> [434575.868895] R13: ffffea000f970600 R14: 000000000046cf3b R15: ffff88036f8e3200
->> [434575.869183] FS:  0000000000000000(0000) GS:ffff880373ce0000(0000) knlGS:0000000000000000
->> [434575.869472] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
->> [434575.869643] CR2: ffffffffff600400 CR3: 0000000367201000 CR4: 00000000001406e0
->> [434575.869931] Stack:
->> [434575.870095]  ffff88066e0c9a40 ffff880373ce3e78 ffffffff8117ea8a ffff880373ce3e08
->> [434575.870567]  000000000046bd03 0000000100170017 ffff8803e5c1d118 ffff8803e5c1d118
->> [434575.871037]  00ff000100000000 0000000000000203 0000000000000000 ffffffff8123d9ac
->> [434575.874253] Call Trace:
->> [434575.874418]  <IRQ> 
->> [434575.874473]  [<ffffffff8117ea8a>] __slab_free+0xca/0x290
->> [434575.874806]  [<ffffffff8123d9ac>] ? ext4_i_callback+0x1c/0x20
->> [434575.874978]  [<ffffffff8117ee3a>] kmem_cache_free+0x1ea/0x200
->> [434575.875149]  [<ffffffff8123d9ac>] ext4_i_callback+0x1c/0x20
->> [434575.875325]  [<ffffffff810ad09b>] rcu_process_callbacks+0x21b/0x620
->> [434575.875506]  [<ffffffff81057337>] __do_softirq+0x147/0x310
->> [434575.875680]  [<ffffffff8105764f>] irq_exit+0x5f/0x70
->> [434575.875851]  [<ffffffff81616a82>] smp_apic_timer_interrupt+0x42/0x50
->> [434575.876025]  [<ffffffff816151e9>] apic_timer_interrupt+0x89/0x90
->> [434575.876197]  <EOI> 
->> [434575.876250]  [<ffffffff81510601>] ? cpuidle_enter_state+0x141/0x2c0
->> [434575.876583]  [<ffffffff815105f6>] ? cpuidle_enter_state+0x136/0x2c0
->> [434575.876755]  [<ffffffff815107b7>] cpuidle_enter+0x17/0x20
->> [434575.876929]  [<ffffffff810949fc>] cpu_startup_entry+0x2fc/0x360
->> [434575.877105]  [<ffffffff810330e3>] start_secondary+0xf3/0x100
->>
->> The ip in __slab_free points to this piece of code (in mm/slub.c): 
->>
->> if (unlikely(n)) {
->> 	spin_unlock_irqrestore(&n->list_lock, flags);
->>         n = NULL;
->> }
->>
->> I think it's a pure chance that the spin_unlock_restore is being shown in this trace, 
->> do you think that a cond_resched is needed in this unlikely if clause? Apparently there 
->> are cases where this loop can take a considerable amount of time.
-> 
-> I think that __slab_free() doesn't take too long time even if there is
-> lock contention. And, cond_resched() is valid on softirq context?
-> 
-> I think that problem would be caused by too many rcu callback is
-> executed without scheduling. Paul?
-> 
-> Thanks.
+nodemask_t *nm = (oc->nodemask) ? oc->nodemask : 
+&cpuset_current_mems_allowed;
 
-So this problem manifested itself again, with the exact same callstack,
-this actually leads me to believe that your hypotheses about rcu being
-the main culprit might actually be correct. I will have to play with
-ftrace to see how to acquire useful information which might point me at
-the culprit. Do you have any ideas on the top of your head?
-
+>>> The new output for
+>>> the above oom report would be
+>>>
+>>> PoolThread invoked oom-killer: gfp_mask=0x280da(GFP_HIGHUSER_MOVABLE|__GFP_ZERO), nodemask=0, order=0, oom_adj=0, oom_score_adj=0
+>>>
+>>> This patch doesn't touch show_mem and the node filtering based on the
+>>> cpuset node mask because mempolicy is always a subset of cpusets and
+>>> seeing the full cpuset oom context might be helpful for tunning more
+>>> specific mempolicies inside cpusets (e.g. when they turn out to be too
+>>> restrictive). To prevent from ugly ifdefs the mask is printed even
+>>> for !NUMA configurations but this should be OK (a single node will be
+>>> printed).
+>>>
+>>> Reported-by: Sellami Abdelkader <abdelkader.sellami@sap.com>
+>>> Signed-off-by: Michal Hocko <mhocko@suse.com>
+>>
+>> Other than that,
+>>
+>> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+>
+> Thanks!
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
