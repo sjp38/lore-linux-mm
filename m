@@ -1,71 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D01F66B0038
-	for <linux-mm@kvack.org>; Tue,  4 Oct 2016 12:54:14 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id b80so14562241wme.1
-        for <linux-mm@kvack.org>; Tue, 04 Oct 2016 09:54:14 -0700 (PDT)
-Received: from mail-wm0-x22b.google.com (mail-wm0-x22b.google.com. [2a00:1450:400c:c09::22b])
-        by mx.google.com with ESMTPS id cj2si5569175wjc.184.2016.10.04.09.54.13
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E9326B0038
+	for <linux-mm@kvack.org>; Tue,  4 Oct 2016 13:09:59 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id f193so98560866wmg.0
+        for <linux-mm@kvack.org>; Tue, 04 Oct 2016 10:09:59 -0700 (PDT)
+Received: from arcturus.aphlor.org (arcturus.ipv6.aphlor.org. [2a03:9800:10:4a::2])
+        by mx.google.com with ESMTPS id hf3si5709419wjc.24.2016.10.04.10.09.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Oct 2016 09:54:13 -0700 (PDT)
-Received: by mail-wm0-x22b.google.com with SMTP id f193so26671262wmg.0
-        for <linux-mm@kvack.org>; Tue, 04 Oct 2016 09:54:13 -0700 (PDT)
+        Tue, 04 Oct 2016 10:09:58 -0700 (PDT)
+Date: Tue, 4 Oct 2016 13:09:55 -0400
+From: Dave Jones <davej@codemonkey.org.uk>
+Subject: page_cache_tree_insert WARN_ON hit on 4.8+
+Message-ID: <20161004170955.n25polpcsotmwcdq@codemonkey.org.uk>
 MIME-Version: 1.0
-In-Reply-To: <877f9p55lu.fsf@concordia.ellerman.id.au>
-References: <20161003161322.3835-1-dvlasenk@redhat.com> <CAGXu5j+haCUW_AEPLPcVGtrnv4ojQ79FDpspUurYJSX_-TXeow@mail.gmail.com>
- <877f9p55lu.fsf@concordia.ellerman.id.au>
-From: Kees Cook <keescook@chromium.org>
-Date: Tue, 4 Oct 2016 09:54:12 -0700
-Message-ID: <CAGXu5jJ3PpvNBYyBWa_M8ELLPuJOcJt-KuH0uRK66peJM_CnSg@mail.gmail.com>
-Subject: Re: [PATCH v6] powerpc: Do not make the entire heap executable
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Oleg Nesterov <oleg@redhat.com>, Florian Weimer <fweimer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Linux Kernel <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>
 
-On Mon, Oct 3, 2016 at 5:18 PM, Michael Ellerman <mpe@ellerman.id.au> wrote:
-> Kees Cook <keescook@chromium.org> writes:
->
->> On Mon, Oct 3, 2016 at 9:13 AM, Denys Vlasenko <dvlasenk@redhat.com> wrote:
->>> On 32-bit powerpc the ELF PLT sections of binaries (built with --bss-plt,
->>> or with a toolchain which defaults to it) look like this:
-> ...
->>>
->>> Signed-off-by: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
->>> Signed-off-by: Denys Vlasenko <dvlasenk@redhat.com>
->>> Acked-by: Kees Cook <keescook@chromium.org>
->>> Acked-by: Michael Ellerman <mpe@ellerman.id.au>
->>> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
->>> CC: Paul Mackerras <paulus@samba.org>
->>> CC: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
->>> CC: Kees Cook <keescook@chromium.org>
->>> CC: Oleg Nesterov <oleg@redhat.com>
->>> CC: Michael Ellerman <mpe@ellerman.id.au>
->>> CC: Florian Weimer <fweimer@redhat.com>
->>> CC: linux-mm@kvack.org
->>> CC: linuxppc-dev@lists.ozlabs.org
->>> CC: linux-kernel@vger.kernel.org
->>> ---
->>> Changes since v5:
->>> * made do_brk_flags() error out if any bits other than VM_EXEC are set.
->>>   (Kees Cook: "With this, I'd be happy to Ack.")
->>>   See https://patchwork.ozlabs.org/patch/661595/
->>
->> Excellent, thanks for the v6! Should this go via the ppc tree or the -mm tree?
->
-> -mm would be best, given the diffstat I think it's less likely to
->  conflict if it goes via -mm.
+Hit this during a trinity run.
+Kernel built from v4.8-1558-g21f54ddae449
 
-Okay, excellent. Andrew, do you have this already in email? I think
-you weren't on the explicit CC from the v6...
+WARNING: CPU: 0 PID: 5670 at ./include/linux/swap.h:276 page_cache_tree_insert+0x198/0x1b0
+CPU: 0 PID: 5670 Comm: trinity-c6 Not tainted 4.8.0-think+ #2
+ ffffc900003a3ab8 ffffffffb03dc311 0000000000000000 0000000000000000
+ ffffffffb0c063d6 ffffffffb018d898 ffffc900003a3af8 ffffffffb008b550
+ 00000114003a3b30 ffffffffb0c063d6 0000000000000114 0000000000000000
+Call Trace:
+ [<ffffffffb03dc311>] dump_stack+0x6c/0x9b
+ [<ffffffffb018d898>] ? page_cache_tree_insert+0x198/0x1b0
+ [<ffffffffb008b550>] __warn+0x110/0x130
+ [<ffffffffb008b6dc>] warn_slowpath_null+0x2c/0x40
+ [<ffffffffb018d898>] page_cache_tree_insert+0x198/0x1b0
+ [<ffffffffb01900c4>] __add_to_page_cache_locked+0x1a4/0x3a0
+ [<ffffffffb0190379>] add_to_page_cache_lru+0x79/0x1c0
+ [<ffffffffb0193456>] generic_file_read_iter+0x916/0xce0
+ [<ffffffffb0232090>] do_iter_readv_writev+0x120/0x1c0
+ [<ffffffffb0192b40>] ? wait_on_page_bit_killable+0x100/0x100
+ [<ffffffffb0192b40>] ? wait_on_page_bit_killable+0x100/0x100
+ [<ffffffffb0232e29>] do_readv_writev+0x1f9/0x2e0
+ [<ffffffffb025d44e>] ? __fdget_pos+0x5e/0x70
+ [<ffffffffb025d44e>] ? __fdget_pos+0x5e/0x70
+ [<ffffffffb025d44e>] ? __fdget_pos+0x5e/0x70
+ [<ffffffffb0232f74>] vfs_readv+0x64/0x90
+ [<ffffffffb023300d>] do_readv+0x6d/0x120
+ [<ffffffffb0234907>] SyS_readv+0x27/0x30
+ [<ffffffffb000276f>] do_syscall_64+0x7f/0x200
+ [<ffffffffb09cfa8b>] entry_SYSCALL64_slow_path+0x25/0x25
 
--Kees
-
--- 
-Kees Cook
-Nexus Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
