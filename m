@@ -1,121 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A5806B0038
-	for <linux-mm@kvack.org>; Tue,  4 Oct 2016 11:39:51 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id n24so426078485pfb.0
-        for <linux-mm@kvack.org>; Tue, 04 Oct 2016 08:39:51 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id c77si9748290pfj.94.2016.10.04.08.39.50
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B9936B0038
+	for <linux-mm@kvack.org>; Tue,  4 Oct 2016 12:22:28 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id m9so198414038qte.1
+        for <linux-mm@kvack.org>; Tue, 04 Oct 2016 09:22:28 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q62si3198848qka.114.2016.10.04.09.22.27
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 04 Oct 2016 08:39:50 -0700 (PDT)
-Date: Tue, 4 Oct 2016 09:39:48 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v4 10/12] dax: add struct iomap based DAX PMD support
-Message-ID: <20161004153948.GA21248@linux.intel.com>
-References: <1475189370-31634-1-git-send-email-ross.zwisler@linux.intel.com>
- <1475189370-31634-11-git-send-email-ross.zwisler@linux.intel.com>
- <20161003105949.GP6457@quack2.suse.cz>
- <20161003210557.GA28177@linux.intel.com>
- <20161004055557.GB17515@quack2.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 04 Oct 2016 09:22:27 -0700 (PDT)
+Date: Tue, 4 Oct 2016 18:21:14 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 3/4] mm, oom: do not rely on TIF_MEMDIE for
+	exit_oom_victim
+Message-ID: <20161004162114.GB32428@redhat.com>
+References: <20161004090009.7974-1-mhocko@kernel.org> <20161004090009.7974-4-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161004055557.GB17515@quack2.suse.cz>
+In-Reply-To: <20161004090009.7974-4-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, Al Viro <viro@zeniv.linux.org.uk>
 
-On Tue, Oct 04, 2016 at 07:55:57AM +0200, Jan Kara wrote:
-> On Mon 03-10-16 15:05:57, Ross Zwisler wrote:
-> > > > @@ -623,22 +672,30 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
-> > > >  		error = radix_tree_preload(vmf->gfp_mask & ~__GFP_HIGHMEM);
-> > > >  		if (error)
-> > > >  			return ERR_PTR(error);
-> > > > +	} else if ((unsigned long)entry & RADIX_DAX_HZP && !hzp) {
-> > > > +		/* replacing huge zero page with PMD block mapping */
-> > > > +		unmap_mapping_range(mapping,
-> > > > +			(vmf->pgoff << PAGE_SHIFT) & PMD_MASK, PMD_SIZE, 0);
-> > > >  	}
-> > > >  
-> > > >  	spin_lock_irq(&mapping->tree_lock);
-> > > > -	new_entry = (void *)((unsigned long)RADIX_DAX_ENTRY(sector, false) |
-> > > > -		       RADIX_DAX_ENTRY_LOCK);
-> > > > +	if (hzp)
-> > > > +		new_entry = RADIX_DAX_HZP_ENTRY();
-> > > > +	else
-> > > > +		new_entry = RADIX_DAX_ENTRY(sector, new_type);
-> > > > +
-> > > >  	if (hole_fill) {
-> > > >  		__delete_from_page_cache(entry, NULL);
-> > > >  		/* Drop pagecache reference */
-> > > >  		put_page(entry);
-> > > > -		error = radix_tree_insert(page_tree, index, new_entry);
-> > > > +		error = __radix_tree_insert(page_tree, index,
-> > > > +				RADIX_DAX_ORDER(new_type), new_entry);
-> > > >  		if (error) {
-> > > >  			new_entry = ERR_PTR(error);
-> > > >  			goto unlock;
-> > > >  		}
-> > > >  		mapping->nrexceptional++;
-> > > > -	} else {
-> > > > +	} else if ((unsigned long)entry & (RADIX_DAX_HZP|RADIX_DAX_EMPTY)) {
-> > > >  		void **slot;
-> > > >  		void *ret;
-> > > 
-> > > Hum, I somewhat dislike how PTE and PMD paths differ here. But it's OK for
-> > > now I guess. Long term we might be better off to do away with zero pages
-> > > for PTEs as well and use exceptional entry and a single zero page like you
-> > > do for PMD. Because the special cases these zero pages cause are a
-> > > headache.
-> > 
-> > I've been thinking about this as well, and I do think we'd be better off with
-> > a single zero page for PTEs, as we have with PMDs.  It'd reduce the special
-> > casing in the DAX code, and it'd also ensure that we don't waste a bunch of
-> > time and memory creating read-only zero pages to service reads from holes.
-> > 
-> > I'll look into adding this for v5.
-> 
-> Well, this would clash with the dirty bit cleaning series I have. So I'd
-> prefer to put this on a todo list and address it once existing series are
-> integrated...
+On 10/04, Michal Hocko wrote:
+>
+> -void release_task(struct task_struct *p)
+> +bool release_task(struct task_struct *p)
+>  {
+>  	struct task_struct *leader;
+>  	int zap_leader;
+> +	bool last = false;
+>  repeat:
+>  	/* don't need to get the RCU readlock here - the process is dead and
+>  	 * can't be modifying its own credentials. But shut RCU-lockdep up */
+> @@ -197,8 +198,10 @@ void release_task(struct task_struct *p)
+>  		 * then we are the one who should release the leader.
+>  		 */
+>  		zap_leader = do_notify_parent(leader, leader->exit_signal);
+> -		if (zap_leader)
+> +		if (zap_leader) {
+>  			leader->exit_state = EXIT_DEAD;
+> +			last = true;
+> +		}
+>  	}
 
-Sure, that works.
+This looks strange... it won't return true if "p" is the group leader.
 
-> > > > +	if (error)
-> > > > +		goto fallback;
-> > > > +	if (iomap.offset + iomap.length < pos + PMD_SIZE)
-> > > > +		goto fallback;
-> > > > +
-> > > > +	vmf.pgoff = pgoff;
-> > > > +	vmf.flags = flags;
-> > > > +	vmf.gfp_mask = mapping_gfp_mask(mapping) | __GFP_FS | __GFP_IO;
-> > > 
-> > > I don't think you want __GFP_FS here - we have already gone through the
-> > > filesystem's pmd_fault() handler which called dax_iomap_pmd_fault() and
-> > > thus we hold various fs locks, freeze protection, ...
-> > 
-> > I copied this from __get_fault_gfp_mask() in mm/memory.c.  That function is
-> > used by do_page_mkwrite() and __do_fault(), and we eventually get this
-> > vmf->gfp_mask in the PTE fault code.  With the code as it is we get the same
-> > vmf->gfp_mask in both dax_iomap_fault() and dax_iomap_pmd_fault().  It seems
-> > like they should remain consistent - is it wrong to have __GFP_FS in
-> > dax_iomap_fault()?
-> 
-> The gfp_mask that propagates from __do_fault() or do_page_mkwrite() is fine
-> because at that point it is correct. But once we grab filesystem locks
-> which are not reclaim safe, we should update vmf->gfp_mask we pass further
-> down into DAX code to not contain __GFP_FS (that's a bug we apparently have
-> there). And inside DAX code, we definitely are not generally safe to add
-> __GFP_FS to mapping_gfp_mask(). Maybe we'd be better off propagating struct
-> vm_fault into this function, using passed gfp_mask there and make sure
-> callers update gfp_mask as appropriate.
+> @@ -584,12 +587,15 @@ static void forget_original_parent(struct task_struct *father,
+>  /*
+>   * Send signals to all our closest relatives so that they know
+>   * to properly mourn us..
+> + *
+> + * Returns true if this is the last thread from the thread group
+>   */
+> -static void exit_notify(struct task_struct *tsk, int group_dead)
+> +static bool exit_notify(struct task_struct *tsk, int group_dead)
+>  {
+>  	bool autoreap;
+>  	struct task_struct *p, *n;
+>  	LIST_HEAD(dead);
+> +	bool last = false;
+>  
+>  	write_lock_irq(&tasklist_lock);
+>  	forget_original_parent(tsk, &dead);
+> @@ -606,6 +612,7 @@ static void exit_notify(struct task_struct *tsk, int group_dead)
+>  	} else if (thread_group_leader(tsk)) {
+>  		autoreap = thread_group_empty(tsk) &&
+>  			do_notify_parent(tsk, tsk->exit_signal);
+> +		last = thread_group_empty(tsk);
 
-Yep, that makes sense to me.  In reviewing your set it also occurred to me that
-we might want to stick a struct vm_area_struct *vma pointer in the vmf, since
-you always need a vma when you are using a vmf, but we pass them as a pair
-everywhere.
+so this can't detect the multi-threaded group exit, and ...
+
+>  	list_for_each_entry_safe(p, n, &dead, ptrace_entry) {
+>  		list_del_init(&p->ptrace_entry);
+> -		release_task(p);
+> +		if (release_task(p) && p == tsk)
+> +			last = true;
+
+this can only happen if this process auto-reaps itself. Not to mention
+that exit_notify() will never return true if traced.
+
+No, this doesn't look right.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
