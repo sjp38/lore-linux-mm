@@ -1,66 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 76E276B0038
-	for <linux-mm@kvack.org>; Tue,  4 Oct 2016 19:45:33 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id tz10so26379051pab.3
-        for <linux-mm@kvack.org>; Tue, 04 Oct 2016 16:45:33 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 184si30123951pff.63.2016.10.04.16.45.32
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DA8AD6B0038
+	for <linux-mm@kvack.org>; Wed,  5 Oct 2016 01:50:24 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id f193so112771372wmg.0
+        for <linux-mm@kvack.org>; Tue, 04 Oct 2016 22:50:24 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f135si29909486wmd.94.2016.10.04.22.50.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Oct 2016 16:45:32 -0700 (PDT)
-Date: Tue, 4 Oct 2016 16:45:31 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [mmotm:master 277/310]
- kernel/trace/trace_functions_graph.c:173:27: error: 'struct
- ftrace_ret_stack' has no member named 'subtime'; did you mean 'calltime'?
-Message-Id: <20161004164531.427e35253f230f2a510a1c13@linux-foundation.org>
-In-Reply-To: <201610050750.gvhXrSoc%fengguang.wu@intel.com>
-References: <201610050750.gvhXrSoc%fengguang.wu@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 04 Oct 2016 22:50:23 -0700 (PDT)
+Date: Wed, 5 Oct 2016 07:50:20 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v4 10/12] dax: add struct iomap based DAX PMD support
+Message-ID: <20161005055020.GB20752@quack2.suse.cz>
+References: <1475189370-31634-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1475189370-31634-11-git-send-email-ross.zwisler@linux.intel.com>
+ <20161003105949.GP6457@quack2.suse.cz>
+ <20161003210557.GA28177@linux.intel.com>
+ <20161004055557.GB17515@quack2.suse.cz>
+ <20161004153948.GA21248@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161004153948.GA21248@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>, mmotm auto import <mm-commits@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-On Wed, 5 Oct 2016 07:35:53 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+On Tue 04-10-16 09:39:48, Ross Zwisler wrote:
+> > The gfp_mask that propagates from __do_fault() or do_page_mkwrite() is fine
+> > because at that point it is correct. But once we grab filesystem locks
+> > which are not reclaim safe, we should update vmf->gfp_mask we pass further
+> > down into DAX code to not contain __GFP_FS (that's a bug we apparently have
+> > there). And inside DAX code, we definitely are not generally safe to add
+> > __GFP_FS to mapping_gfp_mask(). Maybe we'd be better off propagating struct
+> > vm_fault into this function, using passed gfp_mask there and make sure
+> > callers update gfp_mask as appropriate.
+> 
+> Yep, that makes sense to me.  In reviewing your set it also occurred to me that
+> we might want to stick a struct vm_area_struct *vma pointer in the vmf, since
+> you always need a vma when you are using a vmf, but we pass them as a pair
+> everywhere.
 
-> tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> head:   b9215f97283c8239d33a0ea59d0a7ce7060a7255
-> commit: 05fd6fa64d9f004ab1321df8d5640e301ab48bc5 [277/310] linux-next-git-rejects
-> config: x86_64-allyesdebian (attached as .config)
-> compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
-> reproduce:
->         git checkout 05fd6fa64d9f004ab1321df8d5640e301ab48bc5
->         # save the attached .config to linux build tree
->         make ARCH=x86_64 
-> 
-> All errors (new ones prefixed by >>):
-> 
->    kernel/trace/trace_functions_graph.c: In function 'ftrace_push_return_trace':
-> >> kernel/trace/trace_functions_graph.c:173:27: error: 'struct ftrace_ret_stack' has no member named 'subtime'; did you mean 'calltime'?
->      current->ret_stack[index].subtime = 0;
->                               ^
-> 
-> vim +173 kernel/trace/trace_functions_graph.c
-> 
-> 29ad23b0 Namhyung Kim      2013-10-14  167  	if (ftrace_graph_notrace_addr(func))
-> 29ad23b0 Namhyung Kim      2013-10-14  168  		current->curr_ret_stack -= FTRACE_NOTRACE_DEPTH;
-> 712406a6 Steven Rostedt    2009-02-09  169  	barrier();
-> 712406a6 Steven Rostedt    2009-02-09  170  	current->ret_stack[index].ret = ret;
-> 712406a6 Steven Rostedt    2009-02-09  171  	current->ret_stack[index].func = func;
-> 5d1a03dc Steven Rostedt    2009-03-23  172  	current->ret_stack[index].calltime = calltime;
-> a2a16d6a Steven Rostedt    2009-03-24 @173  	current->ret_stack[index].subtime = 0;
-> 88e052f9 mmotm auto import 2016-10-04  174  #ifdef HAVE_FUNCTION_GRAPH_FP_TEST
-> 71e308a2 Steven Rostedt    2009-06-18  175  	current->ret_stack[index].fp = frame_pointer;
-> 88e052f9 mmotm auto import 2016-10-04  176  #endif
-> 
+Actually, vma pointer will be in struct vm_fault after my DAX
+write-protection series. So once that lands, we can clean up whatever
+duplicit function parameters...
 
-Gumble.  That's me fixing git rejects and getting it wrong.  Rejects
-which, I believe, are caused by people sending stuff to Linus which is
-different from what they have (or had) in -next.
+								Honza
+
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
