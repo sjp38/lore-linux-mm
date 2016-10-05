@@ -1,81 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C009F6B0038
-	for <linux-mm@kvack.org>; Wed,  5 Oct 2016 07:38:48 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id l138so155008802wmg.3
-        for <linux-mm@kvack.org>; Wed, 05 Oct 2016 04:38:48 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id io8si10598047wjb.284.2016.10.05.04.38.47
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D2C926B0038
+	for <linux-mm@kvack.org>; Wed,  5 Oct 2016 08:04:20 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id u84so216009694pfj.1
+        for <linux-mm@kvack.org>; Wed, 05 Oct 2016 05:04:20 -0700 (PDT)
+Received: from mail-pf0-f195.google.com (mail-pf0-f195.google.com. [209.85.192.195])
+        by mx.google.com with ESMTPS id tp6si7870065pab.158.2016.10.05.05.04.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Oct 2016 04:38:47 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id p138so24124881wmb.0
-        for <linux-mm@kvack.org>; Wed, 05 Oct 2016 04:38:47 -0700 (PDT)
-Date: Wed, 5 Oct 2016 13:38:45 +0200
+        Wed, 05 Oct 2016 05:04:19 -0700 (PDT)
+Received: by mail-pf0-f195.google.com with SMTP id i85so5021400pfa.0
+        for <linux-mm@kvack.org>; Wed, 05 Oct 2016 05:04:19 -0700 (PDT)
+Date: Wed, 5 Oct 2016 14:04:15 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, compaction: allow compaction for GFP_NOFS
- requests
-Message-ID: <20161005113839.GC7138@dhcp22.suse.cz>
-References: <20161004081215.5563-1-mhocko@kernel.org>
- <20161004203202.GY9806@dastard>
+Subject: Re: [PATCH 0/4] mm, oom: get rid of TIF_MEMDIE
+Message-ID: <20161005120415.GD7138@dhcp22.suse.cz>
+References: <20161004090009.7974-1-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161004203202.GY9806@dastard>
+In-Reply-To: <20161004090009.7974-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: David Rientjes <rientjes@google.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Oleg Nesterov <oleg@redhat.com>
 
-On Wed 05-10-16 07:32:02, Dave Chinner wrote:
-> On Tue, Oct 04, 2016 at 10:12:15AM +0200, Michal Hocko wrote:
-> > From: Michal Hocko <mhocko@suse.com>
-> > 
-> > compaction has been disabled for GFP_NOFS and GFP_NOIO requests since
-> > the direct compaction was introduced by 56de7263fcf3 ("mm: compaction:
-> > direct compact when a high-order allocation fails"). The main reason
-> > is that the migration of page cache pages might recurse back to fs/io
-> > layer and we could potentially deadlock. This is overly conservative
-> > because all the anonymous memory is migrateable in the GFP_NOFS context
-> > just fine.  This might be a large portion of the memory in many/most
-> > workkloads.
-> > 
-> > Remove the GFP_NOFS restriction and make sure that we skip all fs pages
-> > (those with a mapping) while isolating pages to be migrated. We cannot
-> > consider clean fs pages because they might need a metadata update so
-> > only isolate pages without any mapping for nofs requests.
-> > 
-> > The effect of this patch will be probably very limited in many/most
-> > workloads because higher order GFP_NOFS requests are quite rare,
+On Tue 04-10-16 11:00:05, Michal Hocko wrote:
+[...]
+> Recent changes in the oom proper allows for that finally, I believe. Now
+> that all the oom victims are reapable we are no longer depending on
+> ALLOC_NO_WATERMARKS because the memory held by the victim is reclaimed
+> asynchronously. A partial access to memory reserves should be sufficient
+> just to guarantee that the oom victim is not starved due to other
+> memory consumers. This also means that we do not have to pretend to be
+> conservative and give access to memory reserves only to one thread from
+> the process at the time. This is patch 1.
 > 
-> You say they are rare only because you don't know how to trigger
-> them easily.  :/
-
-true
-
-> Try this:
+> Patch 2 is a simple cleanup which turns TIF_MEMDIE users to tsk_is_oom_victim
+> which is process rather than thread centric. None of those callers really
+> requires to be thread aware AFAICS.
 > 
-> # mkfs.xfs -f -n size=64k <dev>
-> # mount <dev> /mnt/scratch
-> # time ./fs_mark  -D  10000  -S0  -n  100000  -s  0  -L  32 \
->         -d  /mnt/scratch/0  -d  /mnt/scratch/1 \
->         -d  /mnt/scratch/2  -d  /mnt/scratch/3 \
->         -d  /mnt/scratch/4  -d  /mnt/scratch/5 \
->         -d  /mnt/scratch/6  -d  /mnt/scratch/7 \
->         -d  /mnt/scratch/8  -d  /mnt/scratch/9 \
->         -d  /mnt/scratch/10  -d  /mnt/scratch/11 \
->         -d  /mnt/scratch/12  -d  /mnt/scratch/13 \
->         -d  /mnt/scratch/14  -d  /mnt/scratch/15
+> The tricky part then is exit_oom_victim vs. oom_killer_disable because
+> TIF_MEMDIE acted as a token there so we had a way to count threads from
+> the process. It didn't work 100% reliably and had its own issues but we
+> have to replace it with something which doesn't rely on counting threads
+> but rather find a moment when all threads have reached steady state in
+> do_exit. This is what patch 3 does and I would really appreciate if Oleg
+> could double check my thinking there. I am also CCing Al on that one
+> because I am moving exit_io_context up in do_exit right before exit_notify.
 
-Does this simulate a standard or usual fs workload/configuration?  I am
-not questioning that higher order NOFS allocations are non-existent -
-that's why I came with the patch in the first place ;). My observation
-was that they are so rare that the visible effect of this patch might be
-quite low or even hard to notice.
+It became apparent that the last part was wrong after Oleg's review. I
+definitely want to come up with something that works eventually. I am
+just wondering whether patches 1-2 are worth accepting without the rest.
+I fully realize those patches are less attractive when TIF_MEMDIE stays
+but I would argue that reducing the TIF_MEMDIE users will make the code
+slightly better and easier to understand.
 
-Anyway, thanks for a _useful_ testcase to play with! Let's see what
-numbers I get from this.
-
+What do you think?
 -- 
 Michal Hocko
 SUSE Labs
