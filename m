@@ -1,97 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id F0CF26B0069
-	for <linux-mm@kvack.org>; Wed,  5 Oct 2016 22:12:18 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 190so11322390pfv.3
-        for <linux-mm@kvack.org>; Wed, 05 Oct 2016 19:12:18 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id k10si10343523pak.66.2016.10.05.19.11.58
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DDBF06B0069
+	for <linux-mm@kvack.org>; Thu,  6 Oct 2016 01:04:32 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id n189so13161696qke.0
+        for <linux-mm@kvack.org>; Wed, 05 Oct 2016 22:04:32 -0700 (PDT)
+Received: from cmta17.telus.net (cmta17.telus.net. [209.171.16.90])
+        by mx.google.com with ESMTP id y123si2085366qka.7.2016.10.05.22.04.31
         for <linux-mm@kvack.org>;
-        Wed, 05 Oct 2016 19:11:59 -0700 (PDT)
-Date: Thu, 6 Oct 2016 13:11:42 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [RFC PATCH] mm, compaction: allow compaction for GFP_NOFS
- requests
-Message-ID: <20161006021142.GC9806@dastard>
-References: <20161004081215.5563-1-mhocko@kernel.org>
- <20161004203202.GY9806@dastard>
- <20161005113839.GC7138@dhcp22.suse.cz>
+        Wed, 05 Oct 2016 22:04:31 -0700 (PDT)
+From: "Doug Smythies" <dsmythies@telus.net>
+References: <bug-172981-27@https.bugzilla.kernel.org/> <20160927111059.282a35c89266202d3cb2f953@linux-foundation.org> <20160928020347.GA21129@cmpxchg.org> <20160928080953.GA20312@esperanza> <20160929020050.GD29250@js1304-P5Q-DELUXE> <20160929134550.GB20312@esperanza> <20160930081940.GA3606@js1304-P5Q-DELUXE> q3x7bmIYYBMcWq3x9bnOYU
+In-Reply-To: q3x7bmIYYBMcWq3x9bnOYU
+Subject: RE: [Bug 172981] New: [bisected] SLAB: extreme load averages and over 2000 kworker threads
+Date: Wed, 5 Oct 2016 22:04:27 -0700
+Message-ID: <002601d21f8f$1fe2fe40$5fa8fac0$@net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161005113839.GC7138@dhcp22.suse.cz>
+Content-Type: text/plain;
+	charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+Content-Language: en-ca
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: 'Vladimir Davydov' <vdavydov.dev@gmail.com>, 'Joonsoo Kim' <iamjoonsoo.kim@lge.com>
+Cc: 'Johannes Weiner' <hannes@cmpxchg.org>, 'Andrew Morton' <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
 
-On Wed, Oct 05, 2016 at 01:38:45PM +0200, Michal Hocko wrote:
-> On Wed 05-10-16 07:32:02, Dave Chinner wrote:
-> > On Tue, Oct 04, 2016 at 10:12:15AM +0200, Michal Hocko wrote:
-> > > From: Michal Hocko <mhocko@suse.com>
-> > > 
-> > > compaction has been disabled for GFP_NOFS and GFP_NOIO requests since
-> > > the direct compaction was introduced by 56de7263fcf3 ("mm: compaction:
-> > > direct compact when a high-order allocation fails"). The main reason
-> > > is that the migration of page cache pages might recurse back to fs/io
-> > > layer and we could potentially deadlock. This is overly conservative
-> > > because all the anonymous memory is migrateable in the GFP_NOFS context
-> > > just fine.  This might be a large portion of the memory in many/most
-> > > workkloads.
-> > > 
-> > > Remove the GFP_NOFS restriction and make sure that we skip all fs pages
-> > > (those with a mapping) while isolating pages to be migrated. We cannot
-> > > consider clean fs pages because they might need a metadata update so
-> > > only isolate pages without any mapping for nofs requests.
-> > > 
-> > > The effect of this patch will be probably very limited in many/most
-> > > workloads because higher order GFP_NOFS requests are quite rare,
-> > 
-> > You say they are rare only because you don't know how to trigger
-> > them easily.  :/
-> 
-> true
-> 
-> > Try this:
-> > 
-> > # mkfs.xfs -f -n size=64k <dev>
-> > # mount <dev> /mnt/scratch
-> > # time ./fs_mark  -D  10000  -S0  -n  100000  -s  0  -L  32 \
-> >         -d  /mnt/scratch/0  -d  /mnt/scratch/1 \
-> >         -d  /mnt/scratch/2  -d  /mnt/scratch/3 \
-> >         -d  /mnt/scratch/4  -d  /mnt/scratch/5 \
-> >         -d  /mnt/scratch/6  -d  /mnt/scratch/7 \
-> >         -d  /mnt/scratch/8  -d  /mnt/scratch/9 \
-> >         -d  /mnt/scratch/10  -d  /mnt/scratch/11 \
-> >         -d  /mnt/scratch/12  -d  /mnt/scratch/13 \
-> >         -d  /mnt/scratch/14  -d  /mnt/scratch/15
-> 
-> Does this simulate a standard or usual fs workload/configuration?  I am
+On 2016.09.30 12:59 Vladimir Davydov wrote:
 
-Unfortunately, there was an era of cargo cult configuration tweaks
-in the Ceph community that has resulted in a large number of
-production machines with XFS filesystems configured this way. And a
-lot of them store large numbers of small files and run under
-significant sustained memory pressure.
+> Yeah, you're right. We'd better do something about this
+> synchronize_sched(). I think moving it out of the slab_mutex and calling
+> it once for all caches in memcg_deactivate_kmem_caches() would resolve
+> the issue. I'll post the patches tomorrow.
 
-I slowly working towards getting rid of these high order allocations
-and replacing them with the equivalent number of single page
-allocations, but I haven't got that (complex) change working yet.
+Would someone please be kind enough to send me the patch set?
 
-> not questioning that higher order NOFS allocations are non-existent -
-> that's why I came with the patch in the first place ;). My observation
-> was that they are so rare that the visible effect of this patch might be
-> quite low or even hard to notice.
+I didn't get them, and would like to test them.
+I have searched and searched and did manage to find:
+"[PATCH 2/2] slub: move synchronize_sched out of slab_mutex on shrink"
+And a thread about a patch 1 of 2:
+"Re: [PATCH 1/2] mm: memcontrol: use special workqueue for creating per-memcg caches"
+Where I see me as "reported by", but I guess "reported by" people don't get the e-mails.
+I haven't found PATCH 0/2, nor do I know if what I did find is current.
 
-Yup, it's a valid observation that would hold true for the majority
-of users.
+... Doug
 
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
