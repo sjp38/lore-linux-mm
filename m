@@ -1,66 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 088AF6B0038
-	for <linux-mm@kvack.org>; Thu,  6 Oct 2016 09:04:59 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id b201so8928158wmb.2
-        for <linux-mm@kvack.org>; Thu, 06 Oct 2016 06:04:58 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id ak9si16885588wjc.9.2016.10.06.06.04.57
+	by kanga.kvack.org (Postfix) with ESMTP id 33C626B0038
+	for <linux-mm@kvack.org>; Thu,  6 Oct 2016 09:41:51 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id i130so222889wmg.4
+        for <linux-mm@kvack.org>; Thu, 06 Oct 2016 06:41:51 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id l130si17671197wmf.42.2016.10.06.06.41.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Oct 2016 06:04:57 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id 123so3443516wmb.3
-        for <linux-mm@kvack.org>; Thu, 06 Oct 2016 06:04:57 -0700 (PDT)
-Date: Thu, 6 Oct 2016 15:04:54 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Xfs lockdep warning with for-dave-for-4.6 branch
-Message-ID: <20161006130454.GI10570@dhcp22.suse.cz>
-References: <20160516104130.GK3193@twins.programming.kicks-ass.net>
- <20160516130519.GJ23146@dhcp22.suse.cz>
- <20160516132541.GP3193@twins.programming.kicks-ass.net>
- <20160516231056.GE18496@dastard>
- <20160517144912.GZ3193@twins.programming.kicks-ass.net>
- <20160517223549.GV26977@dastard>
- <20160519081146.GS3193@twins.programming.kicks-ass.net>
- <20160520001714.GC26977@dastard>
- <20160601131758.GO26601@dhcp22.suse.cz>
- <20160601181617.GV3190@twins.programming.kicks-ass.net>
+        Thu, 06 Oct 2016 06:41:49 -0700 (PDT)
+Date: Thu, 6 Oct 2016 15:41:45 +0200
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: page_cache_tree_insert WARN_ON hit on 4.8+
+Message-ID: <20161006134145.GA13177@cmpxchg.org>
+References: <20161004170955.n25polpcsotmwcdq@codemonkey.org.uk>
+ <20161004173425.GA1223@cmpxchg.org>
+ <20161004174645.urwwmvgibabaokjn@codemonkey.org.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160601181617.GV3190@twins.programming.kicks-ass.net>
+In-Reply-To: <20161004174645.urwwmvgibabaokjn@codemonkey.org.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Dave Chinner <david@fromorbit.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Qu Wenruo <quwenruo@cn.fujitsu.com>, xfs@oss.sgi.com, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+To: Dave Jones <davej@codemonkey.org.uk>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-[Let me ressurect this thread]
+On Tue, Oct 04, 2016 at 01:46:45PM -0400, Dave Jones wrote:
+> On Tue, Oct 04, 2016 at 07:34:25PM +0200, Johannes Weiner wrote:
+>  > On Tue, Oct 04, 2016 at 01:09:55PM -0400, Dave Jones wrote:
+>  > > Hit this during a trinity run.
+>  > > Kernel built from v4.8-1558-g21f54ddae449
+>  > > 
+>  > > WARNING: CPU: 0 PID: 5670 at ./include/linux/swap.h:276 page_cache_tree_insert+0x198/0x1b0
 
-On Wed 01-06-16 20:16:17, Peter Zijlstra wrote:
-> On Wed, Jun 01, 2016 at 03:17:58PM +0200, Michal Hocko wrote:
-> > Thanks Dave for your detailed explanation again! Peter do you have any
-> > other idea how to deal with these situations other than opt out from
-> > lockdep reclaim machinery?
-> > 
-> > If not I would rather go with an annotation than a gfp flag to be honest
-> > but if you absolutely hate that approach then I will try to check wheter
-> > a CONFIG_LOCKDEP GFP_FOO doesn't break something else. Otherwise I would
-> > steal the description from Dave's email and repost my patch.
-> > 
-> > I plan to repost my scope gfp patches in few days and it would be good
-> > to have some mechanism to drop those GFP_NOFS to paper over lockdep
-> > false positives for that.
-> 
-> Right; sorry I got side-tracked in other things again.
-> 
-> So my favourite is the dedicated GFP flag, but if that's unpalatable for
-> the mm folks then something like the below might work. It should be
-> similar in effect to your proposal, except its more limited in scope.
+To tie up this thread, we tracked it down in another thread and Linus
+merged a fix for this:
 
-OK, so the situation with the GFP flags is somehow relieved after 
-http://lkml.kernel.org/r/20160912114852.GI14524@dhcp22.suse.cz and with
-the root radix tree remaining the last user which mangles gfp_mask and
-tags together we have some few bits left there. As you apparently hate
-any scoped API and Dave thinks that per allocation flag is the only
-maintainable way for xfs what do you think about the following?
----
+https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=d3798ae8c6f3767c726403c2ca6ecc317752c9dd
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
