@@ -1,83 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 214726B0069
-	for <linux-mm@kvack.org>; Thu,  6 Oct 2016 07:14:30 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id b201so5985536wmb.2
-        for <linux-mm@kvack.org>; Thu, 06 Oct 2016 04:14:30 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id ws7si16401321wjb.93.2016.10.06.04.14.28
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DD3D36B0069
+	for <linux-mm@kvack.org>; Thu,  6 Oct 2016 08:00:56 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id l138so7288215wmg.3
+        for <linux-mm@kvack.org>; Thu, 06 Oct 2016 05:00:56 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id wo8si16558960wjc.122.2016.10.06.05.00.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Oct 2016 04:14:28 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id p138so2996176wmb.0
-        for <linux-mm@kvack.org>; Thu, 06 Oct 2016 04:14:28 -0700 (PDT)
-Date: Thu, 6 Oct 2016 13:14:26 +0200
+        Thu, 06 Oct 2016 05:00:53 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id b201so3182759wmb.1
+        for <linux-mm@kvack.org>; Thu, 06 Oct 2016 05:00:52 -0700 (PDT)
+Date: Thu, 6 Oct 2016 14:00:50 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 0/2] mm: give GFP_REPEAT a better semantic
-Message-ID: <20161006111426.GE10570@dhcp22.suse.cz>
-References: <1465212736-14637-1-git-send-email-mhocko@kernel.org>
+Subject: Re: [RFC] scripts: Include postprocessing script for memory
+ allocation tracing
+Message-ID: <20161006120050.GG10570@dhcp22.suse.cz>
+References: <20160911222411.GA2854@janani-Inspiron-3521>
+ <20160912121635.GL14524@dhcp22.suse.cz>
+ <0ACE5927-A6E5-4B49-891D-F990527A9F50@gmail.com>
+ <20160919094224.GH10785@dhcp22.suse.cz>
+ <BFAF8DCA-F4A6-41C6-9AA0-C694D33035A3@gmail.com>
+ <20160923080709.GB4478@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <1465212736-14637-1-git-send-email-mhocko@kernel.org>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20160923080709.GB4478@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Dave Chinner <david@fromorbit.com>, LKML <linux-kernel@vger.kernel.org>
+To: Janani Ravichandran <janani.rvchndrn@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@surriel.com, akpm@linux-foundation.org, vdavydov@virtuozzo.com, vbabka@suse.cz, mgorman@techsingularity.net, rostedt@goodmis.org
 
-Hi,
-I would like to revive this thread. It seems we haven't found any
-conclusion. The main objection so far has been that the __GFP_RETRY_HARD
-may-fail semantic is not clear and that it is mixing two things (fail
-for !costly and repeat for costly orders) together. As for the first
-part I guess we can think of a better name. __GFP_RETRY_MAYFAIL should be
-more clear IMHO.
+On Fri 23-09-16 10:07:09, Michal Hocko wrote:
+> On Thu 22-09-16 11:30:36, Janani Ravichandran wrote:
+> > 
+> > > On Sep 19, 2016, at 5:42 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > > 
+> > > On Tue 13-09-16 14:04:49, Janani Ravichandran wrote:
+> > >> 
+> > >>> On Sep 12, 2016, at 8:16 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > >> 
+> > >> Ia??m using the function graph tracer to see how long __alloc_pages_nodemask()
+> > >> took.
+> > > 
+> > > How can you map the function graph tracer to a specif context? Let's say
+> > > I would like to know why a particular allocation took so long. Would
+> > > that be possible?
+> > 
+> > Maybe not. If the latencies are due to direct reclaim or memory compaction, you
+> > get some information from the tracepoints (like mm_vmscan_direct_reclaim_begin,
+> > mm_compaction_begin, etc). But otherwise, you dona??t get any context information. 
+> > Function graph only gives the time spent in alloc_pages_nodemask() in that case.
+> 
+> Then I really think that we need a starting trace point. I think that
+> having the full context information is really helpful in order to
+> understand latencies induced by allocations.
 
-For the second objection Johannes has suggested a separate __GFP_MAYFAIL
-flag. In one variant we would keep __GFP_REPEAT as a modifier to try
-harder on top. My main objection was that the gfp flag space is really
-scarce but we received some relief after
-http://lkml.kernel.org/r/20160912114852.GI14524@dhcp22.suse.cz so maybe
-we can reconsider this.
-
-I am not convinced that a separate MAYFAIL flag would make situation
-much better semantic wise, though. a) it adds de-facto another gfp
-order specific flag and we have seen that this concept is not really
-working well from the past and b) the name doesn't really help users
-to make clear how hard the allocator tries if we keep GFP_REPEAT -
-e.g. what is the difference between GFP_KERNEL|__GFP_MAYFAIL and
-GFP_KERNEL|__GFP_MAYFAIL|__GFP_REPEAT?
-
-One way to differentiate the two would be to not trigger the OOM killer
-in the first case which would make it similar to GFP_NORETRY except we
-would retry as long as there is a progress and fail right before the
-OOM would be declared. __GFP_REPEAT on top would invoke OOM for !costly
-requests and keep retrying until we hit the OOM again in the same
-path. To me it sounds quite complicated and the OOM behavior subtle and
-non intuitive. An alternative would be to ignore __GFP_REPEAT for
-!costly orders and have it costly specific.
-
-Another suggestion by Johannes was to make __GFP_REPEAT default for
-costly orders and drop the flag. __GFP_NORETRY can be used to opt-out
-and have the previous behavior. __GFP_MAYFAIL would then be more clear
-but the main problem then is that many allocation requests could turn
-out to be really disruptive leading to performance issues which would
-be not that easy to debug. While we only have few GFP_REPEAT users
-(~30) currently there are way much more allocations which would be more
-aggressive now. So the question is how to identify those which should be
-changed to NORETRY and how to tell users when to opt-out in newly added
-allocation sites. To me this sounds really risky and whack-a-mole games.
-
-Does anybody see other option(s)?
-
-I fully realize the situation is not easy and our costly vs. !costly
-heritage is hard to come around. Whatever we do can end up in a similar
-mess we had with GFP_REPEAT but I believe that we should find a way
-to tell that a particular request is OK to fail and override default
-allocator policy. To me __GFP_RETRY_MAYFAIL with "retry as long as there
-are reasonable chances to succeed and then fail" semantic sounds the
-most coherent and attractive because it is not order specific from the
-user point of view and there is a zero risk of reggressions.
+Are you planning to pursue this path?
 -- 
 Michal Hocko
 SUSE Labs
