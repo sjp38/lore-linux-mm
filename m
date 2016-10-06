@@ -1,118 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CA6EA6B0038
-	for <linux-mm@kvack.org>; Thu,  6 Oct 2016 17:01:07 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id r16so8577085pfg.4
-        for <linux-mm@kvack.org>; Thu, 06 Oct 2016 14:01:07 -0700 (PDT)
-Received: from mail1.windriver.com (mail1.windriver.com. [147.11.146.13])
-        by mx.google.com with ESMTPS id b6si4776707pfd.48.2016.10.06.14.01.06
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 997FB6B0038
+	for <linux-mm@kvack.org>; Thu,  6 Oct 2016 17:34:27 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id tz10so10410468pab.3
+        for <linux-mm@kvack.org>; Thu, 06 Oct 2016 14:34:27 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id tz5si13934085pac.308.2016.10.06.14.34.26
         for <linux-mm@kvack.org>
-        (version=TLS1_1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 06 Oct 2016 14:01:07 -0700 (PDT)
-Message-ID: <57F6BB8F.7070208@windriver.com>
-Date: Thu, 6 Oct 2016 15:01:03 -0600
-From: Chris Friesen <chris.friesen@windriver.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 06 Oct 2016 14:34:26 -0700 (PDT)
+Date: Thu, 6 Oct 2016 15:34:24 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v4 10/12] dax: add struct iomap based DAX PMD support
+Message-ID: <20161006213424.GA4569@linux.intel.com>
+References: <1475189370-31634-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1475189370-31634-11-git-send-email-ross.zwisler@linux.intel.com>
+ <20161003105949.GP6457@quack2.suse.cz>
+ <20161003210557.GA28177@linux.intel.com>
 MIME-Version: 1.0
-Subject: "swap_free: Bad swap file entry" and "BUG: Bad page map in process"
- but no swap configured
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161003210557.GA28177@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
+On Mon, Oct 03, 2016 at 03:05:57PM -0600, Ross Zwisler wrote:
+> On Mon, Oct 03, 2016 at 12:59:49PM +0200, Jan Kara wrote:
+> > On Thu 29-09-16 16:49:28, Ross Zwisler wrote:
+<>
+> > > +int dax_iomap_pmd_fault(struct vm_area_struct *vma, unsigned long address,
+> > > +		pmd_t *pmd, unsigned int flags, struct iomap_ops *ops)
+> > > +{
+> > > +	struct address_space *mapping = vma->vm_file->f_mapping;
+> > > +	unsigned long pmd_addr = address & PMD_MASK;
+> > > +	bool write = flags & FAULT_FLAG_WRITE;
+> > > +	struct inode *inode = mapping->host;
+> > > +	struct iomap iomap = { 0 };
+> > > +	int error, result = 0;
+> > > +	pgoff_t size, pgoff;
+> > > +	struct vm_fault vmf;
+> > > +	void *entry;
+> > > +	loff_t pos;
+> > > +
+> > > +	/* Fall back to PTEs if we're going to COW */
+> > > +	if (write && !(vma->vm_flags & VM_SHARED)) {
+> > > +		split_huge_pmd(vma, pmd, address);
+> > > +		return VM_FAULT_FALLBACK;
+> > > +	}
+> > > +
+> > > +	/* If the PMD would extend outside the VMA */
+> > > +	if (pmd_addr < vma->vm_start)
+> > > +		return VM_FAULT_FALLBACK;
+> > > +	if ((pmd_addr + PMD_SIZE) > vma->vm_end)
+> > > +		return VM_FAULT_FALLBACK;
+> > > +
+> > > +	/*
+> > > +	 * Check whether offset isn't beyond end of file now. Caller is
+> > > +	 * supposed to hold locks serializing us with truncate / punch hole so
+> > > +	 * this is a reliable test.
+> > > +	 */
+> > > +	pgoff = linear_page_index(vma, pmd_addr);
+> > > +	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+> > > +
+> > > +	if (pgoff >= size)
+> > > +		return VM_FAULT_SIGBUS;
+> > > +
+> > > +	/* If the PMD would extend beyond the file size */
+> > > +	if ((pgoff | PG_PMD_COLOUR) >= size)
+> > > +		return VM_FAULT_FALLBACK;
+> > > +
+> > > +	/*
+> > > +	 * grab_mapping_entry() will make sure we get a 2M empty entry, a DAX
+> > > +	 * PMD or a HZP entry.  If it can't (because a 4k page is already in
+> > > +	 * the tree, for instance), it will return -EEXIST and we just fall
+> > > +	 * back to 4k entries.
+> > > +	 */
+> > > +	entry = grab_mapping_entry(mapping, pgoff, RADIX_DAX_PMD);
+> > > +	if (IS_ERR(entry))
+> > > +		return VM_FAULT_FALLBACK;
+> > > +
+> > > +	/*
+> > > +	 * Note that we don't use iomap_apply here.  We aren't doing I/O, only
+> > > +	 * setting up a mapping, so really we're using iomap_begin() as a way
+> > > +	 * to look up our filesystem block.
+> > > +	 */
+> > > +	pos = (loff_t)pgoff << PAGE_SHIFT;
+> > > +	error = ops->iomap_begin(inode, pos, PMD_SIZE, write ? IOMAP_WRITE : 0,
+> > > +			&iomap);
+> > 
+> > I'm not quite sure if it is OK to call ->iomap_begin() without ever calling
+> > ->iomap_end. Specifically the comment before iomap_apply() says:
+> > 
+> > "It is assumed that the filesystems will lock whatever resources they
+> > require in the iomap_begin call, and release them in the iomap_end call."
+> > 
+> > so what you do could result in unbalanced allocations / locks / whatever.
+> > Christoph?
+> 
+> I'll add the iomap_end() calls to both the PTE and PMD iomap fault handlers.
 
-I have Linux host running as a kvm hypervisor.  It's running CentOS.  (So the 
-kernel is based on 3.10 but with loads of stuff backported by RedHat.)  I 
-realize this is not a mainline kernel, but I was wondering if anyone is aware of 
-similar issues that had been fixed in mainline.
+Interesting - adding iomap_end() calls to the DAX PTE fault handler causes an
+AA deadlock because we try and retake ei->dax_sem.  We take dax_sem in
+ext2_dax_fault() before calling into the DAX code, then if we end up going
+through the error path in ext2_iomap_end(), we call 
+  ext2_write_failed()
+    ext2_truncate_blocks()
+      dax_sem_down_write()
 
-When doing a bunch of live migrations eventually I hit a bunch of errors that 
-look like this.
+Where we try and take dax_sem again.  This error path is really only valid for
+I/O operations, but we happen to call it for page faults because 'written' in
+ext2_iomap_end() is just 0.
 
-2016-10-03T23:13:54.017 controller-1 kernel: err [247517.457614] swap_free: Bad 
-swap file entry 001fe858
-2016-10-03T23:13:54.017 controller-1 kernel: alert [247517.463191] BUG: Bad page 
-map in process qemu-kvm  pte:3fd0b000 pmd:4557cb067
-2016-10-03T23:13:54.017 controller-1 kernel: alert [247517.471352] 
-addr:00007fefa9be4000 vm_flags:00100073 anon_vma:ffff88043f87ff80 mapping: 
-     (null) index:7fefa9be4
-2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483510] CPU: 0 PID: 
-154525 Comm: qemu-kvm Tainted: G           OE  ------------ 
-3.10.0-327.28.3.7.tis.x86_64 #1
-2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483513] Hardware 
-name: Intel Corporation S2600WT2R/S2600WT2R, BIOS 
-SE5C610.86B.01.01.0016.033120161139 03/31/2016
-2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483516] 
-00007fefa9be4000 0000000007795eb9 ffff88044007bc60 ffffffff81670503
-2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483524] 
-ffff88044007bca8 ffffffff8115e70f 000000003fd0b000 00000007fefa9be4
-2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483531] 
-ffff8804557cbf20 000000003fd0b000 00007fefa9c00000 00007fefa9be4000
-2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483538] Call Trace:
-2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483548] 
-[<ffffffff81670503>] dump_stack+0x19/0x1b
-2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483553] 
-[<ffffffff8115e70f>] print_bad_pte+0x1af/0x250
-2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483557] 
-[<ffffffff81160000>] unmap_page_range+0x5a0/0x7f0
-2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483561] 
-[<ffffffff811602a9>] unmap_single_vma+0x59/0xd0
-2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483564] 
-[<ffffffff81161595>] zap_page_range+0x105/0x170
-2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483568] 
-[<ffffffff8115dd7c>] SyS_madvise+0x3bc/0x7d0
-2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483573] 
-[<ffffffff810ca1e0>] ? SyS_futex+0x80/0x180
-2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483577] 
-[<ffffffff81678f89>] system_call_fastpath+0x16/0x1b
+So...how should we handle this?  A few ideas:
 
+1) Just continue to omit the calls to iomap_end() in the DAX page fault
+handlers for now, and add them when there is useful work to be done in one of
+the filesystems.
 
-One interesting thing about the "Bad swap file entry" error is that these hosts 
-do not have any swap configured:
+2) Add an IOMAP_FAULT flag to the flags passed into iomap_begin() and
+iomap_end() so make it explicit that we are calling as part of a fault handler
+and not an I/O operation, and use this to adjust the error handling in
+ext2_iomap_end().
 
-compute-4:~$ free
-               total        used        free      shared  buff/cache   available
-Mem:      131805464   122187644     8815864      245456      801956     9193644
-Swap:             0           0           0
+3) Just work around the existing error handling in ext2_iomap_end() by either
+unsetting IOMAP_WRITE or by setting 'written' to the size of the fault.
 
-So why is the kernel calling swap_info_get()?
+For #2 or #3, probably add a comment explaining the deadlock and why we need
+to never call ext2_write_failed() while handling a page fault.
 
-
-In the second error, the offset in the SyS_madvise routine is here:
-    0xffffffff8115dd77 <+951>:   callq  0xffffffff81161490 <zap_page_range>
-    0xffffffff8115dd7c <+956>:   xor    %eax,%eax
-
-this maps to the second zap_page_range() call below in madvise_dontneed():
-
-	if (unlikely(vma->vm_flags & VM_NONLINEAR)) {
-		struct zap_details details = {
-			.nonlinear_vma = vma,
-			.last_index = ULONG_MAX,
-		};
-		zap_page_range(vma, start, end - start, &details);
-	} else
-		zap_page_range(vma, start, end - start, NULL);
-
-
-print_bad_pte() is called from this code in zap_pte_range():
-
-		if (pte_file(ptent)) {
-			if (unlikely(!(vma->vm_flags & VM_NONLINEAR)))
-				print_bad_pte(vma, addr, ptent, NULL);
-
-Here's the interesting bit...we're calling print_bad_pte() here if 
-"vma->vm_flags & VM_NONLINEAR" is not true...but we called zap_page_range() with 
-a "details" of NULL specifically because it was not true.  So probably 
-pte_file(ptent) should not be true--but it is.
-
-
-Any of this sound familiar to anyone?  Anyone have suggestions on how to bottom 
-it out?
-
-Chris
-
-PS: Please CC me on replies.
+Thoughts?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
