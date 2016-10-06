@@ -1,60 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A3E226B0253
-	for <linux-mm@kvack.org>; Thu,  6 Oct 2016 12:02:07 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id g45so2293150qte.5
-        for <linux-mm@kvack.org>; Thu, 06 Oct 2016 09:02:07 -0700 (PDT)
-Received: from cmta16.telus.net (cmta16.telus.net. [209.171.16.89])
-        by mx.google.com with ESMTP id u67si8114293qkh.67.2016.10.06.09.02.06
-        for <linux-mm@kvack.org>;
-        Thu, 06 Oct 2016 09:02:06 -0700 (PDT)
-From: "Doug Smythies" <dsmythies@telus.net>
-References: <bug-172981-27@https.bugzilla.kernel.org/> <20160927111059.282a35c89266202d3cb2f953@linux-foundation.org> <20160928020347.GA21129@cmpxchg.org> <20160928080953.GA20312@esperanza> <20160929020050.GD29250@js1304-P5Q-DELUXE> <20160929134550.GB20312@esperanza> <20160930081940.GA3606@js1304-P5Q-DELUXE> <002601d21f8f$1fe2fe40$5fa8fac0$@net> s2GybGFijfdZcs2H3bZXPV
-In-Reply-To: s2GybGFijfdZcs2H3bZXPV
-Subject: RE: [Bug 172981] New: [bisected] SLAB: extreme load averages and over 2000 kworker threads
-Date: Thu, 6 Oct 2016 09:02:06 -0700
-Message-ID: <002c01d21fea$fcb8bf20$f62a3d60$@net>
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 59C7A6B0069
+	for <linux-mm@kvack.org>; Thu,  6 Oct 2016 12:55:29 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id n202so9386724oig.2
+        for <linux-mm@kvack.org>; Thu, 06 Oct 2016 09:55:29 -0700 (PDT)
+Received: from mail-oi0-x231.google.com (mail-oi0-x231.google.com. [2607:f8b0:4003:c06::231])
+        by mx.google.com with ESMTPS id 65si14347829oih.11.2016.10.06.09.55.28
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Oct 2016 09:55:28 -0700 (PDT)
+Received: by mail-oi0-x231.google.com with SMTP id m72so28300681oik.3
+        for <linux-mm@kvack.org>; Thu, 06 Oct 2016 09:55:28 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Content-Language: en-ca
+In-Reply-To: <20161006153443.GT1041@n2100.armlinux.org.uk>
+References: <20161006153443.GT1041@n2100.armlinux.org.uk>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 6 Oct 2016 09:55:27 -0700
+Message-ID: <CAPcyv4j8fWqwAaX5oCdg5atc+vmp57HoAGT6AfBFwaCiv0RbAQ@mail.gmail.com>
+Subject: Re: DMA-API: cpu touching an active dma mapped cacheline
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Joonsoo Kim' <iamjoonsoo.kim@lge.com>
-Cc: 'Vladimir Davydov' <vdavydov.dev@gmail.com>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Andrew Morton' <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org
+To: Russell King - ARM Linux <linux@armlinux.org.uk>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On 2016.10.05 23:35 Joonsoo Kim wrote:
-> On Wed, Oct 05, 2016 at 10:04:27PM -0700, Doug Smythies wrote:
->> On 2016.09.30 12:59 Vladimir Davydov wrote:
->> 
->>> Yeah, you're right. We'd better do something about this
->>> synchronize_sched(). I think moving it out of the slab_mutex and calling
->>> it once for all caches in memcg_deactivate_kmem_caches() would resolve
->>> the issue. I'll post the patches tomorrow.
->> 
->> Would someone please be kind enough to send me the patch set?
->> 
->> I didn't get them, and would like to test them.
->> I have searched and searched and did manage to find:
->> "[PATCH 2/2] slub: move synchronize_sched out of slab_mutex on shrink"
->> And a thread about a patch 1 of 2:
->> "Re: [PATCH 1/2] mm: memcontrol: use special workqueue for creating per-memcg caches"
->> Where I see me as "reported by", but I guess "reported by" people don't get the e-mails.
->> I haven't found PATCH 0/2, nor do I know if what I did find is current.
+On Thu, Oct 6, 2016 at 8:34 AM, Russell King - ARM Linux
+<linux@armlinux.org.uk> wrote:
+> Hi,
 >
-> I think that what you find is correct one. It has no cover-letter so
-> there is no [PATCH 0/2]. Anyway, to clarify, I add links to these
-> patches.
+> With DMA API debugging enabled, I'm seeing this splat from it, which to
+> me looks like the DMA API debugging is getting too eager for it's own
+> good.
 >
-> https://patchwork.kernel.org/patch/9361853
-> https://patchwork.kernel.org/patch/9359271
+> The fact of the matter is that the VM passes block devices pages to be
+> written out to disk which are page cache pages, which may be looked up
+> and written to by write() syscalls and via mmap() mappings.  For example,
+> take the case of a writable shared mapping of a page backed by a file on
+> a disk - the VM will periodically notice that the page has been dirtied,
+> and schedule a writeout to disk.  The disk driver has no idea that the
+> page is still mapped - and arguably it doesn't matter.
 >
-> It would be very helpful if you test these patches.
+> So, IMHO this whole "the CPU is touching a DMA mapped buffer" is quite
+> bogus given our VM behaviour: we have never guaranteed exclusive access
+> to DMA buffers.
+>
+> I don't see any maintainer listed for lib/dma-debug.c, but I see the
+> debug_dma_assert_idle() stuff was introduced by Dan via akpm in 2014.
 
-Yes, as best as I am able to test, the 2 patch set
-solves both this SLAB and the other SLUB bug reports.
+Hmm, there are benign cases where this happens, but there's also one's
+that lead to data corruption as was the case with the NET_DMA receive
+offload.  Perhaps this change is enough to distinguish between the two
+cases:
 
+diff --git a/lib/dma-debug.c b/lib/dma-debug.c
+index fcfa1939ac41..dd18235097d0 100644
+--- a/lib/dma-debug.c
++++ b/lib/dma-debug.c
+@@ -597,7 +597,7 @@ void debug_dma_assert_idle(struct page *page)
+        }
+        spin_unlock_irqrestore(&radix_lock, flags);
+
+-       if (!entry)
++       if (!entry || entry->direction != DMA_FROM_DEVICE)
+                return;
+
+        cln = to_cacheline_number(entry);
+
+...because the problem in the NET_DMA case was that the engine was
+writing to page that the process no longer cared about because the cpu
+had written to it causing a cow copy to be established.  In the disk
+DMA case its fine if the DMA is acting on stale results in a
+DMA_TO_DEVICE operation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
