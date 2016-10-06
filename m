@@ -1,87 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 269126B0262
-	for <linux-mm@kvack.org>; Thu,  6 Oct 2016 14:36:49 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id b201so4312860wmb.2
-        for <linux-mm@kvack.org>; Thu, 06 Oct 2016 11:36:49 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 21si5542690wmo.2.2016.10.06.11.36.46
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CA6EA6B0038
+	for <linux-mm@kvack.org>; Thu,  6 Oct 2016 17:01:07 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id r16so8577085pfg.4
+        for <linux-mm@kvack.org>; Thu, 06 Oct 2016 14:01:07 -0700 (PDT)
+Received: from mail1.windriver.com (mail1.windriver.com. [147.11.146.13])
+        by mx.google.com with ESMTPS id b6si4776707pfd.48.2016.10.06.14.01.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Oct 2016 11:36:46 -0700 (PDT)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u96IXVhY103520
-	for <linux-mm@kvack.org>; Thu, 6 Oct 2016 14:36:45 -0400
-Received: from e35.co.us.ibm.com (e35.co.us.ibm.com [32.97.110.153])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 25wu5earjf-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 06 Oct 2016 14:36:45 -0400
-Received: from localhost
-	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Thu, 6 Oct 2016 12:36:43 -0600
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: [PATCH v4 3/5] powerpc/mm: allow memory hotplug into a memoryless node
-Date: Thu,  6 Oct 2016 13:36:33 -0500
-In-Reply-To: <1475778995-1420-1-git-send-email-arbab@linux.vnet.ibm.com>
-References: <1475778995-1420-1-git-send-email-arbab@linux.vnet.ibm.com>
-Message-Id: <1475778995-1420-4-git-send-email-arbab@linux.vnet.ibm.com>
+        (version=TLS1_1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 06 Oct 2016 14:01:07 -0700 (PDT)
+Message-ID: <57F6BB8F.7070208@windriver.com>
+Date: Thu, 6 Oct 2016 15:01:03 -0600
+From: Chris Friesen <chris.friesen@windriver.com>
+MIME-Version: 1.0
+Subject: "swap_free: Bad swap file entry" and "BUG: Bad page map in process"
+ but no swap configured
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, devicetree@vger.kernel.org, linux-mm@kvack.org
+To: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-Remove the check which prevents us from hotplugging into an empty node.
 
-This limitation has been questioned before [1], and judging by the
-response, there doesn't seem to be a reason we can't remove it. No issues
-have been found in light testing.
+I have Linux host running as a kvm hypervisor.  It's running CentOS.  (So the 
+kernel is based on 3.10 but with loads of stuff backported by RedHat.)  I 
+realize this is not a mainline kernel, but I was wondering if anyone is aware of 
+similar issues that had been fixed in mainline.
 
-[1] http://lkml.kernel.org/r/CAGZKiBrmkSa1yyhbf5hwGxubcjsE5SmkSMY4tpANERMe2UG4bg@mail.gmail.com
-    http://lkml.kernel.org/r/20160511215051.GF22115@arbab-laptop.austin.ibm.com
+When doing a bunch of live migrations eventually I hit a bunch of errors that 
+look like this.
 
-Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
-Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-Acked-by: Balbir Singh <bsingharora@gmail.com>
-Cc: Nathan Fontenot <nfont@linux.vnet.ibm.com>
-Cc: Bharata B Rao <bharata@linux.vnet.ibm.com>
----
- arch/powerpc/mm/numa.c | 13 +------------
- 1 file changed, 1 insertion(+), 12 deletions(-)
+2016-10-03T23:13:54.017 controller-1 kernel: err [247517.457614] swap_free: Bad 
+swap file entry 001fe858
+2016-10-03T23:13:54.017 controller-1 kernel: alert [247517.463191] BUG: Bad page 
+map in process qemu-kvm  pte:3fd0b000 pmd:4557cb067
+2016-10-03T23:13:54.017 controller-1 kernel: alert [247517.471352] 
+addr:00007fefa9be4000 vm_flags:00100073 anon_vma:ffff88043f87ff80 mapping: 
+     (null) index:7fefa9be4
+2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483510] CPU: 0 PID: 
+154525 Comm: qemu-kvm Tainted: G           OE  ------------ 
+3.10.0-327.28.3.7.tis.x86_64 #1
+2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483513] Hardware 
+name: Intel Corporation S2600WT2R/S2600WT2R, BIOS 
+SE5C610.86B.01.01.0016.033120161139 03/31/2016
+2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483516] 
+00007fefa9be4000 0000000007795eb9 ffff88044007bc60 ffffffff81670503
+2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483524] 
+ffff88044007bca8 ffffffff8115e70f 000000003fd0b000 00000007fefa9be4
+2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483531] 
+ffff8804557cbf20 000000003fd0b000 00007fefa9c00000 00007fefa9be4000
+2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483538] Call Trace:
+2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483548] 
+[<ffffffff81670503>] dump_stack+0x19/0x1b
+2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483553] 
+[<ffffffff8115e70f>] print_bad_pte+0x1af/0x250
+2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483557] 
+[<ffffffff81160000>] unmap_page_range+0x5a0/0x7f0
+2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483561] 
+[<ffffffff811602a9>] unmap_single_vma+0x59/0xd0
+2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483564] 
+[<ffffffff81161595>] zap_page_range+0x105/0x170
+2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483568] 
+[<ffffffff8115dd7c>] SyS_madvise+0x3bc/0x7d0
+2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483573] 
+[<ffffffff810ca1e0>] ? SyS_futex+0x80/0x180
+2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483577] 
+[<ffffffff81678f89>] system_call_fastpath+0x16/0x1b
 
-diff --git a/arch/powerpc/mm/numa.c b/arch/powerpc/mm/numa.c
-index 75b9cd6..d7ac419 100644
---- a/arch/powerpc/mm/numa.c
-+++ b/arch/powerpc/mm/numa.c
-@@ -1121,7 +1121,7 @@ static int hot_add_node_scn_to_nid(unsigned long scn_addr)
- int hot_add_scn_to_nid(unsigned long scn_addr)
- {
- 	struct device_node *memory = NULL;
--	int nid, found = 0;
-+	int nid;
- 
- 	if (!numa_enabled || (min_common_depth < 0))
- 		return first_online_node;
-@@ -1137,17 +1137,6 @@ int hot_add_scn_to_nid(unsigned long scn_addr)
- 	if (nid < 0 || !node_online(nid))
- 		nid = first_online_node;
- 
--	if (NODE_DATA(nid)->node_spanned_pages)
--		return nid;
--
--	for_each_online_node(nid) {
--		if (NODE_DATA(nid)->node_spanned_pages) {
--			found = 1;
--			break;
--		}
--	}
--
--	BUG_ON(!found);
- 	return nid;
- }
- 
--- 
-1.8.3.1
+
+One interesting thing about the "Bad swap file entry" error is that these hosts 
+do not have any swap configured:
+
+compute-4:~$ free
+               total        used        free      shared  buff/cache   available
+Mem:      131805464   122187644     8815864      245456      801956     9193644
+Swap:             0           0           0
+
+So why is the kernel calling swap_info_get()?
+
+
+In the second error, the offset in the SyS_madvise routine is here:
+    0xffffffff8115dd77 <+951>:   callq  0xffffffff81161490 <zap_page_range>
+    0xffffffff8115dd7c <+956>:   xor    %eax,%eax
+
+this maps to the second zap_page_range() call below in madvise_dontneed():
+
+	if (unlikely(vma->vm_flags & VM_NONLINEAR)) {
+		struct zap_details details = {
+			.nonlinear_vma = vma,
+			.last_index = ULONG_MAX,
+		};
+		zap_page_range(vma, start, end - start, &details);
+	} else
+		zap_page_range(vma, start, end - start, NULL);
+
+
+print_bad_pte() is called from this code in zap_pte_range():
+
+		if (pte_file(ptent)) {
+			if (unlikely(!(vma->vm_flags & VM_NONLINEAR)))
+				print_bad_pte(vma, addr, ptent, NULL);
+
+Here's the interesting bit...we're calling print_bad_pte() here if 
+"vma->vm_flags & VM_NONLINEAR" is not true...but we called zap_page_range() with 
+a "details" of NULL specifically because it was not true.  So probably 
+pte_file(ptent) should not be true--but it is.
+
+
+Any of this sound familiar to anyone?  Anyone have suggestions on how to bottom 
+it out?
+
+Chris
+
+PS: Please CC me on replies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
