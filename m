@@ -1,161 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C3CC6B0038
-	for <linux-mm@kvack.org>; Fri,  7 Oct 2016 11:04:28 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id o21so28004450itb.4
-        for <linux-mm@kvack.org>; Fri, 07 Oct 2016 08:04:28 -0700 (PDT)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id 28si24523410ioj.205.2016.10.07.08.04.26
-        for <linux-mm@kvack.org>;
-        Fri, 07 Oct 2016 08:04:27 -0700 (PDT)
-Date: Sat, 8 Oct 2016 00:04:25 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 0/4] use up highorder free pages before OOM
-Message-ID: <20161007150425.GD3060@bbox>
-References: <1475819136-24358-1-git-send-email-minchan@kernel.org>
- <20161007091625.GB18447@dhcp22.suse.cz>
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 49E926B0038
+	for <linux-mm@kvack.org>; Fri,  7 Oct 2016 11:34:17 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id w11so59481406oia.6
+        for <linux-mm@kvack.org>; Fri, 07 Oct 2016 08:34:17 -0700 (PDT)
+Received: from mail-oi0-x22b.google.com (mail-oi0-x22b.google.com. [2607:f8b0:4003:c06::22b])
+        by mx.google.com with ESMTPS id i56si15949500ote.232.2016.10.07.08.34.16
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 07 Oct 2016 08:34:16 -0700 (PDT)
+Received: by mail-oi0-x22b.google.com with SMTP id m72so60922722oik.3
+        for <linux-mm@kvack.org>; Fri, 07 Oct 2016 08:34:16 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161007091625.GB18447@dhcp22.suse.cz>
+In-Reply-To: <20161007100720.GA14859@lucifer>
+References: <20160911225425.10388-1-lstoakes@gmail.com> <20160925184731.GA20480@lucifer>
+ <CA+55aFwtHAT_ukyE=+s=3twW8v8QExLxpVcfEDyLihf+pn9qeA@mail.gmail.com>
+ <1474842875.17726.38.camel@redhat.com> <CA+55aFyL+qFsJpxQufgRKgWeB6Yj0e1oapdu5mdU9_t+zwtBjg@mail.gmail.com>
+ <20161007100720.GA14859@lucifer>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 7 Oct 2016 08:34:15 -0700
+Message-ID: <CA+55aFzOYk_1Jcr8CSKyqfkXaOApZvCkX0_27mZk7PvGSE4xSw@mail.gmail.com>
+Subject: Re: [PATCH] mm: check VMA flags to avoid invalid PROT_NONE NUMA balancing
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sangseok Lee <sangseok.lee@lge.com>
+To: Lorenzo Stoakes <lstoakes@gmail.com>
+Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, tbsaunde@tbsaunde.org, robert@ocallahan.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, Oct 07, 2016 at 11:16:26AM +0200, Michal Hocko wrote:
-> On Fri 07-10-16 14:45:32, Minchan Kim wrote:
-> > I got OOM report from production team with v4.4 kernel.
-> > It has enough free memory but failed to allocate order-0 page and
-> > finally encounter OOM kill.
-> > I could reproduce it with my test easily. Look at below.
-> > The reason is free pages(19M) of DMA32 zone are reserved for
-> > HIGHORDERATOMIC and doesn't unreserved before the OOM.
-> 
-> Is this really reproducible?
+On Fri, Oct 7, 2016 at 3:07 AM, Lorenzo Stoakes <lstoakes@gmail.com> wrote:
+>
+> So I've experimented with this a little locally, removing FOLL_FORCE altogether
+> and tracking places where it is used (it seems to be a fair few places
+> actually.)
 
-I can reproduce in 1 hour.
+I'm actually a bit worried that it is used too much simply because
+it's so easy to use.
 
-> 
-> [...]
-> > active_anon:383949 inactive_anon:106724 isolated_anon:0
-> >  active_file:15 inactive_file:44 isolated_file:0
-> >  unevictable:0 dirty:0 writeback:24 unstable:0
-> >  slab_reclaimable:2483 slab_unreclaimable:3326
-> >  mapped:0 shmem:0 pagetables:1906 bounce:0
-> >  free:6898 free_pcp:291 free_cma:0
-> [...]
-> > Free swap  = 8kB
-> > Total swap = 255996kB
-> > 524158 pages RAM
-> > 0 pages HighMem/MovableOnly
-> > 12658 pages reserved
-> > 0 pages cma reserved
-> > 0 pages hwpoisoned
-> 
-> From the above you can see that you are pretty much out of memory. There
-> is basically no pagecache to reclaim and your anon memory is not 
-> reclaimable either because the swap is basically full. It is true that 
-> the high atomic reserves consume 19MB which could be reused but this 
-> less than 1%, especially when you compare that to the amount of reserved
-> memory.
+In paticular, there's a class of functions that (for legacy reasons)
+get the "int force" and "int write" arguments, and they both tend to
+just use a very non-descript 0/1 in the callers. Then at some point
+you have code like
 
-I can show other log which reserve greater than 1%. See the DMA32 zone
-free pages. It was GFP_ATOMIC allocation so it's different with I posted
-but important thing is VM can reserve memory greater than 1% by the race
-which was really what we want.
+    if (write)
+        flags |= FOLL_WRITE;
+    if (force)
+        flags |= FOLL_FORCE;
 
-in:imklog: page allocation failure: order:0, mode:0x2280020(GFP_ATOMIC|__GFP_NOTRACK)
-CPU: 0 PID: 476 Comm: in:imklog Tainted: G            E   4.8.0-rc7-00217-g266ef83c51e5-dirty #3135
-Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Ubuntu-1.8.2-1ubuntu1 04/01/2014
- 0000000000000000 ffff880077c37590 ffffffff81389033 0000000000000000
- 0000000000000000 ffff880077c37618 ffffffff8117519b 0228002000000000
- ffffffffffffffff ffffffff81cedb40 0000000000000000 0000000000000040
-Call Trace:
- [<ffffffff81389033>] dump_stack+0x63/0x90
- [<ffffffff8117519b>] warn_alloc_failed+0xdb/0x130
- [<ffffffff81175746>] __alloc_pages_nodemask+0x4d6/0xdb0
- [<ffffffff8120c149>] ? bdev_write_page+0xa9/0xd0
- [<ffffffff811a97b3>] ? __page_check_address+0xd3/0x130
- [<ffffffff811ba4ea>] ? deactivate_slab+0x12a/0x3e0
- [<ffffffff811b9549>] new_slab+0x339/0x490
- [<ffffffff811bad37>] ___slab_alloc.constprop.74+0x367/0x480
- [<ffffffff814601ad>] ? alloc_indirect.isra.14+0x1d/0x50
- [<ffffffff8109d0c2>] ? default_wake_function+0x12/0x20
- [<ffffffff811bae70>] __slab_alloc.constprop.73+0x20/0x40
- [<ffffffff811bb034>] __kmalloc+0x1a4/0x1e0
- [<ffffffff814601ad>] alloc_indirect.isra.14+0x1d/0x50
- [<ffffffff81460434>] virtqueue_add_sgs+0x1c4/0x470
- [<ffffffff81365075>] ? __bt_get.isra.8+0xe5/0x1c0
- [<ffffffff8150973e>] __virtblk_add_req+0xae/0x1f0
- [<ffffffff810b37d0>] ? wake_atomic_t_function+0x60/0x60
- [<ffffffff810337b9>] ? sched_clock+0x9/0x10
- [<ffffffff81360afb>] ? __blk_mq_alloc_request+0x10b/0x230
- [<ffffffff8135e293>] ? blk_rq_map_sg+0x213/0x550
- [<ffffffff81509a1d>] virtio_queue_rq+0x12d/0x290
- [<ffffffff813629c9>] __blk_mq_run_hw_queue+0x239/0x370
- [<ffffffff8136276f>] blk_mq_run_hw_queue+0x8f/0xb0
- [<ffffffff8136397c>] blk_mq_insert_requests+0x18c/0x1a0
- [<ffffffff81364865>] blk_mq_flush_plug_list+0x125/0x140
- [<ffffffff813596a7>] blk_flush_plug_list+0xc7/0x220
- [<ffffffff81359bec>] blk_finish_plug+0x2c/0x40
- [<ffffffff8117b836>] __do_page_cache_readahead+0x196/0x230
- [<ffffffffa00006ba>] ? zram_free_page+0x3a/0xb0 [zram]
- [<ffffffff8116f928>] filemap_fault+0x448/0x4f0
- [<ffffffff8119e9e4>] ? alloc_set_pte+0xe4/0x350
- [<ffffffff8125fa16>] ext4_filemap_fault+0x36/0x50
- [<ffffffff8119be35>] __do_fault+0x75/0x140
- [<ffffffff8119f6cd>] handle_mm_fault+0x84d/0xbe0
- [<ffffffff812483e4>] ? kmsg_read+0x44/0x60
- [<ffffffff8106029d>] __do_page_fault+0x1dd/0x4d0
- [<ffffffff81060653>] trace_do_page_fault+0x43/0x130
- [<ffffffff81059bda>] do_async_page_fault+0x1a/0xa0
- [<ffffffff8179dcb8>] async_page_fault+0x28/0x30
-Mem-Info:
-active_anon:363826 inactive_anon:121283 isolated_anon:32
- active_file:65 inactive_file:152 isolated_file:0
- unevictable:0 dirty:0 writeback:46 unstable:0
- slab_reclaimable:2778 slab_unreclaimable:3070
- mapped:112 shmem:0 pagetables:1822 bounce:0
- free:9469 free_pcp:231 free_cma:0
-Node 0 active_anon:1455304kB inactive_anon:485132kB active_file:260kB inactive_file:608kB unevictable:0kB isolated(anon):128kB isolated(file):0kB mapped:448kB dirty:0kB writeback:184kB shmem:0kB writeback_tmp:0kB unstable:0kB pages_scanned:13641 all_unreclaimable? no
-DMA free:7748kB min:44kB low:56kB high:68kB active_anon:7944kB inactive_anon:104kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:15992kB managed:15908kB mlocked:0kB slab_reclaimable:0kB slab_unreclaimable:108kB kernel_stack:0kB pagetables:4kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
-lowmem_reserve[]: 0 1952 1952 1952
-DMA32 free:30128kB min:5628kB low:7624kB high:9620kB active_anon:1447360kB inactive_anon:485028kB active_file:260kB inactive_file:608kB unevictable:0kB writepending:184kB present:2080640kB managed:2030132kB mlocked:0kB slab_reclaimable:11112kB slab_unreclaimable:12172kB kernel_stack:2400kB pagetables:7284kB bounce:0kB free_pcp:924kB local_pcp:72kB free_cma:0kB
-lowmem_reserve[]: 0 0 0 0
-DMA: 7*4kB (UE) 3*8kB (UH) 1*16kB (M) 0*32kB 2*64kB (U) 1*128kB (M) 1*256kB (U) 0*512kB 1*1024kB (U) 1*2048kB (U) 1*4096kB (H) = 7748kB
-DMA32: 10*4kB (H) 3*8kB (H) 47*16kB (H) 38*32kB (H) 5*64kB (H) 1*128kB (H) 2*256kB (H) 3*512kB (H) 3*1024kB (H) 3*2048kB (H) 4*4096kB (H) = 30128kB
-2775 total pagecache pages
-2536 pages in swap cache
-Swap cache stats: add 206786828, delete 206784292, find 7323106/106686077
-Free swap  = 108744kB
-Total swap = 255996kB
-524158 pages RAM
-0 pages HighMem/MovableOnly
-12648 pages reserved
-0 pages cma reserved
-0 pages hwpoisoned
+(I'm paraphrasing from memory), and then subsequent calls use that FOLL_FORCE.
 
-> 
-> So while I do agree that potential issues - misaccounting and others you
-> are addressing in the follow up patch - are good to fix but I believe that
-> draining last 19M is not something that would reliably get you over the
-> edge. Your workload (93% of memory sitting on anon LRU with swap full)
-> simply doesn't fit into the amount of memory you have available.
+And the problem with that it's that it's *really* hard to see where
+people actually use FOLL_FORCE, and it's also really easy to use it
+without thinking (because it doesn't say "FOLL_FORCE", it just
+randomly says "1" in some random argument list).
 
-What happens if the workload fit into additional 19M memory?
-I admit my testing aimed for proving the problem but with this patchset,
-there is no OOM killing with many free pages and the number of OOM was
-reduced highly. It is definitely better than old.
+So the *first* step I'd do is to actually get rid of all the "write"
+and "force" arguments, and just pass in "flags" instead, and use
+FOLL_FORCE and FOLL_WRITE explicitly in the caller. That way it
+suddenly becomes *much* easier to grep for FOLL_FORCE and see who it
+is that actually really wants it.
 
-Please don't ignore 1% memory in embedded system. 20M memory in 2G system,
-If we can use those for zram, it is 60~80M memory via compression.
-You should know how many engineers try to reduce 1M of their driver to
-cost down of the product, seriously.
+(In fact, I think some functions get *both* "flags" and the separate
+write/force argument).
 
-> -- 
-> Michal Hocko
-> SUSE Labs
+Would you be willing to look at doing that kind of purely syntactic,
+non-semantic cleanup first?
+
+> I've rather naively replaced the FOLL_FORCE check in check_vma_flags() with a
+> check against 'tsk && tsk->ptrace && tsk->parent == current', I'm not sure how
+> valid or sane this is, however, but a quick check against gdb proves that it is
+> able to do its thing in this configuration. Is this a viable path, or is this
+> way off the mark here?
+
+I think that if we end up having the FOLL_FORCE semantics, we're
+actually better off having an explicit FOLL_FORCE flag, and *not* do
+some kind of implicit "under these magical circumstances we'll force
+it anyway". The implicit thing is what we used to do long long ago, we
+definitely don't want to.
+
+So I'd rather see all the callers that actually use FOLL_FORCE, and
+then we can start looking at whether it's really a requirement. Some
+of them may not strictly *need* it in actual use, they just have it
+because of historical reasons (ie exactly those implicit users that
+just got mindlessly converted to maintain same semantics).
+
+                     Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
