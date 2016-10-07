@@ -1,78 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D3BAB280250
-	for <linux-mm@kvack.org>; Fri,  7 Oct 2016 02:40:33 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id b201so4390963wmb.2
-        for <linux-mm@kvack.org>; Thu, 06 Oct 2016 23:40:33 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 189si1730785wmf.5.2016.10.06.23.40.32
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 47C26280250
+	for <linux-mm@kvack.org>; Fri,  7 Oct 2016 02:50:24 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id u84so18659407pfj.1
+        for <linux-mm@kvack.org>; Thu, 06 Oct 2016 23:50:24 -0700 (PDT)
+Received: from mail-pf0-f194.google.com (mail-pf0-f194.google.com. [209.85.192.194])
+        by mx.google.com with ESMTPS id f2si7215403pfb.292.2016.10.06.23.50.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Oct 2016 23:40:32 -0700 (PDT)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u976d4ll053236
-	for <linux-mm@kvack.org>; Fri, 7 Oct 2016 02:40:31 -0400
-Received: from e18.ny.us.ibm.com (e18.ny.us.ibm.com [129.33.205.208])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 25x65sh8w0-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 07 Oct 2016 02:40:31 -0400
-Received: from localhost
-	by e18.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Fri, 7 Oct 2016 02:40:30 -0400
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v4 5/5] mm: enable CONFIG_MOVABLE_NODE on non-x86 arches
-In-Reply-To: <1475778995-1420-6-git-send-email-arbab@linux.vnet.ibm.com>
-References: <1475778995-1420-1-git-send-email-arbab@linux.vnet.ibm.com> <1475778995-1420-6-git-send-email-arbab@linux.vnet.ibm.com>
-Date: Fri, 07 Oct 2016 12:10:21 +0530
+        Thu, 06 Oct 2016 23:50:23 -0700 (PDT)
+Received: by mail-pf0-f194.google.com with SMTP id i85so2369443pfa.0
+        for <linux-mm@kvack.org>; Thu, 06 Oct 2016 23:50:23 -0700 (PDT)
+Date: Fri, 7 Oct 2016 08:50:19 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] mm, compaction: allow compaction for GFP_NOFS
+ requests
+Message-ID: <20161007065019.GA18439@dhcp22.suse.cz>
+References: <20161004081215.5563-1-mhocko@kernel.org>
+ <e7dc1e23-10fe-99de-e9c8-581857e3ab9d@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain
-Message-Id: <87wphkmzl6.fsf@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <e7dc1e23-10fe-99de-e9c8-581857e3ab9d@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Reza Arbab <arbab@linux.vnet.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, devicetree@vger.kernel.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Mel Gorman <mgorman@suse.de>, Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Reza Arbab <arbab@linux.vnet.ibm.com> writes:
+On Fri 07-10-16 07:27:37, Vlastimil Babka wrote:
+[...]
+> > diff --git a/mm/compaction.c b/mm/compaction.c
+> > index badb92bf14b4..07254a73ee32 100644
+> > --- a/mm/compaction.c
+> > +++ b/mm/compaction.c
+> > @@ -834,6 +834,13 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+> >  		    page_count(page) > page_mapcount(page))
+> >  			goto isolate_fail;
+> > 
+> > +		/*
+> > +		 * Only allow to migrate anonymous pages in GFP_NOFS context
+> > +		 * because those do not depend on fs locks.
+> > +		 */
+> > +		if (!(cc->gfp_mask & __GFP_FS) && page_mapping(page))
+> > +			goto isolate_fail;
+> 
+> Unless page can acquire a page_mapping between this check and migration, I
+> don't see a problem with allowing this.
 
-> To support movable memory nodes (CONFIG_MOVABLE_NODE), at least one of
-> the following must be true:
->
-> 1. We're on x86. This arch has the capability to identify movable nodes
->    at boot by parsing the ACPI SRAT, if the movable_node option is used.
->
-> 2. Our config supports memory hotplug, which means that a movable node
->    can be created by hotplugging all of its memory into ZONE_MOVABLE.
->
-> Fix the Kconfig definition of CONFIG_MOVABLE_NODE, which currently
-> recognizes (1), but not (2).
->
+It can be become swapcache but I guess this should be OK. We do not
+allow to get here with GFP_NOIO and migrating swapcache pages in NOFS
+mode should be OK AFAICS.
 
-We now enable a lot of new code on different arch, such as the new node list
-N_MEMORY.
+> But make sure you don't break kcompactd and manual compaction from /proc, as
+> they don't currently set cc->gfp_mask. Looks like until now it was only used
+> to determine direct compactor's migratetype which is irrelevant in those
+> contexts.
 
-Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-
-> Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
-> ---
->  mm/Kconfig | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index be0ee11..5d0818f 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -153,7 +153,7 @@ config MOVABLE_NODE
->  	bool "Enable to assign a node which has only movable memory"
->  	depends on HAVE_MEMBLOCK
->  	depends on NO_BOOTMEM
-> -	depends on X86_64
-> +	depends on X86_64 || MEMORY_HOTPLUG
->  	depends on NUMA
->  	default n
->  	help
-> -- 
-> 1.8.3.1
+OK, I see. This is really subtle. One way to go would be to provide a
+fake gfp_mask for them. How does the following look to you?
+---
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 557c165b63ad..d1d90e96ef4b 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1779,6 +1779,7 @@ static void compact_node(int nid)
+ 		.mode = MIGRATE_SYNC,
+ 		.ignore_skip_hint = true,
+ 		.whole_zone = true,
++		.gfp_mask = GFP_KERNEL,
+ 	};
+ 
+ 
+@@ -1904,6 +1905,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
+ 		.classzone_idx = pgdat->kcompactd_classzone_idx,
+ 		.mode = MIGRATE_SYNC_LIGHT,
+ 		.ignore_skip_hint = true,
++		.gfp_mask = GFP_KERNEL,
+ 
+ 	};
+ 	trace_mm_compaction_kcompactd_wake(pgdat->node_id, cc.order,
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
