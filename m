@@ -1,104 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BBA506B0038
-	for <linux-mm@kvack.org>; Fri,  7 Oct 2016 06:07:24 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id i130so7016784wmg.4
-        for <linux-mm@kvack.org>; Fri, 07 Oct 2016 03:07:24 -0700 (PDT)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id u126si2435920wmd.6.2016.10.07.03.07.23
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Oct 2016 03:07:23 -0700 (PDT)
-Received: by mail-wm0-x243.google.com with SMTP id 123so2170905wmb.3
-        for <linux-mm@kvack.org>; Fri, 07 Oct 2016 03:07:23 -0700 (PDT)
-Date: Fri, 7 Oct 2016 11:07:20 +0100
-From: Lorenzo Stoakes <lstoakes@gmail.com>
-Subject: Re: [PATCH] mm: check VMA flags to avoid invalid PROT_NONE NUMA
- balancing
-Message-ID: <20161007100720.GA14859@lucifer>
-References: <20160911225425.10388-1-lstoakes@gmail.com>
- <20160925184731.GA20480@lucifer>
- <CA+55aFwtHAT_ukyE=+s=3twW8v8QExLxpVcfEDyLihf+pn9qeA@mail.gmail.com>
- <1474842875.17726.38.camel@redhat.com>
- <CA+55aFyL+qFsJpxQufgRKgWeB6Yj0e1oapdu5mdU9_t+zwtBjg@mail.gmail.com>
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C4846B0038
+	for <linux-mm@kvack.org>; Fri,  7 Oct 2016 06:31:29 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id ry6so23921178pac.1
+        for <linux-mm@kvack.org>; Fri, 07 Oct 2016 03:31:29 -0700 (PDT)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id b76si8116865pfc.187.2016.10.07.03.31.26
+        for <linux-mm@kvack.org>;
+        Fri, 07 Oct 2016 03:31:27 -0700 (PDT)
+Date: Fri, 7 Oct 2016 21:30:39 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: lockdep splat due to reclaim recursion detected
+Message-ID: <20161007103039.GJ9806@dastard>
+References: <20161007080739.GD18439@dhcp22.suse.cz>
+ <20161007081340.GF18439@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+55aFyL+qFsJpxQufgRKgWeB6Yj0e1oapdu5mdU9_t+zwtBjg@mail.gmail.com>
+In-Reply-To: <20161007081340.GF18439@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, tbsaunde@tbsaunde.org, robert@ocallahan.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-fsdevel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Sun, Sep 25, 2016 at 03:50:21PM -0700, Linus Torvalds wrote:
-> I'd really like to re-open the "drop FOLL_FORCE entirely" discussion,
-> because the thing really is disgusting.
->
-> I realize that debuggers etc sometimes would want to punch through
-> PROT_NONE protections, and I also realize that right now we only have
-> a read/write flag, and we have that whole issue with "what if it's
-> executable but not readable", which currently FOLL_FORCE makes a
-> non-issue.
+On Fri, Oct 07, 2016 at 10:13:40AM +0200, Michal Hocko wrote:
+> Fix up xfs ML address
+> 
+> On Fri 07-10-16 10:07:39, Michal Hocko wrote:
+> > Hi Dave,
+> > while playing with the test case you have suggested [1], I have hit the
+> > following lockdep splat. This is with mmotm git tree [2] but I didn't
+> > get to retest with the current linux-next (or any other tree of your
+> > preference) so there is a chance that something is broken in my tree so
+> > take this as a heads up. As soon as I am done with testing of the patch
+> > in the above email thread I will retest with linux-next.
+....
+> > [   61.878792] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Debian-1.8.2-1 04/01/2014
+> > [   61.878792]  0000000000000000 ffff88001c8b3718 ffffffff81312f78 ffffffff825d99d0
+> > [   61.878792]  ffff88001cd04880 ffff88001c8b3750 ffffffff811260d1 000000000000000a
+> > [   61.878792]  ffff88001cd05178 ffff88001cd04880 ffffffff81095395 ffff88001cd04880
+> > [   61.878792] Call Trace:
+> > [   61.878792]  [<ffffffff81312f78>] dump_stack+0x68/0x92
+> > [   61.878792]  [<ffffffff811260d1>] print_usage_bug.part.26+0x25b/0x26a
+> > [   61.878792]  [<ffffffff81095395>] ? print_shortest_lock_dependencies+0x17f/0x17f
+> > [   61.878792]  [<ffffffff81096074>] mark_lock+0x381/0x56d
+> > [   61.878792]  [<ffffffff810962be>] mark_held_locks+0x5e/0x74
+> > [   61.878792]  [<ffffffff8109875c>] lockdep_trace_alloc+0xaf/0xb2
+> > [   61.878792]  [<ffffffff8117d0f7>] kmem_cache_alloc_trace+0x3a/0x270
+> > [   61.878792]  [<ffffffff81169454>] ? vm_map_ram+0x2d2/0x4a6
+> > [   61.878792]  [<ffffffff8116924b>] ? vm_map_ram+0xc9/0x4a6
+> > [   61.878792]  [<ffffffff81169454>] vm_map_ram+0x2d2/0x4a6
+> > [   61.878792]  [<ffffffffa0051069>] _xfs_buf_map_pages+0xae/0x10b [xfs]
+> > [   61.878792]  [<ffffffffa0052cd0>] xfs_buf_get_map+0xaa/0x24f [xfs]
+> > [   61.878792]  [<ffffffffa0081d10>] xfs_trans_get_buf_map+0x144/0x2ef [xfs]
 
-So I've experimented with this a little locally, removing FOLL_FORCE altogether
-and tracking places where it is used (it seems to be a fair few places
-actually.)
+Aw, come on! I explained this lockdep annotation bug a couple of
+days ago.
 
-I've rather naively replaced the FOLL_FORCE check in check_vma_flags() with a
-check against 'tsk && tsk->ptrace && tsk->parent == current', I'm not sure how
-valid or sane this is, however, but a quick check against gdb proves that it is
-able to do its thing in this configuration. Is this a viable path, or is this
-way off the mark here?
+https://www.spinics.net/lists/linux-fsdevel/msg102588.html
 
-The places I've found that have invoked gup functions which eventually result in
-FOLL_FORCE being set are:
+And this isn't the first time I've explained this either. ISTR this
+same issue triggered a long whole discussion about how to move
+memory allocation to task based context flags or to push more
+context specific information into the shrinkers so they could decide
+if the needed to avoid deadlocks or not. That was about 6 months
+ago, IIRC, and there's been no followup from the mm side of
+things...
 
-Calls __get_user_pages():
-	mm/gup.c: populate_vma_page_range()
-	mm/gup.c: get_dump_page()
+Cheers,
 
-calls get_user_pages_unlocked():
-	drivers/media/pci/ivtv/ivtv-yuv.c: ivtv_yuv_prep_user_dma()
-	drivers/media/pci/ivtv/ivtv-udma.c: ivtv_udma_setup()
-
-calls get_user_pages_remote():
-	mm/memory.c: __access_remote_vm() [ see below for callers ]
-	fs/exec.c: get_arg_page()
-	kernel/events/uprobes.c: uprobe_write_opcode()
-	kernel/events/uprobes.c: is_trap_at_addr()
-	security/tomoyo/domain.c: tomoyo_dump_page()
-
-calls __access_remote_vm():
-	mm/memory.c: access_remote_vm() [ see below for callers ]
-	mm/memory.c: access_process_vm()
-
-access_process_vm() is exclusively used for ptrace, omitting its callers here.
-
-calls access_remote_vm():
-	fs/proc/base.c: proc_pid_cmdline_read()
-	fs/proc/base.c: memrw()
-	fs/proc/base.c: environ_read()
-
-calls get_user_pages():
-	drivers/infiniband/core/umem.c: ib_umem_get()
-	drivers/infiniband/hw/qib/qib_user_pages.c: __qib_get_user_pages()
-	drivers/infiniband/hw/usnic/usnic_uiom.c: usnic_uiom_get_pages()
-	drivers/media/v4l2-core/videobuf-dma-sg.c: videobuf_dma_init_user_locked()
-
-calls get_vaddr_frames():
-	drivers/media/v4l2-core/videobuf2-memops.c: vb2_create_framevec()
-	drivers/gpu/drm/exynos/exynos_drm_g2d.c: g2d_userptr_get_dma_addr()
-
-So it seems the general areas where it is used are tracing, uprobes and DMA
-initialisation what what I can tell. I'm thinking some extra provision/careful
-checking will be needed in each of these cases to see if an alternative is
-possible.
-
-I'm happy to explore this some more if that is useful in any way, though of
-course I defer to your expertise as to how a world without FOLL_FORCE might
-look!
-
-Cheers, Lorenzo
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
