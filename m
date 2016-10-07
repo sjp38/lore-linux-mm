@@ -1,47 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1254F6B0038
-	for <linux-mm@kvack.org>; Fri,  7 Oct 2016 17:13:10 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id rz1so37691809pab.0
-        for <linux-mm@kvack.org>; Fri, 07 Oct 2016 14:13:10 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 059136B0253
+	for <linux-mm@kvack.org>; Fri,  7 Oct 2016 17:15:19 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id r16so35010402pfg.4
+        for <linux-mm@kvack.org>; Fri, 07 Oct 2016 14:15:18 -0700 (PDT)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id n9si18446948pac.82.2016.10.07.14.09.16
+        by mx.google.com with ESMTPS id n9si18446948pac.82.2016.10.07.14.09.13
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 07 Oct 2016 14:09:16 -0700 (PDT)
+        Fri, 07 Oct 2016 14:09:13 -0700 (PDT)
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v5 07/17] dax: remove the last BUG_ON() from fs/dax.c
-Date: Fri,  7 Oct 2016 15:08:54 -0600
-Message-Id: <1475874544-24842-8-git-send-email-ross.zwisler@linux.intel.com>
+Subject: [PATCH v5 01/17] ext4: allow DAX writeback for hole punch
+Date: Fri,  7 Oct 2016 15:08:48 -0600
+Message-Id: <1475874544-24842-2-git-send-email-ross.zwisler@linux.intel.com>
 In-Reply-To: <1475874544-24842-1-git-send-email-ross.zwisler@linux.intel.com>
 References: <1475874544-24842-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org, stable@vger.kernel.org
 
-Don't take down the kernel if we get an invalid 'from' and 'length'
-argument pair.  Just warn once and return an error.
+Currently when doing a DAX hole punch with ext4 we fail to do a writeback.
+This is because the logic around filemap_write_and_wait_range() in
+ext4_punch_hole() only looks for dirty page cache pages in the radix tree,
+not for dirty DAX exceptional entries.
 
 Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+Reviewed-by: Jan Kara <jack@suse.cz>
+Cc: <stable@vger.kernel.org>
 ---
- fs/dax.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ fs/ext4/inode.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index ac28cdf..98189ac 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -1194,7 +1194,8 @@ int dax_zero_page_range(struct inode *inode, loff_t from, unsigned length,
- 	/* Block boundary? Nothing to do */
- 	if (!length)
- 		return 0;
--	BUG_ON((offset + length) > PAGE_SIZE);
-+	if (WARN_ON_ONCE((offset + length) > PAGE_SIZE))
-+		return -EINVAL;
+diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+index 3131747..0900cb4 100644
+--- a/fs/ext4/inode.c
++++ b/fs/ext4/inode.c
+@@ -3890,7 +3890,7 @@ int ext4_update_disksize_before_punch(struct inode *inode, loff_t offset,
+ }
  
- 	memset(&bh, 0, sizeof(bh));
- 	bh.b_bdev = inode->i_sb->s_bdev;
+ /*
+- * ext4_punch_hole: punches a hole in a file by releaseing the blocks
++ * ext4_punch_hole: punches a hole in a file by releasing the blocks
+  * associated with the given offset and length
+  *
+  * @inode:  File inode
+@@ -3919,7 +3919,7 @@ int ext4_punch_hole(struct inode *inode, loff_t offset, loff_t length)
+ 	 * Write out all dirty pages to avoid race conditions
+ 	 * Then release them.
+ 	 */
+-	if (mapping->nrpages && mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) {
++	if (mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) {
+ 		ret = filemap_write_and_wait_range(mapping, offset,
+ 						   offset + length - 1);
+ 		if (ret)
 -- 
 2.7.4
 
