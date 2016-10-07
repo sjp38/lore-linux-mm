@@ -1,76 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EF09E6B0038
-	for <linux-mm@kvack.org>; Fri,  7 Oct 2016 06:52:48 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 123so7545660wmb.7
-        for <linux-mm@kvack.org>; Fri, 07 Oct 2016 03:52:48 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id z68si2591254wmz.19.2016.10.07.03.52.47
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DCBF46B0038
+	for <linux-mm@kvack.org>; Fri,  7 Oct 2016 08:30:10 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id f193so8851255wmg.0
+        for <linux-mm@kvack.org>; Fri, 07 Oct 2016 05:30:10 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b83si2865069wmh.116.2016.10.07.05.30.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Oct 2016 03:52:47 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id 123so2350440wmb.3
-        for <linux-mm@kvack.org>; Fri, 07 Oct 2016 03:52:47 -0700 (PDT)
-Date: Fri, 7 Oct 2016 12:52:45 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: lockdep splat due to reclaim recursion detected
-Message-ID: <20161007105245.GK18439@dhcp22.suse.cz>
-References: <20161007080739.GD18439@dhcp22.suse.cz>
- <20161007081340.GF18439@dhcp22.suse.cz>
- <20161007103039.GJ9806@dastard>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 07 Oct 2016 05:30:09 -0700 (PDT)
+Subject: Re: [PATCH 1/4] mm: adjust reserved highatomic count
+References: <1475819136-24358-1-git-send-email-minchan@kernel.org>
+ <1475819136-24358-2-git-send-email-minchan@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <7ac7c0d8-4b7b-e362-08e7-6d62ee20f4c3@suse.cz>
+Date: Fri, 7 Oct 2016 14:30:04 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161007103039.GJ9806@dastard>
+In-Reply-To: <1475819136-24358-2-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sangseok Lee <sangseok.lee@lge.com>
 
-On Fri 07-10-16 21:30:39, Dave Chinner wrote:
-> On Fri, Oct 07, 2016 at 10:13:40AM +0200, Michal Hocko wrote:
-> > Fix up xfs ML address
-> > 
-> > On Fri 07-10-16 10:07:39, Michal Hocko wrote:
-> > > Hi Dave,
-> > > while playing with the test case you have suggested [1], I have hit the
-> > > following lockdep splat. This is with mmotm git tree [2] but I didn't
-> > > get to retest with the current linux-next (or any other tree of your
-> > > preference) so there is a chance that something is broken in my tree so
-> > > take this as a heads up. As soon as I am done with testing of the patch
-> > > in the above email thread I will retest with linux-next.
-> ....
-> > > [   61.878792] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Debian-1.8.2-1 04/01/2014
-> > > [   61.878792]  0000000000000000 ffff88001c8b3718 ffffffff81312f78 ffffffff825d99d0
-> > > [   61.878792]  ffff88001cd04880 ffff88001c8b3750 ffffffff811260d1 000000000000000a
-> > > [   61.878792]  ffff88001cd05178 ffff88001cd04880 ffffffff81095395 ffff88001cd04880
-> > > [   61.878792] Call Trace:
-> > > [   61.878792]  [<ffffffff81312f78>] dump_stack+0x68/0x92
-> > > [   61.878792]  [<ffffffff811260d1>] print_usage_bug.part.26+0x25b/0x26a
-> > > [   61.878792]  [<ffffffff81095395>] ? print_shortest_lock_dependencies+0x17f/0x17f
-> > > [   61.878792]  [<ffffffff81096074>] mark_lock+0x381/0x56d
-> > > [   61.878792]  [<ffffffff810962be>] mark_held_locks+0x5e/0x74
-> > > [   61.878792]  [<ffffffff8109875c>] lockdep_trace_alloc+0xaf/0xb2
-> > > [   61.878792]  [<ffffffff8117d0f7>] kmem_cache_alloc_trace+0x3a/0x270
-> > > [   61.878792]  [<ffffffff81169454>] ? vm_map_ram+0x2d2/0x4a6
-> > > [   61.878792]  [<ffffffff8116924b>] ? vm_map_ram+0xc9/0x4a6
-> > > [   61.878792]  [<ffffffff81169454>] vm_map_ram+0x2d2/0x4a6
-> > > [   61.878792]  [<ffffffffa0051069>] _xfs_buf_map_pages+0xae/0x10b [xfs]
-> > > [   61.878792]  [<ffffffffa0052cd0>] xfs_buf_get_map+0xaa/0x24f [xfs]
-> > > [   61.878792]  [<ffffffffa0081d10>] xfs_trans_get_buf_map+0x144/0x2ef [xfs]
-> 
-> Aw, come on! I explained this lockdep annotation bug a couple of
-> days ago.
-> 
-> https://www.spinics.net/lists/linux-fsdevel/msg102588.html
+On 10/07/2016 07:45 AM, Minchan Kim wrote:
+> In page freeing path, migratetype is racy so that a highorderatomic
+> page could free into non-highorderatomic free list.
 
-Ohh, I have missed that one. I have only seen one message from that
-thread which landed in my inbox but didn't get to see the full thread.
-Sorry about the noise then!
+Yes. If page from a pageblock went to a pcplist before that pageblock 
+was reserved as highatomic, free_pcppages_bulk() will misplace it.
 
--- 
-Michal Hocko
-SUSE Labs
+> If that page
+> is allocated, VM can change the pageblock from higorderatomic to
+> something.
+
+More specifically, steal_suitable_fallback(). Yes.
+
+> In that case, we should adjust nr_reserved_highatomic.
+> Otherwise, VM cannot reserve highorderatomic pageblocks any more
+> although it doesn't reach 1% limit. It means highorder atomic
+> allocation failure would be higher.
+>
+> So, this patch decreases the account as well as migratetype
+> if it was MIGRATE_HIGHATOMIC.
+>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+
+Hm wouldn't it be simpler just to prevent the pageblock's migratetype to 
+be changed if it's highatomic? Possibly also not do 
+move_freepages_block() in that case. Most accurate would be to put such 
+misplaced page on the proper freelist and retry the fallback, but that 
+might be overkill.
+
+> ---
+>  mm/page_alloc.c | 44 ++++++++++++++++++++++++++++++++++++++------
+>  1 file changed, 38 insertions(+), 6 deletions(-)
+>
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 55ad0229ebf3..e7cbb3cc22fa 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -282,6 +282,9 @@ EXPORT_SYMBOL(nr_node_ids);
+>  EXPORT_SYMBOL(nr_online_nodes);
+>  #endif
+>
+> +static void dec_highatomic_pageblock(struct zone *zone, struct page *page,
+> +					int migratetype);
+> +
+>  int page_group_by_mobility_disabled __read_mostly;
+>
+>  #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+> @@ -1935,7 +1938,14 @@ static void change_pageblock_range(struct page *pageblock_page,
+>  	int nr_pageblocks = 1 << (start_order - pageblock_order);
+>
+>  	while (nr_pageblocks--) {
+> -		set_pageblock_migratetype(pageblock_page, migratetype);
+> +		if (get_pageblock_migratetype(pageblock_page) !=
+> +			MIGRATE_HIGHATOMIC)
+> +			set_pageblock_migratetype(pageblock_page,
+> +							migratetype);
+> +		else
+> +			dec_highatomic_pageblock(page_zone(pageblock_page),
+> +							pageblock_page,
+> +							migratetype);
+>  		pageblock_page += pageblock_nr_pages;
+>  	}
+>  }
+> @@ -1996,8 +2006,14 @@ static void steal_suitable_fallback(struct zone *zone, struct page *page,
+>
+>  	/* Claim the whole block if over half of it is free */
+>  	if (pages >= (1 << (pageblock_order-1)) ||
+> -			page_group_by_mobility_disabled)
+> -		set_pageblock_migratetype(page, start_type);
+> +			page_group_by_mobility_disabled) {
+> +		int mt = get_pageblock_migratetype(page);
+> +
+> +		if (mt != MIGRATE_HIGHATOMIC)
+> +			set_pageblock_migratetype(page, start_type);
+> +		else
+> +			dec_highatomic_pageblock(zone, page, start_type);
+> +	}
+>  }
+>
+>  /*
+> @@ -2037,6 +2053,17 @@ int find_suitable_fallback(struct free_area *area, unsigned int order,
+>  	return -1;
+>  }
+>
+> +static void dec_highatomic_pageblock(struct zone *zone, struct page *page,
+> +					int migratetype)
+> +{
+> +	if (zone->nr_reserved_highatomic <= pageblock_nr_pages)
+> +		return;
+> +
+> +	zone->nr_reserved_highatomic -= min(pageblock_nr_pages,
+> +					zone->nr_reserved_highatomic);
+> +	set_pageblock_migratetype(page, migratetype);
+> +}
+> +
+>  /*
+>   * Reserve a pageblock for exclusive use of high-order atomic allocations if
+>   * there are no empty page blocks that contain a page with a suitable order
+> @@ -2555,9 +2582,14 @@ int __isolate_free_page(struct page *page, unsigned int order)
+>  		struct page *endpage = page + (1 << order) - 1;
+>  		for (; page < endpage; page += pageblock_nr_pages) {
+>  			int mt = get_pageblock_migratetype(page);
+> -			if (!is_migrate_isolate(mt) && !is_migrate_cma(mt))
+> -				set_pageblock_migratetype(page,
+> -							  MIGRATE_MOVABLE);
+> +			if (!is_migrate_isolate(mt) && !is_migrate_cma(mt)) {
+> +				if (mt != MIGRATE_HIGHATOMIC)
+> +					set_pageblock_migratetype(page,
+> +							MIGRATE_MOVABLE);
+> +				else
+> +					dec_highatomic_pageblock(zone, page,
+> +							MIGRATE_MOVABLE);
+> +			}
+>  		}
+>  	}
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
