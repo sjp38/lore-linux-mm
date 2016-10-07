@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EA8736B0262
-	for <linux-mm@kvack.org>; Fri,  7 Oct 2016 17:09:17 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id 128so35182448pfz.2
-        for <linux-mm@kvack.org>; Fri, 07 Oct 2016 14:09:17 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 95F666B0263
+	for <linux-mm@kvack.org>; Fri,  7 Oct 2016 17:09:19 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id e6so34870450pfk.5
+        for <linux-mm@kvack.org>; Fri, 07 Oct 2016 14:09:19 -0700 (PDT)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id n9si18446948pac.82.2016.10.07.14.09.17
+        by mx.google.com with ESMTPS id d6si6717713pfk.51.2016.10.07.14.09.17
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 07 Oct 2016 14:09:17 -0700 (PDT)
+        Fri, 07 Oct 2016 14:09:18 -0700 (PDT)
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v5 08/17] dax: consistent variable naming for DAX entries
-Date: Fri,  7 Oct 2016 15:08:55 -0600
-Message-Id: <1475874544-24842-9-git-send-email-ross.zwisler@linux.intel.com>
+Subject: [PATCH v5 09/17] dax: coordinate locking for offsets in PMD range
+Date: Fri,  7 Oct 2016 15:08:56 -0600
+Message-Id: <1475874544-24842-10-git-send-email-ross.zwisler@linux.intel.com>
 In-Reply-To: <1475874544-24842-1-git-send-email-ross.zwisler@linux.intel.com>
 References: <1475874544-24842-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,122 +20,191 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-No functional change.
-
-Consistently use the variable name 'entry' instead of 'ret' for DAX radix
-tree entries.  This was already happening in most of the code, so update
-get_unlocked_mapping_entry(), grab_mapping_entry() and
-dax_unlock_mapping_entry().
+DAX radix tree locking currently locks entries based on the unique
+combination of the 'mapping' pointer and the pgoff_t 'index' for the entry.
+This works for PTEs, but as we move to PMDs we will need to have all the
+offsets within the range covered by the PMD to map to the same bit lock.
+To accomplish this, for ranges covered by a PMD entry we will instead lock
+based on the page offset of the beginning of the PMD entry.  The 'mapping'
+pointer is still used in the same way.
 
 Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Jan Kara <jack@suse.cz>
 ---
- fs/dax.c | 34 +++++++++++++++++-----------------
- 1 file changed, 17 insertions(+), 17 deletions(-)
+ fs/dax.c            | 58 +++++++++++++++++++++++++++++++----------------------
+ include/linux/dax.h |  2 +-
+ mm/filemap.c        |  2 +-
+ 3 files changed, 36 insertions(+), 26 deletions(-)
 
 diff --git a/fs/dax.c b/fs/dax.c
-index 98189ac..152a6e1 100644
+index 152a6e1..608cee9 100644
 --- a/fs/dax.c
 +++ b/fs/dax.c
-@@ -357,7 +357,7 @@ static inline void *unlock_slot(struct address_space *mapping, void **slot)
- static void *get_unlocked_mapping_entry(struct address_space *mapping,
- 					pgoff_t index, void ***slotp)
- {
--	void *ret, **slot;
-+	void *entry, **slot;
- 	struct wait_exceptional_entry_queue ewait;
- 	wait_queue_head_t *wq = dax_entry_waitqueue(mapping, index);
+@@ -64,14 +64,6 @@ static int __init init_dax_wait_table(void)
+ }
+ fs_initcall(init_dax_wait_table);
  
-@@ -367,13 +367,13 @@ static void *get_unlocked_mapping_entry(struct address_space *mapping,
- 	ewait.key.index = index;
+-static wait_queue_head_t *dax_entry_waitqueue(struct address_space *mapping,
+-					      pgoff_t index)
+-{
+-	unsigned long hash = hash_long((unsigned long)mapping ^ index,
+-				       DAX_WAIT_TABLE_BITS);
+-	return wait_table + hash;
+-}
+-
+ static long dax_map_atomic(struct block_device *bdev, struct blk_dax_ctl *dax)
+ {
+ 	struct request_queue *q = bdev->bd_queue;
+@@ -285,7 +277,7 @@ EXPORT_SYMBOL_GPL(dax_do_io);
+  */
+ struct exceptional_entry_key {
+ 	struct address_space *mapping;
+-	unsigned long index;
++	pgoff_t entry_start;
+ };
+ 
+ struct wait_exceptional_entry_queue {
+@@ -293,6 +285,26 @@ struct wait_exceptional_entry_queue {
+ 	struct exceptional_entry_key key;
+ };
+ 
++static wait_queue_head_t *dax_entry_waitqueue(struct address_space *mapping,
++		pgoff_t index, void *entry, struct exceptional_entry_key *key)
++{
++	unsigned long hash;
++
++	/*
++	 * If 'entry' is a PMD, align the 'index' that we use for the wait
++	 * queue to the start of that PMD.  This ensures that all offsets in
++	 * the range covered by the PMD map to the same bit lock.
++	 */
++	if (RADIX_DAX_TYPE(entry) == RADIX_DAX_PMD)
++		index &= ~((1UL << (PMD_SHIFT - PAGE_SHIFT)) - 1);
++
++	key->mapping = mapping;
++	key->entry_start = index;
++
++	hash = hash_long((unsigned long)mapping ^ index, DAX_WAIT_TABLE_BITS);
++	return wait_table + hash;
++}
++
+ static int wake_exceptional_entry_func(wait_queue_t *wait, unsigned int mode,
+ 				       int sync, void *keyp)
+ {
+@@ -301,7 +313,7 @@ static int wake_exceptional_entry_func(wait_queue_t *wait, unsigned int mode,
+ 		container_of(wait, struct wait_exceptional_entry_queue, wait);
+ 
+ 	if (key->mapping != ewait->key.mapping ||
+-	    key->index != ewait->key.index)
++	    key->entry_start != ewait->key.entry_start)
+ 		return 0;
+ 	return autoremove_wake_function(wait, mode, sync, NULL);
+ }
+@@ -359,12 +371,10 @@ static void *get_unlocked_mapping_entry(struct address_space *mapping,
+ {
+ 	void *entry, **slot;
+ 	struct wait_exceptional_entry_queue ewait;
+-	wait_queue_head_t *wq = dax_entry_waitqueue(mapping, index);
++	wait_queue_head_t *wq;
+ 
+ 	init_wait(&ewait.wait);
+ 	ewait.wait.func = wake_exceptional_entry_func;
+-	ewait.key.mapping = mapping;
+-	ewait.key.index = index;
  
  	for (;;) {
--		ret = __radix_tree_lookup(&mapping->page_tree, index, NULL,
-+		entry = __radix_tree_lookup(&mapping->page_tree, index, NULL,
- 					  &slot);
--		if (!ret || !radix_tree_exceptional_entry(ret) ||
-+		if (!entry || !radix_tree_exceptional_entry(entry) ||
- 		    !slot_locked(mapping, slot)) {
- 			if (slotp)
+ 		entry = __radix_tree_lookup(&mapping->page_tree, index, NULL,
+@@ -375,6 +385,8 @@ static void *get_unlocked_mapping_entry(struct address_space *mapping,
  				*slotp = slot;
--			return ret;
-+			return entry;
+ 			return entry;
  		}
++
++		wq = dax_entry_waitqueue(mapping, index, entry, &ewait.key);
  		prepare_to_wait_exclusive(wq, &ewait.wait,
  					  TASK_UNINTERRUPTIBLE);
-@@ -396,13 +396,13 @@ static void *get_unlocked_mapping_entry(struct address_space *mapping,
-  */
- static void *grab_mapping_entry(struct address_space *mapping, pgoff_t index)
- {
--	void *ret, **slot;
-+	void *entry, **slot;
- 
- restart:
- 	spin_lock_irq(&mapping->tree_lock);
--	ret = get_unlocked_mapping_entry(mapping, index, &slot);
-+	entry = get_unlocked_mapping_entry(mapping, index, &slot);
- 	/* No entry for given index? Make sure radix tree is big enough. */
--	if (!ret) {
-+	if (!entry) {
- 		int err;
- 
  		spin_unlock_irq(&mapping->tree_lock);
-@@ -410,10 +410,10 @@ restart:
- 				mapping_gfp_mask(mapping) & ~__GFP_HIGHMEM);
- 		if (err)
- 			return ERR_PTR(err);
--		ret = (void *)(RADIX_TREE_EXCEPTIONAL_ENTRY |
-+		entry = (void *)(RADIX_TREE_EXCEPTIONAL_ENTRY |
- 			       RADIX_DAX_ENTRY_LOCK);
- 		spin_lock_irq(&mapping->tree_lock);
--		err = radix_tree_insert(&mapping->page_tree, index, ret);
-+		err = radix_tree_insert(&mapping->page_tree, index, entry);
- 		radix_tree_preload_end();
- 		if (err) {
- 			spin_unlock_irq(&mapping->tree_lock);
-@@ -425,11 +425,11 @@ restart:
- 		/* Good, we have inserted empty locked entry into the tree. */
- 		mapping->nrexceptional++;
- 		spin_unlock_irq(&mapping->tree_lock);
--		return ret;
-+		return entry;
- 	}
- 	/* Normal page in radix tree? */
--	if (!radix_tree_exceptional_entry(ret)) {
--		struct page *page = ret;
-+	if (!radix_tree_exceptional_entry(entry)) {
-+		struct page *page = entry;
- 
- 		get_page(page);
- 		spin_unlock_irq(&mapping->tree_lock);
-@@ -442,9 +442,9 @@ restart:
- 		}
- 		return page;
- 	}
--	ret = lock_slot(mapping, slot);
-+	entry = lock_slot(mapping, slot);
- 	spin_unlock_irq(&mapping->tree_lock);
--	return ret;
-+	return entry;
+@@ -448,9 +460,12 @@ restart:
  }
  
  void dax_wake_mapping_entry_waiter(struct address_space *mapping,
-@@ -469,11 +469,11 @@ void dax_wake_mapping_entry_waiter(struct address_space *mapping,
+-				   pgoff_t index, bool wake_all)
++		pgoff_t index, void *entry, bool wake_all)
+ {
+-	wait_queue_head_t *wq = dax_entry_waitqueue(mapping, index);
++	struct exceptional_entry_key key;
++	wait_queue_head_t *wq;
++
++	wq = dax_entry_waitqueue(mapping, index, entry, &key);
+ 
+ 	/*
+ 	 * Checking for locked entry and prepare_to_wait_exclusive() happens
+@@ -458,13 +473,8 @@ void dax_wake_mapping_entry_waiter(struct address_space *mapping,
+ 	 * So at this point all tasks that could have seen our entry locked
+ 	 * must be in the waitqueue and the following check will see them.
+ 	 */
+-	if (waitqueue_active(wq)) {
+-		struct exceptional_entry_key key;
+-
+-		key.mapping = mapping;
+-		key.index = index;
++	if (waitqueue_active(wq))
+ 		__wake_up(wq, TASK_NORMAL, wake_all ? 0 : 1, &key);
+-	}
+ }
  
  void dax_unlock_mapping_entry(struct address_space *mapping, pgoff_t index)
- {
--	void *ret, **slot;
-+	void *entry, **slot;
+@@ -480,7 +490,7 @@ void dax_unlock_mapping_entry(struct address_space *mapping, pgoff_t index)
+ 	}
+ 	unlock_slot(mapping, slot);
+ 	spin_unlock_irq(&mapping->tree_lock);
+-	dax_wake_mapping_entry_waiter(mapping, index, false);
++	dax_wake_mapping_entry_waiter(mapping, index, entry, false);
+ }
  
- 	spin_lock_irq(&mapping->tree_lock);
--	ret = __radix_tree_lookup(&mapping->page_tree, index, NULL, &slot);
--	if (WARN_ON_ONCE(!ret || !radix_tree_exceptional_entry(ret) ||
-+	entry = __radix_tree_lookup(&mapping->page_tree, index, NULL, &slot);
-+	if (WARN_ON_ONCE(!entry || !radix_tree_exceptional_entry(entry) ||
- 			 !slot_locked(mapping, slot))) {
- 		spin_unlock_irq(&mapping->tree_lock);
+ static void put_locked_mapping_entry(struct address_space *mapping,
+@@ -505,7 +515,7 @@ static void put_unlocked_mapping_entry(struct address_space *mapping,
  		return;
+ 
+ 	/* We have to wake up next waiter for the radix tree entry lock */
+-	dax_wake_mapping_entry_waiter(mapping, index, false);
++	dax_wake_mapping_entry_waiter(mapping, index, entry, false);
+ }
+ 
+ /*
+@@ -532,7 +542,7 @@ int dax_delete_mapping_entry(struct address_space *mapping, pgoff_t index)
+ 	radix_tree_delete(&mapping->page_tree, index);
+ 	mapping->nrexceptional--;
+ 	spin_unlock_irq(&mapping->tree_lock);
+-	dax_wake_mapping_entry_waiter(mapping, index, true);
++	dax_wake_mapping_entry_waiter(mapping, index, entry, true);
+ 
+ 	return 1;
+ }
+diff --git a/include/linux/dax.h b/include/linux/dax.h
+index add6c4b..a41a747 100644
+--- a/include/linux/dax.h
++++ b/include/linux/dax.h
+@@ -22,7 +22,7 @@ int iomap_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+ int dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t);
+ int dax_delete_mapping_entry(struct address_space *mapping, pgoff_t index);
+ void dax_wake_mapping_entry_waiter(struct address_space *mapping,
+-				   pgoff_t index, bool wake_all);
++		pgoff_t index, void *entry, bool wake_all);
+ 
+ #ifdef CONFIG_FS_DAX
+ struct page *read_dax_sector(struct block_device *bdev, sector_t n);
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 2f1175e..a596462 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -617,7 +617,7 @@ static int page_cache_tree_insert(struct address_space *mapping,
+ 			if (node)
+ 				workingset_node_pages_dec(node);
+ 			/* Wakeup waiters for exceptional entry lock */
+-			dax_wake_mapping_entry_waiter(mapping, page->index,
++			dax_wake_mapping_entry_waiter(mapping, page->index, p,
+ 						      false);
+ 		}
+ 	}
 -- 
 2.7.4
 
