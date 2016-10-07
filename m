@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A174F28024B
-	for <linux-mm@kvack.org>; Fri,  7 Oct 2016 17:09:24 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id 128so35185210pfz.2
-        for <linux-mm@kvack.org>; Fri, 07 Oct 2016 14:09:24 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B00528024F
+	for <linux-mm@kvack.org>; Fri,  7 Oct 2016 17:09:26 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id j69so27751698pfc.0
+        for <linux-mm@kvack.org>; Fri, 07 Oct 2016 14:09:26 -0700 (PDT)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id d6si6717713pfk.51.2016.10.07.14.09.20
+        by mx.google.com with ESMTPS id d6si6717713pfk.51.2016.10.07.14.09.25
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 07 Oct 2016 14:09:20 -0700 (PDT)
+        Fri, 07 Oct 2016 14:09:25 -0700 (PDT)
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v5 12/17] dax: add dax_iomap_sector() helper function
-Date: Fri,  7 Oct 2016 15:08:59 -0600
-Message-Id: <1475874544-24842-13-git-send-email-ross.zwisler@linux.intel.com>
+Subject: [PATCH v5 17/17] dax: remove "depends on BROKEN" from FS_DAX_PMD
+Date: Fri,  7 Oct 2016 15:09:04 -0600
+Message-Id: <1475874544-24842-18-git-send-email-ross.zwisler@linux.intel.com>
 In-Reply-To: <1475874544-24842-1-git-send-email-ross.zwisler@linux.intel.com>
 References: <1475874544-24842-1-git-send-email-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,52 +20,26 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-To be able to correctly calculate the sector from a file position and a
-struct iomap there is a complex little bit of logic that currently happens
-in both dax_iomap_actor() and dax_iomap_fault().  This will need to be
-repeated yet again in the DAX PMD fault handler when it is added, so break
-it out into a helper function.
+Now that DAX PMD faults are once again working and are now participating in
+DAX's radix tree locking scheme, allow their config option to be enabled.
 
 Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 ---
- fs/dax.c | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
+ fs/Kconfig | 1 -
+ 1 file changed, 1 deletion(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 982ccbb..7689ab0 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -1023,6 +1023,11 @@ int dax_truncate_page(struct inode *inode, loff_t from, get_block_t get_block)
- EXPORT_SYMBOL_GPL(dax_truncate_page);
+diff --git a/fs/Kconfig b/fs/Kconfig
+index 2bc7ad7..b6f0fce 100644
+--- a/fs/Kconfig
++++ b/fs/Kconfig
+@@ -55,7 +55,6 @@ config FS_DAX_PMD
+ 	depends on FS_DAX
+ 	depends on ZONE_DEVICE
+ 	depends on TRANSPARENT_HUGEPAGE
+-	depends on BROKEN
  
- #ifdef CONFIG_FS_IOMAP
-+static inline sector_t dax_iomap_sector(struct iomap *iomap, loff_t pos)
-+{
-+	return iomap->blkno + (((pos & PAGE_MASK) - iomap->offset) >> 9);
-+}
-+
- static loff_t
- dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
- 		struct iomap *iomap)
-@@ -1048,8 +1053,7 @@ dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
- 		struct blk_dax_ctl dax = { 0 };
- 		ssize_t map_len;
+ endif # BLOCK
  
--		dax.sector = iomap->blkno +
--			(((pos & PAGE_MASK) - iomap->offset) >> 9);
-+		dax.sector = dax_iomap_sector(iomap, pos);
- 		dax.size = (length + offset + PAGE_SIZE - 1) & PAGE_MASK;
- 		map_len = dax_map_atomic(iomap->bdev, &dax);
- 		if (map_len < 0) {
-@@ -1186,7 +1190,7 @@ int dax_iomap_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 		goto unlock_entry;
- 	}
- 
--	sector = iomap.blkno + (((pos & PAGE_MASK) - iomap.offset) >> 9);
-+	sector = dax_iomap_sector(&iomap, pos);
- 
- 	if (vmf->cow_page) {
- 		switch (iomap.type) {
 -- 
 2.7.4
 
