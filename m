@@ -1,68 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DD6B76B0038
-	for <linux-mm@kvack.org>; Fri,  7 Oct 2016 11:55:27 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id f6so20600662qtd.4
-        for <linux-mm@kvack.org>; Fri, 07 Oct 2016 08:55:27 -0700 (PDT)
-Received: from cmta20.telus.net (cmta20.telus.net. [209.171.16.93])
-        by mx.google.com with ESMTP id t124si10338233qkc.182.2016.10.07.08.55.26
-        for <linux-mm@kvack.org>;
-        Fri, 07 Oct 2016 08:55:27 -0700 (PDT)
-From: "Doug Smythies" <dsmythies@telus.net>
-References: <bug-172981-27@https.bugzilla.kernel.org/> <20160927111059.282a35c89266202d3cb2f953@linux-foundation.org> <20160928020347.GA21129@cmpxchg.org> <20160928080953.GA20312@esperanza> <20160929020050.GD29250@js1304-P5Q-DELUXE> <20160929134550.GB20312@esperanza> <20160930081940.GA3606@js1304-P5Q-DELUXE> <002601d21f8f$1fe2fe40$5fa8fac0$@net> s2GybGFijfdZcs2H3bZXPV 
-In-Reply-To: 
-Subject: RE: [Bug 172981] New: [bisected] SLAB: extreme load averages and over 2000 kworker threads
-Date: Fri, 7 Oct 2016 08:55:23 -0700
-Message-ID: <004d01d220b3$38a1ac40$a9e504c0$@net>
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 11C606B0038
+	for <linux-mm@kvack.org>; Fri,  7 Oct 2016 12:22:44 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 123so12087458wmb.7
+        for <linux-mm@kvack.org>; Fri, 07 Oct 2016 09:22:44 -0700 (PDT)
+Received: from mail-wm0-x230.google.com (mail-wm0-x230.google.com. [2a00:1450:400c:c09::230])
+        by mx.google.com with ESMTPS id o2si22996115wjr.120.2016.10.07.09.22.42
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 07 Oct 2016 09:22:42 -0700 (PDT)
+Received: by mail-wm0-x230.google.com with SMTP id b201so49747695wmb.0
+        for <linux-mm@kvack.org>; Fri, 07 Oct 2016 09:22:42 -0700 (PDT)
+Date: Fri, 7 Oct 2016 17:22:40 +0100
+From: Lorenzo Stoakes <lstoakes@gmail.com>
+Subject: Re: [PATCH] mm: check VMA flags to avoid invalid PROT_NONE NUMA
+ balancing
+Message-ID: <20161007162240.GA14350@lucifer>
+References: <20160911225425.10388-1-lstoakes@gmail.com>
+ <20160925184731.GA20480@lucifer>
+ <CA+55aFwtHAT_ukyE=+s=3twW8v8QExLxpVcfEDyLihf+pn9qeA@mail.gmail.com>
+ <1474842875.17726.38.camel@redhat.com>
+ <CA+55aFyL+qFsJpxQufgRKgWeB6Yj0e1oapdu5mdU9_t+zwtBjg@mail.gmail.com>
+ <20161007100720.GA14859@lucifer>
+ <CA+55aFzOYk_1Jcr8CSKyqfkXaOApZvCkX0_27mZk7PvGSE4xSw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-Content-Language: en-ca
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFzOYk_1Jcr8CSKyqfkXaOApZvCkX0_27mZk7PvGSE4xSw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Joonsoo Kim' <iamjoonsoo.kim@lge.com>
-Cc: 'Vladimir Davydov' <vdavydov.dev@gmail.com>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Andrew Morton' <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, 'Doug Smythies' <dsmythies@telus.net>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, tbsaunde@tbsaunde.org, robert@ocallahan.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On 2016.10.06 09:02 Doug Smythies wrote:
-> On 2016.10.05 23:35 Joonsoo Kim wrote:
->> On Wed, Oct 05, 2016 at 10:04:27PM -0700, Doug Smythies wrote:
->>> On 2016.09.30 12:59 Vladimir Davydov wrote:
->>> 
->>>> Yeah, you're right. We'd better do something about this
->>>> synchronize_sched(). I think moving it out of the slab_mutex and calling
->>>> it once for all caches in memcg_deactivate_kmem_caches() would resolve
->>>> the issue. I'll post the patches tomorrow.
->>> 
->>> Would someone please be kind enough to send me the patch set?
->>> 
->>> I didn't get them, and would like to test them.
->>> I have searched and searched and did manage to find:
->>> "[PATCH 2/2] slub: move synchronize_sched out of slab_mutex on shrink"
->>> And a thread about a patch 1 of 2:
->>> "Re: [PATCH 1/2] mm: memcontrol: use special workqueue for creating per-memcg caches"
->>> Where I see me as "reported by", but I guess "reported by" people don't get the e-mails.
->>> I haven't found PATCH 0/2, nor do I know if what I did find is current.
->>
->> I think that what you find is correct one. It has no cover-letter so
->> there is no [PATCH 0/2]. Anyway, to clarify, I add links to these
->> patches.
->>
->> https://patchwork.kernel.org/patch/9361853
->> https://patchwork.kernel.org/patch/9359271
->>
->> It would be very helpful if you test these patches.
->
-> Yes, as best as I am able to test, the 2 patch set
-> solves both this SLAB and the other SLUB bug reports.
+On Fri, Oct 07, 2016 at 08:34:15AM -0700, Linus Torvalds wrote:
+> Would you be willing to look at doing that kind of purely syntactic,
+> non-semantic cleanup first?
 
-I tested the patch from the other thread on top of these two,
-And things continued to work fine. The additional patch
-does seems a little faster under some of my hammering conditions.
+Sure, more than happy to do that! I'll work on a patch for this.
 
-Reference:
-https://marc.info/?l=linux-kernel&m=147573486705407&w=2
+> I think that if we end up having the FOLL_FORCE semantics, we're
+> actually better off having an explicit FOLL_FORCE flag, and *not* do
+> some kind of implicit "under these magical circumstances we'll force
+> it anyway". The implicit thing is what we used to do long long ago, we
+> definitely don't want to.
 
+That's a good point, it would definitely be considerably more 'magical', and
+expanding the conditions to include uprobes etc. would only add to that.
+
+I wondered about an alternative parameter/flag but it felt like it was
+more-or-less FOLL_FORCE in a different form, at which point it may as well
+remain FOLL_FORCE :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
