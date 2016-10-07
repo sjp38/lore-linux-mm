@@ -1,87 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 47C26280250
-	for <linux-mm@kvack.org>; Fri,  7 Oct 2016 02:50:24 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id u84so18659407pfj.1
-        for <linux-mm@kvack.org>; Thu, 06 Oct 2016 23:50:24 -0700 (PDT)
-Received: from mail-pf0-f194.google.com (mail-pf0-f194.google.com. [209.85.192.194])
-        by mx.google.com with ESMTPS id f2si7215403pfb.292.2016.10.06.23.50.23
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 83034280250
+	for <linux-mm@kvack.org>; Fri,  7 Oct 2016 03:24:06 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id l138so4861155wmg.3
+        for <linux-mm@kvack.org>; Fri, 07 Oct 2016 00:24:06 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 126si1835692wmw.86.2016.10.07.00.24.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Oct 2016 23:50:23 -0700 (PDT)
-Received: by mail-pf0-f194.google.com with SMTP id i85so2369443pfa.0
-        for <linux-mm@kvack.org>; Thu, 06 Oct 2016 23:50:23 -0700 (PDT)
-Date: Fri, 7 Oct 2016 08:50:19 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, compaction: allow compaction for GFP_NOFS
- requests
-Message-ID: <20161007065019.GA18439@dhcp22.suse.cz>
-References: <20161004081215.5563-1-mhocko@kernel.org>
- <e7dc1e23-10fe-99de-e9c8-581857e3ab9d@suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 07 Oct 2016 00:24:05 -0700 (PDT)
+Date: Fri, 7 Oct 2016 09:24:02 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v4 10/12] dax: add struct iomap based DAX PMD support
+Message-ID: <20161007072402.GB16260@quack2.suse.cz>
+References: <1475189370-31634-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1475189370-31634-11-git-send-email-ross.zwisler@linux.intel.com>
+ <20161003105949.GP6457@quack2.suse.cz>
+ <20161003210557.GA28177@linux.intel.com>
+ <20161006213424.GA4569@linux.intel.com>
+ <20161007025833.GA2934@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <e7dc1e23-10fe-99de-e9c8-581857e3ab9d@suse.cz>
+In-Reply-To: <20161007025833.GA2934@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Mel Gorman <mgorman@suse.de>, Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-On Fri 07-10-16 07:27:37, Vlastimil Babka wrote:
-[...]
-> > diff --git a/mm/compaction.c b/mm/compaction.c
-> > index badb92bf14b4..07254a73ee32 100644
-> > --- a/mm/compaction.c
-> > +++ b/mm/compaction.c
-> > @@ -834,6 +834,13 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
-> >  		    page_count(page) > page_mapcount(page))
-> >  			goto isolate_fail;
+On Thu 06-10-16 20:58:33, Ross Zwisler wrote:
+> On Thu, Oct 06, 2016 at 03:34:24PM -0600, Ross Zwisler wrote:
+> > Interesting - adding iomap_end() calls to the DAX PTE fault handler causes an
+> > AA deadlock because we try and retake ei->dax_sem.  We take dax_sem in
+> > ext2_dax_fault() before calling into the DAX code, then if we end up going
+> > through the error path in ext2_iomap_end(), we call 
+> >   ext2_write_failed()
+> >     ext2_truncate_blocks()
+> >       dax_sem_down_write()
 > > 
-> > +		/*
-> > +		 * Only allow to migrate anonymous pages in GFP_NOFS context
-> > +		 * because those do not depend on fs locks.
-> > +		 */
-> > +		if (!(cc->gfp_mask & __GFP_FS) && page_mapping(page))
-> > +			goto isolate_fail;
+> > Where we try and take dax_sem again.  This error path is really only valid for
+> > I/O operations, but we happen to call it for page faults because 'written' in
+> > ext2_iomap_end() is just 0.
+> > 
+> > So...how should we handle this?  A few ideas:
+> > 
+> > 1) Just continue to omit the calls to iomap_end() in the DAX page fault
+> > handlers for now, and add them when there is useful work to be done in one of
+> > the filesystems.
+> > 
+> > 2) Add an IOMAP_FAULT flag to the flags passed into iomap_begin() and
+> > iomap_end() so make it explicit that we are calling as part of a fault handler
+> > and not an I/O operation, and use this to adjust the error handling in
+> > ext2_iomap_end().
+> > 
+> > 3) Just work around the existing error handling in ext2_iomap_end() by either
+> > unsetting IOMAP_WRITE or by setting 'written' to the size of the fault.
+> > 
+> > For #2 or #3, probably add a comment explaining the deadlock and why we need
+> > to never call ext2_write_failed() while handling a page fault.
+> > 
+> > Thoughts?
 > 
-> Unless page can acquire a page_mapping between this check and migration, I
-> don't see a problem with allowing this.
+> Never mind, #3 it is, I think it was just a plain bug to call iomap_end() with
+> 'length' != 'written'.
 
-It can be become swapcache but I guess this should be OK. We do not
-allow to get here with GFP_NOIO and migrating swapcache pages in NOFS
-mode should be OK AFAICS.
+Yup, that's what I'd think as well.
 
-> But make sure you don't break kcompactd and manual compaction from /proc, as
-> they don't currently set cc->gfp_mask. Looks like until now it was only used
-> to determine direct compactor's migratetype which is irrelevant in those
-> contexts.
-
-OK, I see. This is really subtle. One way to go would be to provide a
-fake gfp_mask for them. How does the following look to you?
----
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 557c165b63ad..d1d90e96ef4b 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -1779,6 +1779,7 @@ static void compact_node(int nid)
- 		.mode = MIGRATE_SYNC,
- 		.ignore_skip_hint = true,
- 		.whole_zone = true,
-+		.gfp_mask = GFP_KERNEL,
- 	};
- 
- 
-@@ -1904,6 +1905,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
- 		.classzone_idx = pgdat->kcompactd_classzone_idx,
- 		.mode = MIGRATE_SYNC_LIGHT,
- 		.ignore_skip_hint = true,
-+		.gfp_mask = GFP_KERNEL,
- 
- 	};
- 	trace_mm_compaction_kcompactd_wake(pgdat->node_id, cc.order,
+								Honza
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
