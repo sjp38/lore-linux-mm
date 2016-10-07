@@ -1,158 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 60AFA280250
-	for <linux-mm@kvack.org>; Fri,  7 Oct 2016 04:32:22 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 123so5705597wmb.7
-        for <linux-mm@kvack.org>; Fri, 07 Oct 2016 01:32:22 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id rr15si21354154wjb.65.2016.10.07.01.32.21
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EE528280250
+	for <linux-mm@kvack.org>; Fri,  7 Oct 2016 05:09:21 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id bv10so22460599pad.2
+        for <linux-mm@kvack.org>; Fri, 07 Oct 2016 02:09:21 -0700 (PDT)
+Received: from mail-pf0-f195.google.com (mail-pf0-f195.google.com. [209.85.192.195])
+        by mx.google.com with ESMTPS id x29si7819984pff.174.2016.10.07.02.09.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 07 Oct 2016 01:32:21 -0700 (PDT)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [RFC 5/4] mm, page_alloc: split smallest stolen page in fallback
-Date: Fri,  7 Oct 2016 10:32:13 +0200
-Message-Id: <20161007083213.3549-1-vbabka@suse.cz>
-In-Reply-To: <20160929210548.26196-1-vbabka@suse.cz>
-References: <20160929210548.26196-1-vbabka@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 07 Oct 2016 02:09:21 -0700 (PDT)
+Received: by mail-pf0-f195.google.com with SMTP id i85so2556698pfa.0
+        for <linux-mm@kvack.org>; Fri, 07 Oct 2016 02:09:21 -0700 (PDT)
+Date: Fri, 7 Oct 2016 11:09:17 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 3/4] mm: unreserve highatomic free pages fully before OOM
+Message-ID: <20161007090917.GA18447@dhcp22.suse.cz>
+References: <1475819136-24358-1-git-send-email-minchan@kernel.org>
+ <1475819136-24358-4-git-send-email-minchan@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1475819136-24358-4-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com, Vlastimil Babka <vbabka@suse.cz>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sangseok Lee <sangseok.lee@lge.com>
 
-The __rmqueue_fallback() is called when there's no free page of requested
-migratetype, and we need to steal from a different one. There are various
-heuristics to make this event infrequent and reduce permanent fragmentation.
-The main one is to try stealing from a pageblock that has the most free pages,
-and possibly steal them all at once and convert the whole pageblock. Precise
-searching for such pageblock would be expensive, so instead the heuristics
-walks the free lists from MAX_ORDER down to requested order and assumes that
-the block with highest-order free page is likely to also have the most free
-pages in total.
+On Fri 07-10-16 14:45:35, Minchan Kim wrote:
+> After fixing the race of highatomic page count, I still encounter
+> OOM with many free memory reserved as highatomic.
+> 
+> One of reason in my testing was we unreserve free pages only if
+> reclaim has progress. Otherwise, we cannot have chance to unreseve.
+> 
+> Other problem after fixing it was it doesn't guarantee every pages
+> unreserving of highatomic pageblock because it just release *a*
+> pageblock which could have few free pages so other context could
+> steal it easily so that the process stucked with direct reclaim
+> finally can encounter OOM although there are free pages which can
+> be unreserved.
+> 
+> This patch changes the logic so that it unreserves pageblocks with
+> no_progress_loop proportionally. IOW, in first retrial of reclaim,
+> it will try to unreserve a pageblock. In second retrial of reclaim,
+> it will try to unreserve 1/MAX_RECLAIM_RETRIES * reserved_pageblock
+> and finally all reserved pageblock before the OOM.
+> 
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  mm/page_alloc.c | 57 ++++++++++++++++++++++++++++++++++++++++++++-------------
+>  1 file changed, 44 insertions(+), 13 deletions(-)
 
-So the chances are that together with the highest-order page, we steal also
-pages of lower orders from the same block. But then we still split the highest
-order page. This is wasteful and can contribute to fragmentation instead of
-avoiding it.
-
-This patch thus changes __rmqueue_fallback() to only steal the pages(s) and
-put them on a freelist of the requested migratetype, and only report whether
-it was successful. Then we pick the smallest page with __rmqueue_smallest().
-This is all under zone lock, so nobody can steal it from us in the process.
-This should reduce fragmentation due to fallbacks. At worst we are only
-stealing a single highest-order page and waste some cycles by moving it between
-lists and then removing it, but fallback is not exactly hot path so that should
-not be a concern. As a side benefit the patch removes some duplicate code by
-reusing __rmqueue_smallest().
-
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+This sounds much more complex then it needs to be IMHO. Why something as
+simple as thhe following wouldn't work? Please note that I even didn't
+try to compile this. It is just give you an idea.
 ---
- mm/page_alloc.c | 50 ++++++++++++++++++++++++++------------------------
- 1 file changed, 26 insertions(+), 24 deletions(-)
+ mm/page_alloc.c | 26 ++++++++++++++++++++------
+ 1 file changed, 20 insertions(+), 6 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 8a8ef9ebeb4d..2ccd80079d22 100644
+index 73f60ad6315f..e575a4f38555 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1957,14 +1957,24 @@ static bool can_steal_fallback(unsigned int order, int start_mt)
-  * use it's pages as requested migratetype in the future.
+@@ -2056,7 +2056,8 @@ static void reserve_highatomic_pageblock(struct page *page, struct zone *zone,
+  * intense memory pressure but failed atomic allocations should be easier
+  * to recover from than an OOM.
   */
- static void steal_suitable_fallback(struct zone *zone, struct page *page,
--							  int start_type)
-+					 int start_type, bool whole_block)
+-static void unreserve_highatomic_pageblock(const struct alloc_context *ac)
++static bool unreserve_highatomic_pageblock(const struct alloc_context *ac,
++		bool force)
  {
- 	unsigned int current_order = page_order(page);
-+	struct free_area *area;
- 	int pages;
+ 	struct zonelist *zonelist = ac->zonelist;
+ 	unsigned long flags;
+@@ -2067,8 +2068,14 @@ static void unreserve_highatomic_pageblock(const struct alloc_context *ac)
  
- 	/* Take ownership for orders >= pageblock_order */
- 	if (current_order >= pageblock_order) {
- 		change_pageblock_range(page, current_order, start_type);
-+		area = &zone->free_area[current_order];
-+		list_move(&page->lru, &area->free_list[start_type]);
-+		return;
-+	}
+ 	for_each_zone_zonelist_nodemask(zone, z, zonelist, ac->high_zoneidx,
+ 								ac->nodemask) {
+-		/* Preserve at least one pageblock */
+-		if (zone->nr_reserved_highatomic <= pageblock_nr_pages)
++		if (!zone->nr_reserved_highatomic)
++			continue;
 +
-+	/* We are not allowed to try stealing from the whole block */
-+	if (!whole_block) {
-+		area = &zone->free_area[current_order];
-+		list_move(&page->lru, &area->free_list[start_type]);
- 		return;
++		/*
++		 * Preserve at least one pageblock unless we are really running
++		 * out of memory
++		 */
++		if (!force && zone->nr_reserved_highatomic <= pageblock_nr_pages)
+ 			continue;
+ 
+ 		spin_lock_irqsave(&zone->lock, flags);
+@@ -2102,10 +2109,12 @@ static void unreserve_highatomic_pageblock(const struct alloc_context *ac)
+ 			set_pageblock_migratetype(page, ac->migratetype);
+ 			move_freepages_block(zone, page, ac->migratetype);
+ 			spin_unlock_irqrestore(&zone->lock, flags);
+-			return;
++			return true;
+ 		}
+ 		spin_unlock_irqrestore(&zone->lock, flags);
  	}
- 
-@@ -2108,8 +2118,13 @@ static void unreserve_highatomic_pageblock(const struct alloc_context *ac)
- 	}
- }
- 
--/* Remove an element from the buddy allocator from the fallback list */
--static inline struct page *
-+/*
-+ * Try finding a free buddy page on the fallback list and put it on the free
-+ * list of requested migratetype, possibly along with other pages from the same
-+ * block, depending on fragmentation avoidance heuristics. Returns true if
-+ * fallback was found so that __rmqueue_smallest() can grab it.
-+ */
-+static inline bool
- __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
- {
- 	struct free_area *area;
-@@ -2130,32 +2145,16 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
- 
- 		page = list_first_entry(&area->free_list[fallback_mt],
- 						struct page, lru);
--		if (can_steal)
--			steal_suitable_fallback(zone, page, start_migratetype);
--
--		/* Remove the page from the freelists */
--		area->nr_free--;
--		list_del(&page->lru);
--		rmv_page_order(page);
- 
--		expand(zone, page, order, current_order, area,
--					start_migratetype);
--		/*
--		 * The pcppage_migratetype may differ from pageblock's
--		 * migratetype depending on the decisions in
--		 * find_suitable_fallback(). This is OK as long as it does not
--		 * differ for MIGRATE_CMA pageblocks. Those can be used as
--		 * fallback only via special __rmqueue_cma_fallback() function
--		 */
--		set_pcppage_migratetype(page, start_migratetype);
-+		steal_suitable_fallback(zone, page, start_migratetype, can_steal);
- 
- 		trace_mm_page_alloc_extfrag(page, order, current_order,
- 			start_migratetype, fallback_mt);
- 
--		return page;
-+		return true;
- 	}
- 
--	return NULL;
++
 +	return false;
  }
  
- /*
-@@ -2167,13 +2166,16 @@ static struct page *__rmqueue(struct zone *zone, unsigned int order,
- {
- 	struct page *page;
+ /* Remove an element from the buddy allocator from the fallback list */
+@@ -3302,7 +3311,7 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+ 	 * Shrink them them and try again
+ 	 */
+ 	if (!page && !drained) {
+-		unreserve_highatomic_pageblock(ac);
++		unreserve_highatomic_pageblock(ac, false);
+ 		drain_all_pages(NULL);
+ 		drained = true;
+ 		goto retry;
+@@ -3418,9 +3427,14 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
+ 	/*
+ 	 * Make sure we converge to OOM if we cannot make any progress
+ 	 * several times in the row.
++	 * Do last desparate attempt to throw high atomic reserves away
++	 * before we give up
+ 	 */
+-	if (*no_progress_loops > MAX_RECLAIM_RETRIES)
++	if (*no_progress_loops > MAX_RECLAIM_RETRIES) {
++		if (unreserve_highatomic_pageblock(ac, true))
++			return true;
+ 		return false;
++	}
  
-+retry:
- 	page = __rmqueue_smallest(zone, order, migratetype);
- 	if (unlikely(!page)) {
- 		if (migratetype == MIGRATE_MOVABLE)
- 			page = __rmqueue_cma_fallback(zone, order);
- 
--		if (!page && allow_fallback)
--			page = __rmqueue_fallback(zone, order, migratetype);
-+		if (!page && allow_fallback) {
-+			if (__rmqueue_fallback(zone, order, migratetype))
-+				goto retry;
-+		}
- 	}
- 
- 	trace_mm_page_alloc_zone_locked(page, order, migratetype);
+ 	/*
+ 	 * Keep reclaiming pages while there is a chance this will lead
 -- 
-2.10.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
