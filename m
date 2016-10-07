@@ -1,65 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 26A366B025E
-	for <linux-mm@kvack.org>; Thu,  6 Oct 2016 22:58:36 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id u84so15104336pfj.1
-        for <linux-mm@kvack.org>; Thu, 06 Oct 2016 19:58:36 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id qj2si15100605pac.7.2016.10.06.19.58.35
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 06 Oct 2016 19:58:35 -0700 (PDT)
-Date: Thu, 6 Oct 2016 20:58:33 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v4 10/12] dax: add struct iomap based DAX PMD support
-Message-ID: <20161007025833.GA2934@linux.intel.com>
-References: <1475189370-31634-1-git-send-email-ross.zwisler@linux.intel.com>
- <1475189370-31634-11-git-send-email-ross.zwisler@linux.intel.com>
- <20161003105949.GP6457@quack2.suse.cz>
- <20161003210557.GA28177@linux.intel.com>
- <20161006213424.GA4569@linux.intel.com>
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 47CD56B0261
+	for <linux-mm@kvack.org>; Fri,  7 Oct 2016 01:14:21 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id n202so36972825oig.2
+        for <linux-mm@kvack.org>; Thu, 06 Oct 2016 22:14:21 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id n81si15798129oib.90.2016.10.06.22.14.19
+        for <linux-mm@kvack.org>;
+        Thu, 06 Oct 2016 22:14:20 -0700 (PDT)
+Date: Fri, 7 Oct 2016 14:14:01 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH] mm/slab: fix kmemcg cache creation delayed issue
+Message-ID: <20161007051400.GA7294@js1304-P5Q-DELUXE>
+References: <002b01d21fea$fb0bab60$f1230220$@net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161006213424.GA4569@linux.intel.com>
+In-Reply-To: <002b01d21fea$fb0bab60$f1230220$@net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: Doug Smythies <dsmythies@telus.net>
+Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Christoph Lameter' <cl@linux.com>, 'Pekka Enberg' <penberg@kernel.org>, 'David Rientjes' <rientjes@google.com>, 'Johannes Weiner' <hannes@cmpxchg.org>, 'Vladimir Davydov' <vdavydov.dev@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
-On Thu, Oct 06, 2016 at 03:34:24PM -0600, Ross Zwisler wrote:
-> Interesting - adding iomap_end() calls to the DAX PTE fault handler causes an
-> AA deadlock because we try and retake ei->dax_sem.  We take dax_sem in
-> ext2_dax_fault() before calling into the DAX code, then if we end up going
-> through the error path in ext2_iomap_end(), we call 
->   ext2_write_failed()
->     ext2_truncate_blocks()
->       dax_sem_down_write()
-> 
-> Where we try and take dax_sem again.  This error path is really only valid for
-> I/O operations, but we happen to call it for page faults because 'written' in
-> ext2_iomap_end() is just 0.
-> 
-> So...how should we handle this?  A few ideas:
-> 
-> 1) Just continue to omit the calls to iomap_end() in the DAX page fault
-> handlers for now, and add them when there is useful work to be done in one of
-> the filesystems.
-> 
-> 2) Add an IOMAP_FAULT flag to the flags passed into iomap_begin() and
-> iomap_end() so make it explicit that we are calling as part of a fault handler
-> and not an I/O operation, and use this to adjust the error handling in
-> ext2_iomap_end().
-> 
-> 3) Just work around the existing error handling in ext2_iomap_end() by either
-> unsetting IOMAP_WRITE or by setting 'written' to the size of the fault.
-> 
-> For #2 or #3, probably add a comment explaining the deadlock and why we need
-> to never call ext2_write_failed() while handling a page fault.
-> 
-> Thoughts?
+On Thu, Oct 06, 2016 at 09:02:00AM -0700, Doug Smythies wrote:
+> It was my (limited) understanding that the subsequent 2 patch set
+> superseded this patch. Indeed, the 2 patch set seems to solve
+> both the SLAB and SLUB bug reports.
 
-Never mind, #3 it is, I think it was just a plain bug to call iomap_end() with
-'length' != 'written'.
+It would mean that patch 1 solves both the SLAB and SLUB bug reports
+since patch 2 is only effective for SLUB.
+
+Reason that I send this patch is that although patch 1 fixes the
+issue that too many kworkers are created, kmem_cache creation/destory
+is still slowed by synchronize_sched() and it would cause kmemcg
+usage counting delayed. I'm not sure how bad it is but it's generally
+better to start accounting as soon as possible. With patch 2 for SLUB
+and this patch for SLAB, performance of kmem_cache
+creation/destory would recover.
+
+Thanks.
+
+> 
+> References:
+> 
+> https://bugzilla.kernel.org/show_bug.cgi?id=172981
+> https://bugzilla.kernel.org/show_bug.cgi?id=172991
+> https://patchwork.kernel.org/patch/9361853
+> https://patchwork.kernel.org/patch/9359271
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
