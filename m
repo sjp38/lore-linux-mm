@@ -1,97 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FDA76B0264
-	for <linux-mm@kvack.org>; Fri,  7 Oct 2016 18:09:35 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id i130so15737125wmg.4
-        for <linux-mm@kvack.org>; Fri, 07 Oct 2016 15:09:35 -0700 (PDT)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id hm2si23849298wjb.83.2016.10.07.15.09.34
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Oct 2016 15:09:34 -0700 (PDT)
-Received: by mail-wm0-x243.google.com with SMTP id f193so4793713wmg.2
-        for <linux-mm@kvack.org>; Fri, 07 Oct 2016 15:09:34 -0700 (PDT)
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 845806B0038
+	for <linux-mm@kvack.org>; Sat,  8 Oct 2016 04:05:32 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id k16so35568554iok.5
+        for <linux-mm@kvack.org>; Sat, 08 Oct 2016 01:05:32 -0700 (PDT)
+Received: from out0-136.mail.aliyun.com (out0-136.mail.aliyun.com. [140.205.0.136])
+        by mx.google.com with ESMTP id r124si6853815itg.109.2016.10.08.01.05.30
+        for <linux-mm@kvack.org>;
+        Sat, 08 Oct 2016 01:05:31 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <57F6BB8F.7070208@windriver.com>
+In-Reply-To: <57F6BB8F.7070208@windriver.com>
+Subject: Re: "swap_free: Bad swap file entry" and "BUG: Bad page map in process" but no swap configured
+Date: Sat, 08 Oct 2016 16:05:27 +0800
+Message-ID: <018601d2213a$bb0e44e0$312acea0$@alibaba-inc.com>
 MIME-Version: 1.0
-In-Reply-To: <001f01d1ee06$00b484e0$021d8ea0$@alibaba-inc.com>
-References: <001e01d1ee04$c7f77be0$57e673a0$@alibaba-inc.com> <001f01d1ee06$00b484e0$021d8ea0$@alibaba-inc.com>
-From: Vegard Nossum <vegard.nossum@gmail.com>
-Date: Sat, 8 Oct 2016 00:09:33 +0200
-Message-ID: <CAOMGZ=E0U980xbHbCkms89rR3ykQmum0d+E=XEGG_xw0+=CwNg@mail.gmail.com>
-Subject: Re: [PATCH 04/10] fault injection: prevent recursive fault injection
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain;
+	charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <hillf.zj@alibaba-inc.com>
-Cc: Vegard Nossum <vegard.nossum@oracle.com>, Linux Memory Management List <linux-mm@kvack.org>
+To: 'Chris Friesen' <chris.friesen@windriver.com>, 'lkml' <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On 4 August 2016 at 06:09, Hillf Danton <hillf.zj@alibaba-inc.com> wrote:
->>
->> If something we call in the fail_dump() code path tries to acquire a
->> resource that might fail (due to fault injection), then we should not
->> try to recurse back into the fault injection code.
->>
->> I've seen this happen with the console semaphore in the upcoming
->> semaphore trylock fault injection code.
->>
->> Signed-off-by: Vegard Nossum <vegard.nossum@oracle.com>
->> ---
->>  lib/fault-inject.c | 34 ++++++++++++++++++++++++++++------
->>  1 file changed, 28 insertions(+), 6 deletions(-)
->>
->> diff --git a/lib/fault-inject.c b/lib/fault-inject.c
->> index 6a823a5..adba7c9 100644
->> --- a/lib/fault-inject.c
->> +++ b/lib/fault-inject.c
->> @@ -100,6 +100,33 @@ static inline bool fail_stacktrace(struct fault_attr *attr)
->>
->>  #endif /* CONFIG_FAULT_INJECTION_STACKTRACE_FILTER */
->>
->> +static DEFINE_PER_CPU(int, fault_active);
->> +
->> +static bool __fail(struct fault_attr *attr)
->> +{
->> +     bool ret = false;
->> +
->> +     /*
->> +      * Prevent recursive fault injection (this could happen if for
->> +      * example printing the fault would itself run some code that
->> +      * could fail)
->> +      */
->> +     preempt_disable();
->> +     if (unlikely(__this_cpu_inc_return(fault_active) != 1))
->> +             goto out;
->> +
->> +     ret = true;
->> +     fail_dump(attr);
->> +
->> +     if (atomic_read(&attr->times) != -1)
->> +             atomic_dec_not_zero(&attr->times);
->> +
->> +out:
->> +     __this_cpu_dec(fault_active);
->> +     preempt_enable();
->
-> Well schedule entry point is add in paths like
->         rt_mutex_trylock
->         __alloc_pages_nodemask
-> and please add one or two sentences in log
-> message for it.
-
-I'm sorry, but I don't really get what you are saying or what you want
-me to add.
-
-Are you saying that because I'm adding a fail_dump() call to
-mutex_trylock() that we can now end up calling schedule() from a weird
-context?
-
-This patch is just to prevent __fail() from looping on itself, I don't
-see what the connection is to rt_mutex_trylock(),
-__alloc_pages_nodemask(), or schedule().
-
-Could you please clarify? Thanks,
-
-
-Vegard
+On Friday, October 07, 2016 5:01 AM Chris Friesen
+> 
+> I have Linux host running as a kvm hypervisor.  It's running CentOS.  (So the
+> kernel is based on 3.10 but with loads of stuff backported by RedHat.)  I
+> realize this is not a mainline kernel, but I was wondering if anyone is aware of
+> similar issues that had been fixed in mainline.
+> 
+Hey, dunno if you're looking for commit 
+	6dec97dc929 ("mm: move_ptes -- Set soft dirty bit depending on pte type")
+Hillf
+> When doing a bunch of live migrations eventually I hit a bunch of errors that
+> look like this.
+> 
+> 2016-10-03T23:13:54.017 controller-1 kernel: err [247517.457614] swap_free: Bad
+> swap file entry 001fe858
+> 2016-10-03T23:13:54.017 controller-1 kernel: alert [247517.463191] BUG: Bad page
+> map in process qemu-kvm  pte:3fd0b000 pmd:4557cb067
+> 2016-10-03T23:13:54.017 controller-1 kernel: alert [247517.471352]
+> addr:00007fefa9be4000 vm_flags:00100073 anon_vma:ffff88043f87ff80 mapping:
+>      (null) index:7fefa9be4
+> 2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483510] CPU: 0 PID:
+> 154525 Comm: qemu-kvm Tainted: G           OE  ------------
+> 3.10.0-327.28.3.7.tis.x86_64 #1
+> 2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483513] Hardware
+> name: Intel Corporation S2600WT2R/S2600WT2R, BIOS
+> SE5C610.86B.01.01.0016.033120161139 03/31/2016
+> 2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483516]
+> 00007fefa9be4000 0000000007795eb9 ffff88044007bc60 ffffffff81670503
+> 2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483524]
+> ffff88044007bca8 ffffffff8115e70f 000000003fd0b000 00000007fefa9be4
+> 2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483531]
+> ffff8804557cbf20 000000003fd0b000 00007fefa9c00000 00007fefa9be4000
+> 2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483538] Call Trace:
+> 2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483548]
+> [<ffffffff81670503>] dump_stack+0x19/0x1b
+> 2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483553]
+> [<ffffffff8115e70f>] print_bad_pte+0x1af/0x250
+> 2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483557]
+> [<ffffffff81160000>] unmap_page_range+0x5a0/0x7f0
+> 2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483561]
+> [<ffffffff811602a9>] unmap_single_vma+0x59/0xd0
+> 2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483564]
+> [<ffffffff81161595>] zap_page_range+0x105/0x170
+> 2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483568]
+> [<ffffffff8115dd7c>] SyS_madvise+0x3bc/0x7d0
+> 2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483573]
+> [<ffffffff810ca1e0>] ? SyS_futex+0x80/0x180
+> 2016-10-03T23:13:54.017 controller-1 kernel: warning [247517.483577]
+> [<ffffffff81678f89>] system_call_fastpath+0x16/0x1b
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
