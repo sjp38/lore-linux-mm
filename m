@@ -1,49 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C0066B0069
-	for <linux-mm@kvack.org>; Sun,  9 Oct 2016 15:27:03 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id n3so25854628lfn.5
-        for <linux-mm@kvack.org>; Sun, 09 Oct 2016 12:27:03 -0700 (PDT)
-Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
-        by mx.google.com with ESMTPS id uu3si33324286wjc.205.2016.10.09.12.27.01
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 455686B0069
+	for <linux-mm@kvack.org>; Sun,  9 Oct 2016 18:30:33 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id x23so27634855lfi.0
+        for <linux-mm@kvack.org>; Sun, 09 Oct 2016 15:30:33 -0700 (PDT)
+Received: from mail-lf0-x230.google.com (mail-lf0-x230.google.com. [2a00:1450:4010:c07::230])
+        by mx.google.com with ESMTPS id j77si939903lfj.221.2016.10.09.15.30.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 09 Oct 2016 12:27:01 -0700 (PDT)
-Date: Sun, 9 Oct 2016 20:26:11 +0100
-From: Chris Wilson <chris@chris-wilson.co.uk>
-Subject: Re: [PATCH] mm/vmalloc: reduce the number of lazy_max_pages to
- reduce latency
-Message-ID: <20161009192610.GB2718@nuc-i3427.alporthouse.com>
-References: <20160929073411.3154-1-jszhang@marvell.com>
- <20160929081818.GE28107@nuc-i3427.alporthouse.com>
- <CAD=GYpYKL9=uY=Fks2xO6oK3bJ772yo4EiJ1tJkVU9PheSD+Cw@mail.gmail.com>
- <20161009124242.GA2718@nuc-i3427.alporthouse.com>
- <CAEi0qNnozbib-92NwWpUV=_YiiUHYGzzBuuY8kDZY9gaZm-W7Q@mail.gmail.com>
+        Sun, 09 Oct 2016 15:30:31 -0700 (PDT)
+Received: by mail-lf0-x230.google.com with SMTP id b75so93868173lfg.3
+        for <linux-mm@kvack.org>; Sun, 09 Oct 2016 15:30:31 -0700 (PDT)
+Date: Mon, 10 Oct 2016 01:30:28 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: kernel BUG at mm/huge_memory.c:1187!
+Message-ID: <20161009223027.GA3964@node.shutemov.name>
+References: <CACygaLCEsdDyERUACBqMfqupbvPyH7QOCcm3sE8nZuYbwfA=sQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAEi0qNnozbib-92NwWpUV=_YiiUHYGzzBuuY8kDZY9gaZm-W7Q@mail.gmail.com>
+In-Reply-To: <CACygaLCEsdDyERUACBqMfqupbvPyH7QOCcm3sE8nZuYbwfA=sQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joel Fernandes <joel.opensrc@gmail.com>
-Cc: Joel Fernandes <agnel.joel@gmail.com>, Jisheng Zhang <jszhang@marvell.com>, npiggin@kernel.dk, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, rientjes@google.com, Andrew Morton <akpm@linux-foundation.org>, mgorman@techsingularity.net, iamjoonsoo.kim@lge.com, Linux ARM Kernel List <linux-arm-kernel@lists.infradead.org>
+To: Wenwei Tao <ww.tao0320@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, Oct 09, 2016 at 12:00:31PM -0700, Joel Fernandes wrote:
-> Ok. So I'll submit a patch with mutex for purge_lock and use
-> cond_resched_lock for the vmap_area_lock as you suggested. I'll also
-> drop the lazy_max_pages to 8MB as Andi suggested to reduce the lock
-> hold time. Let me know if you have any objections.
+On Sun, Oct 09, 2016 at 03:24:27PM +0800, Wenwei Tao wrote:
+> Hi,
+> 
+> I open the Transparent  huge page and run the system and hit the bug
+> in huge_memory.c:
+> 
+> static void __split_huge_page_refcount(struct page *page)
+>                               .
+>                               .
+>                               .
+> 
+>      /* tail_page->_mapcount cannot change */
+>      BUG_ON(page_mapcount(page_tail) < 0);
+>                                .
+>                                .
+> 
+> In my understanding, the THP's tail page's mapcount is initialized to
+> -1,  page_mapcout(page_tail) should be 0.
+> Did anyone meet the same issue?
+> 
+> Thanks.
+> 
+> 2016-09-28 02:12:08 [810422.485203] ------------[ cut here ]------------
+> 2016-09-28 02:12:08 [810422.489974] kernel BUG at mm/huge_memory.c:1187!
+> 2016-09-28 02:12:08 [810422.494742] invalid opcode: 0000 [#1] SMP
+> 2016-09-28 02:12:08 [810422.499034] last sysfs file:
+> /sys/devices/system/cpu/online
+> 2016-09-28 02:12:08 [810422.504757] CPU 31
+> 2016-09-28 02:12:08 [810422.506775] Modules linked in: 8021q garp
+> bridge stp llc dell_rbu ipmi_devintf ipmi_si ipmi_msghandler bonding
+> ipv6 microcode  dca power_meter ext4 mbcache jbd2 ahci wmi dm_mirror
+> dm_region_hash dm_log dm_mod
+> 2016-09-28 02:12:08 [810422.571439]
+> 2016-09-28 02:12:08 [810422.573088] Pid: 10729, comm: observer
+> Tainted: G        W  ----------------   2.6.32-220.23.2.el6.x86_64
 
-The downside of using a mutex here though, is that we may be called
-from contexts that cannot sleep (alloc_vmap_area), or reschedule for
-that matter! If we change the notion of purged, we can forgo the mutex
-in favour of spinning on the direct reclaim path. That just leaves the
-complication of whether to use cond_resched_lock() or a lock around
-the individual __free_vmap_area().
--Chris
+The kernel is already tianted with warning.
+
+And that is way to old kernel -- from RHEL 6.2, almost 5 years old.
+Contact your OS vendor.
 
 -- 
-Chris Wilson, Intel Open Source Technology Centre
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
