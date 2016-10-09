@@ -1,107 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D62B56B0069
-	for <linux-mm@kvack.org>; Sun,  9 Oct 2016 03:24:28 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id m10so92597642ith.7
-        for <linux-mm@kvack.org>; Sun, 09 Oct 2016 00:24:28 -0700 (PDT)
-Received: from mail-io0-x231.google.com (mail-io0-x231.google.com. [2607:f8b0:4001:c06::231])
-        by mx.google.com with ESMTPS id y142si30050904ioy.209.2016.10.09.00.24.28
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 628EC6B0069
+	for <linux-mm@kvack.org>; Sun,  9 Oct 2016 08:43:36 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id x79so22671762lff.2
+        for <linux-mm@kvack.org>; Sun, 09 Oct 2016 05:43:36 -0700 (PDT)
+Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
+        by mx.google.com with ESMTPS id hm2si30914137wjb.83.2016.10.09.05.43.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 09 Oct 2016 00:24:28 -0700 (PDT)
-Received: by mail-io0-x231.google.com with SMTP id j37so84151122ioo.3
-        for <linux-mm@kvack.org>; Sun, 09 Oct 2016 00:24:28 -0700 (PDT)
+        Sun, 09 Oct 2016 05:43:34 -0700 (PDT)
+Date: Sun, 9 Oct 2016 13:42:42 +0100
+From: Chris Wilson <chris@chris-wilson.co.uk>
+Subject: Re: [PATCH] mm/vmalloc: reduce the number of lazy_max_pages to
+ reduce latency
+Message-ID: <20161009124242.GA2718@nuc-i3427.alporthouse.com>
+References: <20160929073411.3154-1-jszhang@marvell.com>
+ <20160929081818.GE28107@nuc-i3427.alporthouse.com>
+ <CAD=GYpYKL9=uY=Fks2xO6oK3bJ772yo4EiJ1tJkVU9PheSD+Cw@mail.gmail.com>
 MIME-Version: 1.0
-From: Wenwei Tao <ww.tao0320@gmail.com>
-Date: Sun, 9 Oct 2016 15:24:27 +0800
-Message-ID: <CACygaLCEsdDyERUACBqMfqupbvPyH7QOCcm3sE8nZuYbwfA=sQ@mail.gmail.com>
-Subject: kernel BUG at mm/huge_memory.c:1187!
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAD=GYpYKL9=uY=Fks2xO6oK3bJ772yo4EiJ1tJkVU9PheSD+Cw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joel Fernandes <agnel.joel@gmail.com>
+Cc: Jisheng Zhang <jszhang@marvell.com>, Andrew Morton <akpm@linux-foundation.org>, mgorman@techsingularity.net, rientjes@google.com, iamjoonsoo.kim@lge.com, npiggin@kernel.dk, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux ARM Kernel List <linux-arm-kernel@lists.infradead.org>
 
-Hi,
+On Sat, Oct 08, 2016 at 08:43:51PM -0700, Joel Fernandes wrote:
+> On Thu, Sep 29, 2016 at 1:18 AM, Chris Wilson <chris@chris-wilson.co.uk> wrote:
+> > On Thu, Sep 29, 2016 at 03:34:11PM +0800, Jisheng Zhang wrote:
+> >> On Marvell berlin arm64 platforms, I see the preemptoff tracer report
+> >> a max 26543 us latency at __purge_vmap_area_lazy, this latency is an
+> >> awfully bad for STB. And the ftrace log also shows __free_vmap_area
+> >> contributes most latency now. I noticed that Joel mentioned the same
+> >> issue[1] on x86 platform and gave two solutions, but it seems no patch
+> >> is sent out for this purpose.
+> >>
+> >> This patch adopts Joel's first solution, but I use 16MB per core
+> >> rather than 8MB per core for the number of lazy_max_pages. After this
+> >> patch, the preemptoff tracer reports a max 6455us latency, reduced to
+> >> 1/4 of original result.
+> >
+> > My understanding is that
+> >
+> > diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> > index 91f44e78c516..3f7c6d6969ac 100644
+> > --- a/mm/vmalloc.c
+> > +++ b/mm/vmalloc.c
+> > @@ -626,7 +626,6 @@ void set_iounmap_nonlazy(void)
+> >  static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
+> >                                         int sync, int force_flush)
+> >  {
+> > -       static DEFINE_SPINLOCK(purge_lock);
+> >         struct llist_node *valist;
+> >         struct vmap_area *va;
+> >         struct vmap_area *n_va;
+> > @@ -637,12 +636,6 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
+> >          * should not expect such behaviour. This just simplifies locking for
+> >          * the case that isn't actually used at the moment anyway.
+> >          */
+> > -       if (!sync && !force_flush) {
+> > -               if (!spin_trylock(&purge_lock))
+> > -                       return;
+> > -       } else
+> > -               spin_lock(&purge_lock);
+> > -
+> >         if (sync)
+> >                 purge_fragmented_blocks_allcpus();
+> >
+> > @@ -667,7 +660,6 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
+> >                         __free_vmap_area(va);
+> >                 spin_unlock(&vmap_area_lock);
+> >         }
+> > -       spin_unlock(&purge_lock);
+> >  }
+> >
+> [..]
+> > should now be safe. That should significantly reduce the preempt-disabled
+> > section, I think.
+> 
+> I believe that the purge_lock is supposed to prevent concurrent purges
+> from happening.
+> 
+> For the case where if you have another concurrent overflow happen in
+> alloc_vmap_area() between the spin_unlock and purge :
+> 
+> spin_unlock(&vmap_area_lock);
+> if (!purged)
+>    purge_vmap_area_lazy();
+> 
+> Then the 2 purges would happen at the same time and could subtract
+> vmap_lazy_nr twice.
 
-I open the Transparent  huge page and run the system and hit the bug
-in huge_memory.c:
+That itself is not the problem, as each instance of
+__purge_vmap_area_lazy() operates on its own freelist, and so there will
+be no double accounting.
 
-static void __split_huge_page_refcount(struct page *page)
-                              .
-                              .
-                              .
+However, removing the lock removes the serialisation which does mean
+that alloc_vmap_area() will not block on another thread conducting the
+purge, and so it will try to reallocate before that is complete and the
+free area made available. It also means that we are doing the
+atomic_sub(vmap_lazy_nr) too early.
 
-     /* tail_page->_mapcount cannot change */
-     BUG_ON(page_mapcount(page_tail) < 0);
-                               .
-                               .
+That supports making the outer lock a mutex as you suggested. But I think
+cond_resched_lock() is better for the vmap_area_lock (just because it
+turns out to be an expensive loop and we may want the reschedule).
+-Chris
 
-In my understanding, the THP's tail page's mapcount is initialized to
--1,  page_mapcout(page_tail) should be 0.
-Did anyone meet the same issue?
-
-Thanks.
-
-2016-09-28 02:12:08 [810422.485203] ------------[ cut here ]------------
-2016-09-28 02:12:08 [810422.489974] kernel BUG at mm/huge_memory.c:1187!
-2016-09-28 02:12:08 [810422.494742] invalid opcode: 0000 [#1] SMP
-2016-09-28 02:12:08 [810422.499034] last sysfs file:
-/sys/devices/system/cpu/online
-2016-09-28 02:12:08 [810422.504757] CPU 31
-2016-09-28 02:12:08 [810422.506775] Modules linked in: 8021q garp
-bridge stp llc dell_rbu ipmi_devintf ipmi_si ipmi_msghandler bonding
-ipv6 microcode  dca power_meter ext4 mbcache jbd2 ahci wmi dm_mirror
-dm_region_hash dm_log dm_mod
-2016-09-28 02:12:08 [810422.571439]
-2016-09-28 02:12:08 [810422.573088] Pid: 10729, comm: observer
-Tainted: G        W  ----------------   2.6.32-220.23.2.el6.x86_64
-2016-09-28 02:12:08 [810422.586827] RIP: 0010:[]  [] split_huge_page+0x7c4/0x800
-2016-09-28 02:12:08 [810422.595498] RSP: 0018:ffff887661c9fcd8  EFLAGS: 00010086
-2016-09-28 02:12:08 [810422.600956] RAX: 00000000ffffffff RBX:
-ffffea011b4d4000 RCX: ffffc9003018b000
-2016-09-28 02:12:08 [810422.608300] RDX: 0000000000000002 RSI:
-ffff887f4fb3b400 RDI: 0000000000000004
-2016-09-28 02:12:08 [810422.615644] RBP: ffff887661c9fd88 R08:
-000000000000007d R09: ffff880000000000
-2016-09-28 02:12:08 [810422.622983] R10: 0000000000000000 R11:
-0000000000000287 R12: ffffea011b4cdfc0
-2016-09-28 02:12:08 [810422.630325] R13: 0000000000000000 R14:
-ffffea011b4cd000 R15: 00000007f3253047
-2016-09-28 02:12:08 [810422.637664] FS:  00007f43aed23700(0000)
-GS:ffff8802723e0000(0000) knlGS:0000000000000000
-2016-09-28 02:12:08 [810422.645957] CS:  0010 DS: 0000 ES: 0000 CR0:
-0000000080050033
-2016-09-28 02:12:08 [810422.651855] CR2: 00002b73a80013b0 CR3:
-000000557a658000 CR4: 00000000001406e0
-2016-09-28 02:12:08 [810422.659198] DR0: 0000000000000000 DR1:
-0000000000000000 DR2: 0000000000000000
-2016-09-28 02:12:08 [810422.666543] DR3: 0000000000000000 DR6:
-00000000fffe0ff0 DR7: 0000000000000400
-2016-09-28 02:12:08 [810422.673882] Process observer (pid: 10729,
-threadinfo ffff887661c9e000, task ffff88787fb94040)
-2016-09-28 02:12:08 [810422.682611] Stack:
-2016-09-28 02:12:08 [810422.684779]  000000000000000e 0000000000000006
-ffff887f46f4e640 ffff887882be22e0
-2016-09-28 02:12:08 [810422.692213] <0> ffff887f46f4e6c8
-0000000100000000 ffff887882be22f8 0000006cd0dcb067
-2016-09-28 02:12:08 [810422.700185] <0> ffff887882be22d8
-0000000181146034 ffffea011b4cd038 ffff88000002c1c0
-2016-09-28 02:12:08 [810422.708420] Call Trace:
-2016-09-28 02:12:08 [810422.711026]  [] __split_huge_page_pmd+0x81/0xc0
-2016-09-28 02:12:08 [810422.717272]  [] split_huge_page_address+0x9a/0xa0
-2016-09-28 02:12:08 [810422.723686]  [] __vma_adjust_trans_huge+0xd0/0xf0
-2016-09-28 02:12:08 [810422.730102]  [] vma_adjust+0x4fa/0x590
-2016-09-28 02:12:08 [810422.735566]  [] __split_vma+0x143/0x280
-2016-09-28 02:12:08 [810422.741115]  [] do_munmap+0x25a/0x3a0
-2016-09-28 02:12:08 [810422.746489]  [] sys_munmap+0x56/0x80
-2016-09-28 02:12:08 [810422.751782]  [] system_call_fastpath+0x16/0x1b
-2016-09-28 02:12:08 [810422.757939] Code: b0 fc ff ff 0f 0b 90 eb fd
-49 8b 46 10 e9 d4 fc ff ff 0f 0b 0f 1f 00 eb fb 49 8b 06 a9 00 00 00
-02 0f 84 1c fa ff ff f3 90 eb ee <0f> 0b eb fe 0f 0b 66 0f 1f 44 00 00
-eb f8 0f 0b eb fe 0f 0b 0f
-2016-09-28 02:12:08 [810422.778682] RIP  [] split_huge_page+0x7c4/0x800
-2016-09-28 02:12:08 [810422.784947]  RSP
-2016-09-28 02:12:08 [810422.789074] ---[ end trace a7919e7f17c0a727 ]---
+-- 
+Chris Wilson, Intel Open Source Technology Centre
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
