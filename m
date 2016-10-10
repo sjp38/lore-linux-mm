@@ -1,72 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A3CB56B0253
-	for <linux-mm@kvack.org>; Mon, 10 Oct 2016 03:47:34 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id i187so33116489lfe.4
-        for <linux-mm@kvack.org>; Mon, 10 Oct 2016 00:47:34 -0700 (PDT)
-Received: from mail-lf0-f67.google.com (mail-lf0-f67.google.com. [209.85.215.67])
-        by mx.google.com with ESMTPS id 79si16385428lfr.225.2016.10.10.00.47.33
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 370916B0069
+	for <linux-mm@kvack.org>; Mon, 10 Oct 2016 04:18:57 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id e200so114350172oig.4
+        for <linux-mm@kvack.org>; Mon, 10 Oct 2016 01:18:57 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id w90si20466254ota.265.2016.10.10.01.18.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Oct 2016 00:47:33 -0700 (PDT)
-Received: by mail-lf0-f67.google.com with SMTP id x79so5116454lff.2
-        for <linux-mm@kvack.org>; Mon, 10 Oct 2016 00:47:33 -0700 (PDT)
-Date: Mon, 10 Oct 2016 09:47:31 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/4] use up highorder free pages before OOM
-Message-ID: <20161010074724.GC20420@dhcp22.suse.cz>
-References: <1475819136-24358-1-git-send-email-minchan@kernel.org>
- <20161007091625.GB18447@dhcp22.suse.cz>
- <20161007150425.GD3060@bbox>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 10 Oct 2016 01:18:56 -0700 (PDT)
+Message-ID: <57FB4E67.7060304@huawei.com>
+Date: Mon, 10 Oct 2016 16:16:39 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161007150425.GD3060@bbox>
+Subject: Re: [PATCH] mm: init gfp mask in kcompactd_do_work()
+References: <57FB0C89.3040304@huawei.com> <982e8902-18ac-eaa2-214a-87e68ce75732@suse.cz>
+In-Reply-To: <982e8902-18ac-eaa2-214a-87e68ce75732@suse.cz>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sangseok Lee <sangseok.lee@lge.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal
+ Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, Yisheng Xie <xieyisheng1@huawei.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Sat 08-10-16 00:04:25, Minchan Kim wrote:
-[...]
-> I can show other log which reserve greater than 1%. See the DMA32 zone
-> free pages. It was GFP_ATOMIC allocation so it's different with I posted
-> but important thing is VM can reserve memory greater than 1% by the race
-> which was really what we want.
+On 2016/10/10 14:40, Vlastimil Babka wrote:
+
+> On 10/10/2016 05:35 AM, Xishi Qiu wrote:
+>> We will use gfp_mask in the following path, but it's not init.
+>>
+>> kcompactd_do_work
+>>     compact_zone
+>>         gfpflags_to_migratetype
+>>
+>> However if not init, gfp_mask is always 0, and the result of
+>> gfpflags_to_migratetype(0) and gfpflags_to_migratetype(GFP_KERNEL)
+>> are the same, but it's a little confusion, so init it first.
 > 
-> in:imklog: page allocation failure: order:0, mode:0x2280020(GFP_ATOMIC|__GFP_NOTRACK)
-[...]
-> DMA: 7*4kB (UE) 3*8kB (UH) 1*16kB (M) 0*32kB 2*64kB (U) 1*128kB (M) 1*256kB (U) 0*512kB 1*1024kB (U) 1*2048kB (U) 1*4096kB (H) = 7748kB
-> DMA32: 10*4kB (H) 3*8kB (H) 47*16kB (H) 38*32kB (H) 5*64kB (H) 1*128kB (H) 2*256kB (H) 3*512kB (H) 3*1024kB (H) 3*2048kB (H) 4*4096kB (H) = 30128kB
-
-Yes, this sounds like a bug. Please add this information to the patch
-which aims to fix the misaccounting.
-
-> > So while I do agree that potential issues - misaccounting and others you
-> > are addressing in the follow up patch - are good to fix but I believe that
-> > draining last 19M is not something that would reliably get you over the
-> > edge. Your workload (93% of memory sitting on anon LRU with swap full)
-> > simply doesn't fit into the amount of memory you have available.
+> Michal already did this as part of his patch, as it was needed to avoid wrongly restricting kcompactd to anonymous pages:
 > 
-> What happens if the workload fit into additional 19M memory?
-> I admit my testing aimed for proving the problem but with this patchset,
-> there is no OOM killing with many free pages and the number of OOM was
-> reduced highly. It is definitely better than old.
+> http://lkml.kernel.org/r/<20161007065019.GA18439@dhcp22.suse.cz>
 > 
-> Please don't ignore 1% memory in embedded system. 20M memory in 2G system,
-> If we can use those for zram, it is 60~80M memory via compression.
-> You should know how many engineers try to reduce 1M of their driver to
-> cost down of the product, seriously.
 
-I am definitely not ignoring neither embedded systems nor 1% of the
-memory that might really matter. I just wanted to point out that being
-that close to OOM usually blows up later or starts trashing very soon.
-It is true that a particular workload might benefit from ever last
-allocatable page in the system but it would be better to mention all
-that in the changelog.
--- 
-Michal Hocko
-SUSE Labs
+Oh yes, I missed your discussion.
+
+Thanks,
+Xishi Qiu
+
+>> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+>> ---
+>>  mm/compaction.c | 2 +-
+>>  1 file changed, 1 insertion(+), 1 deletion(-)
+>>
+>> diff --git a/mm/compaction.c b/mm/compaction.c
+>> index 9affb29..4b9a9d1 100644
+>> --- a/mm/compaction.c
+>> +++ b/mm/compaction.c
+>> @@ -1895,10 +1895,10 @@ static void kcompactd_do_work(pg_data_t *pgdat)
+>>      struct zone *zone;
+>>      struct compact_control cc = {
+>>          .order = pgdat->kcompactd_max_order,
+>> +        .gfp_mask = GFP_KERNEL,
+>>          .classzone_idx = pgdat->kcompactd_classzone_idx,
+>>          .mode = MIGRATE_SYNC_LIGHT,
+>>          .ignore_skip_hint = true,
+>> -
+>>      };
+>>      bool success = false;
+>>
+>>
+> 
+> 
+> .
+> 
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
