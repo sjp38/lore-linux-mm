@@ -1,66 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 508366B0069
-	for <linux-mm@kvack.org>; Mon, 10 Oct 2016 02:40:19 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id n3so32130202lfn.5
-        for <linux-mm@kvack.org>; Sun, 09 Oct 2016 23:40:19 -0700 (PDT)
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A474C6B0069
+	for <linux-mm@kvack.org>; Mon, 10 Oct 2016 02:44:35 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id x79so32426824lff.2
+        for <linux-mm@kvack.org>; Sun, 09 Oct 2016 23:44:35 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id tp11si2686763wjb.241.2016.10.09.23.40.17
+        by mx.google.com with ESMTPS id wt3si16863094wjb.9.2016.10.09.23.44.34
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 09 Oct 2016 23:40:17 -0700 (PDT)
-Subject: Re: [PATCH] mm: init gfp mask in kcompactd_do_work()
-References: <57FB0C89.3040304@huawei.com>
+        Sun, 09 Oct 2016 23:44:34 -0700 (PDT)
+Subject: Re: [RFC PATCH] mm, compaction: allow compaction for GFP_NOFS
+ requests
+References: <20161004081215.5563-1-mhocko@kernel.org>
+ <e7dc1e23-10fe-99de-e9c8-581857e3ab9d@suse.cz>
+ <20161007065019.GA18439@dhcp22.suse.cz>
+ <b32db10d-3a89-b60e-ac2c-238484610d8c@suse.cz>
+ <20161007092107.GJ18439@dhcp22.suse.cz>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <982e8902-18ac-eaa2-214a-87e68ce75732@suse.cz>
-Date: Mon, 10 Oct 2016 08:40:14 +0200
+Message-ID: <84149b25-95f3-2ddc-8e67-c3b2114922cd@suse.cz>
+Date: Mon, 10 Oct 2016 08:44:33 +0200
 MIME-Version: 1.0
-In-Reply-To: <57FB0C89.3040304@huawei.com>
+In-Reply-To: <20161007092107.GJ18439@dhcp22.suse.cz>
 Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, Yisheng Xie <xieyisheng1@huawei.com>
-Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>, Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 10/10/2016 05:35 AM, Xishi Qiu wrote:
-> We will use gfp_mask in the following path, but it's not init.
+On 10/07/2016 11:21 AM, Michal Hocko wrote:
+> On Fri 07-10-16 10:15:07, Vlastimil Babka wrote:
+>> On 10/07/2016 08:50 AM, Michal Hocko wrote:
+>>> On Fri 07-10-16 07:27:37, Vlastimil Babka wrote:
+> [...]
+>>>> But make sure you don't break kcompactd and manual compaction from /proc, as
+>>>> they don't currently set cc->gfp_mask. Looks like until now it was only used
+>>>> to determine direct compactor's migratetype which is irrelevant in those
+>>>> contexts.
+>>>
+>>> OK, I see. This is really subtle. One way to go would be to provide a
+>>> fake gfp_mask for them. How does the following look to you?
+>>
+>> Looks OK. I'll have to think about the kcompactd case, as gfp mask implying
+>> unmovable migratetype might restrict it without good reason. But that would
+>> be separate patch anyway, yours doesn't change that (empty gfp_mask also
+>> means unmovable migratetype) and that's good.
 >
-> kcompactd_do_work
-> 	compact_zone
-> 		gfpflags_to_migratetype
->
-> However if not init, gfp_mask is always 0, and the result of
-> gfpflags_to_migratetype(0) and gfpflags_to_migratetype(GFP_KERNEL)
-> are the same, but it's a little confusion, so init it first.
+> OK, I see. A follow up patch would be really trivial AFAICS. Just add
+> __GFP_MOVABLE to the mask. But I am not familiar with all these details
+> enough to propose a patch with full description.
 
-Michal already did this as part of his patch, as it was needed to avoid 
-wrongly restricting kcompactd to anonymous pages:
-
-http://lkml.kernel.org/r/<20161007065019.GA18439@dhcp22.suse.cz>
-
-> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
-> ---
->  mm/compaction.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 9affb29..4b9a9d1 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -1895,10 +1895,10 @@ static void kcompactd_do_work(pg_data_t *pgdat)
->  	struct zone *zone;
->  	struct compact_control cc = {
->  		.order = pgdat->kcompactd_max_order,
-> +		.gfp_mask = GFP_KERNEL,
->  		.classzone_idx = pgdat->kcompactd_classzone_idx,
->  		.mode = MIGRATE_SYNC_LIGHT,
->  		.ignore_skip_hint = true,
-> -
->  	};
->  	bool success = false;
->
->
+Hm, actually the migratetype only matters for async compaction, and 
+kcompactd uses sync_light, so __GFP_MOVABLE will have no effect right now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
