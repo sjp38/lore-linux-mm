@@ -1,43 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FE046B0038
-	for <linux-mm@kvack.org>; Mon, 10 Oct 2016 13:20:52 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id x23so43372554lfi.0
-        for <linux-mm@kvack.org>; Mon, 10 Oct 2016 10:20:51 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id 81si18129847ljb.37.2016.10.10.10.20.49
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 377816B0038
+	for <linux-mm@kvack.org>; Mon, 10 Oct 2016 18:05:52 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id q75so6858506itc.6
+        for <linux-mm@kvack.org>; Mon, 10 Oct 2016 15:05:52 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id o25si16169pgc.268.2016.10.10.15.05.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Oct 2016 10:20:50 -0700 (PDT)
-Date: Mon, 10 Oct 2016 13:16:46 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC 0/4] try to reduce fragmenting fallbacks
-Message-ID: <20161010171646.GA6281@cmpxchg.org>
-References: <20160928014148.GA21007@cmpxchg.org>
- <20160929210548.26196-1-vbabka@suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 10 Oct 2016 15:05:51 -0700 (PDT)
+Date: Mon, 10 Oct 2016 16:05:50 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v5 13/17] dax: dax_iomap_fault() needs to call iomap_end()
+Message-ID: <20161010220550.GA22793@linux.intel.com>
+References: <1475874544-24842-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1475874544-24842-14-git-send-email-ross.zwisler@linux.intel.com>
+ <20161010155004.GD19343@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20160929210548.26196-1-vbabka@suse.cz>
+In-Reply-To: <20161010155004.GD19343@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+To: Christoph Hellwig <hch@lst.de>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-Hi Vlastimil,
-
-sorry for the delay, I just got back from traveling.
-
-On Thu, Sep 29, 2016 at 11:05:44PM +0200, Vlastimil Babka wrote:
-> Hi Johannes,
+On Mon, Oct 10, 2016 at 05:50:04PM +0200, Christoph Hellwig wrote:
+> On Fri, Oct 07, 2016 at 03:09:00PM -0600, Ross Zwisler wrote:
+> > Currently iomap_end() doesn't do anything for DAX page faults for both ext2
+> > and XFS.  ext2_iomap_end() just checks for a write underrun, and
+> > xfs_file_iomap_end() checks to see if it needs to finish a delayed
+> > allocation.  However, in the future iomap_end() calls might be needed to
+> > make sure we have balanced allocations, locks, etc.  So, add calls to
+> > iomap_end() with appropriate error handling to dax_iomap_fault().
 > 
-> here's something quick to try or ponder about. However, untested since it's too
-> late here. Based on mmotm-2016-09-27-16-08 plus this fix [1]
+> Is there a way to just have a single call to iomap_end at the end of
+> the function, after which we just return a previosuly setup return
+> value?
 > 
-> [1] http://lkml.kernel.org/r/<cadadd38-6456-f58e-504f-cc18ddc47b3f@suse.cz>
+> e.g.
+> 
+> out:
+> 	if (ops->iomap_end) {
+> 		error = ops->iomap_end(inode, pos, PAGE_SIZE,
+> 				PAGE_SIZE, flags, &iomap);
+> 	}
+> 
+> 	if (error == -ENOMEM)
+> 		return VM_FAULT_OOM | major;
+> 	if (error < 0 && error != -EBUSY)
+> 		return VM_FAULT_SIGBUS | major;
+> 	return ret;
 
-Thanks for whipping something up, I'll give these a shot. 4/4 is
-something I wondered about too. Let's see how this performs.
+Sure, will do.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
