@@ -1,84 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BE5BC6B0069
-	for <linux-mm@kvack.org>; Mon, 10 Oct 2016 03:47:16 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id p80so33160694lfp.6
-        for <linux-mm@kvack.org>; Mon, 10 Oct 2016 00:47:16 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cv8si13834231wjc.92.2016.10.10.00.47.15
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A3CB56B0253
+	for <linux-mm@kvack.org>; Mon, 10 Oct 2016 03:47:34 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id i187so33116489lfe.4
+        for <linux-mm@kvack.org>; Mon, 10 Oct 2016 00:47:34 -0700 (PDT)
+Received: from mail-lf0-f67.google.com (mail-lf0-f67.google.com. [209.85.215.67])
+        by mx.google.com with ESMTPS id 79si16385428lfr.225.2016.10.10.00.47.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 10 Oct 2016 00:47:15 -0700 (PDT)
-Date: Mon, 10 Oct 2016 09:47:12 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] mm: check VMA flags to avoid invalid PROT_NONE NUMA
- balancing
-Message-ID: <20161010074712.GB24081@quack2.suse.cz>
-References: <20160911225425.10388-1-lstoakes@gmail.com>
- <20160925184731.GA20480@lucifer>
- <CA+55aFwtHAT_ukyE=+s=3twW8v8QExLxpVcfEDyLihf+pn9qeA@mail.gmail.com>
- <1474842875.17726.38.camel@redhat.com>
- <CA+55aFyL+qFsJpxQufgRKgWeB6Yj0e1oapdu5mdU9_t+zwtBjg@mail.gmail.com>
- <20161007100720.GA14859@lucifer>
- <CA+55aFzOYk_1Jcr8CSKyqfkXaOApZvCkX0_27mZk7PvGSE4xSw@mail.gmail.com>
- <20161007162240.GA14350@lucifer>
- <alpine.LSU.2.11.1610071101410.7822@eggly.anvils>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Oct 2016 00:47:33 -0700 (PDT)
+Received: by mail-lf0-f67.google.com with SMTP id x79so5116454lff.2
+        for <linux-mm@kvack.org>; Mon, 10 Oct 2016 00:47:33 -0700 (PDT)
+Date: Mon, 10 Oct 2016 09:47:31 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/4] use up highorder free pages before OOM
+Message-ID: <20161010074724.GC20420@dhcp22.suse.cz>
+References: <1475819136-24358-1-git-send-email-minchan@kernel.org>
+ <20161007091625.GB18447@dhcp22.suse.cz>
+ <20161007150425.GD3060@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1610071101410.7822@eggly.anvils>
+In-Reply-To: <20161007150425.GD3060@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Lorenzo Stoakes <lstoakes@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, linux-mm <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, tbsaunde@tbsaunde.org, robert@ocallahan.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sangseok Lee <sangseok.lee@lge.com>
 
-On Fri 07-10-16 11:16:26, Hugh Dickins wrote:
-> On Fri, 7 Oct 2016, Lorenzo Stoakes wrote:
-> > On Fri, Oct 07, 2016 at 08:34:15AM -0700, Linus Torvalds wrote:
-> > > Would you be willing to look at doing that kind of purely syntactic,
-> > > non-semantic cleanup first?
-> > 
-> > Sure, more than happy to do that! I'll work on a patch for this.
-> > 
-> > > I think that if we end up having the FOLL_FORCE semantics, we're
-> > > actually better off having an explicit FOLL_FORCE flag, and *not* do
-> > > some kind of implicit "under these magical circumstances we'll force
-> > > it anyway". The implicit thing is what we used to do long long ago, we
-> > > definitely don't want to.
-> > 
-> > That's a good point, it would definitely be considerably more 'magical', and
-> > expanding the conditions to include uprobes etc. would only add to that.
-> > 
-> > I wondered about an alternative parameter/flag but it felt like it was
-> > more-or-less FOLL_FORCE in a different form, at which point it may as well
-> > remain FOLL_FORCE :)
+On Sat 08-10-16 00:04:25, Minchan Kim wrote:
+[...]
+> I can show other log which reserve greater than 1%. See the DMA32 zone
+> free pages. It was GFP_ATOMIC allocation so it's different with I posted
+> but important thing is VM can reserve memory greater than 1% by the race
+> which was really what we want.
 > 
-> Adding Jan Kara (and Dave Hansen) to the Cc list: I think they were
-> pursuing get_user_pages() cleanups last year (which would remove the
-> force option from most callers anyway), and I've lost track of where
-> that all got to.  Lorenzo, please don't expend a lot of effort before
-> checking with Jan.
+> in:imklog: page allocation failure: order:0, mode:0x2280020(GFP_ATOMIC|__GFP_NOTRACK)
+[...]
+> DMA: 7*4kB (UE) 3*8kB (UH) 1*16kB (M) 0*32kB 2*64kB (U) 1*128kB (M) 1*256kB (U) 0*512kB 1*1024kB (U) 1*2048kB (U) 1*4096kB (H) = 7748kB
+> DMA32: 10*4kB (H) 3*8kB (H) 47*16kB (H) 38*32kB (H) 5*64kB (H) 1*128kB (H) 2*256kB (H) 3*512kB (H) 3*1024kB (H) 3*2048kB (H) 4*4096kB (H) = 30128kB
 
-Yeah, so my cleanups where mostly concerned about mmap_sem locking and
-reducing number of places which cared about those. Regarding flags for
-get_user_pages() / get_vaddr_frames(), I agree that using flags argument
-as Linus suggests will make it easier to see what the callers actually
-want. So I'm for that.
+Yes, this sounds like a bug. Please add this information to the patch
+which aims to fix the misaccounting.
 
-Regarding the FOLL_FORCE I've had a discussion about its use in Infiniband
-drivers in 2013 with Roland Dreier. He referenced me to discussion
-https://lkml.org/lkml/2012/1/26/7 and summarized that they use FOLL_FORCE
-to trigger possible COW early. That avoids the situation when the process
-triggers COW of the pages later after DMA buffers are set up which results
-in the DMA result to not be visible where the process expects it... I'll
-defer to others whether that is a sane or intended use of FOLL_FORCE flag
-but I suppose that is the reason why most drivers use it when setting up
-DMA buffers in memory passed from userspace.
+> > So while I do agree that potential issues - misaccounting and others you
+> > are addressing in the follow up patch - are good to fix but I believe that
+> > draining last 19M is not something that would reliably get you over the
+> > edge. Your workload (93% of memory sitting on anon LRU with swap full)
+> > simply doesn't fit into the amount of memory you have available.
+> 
+> What happens if the workload fit into additional 19M memory?
+> I admit my testing aimed for proving the problem but with this patchset,
+> there is no OOM killing with many free pages and the number of OOM was
+> reduced highly. It is definitely better than old.
+> 
+> Please don't ignore 1% memory in embedded system. 20M memory in 2G system,
+> If we can use those for zram, it is 60~80M memory via compression.
+> You should know how many engineers try to reduce 1M of their driver to
+> cost down of the product, seriously.
 
-								Honza
+I am definitely not ignoring neither embedded systems nor 1% of the
+memory that might really matter. I just wanted to point out that being
+that close to OOM usually blows up later or starts trashing very soon.
+It is true that a particular workload might benefit from ever last
+allocatable page in the system but it would be better to mention all
+that in the changelog.
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
