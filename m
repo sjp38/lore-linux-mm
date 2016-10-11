@@ -1,91 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 72EF06B0069
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2016 01:06:46 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id 4so16274519itv.4
-        for <linux-mm@kvack.org>; Mon, 10 Oct 2016 22:06:46 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id e185si1068190iof.101.2016.10.10.22.06.44
-        for <linux-mm@kvack.org>;
-        Mon, 10 Oct 2016 22:06:45 -0700 (PDT)
-Date: Tue, 11 Oct 2016 14:06:43 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 0/4] use up highorder free pages before OOM
-Message-ID: <20161011050643.GC30973@bbox>
-References: <1475819136-24358-1-git-send-email-minchan@kernel.org>
- <20161007091625.GB18447@dhcp22.suse.cz>
- <20161007150425.GD3060@bbox>
- <20161010074724.GC20420@dhcp22.suse.cz>
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F63B6B0038
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2016 01:34:10 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id x79so6716532lff.2
+        for <linux-mm@kvack.org>; Mon, 10 Oct 2016 22:34:10 -0700 (PDT)
+Received: from mail-lf0-x242.google.com (mail-lf0-x242.google.com. [2a00:1450:4010:c07::242])
+        by mx.google.com with ESMTPS id 32si855982lfv.60.2016.10.10.22.34.08
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Oct 2016 22:34:08 -0700 (PDT)
+Received: by mail-lf0-x242.google.com with SMTP id b75so1672561lfg.3
+        for <linux-mm@kvack.org>; Mon, 10 Oct 2016 22:34:08 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161010074724.GC20420@dhcp22.suse.cz>
+In-Reply-To: <CAD=GYpZQOQYE7x0kGTmLSeybh4Tn-CCEDouzkFVkdevq02j3SA@mail.gmail.com>
+References: <20160929073411.3154-1-jszhang@marvell.com> <20160929081818.GE28107@nuc-i3427.alporthouse.com>
+ <CAD=GYpYKL9=uY=Fks2xO6oK3bJ772yo4EiJ1tJkVU9PheSD+Cw@mail.gmail.com>
+ <20161009124242.GA2718@nuc-i3427.alporthouse.com> <CAEi0qNnozbib-92NwWpUV=_YiiUHYGzzBuuY8kDZY9gaZm-W7Q@mail.gmail.com>
+ <20161009192610.GB2718@nuc-i3427.alporthouse.com> <CAD=GYpZQOQYE7x0kGTmLSeybh4Tn-CCEDouzkFVkdevq02j3SA@mail.gmail.com>
+From: Joel Fernandes <agnel.joel@gmail.com>
+Date: Mon, 10 Oct 2016 22:34:07 -0700
+Message-ID: <CAD=GYpbJmrcpNmtxfAdN6fFihWJwwOpDEk+zkZxUDrS8gB_LGQ@mail.gmail.com>
+Subject: Re: [PATCH] mm/vmalloc: reduce the number of lazy_max_pages to reduce latency
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sangseok Lee <sangseok.lee@lge.com>
+To: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: Joel Fernandes <joel.opensrc@gmail.com>, Jisheng Zhang <jszhang@marvell.com>, npiggin@kernel.dk, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, rientjes@google.com, Andrew Morton <akpm@linux-foundation.org>, mgorman@techsingularity.net, iamjoonsoo.kim@lge.com, Linux ARM Kernel List <linux-arm-kernel@lists.infradead.org>
 
-On Mon, Oct 10, 2016 at 09:47:31AM +0200, Michal Hocko wrote:
-> On Sat 08-10-16 00:04:25, Minchan Kim wrote:
-> [...]
-> > I can show other log which reserve greater than 1%. See the DMA32 zone
-> > free pages. It was GFP_ATOMIC allocation so it's different with I posted
-> > but important thing is VM can reserve memory greater than 1% by the race
-> > which was really what we want.
-> > 
-> > in:imklog: page allocation failure: order:0, mode:0x2280020(GFP_ATOMIC|__GFP_NOTRACK)
-> [...]
-> > DMA: 7*4kB (UE) 3*8kB (UH) 1*16kB (M) 0*32kB 2*64kB (U) 1*128kB (M) 1*256kB (U) 0*512kB 1*1024kB (U) 1*2048kB (U) 1*4096kB (H) = 7748kB
-> > DMA32: 10*4kB (H) 3*8kB (H) 47*16kB (H) 38*32kB (H) 5*64kB (H) 1*128kB (H) 2*256kB (H) 3*512kB (H) 3*1024kB (H) 3*2048kB (H) 4*4096kB (H) = 30128kB
-> 
-> Yes, this sounds like a bug. Please add this information to the patch
-> which aims to fix the misaccounting.
+On Mon, Oct 10, 2016 at 10:06 PM, Joel Fernandes <agnel.joel@gmail.com> wrote:
+> On Sun, Oct 9, 2016 at 12:26 PM, Chris Wilson <chris@chris-wilson.co.uk> wrote:
+>> On Sun, Oct 09, 2016 at 12:00:31PM -0700, Joel Fernandes wrote:
+>>> Ok. So I'll submit a patch with mutex for purge_lock and use
+>>> cond_resched_lock for the vmap_area_lock as you suggested. I'll also
+>>> drop the lazy_max_pages to 8MB as Andi suggested to reduce the lock
+>>> hold time. Let me know if you have any objections.
+>>
+>> The downside of using a mutex here though, is that we may be called
+>> from contexts that cannot sleep (alloc_vmap_area), or reschedule for
+>> that matter! If we change the notion of purged, we can forgo the mutex
+>> in favour of spinning on the direct reclaim path. That just leaves the
+>> complication of whether to use cond_resched_lock() or a lock around
+>> the individual __free_vmap_area().
+>
+> Good point. I agree with you. I think we still need to know if purging
+> is in progress to preserve previous trylock behavior. How about
+> something like the following diff? (diff is untested).
+>
+> This drops the purge lock and uses a ref count to indicate if purging
+> is in progress, so that callers who don't want to purge if purging is
+> already in progress can be kept happy. Also I am reducing vmap_lazy_nr
+> as we go, and, not all at once, so that we don't reduce the counter
+> too soon as we're not holding purge lock anymore. Lastly, I added the
+> cond_resched as you suggested.
+>
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index f2481cb..5616ca4 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -626,7 +626,7 @@ void set_iounmap_nonlazy(void)
+>  static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
+>                                         int sync, int force_flush)
+>  {
+> -       static DEFINE_SPINLOCK(purge_lock);
+> +       static atomic_t purging;
+>         struct llist_node *valist;
+>         struct vmap_area *va;
+>         struct vmap_area *n_va;
+> @@ -638,10 +638,10 @@ static void __purge_vmap_area_lazy(unsigned long
+> *start, unsigned long *end,
+>          * the case that isn't actually used at the moment anyway.
+>          */
+>         if (!sync && !force_flush) {
+> -               if (!spin_trylock(&purge_lock))
+> +               if (atomic_cmpxchg(&purging, 0, 1))
+>                         return;
+>         } else
+> -               spin_lock(&purge_lock);
+> +               atomic_inc(&purging);
+>
+>         if (sync)
+>                 purge_fragmented_blocks_allcpus();
+> @@ -655,9 +655,6 @@ static void __purge_vmap_area_lazy(unsigned long
+> *start, unsigned long *end,
+>                 nr += (va->va_end - va->va_start) >> PAGE_SHIFT;
+>         }
+>
+> -       if (nr)
+> -               atomic_sub(nr, &vmap_lazy_nr);
+> -
+>         if (nr || force_flush)
+>                 flush_tlb_kernel_range(*start, *end);
+>
+> @@ -665,9 +662,11 @@ static void __purge_vmap_area_lazy(unsigned long
+> *start, unsigned long *end,
+>                 spin_lock(&vmap_area_lock);
+>                 llist_for_each_entry_safe(va, n_va, valist, purge_list)
+>                         __free_vmap_area(va);
+> +               atomic_sub(1, &vmap_lazy_nr);
+> +               cond_resched_lock(&vmap_area_lock);
+>                 spin_unlock(&vmap_area_lock);
 
-No problem.
+For this particular hunk, I forgot the braces. sorry, I meant to say:
 
-> 
-> > > So while I do agree that potential issues - misaccounting and others you
-> > > are addressing in the follow up patch - are good to fix but I believe that
-> > > draining last 19M is not something that would reliably get you over the
-> > > edge. Your workload (93% of memory sitting on anon LRU with swap full)
-> > > simply doesn't fit into the amount of memory you have available.
-> > 
-> > What happens if the workload fit into additional 19M memory?
-> > I admit my testing aimed for proving the problem but with this patchset,
-> > there is no OOM killing with many free pages and the number of OOM was
-> > reduced highly. It is definitely better than old.
-> > 
-> > Please don't ignore 1% memory in embedded system. 20M memory in 2G system,
-> > If we can use those for zram, it is 60~80M memory via compression.
-> > You should know how many engineers try to reduce 1M of their driver to
-> > cost down of the product, seriously.
-> 
-> I am definitely not ignoring neither embedded systems nor 1% of the
-> memory that might really matter. I just wanted to point out that being
+ @@ -665,9 +662,11 @@ static void __purge_vmap_area_lazy(unsigned long
+ *start, unsigned long *end,
+                 spin_lock(&vmap_area_lock);
+-                llist_for_each_entry_safe(va, n_va, valist, purge_list)
++                llist_for_each_entry_safe(va, n_va, valist,
+purge_list) {
+                   __free_vmap_area(va);
++                  atomic_sub(1, &vmap_lazy_nr);
++                  cond_resched_lock(&vmap_area_lock);
++                }
+                 spin_unlock(&vmap_area_lock);
 
-Whew and I thought you were serious.
 
-> that close to OOM usually blows up later or starts trashing very soon.
-> It is true that a particular workload might benefit from ever last
-> allocatable page in the system but it would be better to mention all
-> that in the changelog.
-
-I don't unerstand what phrase you really want to include the changelog.
-I will add the information which isolate 30M free pages before 4K page
-allocation failure in next version. If you want something to add,
-please say again.
-
-Thanks for the review, Michal.
-
-> -- 
-> Michal Hocko
-> SUSE Labs
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Regards,
+Joel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
