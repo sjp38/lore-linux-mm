@@ -1,87 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CC2D56B0069
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2016 17:48:19 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id rz1so24411902pab.0
-        for <linux-mm@kvack.org>; Tue, 11 Oct 2016 14:48:19 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id m187si2370057pga.271.2016.10.11.14.48.18
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 60C4E6B0038
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2016 17:51:48 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 123so2541883wmb.4
+        for <linux-mm@kvack.org>; Tue, 11 Oct 2016 14:51:48 -0700 (PDT)
+Received: from mail-wm0-x22a.google.com (mail-wm0-x22a.google.com. [2a00:1450:400c:c09::22a])
+        by mx.google.com with ESMTPS id z2si7006114wje.203.2016.10.11.14.51.47
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 11 Oct 2016 14:48:19 -0700 (PDT)
-Date: Tue, 11 Oct 2016 15:48:17 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v5 15/17] dax: add struct iomap based DAX PMD support
-Message-ID: <20161011214817.GB32165@linux.intel.com>
-References: <1475874544-24842-1-git-send-email-ross.zwisler@linux.intel.com>
- <1475874544-24842-16-git-send-email-ross.zwisler@linux.intel.com>
- <20161010155917.GA19978@lst.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Oct 2016 14:51:47 -0700 (PDT)
+Received: by mail-wm0-x22a.google.com with SMTP id c78so11580080wme.1
+        for <linux-mm@kvack.org>; Tue, 11 Oct 2016 14:51:47 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161010155917.GA19978@lst.de>
+In-Reply-To: <20161011213648.GC27872@dastard>
+References: <20161011231408.2728c93ad89acb517fc6c9f0@gmail.com> <20161011213648.GC27872@dastard>
+From: Vitaly Wool <vitalywool@gmail.com>
+Date: Tue, 11 Oct 2016 23:51:46 +0200
+Message-ID: <CAMJBoFPWVGfwPK5gC+MJOXHQ=d4D+MM+6yBNVXEiVmCnKW_44Q@mail.gmail.com>
+Subject: Re: [PATCH] z3fold: add shrinker
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, Oct 10, 2016 at 05:59:17PM +0200, Christoph Hellwig wrote:
-> On Fri, Oct 07, 2016 at 03:09:02PM -0600, Ross Zwisler wrote:
-> > -	if (RADIX_DAX_TYPE(entry) == RADIX_DAX_PMD)
-> > +	if ((unsigned long)entry & RADIX_DAX_PMD)
-> 
-> Please introduce a proper inline helper that mask all the possible type
-> bits out of the radix tree entry, and use them wherever you do the
-> open cast.
+On Tue, Oct 11, 2016 at 11:36 PM, Dave Chinner <david@fromorbit.com> wrote:
+> On Tue, Oct 11, 2016 at 11:14:08PM +0200, Vitaly Wool wrote:
+>> This patch implements shrinker for z3fold. This shrinker
+>> implementation does not free up any pages directly but it allows
+>> for a denser placement of compressed objects which results in
+>> less actual pages consumed and higher compression ratio therefore.
+>>
+>> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
+>
+> This seems to implement the shrinker API we removed a ~3 years ago
+> (commit a0b02131c5fc ("shrinker: Kill old ->shrink API.")). Forward
+> porting and testing required, perhaps?
 
-Yea, this is messy.  I tried having temporary flags, but that's basically
-where we came from with the old 'type' thing which used to be
-RADIX_DAX_PTE|RADIX_DAX_PMD.  
+Bah, right. That's the wrong patch I submitted (for the 3.10-stable).
 
-After playing with it a bit it seems like the cleanest way is to have a little
-flag test helper, like this:
+Thanks for pointing out, I'll come up with the right patch shortly.
 
-static int dax_flag_test(void *entry, int flags)
-{
-	return (unsigned long)entry & flags;
-}
-
-...
-
-		/*
-		 * Besides huge zero pages the only other thing that gets
-		 * downgraded are empty entries which don't need to be
-		 * unmapped.
-		 */
-		if (pmd_downgrade && dax_flag_test(entry, RADIX_DAX_HZP))
-			unmap_mapping_range(mapping,
-				(index << PAGE_SHIFT) & PMD_MASK, PMD_SIZE, 0);
-
-etc.   Please let me know if this is undesirable for some reason.  Vs keeping
-the flags in a local variable, this is good because a) it doesn't require
-callers to cast, and b) it makes operator precedence easy because the flags
-are a param, so no "flags & (flag1|flag2)" nesting, and c) we don't keep a
-local variable that could get out of sync with 'entry'.
-
-> >  restart:
-> >  	spin_lock_irq(&mapping->tree_lock);
-> >  	entry = get_unlocked_mapping_entry(mapping, index, &slot);
-> > +
-> > +	if (entry) {
-> > +		if (size_flag & RADIX_DAX_PMD) {
-> > +			if (!radix_tree_exceptional_entry(entry) ||
-> > +			    !((unsigned long)entry & RADIX_DAX_PMD)) {
-> > +				entry = ERR_PTR(-EEXIST);
-> > +				goto out_unlock;
-> > +			}
-> > +		} else { /* trying to grab a PTE entry */
-> > +			if (radix_tree_exceptional_entry(entry) &&
-> > +			    ((unsigned long)entry & RADIX_DAX_PMD) &&
-> > +			    ((unsigned long)entry &
-> > +			     (RADIX_DAX_HZP|RADIX_DAX_EMPTY))) {
-> 
-> And when we do these cases N times next to each other we should
-> have a local variable the valid flag bits of entry.
+~vitaly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
