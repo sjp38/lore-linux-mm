@@ -1,120 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 717566B0069
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2016 18:52:10 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id gg9so25519238pac.6
-        for <linux-mm@kvack.org>; Tue, 11 Oct 2016 15:52:10 -0700 (PDT)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id c63si2567266pga.244.2016.10.11.15.52.08
-        for <linux-mm@kvack.org>;
-        Tue, 11 Oct 2016 15:52:09 -0700 (PDT)
-Date: Wed, 12 Oct 2016 09:52:06 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v2] z3fold: add shrinker
-Message-ID: <20161011225206.GJ23194@dastard>
-References: <20161012001827.53ae55723e67d1dee2a2f839@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161012001827.53ae55723e67d1dee2a2f839@gmail.com>
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 721AC6B0038
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2016 19:50:29 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id os4so26937741pac.5
+        for <linux-mm@kvack.org>; Tue, 11 Oct 2016 16:50:29 -0700 (PDT)
+Received: from mail-pf0-x22d.google.com (mail-pf0-x22d.google.com. [2607:f8b0:400e:c00::22d])
+        by mx.google.com with ESMTPS id o2si6205684pfk.55.2016.10.11.16.50.28
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Oct 2016 16:50:28 -0700 (PDT)
+Received: by mail-pf0-x22d.google.com with SMTP id 190so9742418pfv.1
+        for <linux-mm@kvack.org>; Tue, 11 Oct 2016 16:50:28 -0700 (PDT)
+From: Ruchi Kandoi <kandoiruchi@google.com>
+Subject: [RFC 0/6] Module for tracking/accounting shared memory buffers
+Date: Tue, 11 Oct 2016 16:50:04 -0700
+Message-Id: <1476229810-26570-1-git-send-email-kandoiruchi@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Wool <vitalywool@gmail.com>
-Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>
+To: kandoiruchi@google.com, gregkh@linuxfoundation.org, arve@android.com, riandrews@android.com, sumit.semwal@linaro.org, arnd@arndb.de, labbott@redhat.com, viro@zeniv.linux.org.uk, jlayton@poochiereds.net, bfields@fieldses.org, mingo@redhat.com, peterz@infradead.org, akpm@linux-foundation.org, keescook@chromium.org, mhocko@suse.com, oleg@redhat.com, john.stultz@linaro.org, mguzik@redhat.com, jdanis@google.com, adobriyan@gmail.com, ghackmann@google.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, dave.hansen@linux.intel.com, dan.j.williams@intel.com, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, luto@kernel.org, tj@kernel.org, vdavydov.dev@gmail.com, ebiederm@xmission.com, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org, linux-media@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Oct 12, 2016 at 12:18:27AM +0200, Vitaly Wool wrote:
-> 
-> Here comes the correct shrinker patch for z3fold. This shrinker
-> implementation does not free up any pages directly but it allows
-> for a denser placement of compressed objects which results in
-> less actual pages consumed and higher compression ratio therefore.
-> 
-> This patch has been checked with the latest Linus's tree.
-> 
-> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
-> ---
->  mm/z3fold.c | 151 ++++++++++++++++++++++++++++++++++++++++++++++++++----------
->  1 file changed, 127 insertions(+), 24 deletions(-)
-> 
-> diff --git a/mm/z3fold.c b/mm/z3fold.c
-> index 8f9e89c..4841972 100644
-> --- a/mm/z3fold.c
-> +++ b/mm/z3fold.c
-> @@ -30,6 +30,7 @@
->  #include <linux/slab.h>
->  #include <linux/spinlock.h>
->  #include <linux/zpool.h>
-> +#include <linux/shrinker.h>
->  
->  /*****************
->   * Structures
-> @@ -69,8 +70,11 @@ struct z3fold_ops {
->   * @lru:	list tracking the z3fold pages in LRU order by most recently
->   *		added buddy.
->   * @pages_nr:	number of z3fold pages in the pool.
-> + * @unbuddied_nr:	number of unbuddied z3fold pages in the pool.
->   * @ops:	pointer to a structure of user defined operations specified at
->   *		pool creation time.
-> + * @shrinker:	shrinker structure to optimize page layout in background
-> + * @no_shrinker:	flag showing if we run with shrinker or not
+This patchstack introduces a new "memtrack" module for tracking and accounting
+memory exported to userspace as shared buffers, like dma-buf fds or GEM handles.
 
-Ugh.
+Any process holding a reference to these buffers will keep the kernel from
+reclaiming its backing pages.  mm counters don't provide a complete picture of
+these allocations, since they only account for pages that are mapped into a
+process's address space.  This problem is especially bad for systems like
+Android that use dma-buf fds to share graphics and multimedia buffers between
+processes: these allocations are often large, have complex sharing patterns,
+and are rarely mapped into every process that holds a reference to them.
 
->  
-> +/* Has to be called with lock held */
-> +static int z3fold_compact_page(struct z3fold_header *zhdr, bool sync)
-> +{
-> +	struct page *page = virt_to_page(zhdr);
-> +	void *beg = zhdr;
-> +
+memtrack maintains a per-process list of shared buffer references, which is
+exported to userspace as /proc/[pid]/memtrack.  Buffers can be optionally
+"tagged" with a short string: for example, Android userspace would use this
+tag to identify whether buffers were allocated on behalf of the camera stack,
+GL, etc.  memtrack also exports the VMAs associated with these buffers so
+that pages already included in the process's mm counters aren't double-counted.
 
-[snip using memmove() to shift chunks around]
+Shared-buffer allocators can hook into memtrack by embedding
+struct memtrack_buffer in their buffer metadata, calling
+memtrack_buffer_{init,remove} at buffer allocation and free time, and
+memtrack_buffer_{install,uninstall} when a userspace process takes or
+drops a reference to the buffer.  For fd-backed buffers like dma-bufs, hooks in
+fdtable.c and fork.c automatically notify memtrack when references are added or
+removed from a process's fd table.
 
-> +static unsigned long z3fold_shrink_scan(struct shrinker *shrink,
-> +				struct shrink_control *sc)
-> +{
-> +	struct z3fold_pool *pool = container_of(shrink, struct z3fold_pool,
-> +						shrinker);
-> +	struct z3fold_header *zhdr;
-> +	int i, nr_to_scan = sc->nr_to_scan;
-> +
-> +	spin_lock(&pool->lock);
+This patchstack adds memtrack hooks into dma-buf and ion.  If there's upstream
+interest in memtrack, it can be extended to other memory allocators as well,
+such as GEM implementations.
 
-Do not do this. Shrinkers should not run entirely under a spin lock
-like this - it causes scheduling latency problems and when the
-shrinker is run concurrently on different CPUs it will simply burn
-CPU doing no useful work. Especially, in this case, as each call to
-z3fold_compact_page() may be copying a significant amount of data
-around and so there is potentially a /lot/ of work being done on
-each call to the shrinker.
+Greg Hackmann (1):
+  drivers: staging: ion: add ION_IOC_TAG ioctl
 
-If you need compaction exclusion for the shrinker invocation, then
-please use a sleeping lock to protect the compaction work.
+Ruchi Kandoi (5):
+  fs: add installed and uninstalled file_operations
+  drivers: misc: add memtrack
+  dma-buf: add memtrack support
+  memtrack: Adds the accounting to keep track of all mmaped/unmapped
+    pages.
+  memtrack: Add memtrack accounting for forked processes.
 
->  *****************/
-> @@ -234,6 +335,13 @@ static struct z3fold_pool *z3fold_create_pool(gfp_t gfp,
->  		INIT_LIST_HEAD(&pool->unbuddied[i]);
->  	INIT_LIST_HEAD(&pool->buddied);
->  	INIT_LIST_HEAD(&pool->lru);
-> +	pool->shrinker.count_objects = z3fold_shrink_count;
-> +	pool->shrinker.scan_objects = z3fold_shrink_scan;
-> +	pool->shrinker.seeks = DEFAULT_SEEKS;
-> +	if (register_shrinker(&pool->shrinker)) {
-> +		pr_warn("z3fold: could not register shrinker\n");
-> +		pool->no_shrinker = true;
-> +	}
+ drivers/android/binder.c                |   4 +-
+ drivers/dma-buf/dma-buf.c               |  37 +++
+ drivers/misc/Kconfig                    |  16 +
+ drivers/misc/Makefile                   |   1 +
+ drivers/misc/memtrack.c                 | 516 ++++++++++++++++++++++++++++++++
+ drivers/staging/android/ion/ion-ioctl.c |  17 ++
+ drivers/staging/android/ion/ion.c       |  60 +++-
+ drivers/staging/android/ion/ion_priv.h  |   2 +
+ drivers/staging/android/uapi/ion.h      |  25 ++
+ fs/file.c                               |  38 ++-
+ fs/open.c                               |   2 +-
+ fs/proc/base.c                          |   4 +
+ include/linux/dma-buf.h                 |   5 +
+ include/linux/fdtable.h                 |   4 +-
+ include/linux/fs.h                      |   2 +
+ include/linux/memtrack.h                | 130 ++++++++
+ include/linux/mm.h                      |   3 +
+ include/linux/sched.h                   |   3 +
+ kernel/fork.c                           |  23 +-
+ 19 files changed, 875 insertions(+), 17 deletions(-)
+ create mode 100644 drivers/misc/memtrack.c
+ create mode 100644 include/linux/memtrack.h
 
-Just fail creation of the pool. If you can't register a shrinker,
-then much bigger problems are about to happen to your system, and
-running a new memory consumer that /can't be shrunk/ is not going to
-help anyone.
-
-Cheers,
-
-Dave.
 -- 
-Dave Chinner
-david@fromorbit.com
+2.8.0.rc3.226.g39d4020
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
