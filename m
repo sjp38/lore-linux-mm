@@ -1,224 +1,620 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D7FAF6B0253
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2016 19:50:37 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id fn2so27029878pad.7
-        for <linux-mm@kvack.org>; Tue, 11 Oct 2016 16:50:37 -0700 (PDT)
-Received: from mail-pf0-x22c.google.com (mail-pf0-x22c.google.com. [2607:f8b0:400e:c00::22c])
-        by mx.google.com with ESMTPS id w19si2741479pgc.263.2016.10.11.16.50.37
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 74D4E6B0260
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2016 19:50:40 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id gg9so26916113pac.6
+        for <linux-mm@kvack.org>; Tue, 11 Oct 2016 16:50:40 -0700 (PDT)
+Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com. [2607:f8b0:400e:c03::22e])
+        by mx.google.com with ESMTPS id k184si2740493pge.108.2016.10.11.16.50.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Oct 2016 16:50:37 -0700 (PDT)
-Received: by mail-pf0-x22c.google.com with SMTP id s8so9418491pfj.2
-        for <linux-mm@kvack.org>; Tue, 11 Oct 2016 16:50:37 -0700 (PDT)
+        Tue, 11 Oct 2016 16:50:39 -0700 (PDT)
+Received: by mail-pa0-x22e.google.com with SMTP id ry6so22289700pac.3
+        for <linux-mm@kvack.org>; Tue, 11 Oct 2016 16:50:39 -0700 (PDT)
 From: Ruchi Kandoi <kandoiruchi@google.com>
-Subject: [RFC 1/6] fs: add installed and uninstalled file_operations
-Date: Tue, 11 Oct 2016 16:50:05 -0700
-Message-Id: <1476229810-26570-2-git-send-email-kandoiruchi@google.com>
+Subject: [RFC 2/6] drivers: misc: add memtrack
+Date: Tue, 11 Oct 2016 16:50:06 -0700
+Message-Id: <1476229810-26570-3-git-send-email-kandoiruchi@google.com>
 In-Reply-To: <1476229810-26570-1-git-send-email-kandoiruchi@google.com>
 References: <1476229810-26570-1-git-send-email-kandoiruchi@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: kandoiruchi@google.com, gregkh@linuxfoundation.org, arve@android.com, riandrews@android.com, sumit.semwal@linaro.org, arnd@arndb.de, labbott@redhat.com, viro@zeniv.linux.org.uk, jlayton@poochiereds.net, bfields@fieldses.org, mingo@redhat.com, peterz@infradead.org, akpm@linux-foundation.org, keescook@chromium.org, mhocko@suse.com, oleg@redhat.com, john.stultz@linaro.org, mguzik@redhat.com, jdanis@google.com, adobriyan@gmail.com, ghackmann@google.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, dave.hansen@linux.intel.com, dan.j.williams@intel.com, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, luto@kernel.org, tj@kernel.org, vdavydov.dev@gmail.com, ebiederm@xmission.com, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org, linux-media@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-These optional file_operations notify a file implementation when it is
-installed or uninstalled from a task's fd table.  This can be used for
-accounting of file-backed shared resources like dma-buf.
+Shared-buffer allocators like ion or GEM traditionally call into CMA or
+alloc_pages() to get backing memory, meaning these allocations will not
+show up in any process's mm counters.  But since these allocations are
+often used for things like graphics buffers that can be extremely large,
+the user just sees a bunch of pages vanishing from the system without an
+explanation.
 
-This involves some changes to the __fd_install() and __close_fd() APIs
-to actually pass along the responsible task_struct.  These are low-level
-APIs with only two in-tree callers, both adjusted in this patch.
+CONFIG_MEMTRACK adds infrastructure for "blaming" these allocations back
+to the processes currently holding a reference to the shared buffer.
+This information is exposed to userspace through /proc/[pid]/memtrack.
+
+To use memtrack, the shared memory allocator should:
+
+(1) Embed a struct memtrack_buffer somewhere in the underlying buffer's
+    metadata, and initialize it with memtrack_buffer_init()
+
+(3) Call memtrack_buffer_{install,uninstall} each time a task takes or
+    drops a reference to the shared buffer
+
+(3) Call memtrack_buffer_remove() before destroying a tracked buffer
+
+CONFIG_MEMTRACK_DEBUG adds a global list of all buffers tracked by
+memtrack, accessible through /sys/kernel/debug/memtrack.  This involves
+maintaining a global idr of buffers.  Due to the extra overhead,
+CONFIG_MEMTRACK_DEBUG is intended for debugging memory leaks rather than
+production use.
 
 Signed-off-by: Greg Hackmann <ghackmann@google.com>
 Signed-off-by: Ruchi Kandoi <kandoiruchi@google.com>
 ---
- drivers/android/binder.c |  4 ++--
- fs/file.c                | 38 +++++++++++++++++++++++++++++---------
- fs/open.c                |  2 +-
- include/linux/fdtable.h  |  4 ++--
- include/linux/fs.h       |  2 ++
- 5 files changed, 36 insertions(+), 14 deletions(-)
+ drivers/misc/Kconfig     |  16 +++
+ drivers/misc/Makefile    |   1 +
+ drivers/misc/memtrack.c  | 360 +++++++++++++++++++++++++++++++++++++++++++++++
+ fs/proc/base.c           |   4 +
+ include/linux/memtrack.h |  94 +++++++++++++
+ include/linux/sched.h    |   3 +
+ kernel/fork.c            |   4 +
+ 7 files changed, 482 insertions(+)
+ create mode 100644 drivers/misc/memtrack.c
+ create mode 100644 include/linux/memtrack.h
 
-diff --git a/drivers/android/binder.c b/drivers/android/binder.c
-index 562af94..0bb174e 100644
---- a/drivers/android/binder.c
-+++ b/drivers/android/binder.c
-@@ -398,7 +398,7 @@ static void task_fd_install(
- 	struct binder_proc *proc, unsigned int fd, struct file *file)
- {
- 	if (proc->files)
--		__fd_install(proc->files, fd, file);
-+		__fd_install(proc->tsk, fd, file);
- }
+diff --git a/drivers/misc/Kconfig b/drivers/misc/Kconfig
+index 64971ba..7557fb1 100644
+--- a/drivers/misc/Kconfig
++++ b/drivers/misc/Kconfig
+@@ -766,6 +766,22 @@ config PANEL_BOOT_MESSAGE
+ 	  An empty message will only clear the display at driver init time. Any other
+ 	  printf()-formatted message is valid with newline and escape codes.
  
- /*
-@@ -411,7 +411,7 @@ static long task_close_fd(struct binder_proc *proc, unsigned int fd)
- 	if (proc->files == NULL)
- 		return -ESRCH;
- 
--	retval = __close_fd(proc->files, fd);
-+	retval = __close_fd(proc->tsk, fd);
- 	/* can't restart close syscall because file table entry was cleared */
- 	if (unlikely(retval == -ERESTARTSYS ||
- 		     retval == -ERESTARTNOINTR ||
-diff --git a/fs/file.c b/fs/file.c
-index 69d6990..19c5fad 100644
---- a/fs/file.c
-+++ b/fs/file.c
-@@ -282,6 +282,24 @@ static unsigned int count_open_files(struct fdtable *fdt)
- 	return i;
- }
- 
-+static inline void fdt_install(struct fdtable *fdt, int fd, struct file *file,
-+		struct task_struct *task)
++config MEMTRACK
++	tristate "Per-pid memory statistics"
++	default n
++	---help---
++	  Keeps track of shared buffers allocated by the process and
++	  exports them via /proc/<pid>/memtrack.
++
++config MEMTRACK_DEBUG
++	tristate "Per-pid memory statistics debug option"
++	depends on MEMTRACK && DEBUG_FS
++	default n
++	---help---
++	  Keeps track of all shared buffers allocated and exports the list
++	  via /sys/kernel/debug/memtrack.
++
++ source "drivers/misc/c2port/Kconfig"
+ source "drivers/misc/c2port/Kconfig"
+ source "drivers/misc/eeprom/Kconfig"
+ source "drivers/misc/cb710/Kconfig"
+diff --git a/drivers/misc/Makefile b/drivers/misc/Makefile
+index 3198336..1fbb084 100644
+--- a/drivers/misc/Makefile
++++ b/drivers/misc/Makefile
+@@ -68,3 +68,4 @@ OBJCOPYFLAGS_lkdtm_rodata_objcopy.o := \
+ targets += lkdtm_rodata.o lkdtm_rodata_objcopy.o
+ $(obj)/lkdtm_rodata_objcopy.o: $(obj)/lkdtm_rodata.o FORCE
+ 	$(call if_changed,objcopy)
++obj-$(CONFIG_MEMTRACK)          += memtrack.o
+diff --git a/drivers/misc/memtrack.c b/drivers/misc/memtrack.c
+new file mode 100644
+index 0000000..e5c7e03
+--- /dev/null
++++ b/drivers/misc/memtrack.c
+@@ -0,0 +1,360 @@
++/* drivers/misc/memtrack.c
++ *
++ * Copyright (C) 2016 Google, Inc.
++ *
++ * This software is licensed under the terms of the GNU General Public
++ * License version 2, as published by the Free Software Foundation, and
++ * may be copied, distributed, and modified under those terms.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ */
++#include <linux/debugfs.h>
++#include <linux/device.h>
++#include <linux/fs.h>
++#include <linux/idr.h>
++#include <linux/init.h>
++#include <linux/memtrack.h>
++#include <linux/profile.h>
++#include <linux/rbtree.h>
++#include <linux/seq_file.h>
++#include <linux/slab.h>
++
++struct memtrack_handle {
++	struct memtrack_buffer *buffer;
++	struct rb_node node;
++	struct rb_root *root;
++	struct kref refcount;
++};
++
++static struct kmem_cache *memtrack_handle_cache;
++
++static DEFINE_MUTEX(memtrack_id_lock);
++#if IS_ENABLED(CONFIG_MEMTRACK_DEBUG)
++static struct dentry *debugfs_file;
++static DEFINE_IDR(mem_idr);
++#else
++static DEFINE_IDA(mem_ida);
++#endif
++
++static void memtrack_buffer_install_locked(struct rb_root *root,
++		struct memtrack_buffer *buffer)
 +{
-+	if (file->f_op->installed)
-+		file->f_op->installed(file, task);
-+	rcu_assign_pointer(fdt->fd[fd], file);
++	struct rb_node **new = &root->rb_node, *parent = NULL;
++	struct memtrack_handle *handle;
++
++	while (*new) {
++		struct rb_node *node = *new;
++
++		handle = rb_entry(node, struct memtrack_handle, node);
++		parent = node;
++		if (handle->buffer->id > buffer->id) {
++			new = &node->rb_left;
++		} else if (handle->buffer->id < buffer->id) {
++			new = &node->rb_right;
++		} else {
++			kref_get(&handle->refcount);
++			return;
++		}
++	}
++
++	handle = kmem_cache_alloc(memtrack_handle_cache, GFP_KERNEL);
++	if (!handle)
++		return;
++
++	handle->buffer = buffer;
++	handle->root = root;
++	kref_init(&handle->refcount);
++
++	rb_link_node(&handle->node, parent, new);
++	rb_insert_color(&handle->node, root);
++	atomic_inc(&handle->buffer->userspace_handles);
 +}
 +
-+static inline void fdt_uninstall(struct fdtable *fdt, int fd,
-+		struct task_struct *task)
++/**
++ * memtrack_buffer_install - add a userspace reference to a shared buffer
++ *
++ * @buffer: the buffer's memtrack entry
++ * @tsk: the userspace task that took the reference
++ *
++ * This is normally called while creating a userspace handle (fd, etc.) to
++ * @buffer.
++ */
++void memtrack_buffer_install(struct memtrack_buffer *buffer,
++		struct task_struct *tsk)
 +{
-+	struct file *old_file = fdt->fd[fd];
++	struct task_struct *leader;
++	unsigned long flags;
 +
-+	if (old_file->f_op->uninstalled)
-+		old_file->f_op->uninstalled(old_file, task);
-+	rcu_assign_pointer(fdt->fd[fd], NULL);
++	if (!buffer || !tsk)
++		return;
++
++	leader = tsk->group_leader;
++	write_lock_irqsave(&leader->memtrack_lock, flags);
++	memtrack_buffer_install_locked(&leader->memtrack_rb, buffer);
++	write_unlock_irqrestore(&leader->memtrack_lock, flags);
++}
++EXPORT_SYMBOL(memtrack_buffer_install);
++
++static void memtrack_handle_destroy(struct kref *ref)
++{
++	struct memtrack_handle *handle;
++
++	handle = container_of(ref, struct memtrack_handle, refcount);
++	rb_erase(&handle->node, handle->root);
++	atomic_dec(&handle->buffer->userspace_handles);
++	kmem_cache_free(memtrack_handle_cache, handle);
 +}
 +
- /*
-  * Allocate a new files structure and copy contents from the
-  * passed in files structure.
-@@ -543,7 +561,7 @@ int __alloc_fd(struct files_struct *files,
- 	/* Sanity check */
- 	if (rcu_access_pointer(fdt->fd[fd]) != NULL) {
- 		printk(KERN_WARNING "alloc_fd: slot %d not NULL!\n", fd);
--		rcu_assign_pointer(fdt->fd[fd], NULL);
-+		fdt_uninstall(fdt, fd, current);
- 	}
++static void memtrack_buffer_uninstall_locked(struct rb_root *root,
++		struct memtrack_buffer *buffer)
++{
++	struct rb_node *node = root->rb_node;
++
++	while (node) {
++		struct memtrack_handle *handle = rb_entry(node,
++				struct memtrack_handle, node);
++
++		if (handle->buffer->id > buffer->id) {
++			node = node->rb_left;
++		} else if (handle->buffer->id < buffer->id) {
++			node = node->rb_right;
++		} else {
++			kref_put(&handle->refcount, memtrack_handle_destroy);
++			return;
++		}
++	}
++}
++
++/**
++ * memtrack_buffer_uninstall - drop a userspace reference to a shared buffer
++ *
++ * @buffer: the buffer's memtrack entry
++ * @tsk: the userspace task that dropped the reference
++ *
++ * This is normally called while tearing down a userspace handle to @buffer.
++ */
++void memtrack_buffer_uninstall(struct memtrack_buffer *buffer,
++		struct task_struct *tsk)
++{
++	struct task_struct *leader;
++	unsigned long flags;
++
++	if (!buffer || !tsk)
++		return;
++
++	leader = tsk->group_leader;
++	write_lock_irqsave(&leader->memtrack_lock, flags);
++	memtrack_buffer_uninstall_locked(&leader->memtrack_rb, buffer);
++	write_unlock_irqrestore(&leader->memtrack_lock, flags);
++}
++EXPORT_SYMBOL(memtrack_buffer_uninstall);
++
++static int memtrack_id_alloc(struct memtrack_buffer *buffer)
++{
++	int ret;
++
++	mutex_lock(&memtrack_id_lock);
++#if IS_ENABLED(CONFIG_MEMTRACK_DEBUG)
++	ret = idr_alloc(&mem_idr, buffer, 0, 0, GFP_KERNEL);
++#else
++	ret = ida_simple_get(&mem_ida, 0, 0, GFP_KERNEL);
++#endif
++	mutex_unlock(&memtrack_id_lock);
++
++	return ret;
++}
++
++static void memtrack_id_free(struct memtrack_buffer *buffer)
++{
++	mutex_lock(&memtrack_id_lock);
++#if IS_ENABLED(CONFIG_MEMTRACK_DEBUG)
++	idr_remove(&mem_idr, buffer->id);
++#else
++	ida_simple_remove(&mem_ida, buffer->id);
++#endif
++	mutex_unlock(&memtrack_id_lock);
++}
++
++/**
++ * memtrack_buffer_remove - deinitialize a memtrack entry
++ *
++ * @buffer: the memtrack entry to deinitialize
++ *
++ * This is normally called just before freeing the pages backing @buffer.
++ */
++void memtrack_buffer_remove(struct memtrack_buffer *buffer)
++{
++	if (!buffer)
++		return;
++
++	if (WARN_ON(atomic_read(&buffer->userspace_handles)))
++		return;
++
++	kfree(buffer->tag);
++	memtrack_id_free(buffer);
++}
++EXPORT_SYMBOL(memtrack_buffer_remove);
++
++/**
++ * memtrack_buffer_init - initialize a memtrack entry for a shared buffer
++ *
++ * @buffer: the memtrack entry to initialize
++ * @size: the size of the shared buffer
++ *
++ * This is normally called just after allocating the buffer's backing pages.
++ *
++ * There must be a 1-to-1 mapping between buffers and
++ * struct memtrack_buffers.  That is, memtrack_buffer_init() should be called
++ * only *once* for a given buffer, even if it's exported to
++ * userspace in multiple forms (e.g., simultaneously as a dma-buf fd and a
++ * GEM handle).
++ *
++ * Return 0 on success or a negative error code on failure.
++ */
++int memtrack_buffer_init(struct memtrack_buffer *buffer, size_t size)
++{
++	if (!buffer)
++		return -EINVAL;
++
++	memset(buffer, 0, sizeof(*buffer));
++
++	buffer->id = memtrack_id_alloc(buffer);
++	if (buffer->id < 0) {
++		pr_err("%s: Error allocating unique identifier\n", __func__);
++		return buffer->id;
++	}
++
++	buffer->size = size;
++	atomic_set(&buffer->userspace_handles, 0);
++#if IS_ENABLED(CONFIG_MEMTRACK_DEBUG)
++	buffer->pid = current->group_leader->pid;
++#endif
++	return 0;
++}
++EXPORT_SYMBOL(memtrack_buffer_init);
++
++static int process_notifier(struct notifier_block *self,
++			unsigned long cmd, void *v)
++{
++	struct task_struct *task = v, *leader;
++	struct rb_root *root;
++	struct rb_node *node;
++	unsigned long flags;
++
++	if (!task)
++		return NOTIFY_OK;
++
++	leader = task->group_leader;
++	write_lock_irqsave(&leader->memtrack_lock, flags);
++	root = &leader->memtrack_rb;
++	node = rb_first(root);
++	while (node) {
++		struct memtrack_handle *handle;
++
++		handle = rb_entry(node, struct memtrack_handle, node);
++		rb_erase(&handle->node, handle->root);
++		atomic_dec(&handle->buffer->userspace_handles);
++		kmem_cache_free(memtrack_handle_cache, handle);
++
++		node = rb_next(node);
++	}
++	write_unlock_irqrestore(&leader->memtrack_lock, flags);
++
++	return NOTIFY_OK;
++}
++
++static struct notifier_block process_notifier_block = {
++	.notifier_call	= process_notifier,
++};
++
++int proc_memtrack(struct seq_file *m, struct pid_namespace *ns, struct pid *pid,
++			struct task_struct *task)
++{
++	struct rb_node *node;
++	unsigned long flags;
++
++	read_lock_irqsave(&task->memtrack_lock, flags);
++	if (RB_EMPTY_ROOT(&task->memtrack_rb))
++		goto done;
++
++	seq_printf(m, "%10.10s: %16.16s: %12.12s: %3.3s: pid:%d\n",
++			"ref_count", "Identifier", "size", "tag", task->pid);
++
++	for (node = rb_first(&task->memtrack_rb); node; node = rb_next(node)) {
++		struct memtrack_handle *handle = rb_entry(node,
++				struct memtrack_handle, node);
++		struct memtrack_buffer *buffer = handle->buffer;
++
++		seq_printf(m, "%10d  %16d  %12zu  %s\n",
++				atomic_read(&buffer->userspace_handles),
++				buffer->id, buffer->size,
++				buffer->tag ? buffer->tag : "");
++	}
++
++done:
++	read_unlock_irqrestore(&task->memtrack_lock, flags);
++	return 0;
++}
++
++#if IS_ENABLED(CONFIG_MEMTRACK_DEBUG)
++static int memtrack_show(struct seq_file *m, void *v)
++{
++	struct memtrack_buffer *buffer;
++	int i;
++
++	seq_printf(m, "%4.4s %12.12s %10s %12.12s %3.3s\n", "pid",
++			"buffer_size", "ref", "Identifier", "tag");
++
++	rcu_read_lock();
++	idr_for_each_entry(&mem_idr, buffer, i)
++		seq_printf(m, "%4d %12zu %10d %12d %s\n", buffer->pid,
++				buffer->size,
++				atomic_read(&buffer->userspace_handles),
++				buffer->id, buffer->tag ? buffer->tag : "");
++	rcu_read_unlock();
++	return 0;
++}
++
++static int memtrack_open(struct inode *inode, struct file *file)
++{
++	return single_open(file, memtrack_show, inode->i_private);
++}
++
++static const struct file_operations memtrack_fops = {
++	.open		= memtrack_open,
++	.read		= seq_read,
++	.llseek		= seq_lseek,
++	.release	= single_release,
++};
++#endif
++
++
++static int __init memtrack_init(void)
++{
++	memtrack_handle_cache = KMEM_CACHE(memtrack_handle, SLAB_HWCACHE_ALIGN);
++	if (!memtrack_handle_cache)
++		return -ENOMEM;
++
++#if IS_ENABLED(CONFIG_MEMTRACK_DEBUG)
++	debugfs_file = debugfs_create_file("memtrack", S_IRUGO, NULL, NULL,
++			&memtrack_fops);
++#endif
++
++	profile_event_register(PROFILE_TASK_EXIT, &process_notifier_block);
++	return 0;
++}
++late_initcall(memtrack_init);
++
++static void __exit memtrack_exit(void)
++{
++	kmem_cache_destroy(memtrack_handle_cache);
++#if IS_ENABLED(CONFIG_MEMTRACK_DEBUG)
++	debugfs_remove(debugfs_file);
++#endif
++	profile_event_unregister(PROFILE_TASK_EXIT, &process_notifier_block);
++}
++__exitcall(memtrack_exit);
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index c2964d8..5ed9d90 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -87,6 +87,7 @@
+ #include <linux/slab.h>
+ #include <linux/flex_array.h>
+ #include <linux/posix-timers.h>
++#include <linux/memtrack.h>
+ #ifdef CONFIG_HARDWALL
+ #include <asm/hardwall.h>
  #endif
- 
-@@ -601,10 +619,11 @@ EXPORT_SYMBOL(put_unused_fd);
-  * fd_install() instead.
-  */
- 
--void __fd_install(struct files_struct *files, unsigned int fd,
-+void __fd_install(struct task_struct *task, unsigned int fd,
- 		struct file *file)
- {
- 	struct fdtable *fdt;
-+	struct files_struct *files = task->files;
- 
- 	might_sleep();
- 	rcu_read_lock_sched();
-@@ -618,13 +637,13 @@ void __fd_install(struct files_struct *files, unsigned int fd,
- 	smp_rmb();
- 	fdt = rcu_dereference_sched(files->fdt);
- 	BUG_ON(fdt->fd[fd] != NULL);
--	rcu_assign_pointer(fdt->fd[fd], file);
-+	fdt_install(fdt, fd, file, task);
- 	rcu_read_unlock_sched();
- }
- 
- void fd_install(unsigned int fd, struct file *file)
- {
--	__fd_install(current->files, fd, file);
-+	__fd_install(current, fd, file);
- }
- 
- EXPORT_SYMBOL(fd_install);
-@@ -632,10 +651,11 @@ EXPORT_SYMBOL(fd_install);
- /*
-  * The same warnings as for __alloc_fd()/__fd_install() apply here...
-  */
--int __close_fd(struct files_struct *files, unsigned fd)
-+int __close_fd(struct task_struct *task, unsigned fd)
- {
- 	struct file *file;
- 	struct fdtable *fdt;
-+	struct files_struct *files = task->files;
- 
- 	spin_lock(&files->file_lock);
- 	fdt = files_fdtable(files);
-@@ -644,7 +664,7 @@ int __close_fd(struct files_struct *files, unsigned fd)
- 	file = fdt->fd[fd];
- 	if (!file)
- 		goto out_unlock;
--	rcu_assign_pointer(fdt->fd[fd], NULL);
-+	fdt_uninstall(fdt, fd, task);
- 	__clear_close_on_exec(fd, fdt);
- 	__put_unused_fd(files, fd);
- 	spin_unlock(&files->file_lock);
-@@ -679,7 +699,7 @@ void do_close_on_exec(struct files_struct *files)
- 			file = fdt->fd[fd];
- 			if (!file)
- 				continue;
--			rcu_assign_pointer(fdt->fd[fd], NULL);
-+			fdt_uninstall(fdt, fd, current);
- 			__put_unused_fd(files, fd);
- 			spin_unlock(&files->file_lock);
- 			filp_close(file, files);
-@@ -846,7 +866,7 @@ __releases(&files->file_lock)
- 	if (!tofree && fd_is_open(fd, fdt))
- 		goto Ebusy;
- 	get_file(file);
--	rcu_assign_pointer(fdt->fd[fd], file);
-+	fdt_install(fdt, fd, file, current);
- 	__set_open_fd(fd, fdt);
- 	if (flags & O_CLOEXEC)
- 		__set_close_on_exec(fd, fdt);
-@@ -870,7 +890,7 @@ int replace_fd(unsigned fd, struct file *file, unsigned flags)
- 	struct files_struct *files = current->files;
- 
- 	if (!file)
--		return __close_fd(files, fd);
-+		return __close_fd(current, fd);
- 
- 	if (fd >= rlimit(RLIMIT_NOFILE))
- 		return -EBADF;
-diff --git a/fs/open.c b/fs/open.c
-index 8aeb08b..0f1db76 100644
---- a/fs/open.c
-+++ b/fs/open.c
-@@ -1120,7 +1120,7 @@ EXPORT_SYMBOL(filp_close);
-  */
- SYSCALL_DEFINE1(close, unsigned int, fd)
- {
--	int retval = __close_fd(current->files, fd);
-+	int retval = __close_fd(current, fd);
- 
- 	/* can't restart close syscall because file table entry was cleared */
- 	if (unlikely(retval == -ERESTARTSYS ||
-diff --git a/include/linux/fdtable.h b/include/linux/fdtable.h
-index aca2a6a..a45fce3 100644
---- a/include/linux/fdtable.h
-+++ b/include/linux/fdtable.h
-@@ -113,9 +113,9 @@ int iterate_fd(struct files_struct *, unsigned,
- 
- extern int __alloc_fd(struct files_struct *files,
- 		      unsigned start, unsigned end, unsigned flags);
--extern void __fd_install(struct files_struct *files,
-+extern void __fd_install(struct task_struct *task,
- 		      unsigned int fd, struct file *file);
--extern int __close_fd(struct files_struct *files,
-+extern int __close_fd(struct task_struct *task,
- 		      unsigned int fd);
- 
- extern struct kmem_cache *files_cachep;
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index c145219..d62bce8 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -1730,6 +1730,8 @@ struct file_operations {
- 			u64);
- 	ssize_t (*dedupe_file_range)(struct file *, u64, u64, struct file *,
- 			u64);
-+	void (*installed)(struct file *file, struct task_struct *task);
-+	void (*uninstalled)(struct file *file, struct task_struct *task);
+@@ -2932,6 +2933,9 @@ static const struct pid_entry tgid_base_stuff[] = {
+ 	REG("timers",	  S_IRUGO, proc_timers_operations),
+ #endif
+ 	REG("timerslack_ns", S_IRUGO|S_IWUGO, proc_pid_set_timerslack_ns_operations),
++#ifdef CONFIG_MEMTRACK
++	ONE("memtrack", S_IRUGO, proc_memtrack),
++#endif
  };
  
- struct inode_operations {
+ static int proc_tgid_base_readdir(struct file *file, struct dir_context *ctx)
+diff --git a/include/linux/memtrack.h b/include/linux/memtrack.h
+new file mode 100644
+index 0000000..f73be07
+--- /dev/null
++++ b/include/linux/memtrack.h
+@@ -0,0 +1,94 @@
++/* include/linux/memtrack.h
++ *
++ * Copyright (C) 2016 Google, Inc.
++ *
++ * This software is licensed under the terms of the GNU General Public
++ * License version 2, as published by the Free Software Foundation, and
++ * may be copied, distributed, and modified under those terms.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ */
++
++#ifndef _MEMTRACK_
++#define _MEMTRACK_
++
++#include <linux/fs.h>
++#include <linux/sched.h>
++#include <linux/slab.h>
++
++#ifdef CONFIG_MEMTRACK
++struct memtrack_buffer {
++	size_t size;
++	atomic_t userspace_handles;
++	int id;
++	const char *tag;
++#ifdef CONFIG_MEMTRACK_DEBUG
++	pid_t pid;
++#endif
++};
++
++int proc_memtrack(struct seq_file *m, struct pid_namespace *ns, struct pid *pid,
++		struct task_struct *task);
++int memtrack_buffer_init(struct memtrack_buffer *buffer, size_t size);
++void memtrack_buffer_remove(struct memtrack_buffer *buffer);
++void memtrack_buffer_install(struct memtrack_buffer *buffer,
++		struct task_struct *tsk);
++void memtrack_buffer_uninstall(struct memtrack_buffer *buffer,
++		struct task_struct *tsk);
++
++/**
++ * memtrack_buffer_set_tag - add a descriptive tag to a memtrack entry
++ *
++ * @buffer: the memtrack entry to tag
++ * @tag: a string describing the buffer
++ *
++ * The tag is optional and provided only as information to userspace.  It has
++ * no special meaning in the kernel.
++ */
++static inline int memtrack_buffer_set_tag(struct memtrack_buffer *buffer,
++		const char *tag)
++{
++	const char *d = kstrdup(tag, GFP_KERNEL);
++
++	if (!d)
++		return -ENOMEM;
++
++	kfree(buffer->tag);
++	buffer->tag = d;
++	return 0;
++}
++#else
++struct memtrack_buffer { };
++
++static inline int memtrack_buffer_init(struct memtrack_buffer *buffer,
++		size_t size)
++{
++	return -ENOENT;
++}
++
++static inline void memtrack_buffer_remove(struct memtrack_buffer *buffer)
++{
++}
++
++static inline void memtrack_buffer_install(struct memtrack_buffer *buffer,
++		struct task_struct *tsk)
++{
++}
++
++static inline void memtrack_buffer_uninstall(struct memtrack_buffer *buffer,
++		struct task_struct *tsk)
++{
++}
++
++static inline int memtrack_buffer_set_tag(struct memtrack_buffer *buffer,
++		const char *tag)
++{
++	return -ENOENT;
++}
++
++#endif /* CONFIG_MEMTRACK */
++#endif /* _MEMTRACK_ */
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 348f51b..995a94d 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1954,6 +1954,9 @@ struct task_struct {
+ #ifdef CONFIG_THREAD_INFO_IN_TASK
+ 	/* A live task holds one reference. */
+ 	atomic_t stack_refcount;
++#ifdef CONFIG_MEMTRACK
++	struct rb_root memtrack_rb;
++	rwlock_t memtrack_lock;
+ #endif
+ /* CPU-specific state of this task */
+ 	struct thread_struct thread;
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 6d42242..da8537a 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -1615,6 +1615,10 @@ static struct task_struct *copy_process(unsigned long clone_flags,
+ 	p->sequential_io	= 0;
+ 	p->sequential_io_avg	= 0;
+ #endif
++#ifdef CONFIG_MEMTRACK
++	p->memtrack_rb = RB_ROOT;
++	rwlock_init(&p->memtrack_lock);
++#endif
+ 
+ 	/* Perform scheduler related setup. Assign this task to a CPU. */
+ 	retval = sched_fork(clone_flags, p);
 -- 
 2.8.0.rc3.226.g39d4020
 
