@@ -1,311 +1,254 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C93CD6B0038
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2016 18:18:35 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id ry6so24674100pac.1
-        for <linux-mm@kvack.org>; Tue, 11 Oct 2016 15:18:35 -0700 (PDT)
-Received: from mail-pa0-x242.google.com (mail-pa0-x242.google.com. [2607:f8b0:400e:c03::242])
-        by mx.google.com with ESMTPS id s1si5932785pfk.92.2016.10.11.15.18.34
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 91C946B0038
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2016 18:47:33 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id kc8so25707127pab.2
+        for <linux-mm@kvack.org>; Tue, 11 Oct 2016 15:47:33 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id m68si2555358pga.16.2016.10.11.15.47.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Oct 2016 15:18:34 -0700 (PDT)
-Received: by mail-pa0-x242.google.com with SMTP id fn2so1440780pad.1
-        for <linux-mm@kvack.org>; Tue, 11 Oct 2016 15:18:34 -0700 (PDT)
-Date: Wed, 12 Oct 2016 00:18:27 +0200
-From: Vitaly Wool <vitalywool@gmail.com>
-Subject: [PATCH v2] z3fold: add shrinker
-Message-Id: <20161012001827.53ae55723e67d1dee2a2f839@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Tue, 11 Oct 2016 15:47:32 -0700 (PDT)
+Date: Tue, 11 Oct 2016 15:47:31 -0700
+From: akpm@linux-foundation.org
+Subject: mmotm 2016-10-11-15-46 uploaded
+Message-ID: <57fd6c03.MqL5gLzjGe1u5CBc%akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
-Cc: Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>
+To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, broonie@kernel.org
+
+The mm-of-the-moment snapshot 2016-10-11-15-46 has been uploaded to
+
+   http://www.ozlabs.org/~akpm/mmotm/
+
+mmotm-readme.txt says
+
+README for mm-of-the-moment:
+
+http://www.ozlabs.org/~akpm/mmotm/
+
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
+
+You will need quilt to apply these patches to the latest Linus release (4.x
+or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
+
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
+
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
+
+A git tree which contains the memory management portion of this tree is
+maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+by Michal Hocko.  It contains the patches which are between the
+"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+file, http://www.ozlabs.org/~akpm/mmotm/series.
 
 
-Here comes the correct shrinker patch for z3fold. This shrinker
-implementation does not free up any pages directly but it allows
-for a denser placement of compressed objects which results in
-less actual pages consumed and higher compression ratio therefore.
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
 
-This patch has been checked with the latest Linus's tree.
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
 
-Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
----
- mm/z3fold.c | 151 ++++++++++++++++++++++++++++++++++++++++++++++++++----------
- 1 file changed, 127 insertions(+), 24 deletions(-)
+To develop on top of mmotm git:
 
-diff --git a/mm/z3fold.c b/mm/z3fold.c
-index 8f9e89c..4841972 100644
---- a/mm/z3fold.c
-+++ b/mm/z3fold.c
-@@ -30,6 +30,7 @@
- #include <linux/slab.h>
- #include <linux/spinlock.h>
- #include <linux/zpool.h>
-+#include <linux/shrinker.h>
- 
- /*****************
-  * Structures
-@@ -69,8 +70,11 @@ struct z3fold_ops {
-  * @lru:	list tracking the z3fold pages in LRU order by most recently
-  *		added buddy.
-  * @pages_nr:	number of z3fold pages in the pool.
-+ * @unbuddied_nr:	number of unbuddied z3fold pages in the pool.
-  * @ops:	pointer to a structure of user defined operations specified at
-  *		pool creation time.
-+ * @shrinker:	shrinker structure to optimize page layout in background
-+ * @no_shrinker:	flag showing if we run with shrinker or not
-  *
-  * This structure is allocated at pool creation time and maintains metadata
-  * pertaining to a particular z3fold pool.
-@@ -81,9 +85,12 @@ struct z3fold_pool {
- 	struct list_head buddied;
- 	struct list_head lru;
- 	u64 pages_nr;
-+	u64 unbuddied_nr;
- 	const struct z3fold_ops *ops;
- 	struct zpool *zpool;
- 	const struct zpool_ops *zpool_ops;
-+	struct shrinker shrinker;
-+	bool no_shrinker;
- };
- 
- enum buddy {
-@@ -134,6 +141,9 @@ static int size_to_chunks(size_t size)
- #define for_each_unbuddied_list(_iter, _begin) \
- 	for ((_iter) = (_begin); (_iter) < NCHUNKS; (_iter)++)
- 
-+#define for_each_unbuddied_list_down(_iter, _end) \
-+	for ((_iter) = (_end); (_iter) > 0; (_iter)--)
-+
- /* Initializes the z3fold header of a newly allocated z3fold page */
- static struct z3fold_header *init_z3fold_page(struct page *page)
- {
-@@ -209,6 +219,97 @@ static int num_free_chunks(struct z3fold_header *zhdr)
- 	return nfree;
- }
- 
-+/* Has to be called with lock held */
-+static int z3fold_compact_page(struct z3fold_header *zhdr, bool sync)
-+{
-+	struct page *page = virt_to_page(zhdr);
-+	void *beg = zhdr;
-+
-+
-+	if (!test_bit(MIDDLE_CHUNK_MAPPED, &page->private)) {
-+		if (zhdr->middle_chunks != 0 &&
-+		    zhdr->first_chunks == 0 &&
-+		    zhdr->last_chunks == 0) {
-+			memmove(beg + ZHDR_SIZE_ALIGNED,
-+				beg + (zhdr->start_middle << CHUNK_SHIFT),
-+				zhdr->middle_chunks << CHUNK_SHIFT);
-+			zhdr->first_chunks = zhdr->middle_chunks;
-+			zhdr->middle_chunks = 0;
-+			zhdr->start_middle = 0;
-+			zhdr->first_num++;
-+			return 1;
-+		}
-+		if (sync)
-+			goto out;
-+
-+		/* moving data is expensive, so let's only do that if
-+		 * there's substantial gain (2+ chunks)
-+		 */
-+		if (zhdr->middle_chunks != 0 && zhdr->first_chunks != 0 &&
-+		    zhdr->last_chunks == 0 &&
-+		    zhdr->start_middle > zhdr->first_chunks + 2) {
-+			unsigned short new_start = zhdr->first_chunks + 1;
-+			memmove(beg + (new_start << CHUNK_SHIFT),
-+				beg + (zhdr->start_middle << CHUNK_SHIFT),
-+				zhdr->middle_chunks << CHUNK_SHIFT);
-+			zhdr->start_middle = new_start;
-+			return 1;
-+		}
-+		if (zhdr->middle_chunks != 0 && zhdr->last_chunks != 0 &&
-+		    zhdr->first_chunks == 0 &&
-+		    zhdr->middle_chunks + zhdr->last_chunks <=
-+		    NCHUNKS - zhdr->start_middle - 2) {
-+			unsigned short new_start = NCHUNKS - zhdr->last_chunks -
-+				zhdr->middle_chunks;
-+			memmove(beg + (new_start << CHUNK_SHIFT),
-+				beg + (zhdr->start_middle << CHUNK_SHIFT),
-+				zhdr->middle_chunks << CHUNK_SHIFT);
-+			zhdr->start_middle = new_start;
-+			return 1;
-+		}
-+	}
-+out:
-+	return 0;
-+}
-+
-+static unsigned long z3fold_shrink_count(struct shrinker *shrink,
-+				struct shrink_control *sc)
-+{
-+	struct z3fold_pool *pool = container_of(shrink, struct z3fold_pool,
-+						shrinker);
-+
-+	return pool->unbuddied_nr;
-+}
-+
-+static unsigned long z3fold_shrink_scan(struct shrinker *shrink,
-+				struct shrink_control *sc)
-+{
-+	struct z3fold_pool *pool = container_of(shrink, struct z3fold_pool,
-+						shrinker);
-+	struct z3fold_header *zhdr;
-+	int i, nr_to_scan = sc->nr_to_scan;
-+
-+	spin_lock(&pool->lock);
-+
-+	for_each_unbuddied_list_down(i, NCHUNKS - 3) {
-+		if (!list_empty(&pool->unbuddied[i])) {
-+			zhdr = list_first_entry(&pool->unbuddied[i],
-+						struct z3fold_header, buddy);
-+			if (z3fold_compact_page(zhdr, false)) {
-+				int nchunks = num_free_chunks(zhdr);
-+				list_del(&zhdr->buddy);
-+				list_add(&zhdr->buddy,
-+					&pool->unbuddied[nchunks]);
-+			}
-+			if (!--nr_to_scan)
-+				break;
-+		}
-+	}
-+	spin_unlock(&pool->lock);
-+	return 0;
-+}
-+
-+
- /*****************
-  * API Functions
- *****************/
-@@ -234,6 +335,13 @@ static struct z3fold_pool *z3fold_create_pool(gfp_t gfp,
- 		INIT_LIST_HEAD(&pool->unbuddied[i]);
- 	INIT_LIST_HEAD(&pool->buddied);
- 	INIT_LIST_HEAD(&pool->lru);
-+	pool->shrinker.count_objects = z3fold_shrink_count;
-+	pool->shrinker.scan_objects = z3fold_shrink_scan;
-+	pool->shrinker.seeks = DEFAULT_SEEKS;
-+	if (register_shrinker(&pool->shrinker)) {
-+		pr_warn("z3fold: could not register shrinker\n");
-+		pool->no_shrinker = true;
-+	}
- 	pool->pages_nr = 0;
- 	pool->ops = ops;
- 	return pool;
-@@ -247,31 +355,11 @@ static struct z3fold_pool *z3fold_create_pool(gfp_t gfp,
-  */
- static void z3fold_destroy_pool(struct z3fold_pool *pool)
- {
-+	if (!pool->no_shrinker)
-+		unregister_shrinker(&pool->shrinker);
- 	kfree(pool);
- }
- 
--/* Has to be called with lock held */
--static int z3fold_compact_page(struct z3fold_header *zhdr)
--{
--	struct page *page = virt_to_page(zhdr);
--	void *beg = zhdr;
--
--
--	if (!test_bit(MIDDLE_CHUNK_MAPPED, &page->private) &&
--	    zhdr->middle_chunks != 0 &&
--	    zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
--		memmove(beg + ZHDR_SIZE_ALIGNED,
--			beg + (zhdr->start_middle << CHUNK_SHIFT),
--			zhdr->middle_chunks << CHUNK_SHIFT);
--		zhdr->first_chunks = zhdr->middle_chunks;
--		zhdr->middle_chunks = 0;
--		zhdr->start_middle = 0;
--		zhdr->first_num++;
--		return 1;
--	}
--	return 0;
--}
--
- /**
-  * z3fold_alloc() - allocates a region of a given size
-  * @pool:	z3fold pool from which to allocate
-@@ -334,6 +422,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
- 					continue;
- 				}
- 				list_del(&zhdr->buddy);
-+				pool->unbuddied_nr--;
- 				goto found;
- 			}
- 		}
-@@ -369,6 +458,7 @@ found:
- 		/* Add to unbuddied list */
- 		freechunks = num_free_chunks(zhdr);
- 		list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
-+		pool->unbuddied_nr++;
- 	} else {
- 		/* Add to buddied list */
- 		list_add(&zhdr->buddy, &pool->buddied);
-@@ -412,6 +502,11 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
- 		/* HEADLESS page stored */
- 		bud = HEADLESS;
- 	} else {
-+		if (zhdr->first_chunks == 0 ||
-+		    zhdr->middle_chunks == 0 ||
-+		    zhdr->last_chunks == 0)
-+			pool->unbuddied_nr--;
-+
- 		bud = handle_to_buddy(handle);
- 
- 		switch (bud) {
-@@ -428,6 +523,7 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
- 		default:
- 			pr_err("%s: unknown bud %d\n", __func__, bud);
- 			WARN_ON(1);
-+			pool->unbuddied_nr++;
- 			spin_unlock(&pool->lock);
- 			return;
- 		}
-@@ -453,10 +549,11 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
- 		free_z3fold_page(zhdr);
- 		pool->pages_nr--;
- 	} else {
--		z3fold_compact_page(zhdr);
-+		z3fold_compact_page(zhdr, true);
- 		/* Add to the unbuddied list */
- 		freechunks = num_free_chunks(zhdr);
- 		list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
-+		pool->unbuddied_nr++;
- 	}
- 
- 	spin_unlock(&pool->lock);
-@@ -520,6 +617,11 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
- 		zhdr = page_address(page);
- 		if (!test_bit(PAGE_HEADLESS, &page->private)) {
- 			list_del(&zhdr->buddy);
-+			if (zhdr->first_chunks == 0 ||
-+			    zhdr->middle_chunks == 0 ||
-+			    zhdr->last_chunks == 0)
-+				pool->unbuddied_nr--;
-+
- 			/*
- 			 * We need encode the handles before unlocking, since
- 			 * we can race with free that will set
-@@ -579,11 +681,12 @@ next:
- 				/* Full, add to buddied list */
- 				list_add(&zhdr->buddy, &pool->buddied);
- 			} else {
--				z3fold_compact_page(zhdr);
-+				z3fold_compact_page(zhdr, true);
- 				/* add to unbuddied list */
- 				freechunks = num_free_chunks(zhdr);
- 				list_add(&zhdr->buddy,
- 					 &pool->unbuddied[freechunks]);
-+				pool->unbuddied_nr++;
- 			}
- 		}
- 
--- 
-2.4.2
+  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+  $ git remote update mmotm
+  $ git checkout -b topic mmotm/master
+  <make changes, commit>
+  $ git send-email mmotm/master.. [...]
+
+To rebase a branch with older patches to a new mmotm release:
+
+  $ git remote update mmotm
+  $ git rebase --onto mmotm/master <topic base> topic
+
+
+
+
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
+
+A git copy of this tree is available at
+
+	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
+
+and use of this tree is similar to
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
+
+
+This mmotm tree contains the following patches against 4.8:
+(patches marked "*" will be included in linux-next)
+
+  origin.patch
+* ocfs2-free-the-mle-while-the-res-had-one-to-avoid-mle-memory-leak.patch
+* block-invalidate-the-page-cache-when-issuing-blkzeroout.patch
+* block-require-write_same-and-discard-requests-align-to-logical-block-size.patch
+* block-implement-some-of-fallocate-for-block-devices.patch
+* fs-select-add-vmalloc-fallback-for-select2.patch
+* radix-tree-slot-can-be-null-in-radix_tree_next_slot.patch
+* radix-tree-tests-add-iteration-test.patch
+* radix-tree-tests-properly-initialize-mutex.patch
+* lib-harden-strncpy_from_user.patch
+* make-isdigit-table-lookupless.patch
+* kstrtox-smaller-_parse_integer.patch
+* lib-bitmapc-enhance-bitmap-syntax.patch
+* include-linux-provide-a-safe-version-of-container_of.patch
+* llist-introduce-llist_entry_safe.patch
+* checkpatch-see-if-modified-files-are-marked-obsolete-in-maintainers.patch
+* checkpatch-look-for-symbolic-permissions-and-suggest-octal-instead.patch
+* checkpatch-test-multiple-line-block-comment-alignment.patch
+* checkpatch-dont-test-for-prefer-ether_addr_foo.patch
+* checkpatch-externalize-the-structs-that-should-be-const.patch
+* const_structscheckpatch-add-frequently-used-from-julia-lawalls-list.patch
+* checkpatch-speed-up-checking-for-filenames-in-sections-marked-obsolete.patch
+* checkpatch-improve-the-block-comment-alignment-test.patch
+* checkpatch-add-strict-test-for-macro-argument-reuse.patch
+* checkpatch-add-strict-test-for-precedence-challenged-macro-arguments.patch
+* checkpatch-improve-macro_arg_precedence-test.patch
+* checkpatch-add-warning-for-unnamed-function-definition-arguments.patch
+* checkpatch-improve-the-octal-permissions-tests.patch
+* kprobes-include-asm-sectionsh-instead-of-asm-generic-sectionsh.patch
+* autofs-fix-typos-in-documentation-filesystems-autofs4txt.patch
+* autofs-drop-unnecessary-extern-in-autofs_ih.patch
+* autofs-test-autofs-versions-first-on-sb-initialization.patch
+* autofs-fix-autofs4_fill_super-error-exit-handling.patch
+* autofs-add-warn_on1-for-non-dir-link-inode-case.patch
+* autofs-remove-ino-free-in-autofs4_dir_symlink.patch
+* autofs-use-autofs4_free_ino-to-kfree-dentry-data.patch
+* autofs-remove-obsolete-sb-fields.patch
+* autofs-dont-fail-to-free_dev_ioctlparam.patch
+* autofs-remove-autofs_devid_len.patch
+* autofs-fix-documentation-regarding-devid-on-ioctl.patch
+* autofs-update-struct-autofs_dev_ioctl-in-documentation.patch
+* autofs-fix-pr_debug-message.patch
+* autofs-fix-dev-ioctl-number-range-check.patch
+* autofs-add-autofs_dev_ioctl_version-for-autofs_dev_ioctl_version_cmd.patch
+* autofs-fix-print-format-for-ioctl-warning-message.patch
+* autofs-move-inclusion-of-linux-limitsh-to-uapi.patch
+* autofs4-move-linux-auto_dev-ioctlh-to-uapi-linux.patch
+* autofs-remove-possibly-misleading-define-debug.patch
+* autofs-refactor-ioctl-fn-vector-in-iookup_dev_ioctl.patch
+* pipe-relocate-round_pipe_size-above-pipe_set_size.patch
+* pipe-move-limit-checking-logic-into-pipe_set_size.patch
+* pipe-refactor-argument-for-account_pipe_buffers.patch
+* pipe-fix-limit-checking-in-pipe_set_size.patch
+* pipe-simplify-logic-in-alloc_pipe_info.patch
+* pipe-fix-limit-checking-in-alloc_pipe_info.patch
+* pipe-make-account_pipe_buffers-return-a-value-and-use-it.patch
+* pipe-cap-initial-pipe-capacity-according-to-pipe-max-size-limit.patch
+* ptrace-clear-tif_syscall_trace-on-ptrace-detach.patch
+* rapidio-rio_cm-use-memdup_user-instead-of-duplicating-code.patch
+* random-simplify-api-for-random-address-requests.patch
+* x86-use-simpler-api-for-random-address-requests.patch
+* arm-use-simpler-api-for-random-address-requests.patch
+* arm64-use-simpler-api-for-random-address-requests.patch
+* tile-use-simpler-api-for-random-address-requests.patch
+* unicore32-use-simpler-api-for-random-address-requests.patch
+* random-remove-unused-randomize_range.patch
+* dma-mapping-introduce-the-dma_attr_no_warn-attribute.patch
+* powerpc-implement-the-dma_attr_no_warn-attribute.patch
+* nvme-use-the-dma_attr_no_warn-attribute.patch
+* x86-panic-replace-smp_send_stop-with-kdump-friendly-version-in-panic-path.patch
+* mips-panic-replace-smp_send_stop-with-kdump-friendly-version-in-panic-path.patch
+* pps-kc-fix-non-tickless-system-config-dependency.patch
+* relay-use-irq_work-instead-of-plain-timer-for-deferred-wakeup.patch
+* config-android-remove-config_ipv6_privacy.patch
+* config-android-move-device-mapper-options-to-recommended.patch
+* config-android-set-selinux-as-default-security-mode.patch
+* config-android-enable-config_seccomp.patch
+* kcov-do-not-instrument-lib-stackdepotc.patch
+* ipc-semc-fix-complex_count-vs-simple-op-race.patch
+* ipc-msg-implement-lockless-pipelined-wakeups.patch
+* ipc-msg-batch-queue-sender-wakeups.patch
+* ipc-msg-make-ss_wakeup-kill-arg-boolean.patch
+* ipc-msg-avoid-waking-sender-upon-full-queue.patch
+* ipc-semc-add-cond_resched-in-exit_sme.patch
+* kdump-vmcoreinfo-report-memory-sections-virtual-addresses.patch
+* mm-kmemleak-avoid-using-__va-on-addresses-that-dont-have-a-lowmem-mapping.patch
+* enable-code-completion-in-vim.patch
+* kthread-rename-probe_kthread_data-to-kthread_probe_data.patch
+* kthread-kthread-worker-api-cleanup.patch
+* kthread-smpboot-do-not-park-in-kthread_create_on_cpu.patch
+* kthread-allow-to-call-__kthread_create_on_node-with-va_list-args.patch
+* kthread-add-kthread_create_worker.patch
+* kthread-add-kthread_destroy_worker.patch
+* kthread-detect-when-a-kthread-work-is-used-by-more-workers.patch
+* kthread-initial-support-for-delayed-kthread-work.patch
+* kthread-allow-to-cancel-kthread-work.patch
+* kthread-allow-to-modify-delayed-kthread-work.patch
+* kthread-better-support-freezable-kthread-workers.patch
+* kthread-add-kerneldoc-for-kthread_create.patch
+* hung_task-allow-hung_task_panic-when-hung_task_warnings-is-0.patch
+* treewide-remove-redundant-include-linux-kconfigh.patch
+* fs-use-mapping_set_error-instead-of-opencoded-set_bit.patch
+* mm-split-gfp_mask-and-mapping-flags-into-separate-fields.patch
+  i-need-old-gcc.patch
+* mm-slab-fix-kmemcg-cache-creation-delayed-issue.patch
+* kcov-properly-check-if-we-are-in-an-interrupt.patch
+* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
+* kbuild-simpler-generation-of-assembly-constants.patch
+* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
+* kernel-watchdog-use-nmi-registers-snapshot-in-hardlockup-handler.patch
+  mm.patch
+* mm-zsmalloc-add-trace-events-for-zs_compact.patch
+* mm-zsmalloc-add-per-class-compact-trace-event.patch
+* mm-page_owner-align-with-pageblock_nr-pages.patch
+* mm-walk-the-zone-in-pageblock_nr_pages-steps.patch
+* lib-add-crc64-ecma-module.patch
+* kexec_file-allow-arch-specific-memory-walking-for-kexec_add_buffer.patch
+* kexec_file-change-kexec_add_buffer-to-take-kexec_buf-as-argument.patch
+* kexec_file-factor-out-kexec_locate_mem_hole-from-kexec_add_buffer.patch
+* powerpc-change-places-using-config_kexec-to-use-config_kexec_core-instead.patch
+* powerpc-factor-out-relocation-code-from-module_64c-to-elf_util_64c.patch
+* powerpc-generalize-elf64_apply_relocate_add.patch
+* powerpc-adapt-elf64_apply_relocate_add-for-kexec_file_load.patch
+* powerpc-add-functions-to-read-elf-files-of-any-endianness.patch
+* powerpc-implement-kexec_file_load.patch
+* powerpc-add-code-to-work-with-device-trees-in-kexec_file_load.patch
+* powerpc-add-support-for-loading-elf-kernels-with-kexec_file_load.patch
+* powerpc-add-support-for-loading-elf-kernels-with-kexec_file_load-fix.patch
+* powerpc-add-purgatory-for-kexec_file_load-implementation.patch
+* powerpc-add-purgatory-for-kexec_file_load-implementation-fix.patch
+* powerpc-enable-config_kexec_file-in-powerpc-server-defconfigs.patch
+* powerpc-ima-get-the-kexec-buffer-passed-by-the-previous-kernel.patch
+* ima-on-soft-reboot-restore-the-measurement-list.patch
+* ima-permit-duplicate-measurement-list-entries.patch
+* ima-maintain-memory-size-needed-for-serializing-the-measurement-list.patch
+* powerpc-ima-send-the-kexec-buffer-to-the-next-kernel.patch
+* ima-on-soft-reboot-save-the-measurement-list.patch
+* ima-store-the-builtin-custom-template-definitions-in-a-list.patch
+* ima-support-restoring-multiple-template-formats.patch
+* ima-define-a-canonical-binary_runtime_measurements-list-format.patch
+* ima-platform-independent-hash-value.patch
+* kdump-vmcoreinfo-report-actual-value-of-phys_base.patch
+  linux-next.patch
+  linux-next-rejects.patch
+  linux-next-git-rejects.patch
+* drivers-net-wireless-intel-iwlwifi-dvm-calibc-fix-min-warning.patch
+* include-linux-mlx5-deviceh-kill-build_bug_ons.patch
+  mm-add-strictlimit-knob-v2.patch
+  make-sure-nobodys-leaking-resources.patch
+  releasing-resources-with-children.patch
+  make-frame_pointer-default=y.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  mutex-subsystem-synchro-test-module.patch
+  slab-leaks3-default-y.patch
+  add-debugging-aid-for-memory-initialisation-problems.patch
+  workaround-for-a-pci-restoring-bug.patch
+  b.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
