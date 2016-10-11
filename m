@@ -1,148 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id ACDBA6B0261
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2016 13:32:02 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id 64so31118855ior.6
-        for <linux-mm@kvack.org>; Tue, 11 Oct 2016 10:32:02 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id s1si4995414pfk.92.2016.10.11.10.31.51
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F6266B0038
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2016 14:42:31 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id b80so497678wme.6
+        for <linux-mm@kvack.org>; Tue, 11 Oct 2016 11:42:31 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id sx20si6472958wjb.10.2016.10.11.11.42.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Oct 2016 10:31:51 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u9BHTQZW067065
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2016 13:31:50 -0400
-Received: from e32.co.us.ibm.com (e32.co.us.ibm.com [32.97.110.150])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 260yrjx80f-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2016 13:31:50 -0400
-Received: from localhost
-	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 11 Oct 2016 11:31:48 -0600
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [RFC PATCH 3/5] mm/hugetlb: add tlb_remove_hugetlb_entry for handling hugetlb pages
-Date: Tue, 11 Oct 2016 23:01:19 +0530
-In-Reply-To: <20161011173121.17545-1-aneesh.kumar@linux.vnet.ibm.com>
-References: <20161011173121.17545-1-aneesh.kumar@linux.vnet.ibm.com>
-Message-Id: <20161011173121.17545-3-aneesh.kumar@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 11 Oct 2016 11:42:30 -0700 (PDT)
+Date: Tue, 11 Oct 2016 17:58:15 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCHv3 13/41] truncate: make sure invalidate_mapping_pages()
+ can discard huge pages
+Message-ID: <20161011155815.GM6952@quack2.suse.cz>
+References: <20160915115523.29737-1-kirill.shutemov@linux.intel.com>
+ <20160915115523.29737-14-kirill.shutemov@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20160915115523.29737-14-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org
 
-This add tlb_remove_hugetlb_entry similar to tlb_remove_pmd_tlb_entry.
+On Thu 15-09-16 14:54:55, Kirill A. Shutemov wrote:
+> invalidate_inode_page() has expectation about page_count() of the page
+> -- if it's not 2 (one to caller, one to radix-tree), it will not be
+> dropped. That condition almost never met for THPs -- tail pages are
+> pinned to the pagevec.
+> 
+> Let's drop them, before calling invalidate_inode_page().
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  mm/truncate.c | 11 +++++++++++
+>  1 file changed, 11 insertions(+)
+> 
+> diff --git a/mm/truncate.c b/mm/truncate.c
+> index a01cce450a26..ce904e4b1708 100644
+> --- a/mm/truncate.c
+> +++ b/mm/truncate.c
+> @@ -504,10 +504,21 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
+>  				/* 'end' is in the middle of THP */
+>  				if (index ==  round_down(end, HPAGE_PMD_NR))
+>  					continue;
+> +				/*
+> +				 * invalidate_inode_page() expects
+> +				 * page_count(page) == 2 to drop page from page
+> +				 * cache -- drop tail pages references.
+> +				 */
+> +				get_page(page);
+> +				pagevec_release(&pvec);
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
- arch/arm/include/asm/tlb.h  | 2 ++
- arch/ia64/include/asm/tlb.h | 3 +++
- arch/s390/include/asm/tlb.h | 2 ++
- arch/sh/include/asm/tlb.h   | 3 +++
- arch/um/include/asm/tlb.h   | 3 +++
- include/asm-generic/tlb.h   | 6 ++++++
- mm/hugetlb.c                | 2 +-
- 7 files changed, 20 insertions(+), 1 deletion(-)
+I'm not quite sure why this is needed. When you have multiorder entry in
+the radix tree for your huge page, then you should not get more entries in
+the pagevec for your huge page. What do I miss?
 
-diff --git a/arch/arm/include/asm/tlb.h b/arch/arm/include/asm/tlb.h
-index 1e25cd80589e..82841ba1f51f 100644
---- a/arch/arm/include/asm/tlb.h
-+++ b/arch/arm/include/asm/tlb.h
-@@ -186,6 +186,8 @@ tlb_remove_tlb_entry(struct mmu_gather *tlb, pte_t *ptep, unsigned long addr)
- 	tlb_add_flush(tlb, addr);
- }
- 
-+#define tlb_remove_huge_tlb_entry(h, tlb, ptep, address)	\
-+	tlb_remove_tlb_entry(tlb, ptep, address)
- /*
-  * In the case of tlb vma handling, we can optimise these away in the
-  * case where we're doing a full MM flush.  When we're doing a munmap,
-diff --git a/arch/ia64/include/asm/tlb.h b/arch/ia64/include/asm/tlb.h
-index 77e541cf0e5d..b3f369ab844d 100644
---- a/arch/ia64/include/asm/tlb.h
-+++ b/arch/ia64/include/asm/tlb.h
-@@ -283,6 +283,9 @@ do {							\
- 	__tlb_remove_tlb_entry(tlb, ptep, addr);	\
- } while (0)
- 
-+#define tlb_remove_huge_tlb_entry(h, tlb, ptep, address)	\
-+	tlb_remove_tlb_entry(tlb, ptep, address)
-+
- #define pte_free_tlb(tlb, ptep, address)		\
- do {							\
- 	tlb->need_flush = 1;				\
-diff --git a/arch/s390/include/asm/tlb.h b/arch/s390/include/asm/tlb.h
-index 15711de10403..094440b59f9e 100644
---- a/arch/s390/include/asm/tlb.h
-+++ b/arch/s390/include/asm/tlb.h
-@@ -162,5 +162,7 @@ static inline void pud_free_tlb(struct mmu_gather *tlb, pud_t *pud,
- #define tlb_remove_tlb_entry(tlb, ptep, addr)	do { } while (0)
- #define tlb_remove_pmd_tlb_entry(tlb, pmdp, addr)	do { } while (0)
- #define tlb_migrate_finish(mm)			do { } while (0)
-+#define tlb_remove_huge_tlb_entry(h, tlb, ptep, address)	\
-+	tlb_remove_tlb_entry(tlb, ptep, address)
- 
- #endif /* _S390_TLB_H */
-diff --git a/arch/sh/include/asm/tlb.h b/arch/sh/include/asm/tlb.h
-index 025cdb1032f6..e7d15e8c75c1 100644
---- a/arch/sh/include/asm/tlb.h
-+++ b/arch/sh/include/asm/tlb.h
-@@ -65,6 +65,9 @@ tlb_remove_tlb_entry(struct mmu_gather *tlb, pte_t *ptep, unsigned long address)
- 		tlb->end = address + PAGE_SIZE;
- }
- 
-+#define tlb_remove_huge_tlb_entry(h, tlb, ptep, address)	\
-+	tlb_remove_tlb_entry(tlb, ptep, address)
-+
- /*
-  * In the case of tlb vma handling, we can optimise these away in the
-  * case where we're doing a full MM flush.  When we're doing a munmap,
-diff --git a/arch/um/include/asm/tlb.h b/arch/um/include/asm/tlb.h
-index 821ff0acfe17..a4427029c3c8 100644
---- a/arch/um/include/asm/tlb.h
-+++ b/arch/um/include/asm/tlb.h
-@@ -141,6 +141,9 @@ static inline void tlb_remove_page_size(struct mmu_gather *tlb,
- 		__tlb_remove_tlb_entry(tlb, ptep, address);	\
- 	} while (0)
- 
-+#define tlb_remove_huge_tlb_entry(h, tlb, ptep, address)	\
-+	tlb_remove_tlb_entry(tlb, ptep, address)
-+
- #define pte_free_tlb(tlb, ptep, addr) __pte_free_tlb(tlb, ptep, addr)
- 
- #define pud_free_tlb(tlb, pudp, addr) __pud_free_tlb(tlb, pudp, addr)
-diff --git a/include/asm-generic/tlb.h b/include/asm-generic/tlb.h
-index dba727becd5f..38c2b708df6e 100644
---- a/include/asm-generic/tlb.h
-+++ b/include/asm-generic/tlb.h
-@@ -220,6 +220,12 @@ static inline bool __tlb_remove_pte_page(struct mmu_gather *tlb, struct page *pa
- 		__tlb_remove_tlb_entry(tlb, ptep, address);	\
- 	} while (0)
- 
-+#define tlb_remove_huge_tlb_entry(h, tlb, ptep, address)	     \
-+	do {							     \
-+		__tlb_adjust_range(tlb, address, huge_page_size(h)); \
-+		__tlb_remove_tlb_entry(tlb, ptep, address);	     \
-+	} while (0)
-+
- /**
-  * tlb_remove_pmd_tlb_entry - remember a pmd mapping for later tlb invalidation
-  * This is a nop so far, because only x86 needs it.
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 87e11d8ad536..58c233a80e6a 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -3249,7 +3249,7 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 		}
- 
- 		pte = huge_ptep_get_and_clear(mm, address, ptep);
--		tlb_remove_tlb_entry(tlb, ptep, address);
-+		tlb_remove_huge_tlb_entry(h, tlb, ptep, address);
- 		if (huge_pte_dirty(pte))
- 			set_page_dirty(page);
- 
+								Honza
 -- 
-2.10.1
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
