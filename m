@@ -1,87 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 81E1B6B0264
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9019F6B0265
 	for <linux-mm@kvack.org>; Tue, 11 Oct 2016 14:42:32 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id d128so506002wmf.0
+Received: by mail-wm0-f70.google.com with SMTP id o81so501323wma.7
         for <linux-mm@kvack.org>; Tue, 11 Oct 2016 11:42:32 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id zc3si6438689wjb.94.2016.10.11.11.42.30
+        by mx.google.com with ESMTPS id m185si146056wme.115.2016.10.11.11.42.30
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Tue, 11 Oct 2016 11:42:31 -0700 (PDT)
-Date: Tue, 11 Oct 2016 09:06:29 +0200
+Date: Tue, 11 Oct 2016 17:47:50 +0200
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v5 12/17] dax: add dax_iomap_sector() helper function
-Message-ID: <20161011070629.GD6952@quack2.suse.cz>
-References: <1475874544-24842-1-git-send-email-ross.zwisler@linux.intel.com>
- <1475874544-24842-13-git-send-email-ross.zwisler@linux.intel.com>
+Subject: Re: [PATCHv3 12/41] thp: handle write-protection faults for file THP
+Message-ID: <20161011154750.GL6952@quack2.suse.cz>
+References: <20160915115523.29737-1-kirill.shutemov@linux.intel.com>
+ <20160915115523.29737-13-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1475874544-24842-13-git-send-email-ross.zwisler@linux.intel.com>
+In-Reply-To: <20160915115523.29737-13-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org
 
-On Fri 07-10-16 15:08:59, Ross Zwisler wrote:
-> To be able to correctly calculate the sector from a file position and a
-> struct iomap there is a complex little bit of logic that currently happens
-> in both dax_iomap_actor() and dax_iomap_fault().  This will need to be
-> repeated yet again in the DAX PMD fault handler when it is added, so break
-> it out into a helper function.
+On Thu 15-09-16 14:54:54, Kirill A. Shutemov wrote:
+> For filesystems that wants to be write-notified (has mkwrite), we will
+> encount write-protection faults for huge PMDs in shared mappings.
 > 
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> The easiest way to handle them is to clear the PMD and let it refault as
+> wriable.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  mm/memory.c | 11 ++++++++++-
+>  1 file changed, 10 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 83be99d9d8a1..aad8d5c6311f 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -3451,8 +3451,17 @@ static int wp_huge_pmd(struct fault_env *fe, pmd_t orig_pmd)
+>  		return fe->vma->vm_ops->pmd_fault(fe->vma, fe->address, fe->pmd,
+>  				fe->flags);
+>  
+> +	if (fe->vma->vm_flags & VM_SHARED) {
+> +		/* Clear PMD */
+> +		zap_page_range_single(fe->vma, fe->address,
+> +				HPAGE_PMD_SIZE, NULL);
+> +		VM_BUG_ON(!pmd_none(*fe->pmd));
+> +
+> +		/* Refault to establish writable PMD */
+> +		return 0;
+> +	}
+> +
 
-Looks good. You can add:
+Since we want to write-protect the page table entry on each page writeback
+and write-enable then on the next write, this is relatively expensive.
+Would it be that complicated to handle this fully in ->pmd_fault handler
+like we do for DAX?
+
+Maybe it doesn't have to be done now but longer term I guess it might make
+sense.
+
+Otherwise the patch looks good so feel free to add:
 
 Reviewed-by: Jan Kara <jack@suse.cz>
 
 								Honza
-
-> ---
->  fs/dax.c | 10 +++++++---
->  1 file changed, 7 insertions(+), 3 deletions(-)
-> 
-> diff --git a/fs/dax.c b/fs/dax.c
-> index 982ccbb..7689ab0 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -1023,6 +1023,11 @@ int dax_truncate_page(struct inode *inode, loff_t from, get_block_t get_block)
->  EXPORT_SYMBOL_GPL(dax_truncate_page);
->  
->  #ifdef CONFIG_FS_IOMAP
-> +static inline sector_t dax_iomap_sector(struct iomap *iomap, loff_t pos)
-> +{
-> +	return iomap->blkno + (((pos & PAGE_MASK) - iomap->offset) >> 9);
-> +}
-> +
->  static loff_t
->  dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
->  		struct iomap *iomap)
-> @@ -1048,8 +1053,7 @@ dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
->  		struct blk_dax_ctl dax = { 0 };
->  		ssize_t map_len;
->  
-> -		dax.sector = iomap->blkno +
-> -			(((pos & PAGE_MASK) - iomap->offset) >> 9);
-> +		dax.sector = dax_iomap_sector(iomap, pos);
->  		dax.size = (length + offset + PAGE_SIZE - 1) & PAGE_MASK;
->  		map_len = dax_map_atomic(iomap->bdev, &dax);
->  		if (map_len < 0) {
-> @@ -1186,7 +1190,7 @@ int dax_iomap_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
->  		goto unlock_entry;
->  	}
->  
-> -	sector = iomap.blkno + (((pos & PAGE_MASK) - iomap.offset) >> 9);
-> +	sector = dax_iomap_sector(&iomap, pos);
->  
->  	if (vmf->cow_page) {
->  		switch (iomap.type) {
-> -- 
-> 2.7.4
-> 
-> 
 -- 
 Jan Kara <jack@suse.com>
 SUSE Labs, CR
