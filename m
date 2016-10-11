@@ -1,60 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D17B6B0038
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2016 09:59:08 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id ry6so15641458pac.1
-        for <linux-mm@kvack.org>; Tue, 11 Oct 2016 06:59:08 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.136])
-        by mx.google.com with ESMTPS id bz1si3578014pab.49.2016.10.11.06.59.07
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E596C6B0038
+	for <linux-mm@kvack.org>; Tue, 11 Oct 2016 10:01:24 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id n189so14659970qke.0
+        for <linux-mm@kvack.org>; Tue, 11 Oct 2016 07:01:24 -0700 (PDT)
+Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
+        by mx.google.com with ESMTPS id 79si1513022qkg.58.2016.10.11.07.01.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Oct 2016 06:59:07 -0700 (PDT)
-Received: from mail.kernel.org (localhost [127.0.0.1])
-	by mail.kernel.org (Postfix) with ESMTP id 7564E2037C
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2016 13:59:06 +0000 (UTC)
-Received: from mail-yw0-f178.google.com (mail-yw0-f178.google.com [209.85.161.178])
-	(using TLSv1.2 with cipher AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 79B3F20351
-	for <linux-mm@kvack.org>; Tue, 11 Oct 2016 13:59:04 +0000 (UTC)
-Received: by mail-yw0-f178.google.com with SMTP id t192so13083957ywf.0
-        for <linux-mm@kvack.org>; Tue, 11 Oct 2016 06:59:04 -0700 (PDT)
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 11 Oct 2016 07:01:04 -0700 (PDT)
+From: zijun_hu <zijun_hu@zoho.com>
+Subject: [RFC v2 PATCH] mm/percpu.c: fix panic triggered by BUG_ON() falsely
+Message-ID: <57FCF07C.2020103@zoho.com>
+Date: Tue, 11 Oct 2016 22:00:28 +0800
 MIME-Version: 1.0
-In-Reply-To: <1475778995-1420-3-git-send-email-arbab@linux.vnet.ibm.com>
-References: <1475778995-1420-1-git-send-email-arbab@linux.vnet.ibm.com> <1475778995-1420-3-git-send-email-arbab@linux.vnet.ibm.com>
-From: Rob Herring <robh+dt@kernel.org>
-Date: Tue, 11 Oct 2016 08:58:43 -0500
-Message-ID: <CAL_JsqJmqaH8p2fUyZN8EdHNfshfdyUHKsaT8JN_G1AQuua_Qg@mail.gmail.com>
-Subject: Re: [PATCH v4 2/5] drivers/of: do not add memory for unavailable nodes
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Reza Arbab <arbab@linux.vnet.ibm.com>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Frank Rowand <frowand.list@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, "devicetree@vger.kernel.org" <devicetree@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: tj@kernel.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com, cl@linux.com
 
-On Thu, Oct 6, 2016 at 1:36 PM, Reza Arbab <arbab@linux.vnet.ibm.com> wrote:
-> Respect the standard dt "status" property when scanning memory nodes in
-> early_init_dt_scan_memory(), so that if the node is unavailable, no
-> memory will be added.
->
-> The use case at hand is accelerator or device memory, which may be
-> unusable until post-boot initialization of the memory link. Such a node
-> can be described in the dt as any other, given its status is "disabled".
-> Per the device tree specification,
->
-> "disabled"
->         Indicates that the device is not presently operational, but it
->         might become operational in the future (for example, something
->         is not plugged in, or switched off).
->
-> Once such memory is made operational, it can then be hotplugged.
->
-> Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
-> ---
->  drivers/of/fdt.c | 3 +++
->  1 file changed, 3 insertions(+)
+From: zijun_hu <zijun_hu@htc.com>
 
-Acked-by: Rob Herring <robh@kernel.org>
+as shown by pcpu_build_alloc_info(), the number of units within a percpu
+group is educed by rounding up the number of CPUs within the group to
+@upa boundary, therefore, the number of CPUs isn't equal to the units's
+if it isn't aligned to @upa normally. however, pcpu_page_first_chunk()
+uses BUG_ON() to assert one number is equal the other roughly, so a panic
+is maybe triggered by the BUG_ON() falsely.
+
+in order to fix this issue, the number of CPUs is rounded up then compared
+with units's, the BUG_ON() is replaced by warning and returning error code
+as well to keep system alive as much as possible.
+
+Signed-off-by: zijun_hu <zijun_hu@htc.com>
+---
+ Changes in v2:
+  - fix build error
+
+ mm/percpu.c | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/mm/percpu.c b/mm/percpu.c
+index 32e2d8d128c1..ab1186c68ab6 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -2095,6 +2095,8 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
+ 	size_t pages_size;
+ 	struct page **pages;
+ 	int unit, i, j, rc;
++	int upa;
++	int nr_g0_units;
+ 
+ 	snprintf(psize_str, sizeof(psize_str), "%luK", PAGE_SIZE >> 10);
+ 
+@@ -2102,7 +2104,12 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
+ 	if (IS_ERR(ai))
+ 		return PTR_ERR(ai);
+ 	BUG_ON(ai->nr_groups != 1);
+-	BUG_ON(ai->groups[0].nr_units != num_possible_cpus());
++	upa = ai->alloc_size/ai->unit_size;
++	nr_g0_units = roundup(num_possible_cpus(), upa);
++	if (unlikely(WARN_ON(ai->groups[0].nr_units != nr_g0_units))) {
++		pcpu_free_alloc_info(ai);
++		return -EINVAL;
++	}
+ 
+ 	unit_pages = ai->unit_size >> PAGE_SHIFT;
+ 
+@@ -2113,21 +2120,22 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
+ 
+ 	/* allocate pages */
+ 	j = 0;
+-	for (unit = 0; unit < num_possible_cpus(); unit++)
++	for (unit = 0; unit < num_possible_cpus(); unit++) {
++		unsigned int cpu = ai->groups[0].cpu_map[unit];
+ 		for (i = 0; i < unit_pages; i++) {
+-			unsigned int cpu = ai->groups[0].cpu_map[unit];
+ 			void *ptr;
+ 
+ 			ptr = alloc_fn(cpu, PAGE_SIZE, PAGE_SIZE);
+ 			if (!ptr) {
+ 				pr_warn("failed to allocate %s page for cpu%u\n",
+-					psize_str, cpu);
++						psize_str, cpu);
+ 				goto enomem;
+ 			}
+ 			/* kmemleak tracks the percpu allocations separately */
+ 			kmemleak_free(ptr);
+ 			pages[j++] = virt_to_page(ptr);
+ 		}
++	}
+ 
+ 	/* allocate vm area, map the pages and copy static data */
+ 	vm.flags = VM_ALLOC;
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
