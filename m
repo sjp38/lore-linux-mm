@@ -1,85 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D321D6B0069
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 09:10:42 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id n189so33296523qke.0
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 06:10:42 -0700 (PDT)
-Received: from mail-qt0-x232.google.com (mail-qt0-x232.google.com. [2607:f8b0:400d:c0d::232])
-        by mx.google.com with ESMTPS id e132si3796864qkb.116.2016.10.12.06.10.42
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CDB5B6B0069
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 09:16:29 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id x11so33132945qka.5
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 06:16:29 -0700 (PDT)
+Received: from mail-qk0-f176.google.com (mail-qk0-f176.google.com. [209.85.220.176])
+        by mx.google.com with ESMTPS id b124si3601550qke.101.2016.10.12.06.16.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Oct 2016 06:10:42 -0700 (PDT)
-Received: by mail-qt0-x232.google.com with SMTP id q7so14615616qtq.1
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 06:10:42 -0700 (PDT)
-Received: from jfdmac.sonatest.net (modemcable066.15-37-24.static.videotron.ca. [24.37.15.66])
-        by smtp.gmail.com with ESMTPSA id i32sm2793228qta.43.2016.10.12.06.10.40
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 12 Oct 2016 06:10:40 -0700 (PDT)
+        Wed, 12 Oct 2016 06:16:29 -0700 (PDT)
+Received: by mail-qk0-f176.google.com with SMTP id z190so30689120qkc.2
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 06:16:29 -0700 (PDT)
+Date: Wed, 12 Oct 2016 15:16:27 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: MPOL_BIND on memory only nodes
+Message-ID: <20161012131626.GL17128@dhcp22.suse.cz>
+References: <57FE0184.6030008@linux.vnet.ibm.com>
+ <20161012094337.GH17128@dhcp22.suse.cz>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 9.3 \(3124\))
-Subject: Re: help for random Padding overwritten
-From: Jean-Francois Dagenais <jeff.dagenais@gmail.com>
-In-Reply-To: <FFB991A5-E3A4-48A1-9111-83F4F8319ADD@gmail.com>
-Date: Wed, 12 Oct 2016 09:10:40 -0400
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <FDE9F409-3577-4171-B1C1-97FCE2ADBBE5@gmail.com>
-References: <FFB991A5-E3A4-48A1-9111-83F4F8319ADD@gmail.com>
+Content-Disposition: inline
+In-Reply-To: <20161012094337.GH17128@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>
 
-Responding to my self to help others...
+On Wed 12-10-16 11:43:37, Michal Hocko wrote:
+> On Wed 12-10-16 14:55:24, Anshuman Khandual wrote:
+[...]
+> > Why we insist on __GFP_THISNODE ?
+> 
+> AFAIU __GFP_THISNODE just overrides the given node to the policy
+> nodemask in case the current node is not part of that node mask. In
+> other words we are ignoring the given node and use what the policy says. 
+> I can see how this can be confusing especially when confronting the
+> documentation:
+> 
+>  * __GFP_THISNODE forces the allocation to be satisified from the requested
+>  *   node with no fallbacks or placement policy enforcements.
 
-> On Oct 8, 2016, at 08:14, Jean-Francois Dagenais =
-<jeff.dagenais@gmail.com> wrote:
->=20
->=20
-> <3>[  191.166625] Padding ddca2f60: 00 00 00 00 00 00 00 00 01 00 00 =
-00 fc 03 00 00  ................
-> <3>[  191.166669] Padding ddca2f70: 21 c4 ff ff 5a 5a 5a 5a 5a 5a 5a =
-5a 5a 5a 5a 5a  !...ZZZZZZZZZZZZ
-> <3>[  191.166713] Padding ddca2f80: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a =
-5a 5a 5a 5a 5a  ZZZZZZZZZZZZZZZZ
-> <3>[  191.166755] Padding ddca2f90: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a =
-5a 5a 5a 5a 5a  ZZZZZZZZZZZZZZZZ
-> <3>[  191.166798] Padding ddca2fa0: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a =
-5a 5a 5a 5a 5a  ZZZZZZZZZZZZZZZZ
-> <3>[  191.166841] Padding ddca2fb0: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a =
-5a 5a 5a 5a 5a  ZZZZZZZZZZZZZZZZ
-> <3>[  191.166883] Padding ddca2fc0: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a =
-5a 5a 5a 5a 5a  ZZZZZZZZZZZZZZZZ
-> <3>[  191.166926] Padding ddca2fd0: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a =
-5a 5a 5a 5a 5a  ZZZZZZZZZZZZZZZZ
-> <3>[  191.166969] Padding ddca2fe0: 5a 5a 5a 5a 00 00 5c 1f            =
-              ZZZZ..\.
-> <3>[  191.167011] FIX vm_area_struct: Restoring =
-0xddca2f60-0xddca2fe7=3D0x5a
->=20
+You made me think and look into this deeper. I came to the conclusion
+that this is actually a relict from the past. policy_zonelist is called
+only from 3 places:
+- huge_zonelist - never should do __GFP_THISNODE when going this path
+- alloc_pages_vma - which shouldn't depend on __GFP_THISNODE either
+- alloc_pages_current - which uses default_policy id __GFP_THISNODE is
+  used
 
-Found the bug. It was in xilinx_cdma.c where the tx descriptor allocator =
-was
-mistakenly trying to link the previous HW SG struct which didn't exist =
-with the
-current one being created. It was using list_first_entry on a freshly
-initialized list_head (pointing to itself), so container_of was backing =
-from
-another struct type into the wrong struct. The 0x1f5c0000 was the =
-physical
-address of the HW SG descriptor written 4 bytes below the transaction =
-struct
-found at VM0xddca3000.
-
->=20
-> I'd like to stop messing around and debug this like a pro. What tools =
-and/or
-> keywords and/or technique should I know and use here?
-
-Anyway, are there any tools worth sharing? For example a tool that could =
-absorb
-the huge owner tracing output so we can later "data mine" who may have =
-owned
-which part of memory?
+So AFAICS this is essentially a dead code or I am missing something. Mel
+do you remember why we needed it in the past? I would be really tempted
+to just get rid of this confusing code and this instead:
+---
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index ad1c96ac313c..98beec47bba9 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1679,25 +1679,17 @@ static nodemask_t *policy_nodemask(gfp_t gfp, struct mempolicy *policy)
+ static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy,
+ 	int nd)
+ {
+-	switch (policy->mode) {
+-	case MPOL_PREFERRED:
+-		if (!(policy->flags & MPOL_F_LOCAL))
+-			nd = policy->v.preferred_node;
+-		break;
+-	case MPOL_BIND:
++	if (policy->mode == MPOL_PREFERRED && !(policy->flags & MPOL_F_LOCAL))
++		nd = policy->v.preferred_node;
++	else {
+ 		/*
+-		 * Normally, MPOL_BIND allocations are node-local within the
+-		 * allowed nodemask.  However, if __GFP_THISNODE is set and the
+-		 * current node isn't part of the mask, we use the zonelist for
+-		 * the first node in the mask instead.
++		 * __GFP_THISNODE shouldn't even be used with the bind policy because
++		 * we might easily break the expectation to stay on the requested node
++		 * and not break the policy.
+ 		 */
+-		if (unlikely(gfp & __GFP_THISNODE) &&
+-				unlikely(!node_isset(nd, policy->v.nodes)))
+-			nd = first_node(policy->v.nodes);
+-		break;
+-	default:
+-		BUG();
++		WARN_ON_ONCE(polic->mode == MPOL_BIND && (gfp && __GFP_THISNODE));
+ 	}
++
+ 	return node_zonelist(nd, gfp);
+ }
+ 
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
