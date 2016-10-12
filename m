@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A0426B0253
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 793E06B0260
 	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 01:33:42 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id ry6so33800936pac.1
+Received: by mail-pf0-f200.google.com with SMTP id 190so33210981pfv.0
         for <linux-mm@kvack.org>; Tue, 11 Oct 2016 22:33:42 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id s4si7420552pfg.96.2016.10.11.22.33.40
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id qp8si6192715pac.89.2016.10.11.22.33.40
         for <linux-mm@kvack.org>;
         Tue, 11 Oct 2016 22:33:41 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v2 2/4] mm: prevent double decrease of nr_reserved_highatomic
-Date: Wed, 12 Oct 2016 14:33:34 +0900
-Message-Id: <1476250416-22733-3-git-send-email-minchan@kernel.org>
+Subject: [PATCH v2 3/4] mm: try to exhaust highatomic reserve before the OOM
+Date: Wed, 12 Oct 2016 14:33:35 +0900
+Message-Id: <1476250416-22733-4-git-send-email-minchan@kernel.org>
 In-Reply-To: <1476250416-22733-1-git-send-email-minchan@kernel.org>
 References: <1476250416-22733-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -19,72 +19,70 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sangseok Lee <sangseok.lee@lge.com>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>
 
-There is race between page freeing and unreserved highatomic.
+It's weird to show that zone has enough free memory above min
+watermark but OOMed with 4K GFP_KERNEL allocation due to
+reserved highatomic pages. As last resort, try to unreserve
+highatomic pages again and if it has moved pages to
+non-highatmoc free list, retry reclaim once more.
 
- CPU 0				    CPU 1
-
-    free_hot_cold_page
-      mt = get_pfnblock_migratetype
-      set_pcppage_migratetype(page, mt)
-    				    unreserve_highatomic_pageblock
-    				    spin_lock_irqsave(&zone->lock)
-    				    move_freepages_block
-    				    set_pageblock_migratetype(page)
-    				    spin_unlock_irqrestore(&zone->lock)
-      free_pcppages_bulk
-        __free_one_page(mt) <- mt is stale
-
-By above race, a page on CPU 0 could go non-highorderatomic free list
-since the pageblock's type is changed. By that, unreserve logic of
-highorderatomic can decrease reserved count on a same pageblock
-severak times and then it will make mismatch between
-nr_reserved_highatomic and the number of reserved pageblock.
-
-So, this patch verifies whether the pageblock is highatomic or not
-and decrease the count only if the pageblock is highatomic.
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Signed-off-by: Michal Hocko <mhocko@suse.com>
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- mm/page_alloc.c | 24 ++++++++++++++++++------
- 1 file changed, 18 insertions(+), 6 deletions(-)
+ mm/page_alloc.c | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 79853b258211..18808f392718 100644
+index 18808f392718..a7472426663f 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -2106,13 +2106,25 @@ static void unreserve_highatomic_pageblock(const struct alloc_context *ac)
- 				continue;
+@@ -2080,7 +2080,7 @@ static void reserve_highatomic_pageblock(struct page *page, struct zone *zone,
+  * intense memory pressure but failed atomic allocations should be easier
+  * to recover from than an OOM.
+  */
+-static void unreserve_highatomic_pageblock(const struct alloc_context *ac)
++static bool unreserve_highatomic_pageblock(const struct alloc_context *ac)
+ {
+ 	struct zonelist *zonelist = ac->zonelist;
+ 	unsigned long flags;
+@@ -2088,6 +2088,7 @@ static void unreserve_highatomic_pageblock(const struct alloc_context *ac)
+ 	struct zone *zone;
+ 	struct page *page;
+ 	int order;
++	bool ret = false;
  
- 			/*
--			 * It should never happen but changes to locking could
--			 * inadvertently allow a per-cpu drain to add pages
--			 * to MIGRATE_HIGHATOMIC while unreserving so be safe
--			 * and watch for underflows.
-+			 * In page freeing path, migratetype change is racy so
-+			 * we can counter several free pages in a pageblock
-+			 * in this loop althoug we changed the pageblock type
-+			 * from highatomic to ac->migratetype. So we should
-+			 * adjust the count once.
+ 	for_each_zone_zonelist_nodemask(zone, z, zonelist, ac->high_zoneidx,
+ 								ac->nodemask) {
+@@ -2136,12 +2137,14 @@ static void unreserve_highatomic_pageblock(const struct alloc_context *ac)
+ 			 * may increase.
  			 */
--			zone->nr_reserved_highatomic -= min(pageblock_nr_pages,
--				zone->nr_reserved_highatomic);
-+			if (get_pageblock_migratetype(page) ==
-+							MIGRATE_HIGHATOMIC) {
-+				/*
-+				 * It should never happen but changes to
-+				 * locking could inadvertently allow a per-cpu
-+				 * drain to add pages to MIGRATE_HIGHATOMIC
-+				 * while unreserving so be safe and watch for
-+				 * underflows.
-+				 */
-+				zone->nr_reserved_highatomic -= min(
-+						pageblock_nr_pages,
-+						zone->nr_reserved_highatomic);
-+			}
+ 			set_pageblock_migratetype(page, ac->migratetype);
+-			move_freepages_block(zone, page, ac->migratetype);
++			ret = move_freepages_block(zone, page, ac->migratetype);
+ 			spin_unlock_irqrestore(&zone->lock, flags);
+-			return;
++			return ret;
+ 		}
+ 		spin_unlock_irqrestore(&zone->lock, flags);
+ 	}
++
++	return ret;
+ }
  
- 			/*
- 			 * Convert to ac->migratetype and avoid the normal
+ /* Remove an element from the buddy allocator from the fallback list */
+@@ -3457,8 +3460,12 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
+ 	 * Make sure we converge to OOM if we cannot make any progress
+ 	 * several times in the row.
+ 	 */
+-	if (*no_progress_loops > MAX_RECLAIM_RETRIES)
++	if (*no_progress_loops > MAX_RECLAIM_RETRIES) {
++		/* Before OOM, exhaust highatomic_reserve */
++		if (unreserve_highatomic_pageblock(ac))
++			return true;
+ 		return false;
++	}
+ 
+ 	/*
+ 	 * Keep reclaiming pages while there is a chance this will lead
 -- 
 2.7.4
 
