@@ -1,115 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E84B66B0261
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 03:44:15 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id f193so4613683wmg.2
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 00:44:15 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id A883B6B0262
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 03:45:09 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id c78so4643652wme.1
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 00:45:09 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a193si1401629wme.108.2016.10.12.00.44.14
+        by mx.google.com with ESMTPS id b11si8855311wjs.147.2016.10.12.00.45.08
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 12 Oct 2016 00:44:14 -0700 (PDT)
-Date: Wed, 12 Oct 2016 09:44:12 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: OOM in v4.8
-Message-ID: <20161012074411.GA9523@dhcp22.suse.cz>
-References: <20161012065423.GA16092@aaronlu.sh.intel.com>
+        Wed, 12 Oct 2016 00:45:08 -0700 (PDT)
+Date: Wed, 12 Oct 2016 09:45:05 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v5 15/17] dax: add struct iomap based DAX PMD support
+Message-ID: <20161012074505.GC13896@quack2.suse.cz>
+References: <1475874544-24842-1-git-send-email-ross.zwisler@linux.intel.com>
+ <1475874544-24842-16-git-send-email-ross.zwisler@linux.intel.com>
+ <20161011083152.GG6952@quack2.suse.cz>
+ <20161011225130.GC32165@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161012065423.GA16092@aaronlu.sh.intel.com>
+In-Reply-To: <20161011225130.GC32165@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>
-Cc: Linux MM <linux-mm@kvack.org>, lkp@01.org, Huang Ying <ying.huang@intel.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-[Let's CC Vlastimil]
+On Tue 11-10-16 16:51:30, Ross Zwisler wrote:
+> On Tue, Oct 11, 2016 at 10:31:52AM +0200, Jan Kara wrote:
+> > On Fri 07-10-16 15:09:02, Ross Zwisler wrote:
+> > > diff --git a/fs/dax.c b/fs/dax.c
+> > > index ac3cd05..e51d51f 100644
+> > > --- a/fs/dax.c
+> > > +++ b/fs/dax.c
+> > > @@ -281,7 +281,7 @@ static wait_queue_head_t *dax_entry_waitqueue(struct address_space *mapping,
+> > >  	 * queue to the start of that PMD.  This ensures that all offsets in
+> > >  	 * the range covered by the PMD map to the same bit lock.
+> > >  	 */
+> > > -	if (RADIX_DAX_TYPE(entry) == RADIX_DAX_PMD)
+> > > +	if ((unsigned long)entry & RADIX_DAX_PMD)
+> > >  		index &= ~((1UL << (PMD_SHIFT - PAGE_SHIFT)) - 1);
+> > 
+> > I agree with Christoph - helper for masking type bits would make this
+> > nicer.
+> 
+> Fixed via a dax_flag_test() helper as I outlined in the mail to Christoph.  It
+> seems clean to me, but if you or Christoph feel strongly that it would be
+> cleaner as a local 'flags' variable, I'll make the change.
 
-On Wed 12-10-16 14:54:23, Aaron Lu wrote:
-> Hello,
-> 
-> There is a chromeswap test case:
-> https://chromium.googlesource.com/chromiumos/third_party/autotest/+/master/client/site_tests/platform_CompressedSwapPerf
-> 
-> We have done small changes and ported it to our LKP environment:
-> https://github.com/aaronlu/chromeswap
-> 
-> The test starts nr_procs processes and let them each allocate some
-> memory equally with realloc, so anonymous pages are used. When the
-> pre-specified swap_target is reached, the allocation will stop. The
-> total allocation size is: MemFree + swap_target * SwapTotal.
-> After allocation, a random process is selected to touch its memory to
-> trigger swap in/out.
-> 
-> For this test, nr_procs is 50 and swap_target is 50%.
-> The test box has 8G memory where 4G is used as a pmem block device and
-> created as the swap partition.
-> 
-> There is OOM occured for this test recently so I did more tests:
-> on v4.6, 10 tests all pass;
-> on v4.7, 2 tests OOMed out of 10 tests;
-> on v4.8, 6 tests OOMed out of 10 tests;
-> on 101105b1717f, which is yersterday's Linus' master branch head,
-> 1 test OOMed out of 10 tests.
+One idea I had is that you could have helpers like:
 
-Could you try to retest with the current linux-next please?
+dax_is_pmd_entry()
+dax_is_pte_entry()
+dax_is_empty_entry()
+dax_is_hole_entry()
+
+And then you would use these helpers - all the flags would be hidden in the
+helpers so even if we decide to change the flagging scheme to compress
+things or so, it should be pretty local change.
+
+> > > -		entry = (void *)(RADIX_TREE_EXCEPTIONAL_ENTRY |
+> > > -			       RADIX_DAX_ENTRY_LOCK);
+> > > +
+> > > +		/*
+> > > +		 * Besides huge zero pages the only other thing that gets
+> > > +		 * downgraded are empty entries which don't need to be
+> > > +		 * unmapped.
+> > > +		 */
+> > > +		if (pmd_downgrade && ((unsigned long)entry & RADIX_DAX_HZP))
+> > > +			unmap_mapping_range(mapping,
+> > > +				(index << PAGE_SHIFT) & PMD_MASK, PMD_SIZE, 0);
+> > > +
+> > >  		spin_lock_irq(&mapping->tree_lock);
+> > > -		err = radix_tree_insert(&mapping->page_tree, index, entry);
+> > > +
+> > > +		if (pmd_downgrade) {
+> > > +			radix_tree_delete(&mapping->page_tree, index);
+> > > +			mapping->nrexceptional--;
+> > > +			dax_wake_mapping_entry_waiter(mapping, index, entry,
+> > > +					false);
+> > 
+> > You need to set 'wake_all' argument here to true. Otherwise there could be
+> > waiters waiting for non-existent entry forever...
+> 
+> Interesting.   Fixed, but let me make sure I understand.  So is the issue that
+> you could have say 2 tasks waiting on a PMD index that has been rounded down
+> to the PMD index via dax_entry_waitqueue()?
+> 
+> The person holding the lock on the entry would remove the PMD, insert a PTE
+> and wake just one of the PMD aligned waiters.  That waiter would wake up, do
+> something PTE based (since the PMD space is now polluted with PTEs), and then
+> wake any waiters on it's PTE index.  Meanwhile, the second waiter could sleep
+> forever on the PMD aligned index.  Is this correct?
+
+Yes.
+
+> So, perhaps more succinctly:
+> 
+> Thread 1		Thread 2		Thread 3
+> --------		--------		--------
+> index 0x202, hold PMD lock 0x200
+> 			index 0x203, sleep on 0x200
+> 						index 0x204, sleep on 0x200
+> downgrade, removing 0x200
+> wake one waiter on 0x200
+> insert PTE @ 0x202
+> 			wake up, grab index 0x203
+> 			...
+> 			wake one waiter on index 0x203
+> 
+> 						... sleeps forever
+> Right?
  
-> SO things are much better than v4.8 now.
+Exactly.
+
+> > > @@ -608,22 +683,28 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
+> > >  		error = radix_tree_preload(vmf->gfp_mask & ~__GFP_HIGHMEM);
+> > >  		if (error)
+> > >  			return ERR_PTR(error);
+> > > +	} else if (((unsigned long)entry & RADIX_DAX_HZP) &&
+> > > +			!(flags & RADIX_DAX_HZP)) {
+> > > +		/* replacing huge zero page with PMD block mapping */
+> > > +		unmap_mapping_range(mapping,
+> > > +			(vmf->pgoff << PAGE_SHIFT) & PMD_MASK, PMD_SIZE, 0);
+> > >  	}
+> > >  
+> > >  	spin_lock_irq(&mapping->tree_lock);
+> > > -	new_entry = (void *)((unsigned long)RADIX_DAX_ENTRY(sector, false) |
+> > > -		       RADIX_DAX_ENTRY_LOCK);
+> > > +	new_entry = dax_radix_entry(sector, flags);
+> > > +
+> > 
+> > You've lost the RADIX_DAX_ENTRY_LOCK flag here?
 > 
-> When OOM occurred, there is still enough swap space though:
+> Oh, nope, that's embedded in the dax_radix_entry() helper:
 > 
-> kern  :warn  : [   38.708419] proc-vmstat invoked oom-killer: gfp_mask=0x27000c0(GFP_KERNEL_ACCOUNT|__GFP_NOTRACK), order=2, oom_score_adj=0
-[...]
-> kern  :warn  : [   38.880744] Mem-Info:
-> kern  :warn  : [   38.883875] active_anon:622526 inactive_anon:154230 isolated_anon:0
->                                active_file:0 inactive_file:1 isolated_file:0
->                                unevictable:94198 dirty:0 writeback:0 unstable:3
->                                slab_reclaimable:59989 slab_unreclaimable:6489
->                                mapped:6022 shmem:257 pagetables:3956 bounce:0
->                                free:17325 free_pcp:357 free_cma:897
-[...]
-> kern  :warn  : [   38.952034] Node 0 DMA free:2008kB min:280kB low:348kB high:416kB active_anon:1112kB inactive_anon:28kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:15984kB managed:15900kB mlocked:0kB slab_reclaimable:12704kB slab_unreclaimable:48kB kernel_stack:0kB pagetables:0kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
-> kern  :warn  : [   38.984654] lowmem_reserve[]: 0 3430 3524 3524 3524
-> kern  :warn  : [   38.990371] Node 0 DMA32 free:83292kB min:61984kB low:77480kB high:92976kB active_anon:2395900kB inactive_anon:454596kB active_file:0kB inactive_file:4kB unevictable:314016kB writepending:0kB present:3578492kB managed:3512924kB mlocked:92kB slab_reclaimable:218640kB slab_unreclaimable:6036kB kernel_stack:1744kB pagetables:14040kB bounce:0kB free_pcp:2160kB local_pcp:36kB free_cma:0kB
-> kern  :warn  : [   39.027044] lowmem_reserve[]: 0 0 94 94 94
-> kern  :warn  : [   39.031921] Node 0 Normal free:5448kB min:5316kB low:6644kB high:7972kB active_anon:61364kB inactive_anon:162752kB active_file:0kB inactive_file:0kB unevictable:62776kB writepending:0kB present:505856kB managed:420724kB mlocked:2124kB slab_reclaimable:17396kB slab_unreclaimable:19876kB kernel_stack:2992kB pagetables:1784kB bounce:0kB free_pcp:60kB local_pcp:0kB free_cma:4004kB
-> kern  :warn  : [   39.067344] lowmem_reserve[]: 0 0 0 0 0
-> kern  :warn  : [   39.072034] Node 0 DMA: 47*4kB (E) 9*8kB (E) 3*16kB (H) 1*32kB (H) 1*64kB (H) 1*128kB (H) 0*256kB 1*512kB (H) 1*1024kB (H) 0*2048kB 0*4096kB = 2068kB
-> kern  :warn  : [   39.087289] Node 0 DMA32: 9514*4kB (UME) 3085*8kB (ME) 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 62736kB
-> kern  :warn  : [   39.101342] Node 0 Normal: 203*4kB (UEC) 400*8kB (UEC) 107*16kB (HC) 5*32kB (C) 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 5884kB
-
-OK, so your system is close to min watermarks and requesting order-2
-page while those cannot be allocated because GFP_KERNEL (aka unmovable
-allocation) cannot fall back to CMA reserved blocks. Do you see the same
-when CMA is not involved?
-
-Anyway, 4.8 had temporarily disable the compaction feedback for the oom
-declaration and used watermark based estimation. 4.9 will have the
-compaction feedback approach back along with many compaction
-improvements so it is definitely worth retesting with linux-next or
-4.9-rc1.
-
-> kern  :info  : [   39.116367] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=1048576kB
-> kern  :info  : [   39.126827] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=2048kB
-> kern  :warn  : [   39.136481] 94403 total pagecache pages
-> kern  :warn  : [   39.141514] 10 pages in swap cache
-> kern  :warn  : [   39.145995] Swap cache stats: add 6689320, delete 6689310, find 6080/3054405
-> kern  :warn  : [   39.154135] Free swap  = 1845896kB
-> kern  :warn  : [   39.158638] Total swap = 4194300kB
-> kern  :warn  : [   39.163152] 1025083 pages RAM
-> kern  :warn  : [   39.167218] 0 pages HighMem/MovableOnly
-> kern  :warn  : [   39.172167] 37696 pages reserved
-> kern  :warn  : [   39.176504] 51200 pages cma reserved
-> kern  :warn  : [   39.181223] 0 pages hwpoisoned
+> /* entries begin locked */
+> static inline void *dax_radix_entry(sector_t sector, unsigned long flags)
+> {
+> 	return (void *)(RADIX_TREE_EXCEPTIONAL_ENTRY | flags |
+> 			((unsigned long)sector << RADIX_DAX_SHIFT) |
+> 			RADIX_DAX_ENTRY_LOCK);
+> }
 > 
-> I wonder if this OOM could/should be avoided?
+> I'll s/dax_radix_entry/dax_radix_locked_entry/ or something to make this
+> clearer to the reader.
 
-The system is highly fragmented and low on memory but there is a lot of
-anonymous memory which we should at least try to compact into contiguous
-blocks so I believe we should be able to cope with that much better.
+Yep, that would be better. Thanks!
+
+> > >  	if (hole_fill) {
+> > >  		__delete_from_page_cache(entry, NULL);
+> > >  		/* Drop pagecache reference */
+> > >  		put_page(entry);
+> > > -		error = radix_tree_insert(page_tree, index, new_entry);
+> > > +		error = __radix_tree_insert(page_tree, index,
+> > > +				dax_radix_order(new_entry), new_entry);
+> > >  		if (error) {
+> > >  			new_entry = ERR_PTR(error);
+> > >  			goto unlock;
+> > >  		}
+> > >  		mapping->nrexceptional++;
+> > > -	} else {
+> > > +	} else if ((unsigned long)entry & (RADIX_DAX_HZP|RADIX_DAX_EMPTY)) {
+> > >  		void **slot;
+> > >  		void *ret;
+> > 
+> > Uh, why this condition need to change? Is it some protection so that we
+> > don't replace a mapped PMD entry with PTE one?
+> 
+> Yea, the logic was that if we have a radix tree that has PMDs in it, and some
+> new process comes along doing PTE faults, we can just leave the DAX mapped PMD
+> entries in the tree.  Locking, dirtying and flushing will happen on PMD basis
+> for all processes.
+
+Yup, I got this and I agree with that.
+
+> If you think this is dangerous or not worth the effort we can make it like the
+> hole case where any PTE sized faults will result in an unmap and a downgrade
+> to PTE sized entries in the radix tree.
+
+Ok, so probably I'm somewhat surprised that the logic that mapped PMD entry
+is not replaced by a PTE entry is handled down in
+dax_insert_mapping_entry(). But now looking at this it is just how we work
+in other cases as well so please just add a comment there.
+
+Longer term we may just shortcut the fault if grab_mapping_entry() will
+return us entry of type we can use. That can save us quite some work if
+several processes are mapping the same file. But again that's an
+optimization to do once the PMD, iomap, and page protection works settle.
+
+								Honza
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
