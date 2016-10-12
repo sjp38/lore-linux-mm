@@ -1,85 +1,213 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D4BC6B0267
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 07:02:01 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id y38so33508576qta.6
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 04:02:01 -0700 (PDT)
-Received: from mail-qk0-f180.google.com (mail-qk0-f180.google.com. [209.85.220.180])
-        by mx.google.com with ESMTPS id q13si3554554qkl.43.2016.10.12.04.02.00
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F1BA6B0069
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 07:47:32 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id d186so25707997lfg.7
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 04:47:32 -0700 (PDT)
+Received: from mail-lf0-f68.google.com (mail-lf0-f68.google.com. [209.85.215.68])
+        by mx.google.com with ESMTPS id b141si4389559lfd.295.2016.10.12.04.47.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Oct 2016 04:02:00 -0700 (PDT)
-Received: by mail-qk0-f180.google.com with SMTP id n189so24038650qke.0
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 04:02:00 -0700 (PDT)
-Date: Wed, 12 Oct 2016 13:01:58 +0200
+        Wed, 12 Oct 2016 04:47:30 -0700 (PDT)
+Received: by mail-lf0-f68.google.com with SMTP id l131so3930184lfl.0
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 04:47:30 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: MPOL_BIND on memory only nodes
-Message-ID: <20161012110158.GK17128@dhcp22.suse.cz>
-References: <57FE0184.6030008@linux.vnet.ibm.com>
- <20161012094337.GH17128@dhcp22.suse.cz>
- <57FE12B8.4050401@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <57FE12B8.4050401@linux.vnet.ibm.com>
+Subject: [PATCH] mm, compaction: allow compaction for GFP_NOFS requests
+Date: Wed, 12 Oct 2016 13:47:21 +0200
+Message-Id: <20161012114721.31853-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Wed 12-10-16 16:08:48, Anshuman Khandual wrote:
-> On 10/12/2016 03:13 PM, Michal Hocko wrote:
-> > On Wed 12-10-16 14:55:24, Anshuman Khandual wrote:
-> >> Hi,
-> >>
-> >> We have the following function policy_zonelist() which selects a zonelist
-> >> during various allocation paths. With this, general user space allocations
-> >> (IIUC might not have __GFP_THISNODE) fails while trying to get memory from
-> >> a memory only node without CPUs as the application runs some where else
-> >> and that node is not part of the nodemask.
-> 
-> My bad. Was playing with some changes to the zonelists rebuild after
-> a memory node hotplug and the order of various zones in them.
-> 
-> > 
-> > I am not sure I understand. So you have a task with MPOL_BIND without a
-> > cpu less node in the mask and you are wondering why the memory is not
-> > allocated from that node?
-> 
-> In my experiment, there is a MPOL_BIND call with a CPU less node in
-> the node mask and the memory is not allocated from that CPU less node.
-> Thats because the zone of the CPU less node was absent from the
-> FALLBACK zonelist of the local node.
+From: Michal Hocko <mhocko@suse.com>
 
-So do I understand this correctly that the issue was caused by
-non-upstream changes?
+compaction has been disabled for GFP_NOFS and GFP_NOIO requests since
+the direct compaction was introduced by 56de7263fcf3 ("mm: compaction:
+direct compact when a high-order allocation fails"). The main reason
+is that the migration of page cache pages might recurse back to fs/io
+layer and we could potentially deadlock. This is overly conservative
+because all the anonymous memory is migrateable in the GFP_NOFS context
+just fine.  This might be a large portion of the memory in many/most
+workkloads.
 
-> >> Why we insist on __GFP_THISNODE ?
-> > 
-> > AFAIU __GFP_THISNODE just overrides the given node to the policy
-> > nodemask in case the current node is not part of that node mask. In
-> > other words we are ignoring the given node and use what the policy says. 
-> 
-> Right but provided the gfp flag has __GFP_THISNODE in it. In absence
-> of __GFP_THISNODE, the node from the nodemask will not be selected.
+Remove the GFP_NOFS restriction and make sure that we skip all fs pages
+(those with a mapping) while isolating pages to be migrated. We cannot
+consider clean fs pages because they might need a metadata update so
+only isolate pages without any mapping for nofs requests.
 
-In absence of __GFP_THISNODE we will use the zonelist for the given node
-and that should contain even memoryless nodes for the fallback. The
-nodemask from policy_nodemask() will then make sure that only nodes
-relevant to the used policy is used.
+The effect of this patch will be probably very limited in many/most
+workloads because higher order GFP_NOFS requests are quite rare,
+although different configurations might lead to very different results.
+David Chinner has mentioned a heavy metadata workload with 64kB block
+which to quote him:
+"
+Unfortunately, there was an era of cargo cult configuration tweaks
+in the Ceph community that has resulted in a large number of
+production machines with XFS filesystems configured this way. And a
+lot of them store large numbers of small files and run under
+significant sustained memory pressure.
 
-> I still wonder why ? Can we always go to the first node in the
-> nodemask for MPOL_BIND interface calls ? Just curious to know why
-> preference is given to the local node and it's FALLBACK zonelist.
+I slowly working towards getting rid of these high order allocations
+and replacing them with the equivalent number of single page
+allocations, but I haven't got that (complex) change working yet.
+"
 
-It is not always a local node. Look at how do_huge_pmd_wp_page_fallback
-tries to make all the pages into the same node. Also we have
-alloc_pages_current() which tries to allocate from the local node which
-should not fallback to the firs node in the policy nodemask.
+We can do the following to simulate that workload:
+$ mkfs.xfs -f -n size=64k <dev>
+$ mount <dev> /mnt/scratch
+$ time ./fs_mark  -D  10000  -S0  -n  100000  -s  0  -L  32 \
+        -d  /mnt/scratch/0  -d  /mnt/scratch/1 \
+        -d  /mnt/scratch/2  -d  /mnt/scratch/3 \
+        -d  /mnt/scratch/4  -d  /mnt/scratch/5 \
+        -d  /mnt/scratch/6  -d  /mnt/scratch/7 \
+        -d  /mnt/scratch/8  -d  /mnt/scratch/9 \
+        -d  /mnt/scratch/10  -d  /mnt/scratch/11 \
+        -d  /mnt/scratch/12  -d  /mnt/scratch/13 \
+        -d  /mnt/scratch/14  -d  /mnt/scratch/15
 
+and indeed is hammers the system with many high order GFP_NOFS requests as
+per a simle tracepoint during the load:
+$ echo '!(gfp_flags & 0x80) && (gfp_flags &0x400000)' > $TRACE_MNT/events/kmem/mm_page_alloc/filter
+I am getting
+5287609 order=0
+     37 order=1
+1594905 order=2
+3048439 order=3
+6699207 order=4
+  66645 order=5
+
+My testing was done in a kvm guest so performance numbers should be
+taken with a grain of salt but there seems to be a difference when the
+patch is applied:
+
+* Original kernel
+FSUse%        Count         Size    Files/sec     App Overhead
+     1      1600000            0       4300.1         20745838
+     3      3200000            0       4239.9         23849857
+     5      4800000            0       4243.4         25939543
+     6      6400000            0       4248.4         19514050
+     8      8000000            0       4262.1         20796169
+     9      9600000            0       4257.6         21288675
+    11     11200000            0       4259.7         19375120
+    13     12800000            0       4220.7         22734141
+    14     14400000            0       4238.5         31936458
+    16     16000000            0       4231.5         23409901
+    18     17600000            0       4045.3         23577700
+    19     19200000            0       2783.4         58299526
+    21     20800000            0       2678.2         40616302
+    23     22400000            0       2693.5         83973996
+
+and xfs complaining about memory allocation not making progress
+[ 2304.372647] XFS: fs_mark(3289) possible memory allocation deadlock size 65624 in kmem_alloc (mode:0x2408240)
+[ 2304.443323] XFS: fs_mark(3285) possible memory allocation deadlock size 65728 in kmem_alloc (mode:0x2408240)
+[ 4796.772477] XFS: fs_mark(3424) possible memory allocation deadlock size 46936 in kmem_alloc (mode:0x2408240)
+[ 4796.775329] XFS: fs_mark(3423) possible memory allocation deadlock size 51416 in kmem_alloc (mode:0x2408240)
+[ 4797.388808] XFS: fs_mark(3424) possible memory allocation deadlock size 65728 in kmem_alloc (mode:0x2408240)
+
+* Patched kernel
+FSUse%        Count         Size    Files/sec     App Overhead
+     1      1600000            0       4289.1         19243934
+     3      3200000            0       4241.6         32828865
+     5      4800000            0       4248.7         32884693
+     6      6400000            0       4314.4         19608921
+     8      8000000            0       4269.9         24953292
+     9      9600000            0       4270.7         33235572
+    11     11200000            0       4346.4         40817101
+    13     12800000            0       4285.3         29972397
+    14     14400000            0       4297.2         20539765
+    16     16000000            0       4219.6         18596767
+    18     17600000            0       4273.8         49611187
+    19     19200000            0       4300.4         27944451
+    21     20800000            0       4270.6         22324585
+    22     22400000            0       4317.6         22650382
+    24     24000000            0       4065.2         22297964
+
+So the dropdown at Count 19200000 didn't happen and there was only a
+single warning about allocation not making progress
+[ 3063.815003] XFS: fs_mark(3272) possible memory allocation deadlock size 65624 in kmem_alloc (mode:0x2408240)
+
+This suggests that the patch has helped even though there is not all
+that much of anonymous memory as the workload mostly generates fs
+metadata. I assume the success rate would be higher with more anonymous
+memory which should be the case in many workloads.
+
+Changes since RFC
+- testing results from the test case suggested by David
+- fix kcompactd and proc triggered compaction by giving them GFP_KERNEL
+  gfp_mask as per Vlastimil
+
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+
+Hi,
+I have previously posted this as an RFC [1] but I feel this is worth
+pursuing after knowing that there really might be some workloads
+which trigger heavy GFP_NOFS workloads. My testing suggests that
+the patch makes difference even in fs metadata heavy workloads which
+do not involve a lot of anonymous memory.
+
+[1] http://lkml.kernel.org/r/20161004081215.5563-1-mhocko@kernel.org
+
+ mm/compaction.c | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 0409a4ad6ea1..d1d90e96ef4b 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -834,6 +834,13 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 		    page_count(page) > page_mapcount(page))
+ 			goto isolate_fail;
+ 
++		/*
++		 * Only allow to migrate anonymous pages in GFP_NOFS context
++		 * because those do not depend on fs locks.
++		 */
++		if (!(cc->gfp_mask & __GFP_FS) && page_mapping(page))
++			goto isolate_fail;
++
+ 		/* If we already hold the lock, we can skip some rechecking */
+ 		if (!locked) {
+ 			locked = compact_trylock_irqsave(zone_lru_lock(zone),
+@@ -1696,14 +1703,16 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
+ 		unsigned int alloc_flags, const struct alloc_context *ac,
+ 		enum compact_priority prio)
+ {
+-	int may_enter_fs = gfp_mask & __GFP_FS;
+ 	int may_perform_io = gfp_mask & __GFP_IO;
+ 	struct zoneref *z;
+ 	struct zone *zone;
+ 	enum compact_result rc = COMPACT_SKIPPED;
+ 
+-	/* Check if the GFP flags allow compaction */
+-	if (!may_enter_fs || !may_perform_io)
++	/*
++	 * Check if the GFP flags allow compaction - GFP_NOIO is really
++	 * tricky context because the migration might require IO and
++	 */
++	if (!may_perform_io)
+ 		return COMPACT_SKIPPED;
+ 
+ 	trace_mm_compaction_try_to_compact_pages(order, gfp_mask, prio);
+@@ -1770,6 +1779,7 @@ static void compact_node(int nid)
+ 		.mode = MIGRATE_SYNC,
+ 		.ignore_skip_hint = true,
+ 		.whole_zone = true,
++		.gfp_mask = GFP_KERNEL,
+ 	};
+ 
+ 
+@@ -1895,6 +1905,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
+ 		.classzone_idx = pgdat->kcompactd_classzone_idx,
+ 		.mode = MIGRATE_SYNC_LIGHT,
+ 		.ignore_skip_hint = true,
++		.gfp_mask = GFP_KERNEL,
+ 
+ 	};
+ 	trace_mm_compaction_kcompactd_wake(pgdat->node_id, cc.order,
 -- 
-Michal Hocko
-SUSE Labs
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
