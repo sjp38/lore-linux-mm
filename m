@@ -1,94 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 513566B0261
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 06:39:08 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id ry6so39525738pac.1
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 03:39:08 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id o10si8697755pfe.75.2016.10.12.03.39.07
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 191FD6B0263
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 06:41:22 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id 190so38731246pfv.0
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 03:41:22 -0700 (PDT)
+Received: from mail-pf0-f196.google.com (mail-pf0-f196.google.com. [209.85.192.196])
+        by mx.google.com with ESMTPS id c14si8687441pfc.93.2016.10.12.03.41.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Oct 2016 03:39:07 -0700 (PDT)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u9CAd5DD126951
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 06:39:07 -0400
-Received: from e23smtp04.au.ibm.com (e23smtp04.au.ibm.com [202.81.31.146])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 261dxy09qn-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 06:39:06 -0400
-Received: from localhost
-	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Wed, 12 Oct 2016 20:38:54 +1000
-Received: from d23relay07.au.ibm.com (d23relay07.au.ibm.com [9.190.26.37])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id CF3FA2CE8056
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 21:38:50 +1100 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay07.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u9CAcoGs14090256
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 21:38:50 +1100
-Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u9CAcogq008778
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 21:38:50 +1100
-Date: Wed, 12 Oct 2016 16:08:48 +0530
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+        Wed, 12 Oct 2016 03:41:21 -0700 (PDT)
+Received: by mail-pf0-f196.google.com with SMTP id s8so2479768pfj.2
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 03:41:21 -0700 (PDT)
+Date: Wed, 12 Oct 2016 12:41:18 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: kmemleak: Ensure that the task stack is not freed
+ during scanning
+Message-ID: <20161012104118.GC9523@dhcp22.suse.cz>
+References: <1476266223-14325-1-git-send-email-catalin.marinas@arm.com>
 MIME-Version: 1.0
-Subject: Re: MPOL_BIND on memory only nodes
-References: <57FE0184.6030008@linux.vnet.ibm.com> <20161012094337.GH17128@dhcp22.suse.cz>
-In-Reply-To: <20161012094337.GH17128@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <57FE12B8.4050401@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1476266223-14325-1-git-send-email-catalin.marinas@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, CAI Qian <caiqian@redhat.com>
 
-On 10/12/2016 03:13 PM, Michal Hocko wrote:
-> On Wed 12-10-16 14:55:24, Anshuman Khandual wrote:
->> Hi,
->>
->> We have the following function policy_zonelist() which selects a zonelist
->> during various allocation paths. With this, general user space allocations
->> (IIUC might not have __GFP_THISNODE) fails while trying to get memory from
->> a memory only node without CPUs as the application runs some where else
->> and that node is not part of the nodemask.
+On Wed 12-10-16 10:57:03, Catalin Marinas wrote:
+> Commit 68f24b08ee89 ("sched/core: Free the stack early if
+> CONFIG_THREAD_INFO_IN_TASK") may cause the task->stack to be freed
+> during kmemleak_scan() execution, leading to either a NULL pointer
+> fault (if task->stack is NULL) or kmemleak accessing already freed
+> memory. This patch uses the new try_get_task_stack() API to ensure that
+> the task stack is not freed during kmemleak stack scanning.
 
-My bad. Was playing with some changes to the zonelists rebuild after
-a memory node hotplug and the order of various zones in them.
+Looks good to me
+ 
+> Fixes: 68f24b08ee89 ("sched/core: Free the stack early if CONFIG_THREAD_INFO_IN_TASK")
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Andy Lutomirski <luto@kernel.org>
+> Cc: CAI Qian <caiqian@redhat.com>
+> Reported-by: CAI Qian <caiqian@redhat.com>
+> Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
 
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
 > 
-> I am not sure I understand. So you have a task with MPOL_BIND without a
-> cpu less node in the mask and you are wondering why the memory is not
-> allocated from that node?
-
-In my experiment, there is a MPOL_BIND call with a CPU less node in
-the node mask and the memory is not allocated from that CPU less node.
-Thats because the zone of the CPU less node was absent from the
-FALLBACK zonelist of the local node.
-
+> This was reported in a subsequent comment here:
 > 
->> Why we insist on __GFP_THISNODE ?
+> https://bugzilla.kernel.org/show_bug.cgi?id=173901
 > 
-> AFAIU __GFP_THISNODE just overrides the given node to the policy
-> nodemask in case the current node is not part of that node mask. In
-> other words we are ignoring the given node and use what the policy says. 
-
-Right but provided the gfp flag has __GFP_THISNODE in it. In absence
-of __GFP_THISNODE, the node from the nodemask will not be selected. I
-still wonder why ? Can we always go to the first node in the nodemask
-for MPOL_BIND interface calls ? Just curious to know why preference
-is given to the local node and it's FALLBACK zonelist.
-
-> I can see how this can be confusing especially when confronting the
-> documentation:
+> However, the original bugzilla entry doesn't look related to task stack
+> freeing as it was first reported on 4.8-rc8. Andy, sorry for cc'ing you
+> to bugzilla, please feel free to remove your email from the bug above (I
+> can't seem to be able to do it).
 > 
->  * __GFP_THISNODE forces the allocation to be satisified from the requested
->  *   node with no fallbacks or placement policy enforcements.
+>  mm/kmemleak.c | 7 +++++--
+>  1 file changed, 5 insertions(+), 2 deletions(-)
 > 
+> diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+> index a5e453cf05c4..e5355a5b423f 100644
+> --- a/mm/kmemleak.c
+> +++ b/mm/kmemleak.c
+> @@ -1453,8 +1453,11 @@ static void kmemleak_scan(void)
+>  
+>  		read_lock(&tasklist_lock);
+>  		do_each_thread(g, p) {
+> -			scan_block(task_stack_page(p), task_stack_page(p) +
+> -				   THREAD_SIZE, NULL);
+> +			void *stack = try_get_task_stack(p);
+> +			if (stack) {
+> +				scan_block(stack, stack + THREAD_SIZE, NULL);
+> +				put_task_stack(p);
+> +			}
+>  		} while_each_thread(g, p);
+>  		read_unlock(&tasklist_lock);
+>  	}
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Yeah, right.
-
-Thanks for your reply.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
