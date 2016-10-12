@@ -1,88 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 13F9F6B0260
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 12:15:52 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id kc8so48132472pab.2
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 09:15:52 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B8C526B0038
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 13:15:52 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id u84so47247216pfj.6
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 10:15:52 -0700 (PDT)
 Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id x73si10045068pfd.44.2016.10.12.09.15.50
+        by mx.google.com with ESMTPS id f15si5243721pap.212.2016.10.12.10.15.51
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 12 Oct 2016 09:15:51 -0700 (PDT)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: [PATCH] Don't touch single threaded PTEs which are on the right node
-Date: Wed, 12 Oct 2016 09:15:49 -0700
-Message-Id: <1476288949-20970-1-git-send-email-andi@firstfloor.org>
+        Wed, 12 Oct 2016 10:15:51 -0700 (PDT)
+Subject: Re: [RFC 0/6] Module for tracking/accounting shared memory buffers
+References: <1476229810-26570-1-git-send-email-kandoiruchi@google.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <57FE6FC6.70205@linux.intel.com>
+Date: Wed, 12 Oct 2016 10:15:50 -0700
+MIME-Version: 1.0
+In-Reply-To: <1476229810-26570-1-git-send-email-kandoiruchi@google.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: peterz@infradead.org
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mgorman@suse.de, linux-kernel@vger.kernel.org, Andi Kleen <ak@linux.intel.com>
+To: Ruchi Kandoi <kandoiruchi@google.com>, gregkh@linuxfoundation.org, arve@android.com, riandrews@android.com, sumit.semwal@linaro.org, arnd@arndb.de, labbott@redhat.com, viro@zeniv.linux.org.uk, jlayton@poochiereds.net, bfields@fieldses.org, mingo@redhat.com, peterz@infradead.org, akpm@linux-foundation.org, keescook@chromium.org, mhocko@suse.com, oleg@redhat.com, john.stultz@linaro.org, mguzik@redhat.com, jdanis@google.com, adobriyan@gmail.com, ghackmann@google.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, dan.j.williams@intel.com, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, luto@kernel.org, tj@kernel.org, vdavydov.dev@gmail.com, ebiederm@xmission.com, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org, linux-media@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-From: Andi Kleen <ak@linux.intel.com>
+On 10/11/2016 04:50 PM, Ruchi Kandoi wrote:
+> Any process holding a reference to these buffers will keep the kernel from
+> reclaiming its backing pages.  mm counters don't provide a complete picture of
+> these allocations, since they only account for pages that are mapped into a
+> process's address space.  This problem is especially bad for systems like
+> Android that use dma-buf fds to share graphics and multimedia buffers between
+> processes: these allocations are often large, have complex sharing patterns,
+> and are rarely mapped into every process that holds a reference to them.
 
-We had some problems with pages getting unmapped in single threaded
-affinitized processes. It was tracked down to NUMA scanning.
-
-In this case it doesn't make any sense to unmap pages if the
-process is single threaded and the page is already on the
-node the process is running on.
-
-Add a check for this case into the numa protection code,
-and skip unmapping if true.
-
-In theory the process could be migrated later, but we
-will eventually rescan and unmap and migrate then.
-
-In theory this could be made more fancy: remembering this
-state per process or even whole mm. However that would
-need extra tracking and be more complicated, and the
-simple check seems to work fine so far.
-
-v2: Only do it for private VMAs. Move most of check out of
-loop.
-Signed-off-by: Andi Kleen <ak@linux.intel.com>
----
- mm/mprotect.c | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
-
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index a4830f0325fe..e9473e7e1468 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -68,11 +68,17 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 	pte_t *pte, oldpte;
- 	spinlock_t *ptl;
- 	unsigned long pages = 0;
-+	int target_node = -1;
- 
- 	pte = lock_pte_protection(vma, pmd, addr, prot_numa, &ptl);
- 	if (!pte)
- 		return 0;
- 
-+	if (prot_numa &&
-+	    !(vma->vm_flags & VM_SHARED) &&
-+	    atomic_read(&vma->vm_mm->mm_users) == 1)
-+	    target_node = cpu_to_node(raw_smp_processor_id());
-+
- 	arch_enter_lazy_mmu_mode();
- 	do {
- 		oldpte = *pte;
-@@ -94,6 +100,13 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 				/* Avoid TLB flush if possible */
- 				if (pte_protnone(oldpte))
- 					continue;
-+
-+				/*
-+				 * Don't mess with PTEs if page is already on the node
-+				 * a single-threaded process is running on.
-+				 */
-+				if (target_node == page_to_nid(page))
-+					continue;
- 			}
- 
- 			ptent = ptep_modify_prot_start(mm, addr, pte);
--- 
-2.5.5
+What do you end up _doing_ with all this new information that you have
+here?  You know which processes have "pinned" these shared buffers, and
+exported that information in /proc.  But, then what?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
