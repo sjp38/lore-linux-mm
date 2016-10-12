@@ -1,125 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 780596B0069
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 03:19:46 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id o81so4201790wma.7
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 00:19:46 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 196si1336893wmf.30.2016.10.12.00.19.45
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AD3866B0260
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 03:22:14 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id g45so30993912qte.5
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 00:22:14 -0700 (PDT)
+Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
+        by mx.google.com with ESMTPS id v18si1751238qtv.57.2016.10.12.00.22.13
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 12 Oct 2016 00:19:45 -0700 (PDT)
-Subject: Re: [PATCH v2 4/4] mm: make unreserve highatomic functions reliable
-References: <1476250416-22733-1-git-send-email-minchan@kernel.org>
- <1476250416-22733-5-git-send-email-minchan@kernel.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <77a189db-1ca6-05cc-9b79-c9b5d598ec1d@suse.cz>
-Date: Wed, 12 Oct 2016 09:19:42 +0200
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 12 Oct 2016 00:22:14 -0700 (PDT)
+Subject: Re: [RFC PATCH 1/1] mm/percpu.c: fix memory leakage issue when
+ allocate a odd alignment area
+References: <bc3126cd-226d-91c7-d323-48881095accf@zoho.com>
+ <20161011172228.GA30403@dhcp22.suse.cz>
+ <7649b844-cfe6-abce-148e-1e2236e7d443@zoho.com>
+ <20161012065332.GA9504@dhcp22.suse.cz>
+From: zijun_hu <zijun_hu@zoho.com>
+Message-ID: <57FDE42C.8040808@zoho.com>
+Date: Wed, 12 Oct 2016 15:20:12 +0800
 MIME-Version: 1.0
-In-Reply-To: <1476250416-22733-5-git-send-email-minchan@kernel.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <20161012065332.GA9504@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sangseok Lee <sangseok.lee@lge.com>, Michal Hocko <mhocko@suse.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com, tj@kernel.org, akpm@linux-foundation.org, cl@linux.com
 
-On 10/12/2016 07:33 AM, Minchan Kim wrote:
-> Currently, unreserve_highatomic_pageblock bails out if it found
-> highatomic pageblock regardless of really moving free pages
-> from the one so that it could mitigate unreserve logic's goal
-> which saves OOM of a process.
->
-> This patch makes unreserve functions bail out only if it moves
-> some pages out of !highatomic free list to avoid such false
-> positive.
->
-> Another potential problem is that by race between page freeing and
-> reserve highatomic function, pages could be in highatomic free list
-> even though the pageblock is !high atomic migratetype. In that case,
-> unreserve_highatomic_pageblock can be void if count of highatomic
-> reserve is less than pageblock_nr_pages. We could solve it simply
-> via draining all of reserved pages before the OOM. It would have
-> a safeguard role to exhuast reserved pages before converging to OOM.
->
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+On 10/12/2016 02:53 PM, Michal Hocko wrote:
+> On Wed 12-10-16 08:28:17, zijun_hu wrote:
+>> On 2016/10/12 1:22, Michal Hocko wrote:
+>>> On Tue 11-10-16 21:24:50, zijun_hu wrote:
+>>>> From: zijun_hu <zijun_hu@htc.com>
+>>>>
+>>>> the LSB of a chunk->map element is used for free/in-use flag of a area
+>>>> and the other bits for offset, the sufficient and necessary condition of
+>>>> this usage is that both size and alignment of a area must be even numbers
+>>>> however, pcpu_alloc() doesn't force its @align parameter a even number
+>>>> explicitly, so a odd @align maybe causes a series of errors, see below
+>>>> example for concrete descriptions.
+>>>
+>>> Is or was there any user who would use a different than even (or power of 2)
+>>> alighment? If not is this really worth handling?
+>>>
+>>
+>> it seems only a power of 2 alignment except 1 can make sure it work very well,
+>> that is a strict limit, maybe this more strict limit should be checked
+> 
+> I fail to see how any other alignment would actually make any sense
+> what so ever. Look, I am not a maintainer of this code but adding a new
+> code to catch something that doesn't make any sense sounds dubious at
+> best to me.
+> 
+> I could understand this patch if you see a problem and want to prevent
+> it from repeating bug doing these kind of changes just in case sounds
+> like a bad idea.
+> 
+thanks for your reply
 
-Ah, I think that the first S-o-b has to match "From:" to be valid chain (also 
-for 3/4).
+should we have a generic discussion whether such patches which considers
+many boundary or rare conditions are necessary.
 
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
+should we make below declarations as conventions
+1) when we say 'alignment', it means align to a power of 2 value
+   for example, aligning value @v to @b implicit @v is power of 2
+   , align 10 to 4 is 12
+2) when we say 'round value @v up/down to boundary @b', it means the 
+   result is a times of @b,  it don't requires @b is a power of 2
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-> ---
->  mm/page_alloc.c | 24 +++++++++++++++++-------
->  1 file changed, 17 insertions(+), 7 deletions(-)
->
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index a7472426663f..565589eae6a2 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2079,8 +2079,12 @@ static void reserve_highatomic_pageblock(struct page *page, struct zone *zone,
->   * potentially hurts the reliability of high-order allocations when under
->   * intense memory pressure but failed atomic allocations should be easier
->   * to recover from than an OOM.
-> + *
-> + * If @drain is true, try to move all of reserved pages out of highatomic
-> + * free list.
->   */
-> -static bool unreserve_highatomic_pageblock(const struct alloc_context *ac)
-> +static bool unreserve_highatomic_pageblock(const struct alloc_context *ac,
-> +						bool drain)
->  {
->  	struct zonelist *zonelist = ac->zonelist;
->  	unsigned long flags;
-> @@ -2092,8 +2096,12 @@ static bool unreserve_highatomic_pageblock(const struct alloc_context *ac)
->
->  	for_each_zone_zonelist_nodemask(zone, z, zonelist, ac->high_zoneidx,
->  								ac->nodemask) {
-> -		/* Preserve at least one pageblock */
-> -		if (zone->nr_reserved_highatomic <= pageblock_nr_pages)
-> +		/*
-> +		 * Preserve at least one pageblock unless memory pressure
-> +		 * is really high.
-> +		 */
-> +		if (!drain && zone->nr_reserved_highatomic <=
-> +					pageblock_nr_pages)
->  			continue;
->
->  		spin_lock_irqsave(&zone->lock, flags);
-> @@ -2138,8 +2146,10 @@ static bool unreserve_highatomic_pageblock(const struct alloc_context *ac)
->  			 */
->  			set_pageblock_migratetype(page, ac->migratetype);
->  			ret = move_freepages_block(zone, page, ac->migratetype);
-> -			spin_unlock_irqrestore(&zone->lock, flags);
-> -			return ret;
-> +			if (!drain && ret) {
-> +				spin_unlock_irqrestore(&zone->lock, flags);
-> +				return ret;
-> +			}
->  		}
->  		spin_unlock_irqrestore(&zone->lock, flags);
->  	}
-> @@ -3343,7 +3353,7 @@ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
->  	 * Shrink them them and try again
->  	 */
->  	if (!page && !drained) {
-> -		unreserve_highatomic_pageblock(ac);
-> +		unreserve_highatomic_pageblock(ac, false);
->  		drain_all_pages(NULL);
->  		drained = true;
->  		goto retry;
-> @@ -3462,7 +3472,7 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
->  	 */
->  	if (*no_progress_loops > MAX_RECLAIM_RETRIES) {
->  		/* Before OOM, exhaust highatomic_reserve */
-> -		if (unreserve_highatomic_pageblock(ac))
-> +		if (unreserve_highatomic_pageblock(ac, true))
->  			return true;
->  		return false;
->  	}
->
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
