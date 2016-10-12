@@ -1,76 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EE096B025E
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 10:52:34 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id f134so7397485lfg.6
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 07:52:34 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d80si4996854lfg.375.2016.10.12.07.52.32
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F3D776B0261
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 11:07:17 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id m5so37032132qtb.3
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 08:07:17 -0700 (PDT)
+Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
+        by mx.google.com with ESMTPS id q2si4069191qkh.81.2016.10.12.08.07.17
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 12 Oct 2016 07:52:33 -0700 (PDT)
-Date: Wed, 12 Oct 2016 16:52:30 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm: remove extra newline from allocation stall warning
-Message-ID: <20161012145230.GO17128@dhcp22.suse.cz>
-References: <1476026219-7974-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20161010072123.GA20420@dhcp22.suse.cz>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 12 Oct 2016 08:07:17 -0700 (PDT)
+Subject: Re: [RFC PATCH 1/1] mm/vmalloc.c: correct logic errors when insert
+ vmap_area
+References: <c2bd0f5d-8d2a-4cba-2663-5c075cd252f2@zoho.com>
+ <20161012144610.GN17128@dhcp22.suse.cz>
+From: zijun_hu <zijun_hu@zoho.com>
+Message-ID: <b49e001a-e3f0-e548-9c55-c000b8ff30b6@zoho.com>
+Date: Wed, 12 Oct 2016 23:06:52 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161010072123.GA20420@dhcp22.suse.cz>
+In-Reply-To: <20161012144610.GN17128@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: zijun_hu@htc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, rientjes@google.com, tj@kernel.org, sfr@canb.auug.org.au, mingo@kernel.org, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, hannes@cmpxchg.org, chris@chris-wilson.co.uk, vdavydov.dev@gmail.com, Nicholas Piggin <npiggin@gmail.com>
 
-Let's CC Andrew -
-http://lkml.kernel.org/r/1476026219-7974-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp
+On 2016/10/12 22:46, Michal Hocko wrote:
+> [Let's CC Nick who has written this code]
+> 
+> On Wed 12-10-16 22:30:13, zijun_hu wrote:
+>> From: zijun_hu <zijun_hu@htc.com>
+>>
+>> the KVA allocator organizes vmap_areas allocated by rbtree. in order to
+>> insert a new vmap_area @i_va into the rbtree, walk around the rbtree from
+>> root and compare the vmap_area @t_va met on the rbtree against @i_va; walk
+>> toward the left branch of @t_va if @i_va is lower than @t_va, and right
+>> branch if higher, otherwise handle this error case since @i_va has overlay
+>> with @t_va; however, __insert_vmap_area() don't follow the desired
+>> procedure rightly, moreover, it includes a meaningless else if condition
+>> and a redundant else branch as shown by comments in below code segments:
+>> static void __insert_vmap_area(struct vmap_area *va)
+>> {
+>> as a internal interface parameter, we assume vmap_area @va has nonzero size
+>> ...
+>> 			if (va->va_start < tmp->va_end)
+>> 					p = &(*p)->rb_left;
+>> 			else if (va->va_end > tmp->va_start)
+>> 					p = &(*p)->rb_right;
+>> this else if condition is always true and meaningless due to
+>> va->va_end > va->va_start >= tmp_va->va_end > tmp_va->va_start normally
+>> 			else
+>> 					BUG();
+>> this BUG() is meaningless too due to never be reached normally
+>> ...
+>> }
+>>
+>> it looks like the else if condition and else branch are canceled. no errors
+>> are caused since the vmap_area @va to insert as a internal interface
+>> parameter doesn't have overlay with any one on the rbtree normally. however
+>>  __insert_vmap_area() looks weird and really has several logic errors as
+>> pointed out above when it is viewed as a separate function.
+> 
+> I have tried to read this several times but I am completely lost to
+> understand what the actual bug is and how it causes vmap_area sorting to
+> misbehave. So is this a correctness issue, performance improvement or
+> theoretical fix for an incorrect input?
+> 
 
-On Mon 10-10-16 09:21:23, Michal Hocko wrote:
-> On Mon 10-10-16 00:16:59, Tetsuo Handa wrote:
-> > Commit 63f53dea0c9866e9 ("mm: warn about allocations which stall for
-> > too long") by error embedded "\n" in the format string, resulting in
-> > strange output.
-> > 
-> > [  722.876655] kworker/0:1: page alloction stalls for 160001ms, order:0
-> > [  722.876656] , mode:0x2400000(GFP_NOIO)
-> > [  722.876657] CPU: 0 PID: 6966 Comm: kworker/0:1 Not tainted 4.8.0+ #69
-> 
-> Ups, thanks for catching that.
-> 
-> > Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> 
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> 
-> > ---
-> >  mm/page_alloc.c | 2 +-
-> >  1 file changed, 1 insertion(+), 1 deletion(-)
-> > 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index ca423cc..828ee76 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -3653,7 +3653,7 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
-> >  	/* Make sure we know about allocations which stall for too long */
-> >  	if (time_after(jiffies, alloc_start + stall_timeout)) {
-> >  		warn_alloc(gfp_mask,
-> > -			"page alloction stalls for %ums, order:%u\n",
-> > +			"page alloction stalls for %ums, order:%u",
-> >  			jiffies_to_msecs(jiffies-alloc_start), order);
-> >  		stall_timeout += 10 * HZ;
-> >  	}
-> > -- 
-> > 1.8.3.1
-> > 
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
+there are several logic errors for this function in current code:
 
--- 
-Michal Hocko
-SUSE Labs
+current code is :
+
+static void __insert_vmap_area(struct vmap_area *va)
+{
+...
+
+		if (va->va_start < tmp->va_end)
+			p = &(*p)->rb_left;
+		else if (va->va_end > tmp->va_start)
+			p = &(*p)->rb_right;
+		else
+			BUG();
+...
+}
+
+the current code is equivalent with the following code
+
+static void __insert_vmap_area(struct vmap_area *va)
+{
+...
+		if (va->va_start < tmp->va_end)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+...
+}
+
+as shown above, for current code :
+this else if (va->va_end > tmp->va_start) is meaningless since it is always true
+the else branch BUG(); is meaningless too since it never be reached
+it seems there are logic error in the function
+
+the code we expect should be as follows:
+
+static void __insert_vmap_area(struct vmap_area *va)
+{
+...
+		if (va->va_end <= tmp_va->va_start)
+			p = &(*p)->rb_left;
+		else if (va->va_start >= tmp_va->va_end)
+			p = &(*p)->rb_right;
+  		else
+  			BUG();
+...
+}
+
+>> fix by walking around vmap_area rbtree as described above to insert
+>> a vmap_area.
+>>
+>> BTW, (va->va_end == tmp_va->va_start) is consider as legal case since it
+>> indicates vmap_area @va left neighbors with @tmp_va tightly.
+>>
+>> Fixes: db64fe02258f ("mm: rewrite vmap layer")
+>> Signed-off-by: zijun_hu <zijun_hu@htc.com>
+>> ---
+>>  mm/vmalloc.c | 8 ++++----
+>>  1 file changed, 4 insertions(+), 4 deletions(-)
+>>
+>> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+>> index 5daf3211b84f..8b80931654b7 100644
+>> --- a/mm/vmalloc.c
+>> +++ b/mm/vmalloc.c
+>> @@ -321,10 +321,10 @@ static void __insert_vmap_area(struct vmap_area *va)
+>>  
+>>  		parent = *p;
+>>  		tmp_va = rb_entry(parent, struct vmap_area, rb_node);
+>> -		if (va->va_start < tmp_va->va_end)
+>> -			p = &(*p)->rb_left;
+>> -		else if (va->va_end > tmp_va->va_start)
+>> -			p = &(*p)->rb_right;
+>> +		if (va->va_end <= tmp_va->va_start)
+>> +			p = &parent->rb_left;
+>> +		else if (va->va_start >= tmp_va->va_end)
+>> +			p = &parent->rb_right;
+>>  		else
+>>  			BUG();
+>>  	}
+>> -- 
+>> 1.9.1
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
