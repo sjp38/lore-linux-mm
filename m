@@ -1,54 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A45F6B0069
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 04:43:44 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id c78so5468260wme.1
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 01:43:44 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 125si1638688wmg.78.2016.10.12.01.43.43
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 03F8F6B0069
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 04:45:23 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id m5so31858364qtb.3
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 01:45:23 -0700 (PDT)
+Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
+        by mx.google.com with ESMTPS id n66si3334083qka.157.2016.10.12.01.45.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 12 Oct 2016 01:43:43 -0700 (PDT)
-Date: Wed, 12 Oct 2016 10:43:42 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: OOM in v4.8
-Message-ID: <20161012084342.GF17128@dhcp22.suse.cz>
-References: <20161012065423.GA16092@aaronlu.sh.intel.com>
- <20161012074411.GA9523@dhcp22.suse.cz>
- <20161012080022.GA17128@dhcp22.suse.cz>
- <24ea68df-8b6c-5319-a8ef-9c4f237cfc2a@intel.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 12 Oct 2016 01:45:22 -0700 (PDT)
+Subject: Re: [RFC PATCH 1/1] mm/percpu.c: fix memory leakage issue when
+ allocate a odd alignment area
+References: <bc3126cd-226d-91c7-d323-48881095accf@zoho.com>
+ <20161011172228.GA30403@dhcp22.suse.cz>
+ <7649b844-cfe6-abce-148e-1e2236e7d443@zoho.com>
+ <20161012065332.GA9504@dhcp22.suse.cz> <57FDE531.7060003@zoho.com>
+ <20161012082538.GC17128@dhcp22.suse.cz>
+From: zijun_hu <zijun_hu@zoho.com>
+Message-ID: <57FDF7EF.6070606@zoho.com>
+Date: Wed, 12 Oct 2016 16:44:31 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <24ea68df-8b6c-5319-a8ef-9c4f237cfc2a@intel.com>
+In-Reply-To: <20161012082538.GC17128@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>
-Cc: Linux MM <linux-mm@kvack.org>, lkp@01.org, Huang Ying <ying.huang@intel.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com, tj@kernel.org, akpm@linux-foundation.org, cl@linux.com
 
-On Wed 12-10-16 16:24:47, Aaron Lu wrote:
-> On 10/12/2016 04:00 PM, Michal Hocko wrote:
-[...]
-> > which is an atomic high order request that failed which is not all that
-> > unexpected when the system is low on memory. The allocation failure
-> > report is hard to read because of unexpected end-of-lines but I suspect
+On 10/12/2016 04:25 PM, Michal Hocko wrote:
+> On Wed 12-10-16 15:24:33, zijun_hu wrote:
+>> On 10/12/2016 02:53 PM, Michal Hocko wrote:
+>>> On Wed 12-10-16 08:28:17, zijun_hu wrote:
+>>>> On 2016/10/12 1:22, Michal Hocko wrote:
+>>>>> On Tue 11-10-16 21:24:50, zijun_hu wrote:
+>>>>>> From: zijun_hu <zijun_hu@htc.com>
+>>>>>>
+>> should we have a generic discussion whether such patches which considers
+>> many boundary or rare conditions are necessary.
 > 
-> Sorry about that, I'll try to find out why dmesg is saved so ugly on
-> that test box.
+> In general, I believe that kernel internal interfaces which have no
+> userspace exposure shouldn't be cluttered with sanity checks.
+> 
 
-Not your fault. This seems to be 4bcc595ccd80 ("printk: reinstate
-KERN_CONT for printing continuation lines")
+you are right and i agree with you. but there are many internal interfaces
+perform sanity checks in current linux sources
 
-> > that again we are not able to allocate because of the CMA standing in
-> > the way. I wouldn't call the above failure critical though.
->  
-> I'll test that commit and v4.8 again with cma=0 added to cmdline.
+>> i found the following code segments in mm/vmalloc.c
+>> static struct vmap_area *alloc_vmap_area(unsigned long size,
+>>                                 unsigned long align,
+>>                                 unsigned long vstart, unsigned long vend,
+>>                                 int node, gfp_t gfp_mask)
+>> {
+>> ...
+>>
+>>         BUG_ON(!size);
+>>         BUG_ON(offset_in_page(size));
+>>         BUG_ON(!is_power_of_2(align));
+> 
+> See a recent Linus rant about BUG_ONs. These BUG_ONs are quite old and
+> from a quick look they are even unnecessary. So rather than adding more
+> of those, I think removing those that are not needed is much more
+> preferred.
+>
+i notice that, and the above code segments is used to illustrate that
+input parameter checking is necessary sometimes
 
-Thanks!
+>> should we make below declarations as conventions
+>> 1) when we say 'alignment', it means align to a power of 2 value
+>>    for example, aligning value @v to @b implicit @v is power of 2
+>>    , align 10 to 4 is 12
+> 
+> alignment other than power-of-two makes only very limited sense to me.
+> 
+you are right and i agree with you.
+>> 2) when we say 'round value @v up/down to boundary @b', it means the 
+>>    result is a times of @b,  it don't requires @b is a power of 2
+> 
 
--- 
-Michal Hocko
-SUSE Labs
+i will write to linus to ask for opinions whether we should declare 
+the meaning of 'align' and 'round up/down' formally and whether such
+patches are necessary
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
