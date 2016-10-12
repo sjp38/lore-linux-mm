@@ -1,64 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C9A26B025E
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 05:59:34 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id f6so32838063qtd.4
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 02:59:34 -0700 (PDT)
-Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
-        by mx.google.com with ESMTPS id g96si3426618qkh.331.2016.10.12.02.59.33
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 12 Oct 2016 02:59:33 -0700 (PDT)
-Subject: Re: [RFC PATCH 1/1] mm/percpu.c: fix memory leakage issue when
- allocate a odd alignment area
-References: <bc3126cd-226d-91c7-d323-48881095accf@zoho.com>
- <20161011172228.GA30403@dhcp22.suse.cz>
- <7649b844-cfe6-abce-148e-1e2236e7d443@zoho.com>
- <20161012065332.GA9504@dhcp22.suse.cz> <57FDE531.7060003@zoho.com>
- <20161012082538.GC17128@dhcp22.suse.cz> <57FDF7EF.6070606@zoho.com>
- <20161012095439.GI17128@dhcp22.suse.cz>
-From: zijun_hu <zijun_hu@zoho.com>
-Message-ID: <57FE0969.8080002@zoho.com>
-Date: Wed, 12 Oct 2016 17:59:05 +0800
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EEAE86B0261
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 06:16:51 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id t25so38183657pfg.3
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 03:16:51 -0700 (PDT)
+Received: from out0-153.mail.aliyun.com (out0-153.mail.aliyun.com. [140.205.0.153])
+        by mx.google.com with ESMTP id a13si7152258pag.258.2016.10.12.03.16.50
+        for <linux-mm@kvack.org>;
+        Wed, 12 Oct 2016 03:16:51 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <1476266223-14325-1-git-send-email-catalin.marinas@arm.com>
+In-Reply-To: <1476266223-14325-1-git-send-email-catalin.marinas@arm.com>
+Subject: Re: [PATCH] mm: kmemleak: Ensure that the task stack is not freed during scanning
+Date: Wed, 12 Oct 2016 18:16:46 +0800
+Message-ID: <00ca01d22471$bcef4ef0$36cdecd0$@alibaba-inc.com>
 MIME-Version: 1.0
-In-Reply-To: <20161012095439.GI17128@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
+Content-Type: text/plain;
+	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com, tj@kernel.org, akpm@linux-foundation.org, cl@linux.com
+To: 'Catalin Marinas' <catalin.marinas@arm.com>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, 'Andrew Morton' <akpm@linux-foundation.org>, 'Andy Lutomirski' <luto@kernel.org>, 'CAI Qian' <caiqian@redhat.com>
 
-On 10/12/2016 05:54 PM, Michal Hocko wrote:
-> On Wed 12-10-16 16:44:31, zijun_hu wrote:
->> On 10/12/2016 04:25 PM, Michal Hocko wrote:
->>> On Wed 12-10-16 15:24:33, zijun_hu wrote:
-> [...]
->>>> i found the following code segments in mm/vmalloc.c
->>>> static struct vmap_area *alloc_vmap_area(unsigned long size,
->>>>                                 unsigned long align,
->>>>                                 unsigned long vstart, unsigned long vend,
->>>>                                 int node, gfp_t gfp_mask)
->>>> {
->>>> ...
->>>>
->>>>         BUG_ON(!size);
->>>>         BUG_ON(offset_in_page(size));
->>>>         BUG_ON(!is_power_of_2(align));
->>>
->>> See a recent Linus rant about BUG_ONs. These BUG_ONs are quite old and
->>> from a quick look they are even unnecessary. So rather than adding more
->>> of those, I think removing those that are not needed is much more
->>> preferred.
->>>
->> i notice that, and the above code segments is used to illustrate that
->> input parameter checking is necessary sometimes
+> @@ -1453,8 +1453,11 @@ static void kmemleak_scan(void)
 > 
-> Why do you think it is necessary here?
+>  		read_lock(&tasklist_lock);
+>  		do_each_thread(g, p) {
+
+Take a look at this commit please.
+	1da4db0cd5 ("oom_kill: change oom_kill.c to use for_each_thread()")
+
+> -			scan_block(task_stack_page(p), task_stack_page(p) +
+> -				   THREAD_SIZE, NULL);
+> +			void *stack = try_get_task_stack(p);
+> +			if (stack) {
+> +				scan_block(stack, stack + THREAD_SIZE, NULL);
+> +				put_task_stack(p);
+> +			}
+>  		} while_each_thread(g, p);
+>  		read_unlock(&tasklist_lock);
+>  	}
 > 
-i am sorry for reply late
-i don't know whether it is necessary
-i just find there are so many sanity checkup in current internal interfaces
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
