@@ -1,67 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 570C66B0069
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 05:57:11 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id hm5so38895063pac.4
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 02:57:11 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id d62si5065026pga.215.2016.10.12.02.57.10
-        for <linux-mm@kvack.org>;
-        Wed, 12 Oct 2016 02:57:10 -0700 (PDT)
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: [PATCH] mm: kmemleak: Ensure that the task stack is not freed during scanning
-Date: Wed, 12 Oct 2016 10:57:03 +0100
-Message-Id: <1476266223-14325-1-git-send-email-catalin.marinas@arm.com>
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E28D66B025E
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 05:57:37 -0400 (EDT)
+Received: by mail-it0-f72.google.com with SMTP id q75so65775572itc.6
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 02:57:37 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0021.hostedemail.com. [216.40.44.21])
+        by mx.google.com with ESMTPS id n62si5163682itb.93.2016.10.12.02.57.37
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Oct 2016 02:57:37 -0700 (PDT)
+Message-ID: <1476266250.16823.3.camel@perches.com>
+Subject: Re: [PATCH] mm: page_alloc: Use KERN_CONT where appropriate
+From: Joe Perches <joe@perches.com>
+Date: Wed, 12 Oct 2016 02:57:30 -0700
+In-Reply-To: <20161012091013.GB9523@dhcp22.suse.cz>
+References: 
+	<c7df37c8665134654a17aaeb8b9f6ace1d6db58b.1476239034.git.joe@perches.com>
+	 <20161012091013.GB9523@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, CAI Qian <caiqian@redhat.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: inux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 
-Commit 68f24b08ee89 ("sched/core: Free the stack early if
-CONFIG_THREAD_INFO_IN_TASK") may cause the task->stack to be freed
-during kmemleak_scan() execution, leading to either a NULL pointer
-fault (if task->stack is NULL) or kmemleak accessing already freed
-memory. This patch uses the new try_get_task_stack() API to ensure that
-the task stack is not freed during kmemleak stack scanning.
+On Wed, 2016-10-12 at 11:10 +0200, Michal Hocko wrote:
+> On Tue 11-10-16 19:24:55, Joe Perches wrote:
+> > Recent changes to printk require KERN_CONT uses to continue logging
+> > messages.  So add KERN_CONT where necessary.
+> 
+> 
+> I was really wondering what happened when Aaron reported an allocation
+> failure http://lkml.kernel.org/r/20161012065423.GA16092@aaronlu.sh.intel.com
+> See the attached log got the current Linus' tree
+> 
+> Fixes: 4bcc595ccd80 ("printk: reinstate KERN_CONT for printing continuation lines")
+> > Signed-off-by: Joe Perches <joe@perches.com>
+> 
+> 
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> 
+> I believe we can simplify the code a bit as well. What do you think
+> about the following on top?
 
-Fixes: 68f24b08ee89 ("sched/core: Free the stack early if CONFIG_THREAD_INFO_IN_TASK")
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: CAI Qian <caiqian@redhat.com>
-Reported-by: CAI Qian <caiqian@redhat.com>
-Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
----
+Hi Michal
 
-This was reported in a subsequent comment here:
+I think the show_node to show_zone_node renaming is superfluous,
+but if it makes you happy, it doesn't bother me.
 
-https://bugzilla.kernel.org/show_bug.cgi?id=173901
+This recent change to printk logging making KERN_CONT necessary to
+continue a line might be reverted when it's better known just how
+many instances in the kernel tree will need to be changed.
 
-However, the original bugzilla entry doesn't look related to task stack
-freeing as it was first reported on 4.8-rc8. Andy, sorry for cc'ing you
-to bugzilla, please feel free to remove your email from the bug above (I
-can't seem to be able to do it).
+For now, I'd rather keep the KERN_CONT "\n" and trailing "\n" as
+there are _very_ few missing newlines in logging messages today
+and removing them now might be a bit early process-wise.
 
- mm/kmemleak.c | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+Dunno.
 
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index a5e453cf05c4..e5355a5b423f 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -1453,8 +1453,11 @@ static void kmemleak_scan(void)
- 
- 		read_lock(&tasklist_lock);
- 		do_each_thread(g, p) {
--			scan_block(task_stack_page(p), task_stack_page(p) +
--				   THREAD_SIZE, NULL);
-+			void *stack = try_get_task_stack(p);
-+			if (stack) {
-+				scan_block(stack, stack + THREAD_SIZE, NULL);
-+				put_task_stack(p);
-+			}
- 		} while_each_thread(g, p);
- 		read_unlock(&tasklist_lock);
- 	}
+> --- 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 6f8c356140a0..7e1b74ee79cb 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -4078,10 +4078,12 @@ unsigned long nr_free_pagecache_pages(void)
+>  	return nr_free_zone_pages(gfp_zone(GFP_HIGHUSER_MOVABLE));
+>  }
+>  
+> -static inline void show_node(struct zone *zone)
+> +static inline void show_zone_node(struct zone *zone)
+>  {
+>  	if (IS_ENABLED(CONFIG_NUMA))
+> -		printk("Node %d ", zone_to_nid(zone));
+> +		printk("Node %d %s", zone_to_nid(zone), zone->name);
+> +	else
+> +		printk("%s: ", zone->name);
+>  }
+>  
+>  long si_mem_available(void)
+> @@ -4329,9 +4331,8 @@ void show_free_areas(unsigned int filter)
+>  		for_each_online_cpu(cpu)
+>  			free_pcp += per_cpu_ptr(zone->pageset, cpu)->pcp.count;
+>  
+> -		show_node(zone);
+> +		show_zone_node(zone);
+>  		printk(KERN_CONT
+> -		        "%s"
+>  			" free:%lukB"
+>  			" min:%lukB"
+>  			" low:%lukB"
+> @@ -4354,7 +4355,6 @@ void show_free_areas(unsigned int filter)
+>  			" local_pcp:%ukB"
+>  			" free_cma:%lukB"
+>  			"\n",
+> -			zone->name,
+>  			K(zone_page_state(zone, NR_FREE_PAGES)),
+>  			K(min_wmark_pages(zone)),
+>  			K(low_wmark_pages(zone)),
+> @@ -4379,7 +4379,6 @@ void show_free_areas(unsigned int filter)
+>  		printk("lowmem_reserve[]:");
+>  		for (i = 0; i < MAX_NR_ZONES; i++)
+>  			printk(KERN_CONT " %ld", zone->lowmem_reserve[i]);
+> -		printk(KERN_CONT "\n");
+>  	}
+>  
+>  	for_each_populated_zone(zone) {
+> @@ -4389,8 +4388,7 @@ void show_free_areas(unsigned int filter)
+>  
+>  		if (skip_free_areas_node(filter, zone_to_nid(zone)))
+>  			continue;
+> -		show_node(zone);
+> -		printk(KERN_CONT "%s: ", zone->name);
+> +		show_zone_node(zone);
+>  
+>  		spin_lock_irqsave(&zone->lock, flags);
+>  		for (order = 0; order < MAX_ORDER; order++) {
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
