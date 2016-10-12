@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B3FA06B025E
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 04:03:58 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id r16so35582710pfg.4
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 01:03:58 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DD4BD6B0261
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 04:03:59 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id j69so35066561pfc.7
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 01:03:59 -0700 (PDT)
 Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id qj2si6720686pac.7.2016.10.12.01.03.57
+        by mx.google.com with ESMTP id ti10si6693328pab.186.2016.10.12.01.03.58
         for <linux-mm@kvack.org>;
-        Wed, 12 Oct 2016 01:03:58 -0700 (PDT)
+        Wed, 12 Oct 2016 01:03:59 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH v3 1/4] mm: don't steal highatomic pageblock
-Date: Wed, 12 Oct 2016 17:03:46 +0900
-Message-Id: <1476259429-18279-2-git-send-email-minchan@kernel.org>
+Subject: [PATCH v3 2/4] mm: prevent double decrease of nr_reserved_highatomic
+Date: Wed, 12 Oct 2016 17:03:47 +0900
+Message-Id: <1476259429-18279-3-git-send-email-minchan@kernel.org>
 In-Reply-To: <1476259429-18279-1-git-send-email-minchan@kernel.org>
 References: <1476259429-18279-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -19,50 +19,73 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sangseok Lee <sangseok.lee@lge.com>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>
 
-In page freeing path, migratetype is racy so that a highorderatomic
-page could free into non-highorderatomic free list. If that page
-is allocated, VM can change the pageblock from higorderatomic to
-something. In that case, highatomic pageblock accounting is broken
-so it doesn't work(e.g., VM cannot reserve highorderatomic pageblocks
-any more although it doesn't reach 1% limit).
+There is race between page freeing and unreserved highatomic.
 
-So, this patch prohibits the changing from highatomic to other type.
-It's no problem because MIGRATE_HIGHATOMIC is not listed in fallback
-array so stealing will only happen due to unexpected races which is
-really rare. Also, such prohibiting keeps highatomic pageblock more
-longer so it would be better for highorderatomic page allocation.
+ CPU 0				    CPU 1
+
+    free_hot_cold_page
+      mt = get_pfnblock_migratetype
+      set_pcppage_migratetype(page, mt)
+    				    unreserve_highatomic_pageblock
+    				    spin_lock_irqsave(&zone->lock)
+    				    move_freepages_block
+    				    set_pageblock_migratetype(page)
+    				    spin_unlock_irqrestore(&zone->lock)
+      free_pcppages_bulk
+        __free_one_page(mt) <- mt is stale
+
+By above race, a page on CPU 0 could go non-highorderatomic free list
+since the pageblock's type is changed. By that, unreserve logic of
+highorderatomic can decrease reserved count on a same pageblock
+severak times and then it will make mismatch between
+nr_reserved_highatomic and the number of reserved pageblock.
+
+So, this patch verifies whether the pageblock is highatomic or not
+and decrease the count only if the pageblock is highatomic.
 
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 Acked-by: Vlastimil Babka <vbabka@suse.cz>
 Acked-by: Mel Gorman <mgorman@techsingularity.net>
 ---
- mm/page_alloc.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ mm/page_alloc.c | 24 ++++++++++++++++++------
+ 1 file changed, 18 insertions(+), 6 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 55ad0229ebf3..79853b258211 100644
+index 79853b258211..18808f392718 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -2154,7 +2154,8 @@ __rmqueue_fallback(struct zone *zone, unsigned int order, int start_migratetype)
+@@ -2106,13 +2106,25 @@ static void unreserve_highatomic_pageblock(const struct alloc_context *ac)
+ 				continue;
  
- 		page = list_first_entry(&area->free_list[fallback_mt],
- 						struct page, lru);
--		if (can_steal)
-+		if (can_steal &&
-+			get_pageblock_migratetype(page) != MIGRATE_HIGHATOMIC)
- 			steal_suitable_fallback(zone, page, start_migratetype);
+ 			/*
+-			 * It should never happen but changes to locking could
+-			 * inadvertently allow a per-cpu drain to add pages
+-			 * to MIGRATE_HIGHATOMIC while unreserving so be safe
+-			 * and watch for underflows.
++			 * In page freeing path, migratetype change is racy so
++			 * we can counter several free pages in a pageblock
++			 * in this loop althoug we changed the pageblock type
++			 * from highatomic to ac->migratetype. So we should
++			 * adjust the count once.
+ 			 */
+-			zone->nr_reserved_highatomic -= min(pageblock_nr_pages,
+-				zone->nr_reserved_highatomic);
++			if (get_pageblock_migratetype(page) ==
++							MIGRATE_HIGHATOMIC) {
++				/*
++				 * It should never happen but changes to
++				 * locking could inadvertently allow a per-cpu
++				 * drain to add pages to MIGRATE_HIGHATOMIC
++				 * while unreserving so be safe and watch for
++				 * underflows.
++				 */
++				zone->nr_reserved_highatomic -= min(
++						pageblock_nr_pages,
++						zone->nr_reserved_highatomic);
++			}
  
- 		/* Remove the page from the freelists */
-@@ -2555,7 +2556,8 @@ int __isolate_free_page(struct page *page, unsigned int order)
- 		struct page *endpage = page + (1 << order) - 1;
- 		for (; page < endpage; page += pageblock_nr_pages) {
- 			int mt = get_pageblock_migratetype(page);
--			if (!is_migrate_isolate(mt) && !is_migrate_cma(mt))
-+			if (!is_migrate_isolate(mt) && !is_migrate_cma(mt)
-+				&& mt != MIGRATE_HIGHATOMIC)
- 				set_pageblock_migratetype(page,
- 							  MIGRATE_MOVABLE);
- 		}
+ 			/*
+ 			 * Convert to ac->migratetype and avoid the normal
 -- 
 2.7.4
 
