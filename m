@@ -1,53 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B4186B0069
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 05:43:41 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id c78so6391716wme.1
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 02:43:41 -0700 (PDT)
-Received: from mail-wm0-f47.google.com (mail-wm0-f47.google.com. [74.125.82.47])
-        by mx.google.com with ESMTPS id cw8si3406628wjb.50.2016.10.12.02.43.40
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B5FA6B0069
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 05:54:44 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id j37so44051755ioo.2
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 02:54:44 -0700 (PDT)
+Received: from mail-pa0-f68.google.com (mail-pa0-f68.google.com. [209.85.220.68])
+        by mx.google.com with ESMTPS id q4si5191185iof.3.2016.10.12.02.54.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Oct 2016 02:43:40 -0700 (PDT)
-Received: by mail-wm0-f47.google.com with SMTP id c78so21069982wme.1
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 02:43:40 -0700 (PDT)
-Date: Wed, 12 Oct 2016 11:43:38 +0200
+        Wed, 12 Oct 2016 02:54:43 -0700 (PDT)
+Received: by mail-pa0-f68.google.com with SMTP id fn2so2173784pad.1
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 02:54:43 -0700 (PDT)
+Date: Wed, 12 Oct 2016 11:54:39 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: MPOL_BIND on memory only nodes
-Message-ID: <20161012094337.GH17128@dhcp22.suse.cz>
-References: <57FE0184.6030008@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH 1/1] mm/percpu.c: fix memory leakage issue when
+ allocate a odd alignment area
+Message-ID: <20161012095439.GI17128@dhcp22.suse.cz>
+References: <bc3126cd-226d-91c7-d323-48881095accf@zoho.com>
+ <20161011172228.GA30403@dhcp22.suse.cz>
+ <7649b844-cfe6-abce-148e-1e2236e7d443@zoho.com>
+ <20161012065332.GA9504@dhcp22.suse.cz>
+ <57FDE531.7060003@zoho.com>
+ <20161012082538.GC17128@dhcp22.suse.cz>
+ <57FDF7EF.6070606@zoho.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <57FE0184.6030008@linux.vnet.ibm.com>
+In-Reply-To: <57FDF7EF.6070606@zoho.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>
+To: zijun_hu <zijun_hu@zoho.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com, tj@kernel.org, akpm@linux-foundation.org, cl@linux.com
 
-On Wed 12-10-16 14:55:24, Anshuman Khandual wrote:
-> Hi,
-> 
-> We have the following function policy_zonelist() which selects a zonelist
-> during various allocation paths. With this, general user space allocations
-> (IIUC might not have __GFP_THISNODE) fails while trying to get memory from
-> a memory only node without CPUs as the application runs some where else
-> and that node is not part of the nodemask.
+On Wed 12-10-16 16:44:31, zijun_hu wrote:
+> On 10/12/2016 04:25 PM, Michal Hocko wrote:
+> > On Wed 12-10-16 15:24:33, zijun_hu wrote:
+[...]
+> >> i found the following code segments in mm/vmalloc.c
+> >> static struct vmap_area *alloc_vmap_area(unsigned long size,
+> >>                                 unsigned long align,
+> >>                                 unsigned long vstart, unsigned long vend,
+> >>                                 int node, gfp_t gfp_mask)
+> >> {
+> >> ...
+> >>
+> >>         BUG_ON(!size);
+> >>         BUG_ON(offset_in_page(size));
+> >>         BUG_ON(!is_power_of_2(align));
+> > 
+> > See a recent Linus rant about BUG_ONs. These BUG_ONs are quite old and
+> > from a quick look they are even unnecessary. So rather than adding more
+> > of those, I think removing those that are not needed is much more
+> > preferred.
+> >
+> i notice that, and the above code segments is used to illustrate that
+> input parameter checking is necessary sometimes
 
-I am not sure I understand. So you have a task with MPOL_BIND without a
-cpu less node in the mask and you are wondering why the memory is not
-allocated from that node?
-
-> Why we insist on __GFP_THISNODE ?
-
-AFAIU __GFP_THISNODE just overrides the given node to the policy
-nodemask in case the current node is not part of that node mask. In
-other words we are ignoring the given node and use what the policy says. 
-I can see how this can be confusing especially when confronting the
-documentation:
-
- * __GFP_THISNODE forces the allocation to be satisified from the requested
- *   node with no fallbacks or placement policy enforcements.
+Why do you think it is necessary here?
 
 -- 
 Michal Hocko
