@@ -1,104 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D05C6B025E
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 04:25:41 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id f193so5199544wmg.2
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 01:25:41 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id ql1si9017517wjc.85.2016.10.12.01.25.40
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BFDCF6B0069
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 04:26:42 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id j69so35469618pfc.7
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 01:26:42 -0700 (PDT)
+Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
+        by mx.google.com with ESMTPS id 84si8121284pfr.154.2016.10.12.01.26.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Oct 2016 01:25:40 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id 123so1213737wmb.2
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 01:25:40 -0700 (PDT)
-Date: Wed, 12 Oct 2016 10:25:38 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 1/1] mm/percpu.c: fix memory leakage issue when
- allocate a odd alignment area
-Message-ID: <20161012082538.GC17128@dhcp22.suse.cz>
-References: <bc3126cd-226d-91c7-d323-48881095accf@zoho.com>
- <20161011172228.GA30403@dhcp22.suse.cz>
- <7649b844-cfe6-abce-148e-1e2236e7d443@zoho.com>
- <20161012065332.GA9504@dhcp22.suse.cz>
- <57FDE531.7060003@zoho.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <57FDE531.7060003@zoho.com>
+        Wed, 12 Oct 2016 01:26:42 -0700 (PDT)
+Received: by mail-pf0-x244.google.com with SMTP id s8so2241900pfj.2
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 01:26:42 -0700 (PDT)
+Date: Wed, 12 Oct 2016 10:26:34 +0200
+From: Vitaly Wool <vitalywool@gmail.com>
+Subject: Re: [PATCH v2] z3fold: add shrinker
+Message-Id: <20161012102634.f32cb17648eff6b2fd452aea@gmail.com>
+In-Reply-To: <20161011225206.GJ23194@dastard>
+References: <20161012001827.53ae55723e67d1dee2a2f839@gmail.com>
+	<20161011225206.GJ23194@dastard>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zijun_hu <zijun_hu@zoho.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com, tj@kernel.org, akpm@linux-foundation.org, cl@linux.com
+To: Dave Chinner <david@fromorbit.com>
+Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed 12-10-16 15:24:33, zijun_hu wrote:
-> On 10/12/2016 02:53 PM, Michal Hocko wrote:
-> > On Wed 12-10-16 08:28:17, zijun_hu wrote:
-> >> On 2016/10/12 1:22, Michal Hocko wrote:
-> >>> On Tue 11-10-16 21:24:50, zijun_hu wrote:
-> >>>> From: zijun_hu <zijun_hu@htc.com>
-> >>>>
-> >>>> the LSB of a chunk->map element is used for free/in-use flag of a area
-> >>>> and the other bits for offset, the sufficient and necessary condition of
-> >>>> this usage is that both size and alignment of a area must be even numbers
-> >>>> however, pcpu_alloc() doesn't force its @align parameter a even number
-> >>>> explicitly, so a odd @align maybe causes a series of errors, see below
-> >>>> example for concrete descriptions.
-> >>>
-> >>> Is or was there any user who would use a different than even (or power of 2)
-> >>> alighment? If not is this really worth handling?
-> >>>
-> >>
-> >> it seems only a power of 2 alignment except 1 can make sure it work very well,
-> >> that is a strict limit, maybe this more strict limit should be checked
-> > 
-> > I fail to see how any other alignment would actually make any sense
-> > what so ever. Look, I am not a maintainer of this code but adding a new
-> > code to catch something that doesn't make any sense sounds dubious at
-> > best to me.
-> > 
-> > I could understand this patch if you see a problem and want to prevent
-> > it from repeating bug doing these kind of changes just in case sounds
-> > like a bad idea.
-> > 
+On Wed, 12 Oct 2016 09:52:06 +1100
+Dave Chinner <david@fromorbit.com> wrote:
+
+<snip>
 > 
-> thanks for your reply
+> > +static unsigned long z3fold_shrink_scan(struct shrinker *shrink,
+> > +				struct shrink_control *sc)
+> > +{
+> > +	struct z3fold_pool *pool = container_of(shrink, struct z3fold_pool,
+> > +						shrinker);
+> > +	struct z3fold_header *zhdr;
+> > +	int i, nr_to_scan = sc->nr_to_scan;
+> > +
+> > +	spin_lock(&pool->lock);
 > 
-> should we have a generic discussion whether such patches which considers
-> many boundary or rare conditions are necessary.
-
-In general, I believe that kernel internal interfaces which have no
-userspace exposure shouldn't be cluttered with sanity checks.
-
-> i found the following code segments in mm/vmalloc.c
-> static struct vmap_area *alloc_vmap_area(unsigned long size,
->                                 unsigned long align,
->                                 unsigned long vstart, unsigned long vend,
->                                 int node, gfp_t gfp_mask)
-> {
-> ...
+> Do not do this. Shrinkers should not run entirely under a spin lock
+> like this - it causes scheduling latency problems and when the
+> shrinker is run concurrently on different CPUs it will simply burn
+> CPU doing no useful work. Especially, in this case, as each call to
+> z3fold_compact_page() may be copying a significant amount of data
+> around and so there is potentially a /lot/ of work being done on
+> each call to the shrinker.
 > 
->         BUG_ON(!size);
->         BUG_ON(offset_in_page(size));
->         BUG_ON(!is_power_of_2(align));
+> If you need compaction exclusion for the shrinker invocation, then
+> please use a sleeping lock to protect the compaction work.
 
-See a recent Linus rant about BUG_ONs. These BUG_ONs are quite old and
-from a quick look they are even unnecessary. So rather than adding more
-of those, I think removing those that are not needed is much more
-preferred.
- 
-> should we make below declarations as conventions
-> 1) when we say 'alignment', it means align to a power of 2 value
->    for example, aligning value @v to @b implicit @v is power of 2
->    , align 10 to 4 is 12
+Well, as far as I recall, spin_lock() will resolve to a sleeping lock
+for PREEMPT_RT, so it is not that much of a problem for configurations
+which do care much about latencies. Please also note that the time
+spent in the loop is deterministic since we take not more than one entry
+from every unbuddied list.
 
-alignment other than power-of-two makes only very limited sense to me.
+What I could do though is add the following piece of code at the end of
+the loop, right after the /break/:
+		spin_unlock(&pool->lock);
+		cond_resched();
+		spin_lock(&pool->lock);
 
-> 2) when we say 'round value @v up/down to boundary @b', it means the 
->    result is a times of @b,  it don't requires @b is a power of 2
+Would that make sense for you?
 
--- 
-Michal Hocko
-SUSE Labs
+> 
+> >  *****************/
+> > @@ -234,6 +335,13 @@ static struct z3fold_pool *z3fold_create_pool(gfp_t gfp,
+> >  		INIT_LIST_HEAD(&pool->unbuddied[i]);
+> >  	INIT_LIST_HEAD(&pool->buddied);
+> >  	INIT_LIST_HEAD(&pool->lru);
+> > +	pool->shrinker.count_objects = z3fold_shrink_count;
+> > +	pool->shrinker.scan_objects = z3fold_shrink_scan;
+> > +	pool->shrinker.seeks = DEFAULT_SEEKS;
+> > +	if (register_shrinker(&pool->shrinker)) {
+> > +		pr_warn("z3fold: could not register shrinker\n");
+> > +		pool->no_shrinker = true;
+> > +	} 
+> 
+> Just fail creation of the pool. If you can't register a shrinker,
+> then much bigger problems are about to happen to your system, and
+> running a new memory consumer that /can't be shrunk/ is not going to
+> help anyone.
+
+I don't have a strong opinion on this but it doesn't look fatal to me
+in _this_ particular case (z3fold) since even without the shrinker, the
+compression ratio will never be lower than the one of zbud, which
+doesn't have a shrinker at all.
+
+Best regards,
+   Vitaly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
