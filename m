@@ -1,97 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BFDCF6B0069
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 04:26:42 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id j69so35469618pfc.7
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 01:26:42 -0700 (PDT)
-Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
-        by mx.google.com with ESMTPS id 84si8121284pfr.154.2016.10.12.01.26.42
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CE5326B0069
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 04:34:53 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id b201so5310013wmb.3
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 01:34:53 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id q6si9016456wjy.190.2016.10.12.01.34.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Oct 2016 01:26:42 -0700 (PDT)
-Received: by mail-pf0-x244.google.com with SMTP id s8so2241900pfj.2
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 01:26:42 -0700 (PDT)
-Date: Wed, 12 Oct 2016 10:26:34 +0200
-From: Vitaly Wool <vitalywool@gmail.com>
-Subject: Re: [PATCH v2] z3fold: add shrinker
-Message-Id: <20161012102634.f32cb17648eff6b2fd452aea@gmail.com>
-In-Reply-To: <20161011225206.GJ23194@dastard>
-References: <20161012001827.53ae55723e67d1dee2a2f839@gmail.com>
-	<20161011225206.GJ23194@dastard>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 12 Oct 2016 01:34:52 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id b80so1243473wme.3
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 01:34:52 -0700 (PDT)
+Date: Wed, 12 Oct 2016 10:34:50 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3 3/4] mm: try to exhaust highatomic reserve before the
+ OOM
+Message-ID: <20161012083449.GD17128@dhcp22.suse.cz>
+References: <1476259429-18279-1-git-send-email-minchan@kernel.org>
+ <1476259429-18279-4-git-send-email-minchan@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1476259429-18279-4-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sangseok Lee <sangseok.lee@lge.com>
 
-On Wed, 12 Oct 2016 09:52:06 +1100
-Dave Chinner <david@fromorbit.com> wrote:
+Looks much better. Thanks! I am wondering whether we want to have this
+marked for stable. The patch is quite non-intrusive and fires only when
+we are really OOM. It is definitely better to try harder than go and
+disrupt the system by the OOM killer. So I would add
+Fixes: 0aaa29a56e4f ("mm, page_alloc: reserve pageblocks for high-order atomic allocations on demand")
+Cc: stable # 4.4+
 
-<snip>
-> 
-> > +static unsigned long z3fold_shrink_scan(struct shrinker *shrink,
-> > +				struct shrink_control *sc)
-> > +{
-> > +	struct z3fold_pool *pool = container_of(shrink, struct z3fold_pool,
-> > +						shrinker);
-> > +	struct z3fold_header *zhdr;
-> > +	int i, nr_to_scan = sc->nr_to_scan;
-> > +
-> > +	spin_lock(&pool->lock);
-> 
-> Do not do this. Shrinkers should not run entirely under a spin lock
-> like this - it causes scheduling latency problems and when the
-> shrinker is run concurrently on different CPUs it will simply burn
-> CPU doing no useful work. Especially, in this case, as each call to
-> z3fold_compact_page() may be copying a significant amount of data
-> around and so there is potentially a /lot/ of work being done on
-> each call to the shrinker.
-> 
-> If you need compaction exclusion for the shrinker invocation, then
-> please use a sleeping lock to protect the compaction work.
-
-Well, as far as I recall, spin_lock() will resolve to a sleeping lock
-for PREEMPT_RT, so it is not that much of a problem for configurations
-which do care much about latencies. Please also note that the time
-spent in the loop is deterministic since we take not more than one entry
-from every unbuddied list.
-
-What I could do though is add the following piece of code at the end of
-the loop, right after the /break/:
-		spin_unlock(&pool->lock);
-		cond_resched();
-		spin_lock(&pool->lock);
-
-Would that make sense for you?
-
-> 
-> >  *****************/
-> > @@ -234,6 +335,13 @@ static struct z3fold_pool *z3fold_create_pool(gfp_t gfp,
-> >  		INIT_LIST_HEAD(&pool->unbuddied[i]);
-> >  	INIT_LIST_HEAD(&pool->buddied);
-> >  	INIT_LIST_HEAD(&pool->lru);
-> > +	pool->shrinker.count_objects = z3fold_shrink_count;
-> > +	pool->shrinker.scan_objects = z3fold_shrink_scan;
-> > +	pool->shrinker.seeks = DEFAULT_SEEKS;
-> > +	if (register_shrinker(&pool->shrinker)) {
-> > +		pr_warn("z3fold: could not register shrinker\n");
-> > +		pool->no_shrinker = true;
-> > +	} 
-> 
-> Just fail creation of the pool. If you can't register a shrinker,
-> then much bigger problems are about to happen to your system, and
-> running a new memory consumer that /can't be shrunk/ is not going to
-> help anyone.
-
-I don't have a strong opinion on this but it doesn't look fatal to me
-in _this_ particular case (z3fold) since even without the shrinker, the
-compression ratio will never be lower than the one of zbud, which
-doesn't have a shrinker at all.
-
-Best regards,
-   Vitaly
+The backport will look slightly different for kernels prior 4.6 because
+we do not have should_reclaim_retry yet but the check might hook right
+before __alloc_pages_may_oom.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
