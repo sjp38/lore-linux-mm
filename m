@@ -1,86 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 629786B0260
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 03:25:02 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id g45so31022617qte.5
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 00:25:02 -0700 (PDT)
-Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
-        by mx.google.com with ESMTPS id t66si3216869qkf.177.2016.10.12.00.25.01
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D8ECF6B0069
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 03:33:30 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id d128so4492592wmf.0
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 00:33:30 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id z8si1352690wmb.134.2016.10.12.00.33.29
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 12 Oct 2016 00:25:01 -0700 (PDT)
-Subject: Re: [RFC PATCH 1/1] mm/percpu.c: fix memory leakage issue when
- allocate a odd alignment area
-References: <bc3126cd-226d-91c7-d323-48881095accf@zoho.com>
- <20161011172228.GA30403@dhcp22.suse.cz>
- <7649b844-cfe6-abce-148e-1e2236e7d443@zoho.com>
- <20161012065332.GA9504@dhcp22.suse.cz>
-From: zijun_hu <zijun_hu@zoho.com>
-Message-ID: <57FDE531.7060003@zoho.com>
-Date: Wed, 12 Oct 2016 15:24:33 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Oct 2016 00:33:29 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id c78so1032457wme.1
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 00:33:29 -0700 (PDT)
+Date: Wed, 12 Oct 2016 09:33:28 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 4/4] mm: make unreserve highatomic functions reliable
+Message-ID: <20161012073328.GC9504@dhcp22.suse.cz>
+References: <1476250416-22733-1-git-send-email-minchan@kernel.org>
+ <1476250416-22733-5-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20161012065332.GA9504@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1476250416-22733-5-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com, tj@kernel.org, akpm@linux-foundation.org, cl@linux.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sangseok Lee <sangseok.lee@lge.com>
 
-On 10/12/2016 02:53 PM, Michal Hocko wrote:
-> On Wed 12-10-16 08:28:17, zijun_hu wrote:
->> On 2016/10/12 1:22, Michal Hocko wrote:
->>> On Tue 11-10-16 21:24:50, zijun_hu wrote:
->>>> From: zijun_hu <zijun_hu@htc.com>
->>>>
->>>> the LSB of a chunk->map element is used for free/in-use flag of a area
->>>> and the other bits for offset, the sufficient and necessary condition of
->>>> this usage is that both size and alignment of a area must be even numbers
->>>> however, pcpu_alloc() doesn't force its @align parameter a even number
->>>> explicitly, so a odd @align maybe causes a series of errors, see below
->>>> example for concrete descriptions.
->>>
->>> Is or was there any user who would use a different than even (or power of 2)
->>> alighment? If not is this really worth handling?
->>>
->>
->> it seems only a power of 2 alignment except 1 can make sure it work very well,
->> that is a strict limit, maybe this more strict limit should be checked
-> 
-> I fail to see how any other alignment would actually make any sense
-> what so ever. Look, I am not a maintainer of this code but adding a new
-> code to catch something that doesn't make any sense sounds dubious at
-> best to me.
-> 
-> I could understand this patch if you see a problem and want to prevent
-> it from repeating bug doing these kind of changes just in case sounds
-> like a bad idea.
-> 
+On Wed 12-10-16 14:33:36, Minchan Kim wrote:
+[...]
+> @@ -2138,8 +2146,10 @@ static bool unreserve_highatomic_pageblock(const struct alloc_context *ac)
+>  			 */
+>  			set_pageblock_migratetype(page, ac->migratetype);
+>  			ret = move_freepages_block(zone, page, ac->migratetype);
+> -			spin_unlock_irqrestore(&zone->lock, flags);
+> -			return ret;
+> +			if (!drain && ret) {
+> +				spin_unlock_irqrestore(&zone->lock, flags);
+> +				return ret;
+> +			}
 
-thanks for your reply
+I've already mentioned that during the previous discussion. This sounds
+overly aggressive to me. Why do we want to drain the whole reserve and
+risk that we won't be able to build up a new one after OOM. Doing one
+block at the time should be sufficient IMHO.
 
-should we have a generic discussion whether such patches which considers
-many boundary or rare conditions are necessary.
+			if (ret) {
+				spin_unlock_irqrestore(&zone->lock, flags);
+				return ret;
+			}
 
-i found the following code segments in mm/vmalloc.c
-static struct vmap_area *alloc_vmap_area(unsigned long size,
-                                unsigned long align,
-                                unsigned long vstart, unsigned long vend,
-                                int node, gfp_t gfp_mask)
-{
-...
+will do the trick and work both for drain and !drain cases which is a
+good thing. Because even !drain case would like to see a block freed.
+The only difference between those two is that the drain one would really
+like to free something and ignore the "at least one block" reserve.
 
-        BUG_ON(!size);
-        BUG_ON(offset_in_page(size));
-        BUG_ON(!is_power_of_2(align));
-
-
-should we make below declarations as conventions
-1) when we say 'alignment', it means align to a power of 2 value
-   for example, aligning value @v to @b implicit @v is power of 2
-   , align 10 to 4 is 12
-2) when we say 'round value @v up/down to boundary @b', it means the 
-   result is a times of @b,  it don't requires @b is a power of 2
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
