@@ -1,39 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B8C526B0038
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 13:15:52 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id u84so47247216pfj.6
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 10:15:52 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id f15si5243721pap.212.2016.10.12.10.15.51
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B24146B0253
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 15:55:23 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id s30so60336941ioi.0
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 12:55:23 -0700 (PDT)
+Received: from resqmta-ch2-05v.sys.comcast.net (resqmta-ch2-05v.sys.comcast.net. [2001:558:fe21:29:69:252:207:37])
+        by mx.google.com with ESMTPS id n124si6576342ite.74.2016.10.12.12.55.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 12 Oct 2016 10:15:51 -0700 (PDT)
-Subject: Re: [RFC 0/6] Module for tracking/accounting shared memory buffers
-References: <1476229810-26570-1-git-send-email-kandoiruchi@google.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <57FE6FC6.70205@linux.intel.com>
-Date: Wed, 12 Oct 2016 10:15:50 -0700
-MIME-Version: 1.0
-In-Reply-To: <1476229810-26570-1-git-send-email-kandoiruchi@google.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Oct 2016 12:55:22 -0700 (PDT)
+Date: Wed, 12 Oct 2016 14:55:23 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v3 0/1] man/set_mempolicy.2,mbind.2: add MPOL_LOCAL NUMA
+ memory policy documentation
+In-Reply-To: <20161012155309.GA2706@home>
+Message-ID: <alpine.DEB.2.20.1610121455040.11069@east.gentwo.org>
+References: <alpine.DEB.2.20.1610100854001.27158@east.gentwo.org> <20161010162310.2463-1-kwapulinski.piotr@gmail.com> <4d816fee-4690-2ed7-7faa-c437e67cfbf5@gmail.com> <20161012155309.GA2706@home>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ruchi Kandoi <kandoiruchi@google.com>, gregkh@linuxfoundation.org, arve@android.com, riandrews@android.com, sumit.semwal@linaro.org, arnd@arndb.de, labbott@redhat.com, viro@zeniv.linux.org.uk, jlayton@poochiereds.net, bfields@fieldses.org, mingo@redhat.com, peterz@infradead.org, akpm@linux-foundation.org, keescook@chromium.org, mhocko@suse.com, oleg@redhat.com, john.stultz@linaro.org, mguzik@redhat.com, jdanis@google.com, adobriyan@gmail.com, ghackmann@google.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, dan.j.williams@intel.com, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, luto@kernel.org, tj@kernel.org, vdavydov.dev@gmail.com, ebiederm@xmission.com, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org, linux-media@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+Cc: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>, kirill.shutemov@linux.intel.com, vbabka@suse.cz, rientjes@google.com, mhocko@kernel.org, mgorman@techsingularity.net, liangchen.linux@gmail.com, nzimmer@sgi.com, a.p.zijlstra@chello.nl, riel@redhat.com, lee.schermerhorn@hp.com, jmarchan@redhat.com, joe@perches.com, corbet@lwn.net, iamyooon@gmail.com, n-horiguchi@ah.jp.nec.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-man@vger.kernel.org, akpm@linux-foundation.org, linux-doc@vger.kernel.org, linux-api@vger.kernel.org
 
-On 10/11/2016 04:50 PM, Ruchi Kandoi wrote:
-> Any process holding a reference to these buffers will keep the kernel from
-> reclaiming its backing pages.  mm counters don't provide a complete picture of
-> these allocations, since they only account for pages that are mapped into a
-> process's address space.  This problem is especially bad for systems like
-> Android that use dma-buf fds to share graphics and multimedia buffers between
-> processes: these allocations are often large, have complex sharing patterns,
-> and are rarely mapped into every process that holds a reference to them.
+On Wed, 12 Oct 2016, Piotr Kwapulinski wrote:
 
-What do you end up _doing_ with all this new information that you have
-here?  You know which processes have "pinned" these shared buffers, and
-exported that information in /proc.  But, then what?
+> That's right. This could be "local allocation" or any other memory policy.
+
+Correct.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
