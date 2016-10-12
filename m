@@ -1,66 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B5FA6B0069
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 05:54:44 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id j37so44051755ioo.2
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 02:54:44 -0700 (PDT)
-Received: from mail-pa0-f68.google.com (mail-pa0-f68.google.com. [209.85.220.68])
-        by mx.google.com with ESMTPS id q4si5191185iof.3.2016.10.12.02.54.43
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Oct 2016 02:54:43 -0700 (PDT)
-Received: by mail-pa0-f68.google.com with SMTP id fn2so2173784pad.1
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 02:54:43 -0700 (PDT)
-Date: Wed, 12 Oct 2016 11:54:39 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 1/1] mm/percpu.c: fix memory leakage issue when
- allocate a odd alignment area
-Message-ID: <20161012095439.GI17128@dhcp22.suse.cz>
-References: <bc3126cd-226d-91c7-d323-48881095accf@zoho.com>
- <20161011172228.GA30403@dhcp22.suse.cz>
- <7649b844-cfe6-abce-148e-1e2236e7d443@zoho.com>
- <20161012065332.GA9504@dhcp22.suse.cz>
- <57FDE531.7060003@zoho.com>
- <20161012082538.GC17128@dhcp22.suse.cz>
- <57FDF7EF.6070606@zoho.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <57FDF7EF.6070606@zoho.com>
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 570C66B0069
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 05:57:11 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id hm5so38895063pac.4
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 02:57:11 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id d62si5065026pga.215.2016.10.12.02.57.10
+        for <linux-mm@kvack.org>;
+        Wed, 12 Oct 2016 02:57:10 -0700 (PDT)
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: [PATCH] mm: kmemleak: Ensure that the task stack is not freed during scanning
+Date: Wed, 12 Oct 2016 10:57:03 +0100
+Message-Id: <1476266223-14325-1-git-send-email-catalin.marinas@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zijun_hu <zijun_hu@zoho.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com, tj@kernel.org, akpm@linux-foundation.org, cl@linux.com
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, CAI Qian <caiqian@redhat.com>
 
-On Wed 12-10-16 16:44:31, zijun_hu wrote:
-> On 10/12/2016 04:25 PM, Michal Hocko wrote:
-> > On Wed 12-10-16 15:24:33, zijun_hu wrote:
-[...]
-> >> i found the following code segments in mm/vmalloc.c
-> >> static struct vmap_area *alloc_vmap_area(unsigned long size,
-> >>                                 unsigned long align,
-> >>                                 unsigned long vstart, unsigned long vend,
-> >>                                 int node, gfp_t gfp_mask)
-> >> {
-> >> ...
-> >>
-> >>         BUG_ON(!size);
-> >>         BUG_ON(offset_in_page(size));
-> >>         BUG_ON(!is_power_of_2(align));
-> > 
-> > See a recent Linus rant about BUG_ONs. These BUG_ONs are quite old and
-> > from a quick look they are even unnecessary. So rather than adding more
-> > of those, I think removing those that are not needed is much more
-> > preferred.
-> >
-> i notice that, and the above code segments is used to illustrate that
-> input parameter checking is necessary sometimes
+Commit 68f24b08ee89 ("sched/core: Free the stack early if
+CONFIG_THREAD_INFO_IN_TASK") may cause the task->stack to be freed
+during kmemleak_scan() execution, leading to either a NULL pointer
+fault (if task->stack is NULL) or kmemleak accessing already freed
+memory. This patch uses the new try_get_task_stack() API to ensure that
+the task stack is not freed during kmemleak stack scanning.
 
-Why do you think it is necessary here?
+Fixes: 68f24b08ee89 ("sched/core: Free the stack early if CONFIG_THREAD_INFO_IN_TASK")
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: CAI Qian <caiqian@redhat.com>
+Reported-by: CAI Qian <caiqian@redhat.com>
+Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
+---
 
--- 
-Michal Hocko
-SUSE Labs
+This was reported in a subsequent comment here:
+
+https://bugzilla.kernel.org/show_bug.cgi?id=173901
+
+However, the original bugzilla entry doesn't look related to task stack
+freeing as it was first reported on 4.8-rc8. Andy, sorry for cc'ing you
+to bugzilla, please feel free to remove your email from the bug above (I
+can't seem to be able to do it).
+
+ mm/kmemleak.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+index a5e453cf05c4..e5355a5b423f 100644
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -1453,8 +1453,11 @@ static void kmemleak_scan(void)
+ 
+ 		read_lock(&tasklist_lock);
+ 		do_each_thread(g, p) {
+-			scan_block(task_stack_page(p), task_stack_page(p) +
+-				   THREAD_SIZE, NULL);
++			void *stack = try_get_task_stack(p);
++			if (stack) {
++				scan_block(stack, stack + THREAD_SIZE, NULL);
++				put_task_stack(p);
++			}
+ 		} while_each_thread(g, p);
+ 		read_unlock(&tasklist_lock);
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
