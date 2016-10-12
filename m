@@ -1,51 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9860E6B0069
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 05:10:06 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id l13so64297198itl.0
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 02:10:06 -0700 (PDT)
-Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0046.outbound.protection.outlook.com. [104.47.34.46])
-        by mx.google.com with ESMTPS id x71si5063070ioe.160.2016.10.12.02.10.05
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DCF06B0253
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 05:10:16 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 123so5874310wmb.4
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 02:10:16 -0700 (PDT)
+Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
+        by mx.google.com with ESMTPS id yr9si3781147wjc.282.2016.10.12.02.10.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 12 Oct 2016 02:10:05 -0700 (PDT)
-Subject: Re: [RFC 0/6] Module for tracking/accounting shared memory buffers
-References: <1476229810-26570-1-git-send-email-kandoiruchi@google.com>
-From: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>
-Message-ID: <a49e7aa1-d9c6-bb52-36b1-0f7538a8f960@amd.com>
-Date: Wed, 12 Oct 2016 11:09:47 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Oct 2016 02:10:15 -0700 (PDT)
+Received: by mail-wm0-f66.google.com with SMTP id c78so1394474wme.1
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 02:10:14 -0700 (PDT)
+Date: Wed, 12 Oct 2016 11:10:13 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: page_alloc: Use KERN_CONT where appropriate
+Message-ID: <20161012091013.GB9523@dhcp22.suse.cz>
+References: <c7df37c8665134654a17aaeb8b9f6ace1d6db58b.1476239034.git.joe@perches.com>
 MIME-Version: 1.0
-In-Reply-To: <1476229810-26570-1-git-send-email-kandoiruchi@google.com>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <c7df37c8665134654a17aaeb8b9f6ace1d6db58b.1476239034.git.joe@perches.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ruchi Kandoi <kandoiruchi@google.com>, gregkh@linuxfoundation.org, arve@android.com, riandrews@android.com, sumit.semwal@linaro.org, arnd@arndb.de, labbott@redhat.com, viro@zeniv.linux.org.uk, jlayton@poochiereds.net, bfields@fieldses.org, mingo@redhat.com, peterz@infradead.org, akpm@linux-foundation.org, keescook@chromium.org, mhocko@suse.com, oleg@redhat.com, john.stultz@linaro.org, mguzik@redhat.com, jdanis@google.com, adobriyan@gmail.com, ghackmann@google.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, dave.hansen@linux.intel.com, dan.j.williams@intel.com, hannes@cmpxchg.org, iamjoonsoo.kim@lge.com, luto@kernel.org, tj@kernel.org, vdavydov.dev@gmail.com, ebiederm@xmission.com, linux-kernel@vger.kernel.org, devel@driverdev.osuosl.org, linux-media@vger.kernel.org, dri-devel@lists.freedesktop.org, linaro-mm-sig@lists.linaro.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Joe Perches <joe@perches.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Am 12.10.2016 um 01:50 schrieb Ruchi Kandoi:
-> This patchstack adds memtrack hooks into dma-buf and ion.  If there's upstream
-> interest in memtrack, it can be extended to other memory allocators as well,
-> such as GEM implementations.
-We have run into similar problems before. Because of this I already 
-proposed a solution for this quite a while ago, but never pushed on 
-upstreaming this since it was only done for a special use case.
+On Tue 11-10-16 19:24:55, Joe Perches wrote:
+> Recent changes to printk require KERN_CONT uses to continue logging
+> messages.  So add KERN_CONT where necessary.
 
-Instead of keeping track of how much memory a process has bound (which 
-is very fragile) my solution  only added some more debugging info on a 
-per fd basis (e.g. how much memory is bound to this fd).
+I was really wondering what happened when Aaron reported an allocation
+failure http://lkml.kernel.org/r/20161012065423.GA16092@aaronlu.sh.intel.com
+See the attached log got the current Linus' tree
 
-This information was then used by the OOM killer (for example) to make a 
-better decision on which process to reap.
+Fixes: 4bcc595ccd80 ("printk: reinstate KERN_CONT for printing continuation lines")
+> Signed-off-by: Joe Perches <joe@perches.com>
 
-Shouldn't be to hard to expose this through debugfs or maybe a new fcntl 
-to userspace for debugging.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-I haven't looked at the code in detail, but messing with the per process 
-memory accounting like you did in this proposal is clearly not a good 
-idea if you ask me.
-
-Regards,
-Christian.
+I believe we can simplify the code a bit as well. What do you think
+about the following on top?
+---
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 6f8c356140a0..7e1b74ee79cb 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4078,10 +4078,12 @@ unsigned long nr_free_pagecache_pages(void)
+ 	return nr_free_zone_pages(gfp_zone(GFP_HIGHUSER_MOVABLE));
+ }
+ 
+-static inline void show_node(struct zone *zone)
++static inline void show_zone_node(struct zone *zone)
+ {
+ 	if (IS_ENABLED(CONFIG_NUMA))
+-		printk("Node %d ", zone_to_nid(zone));
++		printk("Node %d %s", zone_to_nid(zone), zone->name);
++	else
++		printk("%s: ", zone->name);
+ }
+ 
+ long si_mem_available(void)
+@@ -4329,9 +4331,8 @@ void show_free_areas(unsigned int filter)
+ 		for_each_online_cpu(cpu)
+ 			free_pcp += per_cpu_ptr(zone->pageset, cpu)->pcp.count;
+ 
+-		show_node(zone);
++		show_zone_node(zone);
+ 		printk(KERN_CONT
+-		        "%s"
+ 			" free:%lukB"
+ 			" min:%lukB"
+ 			" low:%lukB"
+@@ -4354,7 +4355,6 @@ void show_free_areas(unsigned int filter)
+ 			" local_pcp:%ukB"
+ 			" free_cma:%lukB"
+ 			"\n",
+-			zone->name,
+ 			K(zone_page_state(zone, NR_FREE_PAGES)),
+ 			K(min_wmark_pages(zone)),
+ 			K(low_wmark_pages(zone)),
+@@ -4379,7 +4379,6 @@ void show_free_areas(unsigned int filter)
+ 		printk("lowmem_reserve[]:");
+ 		for (i = 0; i < MAX_NR_ZONES; i++)
+ 			printk(KERN_CONT " %ld", zone->lowmem_reserve[i]);
+-		printk(KERN_CONT "\n");
+ 	}
+ 
+ 	for_each_populated_zone(zone) {
+@@ -4389,8 +4388,7 @@ void show_free_areas(unsigned int filter)
+ 
+ 		if (skip_free_areas_node(filter, zone_to_nid(zone)))
+ 			continue;
+-		show_node(zone);
+-		printk(KERN_CONT "%s: ", zone->name);
++		show_zone_node(zone);
+ 
+ 		spin_lock_irqsave(&zone->lock, flags);
+ 		for (order = 0; order < MAX_ORDER; order++) {
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
