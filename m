@@ -1,58 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BC0966B0038
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 02:34:19 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id b81so41830915lfe.1
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 23:34:19 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s189si7247973lja.28.2016.10.12.23.34.18
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9285F6B0038
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 02:41:33 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id z190so47479572qkc.4
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 23:41:33 -0700 (PDT)
+Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
+        by mx.google.com with ESMTPS id u186si5668406qkh.11.2016.10.12.23.41.32
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 12 Oct 2016 23:34:18 -0700 (PDT)
-Date: Thu, 13 Oct 2016 08:34:16 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: OOM in v4.8
-Message-ID: <20161013063416.GD21678@dhcp22.suse.cz>
-References: <20161012065423.GA16092@aaronlu.sh.intel.com>
- <20161012074411.GA9523@dhcp22.suse.cz>
- <20161012080022.GA17128@dhcp22.suse.cz>
- <24ea68df-8b6c-5319-a8ef-9c4f237cfc2a@intel.com>
- <519d7220-9750-7be7-436e-407d4dc95d67@intel.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 12 Oct 2016 23:41:32 -0700 (PDT)
+Subject: Re: [RFC PATCH 1/1] mm/vmalloc.c: correct logic errors when insert
+ vmap_area
+References: <c2bd0f5d-8d2a-4cba-2663-5c075cd252f2@zoho.com>
+ <20161012144610.GN17128@dhcp22.suse.cz>
+From: zijun_hu <zijun_hu@zoho.com>
+Message-ID: <57FF2C3C.5070507@zoho.com>
+Date: Thu, 13 Oct 2016 14:39:56 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <519d7220-9750-7be7-436e-407d4dc95d67@intel.com>
+In-Reply-To: <20161012144610.GN17128@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aaron Lu <aaron.lu@intel.com>
-Cc: Linux MM <linux-mm@kvack.org>, lkp@01.org, Huang Ying <ying.huang@intel.com>, Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com, akpm@linux-foundation.org, rientjes@google.com, tj@kernel.org, sfr@canb.auug.org.au, mingo@kernel.org, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, hannes@cmpxchg.org, chris@chris-wilson.co.uk, vdavydov.dev@gmail.com, Nicholas Piggin <npiggin@gmail.com>, Michal Hocko <mhocko@kernel.org>
 
-On Thu 13-10-16 14:23:54, Aaron Lu wrote:
-> On 10/12/2016 04:24 PM, Aaron Lu wrote:
-> > On 10/12/2016 04:00 PM, Michal Hocko wrote:
-[...]
-> >> And I am obviously blind because you have already tested with
-> >> 101105b1717f which contains the Andrew patchbomb and so all the relevant
-> >> changes. Now that I am lookinig into your log for that kernel there
-> >> doesn't seem to be any OOM killer invocation. There is only
-> >> kern  :warn  : [  177.175954] perf: page allocation failure: order:2, mode:0x208c020(GFP_ATOMIC|__GFP_COMP|__GFP_ZERO)
-> > 
-> > Oh right, perf may fail but that shouldn't make the test be terminated.
-> > I'll need to check why OOM is marked for that test.
-> 
-> There is a monitor in our test infrastructure that periodically checks
-> dmesg for messages like "out of memory", "page allocation failure", etc.
-> And if those messages are found, the test is believed not trustworthy
-> and killed since most of our tests are performance related.
-> 
-> That is the reason why "perf page allocation failure" caused the test to
-> be marked OOM. I tried to not start perf and with commit 101105b1717f,
-> 10 tests finished without any OOM failures.
+Hi Nicholas,
 
-Thanks for double checking!
--- 
-Michal Hocko
-SUSE Labs
+i find __insert_vmap_area() is introduced by you
+could you offer comments for this patch related to that funciton
+
+thanks
+
+On 10/12/2016 10:46 PM, Michal Hocko wrote:
+> [Let's CC Nick who has written this code]
+> 
+> On Wed 12-10-16 22:30:13, zijun_hu wrote:
+>> From: zijun_hu <zijun_hu@htc.com>
+>>
+>> the KVA allocator organizes vmap_areas allocated by rbtree. in order to
+>> insert a new vmap_area @i_va into the rbtree, walk around the rbtree from
+>> root and compare the vmap_area @t_va met on the rbtree against @i_va; walk
+>> toward the left branch of @t_va if @i_va is lower than @t_va, and right
+>> branch if higher, otherwise handle this error case since @i_va has overlay
+>> with @t_va; however, __insert_vmap_area() don't follow the desired
+>> procedure rightly, moreover, it includes a meaningless else if condition
+>> and a redundant else branch as shown by comments in below code segments:
+>> static void __insert_vmap_area(struct vmap_area *va)
+>> {
+>> as a internal interface parameter, we assume vmap_area @va has nonzero size
+>> ...
+>> 			if (va->va_start < tmp->va_end)
+>> 					p = &(*p)->rb_left;
+>> 			else if (va->va_end > tmp->va_start)
+>> 					p = &(*p)->rb_right;
+>> this else if condition is always true and meaningless due to
+>> va->va_end > va->va_start >= tmp_va->va_end > tmp_va->va_start normally
+>> 			else
+>> 					BUG();
+>> this BUG() is meaningless too due to never be reached normally
+>> ...
+>> }
+>>
+>> it looks like the else if condition and else branch are canceled. no errors
+>> are caused since the vmap_area @va to insert as a internal interface
+>> parameter doesn't have overlay with any one on the rbtree normally. however
+>>  __insert_vmap_area() looks weird and really has several logic errors as
+>> pointed out above when it is viewed as a separate function.
+> 
+> I have tried to read this several times but I am completely lost to
+> understand what the actual bug is and how it causes vmap_area sorting to
+> misbehave. So is this a correctness issue, performance improvement or
+> theoretical fix for an incorrect input?
+> 
+>> fix by walking around vmap_area rbtree as described above to insert
+>> a vmap_area.
+>>
+>> BTW, (va->va_end == tmp_va->va_start) is consider as legal case since it
+>> indicates vmap_area @va left neighbors with @tmp_va tightly.
+>>
+>> Fixes: db64fe02258f ("mm: rewrite vmap layer")
+>> Signed-off-by: zijun_hu <zijun_hu@htc.com>
+>> ---
+>>  mm/vmalloc.c | 8 ++++----
+>>  1 file changed, 4 insertions(+), 4 deletions(-)
+>>
+>> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+>> index 5daf3211b84f..8b80931654b7 100644
+>> --- a/mm/vmalloc.c
+>> +++ b/mm/vmalloc.c
+>> @@ -321,10 +321,10 @@ static void __insert_vmap_area(struct vmap_area *va)
+>>  
+>>  		parent = *p;
+>>  		tmp_va = rb_entry(parent, struct vmap_area, rb_node);
+>> -		if (va->va_start < tmp_va->va_end)
+>> -			p = &(*p)->rb_left;
+>> -		else if (va->va_end > tmp_va->va_start)
+>> -			p = &(*p)->rb_right;
+>> +		if (va->va_end <= tmp_va->va_start)
+>> +			p = &parent->rb_left;
+>> +		else if (va->va_start >= tmp_va->va_end)
+>> +			p = &parent->rb_right;
+>>  		else
+>>  			BUG();
+>>  	}
+>> -- 
+>> 1.9.1
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
