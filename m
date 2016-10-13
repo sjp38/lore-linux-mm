@@ -1,151 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B4EF6B0261
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 20:20:12 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e6so57906017pfk.2
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 17:20:12 -0700 (PDT)
-Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
-        by mx.google.com with ESMTP id wf9si9700766pab.40.2016.10.12.17.20.10
-        for <linux-mm@kvack.org>;
-        Wed, 12 Oct 2016 17:20:11 -0700 (PDT)
-Date: Thu, 13 Oct 2016 11:20:06 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v2] z3fold: add shrinker
-Message-ID: <20161013002006.GN23194@dastard>
-References: <20161012001827.53ae55723e67d1dee2a2f839@gmail.com>
- <20161011225206.GJ23194@dastard>
- <20161012102634.f32cb17648eff6b2fd452aea@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161012102634.f32cb17648eff6b2fd452aea@gmail.com>
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EB4F26B0262
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 20:20:27 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id b75so36529101lfg.3
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 17:20:27 -0700 (PDT)
+Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
+        by mx.google.com with ESMTPS id h5si6432426lfe.405.2016.10.12.17.20.26
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Oct 2016 17:20:26 -0700 (PDT)
+Received: by mail-lf0-x244.google.com with SMTP id x79so9727318lff.2
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 17:20:26 -0700 (PDT)
+From: Lorenzo Stoakes <lstoakes@gmail.com>
+Subject: [PATCH 00/10] mm: adjust get_user_pages* functions to explicitly pass FOLL_* flags
+Date: Thu, 13 Oct 2016 01:20:10 +0100
+Message-Id: <20161013002020.3062-1-lstoakes@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Wool <vitalywool@gmail.com>
-Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>
+To: linux-mm@kvack.org
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, adi-buildroot-devel@lists.sourceforge.net, ceph-devel@vger.kernel.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, kvm@vger.kernel.org, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-cris-kernel@axis.com, linux-fbdev@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, linux-mips@linux-mips.org, linux-rdma@vger.kernel.org, linux-s390@vger.kernel.org, linux-samsung-soc@vger.kernel.org, linux-scsi@vger.kernel.org, linux-security-module@vger.kernel.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, netdev@vger.kernel.org, sparclinux@vger.kernel.org, x86@kernel.org
 
-On Wed, Oct 12, 2016 at 10:26:34AM +0200, Vitaly Wool wrote:
-> On Wed, 12 Oct 2016 09:52:06 +1100
-> Dave Chinner <david@fromorbit.com> wrote:
-> 
-> <snip>
-> > 
-> > > +static unsigned long z3fold_shrink_scan(struct shrinker *shrink,
-> > > +				struct shrink_control *sc)
-> > > +{
-> > > +	struct z3fold_pool *pool = container_of(shrink, struct z3fold_pool,
-> > > +						shrinker);
-> > > +	struct z3fold_header *zhdr;
-> > > +	int i, nr_to_scan = sc->nr_to_scan;
-> > > +
-> > > +	spin_lock(&pool->lock);
-> > 
-> > Do not do this. Shrinkers should not run entirely under a spin lock
-> > like this - it causes scheduling latency problems and when the
-> > shrinker is run concurrently on different CPUs it will simply burn
-> > CPU doing no useful work. Especially, in this case, as each call to
-> > z3fold_compact_page() may be copying a significant amount of data
-> > around and so there is potentially a /lot/ of work being done on
-> > each call to the shrinker.
-> > 
-> > If you need compaction exclusion for the shrinker invocation, then
-> > please use a sleeping lock to protect the compaction work.
-> 
-> Well, as far as I recall, spin_lock() will resolve to a sleeping lock
-> for PREEMPT_RT,
+This patch series adjusts functions in the get_user_pages* family such that
+desired FOLL_* flags are passed as an argument rather than implied by flags.
 
-Irrelevant for mainline kernels....
+The purpose of this change is to make the use of FOLL_FORCE explicit so it is
+easier to grep for and clearer to callers that this flag is being used. The use
+of FOLL_FORCE is an issue as it overrides missing VM_READ/VM_WRITE flags for the
+VMA whose pages we are reading from/writing to, which can result in surprising
+behaviour.
 
-> so it is not that much of a problem for configurations
-> which do care much about latencies.
+The patch series came out of the discussion around commit 38e0885, which
+addressed a BUG_ON() being triggered when a page was faulted in with PROT_NONE
+set but having been overridden by FOLL_FORCE. do_numa_page() was run on the
+assumption the page _must_ be one marked for NUMA node migration as an actual
+PROT_NONE page would have been dealt with prior to this code path, however
+FOLL_FORCE introduced a situation where this assumption did not hold.
 
-That's an incorrect assumption. Long spinlock holds prevent
-scheduling on that CPU, and so we still get latency problems.
+See https://marc.info/?l=linux-mm&m=147585445805166 for the patch proposal.
 
-> Please also note that the time
-> spent in the loop is deterministic since we take not more than one entry
-> from every unbuddied list.
+Lorenzo Stoakes (10):
+  mm: remove write/force parameters from __get_user_pages_locked()
+  mm: remove write/force parameters from __get_user_pages_unlocked()
+  mm: replace get_user_pages_unlocked() write/force parameters with gup_flags
+  mm: replace get_user_pages_locked() write/force parameters with gup_flags
+  mm: replace get_vaddr_frames() write/force parameters with gup_flags
+  mm: replace get_user_pages() write/force parameters with gup_flags
+  mm: replace get_user_pages_remote() write/force parameters with gup_flags
+  mm: replace __access_remote_vm() write parameter with gup_flags
+  mm: replace access_remote_vm() write parameter with gup_flags
+  mm: replace access_process_vm() write parameter with gup_flags
 
-So the loop is:
-
-	for_each_unbuddied_list_down(i, NCHUNKS - 3) {
-
-NCHUNKS = (PAGE_SIZE - (1 << (PAGE_SHIFT - 6)) >> (PAGE_SHIFT - 6)
-
-So for 4k page, NCHUNKS = (4096 - (1<<6)) >> 6, which is 63. So,
-potentially 60 memmoves under a single spinlock on a 4k page
-machine. That's a lot of work, especially as some of those memmoves
-are going to move a large amount of data in the page.
-
-And if we consider 64k pages, we've now got NCHUNKS = 1023, which
-means your shrinker is not, by default, going to scan all your
-unbuddied lists because it will expire nr_to_scan (usually
-SHRINK_BATCH = 128) before it's got through all of them. So not only
-will the shrinker do too much under a spinlock, it won't even do
-what you want it to do correctly on such setups.
-
-Further, the way nr_to_scan is decremented and the shrinker return
-value are incorrect. nr_to_scan is not the /number of objects to
-free/, but the number of objects to /check for reclaim/. The
-shrinker is then supposed to return the number it frees (or
-compacts) to give feedback to the shrinker infrastructure about how
-much reclaim work is being done (i.e. scanned vs freed ratio). This
-code always returns 0, which tells the shrinker infrastructure that
-it's not making progress...
-
-> What I could do though is add the following piece of code at the end of
-> the loop, right after the /break/:
-> 		spin_unlock(&pool->lock);
-> 		cond_resched();
-> 		spin_lock(&pool->lock);
-> 
-> Would that make sense for you?
-
-Not really, because it ignores the fact that shrinkers can (and
-often do) run concurrently on multiple CPUs, and so serialising them
-all on a spinlock just causes contention, even if you do this.
-
-Memory reclaim is only as good as the worst shrinker it runs. I
-don't care what your subsystem does, but if you're implementing a
-shrinker then it needs to play by memory reclaim and shrinker
-context rules.....
-
-> > >  *****************/
-> > > @@ -234,6 +335,13 @@ static struct z3fold_pool *z3fold_create_pool(gfp_t gfp,
-> > >  		INIT_LIST_HEAD(&pool->unbuddied[i]);
-> > >  	INIT_LIST_HEAD(&pool->buddied);
-> > >  	INIT_LIST_HEAD(&pool->lru);
-> > > +	pool->shrinker.count_objects = z3fold_shrink_count;
-> > > +	pool->shrinker.scan_objects = z3fold_shrink_scan;
-> > > +	pool->shrinker.seeks = DEFAULT_SEEKS;
-> > > +	if (register_shrinker(&pool->shrinker)) {
-> > > +		pr_warn("z3fold: could not register shrinker\n");
-> > > +		pool->no_shrinker = true;
-> > > +	} 
-> > 
-> > Just fail creation of the pool. If you can't register a shrinker,
-> > then much bigger problems are about to happen to your system, and
-> > running a new memory consumer that /can't be shrunk/ is not going to
-> > help anyone.
-> 
-> I don't have a strong opinion on this but it doesn't look fatal to me
-> in _this_ particular case (z3fold) since even without the shrinker, the
-> compression ratio will never be lower than the one of zbud, which
-> doesn't have a shrinker at all.
-
-Either your subsystem needs a shrinker or it doesn't. If it needs
-one, then it should follow the accepted norm of failing
-initialisation because a shrinker register failure is indicative of
-a serious memory allocation problem already occurring in the
-machine. We can only make it worse by continuing without a
-shrinker....
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+ arch/alpha/kernel/ptrace.c                         |  9 ++--
+ arch/blackfin/kernel/ptrace.c                      |  5 ++-
+ arch/cris/arch-v32/drivers/cryptocop.c             |  4 +-
+ arch/cris/arch-v32/kernel/ptrace.c                 |  4 +-
+ arch/ia64/kernel/err_inject.c                      |  2 +-
+ arch/ia64/kernel/ptrace.c                          | 14 +++---
+ arch/m32r/kernel/ptrace.c                          | 15 ++++---
+ arch/mips/kernel/ptrace32.c                        |  5 ++-
+ arch/mips/mm/gup.c                                 |  2 +-
+ arch/powerpc/kernel/ptrace32.c                     |  5 ++-
+ arch/s390/mm/gup.c                                 |  3 +-
+ arch/score/kernel/ptrace.c                         | 10 +++--
+ arch/sh/mm/gup.c                                   |  3 +-
+ arch/sparc/kernel/ptrace_64.c                      | 24 +++++++----
+ arch/sparc/mm/gup.c                                |  3 +-
+ arch/x86/kernel/step.c                             |  3 +-
+ arch/x86/mm/gup.c                                  |  2 +-
+ arch/x86/mm/mpx.c                                  |  5 +--
+ arch/x86/um/ptrace_32.c                            |  3 +-
+ arch/x86/um/ptrace_64.c                            |  3 +-
+ drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c            |  7 ++-
+ drivers/gpu/drm/etnaviv/etnaviv_gem.c              |  7 ++-
+ drivers/gpu/drm/exynos/exynos_drm_g2d.c            |  3 +-
+ drivers/gpu/drm/i915/i915_gem_userptr.c            |  6 ++-
+ drivers/gpu/drm/radeon/radeon_ttm.c                |  3 +-
+ drivers/gpu/drm/via/via_dmablit.c                  |  4 +-
+ drivers/infiniband/core/umem.c                     |  6 ++-
+ drivers/infiniband/core/umem_odp.c                 |  7 ++-
+ drivers/infiniband/hw/mthca/mthca_memfree.c        |  2 +-
+ drivers/infiniband/hw/qib/qib_user_pages.c         |  3 +-
+ drivers/infiniband/hw/usnic/usnic_uiom.c           |  5 ++-
+ drivers/media/pci/ivtv/ivtv-udma.c                 |  4 +-
+ drivers/media/pci/ivtv/ivtv-yuv.c                  |  5 ++-
+ drivers/media/platform/omap/omap_vout.c            |  2 +-
+ drivers/media/v4l2-core/videobuf-dma-sg.c          |  7 ++-
+ drivers/media/v4l2-core/videobuf2-memops.c         |  6 ++-
+ drivers/misc/mic/scif/scif_rma.c                   |  3 +-
+ drivers/misc/sgi-gru/grufault.c                    |  2 +-
+ drivers/platform/goldfish/goldfish_pipe.c          |  3 +-
+ drivers/rapidio/devices/rio_mport_cdev.c           |  3 +-
+ drivers/scsi/st.c                                  |  5 +--
+ .../interface/vchiq_arm/vchiq_2835_arm.c           |  3 +-
+ .../vc04_services/interface/vchiq_arm/vchiq_arm.c  |  3 +-
+ drivers/video/fbdev/pvr2fb.c                       |  4 +-
+ drivers/virt/fsl_hypervisor.c                      |  4 +-
+ fs/exec.c                                          |  9 +++-
+ fs/proc/base.c                                     | 19 +++++---
+ include/linux/mm.h                                 | 18 ++++----
+ kernel/events/uprobes.c                            |  6 ++-
+ kernel/ptrace.c                                    | 16 ++++---
+ mm/frame_vector.c                                  |  9 ++--
+ mm/gup.c                                           | 50 ++++++++++------------
+ mm/memory.c                                        | 16 ++++---
+ mm/mempolicy.c                                     |  2 +-
+ mm/nommu.c                                         | 38 +++++++---------
+ mm/process_vm_access.c                             |  7 ++-
+ mm/util.c                                          |  8 ++--
+ net/ceph/pagevec.c                                 |  2 +-
+ security/tomoyo/domain.c                           |  2 +-
+ virt/kvm/async_pf.c                                |  3 +-
+ virt/kvm/kvm_main.c                                | 11 +++--
+ 61 files changed, 260 insertions(+), 187 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
