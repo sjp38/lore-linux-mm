@@ -1,64 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 170646B0262
-	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 19:39:05 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id os4so59012726pac.5
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 16:39:05 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id i13si8022131pgd.184.2016.10.12.16.39.03
-        for <linux-mm@kvack.org>;
-        Wed, 12 Oct 2016 16:39:04 -0700 (PDT)
-Date: Thu, 13 Oct 2016 08:39:01 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v3 3/4] mm: try to exhaust highatomic reserve before the
- OOM
-Message-ID: <20161012233901.GA30745@bbox>
-References: <1476259429-18279-1-git-send-email-minchan@kernel.org>
- <1476259429-18279-4-git-send-email-minchan@kernel.org>
- <20161012083449.GD17128@dhcp22.suse.cz>
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BD7056B0038
+	for <linux-mm@kvack.org>; Wed, 12 Oct 2016 20:07:01 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id g32so45757170qta.2
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 17:07:01 -0700 (PDT)
+Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
+        by mx.google.com with ESMTPS id t5si5070353qta.124.2016.10.12.17.07.00
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 12 Oct 2016 17:07:00 -0700 (PDT)
+Subject: Re: [RFC v2 PATCH] mm/percpu.c: fix panic triggered by BUG_ON()
+ falsely
+References: <57FCF07C.2020103@zoho.com>
+ <20161012144112.0494082cf4cbd07609d2405d@linux-foundation.org>
+From: zijun_hu <zijun_hu@zoho.com>
+Message-ID: <57FECFCD.7020108@zoho.com>
+Date: Thu, 13 Oct 2016 08:05:33 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161012083449.GD17128@dhcp22.suse.cz>
+In-Reply-To: <20161012144112.0494082cf4cbd07609d2405d@linux-foundation.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sangseok Lee <sangseok.lee@lge.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com, tj@kernel.org, cl@linux.com
 
-Hi Michal,
-
-On Wed, Oct 12, 2016 at 10:34:50AM +0200, Michal Hocko wrote:
-> Looks much better. Thanks! I am wondering whether we want to have this
-> marked for stable. The patch is quite non-intrusive and fires only when
-> we are really OOM. It is definitely better to try harder than go and
-> disrupt the system by the OOM killer. So I would add
-> Fixes: 0aaa29a56e4f ("mm, page_alloc: reserve pageblocks for high-order atomic allocations on demand")
-> Cc: stable # 4.4+
-
-Thanks for the information.
-
+On 10/13/2016 05:41 AM, Andrew Morton wrote:
+> On Tue, 11 Oct 2016 22:00:28 +0800 zijun_hu <zijun_hu@zoho.com> wrote:
 > 
-> The backport will look slightly different for kernels prior 4.6 because
-> we do not have should_reclaim_retry yet but the check might hook right
-> before __alloc_pages_may_oom.
+>> as shown by pcpu_build_alloc_info(), the number of units within a percpu
+>> group is educed by rounding up the number of CPUs within the group to
+>> @upa boundary, therefore, the number of CPUs isn't equal to the units's
+>> if it isn't aligned to @upa normally. however, pcpu_page_first_chunk()
+>> uses BUG_ON() to assert one number is equal the other roughly, so a panic
+>> is maybe triggered by the BUG_ON() falsely.
+>>
+>> in order to fix this issue, the number of CPUs is rounded up then compared
+>> with units's, the BUG_ON() is replaced by warning and returning error code
+>> as well to keep system alive as much as possible.
+> 
+> Under what circumstances is the triggered?  In other words, what are
+> the end-user visible effects of the fix?
+> 
+the BUG_ON() takes effect when the number isn't aligned @upa, the BUG_ON()
+should not be triggered under this normal circumstances.
+the aim of this fixing is prevent the BUG_ON() which is triggered under
+the case.
 
-As I just got one report and I didn't see similar problem in LKML
-recently, I didn't mark it to the stable given that patchset size
-in v1. However, with review, it becomes simple(Thanks, Michal and
-Vlastimil) and I should admit my ladar is too limited so if you think
-it's worth, I don't mind.
+see below original code segments for reason.
+pcpu_build_alloc_info(){
+...
 
-For the stable, {3,4}/4 are must but once we decide, I want to backport
-all patches {1-4}/4 because without {1,2}, nr_reserved_highatomic mismatch
-can happen so that unreserve logic doesn't work until force logic is
-triggered when no_progress_loops is greater than MAX_RECLAIM_RETRIES.
-It happend very easily in my test.
-Withtout {1,2}, it works but looks no-good for me.
+	for_each_possible_cpu(cpu)
+		if (group_map[cpu] == group)
+			gi->cpu_map[gi->nr_units++] = cpu;
+	gi->nr_units = roundup(gi->nr_units, upa);
 
+calculate the number of CPUs belonging to a group into relevant @gi->nr_units
+then roundup @gi->nr_units up to @upa for itself
 
-> -- 
-> Michal Hocko
-> SUSE Labs
+unit += gi->nr_units;
+...
+}
+
+pcpu_page_first_chunk() {
+...
+	ai = pcpu_build_alloc_info(reserved_size, 0, PAGE_SIZE, NULL);
+	if (IS_ERR(ai))
+		return PTR_ERR(ai);
+	BUG_ON(ai->nr_groups != 1);
+	BUG_ON(ai->groups[0].nr_units != num_possible_cpus());
+
+it seems there is only one group and all CPUs belong to the group
+but compare the number of CPUs with the number of units directly.
+
+as shown by comments in above function. ai->groups[0].nr_units
+should equal to roundup(num_possible_cpus(), @upa) other than
+num_possible_cpus() directly.
+...
+}
+
+> I mean, this is pretty old code (isn't it?) so what are you doing that
+> triggers this?
+> 
+> 
+i am learning memory source and find the inconsistency and think
+the BUG_ON() maybe be triggered under this special normal but possible case
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
