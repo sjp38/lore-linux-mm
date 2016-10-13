@@ -1,81 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 60C866B0261
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 06:17:08 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id x23so45908269lfi.0
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 03:17:08 -0700 (PDT)
-Received: from mail-lf0-x242.google.com (mail-lf0-x242.google.com. [2a00:1450:4010:c07::242])
-        by mx.google.com with ESMTPS id 12si7894630lfz.291.2016.10.13.03.17.06
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 66C7D6B0263
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 06:25:04 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id x79so46334966lff.2
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 03:25:04 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s5si16776726wjs.169.2016.10.13.03.25.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Oct 2016 03:17:06 -0700 (PDT)
-Received: by mail-lf0-x242.google.com with SMTP id l131so9053293lfl.0
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 03:17:06 -0700 (PDT)
-Subject: Re: [RFC PATCH v1 19/28] KVM: SVM: prepare to reserve asid for SEV
- guest
-References: <147190820782.9523.4967724730957229273.stgit@brijesh-build-machine>
- <147190846546.9523.8365293594479732082.stgit@brijesh-build-machine>
-From: Paolo Bonzini <pbonzini@redhat.com>
-Message-ID: <ed2ef47b-9a8a-9836-c6bb-effc4872d585@redhat.com>
-Date: Thu, 13 Oct 2016 12:17:00 +0200
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 13 Oct 2016 03:25:03 -0700 (PDT)
+Date: Thu, 13 Oct 2016 11:24:59 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: MPOL_BIND on memory only nodes
+Message-ID: <20161013102459.GE20573@suse.de>
+References: <57FE0184.6030008@linux.vnet.ibm.com>
+ <20161012094337.GH17128@dhcp22.suse.cz>
+ <20161012131626.GL17128@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <147190846546.9523.8365293594479732082.stgit@brijesh-build-machine>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20161012131626.GL17128@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brijesh Singh <brijesh.singh@amd.com>, simon.guinot@sequanux.org, linux-efi@vger.kernel.org, kvm@vger.kernel.org, rkrcmar@redhat.com, matt@codeblueprint.co.uk, linus.walleij@linaro.org, linux-mm@kvack.org, paul.gortmaker@windriver.com, hpa@zytor.com, dan.j.williams@intel.com, aarcange@redhat.com, sfr@canb.auug.org.au, andriy.shevchenko@linux.intel.com, herbert@gondor.apana.org.au, bhe@redhat.com, xemul@parallels.com, joro@8bytes.org, x86@kernel.org, mingo@redhat.com, msalter@redhat.com, ross.zwisler@linux.intel.com, bp@suse.de, dyoung@redhat.com, thomas.lendacky@amd.com, jroedel@suse.de, keescook@chromium.org, toshi.kani@hpe.com, mathieu.desnoyers@efficios.com, devel@linuxdriverproject.org, tglx@linutronix.de, mchehab@kernel.org, iamjoonsoo.kim@lge.com, labbott@fedoraproject.org, tony.luck@intel.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>
 
+On Wed, Oct 12, 2016 at 03:16:27PM +0200, Michal Hocko wrote:
+> On Wed 12-10-16 11:43:37, Michal Hocko wrote:
+> > On Wed 12-10-16 14:55:24, Anshuman Khandual wrote:
+> [...]
+> > > Why we insist on __GFP_THISNODE ?
+> > 
+> > AFAIU __GFP_THISNODE just overrides the given node to the policy
+> > nodemask in case the current node is not part of that node mask. In
+> > other words we are ignoring the given node and use what the policy says. 
+> > I can see how this can be confusing especially when confronting the
+> > documentation:
+> > 
+> >  * __GFP_THISNODE forces the allocation to be satisified from the requested
+> >  *   node with no fallbacks or placement policy enforcements.
+> 
+> You made me think and look into this deeper. I came to the conclusion
+> that this is actually a relict from the past. policy_zonelist is called
+> only from 3 places:
+> - huge_zonelist - never should do __GFP_THISNODE when going this path
+> - alloc_pages_vma - which shouldn't depend on __GFP_THISNODE either
+> - alloc_pages_current - which uses default_policy id __GFP_THISNODE is
+>   used
+> 
+> So AFAICS this is essentially a dead code or I am missing something. Mel
+> do you remember why we needed it in the past?
 
+I don't recall a specific reason. It was likely due to confusion on my
+part at the time on the exact use of __GFP_THISNODE. The expectation is
+that flag is not used in fault paths or with policies. It's meant to
+enforce node-locality for kernel internal decisions such as the locality
+of slab pages and ensuring that a THP collapse from khugepaged is on the
+same node.
 
-On 23/08/2016 01:27, Brijesh Singh wrote:
-> In current implementation, asid allocation starts from 1, this patch
-> adds a min_asid variable in svm_vcpu structure to allow starting asid
-> from something other than 1.
-> 
-> Signed-off-by: Brijesh Singh <brijesh.singh@amd.com>
-> ---
->  arch/x86/kvm/svm.c |    4 +++-
->  1 file changed, 3 insertions(+), 1 deletion(-)
-> 
-> diff --git a/arch/x86/kvm/svm.c b/arch/x86/kvm/svm.c
-> index 211be94..f010b23 100644
-> --- a/arch/x86/kvm/svm.c
-> +++ b/arch/x86/kvm/svm.c
-> @@ -470,6 +470,7 @@ struct svm_cpu_data {
->  	u64 asid_generation;
->  	u32 max_asid;
->  	u32 next_asid;
-> +	u32 min_asid;
->  	struct kvm_ldttss_desc *tss_desc;
->  
->  	struct page *save_area;
-> @@ -726,6 +727,7 @@ static int svm_hardware_enable(void)
->  	sd->asid_generation = 1;
->  	sd->max_asid = cpuid_ebx(SVM_CPUID_FUNC) - 1;
->  	sd->next_asid = sd->max_asid + 1;
-> +	sd->min_asid = 1;
->  
->  	native_store_gdt(&gdt_descr);
->  	gdt = (struct desc_struct *)gdt_descr.address;
-> @@ -1887,7 +1889,7 @@ static void new_asid(struct vcpu_svm *svm, struct svm_cpu_data *sd)
->  {
->  	if (sd->next_asid > sd->max_asid) {
->  		++sd->asid_generation;
-> -		sd->next_asid = 1;
-> +		sd->next_asid = sd->min_asid;
->  		svm->vmcb->control.tlb_ctl = TLB_CONTROL_FLUSH_ALL_ASID;
->  	}
->  
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-
-Reviewed-by: Paolo Bonzini <pbonzini@redhat.com>
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
