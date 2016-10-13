@@ -1,63 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E10F6B0069
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 14:16:24 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id z65so118383811itc.2
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 11:16:24 -0700 (PDT)
-Received: from resqmta-po-12v.sys.comcast.net (resqmta-po-12v.sys.comcast.net. [2001:558:fe16:19:96:114:154:171])
-        by mx.google.com with ESMTPS id x71si9208623ioe.160.2016.10.13.11.16.23
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FAE96B0253
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 14:16:42 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id b81so54250984lfe.1
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 11:16:42 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id om8si19206050wjc.45.2016.10.13.11.16.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Oct 2016 11:16:24 -0700 (PDT)
-Date: Thu, 13 Oct 2016 13:16:21 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: Rewording language in mbind(2) to "threads" not "processes"
-In-Reply-To: <f3c4ca9d-a880-5244-e06e-db4725e4d945@gmail.com>
-Message-ID: <alpine.DEB.2.20.1610131314020.3176@east.gentwo.org>
-References: <f3c4ca9d-a880-5244-e06e-db4725e4d945@gmail.com>
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 13 Oct 2016 11:16:40 -0700 (PDT)
+Date: Thu, 13 Oct 2016 19:16:37 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] Don't touch single threaded PTEs which are on the right
+ node
+Message-ID: <20161013181637.GF20573@suse.de>
+References: <1476288949-20970-1-git-send-email-andi@firstfloor.org>
+ <20161013083910.GC20573@suse.de>
+ <20161013180402.GI3078@tassilo.jf.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20161013180402.GI3078@tassilo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Cc: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>, mhocko@kernel.org, mgorman@techsingularity.net, a.p.zijlstra@chello.nl, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-man@vger.kernel.org, Brice Goglin <Brice.Goglin@inria.fr>
+To: Andi Kleen <ak@linux.intel.com>
+Cc: Andi Kleen <andi@firstfloor.org>, peterz@infradead.org, linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-On Thu, 13 Oct 2016, Michael Kerrisk (man-pages) wrote:
+On Thu, Oct 13, 2016 at 11:04:02AM -0700, Andi Kleen wrote:
+> > >  	do {
+> > >  		oldpte = *pte;
+> > > @@ -94,6 +100,13 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+> > >  				/* Avoid TLB flush if possible */
+> > >  				if (pte_protnone(oldpte))
+> > >  					continue;
+> > > +
+> > > +				/*
+> > > +				 * Don't mess with PTEs if page is already on the node
+> > > +				 * a single-threaded process is running on.
+> > > +				 */
+> > > +				if (target_node == page_to_nid(page))
+> > > +					continue;
+> > >  			}
+> > >  
+> > 
+> > Check target_node != NUMA_NODE && target_node == page_to_nid(page) to
+> > avoid unnecessary page->flag masking and shifts?
+> 
+> I didn't do this last change because I expect a potentially mispredicted
+> check is more expensive than some shifting/masking.
+> 
 
-> @@ -100,7 +100,10 @@ If, however, the shared memory region was created with the
->  .B SHM_HUGETLB
->  flag,
->  the huge pages will be allocated according to the policy specified
-> -only if the page allocation is caused by the process that calls
-> +only if the page allocation is caused by the thread that calls
-> +.\"
-> +.\" ??? Is it correct to change "process" to "thread" in the preceding line?
+Ok, that's fair enough. For something that minor I expect it to be a
+case of "you win some you lose some" depending on workload, CPU and
+phase of the moon.
 
-No leave it as process. Pages get one map refcount per page table
-that references them (meaning a process). More than one map refcount means
-that multiple processes have mapped the page.
+Thanks.
 
-> @@ -300,7 +303,10 @@ is specified in
->  .IR flags ,
->  then the kernel will attempt to move all the existing pages
->  in the memory range so that they follow the policy.
-> -Pages that are shared with other processes will not be moved.
-> +Pages that are shared with other threads will not be moved.
-> +.\"
-> +.\" ??? Is it correct to change "processes" to "threads" in the preceding line?
-> +.\"
-
-Leave it. Same as before.
-
->  If
->  then the kernel will attempt to move all existing pages in the memory range
-> -regardless of whether other processes use the pages.
-> -The calling process must be privileged
-> +regardless of whether other threads use the pages.
-> +.\"
-> +.\" ??? Is it correct to change "processes" to "threads" in the preceding line?
-> +.\"
-
-Leave as process.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
