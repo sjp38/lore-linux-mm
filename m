@@ -1,179 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9756B6B0264
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 04:08:25 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id os4so70078368pac.5
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 01:08:25 -0700 (PDT)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id f6si11124162pab.112.2016.10.13.01.08.24
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E355B6B0267
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 04:09:40 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id n3so43544566lfn.5
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 01:09:40 -0700 (PDT)
+Received: from mail-lf0-f67.google.com (mail-lf0-f67.google.com. [209.85.215.67])
+        by mx.google.com with ESMTPS id u8si7498640lff.258.2016.10.13.01.09.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Oct 2016 01:08:24 -0700 (PDT)
-Received: by mail-pf0-x242.google.com with SMTP id s8so4533735pfj.2
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 01:08:24 -0700 (PDT)
-From: js1304@gmail.com
-Subject: [RFC PATCH 5/5] mm/page_alloc: support fixed migratetype pageblock
-Date: Thu, 13 Oct 2016 17:08:22 +0900
-Message-Id: <1476346102-26928-6-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1476346102-26928-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1476346102-26928-1-git-send-email-iamjoonsoo.kim@lge.com>
+        Thu, 13 Oct 2016 01:09:39 -0700 (PDT)
+Received: by mail-lf0-f67.google.com with SMTP id x79so11367685lff.2
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 01:09:39 -0700 (PDT)
+Date: Thu, 13 Oct 2016 10:09:37 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm: exclude isolated non-lru pages from
+ NR_ISOLATED_ANON or NR_ISOLATED_FILE.
+Message-ID: <20161013080936.GG21678@dhcp22.suse.cz>
+References: <1476340749-13281-1-git-send-email-ming.ling@spreadtrum.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1476340749-13281-1-git-send-email-ming.ling@spreadtrum.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: "ming.ling" <ming.ling@spreadtrum.com>
+Cc: akpm@linux-foundation.org, mgorman@techsingularity.net, vbabka@suse.cz, hannes@cmpxchg.org, baiyaowei@cmss.chinamobile.com, iamjoonsoo.kim@lge.com, minchan@kernel.org, rientjes@google.com, hughd@google.com, kirill.shutemov@linux.intel.com, riel@redhat.com, mgorman@suse.de, aquini@redhat.com, corbet@lwn.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, orson.zhai@spreadtrum.com, geng.ren@spreadtrum.com, chunyan.zhang@spreadtrum.com, zhizhou.tian@spreadtrum.com, yuming.han@spreadtrum.com, xiajing@spreadst.com
 
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On Thu 13-10-16 14:39:09, ming.ling wrote:
+> From: Ming Ling <ming.ling@spreadtrum.com>
+> 
+> Non-lru pages don't belong to any lru, so counting them to
+> NR_ISOLATED_ANON or NR_ISOLATED_FILE doesn't make any sense.
+> It may misguide functions such as pgdat_reclaimable_pages and
+> too_many_isolated.
 
-We have migratetype facility to minimise fragmentation. It dynamically
-changes migratetype of pageblock based on some criterias but it never
-be perfect. Some migratetype pages are often placed in the other
-migratetype pageblock. We call this pageblock as mixed pageblock.
+That doesn't make much sense to me. I guess you wanted to say something
+like
+"
+Accounting non-lru pages isolated for migration during pfn walk to
+NR_ISOLATED_{ANON,FILE} doesn't make any sense and it can misguide
+heuristics based on those counters such as pgdat_reclaimable_pages resp.
+too_many_isolated. Note that __alloc_contig_migrate_range can isolate
+a lot of pages at once.
+"
+> On mobile devices such as 512M ram android Phone, it may use
+> a big zram swap. In some cases zram(zsmalloc) uses too many
+> non-lru pages, such as:
+> 	MemTotal: 468148 kB
+> 	Normal free:5620kB
+> 	Free swap:4736kB
+> 	Total swap:409596kB
+> 	ZRAM: 164616kB(zsmalloc non-lru pages)
+> 	active_anon:60700kB
+> 	inactive_anon:60744kB
+> 	active_file:34420kB
+> 	inactive_file:37532kB
 
-There are two types of mixed pageblock. Movable page on unmovable
-pageblock and unmovable page on movable pageblock. (I simply ignore
-reclaimble migratetype/pageblock for easy explanation.) Earlier case is
-not a big problem because movable page is reclaimable or migratable. We can
-reclaim/migrate it when necessary so it usually doesn't contribute
-fragmentation. Actual problem is caused by later case. We don't have
-any way to reclaim/migrate this page and it prevents to make high order
-freepage.
+I assume those zsmalloc pages are migrateable and that is the problem?
+Please state that explicitly so that even people not familiar with
+zsmalloc understand the motivation.
 
-This later case happens when there is too less unmovable freepage. When
-unmovable freepage runs out, fallback allocation happens and unmovable
-allocation would be served by movable pageblock.
+> More non-lru pages which used by zram for swap, it influences
+> pgdat_reclaimable_pages and too_many_isolated more.
 
-To solve/prevent this problem, we need to have enough unmovable freepage
-to satisfy all unmovable allocation request by unmovable pageblock.
-If we set enough unmovable pageblock at boot and fix it's migratetype
-until power off, we would have more unmovable freepage during runtime and
-mitigate above problem.
+It would be good to mention what would be a visible effect of this.
+"If the NR_ISOLATED_* is too large then the direct reclaim might get
+throttled prematurely inducing longer allocation latencies without any
+strong reason."
 
-This patch provides a way to set minimum number of unmovable pageblock
-at boot time. In my test, with proper setup, I can't see any mixed
-pageblock where unmovable allocation stay on movable pageblock.
+> This patch excludes isolated non-lru pages from NR_ISOLATED_ANON
+> or NR_ISOLATED_FILE to ensure their counts are right.
 
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
----
- mm/page_alloc.c | 90 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 90 insertions(+)
+But this patch doesn't do that. It just relies on __PageMovable. It is
+true that all LRU pages should be movable (well except for
+NR_UNEVICTABLE in certain configurations) but is it true that all
+movable pages are on the LRU list?
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6b60e26..846c8c7 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1406,6 +1406,89 @@ void clear_zone_contiguous(struct zone *zone)
- 	zone->contiguous = false;
- }
+Why don't you simply mimic what shrink_inactive_list does? Aka count the
+number of isolated pages and then account them when appropriate?
  
-+static unsigned long ratio_unmovable, ratio_reclaimable;
-+
-+static int __init early_ratio_unmovable(char *buf)
-+{
-+	if (!buf)
-+		return -EINVAL;
-+
-+	return kstrtoul(buf, 0, &ratio_unmovable);
-+}
-+early_param("ratio_unmovable", early_ratio_unmovable);
-+
-+static int __init early_ratio_reclaimable(char *buf)
-+{
-+	if (!buf)
-+		return -EINVAL;
-+
-+	return kstrtoul(buf, 0, &ratio_reclaimable);
-+}
-+early_param("ratio_reclaimable", early_ratio_reclaimable);
-+
-+static void __reserve_zone_fixed_pageblock(struct zone *zone,
-+					int migratetype, int nr)
-+{
-+	unsigned long block_start_pfn = zone->zone_start_pfn;
-+	unsigned long block_end_pfn;
-+	struct page *page;
-+	int count = 0;
-+	int pageblocks = MAX_ORDER_NR_PAGES / pageblock_nr_pages;
-+	int i;
-+
-+	block_end_pfn = ALIGN(block_start_pfn + 1, pageblock_nr_pages);
-+	for (; block_start_pfn < zone_end_pfn(zone) &&
-+			count + pageblocks <= nr;
-+			block_start_pfn = block_end_pfn,
-+			 block_end_pfn += pageblock_nr_pages) {
-+
-+		block_end_pfn = min(block_end_pfn, zone_end_pfn(zone));
-+
-+		if (!__pageblock_pfn_to_page(block_start_pfn,
-+					     block_end_pfn, zone))
-+			continue;
-+
-+		page = pfn_to_page(block_start_pfn);
-+		if (get_pageblock_migratetype(page) != MIGRATE_MOVABLE)
-+			continue;
-+
-+		if (!PageBuddy(page))
-+			continue;
-+
-+		if (page_order(page) != MAX_ORDER - 1)
-+			continue;
-+
-+		move_freepages_block(zone, page, migratetype);
-+		i = pageblocks;
-+		do {
-+			set_pageblock_migratetype(page, migratetype);
-+			set_pageblock_flags_group(page, 1,
-+				PB_migrate_fixed, PB_migrate_fixed);
-+			count++;
-+			page += pageblock_nr_pages;
-+		} while (--i);
-+	}
-+
-+	pr_info("Node %d %s %d pageblocks are permanently reserved for migratetype %d\n",
-+		zone_to_nid(zone), zone->name, count, migratetype);
-+}
-+
-+static void reserve_zone_fixed_pageblock(struct zone *zone)
-+{
-+	unsigned long nr_unmovable, nr_reclaimable;
-+
-+	nr_unmovable = (zone->managed_pages * ratio_unmovable / 100);
-+	nr_unmovable /= pageblock_nr_pages;
-+
-+	nr_reclaimable = (zone->managed_pages * ratio_reclaimable / 100);
-+	nr_reclaimable /= pageblock_nr_pages;
-+
-+	__reserve_zone_fixed_pageblock(zone,
-+		MIGRATE_UNMOVABLE, nr_unmovable);
-+	__reserve_zone_fixed_pageblock(zone,
-+		MIGRATE_RECLAIMABLE, nr_reclaimable);
-+}
-+
- #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
- static void __init deferred_free_range(struct page *page,
- 					unsigned long pfn, int nr_pages)
-@@ -1567,6 +1650,7 @@ static int __init deferred_init_memmap(void *data)
- void __init page_alloc_init_late(void)
- {
- 	struct zone *zone;
-+	unsigned long flags;
- 
- #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
- 	int nid;
-@@ -1584,6 +1668,12 @@ void __init page_alloc_init_late(void)
- 	files_maxfiles_init();
- #endif
- 
-+	for_each_populated_zone(zone) {
-+		spin_lock_irqsave(&zone->lock, flags);
-+		reserve_zone_fixed_pageblock(zone);
-+		spin_unlock_irqrestore(&zone->lock, flags);
-+	}
-+
- 	for_each_populated_zone(zone)
- 		set_zone_contiguous(zone);
- }
+> Signed-off-by: Ming ling <ming.ling@spreadtrum.com>
+> ---
+>  mm/compaction.c | 6 ++++--
+>  mm/migrate.c    | 9 +++++----
+>  2 files changed, 9 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 0409a4a..ed4c553 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -643,8 +643,10 @@ static void acct_isolated(struct zone *zone, struct compact_control *cc)
+>  	if (list_empty(&cc->migratepages))
+>  		return;
+>  
+> -	list_for_each_entry(page, &cc->migratepages, lru)
+> -		count[!!page_is_file_cache(page)]++;
+> +	list_for_each_entry(page, &cc->migratepages, lru) {
+> +		if (likely(!__PageMovable(page)))
+> +			count[!!page_is_file_cache(page)]++;
+> +	}
+>  
+>  	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_ANON, count[0]);
+>  	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE, count[1]);
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index 99250ae..abe48cc 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -168,8 +168,6 @@ void putback_movable_pages(struct list_head *l)
+>  			continue;
+>  		}
+>  		list_del(&page->lru);
+> -		dec_node_page_state(page, NR_ISOLATED_ANON +
+> -				page_is_file_cache(page));
+>  		/*
+>  		 * We isolated non-lru movable page so here we can use
+>  		 * __PageMovable because LRU page's mapping cannot have
+> @@ -185,6 +183,8 @@ void putback_movable_pages(struct list_head *l)
+>  			unlock_page(page);
+>  			put_page(page);
+>  		} else {
+> +			dec_node_page_state(page, NR_ISOLATED_ANON +
+> +					page_is_file_cache(page));
+>  			putback_lru_page(page);
+>  		}
+>  	}
+> @@ -1121,8 +1121,9 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
+>  		 * restored.
+>  		 */
+>  		list_del(&page->lru);
+> -		dec_node_page_state(page, NR_ISOLATED_ANON +
+> -				page_is_file_cache(page));
+> +		if (likely(!__PageMovable(page)))
+> +			dec_node_page_state(page, NR_ISOLATED_ANON +
+> +					page_is_file_cache(page));
+>  	}
+>  
+>  	/*
+> -- 
+> 1.9.1
+
 -- 
-1.9.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
