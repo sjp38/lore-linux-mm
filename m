@@ -1,51 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EA4806B025E
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 03:58:35 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id i85so67688969pfa.5
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 00:58:35 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id q14si9857041pgn.63.2016.10.13.00.58.34
-        for <linux-mm@kvack.org>;
-        Thu, 13 Oct 2016 00:58:35 -0700 (PDT)
-Date: Thu, 13 Oct 2016 16:58:56 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC 4/4] mm, page_alloc: disallow migratetype fallback in
- fastpath
-Message-ID: <20161013075856.GC2306@js1304-P5Q-DELUXE>
-References: <20160928014148.GA21007@cmpxchg.org>
- <20160929210548.26196-1-vbabka@suse.cz>
- <20160929210548.26196-5-vbabka@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160929210548.26196-5-vbabka@suse.cz>
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DF2486B025E
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 04:08:12 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id kc8so70804285pab.2
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 01:08:12 -0700 (PDT)
+Received: from mail-pa0-x243.google.com (mail-pa0-x243.google.com. [2607:f8b0:400e:c03::243])
+        by mx.google.com with ESMTPS id xn2si11092757pab.68.2016.10.13.01.08.12
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 13 Oct 2016 01:08:12 -0700 (PDT)
+Received: by mail-pa0-x243.google.com with SMTP id qn10so4443184pac.2
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 01:08:12 -0700 (PDT)
+From: js1304@gmail.com
+Subject: [RFC PATCH 0/5] Reduce fragmentation
+Date: Thu, 13 Oct 2016 17:08:17 +0900
+Message-Id: <1476346102-26928-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Thu, Sep 29, 2016 at 11:05:48PM +0200, Vlastimil Babka wrote:
-> The previous patch has adjusted async compaction so that it helps against
-> longterm fragmentation when compacting for a non-MOVABLE high-order allocation.
-> The goal of this patch is to force such allocations go through compaction
-> once before being allowed to fallback to a pageblock of different migratetype
-> (e.g. MOVABLE). In contexts where compaction is not allowed (and for order-0
-> allocations), this delayed fallback possibility can still help by trying a
-> different zone where fallback might not be needed and potentially waking up
-> kswapd earlier.
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Hmm... can we justify this compaction overhead in case of that there is
-high order freepages in other migratetype pageblock? There is no guarantee
-that longterm fragmentation happens and it affects the system
-peformance.
+Hello,
 
-And, it would easilly fail to compact in unmovable pageblock since
-there would not be migratable pages if everything works as our
-intended. So, I guess that checking it over and over doesn't help to
-reduce fragmentation and just increase latency of allocation.
+This is a patchset to reduce fragmentation. Patch 1 ~ 3 changes
+allocation/free logic to reduce fragmentation. Patch 4 ~ 5 is
+to manually control number of unmovable/reclaimable pageblock by user.
+Usually user has more knowledge about their system and if the number of
+unmovable/reclaimable pageblock is pre-defined properly, fragmentation
+would be reduced a lot.
+
+I found that this patchset reduce fragmentaion on my test.
+
+System: 512 MB
+Workload: Kernel build test (make -j12, 5 times)
+Result: Number of mixed movable pageblock / Number of movable pageblock
+
+Base: 50 / 205
+Patch 1 ~ 3: 20 / 205
+Patchset + 15% Pre-defined unmovable/reclaimable pageblock: 0 / 176
+
+Note that I didn't test hard so I'm not sure if there is a side-effect
+or not. If there is no disagreement, I will do more testing and repost
+the patchset.
+
+Johannes, this patchset would not help to find the root cause of
+your regression but it would help to mitigate your symptom.
+
+This patchset is based on next-20161006.
 
 Thanks.
+
+Joonsoo Kim (5):
+  mm/page_alloc: always add freeing page at the tail of the buddy list
+  mm/page_alloc: use smallest fallback page first in movable allocation
+  mm/page_alloc: stop instantly reusing freed page
+  mm/page_alloc: add fixed migratetype pageblock infrastructure
+  mm/page_alloc: support fixed migratetype pageblock
+
+ include/linux/mmzone.h          |   6 +-
+ include/linux/pageblock-flags.h |   3 +-
+ mm/page_alloc.c                 | 224 ++++++++++++++++++++++++++++++----------
+ mm/vmstat.c                     |   7 +-
+ 4 files changed, 179 insertions(+), 61 deletions(-)
+
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
