@@ -1,147 +1,201 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E355B6B0267
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 04:09:40 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id n3so43544566lfn.5
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 01:09:40 -0700 (PDT)
-Received: from mail-lf0-f67.google.com (mail-lf0-f67.google.com. [209.85.215.67])
-        by mx.google.com with ESMTPS id u8si7498640lff.258.2016.10.13.01.09.39
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3269B6B0038
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 04:38:42 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id f134so22466252lfg.6
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 01:38:42 -0700 (PDT)
+Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
+        by mx.google.com with ESMTPS id 42si7554733lfs.417.2016.10.13.01.38.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Oct 2016 01:09:39 -0700 (PDT)
-Received: by mail-lf0-f67.google.com with SMTP id x79so11367685lff.2
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 01:09:39 -0700 (PDT)
-Date: Thu, 13 Oct 2016 10:09:37 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm: exclude isolated non-lru pages from
- NR_ISOLATED_ANON or NR_ISOLATED_FILE.
-Message-ID: <20161013080936.GG21678@dhcp22.suse.cz>
-References: <1476340749-13281-1-git-send-email-ming.ling@spreadtrum.com>
+        Thu, 13 Oct 2016 01:38:40 -0700 (PDT)
+Received: by mail-lf0-x244.google.com with SMTP id x23so5718703lfi.1
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 01:38:39 -0700 (PDT)
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Subject: Rewording language in mbind(2) to "threads" not "processes"
+Message-ID: <f3c4ca9d-a880-5244-e06e-db4725e4d945@gmail.com>
+Date: Thu, 13 Oct 2016 10:38:33 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1476340749-13281-1-git-send-email-ming.ling@spreadtrum.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "ming.ling" <ming.ling@spreadtrum.com>
-Cc: akpm@linux-foundation.org, mgorman@techsingularity.net, vbabka@suse.cz, hannes@cmpxchg.org, baiyaowei@cmss.chinamobile.com, iamjoonsoo.kim@lge.com, minchan@kernel.org, rientjes@google.com, hughd@google.com, kirill.shutemov@linux.intel.com, riel@redhat.com, mgorman@suse.de, aquini@redhat.com, corbet@lwn.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, orson.zhai@spreadtrum.com, geng.ren@spreadtrum.com, chunyan.zhang@spreadtrum.com, zhizhou.tian@spreadtrum.com, yuming.han@spreadtrum.com, xiajing@spreadst.com
+To: Christoph Lameter <cl@linux.com>, Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+Cc: mtk.manpages@gmail.com, mhocko@kernel.org, mgorman@techsingularity.net, a.p.zijlstra@chello.nl, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-man@vger.kernel.org, Brice Goglin <Brice.Goglin@inria.fr>
 
-On Thu 13-10-16 14:39:09, ming.ling wrote:
-> From: Ming Ling <ming.ling@spreadtrum.com>
-> 
-> Non-lru pages don't belong to any lru, so counting them to
-> NR_ISOLATED_ANON or NR_ISOLATED_FILE doesn't make any sense.
-> It may misguide functions such as pgdat_reclaimable_pages and
-> too_many_isolated.
+Christoph, Piotr, and Brice
 
-That doesn't make much sense to me. I guess you wanted to say something
-like
-"
-Accounting non-lru pages isolated for migration during pfn walk to
-NR_ISOLATED_{ANON,FILE} doesn't make any sense and it can misguide
-heuristics based on those counters such as pgdat_reclaimable_pages resp.
-too_many_isolated. Note that __alloc_contig_migrate_range can isolate
-a lot of pages at once.
-"
-> On mobile devices such as 512M ram android Phone, it may use
-> a big zram swap. In some cases zram(zsmalloc) uses too many
-> non-lru pages, such as:
-> 	MemTotal: 468148 kB
-> 	Normal free:5620kB
-> 	Free swap:4736kB
-> 	Total swap:409596kB
-> 	ZRAM: 164616kB(zsmalloc non-lru pages)
-> 	active_anon:60700kB
-> 	inactive_anon:60744kB
-> 	active_file:34420kB
-> 	inactive_file:37532kB
+Since you (Christoph and Piotr) helped with documenting MPOL_LOCAL 
+just recently, I wonder if I might ask you to review a patch that I 
+propose for the mbind(2) manual page.
 
-I assume those zsmalloc pages are migrateable and that is the problem?
-Please state that explicitly so that even people not familiar with
-zsmalloc understand the motivation.
+As far as I understand, memory policy, as set by set_mempolicy(2)
+is a per-thread attribute. The set_mempolicy(2) and get_mempolicy(2)
+pages already reflect this, thanks to a patch from Brice last year.
 
-> More non-lru pages which used by zram for swap, it influences
-> pgdat_reclaimable_pages and too_many_isolated more.
+However, such changes were not made in the mbind(2) page.
+I wonder if I could ask you (and Brice, and anyone who's willing)
+to look at the patch that I propose below to remedy this. (There are 
+a couple questions "???" that I've injected in the patch.) Is it okay?
 
-It would be good to mention what would be a visible effect of this.
-"If the NR_ISOLATED_* is too large then the direct reclaim might get
-throttled prematurely inducing longer allocation latencies without any
-strong reason."
+Cheers,
 
-> This patch excludes isolated non-lru pages from NR_ISOLATED_ANON
-> or NR_ISOLATED_FILE to ensure their counts are right.
+Michael
 
-But this patch doesn't do that. It just relies on __PageMovable. It is
-true that all LRU pages should be movable (well except for
-NR_UNEVICTABLE in certain configurations) but is it true that all
-movable pages are on the LRU list?
 
-Why don't you simply mimic what shrink_inactive_list does? Aka count the
-number of isolated pages and then account them when appropriate?
+diff --git a/man2/mbind.2 b/man2/mbind.2
+index a5f26e2..9494854 100644
+--- a/man2/mbind.2
++++ b/man2/mbind.2
+@@ -75,16 +75,16 @@ page in the kernel containing all zeros.
+ For a file mapped with
+ .BR MAP_PRIVATE ,
+ an initial read access will allocate pages according to the
+-process policy of the process that causes the page to be allocated.
+-This may not be the process that called
++memory policy of the thread that causes the page to be allocated.
++This may not be the thread that called
+ .BR mbind ().
  
-> Signed-off-by: Ming ling <ming.ling@spreadtrum.com>
-> ---
->  mm/compaction.c | 6 ++++--
->  mm/migrate.c    | 9 +++++----
->  2 files changed, 9 insertions(+), 6 deletions(-)
-> 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 0409a4a..ed4c553 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -643,8 +643,10 @@ static void acct_isolated(struct zone *zone, struct compact_control *cc)
->  	if (list_empty(&cc->migratepages))
->  		return;
->  
-> -	list_for_each_entry(page, &cc->migratepages, lru)
-> -		count[!!page_is_file_cache(page)]++;
-> +	list_for_each_entry(page, &cc->migratepages, lru) {
-> +		if (likely(!__PageMovable(page)))
-> +			count[!!page_is_file_cache(page)]++;
-> +	}
->  
->  	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_ANON, count[0]);
->  	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE, count[1]);
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 99250ae..abe48cc 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -168,8 +168,6 @@ void putback_movable_pages(struct list_head *l)
->  			continue;
->  		}
->  		list_del(&page->lru);
-> -		dec_node_page_state(page, NR_ISOLATED_ANON +
-> -				page_is_file_cache(page));
->  		/*
->  		 * We isolated non-lru movable page so here we can use
->  		 * __PageMovable because LRU page's mapping cannot have
-> @@ -185,6 +183,8 @@ void putback_movable_pages(struct list_head *l)
->  			unlock_page(page);
->  			put_page(page);
->  		} else {
-> +			dec_node_page_state(page, NR_ISOLATED_ANON +
-> +					page_is_file_cache(page));
->  			putback_lru_page(page);
->  		}
->  	}
-> @@ -1121,8 +1121,9 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
->  		 * restored.
->  		 */
->  		list_del(&page->lru);
-> -		dec_node_page_state(page, NR_ISOLATED_ANON +
-> -				page_is_file_cache(page));
-> +		if (likely(!__PageMovable(page)))
-> +			dec_node_page_state(page, NR_ISOLATED_ANON +
-> +					page_is_file_cache(page));
->  	}
->  
->  	/*
-> -- 
-> 1.9.1
+ The specified policy will be ignored for any
+ .B MAP_SHARED
+ mappings in the specified memory range.
+-Rather the pages will be allocated according to the process policy
+-of the process that caused the page to be allocated.
+-Again, this may not be the process that called
++Rather the pages will be allocated according to the memory policy
++of the thread that caused the page to be allocated.
++Again, this may not be the thread that called
+ .BR mbind ().
+ 
+ If the specified memory range includes a shared memory region
+@@ -100,7 +100,10 @@ If, however, the shared memory region was created with the
+ .B SHM_HUGETLB
+ flag,
+ the huge pages will be allocated according to the policy specified
+-only if the page allocation is caused by the process that calls
++only if the page allocation is caused by the thread that calls
++.\"
++.\" ??? Is it correct to change "process" to "thread" in the preceding line?
++.\"
+ .BR mbind ()
+ for that region.
+ 
+@@ -146,15 +149,15 @@ A nonempty
+ specifies physical node IDs.
+ Linux does not remap the
+ .I nodemask
+-when the process moves to a different cpuset context,
+-nor when the set of nodes allowed by the process's
++when the thread moves to a different cpuset context,
++nor when the set of nodes allowed by the thread's
+ current cpuset context changes.
+ .TP
+ .BR MPOL_F_RELATIVE_NODES " (since Linux-2.6.26)"
+ A nonempty
+ .I nodemask
+ specifies node IDs that are relative to the set of
+-node IDs allowed by the process's current cpuset.
++node IDs allowed by the thread's current cpuset.
+ .PP
+ .I nodemask
+ points to a bit mask of nodes containing up to
+@@ -178,7 +181,7 @@ argument is ignored.
+ Where a
+ .I nodemask
+ is required, it must contain at least one node that is on-line,
+-allowed by the process's current cpuset context
++allowed by the thread's current cpuset context
+ (unless the
+ .B MPOL_F_STATIC_NODES
+ mode flag is specified),
+@@ -194,10 +197,10 @@ mode requests that any nondefault policy be removed,
+ restoring default behavior.
+ When applied to a range of memory via
+ .BR mbind (),
+-this means to use the process policy,
++this means to use the thread memory policy,
+ which may have been set with
+ .BR set_mempolicy (2).
+-If the mode of the process policy is also
++If the mode of the thread memory policy is also
+ .BR MPOL_DEFAULT ,
+ the system-wide default policy will be used.
+ The system-wide default policy allocates
+@@ -268,13 +271,13 @@ If the "local node" is low on free memory,
+ the kernel will try to allocate memory from other nodes.
+ The kernel will allocate memory from the "local node"
+ whenever memory for this node is available.
+-If the "local node" is not allowed by the process's current cpuset context,
++If the "local node" is not allowed by the thread's current cpuset context,
+ the kernel will try to allocate memory from other nodes.
+ The kernel will allocate memory from the "local node" whenever
+-it becomes allowed by the process's current cpuset context.
++it becomes allowed by the thread's current cpuset context.
+ By contrast,
+ .B MPOL_DEFAULT
+-reverts to the policy of the process (which may be set via
++reverts to the memory policy of the thread (which may be set via
+ .BR set_mempolicy (2));
+ that policy may be something other than "local allocation".
+ .PP
+@@ -300,7 +303,10 @@ is specified in
+ .IR flags ,
+ then the kernel will attempt to move all the existing pages
+ in the memory range so that they follow the policy.
+-Pages that are shared with other processes will not be moved.
++Pages that are shared with other threads will not be moved.
++.\"
++.\" ??? Is it correct to change "processes" to "threads" in the preceding line?
++.\"
+ If
+ .B MPOL_MF_STRICT
+ is also specified, then the call will fail with the error
+@@ -312,8 +318,11 @@ If
+ is passed in
+ .IR flags ,
+ then the kernel will attempt to move all existing pages in the memory range
+-regardless of whether other processes use the pages.
+-The calling process must be privileged
++regardless of whether other threads use the pages.
++.\"
++.\" ??? Is it correct to change "processes" to "threads" in the preceding line?
++.\"
++The calling thread must be privileged
+ .RB ( CAP_SYS_NICE )
+ to use this flag.
+ If
+@@ -383,7 +392,7 @@ specifies one or more node IDs that are
+ greater than the maximum supported node ID.
+ Or, none of the node IDs specified by
+ .I nodemask
+-are on-line and allowed by the process's current cpuset context,
++are on-line and allowed by the thread's current cpuset context,
+ or none of the specified nodes contain memory.
+ Or, the
+ .I mode
+@@ -440,14 +449,14 @@ When
+ .B MPOL_DEFAULT
+ is specified for
+ .BR set_mempolicy (2),
+-the process's policy reverts to system default policy
++the thread's memory policy reverts to the system default policy
+ or local allocation.
+ When
+ .B MPOL_DEFAULT
+ is specified for a range of memory using
+ .BR mbind (),
+ any pages subsequently allocated for that range will use
+-the process's policy, as set by
++the thread's memory policy, as set by
+ .BR set_mempolicy (2).
+ This effectively removes the explicit policy from the
+ specified range, "falling back" to a possibly nondefault
 
 -- 
-Michal Hocko
-SUSE Labs
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
