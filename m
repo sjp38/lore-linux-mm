@@ -1,107 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AF466B0253
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 02:45:17 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id t73so145736437oie.5
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 23:45:17 -0700 (PDT)
-Received: from SHSQR01.spreadtrum.com ([222.66.158.135])
-        by mx.google.com with ESMTPS id l83si4701052oia.31.2016.10.12.23.45.16
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4708A6B0253
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 02:49:26 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id x79so42430634lff.2
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 23:49:26 -0700 (PDT)
+Received: from mail-lf0-x242.google.com (mail-lf0-x242.google.com. [2a00:1450:4010:c07::242])
+        by mx.google.com with ESMTPS id n8si7267344lfi.235.2016.10.12.23.49.24
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 12 Oct 2016 23:45:16 -0700 (PDT)
-From: "ming.ling" <ming.ling@spreadtrum.com>
-Subject: [PATCH v2] mm: exclude isolated non-lru pages from NR_ISOLATED_ANON or NR_ISOLATED_FILE.
-Date: Thu, 13 Oct 2016 14:39:09 +0800
-Message-ID: <1476340749-13281-1-git-send-email-ming.ling@spreadtrum.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Oct 2016 23:49:24 -0700 (PDT)
+Received: by mail-lf0-x242.google.com with SMTP id x23so5227572lfi.1
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 23:49:24 -0700 (PDT)
+Subject: Re: [PATCH v3 0/1] man/set_mempolicy.2,mbind.2: add MPOL_LOCAL NUMA
+ memory policy documentation
+References: <alpine.DEB.2.20.1610100854001.27158@east.gentwo.org>
+ <20161010162310.2463-1-kwapulinski.piotr@gmail.com>
+ <4d816fee-4690-2ed7-7faa-c437e67cfbf5@gmail.com> <20161012155309.GA2706@home>
+ <alpine.DEB.2.20.1610121455040.11069@east.gentwo.org>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Message-ID: <898fa754-6dd1-8ba6-fa69-edda33ab0429@gmail.com>
+Date: Thu, 13 Oct 2016 08:48:48 +0200
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <alpine.DEB.2.20.1610121455040.11069@east.gentwo.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mgorman@techsingularity.net, vbabka@suse.cz, hannes@cmpxchg.org, mhocko@suse.com, baiyaowei@cmss.chinamobile.com, iamjoonsoo.kim@lge.com, minchan@kernel.org, rientjes@google.com, hughd@google.com, kirill.shutemov@linux.intel.com
-Cc: riel@redhat.com, mgorman@suse.de, aquini@redhat.com, corbet@lwn.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, orson.zhai@spreadtrum.com, geng.ren@spreadtrum.com, chunyan.zhang@spreadtrum.com, zhizhou.tian@spreadtrum.com, yuming.han@spreadtrum.com, xiajing@spreadst.com, Ming Ling <ming.ling@spreadtrum.com>
+To: Christoph Lameter <cl@linux.com>, Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+Cc: mtk.manpages@gmail.com, kirill.shutemov@linux.intel.com, vbabka@suse.cz, rientjes@google.com, mhocko@kernel.org, mgorman@techsingularity.net, liangchen.linux@gmail.com, nzimmer@sgi.com, a.p.zijlstra@chello.nl, riel@redhat.com, lee.schermerhorn@hp.com, jmarchan@redhat.com, joe@perches.com, corbet@lwn.net, iamyooon@gmail.com, n-horiguchi@ah.jp.nec.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-man@vger.kernel.org, akpm@linux-foundation.org, linux-doc@vger.kernel.org, linux-api@vger.kernel.org
 
-From: Ming Ling <ming.ling@spreadtrum.com>
+On 10/12/2016 09:55 PM, Christoph Lameter wrote:
+> On Wed, 12 Oct 2016, Piotr Kwapulinski wrote:
+> 
+>> That's right. This could be "local allocation" or any other memory policy.
+> 
+> Correct.
+> 
 
-Non-lru pages don't belong to any lru, so counting them to
-NR_ISOLATED_ANON or NR_ISOLATED_FILE doesn't make any sense.
-It may misguide functions such as pgdat_reclaimable_pages and
-too_many_isolated.
-On mobile devices such as 512M ram android Phone, it may use
-a big zram swap. In some cases zram(zsmalloc) uses too many
-non-lru pages, such as:
-	MemTotal: 468148 kB
-	Normal free:5620kB
-	Free swap:4736kB
-	Total swap:409596kB
-	ZRAM: 164616kB(zsmalloc non-lru pages)
-	active_anon:60700kB
-	inactive_anon:60744kB
-	active_file:34420kB
-	inactive_file:37532kB
-More non-lru pages which used by zram for swap, it influences
-pgdat_reclaimable_pages and too_many_isolated more.
-This patch excludes isolated non-lru pages from NR_ISOLATED_ANON
-or NR_ISOLATED_FILE to ensure their counts are right.
+Thanks, Piotr and Christoph.
 
-Signed-off-by: Ming ling <ming.ling@spreadtrum.com>
----
- mm/compaction.c | 6 ++++--
- mm/migrate.c    | 9 +++++----
- 2 files changed, 9 insertions(+), 6 deletions(-)
+Cheers,
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 0409a4a..ed4c553 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -643,8 +643,10 @@ static void acct_isolated(struct zone *zone, struct compact_control *cc)
- 	if (list_empty(&cc->migratepages))
- 		return;
- 
--	list_for_each_entry(page, &cc->migratepages, lru)
--		count[!!page_is_file_cache(page)]++;
-+	list_for_each_entry(page, &cc->migratepages, lru) {
-+		if (likely(!__PageMovable(page)))
-+			count[!!page_is_file_cache(page)]++;
-+	}
- 
- 	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_ANON, count[0]);
- 	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE, count[1]);
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 99250ae..abe48cc 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -168,8 +168,6 @@ void putback_movable_pages(struct list_head *l)
- 			continue;
- 		}
- 		list_del(&page->lru);
--		dec_node_page_state(page, NR_ISOLATED_ANON +
--				page_is_file_cache(page));
- 		/*
- 		 * We isolated non-lru movable page so here we can use
- 		 * __PageMovable because LRU page's mapping cannot have
-@@ -185,6 +183,8 @@ void putback_movable_pages(struct list_head *l)
- 			unlock_page(page);
- 			put_page(page);
- 		} else {
-+			dec_node_page_state(page, NR_ISOLATED_ANON +
-+					page_is_file_cache(page));
- 			putback_lru_page(page);
- 		}
- 	}
-@@ -1121,8 +1121,9 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
- 		 * restored.
- 		 */
- 		list_del(&page->lru);
--		dec_node_page_state(page, NR_ISOLATED_ANON +
--				page_is_file_cache(page));
-+		if (likely(!__PageMovable(page)))
-+			dec_node_page_state(page, NR_ISOLATED_ANON +
-+					page_is_file_cache(page));
- 	}
- 
- 	/*
+Michael
+
+
 -- 
-1.9.1
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
