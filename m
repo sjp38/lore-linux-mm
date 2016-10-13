@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 683686B0038
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 05:04:44 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id n3so44526167lfn.5
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 02:04:44 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id B475F6B0038
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 05:12:13 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id d186so44507299lfg.7
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 02:12:13 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h66si7565343lfd.146.2016.10.13.02.04.42
+        by mx.google.com with ESMTPS id r1si16482673wjt.38.2016.10.13.02.12.12
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 13 Oct 2016 02:04:42 -0700 (PDT)
-Subject: Re: [RFC PATCH 1/5] mm/page_alloc: always add freeing page at the
- tail of the buddy list
+        Thu, 13 Oct 2016 02:12:12 -0700 (PDT)
+Subject: Re: [RFC PATCH 2/5] mm/page_alloc: use smallest fallback page first
+ in movable allocation
 References: <1476346102-26928-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1476346102-26928-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <1476346102-26928-3-git-send-email-iamjoonsoo.kim@lge.com>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <15d0cf1a-4b73-470d-208f-be7b0ebb48ba@suse.cz>
-Date: Thu, 13 Oct 2016 11:04:39 +0200
+Message-ID: <2567dd30-89c7-b9d2-c327-5dec8c536040@suse.cz>
+Date: Thu, 13 Oct 2016 11:12:10 +0200
 MIME-Version: 1.0
-In-Reply-To: <1476346102-26928-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1476346102-26928-3-git-send-email-iamjoonsoo.kim@lge.com>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -28,90 +28,75 @@ Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.ne
 On 10/13/2016 10:08 AM, js1304@gmail.com wrote:
 > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 >
-> Currently, freeing page can stay longer in the buddy list if next higher
-> order page is in the buddy list in order to help coalescence. However,
-> it doesn't work for the simplest sequential free case. For example, think
-> about the situation that 8 consecutive pages are freed in sequential
-> order.
->
-> page 0: attached at the head of order 0 list
-> page 1: merged with page 0, attached at the head of order 1 list
-> page 2: attached at the tail of order 0 list
-> page 3: merged with page 2 and then merged with page 0, attached at
->  the head of order 2 list
-> page 4: attached at the head of order 0 list
-> page 5: merged with page 4, attached at the tail of order 1 list
-> page 6: attached at the tail of order 0 list
-> page 7: merged with page 6 and then merged with page 4. Lastly, merged
->  with page 0 and we get order 3 freepage.
->
-> With excluding page 0 case, there are three cases that freeing page is
-> attached at the head of buddy list in this example and if just one
-> corresponding ordered allocation request comes at that moment, this page
-> in being a high order page will be allocated and we would fail to make
-> order-3 freepage.
->
-> Allocation usually happens in sequential order and free also does. So, it
+> When we try to find freepage in fallback buddy list, we always serach
+> the largest one. This would help for fragmentation if we process
+> unmovable/reclaimable allocation request because it could cause permanent
+> fragmentation on movable pageblock and spread out such allocations would
+> cause more fragmentation. But, movable allocation request is
+> rather different. It would be simply freed or migrated so it doesn't
+> contribute to fragmentation on the other pageblock. In this case, it would
+> be better not to break the precious highest order freepage so we need to
+> search the smallest freepage first.
 
-Are you sure this is true except after the system is freshly booted? As 
-soon as it becomes fragmented, a stream of order-0 allocations will 
-likely grab them randomly from all over the place and it's unlikely to 
-recover except small orders.
+I've also pondered this, but then found a lower hanging fruit that 
+should be hopefully clear win and mitigate most cases of breaking 
+high-order pages unnecessarily:
 
-> would be important to detect such a situation and to give some chance
-> to be coalesced.
->
-> I think that simple and effective heuristic about this case is just
-> attaching freeing page at the tail of the buddy list unconditionally.
-> If freeing isn't merged during one rotation, it would be actual
-> fragmentation and we don't need to care about it for coalescence.
+http://marc.info/?l=linux-mm&m=147582914330198&w=2
 
-I'm not against removing this heuristic, but not without some 
-benchmarks. The disadvantage of putting pages to tail lists is that they 
-become cache-cold until allocated again. We should check how large that 
-problem is.
+So I would try that first, and then test your patch on top? In your 
+patch there's a risk that we make it harder for unmovable/reclaimable 
+pageblocks to become movable again (we start with the smallest page 
+which means there's lower chance that move_freepages_block() will 
+convert more than half of the block). And Johannes's report seems to be 
+about a regression in exactly this aspect of the heuristics.
 
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > ---
->  mm/page_alloc.c | 25 ++-----------------------
->  1 file changed, 2 insertions(+), 23 deletions(-)
+>  mm/page_alloc.c | 26 +++++++++++++++++++++-----
+>  1 file changed, 21 insertions(+), 5 deletions(-)
 >
 > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 1790391..c4f7d05 100644
+> index c4f7d05..70427bf 100644
 > --- a/mm/page_alloc.c
 > +++ b/mm/page_alloc.c
-> @@ -858,29 +858,8 @@ static inline void __free_one_page(struct page *page,
->  done_merging:
->  	set_page_order(page, order);
+> @@ -2121,15 +2121,31 @@ static void unreserve_highatomic_pageblock(const struct alloc_context *ac)
+>  	int fallback_mt;
+>  	bool can_steal;
 >
-> -	/*
-> -	 * If this is not the largest possible page, check if the buddy
-> -	 * of the next-highest order is free. If it is, it's possible
-> -	 * that pages are being freed that will coalesce soon. In case,
-> -	 * that is happening, add the free page to the tail of the list
-> -	 * so it's less likely to be used soon and more likely to be merged
-> -	 * as a higher order page
-> -	 */
-> -	if ((order < MAX_ORDER-2) && pfn_valid_within(page_to_pfn(buddy))) {
-> -		struct page *higher_page, *higher_buddy;
-> -		combined_idx = buddy_idx & page_idx;
-> -		higher_page = page + (combined_idx - page_idx);
-> -		buddy_idx = __find_buddy_index(combined_idx, order + 1);
-> -		higher_buddy = higher_page + (buddy_idx - combined_idx);
-> -		if (page_is_buddy(higher_page, higher_buddy, order + 1)) {
-> -			list_add_tail(&page->lru,
-> -				&zone->free_area[order].free_list[migratetype]);
-> -			goto out;
-> -		}
-> -	}
-> -
-> -	list_add(&page->lru, &zone->free_area[order].free_list[migratetype]);
-> -out:
-> +	list_add_tail(&page->lru,
-> +		&zone->free_area[order].free_list[migratetype]);
->  	zone->free_area[order].nr_free++;
->  }
+> -	/* Find the largest possible block of pages in the other list */
+> -	for (current_order = MAX_ORDER-1;
+> -				current_order >= order && current_order <= MAX_ORDER-1;
+> -				--current_order) {
+> +	if (start_migratetype == MIGRATE_MOVABLE)
+> +		current_order = order;
+> +	else
+> +		current_order = MAX_ORDER - 1;
+> +
+> +	/*
+> +	 * Find the appropriate block of pages in the other list.
+> +	 * If start_migratetype is MIGRATE_UNMOVABLE/MIGRATE_RECLAIMABLE,
+> +	 * it would be better to find largest pageblock since it could cause
+> +	 * fragmentation. However, in case of MIGRATE_MOVABLE, there is no
+> +	 * risk about fragmentation so it would be better to use smallest one.
+> +	 */
+> +	while (current_order >= order && current_order <= MAX_ORDER - 1) {
+> +
+>  		area = &(zone->free_area[current_order]);
+>  		fallback_mt = find_suitable_fallback(area, current_order,
+>  				start_migratetype, false, &can_steal);
+> -		if (fallback_mt == -1)
+> +		if (fallback_mt == -1) {
+> +			if (start_migratetype == MIGRATE_MOVABLE)
+> +				current_order++;
+> +			else
+> +				current_order--;
+> +
+>  			continue;
+> +		}
 >
+>  		page = list_first_entry(&area->free_list[fallback_mt],
+>  						struct page, lru);
 >
 
 --
