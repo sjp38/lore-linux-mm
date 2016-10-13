@@ -1,101 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C7E526B0260
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 08:08:49 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id n3so47881821lfn.5
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 05:08:49 -0700 (PDT)
-Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
-        by mx.google.com with ESMTPS id n138si8216900lfn.413.2016.10.13.05.08.47
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C05096B0253
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 08:19:05 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id n189so52143843qke.0
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 05:19:05 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o190si6259558qkd.307.2016.10.13.05.19.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Oct 2016 05:08:47 -0700 (PDT)
-Received: by mail-lf0-x241.google.com with SMTP id x23so6628946lfi.1
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 05:08:47 -0700 (PDT)
-Date: Thu, 13 Oct 2016 15:08:44 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv3 17/41] filemap: handle huge pages in
- filemap_fdatawait_range()
-Message-ID: <20161013120844.GA2906@node>
-References: <20160915115523.29737-1-kirill.shutemov@linux.intel.com>
- <20160915115523.29737-18-kirill.shutemov@linux.intel.com>
- <20161013094441.GC26241@quack2.suse.cz>
+        Thu, 13 Oct 2016 05:19:05 -0700 (PDT)
+From: Jan Stancek <jstancek@redhat.com>
+Subject: [bug/regression] libhugetlbfs testsuite failures and OOMs eventually
+ kill my system
+Message-ID: <57FF7BB4.1070202@redhat.com>
+Date: Thu, 13 Oct 2016 14:19:00 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161013094441.GC26241@quack2.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: mike.kravetz@oracle.com, hillf.zj@alibaba-inc.com, dave.hansen@linux.intel.com, kirill.shutemov@linux.intel.com, mhocko@suse.cz, n-horiguchi@ah.jp.nec.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com
 
-On Thu, Oct 13, 2016 at 11:44:41AM +0200, Jan Kara wrote:
-> On Thu 15-09-16 14:54:59, Kirill A. Shutemov wrote:
-> > We writeback whole huge page a time.
-> 
-> This is one of the things I don't understand. Firstly I didn't see where
-> changes of writeback like this would happen (maybe they come later).
-> Secondly I'm not sure why e.g. writeback should behave atomically wrt huge
-> pages. Is this because radix-tree multiorder entry tracks dirtiness for us
-> at that granularity?
+Hi,
 
-We track dirty/writeback on per-compound pages: meaning we have one
-dirty/writeback flag for whole compound page, not on every individual
-4k subpage. The same story for radix-tree tags.
+I'm running into ENOMEM failures with libhugetlbfs testsuite [1] on
+a power8 lpar system running 4.8 or latest git [2]. Repeated runs of
+this suite trigger multiple OOMs, that eventually kill entire system,
+it usually takes 3-5 runs:
 
-> BTW, can you also explain why do we need multiorder entries? What do
-> they solve for us?
+ * Total System Memory......:  18024 MB
+ * Shared Mem Max Mapping...:    320 MB
+ * System Huge Page Size....:     16 MB
+ * Available Huge Pages.....:     20
+ * Total size of Huge Pages.:    320 MB
+ * Remaining System Memory..:  17704 MB
+ * Huge Page User Group.....:  hugepages (1001)
 
-It helps us having coherent view on tags in radix-tree: no matter which
-index we refer from the range huge page covers we will get the same
-answer on which tags set.
+I see this only on ppc (BE/LE), x86_64 seems unaffected and successfully
+ran the tests for ~12 hours.
 
-> I'm sorry for these basic questions but I'd just like to understand how is
-> this supposed to work...
-> 
-> 								Honza
-> 
-> 
-> > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > ---
-> >  mm/filemap.c | 5 +++++
-> >  1 file changed, 5 insertions(+)
-> > 
-> > diff --git a/mm/filemap.c b/mm/filemap.c
-> > index 05b42d3e5ed8..53da93156e60 100644
-> > --- a/mm/filemap.c
-> > +++ b/mm/filemap.c
-> > @@ -372,9 +372,14 @@ static int __filemap_fdatawait_range(struct address_space *mapping,
-> >  			if (page->index > end)
-> >  				continue;
-> >  
-> > +			page = compound_head(page);
-> >  			wait_on_page_writeback(page);
-> >  			if (TestClearPageError(page))
-> >  				ret = -EIO;
-> > +			if (PageTransHuge(page)) {
-> > +				index = page->index + HPAGE_PMD_NR;
-> > +				i += index - pvec.pages[i]->index - 1;
-> > +			}
-> >  		}
-> >  		pagevec_release(&pvec);
-> >  		cond_resched();
-> > -- 
-> > 2.9.3
-> > 
-> > 
-> -- 
-> Jan Kara <jack@suse.com>
-> SUSE Labs, CR
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Bisect has identified following patch as culprit:
+  commit 67961f9db8c477026ea20ce05761bde6f8bf85b0
+  Author: Mike Kravetz <mike.kravetz@oracle.com>
+  Date:   Wed Jun 8 15:33:42 2016 -0700
+    mm/hugetlb: fix huge page reserve accounting for private mappings
 
--- 
- Kirill A. Shutemov
+
+Following patch (made with my limited insight) applied to
+latest git [2] fixes the problem for me:
+
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index ec49d9e..7261583 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1876,7 +1876,7 @@ static long __vma_reservation_common(struct hstate *h,
+                 * return value of this routine is the opposite of the
+                 * value returned from reserve map manipulation routines above.
+                 */
+-               if (ret)
++               if (ret >= 0)
+                        return 0;
+                else
+                        return 1;
+
+Regards,
+Jan
+
+[1] https://github.com/libhugetlbfs/libhugetlbfs
+[2] v4.8-14230-gb67be92
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
