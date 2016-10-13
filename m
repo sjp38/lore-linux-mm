@@ -1,85 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E81216B026D
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 07:04:59 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id d186so46564436lfg.7
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 04:04:59 -0700 (PDT)
-Received: from mail-lf0-f68.google.com (mail-lf0-f68.google.com. [209.85.215.68])
-        by mx.google.com with ESMTPS id k88si8028401lfi.414.2016.10.13.04.04.58
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 54F986B026E
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 07:05:15 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id x79so47058496lff.2
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 04:05:15 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y8si17038656wjx.44.2016.10.13.04.05.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Oct 2016 04:04:58 -0700 (PDT)
-Received: by mail-lf0-f68.google.com with SMTP id x23so6350363lfi.1
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 04:04:58 -0700 (PDT)
-Date: Thu, 13 Oct 2016 13:04:56 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, compaction: allow compaction for GFP_NOFS
- requests
-Message-ID: <20161013110456.GK21678@dhcp22.suse.cz>
-References: <20161004081215.5563-1-mhocko@kernel.org>
- <20161004203202.GY9806@dastard>
- <20161005113839.GC7138@dhcp22.suse.cz>
- <20161006021142.GC9806@dastard>
- <20161007131814.GL18439@dhcp22.suse.cz>
- <20161013002924.GO23194@dastard>
- <20161013073947.GF21678@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 13 Oct 2016 04:05:13 -0700 (PDT)
+Subject: Re: [RFC PATCH 5/5] mm/page_alloc: support fixed migratetype
+ pageblock
+References: <1476346102-26928-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1476346102-26928-6-git-send-email-iamjoonsoo.kim@lge.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <f3d23e61-8418-515c-f5bf-31e742e2f64e@suse.cz>
+Date: Thu, 13 Oct 2016 13:05:11 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161013073947.GF21678@dhcp22.suse.cz>
+In-Reply-To: <1476346102-26928-6-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Thu 13-10-16 09:39:47, Michal Hocko wrote:
-> On Thu 13-10-16 11:29:24, Dave Chinner wrote:
-> > On Fri, Oct 07, 2016 at 03:18:14PM +0200, Michal Hocko wrote:
-> [...]
-> > > Unpatched kernel:
-> > > #       Version 3.3, 16 thread(s) starting at Fri Oct  7 09:55:05 2016
-> > > #       Sync method: NO SYNC: Test does not issue sync() or fsync() calls.
-> > > #       Directories:  Time based hash between directories across 10000 subdirectories with 180 seconds per subdirectory.
-> > > #       File names: 40 bytes long, (16 initial bytes of time stamp with 24 random bytes at end of name)
-> > > #       Files info: size 0 bytes, written with an IO size of 16384 bytes per write
-> > > #       App overhead is time in microseconds spent in the test not doing file writing related system calls.
-> > > #
-> > > FSUse%        Count         Size    Files/sec     App Overhead
-> > >      1      1600000            0       4300.1         20745838
-> > >      3      3200000            0       4239.9         23849857
-> > >      5      4800000            0       4243.4         25939543
-> > >      6      6400000            0       4248.4         19514050
-> > >      8      8000000            0       4262.1         20796169
-> > >      9      9600000            0       4257.6         21288675
-> > >     11     11200000            0       4259.7         19375120
-> > >     13     12800000            0       4220.7         22734141
-> > >     14     14400000            0       4238.5         31936458
-> > >     16     16000000            0       4231.5         23409901
-> > >     18     17600000            0       4045.3         23577700
-> > >     19     19200000            0       2783.4         58299526
-> > >     21     20800000            0       2678.2         40616302
-> > >     23     22400000            0       2693.5         83973996
-> > > Ctrl+C because it just took too long.
-> > 
-> > Try running it on a larger filesystem, or configure the fs with more
-> > AGs and a larger log (i.e. mkfs.xfs -f -dagcount=24 -l size=512m
-> > <dev>). That will speed up modifications and increase concurrency.
-> > This test should be able to run 5-10x faster than this (it
-> > sustains 55,000 files/s @ 300MB/s write on my test fs on a cheap
-> > SSD).
-> 
-> Will add more memory to the machine. Will report back on that.
+On 10/13/2016 10:08 AM, js1304@gmail.com wrote:
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>
+> We have migratetype facility to minimise fragmentation. It dynamically
+> changes migratetype of pageblock based on some criterias but it never
+> be perfect. Some migratetype pages are often placed in the other
+> migratetype pageblock. We call this pageblock as mixed pageblock.
+>
+> There are two types of mixed pageblock. Movable page on unmovable
+> pageblock and unmovable page on movable pageblock. (I simply ignore
+> reclaimble migratetype/pageblock for easy explanation.) Earlier case is
+> not a big problem because movable page is reclaimable or migratable. We can
+> reclaim/migrate it when necessary so it usually doesn't contribute
+> fragmentation. Actual problem is caused by later case. We don't have
+> any way to reclaim/migrate this page and it prevents to make high order
+> freepage.
+>
+> This later case happens when there is too less unmovable freepage. When
+> unmovable freepage runs out, fallback allocation happens and unmovable
+> allocation would be served by movable pageblock.
+>
+> To solve/prevent this problem, we need to have enough unmovable freepage
+> to satisfy all unmovable allocation request by unmovable pageblock.
+> If we set enough unmovable pageblock at boot and fix it's migratetype
+> until power off, we would have more unmovable freepage during runtime and
+> mitigate above problem.
+>
+> This patch provides a way to set minimum number of unmovable pageblock
+> at boot time. In my test, with proper setup, I can't see any mixed
+> pageblock where unmovable allocation stay on movable pageblock.
 
-increasing the memory to 1G didn't help. So I've tried to add
--dagcount=24 -l size=512m and that didn't help much either. I am at 5k
-files/s so nowhere close to your 55k. I thought this is more about CPUs
-count than about the amount of memory. So I've tried a larger machine
-with 24 CPUs (no dagcount etc...), this one doesn't have a fast storage
-so I've backed the fs image by ramdisk but even then I am getting very
-similar results. No idea what is wrong with my kvm setup.
--- 
-Michal Hocko
-SUSE Labs
+So if I get this correctly, the fixed-as-unmovable bit doesn't actually 
+prevent fallbacks to such pageblocks? Then I'm surprised that's enough 
+to make any difference. Also Johannes's problem is that there are too 
+many unmovable pageblocks, so I'm a bit skeptical that simply 
+preallocating some will help his workload. But we'll see...
+
+In any case I wouldn't pursue a solution that requires user 
+configuration, until as a last resort. Hopefully we can make the 
+heuristics good enough so that's not necessary. Sorry for my mostly 
+negative feedback to your series, I'm glad you pursuit this as well, and 
+hope we'll eventually find a good solution :)
+
+Vlastimil
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
