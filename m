@@ -1,88 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 390F26B0038
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 08:51:47 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id f6so56537347qtd.4
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 05:51:47 -0700 (PDT)
-Received: from mail-qt0-f171.google.com (mail-qt0-f171.google.com. [209.85.216.171])
-        by mx.google.com with ESMTPS id w23si2990006qka.222.2016.10.13.05.51.46
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2053A6B0038
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 08:53:22 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id n3so48714905lfn.5
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 05:53:22 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x20si17490039wju.228.2016.10.13.05.53.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Oct 2016 05:51:46 -0700 (PDT)
-Received: by mail-qt0-f171.google.com with SMTP id q7so42529408qtq.1
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 05:51:46 -0700 (PDT)
-Date: Thu, 13 Oct 2016 14:51:44 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: MPOL_BIND on memory only nodes
-Message-ID: <20161013125143.GN21678@dhcp22.suse.cz>
-References: <57FE0184.6030008@linux.vnet.ibm.com>
- <20161012094337.GH17128@dhcp22.suse.cz>
- <20161012131626.GL17128@dhcp22.suse.cz>
- <57FF59EE.9050508@linux.vnet.ibm.com>
- <20161013100708.GI21678@dhcp22.suse.cz>
- <57FF68D3.5030507@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 13 Oct 2016 05:53:20 -0700 (PDT)
+Date: Thu, 13 Oct 2016 11:33:13 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCHv3 15/41] filemap: handle huge pages in
+ do_generic_file_read()
+Message-ID: <20161013093313.GB26241@quack2.suse.cz>
+References: <20160915115523.29737-1-kirill.shutemov@linux.intel.com>
+ <20160915115523.29737-16-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <57FF68D3.5030507@linux.vnet.ibm.com>
+In-Reply-To: <20160915115523.29737-16-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Mel Gorman <mgorman@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org
 
-On Thu 13-10-16 16:28:27, Anshuman Khandual wrote:
-> On 10/13/2016 03:37 PM, Michal Hocko wrote:
-> > On Thu 13-10-16 15:24:54, Anshuman Khandual wrote:
-> > [...]
-> >> Which makes the function look like this. Even with these changes, MPOL_BIND is
-> >> still going to pick up the local node's zonelist instead of the first node in
-> >> policy->v.nodes nodemask. It completely ignores policy->v.nodes which it should
-> >> not.
-> > 
-> > Not really. I have tried to explain earlier. We do not ignore policy
-> > nodemask. This one comes from policy_nodemask. We start with the local
-> > node but fallback to some of the nodes from the nodemask defined by the
-> > policy.
-> > 
+On Thu 15-09-16 14:54:57, Kirill A. Shutemov wrote:
+> Most of work happans on head page. Only when we need to do copy data to
+> userspace we find relevant subpage.
 > 
-> Yeah saw your response but did not get that exactly. We dont ignore
-> policy nodemask while memory allocation, correct. But my point was
-> we are ignoring policy nodemask while selecting zonelist which will
-> be used during page allocation. Though the zone contents of both the
-> zonelists are likely to be same, would not it be better to get the
-> zone list from the nodemask as well ?
+> We are still limited by PAGE_SIZE per iteration. Lifting this limitation
+> would require some more work.
 
-Why. Zonelist from the current node should contain all availanle zones
-and get_page_from_freelist then filters this zonelist accoring to
-mempolicy and nodemask
+Hum, I'm kind of lost. Can you point me to some design document / email
+that would explain some high level ideas how are huge pages in page cache
+supposed to work? When are we supposed to operate on the head page and when
+on subpage? What is protected by the page lock of the head page? Do page
+locks of subpages play any role? If understand right, e.g.
+pagecache_get_page() will return subpages but is it generally safe to
+operate on subpages individually or do we have to be aware that they are
+part of a huge page?
 
-> Or I am still missing something
-> here. The following change is what I am trying to propose.
+If I understand the motivation right, it is mostly about being able to mmap
+PMD-sized chunks to userspace. So my naive idea would be that we could just
+implement it by allocating PMD sized chunks of pages when adding pages to
+page cache, we don't even have to read them all unless we come from PMD
+fault path. Reclaim may need to be aware not to split pages unnecessarily
+but that's about it. So I'd like to understand what's wrong with this
+naive idea and why do filesystems need to be aware that someone wants to
+map in PMD sized chunks...
+
+								Honza
 > 
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index ad1c96a..f60ab80 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -1685,14 +1685,7 @@ static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy,
->                         nd = policy->v.preferred_node;
->                 break;
->         case MPOL_BIND:
-> -               /*
-> -                * Normally, MPOL_BIND allocations are node-local within the
-> -                * allowed nodemask.  However, if __GFP_THISNODE is set and the
-> -                * current node isn't part of the mask, we use the zonelist for
-> -                * the first node in the mask instead.
-> -                */
-> -               if (unlikely(gfp & __GFP_THISNODE) &&
-> -                               unlikely(!node_isset(nd, policy->v.nodes)))
-> +               if (unlikely(!node_isset(nd, policy->v.nodes)))
->                         nd = first_node(policy->v.nodes);
-
-That shouldn't make much difference as per above.
-
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  mm/filemap.c | 5 ++++-
+>  1 file changed, 4 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index 50afe17230e7..b77bcf6843ee 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -1860,6 +1860,7 @@ find_page:
+>  			if (unlikely(page == NULL))
+>  				goto no_cached_page;
+>  		}
+> +		page = compound_head(page);
+>  		if (PageReadahead(page)) {
+>  			page_cache_async_readahead(mapping,
+>  					ra, filp, page,
+> @@ -1936,7 +1937,8 @@ page_ok:
+>  		 * now we can copy it to user space...
+>  		 */
+>  
+> -		ret = copy_page_to_iter(page, offset, nr, iter);
+> +		ret = copy_page_to_iter(page + index - page->index, offset,
+> +				nr, iter);
+>  		offset += ret;
+>  		index += offset >> PAGE_SHIFT;
+>  		offset &= ~PAGE_MASK;
+> @@ -2356,6 +2358,7 @@ page_not_uptodate:
+>  	 * because there really aren't any performance issues here
+>  	 * and we need to check for errors.
+>  	 */
+> +	page = compound_head(page);
+>  	ClearPageError(page);
+>  	error = mapping->a_ops->readpage(file, page);
+>  	if (!error) {
+> -- 
+> 2.9.3
+> 
+> 
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
