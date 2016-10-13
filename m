@@ -1,79 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 79F8F6B0253
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 15:25:23 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e6so85559683pfk.2
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 12:25:23 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id yt2si13005089pab.224.2016.10.13.12.25.22
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CE5156B0069
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 16:34:36 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id kc8so90637730pab.2
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 13:34:36 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id g23si12332857pgn.73.2016.10.13.13.34.35
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 13 Oct 2016 12:25:22 -0700 (PDT)
-Date: Thu, 13 Oct 2016 13:25:20 -0600
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 13 Oct 2016 13:34:35 -0700 (PDT)
+Date: Thu, 13 Oct 2016 14:34:34 -0600
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v6 15/17] dax: add struct iomap based DAX PMD support
-Message-ID: <20161013192520.GB26922@linux.intel.com>
-References: <20161012225022.15507-1-ross.zwisler@linux.intel.com>
- <20161012225022.15507-16-ross.zwisler@linux.intel.com>
- <20161013154224.GB30680@quack2.suse.cz>
+Subject: Re: [PATCH 0/20 v3] dax: Clear dirty bits after flushing caches
+Message-ID: <20161013203434.GD26922@linux.intel.com>
+References: <1474992504-20133-1-git-send-email-jack@suse.cz>
+ <20160930091418.GC24352@infradead.org>
+ <20161003075902.GG6457@quack2.suse.cz>
+ <20161003080337.GA13688@infradead.org>
+ <20161003081549.GH6457@quack2.suse.cz>
+ <20161003093248.GA27720@infradead.org>
+ <20161003111358.GQ6457@quack2.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161013154224.GB30680@quack2.suse.cz>
+In-Reply-To: <20161003111358.GQ6457@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jan Kara <jack@suse.cz>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+Cc: Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@ml01.01.org, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Thu, Oct 13, 2016 at 05:42:24PM +0200, Jan Kara wrote:
-> On Wed 12-10-16 16:50:20, Ross Zwisler wrote:
-> > DAX PMDs have been disabled since Jan Kara introduced DAX radix tree based
-> > locking.  This patch allows DAX PMDs to participate in the DAX radix tree
-> > based locking scheme so that they can be re-enabled using the new struct
-> > iomap based fault handlers.
+On Mon, Oct 03, 2016 at 01:13:58PM +0200, Jan Kara wrote:
+> On Mon 03-10-16 02:32:48, Christoph Hellwig wrote:
+> > On Mon, Oct 03, 2016 at 10:15:49AM +0200, Jan Kara wrote:
+> > > Yeah, so DAX path is special because it installs its own PTE directly from
+> > > the fault handler which we don't do in any other case (only driver fault
+> > > handlers commonly do this but those generally don't care about
+> > > ->page_mkwrite or file mappings for that matter).
+> > > 
+> > > I don't say there are no simplifications or unifications possible, but I'd
+> > > prefer to leave them for a bit later once the current churn with ongoing
+> > > work somewhat settles...
 > > 
-> > There are currently three types of DAX 4k entries: 4k zero pages, 4k DAX
-> > mappings that have an associated block allocation, and 4k DAX empty
-> > entries.  The empty entries exist to provide locking for the duration of a
-> > given page fault.
-> > 
-> > This patch adds three equivalent 2MiB DAX entries: Huge Zero Page (HZP)
-> > entries, PMD DAX entries that have associated block allocations, and 2 MiB
-> > DAX empty entries.
-> > 
-> > Unlike the 4k case where we insert a struct page* into the radix tree for
-> > 4k zero pages, for HZP we insert a DAX exceptional entry with the new
-> > RADIX_DAX_HZP flag set.  This is because we use a single 2 MiB zero page in
-> > every 2MiB hole mapping, and it doesn't make sense to have that same struct
-> > page* with multiple entries in multiple trees.  This would cause contention
-> > on the single page lock for the one Huge Zero Page, and it would break the
-> > page->index and page->mapping associations that are assumed to be valid in
-> > many other places in the kernel.
-> > 
-> > One difficult use case is when one thread is trying to use 4k entries in
-> > radix tree for a given offset, and another thread is using 2 MiB entries
-> > for that same offset.  The current code handles this by making the 2 MiB
-> > user fall back to 4k entries for most cases.  This was done because it is
-> > the simplest solution, and because the use of 2MiB pages is already
-> > opportunistic.
-> > 
-> > If we were to try to upgrade from 4k pages to 2MiB pages for a given range,
-> > we run into the problem of how we lock out 4k page faults for the entire
-> > 2MiB range while we clean out the radix tree so we can insert the 2MiB
-> > entry.  We can solve this problem if we need to, but I think that the cases
-> > where both 2MiB entries and 4K entries are being used for the same range
-> > will be rare enough and the gain small enough that it probably won't be
-> > worth the complexity.
-> > 
-> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> > Allright, let's keep it simple for now.  Being said this series clearly
+> > is 4.9 material, but any chance to get a respin of the invalidate_pages
 > 
-> Just one small bug below. Feel free to add:
+> Agreed (actually 4.10).
 > 
-> Reviewed-by: Jan Kara <jack@suse.cz>
+> > series as that might still be 4.8 material?
 > 
-> after fixing that.
+> The problem with invalidate_pages series is that it depends on the ability
+> to clear the dirty bits in the radix tree of DAX mappings (i.e. the first
+> series). Otherwise radix tree entries that get once dirty can never be safely
+> evicted, invalidate_inode_pages2_range() will keep returning EBUSY and
+> callers get confused (I've tried that few weeks ago).
+> 
+> If I dropped patch 5/6 for 4.9 merge (i.e., we would still happily discard
+> dirty radix tree entries from invalidate_inode_pages2_range()), things
+> would run fine, just fsync() may miss to flush caches for some pages. I'm
+> not sure that's much better than current status quo though. Thoughts?
 
-Fixed, thank you for the catch and the review!
+I'm not sure if I'm understanding this correctly, but if you're saying that we
+might end up in a case where fsync()/msync() would fail to properly flush
+pages that are/should be dirty, I think this is a no-go.  That could result in
+data corruption if a user calls fsync(), thinks they've achieved a
+synchronization point (updating other metadata or whatever), then via power
+loss they lose data they had flushed via that previous fsync() because it was
+still in the CPU cache and never really made it out to media.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
