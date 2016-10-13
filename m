@@ -1,99 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2053A6B0038
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 08:53:22 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id n3so48714905lfn.5
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 05:53:22 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x20si17490039wju.228.2016.10.13.05.53.20
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 10CF86B0038
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 09:00:06 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id x11so52442907qka.5
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 06:00:06 -0700 (PDT)
+Received: from mail-qt0-f195.google.com (mail-qt0-f195.google.com. [209.85.216.195])
+        by mx.google.com with ESMTPS id 3si6364226qkg.109.2016.10.13.06.00.05
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 13 Oct 2016 05:53:20 -0700 (PDT)
-Date: Thu, 13 Oct 2016 11:33:13 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCHv3 15/41] filemap: handle huge pages in
- do_generic_file_read()
-Message-ID: <20161013093313.GB26241@quack2.suse.cz>
-References: <20160915115523.29737-1-kirill.shutemov@linux.intel.com>
- <20160915115523.29737-16-kirill.shutemov@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20160915115523.29737-16-kirill.shutemov@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 13 Oct 2016 06:00:05 -0700 (PDT)
+Received: by mail-qt0-f195.google.com with SMTP id f6so2642614qtd.1
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 06:00:05 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH] mm, mempolicy: clean up __GFP_THISNODE confusion in policy_zonelist
+Date: Thu, 13 Oct 2016 14:59:58 +0200
+Message-Id: <20161013125958.32155-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Thu 15-09-16 14:54:57, Kirill A. Shutemov wrote:
-> Most of work happans on head page. Only when we need to do copy data to
-> userspace we find relevant subpage.
-> 
-> We are still limited by PAGE_SIZE per iteration. Lifting this limitation
-> would require some more work.
+From: Michal Hocko <mhocko@suse.com>
 
-Hum, I'm kind of lost. Can you point me to some design document / email
-that would explain some high level ideas how are huge pages in page cache
-supposed to work? When are we supposed to operate on the head page and when
-on subpage? What is protected by the page lock of the head page? Do page
-locks of subpages play any role? If understand right, e.g.
-pagecache_get_page() will return subpages but is it generally safe to
-operate on subpages individually or do we have to be aware that they are
-part of a huge page?
+__GFP_THISNODE is documented to enforce the allocation to be satisified
+from the requested node with no fallbacks or placement policy
+enforcements. policy_zonelist seemingly breaks this semantic if the
+current policy is MPOL_MBIND and instead of taking the node it will
+fallback to the first node in the mask if the requested one is not in
+the mask. This is confusing to say the least because it fact we
+shouldn't ever go that path. First tasks shouldn't be scheduled on CPUs
+with nodes outside of their mempolicy binding. And secondly
+policy_zonelist is called only from 3 places:
+- huge_zonelist - never should do __GFP_THISNODE when going this path
+- alloc_pages_vma - which shouldn't depend on __GFP_THISNODE either
+- alloc_pages_current - which uses default_policy id __GFP_THISNODE is
+  used
 
-If I understand the motivation right, it is mostly about being able to mmap
-PMD-sized chunks to userspace. So my naive idea would be that we could just
-implement it by allocating PMD sized chunks of pages when adding pages to
-page cache, we don't even have to read them all unless we come from PMD
-fault path. Reclaim may need to be aware not to split pages unnecessarily
-but that's about it. So I'd like to understand what's wrong with this
-naive idea and why do filesystems need to be aware that someone wants to
-map in PMD sized chunks...
+So we shouldn't even need to care about this possibility and can drop
+the confusing code. Let's keep a WARN_ON_ONCE in place to catch
+potential users and fix them up properly (aka use a different allocation
+function which ignores mempolicy).
 
-								Honza
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  mm/filemap.c | 5 ++++-
->  1 file changed, 4 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index 50afe17230e7..b77bcf6843ee 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -1860,6 +1860,7 @@ find_page:
->  			if (unlikely(page == NULL))
->  				goto no_cached_page;
->  		}
-> +		page = compound_head(page);
->  		if (PageReadahead(page)) {
->  			page_cache_async_readahead(mapping,
->  					ra, filp, page,
-> @@ -1936,7 +1937,8 @@ page_ok:
->  		 * now we can copy it to user space...
->  		 */
->  
-> -		ret = copy_page_to_iter(page, offset, nr, iter);
-> +		ret = copy_page_to_iter(page + index - page->index, offset,
-> +				nr, iter);
->  		offset += ret;
->  		index += offset >> PAGE_SHIFT;
->  		offset &= ~PAGE_MASK;
-> @@ -2356,6 +2358,7 @@ page_not_uptodate:
->  	 * because there really aren't any performance issues here
->  	 * and we need to check for errors.
->  	 */
-> +	page = compound_head(page);
->  	ClearPageError(page);
->  	error = mapping->a_ops->readpage(file, page);
->  	if (!error) {
-> -- 
-> 2.9.3
-> 
-> 
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+
+Hi,
+I have noticed this while discussing this code [1]. The code as is
+quite confusing and I think it is worth cleaning up. I decided to be
+conservative and keep at least WARN_ON_ONCE if we have some caller which
+relies on __GFP_THISNODE in a mempolicy context so that we can fix it up.
+
+[1] http://lkml.kernel.org/r/57FE0184.6030008@linux.vnet.ibm.com
+
+ mm/mempolicy.c | 24 ++++++++----------------
+ 1 file changed, 8 insertions(+), 16 deletions(-)
+
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index ad1c96ac313c..33a305397bd4 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1679,25 +1679,17 @@ static nodemask_t *policy_nodemask(gfp_t gfp, struct mempolicy *policy)
+ static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy,
+ 	int nd)
+ {
+-	switch (policy->mode) {
+-	case MPOL_PREFERRED:
+-		if (!(policy->flags & MPOL_F_LOCAL))
+-			nd = policy->v.preferred_node;
+-		break;
+-	case MPOL_BIND:
++	if (policy->mode == MPOL_PREFERRED && !(policy->flags & MPOL_F_LOCAL))
++		nd = policy->v.preferred_node;
++	else {
+ 		/*
+-		 * Normally, MPOL_BIND allocations are node-local within the
+-		 * allowed nodemask.  However, if __GFP_THISNODE is set and the
+-		 * current node isn't part of the mask, we use the zonelist for
+-		 * the first node in the mask instead.
++		 * __GFP_THISNODE shouldn't even be used with the bind policy because
++		 * we might easily break the expectation to stay on the requested node
++		 * and not break the policy.
+ 		 */
+-		if (unlikely(gfp & __GFP_THISNODE) &&
+-				unlikely(!node_isset(nd, policy->v.nodes)))
+-			nd = first_node(policy->v.nodes);
+-		break;
+-	default:
+-		BUG();
++		WARN_ON_ONCE(policy->mode == MPOL_BIND && (gfp & __GFP_THISNODE));
+ 	}
++
+ 	return node_zonelist(nd, gfp);
+ }
+ 
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
