@@ -1,112 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9285F6B0038
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 02:41:33 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id z190so47479572qkc.4
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 23:41:33 -0700 (PDT)
-Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
-        by mx.google.com with ESMTPS id u186si5668406qkh.11.2016.10.12.23.41.32
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AF466B0253
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 02:45:17 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id t73so145736437oie.5
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 23:45:17 -0700 (PDT)
+Received: from SHSQR01.spreadtrum.com ([222.66.158.135])
+        by mx.google.com with ESMTPS id l83si4701052oia.31.2016.10.12.23.45.16
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 12 Oct 2016 23:41:32 -0700 (PDT)
-Subject: Re: [RFC PATCH 1/1] mm/vmalloc.c: correct logic errors when insert
- vmap_area
-References: <c2bd0f5d-8d2a-4cba-2663-5c075cd252f2@zoho.com>
- <20161012144610.GN17128@dhcp22.suse.cz>
-From: zijun_hu <zijun_hu@zoho.com>
-Message-ID: <57FF2C3C.5070507@zoho.com>
-Date: Thu, 13 Oct 2016 14:39:56 +0800
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 12 Oct 2016 23:45:16 -0700 (PDT)
+From: "ming.ling" <ming.ling@spreadtrum.com>
+Subject: [PATCH v2] mm: exclude isolated non-lru pages from NR_ISOLATED_ANON or NR_ISOLATED_FILE.
+Date: Thu, 13 Oct 2016 14:39:09 +0800
+Message-ID: <1476340749-13281-1-git-send-email-ming.ling@spreadtrum.com>
 MIME-Version: 1.0
-In-Reply-To: <20161012144610.GN17128@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com, akpm@linux-foundation.org, rientjes@google.com, tj@kernel.org, sfr@canb.auug.org.au, mingo@kernel.org, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, hannes@cmpxchg.org, chris@chris-wilson.co.uk, vdavydov.dev@gmail.com, Nicholas Piggin <npiggin@gmail.com>, Michal Hocko <mhocko@kernel.org>
+To: akpm@linux-foundation.org, mgorman@techsingularity.net, vbabka@suse.cz, hannes@cmpxchg.org, mhocko@suse.com, baiyaowei@cmss.chinamobile.com, iamjoonsoo.kim@lge.com, minchan@kernel.org, rientjes@google.com, hughd@google.com, kirill.shutemov@linux.intel.com
+Cc: riel@redhat.com, mgorman@suse.de, aquini@redhat.com, corbet@lwn.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, orson.zhai@spreadtrum.com, geng.ren@spreadtrum.com, chunyan.zhang@spreadtrum.com, zhizhou.tian@spreadtrum.com, yuming.han@spreadtrum.com, xiajing@spreadst.com, Ming Ling <ming.ling@spreadtrum.com>
 
-Hi Nicholas,
+From: Ming Ling <ming.ling@spreadtrum.com>
 
-i find __insert_vmap_area() is introduced by you
-could you offer comments for this patch related to that funciton
+Non-lru pages don't belong to any lru, so counting them to
+NR_ISOLATED_ANON or NR_ISOLATED_FILE doesn't make any sense.
+It may misguide functions such as pgdat_reclaimable_pages and
+too_many_isolated.
+On mobile devices such as 512M ram android Phone, it may use
+a big zram swap. In some cases zram(zsmalloc) uses too many
+non-lru pages, such as:
+	MemTotal: 468148 kB
+	Normal free:5620kB
+	Free swap:4736kB
+	Total swap:409596kB
+	ZRAM: 164616kB(zsmalloc non-lru pages)
+	active_anon:60700kB
+	inactive_anon:60744kB
+	active_file:34420kB
+	inactive_file:37532kB
+More non-lru pages which used by zram for swap, it influences
+pgdat_reclaimable_pages and too_many_isolated more.
+This patch excludes isolated non-lru pages from NR_ISOLATED_ANON
+or NR_ISOLATED_FILE to ensure their counts are right.
 
-thanks
+Signed-off-by: Ming ling <ming.ling@spreadtrum.com>
+---
+ mm/compaction.c | 6 ++++--
+ mm/migrate.c    | 9 +++++----
+ 2 files changed, 9 insertions(+), 6 deletions(-)
 
-On 10/12/2016 10:46 PM, Michal Hocko wrote:
-> [Let's CC Nick who has written this code]
-> 
-> On Wed 12-10-16 22:30:13, zijun_hu wrote:
->> From: zijun_hu <zijun_hu@htc.com>
->>
->> the KVA allocator organizes vmap_areas allocated by rbtree. in order to
->> insert a new vmap_area @i_va into the rbtree, walk around the rbtree from
->> root and compare the vmap_area @t_va met on the rbtree against @i_va; walk
->> toward the left branch of @t_va if @i_va is lower than @t_va, and right
->> branch if higher, otherwise handle this error case since @i_va has overlay
->> with @t_va; however, __insert_vmap_area() don't follow the desired
->> procedure rightly, moreover, it includes a meaningless else if condition
->> and a redundant else branch as shown by comments in below code segments:
->> static void __insert_vmap_area(struct vmap_area *va)
->> {
->> as a internal interface parameter, we assume vmap_area @va has nonzero size
->> ...
->> 			if (va->va_start < tmp->va_end)
->> 					p = &(*p)->rb_left;
->> 			else if (va->va_end > tmp->va_start)
->> 					p = &(*p)->rb_right;
->> this else if condition is always true and meaningless due to
->> va->va_end > va->va_start >= tmp_va->va_end > tmp_va->va_start normally
->> 			else
->> 					BUG();
->> this BUG() is meaningless too due to never be reached normally
->> ...
->> }
->>
->> it looks like the else if condition and else branch are canceled. no errors
->> are caused since the vmap_area @va to insert as a internal interface
->> parameter doesn't have overlay with any one on the rbtree normally. however
->>  __insert_vmap_area() looks weird and really has several logic errors as
->> pointed out above when it is viewed as a separate function.
-> 
-> I have tried to read this several times but I am completely lost to
-> understand what the actual bug is and how it causes vmap_area sorting to
-> misbehave. So is this a correctness issue, performance improvement or
-> theoretical fix for an incorrect input?
-> 
->> fix by walking around vmap_area rbtree as described above to insert
->> a vmap_area.
->>
->> BTW, (va->va_end == tmp_va->va_start) is consider as legal case since it
->> indicates vmap_area @va left neighbors with @tmp_va tightly.
->>
->> Fixes: db64fe02258f ("mm: rewrite vmap layer")
->> Signed-off-by: zijun_hu <zijun_hu@htc.com>
->> ---
->>  mm/vmalloc.c | 8 ++++----
->>  1 file changed, 4 insertions(+), 4 deletions(-)
->>
->> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
->> index 5daf3211b84f..8b80931654b7 100644
->> --- a/mm/vmalloc.c
->> +++ b/mm/vmalloc.c
->> @@ -321,10 +321,10 @@ static void __insert_vmap_area(struct vmap_area *va)
->>  
->>  		parent = *p;
->>  		tmp_va = rb_entry(parent, struct vmap_area, rb_node);
->> -		if (va->va_start < tmp_va->va_end)
->> -			p = &(*p)->rb_left;
->> -		else if (va->va_end > tmp_va->va_start)
->> -			p = &(*p)->rb_right;
->> +		if (va->va_end <= tmp_va->va_start)
->> +			p = &parent->rb_left;
->> +		else if (va->va_start >= tmp_va->va_end)
->> +			p = &parent->rb_right;
->>  		else
->>  			BUG();
->>  	}
->> -- 
->> 1.9.1
-> 
-
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 0409a4a..ed4c553 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -643,8 +643,10 @@ static void acct_isolated(struct zone *zone, struct compact_control *cc)
+ 	if (list_empty(&cc->migratepages))
+ 		return;
+ 
+-	list_for_each_entry(page, &cc->migratepages, lru)
+-		count[!!page_is_file_cache(page)]++;
++	list_for_each_entry(page, &cc->migratepages, lru) {
++		if (likely(!__PageMovable(page)))
++			count[!!page_is_file_cache(page)]++;
++	}
+ 
+ 	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_ANON, count[0]);
+ 	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE, count[1]);
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 99250ae..abe48cc 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -168,8 +168,6 @@ void putback_movable_pages(struct list_head *l)
+ 			continue;
+ 		}
+ 		list_del(&page->lru);
+-		dec_node_page_state(page, NR_ISOLATED_ANON +
+-				page_is_file_cache(page));
+ 		/*
+ 		 * We isolated non-lru movable page so here we can use
+ 		 * __PageMovable because LRU page's mapping cannot have
+@@ -185,6 +183,8 @@ void putback_movable_pages(struct list_head *l)
+ 			unlock_page(page);
+ 			put_page(page);
+ 		} else {
++			dec_node_page_state(page, NR_ISOLATED_ANON +
++					page_is_file_cache(page));
+ 			putback_lru_page(page);
+ 		}
+ 	}
+@@ -1121,8 +1121,9 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
+ 		 * restored.
+ 		 */
+ 		list_del(&page->lru);
+-		dec_node_page_state(page, NR_ISOLATED_ANON +
+-				page_is_file_cache(page));
++		if (likely(!__PageMovable(page)))
++			dec_node_page_state(page, NR_ISOLATED_ANON +
++					page_is_file_cache(page));
+ 	}
+ 
+ 	/*
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
