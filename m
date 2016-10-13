@@ -1,117 +1,206 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D39D86B0253
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 02:53:30 -0400 (EDT)
-Received: by mail-qt0-f200.google.com with SMTP id m5so51371634qtb.3
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 23:53:30 -0700 (PDT)
-Received: from mail-qk0-f195.google.com (mail-qk0-f195.google.com. [209.85.220.195])
-        by mx.google.com with ESMTPS id s28si5675201qte.99.2016.10.12.23.53.30
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B5816B0260
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 02:54:42 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id n3so42229085lfn.5
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 23:54:42 -0700 (PDT)
+Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
+        by mx.google.com with ESMTPS id y85si7285956lfi.329.2016.10.12.23.54.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Oct 2016 23:53:30 -0700 (PDT)
-Received: by mail-qk0-f195.google.com with SMTP id f128so4487935qkb.0
-        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 23:53:30 -0700 (PDT)
-Date: Thu, 13 Oct 2016 08:53:28 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] vmscan: set correct defer count for shrinker
-Message-ID: <20161013065327.GE21678@dhcp22.suse.cz>
-References: <2414be961b5d25892060315fbb56bb19d81d0c07.1476227351.git.shli@fb.com>
+        Wed, 12 Oct 2016 23:54:40 -0700 (PDT)
+Received: by mail-lf0-x241.google.com with SMTP id l131so8167132lfl.0
+        for <linux-mm@kvack.org>; Wed, 12 Oct 2016 23:54:40 -0700 (PDT)
+Subject: Re: [PATCH 02/10] mm: remove write/force parameters from
+ __get_user_pages_unlocked()
+References: <20161013002020.3062-1-lstoakes@gmail.com>
+ <20161013002020.3062-3-lstoakes@gmail.com>
+From: Paolo Bonzini <pbonzini@redhat.com>
+Message-ID: <ce8bd0b0-84e3-4b3a-edeb-27709b0c5ce6@redhat.com>
+Date: Thu, 13 Oct 2016 08:54:29 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <2414be961b5d25892060315fbb56bb19d81d0c07.1476227351.git.shli@fb.com>
+In-Reply-To: <20161013002020.3062-3-lstoakes@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@fb.com>
-Cc: linux-mm@kvack.org, Kernel-team@fb.com, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Lorenzo Stoakes <lstoakes@gmail.com>, linux-mm@kvack.org
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, adi-buildroot-devel@lists.sourceforge.net, ceph-devel@vger.kernel.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, kvm@vger.kernel.org, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-cris-kernel@axis.com, linux-fbdev@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, linux-mips@linux-mips.org, linux-rdma@vger.kernel.org, linux-s390@vger.kernel.org, linux-samsung-soc@vger.kernel.org, linux-scsi@vger.kernel.org, linux-security-module@vger.kernel.org, linux-sh@vger.kerne
 
-[Fixup Vladimir's email and drop the stable mailing list]
 
-On Wed 12-10-16 09:09:49, Shaohua Li wrote:
-> Our system uses significantly more slab memory with memcg enabled with
-> latest kernel. With 3.10 kernel, slab uses 2G memory, while with 4.6
-> kernel, 6G memory is used. Looks the shrinker has problem. Let's see we
-> have two memcg for one shrinker. In do_shrink_slab:
+
+On 13/10/2016 02:20, Lorenzo Stoakes wrote:
+> This patch removes the write and force parameters from
+> __get_user_pages_unlocked() to make the use of FOLL_FORCE explicit in callers as
+> use of this flag can result in surprising behaviour (and hence bugs) within the
+> mm subsystem.
 > 
-> 1. Check cg1. nr_deferred = 0, assume total_scan = 700. batch size is 1024,
-> then no memory is freed. nr_deferred = 700
-> 2. Check cg2. nr_deferred = 700. Assume freeable = 20, then total_scan = 10
-> or 40. Let's assume it's 10. No memory is freed. nr_deferred = 10.
-> 
-> The deferred share of cg1 is lost in this case. kswapd will free no
-> memory even run above steps again and again.
-> 
-> The fix makes sure one memcg's deferred share isn't lost.
-> 
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Vladimir Davydov <vdavydov@parallels.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: stable@vger.kernel.org (v4.0+)
-> Signed-off-by: Shaohua Li <shli@fb.com>
+> Signed-off-by: Lorenzo Stoakes <lstoakes@gmail.com>
 > ---
->  mm/vmscan.c | 14 +++++++++++---
->  1 file changed, 11 insertions(+), 3 deletions(-)
+>  include/linux/mm.h     |  3 +--
+>  mm/gup.c               | 17 +++++++++--------
+>  mm/nommu.c             | 12 +++++++++---
+>  mm/process_vm_access.c |  7 +++++--
+>  virt/kvm/async_pf.c    |  3 ++-
+>  virt/kvm/kvm_main.c    | 11 ++++++++---
+>  6 files changed, 34 insertions(+), 19 deletions(-)
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 0fe8b71..c3822ae 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -291,6 +291,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
->  	int nid = shrinkctl->nid;
->  	long batch_size = shrinker->batch ? shrinker->batch
->  					  : SHRINK_BATCH;
-> +	long scanned = 0, next_deferred;
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index e9caec6..2db98b6 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1285,8 +1285,7 @@ long get_user_pages_locked(unsigned long start, unsigned long nr_pages,
+>  		    int write, int force, struct page **pages, int *locked);
+>  long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
+>  			       unsigned long start, unsigned long nr_pages,
+> -			       int write, int force, struct page **pages,
+> -			       unsigned int gup_flags);
+> +			       struct page **pages, unsigned int gup_flags);
+>  long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
+>  		    int write, int force, struct page **pages);
+>  int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+> diff --git a/mm/gup.c b/mm/gup.c
+> index ba83942..3d620dd 100644
+> --- a/mm/gup.c
+> +++ b/mm/gup.c
+> @@ -865,17 +865,11 @@ EXPORT_SYMBOL(get_user_pages_locked);
+>   */
+>  __always_inline long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
+>  					       unsigned long start, unsigned long nr_pages,
+> -					       int write, int force, struct page **pages,
+> -					       unsigned int gup_flags)
+> +					       struct page **pages, unsigned int gup_flags)
+>  {
+>  	long ret;
+>  	int locked = 1;
 >  
->  	freeable = shrinker->count_objects(shrinker, shrinkctl);
->  	if (freeable == 0)
-> @@ -312,7 +313,9 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
->  		pr_err("shrink_slab: %pF negative objects to delete nr=%ld\n",
->  		       shrinker->scan_objects, total_scan);
->  		total_scan = freeable;
-> -	}
-> +		next_deferred = nr;
-> +	} else
-> +		next_deferred = total_scan;
+> -	if (write)
+> -		gup_flags |= FOLL_WRITE;
+> -	if (force)
+> -		gup_flags |= FOLL_FORCE;
+> -
+>  	down_read(&mm->mmap_sem);
+>  	ret = __get_user_pages_locked(tsk, mm, start, nr_pages, pages, NULL,
+>  				      &locked, false, gup_flags);
+> @@ -905,8 +899,15 @@ EXPORT_SYMBOL(__get_user_pages_unlocked);
+>  long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
+>  			     int write, int force, struct page **pages)
+>  {
+> +	unsigned int flags = FOLL_TOUCH;
+> +
+> +	if (write)
+> +		flags |= FOLL_WRITE;
+> +	if (force)
+> +		flags |= FOLL_FORCE;
+> +
+>  	return __get_user_pages_unlocked(current, current->mm, start, nr_pages,
+> -					 write, force, pages, FOLL_TOUCH);
+> +					 pages, flags);
+>  }
+>  EXPORT_SYMBOL(get_user_pages_unlocked);
 >  
->  	/*
->  	 * We need to avoid excessive windup on filesystem shrinkers
-> @@ -369,17 +372,22 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+> diff --git a/mm/nommu.c b/mm/nommu.c
+> index 95daf81..925dcc1 100644
+> --- a/mm/nommu.c
+> +++ b/mm/nommu.c
+> @@ -185,8 +185,7 @@ EXPORT_SYMBOL(get_user_pages_locked);
 >  
->  		count_vm_events(SLABS_SCANNED, nr_to_scan);
->  		total_scan -= nr_to_scan;
-> +		scanned += nr_to_scan;
+>  long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
+>  			       unsigned long start, unsigned long nr_pages,
+> -			       int write, int force, struct page **pages,
+> -			       unsigned int gup_flags)
+> +			       struct page **pages, unsigned int gup_flags)
+>  {
+>  	long ret;
+>  	down_read(&mm->mmap_sem);
+> @@ -200,8 +199,15 @@ EXPORT_SYMBOL(__get_user_pages_unlocked);
+>  long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
+>  			     int write, int force, struct page **pages)
+>  {
+> +	unsigned int flags = 0;
+> +
+> +	if (write)
+> +		flags |= FOLL_WRITE;
+> +	if (force)
+> +		flags |= FOLL_FORCE;
+> +
+>  	return __get_user_pages_unlocked(current, current->mm, start, nr_pages,
+> -					 write, force, pages, 0);
+> +					 pages, flags);
+>  }
+>  EXPORT_SYMBOL(get_user_pages_unlocked);
 >  
->  		cond_resched();
->  	}
+> diff --git a/mm/process_vm_access.c b/mm/process_vm_access.c
+> index 07514d4..be8dc8d 100644
+> --- a/mm/process_vm_access.c
+> +++ b/mm/process_vm_access.c
+> @@ -88,12 +88,16 @@ static int process_vm_rw_single_vec(unsigned long addr,
+>  	ssize_t rc = 0;
+>  	unsigned long max_pages_per_loop = PVM_MAX_KMALLOC_PAGES
+>  		/ sizeof(struct pages *);
+> +	unsigned int flags = FOLL_REMOTE;
 >  
-> +	if (next_deferred >= scanned)
-> +		next_deferred -= scanned;
-> +	else
-> +		next_deferred = 0;
->  	/*
->  	 * move the unused scan count back into the shrinker in a
->  	 * manner that handles concurrent updates. If we exhausted the
->  	 * scan, there is no need to do an update.
+>  	/* Work out address and page range required */
+>  	if (len == 0)
+>  		return 0;
+>  	nr_pages = (addr + len - 1) / PAGE_SIZE - addr / PAGE_SIZE + 1;
+>  
+> +	if (vm_write)
+> +		flags |= FOLL_WRITE;
+> +
+>  	while (!rc && nr_pages && iov_iter_count(iter)) {
+>  		int pages = min(nr_pages, max_pages_per_loop);
+>  		size_t bytes;
+> @@ -104,8 +108,7 @@ static int process_vm_rw_single_vec(unsigned long addr,
+>  		 * current/current->mm
+>  		 */
+>  		pages = __get_user_pages_unlocked(task, mm, pa, pages,
+> -						  vm_write, 0, process_pages,
+> -						  FOLL_REMOTE);
+> +						  process_pages, flags);
+>  		if (pages <= 0)
+>  			return -EFAULT;
+>  
+> diff --git a/virt/kvm/async_pf.c b/virt/kvm/async_pf.c
+> index db96688..8035cc1 100644
+> --- a/virt/kvm/async_pf.c
+> +++ b/virt/kvm/async_pf.c
+> @@ -84,7 +84,8 @@ static void async_pf_execute(struct work_struct *work)
+>  	 * mm and might be done in another context, so we must
+>  	 * use FOLL_REMOTE.
 >  	 */
-> -	if (total_scan > 0)
-> -		new_nr = atomic_long_add_return(total_scan,
-> +	if (next_deferred > 0)
-> +		new_nr = atomic_long_add_return(next_deferred,
->  						&shrinker->nr_deferred[nid]);
->  	else
->  		new_nr = atomic_long_read(&shrinker->nr_deferred[nid]);
-> -- 
-> 2.9.3
+> -	__get_user_pages_unlocked(NULL, mm, addr, 1, 1, 0, NULL, FOLL_REMOTE);
+> +	__get_user_pages_unlocked(NULL, mm, addr, 1, NULL,
+> +			FOLL_WRITE | FOLL_REMOTE);
+>  
+>  	kvm_async_page_present_sync(vcpu, apf);
+>  
+> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+> index 81dfc73..28510e7 100644
+> --- a/virt/kvm/kvm_main.c
+> +++ b/virt/kvm/kvm_main.c
+> @@ -1416,10 +1416,15 @@ static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
+>  		down_read(&current->mm->mmap_sem);
+>  		npages = get_user_page_nowait(addr, write_fault, page);
+>  		up_read(&current->mm->mmap_sem);
+> -	} else
+> +	} else {
+> +		unsigned int flags = FOLL_TOUCH | FOLL_HWPOISON;
+> +
+> +		if (write_fault)
+> +			flags |= FOLL_WRITE;
+> +
+>  		npages = __get_user_pages_unlocked(current, current->mm, addr, 1,
+> -						   write_fault, 0, page,
+> -						   FOLL_TOUCH|FOLL_HWPOISON);
+> +						   page, flags);
+> +	}
+>  	if (npages != 1)
+>  		return npages;
+>  
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Paolo Bonzini <pbonzini@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
