@@ -1,100 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 10CF86B0038
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 09:00:06 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id x11so52442907qka.5
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 06:00:06 -0700 (PDT)
-Received: from mail-qt0-f195.google.com (mail-qt0-f195.google.com. [209.85.216.195])
-        by mx.google.com with ESMTPS id 3si6364226qkg.109.2016.10.13.06.00.05
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 45B766B025E
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 09:16:51 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id u84so74889543pfj.6
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 06:16:51 -0700 (PDT)
+Received: from mail-pa0-x243.google.com (mail-pa0-x243.google.com. [2607:f8b0:400e:c03::243])
+        by mx.google.com with ESMTPS id gh2si12042255pac.29.2016.10.13.06.16.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Oct 2016 06:00:05 -0700 (PDT)
-Received: by mail-qt0-f195.google.com with SMTP id f6so2642614qtd.1
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 06:00:05 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] mm, mempolicy: clean up __GFP_THISNODE confusion in policy_zonelist
-Date: Thu, 13 Oct 2016 14:59:58 +0200
-Message-Id: <20161013125958.32155-1-mhocko@kernel.org>
+        Thu, 13 Oct 2016 06:16:00 -0700 (PDT)
+Received: by mail-pa0-x243.google.com with SMTP id os4so729991pac.3
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 06:16:00 -0700 (PDT)
+Date: Thu, 13 Oct 2016 15:15:53 +0200
+From: Vitaly Wool <vitalywool@gmail.com>
+Subject: Re: [PATCH v2] z3fold: add shrinker
+Message-Id: <20161013151553.6cb79106d0d347187d105467@gmail.com>
+In-Reply-To: <20161013002006.GN23194@dastard>
+References: <20161012001827.53ae55723e67d1dee2a2f839@gmail.com>
+	<20161011225206.GJ23194@dastard>
+	<20161012102634.f32cb17648eff6b2fd452aea@gmail.com>
+	<20161013002006.GN23194@dastard>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>
 
-From: Michal Hocko <mhocko@suse.com>
+On Thu, 13 Oct 2016 11:20:06 +1100
+Dave Chinner <david@fromorbit.com> wrote:
 
-__GFP_THISNODE is documented to enforce the allocation to be satisified
-from the requested node with no fallbacks or placement policy
-enforcements. policy_zonelist seemingly breaks this semantic if the
-current policy is MPOL_MBIND and instead of taking the node it will
-fallback to the first node in the mask if the requested one is not in
-the mask. This is confusing to say the least because it fact we
-shouldn't ever go that path. First tasks shouldn't be scheduled on CPUs
-with nodes outside of their mempolicy binding. And secondly
-policy_zonelist is called only from 3 places:
-- huge_zonelist - never should do __GFP_THISNODE when going this path
-- alloc_pages_vma - which shouldn't depend on __GFP_THISNODE either
-- alloc_pages_current - which uses default_policy id __GFP_THISNODE is
-  used
+<snip>
+> 
+> That's an incorrect assumption. Long spinlock holds prevent
+> scheduling on that CPU, and so we still get latency problems.
 
-So we shouldn't even need to care about this possibility and can drop
-the confusing code. Let's keep a WARN_ON_ONCE in place to catch
-potential users and fix them up properly (aka use a different allocation
-function which ignores mempolicy).
-
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
-
-Hi,
-I have noticed this while discussing this code [1]. The code as is
-quite confusing and I think it is worth cleaning up. I decided to be
-conservative and keep at least WARN_ON_ONCE if we have some caller which
-relies on __GFP_THISNODE in a mempolicy context so that we can fix it up.
-
-[1] http://lkml.kernel.org/r/57FE0184.6030008@linux.vnet.ibm.com
-
- mm/mempolicy.c | 24 ++++++++----------------
- 1 file changed, 8 insertions(+), 16 deletions(-)
-
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index ad1c96ac313c..33a305397bd4 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1679,25 +1679,17 @@ static nodemask_t *policy_nodemask(gfp_t gfp, struct mempolicy *policy)
- static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy,
- 	int nd)
- {
--	switch (policy->mode) {
--	case MPOL_PREFERRED:
--		if (!(policy->flags & MPOL_F_LOCAL))
--			nd = policy->v.preferred_node;
--		break;
--	case MPOL_BIND:
-+	if (policy->mode == MPOL_PREFERRED && !(policy->flags & MPOL_F_LOCAL))
-+		nd = policy->v.preferred_node;
-+	else {
- 		/*
--		 * Normally, MPOL_BIND allocations are node-local within the
--		 * allowed nodemask.  However, if __GFP_THISNODE is set and the
--		 * current node isn't part of the mask, we use the zonelist for
--		 * the first node in the mask instead.
-+		 * __GFP_THISNODE shouldn't even be used with the bind policy because
-+		 * we might easily break the expectation to stay on the requested node
-+		 * and not break the policy.
- 		 */
--		if (unlikely(gfp & __GFP_THISNODE) &&
--				unlikely(!node_isset(nd, policy->v.nodes)))
--			nd = first_node(policy->v.nodes);
--		break;
--	default:
--		BUG();
-+		WARN_ON_ONCE(policy->mode == MPOL_BIND && (gfp & __GFP_THISNODE));
- 	}
-+
- 	return node_zonelist(nd, gfp);
- }
+Fair enough. The problem is, some of the z3fold code that need mutual
+exclusion runs with preemption disabled so spinlock is still the way
+to go. I'll try to avoid taking it while actual shrinking is in progress
+though.
  
--- 
-2.9.3
+> > Please also note that the time
+> > spent in the loop is deterministic since we take not more than one entry
+> > from every unbuddied list.
+> 
+> So the loop is:
+> 
+> 	for_each_unbuddied_list_down(i, NCHUNKS - 3) {
+> 
+> NCHUNKS = (PAGE_SIZE - (1 << (PAGE_SHIFT - 6)) >> (PAGE_SHIFT - 6)
+> 
+> So for 4k page, NCHUNKS = (4096 - (1<<6)) >> 6, which is 63. So,
+> potentially 60 memmoves under a single spinlock on a 4k page
+> machine. That's a lot of work, especially as some of those memmoves
+> are going to move a large amount of data in the page.
+> 
+> And if we consider 64k pages, we've now got NCHUNKS = 1023, which
+> means your shrinker is not, by default, going to scan all your
+> unbuddied lists because it will expire nr_to_scan (usually
+> SHRINK_BATCH = 128) before it's got through all of them. So not only
+> will the shrinker do too much under a spinlock, it won't even do
+> what you want it to do correctly on such setups.
+
+Thanks for the pointer, I'll address that in the new patch.
+
+> Further, the way nr_to_scan is decremented and the shrinker return
+> value are incorrect. nr_to_scan is not the /number of objects to
+> free/, but the number of objects to /check for reclaim/. The
+> shrinker is then supposed to return the number it frees (or
+> compacts) to give feedback to the shrinker infrastructure about how
+> much reclaim work is being done (i.e. scanned vs freed ratio). This
+> code always returns 0, which tells the shrinker infrastructure that
+> it's not making progress...
+
+Will fix.
+> 
+> > What I could do though is add the following piece of code at the end of
+> > the loop, right after the /break/:
+> > 		spin_unlock(&pool->lock);
+> > 		cond_resched();
+> > 		spin_lock(&pool->lock);
+> > 
+> > Would that make sense for you?
+> 
+> Not really, because it ignores the fact that shrinkers can (and
+> often do) run concurrently on multiple CPUs, and so serialising them
+> all on a spinlock just causes contention, even if you do this.
+> 
+> Memory reclaim is only as good as the worst shrinker it runs. I
+> don't care what your subsystem does, but if you're implementing a
+> shrinker then it needs to play by memory reclaim and shrinker
+> context rules.....
+> 
+
+Ok, see above.
+
+Best regards,
+   Vitaly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
