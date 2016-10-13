@@ -1,69 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 603586B0253
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 08:38:51 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id f134so26860804lfg.6
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 05:38:51 -0700 (PDT)
-Received: from mail-lf0-f67.google.com (mail-lf0-f67.google.com. [209.85.215.67])
-        by mx.google.com with ESMTPS id o83si8339613lff.70.2016.10.13.05.38.49
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 390F26B0038
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 08:51:47 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id f6so56537347qtd.4
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 05:51:47 -0700 (PDT)
+Received: from mail-qt0-f171.google.com (mail-qt0-f171.google.com. [209.85.216.171])
+        by mx.google.com with ESMTPS id w23si2990006qka.222.2016.10.13.05.51.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Oct 2016 05:38:49 -0700 (PDT)
-Received: by mail-lf0-f67.google.com with SMTP id x23so6762596lfi.1
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 05:38:49 -0700 (PDT)
-Date: Thu, 13 Oct 2016 14:38:46 +0200
+        Thu, 13 Oct 2016 05:51:46 -0700 (PDT)
+Received: by mail-qt0-f171.google.com with SMTP id q7so42529408qtq.1
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 05:51:46 -0700 (PDT)
+Date: Thu, 13 Oct 2016 14:51:44 +0200
 From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: MPOL_BIND on memory only nodes
-Message-ID: <20161013123846.GM21678@dhcp22.suse.cz>
+Message-ID: <20161013125143.GN21678@dhcp22.suse.cz>
 References: <57FE0184.6030008@linux.vnet.ibm.com>
  <20161012094337.GH17128@dhcp22.suse.cz>
  <20161012131626.GL17128@dhcp22.suse.cz>
- <20161013102459.GE20573@suse.de>
+ <57FF59EE.9050508@linux.vnet.ibm.com>
+ <20161013100708.GI21678@dhcp22.suse.cz>
+ <57FF68D3.5030507@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161013102459.GE20573@suse.de>
+In-Reply-To: <57FF68D3.5030507@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Mel Gorman <mgorman@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>
 
-On Thu 13-10-16 11:24:59, Mel Gorman wrote:
-> On Wed, Oct 12, 2016 at 03:16:27PM +0200, Michal Hocko wrote:
-> > On Wed 12-10-16 11:43:37, Michal Hocko wrote:
-> > > On Wed 12-10-16 14:55:24, Anshuman Khandual wrote:
+On Thu 13-10-16 16:28:27, Anshuman Khandual wrote:
+> On 10/13/2016 03:37 PM, Michal Hocko wrote:
+> > On Thu 13-10-16 15:24:54, Anshuman Khandual wrote:
 > > [...]
-> > > > Why we insist on __GFP_THISNODE ?
-> > > 
-> > > AFAIU __GFP_THISNODE just overrides the given node to the policy
-> > > nodemask in case the current node is not part of that node mask. In
-> > > other words we are ignoring the given node and use what the policy says. 
-> > > I can see how this can be confusing especially when confronting the
-> > > documentation:
-> > > 
-> > >  * __GFP_THISNODE forces the allocation to be satisified from the requested
-> > >  *   node with no fallbacks or placement policy enforcements.
+> >> Which makes the function look like this. Even with these changes, MPOL_BIND is
+> >> still going to pick up the local node's zonelist instead of the first node in
+> >> policy->v.nodes nodemask. It completely ignores policy->v.nodes which it should
+> >> not.
 > > 
-> > You made me think and look into this deeper. I came to the conclusion
-> > that this is actually a relict from the past. policy_zonelist is called
-> > only from 3 places:
-> > - huge_zonelist - never should do __GFP_THISNODE when going this path
-> > - alloc_pages_vma - which shouldn't depend on __GFP_THISNODE either
-> > - alloc_pages_current - which uses default_policy id __GFP_THISNODE is
-> >   used
+> > Not really. I have tried to explain earlier. We do not ignore policy
+> > nodemask. This one comes from policy_nodemask. We start with the local
+> > node but fallback to some of the nodes from the nodemask defined by the
+> > policy.
 > > 
-> > So AFAICS this is essentially a dead code or I am missing something. Mel
-> > do you remember why we needed it in the past?
 > 
-> I don't recall a specific reason. It was likely due to confusion on my
-> part at the time on the exact use of __GFP_THISNODE. The expectation is
-> that flag is not used in fault paths or with policies. It's meant to
-> enforce node-locality for kernel internal decisions such as the locality
-> of slab pages and ensuring that a THP collapse from khugepaged is on the
-> same node.
+> Yeah saw your response but did not get that exactly. We dont ignore
+> policy nodemask while memory allocation, correct. But my point was
+> we are ignoring policy nodemask while selecting zonelist which will
+> be used during page allocation. Though the zone contents of both the
+> zonelists are likely to be same, would not it be better to get the
+> zone list from the nodemask as well ?
 
-This is my understanding as well. Thanks for double checking. I will
-send a proper patch (it will even compile as a bonus point ;).
+Why. Zonelist from the current node should contain all availanle zones
+and get_page_from_freelist then filters this zonelist accoring to
+mempolicy and nodemask
+
+> Or I am still missing something
+> here. The following change is what I am trying to propose.
+> 
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index ad1c96a..f60ab80 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -1685,14 +1685,7 @@ static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy,
+>                         nd = policy->v.preferred_node;
+>                 break;
+>         case MPOL_BIND:
+> -               /*
+> -                * Normally, MPOL_BIND allocations are node-local within the
+> -                * allowed nodemask.  However, if __GFP_THISNODE is set and the
+> -                * current node isn't part of the mask, we use the zonelist for
+> -                * the first node in the mask instead.
+> -                */
+> -               if (unlikely(gfp & __GFP_THISNODE) &&
+> -                               unlikely(!node_isset(nd, policy->v.nodes)))
+> +               if (unlikely(!node_isset(nd, policy->v.nodes)))
+>                         nd = first_node(policy->v.nodes);
+
+That shouldn't make much difference as per above.
+
 -- 
 Michal Hocko
 SUSE Labs
