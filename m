@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 58AD76B025E
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 04:08:16 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id gg9so70236497pac.6
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 01:08:16 -0700 (PDT)
-Received: from mail-pa0-x244.google.com (mail-pa0-x244.google.com. [2607:f8b0:400e:c03::244])
-        by mx.google.com with ESMTPS id h64si1798135pfh.83.2016.10.13.01.08.15
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 012986B0260
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 04:08:18 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id 128so68682414pfz.1
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 01:08:17 -0700 (PDT)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id e10si13314343pfk.220.2016.10.13.01.08.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Oct 2016 01:08:15 -0700 (PDT)
-Received: by mail-pa0-x244.google.com with SMTP id os4so378273pac.3
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 01:08:15 -0700 (PDT)
+        Thu, 13 Oct 2016 01:08:17 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id 128so4544109pfz.1
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 01:08:17 -0700 (PDT)
 From: js1304@gmail.com
-Subject: [RFC PATCH 1/5] mm/page_alloc: always add freeing page at the tail of the buddy list
-Date: Thu, 13 Oct 2016 17:08:18 +0900
-Message-Id: <1476346102-26928-2-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [RFC PATCH 2/5] mm/page_alloc: use smallest fallback page first in movable allocation
+Date: Thu, 13 Oct 2016 17:08:19 +0900
+Message-Id: <1476346102-26928-3-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1476346102-26928-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1476346102-26928-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -24,79 +24,62 @@ Cc: Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Mel 
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Currently, freeing page can stay longer in the buddy list if next higher
-order page is in the buddy list in order to help coalescence. However,
-it doesn't work for the simplest sequential free case. For example, think
-about the situation that 8 consecutive pages are freed in sequential
-order.
-
-page 0: attached at the head of order 0 list
-page 1: merged with page 0, attached at the head of order 1 list
-page 2: attached at the tail of order 0 list
-page 3: merged with page 2 and then merged with page 0, attached at
- the head of order 2 list
-page 4: attached at the head of order 0 list
-page 5: merged with page 4, attached at the tail of order 1 list
-page 6: attached at the tail of order 0 list
-page 7: merged with page 6 and then merged with page 4. Lastly, merged
- with page 0 and we get order 3 freepage.
-
-With excluding page 0 case, there are three cases that freeing page is
-attached at the head of buddy list in this example and if just one
-corresponding ordered allocation request comes at that moment, this page
-in being a high order page will be allocated and we would fail to make
-order-3 freepage.
-
-Allocation usually happens in sequential order and free also does. So, it
-would be important to detect such a situation and to give some chance
-to be coalesced.
-
-I think that simple and effective heuristic about this case is just
-attaching freeing page at the tail of the buddy list unconditionally.
-If freeing isn't merged during one rotation, it would be actual
-fragmentation and we don't need to care about it for coalescence.
+When we try to find freepage in fallback buddy list, we always serach
+the largest one. This would help for fragmentation if we process
+unmovable/reclaimable allocation request because it could cause permanent
+fragmentation on movable pageblock and spread out such allocations would
+cause more fragmentation. But, movable allocation request is
+rather different. It would be simply freed or migrated so it doesn't
+contribute to fragmentation on the other pageblock. In this case, it would
+be better not to break the precious highest order freepage so we need to
+search the smallest freepage first.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/page_alloc.c | 25 ++-----------------------
- 1 file changed, 2 insertions(+), 23 deletions(-)
+ mm/page_alloc.c | 26 +++++++++++++++++++++-----
+ 1 file changed, 21 insertions(+), 5 deletions(-)
 
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1790391..c4f7d05 100644
+index c4f7d05..70427bf 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -858,29 +858,8 @@ static inline void __free_one_page(struct page *page,
- done_merging:
- 	set_page_order(page, order);
+@@ -2121,15 +2121,31 @@ static void unreserve_highatomic_pageblock(const struct alloc_context *ac)
+ 	int fallback_mt;
+ 	bool can_steal;
  
--	/*
--	 * If this is not the largest possible page, check if the buddy
--	 * of the next-highest order is free. If it is, it's possible
--	 * that pages are being freed that will coalesce soon. In case,
--	 * that is happening, add the free page to the tail of the list
--	 * so it's less likely to be used soon and more likely to be merged
--	 * as a higher order page
--	 */
--	if ((order < MAX_ORDER-2) && pfn_valid_within(page_to_pfn(buddy))) {
--		struct page *higher_page, *higher_buddy;
--		combined_idx = buddy_idx & page_idx;
--		higher_page = page + (combined_idx - page_idx);
--		buddy_idx = __find_buddy_index(combined_idx, order + 1);
--		higher_buddy = higher_page + (buddy_idx - combined_idx);
--		if (page_is_buddy(higher_page, higher_buddy, order + 1)) {
--			list_add_tail(&page->lru,
--				&zone->free_area[order].free_list[migratetype]);
--			goto out;
--		}
--	}
--
--	list_add(&page->lru, &zone->free_area[order].free_list[migratetype]);
--out:
-+	list_add_tail(&page->lru,
-+		&zone->free_area[order].free_list[migratetype]);
- 	zone->free_area[order].nr_free++;
- }
+-	/* Find the largest possible block of pages in the other list */
+-	for (current_order = MAX_ORDER-1;
+-				current_order >= order && current_order <= MAX_ORDER-1;
+-				--current_order) {
++	if (start_migratetype == MIGRATE_MOVABLE)
++		current_order = order;
++	else
++		current_order = MAX_ORDER - 1;
++
++	/*
++	 * Find the appropriate block of pages in the other list.
++	 * If start_migratetype is MIGRATE_UNMOVABLE/MIGRATE_RECLAIMABLE,
++	 * it would be better to find largest pageblock since it could cause
++	 * fragmentation. However, in case of MIGRATE_MOVABLE, there is no
++	 * risk about fragmentation so it would be better to use smallest one.
++	 */
++	while (current_order >= order && current_order <= MAX_ORDER - 1) {
++
+ 		area = &(zone->free_area[current_order]);
+ 		fallback_mt = find_suitable_fallback(area, current_order,
+ 				start_migratetype, false, &can_steal);
+-		if (fallback_mt == -1)
++		if (fallback_mt == -1) {
++			if (start_migratetype == MIGRATE_MOVABLE)
++				current_order++;
++			else
++				current_order--;
++
+ 			continue;
++		}
  
+ 		page = list_first_entry(&area->free_list[fallback_mt],
+ 						struct page, lru);
 -- 
 1.9.1
 
