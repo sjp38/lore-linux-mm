@@ -1,92 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AD0B86B0038
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 11:24:50 -0400 (EDT)
-Received: by mail-io0-f199.google.com with SMTP id o141so87605356ioe.4
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 08:24:50 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id m129si27031584itb.53.2016.10.13.08.24.49
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BF6776B0038
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 11:42:28 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id b81so51699430lfe.1
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 08:42:28 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id gm1si18394320wjb.129.2016.10.13.08.42.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Oct 2016 08:24:49 -0700 (PDT)
-Subject: Re: [bug/regression] libhugetlbfs testsuite failures and OOMs
- eventually kill my system
-References: <57FF7BB4.1070202@redhat.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <277142fc-330d-76c7-1f03-a1c8ac0cf336@oracle.com>
-Date: Thu, 13 Oct 2016 08:24:31 -0700
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 13 Oct 2016 08:42:27 -0700 (PDT)
+Date: Thu, 13 Oct 2016 17:42:24 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v6 15/17] dax: add struct iomap based DAX PMD support
+Message-ID: <20161013154224.GB30680@quack2.suse.cz>
+References: <20161012225022.15507-1-ross.zwisler@linux.intel.com>
+ <20161012225022.15507-16-ross.zwisler@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <57FF7BB4.1070202@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161012225022.15507-16-ross.zwisler@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Stancek <jstancek@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: hillf.zj@alibaba-inc.com, dave.hansen@linux.intel.com, kirill.shutemov@linux.intel.com, mhocko@suse.cz, n-horiguchi@ah.jp.nec.com, aneesh.kumar@linux.vnet.ibm.com, iamjoonsoo.kim@lge.com
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-On 10/13/2016 05:19 AM, Jan Stancek wrote:
-> Hi,
+On Wed 12-10-16 16:50:20, Ross Zwisler wrote:
+> DAX PMDs have been disabled since Jan Kara introduced DAX radix tree based
+> locking.  This patch allows DAX PMDs to participate in the DAX radix tree
+> based locking scheme so that they can be re-enabled using the new struct
+> iomap based fault handlers.
 > 
-> I'm running into ENOMEM failures with libhugetlbfs testsuite [1] on
-> a power8 lpar system running 4.8 or latest git [2]. Repeated runs of
-> this suite trigger multiple OOMs, that eventually kill entire system,
-> it usually takes 3-5 runs:
+> There are currently three types of DAX 4k entries: 4k zero pages, 4k DAX
+> mappings that have an associated block allocation, and 4k DAX empty
+> entries.  The empty entries exist to provide locking for the duration of a
+> given page fault.
 > 
->  * Total System Memory......:  18024 MB
->  * Shared Mem Max Mapping...:    320 MB
->  * System Huge Page Size....:     16 MB
->  * Available Huge Pages.....:     20
->  * Total size of Huge Pages.:    320 MB
->  * Remaining System Memory..:  17704 MB
->  * Huge Page User Group.....:  hugepages (1001)
+> This patch adds three equivalent 2MiB DAX entries: Huge Zero Page (HZP)
+> entries, PMD DAX entries that have associated block allocations, and 2 MiB
+> DAX empty entries.
 > 
-> I see this only on ppc (BE/LE), x86_64 seems unaffected and successfully
-> ran the tests for ~12 hours.
+> Unlike the 4k case where we insert a struct page* into the radix tree for
+> 4k zero pages, for HZP we insert a DAX exceptional entry with the new
+> RADIX_DAX_HZP flag set.  This is because we use a single 2 MiB zero page in
+> every 2MiB hole mapping, and it doesn't make sense to have that same struct
+> page* with multiple entries in multiple trees.  This would cause contention
+> on the single page lock for the one Huge Zero Page, and it would break the
+> page->index and page->mapping associations that are assumed to be valid in
+> many other places in the kernel.
 > 
-> Bisect has identified following patch as culprit:
->   commit 67961f9db8c477026ea20ce05761bde6f8bf85b0
->   Author: Mike Kravetz <mike.kravetz@oracle.com>
->   Date:   Wed Jun 8 15:33:42 2016 -0700
->     mm/hugetlb: fix huge page reserve accounting for private mappings
+> One difficult use case is when one thread is trying to use 4k entries in
+> radix tree for a given offset, and another thread is using 2 MiB entries
+> for that same offset.  The current code handles this by making the 2 MiB
+> user fall back to 4k entries for most cases.  This was done because it is
+> the simplest solution, and because the use of 2MiB pages is already
+> opportunistic.
 > 
+> If we were to try to upgrade from 4k pages to 2MiB pages for a given range,
+> we run into the problem of how we lock out 4k page faults for the entire
+> 2MiB range while we clean out the radix tree so we can insert the 2MiB
+> entry.  We can solve this problem if we need to, but I think that the cases
+> where both 2MiB entries and 4K entries are being used for the same range
+> will be rare enough and the gain small enough that it probably won't be
+> worth the complexity.
+> 
+> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 
-Thanks Jan, I'll take a look.
+Just one small bug below. Feel free to add:
 
-> 
-> Following patch (made with my limited insight) applied to
-> latest git [2] fixes the problem for me:
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index ec49d9e..7261583 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1876,7 +1876,7 @@ static long __vma_reservation_common(struct hstate *h,
->                  * return value of this routine is the opposite of the
->                  * value returned from reserve map manipulation routines above.
->                  */
-> -               if (ret)
-> +               if (ret >= 0)
->                         return 0;
->                 else
->                         return 1;
-> 
+Reviewed-by: Jan Kara <jack@suse.cz>
 
-Do note that this code is only executed if this condition is true:
+after fixing that.
 
-	else if (is_vma_resv_set(vma, HPAGE_RESV_OWNER) && ret >= 0) {
+>  	/* No entry for given index? Make sure radix tree is big enough. */
+> -	if (!entry) {
+> +	if (!entry || pmd_downgrade) {
+>  		int err;
+>  
+> +		if (pmd_downgrade) {
+> +			/*
+> +			 * Make sure 'entry' remains valid while we drop
+> +			 * mapping->tree_lock.
+> +			 */
+> +			entry = lock_slot(mapping, slot);
+> +		}
+> +
+>  		spin_unlock_irq(&mapping->tree_lock);
+>  		err = radix_tree_preload(
+>  				mapping_gfp_mask(mapping) & ~__GFP_HIGHMEM);
+> -		if (err)
+> +		if (err) {
+> +			put_locked_mapping_entry(mapping, index, entry);
 
-So, we would always return 0.  This always tells the calling code that a
-reservation exists.
+Better do this only in pmd_downgrade case...
 
+								Honza
 -- 
-Mike Kravetz
-
-> Regards,
-> Jan
-> 
-> [1] https://github.com/libhugetlbfs/libhugetlbfs
-> [2] v4.8-14230-gb67be92
-> 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
