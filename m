@@ -1,63 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 40CB96B0253
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 11:43:01 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id n3so51820186lfn.5
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 08:43:01 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o7si18431265wjz.64.2016.10.13.08.42.59
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A8C76B0069
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 12:48:07 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id hm5so83180547pac.4
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 09:48:07 -0700 (PDT)
+Received: from mail-pf0-x230.google.com (mail-pf0-x230.google.com. [2607:f8b0:400e:c00::230])
+        by mx.google.com with ESMTPS id 128si11748033pgc.326.2016.10.13.09.48.06
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 13 Oct 2016 08:43:00 -0700 (PDT)
-Date: Thu, 13 Oct 2016 17:42:57 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v6 17/17] dax: remove "depends on BROKEN" from FS_DAX_PMD
-Message-ID: <20161013154257.GC30680@quack2.suse.cz>
-References: <20161012225022.15507-1-ross.zwisler@linux.intel.com>
- <20161012225022.15507-18-ross.zwisler@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161012225022.15507-18-ross.zwisler@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 13 Oct 2016 09:48:06 -0700 (PDT)
+Received: by mail-pf0-x230.google.com with SMTP id 128so37711411pfz.0
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 09:48:06 -0700 (PDT)
+Date: Thu, 13 Oct 2016 18:47:58 +0200
+From: Vitaly Wool <vitalywool@gmail.com>
+Subject: [PATCHv4 0/3] z3fold: add shrinker
+Message-Id: <20161013184758.9ecfd318fa542e14e2d2c5b1@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Cc: Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>
 
-On Wed 12-10-16 16:50:22, Ross Zwisler wrote:
-> Now that DAX PMD faults are once again working and are now participating in
-> DAX's radix tree locking scheme, allow their config option to be enabled.
-> 
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 
-Looks good. You can add:
-
-Reviewed-by: Jan Kara <jack@suse.cz>
-
-								Honza
-
-> ---
->  fs/Kconfig | 1 -
->  1 file changed, 1 deletion(-)
-> 
-> diff --git a/fs/Kconfig b/fs/Kconfig
-> index 2bc7ad7..b6f0fce 100644
-> --- a/fs/Kconfig
-> +++ b/fs/Kconfig
-> @@ -55,7 +55,6 @@ config FS_DAX_PMD
->  	depends on FS_DAX
->  	depends on ZONE_DEVICE
->  	depends on TRANSPARENT_HUGEPAGE
-> -	depends on BROKEN
->  
->  endif # BLOCK
->  
-> -- 
-> 2.9.0
-> 
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+This patch set implements shrinker for z3fold. The actual shrinker
+implementation will follow some code optimizations and preparations
+that I thought would be reasonable to have as separate patches.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
