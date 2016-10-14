@@ -1,210 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A07E46B0069
-	for <linux-mm@kvack.org>; Fri, 14 Oct 2016 07:25:47 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id d185so215427335oig.1
-        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 04:25:47 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id 5si6289650otc.274.2016.10.14.04.25.45
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BCF616B025E
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2016 07:30:48 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id n3so69004343lfn.5
+        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 04:30:48 -0700 (PDT)
+Received: from mail-lf0-f66.google.com (mail-lf0-f66.google.com. [209.85.215.66])
+        by mx.google.com with ESMTPS id q22si7551171lfg.161.2016.10.14.04.30.47
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 14 Oct 2016 04:25:46 -0700 (PDT)
-Subject: Re: [PATCH] base memory: introduce CONFIG_MEMORY_DEVICE
-References: <1476098800-3796-1-git-send-email-xieyisheng1@huawei.com>
-From: Yisheng Xie <xieyisheng1@huawei.com>
-Message-ID: <bd1550b1-22df-76f3-e2a9-f7767f479e1f@huawei.com>
-Date: Fri, 14 Oct 2016 18:53:51 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 14 Oct 2016 04:30:47 -0700 (PDT)
+Received: by mail-lf0-f66.google.com with SMTP id l131so14834535lfl.0
+        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 04:30:47 -0700 (PDT)
+Date: Fri, 14 Oct 2016 13:30:44 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm: exclude isolated non-lru pages from
+ NR_ISOLATED_ANON or NR_ISOLATED_FILE.
+Message-ID: <20161014113044.GB6063@dhcp22.suse.cz>
+References: <1476340749-13281-1-git-send-email-ming.ling@spreadtrum.com>
+ <20161013080936.GG21678@dhcp22.suse.cz>
+ <20161014083219.GA20260@spreadtrum.com>
 MIME-Version: 1.0
-In-Reply-To: <1476098800-3796-1-git-send-email-xieyisheng1@huawei.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20161014083219.GA20260@spreadtrum.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, andrew@lunn.ch, daniel.kiper@oracle.com, srinivas.kandagatla@linaro.org, gregkh@linuxfoundation.org, vkuznets@redhat.com
-Cc: linux-kernel@vger.kernel.org, ak@linux.intel.com, guohanjun@huawei.com, qiuxishi@huawei.com, n-horiguchi@ah.jp.nec.com, linux-mm <linux-mm@kvack.org>
+To: Ming Ling <ming.ling@spreadtrum.com>
+Cc: akpm@linux-foundation.org, mgorman@techsingularity.net, vbabka@suse.cz, hannes@cmpxchg.org, baiyaowei@cmss.chinamobile.com, iamjoonsoo.kim@lge.com, minchan@kernel.org, rientjes@google.com, hughd@google.com, kirill.shutemov@linux.intel.com, riel@redhat.com, mgorman@suse.de, aquini@redhat.com, corbet@lwn.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, orson.zhai@spreadtrum.com, geng.ren@spreadtrum.com, chunyan.zhang@spreadtrum.com, zhizhou.tian@spreadtrum.com, yuming.han@spreadtrum.com, xiajing@spreadst.com
 
+On Fri 14-10-16 16:32:19, Ming Ling wrote:
+> On a??, 10ae?? 13, 2016 at 10:09:37a,?a?? +0200, Michal Hocko wrote:
+> Hello,
+> > On Thu 13-10-16 14:39:09, ming.ling wrote:
+> > > From: Ming Ling <ming.ling@spreadtrum.com>
+> > > 
+> > > Non-lru pages don't belong to any lru, so counting them to
+> > > NR_ISOLATED_ANON or NR_ISOLATED_FILE doesn't make any sense.
+> > > It may misguide functions such as pgdat_reclaimable_pages and
+> > > too_many_isolated.
+> > 
+> > That doesn't make much sense to me. I guess you wanted to say something
+> > like
+> > "
+> > Accounting non-lru pages isolated for migration during pfn walk to
+> > NR_ISOLATED_{ANON,FILE} doesn't make any sense and it can misguide
+> > heuristics based on those counters such as pgdat_reclaimable_pages resp.
+> > too_many_isolated. Note that __alloc_contig_migrate_range can isolate
+> > a lot of pages at once.
+> > "
+> Yesi 1/4 ?your understanding is right, and your description is clearer than
+> mine. Do your mind if i borrow it as a comment of this patch in next
+> version?
 
-+ mm mail list
+sure, go ahead
 
-On 2016/10/10 19:26, Yisheng Xie wrote:
-> MEMORY_FAILURE do not depend on SPARSEMEM_MANUAL,
-> nor MEMORY_HOTPLUG_SPARSE. However, when I tried to use sysfs:
-> /sys/devices/system/memory/soft_offline_page
-> /sys/devices/system/memory/hard_offline_page
-> to test memory failure function with FLATMEM_MANUAL && MEMORY_FAILURE
-> enabled on arch like i386, it failed for no such sysfs.
+> > > On mobile devices such as 512M ram android Phone, it may use
+> > > a big zram swap. In some cases zram(zsmalloc) uses too many
+> > > non-lru pages, such as:
+> > > 	MemTotal: 468148 kB
+> > > 	Normal free:5620kB
+> > > 	Free swap:4736kB
+> > > 	Total swap:409596kB
+> > > 	ZRAM: 164616kB(zsmalloc non-lru pages)
+> > > 	active_anon:60700kB
+> > > 	inactive_anon:60744kB
+> > > 	active_file:34420kB
+> > > 	inactive_file:37532kB
+> > 
+> > I assume those zsmalloc pages are migrateable and that is the problem?
+> > Please state that explicitly so that even people not familiar with
+> > zsmalloc understand the motivation.
 > 
-> To make sysfs soft_offline_page usable once MEMORY_FAILURE is enabled,
-> this patch introduces CONFIG_MEMORY_DEVICE, and selects it when
-> MEMORY_FAILURE or MEMORY_HOTPLUG_SPARSE is enabled.
+> Yes, since Minchan Kim had committed a??mm: migrate: support non-lru
+> movable page migrationa??, those zsmalloc pages are migrateable now.
+> And i will state that explicitly in next version.
+
+OK
+
+> > > More non-lru pages which used by zram for swap, it influences
+> > > pgdat_reclaimable_pages and too_many_isolated more.
+> > 
+> > It would be good to mention what would be a visible effect of this.
+> > "If the NR_ISOLATED_* is too large then the direct reclaim might get
+> > throttled prematurely inducing longer allocation latencies without any
+> > strong reason."
+> > 
+> I will detail the effect of counting so many non-lru pages into
+> NR_ISOLATED_{ANON,FILE} such as:
+>
+> 'In function shrink_inactive_list, if there are too many isolated
+> pages,it will wait for a moment. So If we miscounting large number
+> non-lru pages into NR_ISOLATED_{ANON,FILE}, direct reclaim might
+> getthrottled prematurely inducing longer allocation latencies
+> without any strong reason. Actually there is no need to take non-lru
+> pages into account in shrink_inactive_list which just deals with
+> lru pages.
+
+Note that this is true also for the direct compaction.
+
+> In function pgdat_reclaimable_pages, you had considered isolated
+> pages in zone_reclaimable_pages. So miscounting non-lru pages into
+> NR_ISOLATED_{ANON,FILE} also larger zone_reclaimable_pages and will
+> lead to a more optimistic zone_reclaimable judgement.
+
+Which shouldn't be such a big deal.
+
+> '
+> > > This patch excludes isolated non-lru pages from NR_ISOLATED_ANON
+> > > or NR_ISOLATED_FILE to ensure their counts are right.
+> > 
+> > But this patch doesn't do that. It just relies on __PageMovable. It is
+> > true that all LRU pages should be movable (well except for
+> > NR_UNEVICTABLE in certain configurations) but is it true that all
+> > movable pages are on the LRU list?
+> >
+>
+> I don't think so. In commit bda807d4 'mm: migrate: support non-lru
+> movable page migration', Minchan Kim point out :
+> 'For testing of non-lru movable page, VM supports __PageMovable function.
+> However, it doesn't guarantee to identify non-lru movable page because
+> page->mapping field is unified with other variables in struct page.  As
+> well, if driver releases the page after isolation by VM, page->mapping
+> doesn't have stable value although it has PAGE_MAPPING_MOVABLE (Look at
+> __ClearPageMovable).  But __PageMovable is cheap to catch whether page
+> is LRU or non-lru movable once the page has been isolated.  Because LRU
+> pages never can have PAGE_MAPPING_MOVABLE in page->mapping.  It is also
+> good for just peeking to test non-lru movable pages before more
+> expensive checking with lock_page in pfn scanning to select victim.'.
 > 
-> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
-> ---
->  drivers/base/Kconfig   |  3 +++
->  drivers/base/Makefile  |  2 +-
->  drivers/base/memory.c  | 32 ++++++++++++++++++++++++++++++--
->  include/linux/memory.h |  4 ++++
->  4 files changed, 38 insertions(+), 3 deletions(-)
-> 
-> diff --git a/drivers/base/Kconfig b/drivers/base/Kconfig
-> index fdf44ca..b4eac4e 100644
-> --- a/drivers/base/Kconfig
-> +++ b/drivers/base/Kconfig
-> @@ -271,6 +271,9 @@ config DMA_CMA
->  	  For more information see <include/linux/dma-contiguous.h>.
->  	  If unsure, say "n".
->  
-> +config MEMORY_DEVICE
-> +	def_bool MEMORY_HOTPLUG_SPARSE || MEMORY_FAILURE
-> +
->  if  DMA_CMA
->  comment "Default contiguous memory area size:"
->  
-> diff --git a/drivers/base/Makefile b/drivers/base/Makefile
-> index 2609ba2..aafe34b 100644
-> --- a/drivers/base/Makefile
-> +++ b/drivers/base/Makefile
-> @@ -13,7 +13,7 @@ obj-$(CONFIG_HAVE_GENERIC_DMA_COHERENT) += dma-coherent.o
->  obj-$(CONFIG_ISA_BUS_API)	+= isa.o
->  obj-$(CONFIG_FW_LOADER)	+= firmware_class.o
->  obj-$(CONFIG_NUMA)	+= node.o
-> -obj-$(CONFIG_MEMORY_HOTPLUG_SPARSE) += memory.o
-> +obj-$(CONFIG_MEMORY_DEVICE) += memory.o
->  ifeq ($(CONFIG_SYSFS),y)
->  obj-$(CONFIG_MODULES)	+= module.o
->  endif
-> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-> index dc75de9..fb00965 100644
-> --- a/drivers/base/memory.c
-> +++ b/drivers/base/memory.c
-> @@ -25,10 +25,11 @@
->  #include <linux/atomic.h>
->  #include <asm/uaccess.h>
->  
-> -static DEFINE_MUTEX(mem_sysfs_mutex);
-> -
->  #define MEMORY_CLASS_NAME	"memory"
->  
-> +#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
-> +static DEFINE_MUTEX(mem_sysfs_mutex);
-> +
->  #define to_memory_block(dev) container_of(dev, struct memory_block, dev)
->  
->  static int sections_per_block;
-> @@ -381,6 +382,7 @@ static ssize_t show_phys_device(struct device *dev,
->  	struct memory_block *mem = to_memory_block(dev);
->  	return sprintf(buf, "%d\n", mem->phys_device);
->  }
-> +#endif
->  
->  #ifdef CONFIG_MEMORY_HOTREMOVE
->  static ssize_t show_valid_zones(struct device *dev,
-> @@ -427,6 +429,7 @@ static ssize_t show_valid_zones(struct device *dev,
->  static DEVICE_ATTR(valid_zones, 0444, show_valid_zones, NULL);
->  #endif
->  
-> +#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
->  static DEVICE_ATTR(phys_index, 0444, show_mem_start_phys_index, NULL);
->  static DEVICE_ATTR(state, 0644, show_mem_state, store_mem_state);
->  static DEVICE_ATTR(phys_device, 0444, show_phys_device, NULL);
-> @@ -474,6 +477,7 @@ store_auto_online_blocks(struct device *dev, struct device_attribute *attr,
->  
->  static DEVICE_ATTR(auto_online_blocks, 0644, show_auto_online_blocks,
->  		   store_auto_online_blocks);
-> +#endif
->  
->  /*
->   * Some architectures will have custom drivers to do this, and
-> @@ -557,6 +561,7 @@ static DEVICE_ATTR(soft_offline_page, S_IWUSR, NULL, store_soft_offline_page);
->  static DEVICE_ATTR(hard_offline_page, S_IWUSR, NULL, store_hard_offline_page);
->  #endif
->  
-> +#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
->  /*
->   * Note that phys_device is optional.  It is here to allow for
->   * differentiation between which *physical* devices each
-> @@ -723,6 +728,7 @@ out:
->  	mutex_unlock(&mem_sysfs_mutex);
->  	return ret;
->  }
-> +#endif
->  
->  #ifdef CONFIG_MEMORY_HOTREMOVE
->  static void
-> @@ -766,11 +772,13 @@ int unregister_memory_section(struct mem_section *section)
->  }
->  #endif /* CONFIG_MEMORY_HOTREMOVE */
->  
-> +#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
->  /* return true if the memory block is offlined, otherwise, return false */
->  bool is_memblock_offlined(struct memory_block *mem)
->  {
->  	return mem->state == MEM_OFFLINE;
->  }
-> +#endif
->  
->  static struct attribute *memory_root_attrs[] = {
->  #ifdef CONFIG_ARCH_MEMORY_PROBE
-> @@ -782,8 +790,10 @@ static struct attribute *memory_root_attrs[] = {
->  	&dev_attr_hard_offline_page.attr,
->  #endif
->  
-> +#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
->  	&dev_attr_block_size_bytes.attr,
->  	&dev_attr_auto_online_blocks.attr,
-> +#endif
->  	NULL
->  };
->  
-> @@ -799,6 +809,7 @@ static const struct attribute_group *memory_root_attr_groups[] = {
->  /*
->   * Initialize the sysfs support for memory devices...
->   */
-> +#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
->  int __init memory_dev_init(void)
->  {
->  	unsigned int i;
-> @@ -830,3 +841,20 @@ out:
->  		printk(KERN_ERR "%s() failed: %d\n", __func__, ret);
->  	return ret;
->  }
-> +#else
-> +static struct bus_type memory_subsys = {
-> +	.name = MEMORY_CLASS_NAME,
-> +	.dev_name = MEMORY_CLASS_NAME,
-> +};
-> +
-> +int __init memory_dev_init(void)
-> +{
-> +	int ret = 0;
-> +
-> +	ret = subsys_system_register(&memory_subsys, memory_root_attr_groups);
-> +
-> +	if (ret)
-> +		pr_err("%s() failed: %d\n", __func__, ret);
-> +	return ret;
-> +}
-> +#endif
-> diff --git a/include/linux/memory.h b/include/linux/memory.h
-> index 093607f..9fe1089 100644
-> --- a/include/linux/memory.h
-> +++ b/include/linux/memory.h
-> @@ -77,10 +77,14 @@ struct mem_section;
->  #define IPC_CALLBACK_PRI        10
->  
->  #ifndef CONFIG_MEMORY_HOTPLUG_SPARSE
-> +#ifdef CONFIG_MEMORY_DEVICE
-> +extern int memory_dev_init(void);
-> +#else
->  static inline int memory_dev_init(void)
->  {
->  	return 0;
->  }
-> +#endif
->  static inline int register_memory_notifier(struct notifier_block *nb)
->  {
->  	return 0;
-> 
+> And he uses __PageMovable to judge whether a isolated page is a lru page
+> such as:
+> void putback_movable_pages(struct list_head *l)
+> {
+> 	......
+> 	/*
+> 	 * We isolated non-lru movable page so here we can use
+>  	 * __PageMovable because LRU page's mapping cannot have
+> 	 * PAGE_MAPPING_MOVABLE.
+> 	 */
+> 	if (unlikely(__PageMovable(page))) {
+> 		VM_BUG_ON_PAGE(!PageIsolated(page), page);
+> 		lock_page(page);
+> 		if (PageMovable(page))
+> 			putback_movable_page(page);
+> 		else
+> 			__ClearPageIsolated(page);
+> 		unlock_page(page);
+> 		put_page(page);
+> 	} else {
+> 		putback_lru_page(page);
+> 	}
+> }
+
+I am not familiar with this code enough to comment but to me it all
+sounds quite subtle.
+
+> > Why don't you simply mimic what shrink_inactive_list does? Aka count the
+> > number of isolated pages and then account them when appropriate?
+> >
+> I think i am correcting clearly wrong part. So, there is no need to
+> describe it too detailed. It's a misunderstanding, and i will add
+> more comments as you suggest.
+
+OK, so could you explain why you prefer to relyon __PageMovable rather
+than do a trivial counting during the isolation?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
