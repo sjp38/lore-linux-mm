@@ -1,82 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 30E7E6B0069
-	for <linux-mm@kvack.org>; Fri, 14 Oct 2016 06:10:06 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id z54so75397279qtz.0
-        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 03:10:06 -0700 (PDT)
-Received: from mail-qk0-x22f.google.com (mail-qk0-x22f.google.com. [2607:f8b0:400d:c09::22f])
-        by mx.google.com with ESMTPS id m82si9200132qki.283.2016.10.14.03.10.05
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B53CB6B0069
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2016 06:52:36 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id d186so68170624lfg.7
+        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 03:52:36 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id tp11si24411558wjb.241.2016.10.14.03.52.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Oct 2016 03:10:05 -0700 (PDT)
-Received: by mail-qk0-x22f.google.com with SMTP id z190so138938195qkc.2
-        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 03:10:05 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 14 Oct 2016 03:52:35 -0700 (PDT)
+Subject: Re: [RFC PATCH 2/5] mm/page_alloc: use smallest fallback page first
+ in movable allocation
+References: <1476346102-26928-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1476346102-26928-3-git-send-email-iamjoonsoo.kim@lge.com>
+ <2567dd30-89c7-b9d2-c327-5dec8c536040@suse.cz>
+ <20161014012615.GB4993@js1304-P5Q-DELUXE>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <8de00249-2a73-0a9b-b5ab-7ac6423454b0@suse.cz>
+Date: Fri, 14 Oct 2016 12:52:26 +0200
 MIME-Version: 1.0
-Reply-To: mtk.manpages@gmail.com
-In-Reply-To: <alpine.DEB.2.20.1610131314020.3176@east.gentwo.org>
-References: <f3c4ca9d-a880-5244-e06e-db4725e4d945@gmail.com> <alpine.DEB.2.20.1610131314020.3176@east.gentwo.org>
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Date: Fri, 14 Oct 2016 12:09:44 +0200
-Message-ID: <CAKgNAkiMo-AMZ2PUm3A8NqfiNa+GOnRFn4NrFwjRJa8Z7xNsPw@mail.gmail.com>
-Subject: Re: Rewording language in mbind(2) to "threads" not "processes"
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <20161014012615.GB4993@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>, mhocko@kernel.org, mgorman@techsingularity.net, Peter Zijlstra <a.p.zijlstra@chello.nl>, Rik van Riel <riel@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, linux-man <linux-man@vger.kernel.org>, Brice Goglin <Brice.Goglin@inria.fr>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Christoph,
+On 10/14/2016 03:26 AM, Joonsoo Kim wrote:
+> On Thu, Oct 13, 2016 at 11:12:10AM +0200, Vlastimil Babka wrote:
+>> On 10/13/2016 10:08 AM, js1304@gmail.com wrote:
+>> >From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>> >
+>> >When we try to find freepage in fallback buddy list, we always serach
+>> >the largest one. This would help for fragmentation if we process
+>> >unmovable/reclaimable allocation request because it could cause permanent
+>> >fragmentation on movable pageblock and spread out such allocations would
+>> >cause more fragmentation. But, movable allocation request is
+>> >rather different. It would be simply freed or migrated so it doesn't
+>> >contribute to fragmentation on the other pageblock. In this case, it would
+>> >be better not to break the precious highest order freepage so we need to
+>> >search the smallest freepage first.
+>>
+>> I've also pondered this, but then found a lower hanging fruit that
+>> should be hopefully clear win and mitigate most cases of breaking
+>> high-order pages unnecessarily:
+>>
+>> http://marc.info/?l=linux-mm&m=147582914330198&w=2
+>
+> Yes, I agree with that change. That's the similar patch what I tried
+> before.
+>
+> "mm/page_alloc: don't break highest order freepage if steal"
+> http://marc.info/?l=linux-mm&m=143011930520417&w=2
 
-On 13 October 2016 at 20:16, Christoph Lameter <cl@linux.com> wrote:
-> On Thu, 13 Oct 2016, Michael Kerrisk (man-pages) wrote:
->
->> @@ -100,7 +100,10 @@ If, however, the shared memory region was created with the
->>  .B SHM_HUGETLB
->>  flag,
->>  the huge pages will be allocated according to the policy specified
->> -only if the page allocation is caused by the process that calls
->> +only if the page allocation is caused by the thread that calls
->> +.\"
->> +.\" ??? Is it correct to change "process" to "thread" in the preceding line?
->
-> No leave it as process. Pages get one map refcount per page table
-> that references them (meaning a process). More than one map refcount means
-> that multiple processes have mapped the page.
->
->> @@ -300,7 +303,10 @@ is specified in
->>  .IR flags ,
->>  then the kernel will attempt to move all the existing pages
->>  in the memory range so that they follow the policy.
->> -Pages that are shared with other processes will not be moved.
->> +Pages that are shared with other threads will not be moved.
->> +.\"
->> +.\" ??? Is it correct to change "processes" to "threads" in the preceding line?
->> +.\"
->
-> Leave it. Same as before.
->
->>  If
->>  then the kernel will attempt to move all existing pages in the memory range
->> -regardless of whether other processes use the pages.
->> -The calling process must be privileged
->> +regardless of whether other threads use the pages.
->> +.\"
->> +.\" ??? Is it correct to change "processes" to "threads" in the preceding line?
->> +.\"
->
-> Leave as process.
+Ah, indeed, I forgot about it and had to rediscover :)
 
-Thanks. So, are all the other cases where I changed "process" to
-"thread" okay then?
+>
+>>
+>> So I would try that first, and then test your patch on top? In your
+>> patch there's a risk that we make it harder for
+>> unmovable/reclaimable pageblocks to become movable again (we start
+>> with the smallest page which means there's lower chance that
+>> move_freepages_block() will convert more than half of the block).
+>
+> Indeed, but, with your "count movable pages when stealing", risk would
+> disappear. :)
 
-Cheers,
+Hmm, but that counting is only triggered when we attempt to steal whole 
+pageblock. For movable allocation, can_steal_fallback() allows that only for
+(order >= pageblock_order / 2), and since your patch makes "order" as small as 
+possible for movable allocations, the chances are lower?
 
-Michael
-
--- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+>> And Johannes's report seems to be about a regression in exactly this
+>> aspect of the heuristics.
+>
+> Even if your change slows down the breaking high order freepage, but,
+> it would provide just a small delay to break. High order freepage
+> would be broken soon and we cannot prevent to decrease high order
+> freepage in the system. With my approach, high order freepage would
+> stay longer time.
+>
+> For Johannes case, my approach doesn't aim at recovering from that
+> situation. Instead, it tries to prevent such situation that
+> migratetype of pageblock is changed.
+>
+> Thanks.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
