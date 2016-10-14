@@ -1,62 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DBD36B0038
-	for <linux-mm@kvack.org>; Fri, 14 Oct 2016 13:10:07 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id b80so2510868wme.4
-        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 10:10:07 -0700 (PDT)
-Received: from mail-wm0-x235.google.com (mail-wm0-x235.google.com. [2a00:1450:400c:c09::235])
-        by mx.google.com with ESMTPS id b206si682809wmc.121.2016.10.14.10.10.06
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 365996B0038
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2016 14:02:38 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id h24so64548068pfh.0
+        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 11:02:38 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id 191si15963366pgb.303.2016.10.14.11.02.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Oct 2016 10:10:06 -0700 (PDT)
-Received: by mail-wm0-x235.google.com with SMTP id d128so9695681wmf.1
-        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 10:10:06 -0700 (PDT)
-From: Dmitry Vyukov <dvyukov@google.com>
-Subject: [PATCH] kasan: support panic_on_warn
-Date: Fri, 14 Oct 2016 19:10:02 +0200
-Message-Id: <1476465002-2728-1-git-send-email-dvyukov@google.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 14 Oct 2016 11:02:37 -0700 (PDT)
+Date: Fri, 14 Oct 2016 12:02:35 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH 01/20] mm: Change type of vmf->virtual_address
+Message-ID: <20161014180235.GA27575@linux.intel.com>
+References: <1474992504-20133-1-git-send-email-jack@suse.cz>
+ <1474992504-20133-2-git-send-email-jack@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1474992504-20133-2-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: aryabinin@virtuozzo.com, akpm@linux-foundation.org, glider@google.com
-Cc: Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-If user sets panic_on_warn, he wants kernel to panic if there is
-anything barely wrong with the kernel. KASAN-detected errors
-are definitely not less benign than an arbitrary kernel WARNING.
+On Tue, Sep 27, 2016 at 06:08:05PM +0200, Jan Kara wrote:
+> Every single user of vmf->virtual_address typed that entry to unsigned
+> long before doing anything with it. So just change the type of that
+> entry to unsigned long immediately.
+> 
+> Signed-off-by: Jan Kara <jack@suse.cz>
 
-Panic after KASAN errors if panic_on_warn is set.
-
-We use this for continuous fuzzing where we want kernel to stop
-and reboot on any error.
-
-Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
-Cc: kasan-dev@googlegroups.com
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Alexander Potapenko <glider@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
----
- mm/kasan/report.c | 4 ++++
- 1 file changed, 4 insertions(+)
-
-diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index 24c1211..ca0bd48 100644
---- a/mm/kasan/report.c
-+++ b/mm/kasan/report.c
-@@ -133,6 +133,10 @@ static void kasan_end_report(unsigned long *flags)
- 	pr_err("==================================================================\n");
- 	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
- 	spin_unlock_irqrestore(&report_lock, *flags);
-+	if (panic_on_warn) {
-+		panic_on_warn = 0;
-+		panic("panic_on_warn set ...\n");
-+	}
- 	kasan_enable_current();
- }
- 
--- 
-2.8.0.rc3.226.g39d4020
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
