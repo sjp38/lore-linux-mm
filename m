@@ -1,28 +1,27 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 861A76B0069
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 20:28:46 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id hm5so95972326pac.4
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 17:28:46 -0700 (PDT)
-Received: from mail-pa0-x241.google.com (mail-pa0-x241.google.com. [2607:f8b0:400e:c03::241])
-        by mx.google.com with ESMTPS id i66si5827218pfg.98.2016.10.13.17.28.45
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 02E166B0069
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 20:33:16 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id u84so93602353pfj.6
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 17:33:15 -0700 (PDT)
+Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
+        by mx.google.com with ESMTPS id dj10si13679348pad.195.2016.10.13.17.33.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Oct 2016 17:28:45 -0700 (PDT)
-Received: by mail-pa0-x241.google.com with SMTP id qn10so5365600pac.2
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 17:28:45 -0700 (PDT)
-Date: Thu, 13 Oct 2016 20:28:43 -0400
+        Thu, 13 Oct 2016 17:33:15 -0700 (PDT)
+Received: by mail-pf0-x241.google.com with SMTP id 128so6029368pfz.1
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 17:33:15 -0700 (PDT)
+Date: Thu, 13 Oct 2016 20:33:13 -0400
 From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC PATCH 1/1] mm/percpu.c: fix memory leakage issue when
- allocate a odd alignment area
-Message-ID: <20161014002843.GH32534@mtj.duckdns.org>
-References: <bc3126cd-226d-91c7-d323-48881095accf@zoho.com>
- <20161013233139.GE32534@mtj.duckdns.org>
- <b1b3d53c-b6d9-f888-e123-1b6afe9b2e98@zoho.com>
+Subject: Re: [RFC v2 PATCH] mm/percpu.c: simplify grouping CPU algorithm
+Message-ID: <20161014003313.GI32534@mtj.duckdns.org>
+References: <701fa92a-026b-f30b-833c-a5e61eab6549@zoho.com>
+ <20161013233722.GF32534@mtj.duckdns.org>
+ <b1e98606-be69-0dd6-0a50-1b19e6237dc5@zoho.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <b1b3d53c-b6d9-f888-e123-1b6afe9b2e98@zoho.com>
+In-Reply-To: <b1e98606-be69-0dd6-0a50-1b19e6237dc5@zoho.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: zijun_hu <zijun_hu@zoho.com>
@@ -30,13 +29,13 @@ Cc: zijun_hu@htc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@lin
 
 Hello,
 
-On Fri, Oct 14, 2016 at 08:23:06AM +0800, zijun_hu wrote:
-> for the current code, only power of 2 alignment value can works well
-> 
-> is it acceptable to performing a power of 2 checking and returning error code
-> if fail?
+On Fri, Oct 14, 2016 at 07:49:44AM +0800, zijun_hu wrote:
+> the main intent of this change is making the CPU grouping algorithm more
+> easily to understand, especially, for newcomer for memory managements
+> take me as a example, i really take me a longer timer to understand it
 
-Yeah, just add is_power_of_2() test to the existing sanity check.
+If the new code is easier to understand, it's only so marginally.  It
+just isn't worth the effort or risk.
 
 Thanks.
 
