@@ -1,92 +1,210 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B53CB6B0069
-	for <linux-mm@kvack.org>; Fri, 14 Oct 2016 06:52:36 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id d186so68170624lfg.7
-        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 03:52:36 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id tp11si24411558wjb.241.2016.10.14.03.52.35
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A07E46B0069
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2016 07:25:47 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id d185so215427335oig.1
+        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 04:25:47 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id 5si6289650otc.274.2016.10.14.04.25.45
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 14 Oct 2016 03:52:35 -0700 (PDT)
-Subject: Re: [RFC PATCH 2/5] mm/page_alloc: use smallest fallback page first
- in movable allocation
-References: <1476346102-26928-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1476346102-26928-3-git-send-email-iamjoonsoo.kim@lge.com>
- <2567dd30-89c7-b9d2-c327-5dec8c536040@suse.cz>
- <20161014012615.GB4993@js1304-P5Q-DELUXE>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <8de00249-2a73-0a9b-b5ab-7ac6423454b0@suse.cz>
-Date: Fri, 14 Oct 2016 12:52:26 +0200
+        Fri, 14 Oct 2016 04:25:46 -0700 (PDT)
+Subject: Re: [PATCH] base memory: introduce CONFIG_MEMORY_DEVICE
+References: <1476098800-3796-1-git-send-email-xieyisheng1@huawei.com>
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Message-ID: <bd1550b1-22df-76f3-e2a9-f7767f479e1f@huawei.com>
+Date: Fri, 14 Oct 2016 18:53:51 +0800
 MIME-Version: 1.0
-In-Reply-To: <20161014012615.GB4993@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+In-Reply-To: <1476098800-3796-1-git-send-email-xieyisheng1@huawei.com>
+Content-Type: text/plain; charset="windows-1252"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org, andrew@lunn.ch, daniel.kiper@oracle.com, srinivas.kandagatla@linaro.org, gregkh@linuxfoundation.org, vkuznets@redhat.com
+Cc: linux-kernel@vger.kernel.org, ak@linux.intel.com, guohanjun@huawei.com, qiuxishi@huawei.com, n-horiguchi@ah.jp.nec.com, linux-mm <linux-mm@kvack.org>
 
-On 10/14/2016 03:26 AM, Joonsoo Kim wrote:
-> On Thu, Oct 13, 2016 at 11:12:10AM +0200, Vlastimil Babka wrote:
->> On 10/13/2016 10:08 AM, js1304@gmail.com wrote:
->> >From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->> >
->> >When we try to find freepage in fallback buddy list, we always serach
->> >the largest one. This would help for fragmentation if we process
->> >unmovable/reclaimable allocation request because it could cause permanent
->> >fragmentation on movable pageblock and spread out such allocations would
->> >cause more fragmentation. But, movable allocation request is
->> >rather different. It would be simply freed or migrated so it doesn't
->> >contribute to fragmentation on the other pageblock. In this case, it would
->> >be better not to break the precious highest order freepage so we need to
->> >search the smallest freepage first.
->>
->> I've also pondered this, but then found a lower hanging fruit that
->> should be hopefully clear win and mitigate most cases of breaking
->> high-order pages unnecessarily:
->>
->> http://marc.info/?l=linux-mm&m=147582914330198&w=2
->
-> Yes, I agree with that change. That's the similar patch what I tried
-> before.
->
-> "mm/page_alloc: don't break highest order freepage if steal"
-> http://marc.info/?l=linux-mm&m=143011930520417&w=2
 
-Ah, indeed, I forgot about it and had to rediscover :)
++ mm mail list
 
->
->>
->> So I would try that first, and then test your patch on top? In your
->> patch there's a risk that we make it harder for
->> unmovable/reclaimable pageblocks to become movable again (we start
->> with the smallest page which means there's lower chance that
->> move_freepages_block() will convert more than half of the block).
->
-> Indeed, but, with your "count movable pages when stealing", risk would
-> disappear. :)
-
-Hmm, but that counting is only triggered when we attempt to steal whole 
-pageblock. For movable allocation, can_steal_fallback() allows that only for
-(order >= pageblock_order / 2), and since your patch makes "order" as small as 
-possible for movable allocations, the chances are lower?
-
->> And Johannes's report seems to be about a regression in exactly this
->> aspect of the heuristics.
->
-> Even if your change slows down the breaking high order freepage, but,
-> it would provide just a small delay to break. High order freepage
-> would be broken soon and we cannot prevent to decrease high order
-> freepage in the system. With my approach, high order freepage would
-> stay longer time.
->
-> For Johannes case, my approach doesn't aim at recovering from that
-> situation. Instead, it tries to prevent such situation that
-> migratetype of pageblock is changed.
->
-> Thanks.
->
+On 2016/10/10 19:26, Yisheng Xie wrote:
+> MEMORY_FAILURE do not depend on SPARSEMEM_MANUAL,
+> nor MEMORY_HOTPLUG_SPARSE. However, when I tried to use sysfs:
+> /sys/devices/system/memory/soft_offline_page
+> /sys/devices/system/memory/hard_offline_page
+> to test memory failure function with FLATMEM_MANUAL && MEMORY_FAILURE
+> enabled on arch like i386, it failed for no such sysfs.
+> 
+> To make sysfs soft_offline_page usable once MEMORY_FAILURE is enabled,
+> this patch introduces CONFIG_MEMORY_DEVICE, and selects it when
+> MEMORY_FAILURE or MEMORY_HOTPLUG_SPARSE is enabled.
+> 
+> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+> ---
+>  drivers/base/Kconfig   |  3 +++
+>  drivers/base/Makefile  |  2 +-
+>  drivers/base/memory.c  | 32 ++++++++++++++++++++++++++++++--
+>  include/linux/memory.h |  4 ++++
+>  4 files changed, 38 insertions(+), 3 deletions(-)
+> 
+> diff --git a/drivers/base/Kconfig b/drivers/base/Kconfig
+> index fdf44ca..b4eac4e 100644
+> --- a/drivers/base/Kconfig
+> +++ b/drivers/base/Kconfig
+> @@ -271,6 +271,9 @@ config DMA_CMA
+>  	  For more information see <include/linux/dma-contiguous.h>.
+>  	  If unsure, say "n".
+>  
+> +config MEMORY_DEVICE
+> +	def_bool MEMORY_HOTPLUG_SPARSE || MEMORY_FAILURE
+> +
+>  if  DMA_CMA
+>  comment "Default contiguous memory area size:"
+>  
+> diff --git a/drivers/base/Makefile b/drivers/base/Makefile
+> index 2609ba2..aafe34b 100644
+> --- a/drivers/base/Makefile
+> +++ b/drivers/base/Makefile
+> @@ -13,7 +13,7 @@ obj-$(CONFIG_HAVE_GENERIC_DMA_COHERENT) += dma-coherent.o
+>  obj-$(CONFIG_ISA_BUS_API)	+= isa.o
+>  obj-$(CONFIG_FW_LOADER)	+= firmware_class.o
+>  obj-$(CONFIG_NUMA)	+= node.o
+> -obj-$(CONFIG_MEMORY_HOTPLUG_SPARSE) += memory.o
+> +obj-$(CONFIG_MEMORY_DEVICE) += memory.o
+>  ifeq ($(CONFIG_SYSFS),y)
+>  obj-$(CONFIG_MODULES)	+= module.o
+>  endif
+> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> index dc75de9..fb00965 100644
+> --- a/drivers/base/memory.c
+> +++ b/drivers/base/memory.c
+> @@ -25,10 +25,11 @@
+>  #include <linux/atomic.h>
+>  #include <asm/uaccess.h>
+>  
+> -static DEFINE_MUTEX(mem_sysfs_mutex);
+> -
+>  #define MEMORY_CLASS_NAME	"memory"
+>  
+> +#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+> +static DEFINE_MUTEX(mem_sysfs_mutex);
+> +
+>  #define to_memory_block(dev) container_of(dev, struct memory_block, dev)
+>  
+>  static int sections_per_block;
+> @@ -381,6 +382,7 @@ static ssize_t show_phys_device(struct device *dev,
+>  	struct memory_block *mem = to_memory_block(dev);
+>  	return sprintf(buf, "%d\n", mem->phys_device);
+>  }
+> +#endif
+>  
+>  #ifdef CONFIG_MEMORY_HOTREMOVE
+>  static ssize_t show_valid_zones(struct device *dev,
+> @@ -427,6 +429,7 @@ static ssize_t show_valid_zones(struct device *dev,
+>  static DEVICE_ATTR(valid_zones, 0444, show_valid_zones, NULL);
+>  #endif
+>  
+> +#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+>  static DEVICE_ATTR(phys_index, 0444, show_mem_start_phys_index, NULL);
+>  static DEVICE_ATTR(state, 0644, show_mem_state, store_mem_state);
+>  static DEVICE_ATTR(phys_device, 0444, show_phys_device, NULL);
+> @@ -474,6 +477,7 @@ store_auto_online_blocks(struct device *dev, struct device_attribute *attr,
+>  
+>  static DEVICE_ATTR(auto_online_blocks, 0644, show_auto_online_blocks,
+>  		   store_auto_online_blocks);
+> +#endif
+>  
+>  /*
+>   * Some architectures will have custom drivers to do this, and
+> @@ -557,6 +561,7 @@ static DEVICE_ATTR(soft_offline_page, S_IWUSR, NULL, store_soft_offline_page);
+>  static DEVICE_ATTR(hard_offline_page, S_IWUSR, NULL, store_hard_offline_page);
+>  #endif
+>  
+> +#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+>  /*
+>   * Note that phys_device is optional.  It is here to allow for
+>   * differentiation between which *physical* devices each
+> @@ -723,6 +728,7 @@ out:
+>  	mutex_unlock(&mem_sysfs_mutex);
+>  	return ret;
+>  }
+> +#endif
+>  
+>  #ifdef CONFIG_MEMORY_HOTREMOVE
+>  static void
+> @@ -766,11 +772,13 @@ int unregister_memory_section(struct mem_section *section)
+>  }
+>  #endif /* CONFIG_MEMORY_HOTREMOVE */
+>  
+> +#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+>  /* return true if the memory block is offlined, otherwise, return false */
+>  bool is_memblock_offlined(struct memory_block *mem)
+>  {
+>  	return mem->state == MEM_OFFLINE;
+>  }
+> +#endif
+>  
+>  static struct attribute *memory_root_attrs[] = {
+>  #ifdef CONFIG_ARCH_MEMORY_PROBE
+> @@ -782,8 +790,10 @@ static struct attribute *memory_root_attrs[] = {
+>  	&dev_attr_hard_offline_page.attr,
+>  #endif
+>  
+> +#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+>  	&dev_attr_block_size_bytes.attr,
+>  	&dev_attr_auto_online_blocks.attr,
+> +#endif
+>  	NULL
+>  };
+>  
+> @@ -799,6 +809,7 @@ static const struct attribute_group *memory_root_attr_groups[] = {
+>  /*
+>   * Initialize the sysfs support for memory devices...
+>   */
+> +#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
+>  int __init memory_dev_init(void)
+>  {
+>  	unsigned int i;
+> @@ -830,3 +841,20 @@ out:
+>  		printk(KERN_ERR "%s() failed: %d\n", __func__, ret);
+>  	return ret;
+>  }
+> +#else
+> +static struct bus_type memory_subsys = {
+> +	.name = MEMORY_CLASS_NAME,
+> +	.dev_name = MEMORY_CLASS_NAME,
+> +};
+> +
+> +int __init memory_dev_init(void)
+> +{
+> +	int ret = 0;
+> +
+> +	ret = subsys_system_register(&memory_subsys, memory_root_attr_groups);
+> +
+> +	if (ret)
+> +		pr_err("%s() failed: %d\n", __func__, ret);
+> +	return ret;
+> +}
+> +#endif
+> diff --git a/include/linux/memory.h b/include/linux/memory.h
+> index 093607f..9fe1089 100644
+> --- a/include/linux/memory.h
+> +++ b/include/linux/memory.h
+> @@ -77,10 +77,14 @@ struct mem_section;
+>  #define IPC_CALLBACK_PRI        10
+>  
+>  #ifndef CONFIG_MEMORY_HOTPLUG_SPARSE
+> +#ifdef CONFIG_MEMORY_DEVICE
+> +extern int memory_dev_init(void);
+> +#else
+>  static inline int memory_dev_init(void)
+>  {
+>  	return 0;
+>  }
+> +#endif
+>  static inline int register_memory_notifier(struct notifier_block *nb)
+>  {
+>  	return 0;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
