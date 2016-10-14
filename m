@@ -1,105 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CA2796B0069
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 21:01:10 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id t25so94877663pfg.3
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 18:01:10 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id k67si12996718pga.217.2016.10.13.18.01.09
-        for <linux-mm@kvack.org>;
-        Thu, 13 Oct 2016 18:01:09 -0700 (PDT)
-Date: Fri, 14 Oct 2016 10:01:34 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC PATCH 1/5] mm/page_alloc: always add freeing page at the
- tail of the buddy list
-Message-ID: <20161014010134.GA4993@js1304-P5Q-DELUXE>
-References: <1476346102-26928-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1476346102-26928-2-git-send-email-iamjoonsoo.kim@lge.com>
- <15d0cf1a-4b73-470d-208f-be7b0ebb48ba@suse.cz>
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B0206B0253
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 21:02:11 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id f128so61974834qkb.1
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 18:02:11 -0700 (PDT)
+Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
+        by mx.google.com with ESMTPS id d5si8200358qkb.276.2016.10.13.18.02.10
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 13 Oct 2016 18:02:11 -0700 (PDT)
+Subject: Re: [RFC PATCH 1/1] mm/percpu.c: fix several trivial issues
+References: <e9cf3570-2c35-42f6-4bb1-f60734651e6c@zoho.com>
+ <20161014003426.GJ32534@mtj.duckdns.org>
+From: zijun_hu <zijun_hu@zoho.com>
+Message-ID: <cb93bc79-3954-27e1-dffd-57b0a6f6fec8@zoho.com>
+Date: Fri, 14 Oct 2016 09:01:58 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <15d0cf1a-4b73-470d-208f-be7b0ebb48ba@suse.cz>
+In-Reply-To: <20161014003426.GJ32534@mtj.duckdns.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: zijun_hu@htc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, cl@linux.com
 
-On Thu, Oct 13, 2016 at 11:04:39AM +0200, Vlastimil Babka wrote:
-> On 10/13/2016 10:08 AM, js1304@gmail.com wrote:
-> >From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> >
-> >Currently, freeing page can stay longer in the buddy list if next higher
-> >order page is in the buddy list in order to help coalescence. However,
-> >it doesn't work for the simplest sequential free case. For example, think
-> >about the situation that 8 consecutive pages are freed in sequential
-> >order.
-> >
-> >page 0: attached at the head of order 0 list
-> >page 1: merged with page 0, attached at the head of order 1 list
-> >page 2: attached at the tail of order 0 list
-> >page 3: merged with page 2 and then merged with page 0, attached at
-> > the head of order 2 list
-> >page 4: attached at the head of order 0 list
-> >page 5: merged with page 4, attached at the tail of order 1 list
-> >page 6: attached at the tail of order 0 list
-> >page 7: merged with page 6 and then merged with page 4. Lastly, merged
-> > with page 0 and we get order 3 freepage.
-> >
-> >With excluding page 0 case, there are three cases that freeing page is
-> >attached at the head of buddy list in this example and if just one
-> >corresponding ordered allocation request comes at that moment, this page
-> >in being a high order page will be allocated and we would fail to make
-> >order-3 freepage.
-> >
-> >Allocation usually happens in sequential order and free also does. So, it
+On 2016/10/14 8:34, Tejun Heo wrote:
+> On Tue, Oct 11, 2016 at 09:29:27PM +0800, zijun_hu wrote:
+>> From: zijun_hu <zijun_hu@htc.com>
+>>
+>> as shown by pcpu_setup_first_chunk(), the first chunk is same as the
+>> reserved chunk if the reserved size is nonzero but the dynamic is zero
+>> this special scenario is referred as the special case by below content
+>>
+>> fix several trivial issues:
+>>
+>> 1) correct or fix several comments
+>> the LSB of a chunk->map element is used as free/in-use flag and is cleared
+>> for free area and set for in-use, rather than use positive/negative number
+>> to mark area state.
+>>
+>> 2) change atomic size to PAGE_SIZE for consistency when CONFIG_SMP == n
+>> both default setup_per_cpu_areas() and pcpu_page_first_chunk()
+>> use PAGE_SIZE as atomic size when CONFIG_SMP == y; however
+>> setup_per_cpu_areas() allocates memory for the only unit with alignment
+>> PAGE_SIZE but assigns unit size to atomic size when CONFIG_SMP == n, so the
+>> atomic size isn't consistent with either the alignment or the SMP ones.
+>> fix it by changing atomic size to PAGE_SIZE when CONFIG_SMP == n
+>>
+>> 3) correct empty and populated pages statistic error
+>> in order to service dynamic atomic memory allocation, the number of empty
+>> and populated pages of chunks is counted to maintain above a low threshold.
+>> however, for the special case, the first chunk is took into account by
+>> pcpu_setup_first_chunk(), it is meaningless since the chunk don't include
+>> any dynamic areas.
+>> fix it by excluding the reserved chunk before statistic as the other
+>> contexts do.
+>>
+>> 4) fix potential memory leakage for percpu_init_late()
+>> in order to manage chunk->map memory uniformly, for the first and reserved
+>> chunks, percpu_init_late() will allocate memory to replace the static
+>> chunk->map array within section .init.data after slab is brought up
+>> however, for the special case, memory are allocated for the same chunk->map
+>> twice since the first chunk reference is same as the reserved, so the
+>> memory allocated at the first time are leaked obviously.
+>> fix it by eliminating the second memory allocation under the special case
+>>
+>> Signed-off-by: zijun_hu <zijun_hu@htc.com>
 > 
-> Are you sure this is true except after the system is freshly booted?
-> As soon as it becomes fragmented, a stream of order-0 allocations
-> will likely grab them randomly from all over the place and it's
-> unlikely to recover except small orders.
-
-What we should really focus on is just a small order page
-(non-costly order page) and this patch would help to make them. Even
-if the system runs for a long time, I saw that there are many small
-order freepages so there would be enough chance to alloc/free in
-sequential order.
-
+> Can you please break the changes into separate patches?
 > 
-> >would be important to detect such a situation and to give some chance
-> >to be coalesced.
-> >
-> >I think that simple and effective heuristic about this case is just
-> >attaching freeing page at the tail of the buddy list unconditionally.
-> >If freeing isn't merged during one rotation, it would be actual
-> >fragmentation and we don't need to care about it for coalescence.
+> Thanks.
 > 
-> I'm not against removing this heuristic, but not without some
-> benchmarks. The disadvantage of putting pages to tail lists is that
 
-I can do more test. But, I'd like to say that it is not removing the
-heuristic but expanding the heuristic. Before adding this heuristic,
-all freed page are added at the head of the buddy list.
-
-> they become cache-cold until allocated again. We should check how
-> large that problem is.
-
-Yes, your concern is fair enough. There are some reasons to justify
-this patch but it should be checked.
-
-If merging happens, we cannot make sure whether this merged page is
-cache-hot or not. There is a possibility that part of merged page stay
-in the buddy list for a long time and is cache-cold. I guess that we
-can apply above heuristic only for merged page which we cannot make
-sure if it is cache-hot or not.
-
-And, there is no guarantee that freed page is cache-hot. If it is used
-for file-cache and reclaimed, it would be cache-cold. And, if
-next allocation is requested by file-cache, it requires cache-cold
-page. Benefit of maintaining cache-hot page at the head of the buddy
-list would weaken.
-
-Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
