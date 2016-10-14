@@ -1,75 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D42786B025E
-	for <linux-mm@kvack.org>; Fri, 14 Oct 2016 11:20:24 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id c78so1051101wme.5
-        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 08:20:24 -0700 (PDT)
-Received: from mail-wm0-x22e.google.com (mail-wm0-x22e.google.com. [2a00:1450:400c:c09::22e])
-        by mx.google.com with ESMTPS id 137si267436wmj.74.2016.10.14.08.20.23
+	by kanga.kvack.org (Postfix) with ESMTP id 3A7056B0069
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2016 11:26:20 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id f193so1160029wmg.3
+        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 08:26:20 -0700 (PDT)
+Received: from mail-wm0-f49.google.com (mail-wm0-f49.google.com. [74.125.82.49])
+        by mx.google.com with ESMTPS id k88si289442wmh.15.2016.10.14.08.26.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Oct 2016 08:20:23 -0700 (PDT)
-Received: by mail-wm0-x22e.google.com with SMTP id c78so3843134wme.0
-        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 08:20:23 -0700 (PDT)
-From: Dmitry Vyukov <dvyukov@google.com>
-Subject: [PATCH] lib: bump stackdepot capacity from 16MB to 128MB
-Date: Fri, 14 Oct 2016 17:20:16 +0200
-Message-Id: <1476458416-122131-1-git-send-email-dvyukov@google.com>
+        Fri, 14 Oct 2016 08:26:18 -0700 (PDT)
+Received: by mail-wm0-f49.google.com with SMTP id c78so580663wme.1
+        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 08:26:18 -0700 (PDT)
+Date: Fri, 14 Oct 2016 17:26:16 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: some question about order0 page allocation
+Message-ID: <20161014152615.GB6105@dhcp22.suse.cz>
+References: <CADUS3okBoQNW_mzgZnfr6evK2Qrx2TDtPygqnodn0CwtSyrA8w@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CADUS3okBoQNW_mzgZnfr6evK2Qrx2TDtPygqnodn0CwtSyrA8w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: aryabinin@virtuozzo.com, akpm@linux-foundation.org, glider@google.com, iamjoonsoo.kim@lge.com
-Cc: Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, sploving1@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-
-KASAN uses stackdepot to memorize stacks for all kmalloc/kfree calls.
-Current stackdepot capacity is 16MB (1024 top level entries x
-4 pages on second level). Size of each stack is (num_frames + 3) *
-sizeof(long). Which gives us ~84K stacks. This capacity was chosen
-empirically and it is enough to run kernel normally. However,
-when lots of configs are enabled and a fuzzer tries to maximize
-code coverage, it easily hits the limit within tens of minutes.
-I've tested for long a time with number of top level entries bumped 4x
-(4096). And I think I've seen overflow only once. But I don't have
-all configs enabled and code coverage has not reached maximum yet.
-So bump it 8x to 8192. Since we have two-level table, memory cost
-of this is very moderate -- currently the top-level table is 8KB,
-with this patch it is 64KB, which is negligible under KASAN.
-
-Here is some approx math.
-128MB allows us to memorize ~670K stacks (assuming stack is ~200b).
-I've grepped kernel for kmalloc|kfree|kmem_cache_alloc|kmem_cache_free|
-kzalloc|kstrdup|kstrndup|kmemdup and it gives ~60K matches.
-Most of alloc/free call sites are reachable with only one stack.
-But some utility functions can have large fanout. Assuming average
-fanout is 5x, total number of alloc/free stacks is ~300K.
-
-Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
-Cc: kasan-dev@googlegroups.com
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Alexander Potapenko <glider@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: sploving1@gmail.com
+To: yoma sophian <sophian.yoma@gmail.com>
 Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
----
- lib/stackdepot.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/lib/stackdepot.c b/lib/stackdepot.c
-index 60f77f1..4d830e2 100644
---- a/lib/stackdepot.c
-+++ b/lib/stackdepot.c
-@@ -50,7 +50,7 @@
- 					STACK_ALLOC_ALIGN)
- #define STACK_ALLOC_INDEX_BITS (DEPOT_STACK_BITS - \
- 		STACK_ALLOC_NULL_PROTECTION_BITS - STACK_ALLOC_OFFSET_BITS)
--#define STACK_ALLOC_SLABS_CAP 1024
-+#define STACK_ALLOC_SLABS_CAP 8192
- #define STACK_ALLOC_MAX_SLABS \
- 	(((1LL << (STACK_ALLOC_INDEX_BITS)) < STACK_ALLOC_SLABS_CAP) ? \
- 	 (1LL << (STACK_ALLOC_INDEX_BITS)) : STACK_ALLOC_SLABS_CAP)
+On Fri 14-10-16 17:29:34, yoma sophian wrote:
+[...]
+> [ 5515.127555] dialog invoked oom-killer: gfp_mask=0x80d0, order=0,
+> oom_score_adj=0
+
+This looks like a GFP_KERNEL + something allocation
+
+> [ 5515.444859] Normal: 4314*4kB (UEMC) 3586*8kB (UMC) 131*16kB (MC)
+> 21*32kB (C) 6*64kB (C) 1*128kB (C) 0*256kB 0*512kB 0*1024kB 0*2048kB
+> 0*4096kB = 49224kB
+
+And it seems like CMA blocks are spread in all orders and no unmovable
+allocations can fallback in them. It seems that there should be some
+movable blocks but I do not have any idea why those are not used. Anyway
+this is where I would start investigating.
 -- 
-2.8.0.rc3.226.g39d4020
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
