@@ -1,46 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D3D36B0038
-	for <linux-mm@kvack.org>; Fri, 14 Oct 2016 14:26:30 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id 191so3380359wmr.6
-        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 11:26:30 -0700 (PDT)
-Received: from arcturus.aphlor.org (arcturus.ipv6.aphlor.org. [2a03:9800:10:4a::2])
-        by mx.google.com with ESMTPS id ly2si26371711wjb.95.2016.10.14.11.26.29
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 643696B0038
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2016 14:42:53 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id kc8so121688606pab.2
+        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 11:42:53 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id s21si16064693pgg.25.2016.10.14.11.42.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Oct 2016 11:26:29 -0700 (PDT)
-Date: Fri, 14 Oct 2016 14:26:24 -0400
-From: Dave Jones <davej@codemonkey.org.uk>
-Subject: pkeys: Remove easily triggered WARN
-Message-ID: <20161014182624.4yzw36n4hd7x56wi@codemonkey.org.uk>
+        Fri, 14 Oct 2016 11:42:52 -0700 (PDT)
+Date: Fri, 14 Oct 2016 12:42:51 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH 03/20] mm: Use pgoff in struct vm_fault instead of
+ passing it separately
+Message-ID: <20161014184251.GB27575@linux.intel.com>
+References: <1474992504-20133-1-git-send-email-jack@suse.cz>
+ <1474992504-20133-4-git-send-email-jack@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <1474992504-20133-4-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-arch@vger.kernel.org, Dave Hansen <dave@sr71.net>, mgorman@techsingularity.net, arnd@arndb.de, linux-api@vger.kernel.org, linux-mm@kvack.org, luto@kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
+To: Jan Kara <jack@suse.cz>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-This easy-to-trigger warning shows up instantly when running
-Trinity on a kernel with CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS disabled.
+On Tue, Sep 27, 2016 at 06:08:07PM +0200, Jan Kara wrote:
+> struct vm_fault has already pgoff entry. Use it instead of passing pgoff
+> as a separate argument and then assigning it later.
+> 
+> Signed-off-by: Jan Kara <jack@suse.cz>
+> ---
+>  mm/memory.c | 35 ++++++++++++++++++-----------------
+>  1 file changed, 18 insertions(+), 17 deletions(-)
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 447a1ef4a9e3..4c2ec9a9d8af 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2275,7 +2275,7 @@ static int wp_pfn_shared(struct vm_fault *vmf, pte_t orig_pte)
+>  	if (vma->vm_ops && vma->vm_ops->pfn_mkwrite) {
+>  		struct vm_fault vmf2 = {
+>  			.page = NULL,
+> -			.pgoff = linear_page_index(vma, vmf->address),
+> +			.pgoff = vmf->pgoff,
 
-At most this should have been a printk, but the -EINVAL alone should be more
-than adequate indicator that something isn't available.
+I think there is one path where vmf->pgoff isn't set here.  Here's the path:
 
-Signed-off-by: Dave Jones <davej@codemonkey.org.uk>
+__collapse_huge_page_swapin()
+  do_swap_page()
+    do_wp_page()
+      wp_pfn_shared()
 
-diff --git a/include/linux/pkeys.h b/include/linux/pkeys.h
-index e4c08c1ff0c5..a1bacf1150b2 100644
---- a/include/linux/pkeys.h
-+++ b/include/linux/pkeys.h
-@@ -25,7 +25,6 @@ static inline int mm_pkey_alloc(struct mm_struct *mm)
- 
- static inline int mm_pkey_free(struct mm_struct *mm, int pkey)
- {
--	WARN_ONCE(1, "free of protection key when disabled");
- 	return -EINVAL;
- }
- 
+We then use an uninitialized vmf->pgoff to set up vmf2->pgoff, which we pass
+to vm_ops->pfn_mkwrite().
+
+I think all we need to do to fix this is initialize .pgoff in
+__collapse_huge_page_swapin().  With this one change:
+
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
