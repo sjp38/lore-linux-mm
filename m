@@ -1,57 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BA9156B0069
-	for <linux-mm@kvack.org>; Fri, 14 Oct 2016 09:53:37 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id z190so72164042qkc.4
-        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 06:53:37 -0700 (PDT)
-Received: from mail-qt0-f173.google.com (mail-qt0-f173.google.com. [209.85.216.173])
-        by mx.google.com with ESMTPS id w46si9734625qta.144.2016.10.14.06.53.37
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 345C76B0253
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2016 09:55:10 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id tz10so113028782pab.3
+        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 06:55:10 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id t9si15583332pac.180.2016.10.14.06.55.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Oct 2016 06:53:37 -0700 (PDT)
-Received: by mail-qt0-f173.google.com with SMTP id m5so74846100qtb.3
-        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 06:53:37 -0700 (PDT)
-Date: Fri, 14 Oct 2016 15:53:34 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm: exclude isolated non-lru pages from
- NR_ISOLATED_ANON or NR_ISOLATED_FILE.
-Message-ID: <20161014135334.GF6063@dhcp22.suse.cz>
-References: <1476340749-13281-1-git-send-email-ming.ling@spreadtrum.com>
- <20161013080936.GG21678@dhcp22.suse.cz>
- <20161014083219.GA20260@spreadtrum.com>
- <20161014113044.GB6063@dhcp22.suse.cz>
- <20161014134604.GA2179@blaptop>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 14 Oct 2016 06:55:09 -0700 (PDT)
+From: zhongjiang <zhongjiang@huawei.com>
+Subject: [PATCH] z3fold: remove the unnecessary limit in z3fold_compact_page
+Date: Fri, 14 Oct 2016 21:35:25 +0800
+Message-ID: <1476452125-22059-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161014134604.GA2179@blaptop>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Ming Ling <ming.ling@spreadtrum.com>, akpm@linux-foundation.org, mgorman@techsingularity.net, vbabka@suse.cz, hannes@cmpxchg.org, baiyaowei@cmss.chinamobile.com, iamjoonsoo.kim@lge.com, rientjes@google.com, hughd@google.com, kirill.shutemov@linux.intel.com, riel@redhat.com, mgorman@suse.de, aquini@redhat.com, corbet@lwn.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, orson.zhai@spreadtrum.com, geng.ren@spreadtrum.com, chunyan.zhang@spreadtrum.com, zhizhou.tian@spreadtrum.com, yuming.han@spreadtrum.com, xiajing@spreadst.com
+To: vitalywool@gmail.com, david@fromorbit.com, sjenning@redhat.com, ddstreet@ieee.org, akpm@linux-foundation.org, mhocko@kernel.org, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri 14-10-16 22:46:04, Minchan Kim wrote:
-[...]
-> > > > Why don't you simply mimic what shrink_inactive_list does? Aka count the
-> > > > number of isolated pages and then account them when appropriate?
-> > > >
-> > > I think i am correcting clearly wrong part. So, there is no need to
-> > > describe it too detailed. It's a misunderstanding, and i will add
-> > > more comments as you suggest.
-> > 
-> > OK, so could you explain why you prefer to relyon __PageMovable rather
-> > than do a trivial counting during the isolation?
-> 
-> I don't get it. Could you elaborate it a bit more?
+From: zhong jiang <zhongjiang@huawei.com>
 
-It is really simple. You can count the number of file and anonymous
-pages while they are isolated and then account them to NR_ISOLATED_*
-later. Basically the same thing we do during the reclaim. We absolutely
-do not have to rely on __PageMovable and make this code more complex
-than necessary.
+z3fold compact page has nothing with the last_chunks. even if
+last_chunks is not free, compact page will proceed.
+
+The patch just remove the limit without functional change.
+
+Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+---
+ mm/z3fold.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/mm/z3fold.c b/mm/z3fold.c
+index e8fc216..4668e1c 100644
+--- a/mm/z3fold.c
++++ b/mm/z3fold.c
+@@ -258,8 +258,7 @@ static int z3fold_compact_page(struct z3fold_header *zhdr)
+ 
+ 
+ 	if (!test_bit(MIDDLE_CHUNK_MAPPED, &page->private) &&
+-	    zhdr->middle_chunks != 0 &&
+-	    zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
++	    zhdr->middle_chunks != 0 && zhdr->first_chunks == 0) {
+ 		memmove(beg + ZHDR_SIZE_ALIGNED,
+ 			beg + (zhdr->start_middle << CHUNK_SHIFT),
+ 			zhdr->middle_chunks << CHUNK_SHIFT);
 -- 
-Michal Hocko
-SUSE Labs
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
