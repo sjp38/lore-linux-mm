@@ -1,36 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 060906B0038
-	for <linux-mm@kvack.org>; Fri, 14 Oct 2016 15:05:16 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id fn2so122237400pad.7
-        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 12:05:15 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id b20si19532695pfk.263.2016.10.14.12.05.14
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6999C6B0038
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2016 15:17:03 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id os4so121639812pac.5
+        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 12:17:03 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id j67si19585162pfe.197.2016.10.14.12.17.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Oct 2016 12:05:14 -0700 (PDT)
-Date: Fri, 14 Oct 2016 13:05:13 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH 04/20] mm: Use passed vm_fault structure in __do_fault()
-Message-ID: <20161014190513.GC27575@linux.intel.com>
-References: <1474992504-20133-1-git-send-email-jack@suse.cz>
- <1474992504-20133-5-git-send-email-jack@suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 14 Oct 2016 12:17:02 -0700 (PDT)
+Subject: Re: pkeys: Remove easily triggered WARN
+References: <20161014182624.4yzw36n4hd7x56wi@codemonkey.org.uk>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <58012F29.8040307@intel.com>
+Date: Fri, 14 Oct 2016 12:16:57 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1474992504-20133-5-git-send-email-jack@suse.cz>
+In-Reply-To: <20161014182624.4yzw36n4hd7x56wi@codemonkey.org.uk>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Dave Jones <davej@codemonkey.org.uk>
+Cc: linux-arch@vger.kernel.org, mgorman@techsingularity.net, arnd@arndb.de, linux-api@vger.kernel.org, linux-mm@kvack.org, luto@kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
 
-On Tue, Sep 27, 2016 at 06:08:08PM +0200, Jan Kara wrote:
-> Instead of creating another vm_fault structure, use the one passed to
-> __do_fault() for passing arguments into fault handler.
+On 10/14/2016 11:26 AM, Dave Jones wrote:
+> This easy-to-trigger warning shows up instantly when running
+> Trinity on a kernel with CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS disabled.
 > 
-> Signed-off-by: Jan Kara <jack@suse.cz>
+> At most this should have been a printk, but the -EINVAL alone should be more
+> than adequate indicator that something isn't available.
 
-Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+Urg, thanks for the patch.  It's obviously correct, of course.
+
+Acked-by: Dave Hansen <dave.hansen@intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
