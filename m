@@ -1,214 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FD796B0253
-	for <linux-mm@kvack.org>; Fri, 14 Oct 2016 04:49:32 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id h24so51187273pfh.0
-        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 01:49:32 -0700 (PDT)
-Received: from SHSQR01.spreadtrum.com ([222.66.158.135])
-        by mx.google.com with ESMTPS id by5si14793102pad.102.2016.10.14.01.49.30
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F2E0B6B0069
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2016 05:29:35 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id j37so115070448ioo.2
+        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 02:29:35 -0700 (PDT)
+Received: from mail-io0-x22a.google.com (mail-io0-x22a.google.com. [2607:f8b0:4001:c06::22a])
+        by mx.google.com with ESMTPS id z65si10546664ioi.251.2016.10.14.02.29.35
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 14 Oct 2016 01:49:31 -0700 (PDT)
-Date: Fri, 14 Oct 2016 16:32:19 +0800
-From: Ming Ling <ming.ling@spreadtrum.com>
-Subject: Re: [PATCH v2] mm: exclude isolated non-lru pages from
- NR_ISOLATED_ANON or NR_ISOLATED_FILE.
-Message-ID: <20161014083219.GA20260@spreadtrum.com>
-References: <1476340749-13281-1-git-send-email-ming.ling@spreadtrum.com>
- <20161013080936.GG21678@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 14 Oct 2016 02:29:35 -0700 (PDT)
+Received: by mail-io0-x22a.google.com with SMTP id j37so115077710ioo.3
+        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 02:29:35 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20161013080936.GG21678@dhcp22.suse.cz>
+From: yoma sophian <sophian.yoma@gmail.com>
+Date: Fri, 14 Oct 2016 17:29:34 +0800
+Message-ID: <CADUS3okBoQNW_mzgZnfr6evK2Qrx2TDtPygqnodn0CwtSyrA8w@mail.gmail.com>
+Subject: some question about order0 page allocation
+Content-Type: multipart/mixed; boundary=001a113dface423f4a053ecfdd2a
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, mgorman@techsingularity.net, vbabka@suse.cz, hannes@cmpxchg.org, baiyaowei@cmss.chinamobile.com, iamjoonsoo.kim@lge.com, minchan@kernel.org, rientjes@google.com, hughd@google.com, kirill.shutemov@linux.intel.com, riel@redhat.com, mgorman@suse.de, aquini@redhat.com, corbet@lwn.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, orson.zhai@spreadtrum.com, geng.ren@spreadtrum.com, chunyan.zhang@spreadtrum.com, zhizhou.tian@spreadtrum.com, yuming.han@spreadtrum.com, xiajing@spreadst.com
+To: linux-mm@kvack.org
 
-On a??, 10ae?? 13, 2016 at 10:09:37a,?a?? +0200, Michal Hocko wrote:
-Hello,
-> On Thu 13-10-16 14:39:09, ming.ling wrote:
-> > From: Ming Ling <ming.ling@spreadtrum.com>
-> > 
-> > Non-lru pages don't belong to any lru, so counting them to
-> > NR_ISOLATED_ANON or NR_ISOLATED_FILE doesn't make any sense.
-> > It may misguide functions such as pgdat_reclaimable_pages and
-> > too_many_isolated.
-> 
-> That doesn't make much sense to me. I guess you wanted to say something
-> like
-> "
-> Accounting non-lru pages isolated for migration during pfn walk to
-> NR_ISOLATED_{ANON,FILE} doesn't make any sense and it can misguide
-> heuristics based on those counters such as pgdat_reclaimable_pages resp.
-> too_many_isolated. Note that __alloc_contig_migrate_range can isolate
-> a lot of pages at once.
-> "
-Yesi 1/4 ?your understanding is right, and your description is clearer than
-mine. Do your mind if i borrow it as a comment of this patch in next
-version?
-> > On mobile devices such as 512M ram android Phone, it may use
-> > a big zram swap. In some cases zram(zsmalloc) uses too many
-> > non-lru pages, such as:
-> > 	MemTotal: 468148 kB
-> > 	Normal free:5620kB
-> > 	Free swap:4736kB
-> > 	Total swap:409596kB
-> > 	ZRAM: 164616kB(zsmalloc non-lru pages)
-> > 	active_anon:60700kB
-> > 	inactive_anon:60744kB
-> > 	active_file:34420kB
-> > 	inactive_file:37532kB
-> 
-> I assume those zsmalloc pages are migrateable and that is the problem?
-> Please state that explicitly so that even people not familiar with
-> zsmalloc understand the motivation.
+--001a113dface423f4a053ecfdd2a
+Content-Type: text/plain; charset=UTF-8
 
-Yes, since Minchan Kim had committed a??mm: migrate: support non-lru
-movable page migrationa??, those zsmalloc pages are migrateable now.
-And i will state that explicitly in next version.
-> 
-> > More non-lru pages which used by zram for swap, it influences
-> > pgdat_reclaimable_pages and too_many_isolated more.
-> 
-> It would be good to mention what would be a visible effect of this.
-> "If the NR_ISOLATED_* is too large then the direct reclaim might get
-> throttled prematurely inducing longer allocation latencies without any
-> strong reason."
-> 
-I will detail the effect of counting so many non-lru pages into
-NR_ISOLATED_{ANON,FILE} such as:
-'In function shrink_inactive_list, if there are too many isolated
-pages,it will wait for a moment. So If we miscounting large number
-non-lru pages into NR_ISOLATED_{ANON,FILE}, direct reclaim might
-getthrottled prematurely inducing longer allocation latencies
-without any strong reason. Actually there is no need to take non-lru
-pages into account in shrink_inactive_list which just deals with
-lru pages.
+hi all:
+I got oom log like at the end of mail from my embedded system.
+But the log makes me curious are
+a. the free memory size is ok.
+        (Normal free:50080kB)
+    the pcp hot page is also enough.
+        (Normal per-cpu:
+        CPU    0: hi:  186, btch:  31 usd:  18
+        CPU    1: hi:  186, btch:  31 usd:  22)
 
-In function pgdat_reclaimable_pages, you had considered isolated
-pages in zone_reclaimable_pages. So miscounting non-lru pages into
-NR_ISOLATED_{ANON,FILE} also larger zone_reclaimable_pages and will
-lead to a more optimistic zone_reclaimable judgement.
-'
-> > This patch excludes isolated non-lru pages from NR_ISOLATED_ANON
-> > or NR_ISOLATED_FILE to ensure their counts are right.
-> 
-> But this patch doesn't do that. It just relies on __PageMovable. It is
-> true that all LRU pages should be movable (well except for
-> NR_UNEVICTABLE in certain configurations) but is it true that all
-> movable pages are on the LRU list?
->
-I don't think so. In commit bda807d4 'mm: migrate: support non-lru
-movable page migration', Minchan Kim point out :
-'For testing of non-lru movable page, VM supports __PageMovable function.
-However, it doesn't guarantee to identify non-lru movable page because
-page->mapping field is unified with other variables in struct page.  As
-well, if driver releases the page after isolation by VM, page->mapping
-doesn't have stable value although it has PAGE_MAPPING_MOVABLE (Look at
-__ClearPageMovable).  But __PageMovable is cheap to catch whether page
-is LRU or non-lru movable once the page has been isolated.  Because LRU
-pages never can have PAGE_MAPPING_MOVABLE in page->mapping.  It is also
-good for just peeking to test non-lru movable pages before more
-expensive checking with lock_page in pfn scanning to select victim.'.
+b. the water mark should be ok as well.
+    in __alloc_pages_may_oom, we use ALLOC_WMARK_HIGH|ALLOC_CPUSET for
+watermake checking.
+   so in this case:
+   free-free_cma = 3192KB > (highmark -= highmark/2 = 2130KB)
 
-And he uses __PageMovable to judge whether a isolated page is a lru page
-such as:
-void putback_movable_pages(struct list_head *l)
-{
-	......
-	/*
-	 * We isolated non-lru movable page so here we can use
- 	 * __PageMovable because LRU page's mapping cannot have
-	 * PAGE_MAPPING_MOVABLE.
-	 */
-	if (unlikely(__PageMovable(page))) {
-		VM_BUG_ON_PAGE(!PageIsolated(page), page);
-		lock_page(page);
-		if (PageMovable(page))
-			putback_movable_page(page);
-		else
-			__ClearPageIsolated(page);
-		unlock_page(page);
-		put_page(page);
-	} else {
-		putback_lru_page(page);
-	}
-}
- 
-> Why don't you simply mimic what shrink_inactive_list does? Aka count the
-> number of isolated pages and then account them when appropriate?
->
-I think i am correcting clearly wrong part. So, there is no need to
-describe it too detailed. It's a misunderstanding, and i will add
-more comments as you suggest.
+But why the oom-killer sill be activated?
+appreciate your kind help in advance.
 
-I am looking forward to more suggestions from you.
-Thank you very much. 
-> > Signed-off-by: Ming ling <ming.ling@spreadtrum.com>
-> > ---
-> >  mm/compaction.c | 6 ++++--
-> >  mm/migrate.c    | 9 +++++----
-> >  2 files changed, 9 insertions(+), 6 deletions(-)
-> > 
-> > diff --git a/mm/compaction.c b/mm/compaction.c
-> > index 0409a4a..ed4c553 100644
-> > --- a/mm/compaction.c
-> > +++ b/mm/compaction.c
-> > @@ -643,8 +643,10 @@ static void acct_isolated(struct zone *zone, struct compact_control *cc)
-> >  	if (list_empty(&cc->migratepages))
-> >  		return;
-> >  
-> > -	list_for_each_entry(page, &cc->migratepages, lru)
-> > -		count[!!page_is_file_cache(page)]++;
-> > +	list_for_each_entry(page, &cc->migratepages, lru) {
-> > +		if (likely(!__PageMovable(page)))
-> > +			count[!!page_is_file_cache(page)]++;
-> > +	}
-> >  
-> >  	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_ANON, count[0]);
-> >  	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE, count[1]);
-> > diff --git a/mm/migrate.c b/mm/migrate.c
-> > index 99250ae..abe48cc 100644
-> > --- a/mm/migrate.c
-> > +++ b/mm/migrate.c
-> > @@ -168,8 +168,6 @@ void putback_movable_pages(struct list_head *l)
-> >  			continue;
-> >  		}
-> >  		list_del(&page->lru);
-> > -		dec_node_page_state(page, NR_ISOLATED_ANON +
-> > -				page_is_file_cache(page));
-> >  		/*
-> >  		 * We isolated non-lru movable page so here we can use
-> >  		 * __PageMovable because LRU page's mapping cannot have
-> > @@ -185,6 +183,8 @@ void putback_movable_pages(struct list_head *l)
-> >  			unlock_page(page);
-> >  			put_page(page);
-> >  		} else {
-> > +			dec_node_page_state(page, NR_ISOLATED_ANON +
-> > +					page_is_file_cache(page));
-> >  			putback_lru_page(page);
-> >  		}
-> >  	}
-> > @@ -1121,8 +1121,9 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
-> >  		 * restored.
-> >  		 */
-> >  		list_del(&page->lru);
-> > -		dec_node_page_state(page, NR_ISOLATED_ANON +
-> > -				page_is_file_cache(page));
-> > +		if (likely(!__PageMovable(page)))
-> > +			dec_node_page_state(page, NR_ISOLATED_ANON +
-> > +					page_is_file_cache(page));
-> >  	}
-> >  
-> >  	/*
-> > -- 
-> > 1.9.1
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
+(the kernel version is 3.10)
+[ 5515.127555] dialog invoked oom-killer: gfp_mask=0x80d0, order=0,
+oom_score_adj=0
+[ 5515.136841] CPU: 0 PID: 1535 Comm: com.nvt.dialser Tainted: G
+    O 3.10.0+ #28
+[ 5515.145711] Backtrace:
+[ 5515.149716] [<c00129f8>] (dump_backtrace+0x0/0x114) from
+[<c0012c68>] (show_stack+0x20/0x24)
+[ 5515.160163]  r6:000080d0 r5:00000000 r4:de3c2000 r3:271ae71c
+[ 5515.167278] [<c0012c48>] (show_stack+0x0/0x24) from [<c0550f6c>]
+(dump_stack+0x24/0x28)
+[ 5515.177129] [<c0550f48>] (dump_stack+0x0/0x28) from [<c010de20>]
+(dump_header.isra.13+0x78/0x18c)
+[ 5515.188266] [<c010dda8>] (dump_header.isra.13+0x0/0x18c) from
+[<c010e384>] (oom_kill_process+0x268/0x3a8)
+[ 5515.199405]  r9:00000000 r8:00000000 r7:000080d0 r6:00022d82 r5:000080d0
+r4:df679f80
+[ 5515.208930] [<c010e11c>] (oom_kill_process+0x0/0x3a8) from
+[<c010e884>] (out_of_memory+0x20c/0x2d8)
+[ 5515.219014] [<c010e678>] (out_of_memory+0x0/0x2d8) from
+[<c011319c>] (__alloc_pages_nodemask+0x928/0x940)
+[ 5515.229835] [<c0112874>] (__alloc_pages_nodemask+0x0/0x940) from
+[<c01131d4>] (__get_free_pages+0x20/0x3c)
+[ 5515.240825] [<c01131b4>] (__get_free_pages+0x0/0x3c) from
+[<c0113210>] (get_zeroed_page+0x20/0x24)
+[ 5515.250145] [<c01131f0>] (get_zeroed_page+0x0/0x24) from
+[<c01adaa8>] (sysfs_follow_link+0x24/0x1a0)
+[ 5515.260366] [<c01ada84>] (sysfs_follow_link+0x0/0x1a0) from
+[<c015a8fc>] (path_lookupat+0x388/0x800)
+[ 5515.270740] [<c015a574>] (path_lookupat+0x0/0x800) from
+[<c015ada4>] (filename_lookup+0x30/0xcc)
+[ 5515.281052] [<c015ad74>] (filename_lookup+0x0/0xcc) from
+[<c015d520>] (user_path_at_empty+0x68/0x90)
+[ 5515.291374]  r8:ffffff9c r7:de3c3f60 r6:de3c3eb8 r5:00000001 r4:d3a853c0
+r3:de3c3eb8
+[ 5515.300401] [<c015d4b8>] (user_path_at_empty+0x0/0x90) from
+[<c015d56c>] (user_path_at+0x24/0x2c)
+[ 5515.310516]  r8:00000010 r7:be29cd9c r6:ffffff9c r5:00000000 r4:00000001
+[ 5515.318228] [<c015d548>] (user_path_at+0x0/0x2c) from [<c014ca9c>]
+(SyS_faccessat+0xa4/0x1f4)
+[ 5515.327702] [<c014c9f8>] (SyS_faccessat+0x0/0x1f4) from
+[<c014cc10>] (SyS_access+0x24/0x28)
+[ 5515.336850] [<c014cbec>] (SyS_access+0x0/0x28) from [<c000e380>]
+(ret_fast_syscall+0x0/0x48)
+[ 5515.346494] Mem-info:
+[ 5515.348849] Normal per-cpu:
+[ 5515.352345] CPU    0: hi:  186, btch:  31 usd:  18
+[ 5515.357785] CPU    1: hi:  186, btch:  31 usd:  22
+[ 5515.362814] active_anon:109178 inactive_anon:2272 isolated_anon:0
+[ 5515.362814]  active_file:260 inactive_file:961 isolated_file:0
+[ 5515.362814]  unevictable:0 dirty:0 writeback:0 unstable:0
+[ 5515.362814]  free:12118 slab_reclaimable:1271 slab_unreclaimable:5113
+[ 5515.362814]  mapped:2653 shmem:2298 pagetables:979 bounce:0
+[ 5515.362814]  free_cma:11605
+[ 5515.396900] Normal free:50080kB min:2840kB low:3548kB high:4260kB
+active_anon:436712kB inactive_anon:9088kB active_file:1316kB
+inactive_file:1636kB unevictable:0kB isolated(anon):0kB
+isolated(file):0kB present:585728kB managed:504960kB mlocked:0kB
+dirty:0kB writeback:0kB mapped:9624kB shmem:9192kB
+slab_reclaimable:5084kB slab_unreclaimable:20452kB kernel_stack:2432kB
+pagetables:3916kB unstable:0kB bounce:0kB free_cma:46888kB
+writeback_tmp:0kB pages_scanned:24 all_unreclaimable? no
+[ 5515.441095] lowmem_reserve[]: 0 0 0
+[ 5515.444859] Normal: 4314*4kB (UEMC) 3586*8kB (UMC) 131*16kB (MC)
+21*32kB (C) 6*64kB (C) 1*128kB (C) 0*256kB 0*512kB 0*1024kB 0*2048kB
+0*4096kB = 49224kB
+[ 5515.460587] 3477 total pagecache pages
+[ 5515.464648] 0 pages in swap cache
+[ 5515.468005] Swap cache stats: add 0, delete 0, find 0/0
+[ 5515.473512] Free swap  = 0kB
+[ 5515.476665] Total swap = 0kB
+[ 5515.497647] 146432 pages of RAM
+[ 5515.501295] 13056 free pages
+[ 5515.504278] 3712 reserved pages
+[ 5515.507864] 4891 slab pages
+[ 5515.510899] 396881 pages shared
+[ 5515.514303] 0 pages swap cached
+[ 5515.668990] Out of memory: Kill process 1260 (app) score 563 or
+sacrifice child
+[ 5515.678006] Killed process 1277 (idlog) total-vm:511668kB,
+anon-rss:61016kB, file-rss:680kB
+(*) [Fusion Dispatch  5515.978,466] ( 1260: 1518) SaWMan/Watcher:
+Process [0x224b4f00 pid:1277 fusion_id:2 flags:] has exited
+ABNORMALLY!
+
+--001a113dface423f4a053ecfdd2a
+Content-Type: application/x-bzip2; name="oom.log.tar.bz2"
+Content-Disposition: attachment; filename="oom.log.tar.bz2"
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_iu9koj9h0
+
+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
+KV5ttlAoth4kkf/F3JFOFCQYSHAfQA==
+--001a113dface423f4a053ecfdd2a--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
