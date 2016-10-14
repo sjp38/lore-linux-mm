@@ -1,161 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A6D6280250
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 23:03:34 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id ry6so98890628pac.1
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 20:03:34 -0700 (PDT)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id i4si13360622pgn.209.2016.10.13.20.03.31
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C3296B0069
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2016 03:13:26 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id p53so72926722qtp.1
+        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 00:13:26 -0700 (PDT)
+Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
+        by mx.google.com with ESMTPS id u24si8890073qtc.60.2016.10.14.00.13.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Oct 2016 20:03:31 -0700 (PDT)
-Received: by mail-pf0-x241.google.com with SMTP id r16so6235015pfg.3
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 20:03:31 -0700 (PDT)
-From: js1304@gmail.com
-Subject: [PATCH v6 6/6] mm/cma: remove per zone CMA stat
-Date: Fri, 14 Oct 2016 12:03:16 +0900
-Message-Id: <1476414196-3514-7-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1476414196-3514-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1476414196-3514-1-git-send-email-iamjoonsoo.kim@lge.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 14 Oct 2016 00:13:25 -0700 (PDT)
+From: zijun_hu <zijun_hu@zoho.com>
+Subject: [PATCH 1/1] mm/percpu.c: append alignment sanity checkup to avoid
+ memory leakage
+Message-ID: <58008576.3060302@zoho.com>
+Date: Fri, 14 Oct 2016 15:12:54 +0800
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: tj@kernel.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com, cl@linux.com
 
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+From: zijun_hu <zijun_hu@htc.com>
 
-Now, all reserved pages for CMA region are belong to the ZONE_CMA
-so we don't need to maintain CMA stat in other zones. Remove it.
+the percpu allocator only works well currently when allocates a power of
+2 aligned area, but there aren't any hints for alignment requirement, so
+memory leakage maybe be caused if allocate other alignment areas
 
-Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+the alignment must be a even at least since the LSB of a chunk->map element
+is used as free/in-use flag of a area; besides, the alignment must be a
+power of 2 too since ALIGN() doesn't work well for other alignment always
+but is adopted by pcpu_fit_in_area(). IOW, the current allocator only works
+well for a power of 2 aligned area allocation.
+
+see below opposite example for why a odd alignment doesn't work
+lets assume area [16, 36) is free but its previous one is in-use, we want
+to allocate a @size == 8 and @align == 7 area. the larger area [16, 36) is
+split to three areas [16, 21), [21, 29), [29, 36) eventually. however, due
+to the usage for a chunk->map element, the actual offset of the aim area
+[21, 29) is 21 but is recorded in relevant element as 20; moreover the
+residual tail free area [29, 36) is mistook as in-use and is lost silently
+
+unlike macro roundup(), ALIGN(x, a) doesn't work if @a isn't a power of 2
+for example, roundup(10, 6) == 12 but ALIGN(10, 6) == 10, and the latter
+result isn't desired obviously.
+
+fix it by appending sanity checkup for alignment requirement
+
+Signed-off-by: zijun_hu <zijun_hu@htc.com>
+Suggested-by: Tejun Heo <tj@kernel.org>
 ---
- fs/proc/meminfo.c      |  2 +-
- include/linux/cma.h    |  6 ++++++
- include/linux/mmzone.h |  1 -
- mm/cma.c               | 15 +++++++++++++++
- mm/page_alloc.c        |  7 +++----
- mm/vmstat.c            |  1 -
- 6 files changed, 25 insertions(+), 7 deletions(-)
+ include/linux/kernel.h | 1 +
+ mm/percpu.c            | 3 ++-
+ 2 files changed, 3 insertions(+), 1 deletion(-)
 
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index 8a42849..0ca6f38 100644
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -151,7 +151,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- #ifdef CONFIG_CMA
- 	show_val_kb(m, "CmaTotal:       ", totalcma_pages);
- 	show_val_kb(m, "CmaFree:        ",
--		    global_page_state(NR_FREE_CMA_PAGES));
-+		    cma_get_free());
- #endif
+diff --git a/include/linux/kernel.h b/include/linux/kernel.h
+index bc6ed52a39b9..0dc0b21bd164 100644
+--- a/include/linux/kernel.h
++++ b/include/linux/kernel.h
+@@ -45,6 +45,7 @@
  
- 	hugetlb_report_meminfo(m);
-diff --git a/include/linux/cma.h b/include/linux/cma.h
-index 29f9e77..816290c 100644
---- a/include/linux/cma.h
-+++ b/include/linux/cma.h
-@@ -28,4 +28,10 @@ extern int cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
- 					struct cma **res_cma);
- extern struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align);
- extern bool cma_release(struct cma *cma, const struct page *pages, unsigned int count);
-+
-+#ifdef CONFIG_CMA
-+extern unsigned long cma_get_free(void);
-+#else
-+static inline unsigned long cma_get_free(void) { return 0; }
-+#endif
- #endif
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index dd37da9..f5cd27a4 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -113,7 +113,6 @@ enum zone_stat_item {
- 	NUMA_LOCAL,		/* allocation from local node */
- 	NUMA_OTHER,		/* allocation from other node */
- #endif
--	NR_FREE_CMA_PAGES,
- 	NR_VM_ZONE_STAT_ITEMS };
+ #define REPEAT_BYTE(x)	((~0ul / 0xff) * (x))
  
- enum node_stat_item {
-diff --git a/mm/cma.c b/mm/cma.c
-index adc2785..cd869d7 100644
---- a/mm/cma.c
-+++ b/mm/cma.c
-@@ -54,6 +54,21 @@ unsigned long cma_get_size(const struct cma *cma)
- 	return cma->count << PAGE_SHIFT;
- }
++/* @a is a power of 2 value */
+ #define ALIGN(x, a)		__ALIGN_KERNEL((x), (a))
+ #define __ALIGN_MASK(x, mask)	__ALIGN_KERNEL_MASK((x), (mask))
+ #define PTR_ALIGN(p, a)		((typeof(p))ALIGN((unsigned long)(p), (a)))
+diff --git a/mm/percpu.c b/mm/percpu.c
+index 255714302394..10ba3f9a3826 100644
+--- a/mm/percpu.c
++++ b/mm/percpu.c
+@@ -886,7 +886,8 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
  
-+unsigned long cma_get_free(void)
-+{
-+	struct zone *zone;
-+	unsigned long freecma = 0;
-+
-+	for_each_populated_zone(zone) {
-+		if (!is_zone_cma(zone))
-+			continue;
-+
-+		freecma += zone_page_state(zone, NR_FREE_PAGES);
-+	}
-+
-+	return freecma;
-+}
-+
- static unsigned long cma_bitmap_aligned_mask(const struct cma *cma,
- 					     int align_order)
- {
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 6df8533..45a35de 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -65,6 +65,7 @@
- #include <linux/kthread.h>
- #include <linux/memcontrol.h>
- #include <linux/random.h>
-+#include <linux/cma.h>
+ 	size = ALIGN(size, 2);
  
- #include <asm/sections.h>
- #include <asm/tlbflush.h>
-@@ -4268,7 +4269,7 @@ void show_free_areas(unsigned int filter)
- 		global_page_state(NR_BOUNCE),
- 		global_page_state(NR_FREE_PAGES),
- 		free_pcp,
--		global_page_state(NR_FREE_CMA_PAGES));
-+		cma_get_free());
- 
- 	for_each_online_pgdat(pgdat) {
- 		printk("Node %d"
-@@ -4349,7 +4350,6 @@ void show_free_areas(unsigned int filter)
- 			" bounce:%lukB"
- 			" free_pcp:%lukB"
- 			" local_pcp:%ukB"
--			" free_cma:%lukB"
- 			"\n",
- 			zone->name,
- 			K(zone_page_state(zone, NR_FREE_PAGES)),
-@@ -4371,8 +4371,7 @@ void show_free_areas(unsigned int filter)
- 			K(zone_page_state(zone, NR_PAGETABLE)),
- 			K(zone_page_state(zone, NR_BOUNCE)),
- 			K(free_pcp),
--			K(this_cpu_read(zone->pageset->pcp.count)),
--			K(zone_page_state(zone, NR_FREE_CMA_PAGES)));
-+			K(this_cpu_read(zone->pageset->pcp.count)));
- 		printk("lowmem_reserve[]:");
- 		for (i = 0; i < MAX_NR_ZONES; i++)
- 			printk(" %ld", zone->lowmem_reserve[i]);
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 429742f..c1ead13 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -951,7 +951,6 @@ int fragmentation_index(struct zone *zone, unsigned int order)
- 	"numa_local",
- 	"numa_other",
- #endif
--	"nr_free_cma",
- 
- 	/* Node-based counters */
- 	"nr_inactive_anon",
+-	if (unlikely(!size || size > PCPU_MIN_UNIT_SIZE || align > PAGE_SIZE)) {
++	if (unlikely(!size || size > PCPU_MIN_UNIT_SIZE || align > PAGE_SIZE
++				|| !is_power_of_2(align))) {
+ 		WARN(true, "illegal size (%zu) or align (%zu) for percpu allocation\n",
+ 		     size, align);
+ 		return NULL;
 -- 
 1.9.1
 
