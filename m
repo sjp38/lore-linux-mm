@@ -1,63 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A668B6B025E
-	for <linux-mm@kvack.org>; Fri, 14 Oct 2016 15:25:49 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id o81so4054861wma.1
-        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 12:25:49 -0700 (PDT)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id q6si14295845wjr.172.2016.10.14.12.25.48
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A0306B0038
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2016 16:31:49 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id fn2so124406445pad.7
+        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 13:31:49 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id f74si19778259pfe.260.2016.10.14.13.31.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Oct 2016 12:25:48 -0700 (PDT)
-Received: by mail-wm0-x243.google.com with SMTP id 191so1035222wmr.0
-        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 12:25:48 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 14 Oct 2016 13:31:48 -0700 (PDT)
+Date: Fri, 14 Oct 2016 14:31:47 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH 05/20] mm: Trim __do_fault() arguments
+Message-ID: <20161014203147.GD27575@linux.intel.com>
+References: <1474992504-20133-1-git-send-email-jack@suse.cz>
+ <1474992504-20133-6-git-send-email-jack@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1476452125-22059-1-git-send-email-zhongjiang@huawei.com>
-References: <1476452125-22059-1-git-send-email-zhongjiang@huawei.com>
-From: Vitaly Wool <vitalywool@gmail.com>
-Date: Fri, 14 Oct 2016 21:25:47 +0200
-Message-ID: <CAMJBoFN7VzLYckHL-Zp7onRBvkrx2T-VsVxK3uyqVii3kLpS0A@mail.gmail.com>
-Subject: Re: [PATCH] z3fold: remove the unnecessary limit in z3fold_compact_page
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1474992504-20133-6-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhongjiang <zhongjiang@huawei.com>
-Cc: Dave Chinner <david@fromorbit.com>, Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Fri, Oct 14, 2016 at 3:35 PM, zhongjiang <zhongjiang@huawei.com> wrote:
-> From: zhong jiang <zhongjiang@huawei.com>
->
-> z3fold compact page has nothing with the last_chunks. even if
-> last_chunks is not free, compact page will proceed.
->
-> The patch just remove the limit without functional change.
->
-> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
-> ---
->  mm/z3fold.c | 3 +--
->  1 file changed, 1 insertion(+), 2 deletions(-)
->
-> diff --git a/mm/z3fold.c b/mm/z3fold.c
-> index e8fc216..4668e1c 100644
-> --- a/mm/z3fold.c
-> +++ b/mm/z3fold.c
-> @@ -258,8 +258,7 @@ static int z3fold_compact_page(struct z3fold_header *zhdr)
->
->
->         if (!test_bit(MIDDLE_CHUNK_MAPPED, &page->private) &&
-> -           zhdr->middle_chunks != 0 &&
-> -           zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
-> +           zhdr->middle_chunks != 0 && zhdr->first_chunks == 0) {
->                 memmove(beg + ZHDR_SIZE_ALIGNED,
->                         beg + (zhdr->start_middle << CHUNK_SHIFT),
->                         zhdr->middle_chunks << CHUNK_SHIFT);
+On Tue, Sep 27, 2016 at 06:08:09PM +0200, Jan Kara wrote:
+> Use vm_fault structure to pass cow_page, page, and entry in and out of
+> the function. That reduces number of __do_fault() arguments from 4 to 1.
+> 
+> Signed-off-by: Jan Kara <jack@suse.cz>
 
-This check is actually important because if we move the middle chunk
-to the first and leave the last chunk, handles will become invalid and
-there won't be any easy way to fix that.
+In looking at this I realized that vmf->entry is actually unused, as is the
+entry we used to return back via __do_fault().  I guess they must have been in
+there because at one point they were needed for dax_unlock_mapping_entry()?
+Anyway, looking ahead I see patch 10 removes vmf->entry altogether. :)
 
-Best regards,
-   Vitaly
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
