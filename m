@@ -1,37 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 365996B0038
-	for <linux-mm@kvack.org>; Fri, 14 Oct 2016 14:02:38 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id h24so64548068pfh.0
-        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 11:02:38 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id 191si15963366pgb.303.2016.10.14.11.02.36
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D3D36B0038
+	for <linux-mm@kvack.org>; Fri, 14 Oct 2016 14:26:30 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 191so3380359wmr.6
+        for <linux-mm@kvack.org>; Fri, 14 Oct 2016 11:26:30 -0700 (PDT)
+Received: from arcturus.aphlor.org (arcturus.ipv6.aphlor.org. [2a03:9800:10:4a::2])
+        by mx.google.com with ESMTPS id ly2si26371711wjb.95.2016.10.14.11.26.29
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 14 Oct 2016 11:02:37 -0700 (PDT)
-Date: Fri, 14 Oct 2016 12:02:35 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH 01/20] mm: Change type of vmf->virtual_address
-Message-ID: <20161014180235.GA27575@linux.intel.com>
-References: <1474992504-20133-1-git-send-email-jack@suse.cz>
- <1474992504-20133-2-git-send-email-jack@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 14 Oct 2016 11:26:29 -0700 (PDT)
+Date: Fri, 14 Oct 2016 14:26:24 -0400
+From: Dave Jones <davej@codemonkey.org.uk>
+Subject: pkeys: Remove easily triggered WARN
+Message-ID: <20161014182624.4yzw36n4hd7x56wi@codemonkey.org.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1474992504-20133-2-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: linux-arch@vger.kernel.org, Dave Hansen <dave@sr71.net>, mgorman@techsingularity.net, arnd@arndb.de, linux-api@vger.kernel.org, linux-mm@kvack.org, luto@kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
 
-On Tue, Sep 27, 2016 at 06:08:05PM +0200, Jan Kara wrote:
-> Every single user of vmf->virtual_address typed that entry to unsigned
-> long before doing anything with it. So just change the type of that
-> entry to unsigned long immediately.
-> 
-> Signed-off-by: Jan Kara <jack@suse.cz>
+This easy-to-trigger warning shows up instantly when running
+Trinity on a kernel with CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS disabled.
 
-Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+At most this should have been a printk, but the -EINVAL alone should be more
+than adequate indicator that something isn't available.
+
+Signed-off-by: Dave Jones <davej@codemonkey.org.uk>
+
+diff --git a/include/linux/pkeys.h b/include/linux/pkeys.h
+index e4c08c1ff0c5..a1bacf1150b2 100644
+--- a/include/linux/pkeys.h
++++ b/include/linux/pkeys.h
+@@ -25,7 +25,6 @@ static inline int mm_pkey_alloc(struct mm_struct *mm)
+ 
+ static inline int mm_pkey_free(struct mm_struct *mm, int pkey)
+ {
+-	WARN_ONCE(1, "free of protection key when disabled");
+ 	return -EINVAL;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
