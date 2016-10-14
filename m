@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E2586B0069
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 20:08:01 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id g32so67563728qta.2
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 17:08:01 -0700 (PDT)
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DACB6B0069
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 20:16:52 -0400 (EDT)
+Received: by mail-qk0-f199.google.com with SMTP id z82so63032763qkb.7
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 17:16:52 -0700 (PDT)
 Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
-        by mx.google.com with ESMTPS id k1si8086600qkd.303.2016.10.13.17.08.00
+        by mx.google.com with ESMTPS id m62si8112229qtd.126.2016.10.13.17.16.51
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 13 Oct 2016 17:08:00 -0700 (PDT)
+        Thu, 13 Oct 2016 17:16:51 -0700 (PDT)
+From: zijun_hu <zijun_hu@zoho.com>
 Subject: Re: [RFC v2 PATCH] mm/percpu.c: fix panic triggered by BUG_ON()
  falsely
 References: <57FCF07C.2020103@zoho.com>
  <20161013232902.GD32534@mtj.duckdns.org>
-From: zijun_hu <zijun_hu@zoho.com>
-Message-ID: <92d3e474-856a-7f78-a9c3-b83e5913cd13@zoho.com>
-Date: Fri, 14 Oct 2016 08:06:10 +0800
+Message-ID: <10d149b0-e436-730d-2050-f9e1a6fed39e@zoho.com>
+Date: Fri, 14 Oct 2016 08:15:56 +0800
 MIME-Version: 1.0
 In-Reply-To: <20161013232902.GD32534@mtj.duckdns.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -67,12 +67,8 @@ if (ai->groups[0].nr_units != roundup(num_possible_cpus(), @upa))
    return -EINVAL;
 
 so 3) is my finial changes;
-
-
 for the relationship of both numbers : see the reply for andrew
-thanks
 
-;
 >> @@ -2113,21 +2120,22 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
 >>  
 >>  	/* allocate pages */
@@ -91,7 +87,11 @@ thanks
 >> +						psize_str, cpu);
 > 
 > And stop making gratuitous changes?
-> 
+>
+
+this changes is just for looking nicer instinctively
+@cpu can be determined in the first outer loop.
+
 > Thanks.
 > 
 
