@@ -1,78 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 01B976B0253
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 20:34:30 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id fn2so97096903pad.7
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 17:34:29 -0700 (PDT)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id v143si12940747pgb.176.2016.10.13.17.34.29
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B14A6B0069
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 20:54:04 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id y38so67977238qta.6
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 17:54:04 -0700 (PDT)
+Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
+        by mx.google.com with ESMTPS id w21si8211859qtw.46.2016.10.13.17.54.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Oct 2016 17:34:29 -0700 (PDT)
-Received: by mail-pf0-x241.google.com with SMTP id s8so6014149pfj.2
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 17:34:29 -0700 (PDT)
-Date: Thu, 13 Oct 2016 20:34:26 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC PATCH 1/1] mm/percpu.c: fix several trivial issues
-Message-ID: <20161014003426.GJ32534@mtj.duckdns.org>
-References: <e9cf3570-2c35-42f6-4bb1-f60734651e6c@zoho.com>
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 13 Oct 2016 17:54:03 -0700 (PDT)
+Subject: Re: [RFC v2 PATCH] mm/percpu.c: fix panic triggered by BUG_ON()
+ falsely
+References: <57FCF07C.2020103@zoho.com>
+ <20161013232902.GD32534@mtj.duckdns.org>
+ <92d3e474-856a-7f78-a9c3-b83e5913cd13@zoho.com>
+ <20161014002441.GG32534@mtj.duckdns.org>
+From: zijun_hu <zijun_hu@zoho.com>
+Message-ID: <2483aa44-ec1e-e523-ebfc-341f71319608@zoho.com>
+Date: Fri, 14 Oct 2016 08:52:31 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <e9cf3570-2c35-42f6-4bb1-f60734651e6c@zoho.com>
+In-Reply-To: <20161014002441.GG32534@mtj.duckdns.org>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zijun_hu <zijun_hu@zoho.com>
-Cc: akpm@linux-foundation.org, zijun_hu@htc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cl@linux.com
+To: Tejun Heo <tj@kernel.org>
+Cc: zijun_hu@htc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, cl@linux.com
 
-On Tue, Oct 11, 2016 at 09:29:27PM +0800, zijun_hu wrote:
-> From: zijun_hu <zijun_hu@htc.com>
+On 2016/10/14 8:24, Tejun Heo wrote:
+> Hello,
 > 
-> as shown by pcpu_setup_first_chunk(), the first chunk is same as the
-> reserved chunk if the reserved size is nonzero but the dynamic is zero
-> this special scenario is referred as the special case by below content
+> On Fri, Oct 14, 2016 at 08:06:10AM +0800, zijun_hu wrote:
+>>> I really can't decode what the actual issue is here.  Can you please
+>>> give an example of a concrete case?
+>>>
+>> the right relationship between the number of CPUs @nr_cpus within a percpu group
+>> and the number of unites @nr_units within the same group is that
+>> @nr_units == roundup(@nr_cpus, @upa);
 > 
-> fix several trivial issues:
+> My question was whether there can be actual hardware configurations
+> where this code can fail and if so what they look like and how they
+> would fail.
 > 
-> 1) correct or fix several comments
-> the LSB of a chunk->map element is used as free/in-use flag and is cleared
-> for free area and set for in-use, rather than use positive/negative number
-> to mark area state.
+> Thanks.
 > 
-> 2) change atomic size to PAGE_SIZE for consistency when CONFIG_SMP == n
-> both default setup_per_cpu_areas() and pcpu_page_first_chunk()
-> use PAGE_SIZE as atomic size when CONFIG_SMP == y; however
-> setup_per_cpu_areas() allocates memory for the only unit with alignment
-> PAGE_SIZE but assigns unit size to atomic size when CONFIG_SMP == n, so the
-> atomic size isn't consistent with either the alignment or the SMP ones.
-> fix it by changing atomic size to PAGE_SIZE when CONFIG_SMP == n
-> 
-> 3) correct empty and populated pages statistic error
-> in order to service dynamic atomic memory allocation, the number of empty
-> and populated pages of chunks is counted to maintain above a low threshold.
-> however, for the special case, the first chunk is took into account by
-> pcpu_setup_first_chunk(), it is meaningless since the chunk don't include
-> any dynamic areas.
-> fix it by excluding the reserved chunk before statistic as the other
-> contexts do.
-> 
-> 4) fix potential memory leakage for percpu_init_late()
-> in order to manage chunk->map memory uniformly, for the first and reserved
-> chunks, percpu_init_late() will allocate memory to replace the static
-> chunk->map array within section .init.data after slab is brought up
-> however, for the special case, memory are allocated for the same chunk->map
-> twice since the first chunk reference is same as the reserved, so the
-> memory allocated at the first time are leaked obviously.
-> fix it by eliminating the second memory allocation under the special case
-> 
-> Signed-off-by: zijun_hu <zijun_hu@htc.com>
+this answer is difficult to answer since there are so many hardware configurations
+moreover, besides hardware configuration, reserved size can contribute to this issue
+as we known, this interface is developed for various ARCHs to setups percpu areas, 
+so we should not assume more detailed aspects about ARCH. neither hardware config
+nor reserved size.
 
-Can you please break the changes into separate patches?
+i am learning memory management code and find the inconsistency between here and
+there. the log is similar with a panic triggered by BUG_ON() if the numbers of
+CPUs isn't aligned to @upa
 
-Thanks.
+are you agree the relationship of between CPU and units? 
+what bad effects do this changes results in?
 
--- 
-tejun
+are you sure all hardware configurations and reserved size always make number of CPUs
+are equal to units? if turei 1/4 ? is it redundant for the consideration in there place.
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
