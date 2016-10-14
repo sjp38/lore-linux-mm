@@ -1,46 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 83A1B6B0253
-	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 20:59:11 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id y38so68041968qta.6
-        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 17:59:11 -0700 (PDT)
-Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
-        by mx.google.com with ESMTPS id 17si6166388qki.114.2016.10.13.17.59.10
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 13 Oct 2016 17:59:10 -0700 (PDT)
-Subject: Re: [RFC PATCH 1/1] mm/percpu.c: fix memory leakage issue when
- allocate a odd alignment area
-References: <bc3126cd-226d-91c7-d323-48881095accf@zoho.com>
- <20161013233139.GE32534@mtj.duckdns.org>
- <b1b3d53c-b6d9-f888-e123-1b6afe9b2e98@zoho.com>
- <20161014002843.GH32534@mtj.duckdns.org>
-From: zijun_hu <zijun_hu@zoho.com>
-Message-ID: <330464cd-a7d4-f1e1-da93-a6fd172ee561@zoho.com>
-Date: Fri, 14 Oct 2016 08:58:53 +0800
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CA2796B0069
+	for <linux-mm@kvack.org>; Thu, 13 Oct 2016 21:01:10 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id t25so94877663pfg.3
+        for <linux-mm@kvack.org>; Thu, 13 Oct 2016 18:01:10 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id k67si12996718pga.217.2016.10.13.18.01.09
+        for <linux-mm@kvack.org>;
+        Thu, 13 Oct 2016 18:01:09 -0700 (PDT)
+Date: Fri, 14 Oct 2016 10:01:34 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [RFC PATCH 1/5] mm/page_alloc: always add freeing page at the
+ tail of the buddy list
+Message-ID: <20161014010134.GA4993@js1304-P5Q-DELUXE>
+References: <1476346102-26928-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1476346102-26928-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <15d0cf1a-4b73-470d-208f-be7b0ebb48ba@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20161014002843.GH32534@mtj.duckdns.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <15d0cf1a-4b73-470d-208f-be7b0ebb48ba@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: zijun_hu@htc.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 2016/10/14 8:28, Tejun Heo wrote:
-> Hello,
+On Thu, Oct 13, 2016 at 11:04:39AM +0200, Vlastimil Babka wrote:
+> On 10/13/2016 10:08 AM, js1304@gmail.com wrote:
+> >From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> >
+> >Currently, freeing page can stay longer in the buddy list if next higher
+> >order page is in the buddy list in order to help coalescence. However,
+> >it doesn't work for the simplest sequential free case. For example, think
+> >about the situation that 8 consecutive pages are freed in sequential
+> >order.
+> >
+> >page 0: attached at the head of order 0 list
+> >page 1: merged with page 0, attached at the head of order 1 list
+> >page 2: attached at the tail of order 0 list
+> >page 3: merged with page 2 and then merged with page 0, attached at
+> > the head of order 2 list
+> >page 4: attached at the head of order 0 list
+> >page 5: merged with page 4, attached at the tail of order 1 list
+> >page 6: attached at the tail of order 0 list
+> >page 7: merged with page 6 and then merged with page 4. Lastly, merged
+> > with page 0 and we get order 3 freepage.
+> >
+> >With excluding page 0 case, there are three cases that freeing page is
+> >attached at the head of buddy list in this example and if just one
+> >corresponding ordered allocation request comes at that moment, this page
+> >in being a high order page will be allocated and we would fail to make
+> >order-3 freepage.
+> >
+> >Allocation usually happens in sequential order and free also does. So, it
 > 
-> On Fri, Oct 14, 2016 at 08:23:06AM +0800, zijun_hu wrote:
->> for the current code, only power of 2 alignment value can works well
->>
->> is it acceptable to performing a power of 2 checking and returning error code
->> if fail?
+> Are you sure this is true except after the system is freshly booted?
+> As soon as it becomes fragmented, a stream of order-0 allocations
+> will likely grab them randomly from all over the place and it's
+> unlikely to recover except small orders.
+
+What we should really focus on is just a small order page
+(non-costly order page) and this patch would help to make them. Even
+if the system runs for a long time, I saw that there are many small
+order freepages so there would be enough chance to alloc/free in
+sequential order.
+
 > 
-> Yeah, just add is_power_of_2() test to the existing sanity check.
+> >would be important to detect such a situation and to give some chance
+> >to be coalesced.
+> >
+> >I think that simple and effective heuristic about this case is just
+> >attaching freeing page at the tail of the buddy list unconditionally.
+> >If freeing isn't merged during one rotation, it would be actual
+> >fragmentation and we don't need to care about it for coalescence.
 > 
-> Thanks.
-> 
-okay. i will do that
+> I'm not against removing this heuristic, but not without some
+> benchmarks. The disadvantage of putting pages to tail lists is that
+
+I can do more test. But, I'd like to say that it is not removing the
+heuristic but expanding the heuristic. Before adding this heuristic,
+all freed page are added at the head of the buddy list.
+
+> they become cache-cold until allocated again. We should check how
+> large that problem is.
+
+Yes, your concern is fair enough. There are some reasons to justify
+this patch but it should be checked.
+
+If merging happens, we cannot make sure whether this merged page is
+cache-hot or not. There is a possibility that part of merged page stay
+in the buddy list for a long time and is cache-cold. I guess that we
+can apply above heuristic only for merged page which we cannot make
+sure if it is cache-hot or not.
+
+And, there is no guarantee that freed page is cache-hot. If it is used
+for file-cache and reclaimed, it would be cache-cold. And, if
+next allocation is requested by file-cache, it requires cache-cold
+page. Benefit of maintaining cache-hot page at the head of the buddy
+list would weaken.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
