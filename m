@@ -1,238 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FE276B0038
-	for <linux-mm@kvack.org>; Sat, 15 Oct 2016 05:07:43 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id f193so5903459wmg.3
-        for <linux-mm@kvack.org>; Sat, 15 Oct 2016 02:07:43 -0700 (PDT)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id h5si3769199wjj.224.2016.10.15.02.07.41
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 24A926B0038
+	for <linux-mm@kvack.org>; Sat, 15 Oct 2016 06:10:23 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 191so6308016wmr.6
+        for <linux-mm@kvack.org>; Sat, 15 Oct 2016 03:10:23 -0700 (PDT)
+Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
+        by mx.google.com with ESMTPS id jt8si18397134wjb.240.2016.10.15.03.10.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 15 Oct 2016 02:07:41 -0700 (PDT)
-Received: by mail-wm0-x244.google.com with SMTP id z189so1777911wmb.1
-        for <linux-mm@kvack.org>; Sat, 15 Oct 2016 02:07:41 -0700 (PDT)
-From: Chris Wilson <chris@chris-wilson.co.uk>
-Subject: [PATCH] mm/vmalloc: Replace opencoded 4-level page walkers
-Date: Sat, 15 Oct 2016 10:07:31 +0100
-Message-Id: <20161015090731.14878-1-chris@chris-wilson.co.uk>
+        Sat, 15 Oct 2016 03:10:21 -0700 (PDT)
+Received: by mail-wm0-x22f.google.com with SMTP id d128so23563284wmf.1
+        for <linux-mm@kvack.org>; Sat, 15 Oct 2016 03:10:21 -0700 (PDT)
+From: Joel Fernandes <joelaf@google.com>
+Subject: [PATCH] mm: vmalloc: Replace purge_lock spinlock with atomic refcount
+Date: Sat, 15 Oct 2016 03:10:17 -0700
+Message-Id: <1476526217-19368-1-git-send-email-joelaf@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: intel-gfx@lists.freedesktop.org, Chris Wilson <chris@chris-wilson.co.uk>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Wang Xiaoqiang <wangxq10@lzu.edu.cn>, Jerome Marchand <jmarchan@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-rt-users@vger.kernel.org, Joel Fernandes <joelaf@google.com>, Chris Wilson <chris@chris-wilson.co.uk>, Jisheng Zhang <jszhang@marvell.com>, Andrew Morton <akpm@linux-foundation.org>, joelaf <joelaf@joelaf-glaptop0.roam.corp.google.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-Rather than open-code the intricacies of walking the 4-level page
-tables, use the generic page table walker apply_to_page_range() instead.
+The purge_lock spinlock causes high latencies with non RT kernel. This has been
+reported multiple times on lkml [1] [2] and affects applications like audio.
 
-There is a slight loss in functionality when unmapping as we now walk
-all pages within the range rather than skipping over empty directories.
-In theory, we should not be unmapping any pages that we ourselves didn't
-successfully map. On the other hand, it now cleans up after an
-unsuccessful insertion and propagates the correct error. The current
-failure may lead to a WARN if we encounter ENOMEM in one
-vmap_pte_range() and later retry with the same page range.
+In this patch, I replace the spinlock with an atomic refcount so that
+preemption is kept turned on during purge. This Ok to do since [3] builds the
+lazy free list in advance and atomically retrieves the list so any instance of
+purge will have its own list it is purging. Since the individual vmap area
+frees are themselves protected by a lock, this is Ok.
 
-WARNING: CPU: 0 PID: 605 at mm/vmalloc.c:136 vmap_page_range_noflush+0x2c1/0x340
-i.e. WARN_ON(!pte_none(*pte))
+The only things left is the fact that previously it had trylock behavior, so
+use the refcount to keep track of in-progress purges and abort like previously
+if there is an ongoing purge. Lastly, lets reduce vmap_lazy_nr as the vmap
+area are freed, and not in advance, so that the vmap_lazy_nr is not reduced
+too soon as suggested in [2].
 
-References: https://bugs.freedesktop.org/show_bug.cgi?id=98269
-Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+Tests:
+
+cyclictest -p 99 -n
+Concurrently in a kernel module, vmalloc and vfree 8K buffer in a loop.
+Preemption configuration: CONFIG_PREEMPT__LL=y (low-latency desktop)
+
+Without patch, cyclictest output:
+policy: fifo: loadavg: 0.05 0.01 0.00 1/85 1272          Avg:  128 Max:    1177
+policy: fifo: loadavg: 0.11 0.03 0.01 2/87 1447          Avg:  122 Max:    1897
+policy: fifo: loadavg: 0.10 0.03 0.01 1/89 1656          Avg:   93 Max:    2886
+
+With patch, cyclictest output:
+policy: fifo: loadavg: 1.15 0.68 0.30 1/162 8399         Avg:   92 Max:     284
+policy: fifo: loadavg: 1.21 0.71 0.32 2/164 9840         Avg:   94 Max:     296
+policy: fifo: loadavg: 1.18 0.72 0.32 2/166 11253        Avg:  107 Max:     321
+
+[1] http://lists.openwall.net/linux-kernel/2016/03/23/29
+[2] https://lkml.org/lkml/2016/10/9/59
+[3] https://lkml.org/lkml/2016/4/15/287
+
+Cc: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: Jisheng Zhang <jszhang@marvell.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Wang Xiaoqiang <wangxq10@lzu.edu.cn>
-Cc: Jerome Marchand <jmarchan@redhat.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: linux-mm@kvack.org
+Signed-off-by: Joel Fernandes <joelaf@google.com>
 ---
- mm/vmalloc.c | 150 +++++++++++++----------------------------------------------
- 1 file changed, 33 insertions(+), 117 deletions(-)
+ mm/vmalloc.c | 25 +++++++++++++------------
+ 1 file changed, 13 insertions(+), 12 deletions(-)
 
 diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 91f44e78c516..e18cea62fea6 100644
+index 613d1d9..ab25966 100644
 --- a/mm/vmalloc.c
 +++ b/mm/vmalloc.c
-@@ -59,121 +59,40 @@ static void free_work(struct work_struct *w)
- 
- /*** Page table manipulation functions ***/
- 
--static void vunmap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end)
-+static int vunmap_page(pte_t *pte, pgtable_t token,
-+		       unsigned long addr, void *data)
+@@ -626,11 +626,11 @@ void set_iounmap_nonlazy(void)
+ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
+ 					int sync, int force_flush)
  {
--	pte_t *pte;
--
--	pte = pte_offset_kernel(pmd, addr);
--	do {
--		pte_t ptent = ptep_get_and_clear(&init_mm, addr, pte);
--		WARN_ON(!pte_none(ptent) && !pte_present(ptent));
--	} while (pte++, addr += PAGE_SIZE, addr != end);
--}
--
--static void vunmap_pmd_range(pud_t *pud, unsigned long addr, unsigned long end)
--{
--	pmd_t *pmd;
--	unsigned long next;
--
--	pmd = pmd_offset(pud, addr);
--	do {
--		next = pmd_addr_end(addr, end);
--		if (pmd_clear_huge(pmd))
--			continue;
--		if (pmd_none_or_clear_bad(pmd))
--			continue;
--		vunmap_pte_range(pmd, addr, next);
--	} while (pmd++, addr = next, addr != end);
--}
--
--static void vunmap_pud_range(pgd_t *pgd, unsigned long addr, unsigned long end)
--{
--	pud_t *pud;
--	unsigned long next;
--
--	pud = pud_offset(pgd, addr);
--	do {
--		next = pud_addr_end(addr, end);
--		if (pud_clear_huge(pud))
--			continue;
--		if (pud_none_or_clear_bad(pud))
--			continue;
--		vunmap_pmd_range(pud, addr, next);
--	} while (pud++, addr = next, addr != end);
-+	pte_t ptent = ptep_get_and_clear(&init_mm, addr, pte);
-+	WARN_ON(!pte_none(ptent) && !pte_present(ptent));
-+	return 0;
- }
- 
- static void vunmap_page_range(unsigned long addr, unsigned long end)
- {
--	pgd_t *pgd;
--	unsigned long next;
--
--	BUG_ON(addr >= end);
--	pgd = pgd_offset_k(addr);
--	do {
--		next = pgd_addr_end(addr, end);
--		if (pgd_none_or_clear_bad(pgd))
--			continue;
--		vunmap_pud_range(pgd, addr, next);
--	} while (pgd++, addr = next, addr != end);
-+	apply_to_page_range(&init_mm, addr, end - addr, vunmap_page, NULL);
- }
- 
--static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
--		unsigned long end, pgprot_t prot, struct page **pages, int *nr)
--{
--	pte_t *pte;
--
--	/*
--	 * nr is a running index into the array which helps higher level
--	 * callers keep track of where we're up to.
--	 */
--
--	pte = pte_alloc_kernel(pmd, addr);
--	if (!pte)
--		return -ENOMEM;
--	do {
--		struct page *page = pages[*nr];
--
--		if (WARN_ON(!pte_none(*pte)))
--			return -EBUSY;
--		if (WARN_ON(!page))
--			return -ENOMEM;
--		set_pte_at(&init_mm, addr, pte, mk_pte(page, prot));
--		(*nr)++;
--	} while (pte++, addr += PAGE_SIZE, addr != end);
--	return 0;
--}
-+struct vmap_page {
-+	pgprot_t prot;
-+	struct page **pages;
-+	unsigned long count;
-+};
- 
--static int vmap_pmd_range(pud_t *pud, unsigned long addr,
--		unsigned long end, pgprot_t prot, struct page **pages, int *nr)
-+static int vmap_page(pte_t *pte, pgtable_t token,
-+		     unsigned long addr, void *data)
- {
--	pmd_t *pmd;
--	unsigned long next;
-+	struct vmap_page *v = data;
-+	struct page *page;
- 
--	pmd = pmd_alloc(&init_mm, pud, addr);
--	if (!pmd)
--		return -ENOMEM;
--	do {
--		next = pmd_addr_end(addr, end);
--		if (vmap_pte_range(pmd, addr, next, prot, pages, nr))
--			return -ENOMEM;
--	} while (pmd++, addr = next, addr != end);
--	return 0;
--}
-+	if (WARN_ON(!pte_none(*pte)))
-+		return -EBUSY;
- 
--static int vmap_pud_range(pgd_t *pgd, unsigned long addr,
--		unsigned long end, pgprot_t prot, struct page **pages, int *nr)
--{
--	pud_t *pud;
--	unsigned long next;
--
--	pud = pud_alloc(&init_mm, pgd, addr);
--	if (!pud)
-+	page = v->pages[v->count];
-+	if (WARN_ON(!page))
- 		return -ENOMEM;
--	do {
--		next = pud_addr_end(addr, end);
--		if (vmap_pmd_range(pud, addr, next, prot, pages, nr))
--			return -ENOMEM;
--	} while (pud++, addr = next, addr != end);
-+
-+	set_pte_at(&init_mm, addr, pte, mk_pte(page, v->prot));
-+	v->count++;
- 	return 0;
- }
- 
-@@ -186,22 +105,19 @@ static int vmap_pud_range(pgd_t *pgd, unsigned long addr,
- static int vmap_page_range_noflush(unsigned long start, unsigned long end,
- 				   pgprot_t prot, struct page **pages)
- {
--	pgd_t *pgd;
--	unsigned long next;
--	unsigned long addr = start;
--	int err = 0;
+-	static DEFINE_SPINLOCK(purge_lock);
++	static atomic_t purging;
+ 	struct llist_node *valist;
+ 	struct vmap_area *va;
+ 	struct vmap_area *n_va;
 -	int nr = 0;
-+	struct vmap_page v = { prot, pages };
-+	int err;
++	int dofree = 0;
  
--	BUG_ON(addr >= end);
--	pgd = pgd_offset_k(addr);
--	do {
--		next = pgd_addr_end(addr, end);
--		err = vmap_pud_range(pgd, addr, next, prot, pages, &nr);
--		if (err)
--			return err;
--	} while (pgd++, addr = next, addr != end);
-+	if ((end - start) >> PAGE_SHIFT > INT_MAX)
-+		return -EINVAL;
-+
-+	err = apply_to_page_range(&init_mm, start, end - start, vmap_page, &v);
-+	if (unlikely(err)) {
-+		vunmap_page_range(start, start + (v.count << PAGE_SHIFT));
-+		return err;
-+	}
+ 	/*
+ 	 * If sync is 0 but force_flush is 1, we'll go sync anyway but callers
+@@ -638,10 +638,10 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
+ 	 * the case that isn't actually used at the moment anyway.
+ 	 */
+ 	if (!sync && !force_flush) {
+-		if (!spin_trylock(&purge_lock))
++		if (atomic_cmpxchg(&purging, 0, 1))
+ 			return;
+ 	} else
+-		spin_lock(&purge_lock);
++		atomic_inc(&purging);
  
--	return nr;
-+	return v.count;
+ 	if (sync)
+ 		purge_fragmented_blocks_allcpus();
+@@ -652,22 +652,23 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
+ 			*start = va->va_start;
+ 		if (va->va_end > *end)
+ 			*end = va->va_end;
+-		nr += (va->va_end - va->va_start) >> PAGE_SHIFT;
++		dofree = 1;
+ 	}
+ 
+-	if (nr)
+-		atomic_sub(nr, &vmap_lazy_nr);
+-
+-	if (nr || force_flush)
++	if (dofree || force_flush)
+ 		flush_tlb_kernel_range(*start, *end);
+ 
+-	if (nr) {
++	if (dofree) {
+ 		spin_lock(&vmap_area_lock);
+-		llist_for_each_entry_safe(va, n_va, valist, purge_list)
++		llist_for_each_entry_safe(va, n_va, valist, purge_list) {
+ 			__free_vmap_area(va);
++			atomic_sub(((va->va_end - va->va_start) >> PAGE_SHIFT),
++				   &vmap_lazy_nr);
++			cond_resched_lock(&vmap_area_lock);
++		}
+ 		spin_unlock(&vmap_area_lock);
+ 	}
+-	spin_unlock(&purge_lock);
++	atomic_dec(&purging);
  }
  
- static int vmap_page_range(unsigned long start, unsigned long end,
+ /*
 -- 
-2.9.3
+2.8.0.rc3.226.g39d4020
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
