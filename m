@@ -1,286 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E8B1C6B0038
-	for <linux-mm@kvack.org>; Sat, 15 Oct 2016 08:05:28 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e6so136711317pfk.2
-        for <linux-mm@kvack.org>; Sat, 15 Oct 2016 05:05:28 -0700 (PDT)
-Received: from mail-pf0-x243.google.com (mail-pf0-x243.google.com. [2607:f8b0:400e:c00::243])
-        by mx.google.com with ESMTPS id g78si22387410pfe.9.2016.10.15.05.05.28
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id ED7896B0038
+	for <linux-mm@kvack.org>; Sat, 15 Oct 2016 08:53:10 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id z189so7525400wmb.2
+        for <linux-mm@kvack.org>; Sat, 15 Oct 2016 05:53:10 -0700 (PDT)
+Received: from mail-wm0-x22d.google.com (mail-wm0-x22d.google.com. [2a00:1450:400c:c09::22d])
+        by mx.google.com with ESMTPS id e2si29621877wjp.153.2016.10.15.05.53.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 15 Oct 2016 05:05:28 -0700 (PDT)
-Received: by mail-pf0-x243.google.com with SMTP id i85so5693219pfa.0
-        for <linux-mm@kvack.org>; Sat, 15 Oct 2016 05:05:28 -0700 (PDT)
-Date: Sat, 15 Oct 2016 14:05:20 +0200
-From: Vitaly Wool <vitalywool@gmail.com>
-Subject: [PATCH v5 3/3] z3fold: add shrinker
-Message-Id: <20161015140520.ee52a80c92c50214a6614977@gmail.com>
-In-Reply-To: <20161015135632.541010b55bec496e2cae056e@gmail.com>
-References: <20161015135632.541010b55bec496e2cae056e@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Sat, 15 Oct 2016 05:53:09 -0700 (PDT)
+Received: by mail-wm0-x22d.google.com with SMTP id c78so3936347wme.1
+        for <linux-mm@kvack.org>; Sat, 15 Oct 2016 05:53:09 -0700 (PDT)
+From: Joel Fernandes <joelaf@google.com>
+Subject: [PATCH v3] mm: vmalloc: Replace purge_lock spinlock with atomic refcount
+Date: Sat, 15 Oct 2016 05:52:59 -0700
+Message-Id: <1476535979-27467-1-git-send-email-joelaf@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
-Cc: Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-rt-users@vger.kernel.org, Joel Fernandes <joelaf@google.com>, Chris Wilson <chris@chris-wilson.co.uk>, Jisheng Zhang <jszhang@marvell.com>, John Dias <joaodias@google.com>, Andrew Morton <akpm@linux-foundation.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
-This patch implements shrinker for z3fold. This shrinker
-implementation does not free up any pages directly but it allows
-for a denser placement of compressed objects which results in
-less actual pages consumed and higher compression ratio therefore.
+The purge_lock spinlock causes high latencies with non RT kernel. This has been
+reported multiple times on lkml [1] [2] and affects applications like audio.
 
-This update removes z3fold page compaction from the freeing path
-since we can rely on shrinker to do the job. Also, a new flag
-UNDER_COMPACTION is introduced to protect against two threads
-trying to compact the same page.
+In this patch, I replace the spinlock with an atomic refcount so that
+preemption is kept turned on during purge. This Ok to do since [3] builds the
+lazy free list in advance and atomically retrieves the list so any instance of
+purge will have its own list it is purging. Since the individual vmap area
+frees are themselves protected by a lock, this is Ok.
 
-This patch has been checked with the latest Linus's tree.
+The only thing left is the fact that previously it had trylock behavior, so
+preserve that by using the refcount to keep track of in-progress purges and
+abort like previously if there is an ongoing purge. Lastly, decrement
+vmap_lazy_nr as the vmap areas are freed, and not in advance, so that the
+vmap_lazy_nr is not reduced too soon as suggested in [2].
 
-Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
+Tests:
+x86_64 quad core machine on kernel 4.8, run: cyclictest -p 99 -n
+Concurrently in a kernel module, run vmalloc and vfree 8K buffer in a loop.
+Preemption configuration: CONFIG_PREEMPT__LL=y (low-latency desktop)
+
+Without patch, cyclictest output:
+policy: fifo: loadavg: 0.05 0.01 0.00 1/85 1272          Avg:  128 Max:    1177
+policy: fifo: loadavg: 0.11 0.03 0.01 2/87 1447          Avg:  122 Max:    1897
+policy: fifo: loadavg: 0.10 0.03 0.01 1/89 1656          Avg:   93 Max:    2886
+
+With patch, cyclictest output:
+policy: fifo: loadavg: 1.15 0.68 0.30 1/162 8399         Avg:   92 Max:     284
+policy: fifo: loadavg: 1.21 0.71 0.32 2/164 9840         Avg:   94 Max:     296
+policy: fifo: loadavg: 1.18 0.72 0.32 2/166 11253        Avg:  107 Max:     321
+
+[1] http://lists.openwall.net/linux-kernel/2016/03/23/29
+[2] https://lkml.org/lkml/2016/10/9/59
+[3] https://lkml.org/lkml/2016/4/15/287
+
+[thanks Chris for the cond_resched_lock ideas]
+Cc: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: Jisheng Zhang <jszhang@marvell.com>
+Cc: John Dias <joaodias@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Joel Fernandes <joelaf@google.com>
 ---
- mm/z3fold.c | 144 +++++++++++++++++++++++++++++++++++++++++++++++++-----------
- 1 file changed, 119 insertions(+), 25 deletions(-)
+v3 changes:
+Fixed ordering of va pointer access and __free_vmap_area
 
-diff --git a/mm/z3fold.c b/mm/z3fold.c
-index 10513b5..8f84d3c 100644
---- a/mm/z3fold.c
-+++ b/mm/z3fold.c
-@@ -27,6 +27,7 @@
- #include <linux/mm.h>
- #include <linux/module.h>
- #include <linux/preempt.h>
-+#include <linux/shrinker.h>
- #include <linux/slab.h>
- #include <linux/spinlock.h>
- #include <linux/zpool.h>
-@@ -72,6 +73,7 @@ struct z3fold_ops {
-  * @unbuddied_nr:	number of unbuddied z3fold pages in the pool.
-  * @ops:	pointer to a structure of user defined operations specified at
-  *		pool creation time.
-+ * @shrinker:	shrinker structure to optimize page layout in background
-  *
-  * This structure is allocated at pool creation time and maintains metadata
-  * pertaining to a particular z3fold pool.
-@@ -86,6 +88,7 @@ struct z3fold_pool {
- 	const struct z3fold_ops *ops;
- 	struct zpool *zpool;
- 	const struct zpool_ops *zpool_ops;
-+	struct shrinker shrinker;
- };
- 
- enum buddy {
-@@ -121,6 +124,7 @@ enum z3fold_page_flags {
- 	UNDER_RECLAIM = 0,
- 	PAGE_HEADLESS,
- 	MIDDLE_CHUNK_MAPPED,
-+	UNDER_COMPACTION,
- };
- 
- /*****************
-@@ -136,6 +140,9 @@ static int size_to_chunks(size_t size)
- #define for_each_unbuddied_list(_iter, _begin) \
- 	for ((_iter) = (_begin); (_iter) < NCHUNKS; (_iter)++)
- 
-+#define for_each_unbuddied_list_down(_iter, _end) \
-+	for ((_iter) = (_end); (_iter) > 0; (_iter)--)
-+
- /* Initializes the z3fold header of a newly allocated z3fold page */
- static struct z3fold_header *init_z3fold_page(struct page *page)
+v2 changes:
+Updated test description in commit message, and typos.
+
+ mm/vmalloc.c | 25 +++++++++++++------------
+ 1 file changed, 13 insertions(+), 12 deletions(-)
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 613d1d9..0270723 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -626,11 +626,11 @@ void set_iounmap_nonlazy(void)
+ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
+ 					int sync, int force_flush)
  {
-@@ -145,6 +152,7 @@ static struct z3fold_header *init_z3fold_page(struct page *page)
- 	clear_bit(UNDER_RECLAIM, &page->private);
- 	clear_bit(PAGE_HEADLESS, &page->private);
- 	clear_bit(MIDDLE_CHUNK_MAPPED, &page->private);
-+	clear_bit(UNDER_COMPACTION, &page->private);
+-	static DEFINE_SPINLOCK(purge_lock);
++	static atomic_t purging;
+ 	struct llist_node *valist;
+ 	struct vmap_area *va;
+ 	struct vmap_area *n_va;
+-	int nr = 0;
++	int dofree = 0;
  
- 	zhdr->first_chunks = 0;
- 	zhdr->middle_chunks = 0;
-@@ -211,6 +219,103 @@ static int num_free_chunks(struct z3fold_header *zhdr)
- 	return nfree;
+ 	/*
+ 	 * If sync is 0 but force_flush is 1, we'll go sync anyway but callers
+@@ -638,10 +638,10 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
+ 	 * the case that isn't actually used at the moment anyway.
+ 	 */
+ 	if (!sync && !force_flush) {
+-		if (!spin_trylock(&purge_lock))
++		if (atomic_cmpxchg(&purging, 0, 1))
+ 			return;
+ 	} else
+-		spin_lock(&purge_lock);
++		atomic_inc(&purging);
+ 
+ 	if (sync)
+ 		purge_fragmented_blocks_allcpus();
+@@ -652,22 +652,23 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
+ 			*start = va->va_start;
+ 		if (va->va_end > *end)
+ 			*end = va->va_end;
+-		nr += (va->va_end - va->va_start) >> PAGE_SHIFT;
++		dofree = 1;
+ 	}
+ 
+-	if (nr)
+-		atomic_sub(nr, &vmap_lazy_nr);
+-
+-	if (nr || force_flush)
++	if (dofree || force_flush)
+ 		flush_tlb_kernel_range(*start, *end);
+ 
+-	if (nr) {
++	if (dofree) {
+ 		spin_lock(&vmap_area_lock);
+-		llist_for_each_entry_safe(va, n_va, valist, purge_list)
++		llist_for_each_entry_safe(va, n_va, valist, purge_list) {
++			int nrfree = ((va->va_end - va->va_start) >> PAGE_SHIFT);
+ 			__free_vmap_area(va);
++			atomic_sub(nrfree, &vmap_lazy_nr);
++			cond_resched_lock(&vmap_area_lock);
++		}
+ 		spin_unlock(&vmap_area_lock);
+ 	}
+-	spin_unlock(&purge_lock);
++	atomic_dec(&purging);
  }
  
-+/* Has to be called with lock held */
-+static int z3fold_compact_page(struct z3fold_header *zhdr, bool sync)
-+{
-+	struct page *page = virt_to_page(zhdr);
-+	void *beg = zhdr;
-+
-+
-+	if (!test_bit(MIDDLE_CHUNK_MAPPED, &page->private) &&
-+	    !test_bit(UNDER_RECLAIM, &page->private) &&
-+	    !test_bit(UNDER_COMPACTION, &page->private)) {
-+		set_bit(UNDER_COMPACTION, &page->private);
-+		if (zhdr->middle_chunks != 0 &&
-+		    zhdr->first_chunks == 0 &&
-+		    zhdr->last_chunks == 0) {
-+			memmove(beg + ZHDR_SIZE_ALIGNED,
-+				beg + (zhdr->start_middle << CHUNK_SHIFT),
-+				zhdr->middle_chunks << CHUNK_SHIFT);
-+			zhdr->first_chunks = zhdr->middle_chunks;
-+			zhdr->middle_chunks = 0;
-+			zhdr->start_middle = 0;
-+			zhdr->first_num++;
-+			clear_bit(UNDER_COMPACTION, &page->private);
-+			return 1;
-+		}
-+		if (sync)
-+			goto out;
-+
-+		/* moving data is expensive, so let's only do that if
-+		 * there's substantial gain (2+ chunks)
-+		 */
-+		if (zhdr->middle_chunks != 0 && zhdr->first_chunks != 0 &&
-+		    zhdr->last_chunks == 0 &&
-+		    zhdr->start_middle > zhdr->first_chunks + 2) {
-+			unsigned short new_start = zhdr->first_chunks + 1;
-+			memmove(beg + (new_start << CHUNK_SHIFT),
-+				beg + (zhdr->start_middle << CHUNK_SHIFT),
-+				zhdr->middle_chunks << CHUNK_SHIFT);
-+			zhdr->start_middle = new_start;
-+			clear_bit(UNDER_COMPACTION, &page->private);
-+			return 1;
-+		}
-+		if (zhdr->middle_chunks != 0 && zhdr->last_chunks != 0 &&
-+		    zhdr->first_chunks == 0 &&
-+		    zhdr->middle_chunks + zhdr->last_chunks <=
-+		    NCHUNKS - zhdr->start_middle - 2) {
-+			unsigned short new_start = NCHUNKS - zhdr->last_chunks -
-+				zhdr->middle_chunks;
-+			memmove(beg + (new_start << CHUNK_SHIFT),
-+				beg + (zhdr->start_middle << CHUNK_SHIFT),
-+				zhdr->middle_chunks << CHUNK_SHIFT);
-+			zhdr->start_middle = new_start;
-+			clear_bit(UNDER_COMPACTION, &page->private);
-+			return 1;
-+		}
-+	}
-+out:
-+	clear_bit(UNDER_COMPACTION, &page->private);
-+	return 0;
-+}
-+
-+static unsigned long z3fold_shrink_count(struct shrinker *shrink,
-+				struct shrink_control *sc)
-+{
-+	struct z3fold_pool *pool = container_of(shrink, struct z3fold_pool,
-+						shrinker);
-+
-+	return atomic64_read(&pool->unbuddied_nr);
-+}
-+
-+static unsigned long z3fold_shrink_scan(struct shrinker *shrink,
-+				struct shrink_control *sc)
-+{
-+	struct z3fold_pool *pool = container_of(shrink, struct z3fold_pool,
-+						shrinker);
-+	struct z3fold_header *zhdr;
-+	int i, nr_to_scan = sc->nr_to_scan, nr_shrunk = 0;
-+
-+	spin_lock(&pool->lock);
-+	for_each_unbuddied_list_down(i, NCHUNKS - 3) {
-+		if (!list_empty(&pool->unbuddied[i])) {
-+			zhdr = list_first_entry(&pool->unbuddied[i],
-+						struct z3fold_header, buddy);
-+			list_del(&zhdr->buddy);
-+			spin_unlock(&pool->lock);
-+			nr_shrunk += z3fold_compact_page(zhdr, false);
-+			spin_lock(&pool->lock);
-+			list_add(&zhdr->buddy,
-+				&pool->unbuddied[num_free_chunks(zhdr)]);
-+			if (!--nr_to_scan)
-+				break;
-+		}
-+	}
-+	spin_unlock(&pool->lock);
-+	return nr_shrunk;
-+}
-+
-+
- /*****************
-  * API Functions
- *****************/
-@@ -230,7 +335,7 @@ static struct z3fold_pool *z3fold_create_pool(gfp_t gfp,
- 
- 	pool = kzalloc(sizeof(struct z3fold_pool), gfp);
- 	if (!pool)
--		return NULL;
-+		goto out;
- 	spin_lock_init(&pool->lock);
- 	for_each_unbuddied_list(i, 0)
- 		INIT_LIST_HEAD(&pool->unbuddied[i]);
-@@ -238,8 +343,19 @@ static struct z3fold_pool *z3fold_create_pool(gfp_t gfp,
- 	INIT_LIST_HEAD(&pool->lru);
- 	atomic64_set(&pool->pages_nr, 0);
- 	atomic64_set(&pool->unbuddied_nr, 0);
-+	pool->shrinker.count_objects = z3fold_shrink_count;
-+	pool->shrinker.scan_objects = z3fold_shrink_scan;
-+	pool->shrinker.seeks = DEFAULT_SEEKS;
-+	pool->shrinker.batch = NCHUNKS - 4;
-+	if (register_shrinker(&pool->shrinker))
-+		goto out_free;
- 	pool->ops = ops;
- 	return pool;
-+
-+out_free:
-+	kfree(pool);
-+out:
-+	return NULL;
- }
- 
- /**
-@@ -250,31 +366,10 @@ static struct z3fold_pool *z3fold_create_pool(gfp_t gfp,
-  */
- static void z3fold_destroy_pool(struct z3fold_pool *pool)
- {
-+	unregister_shrinker(&pool->shrinker);
- 	kfree(pool);
- }
- 
--/* Has to be called with lock held */
--static int z3fold_compact_page(struct z3fold_header *zhdr)
--{
--	struct page *page = virt_to_page(zhdr);
--	void *beg = zhdr;
--
--
--	if (!test_bit(MIDDLE_CHUNK_MAPPED, &page->private) &&
--	    zhdr->middle_chunks != 0 &&
--	    zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
--		memmove(beg + ZHDR_SIZE_ALIGNED,
--			beg + (zhdr->start_middle << CHUNK_SHIFT),
--			zhdr->middle_chunks << CHUNK_SHIFT);
--		zhdr->first_chunks = zhdr->middle_chunks;
--		zhdr->middle_chunks = 0;
--		zhdr->start_middle = 0;
--		zhdr->first_num++;
--		return 1;
--	}
--	return 0;
--}
--
- /**
-  * z3fold_alloc() - allocates a region of a given size
-  * @pool:	z3fold pool from which to allocate
-@@ -464,7 +559,6 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
- 		free_z3fold_page(zhdr);
- 		atomic64_dec(&pool->pages_nr);
- 	} else {
--		z3fold_compact_page(zhdr);
- 		/* Add to the unbuddied list */
- 		freechunks = num_free_chunks(zhdr);
- 		list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
-@@ -596,7 +690,7 @@ next:
- 				/* Full, add to buddied list */
- 				list_add(&zhdr->buddy, &pool->buddied);
- 			} else {
--				z3fold_compact_page(zhdr);
-+				z3fold_compact_page(zhdr, true);
- 				/* add to unbuddied list */
- 				freechunks = num_free_chunks(zhdr);
- 				list_add(&zhdr->buddy,
+ /*
 -- 
-2.4.2
+2.8.0.rc3.226.g39d4020
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
