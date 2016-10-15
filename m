@@ -1,208 +1,238 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 38B9C6B0038
-	for <linux-mm@kvack.org>; Sat, 15 Oct 2016 03:10:50 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id c78so5024781wme.5
-        for <linux-mm@kvack.org>; Sat, 15 Oct 2016 00:10:50 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id yr9si23166434wjc.282.2016.10.15.00.10.47
+	by kanga.kvack.org (Postfix) with ESMTP id 6FE276B0038
+	for <linux-mm@kvack.org>; Sat, 15 Oct 2016 05:07:43 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id f193so5903459wmg.3
+        for <linux-mm@kvack.org>; Sat, 15 Oct 2016 02:07:43 -0700 (PDT)
+Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
+        by mx.google.com with ESMTPS id h5si3769199wjj.224.2016.10.15.02.07.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 15 Oct 2016 00:10:47 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id b80so1456511wme.2
-        for <linux-mm@kvack.org>; Sat, 15 Oct 2016 00:10:47 -0700 (PDT)
-Date: Sat, 15 Oct 2016 09:10:45 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm: exclude isolated non-lru pages from
- NR_ISOLATED_ANON or NR_ISOLATED_FILE.
-Message-ID: <20161015071044.GC9949@dhcp22.suse.cz>
-References: <1476340749-13281-1-git-send-email-ming.ling@spreadtrum.com>
- <20161013080936.GG21678@dhcp22.suse.cz>
- <20161014083219.GA20260@spreadtrum.com>
- <20161014113044.GB6063@dhcp22.suse.cz>
- <20161014134604.GA2179@blaptop>
- <20161014135334.GF6063@dhcp22.suse.cz>
- <20161014144448.GA2899@blaptop>
- <20161014150355.GH6063@dhcp22.suse.cz>
- <20161014152633.GA3157@blaptop>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161014152633.GA3157@blaptop>
+        Sat, 15 Oct 2016 02:07:41 -0700 (PDT)
+Received: by mail-wm0-x244.google.com with SMTP id z189so1777911wmb.1
+        for <linux-mm@kvack.org>; Sat, 15 Oct 2016 02:07:41 -0700 (PDT)
+From: Chris Wilson <chris@chris-wilson.co.uk>
+Subject: [PATCH] mm/vmalloc: Replace opencoded 4-level page walkers
+Date: Sat, 15 Oct 2016 10:07:31 +0100
+Message-Id: <20161015090731.14878-1-chris@chris-wilson.co.uk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Ming Ling <ming.ling@spreadtrum.com>, akpm@linux-foundation.org, mgorman@techsingularity.net, vbabka@suse.cz, hannes@cmpxchg.org, baiyaowei@cmss.chinamobile.com, iamjoonsoo.kim@lge.com, rientjes@google.com, hughd@google.com, kirill.shutemov@linux.intel.com, riel@redhat.com, mgorman@suse.de, aquini@redhat.com, corbet@lwn.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, orson.zhai@spreadtrum.com, geng.ren@spreadtrum.com, chunyan.zhang@spreadtrum.com, zhizhou.tian@spreadtrum.com, yuming.han@spreadtrum.com, xiajing@spreadst.com
+To: linux-mm@kvack.org
+Cc: intel-gfx@lists.freedesktop.org, Chris Wilson <chris@chris-wilson.co.uk>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Wang Xiaoqiang <wangxq10@lzu.edu.cn>, Jerome Marchand <jmarchan@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Sat 15-10-16 00:26:33, Minchan Kim wrote:
-> On Fri, Oct 14, 2016 at 05:03:55PM +0200, Michal Hocko wrote:
-[...]
-> > diff --git a/mm/compaction.c b/mm/compaction.c
-> > index 0409a4ad6ea1..6584705a46f6 100644
-> > --- a/mm/compaction.c
-> > +++ b/mm/compaction.c
-> > @@ -685,7 +685,8 @@ static bool too_many_isolated(struct zone *zone)
-> >   */
-> >  static unsigned long
-> >  isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
-> > -			unsigned long end_pfn, isolate_mode_t isolate_mode)
-> > +			unsigned long end_pfn, isolate_mode_t isolate_mode,
-> > +			unsigned long *isolated_file, unsigned long *isolated_anon)
-> >  {
-> >  	struct zone *zone = cc->zone;
-> >  	unsigned long nr_scanned = 0, nr_isolated = 0;
-> > @@ -866,6 +867,10 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
-> >  
-> >  		/* Successfully isolated */
-> >  		del_page_from_lru_list(page, lruvec, page_lru(page));
-> > +		if (page_is_file_cache(page))
-> > +			(*isolated_file)++;
-> > +		else
-> > +			(*isolated_anon)++;
-> >  
-> >  isolate_success:
-> >  		list_add(&page->lru, &cc->migratepages);
-> > 
-> > Makes more sense?
-> 
-> It is doable for isolation part. IOW, maybe we can make acct_isolated
-> simple with those counters but we need to handle migrate, putback part.
-> If you want to remove the check of __PageMoable with those counter, it
-> means we should pass the counter on every functions related migration
-> where isolate, migrate, putback parts.
+Rather than open-code the intricacies of walking the 4-level page
+tables, use the generic page table walker apply_to_page_range() instead.
 
-OK, I see. Can we just get rid of acct_isolated altogether? Why cannot
-we simply update NR_ISOLATED_* while isolating pages? Just looking at
-isolate_migratepages_block:
-			acct_isolated(zone, cc);
-			putback_movable_pages(&cc->migratepages);
+There is a slight loss in functionality when unmapping as we now walk
+all pages within the range rather than skipping over empty directories.
+In theory, we should not be unmapping any pages that we ourselves didn't
+successfully map. On the other hand, it now cleans up after an
+unsuccessful insertion and propagates the correct error. The current
+failure may lead to a WARN if we encounter ENOMEM in one
+vmap_pte_range() and later retry with the same page range.
 
-suggests we are doing something suboptimal. I guess we cannot get rid of
-__PageMoveble checks which is sad because that just adds a lot of
-confusion because checking for !__PageMovable(page) for LRU pages is
-just a head scratcher (LRU pages are movable arent' they?). Maybe it
-would be even good to get rid of this misnomer. PageNonLRUMovable?
+WARNING: CPU: 0 PID: 605 at mm/vmalloc.c:136 vmap_page_range_noflush+0x2c1/0x340
+i.e. WARN_ON(!pte_none(*pte))
 
-Anyway, I would suggest to do something like this. Batching NR_ISOLATED*
-just doesn't make all that much sense as these are per-cpu and the
-resulting code seems to be easier without it.
+References: https://bugs.freedesktop.org/show_bug.cgi?id=98269
+Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Wang Xiaoqiang <wangxq10@lzu.edu.cn>
+Cc: Jerome Marchand <jmarchan@redhat.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: linux-mm@kvack.org
 ---
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 0409a4ad6ea1..df1fd0c20e5c 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -634,22 +634,6 @@ isolate_freepages_range(struct compact_control *cc,
- 	return pfn;
- }
+ mm/vmalloc.c | 150 +++++++++++++----------------------------------------------
+ 1 file changed, 33 insertions(+), 117 deletions(-)
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 91f44e78c516..e18cea62fea6 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -59,121 +59,40 @@ static void free_work(struct work_struct *w)
  
--/* Update the number of anon and file isolated pages in the zone */
--static void acct_isolated(struct zone *zone, struct compact_control *cc)
--{
--	struct page *page;
--	unsigned int count[2] = { 0, };
+ /*** Page table manipulation functions ***/
+ 
+-static void vunmap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end)
++static int vunmap_page(pte_t *pte, pgtable_t token,
++		       unsigned long addr, void *data)
+ {
+-	pte_t *pte;
 -
--	if (list_empty(&cc->migratepages))
--		return;
--
--	list_for_each_entry(page, &cc->migratepages, lru)
--		count[!!page_is_file_cache(page)]++;
--
--	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_ANON, count[0]);
--	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE, count[1]);
+-	pte = pte_offset_kernel(pmd, addr);
+-	do {
+-		pte_t ptent = ptep_get_and_clear(&init_mm, addr, pte);
+-		WARN_ON(!pte_none(ptent) && !pte_present(ptent));
+-	} while (pte++, addr += PAGE_SIZE, addr != end);
 -}
 -
- /* Similar to reclaim, but different enough that they don't share logic */
- static bool too_many_isolated(struct zone *zone)
+-static void vunmap_pmd_range(pud_t *pud, unsigned long addr, unsigned long end)
+-{
+-	pmd_t *pmd;
+-	unsigned long next;
+-
+-	pmd = pmd_offset(pud, addr);
+-	do {
+-		next = pmd_addr_end(addr, end);
+-		if (pmd_clear_huge(pmd))
+-			continue;
+-		if (pmd_none_or_clear_bad(pmd))
+-			continue;
+-		vunmap_pte_range(pmd, addr, next);
+-	} while (pmd++, addr = next, addr != end);
+-}
+-
+-static void vunmap_pud_range(pgd_t *pgd, unsigned long addr, unsigned long end)
+-{
+-	pud_t *pud;
+-	unsigned long next;
+-
+-	pud = pud_offset(pgd, addr);
+-	do {
+-		next = pud_addr_end(addr, end);
+-		if (pud_clear_huge(pud))
+-			continue;
+-		if (pud_none_or_clear_bad(pud))
+-			continue;
+-		vunmap_pmd_range(pud, addr, next);
+-	} while (pud++, addr = next, addr != end);
++	pte_t ptent = ptep_get_and_clear(&init_mm, addr, pte);
++	WARN_ON(!pte_none(ptent) && !pte_present(ptent));
++	return 0;
+ }
+ 
+ static void vunmap_page_range(unsigned long addr, unsigned long end)
  {
-@@ -866,6 +850,8 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 
- 		/* Successfully isolated */
- 		del_page_from_lru_list(page, lruvec, page_lru(page));
-+		inc_node_page_state(zone->zone_pgdat,
-+				NR_ISOLATED_ANON + page_is_file_cache(page));
- 
- isolate_success:
- 		list_add(&page->lru, &cc->migratepages);
-@@ -902,7 +888,6 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 				spin_unlock_irqrestore(zone_lru_lock(zone), flags);
- 				locked = false;
- 			}
--			acct_isolated(zone, cc);
- 			putback_movable_pages(&cc->migratepages);
- 			cc->nr_migratepages = 0;
- 			cc->last_migrated_pfn = 0;
-@@ -988,7 +973,6 @@ isolate_migratepages_range(struct compact_control *cc, unsigned long start_pfn,
- 		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX)
- 			break;
- 	}
--	acct_isolated(cc->zone, cc);
- 
- 	return pfn;
+-	pgd_t *pgd;
+-	unsigned long next;
+-
+-	BUG_ON(addr >= end);
+-	pgd = pgd_offset_k(addr);
+-	do {
+-		next = pgd_addr_end(addr, end);
+-		if (pgd_none_or_clear_bad(pgd))
+-			continue;
+-		vunmap_pud_range(pgd, addr, next);
+-	} while (pgd++, addr = next, addr != end);
++	apply_to_page_range(&init_mm, addr, end - addr, vunmap_page, NULL);
  }
-@@ -1258,10 +1242,8 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 		low_pfn = isolate_migratepages_block(cc, low_pfn,
- 						block_end_pfn, isolate_mode);
  
--		if (!low_pfn || cc->contended) {
--			acct_isolated(zone, cc);
-+		if (!low_pfn || cc->contended)
- 			return ISOLATE_ABORT;
--		}
+-static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
+-		unsigned long end, pgprot_t prot, struct page **pages, int *nr)
+-{
+-	pte_t *pte;
+-
+-	/*
+-	 * nr is a running index into the array which helps higher level
+-	 * callers keep track of where we're up to.
+-	 */
+-
+-	pte = pte_alloc_kernel(pmd, addr);
+-	if (!pte)
+-		return -ENOMEM;
+-	do {
+-		struct page *page = pages[*nr];
+-
+-		if (WARN_ON(!pte_none(*pte)))
+-			return -EBUSY;
+-		if (WARN_ON(!page))
+-			return -ENOMEM;
+-		set_pte_at(&init_mm, addr, pte, mk_pte(page, prot));
+-		(*nr)++;
+-	} while (pte++, addr += PAGE_SIZE, addr != end);
+-	return 0;
+-}
++struct vmap_page {
++	pgprot_t prot;
++	struct page **pages;
++	unsigned long count;
++};
  
- 		/*
- 		 * Either we isolated something and proceed with migration. Or
-@@ -1271,7 +1253,6 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 		break;
- 	}
+-static int vmap_pmd_range(pud_t *pud, unsigned long addr,
+-		unsigned long end, pgprot_t prot, struct page **pages, int *nr)
++static int vmap_page(pte_t *pte, pgtable_t token,
++		     unsigned long addr, void *data)
+ {
+-	pmd_t *pmd;
+-	unsigned long next;
++	struct vmap_page *v = data;
++	struct page *page;
  
--	acct_isolated(zone, cc);
- 	/* Record where migration scanner will be restarted. */
- 	cc->migrate_pfn = low_pfn;
+-	pmd = pmd_alloc(&init_mm, pud, addr);
+-	if (!pmd)
+-		return -ENOMEM;
+-	do {
+-		next = pmd_addr_end(addr, end);
+-		if (vmap_pte_range(pmd, addr, next, prot, pages, nr))
+-			return -ENOMEM;
+-	} while (pmd++, addr = next, addr != end);
+-	return 0;
+-}
++	if (WARN_ON(!pte_none(*pte)))
++		return -EBUSY;
  
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 99250aee1ac1..66ce6b490b13 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -168,8 +168,6 @@ void putback_movable_pages(struct list_head *l)
- 			continue;
- 		}
- 		list_del(&page->lru);
--		dec_node_page_state(page, NR_ISOLATED_ANON +
--				page_is_file_cache(page));
- 		/*
- 		 * We isolated non-lru movable page so here we can use
- 		 * __PageMovable because LRU page's mapping cannot have
-@@ -186,6 +184,8 @@ void putback_movable_pages(struct list_head *l)
- 			put_page(page);
- 		} else {
- 			putback_lru_page(page);
-+			dec_node_page_state(page, NR_ISOLATED_ANON +
-+					page_is_file_cache(page));
- 		}
- 	}
- }
-@@ -1121,8 +1121,15 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
- 		 * restored.
- 		 */
- 		list_del(&page->lru);
--		dec_node_page_state(page, NR_ISOLATED_ANON +
--				page_is_file_cache(page));
+-static int vmap_pud_range(pgd_t *pgd, unsigned long addr,
+-		unsigned long end, pgprot_t prot, struct page **pages, int *nr)
+-{
+-	pud_t *pud;
+-	unsigned long next;
+-
+-	pud = pud_alloc(&init_mm, pgd, addr);
+-	if (!pud)
++	page = v->pages[v->count];
++	if (WARN_ON(!page))
+ 		return -ENOMEM;
+-	do {
+-		next = pud_addr_end(addr, end);
+-		if (vmap_pmd_range(pud, addr, next, prot, pages, nr))
+-			return -ENOMEM;
+-	} while (pud++, addr = next, addr != end);
 +
-+		/*
-+		 * Compaction can migrate also non-LRU pages which are
-+		 * not accounted to NR_ISOLATED_*. They can be recognized
-+		 * as __PageMovable
-+		 */
-+		if (likely(!__PageMovable(page)))
-+			dec_node_page_state(page, NR_ISOLATED_ANON +
-+					page_is_file_cache(page));
- 	}
++	set_pte_at(&init_mm, addr, pte, mk_pte(page, v->prot));
++	v->count++;
+ 	return 0;
+ }
  
- 	/*
-
+@@ -186,22 +105,19 @@ static int vmap_pud_range(pgd_t *pgd, unsigned long addr,
+ static int vmap_page_range_noflush(unsigned long start, unsigned long end,
+ 				   pgprot_t prot, struct page **pages)
+ {
+-	pgd_t *pgd;
+-	unsigned long next;
+-	unsigned long addr = start;
+-	int err = 0;
+-	int nr = 0;
++	struct vmap_page v = { prot, pages };
++	int err;
+ 
+-	BUG_ON(addr >= end);
+-	pgd = pgd_offset_k(addr);
+-	do {
+-		next = pgd_addr_end(addr, end);
+-		err = vmap_pud_range(pgd, addr, next, prot, pages, &nr);
+-		if (err)
+-			return err;
+-	} while (pgd++, addr = next, addr != end);
++	if ((end - start) >> PAGE_SHIFT > INT_MAX)
++		return -EINVAL;
++
++	err = apply_to_page_range(&init_mm, start, end - start, vmap_page, &v);
++	if (unlikely(err)) {
++		vunmap_page_range(start, start + (v.count << PAGE_SHIFT));
++		return err;
++	}
+ 
+-	return nr;
++	return v.count;
+ }
+ 
+ static int vmap_page_range(unsigned long start, unsigned long end,
 -- 
-Michal Hocko
-SUSE Labs
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
