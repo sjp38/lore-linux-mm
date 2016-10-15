@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 24A926B0038
-	for <linux-mm@kvack.org>; Sat, 15 Oct 2016 06:10:23 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 191so6308016wmr.6
-        for <linux-mm@kvack.org>; Sat, 15 Oct 2016 03:10:23 -0700 (PDT)
-Received: from mail-wm0-x22f.google.com (mail-wm0-x22f.google.com. [2a00:1450:400c:c09::22f])
-        by mx.google.com with ESMTPS id jt8si18397134wjb.240.2016.10.15.03.10.21
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DE716B0038
+	for <linux-mm@kvack.org>; Sat, 15 Oct 2016 06:43:27 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id b80so6580015wme.4
+        for <linux-mm@kvack.org>; Sat, 15 Oct 2016 03:43:27 -0700 (PDT)
+Received: from mail-wm0-x232.google.com (mail-wm0-x232.google.com. [2a00:1450:400c:c09::232])
+        by mx.google.com with ESMTPS id m79si2577090wmd.142.2016.10.15.03.43.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 15 Oct 2016 03:10:21 -0700 (PDT)
-Received: by mail-wm0-x22f.google.com with SMTP id d128so23563284wmf.1
-        for <linux-mm@kvack.org>; Sat, 15 Oct 2016 03:10:21 -0700 (PDT)
+        Sat, 15 Oct 2016 03:43:26 -0700 (PDT)
+Received: by mail-wm0-x232.google.com with SMTP id c78so24612613wme.0
+        for <linux-mm@kvack.org>; Sat, 15 Oct 2016 03:43:25 -0700 (PDT)
 From: Joel Fernandes <joelaf@google.com>
-Subject: [PATCH] mm: vmalloc: Replace purge_lock spinlock with atomic refcount
-Date: Sat, 15 Oct 2016 03:10:17 -0700
-Message-Id: <1476526217-19368-1-git-send-email-joelaf@google.com>
+Subject: [PATCH v2] mm: vmalloc: Replace purge_lock spinlock with atomic refcount
+Date: Sat, 15 Oct 2016 03:42:42 -0700
+Message-Id: <1476528162-21981-1-git-send-email-joelaf@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-rt-users@vger.kernel.org, Joel Fernandes <joelaf@google.com>, Chris Wilson <chris@chris-wilson.co.uk>, Jisheng Zhang <jszhang@marvell.com>, Andrew Morton <akpm@linux-foundation.org>, joelaf <joelaf@joelaf-glaptop0.roam.corp.google.com>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
+Cc: linux-rt-users@vger.kernel.org, Joel Fernandes <joelaf@google.com>, Chris Wilson <chris@chris-wilson.co.uk>, Jisheng Zhang <jszhang@marvell.com>, John Dias <joaodias@google.com>, Andrew Morton <akpm@linux-foundation.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
 
 The purge_lock spinlock causes high latencies with non RT kernel. This has been
 reported multiple times on lkml [1] [2] and affects applications like audio.
@@ -29,16 +29,15 @@ lazy free list in advance and atomically retrieves the list so any instance of
 purge will have its own list it is purging. Since the individual vmap area
 frees are themselves protected by a lock, this is Ok.
 
-The only things left is the fact that previously it had trylock behavior, so
-use the refcount to keep track of in-progress purges and abort like previously
-if there is an ongoing purge. Lastly, lets reduce vmap_lazy_nr as the vmap
-area are freed, and not in advance, so that the vmap_lazy_nr is not reduced
-too soon as suggested in [2].
+The only thing left is the fact that previously it had trylock behavior, so
+preserve that by using the refcount to keep track of in-progress purges and
+abort like previously if there is an ongoing purge. Lastly, decrement
+vmap_lazy_nr as the vmap areas are freed, and not in advance, so that the
+vmap_lazy_nr is not reduced too soon as suggested in [2].
 
 Tests:
-
-cyclictest -p 99 -n
-Concurrently in a kernel module, vmalloc and vfree 8K buffer in a loop.
+x86_64 quad core machine on kernel 4.8, run: cyclictest -p 99 -n
+Concurrently in a kernel module, run vmalloc and vfree 8K buffer in a loop.
 Preemption configuration: CONFIG_PREEMPT__LL=y (low-latency desktop)
 
 Without patch, cyclictest output:
@@ -55,11 +54,16 @@ policy: fifo: loadavg: 1.18 0.72 0.32 2/166 11253        Avg:  107 Max:     321
 [2] https://lkml.org/lkml/2016/10/9/59
 [3] https://lkml.org/lkml/2016/4/15/287
 
+[thanks Chris for the cond_resched_lock ideas]
 Cc: Chris Wilson <chris@chris-wilson.co.uk>
 Cc: Jisheng Zhang <jszhang@marvell.com>
+Cc: John Dias <joaodias@google.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Joel Fernandes <joelaf@google.com>
 ---
+v2 changes:
+Updated test description in commit message, and typos.
+
  mm/vmalloc.c | 25 +++++++++++++------------
  1 file changed, 13 insertions(+), 12 deletions(-)
 
