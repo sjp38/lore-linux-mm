@@ -1,90 +1,217 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A1BD76B0038
-	for <linux-mm@kvack.org>; Sun, 16 Oct 2016 18:48:45 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id d186so88409955lfg.7
-        for <linux-mm@kvack.org>; Sun, 16 Oct 2016 15:48:45 -0700 (PDT)
-Received: from mail-lf0-x22f.google.com (mail-lf0-x22f.google.com. [2a00:1450:4010:c07::22f])
-        by mx.google.com with ESMTPS id 65si16797459lfa.57.2016.10.16.15.48.43
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 16 Oct 2016 15:48:44 -0700 (PDT)
-Received: by mail-lf0-x22f.google.com with SMTP id b75so254877466lfg.3
-        for <linux-mm@kvack.org>; Sun, 16 Oct 2016 15:48:43 -0700 (PDT)
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 717096B0038
+	for <linux-mm@kvack.org>; Sun, 16 Oct 2016 19:06:32 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id rz1so182923458pab.0
+        for <linux-mm@kvack.org>; Sun, 16 Oct 2016 16:06:32 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id v189si24581759pgd.118.2016.10.16.16.06.30
+        for <linux-mm@kvack.org>;
+        Sun, 16 Oct 2016 16:06:31 -0700 (PDT)
+Date: Mon, 17 Oct 2016 08:06:18 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v2] mm: exclude isolated non-lru pages from
+ NR_ISOLATED_ANON or NR_ISOLATED_FILE.
+Message-ID: <20161016230618.GB9196@bbox>
+References: <1476340749-13281-1-git-send-email-ming.ling@spreadtrum.com>
+ <20161013080936.GG21678@dhcp22.suse.cz>
+ <20161014083219.GA20260@spreadtrum.com>
+ <20161014113044.GB6063@dhcp22.suse.cz>
+ <20161014134604.GA2179@blaptop>
+ <20161014135334.GF6063@dhcp22.suse.cz>
+ <20161014144448.GA2899@blaptop>
+ <20161014150355.GH6063@dhcp22.suse.cz>
+ <20161014152633.GA3157@blaptop>
+ <20161015071044.GC9949@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1476655575-6588-1-git-send-email-joelaf@google.com>
-References: <20161016061057.GA26990@infradead.org> <1476655575-6588-1-git-send-email-joelaf@google.com>
-From: Joel Fernandes <joelaf@google.com>
-Date: Sun, 16 Oct 2016 15:48:42 -0700
-Message-ID: <CAJWu+opXocyNmL2bA43NZjx7Se42fzEg6YphiE+Bon2qhpvqSg@mail.gmail.com>
-Subject: Re: [PATCH v3] mm: vmalloc: Replace purge_lock spinlock with atomic refcount
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161015071044.GC9949@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, linux-rt-users@vger.kernel.org, Joel Fernandes <joelaf@google.com>, Chris Wilson <chris@chris-wilson.co.uk>, Jisheng Zhang <jszhang@marvell.com>, John Dias <joaodias@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Ming Ling <ming.ling@spreadtrum.com>, akpm@linux-foundation.org, mgorman@techsingularity.net, vbabka@suse.cz, hannes@cmpxchg.org, baiyaowei@cmss.chinamobile.com, iamjoonsoo.kim@lge.com, rientjes@google.com, hughd@google.com, kirill.shutemov@linux.intel.com, riel@redhat.com, mgorman@suse.de, aquini@redhat.com, corbet@lwn.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, orson.zhai@spreadtrum.com, geng.ren@spreadtrum.com, chunyan.zhang@spreadtrum.com, zhizhou.tian@spreadtrum.com, yuming.han@spreadtrum.com, xiajing@spreadst.com
 
-Hi Christoph,
+Hi Michal,
 
-On Sun, Oct 16, 2016 at 3:06 PM, Joel Fernandes <joelaf@google.com> wrote:
-> On Sat, Oct 15, 2016 at 11:10 PM, Christoph Hellwig <hch@infradead.org> wrote:
->> On Sat, Oct 15, 2016 at 03:59:34PM -0700, Joel Fernandes wrote:
->>> Also, could you share your concerns about use of atomic_t in my patch?
->>> I believe that since this is not a contented variable, the question of
->>> lock fairness is not a concern. It is also not a lock really the way
->>> I'm using it, it just keeps track of how many purges are in progress..
->>
->> atomic_t doesn't have any acquire/release semantics, and will require
->> off memory barrier dances to actually get the behavior you intended.
->> And from looking at the code I can't really see why we even would
->> want synchronization behavior - for the sort of problems where we
->> don't want multiple threads to run the same code at the same time
->> for effiency but not correctness reasons it's usually better to have
->> batch thresholds and/or splicing into local data structures before
->> operations.  Both are techniques used in this code, and I'd rather
->> rely on them and if required improve on them then using very odd
->> hoc synchronization methods.
->
-> Thanks for the explanation. If you know of a better way to handle the sync=1
-> case, let me know. In defense of atomics, even vmap_lazy_nr in the same code is
-> atomic_t :) I am also not using it as a lock really, but just to count how many
-> times something is in progress that's all - I added some more comments to my
-> last patch to make this clearer in the code and now I'm also handling the case
-> for sync=1.
+On Sat, Oct 15, 2016 at 09:10:45AM +0200, Michal Hocko wrote:
+> On Sat 15-10-16 00:26:33, Minchan Kim wrote:
+> > On Fri, Oct 14, 2016 at 05:03:55PM +0200, Michal Hocko wrote:
+> [...]
+> > > diff --git a/mm/compaction.c b/mm/compaction.c
+> > > index 0409a4ad6ea1..6584705a46f6 100644
+> > > --- a/mm/compaction.c
+> > > +++ b/mm/compaction.c
+> > > @@ -685,7 +685,8 @@ static bool too_many_isolated(struct zone *zone)
+> > >   */
+> > >  static unsigned long
+> > >  isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+> > > -			unsigned long end_pfn, isolate_mode_t isolate_mode)
+> > > +			unsigned long end_pfn, isolate_mode_t isolate_mode,
+> > > +			unsigned long *isolated_file, unsigned long *isolated_anon)
+> > >  {
+> > >  	struct zone *zone = cc->zone;
+> > >  	unsigned long nr_scanned = 0, nr_isolated = 0;
+> > > @@ -866,6 +867,10 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+> > >  
+> > >  		/* Successfully isolated */
+> > >  		del_page_from_lru_list(page, lruvec, page_lru(page));
+> > > +		if (page_is_file_cache(page))
+> > > +			(*isolated_file)++;
+> > > +		else
+> > > +			(*isolated_anon)++;
+> > >  
+> > >  isolate_success:
+> > >  		list_add(&page->lru, &cc->migratepages);
+> > > 
+> > > Makes more sense?
+> > 
+> > It is doable for isolation part. IOW, maybe we can make acct_isolated
+> > simple with those counters but we need to handle migrate, putback part.
+> > If you want to remove the check of __PageMoable with those counter, it
+> > means we should pass the counter on every functions related migration
+> > where isolate, migrate, putback parts.
+> 
+> OK, I see. Can we just get rid of acct_isolated altogether? Why cannot
+> we simply update NR_ISOLATED_* while isolating pages? Just looking at
+> isolate_migratepages_block:
+> 			acct_isolated(zone, cc);
+> 			putback_movable_pages(&cc->migratepages);
+> 
+> suggests we are doing something suboptimal. I guess we cannot get rid of
+> __PageMoveble checks which is sad because that just adds a lot of
+> confusion because checking for !__PageMovable(page) for LRU pages is
+> just a head scratcher (LRU pages are movable arent' they?). Maybe it
+> would be even good to get rid of this misnomer. PageNonLRUMovable?
 
-Also, one more thing about the barrier dances you mentioned, this will
-also be done by the spinlock which was there before my patch. So in
-favor of my patch, it doesn't make things any worse than they were and
-actually fixes the reported issue while preserving the original code
-behavior. So I think it is a good thing to fix the issue considering
-so many people are reporting it and any clean ups of the vmalloc code
-itself can follow.
+Yeah, I hated the naming but didn't have a good idea.
+PageNonLRUMovable, definitely, one I thought as candidate but dropped
+by lenghthy naming. If others don't object, I am happy to change it.
 
-If you want I can looking into replacing the atomic_cmpxchg with an
-atomic_inc and not do anything different for sync vs !sync except for
-spinning when purges are pending. Would that make you feel a bit
-better?
+> 
+> Anyway, I would suggest to do something like this. Batching NR_ISOLATED*
+> just doesn't make all that much sense as these are per-cpu and the
+> resulting code seems to be easier without it.
 
-So instead of:
-        if (!sync && !force_flush) {
-                /*
-                 * Incase a purge is already in progress, just return.
-                 */
-                if (atomic_cmpxchg(&purging, 0, 1))
-                        return;
-        } else
-                atomic_inc(&purging);
-,
-Just do a:
-                atomic_inc(&purging);
+Agree. Could you resend it as formal patch?
 
-
-This should be Ok to do since in the !sync case, we'll just return
-anyway if another purge was in progress.
-
-Thanks,
-
-Joel
+> ---
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 0409a4ad6ea1..df1fd0c20e5c 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -634,22 +634,6 @@ isolate_freepages_range(struct compact_control *cc,
+>  	return pfn;
+>  }
+>  
+> -/* Update the number of anon and file isolated pages in the zone */
+> -static void acct_isolated(struct zone *zone, struct compact_control *cc)
+> -{
+> -	struct page *page;
+> -	unsigned int count[2] = { 0, };
+> -
+> -	if (list_empty(&cc->migratepages))
+> -		return;
+> -
+> -	list_for_each_entry(page, &cc->migratepages, lru)
+> -		count[!!page_is_file_cache(page)]++;
+> -
+> -	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_ANON, count[0]);
+> -	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE, count[1]);
+> -}
+> -
+>  /* Similar to reclaim, but different enough that they don't share logic */
+>  static bool too_many_isolated(struct zone *zone)
+>  {
+> @@ -866,6 +850,8 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+>  
+>  		/* Successfully isolated */
+>  		del_page_from_lru_list(page, lruvec, page_lru(page));
+> +		inc_node_page_state(zone->zone_pgdat,
+> +				NR_ISOLATED_ANON + page_is_file_cache(page));
+>  
+>  isolate_success:
+>  		list_add(&page->lru, &cc->migratepages);
+> @@ -902,7 +888,6 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+>  				spin_unlock_irqrestore(zone_lru_lock(zone), flags);
+>  				locked = false;
+>  			}
+> -			acct_isolated(zone, cc);
+>  			putback_movable_pages(&cc->migratepages);
+>  			cc->nr_migratepages = 0;
+>  			cc->last_migrated_pfn = 0;
+> @@ -988,7 +973,6 @@ isolate_migratepages_range(struct compact_control *cc, unsigned long start_pfn,
+>  		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX)
+>  			break;
+>  	}
+> -	acct_isolated(cc->zone, cc);
+>  
+>  	return pfn;
+>  }
+> @@ -1258,10 +1242,8 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+>  		low_pfn = isolate_migratepages_block(cc, low_pfn,
+>  						block_end_pfn, isolate_mode);
+>  
+> -		if (!low_pfn || cc->contended) {
+> -			acct_isolated(zone, cc);
+> +		if (!low_pfn || cc->contended)
+>  			return ISOLATE_ABORT;
+> -		}
+>  
+>  		/*
+>  		 * Either we isolated something and proceed with migration. Or
+> @@ -1271,7 +1253,6 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+>  		break;
+>  	}
+>  
+> -	acct_isolated(zone, cc);
+>  	/* Record where migration scanner will be restarted. */
+>  	cc->migrate_pfn = low_pfn;
+>  
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index 99250aee1ac1..66ce6b490b13 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -168,8 +168,6 @@ void putback_movable_pages(struct list_head *l)
+>  			continue;
+>  		}
+>  		list_del(&page->lru);
+> -		dec_node_page_state(page, NR_ISOLATED_ANON +
+> -				page_is_file_cache(page));
+>  		/*
+>  		 * We isolated non-lru movable page so here we can use
+>  		 * __PageMovable because LRU page's mapping cannot have
+> @@ -186,6 +184,8 @@ void putback_movable_pages(struct list_head *l)
+>  			put_page(page);
+>  		} else {
+>  			putback_lru_page(page);
+> +			dec_node_page_state(page, NR_ISOLATED_ANON +
+> +					page_is_file_cache(page));
+>  		}
+>  	}
+>  }
+> @@ -1121,8 +1121,15 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
+>  		 * restored.
+>  		 */
+>  		list_del(&page->lru);
+> -		dec_node_page_state(page, NR_ISOLATED_ANON +
+> -				page_is_file_cache(page));
+> +
+> +		/*
+> +		 * Compaction can migrate also non-LRU pages which are
+> +		 * not accounted to NR_ISOLATED_*. They can be recognized
+> +		 * as __PageMovable
+> +		 */
+> +		if (likely(!__PageMovable(page)))
+> +			dec_node_page_state(page, NR_ISOLATED_ANON +
+> +					page_is_file_cache(page));
+>  	}
+>  
+>  	/*
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
