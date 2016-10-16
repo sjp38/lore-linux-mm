@@ -1,60 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D7AC06B0038
-	for <linux-mm@kvack.org>; Sun, 16 Oct 2016 03:33:44 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id o81so14175173wma.1
-        for <linux-mm@kvack.org>; Sun, 16 Oct 2016 00:33:44 -0700 (PDT)
-Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
-        by mx.google.com with ESMTPS id lh9si10451921wjc.188.2016.10.16.00.33.43
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F9FA6B0038
+	for <linux-mm@kvack.org>; Sun, 16 Oct 2016 07:01:24 -0400 (EDT)
+Received: by mail-it0-f71.google.com with SMTP id z65so45837519itc.2
+        for <linux-mm@kvack.org>; Sun, 16 Oct 2016 04:01:24 -0700 (PDT)
+Received: from mail-it0-x22b.google.com (mail-it0-x22b.google.com. [2607:f8b0:4001:c0b::22b])
+        by mx.google.com with ESMTPS id u1si3682378ite.80.2016.10.16.04.01.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 16 Oct 2016 00:33:43 -0700 (PDT)
-Received: by mail-wm0-f67.google.com with SMTP id z189so5049937wmb.1
-        for <linux-mm@kvack.org>; Sun, 16 Oct 2016 00:33:43 -0700 (PDT)
-Date: Sun, 16 Oct 2016 09:33:41 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC] scripts: Include postprocessing script for memory
- allocation tracing
-Message-ID: <20161016073340.GA15839@dhcp22.suse.cz>
-References: <20160911222411.GA2854@janani-Inspiron-3521>
- <20160912121635.GL14524@dhcp22.suse.cz>
- <0ACE5927-A6E5-4B49-891D-F990527A9F50@gmail.com>
- <20160919094224.GH10785@dhcp22.suse.cz>
- <BFAF8DCA-F4A6-41C6-9AA0-C694D33035A3@gmail.com>
- <20160923080709.GB4478@dhcp22.suse.cz>
- <E8FAA4EF-DAA1-4E18-B48F-6677E6AFE76E@gmail.com>
- <2D27EF16-B63B-4516-A156-5E2FB675A1BB@gmail.com>
+        Sun, 16 Oct 2016 04:01:23 -0700 (PDT)
+Received: by mail-it0-x22b.google.com with SMTP id 139so20038077itm.1
+        for <linux-mm@kvack.org>; Sun, 16 Oct 2016 04:01:23 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <2D27EF16-B63B-4516-A156-5E2FB675A1BB@gmail.com>
+In-Reply-To: <20161014152615.GB6105@dhcp22.suse.cz>
+References: <CADUS3okBoQNW_mzgZnfr6evK2Qrx2TDtPygqnodn0CwtSyrA8w@mail.gmail.com>
+ <20161014152615.GB6105@dhcp22.suse.cz>
+From: yoma sophian <sophian.yoma@gmail.com>
+Date: Sun, 16 Oct 2016 19:01:23 +0800
+Message-ID: <CADUS3o=64pZae+Nq302RSRukCd3beRCtm3Ch=iDVkrPSUOODZw@mail.gmail.com>
+Subject: Re: some question about order0 page allocation
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Janani Ravichandran <janani.rvchndrn@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org
 
-On Sat 15-10-16 19:31:22, Janani Ravichandran wrote:
-> 
-> > On Oct 11, 2016, at 10:43 AM, Janani Ravichandran <janani.rvchndrn@gmail.com> wrote:
-> > 
-> > Alright. Ia??ll add a starting tracepoint, change the script accordingly and 
-> > send a v2. Thanks!
-> > 
-> I looked at it again and I think that the context information we need 
-> can be obtained from the tracepoint trace_mm_page_alloc in 
-> alloc_pages_nodemask().
+ hi michal:
 
-trace_mm_page_alloc will tell you details about the allocation, like
-gfp mask, order but it doesn't tell you how long the allocation took at
-its current form. So either you have to note jiffies at the allocation
-start and then add the end-start in the trace point or we really need
-another trace point to note the start. The later has an advantage that
-we do not add unnecessary load for jiffies when the tracepoint is
-disabled.
--- 
-Michal Hocko
-SUSE Labs
+2016-10-14 23:26 GMT+08:00 Michal Hocko <mhocko@kernel.org>:
+> On Fri 14-10-16 17:29:34, yoma sophian wrote:
+> [...]
+>> [ 5515.127555] dialog invoked oom-killer: gfp_mask=0x80d0, order=0,
+>> oom_score_adj=0
+>
+> This looks like a GFP_KERNEL + something allocation
+Yes, you are correct.
+The page is allocated with GFP as (KERNEL + ZERO) flag
+>
+>> [ 5515.444859] Normal: 4314*4kB (UEMC) 3586*8kB (UMC) 131*16kB (MC)
+>> 21*32kB (C) 6*64kB (C) 1*128kB (C) 0*256kB 0*512kB 0*1024kB 0*2048kB
+>> 0*4096kB = 49224kB
+>
+> And it seems like CMA blocks are spread in all orders and no unmovable
+> allocations can fallback in them. It seems that there should be some
+> movable blocks but I do not have any idea why those are not used. Anyway
+> this is where I would start investigating.
+Per your kind hint, I trace pcp page allocation again.(since the order
+of allocation is 0 this time)
+I found when the list of pcp with unmovable type is empty, it will
+call rmqueue_bulk for trying to get batch, 31 order-0 pages.
+And rmqueue_bulk will call __rmqueue_smallest and even
+__rmqueue_fallback once the buddy of unmovable memory is not enough.
+
+But from below message:
+[ 5515.444859] Normal: 4314*4kB (UEMC) 3586*8kB (UMC)
+the order 0 of U type in buddy is at least has 1 page free.
+That mean even there is not enough 32 order-0 pages with U in buddy
+right now, buddy can at least provide 1 page to satisfy this
+allocation.
+if my conclusion is correct, there is no need for fallback.
+Please correct me, if I am wrong.
+
+Sincerely appreciate your kind help,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
