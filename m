@@ -1,80 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 21EA36B0038
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 11:18:20 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id kc8so205201416pab.2
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 08:18:20 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id g23si27858191pgn.73.2016.10.17.08.18.15
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F7D96B0038
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 11:30:45 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id 83so139342944vkd.3
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 08:30:45 -0700 (PDT)
+Received: from mail-vk0-x242.google.com (mail-vk0-x242.google.com. [2607:f8b0:400c:c05::242])
+        by mx.google.com with ESMTPS id h1si3878517vkf.181.2016.10.17.08.30.44
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 17 Oct 2016 08:18:15 -0700 (PDT)
-Subject: [PATCH] generic syscalls: kill cruft from removed pkey syscalls
-From: Dave Hansen <dave@sr71.net>
-Date: Mon, 17 Oct 2016 08:18:15 -0700
-Message-Id: <20161017151814.1CE8B6C3@viggo.jf.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Oct 2016 08:30:44 -0700 (PDT)
+Received: by mail-vk0-x242.google.com with SMTP id 2so8097903vkb.1
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 08:30:44 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <5804C88F.7040000@huawei.com>
+References: <1476331337-17253-1-git-send-email-zhongjiang@huawei.com>
+ <5804305F.4030302@huawei.com> <CAMJBoFMcnH3ZPQpG=oAjD=K64O7MX_BdFvHvccvgCV4nFSfxXA@mail.gmail.com>
+ <5804C88F.7040000@huawei.com>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Mon, 17 Oct 2016 11:30:03 -0400
+Message-ID: <CALZtONC8frCrF_v1bm_+HePfLMypL7Z6DNJor8Z6NCMzeG5ERQ@mail.gmail.com>
+Subject: Re: [PATCH v2] z3fold: fix the potential encode bug in encod_handle
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com, tglx@linutronix.de, x86@kernel.org, arnd@arndb.de, linux-arch@vger.kernel.org, mgorman@techsingularity.net, linux-api@vger.kernel.org, linux-mm@kvack.org, luto@kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
+To: zhong jiang <zhongjiang@huawei.com>
+Cc: Vitaly Wool <vitalywool@gmail.com>, Dave Chinner <david@fromorbit.com>, Seth Jennings <sjenning@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
+On Mon, Oct 17, 2016 at 8:48 AM, zhong jiang <zhongjiang@huawei.com> wrote:
+>
+> On 2016/10/17 20:03, Vitaly Wool wrote:
+> > Hi Zhong Jiang,
+> >
+> > On Mon, Oct 17, 2016 at 3:58 AM, zhong jiang <zhongjiang@huawei.com> wrote:
+> >> Hi,  Vitaly
+> >>
+> >> About the following patch,  is it right?
+> >>
+> >> Thanks
+> >> zhongjiang
+> >> On 2016/10/13 12:02, zhongjiang wrote:
+> >>> From: zhong jiang <zhongjiang@huawei.com>
+> >>>
+> >>> At present, zhdr->first_num plus bud can exceed the BUDDY_MASK
+> >>> in encode_handle, it will lead to the the caller handle_to_buddy
+> >>> return the error value.
+> >>>
+> >>> The patch fix the issue by changing the BUDDY_MASK to PAGE_MASK,
+> >>> it will be consistent with handle_to_z3fold_header. At the same time,
+> >>> change the BUDDY_MASK to PAGE_MASK in handle_to_buddy is better.
+> > are you seeing problems with the existing code? first_num should wrap around
+> > BUDDY_MASK and this should be ok because it is way bigger than the number
+> > of buddies.
+> >
+> > ~vitaly
+> >
+> > .
+> >
+>  first_num plus buddies can exceed the BUDDY_MASK. is it right?
 
-From: Dave Hansen <dave.hansen@intel.com>
+yes.
 
-pkey_set() and pkey_get() were syscalls present in older versions
-of the protection keys patches.  They were fully excised from the
-x86 code, but some cruft was left in the generic syscall code.  The
-C++ comments were intended to help to make it more glaring to me to
-fix them before actually submitting them.  That technique worked,
-but later than I would have liked.
+>
+>  (first_num + buddies) & BUDDY_MASK may be a smaller value than first_num.
 
-I test-compiled this for arm64.
+yes, but that doesn't matter; the value stored in the handle is never
+accessed directly.
 
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: x86@kernel.org
-Cc: Arnd Bergmann <arnd@arndb.de>
-Cc: linux-arch@vger.kernel.org
-Cc: mgorman@techsingularity.net
-Cc: linux-api@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: luto@kernel.org
-Cc: akpm@linux-foundation.org
-Cc: torvalds@linux-foundation.org
-Fixes: a60f7b69d92c0 ("generic syscalls: Wire up memory protection keys syscalls")
----
+>
+>   but (handle - zhdr->first_num) & BUDDY_MASK will return incorrect value
+>   in handle_to_buddy.
 
- b/include/linux/syscalls.h          |    3 ---
- b/include/uapi/asm-generic/unistd.h |    4 ----
- 2 files changed, 7 deletions(-)
+the subtraction and masking will result in the correct buddy number,
+even if (handle & BUDDY_MASK) < zhdr->first_num.
 
-diff -puN include/uapi/asm-generic/unistd.h~kill-kpkey-syscall-nr-cruft include/uapi/asm-generic/unistd.h
---- a/include/uapi/asm-generic/unistd.h~kill-kpkey-syscall-nr-cruft	2016-10-17 08:05:47.587207124 -0700
-+++ b/include/uapi/asm-generic/unistd.h	2016-10-17 08:06:01.759844119 -0700
-@@ -730,10 +730,6 @@ __SYSCALL(__NR_pkey_mprotect, sys_pkey_m
- __SYSCALL(__NR_pkey_alloc,    sys_pkey_alloc)
- #define __NR_pkey_free 290
- __SYSCALL(__NR_pkey_free,     sys_pkey_free)
--#define __NR_pkey_get 291
--//__SYSCALL(__NR_pkey_get,      sys_pkey_get)
--#define __NR_pkey_set 292
--//__SYSCALL(__NR_pkey_set,      sys_pkey_set)
- 
- #undef __NR_syscalls
- #define __NR_syscalls 291
-diff -puN include/linux/syscalls.h~kill-kpkey-syscall-nr-cruft include/linux/syscalls.h
---- a/include/linux/syscalls.h~kill-kpkey-syscall-nr-cruft	2016-10-17 08:06:42.364669174 -0700
-+++ b/include/linux/syscalls.h	2016-10-17 08:07:03.688627647 -0700
-@@ -902,8 +902,5 @@ asmlinkage long sys_pkey_mprotect(unsign
- 				  unsigned long prot, int pkey);
- asmlinkage long sys_pkey_alloc(unsigned long flags, unsigned long init_val);
- asmlinkage long sys_pkey_free(int pkey);
--//asmlinkage long sys_pkey_get(int pkey, unsigned long flags);
--//asmlinkage long sys_pkey_set(int pkey, unsigned long access_rights,
--//			     unsigned long flags);
- 
- #endif
-_
+However, I agree it's nonobvious, and tying the first_num size to
+NCHUNKS_ORDER is confusing - the number of chunks is completely
+unrelated to the number of buddies.
+
+Possibly a better way to handle first_num is to limit it to the order
+of enum buddy to the actual range of possible buddy indexes, which is
+0x3, i.e.:
+
+#define BUDDY_MASK      (0x3)
+
+and
+
+       unsigned short first_num:2;
+
+with that and a small bit of explanation in the encode_handle or
+handle_to_buddy comments, it should be clear how the first_num and
+buddy numbering work, including that overflow/underflow are ok (due to
+the masking)...
+
+>
+>   Thanks
+>   zhongjiang
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
