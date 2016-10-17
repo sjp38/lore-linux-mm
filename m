@@ -1,60 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 103696B0038
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 13:16:40 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id n3so105308790lfn.5
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 10:16:39 -0700 (PDT)
-Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id u2si42655156wjy.214.2016.10.17.10.16.38
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EEE56B0253
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 13:16:45 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id i85so201649167pfa.5
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 10:16:45 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id ul9si26433538pab.38.2016.10.17.10.16.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 17 Oct 2016 10:16:38 -0700 (PDT)
-Message-ID: <5804D45A.1080505@huawei.com>
-Date: Mon, 17 Oct 2016 21:38:34 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Oct 2016 10:16:44 -0700 (PDT)
+Date: Mon, 17 Oct 2016 10:16:20 -0700
+From: Shaohua Li <shli@fb.com>
+Subject: Re: [PATCH] vmscan: set correct defer count for shrinker
+Message-ID: <20161017171619.GA28818@shli-mbp.local>
+References: <2414be961b5d25892060315fbb56bb19d81d0c07.1476227351.git.shli@fb.com>
+ <20161013065327.GE21678@dhcp22.suse.cz>
+ <20161015204812.GB2241@esperanza>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] z3fold: fix the potential encode bug in encod_handle
-References: <1476331337-17253-1-git-send-email-zhongjiang@huawei.com> <5804305F.4030302@huawei.com> <CAMJBoFMcnH3ZPQpG=oAjD=K64O7MX_BdFvHvccvgCV4nFSfxXA@mail.gmail.com>
-In-Reply-To: <CAMJBoFMcnH3ZPQpG=oAjD=K64O7MX_BdFvHvccvgCV4nFSfxXA@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20161015204812.GB2241@esperanza>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Wool <vitalywool@gmail.com>
-Cc: Dave Chinner <david@fromorbit.com>, Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Vladimir Davydov <vdavydov@tarantool.org>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, Kernel-team@fb.com, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On 2016/10/17 20:03, Vitaly Wool wrote:
-> Hi Zhong Jiang,
->
-> On Mon, Oct 17, 2016 at 3:58 AM, zhong jiang <zhongjiang@huawei.com> wrote:
->> Hi,  Vitaly
->>
->> About the following patch,  is it right?
->>
->> Thanks
->> zhongjiang
->> On 2016/10/13 12:02, zhongjiang wrote:
->>> From: zhong jiang <zhongjiang@huawei.com>
->>>
->>> At present, zhdr->first_num plus bud can exceed the BUDDY_MASK
->>> in encode_handle, it will lead to the the caller handle_to_buddy
->>> return the error value.
->>>
->>> The patch fix the issue by changing the BUDDY_MASK to PAGE_MASK,
->>> it will be consistent with handle_to_z3fold_header. At the same time,
->>> change the BUDDY_MASK to PAGE_MASK in handle_to_buddy is better.
-> are you seeing problems with the existing code? first_num should wrap around
-> BUDDY_MASK and this should be ok because it is way bigger than the number
-> of buddies.
->
-> ~vitaly
->
-> .
->
- I am curious about the z3fold implement, Thus, I am reviewing the code.
+On Sat, Oct 15, 2016 at 11:48:13PM +0300, Vladimir Davydov wrote:
+> On Thu, Oct 13, 2016 at 08:53:28AM +0200, Michal Hocko wrote:
+> > On Wed 12-10-16 09:09:49, Shaohua Li wrote:
+> > > Our system uses significantly more slab memory with memcg enabled with
+> > > latest kernel. With 3.10 kernel, slab uses 2G memory, while with 4.6
+> > > kernel, 6G memory is used. Looks the shrinker has problem. Let's see we
+> > > have two memcg for one shrinker. In do_shrink_slab:
+> > > 
+> > > 1. Check cg1. nr_deferred = 0, assume total_scan = 700. batch size is 1024,
+> > > then no memory is freed. nr_deferred = 700
+> > > 2. Check cg2. nr_deferred = 700. Assume freeable = 20, then total_scan = 10
+> > > or 40. Let's assume it's 10. No memory is freed. nr_deferred = 10.
+> > > 
+> > > The deferred share of cg1 is lost in this case. kswapd will free no
+> > > memory even run above steps again and again.
+> 
+> I agree this is possible. IMO the ideal way to fix this problem would be
+> making deferred counters per memory cgroup. That would also resolve
+> possible fairness issues when objects deferred by one cgroup are
+> reclaimed from another. However, it's unclear to me how to implement it
+> w/o bringing in a lot of awkward code. So I guess your patch is
+> reasonable for now. Apart from a couple nitpicks (below), it looks good
+> to me:
+> 
+> Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+> 
+> > > @@ -312,7 +313,9 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+> > >  		pr_err("shrink_slab: %pF negative objects to delete nr=%ld\n",
+> > >  		       shrinker->scan_objects, total_scan);
+> > >  		total_scan = freeable;
+> > > -	}
+> > > +		next_deferred = nr;
+> > > +	} else
+> > > +		next_deferred = total_scan;
+> 
+> nitpick: Why do we want to handle this what-the-heck-is-going-on case in
+> a special way? Why not just always assign total_scan to next_deferred
+> here? I don't see how it could make things worse when total_scan gets
+> screwed up.
 
- Thanks
- zhongjiang
+I have no idea when this special case will hapen. I'd like to make it
+conservative. Somebody knowing this code probably could help clean up.
+ 
+> > >  
+> > >  	/*
+> > >  	 * We need to avoid excessive windup on filesystem shrinkers
+> > > @@ -369,17 +372,22 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+> > >  
+> > >  		count_vm_events(SLABS_SCANNED, nr_to_scan);
+> > >  		total_scan -= nr_to_scan;
+> > > +		scanned += nr_to_scan;
+> 
+> nitpick: We could get along w/o 'scanned' here:
+> 
+>                 next_deferred -= nr_to_scan;
+
+In that special case the next_deferred could be smaller than total_scan. That
+said, if we don't have the special case, your suggestion is good. I'm totally
+open here.
+
+> > >  
+> > >  		cond_resched();
+> > >  	}
+> > >  
+> > > +	if (next_deferred >= scanned)
+> > > +		next_deferred -= scanned;
+> > > +	else
+> > > +		next_deferred = 0;
+> 
+> ... and this chunk wouldn't be needed then.
+
+Ditto.
+
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
