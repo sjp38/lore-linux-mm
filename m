@@ -1,38 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CB56D6B0038
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 05:45:07 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id l29so97053681pfg.7
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 02:45:07 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id c22si30060319pfk.159.2016.10.17.02.45.06
-        for <linux-mm@kvack.org>;
-        Mon, 17 Oct 2016 02:45:07 -0700 (PDT)
-Date: Mon, 17 Oct 2016 10:45:02 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH] kmemleak: fix reference to Documentation
-Message-ID: <20161017094501.GA10891@e104818-lin.cambridge.arm.com>
-References: <1476544946-18804-1-git-send-email-andreas.platschek@opentech.at>
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D5E96B0038
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 06:17:03 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id g32so128192464qta.2
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 03:17:03 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
+        by mx.google.com with ESMTPS id t4si17503462qkh.216.2016.10.17.03.17.00
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 17 Oct 2016 03:17:02 -0700 (PDT)
+Message-ID: <58049832.6000007@huawei.com>
+Date: Mon, 17 Oct 2016 17:21:54 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1476544946-18804-1-git-send-email-andreas.platschek@opentech.at>
+Subject: Re: [RFC PATCH 1/5] mm/page_alloc: always add freeing page at the
+ tail of the buddy list
+References: <1476346102-26928-1-git-send-email-iamjoonsoo.kim@lge.com> <1476346102-26928-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1476346102-26928-2-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andreas Platschek <andreas.platschek@opentech.at>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: js1304@gmail.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Sat, Oct 15, 2016 at 03:22:26PM +0000, Andreas Platschek wrote:
-> Documentation/kmemleak.txt was moved to Documentation/dev-tools/kmemleak.rst,
-> this fixes the reference to the new location.
+On 2016/10/13 16:08, js1304@gmail.com wrote:
+
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > 
-> Signed-off-by: Andreas Platschek <andreas.platschek@opentech.at>
+> Currently, freeing page can stay longer in the buddy list if next higher
+> order page is in the buddy list in order to help coalescence. However,
+> it doesn't work for the simplest sequential free case. For example, think
+> about the situation that 8 consecutive pages are freed in sequential
+> order.
+> 
+> page 0: attached at the head of order 0 list
+> page 1: merged with page 0, attached at the head of order 1 list
+> page 2: attached at the tail of order 0 list
+> page 3: merged with page 2 and then merged with page 0, attached at
+>  the head of order 2 list
+> page 4: attached at the head of order 0 list
+> page 5: merged with page 4, attached at the tail of order 1 list
+> page 6: attached at the tail of order 0 list
+> page 7: merged with page 6 and then merged with page 4. Lastly, merged
+>  with page 0 and we get order 3 freepage.
+> 
+> With excluding page 0 case, there are three cases that freeing page is
+> attached at the head of buddy list in this example and if just one
+> corresponding ordered allocation request comes at that moment, this page
+> in being a high order page will be allocated and we would fail to make
+> order-3 freepage.
+> 
+> Allocation usually happens in sequential order and free also does. So, it
+> would be important to detect such a situation and to give some chance
+> to be coalesced.
+> 
+> I think that simple and effective heuristic about this case is just
+> attaching freeing page at the tail of the buddy list unconditionally.
+> If freeing isn't merged during one rotation, it would be actual
+> fragmentation and we don't need to care about it for coalescence.
+> 
 
-In case Andrew picks this patch up:
+Hi Joonsoo,
 
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+I find another two places to reduce fragmentation.
 
-Thanks.
+1)
+__rmqueue_fallback
+	steal_suitable_fallback
+		move_freepages_block
+			move_freepages
+				list_move
+If we steal some free pages, we will add these page at the head of start_migratetype list,
+this will cause more fixed migratetype, because this pages will be allocated more easily.
+So how about use list_move_tail instead of list_move?
+
+2)
+__rmqueue_fallback
+	expand
+		list_add
+How about use list_add_tail instead of list_add? If add the tail, then the rest of pages
+will be hard to be allocated and we can merge them again as soon as the page freed.
+
+Thanks,
+Xishi Qiu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
