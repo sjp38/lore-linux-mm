@@ -1,68 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AD4E26B025E
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 13:35:40 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id fn2so209192161pad.7
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 10:35:40 -0700 (PDT)
-Received: from out02.mta.xmission.com (out02.mta.xmission.com. [166.70.13.232])
-        by mx.google.com with ESMTPS id m2si28295991pgd.289.2016.10.17.10.35.39
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 876276B0038
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 13:38:05 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id u84so201698075pfj.6
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 10:38:05 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id z21si11996808pgf.155.2016.10.17.10.38.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Oct 2016 10:35:39 -0700 (PDT)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <87twcbq696.fsf@x220.int.ebiederm.org>
-	<20161017172547.GJ14666@pc.thejh.net>
-Date: Mon, 17 Oct 2016 12:33:33 -0500
-In-Reply-To: <20161017172547.GJ14666@pc.thejh.net> (Jann Horn's message of
-	"Mon, 17 Oct 2016 19:25:47 +0200")
-Message-ID: <87wph6op76.fsf@x220.int.ebiederm.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 17 Oct 2016 10:38:04 -0700 (PDT)
+Date: Mon, 17 Oct 2016 11:38:03 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH 09/20] mm: Factor out functionality to finish page faults
+Message-ID: <20161017173803.GA6104@linux.intel.com>
+References: <1474992504-20133-1-git-send-email-jack@suse.cz>
+ <1474992504-20133-10-git-send-email-jack@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain
-Subject: Re: [REVIEW][PATCH] mm: Add a user_ns owner to mm_struct and fix ptrace_may_access
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1474992504-20133-10-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jann Horn <jann@thejh.net>
-Cc: Linux Containers <containers@lists.linux-foundation.org>, linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Jann Horn <jann@thejh.net> writes:
+On Tue, Sep 27, 2016 at 06:08:13PM +0200, Jan Kara wrote:
+> Introduce function finish_fault() as a helper function for finishing
+> page faults. It is rather thin wrapper around alloc_set_pte() but since
+> we'd want to call this from DAX code or filesystems, it is still useful
+> to avoid some boilerplate code.
+> 
+> Signed-off-by: Jan Kara <jack@suse.cz>
 
-> On Mon, Oct 17, 2016 at 11:39:49AM -0500, Eric W. Biederman wrote:
->> 
->> During exec dumpable is cleared if the file that is being executed is
->> not readable by the user executing the file.  A bug in
->> ptrace_may_access allows reading the file if the executable happens to
->> enter into a subordinate user namespace (aka clone(CLONE_NEWUSER),
->> unshare(CLONE_NEWUSER), or setns(fd, CLONE_NEWUSER).
->> 
->> This problem is fixed with only necessary userspace breakage by adding
->> a user namespace owner to mm_struct, captured at the time of exec,
->> so it is clear in which user namespace CAP_SYS_PTRACE must be present
->> in to be able to safely give read permission to the executable.
->> 
->> The function ptrace_may_access is modified to verify that the ptracer
->> has CAP_SYS_ADMIN in task->mm->user_ns instead of task->cred->user_ns.
->> This ensures that if the task changes it's cred into a subordinate
->> user namespace it does not become ptraceable.
->
-> This looks good! Basically applies the same rules that already apply to
-> EUID/... changes to namespace changes, and anyone entering a user
-> namespace can now safely drop UIDs and GIDs to namespace root.
-
-Yes.  It just required the right perspective and it turned out to be
-straight forward to solve.  Especially since it is buggy today for
-unreadable executables.
-
-> This integrates better in the existing security concept than my old
-> patch "ptrace: being capable wrt a process requires mapped uids/gids",
-> and it has less issues in cases where e.g. the extra privileges of an
-> entering process are the filesystem root or so.
->
-> FWIW, if you want, you can add "Reviewed-by: Jann Horn
-> <jann@thejh.net>".
-
-Will do. Thank you.
-
-Eric
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
