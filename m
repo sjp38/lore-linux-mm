@@ -1,89 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D5E96B0038
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 06:17:03 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id g32so128192464qta.2
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 03:17:03 -0700 (PDT)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [58.251.152.64])
-        by mx.google.com with ESMTPS id t4si17503462qkh.216.2016.10.17.03.17.00
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 13B4A6B0038
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 07:10:59 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id i187so98664278lfe.4
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 04:10:59 -0700 (PDT)
+Received: from mail-lf0-f68.google.com (mail-lf0-f68.google.com. [209.85.215.68])
+        by mx.google.com with ESMTPS id 65si18388517ljj.99.2016.10.17.04.10.57
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 17 Oct 2016 03:17:02 -0700 (PDT)
-Message-ID: <58049832.6000007@huawei.com>
-Date: Mon, 17 Oct 2016 17:21:54 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Oct 2016 04:10:57 -0700 (PDT)
+Received: by mail-lf0-f68.google.com with SMTP id x79so26187588lff.2
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 04:10:57 -0700 (PDT)
+Date: Mon, 17 Oct 2016 13:10:55 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm: exclude isolated non-lru pages from
+ NR_ISOLATED_ANON or NR_ISOLATED_FILE.
+Message-ID: <20161017111055.GG23322@dhcp22.suse.cz>
+References: <20161014083219.GA20260@spreadtrum.com>
+ <20161014113044.GB6063@dhcp22.suse.cz>
+ <20161014134604.GA2179@blaptop>
+ <20161014135334.GF6063@dhcp22.suse.cz>
+ <20161014144448.GA2899@blaptop>
+ <20161014150355.GH6063@dhcp22.suse.cz>
+ <20161014152633.GA3157@blaptop>
+ <20161015071044.GC9949@dhcp22.suse.cz>
+ <20161016230618.GB9196@bbox>
+ <20161017084244.GF23322@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 1/5] mm/page_alloc: always add freeing page at the
- tail of the buddy list
-References: <1476346102-26928-1-git-send-email-iamjoonsoo.kim@lge.com> <1476346102-26928-2-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1476346102-26928-2-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161017084244.GF23322@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: js1304@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Ming Ling <ming.ling@spreadtrum.com>, akpm@linux-foundation.org, mgorman@techsingularity.net, vbabka@suse.cz, hannes@cmpxchg.org, baiyaowei@cmss.chinamobile.com, iamjoonsoo.kim@lge.com, rientjes@google.com, hughd@google.com, kirill.shutemov@linux.intel.com, riel@redhat.com, mgorman@suse.de, aquini@redhat.com, corbet@lwn.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, orson.zhai@spreadtrum.com, geng.ren@spreadtrum.com, chunyan.zhang@spreadtrum.com, zhizhou.tian@spreadtrum.com, yuming.han@spreadtrum.com, xiajing@spreadst.com
 
-On 2016/10/13 16:08, js1304@gmail.com wrote:
+On Mon 17-10-16 10:42:44, Michal Hocko wrote:
+[...]
+> Sure, what do you think about the following? I haven't marked it for
+> stable because there was no bug report for it AFAIU.
 
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> 
-> Currently, freeing page can stay longer in the buddy list if next higher
-> order page is in the buddy list in order to help coalescence. However,
-> it doesn't work for the simplest sequential free case. For example, think
-> about the situation that 8 consecutive pages are freed in sequential
-> order.
-> 
-> page 0: attached at the head of order 0 list
-> page 1: merged with page 0, attached at the head of order 1 list
-> page 2: attached at the tail of order 0 list
-> page 3: merged with page 2 and then merged with page 0, attached at
->  the head of order 2 list
-> page 4: attached at the head of order 0 list
-> page 5: merged with page 4, attached at the tail of order 1 list
-> page 6: attached at the tail of order 0 list
-> page 7: merged with page 6 and then merged with page 4. Lastly, merged
->  with page 0 and we get order 3 freepage.
-> 
-> With excluding page 0 case, there are three cases that freeing page is
-> attached at the head of buddy list in this example and if just one
-> corresponding ordered allocation request comes at that moment, this page
-> in being a high order page will be allocated and we would fail to make
-> order-3 freepage.
-> 
-> Allocation usually happens in sequential order and free also does. So, it
-> would be important to detect such a situation and to give some chance
-> to be coalesced.
-> 
-> I think that simple and effective heuristic about this case is just
-> attaching freeing page at the tail of the buddy list unconditionally.
-> If freeing isn't merged during one rotation, it would be actual
-> fragmentation and we don't need to care about it for coalescence.
-> 
+And 0-day robot just noticed that I've screwed and need the following on
+top. If the patch makes sense I will repost it to Andrew with this
+folded in.
+---
+diff --git a/mm/compaction.c b/mm/compaction.c
+index df1fd0c20e5c..70e6bec46dc2 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -850,7 +850,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 
+ 		/* Successfully isolated */
+ 		del_page_from_lru_list(page, lruvec, page_lru(page));
+-		inc_node_page_state(zone->zone_pgdat,
++		inc_node_page_state(page,
+ 				NR_ISOLATED_ANON + page_is_file_cache(page));
+ 
+ isolate_success:
 
-Hi Joonsoo,
-
-I find another two places to reduce fragmentation.
-
-1)
-__rmqueue_fallback
-	steal_suitable_fallback
-		move_freepages_block
-			move_freepages
-				list_move
-If we steal some free pages, we will add these page at the head of start_migratetype list,
-this will cause more fixed migratetype, because this pages will be allocated more easily.
-So how about use list_move_tail instead of list_move?
-
-2)
-__rmqueue_fallback
-	expand
-		list_add
-How about use list_add_tail instead of list_add? If add the tail, then the rest of pages
-will be hard to be allocated and we can merge them again as soon as the page freed.
-
-Thanks,
-Xishi Qiu
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
