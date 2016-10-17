@@ -1,83 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DC9066B0253
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 10:55:44 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id b81so102748688lfe.1
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 07:55:44 -0700 (PDT)
-Received: from mail-lf0-x242.google.com (mail-lf0-x242.google.com. [2a00:1450:4010:c07::242])
-        by mx.google.com with ESMTPS id n75si19091624lfi.173.2016.10.17.07.55.43
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 21EA36B0038
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 11:18:20 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id kc8so205201416pab.2
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 08:18:20 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id g23si27858191pgn.73.2016.10.17.08.18.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Oct 2016 07:55:43 -0700 (PDT)
-Received: by mail-lf0-x242.google.com with SMTP id l131so24212851lfl.0
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 07:55:43 -0700 (PDT)
-Date: Mon, 17 Oct 2016 17:55:40 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] shmem: avoid huge pages for small files
-Message-ID: <20161017145539.GA26930@node.shutemov.name>
-References: <20161017121809.189039-1-kirill.shutemov@linux.intel.com>
- <20161017123021.rlyz44dsf4l4xnve@black.fi.intel.com>
- <20161017141245.GC27459@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161017141245.GC27459@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 17 Oct 2016 08:18:15 -0700 (PDT)
+Subject: [PATCH] generic syscalls: kill cruft from removed pkey syscalls
+From: Dave Hansen <dave@sr71.net>
+Date: Mon, 17 Oct 2016 08:18:15 -0700
+Message-Id: <20161017151814.1CE8B6C3@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com, tglx@linutronix.de, x86@kernel.org, arnd@arndb.de, linux-arch@vger.kernel.org, mgorman@techsingularity.net, linux-api@vger.kernel.org, linux-mm@kvack.org, luto@kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
 
-On Mon, Oct 17, 2016 at 04:12:46PM +0200, Michal Hocko wrote:
-> On Mon 17-10-16 15:30:21, Kirill A. Shutemov wrote:
-> [...]
-> > >From fd0b01b9797ddf2bef308c506c42d3dd50f11793 Mon Sep 17 00:00:00 2001
-> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> > Date: Mon, 17 Oct 2016 14:44:47 +0300
-> > Subject: [PATCH] shmem: avoid huge pages for small files
-> > 
-> > Huge pages are detrimental for small file: they causes noticible
-> > overhead on both allocation performance and memory footprint.
-> > 
-> > This patch aimed to address this issue by avoiding huge pages until file
-> > grown to specified size. This would cover most of the cases where huge
-> > pages causes regressions in performance.
-> > 
-> > By default the minimal file size to allocate huge pages is equal to size
-> > of huge page.
-> 
-> ok
-> 
-> > We add two handle to specify minimal file size for huge pages:
-> > 
-> >   - mount option 'huge_min_size';
-> > 
-> >   - sysfs file /sys/kernel/mm/transparent_hugepage/shmem_min_size for
-> >     in-kernel tmpfs mountpoint;
-> 
-> Could you explain who might like to change the minimum value (other than
-> disable the feautre for the mount point) and for what reason?
 
-Depending on how well CPU microarchitecture deals with huge pages, you
-might need to set it higher in order to balance out overhead with benefit
-of huge pages.
+From: Dave Hansen <dave.hansen@intel.com>
 
-In other case, if it's known in advance that specific mount would be
-populated with large files, you might want to set it to zero to get huge
-pages allocated from the beginning.
+pkey_set() and pkey_get() were syscalls present in older versions
+of the protection keys patches.  They were fully excised from the
+x86 code, but some cruft was left in the generic syscall code.  The
+C++ comments were intended to help to make it more glaring to me to
+fix them before actually submitting them.  That technique worked,
+but later than I would have liked.
 
-> > @@ -238,6 +238,12 @@ values:
-> >    - "force":
-> >      Force the huge option on for all - very useful for testing;
-> >  
-> > +Tehre's limit on minimal file size before kenrel starts allocate huge
-> > +pages for it. By default it's size of huge page.
-> 
-> Smoe tyopse
+I test-compiled this for arm64.
 
-Wlil fxi!
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: x86@kernel.org
+Cc: Arnd Bergmann <arnd@arndb.de>
+Cc: linux-arch@vger.kernel.org
+Cc: mgorman@techsingularity.net
+Cc: linux-api@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: luto@kernel.org
+Cc: akpm@linux-foundation.org
+Cc: torvalds@linux-foundation.org
+Fixes: a60f7b69d92c0 ("generic syscalls: Wire up memory protection keys syscalls")
+---
 
--- 
- Kirill A. Shutemov
+ b/include/linux/syscalls.h          |    3 ---
+ b/include/uapi/asm-generic/unistd.h |    4 ----
+ 2 files changed, 7 deletions(-)
+
+diff -puN include/uapi/asm-generic/unistd.h~kill-kpkey-syscall-nr-cruft include/uapi/asm-generic/unistd.h
+--- a/include/uapi/asm-generic/unistd.h~kill-kpkey-syscall-nr-cruft	2016-10-17 08:05:47.587207124 -0700
++++ b/include/uapi/asm-generic/unistd.h	2016-10-17 08:06:01.759844119 -0700
+@@ -730,10 +730,6 @@ __SYSCALL(__NR_pkey_mprotect, sys_pkey_m
+ __SYSCALL(__NR_pkey_alloc,    sys_pkey_alloc)
+ #define __NR_pkey_free 290
+ __SYSCALL(__NR_pkey_free,     sys_pkey_free)
+-#define __NR_pkey_get 291
+-//__SYSCALL(__NR_pkey_get,      sys_pkey_get)
+-#define __NR_pkey_set 292
+-//__SYSCALL(__NR_pkey_set,      sys_pkey_set)
+ 
+ #undef __NR_syscalls
+ #define __NR_syscalls 291
+diff -puN include/linux/syscalls.h~kill-kpkey-syscall-nr-cruft include/linux/syscalls.h
+--- a/include/linux/syscalls.h~kill-kpkey-syscall-nr-cruft	2016-10-17 08:06:42.364669174 -0700
++++ b/include/linux/syscalls.h	2016-10-17 08:07:03.688627647 -0700
+@@ -902,8 +902,5 @@ asmlinkage long sys_pkey_mprotect(unsign
+ 				  unsigned long prot, int pkey);
+ asmlinkage long sys_pkey_alloc(unsigned long flags, unsigned long init_val);
+ asmlinkage long sys_pkey_free(int pkey);
+-//asmlinkage long sys_pkey_get(int pkey, unsigned long flags);
+-//asmlinkage long sys_pkey_set(int pkey, unsigned long access_rights,
+-//			     unsigned long flags);
+ 
+ #endif
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
