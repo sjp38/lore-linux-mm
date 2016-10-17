@@ -1,66 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 13B4A6B0038
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 07:10:59 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id i187so98664278lfe.4
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 04:10:59 -0700 (PDT)
-Received: from mail-lf0-f68.google.com (mail-lf0-f68.google.com. [209.85.215.68])
-        by mx.google.com with ESMTPS id 65si18388517ljj.99.2016.10.17.04.10.57
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 35E4E6B0038
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 08:03:30 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id x11so118946984qka.5
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 05:03:30 -0700 (PDT)
+Received: from mail-qk0-x22d.google.com (mail-qk0-x22d.google.com. [2607:f8b0:400d:c09::22d])
+        by mx.google.com with ESMTPS id j38si17710802qkh.146.2016.10.17.05.03.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Oct 2016 04:10:57 -0700 (PDT)
-Received: by mail-lf0-f68.google.com with SMTP id x79so26187588lff.2
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 04:10:57 -0700 (PDT)
-Date: Mon, 17 Oct 2016 13:10:55 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm: exclude isolated non-lru pages from
- NR_ISOLATED_ANON or NR_ISOLATED_FILE.
-Message-ID: <20161017111055.GG23322@dhcp22.suse.cz>
-References: <20161014083219.GA20260@spreadtrum.com>
- <20161014113044.GB6063@dhcp22.suse.cz>
- <20161014134604.GA2179@blaptop>
- <20161014135334.GF6063@dhcp22.suse.cz>
- <20161014144448.GA2899@blaptop>
- <20161014150355.GH6063@dhcp22.suse.cz>
- <20161014152633.GA3157@blaptop>
- <20161015071044.GC9949@dhcp22.suse.cz>
- <20161016230618.GB9196@bbox>
- <20161017084244.GF23322@dhcp22.suse.cz>
+        Mon, 17 Oct 2016 05:03:29 -0700 (PDT)
+Received: by mail-qk0-x22d.google.com with SMTP id f128so221258381qkb.1
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 05:03:29 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161017084244.GF23322@dhcp22.suse.cz>
+In-Reply-To: <5804305F.4030302@huawei.com>
+References: <1476331337-17253-1-git-send-email-zhongjiang@huawei.com> <5804305F.4030302@huawei.com>
+From: Vitaly Wool <vitalywool@gmail.com>
+Date: Mon, 17 Oct 2016 14:03:28 +0200
+Message-ID: <CAMJBoFMcnH3ZPQpG=oAjD=K64O7MX_BdFvHvccvgCV4nFSfxXA@mail.gmail.com>
+Subject: Re: [PATCH v2] z3fold: fix the potential encode bug in encod_handle
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Ming Ling <ming.ling@spreadtrum.com>, akpm@linux-foundation.org, mgorman@techsingularity.net, vbabka@suse.cz, hannes@cmpxchg.org, baiyaowei@cmss.chinamobile.com, iamjoonsoo.kim@lge.com, rientjes@google.com, hughd@google.com, kirill.shutemov@linux.intel.com, riel@redhat.com, mgorman@suse.de, aquini@redhat.com, corbet@lwn.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, orson.zhai@spreadtrum.com, geng.ren@spreadtrum.com, chunyan.zhang@spreadtrum.com, zhizhou.tian@spreadtrum.com, yuming.han@spreadtrum.com, xiajing@spreadst.com
+To: zhong jiang <zhongjiang@huawei.com>
+Cc: Dave Chinner <david@fromorbit.com>, Seth Jennings <sjenning@redhat.com>, Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-On Mon 17-10-16 10:42:44, Michal Hocko wrote:
-[...]
-> Sure, what do you think about the following? I haven't marked it for
-> stable because there was no bug report for it AFAIU.
+Hi Zhong Jiang,
 
-And 0-day robot just noticed that I've screwed and need the following on
-top. If the patch makes sense I will repost it to Andrew with this
-folded in.
----
-diff --git a/mm/compaction.c b/mm/compaction.c
-index df1fd0c20e5c..70e6bec46dc2 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -850,7 +850,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 
- 		/* Successfully isolated */
- 		del_page_from_lru_list(page, lruvec, page_lru(page));
--		inc_node_page_state(zone->zone_pgdat,
-+		inc_node_page_state(page,
- 				NR_ISOLATED_ANON + page_is_file_cache(page));
- 
- isolate_success:
+On Mon, Oct 17, 2016 at 3:58 AM, zhong jiang <zhongjiang@huawei.com> wrote:
+> Hi,  Vitaly
+>
+> About the following patch,  is it right?
+>
+> Thanks
+> zhongjiang
+> On 2016/10/13 12:02, zhongjiang wrote:
+>> From: zhong jiang <zhongjiang@huawei.com>
+>>
+>> At present, zhdr->first_num plus bud can exceed the BUDDY_MASK
+>> in encode_handle, it will lead to the the caller handle_to_buddy
+>> return the error value.
+>>
+>> The patch fix the issue by changing the BUDDY_MASK to PAGE_MASK,
+>> it will be consistent with handle_to_z3fold_header. At the same time,
+>> change the BUDDY_MASK to PAGE_MASK in handle_to_buddy is better.
 
--- 
-Michal Hocko
-SUSE Labs
+are you seeing problems with the existing code? first_num should wrap around
+BUDDY_MASK and this should be ok because it is way bigger than the number
+of buddies.
+
+~vitaly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
