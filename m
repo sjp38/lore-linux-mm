@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 63A666B0038
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 13:10:10 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id d186so105007142lfg.7
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 10:10:10 -0700 (PDT)
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 103696B0038
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 13:16:40 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id n3so105308790lfn.5
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 10:16:39 -0700 (PDT)
 Received: from lhrrgout.huawei.com (lhrrgout.huawei.com. [194.213.3.17])
-        by mx.google.com with ESMTPS id fg1si42610178wjc.27.2016.10.17.10.10.08
+        by mx.google.com with ESMTPS id u2si42655156wjy.214.2016.10.17.10.16.38
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 17 Oct 2016 10:10:09 -0700 (PDT)
-Message-ID: <5804C88F.7040000@huawei.com>
-Date: Mon, 17 Oct 2016 20:48:15 +0800
+        Mon, 17 Oct 2016 10:16:38 -0700 (PDT)
+Message-ID: <5804D45A.1080505@huawei.com>
+Date: Mon, 17 Oct 2016 21:38:34 +0800
 From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH v2] z3fold: fix the potential encode bug in encod_handle
@@ -51,15 +51,10 @@ On 2016/10/17 20:03, Vitaly Wool wrote:
 >
 > .
 >
- first_num plus buddies can exceed the BUDDY_MASK. is it right?
- (first_num + buddies) & BUDDY_MASK may be a smaller value than first_num.
+ I am curious about the z3fold implement, Thus, I am reviewing the code.
 
-  but (handle - zhdr->first_num) & BUDDY_MASK will return incorrect value
-  in handle_to_buddy.
-
-  Thanks
-  zhongjiang
- 
+ Thanks
+ zhongjiang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
