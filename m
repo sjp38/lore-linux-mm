@@ -1,47 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 938716B0253
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 05:04:54 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id b75so96381593lfg.3
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 02:04:54 -0700 (PDT)
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CA0666B0253
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 05:09:45 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id i187so96536229lfe.4
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 02:09:45 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fv4si40214327wjb.235.2016.10.17.02.04.53
+        by mx.google.com with ESMTPS id h5si15136718wjj.224.2016.10.17.02.09.44
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 17 Oct 2016 02:04:53 -0700 (PDT)
-Date: Mon, 17 Oct 2016 11:04:51 +0200
+        Mon, 17 Oct 2016 02:09:44 -0700 (PDT)
+Date: Mon, 17 Oct 2016 11:09:37 +0200
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 05/20] mm: Trim __do_fault() arguments
-Message-ID: <20161017090451.GF3359@quack2.suse.cz>
-References: <1474992504-20133-1-git-send-email-jack@suse.cz>
- <1474992504-20133-6-git-send-email-jack@suse.cz>
- <20161014203147.GD27575@linux.intel.com>
+Subject: Re: [PATCH v6 17/17] dax: remove "depends on BROKEN" from FS_DAX_PMD
+Message-ID: <20161017090937.GG3359@quack2.suse.cz>
+References: <20161012225022.15507-1-ross.zwisler@linux.intel.com>
+ <20161012225022.15507-18-ross.zwisler@linux.intel.com>
+ <87eg3ftt4r.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161014203147.GD27575@linux.intel.com>
+In-Reply-To: <87eg3ftt4r.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
 
-On Fri 14-10-16 14:31:47, Ross Zwisler wrote:
-> On Tue, Sep 27, 2016 at 06:08:09PM +0200, Jan Kara wrote:
-> > Use vm_fault structure to pass cow_page, page, and entry in and out of
-> > the function. That reduces number of __do_fault() arguments from 4 to 1.
-> > 
-> > Signed-off-by: Jan Kara <jack@suse.cz>
+On Mon 17-10-16 11:27:24, Aneesh Kumar K.V wrote:
+> Ross Zwisler <ross.zwisler@linux.intel.com> writes:
 > 
-> In looking at this I realized that vmf->entry is actually unused, as is the
-> entry we used to return back via __do_fault().  I guess they must have been in
-> there because at one point they were needed for dax_unlock_mapping_entry()?
-> Anyway, looking ahead I see patch 10 removes vmf->entry altogether. :)
+> > Now that DAX PMD faults are once again working and are now participating in
+> > DAX's radix tree locking scheme, allow their config option to be enabled.
+> >
+> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> > ---
+> >  fs/Kconfig | 1 -
+> >  1 file changed, 1 deletion(-)
+> >
+> > diff --git a/fs/Kconfig b/fs/Kconfig
+> > index 2bc7ad7..b6f0fce 100644
+> > --- a/fs/Kconfig
+> > +++ b/fs/Kconfig
+> > @@ -55,7 +55,6 @@ config FS_DAX_PMD
+> >  	depends on FS_DAX
+> >  	depends on ZONE_DEVICE
+> >  	depends on TRANSPARENT_HUGEPAGE
+> > -	depends on BROKEN
+> >  
+> >  endif # BLOCK
+> 
+> 
+> This series made dax_pmd_fault return VM_FAULT_FALLBACK in [PATCH v6 09/17] dax: remove dax_pmd_fault(). 
+> That essentially disable dax pmd for ext4. Any plans to fix that ?
 
-Yes :).
-
-> Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-
-Thanks.
+I'm working on converting ext4 to the new iomap infrastructure. Once that
+is done, it can use new DAX helpers for PMD faults easily.
 
 								Honza
 -- 
