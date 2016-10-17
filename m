@@ -1,116 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 870106B0260
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 05:00:11 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id f134so74912782lfg.6
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 02:00:11 -0700 (PDT)
-Received: from mail-lf0-x22a.google.com (mail-lf0-x22a.google.com. [2a00:1450:4010:c07::22a])
-        by mx.google.com with ESMTPS id l16si17893629lfg.356.2016.10.17.02.00.08
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B76AA6B0260
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 05:01:51 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id v138so117059247qka.2
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 02:01:51 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id qh8si40267712wjb.173.2016.10.17.02.01.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Oct 2016 02:00:08 -0700 (PDT)
-Received: by mail-lf0-x22a.google.com with SMTP id x79so283612890lff.0
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 02:00:08 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 17 Oct 2016 02:01:50 -0700 (PDT)
+Date: Mon, 17 Oct 2016 11:01:49 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 03/20] mm: Use pgoff in struct vm_fault instead of
+ passing it separately
+Message-ID: <20161017090149.GE3359@quack2.suse.cz>
+References: <1474992504-20133-1-git-send-email-jack@suse.cz>
+ <1474992504-20133-4-git-send-email-jack@suse.cz>
+ <20161014184251.GB27575@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <4f2ba672-cb6c-a055-6bfa-8b88030a74bb@virtuozzo.com>
-References: <1476465002-2728-1-git-send-email-dvyukov@google.com>
- <2b39f90e-2c67-fafb-dc48-f642c62bead6@virtuozzo.com> <CACT4Y+acug4QfzUBvxHoSR-K7FFAy1dDJ0eY4qgmF6+7dpv=Jg@mail.gmail.com>
- <4f2ba672-cb6c-a055-6bfa-8b88030a74bb@virtuozzo.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Mon, 17 Oct 2016 10:59:47 +0200
-Message-ID: <CACT4Y+a4CdMZ-Fj4asPQjN+d57A5eQCwnxN5Rui+eKPZx2y5wQ@mail.gmail.com>
-Subject: Re: [PATCH] kasan: support panic_on_warn
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161014184251.GB27575@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Mon, Oct 17, 2016 at 10:39 AM, Andrey Ryabinin
-<aryabinin@virtuozzo.com> wrote:
->
->
-> On 10/17/2016 11:18 AM, Dmitry Vyukov wrote:
->> On Mon, Oct 17, 2016 at 10:13 AM, Andrey Ryabinin
->> <aryabinin@virtuozzo.com> wrote:
->>>
->>>
->>> On 10/14/2016 08:10 PM, Dmitry Vyukov wrote:
->>>> If user sets panic_on_warn, he wants kernel to panic if there is
->>>> anything barely wrong with the kernel. KASAN-detected errors
->>>> are definitely not less benign than an arbitrary kernel WARNING.
->>>>
->>>> Panic after KASAN errors if panic_on_warn is set.
->>>>
->>>> We use this for continuous fuzzing where we want kernel to stop
->>>> and reboot on any error.
->>>>
->>>> Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
->>>> Cc: kasan-dev@googlegroups.com
->>>> Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
->>>> Cc: Alexander Potapenko <glider@google.com>
->>>> Cc: Andrew Morton <akpm@linux-foundation.org>
->>>> Cc: linux-mm@kvack.org
->>>> Cc: linux-kernel@vger.kernel.org
->>>> ---
->>>>  mm/kasan/report.c | 4 ++++
->>>>  1 file changed, 4 insertions(+)
->>>>
->>>> diff --git a/mm/kasan/report.c b/mm/kasan/report.c
->>>> index 24c1211..ca0bd48 100644
->>>> --- a/mm/kasan/report.c
->>>> +++ b/mm/kasan/report.c
->>>> @@ -133,6 +133,10 @@ static void kasan_end_report(unsigned long *flags)
->>>>       pr_err("==================================================================\n");
->>>>       add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
->>>>       spin_unlock_irqrestore(&report_lock, *flags);
->>>> +     if (panic_on_warn) {
->>>> +             panic_on_warn = 0;
->>>
->>> Why we need to reset panic_on_warn?
->>> I assume this was copied from __warn(). AFAIU in __warn() this protects from recursion:
->>>  __warn() -> painc() ->__warn() -> panic() -> ...
->>> which is possible if WARN_ON() triggered in panic().
->>> But KASAN is protected from such recursion via kasan_disable_current().
->>
->> But we have recursion into panic via kasan->panic->warning->panic.
->
-> We do, like almost every other panic() call in the kernel. But at least it's finite.
-> So, if finite recursion is a problem for panic() it should be fixed in panic(), rather then on every panic() call site.
+On Fri 14-10-16 12:42:51, Ross Zwisler wrote:
+> On Tue, Sep 27, 2016 at 06:08:07PM +0200, Jan Kara wrote:
+> > struct vm_fault has already pgoff entry. Use it instead of passing pgoff
+> > as a separate argument and then assigning it later.
+> > 
+> > Signed-off-by: Jan Kara <jack@suse.cz>
+> > ---
+> >  mm/memory.c | 35 ++++++++++++++++++-----------------
+> >  1 file changed, 18 insertions(+), 17 deletions(-)
+> > 
+> > diff --git a/mm/memory.c b/mm/memory.c
+> > index 447a1ef4a9e3..4c2ec9a9d8af 100644
+> > --- a/mm/memory.c
+> > +++ b/mm/memory.c
+> > @@ -2275,7 +2275,7 @@ static int wp_pfn_shared(struct vm_fault *vmf, pte_t orig_pte)
+> >  	if (vma->vm_ops && vma->vm_ops->pfn_mkwrite) {
+> >  		struct vm_fault vmf2 = {
+> >  			.page = NULL,
+> > -			.pgoff = linear_page_index(vma, vmf->address),
+> > +			.pgoff = vmf->pgoff,
+> 
+> I think there is one path where vmf->pgoff isn't set here.  Here's the path:
+> 
+> __collapse_huge_page_swapin()
+>   do_swap_page()
+>     do_wp_page()
+>       wp_pfn_shared()
+> 
+> We then use an uninitialized vmf->pgoff to set up vmf2->pgoff, which we pass
+> to vm_ops->pfn_mkwrite().
+> 
+> I think all we need to do to fix this is initialize .pgoff in
+> __collapse_huge_page_swapin().  With this one change:
+> 
+> Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 
+Thanks for catching this. I don't think that bug had any visible effect
+since for anonymous pages (which is what do_swap_page() handles) we won't
+enter wp_pfn_shared() but it is definitely good to fix this.
 
-I misunderstood the comment in warning code:
-
-502                 /*
-503                  * This thread may hit another WARN() in the panic path.
-504                  * Resetting this prevents additional WARN() from
-panicking the
-505                  * system on this thread.  Other threads are blocked by the
-506                  * panic_mutex in panic().
-507                  */
-
-I interpreted it as recursion into panic will cause a deadlock due to
-recursive mutex acquisition.
-
-But the mutex is a custom CAS that supports recursion on the same CPU.
-
-136         this_cpu = raw_smp_processor_id();
-137         old_cpu  = atomic_cmpxchg(&panic_cpu, PANIC_CPU_INVALID, this_cpu);
-138
-139         if (old_cpu != PANIC_CPU_INVALID && old_cpu != this_cpu)
-140                 panic_smp_self_stop();
-
-
-Mailed v2.
-
-Thanks!
-
-
->>
->>>> +             panic("panic_on_warn set ...\n");
->>>> +     }
->>>>       kasan_enable_current();
->>>>  }
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
