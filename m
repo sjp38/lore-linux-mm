@@ -1,64 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CA0666B0253
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 05:09:45 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id i187so96536229lfe.4
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 02:09:45 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h5si15136718wjj.224.2016.10.17.02.09.44
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 543B76B0253
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 05:14:15 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id e200so359762430oig.4
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 02:14:15 -0700 (PDT)
+Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0126.outbound.protection.outlook.com. [104.47.1.126])
+        by mx.google.com with ESMTPS id w126si11587580oif.264.2016.10.17.02.14.13
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 17 Oct 2016 02:09:44 -0700 (PDT)
-Date: Mon, 17 Oct 2016 11:09:37 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v6 17/17] dax: remove "depends on BROKEN" from FS_DAX_PMD
-Message-ID: <20161017090937.GG3359@quack2.suse.cz>
-References: <20161012225022.15507-1-ross.zwisler@linux.intel.com>
- <20161012225022.15507-18-ross.zwisler@linux.intel.com>
- <87eg3ftt4r.fsf@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 17 Oct 2016 02:14:14 -0700 (PDT)
+Subject: Re: [PATCH v2] kasan: support panic_on_warn
+References: <1476694764-31986-1-git-send-email-dvyukov@google.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <53400e91-cf51-1bff-c5e4-0a02cd9c2290@virtuozzo.com>
+Date: Mon, 17 Oct 2016 12:14:19 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87eg3ftt4r.fsf@linux.vnet.ibm.com>
+In-Reply-To: <1476694764-31986-1-git-send-email-dvyukov@google.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: Dmitry Vyukov <dvyukov@google.com>, glider@google.com, akpm@linux-foundation.org
+Cc: kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 17-10-16 11:27:24, Aneesh Kumar K.V wrote:
-> Ross Zwisler <ross.zwisler@linux.intel.com> writes:
+On 10/17/2016 11:59 AM, Dmitry Vyukov wrote:
+> If user sets panic_on_warn, he wants kernel to panic if there is
+> anything barely wrong with the kernel. KASAN-detected errors
+> are definitely not less benign than an arbitrary kernel WARNING.
 > 
-> > Now that DAX PMD faults are once again working and are now participating in
-> > DAX's radix tree locking scheme, allow their config option to be enabled.
-> >
-> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-> > ---
-> >  fs/Kconfig | 1 -
-> >  1 file changed, 1 deletion(-)
-> >
-> > diff --git a/fs/Kconfig b/fs/Kconfig
-> > index 2bc7ad7..b6f0fce 100644
-> > --- a/fs/Kconfig
-> > +++ b/fs/Kconfig
-> > @@ -55,7 +55,6 @@ config FS_DAX_PMD
-> >  	depends on FS_DAX
-> >  	depends on ZONE_DEVICE
-> >  	depends on TRANSPARENT_HUGEPAGE
-> > -	depends on BROKEN
-> >  
-> >  endif # BLOCK
+> Panic after KASAN errors if panic_on_warn is set.
 > 
+> We use this for continuous fuzzing where we want kernel to stop
+> and reboot on any error.
 > 
-> This series made dax_pmd_fault return VM_FAULT_FALLBACK in [PATCH v6 09/17] dax: remove dax_pmd_fault(). 
-> That essentially disable dax pmd for ext4. Any plans to fix that ?
+> Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
+> Cc: kasan-dev@googlegroups.com
+> Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> Cc: Alexander Potapenko <glider@google.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: linux-mm@kvack.org
+> Cc: linux-kernel@vger.kernel.org
+> 
+Acked-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-I'm working on converting ext4 to the new iomap infrastructure. Once that
-is done, it can use new DAX helpers for PMD faults easily.
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+> ---
+> 
+> Changes from v1:
+>  - don't reset panic_on_warn before calling panic()
+> ---
+>  mm/kasan/report.c | 2 ++
+>  1 file changed, 2 insertions(+)
+> 
+> diff --git a/mm/kasan/report.c b/mm/kasan/report.c
+> index 24c1211..0ee8211 100644
+> --- a/mm/kasan/report.c
+> +++ b/mm/kasan/report.c
+> @@ -133,6 +133,8 @@ static void kasan_end_report(unsigned long *flags)
+>  	pr_err("==================================================================\n");
+>  	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
+>  	spin_unlock_irqrestore(&report_lock, *flags);
+> +	if (panic_on_warn)
+> +		panic("panic_on_warn set ...\n");
+>  	kasan_enable_current();
+>  }
+>  
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
