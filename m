@@ -1,51 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AEFAC6B0038
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 08:24:00 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id i187so99981987lfe.4
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 05:24:00 -0700 (PDT)
-Received: from mail.zhinst.com (mail.zhinst.com. [212.126.164.98])
-        by mx.google.com with ESMTP id u85si18552890lff.297.2016.10.17.05.23.58
-        for <linux-mm@kvack.org>;
-        Mon, 17 Oct 2016 05:23:59 -0700 (PDT)
-From: Tobias Klauser <tklauser@distanz.ch>
-Subject: [PATCH] mm/gup: Make unnecessarily global vma_permits_fault() static
-Date: Mon, 17 Oct 2016 14:23:53 +0200
-Message-Id: <20161017122353.31598-1-tklauser@distanz.ch>
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 70C5D6B0038
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 08:30:25 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id kc8so200241429pab.2
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 05:30:25 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id s123si27239965pgc.243.2016.10.17.05.30.24
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 17 Oct 2016 05:30:24 -0700 (PDT)
+Date: Mon, 17 Oct 2016 15:30:21 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH] shmem: avoid huge pages for small files
+Message-ID: <20161017123021.rlyz44dsf4l4xnve@black.fi.intel.com>
+References: <20161017121809.189039-1-kirill.shutemov@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161017121809.189039-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Make vma_permits_fault() static as it is only used in mm/gup.c
+On Mon, Oct 17, 2016 at 03:18:09PM +0300, Kirill A. Shutemov wrote:
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index ad7813d73ea7..c69047386e2f 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -369,6 +369,7 @@ static bool shmem_confirm_swap(struct address_space *mapping,
+>  /* ifdef here to avoid bloating shmem.o when not necessary */
+>  
+>  int shmem_huge __read_mostly;
+> +unsigned long long shmem_huge_min_size = HPAGE_PMD_SIZE __read_mostly;
 
-This fixes a sparse warning.
+Arghh.. Last second changes...
 
-Signed-off-by: Tobias Klauser <tklauser@distanz.ch>
----
- mm/gup.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+This should be 
 
-diff --git a/mm/gup.c b/mm/gup.c
-index 96b2b2fd0fbd..a52766e1afe8 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -623,7 +623,8 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- }
- EXPORT_SYMBOL(__get_user_pages);
- 
--bool vma_permits_fault(struct vm_area_struct *vma, unsigned int fault_flags)
-+static bool vma_permits_fault(struct vm_area_struct *vma,
-+			      unsigned int fault_flags)
- {
- 	bool write   = !!(fault_flags & FAULT_FLAG_WRITE);
- 	bool foreign = !!(fault_flags & FAULT_FLAG_REMOTE);
--- 
-2.9.0
-
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+unsigned long long shmem_huge_min_size __read_mostly = HPAGE_PMD_SIZE;
