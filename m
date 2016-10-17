@@ -1,53 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E941C6B0038
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 14:59:56 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id r16so204289922pfg.4
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 11:59:56 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id uj2si26699203pab.206.2016.10.17.11.59.55
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B63236B0038
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 15:29:51 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id gg9so211720722pac.6
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 12:29:51 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id a13si26719341pag.258.2016.10.17.12.29.50
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 17 Oct 2016 11:59:56 -0700 (PDT)
-Date: Mon, 17 Oct 2016 12:59:55 -0600
+        Mon, 17 Oct 2016 12:29:50 -0700 (PDT)
+Date: Mon, 17 Oct 2016 13:29:49 -0600
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH 0/20 v3] dax: Clear dirty bits after flushing caches
-Message-ID: <20161017185955.GA13782@linux.intel.com>
+Subject: Re: [PATCH 10/20] mm: Move handling of COW faults into DAX code
+Message-ID: <20161017192949.GA21002@linux.intel.com>
 References: <1474992504-20133-1-git-send-email-jack@suse.cz>
- <20160930091418.GC24352@infradead.org>
- <20161003075902.GG6457@quack2.suse.cz>
- <20161003080337.GA13688@infradead.org>
- <20161003081549.GH6457@quack2.suse.cz>
- <20161003093248.GA27720@infradead.org>
- <20161003111358.GQ6457@quack2.suse.cz>
- <20161013203434.GD26922@linux.intel.com>
- <20161017084732.GD3359@quack2.suse.cz>
+ <1474992504-20133-11-git-send-email-jack@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161017084732.GD3359@quack2.suse.cz>
+In-Reply-To: <1474992504-20133-11-git-send-email-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>, Dave Chinner <david@fromorbit.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@ml01.01.org, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Jan Kara <jack@suse.cz>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Mon, Oct 17, 2016 at 10:47:32AM +0200, Jan Kara wrote:
+On Tue, Sep 27, 2016 at 06:08:14PM +0200, Jan Kara wrote:
+> Move final handling of COW faults from generic code into DAX fault
+> handler. That way generic code doesn't have to be aware of peculiarities
+> of DAX locking so remove that knowledge.
+> 
+> Signed-off-by: Jan Kara <jack@suse.cz>
+> ---
+>  fs/dax.c            | 22 ++++++++++++++++------
+>  include/linux/dax.h |  7 -------
+>  include/linux/mm.h  |  9 +--------
+>  mm/memory.c         | 14 ++++----------
+>  4 files changed, 21 insertions(+), 31 deletions(-)
+> 
+> diff --git a/fs/dax.c b/fs/dax.c
+> index 0dc251ca77b8..b1c503930d1d 100644
+> --- a/fs/dax.c
+> +++ b/fs/dax.c
+> @@ -876,10 +876,15 @@ int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+>  			goto unlock_entry;
+>  		if (!radix_tree_exceptional_entry(entry)) {
+>  			vmf->page = entry;
+> -			return VM_FAULT_LOCKED;
+> +			if (unlikely(PageHWPoison(entry))) {
+> +				put_locked_mapping_entry(mapping, vmf->pgoff,
+> +							 entry);
+> +				return VM_FAULT_HWPOISON;
+> +			}
+>  		}
+> -		vmf->entry = entry;
+> -		return VM_FAULT_DAX_LOCKED;
+> +		error = finish_fault(vmf);
+> +		put_locked_mapping_entry(mapping, vmf->pgoff, entry);
+> +		return error ? error : VM_FAULT_DONE_COW;
+>  	}
+>  
+>  	if (!buffer_mapped(&bh)) {
+> @@ -1430,10 +1435,15 @@ int iomap_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+>  			goto unlock_entry;
+>  		if (!radix_tree_exceptional_entry(entry)) {
+>  			vmf->page = entry;
 
-> This week I plan to rebase both series on top of rc1 + your THP patches so
-> that we can move on with merging the stuff.
+In __do_fault() we explicitly clear vmf->page in the case where PageHWPoison()
+is set.  I think we can get the same behavior here by moving the call that
+sets vmf->page after the PageHWPoison() check.
 
-Yea...so how are we going to coordinate merging of these series for the v4.10
-merge window?  My series mostly changes DAX, but it also changes XFS, ext2 and
-ext4.  I think the plan right now is to have Dave Chinner take it through his
-XFS tree.
+> -			return VM_FAULT_LOCKED;
+> +			if (unlikely(PageHWPoison(entry))) {
+> +				put_locked_mapping_entry(mapping, vmf->pgoff,
+> +							 entry);
+> +				return VM_FAULT_HWPOISON;
+> +			}
+>  		}
+> -		vmf->entry = entry;
+> -		return VM_FAULT_DAX_LOCKED;
 
-Your first series is mostly mm changes with some DAX sprinkled in, and your
-second series touches dax, mm and all 3 DAX filesystems.  
+I think we're missing a call to 
 
-What is the best way to handle all this?  Have it go through one central tree
-(-MM?), even though the changes touch code that exists outside of that trees
-normal domain (like the FS code)?  Have my series go through the XFS tree and
-yours through -MM, and give Linus a merge resolution patch?  Something else?
+	__SetPageUptodate(new_page);
+
+before finish_fault()?  This call currently lives in do_cow_fault(), and
+is part of the path that we don't skip as part of the VM_FAULT_DAX_LOCKED
+logic.
+
+Both of these comments apply equally to the iomap_dax_fault() code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
