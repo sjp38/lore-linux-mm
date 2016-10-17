@@ -1,41 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 70C5D6B0038
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 08:30:25 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id kc8so200241429pab.2
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 05:30:25 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id s123si27239965pgc.243.2016.10.17.05.30.24
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 22B0B6B0038
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 08:34:04 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id d186so100130254lfg.7
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 05:34:04 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id v72si18689360lfi.79.2016.10.17.05.34.02
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 17 Oct 2016 05:30:24 -0700 (PDT)
-Date: Mon, 17 Oct 2016 15:30:21 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH] shmem: avoid huge pages for small files
-Message-ID: <20161017123021.rlyz44dsf4l4xnve@black.fi.intel.com>
-References: <20161017121809.189039-1-kirill.shutemov@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Oct 2016 05:34:02 -0700 (PDT)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u9HCTdX1144068
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 08:34:01 -0400
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 264tfsm404-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 08:34:00 -0400
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Mon, 17 Oct 2016 13:33:59 +0100
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
+	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 045B817D8056
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 13:36:07 +0100 (BST)
+Received: from d06av09.portsmouth.uk.ibm.com (d06av09.portsmouth.uk.ibm.com [9.149.37.250])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u9HCXu6K9109698
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 12:33:56 GMT
+Received: from d06av09.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av09.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u9HCXsKD032694
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 06:33:55 -0600
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Subject: mmap_sem bottleneck
+Date: Mon, 17 Oct 2016 14:33:53 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161017121809.189039-1-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Message-Id: <ea12b8ee-1892-fda1-8a83-20fdfdfa39c4@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linux MM <linux-mm@kvack.org>, Andi Kleen <ak@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@techsingularity.net>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.com>, Davidlohr Bueso <dbueso@suse.de>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Mon, Oct 17, 2016 at 03:18:09PM +0300, Kirill A. Shutemov wrote:
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index ad7813d73ea7..c69047386e2f 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -369,6 +369,7 @@ static bool shmem_confirm_swap(struct address_space *mapping,
->  /* ifdef here to avoid bloating shmem.o when not necessary */
->  
->  int shmem_huge __read_mostly;
-> +unsigned long long shmem_huge_min_size = HPAGE_PMD_SIZE __read_mostly;
+Hi all,
 
-Arghh.. Last second changes...
+I'm sorry to resurrect this topic, but with the increasing number of
+CPUs, this becomes more frequent that the mmap_sem is a bottleneck
+especially between the page fault handling and the other threads memory
+management calls.
 
-This should be 
+In the case I'm seeing, there is a lot of page fault occurring while
+other threads are trying to manipulate the process memory layout through
+mmap/munmap.
 
-unsigned long long shmem_huge_min_size __read_mostly = HPAGE_PMD_SIZE;
+There is no *real* conflict between these operations, the page fault are
+done a different page and areas that the one addressed by the mmap/unmap
+operations. Thus threads are dealing with different part of the
+process's memory space. However since page fault handlers and mmap/unmap
+operations grab the mmap_sem, the page fault handling are serialized
+with the mmap operations, which impact the performance on large system.
+
+For the record, the page fault are done while reading data from a file
+system, and I/O are really impacted by this serialization when dealing
+with a large number of parallel threads, in my case 192 threads (1 per
+online CPU). But the source of the page fault doesn't really matter I guess.
+
+I took time trying to figure out how to get rid of this bottleneck, but
+this is definitively too complex for me.
+I read this mailing history, and some LWN articles about that and my
+feeling is that there is no clear way to limit the impact of this
+semaphore. Last discussion on this topic seemed to happen last march
+during the LSFMM submit (https://lwn.net/Articles/636334/). But this
+doesn't seem to have lead to major changes, or may be I missed them.
+
+I'm now seeing that this is a big thing and that it would be hard and
+potentially massively intrusive to get rid of this bottleneck, and I'm
+wondering what could be to best approach here, RCU, range locks, etc..
+
+Does anyone have an idea ?
+
+Thanks,
+Laurent.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
