@@ -1,98 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FE286B0262
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 04:22:59 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id b75so95638390lfg.3
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 01:22:59 -0700 (PDT)
-Received: from mail-lf0-f65.google.com (mail-lf0-f65.google.com. [209.85.215.65])
-        by mx.google.com with ESMTPS id u3si8722377lja.32.2016.10.17.01.22.57
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 572FB6B0263
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 04:39:14 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id n202so358073484oig.2
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 01:39:14 -0700 (PDT)
+Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40111.outbound.protection.outlook.com. [40.107.4.111])
+        by mx.google.com with ESMTPS id y76si11561548oia.32.2016.10.17.01.39.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Oct 2016 01:22:57 -0700 (PDT)
-Received: by mail-lf0-f65.google.com with SMTP id b75so25207138lfg.3
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 01:22:57 -0700 (PDT)
-Date: Mon, 17 Oct 2016 10:22:56 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, compaction: allow compaction for GFP_NOFS
- requests
-Message-ID: <20161017082255.GE23322@dhcp22.suse.cz>
-References: <20161004081215.5563-1-mhocko@kernel.org>
- <20161004203202.GY9806@dastard>
- <20161005113839.GC7138@dhcp22.suse.cz>
- <20161006021142.GC9806@dastard>
- <20161007131814.GL18439@dhcp22.suse.cz>
- <20161013002924.GO23194@dastard>
- <20161013073947.GF21678@dhcp22.suse.cz>
- <20161013110456.GK21678@dhcp22.suse.cz>
- <20161016204959.GH27872@dastard>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 17 Oct 2016 01:39:13 -0700 (PDT)
+Subject: Re: [PATCH] kasan: support panic_on_warn
+References: <1476465002-2728-1-git-send-email-dvyukov@google.com>
+ <2b39f90e-2c67-fafb-dc48-f642c62bead6@virtuozzo.com>
+ <CACT4Y+acug4QfzUBvxHoSR-K7FFAy1dDJ0eY4qgmF6+7dpv=Jg@mail.gmail.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <4f2ba672-cb6c-a055-6bfa-8b88030a74bb@virtuozzo.com>
+Date: Mon, 17 Oct 2016 11:39:21 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161016204959.GH27872@dastard>
+In-Reply-To: <CACT4Y+acug4QfzUBvxHoSR-K7FFAy1dDJ0eY4qgmF6+7dpv=Jg@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon 17-10-16 07:49:59, Dave Chinner wrote:
-> On Thu, Oct 13, 2016 at 01:04:56PM +0200, Michal Hocko wrote:
-> > On Thu 13-10-16 09:39:47, Michal Hocko wrote:
-> > > On Thu 13-10-16 11:29:24, Dave Chinner wrote:
-> > > > On Fri, Oct 07, 2016 at 03:18:14PM +0200, Michal Hocko wrote:
-> > > [...]
-> > > > > Unpatched kernel:
-> > > > > #       Version 3.3, 16 thread(s) starting at Fri Oct  7 09:55:05 2016
-> > > > > #       Sync method: NO SYNC: Test does not issue sync() or fsync() calls.
-> > > > > #       Directories:  Time based hash between directories across 10000 subdirectories with 180 seconds per subdirectory.
-> > > > > #       File names: 40 bytes long, (16 initial bytes of time stamp with 24 random bytes at end of name)
-> > > > > #       Files info: size 0 bytes, written with an IO size of 16384 bytes per write
-> > > > > #       App overhead is time in microseconds spent in the test not doing file writing related system calls.
-> > > > > #
-> > > > > FSUse%        Count         Size    Files/sec     App Overhead
-> > > > >      1      1600000            0       4300.1         20745838
-> > > > >      3      3200000            0       4239.9         23849857
-> > > > >      5      4800000            0       4243.4         25939543
-> > > > >      6      6400000            0       4248.4         19514050
-> > > > >      8      8000000            0       4262.1         20796169
-> > > > >      9      9600000            0       4257.6         21288675
-> > > > >     11     11200000            0       4259.7         19375120
-> > > > >     13     12800000            0       4220.7         22734141
-> > > > >     14     14400000            0       4238.5         31936458
-> > > > >     16     16000000            0       4231.5         23409901
-> > > > >     18     17600000            0       4045.3         23577700
-> > > > >     19     19200000            0       2783.4         58299526
-> > > > >     21     20800000            0       2678.2         40616302
-> > > > >     23     22400000            0       2693.5         83973996
-> > > > > Ctrl+C because it just took too long.
-> > > > 
-> > > > Try running it on a larger filesystem, or configure the fs with more
-> > > > AGs and a larger log (i.e. mkfs.xfs -f -dagcount=24 -l size=512m
-> > > > <dev>). That will speed up modifications and increase concurrency.
-> > > > This test should be able to run 5-10x faster than this (it
-> > > > sustains 55,000 files/s @ 300MB/s write on my test fs on a cheap
-> > > > SSD).
-> > > 
-> > > Will add more memory to the machine. Will report back on that.
-> > 
-> > increasing the memory to 1G didn't help. So I've tried to add
-> > -dagcount=24 -l size=512m and that didn't help much either. I am at 5k
-> > files/s so nowhere close to your 55k. I thought this is more about CPUs
-> > count than about the amount of memory. So I've tried a larger machine
-> > with 24 CPUs (no dagcount etc...), this one doesn't have a fast storage
-> > so I've backed the fs image by ramdisk but even then I am getting very
-> > similar results. No idea what is wrong with my kvm setup.
+
+
+On 10/17/2016 11:18 AM, Dmitry Vyukov wrote:
+> On Mon, Oct 17, 2016 at 10:13 AM, Andrey Ryabinin
+> <aryabinin@virtuozzo.com> wrote:
+>>
+>>
+>> On 10/14/2016 08:10 PM, Dmitry Vyukov wrote:
+>>> If user sets panic_on_warn, he wants kernel to panic if there is
+>>> anything barely wrong with the kernel. KASAN-detected errors
+>>> are definitely not less benign than an arbitrary kernel WARNING.
+>>>
+>>> Panic after KASAN errors if panic_on_warn is set.
+>>>
+>>> We use this for continuous fuzzing where we want kernel to stop
+>>> and reboot on any error.
+>>>
+>>> Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
+>>> Cc: kasan-dev@googlegroups.com
+>>> Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
+>>> Cc: Alexander Potapenko <glider@google.com>
+>>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>>> Cc: linux-mm@kvack.org
+>>> Cc: linux-kernel@vger.kernel.org
+>>> ---
+>>>  mm/kasan/report.c | 4 ++++
+>>>  1 file changed, 4 insertions(+)
+>>>
+>>> diff --git a/mm/kasan/report.c b/mm/kasan/report.c
+>>> index 24c1211..ca0bd48 100644
+>>> --- a/mm/kasan/report.c
+>>> +++ b/mm/kasan/report.c
+>>> @@ -133,6 +133,10 @@ static void kasan_end_report(unsigned long *flags)
+>>>       pr_err("==================================================================\n");
+>>>       add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
+>>>       spin_unlock_irqrestore(&report_lock, *flags);
+>>> +     if (panic_on_warn) {
+>>> +             panic_on_warn = 0;
+>>
+>> Why we need to reset panic_on_warn?
+>> I assume this was copied from __warn(). AFAIU in __warn() this protects from recursion:
+>>  __warn() -> painc() ->__warn() -> panic() -> ...
+>> which is possible if WARN_ON() triggered in panic().
+>> But KASAN is protected from such recursion via kasan_disable_current().
 > 
-> What's the backing storage? I use an image file in an XFS
-> filesystem, configured with virtio,cache=none so it's concurrency
-> model matches that of a real disk...
+> But we have recursion into panic via kasan->panic->warning->panic.
 
-I am using qcow qemu image exported to qemu by
--drive file=storage.img,if=ide,index=1,cache=none
-parameter.
+We do, like almost every other panic() call in the kernel. But at least it's finite.
+So, if finite recursion is a problem for panic() it should be fixed in panic(), rather then on every panic() call site.
 
--- 
-Michal Hocko
-SUSE Labs
+
+
+
+> 
+>>> +             panic("panic_on_warn set ...\n");
+>>> +     }
+>>>       kasan_enable_current();
+>>>  }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
