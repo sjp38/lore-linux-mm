@@ -1,58 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A9C216B0038
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 13:34:53 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id f6so135886552qtd.4
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 10:34:53 -0700 (PDT)
-Received: from mail-qt0-x22d.google.com (mail-qt0-x22d.google.com. [2607:f8b0:400d:c0d::22d])
-        by mx.google.com with ESMTPS id n6si18440777qtc.94.2016.10.17.10.34.53
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AD4E26B025E
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 13:35:40 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id fn2so209192161pad.7
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 10:35:40 -0700 (PDT)
+Received: from out02.mta.xmission.com (out02.mta.xmission.com. [166.70.13.232])
+        by mx.google.com with ESMTPS id m2si28295991pgd.289.2016.10.17.10.35.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Oct 2016 10:34:53 -0700 (PDT)
-Received: by mail-qt0-x22d.google.com with SMTP id f6so133845543qtd.2
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 10:34:53 -0700 (PDT)
+        Mon, 17 Oct 2016 10:35:39 -0700 (PDT)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <87twcbq696.fsf@x220.int.ebiederm.org>
+	<20161017172547.GJ14666@pc.thejh.net>
+Date: Mon, 17 Oct 2016 12:33:33 -0500
+In-Reply-To: <20161017172547.GJ14666@pc.thejh.net> (Jann Horn's message of
+	"Mon, 17 Oct 2016 19:25:47 +0200")
+Message-ID: <87wph6op76.fsf@x220.int.ebiederm.org>
 MIME-Version: 1.0
-In-Reply-To: <20161017150005.4c8f890d@roar.ozlabs.ibm.com>
-References: <1476528162-21981-1-git-send-email-joelaf@google.com> <20161017150005.4c8f890d@roar.ozlabs.ibm.com>
-From: Joel Fernandes <joelaf@google.com>
-Date: Mon, 17 Oct 2016 10:34:51 -0700
-Message-ID: <CAJWu+oqg9vjit6=p24rYn3X0e4Z+TLLqn79AApoE1rTBNpbB1Q@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: vmalloc: Replace purge_lock spinlock with atomic refcount
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
+Subject: Re: [REVIEW][PATCH] mm: Add a user_ns owner to mm_struct and fix ptrace_may_access
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-rt-users@vger.kernel.org, Chris Wilson <chris@chris-wilson.co.uk>, Jisheng Zhang <jszhang@marvell.com>, John Dias <joaodias@google.com>, Andrew Morton <akpm@linux-foundation.org>, "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>
+To: Jann Horn <jann@thejh.net>
+Cc: Linux Containers <containers@lists.linux-foundation.org>, linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-Hi Nick,
+Jann Horn <jann@thejh.net> writes:
 
-On Sun, Oct 16, 2016 at 9:00 PM, Nicholas Piggin <npiggin@gmail.com> wrote:
-> On Sat, 15 Oct 2016 03:42:42 -0700
-> Joel Fernandes <joelaf@google.com> wrote:
+> On Mon, Oct 17, 2016 at 11:39:49AM -0500, Eric W. Biederman wrote:
+>> 
+>> During exec dumpable is cleared if the file that is being executed is
+>> not readable by the user executing the file.  A bug in
+>> ptrace_may_access allows reading the file if the executable happens to
+>> enter into a subordinate user namespace (aka clone(CLONE_NEWUSER),
+>> unshare(CLONE_NEWUSER), or setns(fd, CLONE_NEWUSER).
+>> 
+>> This problem is fixed with only necessary userspace breakage by adding
+>> a user namespace owner to mm_struct, captured at the time of exec,
+>> so it is clear in which user namespace CAP_SYS_PTRACE must be present
+>> in to be able to safely give read permission to the executable.
+>> 
+>> The function ptrace_may_access is modified to verify that the ptracer
+>> has CAP_SYS_ADMIN in task->mm->user_ns instead of task->cred->user_ns.
+>> This ensures that if the task changes it's cred into a subordinate
+>> user namespace it does not become ptraceable.
 >
->> The purge_lock spinlock causes high latencies with non RT kernel. This has been
->> reported multiple times on lkml [1] [2] and affects applications like audio.
->>
->> In this patch, I replace the spinlock with an atomic refcount so that
->> preemption is kept turned on during purge. This Ok to do since [3] builds the
->> lazy free list in advance and atomically retrieves the list so any instance of
->> purge will have its own list it is purging. Since the individual vmap area
->> frees are themselves protected by a lock, this is Ok.
->
-> This is a good idea, and good results, but that's not what the spinlock was
-> for -- it was for enforcing the sync semantics.
->
-> Going this route, you'll have to audit callers to expect changed behavior
-> and change documentation of sync parameter.
->
-> I suspect a better approach would be to instead use a mutex for this, and
-> require that all sync=1 callers be able to sleep. I would say that most
-> probably already can.
+> This looks good! Basically applies the same rules that already apply to
+> EUID/... changes to namespace changes, and anyone entering a user
+> namespace can now safely drop UIDs and GIDs to namespace root.
 
-Thanks, I agree mutex is the right way to fix this.
+Yes.  It just required the right perspective and it turned out to be
+straight forward to solve.  Especially since it is buggy today for
+unreadable executables.
 
-Regards,
-Joel
+> This integrates better in the existing security concept than my old
+> patch "ptrace: being capable wrt a process requires mapped uids/gids",
+> and it has less issues in cases where e.g. the extra privileges of an
+> entering process are the filesystem root or so.
+>
+> FWIW, if you want, you can add "Reviewed-by: Jann Horn
+> <jann@thejh.net>".
+
+Will do. Thank you.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
