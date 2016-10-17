@@ -1,112 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D4F536B0038
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 16:49:39 -0400 (EDT)
-Received: by mail-vk0-f70.google.com with SMTP id t22so146005505vkb.7
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 13:49:39 -0700 (PDT)
-Received: from mail-vk0-x242.google.com (mail-vk0-x242.google.com. [2607:f8b0:400c:c05::242])
-        by mx.google.com with ESMTPS id m125si15569597vkh.117.2016.10.17.13.49.39
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BC96E6B0038
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 16:57:44 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id h24so155197961pfh.0
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 13:57:44 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id yx10si19177532pac.96.2016.10.17.13.57.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Oct 2016 13:49:39 -0700 (PDT)
-Received: by mail-vk0-x242.google.com with SMTP id 83so7478939vkd.0
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 13:49:39 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20161015135947.5adf02bae01986ea8b79edd9@gmail.com>
-References: <20161015135632.541010b55bec496e2cae056e@gmail.com> <20161015135947.5adf02bae01986ea8b79edd9@gmail.com>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Mon, 17 Oct 2016 16:48:58 -0400
-Message-ID: <CALZtONCfJ_NQAmekyQQTY9umfKMR1DK5aycQZ5fOohAJ69L9Xg@mail.gmail.com>
-Subject: Re: [PATCH v5 2/3] z3fold: remove redundant locking
-Content-Type: text/plain; charset=UTF-8
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 17 Oct 2016 13:57:42 -0700 (PDT)
+Subject: [PATCH] x86, pkeys: remove cruft from never-merged syscalls
+From: Dave Hansen <dave@sr71.net>
+Date: Mon, 17 Oct 2016 13:57:09 -0700
+Message-Id: <20161017205709.FC7C0C1D@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Wool <vitalywool@gmail.com>
-Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>
-
-On Sat, Oct 15, 2016 at 7:59 AM, Vitaly Wool <vitalywool@gmail.com> wrote:
-> The per-pool z3fold spinlock should generally be taken only when
-> a non-atomic pool variable is modified. There's no need to take it
-> to map/unmap an object.
-
-no.  it absolutely needs to be taken, because z3fold_compact_page
-could move the middle bud's contents to the first bud, and if the
-middle bud gets mapped while it's being moved really bad things will
-happen.
-
-you can change that to a per-page lock in the z3fold_header, but some
-locking needs to happen between mapping and middle bud moving (and
-handle encoding/decoding and first_num access).
+To: linux-kernel@vger.kernel.org
+Cc: Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com, tglx@linutronix.de, linux-arch@vger.kernel.org, mgorman@techsingularity.net, arnd@arndb.de, linux-api@vger.kernel.org, linux-mm@kvack.org, luto@kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
 
 
->
-> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
-> ---
->  mm/z3fold.c | 17 +++++------------
->  1 file changed, 5 insertions(+), 12 deletions(-)
->
-> diff --git a/mm/z3fold.c b/mm/z3fold.c
-> index 5197d7b..10513b5 100644
-> --- a/mm/z3fold.c
-> +++ b/mm/z3fold.c
-> @@ -580,6 +580,7 @@ next:
->                 if ((test_bit(PAGE_HEADLESS, &page->private) && ret == 0) ||
->                     (zhdr->first_chunks == 0 && zhdr->last_chunks == 0 &&
->                      zhdr->middle_chunks == 0)) {
-> +                       spin_unlock(&pool->lock);
->                         /*
->                          * All buddies are now free, free the z3fold page and
->                          * return success.
-> @@ -587,7 +588,6 @@ next:
->                         clear_bit(PAGE_HEADLESS, &page->private);
->                         free_z3fold_page(zhdr);
->                         atomic64_dec(&pool->pages_nr);
-> -                       spin_unlock(&pool->lock);
->                         return 0;
->                 }  else if (!test_bit(PAGE_HEADLESS, &page->private)) {
->                         if (zhdr->first_chunks != 0 &&
-> @@ -629,7 +629,6 @@ static void *z3fold_map(struct z3fold_pool *pool, unsigned long handle)
->         void *addr;
->         enum buddy buddy;
->
-> -       spin_lock(&pool->lock);
->         zhdr = handle_to_z3fold_header(handle);
->         addr = zhdr;
->         page = virt_to_page(zhdr);
-> @@ -656,7 +655,6 @@ static void *z3fold_map(struct z3fold_pool *pool, unsigned long handle)
->                 break;
->         }
->  out:
-> -       spin_unlock(&pool->lock);
->         return addr;
->  }
->
-> @@ -671,19 +669,14 @@ static void z3fold_unmap(struct z3fold_pool *pool, unsigned long handle)
->         struct page *page;
->         enum buddy buddy;
->
-> -       spin_lock(&pool->lock);
->         zhdr = handle_to_z3fold_header(handle);
->         page = virt_to_page(zhdr);
->
-> -       if (test_bit(PAGE_HEADLESS, &page->private)) {
-> -               spin_unlock(&pool->lock);
-> -               return;
-> +       if (!test_bit(PAGE_HEADLESS, &page->private)) {
-> +               buddy = handle_to_buddy(handle);
-> +               if (buddy == MIDDLE)
-> +                       clear_bit(MIDDLE_CHUNK_MAPPED, &page->private);
->         }
-> -
-> -       buddy = handle_to_buddy(handle);
-> -       if (buddy == MIDDLE)
-> -               clear_bit(MIDDLE_CHUNK_MAPPED, &page->private);
-> -       spin_unlock(&pool->lock);
->  }
->
->  /**
-> --
-> 2.4.2
+From: Dave Hansen <dave.hansen@linux.intel.com>
+
+pkey_set() and pkey_get() were syscalls present in older versions
+of the protection keys patches.  The syscall number definitions
+were inadvertently left in place.  This patch removes them.
+
+I did a git grep and verified that these are the last places in
+the tree that these appear, save for the protection_keys.c tests
+and Documentation.  Those spots talk about functions called
+pkey_get/set() which are wrappers for the direct PKRU
+instructions, not the syscalls.
+
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-arch@vger.kernel.org
+Cc: mgorman@techsingularity.net
+Cc: arnd@arndb.de
+Cc: linux-api@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: luto@kernel.org
+Cc: akpm@linux-foundation.org
+Cc: torvalds@linux-foundation.org
+Fixes: f9afc6197e9bb ("x86: Wire up protection keys system calls")
+---
+
+ b/arch/x86/entry/syscalls/syscall_32.tbl |    2 --
+ b/arch/x86/entry/syscalls/syscall_64.tbl |    2 --
+ 2 files changed, 4 deletions(-)
+
+diff -puN arch/x86/entry/syscalls/syscall_32.tbl~kill-x86-pkey-syscall-nr-cruft arch/x86/entry/syscalls/syscall_32.tbl
+--- a/arch/x86/entry/syscalls/syscall_32.tbl~kill-x86-pkey-syscall-nr-cruft	2016-10-17 13:00:11.607811388 -0700
++++ b/arch/x86/entry/syscalls/syscall_32.tbl	2016-10-17 13:00:14.216930557 -0700
+@@ -389,5 +389,3 @@
+ 380	i386	pkey_mprotect		sys_pkey_mprotect
+ 381	i386	pkey_alloc		sys_pkey_alloc
+ 382	i386	pkey_free		sys_pkey_free
+-#383	i386	pkey_get		sys_pkey_get
+-#384	i386	pkey_set		sys_pkey_set
+diff -puN arch/x86/entry/syscalls/syscall_64.tbl~kill-x86-pkey-syscall-nr-cruft arch/x86/entry/syscalls/syscall_64.tbl
+--- a/arch/x86/entry/syscalls/syscall_64.tbl~kill-x86-pkey-syscall-nr-cruft	2016-10-17 13:00:11.609811480 -0700
++++ b/arch/x86/entry/syscalls/syscall_64.tbl	2016-10-17 13:00:21.896281301 -0700
+@@ -338,8 +338,6 @@
+ 329	common	pkey_mprotect		sys_pkey_mprotect
+ 330	common	pkey_alloc		sys_pkey_alloc
+ 331	common	pkey_free		sys_pkey_free
+-#332	common	pkey_get		sys_pkey_get
+-#333	common	pkey_set		sys_pkey_set
+ 
+ #
+ # x32-specific system call numbers start at 512 to avoid cache impact
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
