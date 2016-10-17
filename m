@@ -1,91 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 572FB6B0263
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 04:39:14 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id n202so358073484oig.2
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 01:39:14 -0700 (PDT)
-Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40111.outbound.protection.outlook.com. [40.107.4.111])
-        by mx.google.com with ESMTPS id y76si11561548oia.32.2016.10.17.01.39.13
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 703726B0260
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 04:42:48 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id d186so96002073lfg.7
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 01:42:48 -0700 (PDT)
+Received: from mail-lf0-f68.google.com (mail-lf0-f68.google.com. [209.85.215.68])
+        by mx.google.com with ESMTPS id 191si17885435lfz.327.2016.10.17.01.42.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 17 Oct 2016 01:39:13 -0700 (PDT)
-Subject: Re: [PATCH] kasan: support panic_on_warn
-References: <1476465002-2728-1-git-send-email-dvyukov@google.com>
- <2b39f90e-2c67-fafb-dc48-f642c62bead6@virtuozzo.com>
- <CACT4Y+acug4QfzUBvxHoSR-K7FFAy1dDJ0eY4qgmF6+7dpv=Jg@mail.gmail.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <4f2ba672-cb6c-a055-6bfa-8b88030a74bb@virtuozzo.com>
-Date: Mon, 17 Oct 2016 11:39:21 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 17 Oct 2016 01:42:46 -0700 (PDT)
+Received: by mail-lf0-f68.google.com with SMTP id x23so19716754lfi.1
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 01:42:46 -0700 (PDT)
+Date: Mon, 17 Oct 2016 10:42:45 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm: exclude isolated non-lru pages from
+ NR_ISOLATED_ANON or NR_ISOLATED_FILE.
+Message-ID: <20161017084244.GF23322@dhcp22.suse.cz>
+References: <20161013080936.GG21678@dhcp22.suse.cz>
+ <20161014083219.GA20260@spreadtrum.com>
+ <20161014113044.GB6063@dhcp22.suse.cz>
+ <20161014134604.GA2179@blaptop>
+ <20161014135334.GF6063@dhcp22.suse.cz>
+ <20161014144448.GA2899@blaptop>
+ <20161014150355.GH6063@dhcp22.suse.cz>
+ <20161014152633.GA3157@blaptop>
+ <20161015071044.GC9949@dhcp22.suse.cz>
+ <20161016230618.GB9196@bbox>
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+acug4QfzUBvxHoSR-K7FFAy1dDJ0eY4qgmF6+7dpv=Jg@mail.gmail.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161016230618.GB9196@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Ming Ling <ming.ling@spreadtrum.com>, akpm@linux-foundation.org, mgorman@techsingularity.net, vbabka@suse.cz, hannes@cmpxchg.org, baiyaowei@cmss.chinamobile.com, iamjoonsoo.kim@lge.com, rientjes@google.com, hughd@google.com, kirill.shutemov@linux.intel.com, riel@redhat.com, mgorman@suse.de, aquini@redhat.com, corbet@lwn.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, orson.zhai@spreadtrum.com, geng.ren@spreadtrum.com, chunyan.zhang@spreadtrum.com, zhizhou.tian@spreadtrum.com, yuming.han@spreadtrum.com, xiajing@spreadst.com
 
-
-
-On 10/17/2016 11:18 AM, Dmitry Vyukov wrote:
-> On Mon, Oct 17, 2016 at 10:13 AM, Andrey Ryabinin
-> <aryabinin@virtuozzo.com> wrote:
->>
->>
->> On 10/14/2016 08:10 PM, Dmitry Vyukov wrote:
->>> If user sets panic_on_warn, he wants kernel to panic if there is
->>> anything barely wrong with the kernel. KASAN-detected errors
->>> are definitely not less benign than an arbitrary kernel WARNING.
->>>
->>> Panic after KASAN errors if panic_on_warn is set.
->>>
->>> We use this for continuous fuzzing where we want kernel to stop
->>> and reboot on any error.
->>>
->>> Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
->>> Cc: kasan-dev@googlegroups.com
->>> Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
->>> Cc: Alexander Potapenko <glider@google.com>
->>> Cc: Andrew Morton <akpm@linux-foundation.org>
->>> Cc: linux-mm@kvack.org
->>> Cc: linux-kernel@vger.kernel.org
->>> ---
->>>  mm/kasan/report.c | 4 ++++
->>>  1 file changed, 4 insertions(+)
->>>
->>> diff --git a/mm/kasan/report.c b/mm/kasan/report.c
->>> index 24c1211..ca0bd48 100644
->>> --- a/mm/kasan/report.c
->>> +++ b/mm/kasan/report.c
->>> @@ -133,6 +133,10 @@ static void kasan_end_report(unsigned long *flags)
->>>       pr_err("==================================================================\n");
->>>       add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
->>>       spin_unlock_irqrestore(&report_lock, *flags);
->>> +     if (panic_on_warn) {
->>> +             panic_on_warn = 0;
->>
->> Why we need to reset panic_on_warn?
->> I assume this was copied from __warn(). AFAIU in __warn() this protects from recursion:
->>  __warn() -> painc() ->__warn() -> panic() -> ...
->> which is possible if WARN_ON() triggered in panic().
->> But KASAN is protected from such recursion via kasan_disable_current().
+On Mon 17-10-16 08:06:18, Minchan Kim wrote:
+> Hi Michal,
 > 
-> But we have recursion into panic via kasan->panic->warning->panic.
-
-We do, like almost every other panic() call in the kernel. But at least it's finite.
-So, if finite recursion is a problem for panic() it should be fixed in panic(), rather then on every panic() call site.
-
-
-
-
+> On Sat, Oct 15, 2016 at 09:10:45AM +0200, Michal Hocko wrote:
+> > On Sat 15-10-16 00:26:33, Minchan Kim wrote:
+> > > On Fri, Oct 14, 2016 at 05:03:55PM +0200, Michal Hocko wrote:
+> > [...]
+> > > > diff --git a/mm/compaction.c b/mm/compaction.c
+> > > > index 0409a4ad6ea1..6584705a46f6 100644
+> > > > --- a/mm/compaction.c
+> > > > +++ b/mm/compaction.c
+> > > > @@ -685,7 +685,8 @@ static bool too_many_isolated(struct zone *zone)
+> > > >   */
+> > > >  static unsigned long
+> > > >  isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+> > > > -			unsigned long end_pfn, isolate_mode_t isolate_mode)
+> > > > +			unsigned long end_pfn, isolate_mode_t isolate_mode,
+> > > > +			unsigned long *isolated_file, unsigned long *isolated_anon)
+> > > >  {
+> > > >  	struct zone *zone = cc->zone;
+> > > >  	unsigned long nr_scanned = 0, nr_isolated = 0;
+> > > > @@ -866,6 +867,10 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+> > > >  
+> > > >  		/* Successfully isolated */
+> > > >  		del_page_from_lru_list(page, lruvec, page_lru(page));
+> > > > +		if (page_is_file_cache(page))
+> > > > +			(*isolated_file)++;
+> > > > +		else
+> > > > +			(*isolated_anon)++;
+> > > >  
+> > > >  isolate_success:
+> > > >  		list_add(&page->lru, &cc->migratepages);
+> > > > 
+> > > > Makes more sense?
+> > > 
+> > > It is doable for isolation part. IOW, maybe we can make acct_isolated
+> > > simple with those counters but we need to handle migrate, putback part.
+> > > If you want to remove the check of __PageMoable with those counter, it
+> > > means we should pass the counter on every functions related migration
+> > > where isolate, migrate, putback parts.
+> > 
+> > OK, I see. Can we just get rid of acct_isolated altogether? Why cannot
+> > we simply update NR_ISOLATED_* while isolating pages? Just looking at
+> > isolate_migratepages_block:
+> > 			acct_isolated(zone, cc);
+> > 			putback_movable_pages(&cc->migratepages);
+> > 
+> > suggests we are doing something suboptimal. I guess we cannot get rid of
+> > __PageMoveble checks which is sad because that just adds a lot of
+> > confusion because checking for !__PageMovable(page) for LRU pages is
+> > just a head scratcher (LRU pages are movable arent' they?). Maybe it
+> > would be even good to get rid of this misnomer. PageNonLRUMovable?
 > 
->>> +             panic("panic_on_warn set ...\n");
->>> +     }
->>>       kasan_enable_current();
->>>  }
+> Yeah, I hated the naming but didn't have a good idea.
+> PageNonLRUMovable, definitely, one I thought as candidate but dropped
+> by lenghthy naming. If others don't object, I am happy to change it.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Yes it is long but it is less confusing because it is just utterly
+confusing to test for LRU pages with !__PageMovable when in fact they
+are movable. Heck even unreclaimable pages are movable unless explicitly
+configured to not be.
+ 
+> > Anyway, I would suggest to do something like this. Batching NR_ISOLATED*
+> > just doesn't make all that much sense as these are per-cpu and the
+> > resulting code seems to be easier without it.
+> 
+> Agree. Could you resend it as formal patch?
+
+Sure, what do you think about the following? I haven't marked it for
+stable because there was no bug report for it AFAIU.
+---
