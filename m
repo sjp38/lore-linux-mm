@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EB676B0038
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 19:56:53 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id fn2so219315157pad.7
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 16:56:53 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D07276B0038
+	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 20:10:39 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id u84so211886664pfj.6
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 17:10:39 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id i65si31638037pfc.13.2016.10.17.16.56.52
+        by mx.google.com with ESMTPS id y7si27304282par.279.2016.10.17.17.10.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Oct 2016 16:56:52 -0700 (PDT)
-Date: Mon, 17 Oct 2016 16:56:51 -0700
+        Mon, 17 Oct 2016 17:10:39 -0700 (PDT)
+Date: Mon, 17 Oct 2016 17:10:38 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [Bug 177821] New: NULL pointer dereference in list_rcu
-Message-Id: <20161017165651.0d831e66e63a46bfd4a090db@linux-foundation.org>
+Message-Id: <20161017171038.924cbbcfc0a23652d2d2b8b4@linux-foundation.org>
 In-Reply-To: <bug-177821-27@https.bugzilla.kernel.org/>
 References: <bug-177821-27@https.bugzilla.kernel.org/>
 Mime-Version: 1.0
@@ -21,8 +21,10 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Alexander Polakov <apolyakov@beget.ru>
-Cc: bugzilla-daemon@bugzilla.kernel.org, Al Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org
+Cc: bugzilla-daemon@bugzilla.kernel.org, Al Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>
 
+
+(resend due to "vdavydov@virtuozzo.com Unrouteable address")
 
 (switched to email.  Please respond via emailed reply-to-all, not via the
 bugzilla web interface).
