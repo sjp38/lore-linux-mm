@@ -1,364 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 136E46B0038
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 10:28:08 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id b186so160725866vkb.0
-        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 07:28:08 -0700 (PDT)
-Received: from mail-vk0-x241.google.com (mail-vk0-x241.google.com. [2607:f8b0:400c:c05::241])
-        by mx.google.com with ESMTPS id n193si17829944vkd.125.2016.10.18.07.28.07
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id AC8826B0253
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 10:32:11 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id n3so13134791lfn.5
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 07:32:11 -0700 (PDT)
+Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
+        by mx.google.com with ESMTPS id 35si1908289lfw.12.2016.10.18.07.32.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Oct 2016 07:28:07 -0700 (PDT)
-Received: by mail-vk0-x241.google.com with SMTP id 130so7382592vkg.2
-        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 07:28:07 -0700 (PDT)
+        Tue, 18 Oct 2016 07:32:09 -0700 (PDT)
+Received: by mail-lf0-x244.google.com with SMTP id x23so27194291lfi.1
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 07:32:09 -0700 (PDT)
+Date: Tue, 18 Oct 2016 17:32:07 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] shmem: avoid huge pages for small files
+Message-ID: <20161018143207.GA5833@node.shutemov.name>
+References: <20161017121809.189039-1-kirill.shutemov@linux.intel.com>
+ <20161017123021.rlyz44dsf4l4xnve@black.fi.intel.com>
+ <20161017141245.GC27459@dhcp22.suse.cz>
+ <20161017145539.GA26930@node.shutemov.name>
+ <20161018142007.GL12092@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CAMJBoFPORDkVnpX5tf6zoYPxQWXA1Aayvff5s8iRWw0mLSg7OQ@mail.gmail.com>
-References: <20161015135632.541010b55bec496e2cae056e@gmail.com>
- <20161015140520.ee52a80c92c50214a6614977@gmail.com> <CALZtONBWyX0OjJUcyyj23vqpJtbx-8fHakdDzrywvgZDZyVq6w@mail.gmail.com>
- <CAMJBoFPORDkVnpX5tf6zoYPxQWXA1Aayvff5s8iRWw0mLSg7OQ@mail.gmail.com>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Tue, 18 Oct 2016 10:27:26 -0400
-Message-ID: <CALZtONC4_aJwqhQ5W9AzHZS6_yUQk-w50E+gY=xHuwCYpi2Jfg@mail.gmail.com>
-Subject: Re: [PATCH v5 3/3] z3fold: add shrinker
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161018142007.GL12092@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Wool <vitalywool@gmail.com>
-Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Oct 17, 2016 at 10:45 PM, Vitaly Wool <vitalywool@gmail.com> wrote:
-> Hi Dan,
->
-> On Tue, Oct 18, 2016 at 4:06 AM, Dan Streetman <ddstreet@ieee.org> wrote:
->> On Sat, Oct 15, 2016 at 8:05 AM, Vitaly Wool <vitalywool@gmail.com> wrote:
->>> This patch implements shrinker for z3fold. This shrinker
->>> implementation does not free up any pages directly but it allows
->>> for a denser placement of compressed objects which results in
->>> less actual pages consumed and higher compression ratio therefore.
->>>
->>> This update removes z3fold page compaction from the freeing path
->>> since we can rely on shrinker to do the job. Also, a new flag
->>> UNDER_COMPACTION is introduced to protect against two threads
->>> trying to compact the same page.
->>
->> i'm completely unconvinced that this should be a shrinker.  The
->> alloc/free paths are much, much better suited to compacting a page
->> than a shrinker that must scan through all the unbuddied pages.  Why
->> not just improve compaction for the alloc/free paths?
->
-> Basically the main reason is performance, I want to avoid compaction on hot
-> paths as much as possible. This patchset brings both performance and
-> compression ratio gain, I'm not sure how to achieve that with improving
-> compaction on alloc/free paths.
+On Tue, Oct 18, 2016 at 04:20:07PM +0200, Michal Hocko wrote:
+> On Mon 17-10-16 17:55:40, Kirill A. Shutemov wrote:
+> > On Mon, Oct 17, 2016 at 04:12:46PM +0200, Michal Hocko wrote:
+> > > On Mon 17-10-16 15:30:21, Kirill A. Shutemov wrote:
+> [...]
+> > > > We add two handle to specify minimal file size for huge pages:
+> > > > 
+> > > >   - mount option 'huge_min_size';
+> > > > 
+> > > >   - sysfs file /sys/kernel/mm/transparent_hugepage/shmem_min_size for
+> > > >     in-kernel tmpfs mountpoint;
+> > > 
+> > > Could you explain who might like to change the minimum value (other than
+> > > disable the feautre for the mount point) and for what reason?
+> > 
+> > Depending on how well CPU microarchitecture deals with huge pages, you
+> > might need to set it higher in order to balance out overhead with benefit
+> > of huge pages.
+> 
+> I am not sure this is a good argument. How do a user know and what will
+> help to make that decision? Why we cannot autotune that? In other words,
+> adding new knobs just in case turned out to be a bad idea in the past.
 
-It seems like a tradeoff of slight improvement in hot paths, for
-significant decrease in performance by adding a shrinker, which will
-do a lot of unnecessary scanning.  The alloc/free/unmap functions are
-working directly with the page at exactly the point where compaction
-is needed - when adding or removing a bud from the page.
+Well, I don't see a reasonable way to autotune it. We can just let
+arch-specific code to redefine it, but the argument below still stands.
 
-Sorry if I missed it in earlier emails, but have you done any
-performance measurements comparing with/without the shrinker?  The
-compression ratio gains may be possible with only the
-z3fold_compact_page() improvements, and performance may be stable (or
-better) with only a per-z3fold-page lock, instead of adding the
-shrinker...?
+> > In other case, if it's known in advance that specific mount would be
+> > populated with large files, you might want to set it to zero to get huge
+> > pages allocated from the beginning.
+> 
+> Cannot we use [mf]advise for that purpose?
 
-If a shrinker really is needed, it seems like it would be better
-suited to coalescing separate z3fold pages via migration, like
-zsmalloc does (although that's a significant amount of work).
+There's no fadvise for this at the moment. We can use madvise, except that
+the patch makes it lower priority than the limit :P. I'll fix that.
 
->
->>
->>>
->>> This patch has been checked with the latest Linus's tree.
->>>
->>> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
->>> ---
->>>  mm/z3fold.c | 144 +++++++++++++++++++++++++++++++++++++++++++++++++-----------
->>>  1 file changed, 119 insertions(+), 25 deletions(-)
->>>
->>> diff --git a/mm/z3fold.c b/mm/z3fold.c
->>> index 10513b5..8f84d3c 100644
->>> --- a/mm/z3fold.c
->>> +++ b/mm/z3fold.c
->>> @@ -27,6 +27,7 @@
->>>  #include <linux/mm.h>
->>>  #include <linux/module.h>
->>>  #include <linux/preempt.h>
->>> +#include <linux/shrinker.h>
->>>  #include <linux/slab.h>
->>>  #include <linux/spinlock.h>
->>>  #include <linux/zpool.h>
->>> @@ -72,6 +73,7 @@ struct z3fold_ops {
->>>   * @unbuddied_nr:      number of unbuddied z3fold pages in the pool.
->>>   * @ops:       pointer to a structure of user defined operations specified at
->>>   *             pool creation time.
->>> + * @shrinker:  shrinker structure to optimize page layout in background
->>>   *
->>>   * This structure is allocated at pool creation time and maintains metadata
->>>   * pertaining to a particular z3fold pool.
->>> @@ -86,6 +88,7 @@ struct z3fold_pool {
->>>         const struct z3fold_ops *ops;
->>>         struct zpool *zpool;
->>>         const struct zpool_ops *zpool_ops;
->>> +       struct shrinker shrinker;
->>>  };
->>>
->>>  enum buddy {
->>> @@ -121,6 +124,7 @@ enum z3fold_page_flags {
->>>         UNDER_RECLAIM = 0,
->>>         PAGE_HEADLESS,
->>>         MIDDLE_CHUNK_MAPPED,
->>> +       UNDER_COMPACTION,
->>>  };
->>>
->>>  /*****************
->>> @@ -136,6 +140,9 @@ static int size_to_chunks(size_t size)
->>>  #define for_each_unbuddied_list(_iter, _begin) \
->>>         for ((_iter) = (_begin); (_iter) < NCHUNKS; (_iter)++)
->>>
->>> +#define for_each_unbuddied_list_down(_iter, _end) \
->>> +       for ((_iter) = (_end); (_iter) > 0; (_iter)--)
->>> +
->>
->> bikeshed: the conventional suffix is _reverse, not _down, i.e.
->> for_each_unbuddied_list_reverse()
->
-> Ok :)
->
->>>  /* Initializes the z3fold header of a newly allocated z3fold page */
->>>  static struct z3fold_header *init_z3fold_page(struct page *page)
->>>  {
->>> @@ -145,6 +152,7 @@ static struct z3fold_header *init_z3fold_page(struct page *page)
->>>         clear_bit(UNDER_RECLAIM, &page->private);
->>>         clear_bit(PAGE_HEADLESS, &page->private);
->>>         clear_bit(MIDDLE_CHUNK_MAPPED, &page->private);
->>> +       clear_bit(UNDER_COMPACTION, &page->private);
->>>
->>>         zhdr->first_chunks = 0;
->>>         zhdr->middle_chunks = 0;
->>> @@ -211,6 +219,103 @@ static int num_free_chunks(struct z3fold_header *zhdr)
->>>         return nfree;
->>>  }
->>>
->>> +/* Has to be called with lock held */
->>> +static int z3fold_compact_page(struct z3fold_header *zhdr, bool sync)
->>> +{
->>> +       struct page *page = virt_to_page(zhdr);
->>> +       void *beg = zhdr;
->>> +
->>> +
->>> +       if (!test_bit(MIDDLE_CHUNK_MAPPED, &page->private) &&
->>> +           !test_bit(UNDER_RECLAIM, &page->private) &&
->>> +           !test_bit(UNDER_COMPACTION, &page->private)) {
->>> +               set_bit(UNDER_COMPACTION, &page->private);
->>
->> i assume the reclaim check, and new compaction bit check, is due to
->> the removal of the spinlock, which was incorrect.  changing to a
->> per-page spinlock may be the best way to handle this, but flags are
->> absolutely not appropriate - they don't provide the needed locking.
->> Even if the compaction bit was the only locking needed (which it
->> isn't), it still isn't correct here - while extremely unlikely, it's
->> still possible for multiple threads to race between checking the
->> compaction bit, and setting it.  That's what test_and_set_bit() is
->> for.
->
-> Yep, thanks, will fix that.
->
->>
->>> +               if (zhdr->middle_chunks != 0 &&
->>
->> only need to check if the middle bud is in use once; if it isn't,
->> there's no compaction to do.
->>
->>> +                   zhdr->first_chunks == 0 &&
->>> +                   zhdr->last_chunks == 0) {
->>> +                       memmove(beg + ZHDR_SIZE_ALIGNED,
->>> +                               beg + (zhdr->start_middle << CHUNK_SHIFT),
->>> +                               zhdr->middle_chunks << CHUNK_SHIFT);
->>> +                       zhdr->first_chunks = zhdr->middle_chunks;
->>> +                       zhdr->middle_chunks = 0;
->>> +                       zhdr->start_middle = 0;
->>> +                       zhdr->first_num++;
->>> +                       clear_bit(UNDER_COMPACTION, &page->private);
->>> +                       return 1;
->>> +               }
->>> +               if (sync)
->>> +                       goto out;
->>
->> i don't get it, why is that compaction synchronous while the others
->> below aren't?
->
-> That is the "important" compaction which changes first_num and brings the
-> biggest benefit. Moving middle object closer to another existing one is not
-> so important ratio wise, so the idea was to leave that for the shrinker.
->
->>
->>> +
->>> +               /* moving data is expensive, so let's only do that if
->>> +                * there's substantial gain (2+ chunks)
->>
->> "at least 2 chunks" feels arbitrary...it should be a #define instead
->> of a magic number...
->
-> ...or the module parameter but that could be added later.
->
->>> +                */
->>> +               if (zhdr->middle_chunks != 0 && zhdr->first_chunks != 0 &&
->>> +                   zhdr->last_chunks == 0 &&
->>> +                   zhdr->start_middle > zhdr->first_chunks + 2) {
->>> +                       unsigned short new_start = zhdr->first_chunks + 1;
->>> +                       memmove(beg + (new_start << CHUNK_SHIFT),
->>> +                               beg + (zhdr->start_middle << CHUNK_SHIFT),
->>> +                               zhdr->middle_chunks << CHUNK_SHIFT);
->>> +                       zhdr->start_middle = new_start;
->>> +                       clear_bit(UNDER_COMPACTION, &page->private);
->>> +                       return 1;
->>> +               }
->>> +               if (zhdr->middle_chunks != 0 && zhdr->last_chunks != 0 &&
->>> +                   zhdr->first_chunks == 0 &&
->>> +                   zhdr->middle_chunks + zhdr->last_chunks <=
->>> +                   NCHUNKS - zhdr->start_middle - 2) {
->>> +                       unsigned short new_start = NCHUNKS - zhdr->last_chunks -
->>> +                               zhdr->middle_chunks;
->>> +                       memmove(beg + (new_start << CHUNK_SHIFT),
->>> +                               beg + (zhdr->start_middle << CHUNK_SHIFT),
->>> +                               zhdr->middle_chunks << CHUNK_SHIFT);
->>
->> these if clauses, and the memmoves, aren't very readable, could it be
->> made any better with a separate function?
->
-> Yep, look somewhat scary, I'll think what I can do about it.
->
->>> +                       zhdr->start_middle = new_start;
->>> +                       clear_bit(UNDER_COMPACTION, &page->private);
->>> +                       return 1;
->>> +               }
->>> +       }
->>> +out:
->>> +       clear_bit(UNDER_COMPACTION, &page->private);
->>> +       return 0;
->>> +}
->>> +
->>> +static unsigned long z3fold_shrink_count(struct shrinker *shrink,
->>> +                               struct shrink_control *sc)
->>> +{
->>> +       struct z3fold_pool *pool = container_of(shrink, struct z3fold_pool,
->>> +                                               shrinker);
->>> +
->>> +       return atomic64_read(&pool->unbuddied_nr);
->>> +}
->>> +
->>> +static unsigned long z3fold_shrink_scan(struct shrinker *shrink,
->>> +                               struct shrink_control *sc)
->>> +{
->>> +       struct z3fold_pool *pool = container_of(shrink, struct z3fold_pool,
->>> +                                               shrinker);
->>> +       struct z3fold_header *zhdr;
->>> +       int i, nr_to_scan = sc->nr_to_scan, nr_shrunk = 0;
->>> +
->>> +       spin_lock(&pool->lock);
->>> +       for_each_unbuddied_list_down(i, NCHUNKS - 3) {
->>> +               if (!list_empty(&pool->unbuddied[i])) {
->>> +                       zhdr = list_first_entry(&pool->unbuddied[i],
->>> +                                               struct z3fold_header, buddy);
->>> +                       list_del(&zhdr->buddy);
->>> +                       spin_unlock(&pool->lock);
->>> +                       nr_shrunk += z3fold_compact_page(zhdr, false);
->>> +                       spin_lock(&pool->lock);
->>> +                       list_add(&zhdr->buddy,
->>> +                               &pool->unbuddied[num_free_chunks(zhdr)]);
->>
->> use list_add_tail(), we just compacted it and putting it at the head
->> of the new unbuddied list will cause it to be unnecessarily scanned
->> first later.
->>
->>> +                       if (!--nr_to_scan)
->>> +                               break;
->>> +               }
->>> +       }
->>> +       spin_unlock(&pool->lock);
->>> +       return nr_shrunk;
->>> +}
->>> +
->>> +
->>>  /*****************
->>>   * API Functions
->>>  *****************/
->>> @@ -230,7 +335,7 @@ static struct z3fold_pool *z3fold_create_pool(gfp_t gfp,
->>>
->>>         pool = kzalloc(sizeof(struct z3fold_pool), gfp);
->>>         if (!pool)
->>> -               return NULL;
->>> +               goto out;
->>>         spin_lock_init(&pool->lock);
->>>         for_each_unbuddied_list(i, 0)
->>>                 INIT_LIST_HEAD(&pool->unbuddied[i]);
->>> @@ -238,8 +343,19 @@ static struct z3fold_pool *z3fold_create_pool(gfp_t gfp,
->>>         INIT_LIST_HEAD(&pool->lru);
->>>         atomic64_set(&pool->pages_nr, 0);
->>>         atomic64_set(&pool->unbuddied_nr, 0);
->>> +       pool->shrinker.count_objects = z3fold_shrink_count;
->>> +       pool->shrinker.scan_objects = z3fold_shrink_scan;
->>> +       pool->shrinker.seeks = DEFAULT_SEEKS;
->>> +       pool->shrinker.batch = NCHUNKS - 4;
->>> +       if (register_shrinker(&pool->shrinker))
->>> +               goto out_free;
->>>         pool->ops = ops;
->>>         return pool;
->>> +
->>> +out_free:
->>> +       kfree(pool);
->>> +out:
->>> +       return NULL;
->>>  }
->>>
->>>  /**
->>> @@ -250,31 +366,10 @@ static struct z3fold_pool *z3fold_create_pool(gfp_t gfp,
->>>   */
->>>  static void z3fold_destroy_pool(struct z3fold_pool *pool)
->>>  {
->>> +       unregister_shrinker(&pool->shrinker);
->>>         kfree(pool);
->>>  }
->>>
->>> -/* Has to be called with lock held */
->>> -static int z3fold_compact_page(struct z3fold_header *zhdr)
->>> -{
->>> -       struct page *page = virt_to_page(zhdr);
->>> -       void *beg = zhdr;
->>> -
->>> -
->>> -       if (!test_bit(MIDDLE_CHUNK_MAPPED, &page->private) &&
->>> -           zhdr->middle_chunks != 0 &&
->>> -           zhdr->first_chunks == 0 && zhdr->last_chunks == 0) {
->>> -               memmove(beg + ZHDR_SIZE_ALIGNED,
->>> -                       beg + (zhdr->start_middle << CHUNK_SHIFT),
->>> -                       zhdr->middle_chunks << CHUNK_SHIFT);
->>> -               zhdr->first_chunks = zhdr->middle_chunks;
->>> -               zhdr->middle_chunks = 0;
->>> -               zhdr->start_middle = 0;
->>> -               zhdr->first_num++;
->>> -               return 1;
->>> -       }
->>> -       return 0;
->>> -}
->>> -
->>>  /**
->>>   * z3fold_alloc() - allocates a region of a given size
->>>   * @pool:      z3fold pool from which to allocate
->>> @@ -464,7 +559,6 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
->>>                 free_z3fold_page(zhdr);
->>>                 atomic64_dec(&pool->pages_nr);
->>>         } else {
->>> -               z3fold_compact_page(zhdr);
->>
->> why remove this?
->
-> As I've said above, that gives some performance improvement.
->
-> ~vitaly
+But in general, it would require change to the program which is not always
+desirable or even possible.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
