@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D0096B0253
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 17:42:28 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id t73so15276556oie.5
-        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 14:42:28 -0700 (PDT)
-Received: from gateway33.websitewelcome.com (gateway33.websitewelcome.com. [192.185.145.239])
-        by mx.google.com with ESMTPS id k7si13795695otd.216.2016.10.18.14.42.27
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B7C146B025E
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 17:42:30 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id a195so16286218oib.0
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 14:42:30 -0700 (PDT)
+Received: from gateway34.websitewelcome.com (gateway34.websitewelcome.com. [192.185.148.200])
+        by mx.google.com with ESMTPS id w19si11441324oie.37.2016.10.18.14.42.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Oct 2016 14:42:27 -0700 (PDT)
-Received: from cm1.websitewelcome.com (cm.websitewelcome.com [192.185.0.102])
-	by gateway33.websitewelcome.com (Postfix) with ESMTP id 8326FD669B5E0
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 16:42:27 -0500 (CDT)
+        Tue, 18 Oct 2016 14:42:29 -0700 (PDT)
+Received: from cm3.websitewelcome.com (unknown [108.167.139.23])
+	by gateway34.websitewelcome.com (Postfix) with ESMTP id 7A4A1D25435CE
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 16:42:29 -0500 (CDT)
 From: Stephen Bates <sbates@raithlin.com>
-Subject: [PATCH 1/3] memremap.c : Add support for ZONE_DEVICE IO memory with struct pages.
-Date: Tue, 18 Oct 2016 15:42:15 -0600
-Message-Id: <1476826937-20665-2-git-send-email-sbates@raithlin.com>
+Subject: [PATCH 2/3] iopmem : Add a block device driver for PCIe attached IO memory.
+Date: Tue, 18 Oct 2016 15:42:16 -0600
+Message-Id: <1476826937-20665-3-git-send-email-sbates@raithlin.com>
 In-Reply-To: <1476826937-20665-1-git-send-email-sbates@raithlin.com>
 References: <1476826937-20665-1-git-send-email-sbates@raithlin.com>
 Sender: owner-linux-mm@kvack.org
@@ -23,281 +23,424 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, linux-rdma@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org
 Cc: dan.j.williams@intel.com, ross.zwisler@linux.intel.com, willy@linux.intel.com, jgunthorpe@obsidianresearch.com, haggaie@mellanox.com, hch@infradead.org, axboe@fb.com, corbet@lwn.net, jim.macdonald@everspin.com, sbates@raithin.com, logang@deltatee.com, Stephen Bates <sbates@raithlin.com>
 
-From: Logan Gunthorpe <logang@deltatee.com>
-
-We build on recent work that adds memory regions owned by a device
-driver (ZONE_DEVICE) [1] and to add struct page support for these new
-regions of memory [2].
-
-1. Add an extra flags argument into dev_memremap_pages to take in a
-MEMREMAP_XX argument. We update the existing calls to this function to
-reflect the change.
-
-2. For completeness, we add MEMREMAP_WT support to the memremap;
-however we have no actual need for this functionality.
-
-3. We add the static functions, add_zone_device_pages and
-remove_zone_device pages. These are similar to arch_add_memory except
-they don't create the memory mapping. We don't believe these need to be
-made arch specific, but are open to other opinions.
-
-4. dev_memremap_pages and devm_memremap_pages_release are updated to
-treat IO memory slightly differently. For IO memory we use a combination
-of the appropriate io_remap function and the zone_device pages functions
-created above. A flags variable and kaddr pointer are added to struct
-page_mem to facilitate this for the release function. We also set up
-the page attribute tables for the mapped region correctly based on the
-desired mapping.
-
-[1] https://lists.01.org/pipermail/linux-nvdimm/2015-August/001810.html
-[2] https://lists.01.org/pipermail/linux-nvdimm/2015-October/002387.html
+Add a new block device driver that binds to PCIe devices and turns
+PCIe BARs into DAX capable block devices.
 
 Signed-off-by: Stephen Bates <sbates@raithlin.com>
 Signed-off-by: Logan Gunthorpe <logang@deltatee.com>
 ---
- drivers/dax/pmem.c                |  4 +-
- drivers/nvdimm/pmem.c             |  4 +-
- include/linux/memremap.h          |  5 ++-
- kernel/memremap.c                 | 80 +++++++++++++++++++++++++++++++++++++--
- tools/testing/nvdimm/test/iomap.c |  3 +-
- 5 files changed, 86 insertions(+), 10 deletions(-)
+ MAINTAINERS            |   7 ++
+ drivers/block/Kconfig  |  27 ++++
+ drivers/block/Makefile |   1 +
+ drivers/block/iopmem.c | 333 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 368 insertions(+)
+ create mode 100644 drivers/block/iopmem.c
 
-diff --git a/drivers/dax/pmem.c b/drivers/dax/pmem.c
-index 9630d88..58ac456 100644
---- a/drivers/dax/pmem.c
-+++ b/drivers/dax/pmem.c
-@@ -14,6 +14,7 @@
- #include <linux/memremap.h>
- #include <linux/module.h>
- #include <linux/pfn_t.h>
-+#include <linux/pmem.h>
- #include "../nvdimm/pfn.h"
- #include "../nvdimm/nd.h"
- #include "dax.h"
-@@ -108,7 +109,8 @@ static int dax_pmem_probe(struct device *dev)
- 	if (rc)
- 		return rc;
+diff --git a/MAINTAINERS b/MAINTAINERS
+index 1cd38a7..c379f9d 100644
+--- a/MAINTAINERS
++++ b/MAINTAINERS
+@@ -6510,6 +6510,13 @@ S:	Maintained
+ F:	Documentation/devicetree/bindings/iommu/
+ F:	drivers/iommu/
 
--	addr = devm_memremap_pages(dev, &res, &dax_pmem->ref, altmap);
-+	addr = devm_memremap_pages(dev, &res, &dax_pmem->ref, altmap,
-+							ARCH_MEMREMAP_PMEM);
- 	if (IS_ERR(addr))
- 		return PTR_ERR(addr);
++IOPMEM BLOCK DEVICE DRVIER
++M:	Stephen Bates <sbates@raithlin.com>
++L:	linux-block@vger.kernel.org
++S:	Maintained
++F:	drivers/block/iopmem.c
++F:	Documentation/blockdev/iopmem.txt
++
+ IP MASQUERADING
+ M:	Juanjo Ciarlante <jjciarla@raiz.uncu.edu.ar>
+ S:	Maintained
+diff --git a/drivers/block/Kconfig b/drivers/block/Kconfig
+index 39dd30b..13ae1e7 100644
+--- a/drivers/block/Kconfig
++++ b/drivers/block/Kconfig
+@@ -537,4 +537,31 @@ config BLK_DEV_RSXX
+ 	  To compile this driver as a module, choose M here: the
+ 	  module will be called rsxx.
 
-diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
-index 42b3a82..97032a1 100644
---- a/drivers/nvdimm/pmem.c
-+++ b/drivers/nvdimm/pmem.c
-@@ -278,7 +278,7 @@ static int pmem_attach_disk(struct device *dev,
- 	pmem->pfn_flags = PFN_DEV;
- 	if (is_nd_pfn(dev)) {
- 		addr = devm_memremap_pages(dev, &pfn_res, &q->q_usage_counter,
--				altmap);
-+				altmap, ARCH_MEMREMAP_PMEM);
- 		pfn_sb = nd_pfn->pfn_sb;
- 		pmem->data_offset = le64_to_cpu(pfn_sb->dataoff);
- 		pmem->pfn_pad = resource_size(res) - resource_size(&pfn_res);
-@@ -287,7 +287,7 @@ static int pmem_attach_disk(struct device *dev,
- 		res->start += pmem->data_offset;
- 	} else if (pmem_should_map_pages(dev)) {
- 		addr = devm_memremap_pages(dev, &nsio->res,
--				&q->q_usage_counter, NULL);
-+				&q->q_usage_counter, NULL, ARCH_MEMREMAP_PMEM);
- 		pmem->pfn_flags |= PFN_MAP;
- 	} else
- 		addr = devm_memremap(dev, pmem->phys_addr,
-diff --git a/include/linux/memremap.h b/include/linux/memremap.h
-index 9341619..fc99283 100644
---- a/include/linux/memremap.h
-+++ b/include/linux/memremap.h
-@@ -51,12 +51,13 @@ struct dev_pagemap {
++config BLK_DEV_IOPMEM
++	tristate "Persistent block device backed by PCIe Memory"
++	depends on ZONE_DEVICE
++	default n
++	help
++	  Say Y here if you want to include a generic device driver
++	  that can create a block device from persistent PCIe attached
++	  IO memory.
++
++	  To compile this driver as a module, choose M here: The
++	  module will be called iopmem. A block device will be created
++	  for each PCIe attached device that matches the vendor and
++	  device ID as specified in the module. Alternativel this
++	  driver can be bound to any aribtary PCIe function using the
++	  sysfs bind entry.
++
++	  This block device supports direct access (DAX) file systems
++	  and supports struct page backing for the IO Memory. This
++	  makes the underlying memory suitable for things like RDMA
++	  Memory Regions and Direct IO which is useful for PCIe
++	  peer-to-peer DMA operations.
++
++	  Note that persistent is only assured if the memory on the
++	  PCIe card has some form of power loss protection. This could
++	  be provided via some form of battery, a supercap/NAND combo
++	  or some exciting new persistent memory technology.
++
+ endif # BLK_DEV
+diff --git a/drivers/block/Makefile b/drivers/block/Makefile
+index 1e9661e..1f4f69b 100644
+--- a/drivers/block/Makefile
++++ b/drivers/block/Makefile
+@@ -41,6 +41,7 @@ obj-$(CONFIG_BLK_DEV_PCIESSD_MTIP32XX)	+= mtip32xx/
+ obj-$(CONFIG_BLK_DEV_RSXX) += rsxx/
+ obj-$(CONFIG_BLK_DEV_NULL_BLK)	+= null_blk.o
+ obj-$(CONFIG_ZRAM) += zram/
++obj-$(CONFIG_BLK_DEV_IOPMEM)	+= iopmem.o
 
- #ifdef CONFIG_ZONE_DEVICE
- void *devm_memremap_pages(struct device *dev, struct resource *res,
--		struct percpu_ref *ref, struct vmem_altmap *altmap);
-+		struct percpu_ref *ref, struct vmem_altmap *altmap,
-+		unsigned long flags);
- struct dev_pagemap *find_dev_pagemap(resource_size_t phys);
- #else
- static inline void *devm_memremap_pages(struct device *dev,
- 		struct resource *res, struct percpu_ref *ref,
--		struct vmem_altmap *altmap)
-+		struct vmem_altmap *altmap, unsigned long flags)
- {
- 	/*
- 	 * Fail attempts to call devm_memremap_pages() without
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index b501e39..d5f462c 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -175,13 +175,41 @@ static RADIX_TREE(pgmap_radix, GFP_KERNEL);
- #define SECTION_MASK ~((1UL << PA_SECTION_SHIFT) - 1)
- #define SECTION_SIZE (1UL << PA_SECTION_SHIFT)
-
-+enum {
-+	PAGEMAP_IO_MEM = 1 << 0,
+ skd-y		:= skd_main.o
+ swim_mod-y	:= swim.o swim_asm.o
+diff --git a/drivers/block/iopmem.c b/drivers/block/iopmem.c
+new file mode 100644
+index 0000000..4a1e693
+--- /dev/null
++++ b/drivers/block/iopmem.c
+@@ -0,0 +1,333 @@
++/*
++ * IOPMEM Block Device Driver
++ * Copyright (c) 2016, Microsemi Corporation
++ *
++ * This program is free software; you can redistribute it and/or modify it
++ * under the terms and conditions of the GNU General Public License,
++ * version 2, as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope it will be useful, but WITHOUT
++ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
++ * more details.
++ *
++ * This driver is heavily based on drivers/block/pmem.c.
++ * Copyright (c) 2014, Intel Corporation.
++ * Copyright (C) 2007 Nick Piggin
++ * Copyright (C) 2007 Novell Inc.
++ */
++
++#include <linux/blkdev.h>
++#include <linux/module.h>
++#include <linux/pci.h>
++#include <linux/pfn_t.h>
++#include <linux/memremap.h>
++
++static const int BAR_ID = 4;
++
++static struct pci_device_id iopmem_id_table[] = {
++	{ PCI_DEVICE(0x11f8, 0xf115) },
++	{ 0, }
++};
++MODULE_DEVICE_TABLE(pci, iopmem_id_table);
++
++struct iopmem_device {
++	struct request_queue *queue;
++	struct gendisk *disk;
++	struct device *dev;
++
++	int instance;
++
++	/* One contiguous memory region per device */
++	phys_addr_t		phys_addr;
++	void			*virt_addr;
++	size_t			size;
 +};
 +
- struct page_map {
- 	struct resource res;
- 	struct percpu_ref *ref;
- 	struct dev_pagemap pgmap;
- 	struct vmem_altmap altmap;
-+	void *kaddr;
-+	int flags;
- };
-
-+static int add_zone_device_pages(int nid, u64 start, u64 size)
-+{
-+	struct pglist_data *pgdat = NODE_DATA(nid);
-+	struct zone *zone = pgdat->node_zones + ZONE_DEVICE;
-+	unsigned long start_pfn = start >> PAGE_SHIFT;
-+	unsigned long nr_pages = size >> PAGE_SHIFT;
++  /*
++   * We can only access the iopmem device with full 32-bit word
++   * accesses which cannot be gaurantee'd by the regular memcpy
++   */
 +
-+	return __add_pages(nid, zone, start_pfn, nr_pages);
++static void memcpy_from_iopmem(void *dst, const void *src, size_t sz)
++{
++	u64 *wdst = dst;
++	const u64 *wsrc = src;
++	u64 tmp;
++
++	while (sz >= sizeof(*wdst)) {
++		*wdst++ = *wsrc++;
++		sz -= sizeof(*wdst);
++	}
++
++	if (!sz)
++		return;
++
++	tmp = *wsrc;
++	memcpy(wdst, &tmp, sz);
 +}
 +
-+static void remove_zone_device_pages(u64 start, u64 size)
++static void write_iopmem(void *iopmem_addr, struct page *page,
++		       unsigned int off, unsigned int len)
 +{
-+	unsigned long start_pfn = start >> PAGE_SHIFT;
-+	unsigned long nr_pages = size >> PAGE_SHIFT;
-+	struct zone *zone;
-+	int ret;
++	void *mem = kmap_atomic(page);
 +
-+	zone = page_zone(pfn_to_page(start_pfn));
-+	ret = __remove_pages(zone, start_pfn, nr_pages);
-+	WARN_ON_ONCE(ret);
++	memcpy(iopmem_addr, mem + off, len);
++	kunmap_atomic(mem);
 +}
 +
- void get_zone_device_page(struct page *page)
- {
- 	percpu_ref_get(page->pgmap->ref);
-@@ -246,9 +274,17 @@ static void devm_memremap_pages_release(struct device *dev, void *data)
- 	/* pages are dead and unused, undo the arch mapping */
- 	align_start = res->start & ~(SECTION_SIZE - 1);
- 	align_size = ALIGN(resource_size(res), SECTION_SIZE);
--	arch_remove_memory(align_start, align_size);
++static void read_iopmem(struct page *page, unsigned int off,
++			void *iopmem_addr, unsigned int len)
++{
++	void *mem = kmap_atomic(page);
 +
-+	if (page_map->flags & PAGEMAP_IO_MEM) {
-+		remove_zone_device_pages(align_start, align_size);
-+		iounmap(page_map->kaddr);
++	memcpy_from_iopmem(mem + off, iopmem_addr, len);
++	kunmap_atomic(mem);
++}
++
++static void iopmem_do_bvec(struct iopmem_device *iopmem, struct page *page,
++			   unsigned int len, unsigned int off, bool is_write,
++			   sector_t sector)
++{
++	phys_addr_t iopmem_off = sector * 512;
++	void *iopmem_addr = iopmem->virt_addr + iopmem_off;
++
++	if (!is_write) {
++		read_iopmem(page, off, iopmem_addr, len);
++		flush_dcache_page(page);
 +	} else {
-+		arch_remove_memory(align_start, align_size);
++		flush_dcache_page(page);
++		write_iopmem(iopmem_addr, page, off, len);
++	}
++}
++
++static blk_qc_t iopmem_make_request(struct request_queue *q, struct bio *bio)
++{
++	struct iopmem_device *iopmem = q->queuedata;
++	struct bio_vec bvec;
++	struct bvec_iter iter;
++
++	bio_for_each_segment(bvec, bio, iter) {
++		iopmem_do_bvec(iopmem, bvec.bv_page, bvec.bv_len,
++			    bvec.bv_offset, op_is_write(bio_op(bio)),
++			    iter.bi_sector);
 +	}
 +
- 	untrack_pfn(NULL, PHYS_PFN(align_start), align_size);
- 	pgmap_radix_release(res);
++	bio_endio(bio);
++	return BLK_QC_T_NONE;
++}
 +
- 	dev_WARN_ONCE(dev, pgmap->altmap && pgmap->altmap->alloc,
- 			"%s: failed to free all reserved pages\n", __func__);
- }
-@@ -270,6 +306,8 @@ struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
-  * @res: "host memory" address range
-  * @ref: a live per-cpu reference count
-  * @altmap: optional descriptor for allocating the memmap from @res
-+ * @flags: either MEMREMAP_WB, MEMREMAP_WT and MEMREMAP_WC
-+ *         see memremap() for a description of the flags
-  *
-  * Notes:
-  * 1/ @ref must be 'live' on entry and 'dead' before devm_memunmap_pages() time
-@@ -280,7 +318,8 @@ struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
-  *    this is not enforced.
-  */
- void *devm_memremap_pages(struct device *dev, struct resource *res,
--		struct percpu_ref *ref, struct vmem_altmap *altmap)
-+		struct percpu_ref *ref, struct vmem_altmap *altmap,
-+		unsigned long flags)
- {
- 	resource_size_t key, align_start, align_size, align_end;
- 	pgprot_t pgprot = PAGE_KERNEL;
-@@ -288,6 +327,8 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
- 	struct page_map *page_map;
- 	int error, nid, is_ram;
- 	unsigned long pfn;
-+	void *addr = NULL;
-+	enum page_cache_mode pcm;
-
- 	align_start = res->start & ~(SECTION_SIZE - 1);
- 	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
-@@ -353,15 +394,44 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
- 	if (nid < 0)
- 		nid = numa_mem_id();
-
-+	if (flags & MEMREMAP_WB)
-+		pcm = _PAGE_CACHE_MODE_WB;
-+	else if (flags & MEMREMAP_WT)
-+		pcm = _PAGE_CACHE_MODE_WT;
-+	else if (flags & MEMREMAP_WC)
-+		pcm = _PAGE_CACHE_MODE_WC;
-+	else
-+		pcm = _PAGE_CACHE_MODE_WB;
++static int iopmem_rw_page(struct block_device *bdev, sector_t sector,
++		       struct page *page, bool is_write)
++{
++	struct iopmem_device *iopmem = bdev->bd_queue->queuedata;
 +
-+	pgprot = __pgprot(pgprot_val(pgprot) | cachemode2protval(pcm));
++	iopmem_do_bvec(iopmem, page, PAGE_SIZE, 0, is_write, sector);
++	page_endio(page, is_write, 0);
++	return 0;
++}
 +
- 	error = track_pfn_remap(NULL, &pgprot, PHYS_PFN(align_start), 0,
- 			align_size);
- 	if (error)
- 		goto err_pfn_remap;
-
--	error = arch_add_memory(nid, align_start, align_size, true);
-+	if (flags & MEMREMAP_WB || !flags) {
-+		error = arch_add_memory(nid, align_start, align_size, true);
-+		addr = __va(res->start);
-+	} else {
-+		page_map->flags |= PAGEMAP_IO_MEM;
-+		error = add_zone_device_pages(nid, align_start, align_size);
++static long iopmem_direct_access(struct block_device *bdev, sector_t sector,
++			       void **kaddr, pfn_t *pfn, long size)
++{
++	struct iopmem_device *iopmem = bdev->bd_queue->queuedata;
++	resource_size_t offset = sector * 512;
++
++	if (!iopmem)
++		return -ENODEV;
++
++	*kaddr = iopmem->virt_addr + offset;
++	 *pfn = phys_to_pfn_t(iopmem->phys_addr + offset, PFN_DEV | PFN_MAP);
++
++	return iopmem->size - offset;
++}
++
++static const struct block_device_operations iopmem_fops = {
++	.owner =		THIS_MODULE,
++	.rw_page =		iopmem_rw_page,
++	.direct_access =	iopmem_direct_access,
++};
++
++static DEFINE_IDA(iopmem_instance_ida);
++static DEFINE_SPINLOCK(ida_lock);
++
++static int iopmem_set_instance(struct iopmem_device *iopmem)
++{
++	int instance, error;
++
++	do {
++		if (!ida_pre_get(&iopmem_instance_ida, GFP_KERNEL))
++			return -ENODEV;
++
++		spin_lock(&ida_lock);
++		error = ida_get_new(&iopmem_instance_ida, &instance);
++		spin_unlock(&ida_lock);
++
++	} while (error == -EAGAIN);
++
++	if (error)
++		return -ENODEV;
++
++	iopmem->instance = instance;
++	return 0;
++}
++
++static void iopmem_release_instance(struct iopmem_device *iopmem)
++{
++	spin_lock(&ida_lock);
++	ida_remove(&iopmem_instance_ida, iopmem->instance);
++	spin_unlock(&ida_lock);
++}
++
++static int iopmem_attach_disk(struct iopmem_device *iopmem)
++{
++	struct gendisk *disk;
++	int nid = dev_to_node(iopmem->dev);
++	struct request_queue *q = iopmem->queue;
++
++	blk_queue_write_cache(q, true, true);
++	blk_queue_make_request(q, iopmem_make_request);
++	blk_queue_physical_block_size(q, PAGE_SIZE);
++	blk_queue_max_hw_sectors(q, UINT_MAX);
++	blk_queue_bounce_limit(q, BLK_BOUNCE_ANY);
++	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
++	queue_flag_set_unlocked(QUEUE_FLAG_DAX, q);
++	q->queuedata = iopmem;
++
++	disk = alloc_disk_node(0, nid);
++	if (unlikely(!disk))
++		return -ENOMEM;
++
++	disk->fops		= &iopmem_fops;
++	disk->queue		= q;
++	disk->flags		= GENHD_FL_EXT_DEVT;
++	sprintf(disk->disk_name, "iopmem%d", iopmem->instance);
++	set_capacity(disk, iopmem->size / 512);
++	iopmem->disk = disk;
++
++	device_add_disk(iopmem->dev, disk);
++	revalidate_disk(disk);
++
++	return 0;
++}
++
++static void iopmem_detach_disk(struct iopmem_device *iopmem)
++{
++	del_gendisk(iopmem->disk);
++	put_disk(iopmem->disk);
++}
++
++static int iopmem_probe(struct pci_dev *pdev, const struct pci_device_id *id)
++{
++	struct iopmem_device *iopmem;
++	struct device *dev;
++	int err = 0;
++	int nid = dev_to_node(&pdev->dev);
++
++	if (pci_enable_device_mem(pdev) < 0) {
++		dev_err(&pdev->dev, "unable to enable device!\n");
++		goto out;
 +	}
 +
- 	if (error)
- 		goto err_add_memory;
-
-+	if (!addr && (flags & MEMREMAP_WT))
-+		addr = ioremap_wt(res->start, resource_size(res));
-+
-+	if (!addr && (flags & MEMREMAP_WC))
-+		addr = ioremap_wc(res->start, resource_size(res));
-+
-+	if (!addr && page_map->flags & PAGEMAP_IO_MEM) {
-+		remove_zone_device_pages(res->start, resource_size(res));
-+		goto err_add_memory;
++	iopmem = kzalloc(sizeof(*iopmem), GFP_KERNEL);
++	if (unlikely(!iopmem)) {
++		err = -ENOMEM;
++		goto out_disable_device;
 +	}
 +
- 	for_each_device_pfn(pfn, page_map) {
- 		struct page *page = pfn_to_page(pfn);
-
-@@ -374,8 +444,10 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
- 		list_del(&page->lru);
- 		page->pgmap = pgmap;
- 	}
++	iopmem->phys_addr = pci_resource_start(pdev, BAR_ID);
++	iopmem->size = pci_resource_end(pdev, BAR_ID) - iopmem->phys_addr + 1;
++	iopmem->dev = dev = get_device(&pdev->dev);
++	pci_set_drvdata(pdev, iopmem);
 +
-+	page_map->kaddr = addr;
- 	devres_add(dev, page_map);
--	return __va(res->start);
-+	return addr;
-
-  err_add_memory:
- 	untrack_pfn(NULL, PHYS_PFN(align_start), align_size);
-diff --git a/tools/testing/nvdimm/test/iomap.c b/tools/testing/nvdimm/test/iomap.c
-index 3ccef73..b82fecb 100644
---- a/tools/testing/nvdimm/test/iomap.c
-+++ b/tools/testing/nvdimm/test/iomap.c
-@@ -17,6 +17,7 @@
- #include <linux/module.h>
- #include <linux/types.h>
- #include <linux/pfn_t.h>
-+#include <linux/pmem.h>
- #include <linux/acpi.h>
- #include <linux/io.h>
- #include <linux/mm.h>
-@@ -109,7 +110,7 @@ void *__wrap_devm_memremap_pages(struct device *dev, struct resource *res,
-
- 	if (nfit_res)
- 		return nfit_res->buf + offset - nfit_res->res.start;
--	return devm_memremap_pages(dev, res, ref, altmap);
-+	return devm_memremap_pages(dev, res, ref, altmap, ARCH_MEMREMAP_PMEM);
- }
- EXPORT_SYMBOL(__wrap_devm_memremap_pages);
-
++	err = iopmem_set_instance(iopmem);
++	if (err)
++		goto out_put_device;
++
++	dev_info(dev, "bar space 0x%llx len %lld\n",
++		(unsigned long long) iopmem->phys_addr,
++		(unsigned long long) iopmem->size);
++
++	if (!devm_request_mem_region(dev, iopmem->phys_addr,
++				     iopmem->size, dev_name(dev))) {
++		dev_warn(dev, "could not reserve region [0x%pa:0x%zx]\n",
++			 &iopmem->phys_addr, iopmem->size);
++		err = -EBUSY;
++		goto out_release_instance;
++	}
++
++	iopmem->queue = blk_alloc_queue_node(GFP_KERNEL, nid);
++	if (!iopmem->queue) {
++		err = -ENOMEM;
++		goto out_release_instance;
++	}
++
++	iopmem->virt_addr = devm_memremap_pages(dev, &pdev->resource[BAR_ID],
++				&iopmem->queue->q_usage_counter,
++				NULL, MEMREMAP_WC);
++	if (IS_ERR(iopmem->virt_addr)) {
++		err = -ENXIO;
++		goto out_free_queue;
++	}
++
++	err = iopmem_attach_disk(iopmem);
++	if (err)
++		goto out_free_queue;
++
++	return 0;
++
++out_free_queue:
++	blk_cleanup_queue(iopmem->queue);
++out_release_instance:
++	iopmem_release_instance(iopmem);
++out_put_device:
++	put_device(&pdev->dev);
++	kfree(iopmem);
++out_disable_device:
++	pci_disable_device(pdev);
++out:
++	return err;
++}
++
++static void iopmem_remove(struct pci_dev *pdev)
++{
++	struct iopmem_device *iopmem = pci_get_drvdata(pdev);
++
++	blk_set_queue_dying(iopmem->queue);
++	iopmem_detach_disk(iopmem);
++	blk_cleanup_queue(iopmem->queue);
++	iopmem_release_instance(iopmem);
++	put_device(iopmem->dev);
++	kfree(iopmem);
++	pci_disable_device(pdev);
++}
++
++static struct pci_driver iopmem_pci_driver = {
++	.name = "iopmem",
++	.id_table = iopmem_id_table,
++	.probe = iopmem_probe,
++	.remove = iopmem_remove,
++};
++
++static int __init iopmem_init(void)
++{
++	int rc;
++
++	rc = pci_register_driver(&iopmem_pci_driver);
++	if (rc)
++		return rc;
++
++	pr_info("iopmem: module loaded\n");
++	return 0;
++}
++
++static void __exit iopmem_exit(void)
++{
++	pci_unregister_driver(&iopmem_pci_driver);
++	pr_info("iopmem: module unloaded\n");
++}
++
++MODULE_AUTHOR("Logan Gunthorpe <logang@deltatee.com>");
++MODULE_LICENSE("GPL");
++module_init(iopmem_init);
++module_exit(iopmem_exit);
 --
 2.1.4
 
