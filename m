@@ -1,98 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1746C6B0038
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 11:29:49 -0400 (EDT)
-Received: by mail-vk0-f70.google.com with SMTP id t22so164124223vkb.7
-        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 08:29:49 -0700 (PDT)
-Received: from mail-vk0-x241.google.com (mail-vk0-x241.google.com. [2607:f8b0:400c:c05::241])
-        by mx.google.com with ESMTPS id n127si18080850vkb.55.2016.10.18.08.29.48
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DE0766B0253
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 11:30:53 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id c78so35783wme.1
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 08:30:53 -0700 (PDT)
+Received: from mail-wm0-f67.google.com (mail-wm0-f67.google.com. [74.125.82.67])
+        by mx.google.com with ESMTPS id dw13si10539859wjb.44.2016.10.18.08.30.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Oct 2016 08:29:48 -0700 (PDT)
-Received: by mail-vk0-x241.google.com with SMTP id b186so9909035vkb.3
-        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 08:29:48 -0700 (PDT)
+        Tue, 18 Oct 2016 08:30:52 -0700 (PDT)
+Received: by mail-wm0-f67.google.com with SMTP id d199so9577wmd.1
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 08:30:52 -0700 (PDT)
+Date: Tue, 18 Oct 2016 17:30:50 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 00/10] mm: adjust get_user_pages* functions to explicitly
+ pass FOLL_* flags
+Message-ID: <20161018153050.GC13117@dhcp22.suse.cz>
+References: <20161013002020.3062-1-lstoakes@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CAMJBoFPnpdG7ddR7LTKNYNZZzNo0t3tP+o0004gf7x26BOWNVQ@mail.gmail.com>
-References: <20161015135632.541010b55bec496e2cae056e@gmail.com>
- <20161015140520.ee52a80c92c50214a6614977@gmail.com> <CALZtONBWyX0OjJUcyyj23vqpJtbx-8fHakdDzrywvgZDZyVq6w@mail.gmail.com>
- <CAMJBoFPORDkVnpX5tf6zoYPxQWXA1Aayvff5s8iRWw0mLSg7OQ@mail.gmail.com>
- <CALZtONC4_aJwqhQ5W9AzHZS6_yUQk-w50E+gY=xHuwCYpi2Jfg@mail.gmail.com> <CAMJBoFPnpdG7ddR7LTKNYNZZzNo0t3tP+o0004gf7x26BOWNVQ@mail.gmail.com>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Tue, 18 Oct 2016 11:29:07 -0400
-Message-ID: <CALZtONCSBC+gxDHrCrQkyx0+eUwejLJJBvzsnPBtiKr58LJtLA@mail.gmail.com>
-Subject: Re: [PATCH v5 3/3] z3fold: add shrinker
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161013002020.3062-1-lstoakes@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Wool <vitalywool@gmail.com>
-Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Dave Chinner <david@fromorbit.com>
+To: Lorenzo Stoakes <lstoakes@gmail.com>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, adi-buildroot-devel@lists.sourceforge.net, ceph-devel@vger.kernel.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, kvm@vger.kernel.org, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-cris-kernel@axis.com, linux-fbdev@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, linux-mips@linux-mips.org, linux-rdma@vger.kernel.org, linux-s390@vger.kernel.org, linux-samsung-soc@vger.kernel.org, linux-scsi@vger.kernel.org, linux-security-module@vger.kernel.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, netdev@vger.kernel.org, sparclinux@vger.kernel.org, x86@kernel.org
 
-On Tue, Oct 18, 2016 at 10:51 AM, Vitaly Wool <vitalywool@gmail.com> wrote:
-> On Tue, Oct 18, 2016 at 4:27 PM, Dan Streetman <ddstreet@ieee.org> wrote:
->> On Mon, Oct 17, 2016 at 10:45 PM, Vitaly Wool <vitalywool@gmail.com> wrote:
->>> Hi Dan,
->>>
->>> On Tue, Oct 18, 2016 at 4:06 AM, Dan Streetman <ddstreet@ieee.org> wrote:
->>>> On Sat, Oct 15, 2016 at 8:05 AM, Vitaly Wool <vitalywool@gmail.com> wrote:
->>>>> This patch implements shrinker for z3fold. This shrinker
->>>>> implementation does not free up any pages directly but it allows
->>>>> for a denser placement of compressed objects which results in
->>>>> less actual pages consumed and higher compression ratio therefore.
->>>>>
->>>>> This update removes z3fold page compaction from the freeing path
->>>>> since we can rely on shrinker to do the job. Also, a new flag
->>>>> UNDER_COMPACTION is introduced to protect against two threads
->>>>> trying to compact the same page.
->>>>
->>>> i'm completely unconvinced that this should be a shrinker.  The
->>>> alloc/free paths are much, much better suited to compacting a page
->>>> than a shrinker that must scan through all the unbuddied pages.  Why
->>>> not just improve compaction for the alloc/free paths?
->>>
->>> Basically the main reason is performance, I want to avoid compaction on hot
->>> paths as much as possible. This patchset brings both performance and
->>> compression ratio gain, I'm not sure how to achieve that with improving
->>> compaction on alloc/free paths.
->>
->> It seems like a tradeoff of slight improvement in hot paths, for
->> significant decrease in performance by adding a shrinker, which will
->> do a lot of unnecessary scanning.  The alloc/free/unmap functions are
->> working directly with the page at exactly the point where compaction
->> is needed - when adding or removing a bud from the page.
->
-> I can see that sometimes there are substantial amounts of pages that
-> are non-compactable synchronously due to the MIDDLE_CHUNK_MAPPED
-> bit set. Picking up those seems to be a good job for a shrinker, and those
-> end up in the beginning of respective unbuddied lists, so the shrinker is set
-> to find them. I can slightly optimize that by introducing a
-> COMPACT_DEFERRED flag or something like that to make shrinker find
-> those pages faster, would that make sense to you?
+On Thu 13-10-16 01:20:10, Lorenzo Stoakes wrote:
+> This patch series adjusts functions in the get_user_pages* family such that
+> desired FOLL_* flags are passed as an argument rather than implied by flags.
+> 
+> The purpose of this change is to make the use of FOLL_FORCE explicit so it is
+> easier to grep for and clearer to callers that this flag is being used. The use
+> of FOLL_FORCE is an issue as it overrides missing VM_READ/VM_WRITE flags for the
+> VMA whose pages we are reading from/writing to, which can result in surprising
+> behaviour.
+> 
+> The patch series came out of the discussion around commit 38e0885, which
+> addressed a BUG_ON() being triggered when a page was faulted in with PROT_NONE
+> set but having been overridden by FOLL_FORCE. do_numa_page() was run on the
+> assumption the page _must_ be one marked for NUMA node migration as an actual
+> PROT_NONE page would have been dealt with prior to this code path, however
+> FOLL_FORCE introduced a situation where this assumption did not hold.
+> 
+> See https://marc.info/?l=linux-mm&m=147585445805166 for the patch proposal.
 
-Why not just compact the page in z3fold_unmap()?
+I like this cleanup. Tracking FOLL_FORCE users was always a nightmare
+and the flag behavior is really subtle so we should better be explicit
+about it. I haven't gone through each patch separately but rather
+applied the whole series and checked the resulting diff. This all seems
+OK to me and feel free to add
+Acked-by: Michal Hocko <mhocko@suse.com>
 
->
->> Sorry if I missed it in earlier emails, but have you done any
->> performance measurements comparing with/without the shrinker?  The
->> compression ratio gains may be possible with only the
->> z3fold_compact_page() improvements, and performance may be stable (or
->> better) with only a per-z3fold-page lock, instead of adding the
->> shrinker...?
->
-> I'm running some tests with per-page locks now, but according to the
-> previous measurements the shrinker version always wins on multi-core
-> platforms.
+I am wondering whether we can go further. E.g. it is not really clear to
+me whether we need an explicit FOLL_REMOTE when we can in fact check
+mm != current->mm and imply that. Maybe there are some contexts which
+wouldn't work, I haven't checked.
 
-But that comparison is without taking the spinlock in map/unmap right?
+Then I am also wondering about FOLL_TOUCH behavior.
+__get_user_pages_unlocked has only few callers which used to be
+get_user_pages_unlocked before 1e9877902dc7e ("mm/gup: Introduce
+get_user_pages_remote()"). To me a dropped FOLL_TOUCH seems
+unintentional. Now that get_user_pages_unlocked has gup_flags argument I
+guess we might want to get rid of the __g-u-p-u version altogether, no?
 
->
->> If a shrinker really is needed, it seems like it would be better
->> suited to coalescing separate z3fold pages via migration, like
->> zsmalloc does (although that's a significant amount of work).
->
-> I really don't want to go that way to keep z3fold applicable to an MMU-less
-> system.
->
-> ~vitaly
+__get_user_pages is quite low level and imho shouldn't be exported. It's
+only user - kvm - should rather pull those two functions to gup instead
+and export them. There is nothing really KVM specific in them.
+
+I also cannot say I would be entirely thrilled about get_user_pages_locked,
+we only have one user which can simply do lock g-u-p unlock AFAICS.
+
+I guess there is more work in that area and I do not want to impose all
+that work on you, but I couldn't resist once I saw you playing in that
+area ;) Definitely a good start!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
