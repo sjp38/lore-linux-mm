@@ -1,66 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C6E56B0038
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 12:41:36 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id f134so14769614lfg.6
-        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 09:41:36 -0700 (PDT)
-Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
-        by mx.google.com with ESMTPS id m127si287232lfa.186.2016.10.18.09.41.34
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 375416B0038
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 13:32:58 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id h24so37822pfh.0
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 10:32:58 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id p70si19796571pfa.217.2016.10.18.10.32.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Oct 2016 09:41:34 -0700 (PDT)
-Received: by mail-lf0-x244.google.com with SMTP id x23so27569163lfi.1
-        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 09:41:34 -0700 (PDT)
-Date: Tue, 18 Oct 2016 19:41:31 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-Subject: Re: [Bug 177821] New: NULL pointer dereference in list_rcu
-Message-ID: <20161018164131.GB14704@esperanza>
-References: <bug-177821-27@https.bugzilla.kernel.org/>
- <20161017171038.924cbbcfc0a23652d2d2b8b4@linux-foundation.org>
- <FA3391F9-B333-451D-8415-CB5B62030A9D@beget.ru>
+        Tue, 18 Oct 2016 10:32:57 -0700 (PDT)
+Date: Tue, 18 Oct 2016 11:32:55 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH 12/20] mm: Factor out common parts of write fault handling
+Message-ID: <20161018173255.GA26584@linux.intel.com>
+References: <1474992504-20133-1-git-send-email-jack@suse.cz>
+ <1474992504-20133-13-git-send-email-jack@suse.cz>
+ <20161017220851.GA26960@linux.intel.com>
+ <20161018105000.GQ3359@quack2.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <FA3391F9-B333-451D-8415-CB5B62030A9D@beget.ru>
+In-Reply-To: <20161018105000.GQ3359@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Polakov <apolyakov@beget.ru>
-Cc: Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org
+To: Jan Kara <jack@suse.cz>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Tue, Oct 18, 2016 at 10:26:55AM +0300, Alexander Polakov wrote:
-> From: Alexander Polakov <apolyakov@beget.ru>
-> Subject: mm/list_lru.c: avoid error-path NULL pointer deref
+On Tue, Oct 18, 2016 at 12:50:00PM +0200, Jan Kara wrote:
+> On Mon 17-10-16 16:08:51, Ross Zwisler wrote:
+> > On Tue, Sep 27, 2016 at 06:08:16PM +0200, Jan Kara wrote:
+> > > Currently we duplicate handling of shared write faults in
+> > > wp_page_reuse() and do_shared_fault(). Factor them out into a common
+> > > function.
+> > > 
+> > > Signed-off-by: Jan Kara <jack@suse.cz>
+> > > ---
+> > >  mm/memory.c | 78 +++++++++++++++++++++++++++++--------------------------------
+> > >  1 file changed, 37 insertions(+), 41 deletions(-)
+> > > 
+> > > diff --git a/mm/memory.c b/mm/memory.c
+> > > index 63d9c1a54caf..0643b3b5a12a 100644
+> > > --- a/mm/memory.c
+> > > +++ b/mm/memory.c
+> > > @@ -2063,6 +2063,41 @@ static int do_page_mkwrite(struct vm_area_struct *vma, struct page *page,
+> > >  }
+> > >  
+> > >  /*
+> > > + * Handle dirtying of a page in shared file mapping on a write fault.
+> > > + *
+> > > + * The function expects the page to be locked and unlocks it.
+> > > + */
+> > > +static void fault_dirty_shared_page(struct vm_area_struct *vma,
+> > > +				    struct page *page)
+> > > +{
+> > > +	struct address_space *mapping;
+> > > +	bool dirtied;
+> > > +	bool page_mkwrite = vma->vm_ops->page_mkwrite;
+> > 
+> > I think you may need to pass in a 'page_mkwrite' parameter if you don't want
+> > to change behavior.  Just checking to see of vma->vm_ops->page_mkwrite is
+> > non-NULL works fine for this path:
+> > 
+> > do_shared_fault()
+> > 	fault_dirty_shared_page()
+> > 
+> > and for
+> > 
+> > wp_page_shared()
+> > 	wp_page_reuse()
+> > 		fault_dirty_shared_page()
+> > 
+> > But for these paths:
+> > 
+> > wp_pfn_shared()
+> > 	wp_page_reuse()
+> > 		fault_dirty_shared_page()
+> > 
+> > and
+> > 
+> > do_wp_page()
+> > 	wp_page_reuse()
+> > 		fault_dirty_shared_page()
+> > 
+> > we unconditionally pass 0 for the 'page_mkwrite' parameter, even though from
+> > the logic in wp_pfn_shared() especially you can see that
+> > vma->vm_ops->pfn_mkwrite() must be defined some of the time.
 > 
-> As described in https://bugzilla.kernel.org/show_bug.cgi?id=177821:
+> The trick which makes this work is that for fault_dirty_shared_page() to be
+> called at all, you have to set 'dirty_shared' argument to wp_page_reuse()
+> and that does not happen from wp_pfn_shared() and do_wp_page() paths. So
+> things work as they should. If you look somewhat later into the series,
+> the patch "mm: Move part of wp_page_reuse() into the single call site"
+> cleans this up to make things more obvious.
 > 
-> After some analysis it seems to be that the problem is in alloc_super(). 
-> In case list_lru_init_memcg() fails it goes into destroy_super(), which
-> calls list_lru_destroy().
-> 
-> And in list_lru_init() we see that in case memcg_init_list_lru() fails,
-> lru->node is freed, but not set NULL, which then leads list_lru_destroy()
-> to believe it is initialized and call memcg_destroy_list_lru(). 
-> memcg_destroy_list_lru() in turn can access lru->node[i].memcg_lrus, which
-> is NULL.
-> 
-> [akpm@linux-foundation.org: add comment]
-> Cc: Vladimir Davydov <vdavydov@parallels.com>
-> Cc: Al Viro <viro@zeniv.linux.org.uk>
-> Signed-off-by: Alexander Polakov <apolyakov@beget.ru>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> 								Honza
 
-Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+Ah, cool, that makes sense.
 
-FWIW,
+You can add:
 
-The patch is indeed correct. However, failing a mount because of
-inability to allocate per memcg data sounds bad. We should probably
-fallback on vmalloc in memcg_{init,update}_list_lru_node() or use a
-contrived data structure, like flex_array, there. This is also fair for
-{init,update}_memcg_params in mm/slab_common.c.
-
-Thanks,
-Vladimir
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
