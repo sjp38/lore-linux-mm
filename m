@@ -1,92 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BD4666B0260
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 06:13:04 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id x23so8188076lfi.0
-        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 03:13:04 -0700 (PDT)
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2ABF0280251
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 06:32:53 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id n3so8524638lfn.5
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 03:32:53 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gz9si15771543wjc.23.2016.10.18.03.13.03
+        by mx.google.com with ESMTPS id l18si22028824lfi.388.2016.10.18.03.32.51
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 18 Oct 2016 03:13:03 -0700 (PDT)
-Date: Tue, 18 Oct 2016 12:13:01 +0200
+        Tue, 18 Oct 2016 03:32:51 -0700 (PDT)
+Date: Tue, 18 Oct 2016 12:32:48 +0200
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 07/20] mm: Add orig_pte field into vm_fault
-Message-ID: <20161018101301.GN3359@quack2.suse.cz>
+Subject: Re: [PATCH 10/20] mm: Move handling of COW faults into DAX code
+Message-ID: <20161018103248.GO3359@quack2.suse.cz>
 References: <1474992504-20133-1-git-send-email-jack@suse.cz>
- <1474992504-20133-8-git-send-email-jack@suse.cz>
- <20161017164512.GA25175@linux.intel.com>
+ <1474992504-20133-11-git-send-email-jack@suse.cz>
+ <20161017192949.GA21002@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161017164512.GA25175@linux.intel.com>
+In-Reply-To: <20161017192949.GA21002@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ross Zwisler <ross.zwisler@linux.intel.com>
 Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Mon 17-10-16 10:45:12, Ross Zwisler wrote:
-> On Tue, Sep 27, 2016 at 06:08:11PM +0200, Jan Kara wrote:
-> > Add orig_pte field to vm_fault structure to allow ->page_mkwrite
-> > handlers to fully handle the fault. This also allows us to save some
-> > passing of extra arguments around.
+On Mon 17-10-16 13:29:49, Ross Zwisler wrote:
+> On Tue, Sep 27, 2016 at 06:08:14PM +0200, Jan Kara wrote:
+> > Move final handling of COW faults from generic code into DAX fault
+> > handler. That way generic code doesn't have to be aware of peculiarities
+> > of DAX locking so remove that knowledge.
 > > 
 > > Signed-off-by: Jan Kara <jack@suse.cz>
 > > ---
-> 
-> > diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-> > index f88b2d3810a7..66bc77f2d1d2 100644
-> > --- a/mm/khugepaged.c
-> > +++ b/mm/khugepaged.c
-> > @@ -890,11 +890,12 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
-> >  	vmf.pte = pte_offset_map(pmd, address);
-> >  	for (; vmf.address < address + HPAGE_PMD_NR*PAGE_SIZE;
-> >  			vmf.pte++, vmf.address += PAGE_SIZE) {
-> > -		pteval = *vmf.pte;
-> > +		vmf.orig_pte = *vmf.pte;
-> > +		pteval = vmf.orig_pte;
-> >  		if (!is_swap_pte(pteval))
-> >  			continue;
-> 
-> 'pteval' is now only used once.  It's probably cleaner to just remove it and
-> use vmf.orig_pte for the is_swap_pte() check.
-
-Yes, fixed.
-
-> > @@ -3484,8 +3484,7 @@ static int handle_pte_fault(struct vm_fault *vmf)
-> >  		 * So now it's safe to run pte_offset_map().
-> >  		 */
-> >  		vmf->pte = pte_offset_map(vmf->pmd, vmf->address);
-> > -
-> > -		entry = *vmf->pte;
-> > +		vmf->orig_pte = *vmf->pte;
+> >  fs/dax.c            | 22 ++++++++++++++++------
+> >  include/linux/dax.h |  7 -------
+> >  include/linux/mm.h  |  9 +--------
+> >  mm/memory.c         | 14 ++++----------
+> >  4 files changed, 21 insertions(+), 31 deletions(-)
+> > 
+> > diff --git a/fs/dax.c b/fs/dax.c
+> > index 0dc251ca77b8..b1c503930d1d 100644
+> > --- a/fs/dax.c
+> > +++ b/fs/dax.c
+> > @@ -876,10 +876,15 @@ int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+> >  			goto unlock_entry;
+> >  		if (!radix_tree_exceptional_entry(entry)) {
+> >  			vmf->page = entry;
+> > -			return VM_FAULT_LOCKED;
+> > +			if (unlikely(PageHWPoison(entry))) {
+> > +				put_locked_mapping_entry(mapping, vmf->pgoff,
+> > +							 entry);
+> > +				return VM_FAULT_HWPOISON;
+> > +			}
+> >  		}
+> > -		vmf->entry = entry;
+> > -		return VM_FAULT_DAX_LOCKED;
+> > +		error = finish_fault(vmf);
+> > +		put_locked_mapping_entry(mapping, vmf->pgoff, entry);
+> > +		return error ? error : VM_FAULT_DONE_COW;
+> >  	}
 > >  
-> >  		/*
-> >  		 * some architectures can have larger ptes than wordsize,
-> > @@ -3496,6 +3495,7 @@ static int handle_pte_fault(struct vm_fault *vmf)
-> >  		 * ptl lock held. So here a barrier will do.
-> >  		 */
-> >  		barrier();
-> > +		entry = vmf->orig_pte;
+> >  	if (!buffer_mapped(&bh)) {
+> > @@ -1430,10 +1435,15 @@ int iomap_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+> >  			goto unlock_entry;
+> >  		if (!radix_tree_exceptional_entry(entry)) {
+> >  			vmf->page = entry;
 > 
-> This set of 'entry' is now on the other side of the barrier().  I'll admit
-> that I don't fully grok the need for the barrier. Does it apply to only the
-> setting of vmf->pte and vmf->orig_pte, or does 'entry' also matter because it
-> too is of type pte_t, and thus could be bigger than the architecture's word
-> size?
-> 
-> My guess is that 'entry' matters, too, and should remain before the barrier()
-> call.  If not, can you help me understand why?
+> In __do_fault() we explicitly clear vmf->page in the case where PageHWPoison()
+> is set.  I think we can get the same behavior here by moving the call that
+> sets vmf->page after the PageHWPoison() check.
 
-Sure, actually the comment just above the barrier() explains it: We care
-about sampling *vmf->pte value only once - so we want the value stored in
-'entry' (vmf->orig_pte after the patch) to be used and avoid compiler
-optimizations leading to refetching the value at *vmf->pte. The way I've
-written the code achieves this. Actually, I've moved the 'entry' assignment
-even further down where it makes more sense with the new code layout.
+Actually, the whole HWPoison checking was non-sensical for DAX. We want to
+check for HWPoison to avoid reading from poisoned pages. However for DAX we
+either use copy_user_dax() which takes care of IO errors / poisoning itself
+or we use clear_user_highpage() which doesn't touch the source page. So we
+don't have to check for HWPoison at all. Fixed.
+
+> > -			return VM_FAULT_LOCKED;
+> > +			if (unlikely(PageHWPoison(entry))) {
+> > +				put_locked_mapping_entry(mapping, vmf->pgoff,
+> > +							 entry);
+> > +				return VM_FAULT_HWPOISON;
+> > +			}
+> >  		}
+> > -		vmf->entry = entry;
+> > -		return VM_FAULT_DAX_LOCKED;
+> 
+> I think we're missing a call to 
+> 
+> 	__SetPageUptodate(new_page);
+
+> before finish_fault()?  This call currently lives in do_cow_fault(), and
+> is part of the path that we don't skip as part of the VM_FAULT_DAX_LOCKED
+> logic.
+
+Ah, great catch. I wonder how the DAX COW test could have passed with this?
+Maybe PageUptodate is not used much for anon pages... Anyway thanks for
+spotting this.
 
 								Honza
-
 -- 
 Jan Kara <jack@suse.com>
 SUSE Labs, CR
