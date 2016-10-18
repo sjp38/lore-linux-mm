@@ -1,74 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BEEA6B0069
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 15:53:34 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id r16so1605521pfg.4
-        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 12:53:34 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id di1si31007471pad.270.2016.10.18.12.53.33
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A7C306B0069
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 16:56:51 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id k16so12438809iok.5
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 13:56:51 -0700 (PDT)
+Received: from cdptpa-oedge-vip.email.rr.com (cdptpa-outbound-snat.email.rr.com. [107.14.166.229])
+        by mx.google.com with ESMTPS id w5si21958254ioe.183.2016.10.18.13.56.50
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 18 Oct 2016 12:53:33 -0700 (PDT)
-Date: Tue, 18 Oct 2016 13:53:32 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH 19/20] dax: Protect PTE modification on WP fault by radix
- tree entry lock
-Message-ID: <20161018195332.GF7796@linux.intel.com>
-References: <1474992504-20133-1-git-send-email-jack@suse.cz>
- <1474992504-20133-20-git-send-email-jack@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 18 Oct 2016 13:56:50 -0700 (PDT)
+Date: Tue, 18 Oct 2016 16:56:48 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH 6/6] mm: add preempt points into __purge_vmap_area_lazy
+Message-ID: <20161018205648.GB7021@home.goodmis.org>
+References: <1476773771-11470-1-git-send-email-hch@lst.de>
+ <1476773771-11470-7-git-send-email-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1474992504-20133-20-git-send-email-jack@suse.cz>
+In-Reply-To: <1476773771-11470-7-git-send-email-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: akpm@linux-foundation.org, joelaf@google.com, jszhang@marvell.com, chris@chris-wilson.co.uk, joaodias@google.com, linux-mm@kvack.org, linux-rt-users@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Sep 27, 2016 at 06:08:23PM +0200, Jan Kara wrote:
-> Currently PTE gets updated in wp_pfn_shared() after dax_pfn_mkwrite()
-> has released corresponding radix tree entry lock. When we want to
-> writeprotect PTE on cache flush, we need PTE modification to happen
-> under radix tree entry lock to ensure consisten updates of PTE and radix
-					consistent
-
-> tree (standard faults use page lock to ensure this consistency). So move
-> update of PTE bit into dax_pfn_mkwrite().
+On Tue, Oct 18, 2016 at 08:56:11AM +0200, Christoph Hellwig wrote:
+> From: Joel Fernandes <joelaf@google.com>
 > 
-> Signed-off-by: Jan Kara <jack@suse.cz>
+> Use cond_resched_lock to avoid holding the vmap_area_lock for a
+> potentially long time.
+> 
+> Signed-off-by: Joel Fernandes <joelaf@google.com>
+> [hch: split from a larger patch by Joel, wrote the crappy changelog]
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
 > ---
->  fs/dax.c    | 22 ++++++++++++++++------
->  mm/memory.c |  2 +-
->  2 files changed, 17 insertions(+), 7 deletions(-)
+>  mm/vmalloc.c | 14 +++++++++-----
+>  1 file changed, 9 insertions(+), 5 deletions(-)
 > 
-> diff --git a/fs/dax.c b/fs/dax.c
-> index c6cadf8413a3..a2d3781c9f4e 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-> @@ -1163,17 +1163,27 @@ int dax_pfn_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
->  {
->  	struct file *file = vma->vm_file;
->  	struct address_space *mapping = file->f_mapping;
-> -	void *entry;
-> +	void *entry, **slot;
->  	pgoff_t index = vmf->pgoff;
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 6c7eb8d..98b19ea 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -628,7 +628,7 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
+>  	struct llist_node *valist;
+>  	struct vmap_area *va;
+>  	struct vmap_area *n_va;
+> -	int nr = 0;
+> +	bool do_free = false;
 >  
->  	spin_lock_irq(&mapping->tree_lock);
-> -	entry = get_unlocked_mapping_entry(mapping, index, NULL);
-> -	if (!entry || !radix_tree_exceptional_entry(entry))
-> -		goto out;
-> +	entry = get_unlocked_mapping_entry(mapping, index, &slot);
-> +	if (!entry || !radix_tree_exceptional_entry(entry)) {
-> +		if (entry)
-> +			put_unlocked_mapping_entry(mapping, index, entry);
+>  	lockdep_assert_held(&vmap_purge_lock);
+>  
+> @@ -638,18 +638,22 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
+>  			start = va->va_start;
+>  		if (va->va_end > end)
+>  			end = va->va_end;
+> -		nr += (va->va_end - va->va_start) >> PAGE_SHIFT;
+> +		do_free = true;
+>  	}
+>  
+> -	if (!nr)
+> +	if (!do_free)
+>  		return false;
+>  
+> -	atomic_sub(nr, &vmap_lazy_nr);
+>  	flush_tlb_kernel_range(start, end);
+>  
+>  	spin_lock(&vmap_area_lock);
+> -	llist_for_each_entry_safe(va, n_va, valist, purge_list)
+> +	llist_for_each_entry_safe(va, n_va, valist, purge_list) {
+> +		int nr = (va->va_end - va->va_start) >> PAGE_SHIFT;
+> +
+>  		__free_vmap_area(va);
+> +		atomic_sub(nr, &vmap_lazy_nr);
+> +		cond_resched_lock(&vmap_area_lock);
 
-I don't think you need this call to put_unlocked_mapping_entry().  If we get
-in here we know that 'entry' is a page cache page, in which case
-put_unlocked_mapping_entry() will just return without doing any work.
+Is releasing the lock within a llist_for_each_entry_safe() actually safe? Is
+vmap_area_lock the one to protect the valist?
 
-With that nit & the spelling error above:
+That is llist_for_each_entry_safe(va, n_va, valist, purg_list) does:
 
-Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+	for (va = llist_entry(valist, typeof(*va), purge_list);
+	     &va->purge_list != NULL &&
+	     n_va = llist_entry(va->purge_list.next, typeof(*n_va),
+				purge_list, true);
+	     pos = n)
+
+Thus n_va is pointing to the next element to process when we release the
+lock. Is it possible for another task to get into this same path and process
+the item that n_va is pointing to? Then when the preempted task comes back,
+grabs the vmap_area_lock, and then continues the loop with what n_va has,
+could that cause problems? That is, the next iteration after releasing the
+lock does va = n_va. What happens if n_va no longer exits?
+
+I don't know this code that well, and perhaps vmap_area_lock is not protecting
+the list and this is all fine.
+
+-- Steve
+
+
+> +	}
+>  	spin_unlock(&vmap_area_lock);
+>  	return true;
+>  }
+> -- 
+> 2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
