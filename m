@@ -1,97 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C0F8E6B0038
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 08:52:50 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id n189so140729693qke.0
-        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 05:52:50 -0700 (PDT)
-Received: from mail-qk0-f194.google.com (mail-qk0-f194.google.com. [209.85.220.194])
-        by mx.google.com with ESMTPS id f29si20906670qte.33.2016.10.18.05.52.50
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 252BE6B0038
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 08:54:29 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id b75so10445601lfg.3
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 05:54:29 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x3si41552475wjq.94.2016.10.18.05.54.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Oct 2016 05:52:50 -0700 (PDT)
-Received: by mail-qk0-f194.google.com with SMTP id n189so16729603qke.1
-        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 05:52:50 -0700 (PDT)
-Date: Tue, 18 Oct 2016 14:52:47 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm: exclude isolated non-lru pages from
- NR_ISOLATED_ANON or NR_ISOLATED_FILE.
-Message-ID: <20161018125247.GI12092@dhcp22.suse.cz>
-References: <20161014113044.GB6063@dhcp22.suse.cz>
- <20161014134604.GA2179@blaptop>
- <20161014135334.GF6063@dhcp22.suse.cz>
- <20161014144448.GA2899@blaptop>
- <20161014150355.GH6063@dhcp22.suse.cz>
- <20161014152633.GA3157@blaptop>
- <20161015071044.GC9949@dhcp22.suse.cz>
- <20161016230618.GB9196@bbox>
- <20161017084244.GF23322@dhcp22.suse.cz>
- <20161018062950.GA18818@bbox>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 18 Oct 2016 05:54:27 -0700 (PDT)
+Date: Tue, 18 Oct 2016 14:54:25 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 04/10] mm: replace get_user_pages_locked() write/force
+ parameters with gup_flags
+Message-ID: <20161018125425.GD29967@quack2.suse.cz>
+References: <20161013002020.3062-1-lstoakes@gmail.com>
+ <20161013002020.3062-5-lstoakes@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161018062950.GA18818@bbox>
+In-Reply-To: <20161013002020.3062-5-lstoakes@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ming Ling <ming.ling@spreadtrum.com>
-Cc: Minchan Kim <minchan@kernel.org>, akpm@linux-foundation.org, mgorman@techsingularity.net, vbabka@suse.cz, hannes@cmpxchg.org, baiyaowei@cmss.chinamobile.com, iamjoonsoo.kim@lge.com, rientjes@google.com, hughd@google.com, kirill.shutemov@linux.intel.com, riel@redhat.com, mgorman@suse.de, aquini@redhat.com, corbet@lwn.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, orson.zhai@spreadtrum.com, geng.ren@spreadtrum.com, chunyan.zhang@spreadtrum.com, zhizhou.tian@spreadtrum.com, yuming.han@spreadtrum.com, xiajing@spreadst.com
+To: Lorenzo Stoakes <lstoakes@gmail.com>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, adi-buildroot-devel@lists.sourceforge.net, ceph-devel@vger.kernel.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, kvm@vger.kernel.org, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-cris-kernel@axis.com, linux-fbdev@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, linux-mips@linux-mips.org, linux-rdma@vger.kernel.org, linux-s390@vger.kernel.org, linux-samsung-soc@vger.kernel.org, linux-scsi@vger.kernel.org, linux-security-module@vger.kernel.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, netdev@vger.kernel.org, sparclinux@vger.kernel.org, x86@kernel.org
 
-On Tue 18-10-16 15:29:50, Minchan Kim wrote:
-> On Mon, Oct 17, 2016 at 10:42:45AM +0200, Michal Hocko wrote:
-[...]
-> > Sure, what do you think about the following? I haven't marked it for
-> > stable because there was no bug report for it AFAIU.
-> > ---
-> > From 3b2bd4486f36ada9f6dc86d3946855281455ba9f Mon Sep 17 00:00:00 2001
-> > From: Ming Ling <ming.ling@spreadtrum.com>
-> > Date: Mon, 17 Oct 2016 10:26:50 +0200
-> > Subject: [PATCH] mm, compaction: fix NR_ISOLATED_* stats for pfn based
-> >  migration
-> > 
-> > Since bda807d44454 ("mm: migrate: support non-lru movable page
-> > migration") isolate_migratepages_block) can isolate !PageLRU pages which
-> > would acct_isolated account as NR_ISOLATED_*. Accounting these non-lru
-> > pages NR_ISOLATED_{ANON,FILE} doesn't make any sense and it can misguide
-> > heuristics based on those counters such as pgdat_reclaimable_pages resp.
-> > too_many_isolated which would lead to unexpected stalls during the
-> > direct reclaim without any good reason. Note that
-> > __alloc_contig_migrate_range can isolate a lot of pages at once.
-> > 
-> > On mobile devices such as 512M ram android Phone, it may use a big zram
-> > swap. In some cases zram(zsmalloc) uses too many non-lru but migratedable
-> > pages, such as:
-> > 
-> >       MemTotal: 468148 kB
-> >       Normal free:5620kB
-> >       Free swap:4736kB
-> >       Total swap:409596kB
-> >       ZRAM: 164616kB(zsmalloc non-lru pages)
-> >       active_anon:60700kB
-> >       inactive_anon:60744kB
-> >       active_file:34420kB
-> >       inactive_file:37532kB
-> > 
-> > Fix this by only accounting lru pages to NR_ISOLATED_* in
-> > isolate_migratepages_block right after they were isolated and we still
-> > know they were on LRU. Drop acct_isolated because it is called after the
-> > fact and we've lost that information. Batching per-cpu counter doesn't
-> > make much improvement anyway. Also make sure that we uncharge only LRU
-> > pages when putting them back on the LRU in putback_movable_pages resp.
-> > when unmap_and_move migrates the page.
-> > 
-> > Fixes: bda807d44454 ("mm: migrate: support non-lru movable page migration")
-> > Signed-off-by: Ming Ling <ming.ling@spreadtrum.com>
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+On Thu 13-10-16 01:20:14, Lorenzo Stoakes wrote:
+> This patch removes the write and force parameters from get_user_pages_locked()
+> and replaces them with a gup_flags parameter to make the use of FOLL_FORCE
+> explicit in callers as use of this flag can result in surprising behaviour (and
+> hence bugs) within the mm subsystem.
 > 
-> Acked-by: Minchan Kim <minchan@kernel.org>
+> Signed-off-by: Lorenzo Stoakes <lstoakes@gmail.com>
+> ---
+>  include/linux/mm.h |  2 +-
+>  mm/frame_vector.c  |  8 +++++++-
+>  mm/gup.c           | 12 +++---------
+>  mm/nommu.c         |  5 ++++-
+>  4 files changed, 15 insertions(+), 12 deletions(-)
 > 
-> with folding other fix patch you posted.
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 6adc4bc..27ab538 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1282,7 +1282,7 @@ long get_user_pages(unsigned long start, unsigned long nr_pages,
+>  			    int write, int force, struct page **pages,
+>  			    struct vm_area_struct **vmas);
+>  long get_user_pages_locked(unsigned long start, unsigned long nr_pages,
+> -		    int write, int force, struct page **pages, int *locked);
+> +		    unsigned int gup_flags, struct page **pages, int *locked);
 
-Thanks.
+Hum, the prototype is inconsistent with e.g. __get_user_pages_unlocked()
+where gup_flags come after **pages argument. Actually it makes more sense
+to have it before **pages so that input arguments come first and output
+arguments second but I don't care that much. But it definitely should be
+consistent...
 
-Ming, are you OK with this patch? Can I post it to Andrew?
+								Honza
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
