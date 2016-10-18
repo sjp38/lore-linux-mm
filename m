@@ -1,77 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AB0916B0038
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 14:06:27 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id c78so2236321wme.1
-        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 11:06:27 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id z7si50133280wjl.99.2016.10.18.11.06.26
+	by kanga.kvack.org (Postfix) with ESMTP id EFFD06B0069
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 14:30:26 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id c78so2535100wme.1
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 11:30:26 -0700 (PDT)
+Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
+        by mx.google.com with ESMTPS id x128si730016wmb.76.2016.10.18.11.30.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Oct 2016 11:06:26 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id d199so577068wmd.1
-        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 11:06:26 -0700 (PDT)
-Date: Tue, 18 Oct 2016 20:06:24 +0200
+        Tue, 18 Oct 2016 11:30:25 -0700 (PDT)
+Received: by mail-wm0-f65.google.com with SMTP id g16so661024wmg.2
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 11:30:25 -0700 (PDT)
+Date: Tue, 18 Oct 2016 20:30:24 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [REVIEW][PATCH] mm: Add a user_ns owner to mm_struct and fix
- ptrace_may_access
-Message-ID: <20161018180624.GA27792@dhcp22.suse.cz>
-References: <87twcbq696.fsf@x220.int.ebiederm.org>
- <20161018135031.GB13117@dhcp22.suse.cz>
- <8737jt903u.fsf@xmission.com>
+Subject: Re: [PATCH] shmem: avoid huge pages for small files
+Message-ID: <20161018183023.GC27792@dhcp22.suse.cz>
+References: <20161017121809.189039-1-kirill.shutemov@linux.intel.com>
+ <20161017123021.rlyz44dsf4l4xnve@black.fi.intel.com>
+ <20161017141245.GC27459@dhcp22.suse.cz>
+ <20161017145539.GA26930@node.shutemov.name>
+ <20161018142007.GL12092@dhcp22.suse.cz>
+ <20161018143207.GA5833@node.shutemov.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <8737jt903u.fsf@xmission.com>
+In-Reply-To: <20161018143207.GA5833@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Linux Containers <containers@lists.linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, "Serge E. Hallyn" <serge@hallyn.com>, Oleg Nesterov <oleg@redhat.com>, Andy Lutomirski <luto@amacapital.net>, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 18-10-16 09:56:53, Eric W. Biederman wrote:
-> Michal Hocko <mhocko@kernel.org> writes:
+On Tue 18-10-16 17:32:07, Kirill A. Shutemov wrote:
+> On Tue, Oct 18, 2016 at 04:20:07PM +0200, Michal Hocko wrote:
+> > On Mon 17-10-16 17:55:40, Kirill A. Shutemov wrote:
+> > > On Mon, Oct 17, 2016 at 04:12:46PM +0200, Michal Hocko wrote:
+> > > > On Mon 17-10-16 15:30:21, Kirill A. Shutemov wrote:
+> > [...]
+> > > > > We add two handle to specify minimal file size for huge pages:
+> > > > > 
+> > > > >   - mount option 'huge_min_size';
+> > > > > 
+> > > > >   - sysfs file /sys/kernel/mm/transparent_hugepage/shmem_min_size for
+> > > > >     in-kernel tmpfs mountpoint;
+> > > > 
+> > > > Could you explain who might like to change the minimum value (other than
+> > > > disable the feautre for the mount point) and for what reason?
+> > > 
+> > > Depending on how well CPU microarchitecture deals with huge pages, you
+> > > might need to set it higher in order to balance out overhead with benefit
+> > > of huge pages.
+> > 
+> > I am not sure this is a good argument. How do a user know and what will
+> > help to make that decision? Why we cannot autotune that? In other words,
+> > adding new knobs just in case turned out to be a bad idea in the past.
 > 
-> > On Mon 17-10-16 11:39:49, Eric W. Biederman wrote:
-> >> 
-> >> During exec dumpable is cleared if the file that is being executed is
-> >> not readable by the user executing the file.  A bug in
-> >> ptrace_may_access allows reading the file if the executable happens to
-> >> enter into a subordinate user namespace (aka clone(CLONE_NEWUSER),
-> >> unshare(CLONE_NEWUSER), or setns(fd, CLONE_NEWUSER).
-> >> 
-> >> This problem is fixed with only necessary userspace breakage by adding
-> >> a user namespace owner to mm_struct, captured at the time of exec,
-> >> so it is clear in which user namespace CAP_SYS_PTRACE must be present
-> >> in to be able to safely give read permission to the executable.
-> >> 
-> >> The function ptrace_may_access is modified to verify that the ptracer
-> >> has CAP_SYS_ADMIN in task->mm->user_ns instead of task->cred->user_ns.
-> >> This ensures that if the task changes it's cred into a subordinate
-> >> user namespace it does not become ptraceable.
-> >
-> > I haven't studied your patch too deeply but one thing that immediately 
-> > raised a red flag was that mm might be shared between processes (aka
-> > thread groups). What prevents those two to sit in different user
-> > namespaces?
-> >
-> > I am primarily asking because this generated a lot of headache for the
-> > memcg handling as those processes might sit in different cgroups while
-> > there is only one correct memcg for them which can disagree with the
-> > cgroup associated with one of the processes.
+> Well, I don't see a reasonable way to autotune it. We can just let
+> arch-specific code to redefine it, but the argument below still stands.
 > 
-> That is a legitimate concern, but I do not see any of those kinds of
-> issues here.
-> 
-> Part of the memcg pain comes from the fact that control groups are
-> process centric, and part of the pain comes from the fact that it is
-> possible to change control groups.  What I am doing is making the mm
-> owned by a user namespace (at creation time), and I am not allowing
-> changes to that ownership. The credentials of the tasks that use that mm
-> may be in the same user namespace or descendent user namespaces.
+> > > In other case, if it's known in advance that specific mount would be
+> > > populated with large files, you might want to set it to zero to get huge
+> > > pages allocated from the beginning.
 
-OK, then my worries about this weird "threading" model is void.
-
-Thanks for the clarification.
+Do you think this is a sufficient reason to provide a tunable with such a
+precision? In other words why cannot we simply start by using an
+internal only limit at the huge page size for the initial transition
+(with a way to disable THP altogether for a mount point) and only add a
+more fine grained tunning if there ever is a real need for it with a use
+case description. In other words can we be less optimistic about
+tunables than we used to be in the past and often found out that those
+were mistakes much later?
 -- 
 Michal Hocko
 SUSE Labs
