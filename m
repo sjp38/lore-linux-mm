@@ -1,150 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E807A6B0038
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 03:26:59 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id b75so4908665lfg.3
-        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 00:26:59 -0700 (PDT)
-Received: from special.m3.smtp.beget.ru (special.m3.smtp.beget.ru. [5.101.158.90])
-        by mx.google.com with ESMTPS id x135si400305lfa.52.2016.10.18.00.26.58
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A4EF6B0038
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 03:43:05 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id b75so5177647lfg.3
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 00:43:05 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ul7si17557378wjc.40.2016.10.18.00.43.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 18 Oct 2016 00:26:58 -0700 (PDT)
-Content-Type: text/plain; charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 10.0 \(3226\))
-Subject: Re: [Bug 177821] New: NULL pointer dereference in list_rcu
-From: Alexander Polakov <apolyakov@beget.ru>
-In-Reply-To: <20161017171038.924cbbcfc0a23652d2d2b8b4@linux-foundation.org>
-Date: Tue, 18 Oct 2016 10:26:55 +0300
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <FA3391F9-B333-451D-8415-CB5B62030A9D@beget.ru>
-References: <bug-177821-27@https.bugzilla.kernel.org/>
- <20161017171038.924cbbcfc0a23652d2d2b8b4@linux-foundation.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 18 Oct 2016 00:43:03 -0700 (PDT)
+Subject: Re: [PATCH v6 3/6] mm/cma: populate ZONE_CMA
+References: <1476414196-3514-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1476414196-3514-4-git-send-email-iamjoonsoo.kim@lge.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <33f0a8f3-38d1-e527-f71f-839afe0b2ed9@suse.cz>
+Date: Tue, 18 Oct 2016 09:42:57 +0200
+MIME-Version: 1.0
+In-Reply-To: <1476414196-3514-4-git-send-email-iamjoonsoo.kim@lge.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: bugzilla-daemon@bugzilla.kernel.org, Al Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: js1304@gmail.com, Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
+On 10/14/2016 05:03 AM, js1304@gmail.com wrote:
+> @@ -145,6 +145,35 @@ static int __init cma_activate_area(struct cma *cma)
+>  static int __init cma_init_reserved_areas(void)
+>  {
+>  	int i;
+> +	struct zone *zone;
+> +	pg_data_t *pgdat;
+> +
+> +	if (!cma_area_count)
+> +		return 0;
+> +
+> +	for_each_online_pgdat(pgdat) {
+> +		unsigned long start_pfn = UINT_MAX, end_pfn = 0;
+> +
+> +		for (i = 0; i < cma_area_count; i++) {
+> +			if (pfn_to_nid(cma_areas[i].base_pfn) !=
+> +				pgdat->node_id)
+> +				continue;
+> +
+> +			start_pfn = min(start_pfn, cma_areas[i].base_pfn);
+> +			end_pfn = max(end_pfn, cma_areas[i].base_pfn +
+> +						cma_areas[i].count);
+> +		}
+> +
+> +		if (!end_pfn)
+> +			continue;
+> +
+> +		zone = &pgdat->node_zones[ZONE_CMA];
+> +
+> +		/* ZONE_CMA doesn't need to exceed CMA region */
+> +		zone->zone_start_pfn = max(zone->zone_start_pfn, start_pfn);
+> +		zone->spanned_pages = min(zone_end_pfn(zone), end_pfn) -
+> +					zone->zone_start_pfn;
 
-> On 18 Oct 2016, at 03:10, Andrew Morton <akpm@linux-foundation.org> =
-wrote:
->=20
->=20
-> (resend due to "vdavydov@virtuozzo.com Unrouteable address")
->=20
-> (switched to email.  Please respond via emailed reply-to-all, not via =
-the
-> bugzilla web interface).
->=20
-> On Mon, 17 Oct 2016 13:08:17 +0000 bugzilla-daemon@bugzilla.kernel.org =
-wrote:
->=20
->> https://bugzilla.kernel.org/show_bug.cgi?id=3D177821
->>=20
->>            Bug ID: 177821
->>           Summary: NULL pointer dereference in list_rcu
->=20
-> Fair enough, I suppose.
->=20
-> Please don't submit patches via bugzilla - it is quite
-> painful.  Documentation/SubmittingPatches explains the
-> way to do it.
->=20
-> Here's what I put together.  Note that we do not have your
-> signed-off-by: for this.  Please send it?
+Hmm, do the max/min here work as intended? IIUC the initial 
+zone_start_pfn is UINT_MAX and zone->spanned_pages is 1? So at least the 
+max/min should be swapped?
+Also the zone_end_pfn(zone) on the second line already sees the changes 
+to zone->zone_start_pfn in the first line, so it's kind of a mess. You 
+should probably cache zone_end_pfn() to a temporary variable before 
+changing zone_start_pfn.
 
-Sorry for the bugzilla thing, here's the patch with Signed-off-by added.
-Hope I did it right.
+> +	}
 
-From: Alexander Polakov <apolyakov@beget.ru>
-Subject: mm/list_lru.c: avoid error-path NULL pointer deref
+I'm guessing the initial values come from this part in patch 2/6:
 
-As described in https://bugzilla.kernel.org/show_bug.cgi?id=3D177821:
-
-After some analysis it seems to be that the problem is in alloc_super().=20=
-
-In case list_lru_init_memcg() fails it goes into destroy_super(), which
-calls list_lru_destroy().
-
-And in list_lru_init() we see that in case memcg_init_list_lru() fails,
-lru->node is freed, but not set NULL, which then leads =
-list_lru_destroy()
-to believe it is initialized and call memcg_destroy_list_lru().=20
-memcg_destroy_list_lru() in turn can access lru->node[i].memcg_lrus, =
-which
-is NULL.
-
-[akpm@linux-foundation.org: add comment]
-Cc: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Al Viro <viro@zeniv.linux.org.uk>
-Signed-off-by: Alexander Polakov <apolyakov@beget.ru>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
-mm/list_lru.c |    2 ++
-1 file changed, 2 insertions(+)
-
-diff -puN mm/list_lru.c~a mm/list_lru.c
---- a/mm/list_lru.c~a
-+++ a/mm/list_lru.c
-@@ -554,6 +554,8 @@ int __list_lru_init(struct list_lru *lru
-	err =3D memcg_init_list_lru(lru, memcg_aware);
-	if (err) {
-		kfree(lru->node);
-+		/* Do this so a list_lru_destroy() doesn't crash: */
-+		lru->node =3D NULL;
-		goto out;
-	}
-
-_
-
-
->=20
->=20
->=20
-> From: Alexander Polakov <apolyakov@beget.ru>
-> Subject: mm/list_lru.c: avoid error-path NULL pointer deref
->=20
-> As described in https://bugzilla.kernel.org/show_bug.cgi?id=3D177821:
->=20
-> After some analysis it seems to be that the problem is in =
-alloc_super().=20
-> In case list_lru_init_memcg() fails it goes into destroy_super(), =
-which
-> calls list_lru_destroy().
->=20
-> And in list_lru_init() we see that in case memcg_init_list_lru() =
-fails,
-> lru->node is freed, but not set NULL, which then leads =
-list_lru_destroy()
-> to believe it is initialized and call memcg_destroy_list_lru().=20
-> memcg_destroy_list_lru() in turn can access lru->node[i].memcg_lrus, =
-which
-> is NULL.
->=20
-> [akpm@linux-foundation.org: add comment]
-> Cc: Vladimir Davydov <vdavydov@parallels.com>
-> Cc: Al Viro <viro@zeniv.linux.org.uk>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> ---
->=20
-> mm/list_lru.c |    2 ++
-> 1 file changed, 2 insertions(+)
->=20
-> diff -puN mm/list_lru.c~a mm/list_lru.c
-> --- a/mm/list_lru.c~a
-> +++ a/mm/list_lru.c
-> @@ -554,6 +554,8 @@ int __list_lru_init(struct list_lru *lru
-> 	err =3D memcg_init_list_lru(lru, memcg_aware);
-> 	if (err) {
-> 		kfree(lru->node);
-> +		/* Do this so a list_lru_destroy() doesn't crash: */
-> +		lru->node =3D NULL;
-> 		goto out;
-> 	}
->=20
-> _
->=20
->=20
+> @@ -5723,6 +5738,8 @@ static void __meminit calculate_node_totalpages(struct pglist_data *pgdat,
+>                                                 unsigned long *zholes_size)
+>  {
+>         unsigned long realtotalpages = 0, totalpages = 0;
+> +       unsigned long zone_cma_start_pfn = UINT_MAX;
+> +       unsigned long zone_cma_end_pfn = 0;
+>         enum zone_type i;
+>
+>         for (i = 0; i < MAX_NR_ZONES; i++) {
+> @@ -5730,6 +5747,13 @@ static void __meminit calculate_node_totalpages(struct pglist_data *pgdat,
+>                 unsigned long zone_start_pfn, zone_end_pfn;
+>                 unsigned long size, real_size;
+>
+> +               if (is_zone_cma_idx(i)) {
+> +                       zone->zone_start_pfn = zone_cma_start_pfn;
+> +                       size = zone_cma_end_pfn - zone_cma_start_pfn;
+> +                       real_size = 0;
+> +                       goto init_zone;
+> +               }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
