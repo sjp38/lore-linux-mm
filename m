@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5129F6B025E
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 02:56:26 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id u84so220027511pfj.6
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 23:56:26 -0700 (PDT)
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AF5A6B0261
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 02:56:30 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id os4so226583400pac.5
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 23:56:30 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id f19si26188055pgk.152.2016.10.17.23.56.25
+        by mx.google.com with ESMTPS id vs8si28529028pab.244.2016.10.17.23.56.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Oct 2016 23:56:25 -0700 (PDT)
+        Mon, 17 Oct 2016 23:56:29 -0700 (PDT)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 2/6] mm: mark all calls into the vmalloc subsystem as potentially sleeping
-Date: Tue, 18 Oct 2016 08:56:07 +0200
-Message-Id: <1476773771-11470-3-git-send-email-hch@lst.de>
+Subject: [PATCH 3/6] mm: remove free_unmap_vmap_area_noflush
+Date: Tue, 18 Oct 2016 08:56:08 +0200
+Message-Id: <1476773771-11470-4-git-send-email-hch@lst.de>
 In-Reply-To: <1476773771-11470-1-git-send-email-hch@lst.de>
 References: <1476773771-11470-1-git-send-email-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,53 +20,42 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: joelaf@google.com, jszhang@marvell.com, chris@chris-wilson.co.uk, joaodias@google.com, linux-mm@kvack.org, linux-rt-users@vger.kernel.org, linux-kernel@vger.kernel.org
 
-This is how everyone seems to already use them, but let's make that
-explicit.
+Just inline it into the only caller.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- mm/vmalloc.c | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
+ mm/vmalloc.c | 13 ++-----------
+ 1 file changed, 2 insertions(+), 11 deletions(-)
 
 diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index d045a10..9830514 100644
+index 9830514..8cedfa0 100644
 --- a/mm/vmalloc.c
 +++ b/mm/vmalloc.c
-@@ -365,7 +365,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
- 	BUG_ON(offset_in_page(size));
- 	BUG_ON(!is_power_of_2(align));
+@@ -697,22 +697,13 @@ static void free_vmap_area_noflush(struct vmap_area *va)
+ }
  
--	might_sleep_if(gfpflags_allow_blocking(gfp_mask));
-+	might_sleep();
- 
- 	va = kmalloc_node(sizeof(struct vmap_area),
- 			gfp_mask & GFP_RECLAIM_MASK, node);
-@@ -1056,6 +1056,8 @@ void vm_unmap_aliases(void)
- 	if (unlikely(!vmap_initialized))
- 		return;
- 
-+	might_sleep();
-+
- 	for_each_possible_cpu(cpu) {
- 		struct vmap_block_queue *vbq = &per_cpu(vmap_block_queue, cpu);
- 		struct vmap_block *vb;
-@@ -1098,6 +1100,7 @@ void vm_unmap_ram(const void *mem, unsigned int count)
- 	unsigned long size = (unsigned long)count << PAGE_SHIFT;
- 	unsigned long addr = (unsigned long)mem;
- 
-+	might_sleep();
- 	BUG_ON(!addr);
- 	BUG_ON(addr < VMALLOC_START);
- 	BUG_ON(addr > VMALLOC_END);
-@@ -1445,6 +1448,8 @@ struct vm_struct *remove_vm_area(const void *addr)
+ /*
+- * Free and unmap a vmap area, caller ensuring flush_cache_vunmap had been
+- * called for the correct range previously.
+- */
+-static void free_unmap_vmap_area_noflush(struct vmap_area *va)
+-{
+-	unmap_vmap_area(va);
+-	free_vmap_area_noflush(va);
+-}
+-
+-/*
+  * Free and unmap a vmap area
+  */
+ static void free_unmap_vmap_area(struct vmap_area *va)
  {
- 	struct vmap_area *va;
+ 	flush_cache_vunmap(va->va_start, va->va_end);
+-	free_unmap_vmap_area_noflush(va);
++	unmap_vmap_area(va);
++	free_vmap_area_noflush(va);
+ }
  
-+	might_sleep();
-+
- 	va = find_vmap_area((unsigned long)addr);
- 	if (va && va->flags & VM_VM_AREA) {
- 		struct vm_struct *vm = va->vm;
+ static struct vmap_area *find_vmap_area(unsigned long addr)
 -- 
 2.1.4
 
