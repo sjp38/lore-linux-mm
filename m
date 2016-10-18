@@ -1,101 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BCF86B0038
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 08:05:09 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id gg9so229936161pac.6
-        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 05:05:09 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id c5si32061113pgi.131.2016.10.18.05.05.08
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 67A556B0038
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 08:27:53 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id i187so10548245lfe.4
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 05:27:53 -0700 (PDT)
+Received: from mail-lf0-f67.google.com (mail-lf0-f67.google.com. [209.85.215.67])
+        by mx.google.com with ESMTPS id k82si462408lfe.100.2016.10.18.05.27.51
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 18 Oct 2016 05:05:08 -0700 (PDT)
-Message-ID: <1476792301.3117.14.camel@linux.intel.com>
-Subject: Re: [Intel-gfx] [PATCH v4 2/2] drm/i915: Make GPU pages movable
-From: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-Date: Tue, 18 Oct 2016 15:05:01 +0300
-In-Reply-To: <1459775891-32442-2-git-send-email-chris@chris-wilson.co.uk>
-References: <1459775891-32442-1-git-send-email-chris@chris-wilson.co.uk>
-	 <1459775891-32442-2-git-send-email-chris@chris-wilson.co.uk>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 18 Oct 2016 05:27:51 -0700 (PDT)
+Received: by mail-lf0-f67.google.com with SMTP id l131so2617835lfl.0
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 05:27:51 -0700 (PDT)
+Date: Tue, 18 Oct 2016 14:27:49 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: How to make warn_alloc() reliable?
+Message-ID: <20161018122749.GE12092@dhcp22.suse.cz>
+References: <201610182004.AEF87559.FOOHVLJOQFFtSM@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201610182004.AEF87559.FOOHVLJOQFFtSM@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Wilson <chris@chris-wilson.co.uk>, intel-gfx@lists.freedesktop.org
-Cc: linux-mm@kvack.org, Akash Goel <akash.goel@intel.com>, Hugh Dickins <hughd@google.com>, Sourab Gupta <sourab.gupta@intel.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, dave.hansen@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On ma, 2016-04-04 at 14:18 +0100, Chris Wilson wrote:
-> From: Akash Goel <akash.goel@intel.com>
-> 
-> On a long run of more than 2-3 days, physical memory tends to get
-> fragmented severely, which considerably slows down the system. In such a
-> scenario, the shrinker is also unable to help as lack of memory is not
-> the actual problem, since it has been observed that there are enough free
-> pages of 0 order. This also manifests itself when an indiviual zone in
-> the mm runs out of pages and if we cannot migrate pages between zones,
-> the kernel hits an out-of-memory even though there are free pages (and
-> often all of swap) available.
-> 
-> To address the issue of external fragementation, kernel does a compaction
-> (which involves migration of pages) but it's efficacy depends upon how
-> many pages are marked as MOVABLE, as only those pages can be migrated.
-> 
-> Currently the backing pages for GFX buffers are allocated from shmemfs
-> with GFP_RECLAIMABLE flag, in units of 4KB pages.A A In the case of limited
-> swap space, it may not be possible always to reclaim or swap-out pages of
-> all the inactive objects, to make way for free space allowing formation
-> of higher order groups of physically-contiguous pages on compaction.
-> 
-> Just marking the GPU pages as MOVABLE will not suffice, as i915.ko has to
-> pin the pages if they are in use by GPU, which will prevent their
-> migration. So the migratepage callback in shmem is also hooked up to get
-> a notification when kernel initiates the page migration. On the
-> notification, i915.ko appropriately unpin the pages.A A With this we can
-> effectively mark the GPU pages as MOVABLE and hence mitigate the
-> fragmentation problem.
-> 
-> v2:
-> A - Rename the migration routine to gem_shrink_migratepage, move it to the
-> A A A shrinker file, and use the existing constructs (Chris)
-> A - To cleanup, add a new helper function to encapsulate all page migration
-> A A A skip conditions (Chris)
-> A - Add a new local helper function in shrinker file, for dropping the
-> A A A backing pages, and call the same from gem_shrink() also (Chris)
-> 
-> v3:
-> A - Fix/invert the check on the return value of unsafe_drop_pages (Chris)
-> 
-> v4:
-> A - Minor tidy
-> 
-> Testcase: igt/gem_shrink
-> Bugzilla: (e.g.) https://bugs.freedesktop.org/show_bug.cgi?id=90254
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: linux-mm@kvack.org
-> Signed-off-by: Sourab Gupta <sourab.gupta@intel.com>
-> Signed-off-by: Akash Goel <akash.goel@intel.com>
-> Reviewed-by: Chris Wilson <chris@chris-wilson.co.uk>
+On Tue 18-10-16 20:04:20, Tetsuo Handa wrote:
+[...]
+> @@ -1697,11 +1697,25 @@ static bool inactive_reclaimable_pages(struct lruvec *lruvec,
+>  	int file = is_file_lru(lru);
+>  	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
+>  	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
+> +	unsigned long wait_start = jiffies;
+> +	unsigned int wait_timeout = 10 * HZ;
+> +	long last_diff = 0;
+> +	long diff;
+>  
+>  	if (!inactive_reclaimable_pages(lruvec, sc, lru))
+>  		return 0;
+>  
+> -	while (unlikely(too_many_isolated(pgdat, file, sc))) {
+> +	while (unlikely((diff = too_many_isolated(pgdat, file, sc)) > 0)) {
+> +		if (diff < last_diff) {
+> +			wait_start = jiffies;
+> +			wait_timeout = 10 * HZ;
+> +		} else if (time_after(jiffies, wait_start + wait_timeout)) {
+> +			warn_alloc(sc->gfp_mask,
+> +				   "shrink_inactive_list() stalls for %ums",
+> +				   jiffies_to_msecs(jiffies - wait_start));
+> +			wait_timeout += 10 * HZ;
+> +		}
+> +		last_diff = diff;
+>  		congestion_wait(BLK_RW_ASYNC, HZ/10);
+>  
+>  		/* We are about to die and free our memory. Return now. */
+> ----------
+[...]
+> So, how can we make warn_alloc() reliable?
 
-Could this patch be re-spinned on top of current nightly?
-
-After removing;
-
-> WARN(page_count(newpage) != 1, "Unexpected ref count for newpage\n")
-
-and
-
->	if (ret)
->		DRM_DEBUG_DRIVER("page=%p migration returned %d\n", page, ret);
-
-This is;
-
-Reviewed-by: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-
-Regards, Joonas
+This is not about warn_alloc reliability but more about
+too_many_isolated waiting for an unbounded amount of time. And that
+should be fixed. I do not have a good idea how right now.
 -- 
-Joonas Lahtinen
-Open Source Technology Center
-Intel Corporation
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
