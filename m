@@ -1,66 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A832B6B0038
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 09:56:19 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id b75so11537450lfg.3
-        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 06:56:19 -0700 (PDT)
-Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
-        by mx.google.com with ESMTPS id i126si22804432lfe.421.2016.10.18.06.56.12
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F3FE6B0253
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 09:57:44 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id i187so12269845lfe.4
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 06:57:44 -0700 (PDT)
+Received: from thejh.net (thejh.net. [2a03:4000:2:1b9::1])
+        by mx.google.com with ESMTPS id fc4si5082556wjd.5.2016.10.18.06.57.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Oct 2016 06:56:14 -0700 (PDT)
-Received: by mail-lf0-x244.google.com with SMTP id b75so32556192lfg.3
-        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 06:56:12 -0700 (PDT)
-Date: Tue, 18 Oct 2016 14:56:09 +0100
-From: Lorenzo Stoakes <lstoakes@gmail.com>
-Subject: Re: [PATCH 04/10] mm: replace get_user_pages_locked() write/force
- parameters with gup_flags
-Message-ID: <20161018135609.GA30025@lucifer>
-References: <20161013002020.3062-1-lstoakes@gmail.com>
- <20161013002020.3062-5-lstoakes@gmail.com>
- <20161018125425.GD29967@quack2.suse.cz>
+        Tue, 18 Oct 2016 06:57:43 -0700 (PDT)
+Date: Tue, 18 Oct 2016 15:57:41 +0200
+From: Jann Horn <jann@thejh.net>
+Subject: Re: [REVIEW][PATCH] mm: Add a user_ns owner to mm_struct and fix
+ ptrace_may_access
+Message-ID: <20161018135741.GO14666@pc.thejh.net>
+References: <87twcbq696.fsf@x220.int.ebiederm.org>
+ <20161018135031.GB13117@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="n0t7pLec3q0yZKtb"
 Content-Disposition: inline
-In-Reply-To: <20161018125425.GD29967@quack2.suse.cz>
+In-Reply-To: <20161018135031.GB13117@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, adi-buildroot-devel@lists.sourceforge.net, ceph-devel@vger.kernel.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, kvm@vger.kernel.org, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-cris-kernel@axis.com, linux-fbdev@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, linux-mips@linux-mips.org, linux-rdma@vger.kernel.org, linux-s390@vger.kernel.org, linux-samsung-soc@vger.kernel.org, linux-scsi@vger.kernel.org, linux-security-module@vger.kernel.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, netdev@vger.kernel.org, sparclinux@vger.kernel.org, x86@kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel@vger.kernel.org, Linux Containers <containers@lists.linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-On Tue, Oct 18, 2016 at 02:54:25PM +0200, Jan Kara wrote:
-> > @@ -1282,7 +1282,7 @@ long get_user_pages(unsigned long start, unsigned long nr_pages,
-> >  			    int write, int force, struct page **pages,
-> >  			    struct vm_area_struct **vmas);
-> >  long get_user_pages_locked(unsigned long start, unsigned long nr_pages,
-> > -		    int write, int force, struct page **pages, int *locked);
-> > +		    unsigned int gup_flags, struct page **pages, int *locked);
->
-> Hum, the prototype is inconsistent with e.g. __get_user_pages_unlocked()
-> where gup_flags come after **pages argument. Actually it makes more sense
-> to have it before **pages so that input arguments come first and output
-> arguments second but I don't care that much. But it definitely should be
-> consistent...
 
-It was difficult to decide quite how to arrange parameters as there was
-inconsitency with regards to parameter ordering already - for example
-__get_user_pages() places its flags argument before pages whereas, as you note,
-__get_user_pages_unlocked() puts them afterwards.
+--n0t7pLec3q0yZKtb
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-I ended up compromising by trying to match the existing ordering of the function
-as much as I could by replacing write, force pairs with gup_flags in the same
-location (with the exception of get_user_pages_unlocked() which I felt should
-match __get_user_pages_unlocked() in signature) or if there was already a
-gup_flags parameter as in the case of __get_user_pages_unlocked() I simply
-removed the write, force pair and left the flags as the last parameter.
+On Tue, Oct 18, 2016 at 03:50:32PM +0200, Michal Hocko wrote:
+> On Mon 17-10-16 11:39:49, Eric W. Biederman wrote:
+> >=20
+> > During exec dumpable is cleared if the file that is being executed is
+> > not readable by the user executing the file.  A bug in
+> > ptrace_may_access allows reading the file if the executable happens to
+> > enter into a subordinate user namespace (aka clone(CLONE_NEWUSER),
+> > unshare(CLONE_NEWUSER), or setns(fd, CLONE_NEWUSER).
+> >=20
+> > This problem is fixed with only necessary userspace breakage by adding
+> > a user namespace owner to mm_struct, captured at the time of exec,
+> > so it is clear in which user namespace CAP_SYS_PTRACE must be present
+> > in to be able to safely give read permission to the executable.
+> >=20
+> > The function ptrace_may_access is modified to verify that the ptracer
+> > has CAP_SYS_ADMIN in task->mm->user_ns instead of task->cred->user_ns.
+> > This ensures that if the task changes it's cred into a subordinate
+> > user namespace it does not become ptraceable.
+>=20
+> I haven't studied your patch too deeply but one thing that immediately=20
+> raised a red flag was that mm might be shared between processes (aka
+> thread groups).
 
-I am happy to rearrange parameters as needed, however I am not sure if it'd be
-worthwhile for me to do so (I am keen to try to avoid adding too much noise here
-:)
+You're conflating things. Threads always share memory, but sharing memory
+doesn't imply being part of the same thread group.
 
-If we were to rearrange parameters for consistency I'd suggest adjusting
-__get_user_pages_unlocked() to put gup_flags before pages and do the same with
-get_user_pages_unlocked(), let me know what you think.
+> What prevents those two to sit in different user
+> namespaces?
+
+For thread groups: You can't change user namespace in a thread group
+with more than one task.
+
+For shared mm: Yeah, I think that could happen - but it doesn't matter.
+The patch just needs the mm to determine the namespace in which the mm
+was created, and that's always the same for tasks that share mm.
+
+--n0t7pLec3q0yZKtb
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQIcBAEBAgAGBQJYBipVAAoJED4KNFJOeCOoFR8P/1qBdlSDl1nPfVM5mIQAA2I5
+5moy4YtaFZV/UC+uNGxmJiTAW+esWnOA2L+W1KqCtbR/e+mD3lW322iCIXJPYieS
+bZocjcJ3OOSM01Yrzj05OaoCcoAL6Zbz1AgcrYmtHJSbMptZG1YqSLdjrSUfppHU
+MFAhX7nLe2kOtA4OjIGYpVuDOaDn6vF7lKnPHVDvUC5Z1JR0oJ9bRVTUzrUdIbpL
+sGh5Ba52zAqimVjVfLEKW0QIVkrZQd1IXmXvu+c/swm/tWecA0vLaNjTMaz5Mf9J
+WUBeM+ihIyH8Jm1I2CD6y/eKBnyB6pF7Z5EyrKLBjmdg6qoLXkQjQKn0hWujGt4m
+eLuuKjiKpLO5aFhX4dVqcKzLLiSB0GMdIIGR+zQrHudRy5++twmJVo/rgBvpGnwJ
+jq0Z8mJtnpE2yR1rSKVfx39Xn63nByEOQ3ivVi3a9P9xgpLpYfdj8UsK0Sc+kh+v
+VCubq3KvdOvlJoL9C3sNuYnEMZVJP0q24CF15ybYz4Tdghs4XX8ujaYREbS8mtke
+4WEBhu7wbh2/5R0gw/r5szjyHow4iJY1+dXpYswdQEYZ4qtJ7L2yb9iByrLB/LFh
+I4mgRDVae3phBtorxsJ2er5AXGPvz9JyoEK3qayWEwXNRe2JrXEaQKrLaUShSeJ3
+5AW2YqgFrnTP1SX6FIJm
+=BDcU
+-----END PGP SIGNATURE-----
+
+--n0t7pLec3q0yZKtb--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
