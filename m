@@ -1,102 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E5556B0038
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 09:13:47 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id b81so11484664lfe.1
-        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 06:13:47 -0700 (PDT)
-Received: from mail-lf0-f68.google.com (mail-lf0-f68.google.com. [209.85.215.68])
-        by mx.google.com with ESMTPS id o198si680321lfe.216.2016.10.18.06.13.45
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 61A286B0038
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 09:25:17 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id fn2so231631166pad.7
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 06:25:17 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id w20si32290871pgj.4.2016.10.18.06.25.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Oct 2016 06:13:46 -0700 (PDT)
-Received: by mail-lf0-f68.google.com with SMTP id b75so32341891lfg.3
-        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 06:13:45 -0700 (PDT)
-Date: Tue, 18 Oct 2016 15:13:43 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC] scripts: Include postprocessing script for memory
- allocation tracing
-Message-ID: <20161018131343.GJ12092@dhcp22.suse.cz>
-References: <20160912121635.GL14524@dhcp22.suse.cz>
- <0ACE5927-A6E5-4B49-891D-F990527A9F50@gmail.com>
- <20160919094224.GH10785@dhcp22.suse.cz>
- <BFAF8DCA-F4A6-41C6-9AA0-C694D33035A3@gmail.com>
- <20160923080709.GB4478@dhcp22.suse.cz>
- <E8FAA4EF-DAA1-4E18-B48F-6677E6AFE76E@gmail.com>
- <2D27EF16-B63B-4516-A156-5E2FB675A1BB@gmail.com>
- <20161016073340.GA15839@dhcp22.suse.cz>
- <CANnt6X=RpSnuxGXZfF6Qa5mJpzC8gL3wkKJi3tQMZJBZJVWF3w@mail.gmail.com>
- <A6E7231A-54FF-4D5C-90F5-0A8C4126CFEA@gmail.com>
+        Tue, 18 Oct 2016 06:25:16 -0700 (PDT)
+Subject: Re: [Intel-gfx] [PATCH v4 2/2] drm/i915: Make GPU pages movable
+References: <1459775891-32442-1-git-send-email-chris@chris-wilson.co.uk>
+ <1459775891-32442-2-git-send-email-chris@chris-wilson.co.uk>
+ <1476792301.3117.14.camel@linux.intel.com>
+From: "Goel, Akash" <akash.goel@intel.com>
+Message-ID: <c733c4d9-de93-9a9b-1236-793cc26c8833@intel.com>
+Date: Tue, 18 Oct 2016 18:55:12 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <A6E7231A-54FF-4D5C-90F5-0A8C4126CFEA@gmail.com>
+In-Reply-To: <1476792301.3117.14.camel@linux.intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Janani Ravichandran <janani.rvchndrn@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>, Chris Wilson <chris@chris-wilson.co.uk>
+Cc: intel-gfx@lists.freedesktop.org, akash.goel@intel.com, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Sourab Gupta <sourab.gupta@intel.com>
 
-On Mon 17-10-16 13:31:57, Janani Ravichandran wrote:
-> 
-> > On Oct 17, 2016, at 1:24 PM, Janani Ravichandran <janani.rvchndrn@gmail.com> wrote:
-> > 
-> > 
-> > On Sun, Oct 16, 2016 at 3:33 AM, Michal Hocko <mhocko@kernel.org <mailto:mhocko@kernel.org>> wrote:
-> > 
-> > trace_mm_page_alloc will tell you details about the allocation, like
-> > gfp mask, order but it doesn't tell you how long the allocation took at
-> > its current form. So either you have to note jiffies at the allocation
-> > start and then add the end-start in the trace point or we really need
-> > another trace point to note the start. The later has an advantage that
-> > we do not add unnecessary load for jiffies when the tracepoint is
-> > disabled.
-> 
-> The function graph tracer can tell us how long alloc_pages_nodemask() took.
-> Cana??t that, combined with the context information given by trace_mm_page_alloc
-> give us what we want? Correct me if I am wrong.
 
-yes, function_graph tracer will give you _some_ information but it will
-not have the context you are looking for, right? See the following
-example
 
- ------------------------------------------
- 0) x-www-b-22756  =>  x-termi-4083 
- ------------------------------------------
+On 10/18/2016 5:35 PM, Joonas Lahtinen wrote:
+> On ma, 2016-04-04 at 14:18 +0100, Chris Wilson wrote:
+>> From: Akash Goel <akash.goel@intel.com>
+>>
+>> On a long run of more than 2-3 days, physical memory tends to get
+>> fragmented severely, which considerably slows down the system. In such a
+>> scenario, the shrinker is also unable to help as lack of memory is not
+>> the actual problem, since it has been observed that there are enough free
+>> pages of 0 order. This also manifests itself when an indiviual zone in
+>> the mm runs out of pages and if we cannot migrate pages between zones,
+>> the kernel hits an out-of-memory even though there are free pages (and
+>> often all of swap) available.
+>>
+>> To address the issue of external fragementation, kernel does a compaction
+>> (which involves migration of pages) but it's efficacy depends upon how
+>> many pages are marked as MOVABLE, as only those pages can be migrated.
+>>
+>> Currently the backing pages for GFX buffers are allocated from shmemfs
+>> with GFP_RECLAIMABLE flag, in units of 4KB pages.  In the case of limited
+>> swap space, it may not be possible always to reclaim or swap-out pages of
+>> all the inactive objects, to make way for free space allowing formation
+>> of higher order groups of physically-contiguous pages on compaction.
+>>
+>> Just marking the GPU pages as MOVABLE will not suffice, as i915.ko has to
+>> pin the pages if they are in use by GPU, which will prevent their
+>> migration. So the migratepage callback in shmem is also hooked up to get
+>> a notification when kernel initiates the page migration. On the
+>> notification, i915.ko appropriately unpin the pages.  With this we can
+>> effectively mark the GPU pages as MOVABLE and hence mitigate the
+>> fragmentation problem.
+>>
+>> v2:
+>>  - Rename the migration routine to gem_shrink_migratepage, move it to the
+>>    shrinker file, and use the existing constructs (Chris)
+>>  - To cleanup, add a new helper function to encapsulate all page migration
+>>    skip conditions (Chris)
+>>  - Add a new local helper function in shrinker file, for dropping the
+>>    backing pages, and call the same from gem_shrink() also (Chris)
+>>
+>> v3:
+>>  - Fix/invert the check on the return value of unsafe_drop_pages (Chris)
+>>
+>> v4:
+>>  - Minor tidy
+>>
+>> Testcase: igt/gem_shrink
+>> Bugzilla: (e.g.) https://bugs.freedesktop.org/show_bug.cgi?id=90254
+>> Cc: Hugh Dickins <hughd@google.com>
+>> Cc: linux-mm@kvack.org
+>> Signed-off-by: Sourab Gupta <sourab.gupta@intel.com>
+>> Signed-off-by: Akash Goel <akash.goel@intel.com>
+>> Reviewed-by: Chris Wilson <chris@chris-wilson.co.uk>
+>
+> Could this patch be re-spinned on top of current nightly?
+>
+Sure will rebase it on top of nightly.
 
- 0)               |  __alloc_pages_nodemask() {
- 0)               |  /* mm_page_alloc: page=ffffea000411b380 pfn=1066702 order=0 migratetype=0 gfp_flags=GFP_KERNEL */
- 0)   3.328 us    |  }
- 3)               |  __alloc_pages_nodemask() {
- 3)               |  /* mm_page_alloc: page=ffffea0008f1f6c0 pfn=2344923 order=0 migratetype=0 gfp_flags=GFP_KERNEL */
- 3)   1.011 us    |  }
- 0)               |  __alloc_pages_nodemask() {
- 0)               |  /* mm_page_alloc: page=ffffea000411b380 pfn=1066702 order=0 migratetype=0 gfp_flags=GFP_KERNEL */
- 0)   0.587 us    |  }
- 3)               |  __alloc_pages_nodemask() {
- 3)               |  /* mm_page_alloc: page=ffffea0008f1f6c0 pfn=2344923 order=0 migratetype=0 gfp_flags=GFP_KERNEL */
- 3)   1.125 us    |  }
+> After removing;
+>
+>> WARN(page_count(newpage) != 1, "Unexpected ref count for newpage\n")
+>
+> and
+>
+>> 	if (ret)
+>> 		DRM_DEBUG_DRIVER("page=%p migration returned %d\n", page, ret);
+>
+> This is;
+>
+> Reviewed-by: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+Thanks much for the review.
+But there is a precursor patch also, there has been no traction on that.
+[1/2] shmem: Support for registration of Driver/file owner specific ops
+https://patchwork.freedesktop.org/patch/77935/
 
-How do I know which process has performed those allocations? I know that
-CPU0 should be running x-termi-4083 but what is running on other CPUs?
+Best regards
+Akash
 
-Let me explain my usecase I am very interested in. Say I that a usespace
-application is not performing well. I would like to see some statistics
-about memory allocations performed for that app - are there few outliers
-or the allocation stalls increase gradually? Where do we spend time during
-that allocation? Reclaim LRU pages? Compaction or the slab shrinkers?
-
-To answer those questions I need to track particular events (alocation,
-reclaim, compaction) to the process and know how long each step
-took. Maybe we can reconstruct something from the above output but it is
-a major PITA.  If we either hard start/stop pairs for each step (which
-we already do have for reclaim, compaction AFAIR) then this is an easy
-scripting. Another option would be to have only a single tracepoint for
-each step with a timing information.
-
-See my point?
--- 
-Michal Hocko
-SUSE Labs
+>
+> Regards, Joonas
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
