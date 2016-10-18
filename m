@@ -1,144 +1,302 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A6546B0069
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 17:42:27 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id a195so16282651oib.0
-        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 14:42:27 -0700 (PDT)
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D0096B0253
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 17:42:28 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id t73so15276556oie.5
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 14:42:28 -0700 (PDT)
 Received: from gateway33.websitewelcome.com (gateway33.websitewelcome.com. [192.185.145.239])
-        by mx.google.com with ESMTPS id 102si13803272ote.180.2016.10.18.14.42.25
+        by mx.google.com with ESMTPS id k7si13795695otd.216.2016.10.18.14.42.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Oct 2016 14:42:25 -0700 (PDT)
-Received: from cm2.websitewelcome.com (cm2.websitewelcome.com [192.185.178.13])
-	by gateway33.websitewelcome.com (Postfix) with ESMTP id 8BBEFD669B27B
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 16:42:25 -0500 (CDT)
+        Tue, 18 Oct 2016 14:42:27 -0700 (PDT)
+Received: from cm1.websitewelcome.com (cm.websitewelcome.com [192.185.0.102])
+	by gateway33.websitewelcome.com (Postfix) with ESMTP id 8326FD669B5E0
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 16:42:27 -0500 (CDT)
 From: Stephen Bates <sbates@raithlin.com>
-Subject: [PATCH 0/3] iopmem : A block device for PCIe memory
-Date: Tue, 18 Oct 2016 15:42:14 -0600
-Message-Id: <1476826937-20665-1-git-send-email-sbates@raithlin.com>
+Subject: [PATCH 1/3] memremap.c : Add support for ZONE_DEVICE IO memory with struct pages.
+Date: Tue, 18 Oct 2016 15:42:15 -0600
+Message-Id: <1476826937-20665-2-git-send-email-sbates@raithlin.com>
+In-Reply-To: <1476826937-20665-1-git-send-email-sbates@raithlin.com>
+References: <1476826937-20665-1-git-send-email-sbates@raithlin.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, linux-rdma@vger.kernel.org, linux-block@vger.kernel.org, linux-mm@kvack.org
 Cc: dan.j.williams@intel.com, ross.zwisler@linux.intel.com, willy@linux.intel.com, jgunthorpe@obsidianresearch.com, haggaie@mellanox.com, hch@infradead.org, axboe@fb.com, corbet@lwn.net, jim.macdonald@everspin.com, sbates@raithin.com, logang@deltatee.com, Stephen Bates <sbates@raithlin.com>
 
-This patch follows from an RFC we did earlier this year [1]. This
-patchset applies cleanly to v4.9-rc1.
+From: Logan Gunthorpe <logang@deltatee.com>
 
-Updates since RFC
------------------
-  Rebased.
-  Included the iopmem driver in the submission.
+We build on recent work that adds memory regions owned by a device
+driver (ZONE_DEVICE) [1] and to add struct page support for these new
+regions of memory [2].
 
-History
--------
+1. Add an extra flags argument into dev_memremap_pages to take in a
+MEMREMAP_XX argument. We update the existing calls to this function to
+reflect the change.
 
-There have been several attempts to upstream patchsets that enable
-DMAs between PCIe peers. These include Peer-Direct [2] and DMA-Buf
-style patches [3]. None have been successful to date. Haggai Eran
-gives a nice overview of the prior art in this space in his cover
-letter [3].
+2. For completeness, we add MEMREMAP_WT support to the memremap;
+however we have no actual need for this functionality.
 
-Motivation and Use Cases
-------------------------
+3. We add the static functions, add_zone_device_pages and
+remove_zone_device pages. These are similar to arch_add_memory except
+they don't create the memory mapping. We don't believe these need to be
+made arch specific, but are open to other opinions.
 
-PCIe IO devices are getting faster. It is not uncommon now to find PCIe
-network and storage devices that can generate and consume several GB/s.
-Almost always these devices have either a high performance DMA engine, a
-number of exposed PCIe BARs or both.
+4. dev_memremap_pages and devm_memremap_pages_release are updated to
+treat IO memory slightly differently. For IO memory we use a combination
+of the appropriate io_remap function and the zone_device pages functions
+created above. A flags variable and kaddr pointer are added to struct
+page_mem to facilitate this for the release function. We also set up
+the page attribute tables for the mapped region correctly based on the
+desired mapping.
 
-Until this patch, any high-performance transfer of information between
-two PICe devices has required the use of a staging buffer in system
-memory. With this patch the bandwidth to system memory is not compromised
-when high-throughput transfers occurs between PCIe devices. This means
-that more system memory bandwidth is available to the CPU cores for data
-processing and manipulation. In addition, in systems where the two PCIe
-devices reside behind a PCIe switch the datapath avoids the CPU
-entirely.
+[1] https://lists.01.org/pipermail/linux-nvdimm/2015-August/001810.html
+[2] https://lists.01.org/pipermail/linux-nvdimm/2015-October/002387.html
 
-Consumers
----------
+Signed-off-by: Stephen Bates <sbates@raithlin.com>
+Signed-off-by: Logan Gunthorpe <logang@deltatee.com>
+---
+ drivers/dax/pmem.c                |  4 +-
+ drivers/nvdimm/pmem.c             |  4 +-
+ include/linux/memremap.h          |  5 ++-
+ kernel/memremap.c                 | 80 +++++++++++++++++++++++++++++++++++++--
+ tools/testing/nvdimm/test/iomap.c |  3 +-
+ 5 files changed, 86 insertions(+), 10 deletions(-)
 
-We provide a PCIe device driver in an accompanying patch that can be
-used to map any PCIe BAR into a DAX capable block device. For
-non-persistent BARs this simply serves as an alternative to using
-system memory bounce buffers. For persistent BARs this can serve as an
-additional storage device in the system.
+diff --git a/drivers/dax/pmem.c b/drivers/dax/pmem.c
+index 9630d88..58ac456 100644
+--- a/drivers/dax/pmem.c
++++ b/drivers/dax/pmem.c
+@@ -14,6 +14,7 @@
+ #include <linux/memremap.h>
+ #include <linux/module.h>
+ #include <linux/pfn_t.h>
++#include <linux/pmem.h>
+ #include "../nvdimm/pfn.h"
+ #include "../nvdimm/nd.h"
+ #include "dax.h"
+@@ -108,7 +109,8 @@ static int dax_pmem_probe(struct device *dev)
+ 	if (rc)
+ 		return rc;
 
-Testing and Performance
------------------------
+-	addr = devm_memremap_pages(dev, &res, &dax_pmem->ref, altmap);
++	addr = devm_memremap_pages(dev, &res, &dax_pmem->ref, altmap,
++							ARCH_MEMREMAP_PMEM);
+ 	if (IS_ERR(addr))
+ 		return PTR_ERR(addr);
 
-We have done a moderate about of testing of this patch on a QEMU
-environment and on real hardware. On real hardware we have observed
-peer-to-peer writes of up to 4GB/s and reads of up to 1.2 GB/s. In
-both cases these numbers are limitations of our consumer hardware. In
-addition, we have observed that the CPU DRAM bandwidth is not impacted
-when using IOPMEM which is not the case when a traditional path
-through system memory is taken.
+diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
+index 42b3a82..97032a1 100644
+--- a/drivers/nvdimm/pmem.c
++++ b/drivers/nvdimm/pmem.c
+@@ -278,7 +278,7 @@ static int pmem_attach_disk(struct device *dev,
+ 	pmem->pfn_flags = PFN_DEV;
+ 	if (is_nd_pfn(dev)) {
+ 		addr = devm_memremap_pages(dev, &pfn_res, &q->q_usage_counter,
+-				altmap);
++				altmap, ARCH_MEMREMAP_PMEM);
+ 		pfn_sb = nd_pfn->pfn_sb;
+ 		pmem->data_offset = le64_to_cpu(pfn_sb->dataoff);
+ 		pmem->pfn_pad = resource_size(res) - resource_size(&pfn_res);
+@@ -287,7 +287,7 @@ static int pmem_attach_disk(struct device *dev,
+ 		res->start += pmem->data_offset;
+ 	} else if (pmem_should_map_pages(dev)) {
+ 		addr = devm_memremap_pages(dev, &nsio->res,
+-				&q->q_usage_counter, NULL);
++				&q->q_usage_counter, NULL, ARCH_MEMREMAP_PMEM);
+ 		pmem->pfn_flags |= PFN_MAP;
+ 	} else
+ 		addr = devm_memremap(dev, pmem->phys_addr,
+diff --git a/include/linux/memremap.h b/include/linux/memremap.h
+index 9341619..fc99283 100644
+--- a/include/linux/memremap.h
++++ b/include/linux/memremap.h
+@@ -51,12 +51,13 @@ struct dev_pagemap {
 
-For more information on the testing and performance results see the
-GitHub site [4].
+ #ifdef CONFIG_ZONE_DEVICE
+ void *devm_memremap_pages(struct device *dev, struct resource *res,
+-		struct percpu_ref *ref, struct vmem_altmap *altmap);
++		struct percpu_ref *ref, struct vmem_altmap *altmap,
++		unsigned long flags);
+ struct dev_pagemap *find_dev_pagemap(resource_size_t phys);
+ #else
+ static inline void *devm_memremap_pages(struct device *dev,
+ 		struct resource *res, struct percpu_ref *ref,
+-		struct vmem_altmap *altmap)
++		struct vmem_altmap *altmap, unsigned long flags)
+ {
+ 	/*
+ 	 * Fail attempts to call devm_memremap_pages() without
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index b501e39..d5f462c 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -175,13 +175,41 @@ static RADIX_TREE(pgmap_radix, GFP_KERNEL);
+ #define SECTION_MASK ~((1UL << PA_SECTION_SHIFT) - 1)
+ #define SECTION_SIZE (1UL << PA_SECTION_SHIFT)
 
-Known Issues
-------------
++enum {
++	PAGEMAP_IO_MEM = 1 << 0,
++};
++
+ struct page_map {
+ 	struct resource res;
+ 	struct percpu_ref *ref;
+ 	struct dev_pagemap pgmap;
+ 	struct vmem_altmap altmap;
++	void *kaddr;
++	int flags;
+ };
 
-1. Address Translation. Suggestions have been made that in certain
-architectures and topologies the dma_addr_t passed to the DMA master
-in a peer-2-peer transfer will not correctly route to the IO memory
-intended. However in our testing to date we have not seen this to be
-an issue, even in systems with IOMMUs and PCIe switches. It is our
-understanding that an IOMMU only maps system memory and would not
-interfere with device memory regions. (It certainly has no opportunity
-to do so if the transfer gets routed through a switch).
++static int add_zone_device_pages(int nid, u64 start, u64 size)
++{
++	struct pglist_data *pgdat = NODE_DATA(nid);
++	struct zone *zone = pgdat->node_zones + ZONE_DEVICE;
++	unsigned long start_pfn = start >> PAGE_SHIFT;
++	unsigned long nr_pages = size >> PAGE_SHIFT;
++
++	return __add_pages(nid, zone, start_pfn, nr_pages);
++}
++
++static void remove_zone_device_pages(u64 start, u64 size)
++{
++	unsigned long start_pfn = start >> PAGE_SHIFT;
++	unsigned long nr_pages = size >> PAGE_SHIFT;
++	struct zone *zone;
++	int ret;
++
++	zone = page_zone(pfn_to_page(start_pfn));
++	ret = __remove_pages(zone, start_pfn, nr_pages);
++	WARN_ON_ONCE(ret);
++}
++
+ void get_zone_device_page(struct page *page)
+ {
+ 	percpu_ref_get(page->pgmap->ref);
+@@ -246,9 +274,17 @@ static void devm_memremap_pages_release(struct device *dev, void *data)
+ 	/* pages are dead and unused, undo the arch mapping */
+ 	align_start = res->start & ~(SECTION_SIZE - 1);
+ 	align_size = ALIGN(resource_size(res), SECTION_SIZE);
+-	arch_remove_memory(align_start, align_size);
++
++	if (page_map->flags & PAGEMAP_IO_MEM) {
++		remove_zone_device_pages(align_start, align_size);
++		iounmap(page_map->kaddr);
++	} else {
++		arch_remove_memory(align_start, align_size);
++	}
++
+ 	untrack_pfn(NULL, PHYS_PFN(align_start), align_size);
+ 	pgmap_radix_release(res);
++
+ 	dev_WARN_ONCE(dev, pgmap->altmap && pgmap->altmap->alloc,
+ 			"%s: failed to free all reserved pages\n", __func__);
+ }
+@@ -270,6 +306,8 @@ struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
+  * @res: "host memory" address range
+  * @ref: a live per-cpu reference count
+  * @altmap: optional descriptor for allocating the memmap from @res
++ * @flags: either MEMREMAP_WB, MEMREMAP_WT and MEMREMAP_WC
++ *         see memremap() for a description of the flags
+  *
+  * Notes:
+  * 1/ @ref must be 'live' on entry and 'dead' before devm_memunmap_pages() time
+@@ -280,7 +318,8 @@ struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
+  *    this is not enforced.
+  */
+ void *devm_memremap_pages(struct device *dev, struct resource *res,
+-		struct percpu_ref *ref, struct vmem_altmap *altmap)
++		struct percpu_ref *ref, struct vmem_altmap *altmap,
++		unsigned long flags)
+ {
+ 	resource_size_t key, align_start, align_size, align_end;
+ 	pgprot_t pgprot = PAGE_KERNEL;
+@@ -288,6 +327,8 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
+ 	struct page_map *page_map;
+ 	int error, nid, is_ram;
+ 	unsigned long pfn;
++	void *addr = NULL;
++	enum page_cache_mode pcm;
 
-2. Memory Segment Spacing. This patch has the same limitations that
-ZONE_DEVICE does in that memory regions must be spaces at least
-SECTION_SIZE bytes part. On x86 this is 128MB and there are cases where
-BARs can be placed closer together than this. Thus ZONE_DEVICE would not
-be usable on neighboring BARs. For our purposes, this is not an issue as
-we'd only be looking at enabling a single BAR in a given PCIe device.
-More exotic use cases may have problems with this.
+ 	align_start = res->start & ~(SECTION_SIZE - 1);
+ 	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
+@@ -353,15 +394,44 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
+ 	if (nid < 0)
+ 		nid = numa_mem_id();
 
-3. Coherency Issues. When IOMEM is written from both the CPU and a PCIe
-peer there is potential for coherency issues and for writes to occur out
-of order. This is something that users of this feature need to be
-cognizant of. Though really, this isn't much different than the
-existing situation with things like RDMA: if userspace sets up an MR
-for remote use, they need to be careful about using that memory region
-themselves.
++	if (flags & MEMREMAP_WB)
++		pcm = _PAGE_CACHE_MODE_WB;
++	else if (flags & MEMREMAP_WT)
++		pcm = _PAGE_CACHE_MODE_WT;
++	else if (flags & MEMREMAP_WC)
++		pcm = _PAGE_CACHE_MODE_WC;
++	else
++		pcm = _PAGE_CACHE_MODE_WB;
++
++	pgprot = __pgprot(pgprot_val(pgprot) | cachemode2protval(pcm));
++
+ 	error = track_pfn_remap(NULL, &pgprot, PHYS_PFN(align_start), 0,
+ 			align_size);
+ 	if (error)
+ 		goto err_pfn_remap;
 
-4. Architecture. Currently this patch is applicable only to x86_64
-architectures. The same is true for much of the code pertaining to
-PMEM and ZONE_DEVICE. It is hoped that the work will be extended to other
-ARCH over time.
+-	error = arch_add_memory(nid, align_start, align_size, true);
++	if (flags & MEMREMAP_WB || !flags) {
++		error = arch_add_memory(nid, align_start, align_size, true);
++		addr = __va(res->start);
++	} else {
++		page_map->flags |= PAGEMAP_IO_MEM;
++		error = add_zone_device_pages(nid, align_start, align_size);
++	}
++
+ 	if (error)
+ 		goto err_add_memory;
 
-References
-----------
-[1] https://patchwork.kernel.org/patch/8583221/
-[2] http://comments.gmane.org/gmane.linux.drivers.rdma/21849
-[3] http://www.spinics.net/lists/linux-rdma/msg38748.html
-[4] https://github.com/sbates130272/zone-device
++	if (!addr && (flags & MEMREMAP_WT))
++		addr = ioremap_wt(res->start, resource_size(res));
++
++	if (!addr && (flags & MEMREMAP_WC))
++		addr = ioremap_wc(res->start, resource_size(res));
++
++	if (!addr && page_map->flags & PAGEMAP_IO_MEM) {
++		remove_zone_device_pages(res->start, resource_size(res));
++		goto err_add_memory;
++	}
++
+ 	for_each_device_pfn(pfn, page_map) {
+ 		struct page *page = pfn_to_page(pfn);
 
-Logan Gunthorpe (1):
-  memremap.c : Add support for ZONE_DEVICE IO memory with struct pages.
+@@ -374,8 +444,10 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
+ 		list_del(&page->lru);
+ 		page->pgmap = pgmap;
+ 	}
++
++	page_map->kaddr = addr;
+ 	devres_add(dev, page_map);
+-	return __va(res->start);
++	return addr;
 
-Stephen Bates (2):
-  iopmem : Add a block device driver for PCIe attached IO memory.
-  iopmem : Add documentation for iopmem driver
+  err_add_memory:
+ 	untrack_pfn(NULL, PHYS_PFN(align_start), align_size);
+diff --git a/tools/testing/nvdimm/test/iomap.c b/tools/testing/nvdimm/test/iomap.c
+index 3ccef73..b82fecb 100644
+--- a/tools/testing/nvdimm/test/iomap.c
++++ b/tools/testing/nvdimm/test/iomap.c
+@@ -17,6 +17,7 @@
+ #include <linux/module.h>
+ #include <linux/types.h>
+ #include <linux/pfn_t.h>
++#include <linux/pmem.h>
+ #include <linux/acpi.h>
+ #include <linux/io.h>
+ #include <linux/mm.h>
+@@ -109,7 +110,7 @@ void *__wrap_devm_memremap_pages(struct device *dev, struct resource *res,
 
- Documentation/blockdev/00-INDEX   |   2 +
- Documentation/blockdev/iopmem.txt |  62 +++++++
- MAINTAINERS                       |   7 +
- drivers/block/Kconfig             |  27 ++++
- drivers/block/Makefile            |   1 +
- drivers/block/iopmem.c            | 333 ++++++++++++++++++++++++++++++++++++++
- drivers/dax/pmem.c                |   4 +-
- drivers/nvdimm/pmem.c             |   4 +-
- include/linux/memremap.h          |   5 +-
- kernel/memremap.c                 |  80 ++++++++-
- tools/testing/nvdimm/test/iomap.c |   3 +-
- 11 files changed, 518 insertions(+), 10 deletions(-)
- create mode 100644 Documentation/blockdev/iopmem.txt
- create mode 100644 drivers/block/iopmem.c
+ 	if (nfit_res)
+ 		return nfit_res->buf + offset - nfit_res->res.start;
+-	return devm_memremap_pages(dev, res, ref, altmap);
++	return devm_memremap_pages(dev, res, ref, altmap, ARCH_MEMREMAP_PMEM);
+ }
+ EXPORT_SYMBOL(__wrap_devm_memremap_pages);
 
 --
 2.1.4
