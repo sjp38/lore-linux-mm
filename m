@@ -1,55 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EB2FF6B0261
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 05:59:17 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id x79so7946564lff.2
-        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 02:59:17 -0700 (PDT)
-Received: from outbound-smtp05.blacknight.com (outbound-smtp05.blacknight.com. [81.17.249.38])
-        by mx.google.com with ESMTPS id wt1si47782707wjc.140.2016.10.18.02.59.15
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BD4666B0260
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 06:13:04 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id x23so8188076lfi.0
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 03:13:04 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id gz9si15771543wjc.23.2016.10.18.03.13.03
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 18 Oct 2016 02:59:15 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp05.blacknight.com (Postfix) with ESMTPS id 5E706986C3
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 09:59:15 +0000 (UTC)
-Date: Tue, 18 Oct 2016 10:59:12 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] bdi flusher should not be throttled here when it fall
- into buddy slow path
-Message-ID: <20161018095912.GD22174@techsingularity.net>
-References: <1476774765-21130-1-git-send-email-zhouxianrong@huawei.com>
+        Tue, 18 Oct 2016 03:13:03 -0700 (PDT)
+Date: Tue, 18 Oct 2016 12:13:01 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 07/20] mm: Add orig_pte field into vm_fault
+Message-ID: <20161018101301.GN3359@quack2.suse.cz>
+References: <1474992504-20133-1-git-send-email-jack@suse.cz>
+ <1474992504-20133-8-git-send-email-jack@suse.cz>
+ <20161017164512.GA25175@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1476774765-21130-1-git-send-email-zhouxianrong@huawei.com>
+In-Reply-To: <20161017164512.GA25175@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhouxianrong@huawei.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, viro@zeniv.linux.org.uk, mingo@redhat.com, peterz@infradead.org, hannes@cmpxchg.org, vbabka@suse.cz, mhocko@suse.com, vdavydov.dev@gmail.com, minchan@kernel.org, riel@redhat.com, zhouxiyu@huawei.com, zhangshiming5@huawei.com, won.ho.park@huawei.com, tuxiaobing@huawei.com
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Tue, Oct 18, 2016 at 03:12:45PM +0800, zhouxianrong@huawei.com wrote:
-> From: z00281421 <z00281421@notesmail.huawei.com>
+On Mon 17-10-16 10:45:12, Ross Zwisler wrote:
+> On Tue, Sep 27, 2016 at 06:08:11PM +0200, Jan Kara wrote:
+> > Add orig_pte field to vm_fault structure to allow ->page_mkwrite
+> > handlers to fully handle the fault. This also allows us to save some
+> > passing of extra arguments around.
+> > 
+> > Signed-off-by: Jan Kara <jack@suse.cz>
+> > ---
 > 
-> bdi flusher may enter page alloc slow path due to writepage and kmalloc. 
-> in that case the flusher as a direct reclaimer should not be throttled here
-> because it can not to reclaim clean file pages or anaonymous pages
-> for next moment; furthermore writeback rate of dirty pages would be
-> slow down and other direct reclaimers and kswapd would be affected.
-> bdi flusher should be iosceduled by get_request rather than here.
+> > diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+> > index f88b2d3810a7..66bc77f2d1d2 100644
+> > --- a/mm/khugepaged.c
+> > +++ b/mm/khugepaged.c
+> > @@ -890,11 +890,12 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
+> >  	vmf.pte = pte_offset_map(pmd, address);
+> >  	for (; vmf.address < address + HPAGE_PMD_NR*PAGE_SIZE;
+> >  			vmf.pte++, vmf.address += PAGE_SIZE) {
+> > -		pteval = *vmf.pte;
+> > +		vmf.orig_pte = *vmf.pte;
+> > +		pteval = vmf.orig_pte;
+> >  		if (!is_swap_pte(pteval))
+> >  			continue;
 > 
-> Signed-off-by: z00281421 <z00281421@notesmail.huawei.com>
+> 'pteval' is now only used once.  It's probably cleaner to just remove it and
+> use vmf.orig_pte for the is_swap_pte() check.
 
-What does this patch do that PF_LESS_THROTTLE is not doing already if
-there is an underlying BDI?
+Yes, fixed.
 
-There have been a few patches like this recently that look like they might
-do something useful but are subtle. They really should be accompanied by
-a test case and data showing they either fix a functional issue (machine
-livelocking due to writeback not making progress) or a performance issue.
+> > @@ -3484,8 +3484,7 @@ static int handle_pte_fault(struct vm_fault *vmf)
+> >  		 * So now it's safe to run pte_offset_map().
+> >  		 */
+> >  		vmf->pte = pte_offset_map(vmf->pmd, vmf->address);
+> > -
+> > -		entry = *vmf->pte;
+> > +		vmf->orig_pte = *vmf->pte;
+> >  
+> >  		/*
+> >  		 * some architectures can have larger ptes than wordsize,
+> > @@ -3496,6 +3495,7 @@ static int handle_pte_fault(struct vm_fault *vmf)
+> >  		 * ptl lock held. So here a barrier will do.
+> >  		 */
+> >  		barrier();
+> > +		entry = vmf->orig_pte;
+> 
+> This set of 'entry' is now on the other side of the barrier().  I'll admit
+> that I don't fully grok the need for the barrier. Does it apply to only the
+> setting of vmf->pte and vmf->orig_pte, or does 'entry' also matter because it
+> too is of type pte_t, and thus could be bigger than the architecture's word
+> size?
+> 
+> My guess is that 'entry' matters, too, and should remain before the barrier()
+> call.  If not, can you help me understand why?
+
+Sure, actually the comment just above the barrier() explains it: We care
+about sampling *vmf->pte value only once - so we want the value stored in
+'entry' (vmf->orig_pte after the patch) to be used and avoid compiler
+optimizations leading to refetching the value at *vmf->pte. The way I've
+written the code achieves this. Actually, I've moved the 'entry' assignment
+even further down where it makes more sense with the new code layout.
+
+								Honza
 
 -- 
-Mel Gorman
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
