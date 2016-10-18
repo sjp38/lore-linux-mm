@@ -1,79 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E3CD16B0264
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 02:56:41 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id h24so167990048pfh.0
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 23:56:41 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id o5si30798107pgh.134.2016.10.17.23.56.40
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 17 Oct 2016 23:56:40 -0700 (PDT)
-From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 6/6] mm: add preempt points into __purge_vmap_area_lazy
-Date: Tue, 18 Oct 2016 08:56:11 +0200
-Message-Id: <1476773771-11470-7-git-send-email-hch@lst.de>
-In-Reply-To: <1476773771-11470-1-git-send-email-hch@lst.de>
-References: <1476773771-11470-1-git-send-email-hch@lst.de>
+	by kanga.kvack.org (Postfix) with ESMTP id 33F106B0038
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 03:20:10 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id l29so128483449pfg.7
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 00:20:10 -0700 (PDT)
+Received: from szxga02-in.huawei.com ([119.145.14.65])
+        by mx.google.com with ESMTP id 80si30933425pgc.325.2016.10.18.00.20.08
+        for <linux-mm@kvack.org>;
+        Tue, 18 Oct 2016 00:20:09 -0700 (PDT)
+From: <zhouxianrong@huawei.com>
+Subject: [PATCH] bdi flusher should not be throttled here when it fall into buddy slow path
+Date: Tue, 18 Oct 2016 15:12:45 +0800
+Message-ID: <1476774765-21130-1-git-send-email-zhouxianrong@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: joelaf@google.com, jszhang@marvell.com, chris@chris-wilson.co.uk, joaodias@google.com, linux-mm@kvack.org, linux-rt-users@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, viro@zeniv.linux.org.uk, mingo@redhat.com, peterz@infradead.org, hannes@cmpxchg.org, mgorman@techsingularity.net, vbabka@suse.cz, mhocko@suse.com, vdavydov.dev@gmail.com, minchan@kernel.org, riel@redhat.com, zhouxianrong@huawei.com, zhouxiyu@huawei.com, zhangshiming5@huawei.com, won.ho.park@huawei.com, tuxiaobing@huawei.com
 
-From: Joel Fernandes <joelaf@google.com>
+From: z00281421 <z00281421@notesmail.huawei.com>
 
-Use cond_resched_lock to avoid holding the vmap_area_lock for a
-potentially long time.
+bdi flusher may enter page alloc slow path due to writepage and kmalloc. 
+in that case the flusher as a direct reclaimer should not be throttled here
+because it can not to reclaim clean file pages or anaonymous pages
+for next moment; furthermore writeback rate of dirty pages would be
+slow down and other direct reclaimers and kswapd would be affected.
+bdi flusher should be iosceduled by get_request rather than here.
 
-Signed-off-by: Joel Fernandes <joelaf@google.com>
-[hch: split from a larger patch by Joel, wrote the crappy changelog]
-Signed-off-by: Christoph Hellwig <hch@lst.de>
+Signed-off-by: z00281421 <z00281421@notesmail.huawei.com>
 ---
- mm/vmalloc.c | 14 +++++++++-----
- 1 file changed, 9 insertions(+), 5 deletions(-)
+ fs/fs-writeback.c     |    4 ++--
+ include/linux/sched.h |    1 +
+ mm/vmscan.c           |   15 +++++++++++----
+ 3 files changed, 14 insertions(+), 6 deletions(-)
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 6c7eb8d..98b19ea 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -628,7 +628,7 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
- 	struct llist_node *valist;
- 	struct vmap_area *va;
- 	struct vmap_area *n_va;
--	int nr = 0;
-+	bool do_free = false;
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index 05713a5..f6bf067 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -1908,7 +1908,7 @@ void wb_workfn(struct work_struct *work)
+ 	long pages_written;
  
- 	lockdep_assert_held(&vmap_purge_lock);
+ 	set_worker_desc("flush-%s", dev_name(wb->bdi->dev));
+-	current->flags |= PF_SWAPWRITE;
++	current->flags |= (PF_SWAPWRITE | PF_BDI_FLUSHER | PF_LESS_THROTTLE);
  
-@@ -638,18 +638,22 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
- 			start = va->va_start;
- 		if (va->va_end > end)
- 			end = va->va_end;
--		nr += (va->va_end - va->va_start) >> PAGE_SHIFT;
-+		do_free = true;
- 	}
+ 	if (likely(!current_is_workqueue_rescuer() ||
+ 		   !test_bit(WB_registered, &wb->state))) {
+@@ -1938,7 +1938,7 @@ void wb_workfn(struct work_struct *work)
+ 	else if (wb_has_dirty_io(wb) && dirty_writeback_interval)
+ 		wb_wakeup_delayed(wb);
  
--	if (!nr)
-+	if (!do_free)
- 		return false;
- 
--	atomic_sub(nr, &vmap_lazy_nr);
- 	flush_tlb_kernel_range(start, end);
- 
- 	spin_lock(&vmap_area_lock);
--	llist_for_each_entry_safe(va, n_va, valist, purge_list)
-+	llist_for_each_entry_safe(va, n_va, valist, purge_list) {
-+		int nr = (va->va_end - va->va_start) >> PAGE_SHIFT;
-+
- 		__free_vmap_area(va);
-+		atomic_sub(nr, &vmap_lazy_nr);
-+		cond_resched_lock(&vmap_area_lock);
-+	}
- 	spin_unlock(&vmap_area_lock);
- 	return true;
+-	current->flags &= ~PF_SWAPWRITE;
++	current->flags &= ~(PF_SWAPWRITE | PF_BDI_FLUSHER | PF_LESS_THROTTLE);
  }
+ 
+ /*
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 62c68e5..4bb70f2 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -2232,6 +2232,7 @@ extern void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut,
+ #define PF_KTHREAD	0x00200000	/* I am a kernel thread */
+ #define PF_RANDOMIZE	0x00400000	/* randomize virtual address space */
+ #define PF_SWAPWRITE	0x00800000	/* Allowed to write to swap */
++#define PF_BDI_FLUSHER  0x01000000	/* I am bdi flusher */
+ #define PF_NO_SETAFFINITY 0x04000000	/* Userland is not allowed to meddle with cpus_allowed */
+ #define PF_MCE_EARLY    0x08000000      /* Early kill for mce process policy */
+ #define PF_MUTEX_TESTER	0x20000000	/* Thread belongs to the rt mutex tester */
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 0fe8b71..492e9e7 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1643,12 +1643,19 @@ putback_inactive_pages(struct lruvec *lruvec, struct list_head *page_list)
+  * If a kernel thread (such as nfsd for loop-back mounts) services
+  * a backing device by writing to the page cache it sets PF_LESS_THROTTLE.
+  * In that case we should only throttle if the backing device it is
+- * writing to is congested.  In other cases it is safe to throttle.
++ * writing to is congested.  another case is that bdi flusher could
++ * not be throttled here even though whose bdi is consgested.
++ * In other cases it is safe to throttle.
+  */
+-static int current_may_throttle(void)
++static bool current_may_throttle(void)
+ {
+-	return !(current->flags & PF_LESS_THROTTLE) ||
+-		current->backing_dev_info == NULL ||
++	if (!(current->flags & PF_LESS_THROTTLE))
++		return true;
++
++	if (current->flags & PF_BDI_FLUSHER)
++		return false;
++
++	return current->backing_dev_info == NULL ||
+ 		bdi_write_congested(current->backing_dev_info);
+ }
+ 
 -- 
-2.1.4
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
