@@ -1,51 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 61EFC6B0038
-	for <linux-mm@kvack.org>; Mon, 17 Oct 2016 22:57:20 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id ry6so220769501pac.1
-        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 19:57:20 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id m2si29886950pgd.289.2016.10.17.19.57.18
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 17 Oct 2016 19:57:19 -0700 (PDT)
-Subject: Re: [PATCH vmalloc] reduce purge_lock range and hold time of
-References: <1476540769-31893-1-git-send-email-zhouxianrong@huawei.com>
- <20161015165521.GB31568@infradead.org>
-From: zhouxianrong <zhouxianrong@huawei.com>
-Message-ID: <a33c5cd3-ce94-b333-af3d-d8fc2b0765e1@huawei.com>
-Date: Tue, 18 Oct 2016 10:55:26 +0800
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 276E56B0038
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 02:25:28 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id hm5so225624628pac.4
+        for <linux-mm@kvack.org>; Mon, 17 Oct 2016 23:25:28 -0700 (PDT)
+Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
+        by mx.google.com with ESMTP id ix8si28434492pac.182.2016.10.17.23.25.25
+        for <linux-mm@kvack.org>;
+        Mon, 17 Oct 2016 23:25:27 -0700 (PDT)
+Date: Tue, 18 Oct 2016 17:24:46 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [RFC PATCH] mm, compaction: allow compaction for GFP_NOFS
+ requests
+Message-ID: <20161018062446.GD14023@dastard>
+References: <20161004081215.5563-1-mhocko@kernel.org>
+ <20161004203202.GY9806@dastard>
+ <20161005113839.GC7138@dhcp22.suse.cz>
+ <20161006021142.GC9806@dastard>
+ <20161007131814.GL18439@dhcp22.suse.cz>
+ <20161013002924.GO23194@dastard>
+ <20161013073947.GF21678@dhcp22.suse.cz>
+ <20161013110456.GK21678@dhcp22.suse.cz>
+ <20161016204959.GH27872@dastard>
+ <20161017082255.GE23322@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20161015165521.GB31568@infradead.org>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161017082255.GE23322@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, rientjes@google.com, hannes@cmpxchg.org, chris@chris-wilson.co.uk, vdavydov.dev@gmail.com, mgorman@techsingularity.net, joe@perches.com, shawn.lin@rock-chips.com, iamjoonsoo.kim@lge.com, kuleshovmail@gmail.com, zhouxiyu@huawei.com, zhangshiming5@huawei.com, won.ho.park@huawei.com, tuxiaobing@huawei.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-hey Hellwig:
-	cond_resched_lock is a good choice. i mixed the cond_resched_lock and batch to balance of
-realtime and performance and resubmit this patch.
+On Mon, Oct 17, 2016 at 10:22:56AM +0200, Michal Hocko wrote:
+> On Mon 17-10-16 07:49:59, Dave Chinner wrote:
+> > On Thu, Oct 13, 2016 at 01:04:56PM +0200, Michal Hocko wrote:
+> > > On Thu 13-10-16 09:39:47, Michal Hocko wrote:
+> > > > On Thu 13-10-16 11:29:24, Dave Chinner wrote:
+> > > > > On Fri, Oct 07, 2016 at 03:18:14PM +0200, Michal Hocko wrote:
+> > > > [...]
+> > > > > > Unpatched kernel:
+> > > > > > #       Version 3.3, 16 thread(s) starting at Fri Oct  7 09:55:05 2016
+> > > > > > #       Sync method: NO SYNC: Test does not issue sync() or fsync() calls.
+> > > > > > #       Directories:  Time based hash between directories across 10000 subdirectories with 180 seconds per subdirectory.
+> > > > > > #       File names: 40 bytes long, (16 initial bytes of time stamp with 24 random bytes at end of name)
+> > > > > > #       Files info: size 0 bytes, written with an IO size of 16384 bytes per write
+> > > > > > #       App overhead is time in microseconds spent in the test not doing file writing related system calls.
+> > > > > > #
+> > > > > > FSUse%        Count         Size    Files/sec     App Overhead
+> > > > > >      1      1600000            0       4300.1         20745838
+> > > > > >      3      3200000            0       4239.9         23849857
+> > > > > >      5      4800000            0       4243.4         25939543
+> > > > > >      6      6400000            0       4248.4         19514050
+> > > > > >      8      8000000            0       4262.1         20796169
+> > > > > >      9      9600000            0       4257.6         21288675
+> > > > > >     11     11200000            0       4259.7         19375120
+> > > > > >     13     12800000            0       4220.7         22734141
+> > > > > >     14     14400000            0       4238.5         31936458
+> > > > > >     16     16000000            0       4231.5         23409901
+> > > > > >     18     17600000            0       4045.3         23577700
+> > > > > >     19     19200000            0       2783.4         58299526
+> > > > > >     21     20800000            0       2678.2         40616302
+> > > > > >     23     22400000            0       2693.5         83973996
+> > > > > > Ctrl+C because it just took too long.
+> > > > > 
+> > > > > Try running it on a larger filesystem, or configure the fs with more
+> > > > > AGs and a larger log (i.e. mkfs.xfs -f -dagcount=24 -l size=512m
+> > > > > <dev>). That will speed up modifications and increase concurrency.
+> > > > > This test should be able to run 5-10x faster than this (it
+> > > > > sustains 55,000 files/s @ 300MB/s write on my test fs on a cheap
+> > > > > SSD).
+> > > > 
+> > > > Will add more memory to the machine. Will report back on that.
+> > > 
+> > > increasing the memory to 1G didn't help. So I've tried to add
+> > > -dagcount=24 -l size=512m and that didn't help much either. I am at 5k
+> > > files/s so nowhere close to your 55k. I thought this is more about CPUs
+> > > count than about the amount of memory. So I've tried a larger machine
+> > > with 24 CPUs (no dagcount etc...), this one doesn't have a fast storage
+> > > so I've backed the fs image by ramdisk but even then I am getting very
+> > > similar results. No idea what is wrong with my kvm setup.
+> > 
+> > What's the backing storage? I use an image file in an XFS
+> > filesystem, configured with virtio,cache=none so it's concurrency
+> > model matches that of a real disk...
+> 
+> I am using qcow qemu image exported to qemu by
+> -drive file=storage.img,if=ide,index=1,cache=none
+> parameter.
 
-On 2016/10/16 0:55, Christoph Hellwig wrote:
-> On Sat, Oct 15, 2016 at 10:12:48PM +0800, zhouxianrong@huawei.com wrote:
->> From: z00281421 <z00281421@notesmail.huawei.com>
->>
->> i think no need to place __free_vmap_area loop in purge_lock;
->> _free_vmap_area could be non-atomic operations with flushing tlb
->> but must be done after flush tlb. and the whole__free_vmap_area loops
->> also could be non-atomic operations. if so we could improve realtime
->> because the loop times sometimes is larg and spend a few time.
->
-> Right, see the previous patch in reply to Joel that drops purge_lock
-> entirely.
->
-> Instead of your open coded batch counter you probably want to add
-> a cond_resched_lock after the call to __free_vmap_area.
->
-> .
->
+storage.img is on what type of filesystem? Only XFs will give you
+proper IO concurrency with direct IO, and you really need to use a
+raw image file rather than qcow2. If you're not using the special
+capabilities of qcow2 (e.g. snapshots), there's no reason to use
+it...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
