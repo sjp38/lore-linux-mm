@@ -1,104 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 33F106B0038
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 03:20:10 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id l29so128483449pfg.7
-        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 00:20:10 -0700 (PDT)
-Received: from szxga02-in.huawei.com ([119.145.14.65])
-        by mx.google.com with ESMTP id 80si30933425pgc.325.2016.10.18.00.20.08
-        for <linux-mm@kvack.org>;
-        Tue, 18 Oct 2016 00:20:09 -0700 (PDT)
-From: <zhouxianrong@huawei.com>
-Subject: [PATCH] bdi flusher should not be throttled here when it fall into buddy slow path
-Date: Tue, 18 Oct 2016 15:12:45 +0800
-Message-ID: <1476774765-21130-1-git-send-email-zhouxianrong@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E807A6B0038
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 03:26:59 -0400 (EDT)
+Received: by mail-lf0-f72.google.com with SMTP id b75so4908665lfg.3
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 00:26:59 -0700 (PDT)
+Received: from special.m3.smtp.beget.ru (special.m3.smtp.beget.ru. [5.101.158.90])
+        by mx.google.com with ESMTPS id x135si400305lfa.52.2016.10.18.00.26.58
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 18 Oct 2016 00:26:58 -0700 (PDT)
+Content-Type: text/plain; charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 10.0 \(3226\))
+Subject: Re: [Bug 177821] New: NULL pointer dereference in list_rcu
+From: Alexander Polakov <apolyakov@beget.ru>
+In-Reply-To: <20161017171038.924cbbcfc0a23652d2d2b8b4@linux-foundation.org>
+Date: Tue, 18 Oct 2016 10:26:55 +0300
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <FA3391F9-B333-451D-8415-CB5B62030A9D@beget.ru>
+References: <bug-177821-27@https.bugzilla.kernel.org/>
+ <20161017171038.924cbbcfc0a23652d2d2b8b4@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, viro@zeniv.linux.org.uk, mingo@redhat.com, peterz@infradead.org, hannes@cmpxchg.org, mgorman@techsingularity.net, vbabka@suse.cz, mhocko@suse.com, vdavydov.dev@gmail.com, minchan@kernel.org, riel@redhat.com, zhouxianrong@huawei.com, zhouxiyu@huawei.com, zhangshiming5@huawei.com, won.ho.park@huawei.com, tuxiaobing@huawei.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: bugzilla-daemon@bugzilla.kernel.org, Al Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov@parallels.com>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-From: z00281421 <z00281421@notesmail.huawei.com>
 
-bdi flusher may enter page alloc slow path due to writepage and kmalloc. 
-in that case the flusher as a direct reclaimer should not be throttled here
-because it can not to reclaim clean file pages or anaonymous pages
-for next moment; furthermore writeback rate of dirty pages would be
-slow down and other direct reclaimers and kswapd would be affected.
-bdi flusher should be iosceduled by get_request rather than here.
+> On 18 Oct 2016, at 03:10, Andrew Morton <akpm@linux-foundation.org> =
+wrote:
+>=20
+>=20
+> (resend due to "vdavydov@virtuozzo.com Unrouteable address")
+>=20
+> (switched to email.  Please respond via emailed reply-to-all, not via =
+the
+> bugzilla web interface).
+>=20
+> On Mon, 17 Oct 2016 13:08:17 +0000 bugzilla-daemon@bugzilla.kernel.org =
+wrote:
+>=20
+>> https://bugzilla.kernel.org/show_bug.cgi?id=3D177821
+>>=20
+>>            Bug ID: 177821
+>>           Summary: NULL pointer dereference in list_rcu
+>=20
+> Fair enough, I suppose.
+>=20
+> Please don't submit patches via bugzilla - it is quite
+> painful.  Documentation/SubmittingPatches explains the
+> way to do it.
+>=20
+> Here's what I put together.  Note that we do not have your
+> signed-off-by: for this.  Please send it?
 
-Signed-off-by: z00281421 <z00281421@notesmail.huawei.com>
+Sorry for the bugzilla thing, here's the patch with Signed-off-by added.
+Hope I did it right.
+
+From: Alexander Polakov <apolyakov@beget.ru>
+Subject: mm/list_lru.c: avoid error-path NULL pointer deref
+
+As described in https://bugzilla.kernel.org/show_bug.cgi?id=3D177821:
+
+After some analysis it seems to be that the problem is in alloc_super().=20=
+
+In case list_lru_init_memcg() fails it goes into destroy_super(), which
+calls list_lru_destroy().
+
+And in list_lru_init() we see that in case memcg_init_list_lru() fails,
+lru->node is freed, but not set NULL, which then leads =
+list_lru_destroy()
+to believe it is initialized and call memcg_destroy_list_lru().=20
+memcg_destroy_list_lru() in turn can access lru->node[i].memcg_lrus, =
+which
+is NULL.
+
+[akpm@linux-foundation.org: add comment]
+Cc: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>
+Signed-off-by: Alexander Polakov <apolyakov@beget.ru>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
- fs/fs-writeback.c     |    4 ++--
- include/linux/sched.h |    1 +
- mm/vmscan.c           |   15 +++++++++++----
- 3 files changed, 14 insertions(+), 6 deletions(-)
 
-diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index 05713a5..f6bf067 100644
---- a/fs/fs-writeback.c
-+++ b/fs/fs-writeback.c
-@@ -1908,7 +1908,7 @@ void wb_workfn(struct work_struct *work)
- 	long pages_written;
- 
- 	set_worker_desc("flush-%s", dev_name(wb->bdi->dev));
--	current->flags |= PF_SWAPWRITE;
-+	current->flags |= (PF_SWAPWRITE | PF_BDI_FLUSHER | PF_LESS_THROTTLE);
- 
- 	if (likely(!current_is_workqueue_rescuer() ||
- 		   !test_bit(WB_registered, &wb->state))) {
-@@ -1938,7 +1938,7 @@ void wb_workfn(struct work_struct *work)
- 	else if (wb_has_dirty_io(wb) && dirty_writeback_interval)
- 		wb_wakeup_delayed(wb);
- 
--	current->flags &= ~PF_SWAPWRITE;
-+	current->flags &= ~(PF_SWAPWRITE | PF_BDI_FLUSHER | PF_LESS_THROTTLE);
- }
- 
- /*
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 62c68e5..4bb70f2 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -2232,6 +2232,7 @@ extern void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut,
- #define PF_KTHREAD	0x00200000	/* I am a kernel thread */
- #define PF_RANDOMIZE	0x00400000	/* randomize virtual address space */
- #define PF_SWAPWRITE	0x00800000	/* Allowed to write to swap */
-+#define PF_BDI_FLUSHER  0x01000000	/* I am bdi flusher */
- #define PF_NO_SETAFFINITY 0x04000000	/* Userland is not allowed to meddle with cpus_allowed */
- #define PF_MCE_EARLY    0x08000000      /* Early kill for mce process policy */
- #define PF_MUTEX_TESTER	0x20000000	/* Thread belongs to the rt mutex tester */
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 0fe8b71..492e9e7 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1643,12 +1643,19 @@ putback_inactive_pages(struct lruvec *lruvec, struct list_head *page_list)
-  * If a kernel thread (such as nfsd for loop-back mounts) services
-  * a backing device by writing to the page cache it sets PF_LESS_THROTTLE.
-  * In that case we should only throttle if the backing device it is
-- * writing to is congested.  In other cases it is safe to throttle.
-+ * writing to is congested.  another case is that bdi flusher could
-+ * not be throttled here even though whose bdi is consgested.
-+ * In other cases it is safe to throttle.
-  */
--static int current_may_throttle(void)
-+static bool current_may_throttle(void)
- {
--	return !(current->flags & PF_LESS_THROTTLE) ||
--		current->backing_dev_info == NULL ||
-+	if (!(current->flags & PF_LESS_THROTTLE))
-+		return true;
-+
-+	if (current->flags & PF_BDI_FLUSHER)
-+		return false;
-+
-+	return current->backing_dev_info == NULL ||
- 		bdi_write_congested(current->backing_dev_info);
- }
- 
--- 
-1.7.9.5
+mm/list_lru.c |    2 ++
+1 file changed, 2 insertions(+)
+
+diff -puN mm/list_lru.c~a mm/list_lru.c
+--- a/mm/list_lru.c~a
++++ a/mm/list_lru.c
+@@ -554,6 +554,8 @@ int __list_lru_init(struct list_lru *lru
+	err =3D memcg_init_list_lru(lru, memcg_aware);
+	if (err) {
+		kfree(lru->node);
++		/* Do this so a list_lru_destroy() doesn't crash: */
++		lru->node =3D NULL;
+		goto out;
+	}
+
+_
+
+
+>=20
+>=20
+>=20
+> From: Alexander Polakov <apolyakov@beget.ru>
+> Subject: mm/list_lru.c: avoid error-path NULL pointer deref
+>=20
+> As described in https://bugzilla.kernel.org/show_bug.cgi?id=3D177821:
+>=20
+> After some analysis it seems to be that the problem is in =
+alloc_super().=20
+> In case list_lru_init_memcg() fails it goes into destroy_super(), =
+which
+> calls list_lru_destroy().
+>=20
+> And in list_lru_init() we see that in case memcg_init_list_lru() =
+fails,
+> lru->node is freed, but not set NULL, which then leads =
+list_lru_destroy()
+> to believe it is initialized and call memcg_destroy_list_lru().=20
+> memcg_destroy_list_lru() in turn can access lru->node[i].memcg_lrus, =
+which
+> is NULL.
+>=20
+> [akpm@linux-foundation.org: add comment]
+> Cc: Vladimir Davydov <vdavydov@parallels.com>
+> Cc: Al Viro <viro@zeniv.linux.org.uk>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+>=20
+> mm/list_lru.c |    2 ++
+> 1 file changed, 2 insertions(+)
+>=20
+> diff -puN mm/list_lru.c~a mm/list_lru.c
+> --- a/mm/list_lru.c~a
+> +++ a/mm/list_lru.c
+> @@ -554,6 +554,8 @@ int __list_lru_init(struct list_lru *lru
+> 	err =3D memcg_init_list_lru(lru, memcg_aware);
+> 	if (err) {
+> 		kfree(lru->node);
+> +		/* Do this so a list_lru_destroy() doesn't crash: */
+> +		lru->node =3D NULL;
+> 		goto out;
+> 	}
+>=20
+> _
+>=20
+>=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
