@@ -1,91 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F19D6B025E
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 13:45:51 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id b75so12851469lfg.3
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 10:45:51 -0700 (PDT)
-Received: from mail-lf0-x235.google.com (mail-lf0-x235.google.com. [2a00:1450:4010:c07::235])
-        by mx.google.com with ESMTPS id h10si3390464lfe.220.2016.10.19.10.45.49
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 45F2F6B0264
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 13:50:27 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id t73so72989421oie.5
+        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 10:50:27 -0700 (PDT)
+Received: from mail-oi0-x233.google.com (mail-oi0-x233.google.com. [2607:f8b0:4003:c06::233])
+        by mx.google.com with ESMTPS id b68si5938481oih.130.2016.10.19.10.50.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Oct 2016 10:45:49 -0700 (PDT)
-Received: by mail-lf0-x235.google.com with SMTP id x79so37612732lff.0
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 10:45:49 -0700 (PDT)
+        Wed, 19 Oct 2016 10:50:26 -0700 (PDT)
+Received: by mail-oi0-x233.google.com with SMTP id d132so39648580oib.2
+        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 10:50:26 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <alpine.LRH.2.02.1610191329500.29288@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1610191311010.24555@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.LRH.2.02.1610191329500.29288@file01.intranet.prod.int.rdu2.redhat.com>
-From: Dmitry Safonov <0x7f454c46@gmail.com>
-Date: Wed, 19 Oct 2016 20:45:29 +0300
-Message-ID: <CAJwJo6Z3bxWQDnkj-7=cjjMJ9z7BPjDALFEWHDjt4YsA4UxsPg@mail.gmail.com>
-Subject: Re: x32 is broken in 4.9-rc1 due to "x86/signal: Add
- SA_{X32,IA32}_ABI sa_flags"
+In-Reply-To: <1476826937-20665-2-git-send-email-sbates@raithlin.com>
+References: <1476826937-20665-1-git-send-email-sbates@raithlin.com> <1476826937-20665-2-git-send-email-sbates@raithlin.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 19 Oct 2016 10:50:25 -0700
+Message-ID: <CAPcyv4gmiqMNb+Q88Mf-9fFb4z4uAfWbbEWrv42OBH8838SSPQ@mail.gmail.com>
+Subject: Re: [PATCH 1/3] memremap.c : Add support for ZONE_DEVICE IO memory
+ with struct pages.
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Dmitry Safonov <dsafonov@virtuozzo.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, open list <linux-kernel@vger.kernel.org>
+To: Stephen Bates <sbates@raithlin.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-rdma@vger.kernel.org, linux-block@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, haggaie@mellanox.com, Christoph Hellwig <hch@infradead.org>, Jens Axboe <axboe@fb.com>, Jonathan Corbet <corbet@lwn.net>, jim.macdonald@everspin.com, sbates@raithin.com, Logan Gunthorpe <logang@deltatee.com>
 
-2016-10-19 20:33 GMT+03:00 Mikulas Patocka <mpatocka@redhat.com>:
+On Tue, Oct 18, 2016 at 2:42 PM, Stephen Bates <sbates@raithlin.com> wrote:
+> From: Logan Gunthorpe <logang@deltatee.com>
 >
+> We build on recent work that adds memory regions owned by a device
+> driver (ZONE_DEVICE) [1] and to add struct page support for these new
+> regions of memory [2].
 >
-> On Wed, 19 Oct 2016, Mikulas Patocka wrote:
+> 1. Add an extra flags argument into dev_memremap_pages to take in a
+> MEMREMAP_XX argument. We update the existing calls to this function to
+> reflect the change.
 >
->> Hi
->>
->> In the kernel 4.9-rc1, the x32 support is seriously broken, a x32 proces=
-s
->> is killed with SIGKILL after returning from any signal handler.
+> 2. For completeness, we add MEMREMAP_WT support to the memremap;
+> however we have no actual need for this functionality.
 >
-> I should have said they are killed with SIGSEGV, not SIGKILL.
+> 3. We add the static functions, add_zone_device_pages and
+> remove_zone_device pages. These are similar to arch_add_memory except
+> they don't create the memory mapping. We don't believe these need to be
+> made arch specific, but are open to other opinions.
 >
->> I use Debian sid x64-64 distribution with x32 architecture added from
->> debian-ports.
->>
->> I bisected the bug and found out that it is caused by the patch
->> 6846351052e685c2d1428e80ead2d7ca3d7ed913 ("x86/signal: Add
->> SA_{X32,IA32}_ABI sa_flags").
->>
->> example (strace of a process after receiving the SIGWINCH signal):
->>
->> epoll_wait(10, 0xef6890, 32, -1)        =3D -1 EINTR (Interrupted system=
- call)
->> --- SIGWINCH {si_signo=3DSIGWINCH, si_code=3DSI_USER, si_pid=3D1772, si_=
-uid=3D0} ---
->> poll([{fd=3D4, events=3DPOLLOUT}], 1, 0)    =3D 1 ([{fd=3D4, revents=3DP=
-OLLOUT}])
->> write(4, "\0", 1)                       =3D 1
->> rt_sigreturn({mask=3D[INT QUIT ILL TRAP BUS KILL SEGV USR2 PIPE ALRM STK=
-FLT TSTP TTOU URG XCPU XFSZ VTALRM IO PWR SYS RTMIN]}) =3D 0
->> --- SIGSEGV {si_signo=3DSIGSEGV, si_code=3DSI_KERNEL, si_addr=3DNULL} --=
--
->> +++ killed by SIGSEGV +++
->> Neopr=C3=A1vn=C3=ACn=C3=BD p=C3=B8=C3=ADstup do pam=C3=ACti (SIGSEGV)
->>
->> Mikulas
+> 4. dev_memremap_pages and devm_memremap_pages_release are updated to
+> treat IO memory slightly differently. For IO memory we use a combination
+> of the appropriate io_remap function and the zone_device pages functions
+> created above. A flags variable and kaddr pointer are added to struct
+> page_mem to facilitate this for the release function. We also set up
+> the page attribute tables for the mapped region correctly based on the
+> desired mapping.
 >
-> BTW. when I take core dump of the killed x32 process, it shows:
->
-> ELF Header:
->   Magic:   7f 45 4c 46 01 01 01 00 00 00 00 00 00 00 00 00
->   Class:                             ELF32
->   Data:                              2's complement, little endian
->   Version:                           1 (current)
->   OS/ABI:                            UNIX - System V
->   ABI Version:                       0
->   Type:                              CORE (Core file)
->   Machine:                           Intel 80386
->                                 ^^^^^^^^^^^^^^^^^^^
->
-> So, the kernel somehow thinks that it is i386 process, not x32 process. A
-> core dump of a real x32 process shows "Class: ELF32, Machine: Advanced
-> Micro Devices X86-64".
 
-Thanks for catching, will check it today.
+This description says "what" is being done, but not "why".
 
---=20
-             Dmitry
+In the cover letter, "[PATCH 0/3] iopmem : A block device for PCIe
+memory",  it mentions that the lack of I/O coherency is a known issue
+and users of this functionality need to be cognizant of the pitfalls.
+If that is the case why do we need support for different cpu mapping
+types than the default write-back cache setting?  It's up to the
+application to handle cache cpu flushing similar to what we require of
+device-dax users in the persistent memory case.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
