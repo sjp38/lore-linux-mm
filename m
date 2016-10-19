@@ -1,85 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8173A6B0069
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 13:07:44 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id o141so45727663ioe.4
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 10:07:44 -0700 (PDT)
-Received: from out01.mta.xmission.com (out01.mta.xmission.com. [166.70.13.231])
-        by mx.google.com with ESMTPS id qz8si34503284pab.25.2016.10.19.10.07.43
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AF4D56B0069
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 13:19:05 -0400 (EDT)
+Received: by mail-qt0-f200.google.com with SMTP id g49so24037797qtc.7
+        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 10:19:05 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r13si24960967qkh.63.2016.10.19.10.19.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Oct 2016 10:07:43 -0700 (PDT)
-From: ebiederm@xmission.com (Eric W. Biederman)
-References: <87twcbq696.fsf@x220.int.ebiederm.org>
-	<20161018135031.GB13117@dhcp22.suse.cz> <8737jt903u.fsf@xmission.com>
-	<20161018150507.GP14666@pc.thejh.net> <87twc9656s.fsf@xmission.com>
-	<20161018191206.GA1210@laptop.thejh.net> <87r37dnz74.fsf@xmission.com>
-	<87k2d5nytz.fsf_-_@xmission.com>
-	<CAOQ4uxjyZF346vq-Oi=HwB=jj6ePycHBnEfvVPet9KqPxL9mgg@mail.gmail.com>
-	<87mvi0mpix.fsf@xmission.com>
-Date: Wed, 19 Oct 2016 12:04:45 -0500
-In-Reply-To: <87mvi0mpix.fsf@xmission.com> (Eric W. Biederman's message of
-	"Wed, 19 Oct 2016 08:33:58 -0500")
-Message-ID: <87lgxkjmmq.fsf@xmission.com>
+        Wed, 19 Oct 2016 10:19:05 -0700 (PDT)
+Date: Wed, 19 Oct 2016 13:19:01 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: x32 is broken in 4.9-rc1 due to "x86/signal: Add SA_{X32,IA32}_ABI
+ sa_flags"
+Message-ID: <alpine.LRH.2.02.1610191311010.24555@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-Subject: Re: [REVIEW][PATCH] exec: Don't exec files the userns root can not read.
+Content-Type: MULTIPART/MIXED; BOUNDARY="185206533-1652417445-1476897543=:24555"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Amir Goldstein <amir73il@gmail.com>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, Linux Containers <containers@lists.linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>
+To: Dmitry Safonov <dsafonov@virtuozzo.com>
+Cc: 0x7f454c46@gmail.com, oleg@redhat.com, linux-mm@kvack.org, gorcunov@openvz.org, xemul@virtuozzo.com, Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org
 
-ebiederm@xmission.com (Eric W. Biederman) writes:
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-> Amir Goldstein <amir73il@gmail.com> writes:
->
->>> diff --git a/fs/exec.c b/fs/exec.c
->>> index 6fcfb3f7b137..f724ed94ba7a 100644
->>> --- a/fs/exec.c
->>> +++ b/fs/exec.c
->>> @@ -1270,12 +1270,21 @@ EXPORT_SYMBOL(flush_old_exec);
->>>
->>>  void would_dump(struct linux_binprm *bprm, struct file *file)
->>>  {
->>> -       if (inode_permission(file_inode(file), MAY_READ) < 0)
->>> +       struct inode *inode = file_inode(file);
->>> +       if (inode_permission(inode, MAY_READ) < 0) {
->>> +               struct user_namespace *user_ns = current->mm->user_ns;
->>>                 bprm->interp_flags |= BINPRM_FLAGS_ENFORCE_NONDUMP;
->>> +
->>> +               /* May the user_ns root read the executable? */
->>> +               if (!kuid_has_mapping(user_ns, inode->i_uid) ||
->>> +                   !kgid_has_mapping(user_ns, inode->i_gid)) {
->>> +                       bprm->interp_flags |= BINPRM_FLAGS_EXEC_INACCESSIBLE;
->>> +               }
->>
->> This feels like it should belong inside
->> inode_permission(file_inode(file), MAY_EXEC)
->> which hopefully should be checked long before getting here??
->
-> It is the active ingredient in capable_wrt_inode_uidgid and is indeed
-> inside of inode_permission.
->
-> What I am testing for here is if I have a process with a full
-> set of capabilities in current->mm->user_ns will the inode be readable.
->
-> I can see an argument for calling prepare_creds stuffing the new cred
-> full of capabilities.  Calling override_cred.  Calling inode_permission,
-> restoring the credentials.  But it seems very much like overkill and
-> more error prone because of the more code involved.
->
-> So I have done the simple thing that doesn't hide what is really going on.
+--185206533-1652417445-1476897543=:24555
+Content-Type: TEXT/PLAIN; charset=ISO-8859-15
+Content-Transfer-Encoding: 8BIT
 
-At the same time I can see the addition of a helper function
-bool ns_inode(struct user_namespace *user_ns, struct inode *inode)
-{
-	return kuid_has_mapping(user_ns, inode->i_uid) &&
-        	kgid_has_mapping(user_ns, inode->i_gid);
-}
+Hi
 
-That abstracts out the concept instead of open codes it.
+In the kernel 4.9-rc1, the x32 support is seriously broken, a x32 process 
+is killed with SIGKILL after returning from any signal handler.
 
-Eric
+I use Debian sid x64-64 distribution with x32 architecture added from 
+debian-ports.
+
+I bisected the bug and found out that it is caused by the patch 
+6846351052e685c2d1428e80ead2d7ca3d7ed913 ("x86/signal: Add 
+SA_{X32,IA32}_ABI sa_flags").
+
+example (strace of a process after receiving the SIGWINCH signal):
+
+epoll_wait(10, 0xef6890, 32, -1)        = -1 EINTR (Interrupted system call)
+--- SIGWINCH {si_signo=SIGWINCH, si_code=SI_USER, si_pid=1772, si_uid=0} ---
+poll([{fd=4, events=POLLOUT}], 1, 0)    = 1 ([{fd=4, revents=POLLOUT}])
+write(4, "\0", 1)                       = 1
+rt_sigreturn({mask=[INT QUIT ILL TRAP BUS KILL SEGV USR2 PIPE ALRM STKFLT TSTP TTOU URG XCPU XFSZ VTALRM IO PWR SYS RTMIN]}) = 0
+--- SIGSEGV {si_signo=SIGSEGV, si_code=SI_KERNEL, si_addr=NULL} ---
++++ killed by SIGSEGV +++
+Neopravniny poistup do pamiti (SIGSEGV)
+
+Mikulas
+--185206533-1652417445-1476897543=:24555--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
