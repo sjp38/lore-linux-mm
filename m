@@ -1,119 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 21BF06B0260
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A984E6B0262
 	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 03:34:38 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id o81so10344233wma.0
+Received: by mail-wm0-f72.google.com with SMTP id z189so10252228wmb.6
         for <linux-mm@kvack.org>; Wed, 19 Oct 2016 00:34:38 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 19si3260458wmn.132.2016.10.19.00.34.36
+        by mx.google.com with ESMTPS id h69si3261357wmi.103.2016.10.19.00.34.37
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 19 Oct 2016 00:34:36 -0700 (PDT)
-Subject: Re: [patch] mm, thp: avoid unlikely branches for split_huge_pmd
-References: <alpine.DEB.2.10.1610181600300.84525@chino.kir.corp.google.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <c3a491c6-15d7-39c1-0d85-5f4188ceb2e6@suse.cz>
-Date: Wed, 19 Oct 2016 09:34:30 +0200
+        Wed, 19 Oct 2016 00:34:37 -0700 (PDT)
+Date: Wed, 19 Oct 2016 09:34:35 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 05/10] mm: replace get_vaddr_frames() write/force
+ parameters with gup_flags
+Message-ID: <20161019073435.GM29967@quack2.suse.cz>
+References: <20161013002020.3062-1-lstoakes@gmail.com>
+ <20161013002020.3062-6-lstoakes@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1610181600300.84525@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161013002020.3062-6-lstoakes@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Lorenzo Stoakes <lstoakes@gmail.com>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, adi-buildroot-devel@lists.sourceforge.net, ceph-devel@vger.kernel.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, kvm@vger.kernel.org, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-cris-kernel@axis.com, linux-fbdev@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, linux-mips@linux-mips.org, linux-rdma@vger.kernel.org, linux-s390@vger.kernel.org, linux-samsung-soc@vger.kernel.org, linux-scsi@vger.kernel.org, linux-security-module@vger.kernel.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, netdev@vger.kernel.org, sparclinux@vger.kernel.org, x86@kernel.org
 
-On 10/19/2016 01:04 AM, David Rientjes wrote:
-> While doing MADV_DONTNEED on a large area of thp memory, I noticed we
-> encountered many unlikely() branches in profiles for each backing
-> hugepage.  This is because zap_pmd_range() would call split_huge_pmd(),
-> which rechecked the conditions that were already validated, but as part of
-> an unlikely() branch.
+On Thu 13-10-16 01:20:15, Lorenzo Stoakes wrote:
+> This patch removes the write and force parameters from get_vaddr_frames() and
+> replaces them with a gup_flags parameter to make the use of FOLL_FORCE explicit
+> in callers as use of this flag can result in surprising behaviour (and hence
+> bugs) within the mm subsystem.
+> 
+> Signed-off-by: Lorenzo Stoakes <lstoakes@gmail.com>
 
-I'm not sure which unlikely() branch you mean here, as I don't see any in the 
-split_huge_pmd() macro or the functions it calls? So is it the branches that the 
-profiler flagged as mispredicted using some PMC event? In that case it's perhaps 
-confusing to call it "unlikely()".
+Looks good. You can add:
 
-> Avoid the unlikely() branch when in a context where pmd is known to be
-> good for __split_huge_pmd() directly.
->
-> Signed-off-by: David Rientjes <rientjes@google.com>
+Reviewed-by: Jan Kara <jack@suse.cz>
 
-That said, this makes sense. You could probably convert also:
-
-    3    281  mm/gup.c <<follow_page_mask>>
-              split_huge_pmd(vma, pmd, address);
-   11    212  mm/mremap.c <<move_page_tables>>
-              split_huge_pmd(vma, old_pmd, old_addr);
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+								Honza
 
 > ---
->  include/linux/huge_mm.h | 2 ++
->  mm/memory.c             | 4 ++--
->  mm/mempolicy.c          | 2 +-
->  mm/mprotect.c           | 2 +-
->  4 files changed, 6 insertions(+), 4 deletions(-)
->
-> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-> --- a/include/linux/huge_mm.h
-> +++ b/include/linux/huge_mm.h
-> @@ -189,6 +189,8 @@ static inline void deferred_split_huge_page(struct page *page) {}
->  #define split_huge_pmd(__vma, __pmd, __address)	\
->  	do { } while (0)
->
-> +static inline void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-> +		unsigned long address, bool freeze, struct page *page) {}
->  static inline void split_huge_pmd_address(struct vm_area_struct *vma,
->  		unsigned long address, bool freeze, struct page *page) {}
->
-> diff --git a/mm/memory.c b/mm/memory.c
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1240,7 +1240,7 @@ static inline unsigned long zap_pmd_range(struct mmu_gather *tlb,
->  			if (next - addr != HPAGE_PMD_SIZE) {
->  				VM_BUG_ON_VMA(vma_is_anonymous(vma) &&
->  				    !rwsem_is_locked(&tlb->mm->mmap_sem), vma);
-> -				split_huge_pmd(vma, pmd, addr);
-> +				__split_huge_pmd(vma, pmd, addr, false, NULL);
->  			} else if (zap_huge_pmd(tlb, vma, pmd, addr))
->  				goto next;
->  			/* fall through */
-> @@ -3454,7 +3454,7 @@ static int wp_huge_pmd(struct fault_env *fe, pmd_t orig_pmd)
->
->  	/* COW handled on pte level: split pmd */
->  	VM_BUG_ON_VMA(fe->vma->vm_flags & VM_SHARED, fe->vma);
-> -	split_huge_pmd(fe->vma, fe->pmd, fe->address);
-> +	__split_huge_pmd(fe->vma, fe->pmd, fe->address, false, NULL);
->
->  	return VM_FAULT_FALLBACK;
->  }
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -496,7 +496,7 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
->  			page = pmd_page(*pmd);
->  			if (is_huge_zero_page(page)) {
->  				spin_unlock(ptl);
-> -				split_huge_pmd(vma, pmd, addr);
-> +				__split_huge_pmd(vma, pmd, addr, false, NULL);
->  			} else {
->  				get_page(page);
->  				spin_unlock(ptl);
-> diff --git a/mm/mprotect.c b/mm/mprotect.c
-> --- a/mm/mprotect.c
-> +++ b/mm/mprotect.c
-> @@ -164,7 +164,7 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
->
->  		if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
->  			if (next - addr != HPAGE_PMD_SIZE) {
-> -				split_huge_pmd(vma, pmd, addr);
-> +				__split_huge_pmd(vma, pmd, addr, false, NULL);
->  				if (pmd_trans_unstable(pmd))
->  					continue;
->  			} else {
->
+>  drivers/gpu/drm/exynos/exynos_drm_g2d.c    |  3 ++-
+>  drivers/media/platform/omap/omap_vout.c    |  2 +-
+>  drivers/media/v4l2-core/videobuf2-memops.c |  6 +++++-
+>  include/linux/mm.h                         |  2 +-
+>  mm/frame_vector.c                          | 13 ++-----------
+>  5 files changed, 11 insertions(+), 15 deletions(-)
+> 
+> diff --git a/drivers/gpu/drm/exynos/exynos_drm_g2d.c b/drivers/gpu/drm/exynos/exynos_drm_g2d.c
+> index aa92dec..fbd13fa 100644
+> --- a/drivers/gpu/drm/exynos/exynos_drm_g2d.c
+> +++ b/drivers/gpu/drm/exynos/exynos_drm_g2d.c
+> @@ -488,7 +488,8 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
+>  		goto err_free;
+>  	}
+>  
+> -	ret = get_vaddr_frames(start, npages, true, true, g2d_userptr->vec);
+> +	ret = get_vaddr_frames(start, npages, FOLL_FORCE | FOLL_WRITE,
+> +		g2d_userptr->vec);
+>  	if (ret != npages) {
+>  		DRM_ERROR("failed to get user pages from userptr.\n");
+>  		if (ret < 0)
+> diff --git a/drivers/media/platform/omap/omap_vout.c b/drivers/media/platform/omap/omap_vout.c
+> index e668dde..a31b95c 100644
+> --- a/drivers/media/platform/omap/omap_vout.c
+> +++ b/drivers/media/platform/omap/omap_vout.c
+> @@ -214,7 +214,7 @@ static int omap_vout_get_userptr(struct videobuf_buffer *vb, u32 virtp,
+>  	if (!vec)
+>  		return -ENOMEM;
+>  
+> -	ret = get_vaddr_frames(virtp, 1, true, false, vec);
+> +	ret = get_vaddr_frames(virtp, 1, FOLL_WRITE, vec);
+>  	if (ret != 1) {
+>  		frame_vector_destroy(vec);
+>  		return -EINVAL;
+> diff --git a/drivers/media/v4l2-core/videobuf2-memops.c b/drivers/media/v4l2-core/videobuf2-memops.c
+> index 3c3b517..1cd322e 100644
+> --- a/drivers/media/v4l2-core/videobuf2-memops.c
+> +++ b/drivers/media/v4l2-core/videobuf2-memops.c
+> @@ -42,6 +42,10 @@ struct frame_vector *vb2_create_framevec(unsigned long start,
+>  	unsigned long first, last;
+>  	unsigned long nr;
+>  	struct frame_vector *vec;
+> +	unsigned int flags = FOLL_FORCE;
+> +
+> +	if (write)
+> +		flags |= FOLL_WRITE;
+>  
+>  	first = start >> PAGE_SHIFT;
+>  	last = (start + length - 1) >> PAGE_SHIFT;
+> @@ -49,7 +53,7 @@ struct frame_vector *vb2_create_framevec(unsigned long start,
+>  	vec = frame_vector_create(nr);
+>  	if (!vec)
+>  		return ERR_PTR(-ENOMEM);
+> -	ret = get_vaddr_frames(start & PAGE_MASK, nr, write, true, vec);
+> +	ret = get_vaddr_frames(start & PAGE_MASK, nr, flags, vec);
+>  	if (ret < 0)
+>  		goto out_destroy;
+>  	/* We accept only complete set of PFNs */
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 27ab538..5ff084f6 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1305,7 +1305,7 @@ struct frame_vector {
+>  struct frame_vector *frame_vector_create(unsigned int nr_frames);
+>  void frame_vector_destroy(struct frame_vector *vec);
+>  int get_vaddr_frames(unsigned long start, unsigned int nr_pfns,
+> -		     bool write, bool force, struct frame_vector *vec);
+> +		     unsigned int gup_flags, struct frame_vector *vec);
+>  void put_vaddr_frames(struct frame_vector *vec);
+>  int frame_vector_to_pages(struct frame_vector *vec);
+>  void frame_vector_to_pfns(struct frame_vector *vec);
+> diff --git a/mm/frame_vector.c b/mm/frame_vector.c
+> index 81b6749..db77dcb 100644
+> --- a/mm/frame_vector.c
+> +++ b/mm/frame_vector.c
+> @@ -11,10 +11,7 @@
+>   * get_vaddr_frames() - map virtual addresses to pfns
+>   * @start:	starting user address
+>   * @nr_frames:	number of pages / pfns from start to map
+> - * @write:	whether pages will be written to by the caller
+> - * @force:	whether to force write access even if user mapping is
+> - *		readonly. See description of the same argument of
+> -		get_user_pages().
+> + * @gup_flags:	flags modifying lookup behaviour
+>   * @vec:	structure which receives pages / pfns of the addresses mapped.
+>   *		It should have space for at least nr_frames entries.
+>   *
+> @@ -34,23 +31,17 @@
+>   * This function takes care of grabbing mmap_sem as necessary.
+>   */
+>  int get_vaddr_frames(unsigned long start, unsigned int nr_frames,
+> -		     bool write, bool force, struct frame_vector *vec)
+> +		     unsigned int gup_flags, struct frame_vector *vec)
+>  {
+>  	struct mm_struct *mm = current->mm;
+>  	struct vm_area_struct *vma;
+>  	int ret = 0;
+>  	int err;
+>  	int locked;
+> -	unsigned int gup_flags = 0;
+>  
+>  	if (nr_frames == 0)
+>  		return 0;
+>  
+> -	if (write)
+> -		gup_flags |= FOLL_WRITE;
+> -	if (force)
+> -		gup_flags |= FOLL_FORCE;
+> -
+>  	if (WARN_ON_ONCE(nr_frames > vec->nr_allocated))
+>  		nr_frames = vec->nr_allocated;
+>  
+> -- 
+> 2.10.0
+> 
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
