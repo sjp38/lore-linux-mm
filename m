@@ -1,43 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 38EAB6B0069
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 06:40:47 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id r16so9823228pfg.4
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 03:40:47 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id m187si36541819pga.271.2016.10.19.03.40.46
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 437796B0069
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 07:10:51 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id gg9so10598831pac.6
+        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 04:10:51 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id m132si39936131pfc.253.2016.10.19.04.10.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 19 Oct 2016 03:40:46 -0700 (PDT)
-Message-ID: <1476873642.3387.2.camel@linux.intel.com>
-Subject: Re: [Intel-gfx] [PATCH v4 2/2] drm/i915: Make GPU pages movable
-From: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-Date: Wed, 19 Oct 2016 13:40:42 +0300
-In-Reply-To: <20161018133909.GE29358@nuc-i3427.alporthouse.com>
-References: <1459775891-32442-1-git-send-email-chris@chris-wilson.co.uk>
-	 <1459775891-32442-2-git-send-email-chris@chris-wilson.co.uk>
-	 <1476792301.3117.14.camel@linux.intel.com>
-	 <c733c4d9-de93-9a9b-1236-793cc26c8833@intel.com>
-	 <20161018133909.GE29358@nuc-i3427.alporthouse.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Oct 2016 04:10:50 -0700 (PDT)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [PATCH 10/10] mm: replace access_process_vm() write parameter with gup_flags
+In-Reply-To: <20161013002020.3062-11-lstoakes@gmail.com>
+References: <20161013002020.3062-1-lstoakes@gmail.com> <20161013002020.3062-11-lstoakes@gmail.com>
+Date: Wed, 19 Oct 2016 22:10:46 +1100
+Message-ID: <87twc84mrt.fsf@concordia.ellerman.id.au>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Wilson <chris@chris-wilson.co.uk>, "Goel, Akash" <akash.goel@intel.com>
-Cc: intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Sourab Gupta <sourab.gupta@intel.com>
+To: Lorenzo Stoakes <lstoakes@gmail.com>, linux-mm@kvack.org
+Cc: linux-mips@linux-mips.org, linux-fbdev@vger.kernel.org, Jan Kara <jack@suse.cz>, kvm@vger.kernel.org, linux-sh@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, dri-devel@lists.freedesktop.org, netdev@vger.kernel.org, sparclinux@vger.kernel.org, linux-ia64@vger.kernel.org, linux-s390@vger.kernel.org, linux-samsung-soc@vger.kernel.org, linux-scsi@vger.kernel.org, linux-rdma@vger.kernel.org, x86@kernel.org, Hugh Dickins <hughd@google.com>, linux-media@vger.kernel.org, Rik van Riel <riel@redhat.com>, intel-gfx@lists.freedesktop.org, adi-buildroot-devel@lists.sourceforge.net, ceph-devel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-cris-kernel@axis.com, Linus Torvalds <torvalds@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org, linux-security-module@vger.kernel.org, linux-alpha@vger.kernel.org, linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@te>, chsingularity.net
 
-On ti, 2016-10-18 at 14:39 +0100, Chris Wilson wrote:
-> It's in my tree (on top of nightly) already with Joonas' r-b.
+Lorenzo Stoakes <lstoakes@gmail.com> writes:
 
-Patch 1/2 seems to have my comments already, could be addressed and
-respined too.
+> diff --git a/arch/powerpc/kernel/ptrace32.c b/arch/powerpc/kernel/ptrace32.c
+> index f52b7db3..010b7b3 100644
+> --- a/arch/powerpc/kernel/ptrace32.c
+> +++ b/arch/powerpc/kernel/ptrace32.c
+> @@ -74,7 +74,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
+>  			break;
+>  
+>  		copied = access_process_vm(child, (u64)addrOthers, &tmp,
+> -				sizeof(tmp), 0);
+> +				sizeof(tmp), FOLL_FORCE);
+>  		if (copied != sizeof(tmp))
+>  			break;
+>  		ret = put_user(tmp, (u32 __user *)data);
 
-Regards, Joonas
--- 
-Joonas Lahtinen
-Open Source Technology Center
-Intel Corporation
+LGTM.
+
+> @@ -179,7 +179,8 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
+>  			break;
+>  		ret = 0;
+>  		if (access_process_vm(child, (u64)addrOthers, &tmp,
+> -					sizeof(tmp), 1) == sizeof(tmp))
+> +					sizeof(tmp),
+> +					FOLL_FORCE | FOLL_WRITE) == sizeof(tmp))
+>  			break;
+>  		ret = -EIO;
+>  		break;
+
+If you're respinning this anyway, can you format that as:
+
+		if (access_process_vm(child, (u64)addrOthers, &tmp, sizeof(tmp),
+				      FOLL_FORCE | FOLL_WRITE) == sizeof(tmp))
+  			break;
+
+I realise you probably deliberately didn't do that to make the diff clearer.
+
+Either way:
+
+Acked-by: Michael Ellerman <mpe@ellerman.id.au> (powerpc)
+
+
+cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
