@@ -1,89 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FEA16B0069
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 06:36:19 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id z54so17438108qtz.0
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 03:36:19 -0700 (PDT)
-Received: from mail-qk0-f193.google.com (mail-qk0-f193.google.com. [209.85.220.193])
-        by mx.google.com with ESMTPS id o71si20878256qka.310.2016.10.19.03.36.18
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 38EAB6B0069
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 06:40:47 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id r16so9823228pfg.4
+        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 03:40:47 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id m187si36541819pga.271.2016.10.19.03.40.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Oct 2016 03:36:18 -0700 (PDT)
-Received: by mail-qk0-f193.google.com with SMTP id f128so1483588qkb.0
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 03:36:18 -0700 (PDT)
-Date: Wed, 19 Oct 2016 12:36:16 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, compaction: fix NR_ISOLATED_* stats for pfn based
- migration
-Message-ID: <20161019103616.GG7517@dhcp22.suse.cz>
-References: <20161019080240.9682-1-mhocko@kernel.org>
- <2e4d79f9-74e5-5085-4037-caa9c1cb43e4@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <2e4d79f9-74e5-5085-4037-caa9c1cb43e4@suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 19 Oct 2016 03:40:46 -0700 (PDT)
+Message-ID: <1476873642.3387.2.camel@linux.intel.com>
+Subject: Re: [Intel-gfx] [PATCH v4 2/2] drm/i915: Make GPU pages movable
+From: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
+Date: Wed, 19 Oct 2016 13:40:42 +0300
+In-Reply-To: <20161018133909.GE29358@nuc-i3427.alporthouse.com>
+References: <1459775891-32442-1-git-send-email-chris@chris-wilson.co.uk>
+	 <1459775891-32442-2-git-send-email-chris@chris-wilson.co.uk>
+	 <1476792301.3117.14.camel@linux.intel.com>
+	 <c733c4d9-de93-9a9b-1236-793cc26c8833@intel.com>
+	 <20161018133909.GE29358@nuc-i3427.alporthouse.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "ming.ling" <ming.ling@spreadtrum.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Chris Wilson <chris@chris-wilson.co.uk>, "Goel, Akash" <akash.goel@intel.com>
+Cc: intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Sourab Gupta <sourab.gupta@intel.com>
 
-On Wed 19-10-16 11:39:36, Vlastimil Babka wrote:
-> On 10/19/2016 10:02 AM, Michal Hocko wrote:
-> > From: Ming Ling <ming.ling@spreadtrum.com>
-> > 
-> > Since bda807d44454 ("mm: migrate: support non-lru movable page
-> > migration") isolate_migratepages_block) can isolate !PageLRU pages which
-> > would acct_isolated account as NR_ISOLATED_*. Accounting these non-lru
-> > pages NR_ISOLATED_{ANON,FILE} doesn't make any sense and it can misguide
-> > heuristics based on those counters such as pgdat_reclaimable_pages resp.
-> > too_many_isolated which would lead to unexpected stalls during the
-> > direct reclaim without any good reason. Note that
-> > __alloc_contig_migrate_range can isolate a lot of pages at once.
-> > 
-> > On mobile devices such as 512M ram android Phone, it may use a big zram
-> > swap. In some cases zram(zsmalloc) uses too many non-lru but migratedable
-> > pages, such as:
-> > 
-> >       MemTotal: 468148 kB
-> >       Normal free:5620kB
-> >       Free swap:4736kB
-> >       Total swap:409596kB
-> >       ZRAM: 164616kB(zsmalloc non-lru pages)
-> >       active_anon:60700kB
-> >       inactive_anon:60744kB
-> >       active_file:34420kB
-> >       inactive_file:37532kB
-> > 
-> > Fix this by only accounting lru pages to NR_ISOLATED_* in
-> > isolate_migratepages_block right after they were isolated and we still
-> > know they were on LRU. Drop acct_isolated because it is called after the
-> > fact and we've lost that information. Batching per-cpu counter doesn't
-> > make much improvement anyway. Also make sure that we uncharge only LRU
-> > pages when putting them back on the LRU in putback_movable_pages resp.
-> > when unmap_and_move migrates the page.
-> 
-> [mhocko@suse.com: replace acct_isolated() with direct counting]
-> ?
+On ti, 2016-10-18 at 14:39 +0100, Chris Wilson wrote:
+> It's in my tree (on top of nightly) already with Joonas' r-b.
 
-Why not. I just considered this patch more as a rework of the original
-than an incremental fix. But whatever...
- 
-> Indeed much better than before. IIRC I've personally introduced one or two
-> bugs involving acct_isolated() (lack of) usage :) Thanks.
+Patch 1/2 seems to have my comments already, could be addressed and
+respined too.
 
-Yeah, it was subtle as hell.
-
-> > Fixes: bda807d44454 ("mm: migrate: support non-lru movable page migration")
-> > Acked-by: Minchan Kim <minchan@kernel.org>
-> > Signed-off-by: Ming Ling <ming.ling@spreadtrum.com>
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-Thanks!
+Regards, Joonas
 -- 
-Michal Hocko
-SUSE Labs
+Joonas Lahtinen
+Open Source Technology Center
+Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
