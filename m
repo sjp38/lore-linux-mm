@@ -1,44 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 258DE6B0069
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 09:05:55 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id x79so8290492lff.2
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 06:05:55 -0700 (PDT)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id a10si54242155wjd.63.2016.10.19.06.05.53
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 10A546B0069
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 09:36:08 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id os4so11961641pac.5
+        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 06:36:08 -0700 (PDT)
+Received: from out02.mta.xmission.com (out02.mta.xmission.com. [166.70.13.232])
+        by mx.google.com with ESMTPS id e67si40623983pfg.132.2016.10.19.06.36.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Oct 2016 06:05:53 -0700 (PDT)
-Date: Wed, 19 Oct 2016 15:05:52 +0200
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH 2/6] mm: mark all calls into the vmalloc subsystem as
-	potentially sleeping
-Message-ID: <20161019130552.GB5876@lst.de>
-References: <1476773771-11470-1-git-send-email-hch@lst.de> <1476773771-11470-3-git-send-email-hch@lst.de> <20161019111541.GQ29358@nuc-i3427.alporthouse.com>
+        Wed, 19 Oct 2016 06:36:07 -0700 (PDT)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <87twcbq696.fsf@x220.int.ebiederm.org>
+	<20161018135031.GB13117@dhcp22.suse.cz> <8737jt903u.fsf@xmission.com>
+	<20161018150507.GP14666@pc.thejh.net> <87twc9656s.fsf@xmission.com>
+	<20161018191206.GA1210@laptop.thejh.net> <87r37dnz74.fsf@xmission.com>
+	<87k2d5nytz.fsf_-_@xmission.com>
+	<CAOQ4uxjyZF346vq-Oi=HwB=jj6ePycHBnEfvVPet9KqPxL9mgg@mail.gmail.com>
+Date: Wed, 19 Oct 2016 08:33:58 -0500
+In-Reply-To: <CAOQ4uxjyZF346vq-Oi=HwB=jj6ePycHBnEfvVPet9KqPxL9mgg@mail.gmail.com>
+	(Amir Goldstein's message of "Wed, 19 Oct 2016 09:13:01 +0300")
+Message-ID: <87mvi0mpix.fsf@xmission.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161019111541.GQ29358@nuc-i3427.alporthouse.com>
+Content-Type: text/plain
+Subject: Re: [REVIEW][PATCH] exec: Don't exec files the userns root can not read.
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: Christoph Hellwig <hch@lst.de>, akpm@linux-foundation.org, joelaf@google.com, jszhang@marvell.com, joaodias@google.com, linux-mm@kvack.org, linux-rt-users@vger.kernel.org, linux-kernel@vger.kernel.org, Andy Lutomirski <luto@amacapital.net>
+To: Amir Goldstein <amir73il@gmail.com>
+Cc: Jann Horn <jann@thejh.net>, Michal Hocko <mhocko@kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux Containers <containers@lists.linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>
 
-On Wed, Oct 19, 2016 at 12:15:41PM +0100, Chris Wilson wrote:
-> On Tue, Oct 18, 2016 at 08:56:07AM +0200, Christoph Hellwig wrote:
-> > This is how everyone seems to already use them, but let's make that
-> > explicit.
-> 
-> Ah, found an exception, vmapped stacks:
+Amir Goldstein <amir73il@gmail.com> writes:
 
-Oh, fun.  So if we can't require vfree to be called from process context
-we also can't use a mutex to wait for the vmap flushing.  Given that we
-free stacks from the scheduler context switch I also fear there is no
-good way to get a sleepable context there.
+>> diff --git a/fs/exec.c b/fs/exec.c
+>> index 6fcfb3f7b137..f724ed94ba7a 100644
+>> --- a/fs/exec.c
+>> +++ b/fs/exec.c
+>> @@ -1270,12 +1270,21 @@ EXPORT_SYMBOL(flush_old_exec);
+>>
+>>  void would_dump(struct linux_binprm *bprm, struct file *file)
+>>  {
+>> -       if (inode_permission(file_inode(file), MAY_READ) < 0)
+>> +       struct inode *inode = file_inode(file);
+>> +       if (inode_permission(inode, MAY_READ) < 0) {
+>> +               struct user_namespace *user_ns = current->mm->user_ns;
+>>                 bprm->interp_flags |= BINPRM_FLAGS_ENFORCE_NONDUMP;
+>> +
+>> +               /* May the user_ns root read the executable? */
+>> +               if (!kuid_has_mapping(user_ns, inode->i_uid) ||
+>> +                   !kgid_has_mapping(user_ns, inode->i_gid)) {
+>> +                       bprm->interp_flags |= BINPRM_FLAGS_EXEC_INACCESSIBLE;
+>> +               }
+>
+> This feels like it should belong inside
+> inode_permission(file_inode(file), MAY_EXEC)
+> which hopefully should be checked long before getting here??
 
-The only other idea I had was to use vmap_area_lock for the protection
-that purge_lock currently provides, but that would require some serious
-refactoring to avoid recursive locking first.
+It is the active ingredient in capable_wrt_inode_uidgid and is indeed
+inside of inode_permission.
+
+What I am testing for here is if I have a process with a full
+set of capabilities in current->mm->user_ns will the inode be readable.
+
+I can see an argument for calling prepare_creds stuffing the new cred
+full of capabilities.  Calling override_cred.  Calling inode_permission,
+restoring the credentials.  But it seems very much like overkill and
+more error prone because of the more code involved.
+
+So I have done the simple thing that doesn't hide what is really going on.
+
+Eric
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
