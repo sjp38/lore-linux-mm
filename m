@@ -1,181 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DF016B0069
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 04:02:53 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id d128so10661085wmf.5
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 01:02:53 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id hm2si52791063wjb.83.2016.10.19.01.02.52
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 135646B0253
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 04:04:19 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id f193so10752795wmg.4
+        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 01:04:19 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ir6si43968109wjb.2.2016.10.19.01.04.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Oct 2016 01:02:52 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id g16so2719217wmg.2
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 01:02:52 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] mm, compaction: fix NR_ISOLATED_* stats for pfn based migration
-Date: Wed, 19 Oct 2016 10:02:40 +0200
-Message-Id: <20161019080240.9682-1-mhocko@kernel.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 19 Oct 2016 01:04:17 -0700 (PDT)
+Subject: Re: [4.9-rc1] Unable to handle kernel paging request
+References: <CAC1QiQHeviJA_bCDSgOqpX03nvMJE8J3h+=1vSj9BJDExTKz+A@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <231e548a-2940-4c1c-338d-e1cbc41d59b7@suse.cz>
+Date: Wed, 19 Oct 2016 10:04:10 +0200
+MIME-Version: 1.0
+In-Reply-To: <CAC1QiQHeviJA_bCDSgOqpX03nvMJE8J3h+=1vSj9BJDExTKz+A@mail.gmail.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "ming.ling" <ming.ling@spreadtrum.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Ryan Chan <ryan.chan105@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Ming Ling <ming.ling@spreadtrum.com>
+On 10/18/2016 06:28 PM, Ryan Chan wrote:
+> Hi all,
+> The following  message appeared during bootup. May I know if this a known issue?
+> I did not meet this problem in 4.8-rcx,
+> My desktop becomes unstable after bootup now.
+> thanks.
 
-Since bda807d44454 ("mm: migrate: support non-lru movable page
-migration") isolate_migratepages_block) can isolate !PageLRU pages which
-would acct_isolated account as NR_ISOLATED_*. Accounting these non-lru
-pages NR_ISOLATED_{ANON,FILE} doesn't make any sense and it can misguide
-heuristics based on those counters such as pgdat_reclaimable_pages resp.
-too_many_isolated which would lead to unexpected stalls during the
-direct reclaim without any good reason. Note that
-__alloc_contig_migrate_range can isolate a lot of pages at once.
+Hi,
 
-On mobile devices such as 512M ram android Phone, it may use a big zram
-swap. In some cases zram(zsmalloc) uses too many non-lru but migratedable
-pages, such as:
+is the backtrace always the same, especially the apparmor part, or are there 
+differences? It looks like it just does a kzalloc(), but perhaps there's e.g. 
+some double freeing that corrupts SL*B structures.
 
-      MemTotal: 468148 kB
-      Normal free:5620kB
-      Free swap:4736kB
-      Total swap:409596kB
-      ZRAM: 164616kB(zsmalloc non-lru pages)
-      active_anon:60700kB
-      inactive_anon:60744kB
-      active_file:34420kB
-      inactive_file:37532kB
+Can you provide your .config? Now we don't even know if it's SLAB or SLUB.
 
-Fix this by only accounting lru pages to NR_ISOLATED_* in
-isolate_migratepages_block right after they were isolated and we still
-know they were on LRU. Drop acct_isolated because it is called after the
-fact and we've lost that information. Batching per-cpu counter doesn't
-make much improvement anyway. Also make sure that we uncharge only LRU
-pages when putting them back on the LRU in putback_movable_pages resp.
-when unmap_and_move migrates the page.
+Also could you run the oopses through this script?
+https://github.com/google/sanitizers/blob/master/address-sanitizer/tools/kasan_symbolize.py
 
-Fixes: bda807d44454 ("mm: migrate: support non-lru movable page migration")
-Acked-by: Minchan Kim <minchan@kernel.org>
-Signed-off-by: Ming Ling <ming.ling@spreadtrum.com>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- mm/compaction.c | 25 +++----------------------
- mm/migrate.c    | 15 +++++++++++----
- 2 files changed, 14 insertions(+), 26 deletions(-)
+Vlastimil
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 0409a4ad6ea1..70e6bec46dc2 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -634,22 +634,6 @@ isolate_freepages_range(struct compact_control *cc,
- 	return pfn;
- }
- 
--/* Update the number of anon and file isolated pages in the zone */
--static void acct_isolated(struct zone *zone, struct compact_control *cc)
--{
--	struct page *page;
--	unsigned int count[2] = { 0, };
--
--	if (list_empty(&cc->migratepages))
--		return;
--
--	list_for_each_entry(page, &cc->migratepages, lru)
--		count[!!page_is_file_cache(page)]++;
--
--	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_ANON, count[0]);
--	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE, count[1]);
--}
--
- /* Similar to reclaim, but different enough that they don't share logic */
- static bool too_many_isolated(struct zone *zone)
- {
-@@ -866,6 +850,8 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 
- 		/* Successfully isolated */
- 		del_page_from_lru_list(page, lruvec, page_lru(page));
-+		inc_node_page_state(page,
-+				NR_ISOLATED_ANON + page_is_file_cache(page));
- 
- isolate_success:
- 		list_add(&page->lru, &cc->migratepages);
-@@ -902,7 +888,6 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 				spin_unlock_irqrestore(zone_lru_lock(zone), flags);
- 				locked = false;
- 			}
--			acct_isolated(zone, cc);
- 			putback_movable_pages(&cc->migratepages);
- 			cc->nr_migratepages = 0;
- 			cc->last_migrated_pfn = 0;
-@@ -988,7 +973,6 @@ isolate_migratepages_range(struct compact_control *cc, unsigned long start_pfn,
- 		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX)
- 			break;
- 	}
--	acct_isolated(cc->zone, cc);
- 
- 	return pfn;
- }
-@@ -1258,10 +1242,8 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 		low_pfn = isolate_migratepages_block(cc, low_pfn,
- 						block_end_pfn, isolate_mode);
- 
--		if (!low_pfn || cc->contended) {
--			acct_isolated(zone, cc);
-+		if (!low_pfn || cc->contended)
- 			return ISOLATE_ABORT;
--		}
- 
- 		/*
- 		 * Either we isolated something and proceed with migration. Or
-@@ -1271,7 +1253,6 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 		break;
- 	}
- 
--	acct_isolated(zone, cc);
- 	/* Record where migration scanner will be restarted. */
- 	cc->migrate_pfn = low_pfn;
- 
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 99250aee1ac1..66ce6b490b13 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -168,8 +168,6 @@ void putback_movable_pages(struct list_head *l)
- 			continue;
- 		}
- 		list_del(&page->lru);
--		dec_node_page_state(page, NR_ISOLATED_ANON +
--				page_is_file_cache(page));
- 		/*
- 		 * We isolated non-lru movable page so here we can use
- 		 * __PageMovable because LRU page's mapping cannot have
-@@ -186,6 +184,8 @@ void putback_movable_pages(struct list_head *l)
- 			put_page(page);
- 		} else {
- 			putback_lru_page(page);
-+			dec_node_page_state(page, NR_ISOLATED_ANON +
-+					page_is_file_cache(page));
- 		}
- 	}
- }
-@@ -1121,8 +1121,15 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
- 		 * restored.
- 		 */
- 		list_del(&page->lru);
--		dec_node_page_state(page, NR_ISOLATED_ANON +
--				page_is_file_cache(page));
-+
-+		/*
-+		 * Compaction can migrate also non-LRU pages which are
-+		 * not accounted to NR_ISOLATED_*. They can be recognized
-+		 * as __PageMovable
-+		 */
-+		if (likely(!__PageMovable(page)))
-+			dec_node_page_state(page, NR_ISOLATED_ANON +
-+					page_is_file_cache(page));
- 	}
- 
- 	/*
--- 
-2.9.3
+> [   22.594649] BUG: unable to handle kernel paging request at 0000000180040100
+> [   22.601639] IP: [<ffffffff8f205a1b>] kmem_cache_alloc_trace+0x7b/0x1c0
+> [   22.608183] PGD 0
+>
+> [   22.611519] Oops: 0000 [#1] SMP
+> [   22.614659] Modules linked in: snd_hda_codec_hdmi nls_iso8859_1
+> snd_hda_codec_realtek snd_hda_codec_generic snd_hda_intel snd_hda_codec
+> snd_hda_core intel_rapl x86_pkg_temp_thermal snd_pcm intel_powerclamp snd_hwdep
+> snd_seq_midi coretemp snd_seq_midi_event crct10dif_pclmul snd_rawmidi
+> crc32_pclmul snd_seq ghash_clmulni_intel snd_timer snd_seq_device cryptd joydev
+> input_leds serio_raw lpc_ich snd mei_me soundcore mei mac_hid shpchp parport_pc
+> ppdev lp parport autofs4 hid_generic usbhid psmouse r8169 hid mii pata_acpi fjes
+> video
+> [   22.662064] CPU: 0 PID: 2687 Comm: systemd-udevd Not tainted 4.9.0-rc1+ #3
+> [   22.668935] Hardware name: Gigabyte Technology Co., Ltd. To be filled by
+> O.E.M./H61M-S2PH, BIOS F1 03/11/2013
+> [   22.678844] task: ffff9a397d043900 task.stack: ffffa95b81f3c000
+> [   22.684758] RIP: 0010:[<ffffffff8f205a1b>]  [<ffffffff8f205a1b>]
+> kmem_cache_alloc_trace+0x7b/0x1c0
+> [   22.693730] RSP: 0018:ffffa95b81f3fdf0  EFLAGS: 00010206
+> [   22.699044] RAX: 0000000000000000 RBX: 00000000024080c0 RCX: 000000000000e748
+> [   22.706175] RDX: 000000000000e747 RSI: 00000000024080c0 RDI: 000000000001c520
+> [   22.713306] RBP: ffffa95b81f3fe30 R08: ffff9a399ec1c520 R09: ffff9a3996003cc0
+> [   22.720429] R10: 0000000180040100 R11: ffff9a397d043900 R12: 00000000024080c0
+> [   22.727553] R13: ffffffff8f3a1453 R14: ffffffff8fc9982a R15: ffff9a3996003cc0
+> [   22.734678] FS:  00007f778f5ca8c0(0000) GS:ffff9a399ec00000(0000)
+> knlGS:0000000000000000
+> [   22.742753] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [   22.748491] CR2: 0000000180040100 CR3: 00000001fd1ed000 CR4: 00000000000406f0
+> [   22.755615] Stack:
+> [   22.757625]  ffffffff8fea7f60 ffffa95b81f3fe18 0000000000000002 ffff9a397fb61200
+> [   22.765078]  ffff9a397fb61200 ffffffff8fa35c20 ffffffff8fc9982a 000055e4b443d028
+> [   22.772531]  ffffa95b81f3fe48 ffffffff8f3a1453 ffffffff8fea7f60 ffffa95b81f3fe68
+> [   22.779983] Call Trace:
+> [   22.782433]  [<ffffffff8f3a1453>] apparmor_file_alloc_security+0x23/0x40
+> [   22.789130]  [<ffffffff8f362713>] security_file_alloc+0x33/0x50
+> [   22.795049]  [<ffffffff8f22f0fa>] get_empty_filp+0x9a/0x1c0
+> [   22.800621]  [<ffffffff8f22f23b>] alloc_file+0x1b/0xc0
+> [   22.805759]  [<ffffffff8f2797c9>] anon_inode_getfile+0xd9/0x150
+> [   22.811669]  [<ffffffff8f278259>] SyS_epoll_create1+0x79/0xe0
+> [   22.817407]  [<ffffffff8f8309fb>] entry_SYSCALL_64_fastpath+0x1e/0xad
+> [   22.823836] Code: 08 65 4c 03 05 97 47 e0 70 49 83 78 10 00 4d 8b 10 0f 84 f0
+> 00 00 00 4d 85 d2 0f 84 e7 00 00 00 49 63 41 20 48 8d 4a 01 49 8b 39 <49> 8b 1c
+> 02 4c 89 d0 65 48 0f c7 0f 0f 94 c0 84 c0 74 bb 49 63
+> [   22.843785] RIP  [<ffffffff8f205a1b>] kmem_cache_alloc_trace+0x7b/0x1c0
+> [   22.850407]  RSP <ffffa95b81f3fdf0>
+> [   22.853890] CR2: 0000000180040100
+> [   22.857272] ---[ end trace aa2a9696006788ce ]---
+> [   22.868212] BUG: unable to handle kernel NULL pointer dereference at
+> 0000000000000805
+> [   22.876069] IP: [<ffffffff8f205a1b>] kmem_cache_alloc_trace+0x7b/0x1c0
+> [   22.882612] PGD 1fd1f3067
+> [   22.885142] PUD 2145e2067
+> [   22.887855] PMD 0
+>
+> [   22.889892] Oops: 0000 [#2] SMP
+> [   22.893029] Modules linked in: snd_hda_codec_hdmi nls_iso8859_1
+> snd_hda_codec_realtek snd_hda_codec_generic snd_hda_intel snd_hda_codec
+> snd_hda_core intel_rapl x86_pkg_temp_thermal snd_pcm intel_powerclamp snd_hwdep
+> snd_seq_midi coretemp snd_seq_midi_event crct10dif_pclmul snd_rawmidi
+> crc32_pclmul snd_seq ghash_clmulni_intel snd_timer snd_seq_device cryptd joydev
+> input_leds serio_raw lpc_ich snd mei_me soundcore mei mac_hid shpchp parport_pc
+> ppdev lp parport autofs4 hid_generic usbhid psmouse r8169 hid mii pata_acpi fjes
+> video
+> [   22.940418] CPU: 0 PID: 2702 Comm: cp Tainted: G      D         4.9.0-rc1+ #3
+> [   22.947548] Hardware name: Gigabyte Technology Co., Ltd. To be filled by
+> O.E.M./H61M-S2PH, BIOS F1 03/11/2013
+> [   22.957445] task: ffff9a397d23b900 task.stack: ffffa95b81f5c000
+> [   22.963355] RIP: 0010:[<ffffffff8f205a1b>]  [<ffffffff8f205a1b>]
+> kmem_cache_alloc_trace+0x7b/0x1c0
+> [   22.972325] RSP: 0018:ffffa95b81f5fc50  EFLAGS: 00010206
+> [   22.977628] RAX: 0000000000000000 RBX: 00000000024080c0 RCX: 000000000000e798
+> [   22.984753] RDX: 000000000000e797 RSI: 00000000024080c0 RDI: 000000000001c520
+> [   22.991875] RBP: ffffa95b81f5fc90 R08: ffff9a399ec1c520 R09: ffff9a3996003cc0
+> [   22.999001] R10: 0000000000000805 R11: fefefefefefefeff R12: 00000000024080c0
+> [   23.006125] R13: ffffffff8f3a1453 R14: 00007f1c701fc040 R15: ffff9a3996003cc0
+> [   23.013249] FS:  0000000000000000(0000) GS:ffff9a399ec00000(0000)
+> knlGS:0000000000000000
+> [   23.021324] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [   23.027063] CR2: 0000000000000805 CR3: 00000001fd261000 CR4: 00000000000406f0
+> [   23.034186] Stack:
+> [   23.036196]  ffffa95b81f5fc50 ffffa95b81f5fc50 0000000000000002 ffff9a397d21a400
+> [   23.043649]  ffff9a397d21a400 ffffa95b81f5fef4 00007f1c701fc040 00007f1c701fd510
+> [   23.051101]  ffffa95b81f5fca8 ffffffff8f3a1453 ffffffff8fea7f60 ffffa95b81f5fcc8
+> [   23.058556] Call Trace:
+> [   23.061001]  [<ffffffff8f3a1453>] apparmor_file_alloc_security+0x23/0x40
+> [   23.067692]  [<ffffffff8f362713>] security_file_alloc+0x33/0x50
+> [   23.073602]  [<ffffffff8f22f0fa>] get_empty_filp+0x9a/0x1c0
+> [   23.079164]  [<ffffffff8f23be00>] path_openat+0x40/0x1440
+> [   23.084555]  [<ffffffff8f1a7917>] ? __alloc_pages_nodemask+0x137/0x300
+> [   23.091073]  [<ffffffff8f23e4c1>] do_filp_open+0x91/0x100
+> [   23.096464]  [<ffffffff8f1afd16>] ? lru_cache_add_active_or_unevictable+0x36/0xb0
+> [   23.103935]  [<ffffffff8f1d6e5b>] ? handle_mm_fault+0xffb/0x14a0
+> [   23.109941]  [<ffffffff8f23d3d6>] ? getname_flags+0x56/0x1f0
+> [   23.115598]  [<ffffffff8f205d46>] ? kmem_cache_alloc+0x156/0x1b0
+> [   23.121595]  [<ffffffff8f24cd66>] ? __alloc_fd+0x46/0x170
+> [   23.126985]  [<ffffffff8f22b874>] do_sys_open+0x124/0x210
+> [   23.132375]  [<ffffffff8f22b97e>] SyS_open+0x1e/0x20
+> [   23.137335]  [<ffffffff8f8309fb>] entry_SYSCALL_64_fastpath+0x1e/0xad
+> [   23.143773] Code: 08 65 4c 03 05 97 47 e0 70 49 83 78 10 00 4d 8b 10 0f 84 f0
+> 00 00 00 4d 85 d2 0f 84 e7 00 00 00 49 63 41 20 48 8d 4a 01 49 8b 39 <49> 8b 1c
+> 02 4c 89 d0 65 48 0f c7 0f 0f 94 c0 84 c0 74 bb 49 63
+> [   23.163720] RIP  [<ffffffff8f205a1b>] kmem_cache_alloc_trace+0x7b/0x1c0
+> [   23.170342]  RSP <ffffa95b81f5fc50>
+> [   23.173827] CR2: 0000000000000805
+> [   23.177198] ---[ end trace aa2a9696006788cf ]---
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
