@@ -1,77 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FC396B0069
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 20:34:53 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 128so4594609pfz.1
-        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 17:34:53 -0700 (PDT)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id op7si31663797pac.254.2016.10.18.17.34.07
-        for <linux-mm@kvack.org>;
-        Tue, 18 Oct 2016 17:34:52 -0700 (PDT)
-Date: Wed, 19 Oct 2016 11:33:09 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: Xfs lockdep warning with for-dave-for-4.6 branch
-Message-ID: <20161019003309.GG23194@dastard>
-References: <20160516130519.GJ23146@dhcp22.suse.cz>
- <20160516132541.GP3193@twins.programming.kicks-ass.net>
- <20160516231056.GE18496@dastard>
- <20160517144912.GZ3193@twins.programming.kicks-ass.net>
- <20160517223549.GV26977@dastard>
- <20160519081146.GS3193@twins.programming.kicks-ass.net>
- <20160520001714.GC26977@dastard>
- <20160601131758.GO26601@dhcp22.suse.cz>
- <20160601181617.GV3190@twins.programming.kicks-ass.net>
- <20161006130454.GI10570@dhcp22.suse.cz>
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A61A56B0069
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 22:41:59 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id w11so31259346oia.6
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 19:41:59 -0700 (PDT)
+Received: from SHSQR01.spreadtrum.com ([222.66.158.135])
+        by mx.google.com with ESMTPS id c185si15024994oib.4.2016.10.18.19.41.57
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 18 Oct 2016 19:41:58 -0700 (PDT)
+Date: Wed, 19 Oct 2016 10:32:23 +0800
+From: Ming Ling <ming.ling@spreadtrum.com>
+Subject: Re: [PATCH v2] mm: exclude isolated non-lru pages from
+ NR_ISOLATED_ANON or NR_ISOLATED_FILE.
+Message-ID: <20161019023222.GA28651@spreadtrum.com>
+References: <20161014134604.GA2179@blaptop>
+ <20161014135334.GF6063@dhcp22.suse.cz> <20161014144448.GA2899@blaptop>
+ <20161014150355.GH6063@dhcp22.suse.cz> <20161014152633.GA3157@blaptop>
+ <20161015071044.GC9949@dhcp22.suse.cz> <20161016230618.GB9196@bbox>
+ <20161017084244.GF23322@dhcp22.suse.cz> <20161018062950.GA18818@bbox>
+ <20161018125247.GI12092@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="utf-8"
 Content-Disposition: inline
-In-Reply-To: <20161006130454.GI10570@dhcp22.suse.cz>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20161018125247.GI12092@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Qu Wenruo <quwenruo@cn.fujitsu.com>, xfs@oss.sgi.com, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+Cc: Minchan Kim <minchan@kernel.org>, akpm@linux-foundation.org, mgorman@techsingularity.net, vbabka@suse.cz, hannes@cmpxchg.org, baiyaowei@cmss.chinamobile.com, iamjoonsoo.kim@lge.com, rientjes@google.com, hughd@google.com, kirill.shutemov@linux.intel.com, riel@redhat.com, mgorman@suse.de, aquini@redhat.com, corbet@lwn.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, orson.zhai@spreadtrum.com, geng.ren@spreadtrum.com, chunyan.zhang@spreadtrum.com, zhizhou.tian@spreadtrum.com, yuming.han@spreadtrum.com, xiajing@spreadst.com
 
-On Thu, Oct 06, 2016 at 03:04:54PM +0200, Michal Hocko wrote:
-> [Let me ressurect this thread]
-> 
-> On Wed 01-06-16 20:16:17, Peter Zijlstra wrote:
-> > On Wed, Jun 01, 2016 at 03:17:58PM +0200, Michal Hocko wrote:
-> > > Thanks Dave for your detailed explanation again! Peter do you have any
-> > > other idea how to deal with these situations other than opt out from
-> > > lockdep reclaim machinery?
+ao?, 10ae?? 18, 2016 at 02:52:47a,?a?? +0200, Michal Hocko wrote:
+hi,
+> On Tue 18-10-16 15:29:50, Minchan Kim wrote:
+> > On Mon, Oct 17, 2016 at 10:42:45AM +0200, Michal Hocko wrote:
+> [...]
+> > > Sure, what do you think about the following? I haven't marked it for
+> > > stable because there was no bug report for it AFAIU.
+> > > ---
+> > > From 3b2bd4486f36ada9f6dc86d3946855281455ba9f Mon Sep 17 00:00:00 2001
+> > > From: Ming Ling <ming.ling@spreadtrum.com>
+> > > Date: Mon, 17 Oct 2016 10:26:50 +0200
+> > > Subject: [PATCH] mm, compaction: fix NR_ISOLATED_* stats for pfn based
+> > >  migration
 > > > 
-> > > If not I would rather go with an annotation than a gfp flag to be honest
-> > > but if you absolutely hate that approach then I will try to check wheter
-> > > a CONFIG_LOCKDEP GFP_FOO doesn't break something else. Otherwise I would
-> > > steal the description from Dave's email and repost my patch.
+> > > Since bda807d44454 ("mm: migrate: support non-lru movable page
+> > > migration") isolate_migratepages_block) can isolate !PageLRU pages which
+> > > would acct_isolated account as NR_ISOLATED_*. Accounting these non-lru
+> > > pages NR_ISOLATED_{ANON,FILE} doesn't make any sense and it can misguide
+> > > heuristics based on those counters such as pgdat_reclaimable_pages resp.
+> > > too_many_isolated which would lead to unexpected stalls during the
+> > > direct reclaim without any good reason. Note that
+> > > __alloc_contig_migrate_range can isolate a lot of pages at once.
 > > > 
-> > > I plan to repost my scope gfp patches in few days and it would be good
-> > > to have some mechanism to drop those GFP_NOFS to paper over lockdep
-> > > false positives for that.
+> > > On mobile devices such as 512M ram android Phone, it may use a big zram
+> > > swap. In some cases zram(zsmalloc) uses too many non-lru but migratedable
+> > > pages, such as:
+> > > 
+> > >       MemTotal: 468148 kB
+> > >       Normal free:5620kB
+> > >       Free swap:4736kB
+> > >       Total swap:409596kB
+> > >       ZRAM: 164616kB(zsmalloc non-lru pages)
+> > >       active_anon:60700kB
+> > >       inactive_anon:60744kB
+> > >       active_file:34420kB
+> > >       inactive_file:37532kB
+> > > 
+> > > Fix this by only accounting lru pages to NR_ISOLATED_* in
+> > > isolate_migratepages_block right after they were isolated and we still
+> > > know they were on LRU. Drop acct_isolated because it is called after the
+> > > fact and we've lost that information. Batching per-cpu counter doesn't
+> > > make much improvement anyway. Also make sure that we uncharge only LRU
+> > > pages when putting them back on the LRU in putback_movable_pages resp.
+> > > when unmap_and_move migrates the page.
+> > > 
+> > > Fixes: bda807d44454 ("mm: migrate: support non-lru movable page migration")
+> > > Signed-off-by: Ming Ling <ming.ling@spreadtrum.com>
+> > > Signed-off-by: Michal Hocko <mhocko@suse.com>
 > > 
-> > Right; sorry I got side-tracked in other things again.
+> > Acked-by: Minchan Kim <minchan@kernel.org>
 > > 
-> > So my favourite is the dedicated GFP flag, but if that's unpalatable for
-> > the mm folks then something like the below might work. It should be
-> > similar in effect to your proposal, except its more limited in scope.
+> > with folding other fix patch you posted.
 > 
-> OK, so the situation with the GFP flags is somehow relieved after 
-> http://lkml.kernel.org/r/20160912114852.GI14524@dhcp22.suse.cz and with
-> the root radix tree remaining the last user which mangles gfp_mask and
-> tags together we have some few bits left there. As you apparently hate
-> any scoped API and Dave thinks that per allocation flag is the only
-> maintainable way for xfs what do you think about the following?
-
-It's a workable solution to allow XFS to play whack-a-mole games
-with lockdep again. As to the implementation - that's for other
-people to decide....
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+> Thanks.
+> 
+> Ming, are you OK with this patch? Can I post it to Andrew?
+> --
+I think that's fine. Just do it.
+Thank you.
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
