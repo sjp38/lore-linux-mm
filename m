@@ -1,62 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 62D056B0069
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 13:25:43 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id i85so1574825pfa.5
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 10:25:43 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id y131si41443157pfg.33.2016.10.19.10.25.42
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E4076B025E
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 13:29:23 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id m193so8065433lfm.7
+        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 10:29:23 -0700 (PDT)
+Received: from thejh.net (thejh.net. [37.221.195.125])
+        by mx.google.com with ESMTPS id 99si4408214lfx.261.2016.10.19.10.29.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 19 Oct 2016 10:25:42 -0700 (PDT)
-Date: Wed, 19 Oct 2016 11:25:41 -0600
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH 19/20] dax: Protect PTE modification on WP fault by radix
- tree entry lock
-Message-ID: <20161019172541.GD22463@linux.intel.com>
-References: <1474992504-20133-1-git-send-email-jack@suse.cz>
- <1474992504-20133-20-git-send-email-jack@suse.cz>
- <20161018195332.GF7796@linux.intel.com>
- <20161019072505.GI29967@quack2.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Oct 2016 10:29:21 -0700 (PDT)
+Date: Wed, 19 Oct 2016 19:29:17 +0200
+From: Jann Horn <jann@thejh.net>
+Subject: Re: [REVIEW][PATCH] exec: Don't exec files the userns root can not
+ read.
+Message-ID: <20161019172917.GE1210@laptop.thejh.net>
+References: <87twcbq696.fsf@x220.int.ebiederm.org>
+ <20161018135031.GB13117@dhcp22.suse.cz>
+ <8737jt903u.fsf@xmission.com>
+ <20161018150507.GP14666@pc.thejh.net>
+ <87twc9656s.fsf@xmission.com>
+ <20161018191206.GA1210@laptop.thejh.net>
+ <87r37dnz74.fsf@xmission.com>
+ <87k2d5nytz.fsf_-_@xmission.com>
+ <CALCETrU4SZYUEPrv4JkpUpA+0sZ=EirZRftRDp+a5hce5E7HgA@mail.gmail.com>
+ <87y41kjn6l.fsf@xmission.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161019072505.GI29967@quack2.suse.cz>
+In-Reply-To: <87y41kjn6l.fsf@xmission.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Andy Lutomirski <luto@amacapital.net>, Michal Hocko <mhocko@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux Containers <containers@lists.linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>
 
-On Wed, Oct 19, 2016 at 09:25:05AM +0200, Jan Kara wrote:
-> On Tue 18-10-16 13:53:32, Ross Zwisler wrote:
-> > On Tue, Sep 27, 2016 at 06:08:23PM +0200, Jan Kara wrote:
-> > > -	void *entry;
-> > > +	void *entry, **slot;
-> > >  	pgoff_t index = vmf->pgoff;
-> > >  
-> > >  	spin_lock_irq(&mapping->tree_lock);
-> > > -	entry = get_unlocked_mapping_entry(mapping, index, NULL);
-> > > -	if (!entry || !radix_tree_exceptional_entry(entry))
-> > > -		goto out;
-> > > +	entry = get_unlocked_mapping_entry(mapping, index, &slot);
-> > > +	if (!entry || !radix_tree_exceptional_entry(entry)) {
-> > > +		if (entry)
-> > > +			put_unlocked_mapping_entry(mapping, index, entry);
-> > 
-> > I don't think you need this call to put_unlocked_mapping_entry().  If we get
-> > in here we know that 'entry' is a page cache page, in which case
-> > put_unlocked_mapping_entry() will just return without doing any work.
+On Wed, Oct 19, 2016 at 11:52:50AM -0500, Eric W. Biederman wrote:
+> Andy Lutomirski <luto@amacapital.net> writes:
+> > Simply ptrace yourself, exec the
+> > program, and then dump the program out.  A program that really wants
+> > to be unreadable should have a stub: the stub is setuid and readable,
+> > but all the stub does is to exec the real program, and the real
+> > program should have mode 0500 or similar.
+> >
+> > ISTM the "right" check would be to enforce that the program's new
+> > creds can read the program, but that will break backwards
+> > compatibility.
 > 
-> Right, but that is just an implementation detail internal to how the
-> locking works. The rules are simple to avoid issues and thus the invariant
-> is: Once you call get_unlocked_mapping_entry() you either have to lock the
-> entry and then call put_locked_mapping_entry() or you have to drop it with
-> put_unlocked_mapping_entry(). Once you add arguments about entry types
-> etc., errors are much easier to make...
+> Last I looked I had the impression that exec of a setuid program kills
+> the ptrace.
+> 
+> If we are talking about a exec of a simple unreadable executable (aka
+> something that sets undumpable but is not setuid or setgid).  Then I
+> agree it should break the ptrace as well and since those programs are as
+> rare as hens teeth I don't see any problem with changing the ptrace behavior
+> in that case.
 
-Makes sense.  You can add:
+Nope. check_unsafe_exec() sets LSM_UNSAFE_* flags in bprm->unsafe, and then
+the flags are checked by the LSMs and cap_bprm_set_creds() in commoncap.c.
+cap_bprm_set_creds() just degrades the execution to a non-setuid-ish one,
+and e.g. ptracers stay attached.
 
-Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+Same thing happens if the fs struct is shared with another process or if
+NO_NEW_PRIVS is active.
+
+(Actually, it's still a bit like normal setuid execution: IIRC AT_SECURE
+stays active, and the resulting process still won't be dumpable, so it's
+not possible for a *new* ptracer to attach afterwards. But this is just
+from memory, I'm not entirely sure.)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
