@@ -1,102 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D351F6B0069
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 18:55:00 -0400 (EDT)
-Received: by mail-yw0-f199.google.com with SMTP id l84so78957718ywe.5
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 15:55:00 -0700 (PDT)
-Received: from gateway24.websitewelcome.com (gateway24.websitewelcome.com. [192.185.50.73])
-        by mx.google.com with ESMTPS id r199si16727092oie.156.2016.10.19.15.54.59
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EB936B0253
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 19:17:52 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id q126so32643827vkd.4
+        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 16:17:52 -0700 (PDT)
+Received: from mail-vk0-x232.google.com (mail-vk0-x232.google.com. [2607:f8b0:400c:c05::232])
+        by mx.google.com with ESMTPS id e65si21069615vkd.49.2016.10.19.16.17.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Oct 2016 15:54:59 -0700 (PDT)
-Received: from cm7.websitewelcome.com (cm7.websitewelcome.com [108.167.139.20])
-	by gateway24.websitewelcome.com (Postfix) with ESMTP id 72302924CADFA
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 17:54:59 -0500 (CDT)
-Date: Wed, 19 Oct 2016 16:54:54 -0600
-From: Stephen Bates <sbates@raithlin.com>
-Subject: Re: [PATCH 0/3] iopmem : A block device for PCIe memory
-Message-ID: <20161019225454.GA17086@cgy1-donard.priv.deltatee.com>
-References: <1476826937-20665-1-git-send-email-sbates@raithlin.com>
- <CAPcyv4gJ_c-6s2BUjsu6okR1EF53R+KNuXnOc5jv0fuwJaa3cQ@mail.gmail.com>
- <20161019184814.GC16550@cgy1-donard.priv.deltatee.com>
- <CAPcyv4ht=ZtQOyUp8khzzJtZhWcsaCgQi=feEuaj1AY3f9wd=g@mail.gmail.com>
+        Wed, 19 Oct 2016 16:17:51 -0700 (PDT)
+Received: by mail-vk0-x232.google.com with SMTP id q126so48600231vkd.2
+        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 16:17:51 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4ht=ZtQOyUp8khzzJtZhWcsaCgQi=feEuaj1AY3f9wd=g@mail.gmail.com>
+In-Reply-To: <87pomwghda.fsf@xmission.com>
+References: <87twcbq696.fsf@x220.int.ebiederm.org> <20161018135031.GB13117@dhcp22.suse.cz>
+ <8737jt903u.fsf@xmission.com> <20161018150507.GP14666@pc.thejh.net>
+ <87twc9656s.fsf@xmission.com> <20161018191206.GA1210@laptop.thejh.net>
+ <87r37dnz74.fsf@xmission.com> <87k2d5nytz.fsf_-_@xmission.com>
+ <CALCETrU4SZYUEPrv4JkpUpA+0sZ=EirZRftRDp+a5hce5E7HgA@mail.gmail.com>
+ <87y41kjn6l.fsf@xmission.com> <20161019172917.GE1210@laptop.thejh.net>
+ <CALCETrWSY1SRse5oqSwZ=goQ+ZALd2XcTP3SZ8ry49C8rNd98Q@mail.gmail.com>
+ <87pomwi5p2.fsf@xmission.com> <CALCETrUz2oU6OYwQ9K4M-SUg6FeDsd6Q1gf1w-cJRGg2PdmK8g@mail.gmail.com>
+ <87pomwghda.fsf@xmission.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Wed, 19 Oct 2016 16:17:30 -0700
+Message-ID: <CALCETrXA2EnE8X3HzetLG6zS8YSVjJQJrsSumTfvEcGq=r5vsw@mail.gmail.com>
+Subject: Re: [REVIEW][PATCH] exec: Don't exec files the userns root can not read.
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-rdma@vger.kernel.org, linux-block@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, haggaie@mellanox.com, Christoph Hellwig <hch@infradead.org>, Jens Axboe <axboe@fb.com>, Jonathan Corbet <corbet@lwn.net>, jim.macdonald@everspin.com, sbates@raithin.com, Logan Gunthorpe <logang@deltatee.com>, David Woodhouse <dwmw2@infradead.org>, "Raj, Ashok" <ashok.raj@intel.com>
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Containers <containers@lists.linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jann Horn <jann@thejh.net>
 
-> >>
-> >> If you're only using the block-device as a entry-point to create
-> >> dax-mappings then a device-dax (drivers/dax/) character-device might
-> >> be a better fit.
-> >>
-> >
-> > We chose a block device because we felt it was intuitive for users to
-> > carve up a memory region but putting a DAX filesystem on it and creating
-> > files on that DAX aware FS. It seemed like a convenient way to
-> > partition up the region and to be easily able to get the DMA address
-> > for the memory backing the device.
-> >
-> > That said I would be very keen to get other peoples thoughts on how
-> > they would like to see this done. And I know some people have had some
-> > reservations about using DAX mounted FS to do this in the past.
+On Oct 19, 2016 2:28 PM, "Eric W. Biederman" <ebiederm@xmission.com> wrote:
 >
-> I guess it depends on the expected size of these devices BARs, but I
-> get the sense they may be smaller / more precious such that you
-> wouldn't want to spend capacity on filesystem metadata? For the target
-> use case is it assumed that these device BARs are always backed by
-> non-volatile memory?  Otherwise this is a mkfs each boot for a
-> volatile device.
-
-Dan
-
-Fair point and this is a concern I share. We are not assuming that all
-iopmem devices are backed by non-volatile memory so the mkfs
-recreation comment is valid. All in all I think you are persuading us
-to take a look at /dev/dax ;-). I will see if anyone else chips in
-with their thoughts on this.
-
+> Andy Lutomirski <luto@amacapital.net> writes:
 >
+> > On Wed, Oct 19, 2016 at 10:55 AM, Eric W. Biederman
+> > <ebiederm@xmission.com> wrote:
+> >> Andy Lutomirski <luto@amacapital.net> writes:
 > >>
-> >> > 2. Memory Segment Spacing. This patch has the same limitations that
-> >> > ZONE_DEVICE does in that memory regions must be spaces at least
-> >> > SECTION_SIZE bytes part. On x86 this is 128MB and there are cases where
-> >> > BARs can be placed closer together than this. Thus ZONE_DEVICE would not
-> >> > be usable on neighboring BARs. For our purposes, this is not an issue as
-> >> > we'd only be looking at enabling a single BAR in a given PCIe device.
-> >> > More exotic use cases may have problems with this.
+> >>> On Wed, Oct 19, 2016 at 10:29 AM, Jann Horn <jann@thejh.net> wrote:
+> >>>> On Wed, Oct 19, 2016 at 11:52:50AM -0500, Eric W. Biederman wrote:
+> >>>>> Andy Lutomirski <luto@amacapital.net> writes:
+> >>>>> > Simply ptrace yourself, exec the
+> >>>>> > program, and then dump the program out.  A program that really wants
+> >>>>> > to be unreadable should have a stub: the stub is setuid and readable,
+> >>>>> > but all the stub does is to exec the real program, and the real
+> >>>>> > program should have mode 0500 or similar.
+> >>>>> >
+> >>>>> > ISTM the "right" check would be to enforce that the program's new
+> >>>>> > creds can read the program, but that will break backwards
+> >>>>> > compatibility.
+> >>>>>
+> >>>>> Last I looked I had the impression that exec of a setuid program kills
+> >>>>> the ptrace.
+> >>>>>
+> >>>>> If we are talking about a exec of a simple unreadable executable (aka
+> >>>>> something that sets undumpable but is not setuid or setgid).  Then I
+> >>>>> agree it should break the ptrace as well and since those programs are as
+> >>>>> rare as hens teeth I don't see any problem with changing the ptrace behavior
+> >>>>> in that case.
+> >>>>
+> >>>> Nope. check_unsafe_exec() sets LSM_UNSAFE_* flags in bprm->unsafe, and then
+> >>>> the flags are checked by the LSMs and cap_bprm_set_creds() in commoncap.c.
+> >>>> cap_bprm_set_creds() just degrades the execution to a non-setuid-ish one,
+> >>>> and e.g. ptracers stay attached.
+> >>>
+> >>> I think you're right.  I ought to be completely sure because I rewrote
+> >>> that code back in 2005 or so back when I thought kernel programming
+> >>> was only for the cool kids.  It was probably my first kernel patch
+> >>> ever and it closed an awkward-to-exploit root hole.  But it's been a
+> >>> while.  (Too bad my second (IIRC) kernel patch was more mundane and
+> >>> fixed the mute button on "new" Lenovo X60-era laptops and spend
+> >>> several years in limbo...)
 > >>
-> >> I'm working on patches for 4.10 to allow mixing multiple
-> >> devm_memremap_pages() allocations within the same physical section.
-> >> Hopefully this won't be a problem going forward.
+> >> Ah yes and this is only a problem if the ptracer does not have
+> >> CAP_SYS_PTRACE.
 > >>
+> >> If the tracer does not have sufficient permissions any opinions on
+> >> failing the exec or kicking out the ptracer?  I am leaning towards failing
+> >> the exec as it is more obvious if someone cares.  Dropping the ptracer
+> >> could be a major mystery.
 > >
-> > Thanks Dan. Your patches will help address the problem of how to
-> > partition a /dev/dax device but they don't help the case then BARs
-> > themselves are small, closely spaced and non-segment aligned. However
-> > I think most people using iopmem will want to use reasonbly large
-> > BARs so I am not sure item 2 is that big of an issue.
+> > I would suggest leaving it alone.  Changing it could break enough
+> > things that a sysctl would be needed, and I just don't see how this is
+> > a significant issue, especially since it's been insecure forever.
+> > Anyone who cares should do the stub executable trick:
+> >
+> > /sbin/foo: 04755, literally just does execve("/sbin/foo-helper");
+> >
+> > /sbin/foo-helper: 0500.
 >
-> I think you might have misunderstood what I'm proposing.  The patches
-> I'm working on are separate from a facility to carve up a /dev/dax
-> device.  The effort is to allow devm_memremap_pages() to maintain
-> several allocations within the same 128MB section.  I need this for
-> persistent memory to handle platforms that mix pmem and system-ram in
-> the same section.  I want to be able to map ZONE_DEVICE pages for a
-> portion of a section and be able to remove portions of section that
-> may collide with allocations of a different lifetime.
+> I can't imagine what non-malware would depend on being able to
+> circumvent file permissions and ptrace a read-only executable.  Is there
+> something you are thinking of?
 
-Oh I did misunderstand. This is very cool and would be useful to us.
-One more reason to consider moving to /dev/dax in the next spin of
-this patchset ;-).
+$ strace sudo foobar
 
-Thanks
+or
 
-Stephen
+$ strace auditctl
+
+I find the current behavior somewhat odd, but I've taken advantage of
+it on a semi-regular basis.
+
+That being said, the "May the user_ns root read the executable?" test
+in your patch is not strictly correct.  Do we keep a struct cred
+around for the ns root?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
