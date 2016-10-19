@@ -1,129 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E2816B0069
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 18:03:21 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id g32so32855887qta.2
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 15:03:21 -0700 (PDT)
-Received: from mail-qk0-x22f.google.com (mail-qk0-x22f.google.com. [2607:f8b0:400d:c09::22f])
-        by mx.google.com with ESMTPS id u57si25637716qtb.40.2016.10.19.15.03.20
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D351F6B0069
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 18:55:00 -0400 (EDT)
+Received: by mail-yw0-f199.google.com with SMTP id l84so78957718ywe.5
+        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 15:55:00 -0700 (PDT)
+Received: from gateway24.websitewelcome.com (gateway24.websitewelcome.com. [192.185.50.73])
+        by mx.google.com with ESMTPS id r199si16727092oie.156.2016.10.19.15.54.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Oct 2016 15:03:20 -0700 (PDT)
-Received: by mail-qk0-x22f.google.com with SMTP id n189so62797800qke.0
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 15:03:20 -0700 (PDT)
+        Wed, 19 Oct 2016 15:54:59 -0700 (PDT)
+Received: from cm7.websitewelcome.com (cm7.websitewelcome.com [108.167.139.20])
+	by gateway24.websitewelcome.com (Postfix) with ESMTP id 72302924CADFA
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 17:54:59 -0500 (CDT)
+Date: Wed, 19 Oct 2016 16:54:54 -0600
+From: Stephen Bates <sbates@raithlin.com>
+Subject: Re: [PATCH 0/3] iopmem : A block device for PCIe memory
+Message-ID: <20161019225454.GA17086@cgy1-donard.priv.deltatee.com>
+References: <1476826937-20665-1-git-send-email-sbates@raithlin.com>
+ <CAPcyv4gJ_c-6s2BUjsu6okR1EF53R+KNuXnOc5jv0fuwJaa3cQ@mail.gmail.com>
+ <20161019184814.GC16550@cgy1-donard.priv.deltatee.com>
+ <CAPcyv4ht=ZtQOyUp8khzzJtZhWcsaCgQi=feEuaj1AY3f9wd=g@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LRH.2.02.1610191329500.29288@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1610191311010.24555@file01.intranet.prod.int.rdu2.redhat.com>
- <alpine.LRH.2.02.1610191329500.29288@file01.intranet.prod.int.rdu2.redhat.com>
-From: Dmitry Safonov <0x7f454c46@gmail.com>
-Date: Thu, 20 Oct 2016 01:02:59 +0300
-Message-ID: <CAJwJo6Z8ZWPqNfT6t-i8GW1MKxQrKDUagQqnZ+0+697=MyVeGg@mail.gmail.com>
-Subject: Re: x32 is broken in 4.9-rc1 due to "x86/signal: Add
- SA_{X32,IA32}_ABI sa_flags"
-Content-Type: multipart/mixed; boundary=047d7b604d2e204b13053f3efaa9
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4ht=ZtQOyUp8khzzJtZhWcsaCgQi=feEuaj1AY3f9wd=g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Dmitry Safonov <dsafonov@virtuozzo.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, open list <linux-kernel@vger.kernel.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-rdma@vger.kernel.org, linux-block@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, haggaie@mellanox.com, Christoph Hellwig <hch@infradead.org>, Jens Axboe <axboe@fb.com>, Jonathan Corbet <corbet@lwn.net>, jim.macdonald@everspin.com, sbates@raithin.com, Logan Gunthorpe <logang@deltatee.com>, David Woodhouse <dwmw2@infradead.org>, "Raj, Ashok" <ashok.raj@intel.com>
 
---047d7b604d2e204b13053f3efaa9
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+> >>
+> >> If you're only using the block-device as a entry-point to create
+> >> dax-mappings then a device-dax (drivers/dax/) character-device might
+> >> be a better fit.
+> >>
+> >
+> > We chose a block device because we felt it was intuitive for users to
+> > carve up a memory region but putting a DAX filesystem on it and creating
+> > files on that DAX aware FS. It seemed like a convenient way to
+> > partition up the region and to be easily able to get the DMA address
+> > for the memory backing the device.
+> >
+> > That said I would be very keen to get other peoples thoughts on how
+> > they would like to see this done. And I know some people have had some
+> > reservations about using DAX mounted FS to do this in the past.
+>
+> I guess it depends on the expected size of these devices BARs, but I
+> get the sense they may be smaller / more precious such that you
+> wouldn't want to spend capacity on filesystem metadata? For the target
+> use case is it assumed that these device BARs are always backed by
+> non-volatile memory?  Otherwise this is a mkfs each boot for a
+> volatile device.
 
-2016-10-19 20:33 GMT+03:00 Mikulas Patocka <mpatocka@redhat.com>:
->
->
-> On Wed, 19 Oct 2016, Mikulas Patocka wrote:
->
->> Hi
->>
->> In the kernel 4.9-rc1, the x32 support is seriously broken, a x32 proces=
-s
->> is killed with SIGKILL after returning from any signal handler.
->
-> I should have said they are killed with SIGSEGV, not SIGKILL.
->
->> I use Debian sid x64-64 distribution with x32 architecture added from
->> debian-ports.
->>
->> I bisected the bug and found out that it is caused by the patch
->> 6846351052e685c2d1428e80ead2d7ca3d7ed913 ("x86/signal: Add
->> SA_{X32,IA32}_ABI sa_flags").
->>
->> example (strace of a process after receiving the SIGWINCH signal):
->>
->> epoll_wait(10, 0xef6890, 32, -1)        =3D -1 EINTR (Interrupted system=
- call)
->> --- SIGWINCH {si_signo=3DSIGWINCH, si_code=3DSI_USER, si_pid=3D1772, si_=
-uid=3D0} ---
->> poll([{fd=3D4, events=3DPOLLOUT}], 1, 0)    =3D 1 ([{fd=3D4, revents=3DP=
-OLLOUT}])
->> write(4, "\0", 1)                       =3D 1
->> rt_sigreturn({mask=3D[INT QUIT ILL TRAP BUS KILL SEGV USR2 PIPE ALRM STK=
-FLT TSTP TTOU URG XCPU XFSZ VTALRM IO PWR SYS RTMIN]}) =3D 0
->> --- SIGSEGV {si_signo=3DSIGSEGV, si_code=3DSI_KERNEL, si_addr=3DNULL} --=
--
->> +++ killed by SIGSEGV +++
->> Neopr=C3=A1vn=C3=ACn=C3=BD p=C3=B8=C3=ADstup do pam=C3=ACti (SIGSEGV)
->>
->> Mikulas
->
-> BTW. when I take core dump of the killed x32 process, it shows:
->
-> ELF Header:
->   Magic:   7f 45 4c 46 01 01 01 00 00 00 00 00 00 00 00 00
->   Class:                             ELF32
->   Data:                              2's complement, little endian
->   Version:                           1 (current)
->   OS/ABI:                            UNIX - System V
->   ABI Version:                       0
->   Type:                              CORE (Core file)
->   Machine:                           Intel 80386
->                                 ^^^^^^^^^^^^^^^^^^^
->
-> So, the kernel somehow thinks that it is i386 process, not x32 process. A
-> core dump of a real x32 process shows "Class: ELF32, Machine: Advanced
-> Micro Devices X86-64".
+Dan
 
-Hi Mikulas,
+Fair point and this is a concern I share. We are not assuming that all
+iopmem devices are backed by non-volatile memory so the mkfs
+recreation comment is valid. All in all I think you are persuading us
+to take a look at /dev/dax ;-). I will see if anyone else chips in
+with their thoughts on this.
 
-could you give attached patch a shot?
-In about 10 hours I'll be at work and will have debian-x32 install,
-but for now, I can't test it.
-Thanks again on catching that.
+>
+> >>
+> >> > 2. Memory Segment Spacing. This patch has the same limitations that
+> >> > ZONE_DEVICE does in that memory regions must be spaces at least
+> >> > SECTION_SIZE bytes part. On x86 this is 128MB and there are cases where
+> >> > BARs can be placed closer together than this. Thus ZONE_DEVICE would not
+> >> > be usable on neighboring BARs. For our purposes, this is not an issue as
+> >> > we'd only be looking at enabling a single BAR in a given PCIe device.
+> >> > More exotic use cases may have problems with this.
+> >>
+> >> I'm working on patches for 4.10 to allow mixing multiple
+> >> devm_memremap_pages() allocations within the same physical section.
+> >> Hopefully this won't be a problem going forward.
+> >>
+> >
+> > Thanks Dan. Your patches will help address the problem of how to
+> > partition a /dev/dax device but they don't help the case then BARs
+> > themselves are small, closely spaced and non-segment aligned. However
+> > I think most people using iopmem will want to use reasonbly large
+> > BARs so I am not sure item 2 is that big of an issue.
+>
+> I think you might have misunderstood what I'm proposing.  The patches
+> I'm working on are separate from a facility to carve up a /dev/dax
+> device.  The effort is to allow devm_memremap_pages() to maintain
+> several allocations within the same 128MB section.  I need this for
+> persistent memory to handle platforms that mix pmem and system-ram in
+> the same section.  I want to be able to map ZONE_DEVICE pages for a
+> portion of a section and be able to remove portions of section that
+> may collide with allocations of a different lifetime.
 
---=20
-             Dmitry
+Oh I did misunderstand. This is very cool and would be useful to us.
+One more reason to consider moving to /dev/dax in the next spin of
+this patchset ;-).
 
---047d7b604d2e204b13053f3efaa9
-Content-Type: text/x-patch; charset=US-ASCII;
-	name="0001-x86-signal-set-SA_X32_ABI-flag-for-x32-programs.patch"
-Content-Disposition: attachment;
-	filename="0001-x86-signal-set-SA_X32_ABI-flag-for-x32-programs.patch"
-Content-Transfer-Encoding: base64
-X-Attachment-Id: f_iuhgsn1x0
+Thanks
 
-RnJvbSBhNTQ2ZjhkYTFkMTI2NzZmZTc5Yzc0NmQ4NTllYjFlMTdhYTRjMzMxIE1vbiBTZXAgMTcg
-MDA6MDA6MDAgMjAwMQpGcm9tOiBEbWl0cnkgU2Fmb25vdiA8MHg3ZjQ1NGM0NkBnbWFpbC5jb20+
-CkRhdGU6IFRodSwgMjAgT2N0IDIwMTYgMDA6NTM6MDggKzAzMDAKU3ViamVjdDogW1BBVENIXSB4
-ODYvc2lnbmFsOiBzZXQgU0FfWDMyX0FCSSBmbGFnIGZvciB4MzIgcHJvZ3JhbXMKCkZvciB4MzIg
-cHJvZ3JhbXMgY3MgcmVnaXN0ZXIgaXMgX19VU0VSX0NTLCBzbyBpdCByZXR1cm5zIGhlcmUKdW5j
-b25kaXRpb25hbGx5IC0gcmVtb3ZlIHRoaXMgY2hlY2sgY29tcGxldGVseSBoZXJlLgoKRml4ZXM6
-IGNvbW1pdCA2ODQ2MzUxMDUyZTYgKCJ4ODYvc2lnbmFsOiBBZGQgU0Ffe1gzMixJQTMyfV9BQkkg
-c2FfZmxhZ3MiKQoKUmVwb3J0ZWQtYnk6IE1pa3VsYXMgUGF0b2NrYSA8bXBhdG9ja2FAcmVkaGF0
-LmNvbT4KU2lnbmVkLW9mZi1ieTogRG1pdHJ5IFNhZm9ub3YgPDB4N2Y0NTRjNDZAZ21haWwuY29t
-PgotLS0KIGFyY2gveDg2L2tlcm5lbC9zaWduYWxfY29tcGF0LmMgfCAzIC0tLQogMSBmaWxlIGNo
-YW5nZWQsIDMgZGVsZXRpb25zKC0pCgpkaWZmIC0tZ2l0IGEvYXJjaC94ODYva2VybmVsL3NpZ25h
-bF9jb21wYXQuYyBiL2FyY2gveDg2L2tlcm5lbC9zaWduYWxfY29tcGF0LmMKaW5kZXggNDBkZjMz
-NzUzYmFlLi5lYzFmNzU2ZjlkYzkgMTAwNjQ0Ci0tLSBhL2FyY2gveDg2L2tlcm5lbC9zaWduYWxf
-Y29tcGF0LmMKKysrIGIvYXJjaC94ODYva2VybmVsL3NpZ25hbF9jb21wYXQuYwpAQCAtMTA1LDkg
-KzEwNSw2IEBAIHZvaWQgc2lnYWN0aW9uX2NvbXBhdF9hYmkoc3RydWN0IGtfc2lnYWN0aW9uICph
-Y3QsIHN0cnVjdCBrX3NpZ2FjdGlvbiAqb2FjdCkKIAkvKiBEb24ndCBsZXQgZmxhZ3MgdG8gYmUg
-c2V0IGZyb20gdXNlcnNwYWNlICovCiAJYWN0LT5zYS5zYV9mbGFncyAmPSB+KFNBX0lBMzJfQUJJ
-IHwgU0FfWDMyX0FCSSk7CiAKLQlpZiAodXNlcl82NGJpdF9tb2RlKGN1cnJlbnRfcHRfcmVncygp
-KSkKLQkJcmV0dXJuOwotCiAJaWYgKGluX2lhMzJfc3lzY2FsbCgpKQogCQlhY3QtPnNhLnNhX2Zs
-YWdzIHw9IFNBX0lBMzJfQUJJOwogCWlmIChpbl94MzJfc3lzY2FsbCgpKQotLSAKMi4xMC4wCgo=
---047d7b604d2e204b13053f3efaa9--
+Stephen
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
