@@ -1,70 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DA7E76B0069
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 07:15:48 -0400 (EDT)
-Received: by mail-lf0-f72.google.com with SMTP id m193so1041983lfm.7
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 04:15:48 -0700 (PDT)
-Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
-        by mx.google.com with ESMTPS id ev6si12230172wjd.116.2016.10.19.04.15.47
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D44DF6B0069
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 07:27:55 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id h24so10167101pfh.0
+        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 04:27:55 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id m65si40098253pfk.229.2016.10.19.04.27.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Oct 2016 04:15:47 -0700 (PDT)
-Date: Wed, 19 Oct 2016 12:15:41 +0100
-From: Chris Wilson <chris@chris-wilson.co.uk>
-Subject: Re: [PATCH 2/6] mm: mark all calls into the vmalloc subsystem as
- potentially sleeping
-Message-ID: <20161019111541.GQ29358@nuc-i3427.alporthouse.com>
-References: <1476773771-11470-1-git-send-email-hch@lst.de>
- <1476773771-11470-3-git-send-email-hch@lst.de>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 19 Oct 2016 04:27:54 -0700 (PDT)
+Subject: Re: How to make warn_alloc() reliable?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201610182004.AEF87559.FOOHVLJOQFFtSM@I-love.SAKURA.ne.jp>
+	<20161018122749.GE12092@dhcp22.suse.cz>
+In-Reply-To: <20161018122749.GE12092@dhcp22.suse.cz>
+Message-Id: <201610192027.GFB17670.VOtOLQFFOSMJHF@I-love.SAKURA.ne.jp>
+Date: Wed, 19 Oct 2016 20:27:53 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1476773771-11470-3-git-send-email-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: akpm@linux-foundation.org, joelaf@google.com, jszhang@marvell.com, joaodias@google.com, linux-mm@kvack.org, linux-rt-users@vger.kernel.org, linux-kernel@vger.kernel.org
+To: mhocko@kernel.org
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mgorman@suse.de, dave.hansen@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Oct 18, 2016 at 08:56:07AM +0200, Christoph Hellwig wrote:
-> This is how everyone seems to already use them, but let's make that
-> explicit.
+Michal Hocko wrote:
+> This is not about warn_alloc reliability but more about
+> too_many_isolated waiting for an unbounded amount of time. And that
+> should be fixed. I do not have a good idea how right now.
 
-Ah, found an exception, vmapped stacks:
+I'm not talking about only too_many_isolated() case. If I were talking about
+this specific case, I would have proposed leaving this loop using timeout.
+For example, where is the guarantee that current thread never get stuck
+at shrink_inactive_list() after leaving this too_many_isolated() loop?
 
-[  696.928541] BUG: sleeping function called from invalid context at mm/vmalloc.c:615
-[  696.928576] in_atomic(): 1, irqs_disabled(): 0, pid: 30521, name: bash
-[  696.928590] 1 lock held by bash/30521:
-[  696.928600]  #0: [  696.928606]  (vmap_area_lock[  696.928619] ){+.+...}, at: [  696.928640] [<ffffffff8115f0cf>] __purge_vmap_area_lazy+0x30f/0x370
-[  696.928656] CPU: 0 PID: 30521 Comm: bash Tainted: G        W       4.9.0-rc1+ #124
-[  696.928672] Hardware name:                  /        , BIOS PYBSWCEL.86A.0027.2015.0507.1758 05/07/2015
-[  696.928690]  ffffc900070f7c70 ffffffff812be1f5 ffff8802750b6680 ffffffff819650a6
-[  696.928717]  ffffc900070f7c98 ffffffff810a3216 0000000000004001 ffff8802726e16c0
-[  696.928743]  ffff8802726e19a0 ffffc900070f7d08 ffffffff8115f0f3 ffff8802750b6680
-[  696.928768] Call Trace:
-[  696.928782]  [<ffffffff812be1f5>] dump_stack+0x68/0x93
-[  696.928796]  [<ffffffff810a3216>] ___might_sleep+0x166/0x220
-[  696.928809]  [<ffffffff8115f0f3>] __purge_vmap_area_lazy+0x333/0x370
-[  696.928823]  [<ffffffff8115ea68>] ? vunmap_page_range+0x1e8/0x350
-[  696.928837]  [<ffffffff8115f1b3>] free_vmap_area_noflush+0x83/0x90
-[  696.928850]  [<ffffffff81160931>] remove_vm_area+0x71/0xb0
-[  696.928863]  [<ffffffff81160999>] __vunmap+0x29/0xf0
-[  696.928875]  [<ffffffff81160ab9>] vfree+0x29/0x70
-[  696.928888]  [<ffffffff81071746>] put_task_stack+0x76/0x120
-[  696.928901]  [<ffffffff8109a943>] finish_task_switch+0x163/0x1e0
-[  696.928914]  [<ffffffff8109a845>] ? finish_task_switch+0x65/0x1e0
-[  696.928928]  [<ffffffff816125f5>] __schedule+0x1f5/0x7c0
-[  696.928940]  [<ffffffff81612c28>] schedule+0x38/0x90
-[  696.928953]  [<ffffffff810787b1>] do_wait+0x1d1/0x200
-[  696.928966]  [<ffffffff810799b1>] SyS_wait4+0x61/0xc0
-[  696.928979]  [<ffffffff81076e50>] ? task_stopped_code+0x50/0x50
-[  696.928992]  [<ffffffff81618e6e>] entry_SYSCALL_64_fastpath+0x1c/0xb1
+I think that perception of ordinary Linux user's memory management is
+"Linux reclaims memory when needed. Thus, it is normal that MemFree:
+field of /proc/meminfo is small." and "Linux invokes the OOM killer if
+memory allocation request can't make forward progress". However we know
+"Linux may not be able to invoke the OOM killer even if memory allocation
+request can't make forward progress". You suddenly bring up (or admit to)
+implications/limitations/problems most Linux users do not know. That's
+painful for me who went to a lot of trouble to get some clue at a support
+center.
 
-[This was triggered by earlier patch to remove the serialisation and add
-cond_resched_lock(&vmap_area_lock)]
--Chris
+When we were off-list talking about CVE-2016-2847, your response had been
+"Your machine is DoSed already" until we notice the "too small to fail"
+memory-allocation rule. If I were not continuing examining until I make
+you angry, we would not have come to correct answer. I don't like your
+optimistic "Fix it if you can trigger it." approach which will never give
+users (and troubleshooting staffs at support centers) a proof. I want a
+"Expose what Michal Hocko is not aware of or does not care" mechanism.
 
--- 
-Chris Wilson, Intel Open Source Technology Centre
+What I'm talking about is "why don't you stop playing whack-a-mole games
+with missing warn_alloc() calls". I don't blame you for not having a good
+idea, but I blame you for not having a reliable warn_alloc() mechanism.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
