@@ -1,58 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F37A6B0069
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 08:06:29 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id m5so18701354qtb.3
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 05:06:29 -0700 (PDT)
-Received: from mail-qt0-f174.google.com (mail-qt0-f174.google.com. [209.85.216.174])
-        by mx.google.com with ESMTPS id f62si24080778qkj.1.2016.10.19.05.06.28
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 258DE6B0069
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 09:05:55 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id x79so8290492lff.2
+        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 06:05:55 -0700 (PDT)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id a10si54242155wjd.63.2016.10.19.06.05.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Oct 2016 05:06:28 -0700 (PDT)
-Received: by mail-qt0-f174.google.com with SMTP id f6so15850152qtd.2
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 05:06:28 -0700 (PDT)
-Date: Wed, 19 Oct 2016 14:06:27 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Xfs lockdep warning with for-dave-for-4.6 branch
-Message-ID: <20161019120626.GI7517@dhcp22.suse.cz>
-References: <20160516132541.GP3193@twins.programming.kicks-ass.net>
- <20160516231056.GE18496@dastard>
- <20160517144912.GZ3193@twins.programming.kicks-ass.net>
- <20160517223549.GV26977@dastard>
- <20160519081146.GS3193@twins.programming.kicks-ass.net>
- <20160520001714.GC26977@dastard>
- <20160601131758.GO26601@dhcp22.suse.cz>
- <20160601181617.GV3190@twins.programming.kicks-ass.net>
- <20161006130454.GI10570@dhcp22.suse.cz>
- <20161019083304.GD3102@twins.programming.kicks-ass.net>
+        Wed, 19 Oct 2016 06:05:53 -0700 (PDT)
+Date: Wed, 19 Oct 2016 15:05:52 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH 2/6] mm: mark all calls into the vmalloc subsystem as
+	potentially sleeping
+Message-ID: <20161019130552.GB5876@lst.de>
+References: <1476773771-11470-1-git-send-email-hch@lst.de> <1476773771-11470-3-git-send-email-hch@lst.de> <20161019111541.GQ29358@nuc-i3427.alporthouse.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161019083304.GD3102@twins.programming.kicks-ass.net>
+In-Reply-To: <20161019111541.GQ29358@nuc-i3427.alporthouse.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Qu Wenruo <quwenruo@cn.fujitsu.com>, xfs@oss.sgi.com, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+To: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: Christoph Hellwig <hch@lst.de>, akpm@linux-foundation.org, joelaf@google.com, jszhang@marvell.com, joaodias@google.com, linux-mm@kvack.org, linux-rt-users@vger.kernel.org, linux-kernel@vger.kernel.org, Andy Lutomirski <luto@amacapital.net>
 
-On Wed 19-10-16 10:33:04, Peter Zijlstra wrote:
-[...]
-> So I'm all for this if this works for Dave.
+On Wed, Oct 19, 2016 at 12:15:41PM +0100, Chris Wilson wrote:
+> On Tue, Oct 18, 2016 at 08:56:07AM +0200, Christoph Hellwig wrote:
+> > This is how everyone seems to already use them, but let's make that
+> > explicit.
 > 
-> Acked-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+> Ah, found an exception, vmapped stacks:
 
-Thanks Peter!
+Oh, fun.  So if we can't require vfree to be called from process context
+we also can't use a mutex to wait for the vmap flushing.  Given that we
+free stacks from the scheduler context switch I also fear there is no
+good way to get a sleepable context there.
 
-> Please take it through the XFS tree which would introduce its first user
-> etc..
-
-Dave, does that work for you? I agree that having this followed by a
-first user would be really preferable. Maybe to turn some of those added
-by b17cb364dbbb? I wish I could help here but as you've said earlier
-each such annotation should be accompanied by an explanation which I am
-not qualified to provide.
--- 
-Michal Hocko
-SUSE Labs
+The only other idea I had was to use vmap_area_lock for the protection
+that purge_lock currently provides, but that would require some serious
+refactoring to avoid recursive locking first.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
