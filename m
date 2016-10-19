@@ -1,60 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 21DDD6B0263
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 05:23:54 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id g16so11962956wmg.3
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 02:23:54 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id rj13si53123641wjb.152.2016.10.19.02.23.52
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BEB26B0265
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 05:39:41 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id f193so12177235wmg.4
+        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 02:39:41 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l137si3726054wmb.38.2016.10.19.02.39.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Oct 2016 02:23:52 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id o81so3022621wma.3
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 02:23:52 -0700 (PDT)
-Date: Wed, 19 Oct 2016 11:23:51 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 08/10] mm: replace __access_remote_vm() write parameter
- with gup_flags
-Message-ID: <20161019092350.GF7517@dhcp22.suse.cz>
-References: <20161013002020.3062-1-lstoakes@gmail.com>
- <20161013002020.3062-9-lstoakes@gmail.com>
- <20161019075903.GP29967@quack2.suse.cz>
- <20161019081352.GB7562@dhcp22.suse.cz>
- <20161019084045.GA19441@lucifer>
- <20161019085204.GD7517@dhcp22.suse.cz>
- <20161019090646.GA24243@lucifer>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 19 Oct 2016 02:39:40 -0700 (PDT)
+Subject: Re: [PATCH] mm, compaction: fix NR_ISOLATED_* stats for pfn based
+ migration
+References: <20161019080240.9682-1-mhocko@kernel.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <2e4d79f9-74e5-5085-4037-caa9c1cb43e4@suse.cz>
+Date: Wed, 19 Oct 2016 11:39:36 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161019090646.GA24243@lucifer>
+In-Reply-To: <20161019080240.9682-1-mhocko@kernel.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lorenzo Stoakes <lstoakes@gmail.com>
-Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, adi-buildroot-devel@lists.sourceforge.net, ceph-devel@vger.kernel.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, kvm@vger.kernel.org, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-cris-kernel@axis.com, linux-fbdev@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, linux-mips@linux-mips.org, linux-rdma@vger.kernel.org, linux-s390@vger.kernel.org, linux-samsung-soc@vger.kernel.org, linux-scsi@vger.kernel.org, linux-security-module@vger.kernel.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, netdev@vger.kernel.org, sparclinux@vger.kernel.org, x86@kernel.org
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "ming.ling" <ming.ling@spreadtrum.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Wed 19-10-16 10:06:46, Lorenzo Stoakes wrote:
-> On Wed, Oct 19, 2016 at 10:52:05AM +0200, Michal Hocko wrote:
-> > yes this is the desirable and expected behavior.
-> >
-> > > wonder if this is desirable behaviour or whether this ought to be limited to
-> > > ptrace system calls. Regardless, by making the flag more visible it makes it
-> > > easier to see that this is happening.
-> >
-> > mem_open already enforces PTRACE_MODE_ATTACH
-> 
-> Ah I missed this, that makes a lot of sense, thanks!
-> 
-> I still wonder whether other invocations of access_remote_vm() in fs/proc/base.c
-> (the principle caller of this function) need FOLL_FORCE, for example the various
-> calls that simply read data from other processes, so I think the point stands
-> about keeping this explicit.
+On 10/19/2016 10:02 AM, Michal Hocko wrote:
+> From: Ming Ling <ming.ling@spreadtrum.com>
+>
+> Since bda807d44454 ("mm: migrate: support non-lru movable page
+> migration") isolate_migratepages_block) can isolate !PageLRU pages which
+> would acct_isolated account as NR_ISOLATED_*. Accounting these non-lru
+> pages NR_ISOLATED_{ANON,FILE} doesn't make any sense and it can misguide
+> heuristics based on those counters such as pgdat_reclaimable_pages resp.
+> too_many_isolated which would lead to unexpected stalls during the
+> direct reclaim without any good reason. Note that
+> __alloc_contig_migrate_range can isolate a lot of pages at once.
+>
+> On mobile devices such as 512M ram android Phone, it may use a big zram
+> swap. In some cases zram(zsmalloc) uses too many non-lru but migratedable
+> pages, such as:
+>
+>       MemTotal: 468148 kB
+>       Normal free:5620kB
+>       Free swap:4736kB
+>       Total swap:409596kB
+>       ZRAM: 164616kB(zsmalloc non-lru pages)
+>       active_anon:60700kB
+>       inactive_anon:60744kB
+>       active_file:34420kB
+>       inactive_file:37532kB
+>
+> Fix this by only accounting lru pages to NR_ISOLATED_* in
+> isolate_migratepages_block right after they were isolated and we still
+> know they were on LRU. Drop acct_isolated because it is called after the
+> fact and we've lost that information. Batching per-cpu counter doesn't
+> make much improvement anyway. Also make sure that we uncharge only LRU
+> pages when putting them back on the LRU in putback_movable_pages resp.
+> when unmap_and_move migrates the page.
 
-I do agree. Making them explicit will help to clean them up later,
-should there be a need.
+[mhocko@suse.com: replace acct_isolated() with direct counting]
+?
 
--- 
-Michal Hocko
-SUSE Labs
+Indeed much better than before. IIRC I've personally introduced one or two bugs 
+involving acct_isolated() (lack of) usage :) Thanks.
+
+> Fixes: bda807d44454 ("mm: migrate: support non-lru movable page migration")
+> Acked-by: Minchan Kim <minchan@kernel.org>
+> Signed-off-by: Ming Ling <ming.ling@spreadtrum.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+> ---
+>  mm/compaction.c | 25 +++----------------------
+>  mm/migrate.c    | 15 +++++++++++----
+>  2 files changed, 14 insertions(+), 26 deletions(-)
+>
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 0409a4ad6ea1..70e6bec46dc2 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -634,22 +634,6 @@ isolate_freepages_range(struct compact_control *cc,
+>  	return pfn;
+>  }
+>
+> -/* Update the number of anon and file isolated pages in the zone */
+> -static void acct_isolated(struct zone *zone, struct compact_control *cc)
+> -{
+> -	struct page *page;
+> -	unsigned int count[2] = { 0, };
+> -
+> -	if (list_empty(&cc->migratepages))
+> -		return;
+> -
+> -	list_for_each_entry(page, &cc->migratepages, lru)
+> -		count[!!page_is_file_cache(page)]++;
+> -
+> -	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_ANON, count[0]);
+> -	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE, count[1]);
+> -}
+> -
+>  /* Similar to reclaim, but different enough that they don't share logic */
+>  static bool too_many_isolated(struct zone *zone)
+>  {
+> @@ -866,6 +850,8 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+>
+>  		/* Successfully isolated */
+>  		del_page_from_lru_list(page, lruvec, page_lru(page));
+> +		inc_node_page_state(page,
+> +				NR_ISOLATED_ANON + page_is_file_cache(page));
+>
+>  isolate_success:
+>  		list_add(&page->lru, &cc->migratepages);
+> @@ -902,7 +888,6 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+>  				spin_unlock_irqrestore(zone_lru_lock(zone), flags);
+>  				locked = false;
+>  			}
+> -			acct_isolated(zone, cc);
+>  			putback_movable_pages(&cc->migratepages);
+>  			cc->nr_migratepages = 0;
+>  			cc->last_migrated_pfn = 0;
+> @@ -988,7 +973,6 @@ isolate_migratepages_range(struct compact_control *cc, unsigned long start_pfn,
+>  		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX)
+>  			break;
+>  	}
+> -	acct_isolated(cc->zone, cc);
+>
+>  	return pfn;
+>  }
+> @@ -1258,10 +1242,8 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+>  		low_pfn = isolate_migratepages_block(cc, low_pfn,
+>  						block_end_pfn, isolate_mode);
+>
+> -		if (!low_pfn || cc->contended) {
+> -			acct_isolated(zone, cc);
+> +		if (!low_pfn || cc->contended)
+>  			return ISOLATE_ABORT;
+> -		}
+>
+>  		/*
+>  		 * Either we isolated something and proceed with migration. Or
+> @@ -1271,7 +1253,6 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+>  		break;
+>  	}
+>
+> -	acct_isolated(zone, cc);
+>  	/* Record where migration scanner will be restarted. */
+>  	cc->migrate_pfn = low_pfn;
+>
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index 99250aee1ac1..66ce6b490b13 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -168,8 +168,6 @@ void putback_movable_pages(struct list_head *l)
+>  			continue;
+>  		}
+>  		list_del(&page->lru);
+> -		dec_node_page_state(page, NR_ISOLATED_ANON +
+> -				page_is_file_cache(page));
+>  		/*
+>  		 * We isolated non-lru movable page so here we can use
+>  		 * __PageMovable because LRU page's mapping cannot have
+> @@ -186,6 +184,8 @@ void putback_movable_pages(struct list_head *l)
+>  			put_page(page);
+>  		} else {
+>  			putback_lru_page(page);
+> +			dec_node_page_state(page, NR_ISOLATED_ANON +
+> +					page_is_file_cache(page));
+>  		}
+>  	}
+>  }
+> @@ -1121,8 +1121,15 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
+>  		 * restored.
+>  		 */
+>  		list_del(&page->lru);
+> -		dec_node_page_state(page, NR_ISOLATED_ANON +
+> -				page_is_file_cache(page));
+> +
+> +		/*
+> +		 * Compaction can migrate also non-LRU pages which are
+> +		 * not accounted to NR_ISOLATED_*. They can be recognized
+> +		 * as __PageMovable
+> +		 */
+> +		if (likely(!__PageMovable(page)))
+> +			dec_node_page_state(page, NR_ISOLATED_ANON +
+> +					page_is_file_cache(page));
+>  	}
+>
+>  	/*
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
