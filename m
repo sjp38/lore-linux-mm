@@ -1,54 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B9F546B0253
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 19:10:00 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id n85so251461pfi.7
-        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 16:10:00 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id y71si37719452pfb.71.2016.10.18.16.10.00
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 18 Oct 2016 16:10:00 -0700 (PDT)
-Date: Tue, 18 Oct 2016 16:09:59 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch] mm, thp: avoid unlikely branches for split_huge_pmd
-Message-Id: <20161018160959.16187f78b58d76c6087e8491@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.10.1610181600300.84525@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1610181600300.84525@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id 5FC396B0069
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 20:34:53 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 128so4594609pfz.1
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 17:34:53 -0700 (PDT)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id op7si31663797pac.254.2016.10.18.17.34.07
+        for <linux-mm@kvack.org>;
+        Tue, 18 Oct 2016 17:34:52 -0700 (PDT)
+Date: Wed, 19 Oct 2016 11:33:09 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: Xfs lockdep warning with for-dave-for-4.6 branch
+Message-ID: <20161019003309.GG23194@dastard>
+References: <20160516130519.GJ23146@dhcp22.suse.cz>
+ <20160516132541.GP3193@twins.programming.kicks-ass.net>
+ <20160516231056.GE18496@dastard>
+ <20160517144912.GZ3193@twins.programming.kicks-ass.net>
+ <20160517223549.GV26977@dastard>
+ <20160519081146.GS3193@twins.programming.kicks-ass.net>
+ <20160520001714.GC26977@dastard>
+ <20160601131758.GO26601@dhcp22.suse.cz>
+ <20160601181617.GV3190@twins.programming.kicks-ass.net>
+ <20161006130454.GI10570@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161006130454.GI10570@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Qu Wenruo <quwenruo@cn.fujitsu.com>, xfs@oss.sgi.com, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-On Tue, 18 Oct 2016 16:04:06 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
-
-> While doing MADV_DONTNEED on a large area of thp memory, I noticed we 
-> encountered many unlikely() branches in profiles for each backing 
-> hugepage.  This is because zap_pmd_range() would call split_huge_pmd(), 
-> which rechecked the conditions that were already validated, but as part of 
-> an unlikely() branch.
+On Thu, Oct 06, 2016 at 03:04:54PM +0200, Michal Hocko wrote:
+> [Let me ressurect this thread]
 > 
-> Avoid the unlikely() branch when in a context where pmd is known to be 
-> good for __split_huge_pmd() directly.
+> On Wed 01-06-16 20:16:17, Peter Zijlstra wrote:
+> > On Wed, Jun 01, 2016 at 03:17:58PM +0200, Michal Hocko wrote:
+> > > Thanks Dave for your detailed explanation again! Peter do you have any
+> > > other idea how to deal with these situations other than opt out from
+> > > lockdep reclaim machinery?
+> > > 
+> > > If not I would rather go with an annotation than a gfp flag to be honest
+> > > but if you absolutely hate that approach then I will try to check wheter
+> > > a CONFIG_LOCKDEP GFP_FOO doesn't break something else. Otherwise I would
+> > > steal the description from Dave's email and repost my patch.
+> > > 
+> > > I plan to repost my scope gfp patches in few days and it would be good
+> > > to have some mechanism to drop those GFP_NOFS to paper over lockdep
+> > > false positives for that.
+> > 
+> > Right; sorry I got side-tracked in other things again.
+> > 
+> > So my favourite is the dedicated GFP flag, but if that's unpalatable for
+> > the mm folks then something like the below might work. It should be
+> > similar in effect to your proposal, except its more limited in scope.
+> 
+> OK, so the situation with the GFP flags is somehow relieved after 
+> http://lkml.kernel.org/r/20160912114852.GI14524@dhcp22.suse.cz and with
+> the root radix tree remaining the last user which mangles gfp_mask and
+> tags together we have some few bits left there. As you apparently hate
+> any scoped API and Dave thinks that per allocation flag is the only
+> maintainable way for xfs what do you think about the following?
 
-Before:
+It's a workable solution to allow XFS to play whack-a-mole games
+with lockdep again. As to the implementation - that's for other
+people to decide....
 
-   text    data     bss     dec     hex filename
-  38442      75      48   38565    96a5 mm/memory.o
-  21755    2369   18464   42588    a65c mm/mempolicy.o
-   4557    1816       0    6373    18e5 mm/mprotect.o
+Cheers,
 
-After:
-
-  38362      75      48   38485    9655 mm/memory.o
-  21714    2369   18464   42547    a633 mm/mempolicy.o
-   4541    1816       0    6357    18d5 mm/mprotect.o
-
-
-So there's a size improvment too.  gcc-4.4.4.
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
