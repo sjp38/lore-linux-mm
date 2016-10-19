@@ -1,48 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A8636B026E
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 15:34:53 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id r16so3526457pfg.4
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 12:34:53 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id k4si6010541paa.202.2016.10.19.12.34.52
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D4706B0260
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 15:43:46 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id b81so15598934lfe.1
+        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 12:43:46 -0700 (PDT)
+Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
+        by mx.google.com with ESMTPS id yh8si28711775wjb.272.2016.10.19.12.43.44
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 19 Oct 2016 12:34:52 -0700 (PDT)
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: [PATCH v8 16/16] dax: remove "depends on BROKEN" from FS_DAX_PMD
-Date: Wed, 19 Oct 2016 13:34:35 -0600
-Message-Id: <1476905675-32581-17-git-send-email-ross.zwisler@linux.intel.com>
-In-Reply-To: <1476905675-32581-1-git-send-email-ross.zwisler@linux.intel.com>
-References: <1476905675-32581-1-git-send-email-ross.zwisler@linux.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Oct 2016 12:43:44 -0700 (PDT)
+Date: Wed, 19 Oct 2016 20:43:33 +0100
+From: Chris Wilson <chris@chris-wilson.co.uk>
+Subject: Re: [PATCH 2/6] mm: mark all calls into the vmalloc subsystem as
+ potentially sleeping
+Message-ID: <20161019194333.GD19173@nuc-i3427.alporthouse.com>
+References: <1476773771-11470-1-git-send-email-hch@lst.de>
+ <1476773771-11470-3-git-send-email-hch@lst.de>
+ <20161019111541.GQ29358@nuc-i3427.alporthouse.com>
+ <20161019130552.GB5876@lst.de>
+ <CALCETrVqjejgpQVUdem8RK3uxdEgfOZy4cOJqJQjCLtBDnJfyQ@mail.gmail.com>
+ <20161019163112.GA31091@lst.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161019163112.GA31091@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Alexander Viro <viro@zeniv.linux.org.uk>, Andreas Dilger <adilger.kernel@dilger.ca>, Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-xfs@vger.kernel.org
+To: Christoph Hellwig <hch@lst.de>
+Cc: Andy Lutomirski <luto@amacapital.net>, Andrew Morton <akpm@linux-foundation.org>, joelaf@google.com, jszhang@marvell.com, joaodias@google.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-rt-users@vger.kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Now that DAX PMD faults are once again working and are now participating in
-DAX's radix tree locking scheme, allow their config option to be enabled.
+On Wed, Oct 19, 2016 at 06:31:12PM +0200, Christoph Hellwig wrote:
+> On Wed, Oct 19, 2016 at 08:34:40AM -0700, Andy Lutomirski wrote:
+> > 
+> > It would be quite awkward for a task stack to get freed from a
+> > sleepable context, because the obvious sleepable context is the task
+> > itself, and it still needs its stack.  This was true even in the old
+> > regime when task stacks were freed from RCU context.
+> > 
+> > But vfree has a magic automatic deferral mechanism.  Couldn't you make
+> > the non-deferred case might_sleep()?
+> 
+> But it's only magic from interrupt context..
+> 
+> Chris, does this patch make virtually mapped stack work for you again?
 
-Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-Reviewed-by: Jan Kara <jack@suse.cz>
----
- fs/Kconfig | 1 -
- 1 file changed, 1 deletion(-)
+So far, so good. No warns from anyone else.
+-Chris
 
-diff --git a/fs/Kconfig b/fs/Kconfig
-index 4bd03a2..8e9e5f41 100644
---- a/fs/Kconfig
-+++ b/fs/Kconfig
-@@ -55,7 +55,6 @@ config FS_DAX_PMD
- 	depends on FS_DAX
- 	depends on ZONE_DEVICE
- 	depends on TRANSPARENT_HUGEPAGE
--	depends on BROKEN
- 
- endif # BLOCK
- 
 -- 
-2.7.4
+Chris Wilson, Intel Open Source Technology Centre
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
