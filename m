@@ -1,80 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 102A0280251
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 13:24:56 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id b75so12529114lfg.3
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 10:24:55 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id b67si4356572lfg.317.2016.10.19.10.24.54
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 62D056B0069
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 13:25:43 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id i85so1574825pfa.5
+        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 10:25:43 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id y131si41443157pfg.33.2016.10.19.10.25.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Oct 2016 10:24:54 -0700 (PDT)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [PATCH 5/5] mm: workingset: turn shadow node shrinker bugs into warnings
-Date: Wed, 19 Oct 2016 13:24:28 -0400
-Message-Id: <20161019172428.7649-6-hannes@cmpxchg.org>
-In-Reply-To: <20161019172428.7649-1-hannes@cmpxchg.org>
-References: <20161019172428.7649-1-hannes@cmpxchg.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 19 Oct 2016 10:25:42 -0700 (PDT)
+Date: Wed, 19 Oct 2016 11:25:41 -0600
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH 19/20] dax: Protect PTE modification on WP fault by radix
+ tree entry lock
+Message-ID: <20161019172541.GD22463@linux.intel.com>
+References: <1474992504-20133-1-git-send-email-jack@suse.cz>
+ <1474992504-20133-20-git-send-email-jack@suse.cz>
+ <20161018195332.GF7796@linux.intel.com>
+ <20161019072505.GI29967@quack2.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161019072505.GI29967@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Dave Jones <davej@codemonkey.org.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Jan Kara <jack@suse.cz>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-When the shadow page shrinker tries to reclaim a radix tree node but
-finds it in an unexpected state--it should contain no pages, and
-non-zero shadow entries--there is no need to kill the executing task
-or even the entire system.
+On Wed, Oct 19, 2016 at 09:25:05AM +0200, Jan Kara wrote:
+> On Tue 18-10-16 13:53:32, Ross Zwisler wrote:
+> > On Tue, Sep 27, 2016 at 06:08:23PM +0200, Jan Kara wrote:
+> > > -	void *entry;
+> > > +	void *entry, **slot;
+> > >  	pgoff_t index = vmf->pgoff;
+> > >  
+> > >  	spin_lock_irq(&mapping->tree_lock);
+> > > -	entry = get_unlocked_mapping_entry(mapping, index, NULL);
+> > > -	if (!entry || !radix_tree_exceptional_entry(entry))
+> > > -		goto out;
+> > > +	entry = get_unlocked_mapping_entry(mapping, index, &slot);
+> > > +	if (!entry || !radix_tree_exceptional_entry(entry)) {
+> > > +		if (entry)
+> > > +			put_unlocked_mapping_entry(mapping, index, entry);
+> > 
+> > I don't think you need this call to put_unlocked_mapping_entry().  If we get
+> > in here we know that 'entry' is a page cache page, in which case
+> > put_unlocked_mapping_entry() will just return without doing any work.
+> 
+> Right, but that is just an implementation detail internal to how the
+> locking works. The rules are simple to avoid issues and thus the invariant
+> is: Once you call get_unlocked_mapping_entry() you either have to lock the
+> entry and then call put_locked_mapping_entry() or you have to drop it with
+> put_unlocked_mapping_entry(). Once you add arguments about entry types
+> etc., errors are much easier to make...
 
-Warn about the invalid state, then leave that tree node be. Simply
-don't put it back on the shadow LRU for future reclaim and move on.
+Makes sense.  You can add:
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- mm/workingset.c | 19 ++++++++++++-------
- 1 file changed, 12 insertions(+), 7 deletions(-)
-
-diff --git a/mm/workingset.c b/mm/workingset.c
-index 617475f529f4..5f07db171c03 100644
---- a/mm/workingset.c
-+++ b/mm/workingset.c
-@@ -418,23 +418,28 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
- 	 * no pages, so we expect to be able to remove them all and
- 	 * delete and free the empty node afterwards.
- 	 */
--	BUG_ON(!workingset_node_shadows(node));
--	BUG_ON(workingset_node_pages(node));
-+	if (WARN_ON_ONCE(!workingset_node_shadows(node)))
-+		goto out_invalid;
-+	if (WARN_ON_ONCE(workingset_node_pages(node)))
-+		goto out_invalid;
- 
- 	for (i = 0; i < RADIX_TREE_MAP_SIZE; i++) {
- 		if (node->slots[i]) {
--			BUG_ON(!radix_tree_exceptional_entry(node->slots[i]));
-+			if (WARN_ON_ONCE(!radix_tree_exceptional_entry(node->slots[i])))
-+				goto out_invalid;
- 			node->slots[i] = NULL;
- 			workingset_node_shadows_dec(node);
--			BUG_ON(!mapping->nrexceptional);
-+			if (WARN_ON_ONCE(!mapping->nrexceptional))
-+				goto out_invalid;
- 			mapping->nrexceptional--;
- 		}
- 	}
--	BUG_ON(workingset_node_shadows(node));
-+	if (WARN_ON_ONCE(workingset_node_shadows(node)))
-+		goto out_invalid;
- 	inc_node_state(page_pgdat(virt_to_page(node)), WORKINGSET_NODERECLAIM);
--	if (!__radix_tree_delete_node(&mapping->page_tree, node))
--		BUG();
-+	__radix_tree_delete_node(&mapping->page_tree, node);
- 
-+out_invalid:
- 	spin_unlock(&mapping->tree_lock);
- 	ret = LRU_REMOVED_RETRY;
- out:
--- 
-2.10.0
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
