@@ -1,66 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 26F196B0267
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 13:01:31 -0400 (EDT)
-Received: by mail-lf0-f70.google.com with SMTP id b81so12725790lfe.1
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 10:01:31 -0700 (PDT)
-Received: from mail-lf0-f67.google.com (mail-lf0-f67.google.com. [209.85.215.67])
-        by mx.google.com with ESMTPS id g18si3230645lfe.201.2016.10.19.10.01.29
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8173A6B0069
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 13:07:44 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id o141so45727663ioe.4
+        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 10:07:44 -0700 (PDT)
+Received: from out01.mta.xmission.com (out01.mta.xmission.com. [166.70.13.231])
+        by mx.google.com with ESMTPS id qz8si34503284pab.25.2016.10.19.10.07.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Oct 2016 10:01:29 -0700 (PDT)
-Received: by mail-lf0-f67.google.com with SMTP id x23so3005865lfi.1
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 10:01:29 -0700 (PDT)
-Date: Wed, 19 Oct 2016 19:01:27 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 00/10] mm: adjust get_user_pages* functions to explicitly
- pass FOLL_* flags
-Message-ID: <20161019170127.GN24393@dhcp22.suse.cz>
-References: <20161013002020.3062-1-lstoakes@gmail.com>
- <20161018153050.GC13117@dhcp22.suse.cz>
- <20161019085815.GA22239@lucifer>
- <20161019090727.GE7517@dhcp22.suse.cz>
- <5807A427.7010200@linux.intel.com>
+        Wed, 19 Oct 2016 10:07:43 -0700 (PDT)
+From: ebiederm@xmission.com (Eric W. Biederman)
+References: <87twcbq696.fsf@x220.int.ebiederm.org>
+	<20161018135031.GB13117@dhcp22.suse.cz> <8737jt903u.fsf@xmission.com>
+	<20161018150507.GP14666@pc.thejh.net> <87twc9656s.fsf@xmission.com>
+	<20161018191206.GA1210@laptop.thejh.net> <87r37dnz74.fsf@xmission.com>
+	<87k2d5nytz.fsf_-_@xmission.com>
+	<CAOQ4uxjyZF346vq-Oi=HwB=jj6ePycHBnEfvVPet9KqPxL9mgg@mail.gmail.com>
+	<87mvi0mpix.fsf@xmission.com>
+Date: Wed, 19 Oct 2016 12:04:45 -0500
+In-Reply-To: <87mvi0mpix.fsf@xmission.com> (Eric W. Biederman's message of
+	"Wed, 19 Oct 2016 08:33:58 -0500")
+Message-ID: <87lgxkjmmq.fsf@xmission.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5807A427.7010200@linux.intel.com>
+Content-Type: text/plain
+Subject: Re: [REVIEW][PATCH] exec: Don't exec files the userns root can not read.
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Lorenzo Stoakes <lstoakes@gmail.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, adi-buildroot-devel@lists.sourceforge.net, ceph-devel@vger.kernel.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, kvm@vger.kernel.org, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-cris-kernel@axis.com, linux-fbdev@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, linux-mips@linux-mips.org, linux-rdma@vger.kernel.org, linux-s390@vger.kernel.org, linux-samsung-soc@vger.kernel.org, linux-scsi@vger.kernel.org, linux-security-module@vger.kernel.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, netdev@vger.kernel.org, sparclinux@vger.kernel.org, x86@kernel.org
+To: Amir Goldstein <amir73il@gmail.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, Linux Containers <containers@lists.linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>
 
-On Wed 19-10-16 09:49:43, Dave Hansen wrote:
-> On 10/19/2016 02:07 AM, Michal Hocko wrote:
-> > On Wed 19-10-16 09:58:15, Lorenzo Stoakes wrote:
-> >> On Tue, Oct 18, 2016 at 05:30:50PM +0200, Michal Hocko wrote:
-> >>> I am wondering whether we can go further. E.g. it is not really clear to
-> >>> me whether we need an explicit FOLL_REMOTE when we can in fact check
-> >>> mm != current->mm and imply that. Maybe there are some contexts which
-> >>> wouldn't work, I haven't checked.
-> >>
-> >> This flag is set even when /proc/self/mem is used. I've not looked deeply into
-> >> this flag but perhaps accessing your own memory this way can be considered
-> >> 'remote' since you're not accessing it directly. On the other hand, perhaps this
-> >> is just mistaken in this case?
-> > 
-> > My understanding of the flag is quite limited as well. All I know it is
-> > related to protection keys and it is needed to bypass protection check.
-> > See arch_vma_access_permitted. See also 1b2ee1266ea6 ("mm/core: Do not
-> > enforce PKEY permissions on remote mm access").
-> 
-> Yeah, we need the flag to tell us when PKEYs should be applied or not.
-> The current task's PKRU (pkey rights register) should really only be
-> used to impact access to the task's memory, but has no bearing on how a
-> given task should access remote memory.
+ebiederm@xmission.com (Eric W. Biederman) writes:
 
-The question I had earlier was whether this has to be an explicit FOLL
-flag used by g-u-p users or we can just use it internally when mm !=
-current->mm
+> Amir Goldstein <amir73il@gmail.com> writes:
+>
+>>> diff --git a/fs/exec.c b/fs/exec.c
+>>> index 6fcfb3f7b137..f724ed94ba7a 100644
+>>> --- a/fs/exec.c
+>>> +++ b/fs/exec.c
+>>> @@ -1270,12 +1270,21 @@ EXPORT_SYMBOL(flush_old_exec);
+>>>
+>>>  void would_dump(struct linux_binprm *bprm, struct file *file)
+>>>  {
+>>> -       if (inode_permission(file_inode(file), MAY_READ) < 0)
+>>> +       struct inode *inode = file_inode(file);
+>>> +       if (inode_permission(inode, MAY_READ) < 0) {
+>>> +               struct user_namespace *user_ns = current->mm->user_ns;
+>>>                 bprm->interp_flags |= BINPRM_FLAGS_ENFORCE_NONDUMP;
+>>> +
+>>> +               /* May the user_ns root read the executable? */
+>>> +               if (!kuid_has_mapping(user_ns, inode->i_uid) ||
+>>> +                   !kgid_has_mapping(user_ns, inode->i_gid)) {
+>>> +                       bprm->interp_flags |= BINPRM_FLAGS_EXEC_INACCESSIBLE;
+>>> +               }
+>>
+>> This feels like it should belong inside
+>> inode_permission(file_inode(file), MAY_EXEC)
+>> which hopefully should be checked long before getting here??
+>
+> It is the active ingredient in capable_wrt_inode_uidgid and is indeed
+> inside of inode_permission.
+>
+> What I am testing for here is if I have a process with a full
+> set of capabilities in current->mm->user_ns will the inode be readable.
+>
+> I can see an argument for calling prepare_creds stuffing the new cred
+> full of capabilities.  Calling override_cred.  Calling inode_permission,
+> restoring the credentials.  But it seems very much like overkill and
+> more error prone because of the more code involved.
+>
+> So I have done the simple thing that doesn't hide what is really going on.
 
--- 
-Michal Hocko
-SUSE Labs
+At the same time I can see the addition of a helper function
+bool ns_inode(struct user_namespace *user_ns, struct inode *inode)
+{
+	return kuid_has_mapping(user_ns, inode->i_uid) &&
+        	kgid_has_mapping(user_ns, inode->i_gid);
+}
+
+That abstracts out the concept instead of open codes it.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
