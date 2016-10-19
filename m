@@ -1,96 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A61A56B0069
-	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 22:41:59 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id w11so31259346oia.6
-        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 19:41:59 -0700 (PDT)
-Received: from SHSQR01.spreadtrum.com ([222.66.158.135])
-        by mx.google.com with ESMTPS id c185si15024994oib.4.2016.10.18.19.41.57
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 18 Oct 2016 19:41:58 -0700 (PDT)
-Date: Wed, 19 Oct 2016 10:32:23 +0800
-From: Ming Ling <ming.ling@spreadtrum.com>
-Subject: Re: [PATCH v2] mm: exclude isolated non-lru pages from
- NR_ISOLATED_ANON or NR_ISOLATED_FILE.
-Message-ID: <20161019023222.GA28651@spreadtrum.com>
-References: <20161014134604.GA2179@blaptop>
- <20161014135334.GF6063@dhcp22.suse.cz> <20161014144448.GA2899@blaptop>
- <20161014150355.GH6063@dhcp22.suse.cz> <20161014152633.GA3157@blaptop>
- <20161015071044.GC9949@dhcp22.suse.cz> <20161016230618.GB9196@bbox>
- <20161017084244.GF23322@dhcp22.suse.cz> <20161018062950.GA18818@bbox>
- <20161018125247.GI12092@dhcp22.suse.cz>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B4576B0069
+	for <linux-mm@kvack.org>; Tue, 18 Oct 2016 23:22:17 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id r16so6222057pfg.4
+        for <linux-mm@kvack.org>; Tue, 18 Oct 2016 20:22:17 -0700 (PDT)
+Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
+        by mx.google.com with ESMTP id l184si35018926pgd.113.2016.10.18.20.22.14
+        for <linux-mm@kvack.org>;
+        Tue, 18 Oct 2016 20:22:16 -0700 (PDT)
+Reply-To: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+From: "Hillf Danton" <hillf.zj@alibaba-inc.com>
+References: <20161018154245.18023-1-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <20161018154245.18023-1-aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm/hugetlb: Use the right pte val for compare in hugetlb_cow
+Date: Wed, 19 Oct 2016 11:22:01 +0800
+Message-ID: <027301d229b7$f543f030$dfcbd090$@alibaba-inc.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20161018125247.GI12092@dhcp22.suse.cz>
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Minchan Kim <minchan@kernel.org>, akpm@linux-foundation.org, mgorman@techsingularity.net, vbabka@suse.cz, hannes@cmpxchg.org, baiyaowei@cmss.chinamobile.com, iamjoonsoo.kim@lge.com, rientjes@google.com, hughd@google.com, kirill.shutemov@linux.intel.com, riel@redhat.com, mgorman@suse.de, aquini@redhat.com, corbet@lwn.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, orson.zhai@spreadtrum.com, geng.ren@spreadtrum.com, chunyan.zhang@spreadtrum.com, zhizhou.tian@spreadtrum.com, yuming.han@spreadtrum.com, xiajing@spreadst.com
+To: "'Aneesh Kumar K.V'" <aneesh.kumar@linux.vnet.ibm.com>, akpm@linux-foundation.org, 'Jan Stancek' <jstancek@redhat.com>, 'Mike Kravetz' <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
-ao?, 10ae?? 18, 2016 at 02:52:47a,?a?? +0200, Michal Hocko wrote:
-hi,
-> On Tue 18-10-16 15:29:50, Minchan Kim wrote:
-> > On Mon, Oct 17, 2016 at 10:42:45AM +0200, Michal Hocko wrote:
-> [...]
-> > > Sure, what do you think about the following? I haven't marked it for
-> > > stable because there was no bug report for it AFAIU.
-> > > ---
-> > > From 3b2bd4486f36ada9f6dc86d3946855281455ba9f Mon Sep 17 00:00:00 2001
-> > > From: Ming Ling <ming.ling@spreadtrum.com>
-> > > Date: Mon, 17 Oct 2016 10:26:50 +0200
-> > > Subject: [PATCH] mm, compaction: fix NR_ISOLATED_* stats for pfn based
-> > >  migration
-> > > 
-> > > Since bda807d44454 ("mm: migrate: support non-lru movable page
-> > > migration") isolate_migratepages_block) can isolate !PageLRU pages which
-> > > would acct_isolated account as NR_ISOLATED_*. Accounting these non-lru
-> > > pages NR_ISOLATED_{ANON,FILE} doesn't make any sense and it can misguide
-> > > heuristics based on those counters such as pgdat_reclaimable_pages resp.
-> > > too_many_isolated which would lead to unexpected stalls during the
-> > > direct reclaim without any good reason. Note that
-> > > __alloc_contig_migrate_range can isolate a lot of pages at once.
-> > > 
-> > > On mobile devices such as 512M ram android Phone, it may use a big zram
-> > > swap. In some cases zram(zsmalloc) uses too many non-lru but migratedable
-> > > pages, such as:
-> > > 
-> > >       MemTotal: 468148 kB
-> > >       Normal free:5620kB
-> > >       Free swap:4736kB
-> > >       Total swap:409596kB
-> > >       ZRAM: 164616kB(zsmalloc non-lru pages)
-> > >       active_anon:60700kB
-> > >       inactive_anon:60744kB
-> > >       active_file:34420kB
-> > >       inactive_file:37532kB
-> > > 
-> > > Fix this by only accounting lru pages to NR_ISOLATED_* in
-> > > isolate_migratepages_block right after they were isolated and we still
-> > > know they were on LRU. Drop acct_isolated because it is called after the
-> > > fact and we've lost that information. Batching per-cpu counter doesn't
-> > > make much improvement anyway. Also make sure that we uncharge only LRU
-> > > pages when putting them back on the LRU in putback_movable_pages resp.
-> > > when unmap_and_move migrates the page.
-> > > 
-> > > Fixes: bda807d44454 ("mm: migrate: support non-lru movable page migration")
-> > > Signed-off-by: Ming Ling <ming.ling@spreadtrum.com>
-> > > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> > 
-> > Acked-by: Minchan Kim <minchan@kernel.org>
-> > 
-> > with folding other fix patch you posted.
+On Tuesday, October 18, 2016 11:43 PM Aneesh Kumar K.V wrote:
 > 
-> Thanks.
+> We cannot use the pte value used in set_pte_at for pte_same comparison,
+> because archs like ppc64, filter/add new pte flag in set_pte_at. Instead
+> fetch the pte value inside hugetlb_cow. We are comparing pte value to
+> make sure the pte didn't change since we dropped the page table lock.
+> hugetlb_cow get called with page table lock held, and we can take a copy
+> of the pte value before we drop the page table lock.
 > 
-> Ming, are you OK with this patch? Can I post it to Andrew?
+> With hugetlbfs, we optimize the MAP_PRIVATE write fault path with no
+> previous mapping (huge_pte_none entries), by forcing a cow in the fault
+> path. This avoid take an addition fault to covert a read-only mapping
+> to read/write. Here we were comparing a recently instantiated pte (via
+> set_pte_at) to the pte values from linux page table. As explained above
+> on ppc64 such pte_same check returned wrong result, resulting in us
+> taking an additional fault on ppc64.
+> 
+> Fixes: 6a119eae942c ("powerpc/mm: Add a _PAGE_PTE bit")
+> 
+> Reported-by: Jan Stancek <jstancek@redhat.com>
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> ---
+
+Acked-by: Hillf Danton <hillf.zj@alibaba-inc.com>
+
+>  mm/hugetlb.c | 12 +++++++-----
+>  1 file changed, 7 insertions(+), 5 deletions(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index ec49d9ef1eef..da8fbd02b92e 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -3386,15 +3386,17 @@ static void unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
+>   * Keep the pte_same checks anyway to make transition from the mutex easier.
+>   */
+>  static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+> -			unsigned long address, pte_t *ptep, pte_t pte,
+> -			struct page *pagecache_page, spinlock_t *ptl)
+> +		       unsigned long address, pte_t *ptep,
+> +		       struct page *pagecache_page, spinlock_t *ptl)
+>  {
+> +	pte_t pte;
+>  	struct hstate *h = hstate_vma(vma);
+>  	struct page *old_page, *new_page;
+>  	int ret = 0, outside_reserve = 0;
+>  	unsigned long mmun_start;	/* For mmu_notifiers */
+>  	unsigned long mmun_end;		/* For mmu_notifiers */
+> 
+> +	pte = huge_ptep_get(ptep);
+>  	old_page = pte_page(pte);
+> 
+>  retry_avoidcopy:
+> @@ -3668,7 +3670,7 @@ static int hugetlb_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+>  	hugetlb_count_add(pages_per_huge_page(h), mm);
+>  	if ((flags & FAULT_FLAG_WRITE) && !(vma->vm_flags & VM_SHARED)) {
+>  		/* Optimization, do the COW without a second fault */
+> -		ret = hugetlb_cow(mm, vma, address, ptep, new_pte, page, ptl);
+> +		ret = hugetlb_cow(mm, vma, address, ptep, page, ptl);
+>  	}
+> 
+>  	spin_unlock(ptl);
+> @@ -3822,8 +3824,8 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+> 
+>  	if (flags & FAULT_FLAG_WRITE) {
+>  		if (!huge_pte_write(entry)) {
+> -			ret = hugetlb_cow(mm, vma, address, ptep, entry,
+> -					pagecache_page, ptl);
+> +			ret = hugetlb_cow(mm, vma, address, ptep,
+> +					  pagecache_page, ptl);
+>  			goto out_put_page;
+>  		}
+>  		entry = huge_pte_mkdirty(entry);
 > --
-I think that's fine. Just do it.
-Thank you.
-> Michal Hocko
-> SUSE Labs
+> 2.10.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
