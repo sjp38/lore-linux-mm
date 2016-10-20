@@ -1,75 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C3C16B0038
-	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 04:48:50 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id n3so26654895lfn.5
-        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 01:48:50 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id jn10si52304038wjb.274.2016.10.20.01.48.48
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F57C6B0038
+	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 05:26:31 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id n3so27354348lfn.5
+        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 02:26:31 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id br5si60219333wjb.189.2016.10.20.02.26.29
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 20 Oct 2016 01:48:48 -0700 (PDT)
-Date: Thu, 20 Oct 2016 10:48:45 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 16/20] mm: Provide helper for finishing mkwrite faults
-Message-ID: <20161020084845.GA22614@quack2.suse.cz>
-References: <1474992504-20133-1-git-send-email-jack@suse.cz>
- <1474992504-20133-17-git-send-email-jack@suse.cz>
- <20161018183525.GC7796@linux.intel.com>
- <20161019071600.GG29967@quack2.suse.cz>
- <20161019172152.GC22463@linux.intel.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 20 Oct 2016 02:26:30 -0700 (PDT)
+Date: Thu, 20 Oct 2016 11:24:02 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: x32 is broken in 4.9-rc1 due to "x86/signal: Add SA_{X32,IA32}_ABI
+ sa_flags"
+In-Reply-To: <CAJwJo6Z8ZWPqNfT6t-i8GW1MKxQrKDUagQqnZ+0+697=MyVeGg@mail.gmail.com>
+Message-ID: <alpine.DEB.2.20.1610201117380.5073@nanos>
+References: <alpine.LRH.2.02.1610191311010.24555@file01.intranet.prod.int.rdu2.redhat.com> <alpine.LRH.2.02.1610191329500.29288@file01.intranet.prod.int.rdu2.redhat.com> <CAJwJo6Z8ZWPqNfT6t-i8GW1MKxQrKDUagQqnZ+0+697=MyVeGg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161019172152.GC22463@linux.intel.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Dmitry Safonov <0x7f454c46@gmail.com>
+Cc: Mikulas Patocka <mpatocka@redhat.com>, Dmitry Safonov <dsafonov@virtuozzo.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@virtuozzo.com>, open list <linux-kernel@vger.kernel.org>
 
-On Wed 19-10-16 11:21:52, Ross Zwisler wrote:
-> On Wed, Oct 19, 2016 at 09:16:00AM +0200, Jan Kara wrote:
-> > > > @@ -2315,26 +2335,17 @@ static int wp_page_shared(struct vm_fault *vmf)
-> > > >  			put_page(vmf->page);
-> > > >  			return tmp;
-> > > >  		}
-> > > > -		/*
-> > > > -		 * Since we dropped the lock we need to revalidate
-> > > > -		 * the PTE as someone else may have changed it.  If
-> > > > -		 * they did, we just return, as we can count on the
-> > > > -		 * MMU to tell us if they didn't also make it writable.
-> > > > -		 */
-> > > > -		vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd,
-> > > > -						vmf->address, &vmf->ptl);
-> > > > -		if (!pte_same(*vmf->pte, vmf->orig_pte)) {
-> > > > +		tmp = finish_mkwrite_fault(vmf);
-> > > > +		if (unlikely(!tmp || (tmp &
-> > > > +				      (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))) {
-> > > 
-> > > The 'tmp' return from finish_mkwrite_fault() can only be 0 or VM_FAULT_WRITE.
-> > > I think this test should just be 
-> > > 
-> > > 		if (unlikely(!tmp)) {
-> > 
-> > Right, finish_mkwrite_fault() cannot currently throw other errors than
-> > "retry needed" which is indicated by tmp == 0. However I'd prefer to keep
-> > symmetry with finish_fault() handler which can throw other errors and
-> > better be prepared to handle them from finish_mkwrite_fault() as well.
-> 
-> Fair enough.  You can add:
-> 
-> Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+On Thu, 20 Oct 2016, Dmitry Safonov wrote:
+> could you give attached patch a shot?
 
-Thanks. Actually, your question made me have a harder look at return values
-from finish_mkwrite_fault() and I've added one more commit switching the
-return values so that finish_mkwrite_fault() returns 0 on success and
-VM_FAULT_NOPAGE if PTE changed. That is less confusing and even more
-consistent with what finish_fault() returns.
+Can you please stop sending attached patches? It's a pain to look at them
+and it makes it hard to reply inline.
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+I applied it and rewrote the changelog because the one liner you slapped
+into it is more than useless. Ditto for the completely misleading subject
+line. Please be more careful with that. 
+
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
