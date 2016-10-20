@@ -1,101 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BF9C76B0038
-	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 12:29:46 -0400 (EDT)
-Received: by mail-it0-f71.google.com with SMTP id e203so115824577itc.0
-        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 09:29:46 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id h16si8166334ita.41.2016.10.20.09.29.45
+Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C23216B0069
+	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 15:26:49 -0400 (EDT)
+Received: by mail-vk0-f71.google.com with SMTP id h85so52938617vkc.6
+        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 12:26:49 -0700 (PDT)
+Received: from mail-qk0-f169.google.com (mail-qk0-f169.google.com. [209.85.220.169])
+        by mx.google.com with ESMTPS id j74si23117957vki.115.2016.10.20.12.26.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Oct 2016 09:29:45 -0700 (PDT)
-Subject: Re: [PATCH 0/1] mm/hugetlb: fix huge page reservation leak in private
- mapping error paths
-References: <1476933077-23091-1-git-send-email-mike.kravetz@oracle.com>
- <1012857651.1231744.1476978251733.JavaMail.zimbra@redhat.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <15eb1a2f-25f3-7d4a-e792-0b71bef6a720@oracle.com>
-Date: Thu, 20 Oct 2016 09:29:35 -0700
+        Thu, 20 Oct 2016 12:26:48 -0700 (PDT)
+Received: by mail-qk0-f169.google.com with SMTP id z190so113481976qkc.2
+        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 12:26:48 -0700 (PDT)
+Date: Thu, 20 Oct 2016 21:26:47 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 00/10] mm: adjust get_user_pages* functions to explicitly
+ pass FOLL_* flags
+Message-ID: <20161020192646.GC27342@dhcp22.suse.cz>
+References: <20161013002020.3062-1-lstoakes@gmail.com>
+ <20161018153050.GC13117@dhcp22.suse.cz>
+ <20161019085815.GA22239@lucifer>
+ <20161019090727.GE7517@dhcp22.suse.cz>
+ <5807A427.7010200@linux.intel.com>
+ <20161019170127.GN24393@dhcp22.suse.cz>
+ <5807AC2B.4090208@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <1012857651.1231744.1476978251733.JavaMail.zimbra@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5807AC2B.4090208@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Stancek <jstancek@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Michal Hocko <mhocko@suse.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Dave Hansen <dave.hansen@linux.intel.com>
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Lorenzo Stoakes <lstoakes@gmail.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, adi-buildroot-devel@lists.sourceforge.net, ceph-devel@vger.kernel.org, dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org, kvm@vger.kernel.org, linux-alpha@vger.kernel.org, linux-arm-kernel@lists.infradead.org, linux-cris-kernel@axis.com, linux-fbdev@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, linux-media@vger.kernel.org, linux-mips@linux-mips.org, linux-rdma@vger.kernel.org, linux-s390@vger.kernel.org, linux-samsung-soc@vger.kernel.org, linux-scsi@vger.kernel.org, linux-security-module@vger.kernel.org, linux-sh@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, netdev@vger.kernel.org, sparclinux@vger.kernel.org, x86@kernel.org
 
-On 10/20/2016 08:44 AM, Jan Stancek wrote:
+On Wed 19-10-16 10:23:55, Dave Hansen wrote:
+> On 10/19/2016 10:01 AM, Michal Hocko wrote:
+> > The question I had earlier was whether this has to be an explicit FOLL
+> > flag used by g-u-p users or we can just use it internally when mm !=
+> > current->mm
 > 
-> 
-> 
-> 
-> ----- Original Message -----
->> From: "Mike Kravetz" <mike.kravetz@oracle.com>
->> To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
->> Cc: "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, "Naoya Horiguchi" <n-horiguchi@ah.jp.nec.com>, "Michal
->> Hocko" <mhocko@suse.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, "Hillf Danton"
->> <hillf.zj@alibaba-inc.com>, "Dave Hansen" <dave.hansen@linux.intel.com>, "Jan Stancek" <jstancek@redhat.com>, "Mike
->> Kravetz" <mike.kravetz@oracle.com>
->> Sent: Thursday, 20 October, 2016 5:11:16 AM
->> Subject: [PATCH 0/1] mm/hugetlb: fix huge page reservation leak in private mapping error paths
->>
->> This issue was discovered by Jan Stancek as described in
->> https://lkml.kernel.org/r/57FF7BB4.1070202@redhat.com
->>
->> Error paths in hugetlb_cow() and hugetlb_no_page() do not properly clean
->> up reservation entries when freeing a newly allocated huge page.  This
->> issue was introduced with commit 67961f9db8c4 ("mm/hugetlb: fix huge page
->> reserve accounting for private mappings).  That commit uses the information
->> in private mapping reserve maps to determine if a reservation was already
->> consumed.  This is important in the case of hole punch and truncate as the
->> pages are released, but reservation entries are not restored.
->>
->> This patch restores the reserve entries in hugetlb_cow and hugetlb_no_page
->> such that reserve entries are consistent with the global reservation count.
->>
->> The huge page reservation code is quite hard to follow, and this patch
->> makes it even more complex.  One thought I had was to change the way
->> hole punch and truncate work so that private mapping pages are not thrown
->> away.  This would eliminate the need for this patch as well as 67961f9db8c4.
->> It would change the existing semantics (as seen by the user) in this area,
->> but I believe the documentation (man pages) say the behavior is unspecified.
->> This could be a future change as well as rewriting the existing reservation
->> code to make it easier to understand/maintain.  Thoughts?
->>
->> In any case, this patch addresses the immediate issue.
-> 
-> Mike,
-> 
-> Just to confirm, I ran this patch on my setup (without the patch from Aneesh)
-> with libhugetlbfs testsuite in loop for several hours. There were no
-> ENOMEM/OOM failures, I did not observe resv leak after it finished.
+> The reason I chose not to do that was that deferred work gets run under
+> a basically random 'current'.  If we just use 'mm != current->mm', then
+> the deferred work will sometimes have pkeys enforced and sometimes not,
+> basically randomly.
 
-Thanks for the testing Jan.
-
-I do not have access to a Power system, so I simulated the condition to
-test.
+OK, I see (async_pf_execute and ksm ). It makes more sense to me. Thanks
+for the clarification.
 
 -- 
-Mike Kravetz
-
-> 
-> Regards,
-> Jan
-> 
->>
->> Mike Kravetz (1):
->>   mm/hugetlb: fix huge page reservation leak in private mapping error
->>     paths
->>
->>  mm/hugetlb.c | 66
->>  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
->>  1 file changed, 66 insertions(+)
->>
->> --
->> 2.7.4
->>
->>
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
