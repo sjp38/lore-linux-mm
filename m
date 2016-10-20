@@ -1,113 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EB936B0253
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 19:17:52 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id q126so32643827vkd.4
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 16:17:52 -0700 (PDT)
-Received: from mail-vk0-x232.google.com (mail-vk0-x232.google.com. [2607:f8b0:400c:c05::232])
-        by mx.google.com with ESMTPS id e65si21069615vkd.49.2016.10.19.16.17.51
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E92C56B0038
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 23:11:39 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id n85so12600974pfi.7
+        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 20:11:39 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id h190si39663583pgc.331.2016.10.19.20.11.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Oct 2016 16:17:51 -0700 (PDT)
-Received: by mail-vk0-x232.google.com with SMTP id q126so48600231vkd.2
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 16:17:51 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <87pomwghda.fsf@xmission.com>
-References: <87twcbq696.fsf@x220.int.ebiederm.org> <20161018135031.GB13117@dhcp22.suse.cz>
- <8737jt903u.fsf@xmission.com> <20161018150507.GP14666@pc.thejh.net>
- <87twc9656s.fsf@xmission.com> <20161018191206.GA1210@laptop.thejh.net>
- <87r37dnz74.fsf@xmission.com> <87k2d5nytz.fsf_-_@xmission.com>
- <CALCETrU4SZYUEPrv4JkpUpA+0sZ=EirZRftRDp+a5hce5E7HgA@mail.gmail.com>
- <87y41kjn6l.fsf@xmission.com> <20161019172917.GE1210@laptop.thejh.net>
- <CALCETrWSY1SRse5oqSwZ=goQ+ZALd2XcTP3SZ8ry49C8rNd98Q@mail.gmail.com>
- <87pomwi5p2.fsf@xmission.com> <CALCETrUz2oU6OYwQ9K4M-SUg6FeDsd6Q1gf1w-cJRGg2PdmK8g@mail.gmail.com>
- <87pomwghda.fsf@xmission.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Wed, 19 Oct 2016 16:17:30 -0700
-Message-ID: <CALCETrXA2EnE8X3HzetLG6zS8YSVjJQJrsSumTfvEcGq=r5vsw@mail.gmail.com>
-Subject: Re: [REVIEW][PATCH] exec: Don't exec files the userns root can not read.
-Content-Type: text/plain; charset=UTF-8
+        Wed, 19 Oct 2016 20:11:39 -0700 (PDT)
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Subject: [PATCH 0/1] mm/hugetlb: fix huge page reservation leak in private mapping error paths
+Date: Wed, 19 Oct 2016 20:11:16 -0700
+Message-Id: <1476933077-23091-1-git-send-email-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Containers <containers@lists.linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jann Horn <jann@thejh.net>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Michal Hocko <mhocko@suse.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jan Stancek <jstancek@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On Oct 19, 2016 2:28 PM, "Eric W. Biederman" <ebiederm@xmission.com> wrote:
->
-> Andy Lutomirski <luto@amacapital.net> writes:
->
-> > On Wed, Oct 19, 2016 at 10:55 AM, Eric W. Biederman
-> > <ebiederm@xmission.com> wrote:
-> >> Andy Lutomirski <luto@amacapital.net> writes:
-> >>
-> >>> On Wed, Oct 19, 2016 at 10:29 AM, Jann Horn <jann@thejh.net> wrote:
-> >>>> On Wed, Oct 19, 2016 at 11:52:50AM -0500, Eric W. Biederman wrote:
-> >>>>> Andy Lutomirski <luto@amacapital.net> writes:
-> >>>>> > Simply ptrace yourself, exec the
-> >>>>> > program, and then dump the program out.  A program that really wants
-> >>>>> > to be unreadable should have a stub: the stub is setuid and readable,
-> >>>>> > but all the stub does is to exec the real program, and the real
-> >>>>> > program should have mode 0500 or similar.
-> >>>>> >
-> >>>>> > ISTM the "right" check would be to enforce that the program's new
-> >>>>> > creds can read the program, but that will break backwards
-> >>>>> > compatibility.
-> >>>>>
-> >>>>> Last I looked I had the impression that exec of a setuid program kills
-> >>>>> the ptrace.
-> >>>>>
-> >>>>> If we are talking about a exec of a simple unreadable executable (aka
-> >>>>> something that sets undumpable but is not setuid or setgid).  Then I
-> >>>>> agree it should break the ptrace as well and since those programs are as
-> >>>>> rare as hens teeth I don't see any problem with changing the ptrace behavior
-> >>>>> in that case.
-> >>>>
-> >>>> Nope. check_unsafe_exec() sets LSM_UNSAFE_* flags in bprm->unsafe, and then
-> >>>> the flags are checked by the LSMs and cap_bprm_set_creds() in commoncap.c.
-> >>>> cap_bprm_set_creds() just degrades the execution to a non-setuid-ish one,
-> >>>> and e.g. ptracers stay attached.
-> >>>
-> >>> I think you're right.  I ought to be completely sure because I rewrote
-> >>> that code back in 2005 or so back when I thought kernel programming
-> >>> was only for the cool kids.  It was probably my first kernel patch
-> >>> ever and it closed an awkward-to-exploit root hole.  But it's been a
-> >>> while.  (Too bad my second (IIRC) kernel patch was more mundane and
-> >>> fixed the mute button on "new" Lenovo X60-era laptops and spend
-> >>> several years in limbo...)
-> >>
-> >> Ah yes and this is only a problem if the ptracer does not have
-> >> CAP_SYS_PTRACE.
-> >>
-> >> If the tracer does not have sufficient permissions any opinions on
-> >> failing the exec or kicking out the ptracer?  I am leaning towards failing
-> >> the exec as it is more obvious if someone cares.  Dropping the ptracer
-> >> could be a major mystery.
-> >
-> > I would suggest leaving it alone.  Changing it could break enough
-> > things that a sysctl would be needed, and I just don't see how this is
-> > a significant issue, especially since it's been insecure forever.
-> > Anyone who cares should do the stub executable trick:
-> >
-> > /sbin/foo: 04755, literally just does execve("/sbin/foo-helper");
-> >
-> > /sbin/foo-helper: 0500.
->
-> I can't imagine what non-malware would depend on being able to
-> circumvent file permissions and ptrace a read-only executable.  Is there
-> something you are thinking of?
+This issue was discovered by Jan Stancek as described in
+https://lkml.kernel.org/r/57FF7BB4.1070202@redhat.com
 
-$ strace sudo foobar
+Error paths in hugetlb_cow() and hugetlb_no_page() do not properly clean
+up reservation entries when freeing a newly allocated huge page.  This
+issue was introduced with commit 67961f9db8c4 ("mm/hugetlb: fix huge page
+reserve accounting for private mappings).  That commit uses the information
+in private mapping reserve maps to determine if a reservation was already
+consumed.  This is important in the case of hole punch and truncate as the
+pages are released, but reservation entries are not restored.
 
-or
+This patch restores the reserve entries in hugetlb_cow and hugetlb_no_page
+such that reserve entries are consistent with the global reservation count.
 
-$ strace auditctl
+The huge page reservation code is quite hard to follow, and this patch
+makes it even more complex.  One thought I had was to change the way
+hole punch and truncate work so that private mapping pages are not thrown
+away.  This would eliminate the need for this patch as well as 67961f9db8c4.
+It would change the existing semantics (as seen by the user) in this area,
+but I believe the documentation (man pages) say the behavior is unspecified.
+This could be a future change as well as rewriting the existing reservation
+code to make it easier to understand/maintain.  Thoughts?
 
-I find the current behavior somewhat odd, but I've taken advantage of
-it on a semi-regular basis.
+In any case, this patch addresses the immediate issue.
 
-That being said, the "May the user_ns root read the executable?" test
-in your patch is not strictly correct.  Do we keep a struct cred
-around for the ns root?
+Mike Kravetz (1):
+  mm/hugetlb: fix huge page reservation leak in private mapping error
+    paths
+
+ mm/hugetlb.c | 66 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 66 insertions(+)
+
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
