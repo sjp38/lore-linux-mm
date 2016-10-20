@@ -1,50 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 079016B0253
-	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 09:28:46 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id y9so35794856ywy.2
-        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 06:28:46 -0700 (PDT)
-Received: from mail-qt0-f182.google.com (mail-qt0-f182.google.com. [209.85.216.182])
-        by mx.google.com with ESMTPS id b47si1351341uaa.154.2016.10.20.06.28.45
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9388C6B0253
+	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 09:34:00 -0400 (EDT)
+Received: by mail-vk0-f72.google.com with SMTP id 83so46538776vkd.3
+        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 06:34:00 -0700 (PDT)
+Received: from mail-qk0-f196.google.com (mail-qk0-f196.google.com. [209.85.220.196])
+        by mx.google.com with ESMTPS id i1si19450253vkb.15.2016.10.20.06.33.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Oct 2016 06:28:45 -0700 (PDT)
-Received: by mail-qt0-f182.google.com with SMTP id f6so55602944qtd.2
-        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 06:28:45 -0700 (PDT)
-Date: Thu, 20 Oct 2016 15:28:43 +0200
+        Thu, 20 Oct 2016 06:33:59 -0700 (PDT)
+Received: by mail-qk0-f196.google.com with SMTP id v138so4555268qka.2
+        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 06:33:59 -0700 (PDT)
+Date: Thu, 20 Oct 2016 15:33:58 +0200
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] bdi flusher should not be throttled here when it fall
- into buddy slow path
-Message-ID: <20161020132842.GM14609@dhcp22.suse.cz>
-References: <1476774765-21130-1-git-send-email-zhouxianrong@huawei.com>
- <1476967085-89647-1-git-send-email-zhouxianrong@huawei.com>
+Subject: Re: [RFC] fs/proc/meminfo: introduce Unaccounted statistic
+Message-ID: <20161020133358.GN14609@dhcp22.suse.cz>
+References: <20161020121149.9935-1-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1476967085-89647-1-git-send-email-zhouxianrong@huawei.com>
+In-Reply-To: <20161020121149.9935-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhouxianrong@huawei.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, viro@zeniv.linux.org.uk, mingo@redhat.com, peterz@infradead.org, hannes@cmpxchg.org, mgorman@techsingularity.net, vbabka@suse.cz, vdavydov.dev@gmail.com, minchan@kernel.org, riel@redhat.com, zhouxiyu@huawei.com, zhangshiming5@huawei.com, won.ho.park@huawei.com, tuxiaobing@huawei.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>
 
-On Thu 20-10-16 20:38:05, zhouxianrong@huawei.com wrote:
-> From: z00281421 <z00281421@notesmail.huawei.com>
-> 
-> The bdi flusher should be throttled only depends on 
-> own bdi and is decoupled with others.
-> 
-> separate PGDAT_WRITEBACK into PGDAT_ANON_WRITEBACK and
-> PGDAT_FILE_WRITEBACK avoid scanning anon lru and it is ok 
-> then throttled on file WRITEBACK.
+On Thu 20-10-16 14:11:49, Vlastimil Babka wrote:
+[...]
+> Hi, I'm wondering if people would find this useful. If you think it is, and
+> to not make performance worse, I could also make sure in proper submission
+> that values are not read via global_page_state() multiple times etc...
 
-Could you please answer questions from
-http://lkml.kernel.org/r/20161018114207.GD12092@dhcp22.suse.cz before
-coming up with new and even more complex patches please?
-
-I would really like to understand the issue you are seeing before
-jumping into patches...
-
-Thanks!
+I definitely find this information useful and hate to do the math all
+the time but on the other hand this is quite fragile and I can imagine
+we can easily forget to add something there and provide a misleading
+information to the userspace. So I would be worried with a long term
+maintainability of this.
 -- 
 Michal Hocko
 SUSE Labs
