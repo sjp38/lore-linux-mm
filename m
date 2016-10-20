@@ -1,168 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 75A366B0253
-	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 23:11:41 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id t25so12571144pfg.3
-        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 20:11:41 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id sv6si32741271pab.230.2016.10.19.20.11.39
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E0AF6B0253
+	for <linux-mm@kvack.org>; Wed, 19 Oct 2016 23:14:01 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id n3so21514769lfn.5
+        for <linux-mm@kvack.org>; Wed, 19 Oct 2016 20:14:01 -0700 (PDT)
+Received: from tartarus.angband.pl (tartarus.angband.pl. [2a03:9300:10::8])
+        by mx.google.com with ESMTPS id 64si5253530lfs.73.2016.10.19.20.13.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 19 Oct 2016 20:11:39 -0700 (PDT)
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH 1/1] mm/hugetlb: fix huge page reservation leak in private mapping error paths
-Date: Wed, 19 Oct 2016 20:11:17 -0700
-Message-Id: <1476933077-23091-2-git-send-email-mike.kravetz@oracle.com>
-In-Reply-To: <1476933077-23091-1-git-send-email-mike.kravetz@oracle.com>
-References: <1476933077-23091-1-git-send-email-mike.kravetz@oracle.com>
+        Wed, 19 Oct 2016 20:13:59 -0700 (PDT)
+Date: Thu, 20 Oct 2016 05:13:54 +0200
+From: Adam Borowski <kilobyte@angband.pl>
+Subject: Re: x32 is broken in 4.9-rc1 due to "x86/signal: Add
+ SA_{X32,IA32}_ABI sa_flags"
+Message-ID: <20161020031354.GA9074@angband.pl>
+References: <alpine.LRH.2.02.1610191311010.24555@file01.intranet.prod.int.rdu2.redhat.com>
+ <alpine.LRH.2.02.1610191329500.29288@file01.intranet.prod.int.rdu2.redhat.com>
+ <CAJwJo6Z8ZWPqNfT6t-i8GW1MKxQrKDUagQqnZ+0+697=MyVeGg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJwJo6Z8ZWPqNfT6t-i8GW1MKxQrKDUagQqnZ+0+697=MyVeGg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Michal Hocko <mhocko@suse.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jan Stancek <jstancek@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, stable@vger.kernel.org
+To: Dmitry Safonov <0x7f454c46@gmail.com>
+Cc: Mikulas Patocka <mpatocka@redhat.com>, Dmitry Safonov <dsafonov@virtuozzo.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, open list <linux-kernel@vger.kernel.org>
 
-Error paths in hugetlb_cow() and hugetlb_no_page() may free a newly
-allocated huge page.  If a reservation was associated with the huge
-page, alloc_huge_page() consumed the reservation while allocating.
-When the newly allocated page is freed in free_huge_page(), it will
-increment the global reservation count.  However, the reservation entry
-in the reserve map will remain.  This is not an issue for shared
-mappings as the entry in the reserve map indicates a reservation exists.
-But, an entry in a private mapping reserve map indicates the reservation
-was consumed and no longer exists.  This results in an inconsistency
-between the reserve map and the global reservation count.  This 'leaks'
-a reserved huge page.
+On Thu, Oct 20, 2016 at 01:02:59AM +0300, Dmitry Safonov wrote:
+> 2016-10-19 20:33 GMT+03:00 Mikulas Patocka <mpatocka@redhat.com>:
+> > On Wed, 19 Oct 2016, Mikulas Patocka wrote:
+> >> In the kernel 4.9-rc1, the x32 support is seriously broken, a x32 process
+> >> is killed with SIGKILL after returning from any signal handler.
+> >
+> > I should have said they are killed with SIGSEGV, not SIGKILL.
+> >
+> >> I use Debian sid x64-64 distribution with x32 architecture added from
+> >> debian-ports.
+> >>
+> >> I bisected the bug and found out that it is caused by the patch
+> >> 6846351052e685c2d1428e80ead2d7ca3d7ed913 ("x86/signal: Add
+> >> SA_{X32,IA32}_ABI sa_flags").
+> >
+> > So, the kernel somehow thinks that it is i386 process, not x32 process. A
+> > core dump of a real x32 process shows "Class: ELF32, Machine: Advanced
+> > Micro Devices X86-64".
+> 
+> could you give attached patch a shot?
+> In about 10 hours I'll be at work and will have debian-x32 install,
+> but for now, I can't test it.
+> Thanks again on catching that.
+> 
 
-Create a new routine restore_reserve_on_error() to restore the reserve
-entry in these specific error paths.  This routine makes use of a new
-function vma_add_reservation() which will add a reserve entry for a
-specific address/page.
+> From a546f8da1d12676fe79c746d859eb1e17aa4c331 Mon Sep 17 00:00:00 2001
+> From: Dmitry Safonov <0x7f454c46@gmail.com>
+> Date: Thu, 20 Oct 2016 00:53:08 +0300
+> Subject: [PATCH] x86/signal: set SA_X32_ABI flag for x32 programs
+> 
+> For x32 programs cs register is __USER_CS, so it returns here
+> unconditionally - remove this check completely here.
+> 
+> Fixes: commit 6846351052e6 ("x86/signal: Add SA_{X32,IA32}_ABI sa_flags")
+> 
+> Reported-by: Mikulas Patocka <mpatocka@redhat.com>
+> Signed-off-by: Dmitry Safonov <0x7f454c46@gmail.com>
+> ---
+>  arch/x86/kernel/signal_compat.c | 3 ---
+>  1 file changed, 3 deletions(-)
+> 
+> diff --git a/arch/x86/kernel/signal_compat.c b/arch/x86/kernel/signal_compat.c
+> index 40df33753bae..ec1f756f9dc9 100644
+> --- a/arch/x86/kernel/signal_compat.c
+> +++ b/arch/x86/kernel/signal_compat.c
+> @@ -105,9 +105,6 @@ void sigaction_compat_abi(struct k_sigaction *act, struct k_sigaction *oact)
+>  	/* Don't let flags to be set from userspace */
+>  	act->sa.sa_flags &= ~(SA_IA32_ABI | SA_X32_ABI);
+>  
+> -	if (user_64bit_mode(current_pt_regs()))
+> -		return;
+> -
+>  	if (in_ia32_syscall())
+>  		act->sa.sa_flags |= SA_IA32_ABI;
+>  	if (in_x32_syscall())
+> -- 
+> 2.10.0
 
-In general, these error paths were rarely (if ever) taken on most
-architectures.  However, powerpc contained arch specific code that
-that resulted in an extra fault and execution of these error paths
-on all private mappings.
+Works for me.  Tested on general operation, a few by-hand checks and several
+random package builds.
 
-Fixes: 67961f9db8c4 ("mm/hugetlb: fix huge page reserve accounting for private mappings)
+It'd be nice to check glibc's testsuite as well as it had recent regressions
+caused by kernel changes on x32 (like https://bugs.debian.org/841240) but as
+gcc-6 in sid is broken right now (fails to build kernel, glibc:amd64, etc),
+I didn't bother that much.
 
-Cc: stable@vger.kernel.org
-Reported-by: Jan Stancek <jstancek@redhat.com>
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
----
- mm/hugetlb.c | 66 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 66 insertions(+)
+Tested-by: Adam Borowski <kilobyte@angband.pl>
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index ec49d9e..418bf01 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1826,11 +1826,17 @@ static void return_unused_surplus_pages(struct hstate *h,
-  * is not the case is if a reserve map was changed between calls.  It
-  * is the responsibility of the caller to notice the difference and
-  * take appropriate action.
-+ *
-+ * vma_add_reservation is used in error paths where a reservation must
-+ * be restored when a newly allocated huge page must be freed.  It is
-+ * to be called after calling vma_needs_reservation to determine if a
-+ * reservation exists.
-  */
- enum vma_resv_mode {
- 	VMA_NEEDS_RESV,
- 	VMA_COMMIT_RESV,
- 	VMA_END_RESV,
-+	VMA_ADD_RESV,
- };
- static long __vma_reservation_common(struct hstate *h,
- 				struct vm_area_struct *vma, unsigned long addr,
-@@ -1856,6 +1862,14 @@ static long __vma_reservation_common(struct hstate *h,
- 		region_abort(resv, idx, idx + 1);
- 		ret = 0;
- 		break;
-+	case VMA_ADD_RESV:
-+		if (vma->vm_flags & VM_MAYSHARE)
-+			ret = region_add(resv, idx, idx + 1);
-+		else {
-+			region_abort(resv, idx, idx + 1);
-+			ret = region_del(resv, idx, idx + 1);
-+		}
-+		break;
- 	default:
- 		BUG();
- 	}
-@@ -1903,6 +1917,56 @@ static void vma_end_reservation(struct hstate *h,
- 	(void)__vma_reservation_common(h, vma, addr, VMA_END_RESV);
- }
- 
-+static long vma_add_reservation(struct hstate *h,
-+			struct vm_area_struct *vma, unsigned long addr)
-+{
-+	return __vma_reservation_common(h, vma, addr, VMA_ADD_RESV);
-+}
-+
-+/*
-+ * This routine is called to restore a reservation on error paths.  In the
-+ * specific error paths, a huge page was allocated (via alloc_huge_page)
-+ * and is about to be freed.  If a reservation for the page existed,
-+ * alloc_huge_page would have consumed the reservation and set PagePrivate
-+ * in the newly allocated page.  When the page is freed via free_huge_page,
-+ * the global reservation count will be incremented if PagePrivate is set.
-+ * However, free_huge_page can not adjust the reserve map.  Adjust the
-+ * reserve map here to be consistent with global reserve count adjustments
-+ * to be made by free_huge_page.
-+ */
-+static void restore_reserve_on_error(struct hstate *h,
-+			struct vm_area_struct *vma, unsigned long address,
-+			struct page *page)
-+{
-+	if (unlikely(PagePrivate(page))) {
-+		long rc = vma_needs_reservation(h, vma, address);
-+
-+		if (unlikely(rc < 0)) {
-+			/*
-+			 * Rare out of memory condition in reserve map
-+			 * manipulation.  Clear PagePrivate so that
-+			 * global reserve count will not be incremented
-+			 * by free_huge_page.  This will make it appear
-+			 * as though the reservation for this page was
-+			 * consumed.  This may prevent the task from
-+			 * faulting in the page at a later time.  This
-+			 * is better than inconsistent global huge page
-+			 * accounting of reserve counts.
-+			 */
-+			ClearPagePrivate(page);
-+		} else if (rc) {
-+			rc = vma_add_reservation(h, vma, address);
-+			if (unlikely(rc < 0))
-+				/*
-+				 * See above comment about rare out of
-+				 * memory condition.
-+				 */
-+				ClearPagePrivate(page);
-+		} else
-+			vma_end_reservation(h, vma, address);
-+	}
-+}
-+
- struct page *alloc_huge_page(struct vm_area_struct *vma,
- 				    unsigned long addr, int avoid_reserve)
- {
-@@ -3498,6 +3562,7 @@ retry_avoidcopy:
- 	spin_unlock(ptl);
- 	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end);
- out_release_all:
-+	restore_reserve_on_error(h, vma, address, new_page);
- 	put_page(new_page);
- out_release_old:
- 	put_page(old_page);
-@@ -3680,6 +3745,7 @@ backout:
- 	spin_unlock(ptl);
- backout_unlocked:
- 	unlock_page(page);
-+	restore_reserve_on_error(h, vma, address, page);
- 	put_page(page);
- 	goto out;
- }
 -- 
-2.7.4
+A MAP07 (Dead Simple) raspberry tincture recipe: 0.5l 95% alcohol, 1kg
+raspberries, 0.4kg sugar; put into a big jar for 1 month.  Filter out and
+throw away the fruits (can dump them into a cake, etc), let the drink age
+at least 3-6 months.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
