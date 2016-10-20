@@ -1,54 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CE186B0069
-	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 18:59:33 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id h24so37166605pfh.0
-        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 15:59:33 -0700 (PDT)
-Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
-        by mx.google.com with ESMTP id h5si39132295pal.201.2016.10.20.15.59.31
-        for <linux-mm@kvack.org>;
-        Thu, 20 Oct 2016 15:59:32 -0700 (PDT)
-Date: Fri, 21 Oct 2016 09:59:29 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [RFC] fs/proc/meminfo: introduce Unaccounted statistic
-Message-ID: <20161020225929.GP23194@dastard>
-References: <20161020121149.9935-1-vbabka@suse.cz>
- <20161020133358.GN14609@dhcp22.suse.cz>
-MIME-Version: 1.0
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A076A6B025E
+	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 19:10:40 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id f129so137441273itc.7
+        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 16:10:40 -0700 (PDT)
+Received: from mail-it0-x242.google.com (mail-it0-x242.google.com. [2607:f8b0:4001:c0b::242])
+        by mx.google.com with ESMTPS id a7si1522391ioe.155.2016.10.20.16.10.40
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 20 Oct 2016 16:10:40 -0700 (PDT)
+Received: by mail-it0-x242.google.com with SMTP id k64so8496367itb.0
+        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 16:10:40 -0700 (PDT)
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161020133358.GN14609@dhcp22.suse.cz>
+Mime-Version: 1.0 (Mac OS X Mail 8.2 \(2104\))
+Subject: Re: [RFC] scripts: Include postprocessing script for memory allocation tracing
+From: Janani Ravichandran <janani.rvchndrn@gmail.com>
+In-Reply-To: <20161018131343.GJ12092@dhcp22.suse.cz>
+Date: Thu, 20 Oct 2016 18:10:37 -0500
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <4F0F918D-B98A-48EC-82ED-EE7D32F222EA@gmail.com>
+References: <20160912121635.GL14524@dhcp22.suse.cz> <0ACE5927-A6E5-4B49-891D-F990527A9F50@gmail.com> <20160919094224.GH10785@dhcp22.suse.cz> <BFAF8DCA-F4A6-41C6-9AA0-C694D33035A3@gmail.com> <20160923080709.GB4478@dhcp22.suse.cz> <E8FAA4EF-DAA1-4E18-B48F-6677E6AFE76E@gmail.com> <2D27EF16-B63B-4516-A156-5E2FB675A1BB@gmail.com> <20161016073340.GA15839@dhcp22.suse.cz> <CANnt6X=RpSnuxGXZfF6Qa5mJpzC8gL3wkKJi3tQMZJBZJVWF3w@mail.gmail.com> <A6E7231A-54FF-4D5C-90F5-0A8C4126CFEA@gmail.com> <20161018131343.GJ12092@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>
+Cc: Janani Ravichandran <janani.rvchndrn@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Oct 20, 2016 at 03:33:58PM +0200, Michal Hocko wrote:
-> On Thu 20-10-16 14:11:49, Vlastimil Babka wrote:
-> [...]
-> > Hi, I'm wondering if people would find this useful. If you think it is, and
-> > to not make performance worse, I could also make sure in proper submission
-> > that values are not read via global_page_state() multiple times etc...
-> 
-> I definitely find this information useful and hate to do the math all
-> the time but on the other hand this is quite fragile and I can imagine
-> we can easily forget to add something there and provide a misleading
-> information to the userspace. So I would be worried with a long term
-> maintainability of this.
+Michal,
 
-This will result in valid memory usage by subsystems like the XFS
-buffer cache being reported as "unaccounted". Given this cache
-(whose size is shrinker controlled) can grow to gigabytes in size
-under various metadata intensive workloads, there's every chance
-that such reporting will make users incorrectly think they have a
-massive memory leak....
+> On Oct 18, 2016, at 8:13 AM, Michal Hocko <mhocko@kernel.org> wrote:
+>=20
+>>=20
+>=20
+> yes, function_graph tracer will give you _some_ information but it =
+will
+> not have the context you are looking for, right? See the following
+> example
+>=20
+> ------------------------------------------
+> 0) x-www-b-22756  =3D>  x-termi-4083=20
+> ------------------------------------------
+>=20
+> 0)               |  __alloc_pages_nodemask() {
+> 0)               |  /* mm_page_alloc: page=3Dffffea000411b380 =
+pfn=3D1066702 order=3D0 migratetype=3D0 gfp_flags=3DGFP_KERNEL */
+> 0)   3.328 us    |  }
+> 3)               |  __alloc_pages_nodemask() {
+> 3)               |  /* mm_page_alloc: page=3Dffffea0008f1f6c0 =
+pfn=3D2344923 order=3D0 migratetype=3D0 gfp_flags=3DGFP_KERNEL */
+> 3)   1.011 us    |  }
+> 0)               |  __alloc_pages_nodemask() {
+> 0)               |  /* mm_page_alloc: page=3Dffffea000411b380 =
+pfn=3D1066702 order=3D0 migratetype=3D0 gfp_flags=3DGFP_KERNEL */
+> 0)   0.587 us    |  }
+> 3)               |  __alloc_pages_nodemask() {
+> 3)               |  /* mm_page_alloc: page=3Dffffea0008f1f6c0 =
+pfn=3D2344923 order=3D0 migratetype=3D0 gfp_flags=3DGFP_KERNEL */
+> 3)   1.125 us    |  }
+>=20
+> How do I know which process has performed those allocations? I know =
+that
+> CPU0 should be running x-termi-4083 but what is running on other CPUs?
+>=20
+> Let me explain my usecase I am very interested in. Say I that a =
+usespace
+> application is not performing well. I would like to see some =
+statistics
+> about memory allocations performed for that app - are there few =
+outliers
+> or the allocation stalls increase gradually? Where do we spend time =
+during
+> that allocation? Reclaim LRU pages? Compaction or the slab shrinkers?
+>=20
+> To answer those questions I need to track particular events =
+(alocation,
+> reclaim, compaction) to the process and know how long each step
+> took. Maybe we can reconstruct something from the above output but it =
+is
+> a major PITA.  If we either hard start/stop pairs for each step (which
+> we already do have for reclaim, compaction AFAIR) then this is an easy
+> scripting. Another option would be to have only a single tracepoint =
+for
+> each step with a timing information.
+>=20
+> See my point?
 
-Cheers,
+Yes, if we want to know what processes are running on what CPUs,
+echo funcgraph-proc > trace_options in the tracing directory should give =
+us
+what we want.
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+The bash script which is part of this patch does this kind of setup for =
+you.
+As a result, the output you get is something like what you see here:
+
+=
+https://github.com/Jananiravichandran/Analyzing-tracepoints/blob/master/no=
+_tp_no_threshold.txt
+
+Does this answer your question? Let me know if otherwise.
+
+Janani.
+
+> --=20
+> Michal Hocko
+> SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
