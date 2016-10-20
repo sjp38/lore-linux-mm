@@ -1,103 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BBAF6B0038
-	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 11:15:41 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id z65so113271984itc.2
-        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 08:15:41 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id sm3si37942600pac.261.2016.10.20.08.15.36
+Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E6DD16B0038
+	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 11:22:47 -0400 (EDT)
+Received: by mail-yb0-f197.google.com with SMTP id 191so79772119ybv.2
+        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 08:22:47 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 45si166100uac.24.2016.10.20.08.22.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Oct 2016 08:15:36 -0700 (PDT)
-Message-ID: <1476976532.3002.6.camel@linux.intel.com>
-Subject: Re: [Intel-gfx] [PATCH 1/2] shmem: Support for registration of
- Driver/file owner specific ops
-From: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-Date: Thu, 20 Oct 2016 18:15:32 +0300
-In-Reply-To: <CAK_0AV3KKVZOr6WRtFOox-WKQ0wR34ry-hnR=O7aMX8DhgcGhA@mail.gmail.com>
-References: <1458713384-25688-1-git-send-email-akash.goel@intel.com>
-	 <1458821494.7860.9.camel@linux.intel.com>
-	 <CAK_0AV3KKVZOr6WRtFOox-WKQ0wR34ry-hnR=O7aMX8DhgcGhA@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Thu, 20 Oct 2016 08:22:46 -0700 (PDT)
+Date: Thu, 20 Oct 2016 11:22:42 -0400 (EDT)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: x32 is broken in 4.9-rc1 due to "x86/signal: Add SA_{X32,IA32}_ABI
+ sa_flags"
+In-Reply-To: <CAJwJo6Z8ZWPqNfT6t-i8GW1MKxQrKDUagQqnZ+0+697=MyVeGg@mail.gmail.com>
+Message-ID: <alpine.LRH.2.02.1610201122040.442@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1610191311010.24555@file01.intranet.prod.int.rdu2.redhat.com> <alpine.LRH.2.02.1610191329500.29288@file01.intranet.prod.int.rdu2.redhat.com> <CAJwJo6Z8ZWPqNfT6t-i8GW1MKxQrKDUagQqnZ+0+697=MyVeGg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: MULTIPART/MIXED; BOUNDARY="185206533-198811295-1476976964=:442"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akash goel <akash.goels@gmail.com>, Chris Wilson <chris@chris-wilson.co.uk>
-Cc: intel-gfx@lists.freedesktop.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Sourab Gupta <sourab.gupta@intel.com>, "Goel, Akash" <akash.goel@intel.com>
+To: Dmitry Safonov <0x7f454c46@gmail.com>
+Cc: Dmitry Safonov <dsafonov@virtuozzo.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, open list <linux-kernel@vger.kernel.org>
 
-On ke, 2016-10-19 at 20:41 +0530, akash goel wrote:
-> On Thu, Mar 24, 2016 at 5:41 PM, Joonas Lahtinen
-> > <joonas.lahtinen@linux.intel.com> wrote:
-> > On ke, 2016-03-23 at 11:39 +0530, akash.goel@intel.com wrote:
-> > > @@ -34,11 +34,28 @@ struct shmem_sb_info {
-> > > A A A A A A struct mempolicy *mpol;A A A A A /* default memory policy for mappings */
-> > > A };
-> > > 
-> > > +struct shmem_dev_info {
-> > > +A A A A A void *dev_private_data;
-> > > +A A A A A int (*dev_migratepage)(struct address_space *mapping,
-> > > +A A A A A A A A A A A A A A A A A A A A A A A A A A A A struct page *newpage, struct page *page,
-> > > +A A A A A A A A A A A A A A A A A A A A A A A A A A A A enum migrate_mode mode, void *dev_priv_data);
-> > 
-> > One might want to have a separate shmem_dev_operations struct or
-> > similar.
-> > 
-> Sorry for the very late turnaround.
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
+
+--185206533-198811295-1476976964=:442
+Content-Type: TEXT/PLAIN; charset=UTF-8
+Content-Transfer-Encoding: 8BIT
+
+
+
+On Thu, 20 Oct 2016, Dmitry Safonov wrote:
+
+> 2016-10-19 20:33 GMT+03:00 Mikulas Patocka <mpatocka@redhat.com>:
+> >
+> >
+> > On Wed, 19 Oct 2016, Mikulas Patocka wrote:
+> >
+> >> Hi
+> >>
+> >> In the kernel 4.9-rc1, the x32 support is seriously broken, a x32 process
+> >> is killed with SIGKILL after returning from any signal handler.
+> >
+> > I should have said they are killed with SIGSEGV, not SIGKILL.
+> >
+> >> I use Debian sid x64-64 distribution with x32 architecture added from
+> >> debian-ports.
+> >>
+> >> I bisected the bug and found out that it is caused by the patch
+> >> 6846351052e685c2d1428e80ead2d7ca3d7ed913 ("x86/signal: Add
+> >> SA_{X32,IA32}_ABI sa_flags").
+> >>
+> >> example (strace of a process after receiving the SIGWINCH signal):
+> >>
+> >> epoll_wait(10, 0xef6890, 32, -1)        = -1 EINTR (Interrupted system call)
+> >> --- SIGWINCH {si_signo=SIGWINCH, si_code=SI_USER, si_pid=1772, si_uid=0} ---
+> >> poll([{fd=4, events=POLLOUT}], 1, 0)    = 1 ([{fd=4, revents=POLLOUT}])
+> >> write(4, "\0", 1)                       = 1
+> >> rt_sigreturn({mask=[INT QUIT ILL TRAP BUS KILL SEGV USR2 PIPE ALRM STKFLT TSTP TTOU URG XCPU XFSZ VTALRM IO PWR SYS RTMIN]}) = 0
+> >> --- SIGSEGV {si_signo=SIGSEGV, si_code=SI_KERNEL, si_addr=NULL} ---
+> >> +++ killed by SIGSEGV +++
+> >> NeoprA!vnA!nA 1/2  pA,A-stup do pamA!ti (SIGSEGV)
+> >>
+> >> Mikulas
+> >
+> > BTW. when I take core dump of the killed x32 process, it shows:
+> >
+> > ELF Header:
+> >   Magic:   7f 45 4c 46 01 01 01 00 00 00 00 00 00 00 00 00
+> >   Class:                             ELF32
+> >   Data:                              2's complement, little endian
+> >   Version:                           1 (current)
+> >   OS/ABI:                            UNIX - System V
+> >   ABI Version:                       0
+> >   Type:                              CORE (Core file)
+> >   Machine:                           Intel 80386
+> >                                 ^^^^^^^^^^^^^^^^^^^
+> >
+> > So, the kernel somehow thinks that it is i386 process, not x32 process. A
+> > core dump of a real x32 process shows "Class: ELF32, Machine: Advanced
+> > Micro Devices X86-64".
 > 
-> Sorry couldn't get your point here. Are you suggesting to rename the
-> structure to shmem_dev_operations ?
-
-I'm pretty sure I was after putting migratepage function pointer in
-shmem_dev_operations struct, but I think that can be done once there
-are more functions.
-
-s/dev_private_data/private_data/ and s/dev_priv_data/private_data/
-might be in order, too. I should be obvious from context.
-
-> > > +};
-> > > +
-> > > A static inline struct shmem_inode_info *SHMEM_I(struct inode *inode)
-> > > A {
-> > > A A A A A A return container_of(inode, struct shmem_inode_info, vfs_inode);
-> > > A }
-> > > 
-> > > +static inline int shmem_set_device_ops(struct address_space *mapping,
-> > > +A A A A A A A A A A A A A A A A A A A A A A A A A A A A A struct shmem_dev_info *info)
-> > > +{
-
-This name could be shmem_set_dev_info, if there will be separate _ops
-struct in future.
-
-> > > +A A A A A if (mapping->private_data != NULL)
-> > > +A A A A A A A A A A A A A return -EEXIST;
-> > > +
-> > 
-> > I did a quick random peek and most set functions are just void and
-> > override existing data. I'd suggest the same.
-> > 
-> > > 
-> > > +A A A A A mapping->private_data = info;
-> > 
-> Fine will change the return type to void and remove the check.
+> Hi Mikulas,
 > 
-> > 
-> > Also, doesn't this kinda steal the mapping->private_data, might that be
-> > unexpected for the user? I notice currently it's not being touched at
-> > all.
-> > 
-> Sorry by User do you mean the shmem client who called shmem_file_setup() ?
-> It seems clients are not expected to touch mapping->private_data and
-> so shmemfs can safely use it.
+> could you give attached patch a shot?
+> In about 10 hours I'll be at work and will have debian-x32 install,
+> but for now, I can't test it.
+> Thanks again on catching that.
+> 
+> -- 
+>              Dmitry
 
-If it's not used by others, should be fine. Not sure if WARN would be
-in place, Chris?
+Yes, it fixes the bug.
 
-Regards, Joonas
--- 
-Joonas Lahtinen
-Open Source Technology Center
-Intel Corporation
+Mikulas
+--185206533-198811295-1476976964=:442--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
