@@ -1,102 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E6DD16B0038
-	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 11:22:47 -0400 (EDT)
-Received: by mail-yb0-f197.google.com with SMTP id 191so79772119ybv.2
-        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 08:22:47 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 45si166100uac.24.2016.10.20.08.22.46
+	by kanga.kvack.org (Postfix) with ESMTP id 45B156B0038
+	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 11:44:25 -0400 (EDT)
+Received: by mail-yb0-f197.google.com with SMTP id t2so64847993yba.3
+        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 08:44:25 -0700 (PDT)
+Received: from mx5-phx2.redhat.com (mx5-phx2.redhat.com. [209.132.183.37])
+        by mx.google.com with ESMTPS id 95si225355uae.19.2016.10.20.08.44.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Oct 2016 08:22:46 -0700 (PDT)
-Date: Thu, 20 Oct 2016 11:22:42 -0400 (EDT)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: x32 is broken in 4.9-rc1 due to "x86/signal: Add SA_{X32,IA32}_ABI
- sa_flags"
-In-Reply-To: <CAJwJo6Z8ZWPqNfT6t-i8GW1MKxQrKDUagQqnZ+0+697=MyVeGg@mail.gmail.com>
-Message-ID: <alpine.LRH.2.02.1610201122040.442@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1610191311010.24555@file01.intranet.prod.int.rdu2.redhat.com> <alpine.LRH.2.02.1610191329500.29288@file01.intranet.prod.int.rdu2.redhat.com> <CAJwJo6Z8ZWPqNfT6t-i8GW1MKxQrKDUagQqnZ+0+697=MyVeGg@mail.gmail.com>
+        Thu, 20 Oct 2016 08:44:24 -0700 (PDT)
+Date: Thu, 20 Oct 2016 11:44:11 -0400 (EDT)
+From: Jan Stancek <jstancek@redhat.com>
+Message-ID: <1012857651.1231744.1476978251733.JavaMail.zimbra@redhat.com>
+In-Reply-To: <1476933077-23091-1-git-send-email-mike.kravetz@oracle.com>
+References: <1476933077-23091-1-git-send-email-mike.kravetz@oracle.com>
+Subject: Re: [PATCH 0/1] mm/hugetlb: fix huge page reservation leak in
+ private mapping error paths
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="185206533-198811295-1476976964=:442"
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Safonov <0x7f454c46@gmail.com>
-Cc: Dmitry Safonov <dsafonov@virtuozzo.com>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, Cyrill Gorcunov <gorcunov@openvz.org>, Pavel Emelyanov <xemul@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, open list <linux-kernel@vger.kernel.org>
-
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
-
---185206533-198811295-1476976964=:442
-Content-Type: TEXT/PLAIN; charset=UTF-8
-Content-Transfer-Encoding: 8BIT
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Michal Hocko <mhocko@suse.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Dave Hansen <dave.hansen@linux.intel.com>
 
 
 
-On Thu, 20 Oct 2016, Dmitry Safonov wrote:
 
-> 2016-10-19 20:33 GMT+03:00 Mikulas Patocka <mpatocka@redhat.com>:
-> >
-> >
-> > On Wed, 19 Oct 2016, Mikulas Patocka wrote:
-> >
-> >> Hi
-> >>
-> >> In the kernel 4.9-rc1, the x32 support is seriously broken, a x32 process
-> >> is killed with SIGKILL after returning from any signal handler.
-> >
-> > I should have said they are killed with SIGSEGV, not SIGKILL.
-> >
-> >> I use Debian sid x64-64 distribution with x32 architecture added from
-> >> debian-ports.
-> >>
-> >> I bisected the bug and found out that it is caused by the patch
-> >> 6846351052e685c2d1428e80ead2d7ca3d7ed913 ("x86/signal: Add
-> >> SA_{X32,IA32}_ABI sa_flags").
-> >>
-> >> example (strace of a process after receiving the SIGWINCH signal):
-> >>
-> >> epoll_wait(10, 0xef6890, 32, -1)        = -1 EINTR (Interrupted system call)
-> >> --- SIGWINCH {si_signo=SIGWINCH, si_code=SI_USER, si_pid=1772, si_uid=0} ---
-> >> poll([{fd=4, events=POLLOUT}], 1, 0)    = 1 ([{fd=4, revents=POLLOUT}])
-> >> write(4, "\0", 1)                       = 1
-> >> rt_sigreturn({mask=[INT QUIT ILL TRAP BUS KILL SEGV USR2 PIPE ALRM STKFLT TSTP TTOU URG XCPU XFSZ VTALRM IO PWR SYS RTMIN]}) = 0
-> >> --- SIGSEGV {si_signo=SIGSEGV, si_code=SI_KERNEL, si_addr=NULL} ---
-> >> +++ killed by SIGSEGV +++
-> >> NeoprA!vnA!nA 1/2  pA,A-stup do pamA!ti (SIGSEGV)
-> >>
-> >> Mikulas
-> >
-> > BTW. when I take core dump of the killed x32 process, it shows:
-> >
-> > ELF Header:
-> >   Magic:   7f 45 4c 46 01 01 01 00 00 00 00 00 00 00 00 00
-> >   Class:                             ELF32
-> >   Data:                              2's complement, little endian
-> >   Version:                           1 (current)
-> >   OS/ABI:                            UNIX - System V
-> >   ABI Version:                       0
-> >   Type:                              CORE (Core file)
-> >   Machine:                           Intel 80386
-> >                                 ^^^^^^^^^^^^^^^^^^^
-> >
-> > So, the kernel somehow thinks that it is i386 process, not x32 process. A
-> > core dump of a real x32 process shows "Class: ELF32, Machine: Advanced
-> > Micro Devices X86-64".
+
+----- Original Message -----
+> From: "Mike Kravetz" <mike.kravetz@oracle.com>
+> To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+> Cc: "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, "Naoya Horiguchi" <n-horiguchi@ah.jp.nec.com>, "Michal
+> Hocko" <mhocko@suse.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, "Hillf Danton"
+> <hillf.zj@alibaba-inc.com>, "Dave Hansen" <dave.hansen@linux.intel.com>, "Jan Stancek" <jstancek@redhat.com>, "Mike
+> Kravetz" <mike.kravetz@oracle.com>
+> Sent: Thursday, 20 October, 2016 5:11:16 AM
+> Subject: [PATCH 0/1] mm/hugetlb: fix huge page reservation leak in private mapping error paths
 > 
-> Hi Mikulas,
+> This issue was discovered by Jan Stancek as described in
+> https://lkml.kernel.org/r/57FF7BB4.1070202@redhat.com
 > 
-> could you give attached patch a shot?
-> In about 10 hours I'll be at work and will have debian-x32 install,
-> but for now, I can't test it.
-> Thanks again on catching that.
+> Error paths in hugetlb_cow() and hugetlb_no_page() do not properly clean
+> up reservation entries when freeing a newly allocated huge page.  This
+> issue was introduced with commit 67961f9db8c4 ("mm/hugetlb: fix huge page
+> reserve accounting for private mappings).  That commit uses the information
+> in private mapping reserve maps to determine if a reservation was already
+> consumed.  This is important in the case of hole punch and truncate as the
+> pages are released, but reservation entries are not restored.
 > 
-> -- 
->              Dmitry
+> This patch restores the reserve entries in hugetlb_cow and hugetlb_no_page
+> such that reserve entries are consistent with the global reservation count.
+> 
+> The huge page reservation code is quite hard to follow, and this patch
+> makes it even more complex.  One thought I had was to change the way
+> hole punch and truncate work so that private mapping pages are not thrown
+> away.  This would eliminate the need for this patch as well as 67961f9db8c4.
+> It would change the existing semantics (as seen by the user) in this area,
+> but I believe the documentation (man pages) say the behavior is unspecified.
+> This could be a future change as well as rewriting the existing reservation
+> code to make it easier to understand/maintain.  Thoughts?
+> 
+> In any case, this patch addresses the immediate issue.
 
-Yes, it fixes the bug.
+Mike,
 
-Mikulas
---185206533-198811295-1476976964=:442--
+Just to confirm, I ran this patch on my setup (without the patch from Aneesh)
+with libhugetlbfs testsuite in loop for several hours. There were no
+ENOMEM/OOM failures, I did not observe resv leak after it finished.
+
+Regards,
+Jan
+
+> 
+> Mike Kravetz (1):
+>   mm/hugetlb: fix huge page reservation leak in private mapping error
+>     paths
+> 
+>  mm/hugetlb.c | 66
+>  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+>  1 file changed, 66 insertions(+)
+> 
+> --
+> 2.7.4
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
