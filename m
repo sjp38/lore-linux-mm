@@ -1,120 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E9416B0038
-	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 03:21:26 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id u84so16949574pfj.6
-        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 00:21:26 -0700 (PDT)
-Received: from sender153-mail.zoho.com (sender153-mail.zoho.com. [74.201.84.153])
-        by mx.google.com with ESMTPS id r132si40373321pgr.231.2016.10.20.00.21.25
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BE2FB6B0038
+	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 03:23:44 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id h24so17116261pfh.0
+        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 00:23:44 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id e1si43824523pfl.160.2016.10.20.00.23.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 20 Oct 2016 00:21:25 -0700 (PDT)
-Subject: Re: [RFC PATCH 1/1] mm/vmalloc.c: correct logic errors when insert
- vmap_area
-References: <c2bd0f5d-8d2a-4cba-2663-5c075cd252f2@zoho.com>
- <20161012144610.GN17128@dhcp22.suse.cz> <57FF2C3C.5070507@zoho.com>
-From: zijun_hu <zijun_hu@zoho.com>
-Message-ID: <58087049.8080106@zoho.com>
-Date: Thu, 20 Oct 2016 15:20:41 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 20 Oct 2016 00:23:43 -0700 (PDT)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u9K7IwMl021992
+	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 03:23:43 -0400
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 266rpxhwpc-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 03:23:43 -0400
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Thu, 20 Oct 2016 08:23:40 +0100
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (d06relay13.portsmouth.uk.ibm.com [9.149.109.198])
+	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 4443F17D8068
+	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 08:25:51 +0100 (BST)
+Received: from d06av10.portsmouth.uk.ibm.com (d06av10.portsmouth.uk.ibm.com [9.149.37.251])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u9K7Ndkx10551592
+	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 07:23:39 GMT
+Received: from d06av10.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av10.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u9K6NeWi017651
+	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 00:23:40 -0600
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Subject: Re: mmap_sem bottleneck
+References: <ea12b8ee-1892-fda1-8a83-20fdfdfa39c4@linux.vnet.ibm.com>
+ <20161017125717.GK23322@dhcp22.suse.cz>
+Date: Thu, 20 Oct 2016 09:23:37 +0200
 MIME-Version: 1.0
-In-Reply-To: <57FF2C3C.5070507@zoho.com>
+In-Reply-To: <20161017125717.GK23322@dhcp22.suse.cz>
 Content-Type: text/plain; charset=windows-1252
 Content-Transfer-Encoding: 7bit
+Message-Id: <e1e865c5-51ab-fce1-0958-b5c668da4dac@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, zijun_hu@htc.com, akpm@linux-foundation.org, rientjes@google.com, tj@kernel.org, sfr@canb.auug.org.au, mingo@kernel.org, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, hannes@cmpxchg.org, chris@chris-wilson.co.uk, vdavydov.dev@gmail.com, Michal Hocko <mhocko@kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Linux MM <linux-mm@kvack.org>, Andi Kleen <ak@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@techsingularity.net>, Jan Kara <jack@suse.cz>, Davidlohr Bueso <dbueso@suse.de>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@ZenIV.linux.org.uk>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
 
-On 10/13/2016 02:39 PM, zijun_hu wrote:
+On 17/10/2016 14:57, Michal Hocko wrote:
+> On Mon 17-10-16 14:33:53, Laurent Dufour wrote:
+>> Hi all,
+>>
+>> I'm sorry to resurrect this topic, but with the increasing number of
+>> CPUs, this becomes more frequent that the mmap_sem is a bottleneck
+>> especially between the page fault handling and the other threads memory
+>> management calls.
+>>
+>> In the case I'm seeing, there is a lot of page fault occurring while
+>> other threads are trying to manipulate the process memory layout through
+>> mmap/munmap.
+>>
+>> There is no *real* conflict between these operations, the page fault are
+>> done a different page and areas that the one addressed by the mmap/unmap
+>> operations. Thus threads are dealing with different part of the
+>> process's memory space. However since page fault handlers and mmap/unmap
+>> operations grab the mmap_sem, the page fault handling are serialized
+>> with the mmap operations, which impact the performance on large system.
+> 
+> Could you quantify how much overhead are we talking about here?
 
-Hi Nicholas,
-could you give some comments for this patch?
+I recorded perf data using a sampler which recreates the bottleneck
+issueby simulating the database initialization process which spawns a
+thread per cpu in charge of allocating a piece of memory and request a
+disk reading in it.
 
-thanks a lot
-> Hi Nicholas,
-> 
-> i find __insert_vmap_area() is introduced by you
-> could you offer comments for this patch related to that funciton
-> 
-> thanks
-> 
-> On 10/12/2016 10:46 PM, Michal Hocko wrote:
->> [Let's CC Nick who has written this code]
->>
->> On Wed 12-10-16 22:30:13, zijun_hu wrote:
->>> From: zijun_hu <zijun_hu@htc.com>
->>>
->>> the KVA allocator organizes vmap_areas allocated by rbtree. in order to
->>> insert a new vmap_area @i_va into the rbtree, walk around the rbtree from
->>> root and compare the vmap_area @t_va met on the rbtree against @i_va; walk
->>> toward the left branch of @t_va if @i_va is lower than @t_va, and right
->>> branch if higher, otherwise handle this error case since @i_va has overlay
->>> with @t_va; however, __insert_vmap_area() don't follow the desired
->>> procedure rightly, moreover, it includes a meaningless else if condition
->>> and a redundant else branch as shown by comments in below code segments:
->>> static void __insert_vmap_area(struct vmap_area *va)
->>> {
->>> as a internal interface parameter, we assume vmap_area @va has nonzero size
->>> ...
->>> 			if (va->va_start < tmp->va_end)
->>> 					p = &(*p)->rb_left;
->>> 			else if (va->va_end > tmp->va_start)
->>> 					p = &(*p)->rb_right;
->>> this else if condition is always true and meaningless due to
->>> va->va_end > va->va_start >= tmp_va->va_end > tmp_va->va_start normally
->>> 			else
->>> 					BUG();
->>> this BUG() is meaningless too due to never be reached normally
->>> ...
->>> }
->>>
->>> it looks like the else if condition and else branch are canceled. no errors
->>> are caused since the vmap_area @va to insert as a internal interface
->>> parameter doesn't have overlay with any one on the rbtree normally. however
->>>  __insert_vmap_area() looks weird and really has several logic errors as
->>> pointed out above when it is viewed as a separate function.
->>
->> I have tried to read this several times but I am completely lost to
->> understand what the actual bug is and how it causes vmap_area sorting to
->> misbehave. So is this a correctness issue, performance improvement or
->> theoretical fix for an incorrect input?
->>
->>> fix by walking around vmap_area rbtree as described above to insert
->>> a vmap_area.
->>>
->>> BTW, (va->va_end == tmp_va->va_start) is consider as legal case since it
->>> indicates vmap_area @va left neighbors with @tmp_va tightly.
->>>
->>> Fixes: db64fe02258f ("mm: rewrite vmap layer")
->>> Signed-off-by: zijun_hu <zijun_hu@htc.com>
->>> ---
->>>  mm/vmalloc.c | 8 ++++----
->>>  1 file changed, 4 insertions(+), 4 deletions(-)
->>>
->>> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
->>> index 5daf3211b84f..8b80931654b7 100644
->>> --- a/mm/vmalloc.c
->>> +++ b/mm/vmalloc.c
->>> @@ -321,10 +321,10 @@ static void __insert_vmap_area(struct vmap_area *va)
->>>  
->>>  		parent = *p;
->>>  		tmp_va = rb_entry(parent, struct vmap_area, rb_node);
->>> -		if (va->va_start < tmp_va->va_end)
->>> -			p = &(*p)->rb_left;
->>> -		else if (va->va_end > tmp_va->va_start)
->>> -			p = &(*p)->rb_right;
->>> +		if (va->va_end <= tmp_va->va_start)
->>> +			p = &parent->rb_left;
->>> +		else if (va->va_start >= tmp_va->va_end)
->>> +			p = &parent->rb_right;
->>>  		else
->>>  			BUG();
->>>  	}
->>> -- 
->>> 1.9.1
->>
-> 
+The perf data shows that 23% of the time is spent waiting for the
+mm semaphore in do_page_fault(). This has been recording using a 4.8-rc8
+kernel on pppc64le architecture.
 
+>> For the record, the page fault are done while reading data from a file
+>> system, and I/O are really impacted by this serialization when dealing
+>> with a large number of parallel threads, in my case 192 threads (1 per
+>> online CPU). But the source of the page fault doesn't really matter I guess.
+> 
+> But we are dropping the mmap_sem for the IO and retry the page fault.
+> I am not sure I understood you correctly here though.
+> 
+>> I took time trying to figure out how to get rid of this bottleneck, but
+>> this is definitively too complex for me.
+>> I read this mailing history, and some LWN articles about that and my
+>> feeling is that there is no clear way to limit the impact of this
+>> semaphore. Last discussion on this topic seemed to happen last march
+>> during the LSFMM submit (https://lwn.net/Articles/636334/). But this
+>> doesn't seem to have lead to major changes, or may be I missed them.
+> 
+> At least mmap/munmap write lock contention could be reduced by the above
+> proposed range locking. Jan Kara has implemented a prototype [1] of the
+> lock for mapping which could be used for mmap_sem as well) but it had
+> some perfomance implications AFAIR. There wasn't a strong usecase for
+> this so far. If there is one, please describe it and we can think what
+> to do about it.
+
+When recreating the issue with a sampler there is no file system I/O in
+the picture, just pure mmap/memcpy and a lot of threads (I need about
+192 CPUs to recreate it).
+But there is a real use case, beyond that. The SAP HANA database is
+using all the available CPUs to read the database from the disk when
+starting. When run on top flash storage and a large number of CPUs
+(>192), we hit the mm semaphore bottleneck which impact the loading
+performance by serializing the memory management.
+
+I think there is a place for enhancements in the user space part (the
+database loader), but the mm semaphore is still a bottleneck when a
+massively multi-threaded process is dealing with its memory while page
+faulting on it.
+Unfortunately, this requires big system to recreate such an issue which
+make it harder to track and investigate.
+
+
+> There were also some attempts to replace mmap_sem by RCU AFAIR but my
+> vague recollection is that they had some issues as well.
+> 
+> [1] http://linux-kernel.2935.n7.nabble.com/PATCH-0-6-RFC-Mapping-range-lock-td592872.html
+
+I took a look to this series which is very interesting but it is
+quite old now, and I'm wondering if it is still applicable.
+
+Cheers,
+Laurent.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
