@@ -1,109 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A076A6B025E
-	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 19:10:40 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id f129so137441273itc.7
-        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 16:10:40 -0700 (PDT)
-Received: from mail-it0-x242.google.com (mail-it0-x242.google.com. [2607:f8b0:4001:c0b::242])
-        by mx.google.com with ESMTPS id a7si1522391ioe.155.2016.10.20.16.10.40
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 961716B025E
+	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 19:32:08 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id r16so37536602pfg.4
+        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 16:32:08 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id f1si39196488paa.160.2016.10.20.16.32.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Oct 2016 16:10:40 -0700 (PDT)
-Received: by mail-it0-x242.google.com with SMTP id k64so8496367itb.0
-        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 16:10:40 -0700 (PDT)
-Content-Type: text/plain; charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 8.2 \(2104\))
-Subject: Re: [RFC] scripts: Include postprocessing script for memory allocation tracing
-From: Janani Ravichandran <janani.rvchndrn@gmail.com>
-In-Reply-To: <20161018131343.GJ12092@dhcp22.suse.cz>
-Date: Thu, 20 Oct 2016 18:10:37 -0500
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <4F0F918D-B98A-48EC-82ED-EE7D32F222EA@gmail.com>
-References: <20160912121635.GL14524@dhcp22.suse.cz> <0ACE5927-A6E5-4B49-891D-F990527A9F50@gmail.com> <20160919094224.GH10785@dhcp22.suse.cz> <BFAF8DCA-F4A6-41C6-9AA0-C694D33035A3@gmail.com> <20160923080709.GB4478@dhcp22.suse.cz> <E8FAA4EF-DAA1-4E18-B48F-6677E6AFE76E@gmail.com> <2D27EF16-B63B-4516-A156-5E2FB675A1BB@gmail.com> <20161016073340.GA15839@dhcp22.suse.cz> <CANnt6X=RpSnuxGXZfF6Qa5mJpzC8gL3wkKJi3tQMZJBZJVWF3w@mail.gmail.com> <A6E7231A-54FF-4D5C-90F5-0A8C4126CFEA@gmail.com> <20161018131343.GJ12092@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 20 Oct 2016 16:32:07 -0700 (PDT)
+From: Tim Chen <tim.c.chen@linux.intel.com>
+Subject: [PATCH v2 0/8] mm/swap: Regular page swap optimizations 
+Date: Thu, 20 Oct 2016 16:31:39 -0700
+Message-Id: <cover.1477004978.git.tim.c.chen@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Janani Ravichandran <janani.rvchndrn@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>, Ying Huang <ying.huang@intel.com>, dave.hansen@intel.com, ak@linux.intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>
 
-Michal,
+We appreciate feedback about this patch series from the
+community.  Historically, neither the performance nor latency of the swap
+path mattered.  The underlying I/O was slow enough to hide any latency
+coming from software and the low IOPS kept the overall CPU impact low.
 
-> On Oct 18, 2016, at 8:13 AM, Michal Hocko <mhocko@kernel.org> wrote:
->=20
->>=20
->=20
-> yes, function_graph tracer will give you _some_ information but it =
-will
-> not have the context you are looking for, right? See the following
-> example
->=20
-> ------------------------------------------
-> 0) x-www-b-22756  =3D>  x-termi-4083=20
-> ------------------------------------------
->=20
-> 0)               |  __alloc_pages_nodemask() {
-> 0)               |  /* mm_page_alloc: page=3Dffffea000411b380 =
-pfn=3D1066702 order=3D0 migratetype=3D0 gfp_flags=3DGFP_KERNEL */
-> 0)   3.328 us    |  }
-> 3)               |  __alloc_pages_nodemask() {
-> 3)               |  /* mm_page_alloc: page=3Dffffea0008f1f6c0 =
-pfn=3D2344923 order=3D0 migratetype=3D0 gfp_flags=3DGFP_KERNEL */
-> 3)   1.011 us    |  }
-> 0)               |  __alloc_pages_nodemask() {
-> 0)               |  /* mm_page_alloc: page=3Dffffea000411b380 =
-pfn=3D1066702 order=3D0 migratetype=3D0 gfp_flags=3DGFP_KERNEL */
-> 0)   0.587 us    |  }
-> 3)               |  __alloc_pages_nodemask() {
-> 3)               |  /* mm_page_alloc: page=3Dffffea0008f1f6c0 =
-pfn=3D2344923 order=3D0 migratetype=3D0 gfp_flags=3DGFP_KERNEL */
-> 3)   1.125 us    |  }
->=20
-> How do I know which process has performed those allocations? I know =
-that
-> CPU0 should be running x-termi-4083 but what is running on other CPUs?
->=20
-> Let me explain my usecase I am very interested in. Say I that a =
-usespace
-> application is not performing well. I would like to see some =
-statistics
-> about memory allocations performed for that app - are there few =
-outliers
-> or the allocation stalls increase gradually? Where do we spend time =
-during
-> that allocation? Reclaim LRU pages? Compaction or the slab shrinkers?
->=20
-> To answer those questions I need to track particular events =
-(alocation,
-> reclaim, compaction) to the process and know how long each step
-> took. Maybe we can reconstruct something from the above output but it =
-is
-> a major PITA.  If we either hard start/stop pairs for each step (which
-> we already do have for reclaim, compaction AFAIR) then this is an easy
-> scripting. Another option would be to have only a single tracepoint =
-for
-> each step with a timing information.
->=20
-> See my point?
+Times have changed.  Coming generation of Solid state Block device
+latencies are getting down to sub 100 usec, which is within an order of
+magnitude of DRAM, and their performance is orders of magnitude higher
+than the single- spindle rotational media we've swapped to historically.
 
-Yes, if we want to know what processes are running on what CPUs,
-echo funcgraph-proc > trace_options in the tracing directory should give =
-us
-what we want.
+This could benefit many usage scenearios.  For example cloud providers who
+overcommit their memory (as VM don't use all the memory provisioned).
+Having a fast swap will allow them to be more aggressive in memory
+overcommit and fit more VMs to a platform.
 
-The bash script which is part of this patch does this kind of setup for =
-you.
-As a result, the output you get is something like what you see here:
+In our testing [see footnote], the median latency that the
+kernel adds to a page fault is 15 usec, which comes quite close
+to the amount that will be contributed by the underlying I/O
+devices.
 
-=
-https://github.com/Jananiravichandran/Analyzing-tracepoints/blob/master/no=
-_tp_no_threshold.txt
+The software latency comes mostly from contentions on the locks
+protecting the radix tree of the swap cache and also the locks protecting
+the individual swap devices.  The lock contentions already consumed
+35% of cpu cycles in our test.  In the very near future,
+software latency will become the bottleneck to swap performnace as
+block device I/O latency gets within the shouting distance of DRAM speed.
 
-Does this answer your question? Let me know if otherwise.
+This patch set, plus a previous patch Ying already posted
+(commit: f6498b3f) reduced the median page fault latency
+from 15 usec to 4 usec (375% reduction) for DRAM based pmem
+block device.
 
-Janani.
+Patch 1 is a clean up patch.
+Patch 2 creates a lock per cluster, this gives us a more fine graind lock
+        that can be used for accessing swap_map, and not lock the whole
+        swap device
+Patch 3 splits the swap cache radix tree into 64MB chunks, reducing
+        the rate that we have to contende for the radix tree.
+Patch 4 eliminates unnecessary page allocation for read ahead.
+Patch 5-8 create a per cpu cache of the swap slots, so we don't have
+        to contend on the swap device to get a swap slot or to release
+        a swap slot.  And we allocate and release the swap slots
+        in batches for better efficiency.
 
-> --=20
-> Michal Hocko
-> SUSE Labs
+Ying Huang & Tim Chen
+
+Footnote:
+Testing was done on 4.8-rc3-mm1 kernel with/without optimizations from
+this patche series plus one additional patch Ying posted earlier on
+removing radix tree write back tag in swap cache.  Eight threads performed
+random memory access on a 2 socket Haswell using swap mounted on RAM
+based PMEM block device.  This emulated a moderate load and a SWAP
+device unbounded by I/O speed. The aggregate working set is twice the
+RAM size. We instrumented the kernel to measure the page fault latency.
+
+Change Log:
+v2: 
+1. Fix bug in the index limit used in scan_swap_map_try_ssd_cluster
+when searching for empty slots in cluster.
+2. Fix bug in swap off that incorrectly determines if we still have
+swap devices left.
+3. Port patches to mmotm-2016-10-11-15-46 branch
+
+
+Huang, Ying (3):
+  mm/swap: Fix kernel message in swap_info_get()
+  mm/swap: Add cluster lock
+  mm/swap: Split swap cache into 64MB trunks
+
+Tim Chen (5):
+  mm/swap: skip read ahead for unreferenced swap slots
+  mm/swap: Allocate swap slots in batches
+  mm/swap: Free swap slots in batch
+  mm/swap: Add cache for swap slots allocation
+  mm/swap: Enable swap slots cache usage
+
+ include/linux/swap.h       |  35 ++-
+ include/linux/swap_slots.h |  37 +++
+ mm/Makefile                |   2 +-
+ mm/swap.c                  |   6 -
+ mm/swap_slots.c            | 306 +++++++++++++++++++++++++
+ mm/swap_state.c            |  76 +++++-
+ mm/swapfile.c              | 558 +++++++++++++++++++++++++++++++++++----------
+ 7 files changed, 875 insertions(+), 145 deletions(-)
+ create mode 100644 include/linux/swap_slots.h
+ create mode 100644 mm/swap_slots.c
+
+-- 
+2.5.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
