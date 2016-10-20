@@ -1,88 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id ECACA6B0069
-	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 18:33:37 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id 128so36915085pfz.1
-        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 15:33:37 -0700 (PDT)
-Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [150.101.137.143])
-        by mx.google.com with ESMTP id rf4si39100191pab.9.2016.10.20.15.33.36
-        for <linux-mm@kvack.org>;
-        Thu, 20 Oct 2016 15:33:37 -0700 (PDT)
-Date: Fri, 21 Oct 2016 09:33:08 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 3/5] lib: radix-tree: native accounting and tracking of
- special entries
-Message-ID: <20161020223308.GN23194@dastard>
-References: <20161019172428.7649-1-hannes@cmpxchg.org>
- <20161019172428.7649-4-hannes@cmpxchg.org>
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B79E6B0069
+	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 18:45:48 -0400 (EDT)
+Received: by mail-it0-f70.google.com with SMTP id m138so135514257itm.1
+        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 15:45:48 -0700 (PDT)
+Received: from quartz.orcorp.ca (quartz.orcorp.ca. [184.70.90.242])
+        by mx.google.com with ESMTPS id o195si1486478ioe.62.2016.10.20.15.45.47
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 20 Oct 2016 15:45:47 -0700 (PDT)
+Date: Thu, 20 Oct 2016 16:45:21 -0600
+From: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
+Subject: Re: [PATCH v6] powerpc: Do not make the entire heap executable
+Message-ID: <20161020224521.GA24970@obsidianresearch.com>
+References: <20161003161322.3835-1-dvlasenk@redhat.com>
+ <CAGXu5j+haCUW_AEPLPcVGtrnv4ojQ79FDpspUurYJSX_-TXeow@mail.gmail.com>
+ <877f9p55lu.fsf@concordia.ellerman.id.au>
+ <CAGXu5jJ3PpvNBYyBWa_M8ELLPuJOcJt-KuH0uRK66peJM_CnSg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161019172428.7649-4-hannes@cmpxchg.org>
+In-Reply-To: <CAGXu5jJ3PpvNBYyBWa_M8ELLPuJOcJt-KuH0uRK66peJM_CnSg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Dave Jones <davej@codemonkey.org.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Kees Cook <keescook@chromium.org>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Denys Vlasenko <dvlasenk@redhat.com>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Oleg Nesterov <oleg@redhat.com>, Florian Weimer <fweimer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Oct 19, 2016 at 01:24:26PM -0400, Johannes Weiner wrote:
-> Add an internal tag to identify special entries that are accounted in
-> node->special in addition to node->count.
+On Tue, Oct 04, 2016 at 09:54:12AM -0700, Kees Cook wrote:
+> On Mon, Oct 3, 2016 at 5:18 PM, Michael Ellerman <mpe@ellerman.id.au> wrote:
+> > Kees Cook <keescook@chromium.org> writes:
+> >
+> >> On Mon, Oct 3, 2016 at 9:13 AM, Denys Vlasenko <dvlasenk@redhat.com> wrote:
+> >>> On 32-bit powerpc the ELF PLT sections of binaries (built with --bss-plt,
+> >>> or with a toolchain which defaults to it) look like this:
+> > ...
+> >>>
+> >>> Signed-off-by: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
+> >>> Signed-off-by: Denys Vlasenko <dvlasenk@redhat.com>
+> >>> Acked-by: Kees Cook <keescook@chromium.org>
+> >>> Acked-by: Michael Ellerman <mpe@ellerman.id.au>
+> >>> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> >>> CC: Paul Mackerras <paulus@samba.org>
+> >>> CC: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+> >>> CC: Kees Cook <keescook@chromium.org>
+> >>> CC: Oleg Nesterov <oleg@redhat.com>
+> >>> CC: Michael Ellerman <mpe@ellerman.id.au>
+> >>> CC: Florian Weimer <fweimer@redhat.com>
+> >>> CC: linux-mm@kvack.org
+> >>> CC: linuxppc-dev@lists.ozlabs.org
+> >>> CC: linux-kernel@vger.kernel.org
+> >>> Changes since v5:
+> >>> * made do_brk_flags() error out if any bits other than VM_EXEC are set.
+> >>>   (Kees Cook: "With this, I'd be happy to Ack.")
+> >>>   See https://patchwork.ozlabs.org/patch/661595/
+> >>
+> >> Excellent, thanks for the v6! Should this go via the ppc tree or the -mm tree?
+> >
+> > -mm would be best, given the diffstat I think it's less likely to
+> >  conflict if it goes via -mm.
 > 
-> With this in place, the next patch can restore refault detection in
-> single-page files. It will also move the shadow count from the upper
-> bits of count to the new special counter, and then shrink count to a
-> char as well; the growth of struct radix_tree_node is temporary.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  include/linux/radix-tree.h | 10 ++++++----
->  lib/radix-tree.c           | 14 ++++++++++----
->  2 files changed, 16 insertions(+), 8 deletions(-)
-> 
-> diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-> index 756b2909467e..2e1c9added23 100644
-> --- a/include/linux/radix-tree.h
-> +++ b/include/linux/radix-tree.h
-> @@ -68,7 +68,8 @@ enum radix_tree_tags {
->  	/* Freely allocatable radix tree user tags */
->  	RADIX_TREE_NR_USER_TAGS = 3,
->  	/* Radix tree internal tags */
-> -	RADIX_TREE_NR_TAGS = RADIX_TREE_NR_USER_TAGS,
-> +	RADIX_TREE_TAG_SPECIAL = RADIX_TREE_NR_USER_TAGS,
-> +	RADIX_TREE_NR_TAGS,
->  };
->  
->  #ifndef RADIX_TREE_MAP_SHIFT
-> @@ -90,9 +91,10 @@ enum radix_tree_tags {
->  #define RADIX_TREE_COUNT_MASK	((1UL << RADIX_TREE_COUNT_SHIFT) - 1)
->  
->  struct radix_tree_node {
-> -	unsigned char	shift;	/* Bits remaining in each slot */
-> -	unsigned char	offset;	/* Slot offset in parent */
-> -	unsigned int	count;
-> +	unsigned char	shift;		/* Bits remaining in each slot */
-> +	unsigned char	offset;		/* Slot offset in parent */
-> +	unsigned int	count;		/* Total entry count */
-> +	unsigned char	special;	/* Special entry count */
+> Okay, excellent. Andrew, do you have this already in email? I think
+> you weren't on the explicit CC from the v6...
 
-How about putting the new char field into the implicit hole between
-offset and count? pahole is your friend here:
+FWIW (and ping),
 
-struct radix_tree_node {
-        unsigned char              shift;                /*     0     1 */
-        unsigned char              offset;               /*     1     1 */
+Tested-by: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
 
-        /* XXX 2 bytes hole, try to pack */
+On ARM32 (kirkwood) and PPC32 (405)
 
-        unsigned int               count;                /*     4     4 */
-.....
+For reference, here is the patchwork URL:
 
-Cheers,
+https://patchwork.ozlabs.org/patch/677753/
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+Jason
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
