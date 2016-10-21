@@ -1,141 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 079356B0069
-	for <linux-mm@kvack.org>; Fri, 21 Oct 2016 01:01:24 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id r16so43337682pfg.4
-        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 22:01:23 -0700 (PDT)
-Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
-        by mx.google.com with ESMTP id n9si768986pac.82.2016.10.20.22.01.21
-        for <linux-mm@kvack.org>;
-        Thu, 20 Oct 2016 22:01:22 -0700 (PDT)
-Date: Fri, 21 Oct 2016 16:01:18 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH] shmem: avoid huge pages for small files
-Message-ID: <20161021050118.GR23194@dastard>
-References: <20161017123021.rlyz44dsf4l4xnve@black.fi.intel.com>
- <20161017141245.GC27459@dhcp22.suse.cz>
- <20161017145539.GA26930@node.shutemov.name>
- <20161018142007.GL12092@dhcp22.suse.cz>
- <20161018143207.GA5833@node.shutemov.name>
- <20161018183023.GC27792@dhcp22.suse.cz>
- <alpine.LSU.2.11.1610191101250.10318@eggly.anvils>
- <20161020103946.GA3881@node.shutemov.name>
- <20161020224630.GO23194@dastard>
- <20161021020116.GD1075@tassilo.jf.intel.com>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CA5CD6B0069
+	for <linux-mm@kvack.org>; Fri, 21 Oct 2016 02:23:04 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id i85so44774335pfa.5
+        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 23:23:04 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id c66si1178929pga.265.2016.10.20.23.23.03
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 20 Oct 2016 23:23:03 -0700 (PDT)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u9L6IVZD084097
+	for <linux-mm@kvack.org>; Fri, 21 Oct 2016 02:23:03 -0400
+Received: from e23smtp08.au.ibm.com (e23smtp08.au.ibm.com [202.81.31.141])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2675yfytkg-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 21 Oct 2016 02:23:03 -0400
+Received: from localhost
+	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <apopple@au1.ibm.com>;
+	Fri, 21 Oct 2016 16:23:00 +1000
+Received: from d23relay08.au.ibm.com (d23relay08.au.ibm.com [9.185.71.33])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id CD89C2BB005B
+	for <linux-mm@kvack.org>; Fri, 21 Oct 2016 17:22:57 +1100 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay08.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u9L6MvYF18022496
+	for <linux-mm@kvack.org>; Fri, 21 Oct 2016 17:22:57 +1100
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u9L6MuPV016833
+	for <linux-mm@kvack.org>; Fri, 21 Oct 2016 17:22:57 +1100
+From: Alistair Popple <apopple@au1.ibm.com>
+Subject: Re: [PATCH v4 2/5] drivers/of: do not add memory for unavailable nodes
+Date: Fri, 21 Oct 2016 17:22:54 +1100
+In-Reply-To: <1475778995-1420-3-git-send-email-arbab@linux.vnet.ibm.com>
+References: <1475778995-1420-1-git-send-email-arbab@linux.vnet.ibm.com> <1475778995-1420-3-git-send-email-arbab@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161021020116.GD1075@tassilo.jf.intel.com>
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="us-ascii"
+Message-Id: <2344394.NlaWgtFOqB@new-mexico>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <ak@linux.intel.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linuxppc-dev@lists.ozlabs.org
+Cc: Reza Arbab <arbab@linux.vnet.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Stewart Smith <stewart@linux.vnet.ibm.com>, devicetree@vger.kernel.org, linux-kernel@vger.kernel.org, Tang Chen <tangchen@cn.fujitsu.com>, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>
 
-On Thu, Oct 20, 2016 at 07:01:16PM -0700, Andi Kleen wrote:
-> > Ugh, no, please don't use mount options for file specific behaviours
-> > in filesystems like ext4 and XFS. This is exactly the sort of
-> > behaviour that should either just work automatically (i.e. be
-> > completely controlled by the filesystem) or only be applied to files
+Hi Reza,
+
+On Thu, 6 Oct 2016 01:36:32 PM Reza Arbab wrote:
+> Respect the standard dt "status" property when scanning memory nodes in
+> early_init_dt_scan_memory(), so that if the node is unavailable, no
+> memory will be added.
+
+What happens if a kernel without this patch is booted on a system with some 
+status="disabled" device-nodes? Do older kernels just ignore this memory or do 
+they try to use it?
+
+>From what I can tell it seems that kernels without this patch will try and use 
+this memory even if it is marked in the device-tree as status="disabled" which 
+could lead to problems for older kernels when we start exporting this property 
+from firmware.
+
+Arguably this might not be such a problem in practice as we probably don't 
+have many (if any) existing kernels that will boot on hardware exporting these 
+properties. However given this patch seems fairly independent perhaps it is 
+worth sending as a separate fix if it is not going to make it into this 
+release?
+
+Regards,
+
+Alistair
+
+> The use case at hand is accelerator or device memory, which may be
+> unusable until post-boot initialization of the memory link. Such a node
+> can be described in the dt as any other, given its status is "disabled".
+> Per the device tree specification,
 > 
-> Can you explain what you mean? How would the file system control it?
-
-There's no point in asking for huge pages when populating the page
-cache if the file is:
-
-	- significantly smaller than the huge page size
-	- largely sparse
-	- being randomly accessed in small chunks
-	- badly fragmented and so takes hundreds of IO to read/write
-	  a huge page
-	- able to optimise delayed allocation to match huge page
-	  sizes and alignments
-
-These are all constraints the filesystem knows about, but the
-application and user don't. None of these aspects can be optimised
-sanely by a single threshold, especially when considering the
-combination of access patterns vs file layout.
-
-Further, we are moving the IO path to a model where we use extents
-for mapping, not blocks.  We're optimising for the fact that modern
-filesystems use extents and so massively reduce the number of block
-mapping lookup calls we need to do for a given IO.
-
-i.e. instead of doing "get page, map block to page" over and over
-again until we've alked over the entire IO range, we're doing
-"map extent for entire IO range" once, then iterating "get page"
-until we've mapped the entire range.
-
-Hence if we have a 2MB IO come in from userspace, and the iomap
-returned is a covers that entire range, it's a no-brainer to ask the
-page cache for a huge page instead of iterating 512 times to map all
-the 4k pages needed.
-
-> > specifically configured with persistent hints to reliably allocate
-> > extents in a way that can be easily mapped to huge pages.
+> "disabled"
+> 	Indicates that the device is not presently operational, but it
+> 	might become operational in the future (for example, something
+> 	is not plugged in, or switched off).
 > 
-> > e.g. on XFS you will need to apply extent size hints to get large
-> > page sized/aligned extent allocation to occur, and so this
+> Once such memory is made operational, it can then be hotplugged.
 > 
-> It sounds like you're confusing alignment in memory with alignment
-> on disk here? I don't see why on disk alignment would be needed
-> at all, unless we're talking about DAX here (which is out of 
-> scope currently) Kirill's changes are all about making the memory
-> access for cached data more efficient, it's not about disk layout
-> optimizations.
-
-No, I'm not confusing this with DAX. However, this automatic use
-model for huge pages fits straight into DAX as well.  Same
-mechanisms, same behaviours, slightly stricter alignment
-characteristics. All stuff the filesystem already knows about.
-
-Mount options are, quite frankly, a terrible mechanism for
-specifying filesystem policy. Setting up DAX this way was a mistake,
-and it's a mount option I plan to remove from XFS once we get nearer
-to having DAX feature complete and stablised. We've already got
-on-disk "use DAX for this file" flags in XFS, so we can easier and
-cleanly support different methods of accessing PMEM from the same
-filesystem.
-
-As such, there is no way we should be considering different
-interfaces and methods for configuring the /same functionality/ just
-because DAX is enabled or not. It's the /same decision/ that needs
-to be made, and the filesystem knows an awful lot more about whether
-huge pages can be used efficiently at the time of access than just
-about any other actor you can name....
-
-> > persistent extent size hint should trigger the filesystem to use
-> > large pages if supported, the hint is correctly sized and aligned,
-> > and there are large pages available for allocation.
+> Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
+> ---
+>  drivers/of/fdt.c | 3 +++
+>  1 file changed, 3 insertions(+)
 > 
-> That would be ioctls and similar?
-
-You can, but existing filesystem admin tools can already set up
-allocation policies without the apps being aware that they even
-exist. If you want to use huge page mappings with DAX you'll already
-need to do this because of the physical alignment requirements of
-DAX.
-
-Further, such techniques are already used by many admins for things
-like limiting fragmentation of sparse vm image files. So while you
-may not know it, extent size hints and per-file inheritable
-attributes are quire widely used already to manage filesystem
-behaviour without users or applications even being aware that the
-filesystem policies have been modified by the admin...
-
-> That would imply that every application wanting to use large pages
-> would need to be especially enabled. That would seem awfully limiting
-> to me and needlessly deny benefits to most existing code.
-
-No change to applications will be necessary (see above), though
-there's no reason why couldn't directly use the VFS interfaces to
-explicitly ask for such behaviour themselves....
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+> diff --git a/drivers/of/fdt.c b/drivers/of/fdt.c
+> index b138efb..08e5d94 100644
+> --- a/drivers/of/fdt.c
+> +++ b/drivers/of/fdt.c
+> @@ -1056,6 +1056,9 @@ int __init early_init_dt_scan_memory(unsigned long 
+node, const char *uname,
+>  	} else if (strcmp(type, "memory") != 0)
+>  		return 0;
+>  
+> +	if (!of_flat_dt_device_is_available(node))
+> +		return 0;
+> +
+>  	reg = of_get_flat_dt_prop(node, "linux,usable-memory", &l);
+>  	if (reg == NULL)
+>  		reg = of_get_flat_dt_prop(node, "reg", &l);
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
