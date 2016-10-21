@@ -1,60 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 812916B0069
-	for <linux-mm@kvack.org>; Fri, 21 Oct 2016 11:12:44 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id d199so115277wmd.0
-        for <linux-mm@kvack.org>; Fri, 21 Oct 2016 08:12:44 -0700 (PDT)
-Received: from mail-wm0-f65.google.com (mail-wm0-f65.google.com. [74.125.82.65])
-        by mx.google.com with ESMTPS id t2si4127514wmb.23.2016.10.21.08.12.43
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AEEED6B0038
+	for <linux-mm@kvack.org>; Fri, 21 Oct 2016 13:25:22 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id 128so58325870pfz.1
+        for <linux-mm@kvack.org>; Fri, 21 Oct 2016 10:25:22 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id ae6si2906254pad.277.2016.10.21.10.25.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Oct 2016 08:12:43 -0700 (PDT)
-Received: by mail-wm0-f65.google.com with SMTP id d128so21686wmf.0
-        for <linux-mm@kvack.org>; Fri, 21 Oct 2016 08:12:43 -0700 (PDT)
-Date: Fri, 21 Oct 2016 17:12:41 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] shmem: avoid huge pages for small files
-Message-ID: <20161021151241.GP6045@dhcp22.suse.cz>
-References: <20161017145539.GA26930@node.shutemov.name>
- <20161018142007.GL12092@dhcp22.suse.cz>
- <20161018143207.GA5833@node.shutemov.name>
- <20161018183023.GC27792@dhcp22.suse.cz>
- <alpine.LSU.2.11.1610191101250.10318@eggly.anvils>
- <20161020103946.GA3881@node.shutemov.name>
- <20161020224630.GO23194@dastard>
- <20161021020116.GD1075@tassilo.jf.intel.com>
- <20161021050118.GR23194@dastard>
- <20161021150007.GA13597@node.shutemov.name>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 21 Oct 2016 10:25:21 -0700 (PDT)
+Subject: Re: [RESEND PATCH v3 kernel 0/7] Extend virtio-balloon for fast
+ (de)inflating & fast live migration
+References: <1477031080-12616-1-git-send-email-liang.z.li@intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <580A4F81.60201@intel.com>
+Date: Fri, 21 Oct 2016 10:25:21 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161021150007.GA13597@node.shutemov.name>
+In-Reply-To: <1477031080-12616-1-git-send-email-liang.z.li@intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Dave Chinner <david@fromorbit.com>, Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Liang Li <liang.z.li@intel.com>, mst@redhat.com
+Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, virtio-dev@lists.oasis-open.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, quintela@redhat.com, dgilbert@redhat.com, pbonzini@redhat.com, cornelia.huck@de.ibm.com, amit.shah@redhat.com
 
-On Fri 21-10-16 18:00:07, Kirill A. Shutemov wrote:
-> On Fri, Oct 21, 2016 at 04:01:18PM +1100, Dave Chinner wrote:
-[...]
-> > None of these aspects can be optimised sanely by a single threshold,
-> > especially when considering the combination of access patterns vs file
-> > layout.
-> 
-> I agree.
-> 
-> Here I tried to address the particular performance regression I see with
-> huge pages enabled on tmpfs. It doesn't mean to fix all possible issues.
+On 10/20/2016 11:24 PM, Liang Li wrote:
+> Dave Hansen suggested a new scheme to encode the data structure,
+> because of additional complexity, it's not implemented in v3.
 
-So can we start simple and use huge pages on shmem mappings only when
-they are larger than the huge page? Without any tunable which might turn
-out to be misleading/wrong later on. If I understand Dave's comments it
-is really not all that clear that a mount option makes sense. I cannot
-comment on those but they clearly show that there are multiple points of
-view here.
--- 
-Michal Hocko
-SUSE Labs
+So, what do you want done with this patch set?  Do you want it applied
+as-is so that we can introduce a new host/guest ABI that we must support
+until the end of time?  Then, we go back in a year or two and add the
+newer format that addresses the deficiencies that this ABI has with a
+third version?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
