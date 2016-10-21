@@ -1,19 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 75E566B0069
-	for <linux-mm@kvack.org>; Fri, 21 Oct 2016 18:50:18 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id r16so64322426pfg.4
-        for <linux-mm@kvack.org>; Fri, 21 Oct 2016 15:50:18 -0700 (PDT)
-Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [150.101.137.141])
-        by mx.google.com with ESMTP id c5si4361609pfe.244.2016.10.21.15.50.16
-        for <linux-mm@kvack.org>;
-        Fri, 21 Oct 2016 15:50:17 -0700 (PDT)
-Date: Sat, 22 Oct 2016 09:50:13 +1100
-From: Dave Chinner <david@fromorbit.com>
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F93E6B0069
+	for <linux-mm@kvack.org>; Fri, 21 Oct 2016 19:32:48 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id i187so4606275lfe.4
+        for <linux-mm@kvack.org>; Fri, 21 Oct 2016 16:32:48 -0700 (PDT)
+Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
+        by mx.google.com with ESMTPS id e24si2212886lji.94.2016.10.21.16.32.46
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 21 Oct 2016 16:32:46 -0700 (PDT)
+Received: by mail-lf0-x244.google.com with SMTP id l131so6700087lfl.0
+        for <linux-mm@kvack.org>; Fri, 21 Oct 2016 16:32:46 -0700 (PDT)
+Date: Sat, 22 Oct 2016 02:32:43 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
 Subject: Re: [PATCH] shmem: avoid huge pages for small files
-Message-ID: <20161021225013.GS14023@dastard>
-References: <20161017145539.GA26930@node.shutemov.name>
- <20161018142007.GL12092@dhcp22.suse.cz>
+Message-ID: <20161021233243.GA15575@node.shutemov.name>
+References: <20161018142007.GL12092@dhcp22.suse.cz>
  <20161018143207.GA5833@node.shutemov.name>
  <20161018183023.GC27792@dhcp22.suse.cz>
  <alpine.LSU.2.11.1610191101250.10318@eggly.anvils>
@@ -22,117 +24,110 @@ References: <20161017145539.GA26930@node.shutemov.name>
  <20161021020116.GD1075@tassilo.jf.intel.com>
  <20161021050118.GR23194@dastard>
  <20161021150007.GA13597@node.shutemov.name>
+ <20161021225013.GS14023@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161021150007.GA13597@node.shutemov.name>
+In-Reply-To: <20161021225013.GS14023@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Dave Chinner <david@fromorbit.com>
 Cc: Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Oct 21, 2016 at 06:00:07PM +0300, Kirill A. Shutemov wrote:
-> On Fri, Oct 21, 2016 at 04:01:18PM +1100, Dave Chinner wrote:
-> > On Thu, Oct 20, 2016 at 07:01:16PM -0700, Andi Kleen wrote:
-> > > > Ugh, no, please don't use mount options for file specific behaviours
-> > > > in filesystems like ext4 and XFS. This is exactly the sort of
-> > > > behaviour that should either just work automatically (i.e. be
-> > > > completely controlled by the filesystem) or only be applied to files
+On Sat, Oct 22, 2016 at 09:50:13AM +1100, Dave Chinner wrote:
+> On Fri, Oct 21, 2016 at 06:00:07PM +0300, Kirill A. Shutemov wrote:
+> > On Fri, Oct 21, 2016 at 04:01:18PM +1100, Dave Chinner wrote:
+> > > On Thu, Oct 20, 2016 at 07:01:16PM -0700, Andi Kleen wrote:
+> > > > > Ugh, no, please don't use mount options for file specific behaviours
+> > > > > in filesystems like ext4 and XFS. This is exactly the sort of
+> > > > > behaviour that should either just work automatically (i.e. be
+> > > > > completely controlled by the filesystem) or only be applied to files
+> > > > 
+> > > > Can you explain what you mean? How would the file system control it?
 > > > 
-> > > Can you explain what you mean? How would the file system control it?
+> > > There's no point in asking for huge pages when populating the page
+> > > cache if the file is:
+> > > 
+> > > 	- significantly smaller than the huge page size
+> > > 	- largely sparse
+> > > 	- being randomly accessed in small chunks
+> > > 	- badly fragmented and so takes hundreds of IO to read/write
+> > > 	  a huge page
+> > > 	- able to optimise delayed allocation to match huge page
+> > > 	  sizes and alignments
+> > > 
+> > > These are all constraints the filesystem knows about, but the
+> > > application and user don't.
 > > 
-> > There's no point in asking for huge pages when populating the page
-> > cache if the file is:
+> > Really?
 > > 
-> > 	- significantly smaller than the huge page size
-> > 	- largely sparse
-> > 	- being randomly accessed in small chunks
-> > 	- badly fragmented and so takes hundreds of IO to read/write
-> > 	  a huge page
-> > 	- able to optimise delayed allocation to match huge page
-> > 	  sizes and alignments
+> > To me, most of things you're talking about is highly dependent on access
+> > pattern generated by userspace:
 > > 
-> > These are all constraints the filesystem knows about, but the
-> > application and user don't.
+> >   - we may want to allocate huge pages from byte 1 if we know that file
+> >     will grow;
 > 
-> Really?
+> delayed allocation takes care of that. We use a growing speculative
+> delalloc size that kicks in at specific sizes and can be used
+> directly to determine if a large page shoul dbe allocated. This code
+> is aware of sparse files, sparse writes, etc.
+
+I'm confused here. How can we delay allocation of page cache?
+
+Delalloc is helpful to have reasonable on-disk layout, but my
+understanding is that it uses page cache as buffering to postpone
+block allocation. Later on writeback we see access pattern using pages
+from page cache.
+
+I'm likely missing something important here. Hm?
+
+> >   - it will be beneficial to allocate huge page even for fragmented files,
+> >     if it's read-mostly;
 > 
-> To me, most of things you're talking about is highly dependent on access
-> pattern generated by userspace:
-> 
->   - we may want to allocate huge pages from byte 1 if we know that file
->     will grow;
+> No, no it won't. The IO latency impact here can be massive.
+> read-ahead of single 4k pages hides most of this latency from the
+> application, but with a 2MB page, we can't use readhead to hide this
+> IO latency because the first access could stall for hundreds of
+> small random read IOs to be completed instead of just 1.
 
-delayed allocation takes care of that. We use a growing speculative
-delalloc size that kicks in at specific sizes and can be used
-directly to determine if a large page shoul dbe allocated. This code
-is aware of sparse files, sparse writes, etc.
+I agree that it will lead to initial latency spike. But don't we have
+workloads which would tolerate it to get faster hot-cache behaviour?
 
->   - the same for sparse file that will be filled;
-
-See above.
-
->   - it will be beneficial to allocate huge page even for fragmented files,
->     if it's read-mostly;
-
-No, no it won't. The IO latency impact here can be massive.
-read-ahead of single 4k pages hides most of this latency from the
-application, but with a 2MB page, we can't use readhead to hide this
-IO latency because the first access could stall for hundreds of
-small random read IOs to be completed instead of just 1.
-
-
-> > Further, we are moving the IO path to a model where we use extents
-> > for mapping, not blocks.  We're optimising for the fact that modern
-> > filesystems use extents and so massively reduce the number of block
-> > mapping lookup calls we need to do for a given IO.
+> > > Further, we are moving the IO path to a model where we use extents
+> > > for mapping, not blocks.  We're optimising for the fact that modern
+> > > filesystems use extents and so massively reduce the number of block
+> > > mapping lookup calls we need to do for a given IO.
+> > > 
+> > > i.e. instead of doing "get page, map block to page" over and over
+> > > again until we've alked over the entire IO range, we're doing
+> > > "map extent for entire IO range" once, then iterating "get page"
+> > > until we've mapped the entire range.
 > > 
-> > i.e. instead of doing "get page, map block to page" over and over
-> > again until we've alked over the entire IO range, we're doing
-> > "map extent for entire IO range" once, then iterating "get page"
-> > until we've mapped the entire range.
+> > That's great, but it's not how IO path works *now*. And will takes a long
+> > time (if ever) to flip it over to what you've described.
 > 
-> That's great, but it's not how IO path works *now*. And will takes a long
-> time (if ever) to flip it over to what you've described.
+> Wrong. fs/iomap.c. XFS already uses it, ext4 is being converted
+> right now, GFS2 will use parts of it in the next release, DAX
+> already uses it and PMD support in DAX is being built on top of it.
 
-Wrong. fs/iomap.c. XFS already uses it, ext4 is being converted
-right now, GFS2 will use parts of it in the next release, DAX
-already uses it and PMD support in DAX is being built on top of it.
+That's interesting. I've managed to miss whole fs/iomap.c thing...
 
-> > As such, there is no way we should be considering different
-> > interfaces and methods for configuring the /same functionality/ just
-> > because DAX is enabled or not. It's the /same decision/ that needs
-> > to be made, and the filesystem knows an awful lot more about whether
-> > huge pages can be used efficiently at the time of access than just
-> > about any other actor you can name....
+> > > As such, there is no way we should be considering different
+> > > interfaces and methods for configuring the /same functionality/ just
+> > > because DAX is enabled or not. It's the /same decision/ that needs
+> > > to be made, and the filesystem knows an awful lot more about whether
+> > > huge pages can be used efficiently at the time of access than just
+> > > about any other actor you can name....
+> > 
+> > I'm not convinced that filesystem is in better position to see access
+> > patterns than mm for page cache. It's not all about on-disk layout.
 > 
-> I'm not convinced that filesystem is in better position to see access
-> patterns than mm for page cache. It's not all about on-disk layout.
+> Spoken like a true mm developer.
 
-Spoken like a true mm developer. IO performance is all about IO
-patterns, and the primary contributor to bad IO patterns is bad
-filesystem allocation patterns.... :P
+Guilty.
 
-We're rapidly moving away from the world where a page cache is
-needed to give applications decent performance. DAX doesn't have a
-page cache, applications wanting to use high IOPS (hundreds of
-thousands to millions) storage are using direct IO, because the page
-cache just introduces latency, memory usage issues and
-non-deterministic IO behaviour.
-
-I we try to make the page cache the "one true IO optimisation source"
-then we're screwing ourselves because the incoming IO technologies
-simply don't require it anymore. We need to be ahead of that curve,
-not playing catchup, and that's why this sort of "what should the
-page cache do" decisions really need to come from the IO path where
-we see /all/ the IO, not just buffered IO....
-
-Cheers,
-
-Dave.
 -- 
-Dave Chinner
-david@fromorbit.com
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
