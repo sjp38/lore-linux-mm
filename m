@@ -1,61 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D8F06B0069
-	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 21:58:44 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id n85so40482558pfi.7
-        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 18:58:44 -0700 (PDT)
-Received: from mail-pf0-x242.google.com (mail-pf0-x242.google.com. [2607:f8b0:400e:c00::242])
-        by mx.google.com with ESMTPS id e7si189202pas.335.2016.10.20.18.58.43
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DFE146B0069
+	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 22:01:24 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id i85so40390144pfa.5
+        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 19:01:24 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id rb4si222941pab.116.2016.10.20.19.01.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Oct 2016 18:58:43 -0700 (PDT)
-Received: by mail-pf0-x242.google.com with SMTP id 128so7075172pfz.1
-        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 18:58:43 -0700 (PDT)
-Date: Fri, 21 Oct 2016 12:58:28 +1100
-From: Nicholas Piggin <npiggin@gmail.com>
-Subject: Re: [PATCH 4/6] mm: remove free_unmap_vmap_area_addr
-Message-ID: <20161021125828.17b8960e@roar.ozlabs.ibm.com>
-In-Reply-To: <CAJWu+oqOw6uMh+Q_78MGjO8WKLxCuh4fmVmKxEJ5aoviXjoMcA@mail.gmail.com>
-References: <1476773771-11470-1-git-send-email-hch@lst.de>
-	<1476773771-11470-5-git-send-email-hch@lst.de>
-	<CAJWu+oqOw6uMh+Q_78MGjO8WKLxCuh4fmVmKxEJ5aoviXjoMcA@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 20 Oct 2016 19:01:23 -0700 (PDT)
+Date: Thu, 20 Oct 2016 19:01:16 -0700
+From: Andi Kleen <ak@linux.intel.com>
+Subject: Re: [PATCH] shmem: avoid huge pages for small files
+Message-ID: <20161021020116.GD1075@tassilo.jf.intel.com>
+References: <20161017121809.189039-1-kirill.shutemov@linux.intel.com>
+ <20161017123021.rlyz44dsf4l4xnve@black.fi.intel.com>
+ <20161017141245.GC27459@dhcp22.suse.cz>
+ <20161017145539.GA26930@node.shutemov.name>
+ <20161018142007.GL12092@dhcp22.suse.cz>
+ <20161018143207.GA5833@node.shutemov.name>
+ <20161018183023.GC27792@dhcp22.suse.cz>
+ <alpine.LSU.2.11.1610191101250.10318@eggly.anvils>
+ <20161020103946.GA3881@node.shutemov.name>
+ <20161020224630.GO23194@dastard>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161020224630.GO23194@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joel Fernandes <joelaf@google.com>
-Cc: Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>, Jisheng Zhang <jszhang@marvell.com>, Chris Wilson <chris@chris-wilson.co.uk>, John Dias <joaodias@google.com>, "open
- list:MEMORY MANAGEMENT" <linux-mm@kvack.org>, linux-rt-users@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 20 Oct 2016 17:46:36 -0700
-Joel Fernandes <joelaf@google.com> wrote:
+> Ugh, no, please don't use mount options for file specific behaviours
+> in filesystems like ext4 and XFS. This is exactly the sort of
+> behaviour that should either just work automatically (i.e. be
+> completely controlled by the filesystem) or only be applied to files
 
-> > @@ -1100,10 +1091,14 @@ void vm_unmap_ram(const void *mem, unsigned int count)
-> >         debug_check_no_locks_freed(mem, size);
-> >         vmap_debug_free_range(addr, addr+size);
-> >
-> > -       if (likely(count <= VMAP_MAX_ALLOC))
-> > +       if (likely(count <= VMAP_MAX_ALLOC)) {
-> >                 vb_free(mem, size);
-> > -       else
-> > -               free_unmap_vmap_area_addr(addr);
-> > +               return;
-> > +       }
-> > +
-> > +       va = find_vmap_area(addr);
-> > +       BUG_ON(!va);  
-> 
-> Considering recent objections to BUG_ON [1], lets make this a WARN_ON
-> while we're moving the code?
+Can you explain what you mean? How would the file system control it?
 
-If you lost track of your kernel memory mappings, you are in big trouble
-and fail stop is really the best course of action for containing the
-problem, which could have security and data corruption implications. This
-is covered by Linus' last paragraph in that commit.
+> specifically configured with persistent hints to reliably allocate
+> extents in a way that can be easily mapped to huge pages.
 
-Thanks,
-Nick
+> e.g. on XFS you will need to apply extent size hints to get large
+> page sized/aligned extent allocation to occur, and so this
+
+It sounds like you're confusing alignment in memory with alignment
+on disk here? I don't see why on disk alignment would be needed
+at all, unless we're talking about DAX here (which is out of 
+scope currently) Kirill's changes are all about making the memory
+access for cached data more efficient, it's not about disk layout
+optimizations.
+
+> persistent extent size hint should trigger the filesystem to use
+> large pages if supported, the hint is correctly sized and aligned,
+> and there are large pages available for allocation.
+
+That would be ioctls and similar?
+
+That would imply that every application wanting to use large pages
+would need to be especially enabled. That would seem awfully limiting
+to me and needlessly deny benefits to most existing code.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
