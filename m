@@ -1,68 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DFE146B0069
-	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 22:01:24 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id i85so40390144pfa.5
-        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 19:01:24 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id rb4si222941pab.116.2016.10.20.19.01.23
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 878C56B0069
+	for <linux-mm@kvack.org>; Thu, 20 Oct 2016 23:16:10 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id h24so41839516pfh.0
+        for <linux-mm@kvack.org>; Thu, 20 Oct 2016 20:16:10 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id e23si502111pga.305.2016.10.20.20.16.09
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 20 Oct 2016 19:01:23 -0700 (PDT)
-Date: Thu, 20 Oct 2016 19:01:16 -0700
-From: Andi Kleen <ak@linux.intel.com>
-Subject: Re: [PATCH] shmem: avoid huge pages for small files
-Message-ID: <20161021020116.GD1075@tassilo.jf.intel.com>
-References: <20161017121809.189039-1-kirill.shutemov@linux.intel.com>
- <20161017123021.rlyz44dsf4l4xnve@black.fi.intel.com>
- <20161017141245.GC27459@dhcp22.suse.cz>
- <20161017145539.GA26930@node.shutemov.name>
- <20161018142007.GL12092@dhcp22.suse.cz>
- <20161018143207.GA5833@node.shutemov.name>
- <20161018183023.GC27792@dhcp22.suse.cz>
- <alpine.LSU.2.11.1610191101250.10318@eggly.anvils>
- <20161020103946.GA3881@node.shutemov.name>
- <20161020224630.GO23194@dastard>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161020224630.GO23194@dastard>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 20 Oct 2016 20:16:09 -0700 (PDT)
+Date: Thu, 20 Oct 2016 20:16:06 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm, compaction: fix NR_ISOLATED_* stats for pfn based
+ migration
+Message-Id: <20161020201606.2da29e792856a03a0da0adb2@linux-foundation.org>
+In-Reply-To: <20161019080240.9682-1-mhocko@kernel.org>
+References: <20161019080240.9682-1-mhocko@kernel.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "ming.ling" <ming.ling@spreadtrum.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <js1304@gmail.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-> Ugh, no, please don't use mount options for file specific behaviours
-> in filesystems like ext4 and XFS. This is exactly the sort of
-> behaviour that should either just work automatically (i.e. be
-> completely controlled by the filesystem) or only be applied to files
+On Wed, 19 Oct 2016 10:02:40 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 
-Can you explain what you mean? How would the file system control it?
+> Since bda807d44454 ("mm: migrate: support non-lru movable page
+> migration") isolate_migratepages_block) can isolate !PageLRU pages which
+> would acct_isolated account as NR_ISOLATED_*. Accounting these non-lru
+> pages NR_ISOLATED_{ANON,FILE} doesn't make any sense and it can misguide
+> heuristics based on those counters such as pgdat_reclaimable_pages resp.
+> too_many_isolated which would lead to unexpected stalls during the
+> direct reclaim without any good reason. Note that
+> __alloc_contig_migrate_range can isolate a lot of pages at once.
+> 
+> On mobile devices such as 512M ram android Phone, it may use a big zram
+> swap. In some cases zram(zsmalloc) uses too many non-lru but migratedable
+> pages, such as:
+> 
+>       MemTotal: 468148 kB
+>       Normal free:5620kB
+>       Free swap:4736kB
+>       Total swap:409596kB
+>       ZRAM: 164616kB(zsmalloc non-lru pages)
+>       active_anon:60700kB
+>       inactive_anon:60744kB
+>       active_file:34420kB
+>       inactive_file:37532kB
+> 
+> Fix this by only accounting lru pages to NR_ISOLATED_* in
+> isolate_migratepages_block right after they were isolated and we still
+> know they were on LRU. Drop acct_isolated because it is called after the
+> fact and we've lost that information. Batching per-cpu counter doesn't
+> make much improvement anyway. Also make sure that we uncharge only LRU
+> pages when putting them back on the LRU in putback_movable_pages resp.
+> when unmap_and_move migrates the page.
 
-> specifically configured with persistent hints to reliably allocate
-> extents in a way that can be easily mapped to huge pages.
-
-> e.g. on XFS you will need to apply extent size hints to get large
-> page sized/aligned extent allocation to occur, and so this
-
-It sounds like you're confusing alignment in memory with alignment
-on disk here? I don't see why on disk alignment would be needed
-at all, unless we're talking about DAX here (which is out of 
-scope currently) Kirill's changes are all about making the memory
-access for cached data more efficient, it's not about disk layout
-optimizations.
-
-> persistent extent size hint should trigger the filesystem to use
-> large pages if supported, the hint is correctly sized and aligned,
-> and there are large pages available for allocation.
-
-That would be ioctls and similar?
-
-That would imply that every application wanting to use large pages
-would need to be especially enabled. That would seem awfully limiting
-to me and needlessly deny benefits to most existing code.
-
--Andi
+It isn't worth backporting into 4.8.x?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
