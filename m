@@ -1,81 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A58206B0264
-	for <linux-mm@kvack.org>; Sat, 22 Oct 2016 11:17:44 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id r16so79709209pfg.4
-        for <linux-mm@kvack.org>; Sat, 22 Oct 2016 08:17:44 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id da3si2598262pab.317.2016.10.22.08.17.43
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BCECA6B0069
+	for <linux-mm@kvack.org>; Sat, 22 Oct 2016 14:29:02 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id d128so11096379wmf.2
+        for <linux-mm@kvack.org>; Sat, 22 Oct 2016 11:29:02 -0700 (PDT)
+Received: from mail-wm0-x242.google.com (mail-wm0-x242.google.com. [2a00:1450:400c:c09::242])
+        by mx.google.com with ESMTPS id bp10si8149728wjc.237.2016.10.22.11.29.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 22 Oct 2016 08:17:43 -0700 (PDT)
-From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 7/7] mm: add preempt points into __purge_vmap_area_lazy
-Date: Sat, 22 Oct 2016 17:17:20 +0200
-Message-Id: <1477149440-12478-8-git-send-email-hch@lst.de>
-In-Reply-To: <1477149440-12478-1-git-send-email-hch@lst.de>
-References: <1477149440-12478-1-git-send-email-hch@lst.de>
+        Sat, 22 Oct 2016 11:29:00 -0700 (PDT)
+Received: by mail-wm0-x242.google.com with SMTP id o81so3518459wma.2
+        for <linux-mm@kvack.org>; Sat, 22 Oct 2016 11:29:00 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CALZtONB0k=Q+uaS6oqso8=b2awFyFb0B8jEjE9F9cNuWXm+R7Q@mail.gmail.com>
+References: <20161019183340.9e3738b403ddda1a04c8f906@gmail.com>
+ <20161019183506.d25ef094d89331b812eabc4f@gmail.com> <CALZtONB0k=Q+uaS6oqso8=b2awFyFb0B8jEjE9F9cNuWXm+R7Q@mail.gmail.com>
+From: Vitaly Wool <vitalywool@gmail.com>
+Date: Sat, 22 Oct 2016 20:28:59 +0200
+Message-ID: <CAMJBoFOJBEdEChZkF_oEY38yfr0JXxjaO6MXQnVmvNZVDwitgw@mail.gmail.com>
+Subject: Re: [PATCH 1/3] z3fold: make counters atomic
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: joelaf@google.com, jszhang@marvell.com, chris@chris-wilson.co.uk, joaodias@google.com, linux-mm@kvack.org, linux-rt-users@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-From: Joel Fernandes <joelaf@google.com>
+On Thu, Oct 20, 2016 at 10:17 PM, Dan Streetman <ddstreet@ieee.org> wrote:
+> On Wed, Oct 19, 2016 at 12:35 PM, Vitaly Wool <vitalywool@gmail.com> wrote:
+>> This patch converts pages_nr per-pool counter to atomic64_t.
+>> It also introduces a new counter, unbuddied_nr, which is
+>> atomic64_t, too, to track the number of unbuddied (compactable)
+>> z3fold pages.
+>>
+>> Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
+>> ---
+>>  mm/z3fold.c | 33 +++++++++++++++++++++++++--------
+>>  1 file changed, 25 insertions(+), 8 deletions(-)
+>>
+>> diff --git a/mm/z3fold.c b/mm/z3fold.c
+>> index 8f9e89c..5ac325a 100644
+>> --- a/mm/z3fold.c
+>> +++ b/mm/z3fold.c
+>> @@ -69,6 +69,7 @@ struct z3fold_ops {
+>>   * @lru:       list tracking the z3fold pages in LRU order by most recently
+>>   *             added buddy.
+>>   * @pages_nr:  number of z3fold pages in the pool.
+>> + * @unbuddied_nr:      number of unbuddied z3fold pages in the pool.
+>>   * @ops:       pointer to a structure of user defined operations specified at
+>>   *             pool creation time.
+>>   *
+>> @@ -80,7 +81,8 @@ struct z3fold_pool {
+>>         struct list_head unbuddied[NCHUNKS];
+>>         struct list_head buddied;
+>>         struct list_head lru;
+>> -       u64 pages_nr;
+>> +       atomic64_t pages_nr;
+>> +       atomic64_t unbuddied_nr;
+>>         const struct z3fold_ops *ops;
+>>         struct zpool *zpool;
+>>         const struct zpool_ops *zpool_ops;
+>> @@ -234,7 +236,8 @@ static struct z3fold_pool *z3fold_create_pool(gfp_t gfp,
+>>                 INIT_LIST_HEAD(&pool->unbuddied[i]);
+>>         INIT_LIST_HEAD(&pool->buddied);
+>>         INIT_LIST_HEAD(&pool->lru);
+>> -       pool->pages_nr = 0;
+>> +       atomic64_set(&pool->pages_nr, 0);
+>> +       atomic64_set(&pool->unbuddied_nr, 0);
+>>         pool->ops = ops;
+>>         return pool;
+>>  }
+>> @@ -334,6 +337,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
+>>                                         continue;
+>>                                 }
+>>                                 list_del(&zhdr->buddy);
+>> +                               atomic64_dec(&pool->unbuddied_nr);
+>>                                 goto found;
+>>                         }
+>>                 }
+>> @@ -346,7 +350,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
+>>         if (!page)
+>>                 return -ENOMEM;
+>>         spin_lock(&pool->lock);
+>> -       pool->pages_nr++;
+>> +       atomic64_inc(&pool->pages_nr);
+>>         zhdr = init_z3fold_page(page);
+>>
+>>         if (bud == HEADLESS) {
+>> @@ -369,6 +373,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
+>>                 /* Add to unbuddied list */
+>>                 freechunks = num_free_chunks(zhdr);
+>>                 list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
+>> +               atomic64_inc(&pool->unbuddied_nr);
+>>         } else {
+>>                 /* Add to buddied list */
+>>                 list_add(&zhdr->buddy, &pool->buddied);
+>> @@ -412,6 +417,10 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
+>>                 /* HEADLESS page stored */
+>>                 bud = HEADLESS;
+>>         } else {
+>> +               bool is_unbuddied = zhdr->first_chunks == 0 ||
+>> +                               zhdr->middle_chunks == 0 ||
+>> +                               zhdr->last_chunks == 0;
+>> +
+>>                 bud = handle_to_buddy(handle);
+>>
+>>                 switch (bud) {
+>> @@ -431,6 +440,8 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
+>>                         spin_unlock(&pool->lock);
+>>                         return;
+>>                 }
+>> +               if (is_unbuddied)
+>> +                       atomic64_dec(&pool->unbuddied_nr);
+>
+> this should be below, where it's removed from its buddy list.  If it's
+> under reclaim, it's already been removd from the buddy list and we
+> shouldn't dec the counter.
 
-Use cond_resched_lock to avoid holding the vmap_area_lock for a
-potentially long time and thus creating bad latencies for various
-workloads.
+Right, thanks. Will fix in the new respin.
 
-Signed-off-by: Joel Fernandes <joelaf@google.com>
-[hch: split from a larger patch by Joel, wrote the crappy changelog]
-Signed-off-by: Christoph Hellwig <hch@lst.de>
-Tested-by: Jisheng Zhang <jszhang@marvell.com>
----
- mm/vmalloc.c | 14 +++++++++-----
- 1 file changed, 9 insertions(+), 5 deletions(-)
-
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 23d6797..6c8b921 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -628,7 +628,7 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
- 	struct llist_node *valist;
- 	struct vmap_area *va;
- 	struct vmap_area *n_va;
--	int nr = 0;
-+	bool do_free = false;
- 
- 	lockdep_assert_held(&vmap_purge_lock);
- 
-@@ -638,18 +638,22 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
- 			start = va->va_start;
- 		if (va->va_end > end)
- 			end = va->va_end;
--		nr += (va->va_end - va->va_start) >> PAGE_SHIFT;
-+		do_free = true;
- 	}
- 
--	if (!nr)
-+	if (!do_free)
- 		return false;
- 
--	atomic_sub(nr, &vmap_lazy_nr);
- 	flush_tlb_kernel_range(start, end);
- 
- 	spin_lock(&vmap_area_lock);
--	llist_for_each_entry_safe(va, n_va, valist, purge_list)
-+	llist_for_each_entry_safe(va, n_va, valist, purge_list) {
-+		int nr = (va->va_end - va->va_start) >> PAGE_SHIFT;
-+
- 		__free_vmap_area(va);
-+		atomic_sub(nr, &vmap_lazy_nr);
-+		cond_resched_lock(&vmap_area_lock);
-+	}
- 	spin_unlock(&vmap_area_lock);
- 	return true;
- }
--- 
-2.1.4
+~vitaly
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
