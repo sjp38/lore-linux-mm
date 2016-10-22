@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 55BBF6B0260
-	for <linux-mm@kvack.org>; Sat, 22 Oct 2016 11:17:34 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e6so79228818pfk.2
-        for <linux-mm@kvack.org>; Sat, 22 Oct 2016 08:17:34 -0700 (PDT)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C70D66B0261
+	for <linux-mm@kvack.org>; Sat, 22 Oct 2016 11:17:36 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id r16so79707291pfg.4
+        for <linux-mm@kvack.org>; Sat, 22 Oct 2016 08:17:36 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id m8si7312910pfc.209.2016.10.22.08.17.33
+        by mx.google.com with ESMTPS id qj8si6126311pac.114.2016.10.22.08.17.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 22 Oct 2016 08:17:33 -0700 (PDT)
+        Sat, 22 Oct 2016 08:17:35 -0700 (PDT)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 3/7] mm: refactor __purge_vmap_area_lazy
-Date: Sat, 22 Oct 2016 17:17:16 +0200
-Message-Id: <1477149440-12478-4-git-send-email-hch@lst.de>
+Subject: [PATCH 4/7] mm: defer vmalloc from atomic context
+Date: Sat, 22 Oct 2016 17:17:17 +0200
+Message-Id: <1477149440-12478-5-git-send-email-hch@lst.de>
 In-Reply-To: <1477149440-12478-1-git-send-email-hch@lst.de>
 References: <1477149440-12478-1-git-send-email-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,153 +20,28 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: joelaf@google.com, jszhang@marvell.com, chris@chris-wilson.co.uk, joaodias@google.com, linux-mm@kvack.org, linux-rt-users@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Move the purge_lock synchronization to the callers, move the call to
-purge_fragmented_blocks_allcpus at the beginning of the function to
-the callers that need it, move the force_flush behavior to the caller
-that needs it, and pass start and end by value instead of by reference.
-
-No change in behavior.
+We want to be able to use a sleeping lock for freeing vmap to keep
+latency down.  For this we need to use the deferred vfree mechanisms
+no only from interrupt, but from any atomic context.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
-Tested-by: Jisheng Zhang <jszhang@marvell.com>
 ---
- mm/vmalloc.c | 80 ++++++++++++++++++++++++++----------------------------------
- 1 file changed, 35 insertions(+), 45 deletions(-)
+ mm/vmalloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index cf1a5ab..a4e2cec 100644
+index a4e2cec..bcc1a64 100644
 --- a/mm/vmalloc.c
 +++ b/mm/vmalloc.c
-@@ -601,6 +601,13 @@ static unsigned long lazy_max_pages(void)
+@@ -1509,7 +1509,7 @@ void vfree(const void *addr)
  
- static atomic_t vmap_lazy_nr = ATOMIC_INIT(0);
- 
-+/*
-+ * Serialize vmap purging.  There is no actual criticial section protected
-+ * by this look, but we want to avoid concurrent calls for performance
-+ * reasons and to make the pcpu_get_vm_areas more deterministic.
-+ */
-+static DEFINE_SPINLOCK(vmap_purge_lock);
-+
- /* for per-CPU blocks */
- static void purge_fragmented_blocks_allcpus(void);
- 
-@@ -615,59 +622,36 @@ void set_iounmap_nonlazy(void)
- 
- /*
-  * Purges all lazily-freed vmap areas.
-- *
-- * If sync is 0 then don't purge if there is already a purge in progress.
-- * If force_flush is 1, then flush kernel TLBs between *start and *end even
-- * if we found no lazy vmap areas to unmap (callers can use this to optimise
-- * their own TLB flushing).
-- * Returns with *start = min(*start, lowest purged address)
-- *              *end = max(*end, highest purged address)
-  */
--static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
--					int sync, int force_flush)
-+static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
- {
--	static DEFINE_SPINLOCK(purge_lock);
- 	struct llist_node *valist;
- 	struct vmap_area *va;
- 	struct vmap_area *n_va;
- 	int nr = 0;
- 
--	/*
--	 * If sync is 0 but force_flush is 1, we'll go sync anyway but callers
--	 * should not expect such behaviour. This just simplifies locking for
--	 * the case that isn't actually used at the moment anyway.
--	 */
--	if (!sync && !force_flush) {
--		if (!spin_trylock(&purge_lock))
--			return;
--	} else
--		spin_lock(&purge_lock);
--
--	if (sync)
--		purge_fragmented_blocks_allcpus();
-+	lockdep_assert_held(&vmap_purge_lock);
- 
- 	valist = llist_del_all(&vmap_purge_list);
- 	llist_for_each_entry(va, valist, purge_list) {
--		if (va->va_start < *start)
--			*start = va->va_start;
--		if (va->va_end > *end)
--			*end = va->va_end;
-+		if (va->va_start < start)
-+			start = va->va_start;
-+		if (va->va_end > end)
-+			end = va->va_end;
- 		nr += (va->va_end - va->va_start) >> PAGE_SHIFT;
- 	}
- 
--	if (nr)
--		atomic_sub(nr, &vmap_lazy_nr);
-+	if (!nr)
-+		return false;
- 
--	if (nr || force_flush)
--		flush_tlb_kernel_range(*start, *end);
-+	atomic_sub(nr, &vmap_lazy_nr);
-+	flush_tlb_kernel_range(start, end);
- 
--	if (nr) {
--		spin_lock(&vmap_area_lock);
--		llist_for_each_entry_safe(va, n_va, valist, purge_list)
--			__free_vmap_area(va);
--		spin_unlock(&vmap_area_lock);
--	}
--	spin_unlock(&purge_lock);
-+	spin_lock(&vmap_area_lock);
-+	llist_for_each_entry_safe(va, n_va, valist, purge_list)
-+		__free_vmap_area(va);
-+	spin_unlock(&vmap_area_lock);
-+	return true;
- }
- 
- /*
-@@ -676,9 +660,10 @@ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
-  */
- static void try_purge_vmap_area_lazy(void)
- {
--	unsigned long start = ULONG_MAX, end = 0;
--
--	__purge_vmap_area_lazy(&start, &end, 0, 0);
-+	if (spin_trylock(&vmap_purge_lock)) {
-+		__purge_vmap_area_lazy(ULONG_MAX, 0);
-+		spin_unlock(&vmap_purge_lock);
-+	}
- }
- 
- /*
-@@ -686,9 +671,10 @@ static void try_purge_vmap_area_lazy(void)
-  */
- static void purge_vmap_area_lazy(void)
- {
--	unsigned long start = ULONG_MAX, end = 0;
--
--	__purge_vmap_area_lazy(&start, &end, 1, 0);
-+	spin_lock(&vmap_purge_lock);
-+	purge_fragmented_blocks_allcpus();
-+	__purge_vmap_area_lazy(ULONG_MAX, 0);
-+	spin_unlock(&vmap_purge_lock);
- }
- 
- /*
-@@ -1075,7 +1061,11 @@ void vm_unmap_aliases(void)
- 		rcu_read_unlock();
- 	}
- 
--	__purge_vmap_area_lazy(&start, &end, 1, flush);
-+	spin_lock(&vmap_purge_lock);
-+	purge_fragmented_blocks_allcpus();
-+	if (!__purge_vmap_area_lazy(start, end) && flush)
-+		flush_tlb_kernel_range(start, end);
-+	spin_unlock(&vmap_purge_lock);
- }
- EXPORT_SYMBOL_GPL(vm_unmap_aliases);
- 
+ 	if (!addr)
+ 		return;
+-	if (unlikely(in_interrupt())) {
++	if (unlikely(in_atomic())) {
+ 		struct vfree_deferred *p = this_cpu_ptr(&vfree_deferred);
+ 		if (llist_add((struct llist_node *)addr, &p->list))
+ 			schedule_work(&p->wq);
 -- 
 2.1.4
 
