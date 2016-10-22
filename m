@@ -1,133 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F93E6B0069
-	for <linux-mm@kvack.org>; Fri, 21 Oct 2016 19:32:48 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id i187so4606275lfe.4
-        for <linux-mm@kvack.org>; Fri, 21 Oct 2016 16:32:48 -0700 (PDT)
-Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
-        by mx.google.com with ESMTPS id e24si2212886lji.94.2016.10.21.16.32.46
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 712886B0069
+	for <linux-mm@kvack.org>; Sat, 22 Oct 2016 02:27:27 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id d199so5902787wmd.0
+        for <linux-mm@kvack.org>; Fri, 21 Oct 2016 23:27:27 -0700 (PDT)
+Received: from mail-wm0-x231.google.com (mail-wm0-x231.google.com. [2a00:1450:400c:c09::231])
+        by mx.google.com with ESMTPS id w206si1762659wmd.79.2016.10.21.23.27.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 21 Oct 2016 16:32:46 -0700 (PDT)
-Received: by mail-lf0-x244.google.com with SMTP id l131so6700087lfl.0
-        for <linux-mm@kvack.org>; Fri, 21 Oct 2016 16:32:46 -0700 (PDT)
-Date: Sat, 22 Oct 2016 02:32:43 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] shmem: avoid huge pages for small files
-Message-ID: <20161021233243.GA15575@node.shutemov.name>
-References: <20161018142007.GL12092@dhcp22.suse.cz>
- <20161018143207.GA5833@node.shutemov.name>
- <20161018183023.GC27792@dhcp22.suse.cz>
- <alpine.LSU.2.11.1610191101250.10318@eggly.anvils>
- <20161020103946.GA3881@node.shutemov.name>
- <20161020224630.GO23194@dastard>
- <20161021020116.GD1075@tassilo.jf.intel.com>
- <20161021050118.GR23194@dastard>
- <20161021150007.GA13597@node.shutemov.name>
- <20161021225013.GS14023@dastard>
+        Fri, 21 Oct 2016 23:27:24 -0700 (PDT)
+Received: by mail-wm0-x231.google.com with SMTP id c78so19488917wme.0
+        for <linux-mm@kvack.org>; Fri, 21 Oct 2016 23:27:24 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161021225013.GS14023@dastard>
+In-Reply-To: <CACT4Y+Zx6MZcWAxmZf2tO_=V_KuDDjHFKMe_oXv5DzCvx4nhqg@mail.gmail.com>
+References: <CACT4Y+ZByeFG4bYEPPSKH9ZfGquj560EqxJAo0BfjrqMguFVTw@mail.gmail.com>
+ <CAGXu5jLxayCoaKFp13DbaoXgGAGuC7bYtpB8z0djUbF94i1ddg@mail.gmail.com>
+ <57CF4D3D.50603@iogearbox.net> <CACT4Y+Zx6MZcWAxmZf2tO_=V_KuDDjHFKMe_oXv5DzCvx4nhqg@mail.gmail.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Fri, 21 Oct 2016 23:27:23 -0700
+Message-ID: <CAGXu5j+HbSRO51uwV-FR4NqCVpD-DutmPCTjcOkCxPw6-Rd1Ew@mail.gmail.com>
+Subject: Re: mm: GPF in __insert_vmap_area
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Paul McKenney <paulmck@linux.vnet.ibm.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Daniel Borkmann <daniel@iogearbox.net>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, zijun_hu <zijun_hu@zoho.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrey Ryabinin <ryabinin.a.a@gmail.com>, Konstantin Khlebnikov <koct9i@gmail.com>, syzkaller <syzkaller@googlegroups.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>
 
-On Sat, Oct 22, 2016 at 09:50:13AM +1100, Dave Chinner wrote:
-> On Fri, Oct 21, 2016 at 06:00:07PM +0300, Kirill A. Shutemov wrote:
-> > On Fri, Oct 21, 2016 at 04:01:18PM +1100, Dave Chinner wrote:
-> > > On Thu, Oct 20, 2016 at 07:01:16PM -0700, Andi Kleen wrote:
-> > > > > Ugh, no, please don't use mount options for file specific behaviours
-> > > > > in filesystems like ext4 and XFS. This is exactly the sort of
-> > > > > behaviour that should either just work automatically (i.e. be
-> > > > > completely controlled by the filesystem) or only be applied to files
-> > > > 
-> > > > Can you explain what you mean? How would the file system control it?
-> > > 
-> > > There's no point in asking for huge pages when populating the page
-> > > cache if the file is:
-> > > 
-> > > 	- significantly smaller than the huge page size
-> > > 	- largely sparse
-> > > 	- being randomly accessed in small chunks
-> > > 	- badly fragmented and so takes hundreds of IO to read/write
-> > > 	  a huge page
-> > > 	- able to optimise delayed allocation to match huge page
-> > > 	  sizes and alignments
-> > > 
-> > > These are all constraints the filesystem knows about, but the
-> > > application and user don't.
-> > 
-> > Really?
-> > 
-> > To me, most of things you're talking about is highly dependent on access
-> > pattern generated by userspace:
-> > 
-> >   - we may want to allocate huge pages from byte 1 if we know that file
-> >     will grow;
-> 
-> delayed allocation takes care of that. We use a growing speculative
-> delalloc size that kicks in at specific sizes and can be used
-> directly to determine if a large page shoul dbe allocated. This code
-> is aware of sparse files, sparse writes, etc.
+On Thu, Sep 8, 2016 at 8:05 AM, Dmitry Vyukov <dvyukov@google.com> wrote:
+> On Wed, Sep 7, 2016 at 1:11 AM, Daniel Borkmann <daniel@iogearbox.net> wrote:
+>> On 09/06/2016 11:03 PM, Kees Cook wrote:
+>>>
+>>> On Sat, Sep 3, 2016 at 8:15 AM, Dmitry Vyukov <dvyukov@google.com> wrote:
+>>>>
+>>>> Hello,
+>>>>
+>>>> While running syzkaller fuzzer I've got the following GPF:
+>>>>
+>>>> general protection fault: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN
+>>>> Dumping ftrace buffer:
+>>>>     (ftrace buffer empty)
+>>>> Modules linked in:
+>>>> CPU: 2 PID: 4268 Comm: syz-executor Not tainted 4.8.0-rc3-next-20160825+
+>>>> #8
+>>>> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs
+>>>> 01/01/2011
+>>>> task: ffff88006a6527c0 task.stack: ffff880052630000
+>>>> RIP: 0010:[<ffffffff82e1ccd6>]  [<ffffffff82e1ccd6>]
+>>>> __list_add_valid+0x26/0xd0 lib/list_debug.c:23
+>>>> RSP: 0018:ffff880052637a18  EFLAGS: 00010202
+>>>> RAX: dffffc0000000000 RBX: 0000000000000000 RCX: ffffc90001c87000
+>>>> RDX: 0000000000000001 RSI: ffff88001344cdb0 RDI: 0000000000000008
+>>>> RBP: ffff880052637a30 R08: 0000000000000001 R09: 0000000000000000
+>>>> R10: 0000000000000000 R11: ffffffff8a5deee0 R12: ffff88006cc47230
+>>>> R13: ffff88001344cdb0 R14: ffff88006cc47230 R15: 0000000000000000
+>>>> FS:  00007fbacc97e700(0000) GS:ffff88006d200000(0000)
+>>>> knlGS:0000000000000000
+>>>> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+>>>> CR2: 0000000020de7000 CR3: 000000003c4d2000 CR4: 00000000000006e0
+>>>> DR0: 000000000000001e DR1: 000000000000001e DR2: 0000000000000000
+>>>> DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
+>>>> Stack:
+>>>>   ffff88006cc47200 ffff88001344cd98 ffff88006cc47200 ffff880052637a78
+>>>>   ffffffff817bc6d1 ffff88006cc47208 ffffed000d988e41 ffff88006cc47208
+>>>>   ffff88006cc3e680 ffffc900035b7000 ffffc900035a7000 ffff88006cc47200
+>>>> Call Trace:
+>>>>   [<     inline     >] __list_add_rcu include/linux/rculist.h:51
+>>>>   [<     inline     >] list_add_rcu include/linux/rculist.h:78
+>>>>   [<ffffffff817bc6d1>] __insert_vmap_area+0x1c1/0x3c0 mm/vmalloc.c:340
+>>>>   [<ffffffff817bf544>] alloc_vmap_area+0x614/0x890 mm/vmalloc.c:458
+>>>>   [<ffffffff817bf8a8>] __get_vm_area_node+0xe8/0x340 mm/vmalloc.c:1377
+>>>>   [<ffffffff817c332a>] __vmalloc_node_range+0xaa/0x6d0 mm/vmalloc.c:1687
+>>>>   [<     inline     >] __vmalloc_node mm/vmalloc.c:1736
+>>>>   [<ffffffff817c39ab>] __vmalloc+0x5b/0x70 mm/vmalloc.c:1742
+>>>>   [<ffffffff8166ae9c>] bpf_prog_alloc+0x3c/0x190 kernel/bpf/core.c:82
+>>>>   [<ffffffff85c40ba9>] bpf_prog_create_from_user+0xa9/0x2c0
+>>>> net/core/filter.c:1132
+>>>>   [<     inline     >] seccomp_prepare_filter kernel/seccomp.c:373
+>>>>   [<     inline     >] seccomp_prepare_user_filter kernel/seccomp.c:408
+>>>>   [<     inline     >] seccomp_set_mode_filter kernel/seccomp.c:737
+>>>>   [<ffffffff815d7687>] do_seccomp+0x317/0x1800 kernel/seccomp.c:787
+>>>>   [<ffffffff815d8f84>] prctl_set_seccomp+0x34/0x60 kernel/seccomp.c:830
+>>>>   [<     inline     >] SYSC_prctl kernel/sys.c:2157
+>>>>   [<ffffffff813ccf8f>] SyS_prctl+0x82f/0xc80 kernel/sys.c:2075
+>>>>   [<ffffffff86e10700>] entry_SYSCALL_64_fastpath+0x23/0xc1
+>>>> Code: 00 00 00 00 00 55 48 b8 00 00 00 00 00 fc ff df 48 89 e5 41 54
+>>>> 49 89 fc 48 8d 7a 08 53 48 89 d3 48 89 fa 48 83 ec 08 48 c1 ea 03 <80>
+>>>> 3c 02 00 75 7c 48 8b 53 08 48 39 f2 75 37 48 89 f2 48 b8 00
+>>>> RIP  [<ffffffff82e1ccd6>] __list_add_valid+0x26/0xd0 lib/list_debug.c:23
+>>>>   RSP <ffff880052637a18>
+>>>> ---[ end trace 983e625f02f00d9f ]---
+>>>> Kernel panic - not syncing: Fatal exception
+>>>>
+>>>> On commit 0f98f121e1670eaa2a2fbb675e07d6ba7f0e146f of linux-next.
+>>>> Unfortunately it is not reproducible.
 
-I'm confused here. How can we delay allocation of page cache?
+I've spent some more time looking at this, and I'm satisfied that this
+isn't a problem introduced by my CONFIG_DEBUG_LIST changes. Thoughts
+below...
 
-Delalloc is helpful to have reasonable on-disk layout, but my
-understanding is that it uses page cache as buffering to postpone
-block allocation. Later on writeback we see access pattern using pages
-from page cache.
+>>
+>>
+>> Can you elaborate? You hit this only once and then never again
+>> in this or some other, similar call-trace form, right?
+>
+> Correct.
+>
+>>>> The crashing line is:
+>>>>          CHECK_DATA_CORRUPTION(next->prev != prev,
+>>>>
+>>>> It crashed on KASAN check at (%rax, %rdx), this address corresponds to
+>>>> next address = 0x8. So next was ~NULL.
 
-I'm likely missing something important here. Hm?
+The main issue is that the argument for "next" coming in to the check
+is NULL to begin with. That indicates serious problems somewhere else.
+If CONFIG_DEBUG_LIST wasn't set, the crash would still have happened
+during "next->prev = new;" (since next is NULL):
 
-> >   - it will be beneficial to allocate huge page even for fragmented files,
-> >     if it's read-mostly;
-> 
-> No, no it won't. The IO latency impact here can be massive.
-> read-ahead of single 4k pages hides most of this latency from the
-> application, but with a 2MB page, we can't use readhead to hide this
-> IO latency because the first access could stall for hundreds of
-> small random read IOs to be completed instead of just 1.
+static inline void __list_add_rcu(struct list_head *new,
+                struct list_head *prev, struct list_head *next)
+{
+       if (!__list_add_valid(new, prev, next))
+               return;
 
-I agree that it will lead to initial latency spike. But don't we have
-workloads which would tolerate it to get faster hot-cache behaviour?
+       new->next = next;
+       new->prev = prev;
+       rcu_assign_pointer(list_next_rcu(prev), new);
+       next->prev = new;
+}
 
-> > > Further, we are moving the IO path to a model where we use extents
-> > > for mapping, not blocks.  We're optimising for the fact that modern
-> > > filesystems use extents and so massively reduce the number of block
-> > > mapping lookup calls we need to do for a given IO.
-> > > 
-> > > i.e. instead of doing "get page, map block to page" over and over
-> > > again until we've alked over the entire IO range, we're doing
-> > > "map extent for entire IO range" once, then iterating "get page"
-> > > until we've mapped the entire range.
-> > 
-> > That's great, but it's not how IO path works *now*. And will takes a long
-> > time (if ever) to flip it over to what you've described.
-> 
-> Wrong. fs/iomap.c. XFS already uses it, ext4 is being converted
-> right now, GFS2 will use parts of it in the next release, DAX
-> already uses it and PMD support in DAX is being built on top of it.
+>>> Paul, the RCU torture tests passed with the CONFIG_DEBUG_LIST changes,
+>>> IIRC, yes? I'd love to rule out some kind of race condition between
+>>> the removal and add code for the checking.
+>>>
+>>> Daniel, IIRC there was some talk about RCU and BPF? Am I remembering
+>>
+>>
+>> --verbose, what talk specifically? There were some fixes longer
+>> time ago, but related to eBPF, not cBPF, but even there I don't
+>> see currently how it could be related to a va->list corruption
+>> triggered in __insert_vmap_area().
+>>
+>>> that correctly? I'm having a hard time imagining how a list add could
+>>> fail (maybe a race between two adds)?
+>>
+>>
+>> Or some use after free that would have corrupted that memory? I
+>> would think right now that the path via bpf_prog_alloc() could
+>> have triggered, but not necessarily caused the issue, hmm.
+>
+> That's highly likely.
 
-That's interesting. I've managed to miss whole fs/iomap.c thing...
+So, this appears to be a bug somewhere else that happens to manifest
+as a crash in the check (and would have crashed in the same place
+under CONFIG_DEBUG_LIST before my changes too).
 
-> > > As such, there is no way we should be considering different
-> > > interfaces and methods for configuring the /same functionality/ just
-> > > because DAX is enabled or not. It's the /same decision/ that needs
-> > > to be made, and the filesystem knows an awful lot more about whether
-> > > huge pages can be used efficiently at the time of access than just
-> > > about any other actor you can name....
-> > 
-> > I'm not convinced that filesystem is in better position to see access
-> > patterns than mm for page cache. It's not all about on-disk layout.
-> 
-> Spoken like a true mm developer.
-
-Guilty.
+-Kees
 
 -- 
- Kirill A. Shutemov
+Kees Cook
+Nexus Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
