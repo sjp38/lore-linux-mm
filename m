@@ -1,61 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CAD566B0262
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 15:36:12 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id n18so20929603pfe.7
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 12:36:12 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id k17si784873pgh.279.2016.10.24.12.36.11
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EAE06B0263
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 15:42:47 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id c78so37554810wme.4
+        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 12:42:47 -0700 (PDT)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.133])
+        by mx.google.com with ESMTPS id dd4si18041579wjb.54.2016.10.24.12.42.45
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 24 Oct 2016 12:36:12 -0700 (PDT)
-Subject: Re: [RFC 0/8] Define coherent device memory node
-References: <1477283517-2504-1-git-send-email-khandual@linux.vnet.ibm.com>
- <580E4D2D.2070408@intel.com>
- <6f96676c-c1cb-c08b-1dea-8d6e6c6c3c68@nvidia.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <580E62AB.8040303@intel.com>
-Date: Mon, 24 Oct 2016 12:36:11 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Oct 2016 12:42:46 -0700 (PDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: Re: [PATCH] shmem: avoid maybe-uninitialized warning
+Date: Mon, 24 Oct 2016 21:42:36 +0200
+Message-ID: <4142781.4gMiS9Brv9@wuerfel>
+In-Reply-To: <20161024162243.GA13148@dhcp22.suse.cz>
+References: <20161024152511.2597880-1-arnd@arndb.de> <20161024162243.GA13148@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <6f96676c-c1cb-c08b-1dea-8d6e6c6c3c68@nvidia.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Nellans <dnellans@nvidia.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: mhocko@suse.com, js1304@gmail.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andreas Gruenbacher <agruenba@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 10/24/2016 11:32 AM, David Nellans wrote:
-> On 10/24/2016 01:04 PM, Dave Hansen wrote:
->> If you *really* don't want a "cdm" page to be migrated, then why isn't
->> that policy set on the VMA in the first place?  That would keep "cdm"
->> pages from being made non-cdm.  And, why would autonuma ever make a
->> non-cdm page and migrate it in to cdm?  There will be no NUMA access
->> faults caused by the devices that are fed to autonuma.
->>
-> Pages are desired to be migrateable, both into (starting cpu zone
-> movable->cdm) and out of (starting cdm->cpu zone movable) but only
-> through explicit migration, not via autonuma.
+On Monday, October 24, 2016 6:22:44 PM CEST Michal Hocko wrote:
+> On Mon 24-10-16 17:25:03, Arnd Bergmann wrote:
+> > After enabling -Wmaybe-uninitialized warnings, we get a false-postive
+> > warning for shmem:
+> >=20
+> > mm/shmem.c: In function =E2=80=98shmem_getpage_gfp=E2=80=99:
+> > include/linux/spinlock.h:332:21: error: =E2=80=98info=E2=80=99 may be u=
+sed uninitialized in this function [-Werror=3Dmaybe-uninitialized]
+>=20
+> Is this really a false positive? If we goto clear and then=20
+>         if (sgp <=3D SGP_CACHE &&
+>             ((loff_t)index << PAGE_SHIFT) >=3D i_size_read(inode)) {
+>                 if (alloced) {
+>=20
+> we could really take a spinlock on an unitialized variable. But maybe
+> there is something that prevents from that...
 
-OK, and is there a reason that the existing mbind code plus NUMA
-policies fails to give you this behavior?
+I did the patch a few weeks ago (I sent the more important
+ones out first) and I think I concluded then that 'alloced'
+would be false in that case.
 
-Does autonuma somehow override strict NUMA binding?
+> Anyway the whole shmem_getpage_gfp is really hard to follow due to gotos
+> and labels proliferation.
 
->  other pages in the same
-> VMA should still be migrateable between CPU nodes via autonuma however.
+Exactly. Maybe we should mark the patch for -stable backports after all
+just to be sure.
 
-That's not the way the implementation here works, as I understand it.
-See the VM_CDM patch and my responses to it.
+Andreas also pointed out on IRC that there is another assignment
+that can be removed in the function when the variable is initialized
+upfront, so I'll resend anyway.
 
-> Its expected a lot of these allocations are going to end up in THPs. 
-> I'm not sure we need to explicitly disallow hugetlbfs support but the
-> identified use case is definitely via THPs not tlbfs.
-
-I think THP and hugetlbfs are implementations, not use cases. :)
-
-Is it too hard to support hugetlbfs that we should complicate its code
-to exclude it from this type of memory?  Why?
+	Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
