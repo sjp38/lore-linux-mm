@@ -1,84 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 541656B0261
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 15:58:22 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id py6so3685405pab.0
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 12:58:22 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id e15si7439947pga.261.2016.10.24.12.58.21
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D90E56B0253
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 16:30:12 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id o81so38721734wma.3
+        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 13:30:12 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id p127si14116045wmd.146.2016.10.24.13.30.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Oct 2016 12:58:21 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u9OJrrnI048523
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 15:58:21 -0400
-Received: from e33.co.us.ibm.com (e33.co.us.ibm.com [32.97.110.151])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 269ntp6g82-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 15:58:21 -0400
-Received: from localhost
-	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Mon, 24 Oct 2016 13:58:20 -0600
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: [PATCH v5 1/3] powerpc/mm: allow memory hotplug into a memoryless node
-Date: Mon, 24 Oct 2016 14:58:07 -0500
-In-Reply-To: <1477339089-5455-1-git-send-email-arbab@linux.vnet.ibm.com>
-References: <1477339089-5455-1-git-send-email-arbab@linux.vnet.ibm.com>
-Message-Id: <1477339089-5455-2-git-send-email-arbab@linux.vnet.ibm.com>
+        Mon, 24 Oct 2016 13:30:11 -0700 (PDT)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [PATCH] mm: memcontrol: do not recurse in direct reclaim
+Date: Mon, 24 Oct 2016 16:30:05 -0400
+Message-Id: <20161024203005.5547-1-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, Balbir Singh <bsingharora@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-Remove the check which prevents us from hotplugging into an empty node.
+On 4.0, we saw a stack corruption from a page fault entering direct
+memory cgroup reclaim, calling into btrfs_releasepage(), which then
+tried to allocate an extent and recursed back into a kmem charge ad
+nauseam:
 
-The original commit b226e4621245 ("[PATCH] powerpc: don't add memory to
-empty node/zone"), states that this was intended to be a temporary measure.
-It is a workaround for an oops which no longer occurs.
+[...]
+[<ffffffff8136590c>] btrfs_releasepage+0x2c/0x30
+[<ffffffff811559a2>] try_to_release_page+0x32/0x50
+[<ffffffff81168cea>] shrink_page_list+0x6da/0x7a0
+[<ffffffff811693b5>] shrink_inactive_list+0x1e5/0x510
+[<ffffffff8116a0a5>] shrink_lruvec+0x605/0x7f0
+[<ffffffff8116a37e>] shrink_zone+0xee/0x320
+[<ffffffff8116a934>] do_try_to_free_pages+0x174/0x440
+[<ffffffff8116adf7>] try_to_free_mem_cgroup_pages+0xa7/0x130
+[<ffffffff811b738b>] try_charge+0x17b/0x830
+[<ffffffff811bb5b0>] memcg_charge_kmem+0x40/0x80
+[<ffffffff811a96a9>] new_slab+0x2d9/0x5a0
+[<ffffffff817b2547>] __slab_alloc+0x2fd/0x44f
+[<ffffffff811a9b03>] kmem_cache_alloc+0x193/0x1e0
+[<ffffffff813801e1>] alloc_extent_state+0x21/0xc0
+[<ffffffff813820c5>] __clear_extent_bit+0x2b5/0x400
+[<ffffffff81386d03>] try_release_extent_mapping+0x1a3/0x220
+[<ffffffff813658a1>] __btrfs_releasepage+0x31/0x70
+[<ffffffff8136590c>] btrfs_releasepage+0x2c/0x30
+[<ffffffff811559a2>] try_to_release_page+0x32/0x50
+[<ffffffff81168cea>] shrink_page_list+0x6da/0x7a0
+[<ffffffff811693b5>] shrink_inactive_list+0x1e5/0x510
+[<ffffffff8116a0a5>] shrink_lruvec+0x605/0x7f0
+[<ffffffff8116a37e>] shrink_zone+0xee/0x320
+[<ffffffff8116a934>] do_try_to_free_pages+0x174/0x440
+[<ffffffff8116adf7>] try_to_free_mem_cgroup_pages+0xa7/0x130
+[<ffffffff811b738b>] try_charge+0x17b/0x830
+[<ffffffff811bbfd5>] mem_cgroup_try_charge+0x65/0x1c0
+[<ffffffff8118338f>] handle_mm_fault+0x117f/0x1510
+[<ffffffff81041cf7>] __do_page_fault+0x177/0x420
+[<ffffffff81041fac>] do_page_fault+0xc/0x10
+[<ffffffff817c0182>] page_fault+0x22/0x30
 
-Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
-Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-Acked-by: Balbir Singh <bsingharora@gmail.com>
-Cc: Nathan Fontenot <nfont@linux.vnet.ibm.com>
-Cc: Bharata B Rao <bharata@linux.vnet.ibm.com>
+On later kernels, kmem charging is opt-in rather than opt-out, and
+that particular kmem allocation in btrfs_releasepage() is no longer
+being charged and won't recurse and overrun the stack anymore. But
+it's not impossible for an accounted allocation to happen from the
+memcg direct reclaim context, and we needed to reproduce this crash
+many times before we even got a useful stack trace out of it.
+
+Like other direct reclaimers, mark tasks in memcg reclaim PF_MEMALLOC
+to avoid recursing into any other form of direct reclaim. Then let
+recursive charges from PF_MEMALLOC contexts bypass the cgroup limit.
+
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- arch/powerpc/mm/numa.c | 13 +------------
- 1 file changed, 1 insertion(+), 12 deletions(-)
+ mm/memcontrol.c | 9 +++++----
+ mm/vmscan.c     | 2 ++
+ 2 files changed, 7 insertions(+), 4 deletions(-)
 
-diff --git a/arch/powerpc/mm/numa.c b/arch/powerpc/mm/numa.c
-index a51c188..0cb6bd8 100644
---- a/arch/powerpc/mm/numa.c
-+++ b/arch/powerpc/mm/numa.c
-@@ -1085,7 +1085,7 @@ static int hot_add_node_scn_to_nid(unsigned long scn_addr)
- int hot_add_scn_to_nid(unsigned long scn_addr)
- {
- 	struct device_node *memory = NULL;
--	int nid, found = 0;
-+	int nid;
+Hey guys, can anyone think of a reason why this might not be a good
+idea? We've never really needed this in the past because page reclaim
+doesn't recurse into instantiating another LRU page, especially with
+GFP_NOFS. But with a wider variety of tracked allocations, it's no
+longer that obvious. It seems like a risky hole to leave around.
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index ae052b5e3315..3dac6f4ba4cf 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1908,13 +1908,14 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
  
- 	if (!numa_enabled || (min_common_depth < 0))
- 		return first_online_node;
-@@ -1101,17 +1101,6 @@ int hot_add_scn_to_nid(unsigned long scn_addr)
- 	if (nid < 0 || !node_online(nid))
- 		nid = first_online_node;
+ 	/*
+ 	 * Unlike in global OOM situations, memcg is not in a physical
+-	 * memory shortage.  Allow dying and OOM-killed tasks to
+-	 * bypass the last charges so that they can exit quickly and
+-	 * free their memory.
++	 * memory shortage. Allow dying and OOM-killed tasks to bypass
++	 * the last charges so that they can exit quickly and free
++	 * their memory. The same applies for recursing reclaimers.
+ 	 */
+ 	if (unlikely(test_thread_flag(TIF_MEMDIE) ||
+ 		     fatal_signal_pending(current) ||
+-		     current->flags & PF_EXITING))
++		     current->flags & PF_EXITING ||
++		     current->flags & PF_MEMALLOC))
+ 		goto force;
  
--	if (NODE_DATA(nid)->node_spanned_pages)
--		return nid;
--
--	for_each_online_node(nid) {
--		if (NODE_DATA(nid)->node_spanned_pages) {
--			found = 1;
--			break;
--		}
--	}
--
--	BUG_ON(!found);
- 	return nid;
- }
+ 	if (unlikely(task_in_memcg_oom(current)))
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 744f926af442..76fda2268148 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -3043,7 +3043,9 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+ 					    sc.gfp_mask,
+ 					    sc.reclaim_idx);
+ 
++	current->flags |= PF_MEMALLOC;
+ 	nr_reclaimed = do_try_to_free_pages(zonelist, &sc);
++	current->flags &= ~PF_MEMALLOC;
+ 
+ 	trace_mm_vmscan_memcg_reclaim_end(nr_reclaimed);
  
 -- 
-1.8.3.1
+2.10.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
