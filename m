@@ -1,90 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 31E8B6B0261
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 12:22:48 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id f193so35486823wmg.1
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 09:22:48 -0700 (PDT)
-Received: from mail-wm0-f66.google.com (mail-wm0-f66.google.com. [74.125.82.66])
-        by mx.google.com with ESMTPS id dd4si16968851wjb.54.2016.10.24.09.22.46
+Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 541E96B0253
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 12:31:37 -0400 (EDT)
+Received: by mail-yb0-f200.google.com with SMTP id d128so24269374ybh.6
+        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 09:31:37 -0700 (PDT)
+Received: from vena.lwn.net (tex.lwn.net. [70.33.254.29])
+        by mx.google.com with ESMTPS id x22si10807492ioi.161.2016.10.24.09.31.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Oct 2016 09:22:46 -0700 (PDT)
-Received: by mail-wm0-f66.google.com with SMTP id o81so10547531wma.2
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 09:22:46 -0700 (PDT)
-Date: Mon, 24 Oct 2016 18:22:44 +0200
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] shmem: avoid maybe-uninitialized warning
-Message-ID: <20161024162243.GA13148@dhcp22.suse.cz>
-References: <20161024152511.2597880-1-arnd@arndb.de>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 24 Oct 2016 09:31:36 -0700 (PDT)
+Date: Mon, 24 Oct 2016 10:31:33 -0600
+From: Jonathan Corbet <corbet@lwn.net>
+Subject: Re: [PATCH v2 2/8] mm/swap: Add cluster lock
+Message-ID: <20161024103133.7c1a8f83@lwn.net>
+In-Reply-To: <f399f0381db2e6d6bba804d139f5f41725137337.1477004978.git.tim.c.chen@linux.intel.com>
+References: <cover.1477004978.git.tim.c.chen@linux.intel.com>
+	<f399f0381db2e6d6bba804d139f5f41725137337.1477004978.git.tim.c.chen@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20161024152511.2597880-1-arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andreas Gruenbacher <agruenba@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Huang, Ying" <ying.huang@intel.com>, dave.hansen@intel.com, ak@linux.intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>
 
-On Mon 24-10-16 17:25:03, Arnd Bergmann wrote:
-> After enabling -Wmaybe-uninitialized warnings, we get a false-postive
-> warning for shmem:
+On Thu, 20 Oct 2016 16:31:41 -0700
+Tim Chen <tim.c.chen@linux.intel.com> wrote:
+
+> From: "Huang, Ying" <ying.huang@intel.com>
 > 
-> mm/shmem.c: In function a??shmem_getpage_gfpa??:
-> include/linux/spinlock.h:332:21: error: a??infoa?? may be used uninitialized in this function [-Werror=maybe-uninitialized]
+> This patch is to reduce the lock contention of swap_info_struct->lock
+> via using a more fine grained lock in swap_cluster_info for some swap
+> operations.  swap_info_struct->lock is heavily contended if multiple
+> processes reclaim pages simultaneously.  Because there is only one lock
+> for each swap device.  While in common configuration, there is only one
+> or several swap devices in the system.  The lock protects almost all
+> swap related operations.
 
-Is this really a false positive? If we goto clear and then 
-        if (sgp <= SGP_CACHE &&
-            ((loff_t)index << PAGE_SHIFT) >= i_size_read(inode)) {
-                if (alloced) {
+So I'm looking at this a bit.  Overall it seems like a good thing to do
+(from my limited understanding of this area) but I have a probably silly
+question... 
 
-we could really take a spinlock on an unitialized variable. But maybe
-there is something that prevents from that... Anyway the whole
-shmem_getpage_gfp is really hard to follow due to gotos and labels
-proliferation.
+>  struct swap_cluster_info {
+> -	unsigned int data:24;
+> -	unsigned int flags:8;
+> +	unsigned long data;
+>  };
+> -#define CLUSTER_FLAG_FREE 1 /* This cluster is free */
+> -#define CLUSTER_FLAG_NEXT_NULL 2 /* This cluster has no next cluster */
+> +#define CLUSTER_COUNT_SHIFT		8
+> +#define CLUSTER_FLAG_MASK		((1UL << CLUSTER_COUNT_SHIFT) - 1)
+> +#define CLUSTER_COUNT_MASK		(~CLUSTER_FLAG_MASK)
+> +#define CLUSTER_FLAG_FREE		1 /* This cluster is free */
+> +#define CLUSTER_FLAG_NEXT_NULL		2 /* This cluster has no next cluster */
+> +/* cluster lock, protect cluster_info contents and sis->swap_map */
+> +#define CLUSTER_FLAG_LOCK_BIT		2
+> +#define CLUSTER_FLAG_LOCK		(1 << CLUSTER_FLAG_LOCK_BIT)
 
-> This can be easily avoided, since the correct 'info' pointer is known
-> at the time we first enter the function, so we can simply move the
-> initialization up. Moving it before the first label avoids the
-> warning.
-> 
-> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+Why the roll-your-own locking and data structures here?  To my naive
+understanding, it seems like you could do something like:
 
-Looks good to me.
-Acked-by: Michal Hocko <mhocko@suse.com>
+  struct swap_cluster_info {
+  	spinlock_t lock;
+	atomic_t count;
+	unsigned int flags;
+  };
 
-> ---
->  mm/shmem.c | 3 +--
->  1 file changed, 1 insertion(+), 2 deletions(-)
-> 
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index ad7813d73ea7..69e6777096a3 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -1537,7 +1537,7 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
->  	struct mm_struct *fault_mm, int *fault_type)
->  {
->  	struct address_space *mapping = inode->i_mapping;
-> -	struct shmem_inode_info *info;
-> +	struct shmem_inode_info *info = SHMEM_I(inode);
->  	struct shmem_sb_info *sbinfo;
->  	struct mm_struct *charge_mm;
->  	struct mem_cgroup *memcg;
-> @@ -1587,7 +1587,6 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
->  	 * Fast cache lookup did not find it:
->  	 * bring it back from swap or allocate.
->  	 */
-> -	info = SHMEM_I(inode);
->  	sbinfo = SHMEM_SB(inode->i_sb);
->  	charge_mm = fault_mm ? : current->mm;
->  
-> -- 
-> 2.9.0
-> 
+Then you could use proper spinlock operations which, among other things,
+would make the realtime folks happier.  That might well help with the
+cache-line sharing issues as well.  Some of the count manipulations could
+perhaps be done without the lock entirely; similarly, atomic bitops might
+save you the locking for some of the flag tweaks - though I'd have to look
+more closely to be really sure of that.
 
--- 
-Michal Hocko
-SUSE Labs
+The cost, of course, is the growth of this structure, but you've already
+noted that the overhead isn't all that high; seems like it could be worth
+it.
+
+I assume that I'm missing something obvious here?
+
+Thanks,
+
+jon
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
