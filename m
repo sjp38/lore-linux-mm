@@ -1,59 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CA29B6B0253
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 11:44:27 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id n202so82079133oig.2
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 08:44:27 -0700 (PDT)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0137.outbound.protection.outlook.com. [104.47.2.137])
-        by mx.google.com with ESMTPS id s71si6154576oih.42.2016.10.24.08.44.26
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C4246B0253
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 11:57:16 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id f193so35049908wmg.1
+        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 08:57:16 -0700 (PDT)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.13])
+        by mx.google.com with ESMTPS id s2si16796562wjx.245.2016.10.24.08.57.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 24 Oct 2016 08:44:26 -0700 (PDT)
-Subject: Re: [PATCH 4/7] mm: defer vmalloc from atomic context
-References: <1477149440-12478-1-git-send-email-hch@lst.de>
- <1477149440-12478-5-git-send-email-hch@lst.de>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <25c117ae-6d06-9846-6a88-ae6221ad6bfe@virtuozzo.com>
-Date: Mon, 24 Oct 2016 18:44:37 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Oct 2016 08:57:15 -0700 (PDT)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: [PATCH] slub: avoid false-postive warning
+Date: Mon, 24 Oct 2016 17:56:13 +0200
+Message-Id: <20161024155704.3114445-1-arnd@arndb.de>
 MIME-Version: 1.0
-In-Reply-To: <1477149440-12478-5-git-send-email-hch@lst.de>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>, akpm@linux-foundation.org
-Cc: joelaf@google.com, jszhang@marvell.com, chris@chris-wilson.co.uk, joaodias@google.com, linux-mm@kvack.org, linux-rt-users@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Arnd Bergmann <arnd@arndb.de>, Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Laura Abbott <labbott@fedoraproject.org>, Alexander Potapenko <glider@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+The slub allocator gives us some incorrect warnings when
+CONFIG_PROFILE_ANNOTATED_BRANCHES is set, as the unlikely()
+macro prevents it from seeing that the return code matches
+what it was before:
 
+mm/slub.c: In function a??kmem_cache_free_bulka??:
+mm/slub.c:262:23: error: a??df.sa?? may be used uninitialized in this function [-Werror=maybe-uninitialized]
+mm/slub.c:2943:3: error: a??df.cnta?? may be used uninitialized in this function [-Werror=maybe-uninitialized]
+mm/slub.c:2933:4470: error: a??df.freelista?? may be used uninitialized in this function [-Werror=maybe-uninitialized]
+mm/slub.c:2943:3: error: a??df.taila?? may be used uninitialized in this function [-Werror=maybe-uninitialized]
 
-On 10/22/2016 06:17 PM, Christoph Hellwig wrote:
-> We want to be able to use a sleeping lock for freeing vmap to keep
-> latency down.  For this we need to use the deferred vfree mechanisms
-> no only from interrupt, but from any atomic context.
-> 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
-> ---
->  mm/vmalloc.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index a4e2cec..bcc1a64 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -1509,7 +1509,7 @@ void vfree(const void *addr)
->  
->  	if (!addr)
->  		return;
-> -	if (unlikely(in_interrupt())) {
-> +	if (unlikely(in_atomic())) {
+I have not been able to come up with a perfect way for dealing with
+this, the three options I see are:
 
-in_atomic() cannot always detect atomic context, thus it shouldn't be used here.
-You can add something like vfree_in_atomic() and use it in atomic call sites.
+- add a bogus initialization, which would increase the runtime overhead
+- replace unlikely() with unlikely_notrace()
+- remove the unlikely() annotation completely
 
->  		struct vfree_deferred *p = this_cpu_ptr(&vfree_deferred);
->  		if (llist_add((struct llist_node *)addr, &p->list))
->  			schedule_work(&p->wq);
-> 
+I checked the object code for a typical x86 configuration and the
+last two cases produce the same result, so I went for the last
+one, which is the simplest.
+
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+---
+ mm/slub.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/slub.c b/mm/slub.c
+index 2b3e740609e9..68b84f93d38d 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3076,7 +3076,7 @@ void kmem_cache_free_bulk(struct kmem_cache *s, size_t size, void **p)
+ 		struct detached_freelist df;
+ 
+ 		size = build_detached_freelist(s, size, p, &df);
+-		if (unlikely(!df.page))
++		if (!df.page)
+ 			continue;
+ 
+ 		slab_free(df.s, df.page, df.freelist, df.tail, df.cnt,_RET_IP_);
+-- 
+2.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
