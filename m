@@ -1,121 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D2B7D6B0253
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 16:40:33 -0400 (EDT)
-Received: by mail-yb0-f197.google.com with SMTP id 63so34857875ybs.5
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 13:40:33 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id 67si2657346itj.109.2016.10.24.13.40.32
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FD096B0261
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 16:44:25 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id s7so4834110pal.1
+        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 13:44:25 -0700 (PDT)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id r6si4003282pag.138.2016.10.24.13.44.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Oct 2016 13:40:33 -0700 (PDT)
-Subject: Re: [PATCH 1/1] mm/hugetlb: fix huge page reservation leak in private
- mapping error paths
-References: <1476933077-23091-1-git-send-email-mike.kravetz@oracle.com>
- <1476933077-23091-2-git-send-email-mike.kravetz@oracle.com>
- <87vawjthzr.fsf@linux.vnet.ibm.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <4ec1a385-396a-7aab-1981-6dce58a12109@oracle.com>
-Date: Mon, 24 Oct 2016 13:40:23 -0700
+        Mon, 24 Oct 2016 13:44:24 -0700 (PDT)
+From: Josef Bacik <jbacik@fb.com>
+Subject: [PATCH 0/5] Support for metadata specific accounting
+Date: Mon, 24 Oct 2016 16:43:44 -0400
+Message-ID: <1477341829-18673-1-git-send-email-jbacik@fb.com>
 MIME-Version: 1.0
-In-Reply-To: <87vawjthzr.fsf@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Michal Hocko <mhocko@suse.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jan Stancek <jstancek@redhat.com>, stable@vger.kernel.org
+To: linux-btrfs@vger.kernel.org, kernel-team@fb.com, david@fromorbit.org, jack@suse.cz, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, viro@zeniv.linux.org.uk, hch@infradead.org, jweiner@fb.com
 
-On 10/23/2016 04:36 AM, Aneesh Kumar K.V wrote:
-> Mike Kravetz <mike.kravetz@oracle.com> writes:
-> 
->> Error paths in hugetlb_cow() and hugetlb_no_page() may free a newly
->> allocated huge page.  If a reservation was associated with the huge
->> page, alloc_huge_page() consumed the reservation while allocating.
->> When the newly allocated page is freed in free_huge_page(), it will
->> increment the global reservation count.  However, the reservation entry
->> in the reserve map will remain.  This is not an issue for shared
->> mappings as the entry in the reserve map indicates a reservation exists.
->> But, an entry in a private mapping reserve map indicates the reservation
->> was consumed and no longer exists.  This results in an inconsistency
->> between the reserve map and the global reservation count.  This 'leaks'
->> a reserved huge page.
->>
->> Create a new routine restore_reserve_on_error() to restore the reserve
->> entry in these specific error paths.  This routine makes use of a new
->> function vma_add_reservation() which will add a reserve entry for a
->> specific address/page.
->>
->> In general, these error paths were rarely (if ever) taken on most
->> architectures.  However, powerpc contained arch specific code that
->> that resulted in an extra fault and execution of these error paths
->> on all private mappings.
->>
->> Fixes: 67961f9db8c4 ("mm/hugetlb: fix huge page reserve accounting for private mappings)
->>
->> Cc: stable@vger.kernel.org
->> Reported-by: Jan Stancek <jstancek@redhat.com>
->> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
->> ---
->>  mm/hugetlb.c | 66 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
->>  1 file changed, 66 insertions(+)
->>
->> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->> index ec49d9e..418bf01 100644
->> --- a/mm/hugetlb.c
->> +++ b/mm/hugetlb.c
->> @@ -1826,11 +1826,17 @@ static void return_unused_surplus_pages(struct hstate *h,
->>   * is not the case is if a reserve map was changed between calls.  It
->>   * is the responsibility of the caller to notice the difference and
->>   * take appropriate action.
->> + *
->> + * vma_add_reservation is used in error paths where a reservation must
->> + * be restored when a newly allocated huge page must be freed.  It is
->> + * to be called after calling vma_needs_reservation to determine if a
->> + * reservation exists.
->>   */
->>  enum vma_resv_mode {
->>  	VMA_NEEDS_RESV,
->>  	VMA_COMMIT_RESV,
->>  	VMA_END_RESV,
->> +	VMA_ADD_RESV,
->>  };
->>  static long __vma_reservation_common(struct hstate *h,
->>  				struct vm_area_struct *vma, unsigned long addr,
->> @@ -1856,6 +1862,14 @@ static long __vma_reservation_common(struct hstate *h,
->>  		region_abort(resv, idx, idx + 1);
->>  		ret = 0;
->>  		break;
->> +	case VMA_ADD_RESV:
->> +		if (vma->vm_flags & VM_MAYSHARE)
->> +			ret = region_add(resv, idx, idx + 1);
->> +		else {
->> +			region_abort(resv, idx, idx + 1);
->> +			ret = region_del(resv, idx, idx + 1);
->> +		}
-> 
-> It is confusing to find ADD_RESV doing region_del, but I don't have
-> suggestion for a better name.
+(Dave again I apologize, for some reason our email server hates you and so I
+didn't get your previous responses again, and didn't notice until I was looking
+at the patchwork history for my previous submissions, so I'll try and answer all
+your questions here, and then I'll be much more judicious about making sure I'm
+getting your emails.)
 
-Thanks for the review Aneesh.
+This is my current batch of patches to add some better infrastructure for
+handling metadata related memory.  There's been a few changes to these patches
+since the last go around but the approach is essentially the same.
 
-Of course, this naming is the result of shared and private mappings having
-completely opposite reserve map semantics.  In shared mappings, an entry
-in the reserve map indicates a reservation exists.  For private mappings,
-the absence of an entry in the reserve map indicates a reservation exists.
+Changes since last go around:
+-WB_WRITTEN/WB_DIRTIED are now being counted in bytes.  This is necessary to
+deal with metadata that is smaller than page size.  Currently btrfs only does
+things in pagesize increments, but with these patches it will allow us to easily
+support sub-pagesize blocksizes so we need these counters to be in bytes.
+-Added a METADATA_BYTES counter to account for the total number of bytes used
+for metadata.  We need this because the VM adjusts the dirty ratios based on how
+much memory it thinks we can dirty, which is just the amount of free memory
+plus the pagecache.
+-Patch 5, which is a doozy, and I will explain below.
 
--- 
-Mike Kravetz
+This is a more complete approach to keeping track of memory that is in use for
+metadata.  Previously Btrfs had been using a special inode to allocate all of
+our metadata pages out of, so if we had a heavy metadata workload we still
+benefited from the balance_dirty_pages() throttling which kept everything sane.
+We want to kill this in order to make it easier to support pagesize > blocksize
+support in btrfs, in much the same way XFS does this support.
 
-> 
-> -aneesh
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+One concern that was brought up was the global accounting vs one bad actor.  We
+still need the global accounting so we can enforce the global dirty limits, but
+we have the per-bdi accounting as well to make sure we are punishing the bad
+actor and not all the other file systems that happened to be hooked into this
+infrastructure.
+
+The *REFERENCED patch is to fix a behavior I noticed when testing these patches
+on a more memory-constrained system than I had previously used.  Now that the
+eviction of metadata pages is controlled soley through the shrinker interface I
+was seeing a big perf drop when we had to start doing memory reclaim.  This was
+because most of the RAM on the box (10gig of 16gig) was used soley by icache and
+dcache.  Because this workload was just create a file and never touch it again
+most of this cache was easily evictable.  However because we by default send
+every object in the icache/dcache through the LRU twice, it would take around
+10,000 iterations through the shrinker before it would start to evict things
+(there was ~10 million objects between the two caches).  The pagecache solves
+this by putting everything on the INACTIVE list first, and then theres a two
+part activation phase before it's moved to the active list, so you have to
+really touch a page a lot before it is considered active.  However we assume
+active first, which is very latency inducing when we want to start reclaiming
+objects.  Making this change keeps us in line with what pagecache does and
+eliminates the performance drop I was seeing.
+
+Let me know what you think.  I've tried to keep this as minimal and sane as
+possible so we can build on it in the future as we want to handle more nuanced
+scenarios.  Also if we think this is a bad approach I won't feel as bad throwing
+it out ;).  Thanks,
+
+Josef
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
