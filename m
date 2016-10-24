@@ -1,132 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CBB0C6B025E
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 00:32:27 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id t25so114617568pfg.3
-        for <linux-mm@kvack.org>; Sun, 23 Oct 2016 21:32:27 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id l64si13473283pfa.191.2016.10.23.21.32.26
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E83B26B0260
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 00:32:28 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id d199so24182821wmd.0
+        for <linux-mm@kvack.org>; Sun, 23 Oct 2016 21:32:28 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id d83si10077175wmh.105.2016.10.23.21.32.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Sun, 23 Oct 2016 21:32:27 -0700 (PDT)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u9O4SuJs079134
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u9O4SwBJ101654
 	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 00:32:26 -0400
 Received: from e28smtp06.in.ibm.com (e28smtp06.in.ibm.com [125.16.236.6])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2695tb260v-1
+	by mx0b-001b2d01.pphosted.com with ESMTP id 268v7wc5nf-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
 	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 00:32:26 -0400
 Received: from localhost
 	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Mon, 24 Oct 2016 10:02:23 +0530
-Received: from d28relay06.in.ibm.com (d28relay06.in.ibm.com [9.184.220.150])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 0B691125805F
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 10:03:00 +0530 (IST)
+	Mon, 24 Oct 2016 10:02:22 +0530
+Received: from d28relay10.in.ibm.com (d28relay10.in.ibm.com [9.184.220.161])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 1F942E005E
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 10:02:09 +0530 (IST)
 Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay06.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u9O4WLOj41156736
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 10:02:21 +0530
+	by d28relay10.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id u9O4VwDh29163542
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 10:01:58 +0530
 Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u9O4WJEt020955
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 10:02:20 +0530
+	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id u9O4WFUn020790
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 10:02:17 +0530
 From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Subject: [RFC 5/8] mm: Add new flag VM_CDM for coherent device memory
-Date: Mon, 24 Oct 2016 10:01:54 +0530
+Subject: [RFC 2/8] mm: Add specialized fallback zonelist for coherent device memory nodes
+Date: Mon, 24 Oct 2016 10:01:51 +0530
 In-Reply-To: <1477283517-2504-1-git-send-email-khandual@linux.vnet.ibm.com>
 References: <1477283517-2504-1-git-send-email-khandual@linux.vnet.ibm.com>
-Message-Id: <1477283517-2504-6-git-send-email-khandual@linux.vnet.ibm.com>
+Message-Id: <1477283517-2504-3-git-send-email-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: mhocko@suse.com, js1304@gmail.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com
 
-VMAs containing coherent device memory should be marked with VM_CDM. These
-VMAs need to be identified in various core kernel paths and this new flag
-will help in this regard.
+This change is part of the isolation requiring coherent device memory
+node's implementation.
+
+Isolation seeking coherent memory node requires isolation from implicit
+memory allocations from user space but at the same time there should also
+have an explicit way to do the allocation. Kernel allocation to this memory
+can be prevented by putting the entire memory in ZONE_MOVABLE for example.
+
+Platform node's both zonelists are fundamental to where the memory comes
+when there is an allocation request. In order to achieve the two objectives
+stated above, zonelists building process has to change as both zonelists
+(FALLBACK and NOFALLBACK) gives access to the node's memory zones during
+any kind of memory allocation. The following changes are implemented in
+this regard.
+
+(1) Coherent node's zones are not part of any other node's FALLBACK list
+(2) Coherent node's FALLBACK list contains it's own memory zones followed
+    by all system RAM zones in normal order
+(3) Coherent node's zones are part of it's own NOFALLBACK list
+
+The above changes which will ensure the following which in turn isolates
+the coherent memory node as desired.
+
+(1) There wont be any implicit allocation ending up in the coherent node
+(2) __GFP_THISNODE marked allocations will come from the coherent node
+(3) Coherent memory can also be allocated through MPOL_BIND interface
+
+Sample zonelist configuration:
+
+[NODE (0)]						System RAM node
+        ZONELIST_FALLBACK (0xc00000000140da00)
+                (0) (node 0) (DMA     0xc00000000140c000)
+                (1) (node 1) (DMA     0xc000000100000000)
+        ZONELIST_NOFALLBACK (0xc000000001411a10)
+                (0) (node 0) (DMA     0xc00000000140c000)
+[NODE (1)]						System RAM node
+        ZONELIST_FALLBACK (0xc000000100001a00)
+                (0) (node 1) (DMA     0xc000000100000000)
+                (1) (node 0) (DMA     0xc00000000140c000)
+        ZONELIST_NOFALLBACK (0xc000000100005a10)
+                (0) (node 1) (DMA     0xc000000100000000)
+[NODE (2)]						Coherent memory
+        ZONELIST_FALLBACK (0xc000000001427700)
+                (0) (node 2) (Movable 0xc000000001427080)
+                (1) (node 0) (DMA     0xc00000000140c000)
+                (2) (node 1) (DMA     0xc000000100000000)
+        ZONELIST_NOFALLBACK (0xc00000000142b710)
+                (0) (node 2) (Movable 0xc000000001427080)
+[NODE (3)]						Coherent memory
+        ZONELIST_FALLBACK (0xc000000001431400)
+                (0) (node 3) (Movable 0xc000000001430d80)
+                (1) (node 0) (DMA     0xc00000000140c000)
+                (2) (node 1) (DMA     0xc000000100000000)
+        ZONELIST_NOFALLBACK (0xc000000001435410)
+                (0) (node 3) (Movable 0xc000000001430d80)
+[NODE (4)]						Coherent memory
+        ZONELIST_FALLBACK (0xc00000000143b100)
+                (0) (node 4) (Movable 0xc00000000143aa80)
+                (1) (node 0) (DMA     0xc00000000140c000)
+                (2) (node 1) (DMA     0xc000000100000000)
+        ZONELIST_NOFALLBACK (0xc00000000143f110)
+                (0) (node 4) (Movable 0xc00000000143aa80)
 
 Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
 ---
- include/linux/mm.h |  5 +++++
- mm/mempolicy.c     | 43 +++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 48 insertions(+)
+ mm/page_alloc.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 3a19185..acee4d1 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -182,6 +182,11 @@ extern unsigned int kobjsize(const void *objp);
- #define VM_ACCOUNT	0x00100000	/* Is a VM accounted object */
- #define VM_NORESERVE	0x00200000	/* should the VM suppress accounting */
- #define VM_HUGETLB	0x00400000	/* Huge TLB Page VM */
-+
-+#ifdef CONFIG_COHERENT_DEVICE
-+#define VM_CDM		0x00800000	/* Contains coherent device memory */
-+#endif
-+
- #define VM_ARCH_1	0x01000000	/* Architecture-specific flag */
- #define VM_ARCH_2	0x02000000
- #define VM_DONTDUMP	0x04000000	/* Do not include in the core dump */
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index cb1ba01..b983cea 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -174,6 +174,47 @@ static void mpol_relative_nodemask(nodemask_t *ret, const nodemask_t *orig,
- 	nodes_onto(*ret, tmp, *rel);
- }
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2b3bf67..a2536b4 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4753,6 +4753,16 @@ static void build_zonelists(pg_data_t *pgdat)
+ 	i = 0;
  
+ 	while ((node = find_next_best_node(local_node, &used_mask)) >= 0) {
 +#ifdef CONFIG_COHERENT_DEVICE
-+static bool nodemask_contains_cdm(nodemask_t *nodes)
-+{
-+	int weight, nid, i;
-+	nodemask_t mask;
-+
-+
-+	if (!nodes)
-+		return false;
-+
-+	mask = *nodes;
-+	weight = nodes_weight(mask);
-+	nid = first_node(mask);
-+	for (i = 0; i < weight; i++) {
-+		if (isolated_cdm_node(nid))
-+			return true;
-+		nid = next_node(nid, mask);
-+	}
-+	return false;
-+}
-+
-+static void update_coherent_vma_flag(nodemask_t *nmask,
-+		struct page *page, struct vm_area_struct *vma)
-+{
-+	if (!page)
-+		return;
-+
-+	if (nodemask_contains_cdm(nmask)) {
-+		if (!(vma->vm_flags & VM_CDM)) {
-+			if (isolated_cdm_node(page_to_nid(page)))
-+				vma->vm_flags |= VM_CDM;
-+		}
-+	}
-+}
-+#else
-+static void update_coherent_vma_flag(nodemask_t *nmask,
-+		struct page *page, struct vm_area_struct *vma)
-+{
-+}
++		/*
++		 * Isolation requiring coherent device memory node's zones
++		 * should not be part of any other node's fallback zonelist
++		 * but it's own fallback list.
++		 */
++		if (isolated_cdm_node(node) && (pgdat->node_id != node))
++			continue;
 +#endif
 +
- static int mpol_new_interleave(struct mempolicy *pol, const nodemask_t *nodes)
- {
- 	if (nodes_empty(*nodes))
-@@ -2045,6 +2086,8 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
- 	zl = policy_zonelist(gfp, pol, node);
- 	mpol_cond_put(pol);
- 	page = __alloc_pages_nodemask(gfp, order, zl, nmask);
-+	update_coherent_vma_flag(nmask, page, vma);
-+
- out:
- 	if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie)))
- 		goto retry_cpuset;
+ 		/*
+ 		 * We don't want to pressure a particular node.
+ 		 * So adding penalty to the first node in same
 -- 
 2.1.0
 
