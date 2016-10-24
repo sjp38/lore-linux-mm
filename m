@@ -1,112 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 51DD26B026E
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 14:47:49 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id y138so37456260wme.7
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 11:47:49 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 97F646B0270
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 14:52:35 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id y138so37528180wme.7
+        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 11:52:35 -0700 (PDT)
 Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id p73si13641655wmb.127.2016.10.24.11.47.46
+        by mx.google.com with ESMTPS id b81si13649721wmc.136.2016.10.24.11.52.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Oct 2016 11:47:46 -0700 (PDT)
-Date: Mon, 24 Oct 2016 14:47:39 -0400
+        Mon, 24 Oct 2016 11:52:34 -0700 (PDT)
+Date: Mon, 24 Oct 2016 14:52:23 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 0/5] mm: workingset: radix tree subtleties & single-page
- file refaults
-Message-ID: <20161024184739.GB2125@cmpxchg.org>
-References: <20161019172428.7649-1-hannes@cmpxchg.org>
- <CA+55aFzRZCt-t_HJ_40mkuvR4qXj71BoW-Tt6hYOKNpT2yj6cw@mail.gmail.com>
+Subject: Re: [Stable 4.4 - NEEDS REVIEW - 1/3] mm: workingset: fix crash in
+ shadow node shrinker caused by replace_page_cache_page()
+Message-ID: <20161024185223.GA28326@cmpxchg.org>
+References: <20161024152605.11707-1-mhocko@kernel.org>
+ <20161024152605.11707-2-mhocko@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+55aFzRZCt-t_HJ_40mkuvR4qXj71BoW-Tt6hYOKNpT2yj6cw@mail.gmail.com>
+In-Reply-To: <20161024152605.11707-2-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Dave Jones <davej@codemonkey.org.uk>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, kernel-team <kernel-team@fb.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Stable tree <stable@vger.kernel.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Antonio SJ Musumeci <trapexit@spawn.link>, Miklos Szeredi <miklos@szeredi.hu>
 
-On Wed, Oct 19, 2016 at 11:16:30AM -0700, Linus Torvalds wrote:
-> On Wed, Oct 19, 2016 at 10:24 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> >
-> > These patches make the radix tree code explicitely support and track
-> > such special entries, to eliminate the subtleties and to restore the
-> > thrash detection for single-page files.
+On Mon, Oct 24, 2016 at 05:26:03PM +0200, Michal Hocko wrote:
+> From: Johannes Weiner <hannes@cmpxchg.org>
 > 
-> Ugh. I'm not a huge fan. The patches may be good and be a cleanup in
-> one respect, but they make one of my least favorite parts of the radix
-> tree code worse.
+> Commit 22f2ac51b6d643666f4db093f13144f773ff3f3a upstream.
 > 
-> The radix tree "tag" thing is really horribly confusing, and part of
-> it is that there are two totally different "tags": the externally
-> visible tags (separate array), and the magical internal tags (low bits
-> of the node pointers that tag the pointers as internal or exceptional
-> entries).
->
-> And I think this series actually makes things even *more* complicated,
-> because now the radix tree itself uses one magical entry in the
-> externally visible tags for its own internal logic. So now it's
-> *really* messed up - the external tags aren't entirely external any
-> more.
+> Antonio reports the following crash when using fuse under memory pressure:
 > 
-> Maybe I'm mis-reading it, and I'm just confused by the radix tree
-> implementation? But if so, it's just another sign of just how
-> confusing things are.
-
-No, I think you're right. This is no good.
-
-As I see it, the main distinction between the "tags" tags and the
-lower bits in the entry pointers is that the former recurse down to
-the root, and so they make lookup by tag very efficient (e.g. find
-dirty pages to sync), whereas the pointer bits are cheaper when we
-specifically operate on entries anyway and branch out to different
-behavior depending on the type of entry (truncate a cache range,
-extend tree, descend tree).
-
-My patch violated that by adding a recursively-set "lookup" tag for
-the single purpose of distinguishing entry types in root->rnode.
-
-How about this instead: given that we already mark the shadow entries
-exceptional, and the exceptional bit is part of the radix tree API,
-can we just introduce a node->exceptional counter for those entries
-and have the radix tree code assist us with that instead? It adds the
-counting for non-shadow exceptional entries as well (shmem swap slots,
-and DAX non-page entries), unfortunately, but this is way cleaner. It
-also makes mapping->nrexceptional and node->exceptional consistent in
-DAX (Jan, could you please double check the accounting there?)
-
-What do you think? Lightly tested patch below.
-
-> The external tag array itself is also somewhat nasty, in that it
-> spreads out the tag bits for one entry maximally (ie different bits
-> are in different words) so you can't even clear them together. I know
-> why - it makes both iterating over a specific tag and any_tag_set()
-> simpler, but it does seem confusing to me how we spread out the data
-> almost maximally.
+>   kernel BUG at /build/linux-a2WvEb/linux-4.4.0/mm/workingset.c:346!
+>   invalid opcode: 0000 [#1] SMP
+>   Modules linked in: all of them
+>   CPU: 2 PID: 63 Comm: kswapd0 Not tainted 4.4.0-36-generic #55-Ubuntu
+>   Hardware name: System manufacturer System Product Name/P8H67-M PRO, BIOS 3904 04/27/2013
+>   task: ffff88040cae6040 ti: ffff880407488000 task.ti: ffff880407488000
+>   RIP: shadow_lru_isolate+0x181/0x190
+>   Call Trace:
+>     __list_lru_walk_one.isra.3+0x8f/0x130
+>     list_lru_walk_one+0x23/0x30
+>     scan_shadow_nodes+0x34/0x50
+>     shrink_slab.part.40+0x1ed/0x3d0
+>     shrink_zone+0x2ca/0x2e0
+>     kswapd+0x51e/0x990
+>     kthread+0xd8/0xf0
+>     ret_from_fork+0x3f/0x70
 > 
-> I really would love to see somebody take a big look at the two
-> different tagging methods. If nothing else, explain it to me.
+> which corresponds to the following sanity check in the shadow node
+> tracking:
 > 
-> Because maybe this series is all great, and my objection is just that
-> it makes it even harder for me to understand the code.
+>   BUG_ON(node->count & RADIX_TREE_COUNT_MASK);
 > 
-> For example, could we do this simplification:
+> The workingset code tracks radix tree nodes that exclusively contain
+> shadow entries of evicted pages in them, and this (somewhat obscure)
+> line checks whether there are real pages left that would interfere with
+> reclaim of the radix tree node under memory pressure.
 > 
->  - get rid of RADIX_TREE_TAG_LONGS entirely
->  - get rid of CONFIG_BASE_SMALL entirely
->  - just say that the tag bitmap is one unsigned long
->  - so RADIX_TREE_MAP_SIZE is just BITS_PER_LONG
+> While discussing ways how fuse might sneak pages into the radix tree
+> past the workingset code, Miklos pointed to replace_page_cache_page(),
+> and indeed there is a problem there: it properly accounts for the old
+> page being removed - __delete_from_page_cache() does that - but then
+> does a raw raw radix_tree_insert(), not accounting for the replacement
+> page.  Eventually the page count bits in node->count underflow while
+> leaving the node incorrectly linked to the shadow node LRU.
 > 
-> and then at least we'd get rid of the double array and the confusion
-> about loops that are actually almost never loops. Because right now
-> RADIX_TREE_TAG_LONGS is usually 1, but is 2 if you're a 32-bit
-> platform with !CONFIG_BASE_SMALL. So you need those loops, but it all
-> looks almost entirely pointless.
+> To address this, make sure replace_page_cache_page() uses the tracked
+> page insertion code, page_cache_tree_insert().  This fixes the page
+> accounting and makes sure page-containing nodes are properly unlinked
+> from the shadow node LRU again.
+> 
+> Also, make the sanity checks a bit less obscure by using the helpers for
+> checking the number of pages and shadows in a radix tree node.
+> 
+> Fixes: 449dd6984d0e ("mm: keep page cache radix tree nodes in check")
+> Link: http://lkml.kernel.org/r/20160919155822.29498-1-hannes@cmpxchg.org
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Reported-by: Antonio SJ Musumeci <trapexit@spawn.link>
+> Debugged-by: Miklos Szeredi <miklos@szeredi.hu>
+> Cc: <stable@vger.kernel.org>	[3.15+]
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  include/linux/swap.h |  2 ++
+>  mm/filemap.c         | 86 ++++++++++++++++++++++++++--------------------------
+>  mm/workingset.c      | 10 +++---
+>  3 files changed, 49 insertions(+), 49 deletions(-)
+> 
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index 7ba7dccaf0e7..b28de19aadbf 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -266,6 +266,7 @@ static inline void workingset_node_pages_inc(struct radix_tree_node *node)
+>  
+>  static inline void workingset_node_pages_dec(struct radix_tree_node *node)
+>  {
+> +	VM_BUG_ON(!workingset_node_pages(node));
+>  	node->count--;
+>  }
 
-AFAICS, !BASE_SMALL is the default unless you de-select BASE_FULL in
-EXPERT, so that would cut the radix tree node in half on most 32 bit
-setups and would more than double the tree nodes we have to allocate
-(two where we had one, plus the additional intermediate levels).
+We should also pull 21f54ddae449 ("Using BUG_ON() as an assert() is
+_never_ acceptable") into stable on top of this patch to replace the
+BUG_ONs with warnings.
 
-The extra code sucks, but is that a cost we'd be willing to pay?
+Otherwise this looks good to me.
 
----
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
