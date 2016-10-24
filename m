@@ -1,90 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E0256B0253
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 19:17:36 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 79so40480529wmy.6
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 16:17:36 -0700 (PDT)
-Received: from mail-wm0-x229.google.com (mail-wm0-x229.google.com. [2a00:1450:400c:c09::229])
-        by mx.google.com with ESMTPS id vh6si18945928wjb.137.2016.10.24.16.17.34
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B54D6B0253
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 19:48:46 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id xx10so4978826pac.2
+        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 16:48:46 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id a5si17857795pgk.137.2016.10.24.16.48.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Oct 2016 16:17:34 -0700 (PDT)
-Received: by mail-wm0-x229.google.com with SMTP id c78so130595137wme.0
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 16:17:34 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 24 Oct 2016 16:48:45 -0700 (PDT)
+Date: Tue, 25 Oct 2016 02:48:41 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH v2] shmem: avoid maybe-uninitialized warning
+Message-ID: <20161024234841.dk673yxv7fhw5rx3@black.fi.intel.com>
+References: <20161024205725.786455-1-arnd@arndb.de>
 MIME-Version: 1.0
-In-Reply-To: <20161020224521.GA24970@obsidianresearch.com>
-References: <20161003161322.3835-1-dvlasenk@redhat.com> <CAGXu5j+haCUW_AEPLPcVGtrnv4ojQ79FDpspUurYJSX_-TXeow@mail.gmail.com>
- <877f9p55lu.fsf@concordia.ellerman.id.au> <CAGXu5jJ3PpvNBYyBWa_M8ELLPuJOcJt-KuH0uRK66peJM_CnSg@mail.gmail.com>
- <20161020224521.GA24970@obsidianresearch.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Mon, 24 Oct 2016 16:17:33 -0700
-Message-ID: <CAGXu5j+uQqgZSv3fyo+_5z7u9CC=2KjtcAiP6bQkzi9ZK6XLww@mail.gmail.com>
-Subject: Re: [PATCH v6] powerpc: Do not make the entire heap executable
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20161024205725.786455-1-arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Denys Vlasenko <dvlasenk@redhat.com>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Oleg Nesterov <oleg@redhat.com>, Florian Weimer <fweimer@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Michal Hocko <mhocko@suse.com>, Andreas Gruenbacher <agruenba@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Oct 20, 2016 at 3:45 PM, Jason Gunthorpe
-<jgunthorpe@obsidianresearch.com> wrote:
-> On Tue, Oct 04, 2016 at 09:54:12AM -0700, Kees Cook wrote:
->> On Mon, Oct 3, 2016 at 5:18 PM, Michael Ellerman <mpe@ellerman.id.au> wrote:
->> > Kees Cook <keescook@chromium.org> writes:
->> >
->> >> On Mon, Oct 3, 2016 at 9:13 AM, Denys Vlasenko <dvlasenk@redhat.com> wrote:
->> >>> On 32-bit powerpc the ELF PLT sections of binaries (built with --bss-plt,
->> >>> or with a toolchain which defaults to it) look like this:
->> > ...
->> >>>
->> >>> Signed-off-by: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
->> >>> Signed-off-by: Denys Vlasenko <dvlasenk@redhat.com>
->> >>> Acked-by: Kees Cook <keescook@chromium.org>
->> >>> Acked-by: Michael Ellerman <mpe@ellerman.id.au>
->> >>> CC: Benjamin Herrenschmidt <benh@kernel.crashing.org>
->> >>> CC: Paul Mackerras <paulus@samba.org>
->> >>> CC: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
->> >>> CC: Kees Cook <keescook@chromium.org>
->> >>> CC: Oleg Nesterov <oleg@redhat.com>
->> >>> CC: Michael Ellerman <mpe@ellerman.id.au>
->> >>> CC: Florian Weimer <fweimer@redhat.com>
->> >>> CC: linux-mm@kvack.org
->> >>> CC: linuxppc-dev@lists.ozlabs.org
->> >>> CC: linux-kernel@vger.kernel.org
->> >>> Changes since v5:
->> >>> * made do_brk_flags() error out if any bits other than VM_EXEC are set.
->> >>>   (Kees Cook: "With this, I'd be happy to Ack.")
->> >>>   See https://patchwork.ozlabs.org/patch/661595/
->> >>
->> >> Excellent, thanks for the v6! Should this go via the ppc tree or the -mm tree?
->> >
->> > -mm would be best, given the diffstat I think it's less likely to
->> >  conflict if it goes via -mm.
->>
->> Okay, excellent. Andrew, do you have this already in email? I think
->> you weren't on the explicit CC from the v6...
->
-> FWIW (and ping),
->
-> Tested-by: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
->
-> On ARM32 (kirkwood) and PPC32 (405)
->
-> For reference, here is the patchwork URL:
->
-> https://patchwork.ozlabs.org/patch/677753/
+On Mon, Oct 24, 2016 at 10:57:09PM +0200, Arnd Bergmann wrote:
+> After enabling -Wmaybe-uninitialized warnings, we get a false-postive
+> warning for shmem:
+> 
+> mm/shmem.c: In function a??shmem_getpage_gfpa??:
+> include/linux/spinlock.h:332:21: error: a??infoa?? may be used uninitialized in this function [-Werror=maybe-uninitialized]
+> 
+> This can be easily avoided, since the correct 'info' pointer is known
+> at the time we first enter the function, so we can simply move the
+> initialization up. Moving it before the first label avoids the
+> warning and lets us remove two later initializations.
+> 
+> Note that the function is so hard to read that it not only confuses
+> the compiler, but also most readers and without this patch it could\
+> easily break if one of the 'goto's changed.
+> 
+> Link: https://www.spinics.net/lists/kernel/msg2368133.html
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
 
-Hi Andrew,
-
-Can you pick this up?
-
-Thanks!
-
--Kees
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
 -- 
-Kees Cook
-Nexus Security
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
