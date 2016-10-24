@@ -1,141 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 59CD06B0253
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 15:16:18 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id w11so95912444oia.6
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 12:16:18 -0700 (PDT)
-Received: from mail-oi0-x243.google.com (mail-oi0-x243.google.com. [2607:f8b0:4003:c06::243])
-        by mx.google.com with ESMTPS id w80si6623583oia.25.2016.10.24.12.16.17
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D4E16B0264
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 15:24:33 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id f78so96332190oih.7
+        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 12:24:33 -0700 (PDT)
+Received: from mail-oi0-x241.google.com (mail-oi0-x241.google.com. [2607:f8b0:4003:c06::241])
+        by mx.google.com with ESMTPS id p38si6238362otp.105.2016.10.24.12.24.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Oct 2016 12:16:17 -0700 (PDT)
-Received: by mail-oi0-x243.google.com with SMTP id i127so3601530oia.0
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 12:16:17 -0700 (PDT)
+        Mon, 24 Oct 2016 12:24:32 -0700 (PDT)
+Received: by mail-oi0-x241.google.com with SMTP id i127so3640570oia.0
+        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 12:24:32 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20161024180934.GA24840@char.us.oracle.com>
+In-Reply-To: <20161024.142730.1316656811538193943.davem@davemloft.net>
 References: <20161024115737.16276.71059.stgit@ahduyck-blue-test.jf.intel.com>
- <20161024120437.16276.68349.stgit@ahduyck-blue-test.jf.intel.com> <20161024180934.GA24840@char.us.oracle.com>
+ <20161024120607.16276.5989.stgit@ahduyck-blue-test.jf.intel.com> <20161024.142730.1316656811538193943.davem@davemloft.net>
 From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Mon, 24 Oct 2016 12:16:16 -0700
-Message-ID: <CAKgT0UfTSmWGBqE0uDG40sAm-LVwCJ6zM1AFJ8o_tWu+XJvfVw@mail.gmail.com>
-Subject: Re: [net-next PATCH RFC 02/26] swiotlb: Add support for DMA_ATTR_SKIP_CPU_SYNC
+Date: Mon, 24 Oct 2016 12:24:31 -0700
+Message-ID: <CAKgT0Uc6_D-w2kUC2o_FKm-chCr1j+CkSe_wE-D8--gyrfyr0w@mail.gmail.com>
+Subject: Re: [net-next PATCH RFC 19/26] arch/sparc: Add option to skip DMA
+ sync as a part of map and unmap
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: Alexander Duyck <alexander.h.duyck@intel.com>, Netdev <netdev@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Jesper Dangaard Brouer <brouer@redhat.com>, David Miller <davem@davemloft.net>
+To: David Miller <davem@davemloft.net>
+Cc: "Duyck, Alexander H" <alexander.h.duyck@intel.com>, Netdev <netdev@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, sparclinux@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>
 
-On Mon, Oct 24, 2016 at 11:09 AM, Konrad Rzeszutek Wilk
-<konrad.wilk@oracle.com> wrote:
-> On Mon, Oct 24, 2016 at 08:04:37AM -0400, Alexander Duyck wrote:
->> As a first step to making DMA_ATTR_SKIP_CPU_SYNC apply to architectures
->> beyond just ARM I need to make it so that the swiotlb will respect the
->> flag.  In order to do that I also need to update the swiotlb-xen since it
->> heavily makes use of the functionality.
+On Mon, Oct 24, 2016 at 11:27 AM, David Miller <davem@davemloft.net> wrote:
+> From: Alexander Duyck <alexander.h.duyck@intel.com>
+> Date: Mon, 24 Oct 2016 08:06:07 -0400
+>
+>> This change allows us to pass DMA_ATTR_SKIP_CPU_SYNC which allows us to
+>> avoid invoking cache line invalidation if the driver will just handle it
+>> via a sync_for_cpu or sync_for_device call.
 >>
->> Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+>> Cc: "David S. Miller" <davem@davemloft.net>
+>> Cc: sparclinux@vger.kernel.org
 >> Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
->> ---
->>  drivers/xen/swiotlb-xen.c |   40 ++++++++++++++++++++++----------------
->>  include/linux/swiotlb.h   |    6 ++++--
->>  lib/swiotlb.c             |   48 +++++++++++++++++++++++++++------------------
->>  3 files changed, 56 insertions(+), 38 deletions(-)
->>
->> diff --git a/drivers/xen/swiotlb-xen.c b/drivers/xen/swiotlb-xen.c
->> index 87e6035..cf047d8 100644
->> --- a/drivers/xen/swiotlb-xen.c
->> +++ b/drivers/xen/swiotlb-xen.c
->> @@ -405,7 +405,8 @@ dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
->>        */
->>       trace_swiotlb_bounced(dev, dev_addr, size, swiotlb_force);
->>
->> -     map = swiotlb_tbl_map_single(dev, start_dma_addr, phys, size, dir);
->> +     map = swiotlb_tbl_map_single(dev, start_dma_addr, phys, size, dir,
->> +                                  attrs);
->>       if (map == SWIOTLB_MAP_ERROR)
->>               return DMA_ERROR_CODE;
->>
->> @@ -416,11 +417,13 @@ dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
->>       /*
->>        * Ensure that the address returned is DMA'ble
->>        */
->> -     if (!dma_capable(dev, dev_addr, size)) {
->> -             swiotlb_tbl_unmap_single(dev, map, size, dir);
->> -             dev_addr = 0;
->> -     }
->> -     return dev_addr;
->> +     if (dma_capable(dev, dev_addr, size))
->> +             return dev_addr;
->> +
->> +     swiotlb_tbl_unmap_single(dev, map, size, dir,
->> +                              attrs | DMA_ATTR_SKIP_CPU_SYNC);
->> +
->> +     return DMA_ERROR_CODE;
 >
-> Why? This change (re-ordering the code - and returning DMA_ERROR_CODE instead
-> of 0) does not have anything to do with the title.
->
-> If you really feel strongly about it - then please send it as a seperate patch.
+> This is fine for avoiding the flush for performance reasons, but the
+> chip isn't going to write anything back unless the device wrote into
+> the area.
 
-Okay I can do that.  This was mostly just to clean up the formatting
-because I was over 80 characters when I added the attribute.  Changing
-the return value to DMA_ERROR_CODE from 0 was based on the fact that
-earlier in the function that is the value you return if there is a
-mapping error.
+That is mostly what I am doing here.  The original implementation was
+mostly for performance.  I am trying to take the attribute that was
+already in place for ARM and apply it to all the other architectures.
+So what will be happening now is that we call the map function with
+this attribute set and then use the sync functions to map it to the
+device and then pull the mapping later.
 
->>  }
->>  EXPORT_SYMBOL_GPL(xen_swiotlb_map_page);
->>
->> @@ -444,7 +447,7 @@ static void xen_unmap_single(struct device *hwdev, dma_addr_t dev_addr,
->>
->>       /* NOTE: We use dev_addr here, not paddr! */
->>       if (is_xen_swiotlb_buffer(dev_addr)) {
->> -             swiotlb_tbl_unmap_single(hwdev, paddr, size, dir);
->> +             swiotlb_tbl_unmap_single(hwdev, paddr, size, dir, attrs);
->>               return;
->>       }
->>
->> @@ -557,16 +560,9 @@ void xen_swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
->>                                                                start_dma_addr,
->>                                                                sg_phys(sg),
->>                                                                sg->length,
->> -                                                              dir);
->> -                     if (map == SWIOTLB_MAP_ERROR) {
->> -                             dev_warn(hwdev, "swiotlb buffer is full\n");
->> -                             /* Don't panic here, we expect map_sg users
->> -                                to do proper error handling. */
->> -                             xen_swiotlb_unmap_sg_attrs(hwdev, sgl, i, dir,
->> -                                                        attrs);
->> -                             sg_dma_len(sgl) = 0;
->> -                             return 0;
->> -                     }
->> +                                                              dir, attrs);
->> +                     if (map == SWIOTLB_MAP_ERROR)
->> +                             goto map_error;
->>                       xen_dma_map_page(hwdev, pfn_to_page(map >> PAGE_SHIFT),
->>                                               dev_addr,
->>                                               map & ~PAGE_MASK,
->> @@ -589,6 +585,16 @@ void xen_swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
->>               sg_dma_len(sg) = sg->length;
->>       }
->>       return nelems;
->> +map_error:
->> +     dev_warn(hwdev, "swiotlb buffer is full\n");
->> +     /*
->> +      * Don't panic here, we expect map_sg users
->> +      * to do proper error handling.
->> +      */
->> +     xen_swiotlb_unmap_sg_attrs(hwdev, sgl, i, dir,
->> +                                attrs | DMA_ATTR_SKIP_CPU_SYNC);
->> +     sg_dma_len(sgl) = 0;
->> +     return 0;
->>  }
->
-> This too. Why can't that be part of the existing code that was there?
-
-Once again it was a formatting thing.  I was indented too far and
-adding the attribute pushed me over 80 characters so I broke it out to
-a label to avoid the problem.
+The idea is that if Jesper does his page pool stuff it would be
+calling the map/unmap functions and then the drivers would be doing
+the sync_for_cpu/sync_for_device.  I want to make sure the map is
+cheap and we will have to call sync_for_cpu from the drivers anyway
+since there is no guarantee if we will have a new page or be reusing
+an existing one.
 
 - Alex
 
