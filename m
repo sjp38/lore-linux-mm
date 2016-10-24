@@ -1,62 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D4E16B0264
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 15:24:33 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id f78so96332190oih.7
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 12:24:33 -0700 (PDT)
-Received: from mail-oi0-x241.google.com (mail-oi0-x241.google.com. [2607:f8b0:4003:c06::241])
-        by mx.google.com with ESMTPS id p38si6238362otp.105.2016.10.24.12.24.32
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CAD566B0262
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 15:36:12 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id n18so20929603pfe.7
+        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 12:36:12 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id k17si784873pgh.279.2016.10.24.12.36.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Oct 2016 12:24:32 -0700 (PDT)
-Received: by mail-oi0-x241.google.com with SMTP id i127so3640570oia.0
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 12:24:32 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 24 Oct 2016 12:36:12 -0700 (PDT)
+Subject: Re: [RFC 0/8] Define coherent device memory node
+References: <1477283517-2504-1-git-send-email-khandual@linux.vnet.ibm.com>
+ <580E4D2D.2070408@intel.com>
+ <6f96676c-c1cb-c08b-1dea-8d6e6c6c3c68@nvidia.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <580E62AB.8040303@intel.com>
+Date: Mon, 24 Oct 2016 12:36:11 -0700
 MIME-Version: 1.0
-In-Reply-To: <20161024.142730.1316656811538193943.davem@davemloft.net>
-References: <20161024115737.16276.71059.stgit@ahduyck-blue-test.jf.intel.com>
- <20161024120607.16276.5989.stgit@ahduyck-blue-test.jf.intel.com> <20161024.142730.1316656811538193943.davem@davemloft.net>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Mon, 24 Oct 2016 12:24:31 -0700
-Message-ID: <CAKgT0Uc6_D-w2kUC2o_FKm-chCr1j+CkSe_wE-D8--gyrfyr0w@mail.gmail.com>
-Subject: Re: [net-next PATCH RFC 19/26] arch/sparc: Add option to skip DMA
- sync as a part of map and unmap
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <6f96676c-c1cb-c08b-1dea-8d6e6c6c3c68@nvidia.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: "Duyck, Alexander H" <alexander.h.duyck@intel.com>, Netdev <netdev@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, sparclinux@vger.kernel.org, Jesper Dangaard Brouer <brouer@redhat.com>
+To: David Nellans <dnellans@nvidia.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: mhocko@suse.com, js1304@gmail.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com
 
-On Mon, Oct 24, 2016 at 11:27 AM, David Miller <davem@davemloft.net> wrote:
-> From: Alexander Duyck <alexander.h.duyck@intel.com>
-> Date: Mon, 24 Oct 2016 08:06:07 -0400
->
->> This change allows us to pass DMA_ATTR_SKIP_CPU_SYNC which allows us to
->> avoid invoking cache line invalidation if the driver will just handle it
->> via a sync_for_cpu or sync_for_device call.
+On 10/24/2016 11:32 AM, David Nellans wrote:
+> On 10/24/2016 01:04 PM, Dave Hansen wrote:
+>> If you *really* don't want a "cdm" page to be migrated, then why isn't
+>> that policy set on the VMA in the first place?  That would keep "cdm"
+>> pages from being made non-cdm.  And, why would autonuma ever make a
+>> non-cdm page and migrate it in to cdm?  There will be no NUMA access
+>> faults caused by the devices that are fed to autonuma.
 >>
->> Cc: "David S. Miller" <davem@davemloft.net>
->> Cc: sparclinux@vger.kernel.org
->> Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
->
-> This is fine for avoiding the flush for performance reasons, but the
-> chip isn't going to write anything back unless the device wrote into
-> the area.
+> Pages are desired to be migrateable, both into (starting cpu zone
+> movable->cdm) and out of (starting cdm->cpu zone movable) but only
+> through explicit migration, not via autonuma.
 
-That is mostly what I am doing here.  The original implementation was
-mostly for performance.  I am trying to take the attribute that was
-already in place for ARM and apply it to all the other architectures.
-So what will be happening now is that we call the map function with
-this attribute set and then use the sync functions to map it to the
-device and then pull the mapping later.
+OK, and is there a reason that the existing mbind code plus NUMA
+policies fails to give you this behavior?
 
-The idea is that if Jesper does his page pool stuff it would be
-calling the map/unmap functions and then the drivers would be doing
-the sync_for_cpu/sync_for_device.  I want to make sure the map is
-cheap and we will have to call sync_for_cpu from the drivers anyway
-since there is no guarantee if we will have a new page or be reusing
-an existing one.
+Does autonuma somehow override strict NUMA binding?
 
-- Alex
+>  other pages in the same
+> VMA should still be migrateable between CPU nodes via autonuma however.
+
+That's not the way the implementation here works, as I understand it.
+See the VM_CDM patch and my responses to it.
+
+> Its expected a lot of these allocations are going to end up in THPs. 
+> I'm not sure we need to explicitly disallow hugetlbfs support but the
+> identified use case is definitely via THPs not tlbfs.
+
+I think THP and hugetlbfs are implementations, not use cases. :)
+
+Is it too hard to support hugetlbfs that we should complicate its code
+to exclude it from this type of memory?  Why?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
