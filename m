@@ -1,184 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D69A6B0253
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 08:08:06 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id d128so3945759wmf.2
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 05:08:06 -0700 (PDT)
-Received: from mail-pf0-x241.google.com (mail-pf0-x241.google.com. [2607:f8b0:400e:c00::241])
-        by mx.google.com with ESMTPS id fk7si13431236pad.22.2016.10.25.05.08.04
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 01B3A6B0253
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 08:16:01 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id i85so139832778pfa.5
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 05:16:00 -0700 (PDT)
+Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
+        by mx.google.com with ESMTPS id e5si20449221pga.8.2016.10.25.05.16.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Oct 2016 05:08:04 -0700 (PDT)
-Received: by mail-pf0-x241.google.com with SMTP id n85so356721pfi.3
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 05:08:04 -0700 (PDT)
-Subject: Re: [RFC 0/8] Define coherent device memory node
-References: <1477283517-2504-1-git-send-email-khandual@linux.vnet.ibm.com>
- <20161024170902.GA5521@gmail.com>
+        Tue, 25 Oct 2016 05:16:00 -0700 (PDT)
+Received: by mail-pf0-x244.google.com with SMTP id 128so19503557pfz.1
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 05:16:00 -0700 (PDT)
+Subject: Re: [PATCH v4 4/5] mm: make processing of movable_node arch-specific
+References: <1475778995-1420-1-git-send-email-arbab@linux.vnet.ibm.com>
+ <1475778995-1420-5-git-send-email-arbab@linux.vnet.ibm.com>
+ <235f2d20-cf84-08df-1fb4-08ee258fdc52@gmail.com>
 From: Balbir Singh <bsingharora@gmail.com>
-Message-ID: <24fce2e8-e2e9-a665-f2a0-b7902a337c5d@gmail.com>
-Date: Tue, 25 Oct 2016 23:07:39 +1100
+Message-ID: <dcfc8ace-e59e-6b4b-0f2f-4eff9f08f3c1@gmail.com>
+Date: Tue, 25 Oct 2016 23:15:40 +1100
 MIME-Version: 1.0
-In-Reply-To: <20161024170902.GA5521@gmail.com>
+In-Reply-To: <235f2d20-cf84-08df-1fb4-08ee258fdc52@gmail.com>
 Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <j.glisse@gmail.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, js1304@gmail.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com
+To: Reza Arbab <arbab@linux.vnet.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, devicetree@vger.kernel.org, linux-mm@kvack.org
 
 
 
-On 25/10/16 04:09, Jerome Glisse wrote:
-> On Mon, Oct 24, 2016 at 10:01:49AM +0530, Anshuman Khandual wrote:
+On 11/10/16 23:26, Balbir Singh wrote:
 > 
->> [...]
 > 
->> 	Core kernel memory features like reclamation, evictions etc. might
->> need to be restricted or modified on the coherent device memory node as
->> they can be performance limiting. The RFC does not propose anything on this
->> yet but it can be looked into later on. For now it just disables Auto NUMA
->> for any VMA which has coherent device memory.
+> On 07/10/16 05:36, Reza Arbab wrote:
+>> Currently, CONFIG_MOVABLE_NODE depends on X86_64. In preparation to
+>> enable it for other arches, we need to factor a detail which is unique
+>> to x86 out of the generic mm code.
 >>
->> 	Seamless integration of coherent device memory with system memory
->> will enable various other features, some of which can be listed as follows.
+>> Specifically, as documented in kernel-parameters.txt, the use of
+>> "movable_node" should remain restricted to x86:
 >>
->> 	a. Seamless migrations between system RAM and the coherent memory
->> 	b. Will have asynchronous and high throughput migrations
->> 	c. Be able to allocate huge order pages from these memory regions
->> 	d. Restrict allocations to a large extent to the tasks using the
->> 	   device for workload acceleration
+>> movable_node    [KNL,X86] Boot-time switch to enable the effects
+>>                 of CONFIG_MOVABLE_NODE=y. See mm/Kconfig for details.
 >>
->> 	Before concluding, will look into the reasons why the existing
->> solutions don't work. There are two basic requirements which have to be
->> satisfies before the coherent device memory can be integrated with core
->> kernel seamlessly.
+>> This option tells x86 to find movable nodes identified by the ACPI SRAT.
+>> On other arches, it would have no benefit, only the undesired side
+>> effect of setting bottom-up memblock allocation.
 >>
->> 	a. PFN must have struct page
->> 	b. Struct page must able to be inside standard LRU lists
+>> Since #ifdef CONFIG_MOVABLE_NODE will no longer be enough to restrict
+>> this option to x86, move it to an arch-specific compilation unit
+>> instead.
 >>
->> 	The above two basic requirements discard the existing method of
->> device memory representation approaches like these which then requires the
->> need of creating a new framework.
+>> Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
 > 
-> I do not believe the LRU list is a hard requirement, yes when faulting in
-> a page inside the page cache it assumes it needs to be added to lru list.
-> But i think this can easily be work around.
-> 
-> In HMM i am using ZONE_DEVICE and because memory is not accessible from CPU
-> (not everyone is bless with decent system bus like CAPI, CCIX, Gen-Z, ...)
-> so in my case a file back page must always be spawn first from a regular
-> page and once read from disk then i can migrate to GPU page.
+> Acked-by: Balbir Singh <bsingharora@gmail.com>
 > 
 
-I've not seen the HMM patchset, but read from disk will go to ZONE_DEVICE?
-Then get migrated?
+After the ack, I realized there were some more checks needed, IOW
+questions for you :)
 
-> So if you accept this intermediary step you can easily use ZONE_DEVICE for
-> device memory. This way no lru, no complex dance to make the memory out of
-> reach from regular memory allocator.
-> 
-> I think we would have much to gain if we pool our effort on a single common
-> solution for device memory. In my case the device memory is not accessible
-> by the CPU (because PCIE restrictions), in your case it is. Thus the only
-> difference is that in my case it can not be map inside the CPU page table
-> while in yours it can.
-> 
+1. Have you checked to see if our memblock allocations spill
+over to probably hotpluggable nodes?
+2. Shouldn't we be marking nodes discovered as movable via
+memblock_mark_hotplug()?
 
-I think thats a good idea to pool our efforts at the same time making progress
-
->>
->> (1) Traditional ioremap
->>
->> 	a. Memory is mapped into kernel (linear and virtual) and user space
->> 	b. These PFNs do not have struct pages associated with it
->> 	c. These special PFNs are marked with special flags inside the PTE
->> 	d. Cannot participate in core VM functions much because of this
->> 	e. Cannot do easy user space migrations
->>
->> (2) Zone ZONE_DEVICE
->>
->> 	a. Memory is mapped into kernel and user space
->> 	b. PFNs do have struct pages associated with it
->> 	c. These struct pages are allocated inside it's own memory range
->> 	d. Unfortunately the struct page's union containing LRU has been
->> 	   used for struct dev_pagemap pointer
->> 	e. Hence it cannot be part of any LRU (like Page cache)
->> 	f. Hence file cached mapping cannot reside on these PFNs
->> 	g. Cannot do easy migrations
->>
->> 	I had also explored non LRU representation of this coherent device
->> memory where the integration with system RAM in the core VM is limited only
->> to the following functions. Not being inside LRU is definitely going to
->> reduce the scope of tight integration with system RAM.
->>
->> (1) Migration support between system RAM and coherent memory
->> (2) Migration support between various coherent memory nodes
->> (3) Isolation of the coherent memory
->> (4) Mapping the coherent memory into user space through driver's
->>     struct vm_operations
->> (5) HW poisoning of the coherent memory
->>
->> 	Allocating the entire memory of the coherent device node right
->> after hot plug into ZONE_MOVABLE (where the memory is already inside the
->> buddy system) will still expose a time window where other user space
->> allocations can come into the coherent device memory node and prevent the
->> intended isolation. So traditional hot plug is not the solution. Hence
->> started looking into CMA based non LRU solution but then hit the following
->> roadblocks.
->>
->> (1) CMA does not support hot plugging of new memory node
->> 	a. CMA area needs to be marked during boot before buddy is
->> 	   initialized
->> 	b. cma_alloc()/cma_release() can happen on the marked area
->> 	c. Should be able to mark the CMA areas just after memory hot plug
->> 	d. cma_alloc()/cma_release() can happen later after the hot plug
->> 	e. This is not currently supported right now
->>
->> (2) Mapped non LRU migration of pages
->> 	a. Recent work from Michan Kim makes non LRU page migratable
->> 	b. But it still does not support migration of mapped non LRU pages
->> 	c. With non LRU CMA reserved, again there are some additional
->> 	   challenges
->>
->> 	With hot pluggable CMA and non LRU mapped migration support there
->> may be an alternate approach to represent coherent device memory. Please
->> do review this RFC proposal and let me know your comments or suggestions.
->> Thank you.
-> 
-> You can take a look at hmm-v13 if you want to see how i do non LRU page
-> migration. While i put most of the migration code inside hmm_migrate.c it
-> could easily be move to migrate.c without hmm_ prefix.
-> 
-> There is 2 missing piece with existing migrate code. First is to put memory
-> allocation for destination under control of who call the migrate code. Second
-> is to allow offloading the copy operation to device (ie not use the CPU to
-> copy data).
-> 
-> I believe same requirement also make sense for platform you are targeting.
-> Thus same code can be use.
-> 
-> hmm-v13 https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-v13
-> 
-
-Thanks for the link
-
-> I haven't posted this patchset yet because we are doing some modifications
-> to the device driver API to accomodate some new features. But the ZONE_DEVICE
-> changes and the overall migration code will stay the same more or less (i have
-> patches that move it to migrate.c and share more code with existing migrate
-> code).
-> 
-> If you think i missed anything about lru and page cache please point it to
-> me. Because when i audited code for that i didn't see any road block with
-> the few fs i was looking at (ext4, xfs and core page cache code).
-> 
->> [...]
-> 
-> Cheers,
-> Jerome
-> 
-
-Cheers,
 Balbir Singh.
 
 --
