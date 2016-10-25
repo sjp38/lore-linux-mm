@@ -1,76 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 55E1B6B027C
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 19:34:39 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id m83so8997407wmc.1
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 16:34:39 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 299626B027C
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 19:36:13 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id u187so1674173wmd.8
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 16:36:13 -0700 (PDT)
 Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id 69si6751534wms.141.2016.10.25.16.34.37
+        by mx.google.com with ESMTPS id f196si6796762wme.70.2016.10.25.16.36.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Oct 2016 16:34:38 -0700 (PDT)
-Received: by mail-wm0-x244.google.com with SMTP id y138so2156896wme.1
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 16:34:37 -0700 (PDT)
+        Tue, 25 Oct 2016 16:36:12 -0700 (PDT)
+Received: by mail-wm0-x244.google.com with SMTP id y138so2158657wme.1
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 16:36:11 -0700 (PDT)
 From: Lorenzo Stoakes <lstoakes@gmail.com>
-Subject: [PATCH] mm: fixup get_user_pages* comments
-Date: Wed, 26 Oct 2016 00:34:35 +0100
-Message-Id: <20161025233435.5338-1-lstoakes@gmail.com>
+Subject: [PATCH] mm: remove unnecessary __get_user_pages_unlocked() calls
+Date: Wed, 26 Oct 2016 00:36:09 +0100
+Message-Id: <20161025233609.5601-1-lstoakes@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Lorenzo Stoakes <lstoakes@gmail.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, Lorenzo Stoakes <lstoakes@gmail.com>
 
-In the previous round of get_user_pages* changes comments attached to
-__get_user_pages_unlocked() and get_user_pages_unlocked() were rendered
-incorrect, this patch corrects them.
+In hva_to_pfn_slow() we are able to replace __get_user_pages_unlocked() with
+get_user_pages_unlocked() since we can now pass gup_flags.
 
-In addition the get_user_pages_unlocked() comment seems to have already been
-outdated as it referred to tsk, mm parameters which were removed in c12d2da5
-("mm/gup: Remove the macro overload API migration helpers from the get_user*()
-APIs"), this patch fixes this also.
+In async_pf_execute() we need to pass different tsk, mm arguments so
+get_user_pages_remote() is the sane replacement here (having added manual
+acquisition and release of mmap_sem.)
+
+Since we pass a NULL pages parameter the subsequent call to
+__get_user_pages_locked() will have previously bailed any attempt at
+VM_FAULT_RETRY, so we do not change this behaviour by using
+get_user_pages_remote() which does not invoke VM_FAULT_RETRY logic at all.
 
 Signed-off-by: Lorenzo Stoakes <lstoakes@gmail.com>
 ---
- mm/gup.c | 16 ++++++----------
- 1 file changed, 6 insertions(+), 10 deletions(-)
+ virt/kvm/async_pf.c | 7 ++++---
+ virt/kvm/kvm_main.c | 5 ++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)
 
-diff --git a/mm/gup.c b/mm/gup.c
-index ec4f827..e6147f1 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -857,14 +857,12 @@ long get_user_pages_locked(unsigned long start, unsigned long nr_pages,
- EXPORT_SYMBOL(get_user_pages_locked);
- 
- /*
-- * Same as get_user_pages_unlocked(...., FOLL_TOUCH) but it allows to
-- * pass additional gup_flags as last parameter (like FOLL_HWPOISON).
-+ * Same as get_user_pages_unlocked(...., FOLL_TOUCH) but it allows for
-+ * tsk, mm to be specified.
-  *
-  * NOTE: here FOLL_TOUCH is not set implicitly and must be set by the
-- * caller if required (just like with __get_user_pages). "FOLL_GET",
-- * "FOLL_WRITE" and "FOLL_FORCE" are set implicitly as needed
-- * according to the parameters "pages", "write", "force"
-- * respectively.
-+ * caller if required (just like with __get_user_pages). "FOLL_GET"
-+ * is set implicitly if "pages" is non-NULL.
-  */
- __always_inline long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
- 					       unsigned long start, unsigned long nr_pages,
-@@ -894,10 +892,8 @@ EXPORT_SYMBOL(__get_user_pages_unlocked);
-  *      get_user_pages_unlocked(tsk, mm, ..., pages);
-  *
-  * It is functionally equivalent to get_user_pages_fast so
-- * get_user_pages_fast should be used instead, if the two parameters
-- * "tsk" and "mm" are respectively equal to current and current->mm,
-- * or if "force" shall be set to 1 (get_user_pages_fast misses the
-- * "force" parameter).
-+ * get_user_pages_fast should be used instead if specific gup_flags
-+ * (e.g. FOLL_FORCE) are not required.
-  */
- long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
- 			     struct page **pages, unsigned int gup_flags)
--- 
+diff --git a/virt/kvm/async_pf.c b/virt/kvm/async_pf.c
+index 8035cc1..e8c832c 100644
+--- a/virt/kvm/async_pf.c
++++ b/virt/kvm/async_pf.c
+@@ -82,10 +82,11 @@ static void async_pf_execute(struct work_struct *work)
+ 	/*
+ 	 * This work is run asynchromously to the task which owns
+ 	 * mm and might be done in another context, so we must
+-	 * use FOLL_REMOTE.
++	 * access remotely.
+ 	 */
+-	__get_user_pages_unlocked(NULL, mm, addr, 1, NULL,
+-			FOLL_WRITE | FOLL_REMOTE);
++	down_read(&mm->mmap_sem);
++	get_user_pages_remote(NULL, mm, addr, 1, FOLL_WRITE, NULL, NULL);
++	up_read(&mm->mmap_sem);
+
+ 	kvm_async_page_present_sync(vcpu, apf);
+
+diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+index 2907b7b..c45d951 100644
+--- a/virt/kvm/kvm_main.c
++++ b/virt/kvm/kvm_main.c
+@@ -1415,13 +1415,12 @@ static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
+ 		npages = get_user_page_nowait(addr, write_fault, page);
+ 		up_read(&current->mm->mmap_sem);
+ 	} else {
+-		unsigned int flags = FOLL_TOUCH | FOLL_HWPOISON;
++		unsigned int flags = FOLL_HWPOISON;
+
+ 		if (write_fault)
+ 			flags |= FOLL_WRITE;
+
+-		npages = __get_user_pages_unlocked(current, current->mm, addr, 1,
+-						   page, flags);
++		npages = get_user_pages_unlocked(addr, 1, page, flags);
+ 	}
+ 	if (npages != 1)
+ 		return npages;
+--
 2.10.1
 
 --
