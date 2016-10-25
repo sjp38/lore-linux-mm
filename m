@@ -1,63 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D46B6B0270
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 18:01:05 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id xx10so16896642pac.2
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 15:01:05 -0700 (PDT)
-Received: from smtprelay.synopsys.com (us01smtprelay-2.synopsys.com. [198.182.47.9])
-        by mx.google.com with ESMTPS id b7si19061314pas.289.2016.10.25.15.01.04
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 025C36B0287
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 18:29:53 -0400 (EDT)
+Received: by mail-lf0-f70.google.com with SMTP id f134so29789075lfg.6
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 15:29:52 -0700 (PDT)
+Received: from mail-lf0-x22c.google.com (mail-lf0-x22c.google.com. [2a00:1450:4010:c07::22c])
+        by mx.google.com with ESMTPS id m127si11713548lfa.186.2016.10.25.15.29.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Oct 2016 15:01:04 -0700 (PDT)
-Subject: Re: [net-next PATCH 04/27] arch/arc: Add option to skip sync on DMA
- mapping
-References: <20161025153220.4815.61239.stgit@ahduyck-blue-test.jf.intel.com>
- <20161025153709.4815.82720.stgit@ahduyck-blue-test.jf.intel.com>
-From: Vineet Gupta <Vineet.Gupta1@synopsys.com>
-Message-ID: <64b46a7b-7ad4-5d09-5a0b-22dfaed8855e@synopsys.com>
-Date: Tue, 25 Oct 2016 15:00:55 -0700
+        Tue, 25 Oct 2016 15:29:51 -0700 (PDT)
+Received: by mail-lf0-x22c.google.com with SMTP id m193so21567084lfm.4
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 15:29:50 -0700 (PDT)
+Date: Tue, 25 Oct 2016 15:54:31 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv4 18/43] block: define BIO_MAX_PAGES to HPAGE_PMD_NR if
+ huge page cache enabled
+Message-ID: <20161025125431.GA22787@node.shutemov.name>
+References: <20161025001342.76126-1-kirill.shutemov@linux.intel.com>
+ <20161025001342.76126-19-kirill.shutemov@linux.intel.com>
+ <20161025072122.GA21708@infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20161025153709.4815.82720.stgit@ahduyck-blue-test.jf.intel.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161025072122.GA21708@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.h.duyck@intel.com>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "intel-wired-lan@lists.osuosl.org" <intel-wired-lan@lists.osuosl.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: Vineet Gupta <Vineet.Gupta1@synopsys.com>, "linux-snps-arc@lists.infradead.org" <linux-snps-arc@lists.infradead.org>, "davem@davemloft.net" <davem@davemloft.net>, "brouer@redhat.com" <brouer@redhat.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org
 
-On 10/25/2016 02:38 PM, Alexander Duyck wrote:
-> This change allows us to pass DMA_ATTR_SKIP_CPU_SYNC which allows us to
-> avoid invoking cache line invalidation if the driver will just handle it
-> later via a sync_for_cpu or sync_for_device call.
->
-> Cc: Vineet Gupta <vgupta@synopsys.com>
-> Cc: linux-snps-arc@lists.infradead.org
-> Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
-> ---
->  arch/arc/mm/dma.c |    5 ++++-
+On Tue, Oct 25, 2016 at 12:21:22AM -0700, Christoph Hellwig wrote:
+> On Tue, Oct 25, 2016 at 03:13:17AM +0300, Kirill A. Shutemov wrote:
+> > We are going to do IO a huge page a time. So we need BIO_MAX_PAGES to be
+> > at least HPAGE_PMD_NR. For x86-64, it's 512 pages.
+> 
+> NAK.  The maximum bio size should not depend on an obscure vm config,
+> please send a standalone patch increasing the size to the block list,
+> with a much long explanation.  Also you can't simply increase the size
+> of the largers pool, we'll probably need more pools instead, or maybe
+> even implement a similar chaining scheme as we do for struct
+> scatterlist.
 
-Acked-by: Vineet Gupta <vgupta@synopsys.com>
+The size of required pool depends on architecture: different architectures
+has different (huge page size)/(base page size).
 
->  1 file changed, 4 insertions(+), 1 deletion(-)
->
-> diff --git a/arch/arc/mm/dma.c b/arch/arc/mm/dma.c
-> index 20afc65..6303c34 100644
-> --- a/arch/arc/mm/dma.c
-> +++ b/arch/arc/mm/dma.c
-> @@ -133,7 +133,10 @@ static dma_addr_t arc_dma_map_page(struct device *dev, struct page *page,
->  		unsigned long attrs)
->  {
->  	phys_addr_t paddr = page_to_phys(page) + offset;
-> -	_dma_cache_sync(paddr, size, dir);
-> +
-> +	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-> +		_dma_cache_sync(paddr, size, dir);
-> +
->  	return plat_phys_to_dma(dev, paddr);
->  }
->  
->
->
+Would it be okay if I add one more pool with size equal to HPAGE_PMD_NR,
+if it's bigger than than BIO_MAX_PAGES and huge pages are enabled?
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
