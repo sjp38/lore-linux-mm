@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 823136B0275
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 11:53:15 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id fl2so12298416pad.7
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 08:53:15 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D5EE6B0275
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 11:53:16 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id x70so97275067pfk.0
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 08:53:16 -0700 (PDT)
 Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20122.outbound.protection.outlook.com. [40.107.2.122])
-        by mx.google.com with ESMTPS id nw5si17771895pab.314.2016.10.25.08.53.14
+        by mx.google.com with ESMTPS id nw5si17771895pab.314.2016.10.25.08.53.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 25 Oct 2016 08:53:14 -0700 (PDT)
+        Tue, 25 Oct 2016 08:53:15 -0700 (PDT)
 From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Subject: [PATCH 1/7] powerpc/vdso: unify return paths in setup_additional_pages
-Date: Tue, 25 Oct 2016 18:51:00 +0300
-Message-ID: <20161025155106.29946-2-dsafonov@virtuozzo.com>
+Subject: [PATCH 2/7] powerpc/vdso: remove unused params in vdso_do_func_patch{32,64}
+Date: Tue, 25 Oct 2016 18:51:01 +0300
+Message-ID: <20161025155106.29946-3-dsafonov@virtuozzo.com>
 In-Reply-To: <20161025155106.29946-1-dsafonov@virtuozzo.com>
 References: <20161025155106.29946-1-dsafonov@virtuozzo.com>
 MIME-Version: 1.0
@@ -33,59 +33,53 @@ Cc: linuxppc-dev@lists.ozlabs.org
 Cc: linux-mm@kvack.org 
 Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
 ---
- arch/powerpc/kernel/vdso.c | 19 +++++++------------
- 1 file changed, 7 insertions(+), 12 deletions(-)
+ arch/powerpc/kernel/vdso.c | 11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)
 
 diff --git a/arch/powerpc/kernel/vdso.c b/arch/powerpc/kernel/vdso.c
-index 4111d30badfa..4ffb82a2d9e9 100644
+index 4ffb82a2d9e9..278b9aa25a1c 100644
 --- a/arch/powerpc/kernel/vdso.c
 +++ b/arch/powerpc/kernel/vdso.c
-@@ -154,7 +154,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
- 	struct page **vdso_pagelist;
- 	unsigned long vdso_pages;
- 	unsigned long vdso_base;
--	int rc;
-+	int ret = 0;
- 
- 	if (!vdso_ready)
- 		return 0;
-@@ -203,8 +203,8 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
- 				      ((VDSO_ALIGNMENT - 1) & PAGE_MASK),
- 				      0, 0);
- 	if (IS_ERR_VALUE(vdso_base)) {
--		rc = vdso_base;
--		goto fail_mmapsem;
-+		ret = vdso_base;
-+		goto out_up_mmap_sem;
- 	}
- 
- 	/* Add required alignment. */
-@@ -227,21 +227,16 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
- 	 * It's fine to use that for setting breakpoints in the vDSO code
- 	 * pages though.
- 	 */
--	rc = install_special_mapping(mm, vdso_base, vdso_pages << PAGE_SHIFT,
-+	ret = install_special_mapping(mm, vdso_base, vdso_pages << PAGE_SHIFT,
- 				     VM_READ|VM_EXEC|
- 				     VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
- 				     vdso_pagelist);
--	if (rc) {
-+	if (ret)
- 		current->mm->context.vdso_base = 0;
--		goto fail_mmapsem;
--	}
--
--	up_write(&mm->mmap_sem);
--	return 0;
- 
-- fail_mmapsem:
-+out_up_mmap_sem:
- 	up_write(&mm->mmap_sem);
--	return rc;
-+	return ret;
+@@ -309,7 +309,6 @@ static unsigned long __init find_function32(struct lib32_elfinfo *lib,
  }
  
- const char *arch_vma_name(struct vm_area_struct *vma)
+ static int __init vdso_do_func_patch32(struct lib32_elfinfo *v32,
+-				       struct lib64_elfinfo *v64,
+ 				       const char *orig, const char *fix)
+ {
+ 	Elf32_Sym *sym32_gen, *sym32_fix;
+@@ -344,7 +343,6 @@ static unsigned long __init find_function32(struct lib32_elfinfo *lib,
+ }
+ 
+ static int __init vdso_do_func_patch32(struct lib32_elfinfo *v32,
+-				       struct lib64_elfinfo *v64,
+ 				       const char *orig, const char *fix)
+ {
+ 	return 0;
+@@ -419,8 +417,7 @@ static unsigned long __init find_function64(struct lib64_elfinfo *lib,
+ #endif
+ }
+ 
+-static int __init vdso_do_func_patch64(struct lib32_elfinfo *v32,
+-				       struct lib64_elfinfo *v64,
++static int __init vdso_do_func_patch64(struct lib64_elfinfo *v64,
+ 				       const char *orig, const char *fix)
+ {
+ 	Elf64_Sym *sym64_gen, *sym64_fix;
+@@ -619,11 +616,9 @@ static __init int vdso_fixup_alt_funcs(struct lib32_elfinfo *v32,
+ 		 * It would be easy to do, but doesn't seem to be necessary,
+ 		 * patching the OPD symbol is enough.
+ 		 */
+-		vdso_do_func_patch32(v32, v64, patch->gen_name,
+-				     patch->fix_name);
++		vdso_do_func_patch32(v32, patch->gen_name, patch->fix_name);
+ #ifdef CONFIG_PPC64
+-		vdso_do_func_patch64(v32, v64, patch->gen_name,
+-				     patch->fix_name);
++		vdso_do_func_patch64(v64, patch->gen_name, patch->fix_name);
+ #endif /* CONFIG_PPC64 */
+ 	}
+ 
 -- 
 2.10.0
 
