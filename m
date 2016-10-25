@@ -1,95 +1,217 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3057D6B026B
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 11:33:00 -0400 (EDT)
-Received: by mail-qk0-f200.google.com with SMTP id z190so213066237qkc.4
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 08:33:00 -0700 (PDT)
-Received: from mail-qt0-x241.google.com (mail-qt0-x241.google.com. [2607:f8b0:400d:c0d::241])
-        by mx.google.com with ESMTPS id f186si13812927qkj.69.2016.10.25.08.32.59
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 24CEB6B0270
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 11:41:17 -0400 (EDT)
+Received: by mail-lf0-f69.google.com with SMTP id x79so51413722lff.2
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 08:41:17 -0700 (PDT)
+Received: from mail-lf0-x244.google.com (mail-lf0-x244.google.com. [2a00:1450:4010:c07::244])
+        by mx.google.com with ESMTPS id h35si10591092ljh.54.2016.10.25.08.40.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Oct 2016 08:32:59 -0700 (PDT)
-Received: by mail-qt0-x241.google.com with SMTP id 12so1064342qtm.0
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 08:32:59 -0700 (PDT)
-Date: Tue, 25 Oct 2016 11:32:56 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [RFC 0/8] Define coherent device memory node
-Message-ID: <20161025153256.GB6131@gmail.com>
-References: <1477283517-2504-1-git-send-email-khandual@linux.vnet.ibm.com>
- <20161024170902.GA5521@gmail.com>
- <877f8xaurp.fsf@linux.vnet.ibm.com>
+        Tue, 25 Oct 2016 08:40:56 -0700 (PDT)
+Received: by mail-lf0-x244.google.com with SMTP id b75so12730616lfg.3
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 08:40:56 -0700 (PDT)
+Date: Tue, 25 Oct 2016 17:40:53 +0200
+From: Piotr Kwapulinski <kwapulinski.piotr@gmail.com>
+Subject: Re: Rewording language in mbind(2) to "threads" not "processes"
+Message-ID: <20161025154050.GA3186@home>
+References: <f3c4ca9d-a880-5244-e06e-db4725e4d945@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <877f8xaurp.fsf@linux.vnet.ibm.com>
+In-Reply-To: <f3c4ca9d-a880-5244-e06e-db4725e4d945@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, js1304@gmail.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, akpm@linux-foundation.org, bsingharora@gmail.com
+To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Cc: Christoph Lameter <cl@linux.com>, mhocko@kernel.org, mgorman@techsingularity.net, a.p.zijlstra@chello.nl, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-man@vger.kernel.org, Brice Goglin <Brice.Goglin@inria.fr>
 
-On Tue, Oct 25, 2016 at 10:29:38AM +0530, Aneesh Kumar K.V wrote:
-> Jerome Glisse <j.glisse@gmail.com> writes:
-> > On Mon, Oct 24, 2016 at 10:01:49AM +0530, Anshuman Khandual wrote:
+Hi Michael,
 
-[...]
+I spent a couple of hours trying to review your patch. Unfortunately
+nowadays I spend no more than an hour per day for whole my linux
+kernel activity. It may take longer time for me to review it.
+This patch touches some areas of the kernel I'm still not an expert of
+(though I'm learning a lot). I'll review (and possibly fix) it ASAP.
 
-> > You can take a look at hmm-v13 if you want to see how i do non LRU page
-> > migration. While i put most of the migration code inside hmm_migrate.c it
-> > could easily be move to migrate.c without hmm_ prefix.
-> >
-> > There is 2 missing piece with existing migrate code. First is to put memory
-> > allocation for destination under control of who call the migrate code. Second
-> > is to allow offloading the copy operation to device (ie not use the CPU to
-> > copy data).
-> >
-> > I believe same requirement also make sense for platform you are targeting.
-> > Thus same code can be use.
-> >
-> > hmm-v13 https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-v13
-> >
-> > I haven't posted this patchset yet because we are doing some modifications
-> > to the device driver API to accomodate some new features. But the ZONE_DEVICE
-> > changes and the overall migration code will stay the same more or less (i have
-> > patches that move it to migrate.c and share more code with existing migrate
-> > code).
-> >
-> > If you think i missed anything about lru and page cache please point it to
-> > me. Because when i audited code for that i didn't see any road block with
-> > the few fs i was looking at (ext4, xfs and core page cache code).
-> >
+Best Regards
+--
+Piotr
+
+
+On Thu, Oct 13, 2016 at 10:38:33AM +0200, Michael Kerrisk (man-pages) wrote:
+> Christoph, Piotr, and Brice
 > 
-> The other restriction around ZONE_DEVICE is, it is not a managed zone.
-> That prevents any direct allocation from coherent device by application.
-> ie, we would like to force allocation from coherent device using
-> interface like mbind(MPOL_BIND..) . Is that possible with ZONE_DEVICE ?
- 
-To achieve this we rely on device fault code path ie when device take a page fault
-with help of HMM it will use existing memory if any for fault address but if CPU
-page table is empty (and it is not file back vma because of readback) then device
-can directly allocate device memory and HMM will update CPU page table to point to
-newly allocated device memory.
-
-So in fact i am not using existing kernel API to achieve this but the whole policy
-of where to allocate and what to allocate is under device driver responsability and
-device driver leverage its existing userspace API to get proper hint/direction from
-the application.
-
-Device memory is really a special case in my view, it only make sense to use it if
-memory is actively access by device and only way device access memory is when it is
-program to do so through the device driver API. There is nothing such as GPU threads
-in the kernel and there is no way to spawn or move work thread to GPU. This are
-specialize device and they require special per device API. So in my view using
-existing kernel API such as mbind() is counter productive. You might have buggy
-software that will mbind their memory to device and never use the device which
-lead to device memory being wasted for a process that never use the device.
-
-So my opinion is that you should not try to use existing kernel API to get policy
-information from userspace but let the device driver gather such policy through its
-own private API.
-
-Cheers,
-Jerome
+> Since you (Christoph and Piotr) helped with documenting MPOL_LOCAL 
+> just recently, I wonder if I might ask you to review a patch that I 
+> propose for the mbind(2) manual page.
+> 
+> As far as I understand, memory policy, as set by set_mempolicy(2)
+> is a per-thread attribute. The set_mempolicy(2) and get_mempolicy(2)
+> pages already reflect this, thanks to a patch from Brice last year.
+> 
+> However, such changes were not made in the mbind(2) page.
+> I wonder if I could ask you (and Brice, and anyone who's willing)
+> to look at the patch that I propose below to remedy this. (There are 
+> a couple questions "???" that I've injected in the patch.) Is it okay?
+> 
+> Cheers,
+> 
+> Michael
+> 
+> 
+> diff --git a/man2/mbind.2 b/man2/mbind.2
+> index a5f26e2..9494854 100644
+> --- a/man2/mbind.2
+> +++ b/man2/mbind.2
+> @@ -75,16 +75,16 @@ page in the kernel containing all zeros.
+>  For a file mapped with
+>  .BR MAP_PRIVATE ,
+>  an initial read access will allocate pages according to the
+> -process policy of the process that causes the page to be allocated.
+> -This may not be the process that called
+> +memory policy of the thread that causes the page to be allocated.
+> +This may not be the thread that called
+>  .BR mbind ().
+>  
+>  The specified policy will be ignored for any
+>  .B MAP_SHARED
+>  mappings in the specified memory range.
+> -Rather the pages will be allocated according to the process policy
+> -of the process that caused the page to be allocated.
+> -Again, this may not be the process that called
+> +Rather the pages will be allocated according to the memory policy
+> +of the thread that caused the page to be allocated.
+> +Again, this may not be the thread that called
+>  .BR mbind ().
+>  
+>  If the specified memory range includes a shared memory region
+> @@ -100,7 +100,10 @@ If, however, the shared memory region was created with the
+>  .B SHM_HUGETLB
+>  flag,
+>  the huge pages will be allocated according to the policy specified
+> -only if the page allocation is caused by the process that calls
+> +only if the page allocation is caused by the thread that calls
+> +.\"
+> +.\" ??? Is it correct to change "process" to "thread" in the preceding line?
+> +.\"
+>  .BR mbind ()
+>  for that region.
+>  
+> @@ -146,15 +149,15 @@ A nonempty
+>  specifies physical node IDs.
+>  Linux does not remap the
+>  .I nodemask
+> -when the process moves to a different cpuset context,
+> -nor when the set of nodes allowed by the process's
+> +when the thread moves to a different cpuset context,
+> +nor when the set of nodes allowed by the thread's
+>  current cpuset context changes.
+>  .TP
+>  .BR MPOL_F_RELATIVE_NODES " (since Linux-2.6.26)"
+>  A nonempty
+>  .I nodemask
+>  specifies node IDs that are relative to the set of
+> -node IDs allowed by the process's current cpuset.
+> +node IDs allowed by the thread's current cpuset.
+>  .PP
+>  .I nodemask
+>  points to a bit mask of nodes containing up to
+> @@ -178,7 +181,7 @@ argument is ignored.
+>  Where a
+>  .I nodemask
+>  is required, it must contain at least one node that is on-line,
+> -allowed by the process's current cpuset context
+> +allowed by the thread's current cpuset context
+>  (unless the
+>  .B MPOL_F_STATIC_NODES
+>  mode flag is specified),
+> @@ -194,10 +197,10 @@ mode requests that any nondefault policy be removed,
+>  restoring default behavior.
+>  When applied to a range of memory via
+>  .BR mbind (),
+> -this means to use the process policy,
+> +this means to use the thread memory policy,
+>  which may have been set with
+>  .BR set_mempolicy (2).
+> -If the mode of the process policy is also
+> +If the mode of the thread memory policy is also
+>  .BR MPOL_DEFAULT ,
+>  the system-wide default policy will be used.
+>  The system-wide default policy allocates
+> @@ -268,13 +271,13 @@ If the "local node" is low on free memory,
+>  the kernel will try to allocate memory from other nodes.
+>  The kernel will allocate memory from the "local node"
+>  whenever memory for this node is available.
+> -If the "local node" is not allowed by the process's current cpuset context,
+> +If the "local node" is not allowed by the thread's current cpuset context,
+>  the kernel will try to allocate memory from other nodes.
+>  The kernel will allocate memory from the "local node" whenever
+> -it becomes allowed by the process's current cpuset context.
+> +it becomes allowed by the thread's current cpuset context.
+>  By contrast,
+>  .B MPOL_DEFAULT
+> -reverts to the policy of the process (which may be set via
+> +reverts to the memory policy of the thread (which may be set via
+>  .BR set_mempolicy (2));
+>  that policy may be something other than "local allocation".
+>  .PP
+> @@ -300,7 +303,10 @@ is specified in
+>  .IR flags ,
+>  then the kernel will attempt to move all the existing pages
+>  in the memory range so that they follow the policy.
+> -Pages that are shared with other processes will not be moved.
+> +Pages that are shared with other threads will not be moved.
+> +.\"
+> +.\" ??? Is it correct to change "processes" to "threads" in the preceding line?
+> +.\"
+>  If
+>  .B MPOL_MF_STRICT
+>  is also specified, then the call will fail with the error
+> @@ -312,8 +318,11 @@ If
+>  is passed in
+>  .IR flags ,
+>  then the kernel will attempt to move all existing pages in the memory range
+> -regardless of whether other processes use the pages.
+> -The calling process must be privileged
+> +regardless of whether other threads use the pages.
+> +.\"
+> +.\" ??? Is it correct to change "processes" to "threads" in the preceding line?
+> +.\"
+> +The calling thread must be privileged
+>  .RB ( CAP_SYS_NICE )
+>  to use this flag.
+>  If
+> @@ -383,7 +392,7 @@ specifies one or more node IDs that are
+>  greater than the maximum supported node ID.
+>  Or, none of the node IDs specified by
+>  .I nodemask
+> -are on-line and allowed by the process's current cpuset context,
+> +are on-line and allowed by the thread's current cpuset context,
+>  or none of the specified nodes contain memory.
+>  Or, the
+>  .I mode
+> @@ -440,14 +449,14 @@ When
+>  .B MPOL_DEFAULT
+>  is specified for
+>  .BR set_mempolicy (2),
+> -the process's policy reverts to system default policy
+> +the thread's memory policy reverts to the system default policy
+>  or local allocation.
+>  When
+>  .B MPOL_DEFAULT
+>  is specified for a range of memory using
+>  .BR mbind (),
+>  any pages subsequently allocated for that range will use
+> -the process's policy, as set by
+> +the thread's memory policy, as set by
+>  .BR set_mempolicy (2).
+>  This effectively removes the explicit policy from the
+>  specified range, "falling back" to a possibly nondefault
+> 
+> -- 
+> Michael Kerrisk
+> Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+> Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
