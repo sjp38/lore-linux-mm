@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B4D86B0298
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 17:39:24 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id c84so56265pfb.1
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 14:39:24 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AB196B029B
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 17:39:29 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id n18so38061775pfe.7
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 14:39:29 -0700 (PDT)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id c17si13724747pgh.177.2016.10.25.14.39.23
+        by mx.google.com with ESMTPS id c17si13724747pgh.177.2016.10.25.14.39.28
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 25 Oct 2016 14:39:23 -0700 (PDT)
-Subject: [net-next PATCH 22/27] arch/xtensa: Add option to skip DMA sync as
- a part of mapping
+        Tue, 25 Oct 2016 14:39:28 -0700 (PDT)
+Subject: [net-next PATCH 23/27] dma: Add calls for dma_map_page_attrs and
+ dma_unmap_page_attrs
 From: Alexander Duyck <alexander.h.duyck@intel.com>
-Date: Tue, 25 Oct 2016 11:38:45 -0400
-Message-ID: <20161025153845.4815.95895.stgit@ahduyck-blue-test.jf.intel.com>
+Date: Tue, 25 Oct 2016 11:38:50 -0400
+Message-ID: <20161025153850.4815.92123.stgit@ahduyck-blue-test.jf.intel.com>
 In-Reply-To: <20161025153220.4815.61239.stgit@ahduyck-blue-test.jf.intel.com>
 References: <20161025153220.4815.61239.stgit@ahduyck-blue-test.jf.intel.com>
 MIME-Version: 1.0
@@ -22,43 +22,75 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: netdev@vger.kernel.org, intel-wired-lan@lists.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Max Filippov <jcmvbkbc@gmail.com>, davem@davemloft.net, brouer@redhat.com
+Cc: davem@davemloft.net, brouer@redhat.com
 
-This change allows us to pass DMA_ATTR_SKIP_CPU_SYNC which allows us to
-avoid invoking cache line invalidation if the driver will just handle it
-via a sync_for_cpu or sync_for_device call.
+Add support for mapping and unmapping a page with attributes.  The primary
+use for this is currently to allow for us to pass the
+DMA_ATTR_SKIP_CPU_SYNC attribute when mapping and unmapping a page.  On
+some architectures such as ARM the synchronization has significant overhead
+and if we are already taking care of the sync_for_cpu and sync_for_device
+from the driver there isn't much need to handle this in the map/unmap calls
+as well.
 
-Cc: Max Filippov <jcmvbkbc@gmail.com>
 Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
 ---
- arch/xtensa/kernel/pci-dma.c |    7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ include/linux/dma-mapping.h |   20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)
 
-diff --git a/arch/xtensa/kernel/pci-dma.c b/arch/xtensa/kernel/pci-dma.c
-index 1e68806..6a16dec 100644
---- a/arch/xtensa/kernel/pci-dma.c
-+++ b/arch/xtensa/kernel/pci-dma.c
-@@ -189,7 +189,9 @@ static dma_addr_t xtensa_map_page(struct device *dev, struct page *page,
- {
- 	dma_addr_t dma_handle = page_to_phys(page) + offset;
- 
--	xtensa_sync_single_for_device(dev, dma_handle, size, dir);
-+	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-+		xtensa_sync_single_for_device(dev, dma_handle, size, dir);
-+
- 	return dma_handle;
+diff --git a/include/linux/dma-mapping.h b/include/linux/dma-mapping.h
+index 08528af..10c5a17 100644
+--- a/include/linux/dma-mapping.h
++++ b/include/linux/dma-mapping.h
+@@ -243,29 +243,33 @@ static inline void dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sg
+ 		ops->unmap_sg(dev, sg, nents, dir, attrs);
  }
  
-@@ -197,7 +199,8 @@ static void xtensa_unmap_page(struct device *dev, dma_addr_t dma_handle,
- 			      size_t size, enum dma_data_direction dir,
- 			      unsigned long attrs)
+-static inline dma_addr_t dma_map_page(struct device *dev, struct page *page,
+-				      size_t offset, size_t size,
+-				      enum dma_data_direction dir)
++static inline dma_addr_t dma_map_page_attrs(struct device *dev,
++					    struct page *page,
++					    size_t offset, size_t size,
++					    enum dma_data_direction dir,
++					    unsigned long attrs)
  {
--	xtensa_sync_single_for_cpu(dev, dma_handle, size, dir);
-+	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-+		xtensa_sync_single_for_cpu(dev, dma_handle, size, dir);
+ 	struct dma_map_ops *ops = get_dma_ops(dev);
+ 	dma_addr_t addr;
+ 
+ 	kmemcheck_mark_initialized(page_address(page) + offset, size);
+ 	BUG_ON(!valid_dma_direction(dir));
+-	addr = ops->map_page(dev, page, offset, size, dir, 0);
++	addr = ops->map_page(dev, page, offset, size, dir, attrs);
+ 	debug_dma_map_page(dev, page, offset, size, dir, addr, false);
+ 
+ 	return addr;
  }
  
- static int xtensa_map_sg(struct device *dev, struct scatterlist *sg,
+-static inline void dma_unmap_page(struct device *dev, dma_addr_t addr,
+-				  size_t size, enum dma_data_direction dir)
++static inline void dma_unmap_page_attrs(struct device *dev,
++					dma_addr_t addr, size_t size,
++					enum dma_data_direction dir,
++					unsigned long attrs)
+ {
+ 	struct dma_map_ops *ops = get_dma_ops(dev);
+ 
+ 	BUG_ON(!valid_dma_direction(dir));
+ 	if (ops->unmap_page)
+-		ops->unmap_page(dev, addr, size, dir, 0);
++		ops->unmap_page(dev, addr, size, dir, attrs);
+ 	debug_dma_unmap_page(dev, addr, size, dir, false);
+ }
+ 
+@@ -385,6 +389,8 @@ static inline void dma_sync_single_range_for_device(struct device *dev,
+ #define dma_unmap_single(d, a, s, r) dma_unmap_single_attrs(d, a, s, r, 0)
+ #define dma_map_sg(d, s, n, r) dma_map_sg_attrs(d, s, n, r, 0)
+ #define dma_unmap_sg(d, s, n, r) dma_unmap_sg_attrs(d, s, n, r, 0)
++#define dma_map_page(d, p, o, s, r) dma_map_page_attrs(d, p, o, s, r, 0)
++#define dma_unmap_page(d, a, s, r) dma_unmap_page_attrs(d, a, s, r, 0)
+ 
+ extern int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,
+ 			   void *cpu_addr, dma_addr_t dma_addr, size_t size);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
