@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D62B6B028E
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 20:15:02 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id ra7so50979pab.5
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 17:15:02 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id m3si14982839paw.146.2016.10.24.17.15.01
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CE8116B0294
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 20:15:18 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id r16so132118889pfg.4
+        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 17:15:18 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id yp2si14986861pab.121.2016.10.24.17.15.18
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 24 Oct 2016 17:15:01 -0700 (PDT)
+        Mon, 24 Oct 2016 17:15:18 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 07/43] Revert "radix-tree: implement radix_tree_maybe_preload_order()"
-Date: Tue, 25 Oct 2016 03:13:06 +0300
-Message-Id: <20161025001342.76126-8-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 16/43] filemap: handle huge pages in filemap_fdatawait_range()
+Date: Tue, 25 Oct 2016 03:13:15 +0300
+Message-Id: <20161025001342.76126-17-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20161025001342.76126-1-kirill.shutemov@linux.intel.com>
 References: <20161025001342.76126-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,134 +20,32 @@ List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-This reverts commit 356e1c23292a4f63cfdf1daf0e0ddada51f32de8.
-
-After conversion of huge tmpfs to multi-order entries, we don't need
-this anymore.
+We writeback whole huge page a time.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/radix-tree.h |  1 -
- lib/radix-tree.c           | 74 ----------------------------------------------
- 2 files changed, 75 deletions(-)
+ mm/filemap.c | 5 +++++
+ 1 file changed, 5 insertions(+)
 
-diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-index 76fec3f52203..f84780aefd06 100644
---- a/include/linux/radix-tree.h
-+++ b/include/linux/radix-tree.h
-@@ -292,7 +292,6 @@ unsigned int radix_tree_gang_lookup_slot(struct radix_tree_root *root,
- 			unsigned long first_index, unsigned int max_items);
- int radix_tree_preload(gfp_t gfp_mask);
- int radix_tree_maybe_preload(gfp_t gfp_mask);
--int radix_tree_maybe_preload_order(gfp_t gfp_mask, int order);
- void radix_tree_init(void);
- void *radix_tree_tag_set(struct radix_tree_root *root,
- 			unsigned long index, unsigned int tag);
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index 6c4ac58ab687..cb1de07ae5a1 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -38,9 +38,6 @@
- #include <linux/preempt.h>		/* in_interrupt() */
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 954720092cf8..ecf5c2dba3fb 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -509,9 +509,14 @@ static int __filemap_fdatawait_range(struct address_space *mapping,
+ 			if (page->index > end)
+ 				continue;
  
- 
--/* Number of nodes in fully populated tree of given height */
--static unsigned long height_to_maxnodes[RADIX_TREE_MAX_PATH + 1] __read_mostly;
--
- /*
-  * Radix tree node cache.
-  */
-@@ -433,51 +430,6 @@ int radix_tree_split_preload(unsigned int old_order, unsigned int new_order,
- #endif
- 
- /*
-- * The same as function above, but preload number of nodes required to insert
-- * (1 << order) continuous naturally-aligned elements.
-- */
--int radix_tree_maybe_preload_order(gfp_t gfp_mask, int order)
--{
--	unsigned long nr_subtrees;
--	int nr_nodes, subtree_height;
--
--	/* Preloading doesn't help anything with this gfp mask, skip it */
--	if (!gfpflags_allow_blocking(gfp_mask)) {
--		preempt_disable();
--		return 0;
--	}
--
--	/*
--	 * Calculate number and height of fully populated subtrees it takes to
--	 * store (1 << order) elements.
--	 */
--	nr_subtrees = 1 << order;
--	for (subtree_height = 0; nr_subtrees > RADIX_TREE_MAP_SIZE;
--			subtree_height++)
--		nr_subtrees >>= RADIX_TREE_MAP_SHIFT;
--
--	/*
--	 * The worst case is zero height tree with a single item at index 0 and
--	 * then inserting items starting at ULONG_MAX - (1 << order).
--	 *
--	 * This requires RADIX_TREE_MAX_PATH nodes to build branch from root to
--	 * 0-index item.
--	 */
--	nr_nodes = RADIX_TREE_MAX_PATH;
--
--	/* Plus branch to fully populated subtrees. */
--	nr_nodes += RADIX_TREE_MAX_PATH - subtree_height;
--
--	/* Root node is shared. */
--	nr_nodes--;
--
--	/* Plus nodes required to build subtrees. */
--	nr_nodes += nr_subtrees * height_to_maxnodes[subtree_height];
--
--	return __radix_tree_preload(gfp_mask, nr_nodes);
--}
--
--/*
-  * The maximum index which can be stored in a radix tree
-  */
- static inline unsigned long shift_maxindex(unsigned int shift)
-@@ -1845,31 +1797,6 @@ radix_tree_node_ctor(void *arg)
- 	INIT_LIST_HEAD(&node->private_list);
- }
- 
--static __init unsigned long __maxindex(unsigned int height)
--{
--	unsigned int width = height * RADIX_TREE_MAP_SHIFT;
--	int shift = RADIX_TREE_INDEX_BITS - width;
--
--	if (shift < 0)
--		return ~0UL;
--	if (shift >= BITS_PER_LONG)
--		return 0UL;
--	return ~0UL >> shift;
--}
--
--static __init void radix_tree_init_maxnodes(void)
--{
--	unsigned long height_to_maxindex[RADIX_TREE_MAX_PATH + 1];
--	unsigned int i, j;
--
--	for (i = 0; i < ARRAY_SIZE(height_to_maxindex); i++)
--		height_to_maxindex[i] = __maxindex(i);
--	for (i = 0; i < ARRAY_SIZE(height_to_maxnodes); i++) {
--		for (j = i; j > 0; j--)
--			height_to_maxnodes[i] += height_to_maxindex[j - 1] + 1;
--	}
--}
--
- static int radix_tree_callback(struct notifier_block *nfb,
- 				unsigned long action, void *hcpu)
- {
-@@ -1896,6 +1823,5 @@ void __init radix_tree_init(void)
- 			sizeof(struct radix_tree_node), 0,
- 			SLAB_PANIC | SLAB_RECLAIM_ACCOUNT,
- 			radix_tree_node_ctor);
--	radix_tree_init_maxnodes();
- 	hotcpu_notifier(radix_tree_callback, 0);
- }
++			page = compound_head(page);
+ 			wait_on_page_writeback(page);
+ 			if (TestClearPageError(page))
+ 				ret = -EIO;
++			if (PageTransHuge(page)) {
++				index = page->index + HPAGE_PMD_NR;
++				i += index - pvec.pages[i]->index - 1;
++			}
+ 		}
+ 		pagevec_release(&pvec);
+ 		cond_resched();
 -- 
 2.9.3
 
