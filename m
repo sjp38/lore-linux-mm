@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A4AAB6B0280
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 20:14:29 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id fl2so5226735pad.7
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 17:14:29 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id i76si17883549pfj.230.2016.10.24.17.14.28
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AB52E6B0281
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 20:14:36 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id r16so132113863pfg.4
+        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 17:14:36 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id n21si9885520pgj.254.2016.10.24.17.14.35
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 24 Oct 2016 17:14:28 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Oct 2016 17:14:35 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 43/43] ext4, vfs: add huge= mount option
-Date: Tue, 25 Oct 2016 03:13:42 +0300
-Message-Id: <20161025001342.76126-44-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 09/43] mm, rmap: account file thp pages
+Date: Tue, 25 Oct 2016 03:13:08 +0300
+Message-Id: <20161025001342.76126-10-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20161025001342.76126-1-kirill.shutemov@linux.intel.com>
 References: <20161025001342.76126-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,157 +20,207 @@ List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-The same four values as in tmpfs case.
-
-Encyption code is not yet ready to handle huge page, so we disable huge
-pages support if the inode has EXT4_INODE_ENCRYPT.
+Let's add FileHugePages and FilePmdMapped fields into meminfo and smaps.
+It indicates how many times we allocate and map file THP.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- fs/ext4/ext4.h  |  5 +++++
- fs/ext4/inode.c | 26 +++++++++++++++++++++-----
- fs/ext4/super.c | 26 ++++++++++++++++++++++++++
- 3 files changed, 52 insertions(+), 5 deletions(-)
+ drivers/base/node.c    |  6 ++++++
+ fs/proc/meminfo.c      |  4 ++++
+ fs/proc/task_mmu.c     |  5 ++++-
+ include/linux/mmzone.h |  2 ++
+ mm/filemap.c           |  3 ++-
+ mm/huge_memory.c       |  5 ++++-
+ mm/page_alloc.c        |  5 +++++
+ mm/rmap.c              | 12 ++++++++----
+ mm/vmstat.c            |  2 ++
+ 9 files changed, 37 insertions(+), 7 deletions(-)
 
-diff --git a/fs/ext4/ext4.h b/fs/ext4/ext4.h
-index 282a51b07c57..610c31c56bad 100644
---- a/fs/ext4/ext4.h
-+++ b/fs/ext4/ext4.h
-@@ -1132,6 +1132,11 @@ struct ext4_inode_info {
- #define EXT4_MOUNT_DIOREAD_NOLOCK	0x400000 /* Enable support for dio read nolocking */
- #define EXT4_MOUNT_JOURNAL_CHECKSUM	0x800000 /* Journal checksums */
- #define EXT4_MOUNT_JOURNAL_ASYNC_COMMIT	0x1000000 /* Journal Async Commit */
-+#define EXT4_MOUNT_HUGE_MODE		0x6000000 /* Huge support mode: */
-+#define EXT4_MOUNT_HUGE_NEVER		0x0000000
-+#define EXT4_MOUNT_HUGE_ALWAYS		0x2000000
-+#define EXT4_MOUNT_HUGE_WITHIN_SIZE	0x4000000
-+#define EXT4_MOUNT_HUGE_ADVISE		0x6000000
- #define EXT4_MOUNT_DELALLOC		0x8000000 /* Delalloc support */
- #define EXT4_MOUNT_DATA_ERR_ABORT	0x10000000 /* Abort on file data write */
- #define EXT4_MOUNT_BLOCK_VALIDITY	0x20000000 /* Block validity checking */
-diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index 76e98e5b3c5e..a6d86883b2b4 100644
---- a/fs/ext4/inode.c
-+++ b/fs/ext4/inode.c
-@@ -4374,7 +4374,7 @@ int ext4_get_inode_loc(struct inode *inode, struct ext4_iloc *iloc)
- void ext4_set_inode_flags(struct inode *inode)
- {
- 	unsigned int flags = EXT4_I(inode)->i_flags;
--	unsigned int new_fl = 0;
-+	unsigned int mask, new_fl = 0;
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index 5548f9686016..45be0ddb84ed 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -116,6 +116,8 @@ static ssize_t node_read_meminfo(struct device *dev,
+ 		       "Node %d AnonHugePages:  %8lu kB\n"
+ 		       "Node %d ShmemHugePages: %8lu kB\n"
+ 		       "Node %d ShmemPmdMapped: %8lu kB\n"
++		       "Node %d FileHugePages: %8lu kB\n"
++		       "Node %d FilePmdMapped: %8lu kB\n"
+ #endif
+ 			,
+ 		       nid, K(node_page_state(pgdat, NR_FILE_DIRTY)),
+@@ -139,6 +141,10 @@ static ssize_t node_read_meminfo(struct device *dev,
+ 		       nid, K(node_page_state(pgdat, NR_SHMEM_THPS) *
+ 				       HPAGE_PMD_NR),
+ 		       nid, K(node_page_state(pgdat, NR_SHMEM_PMDMAPPED) *
++				       HPAGE_PMD_NR),
++		       nid, K(node_page_state(pgdat, NR_FILE_THPS) *
++				       HPAGE_PMD_NR),
++		       nid, K(node_page_state(pgdat, NR_FILE_PMDMAPPED) *
+ 				       HPAGE_PMD_NR));
+ #else
+ 		       nid, K(sum_zone_node_page_state(nid, NR_SLAB_UNRECLAIMABLE)));
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+index 8a428498d6b2..8396843be7a7 100644
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -146,6 +146,10 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ 		    global_node_page_state(NR_SHMEM_THPS) * HPAGE_PMD_NR);
+ 	show_val_kb(m, "ShmemPmdMapped: ",
+ 		    global_node_page_state(NR_SHMEM_PMDMAPPED) * HPAGE_PMD_NR);
++	show_val_kb(m, "FileHugePages: ",
++		    global_node_page_state(NR_FILE_THPS) * HPAGE_PMD_NR);
++	show_val_kb(m, "FilePmdMapped: ",
++		    global_node_page_state(NR_FILE_PMDMAPPED) * HPAGE_PMD_NR);
+ #endif
  
- 	if (flags & EXT4_SYNC_FL)
- 		new_fl |= S_SYNC;
-@@ -4386,10 +4386,26 @@ void ext4_set_inode_flags(struct inode *inode)
- 		new_fl |= S_NOATIME;
- 	if (flags & EXT4_DIRSYNC_FL)
- 		new_fl |= S_DIRSYNC;
--	if (test_opt(inode->i_sb, DAX) && S_ISREG(inode->i_mode))
--		new_fl |= S_DAX;
--	inode_set_flags(inode, new_fl,
--			S_SYNC|S_APPEND|S_IMMUTABLE|S_NOATIME|S_DIRSYNC|S_DAX);
-+	if (S_ISREG(inode->i_mode) && !ext4_encrypted_inode(inode)) {
-+		if (test_opt(inode->i_sb, DAX))
-+			new_fl |= S_DAX;
-+		switch (test_opt(inode->i_sb, HUGE_MODE)) {
-+		case EXT4_MOUNT_HUGE_NEVER:
-+			break;
-+		case EXT4_MOUNT_HUGE_ALWAYS:
-+			new_fl |= S_HUGE_ALWAYS;
-+			break;
-+		case EXT4_MOUNT_HUGE_WITHIN_SIZE:
-+			new_fl |= S_HUGE_WITHIN_SIZE;
-+			break;
-+		case EXT4_MOUNT_HUGE_ADVISE:
-+			new_fl |= S_HUGE_ADVISE;
-+			break;
-+		}
-+	}
-+	mask = S_SYNC | S_APPEND | S_IMMUTABLE | S_NOATIME |
-+		S_DIRSYNC | S_DAX | S_HUGE_MODE;
-+	inode_set_flags(inode, new_fl, mask);
+ #ifdef CONFIG_CMA
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 35b92d81692f..bb8b7f93528e 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -442,6 +442,7 @@ struct mem_size_stats {
+ 	unsigned long anonymous;
+ 	unsigned long anonymous_thp;
+ 	unsigned long shmem_thp;
++	unsigned long file_thp;
+ 	unsigned long swap;
+ 	unsigned long shared_hugetlb;
+ 	unsigned long private_hugetlb;
+@@ -577,7 +578,7 @@ static void smaps_pmd_entry(pmd_t *pmd, unsigned long addr,
+ 	else if (is_zone_device_page(page))
+ 		/* pass */;
+ 	else
+-		VM_BUG_ON_PAGE(1, page);
++		mss->file_thp += HPAGE_PMD_SIZE;
+ 	smaps_account(mss, page, true, pmd_young(*pmd), pmd_dirty(*pmd));
  }
+ #else
+@@ -772,6 +773,7 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
+ 		   "Anonymous:      %8lu kB\n"
+ 		   "AnonHugePages:  %8lu kB\n"
+ 		   "ShmemPmdMapped: %8lu kB\n"
++		   "FilePmdMapped:  %8lu kB\n"
+ 		   "Shared_Hugetlb: %8lu kB\n"
+ 		   "Private_Hugetlb: %7lu kB\n"
+ 		   "Swap:           %8lu kB\n"
+@@ -790,6 +792,7 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)
+ 		   mss.anonymous >> 10,
+ 		   mss.anonymous_thp >> 10,
+ 		   mss.shmem_thp >> 10,
++		   mss.file_thp >> 10,
+ 		   mss.shared_hugetlb >> 10,
+ 		   mss.private_hugetlb >> 10,
+ 		   mss.swap >> 10,
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 7f2ae99e5daf..20c5fce13697 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -163,6 +163,8 @@ enum node_stat_item {
+ 	NR_SHMEM,		/* shmem pages (included tmpfs/GEM pages) */
+ 	NR_SHMEM_THPS,
+ 	NR_SHMEM_PMDMAPPED,
++	NR_FILE_THPS,
++	NR_FILE_PMDMAPPED,
+ 	NR_ANON_THPS,
+ 	NR_UNSTABLE_NFS,	/* NFS unstable pages */
+ 	NR_VMSCAN_WRITE,
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 23fbbb61725c..e9376610ad3c 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -293,7 +293,8 @@ void __delete_from_page_cache(struct page *page, void *shadow)
+ 		if (PageTransHuge(page))
+ 			__dec_node_page_state(page, NR_SHMEM_THPS);
+ 	} else {
+-		VM_BUG_ON_PAGE(PageTransHuge(page) && !PageHuge(page), page);
++		if (PageTransHuge(page) && !PageHuge(page))
++			__dec_node_page_state(page, NR_FILE_THPS);
+ 	}
  
- /* Propagate flags from i_flags to EXT4_I(inode)->i_flags */
-diff --git a/fs/ext4/super.c b/fs/ext4/super.c
-index 20da99da0a34..81c434f0ee4e 100644
---- a/fs/ext4/super.c
-+++ b/fs/ext4/super.c
-@@ -1126,6 +1126,7 @@ static int ext4_set_context(struct inode *inode, const void *ctx, size_t len,
- 			ext4_set_inode_flag(inode, EXT4_INODE_ENCRYPT);
- 			ext4_clear_inode_state(inode,
- 					EXT4_STATE_MAY_INLINE_DATA);
-+			ext4_set_inode_flags(inode);
+ 	/*
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 9888dbec1d01..e7cda8e86f2c 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1892,7 +1892,10 @@ static void __split_huge_page(struct page *page, struct list_head *list,
+ 		struct radix_tree_iter iter;
+ 		void **slot;
+ 
+-		__dec_node_page_state(head, NR_SHMEM_THPS);
++		if (PageSwapBacked(page))
++			__dec_node_page_state(page, NR_SHMEM_THPS);
++		else
++			__dec_node_page_state(page, NR_FILE_THPS);
+ 
+ 		radix_tree_split(&mapping->page_tree, head->index, 0);
+ 		radix_tree_for_each_slot(slot, &mapping->page_tree, &iter,
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2b3bf6767d54..447499b7054d 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4293,6 +4293,8 @@ void show_free_areas(unsigned int filter)
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ 			" shmem_thp: %lukB"
+ 			" shmem_pmdmapped: %lukB"
++			" file_thp: %lukB"
++			" file_pmdmapped: %lukB"
+ 			" anon_thp: %lukB"
+ #endif
+ 			" writeback_tmp:%lukB"
+@@ -4315,6 +4317,9 @@ void show_free_areas(unsigned int filter)
+ 			K(node_page_state(pgdat, NR_SHMEM_THPS) * HPAGE_PMD_NR),
+ 			K(node_page_state(pgdat, NR_SHMEM_PMDMAPPED)
+ 					* HPAGE_PMD_NR),
++			K(node_page_state(pgdat, NR_FILE_THPS) * HPAGE_PMD_NR),
++			K(node_page_state(pgdat, NR_FILE_PMDMAPPED)
++					* HPAGE_PMD_NR),
+ 			K(node_page_state(pgdat, NR_ANON_THPS) * HPAGE_PMD_NR),
+ #endif
+ 			K(node_page_state(pgdat, NR_SHMEM)),
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 1ef36404e7b2..48c7310639bd 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1281,8 +1281,10 @@ void page_add_file_rmap(struct page *page, bool compound)
  		}
- 		return res;
- 	}
-@@ -1140,6 +1141,7 @@ static int ext4_set_context(struct inode *inode, const void *ctx, size_t len,
- 			len, 0);
- 	if (!res) {
- 		ext4_set_inode_flag(inode, EXT4_INODE_ENCRYPT);
-+		ext4_set_inode_flags(inode);
- 		res = ext4_mark_inode_dirty(handle, inode);
- 		if (res)
- 			EXT4_ERROR_INODE(inode, "Failed to mark inode dirty");
-@@ -1278,6 +1280,7 @@ enum {
- 	Opt_dioread_nolock, Opt_dioread_lock,
- 	Opt_discard, Opt_nodiscard, Opt_init_itable, Opt_noinit_itable,
- 	Opt_max_dir_size_kb, Opt_nojournal_checksum,
-+	Opt_huge_never, Opt_huge_always, Opt_huge_within_size, Opt_huge_advise,
- };
- 
- static const match_table_t tokens = {
-@@ -1358,6 +1361,10 @@ static const match_table_t tokens = {
- 	{Opt_init_itable, "init_itable"},
- 	{Opt_noinit_itable, "noinit_itable"},
- 	{Opt_max_dir_size_kb, "max_dir_size_kb=%u"},
-+	{Opt_huge_never, "huge=never"},
-+	{Opt_huge_always, "huge=always"},
-+	{Opt_huge_within_size, "huge=within_size"},
-+	{Opt_huge_advise, "huge=advise"},
- 	{Opt_test_dummy_encryption, "test_dummy_encryption"},
- 	{Opt_removed, "check=none"},	/* mount option from ext2/3 */
- 	{Opt_removed, "nocheck"},	/* mount option from ext2/3 */
-@@ -1476,6 +1483,11 @@ static int clear_qf_name(struct super_block *sb, int qtype)
- #define MOPT_NO_EXT3	0x0200
- #define MOPT_EXT4_ONLY	(MOPT_NO_EXT2 | MOPT_NO_EXT3)
- #define MOPT_STRING	0x0400
-+#ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
-+#define MOPT_HUGE	0x1000
-+#else
-+#define MOPT_HUGE	MOPT_NOSUPPORT
-+#endif
- 
- static const struct mount_opts {
- 	int	token;
-@@ -1563,6 +1575,10 @@ static const struct mount_opts {
- 	{Opt_jqfmt_vfsv0, QFMT_VFS_V0, MOPT_QFMT},
- 	{Opt_jqfmt_vfsv1, QFMT_VFS_V1, MOPT_QFMT},
- 	{Opt_max_dir_size_kb, 0, MOPT_GTE0},
-+	{Opt_huge_never, EXT4_MOUNT_HUGE_NEVER, MOPT_HUGE},
-+	{Opt_huge_always, EXT4_MOUNT_HUGE_ALWAYS, MOPT_HUGE},
-+	{Opt_huge_within_size, EXT4_MOUNT_HUGE_WITHIN_SIZE, MOPT_HUGE},
-+	{Opt_huge_advise, EXT4_MOUNT_HUGE_ADVISE, MOPT_HUGE},
- 	{Opt_test_dummy_encryption, 0, MOPT_GTE0},
- 	{Opt_err, 0, 0}
- };
-@@ -1644,6 +1660,16 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
- 		} else
- 			return -1;
- 	}
-+	if (MOPT_HUGE != MOPT_NOSUPPORT && m->flags & MOPT_HUGE) {
-+		sbi->s_mount_opt &= ~EXT4_MOUNT_HUGE_MODE;
-+		sbi->s_mount_opt |= m->mount_opt;
-+		if (m->mount_opt) {
-+			ext4_msg(sb, KERN_WARNING, "Warning: "
-+					"Support of huge pages is EXPERIMENTAL,"
-+					" use at your own risk");
-+		}
-+		return 1;
-+	}
- 	if (m->flags & MOPT_CLEAR_ERR)
- 		clear_opt(sb, ERRORS_MASK);
- 	if (token == Opt_noquota && sb_any_quota_loaded(sb)) {
+ 		if (!atomic_inc_and_test(compound_mapcount_ptr(page)))
+ 			goto out;
+-		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
+-		__inc_node_page_state(page, NR_SHMEM_PMDMAPPED);
++		if (PageSwapBacked(page))
++			__inc_node_page_state(page, NR_SHMEM_PMDMAPPED);
++		else
++			__inc_node_page_state(page, NR_FILE_PMDMAPPED);
+ 	} else {
+ 		if (PageTransCompound(page) && page_mapping(page)) {
+ 			VM_WARN_ON_ONCE(!PageLocked(page));
+@@ -1322,8 +1324,10 @@ static void page_remove_file_rmap(struct page *page, bool compound)
+ 		}
+ 		if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))
+ 			goto out;
+-		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
+-		__dec_node_page_state(page, NR_SHMEM_PMDMAPPED);
++		if (PageSwapBacked(page))
++			__dec_node_page_state(page, NR_SHMEM_PMDMAPPED);
++		else
++			__dec_node_page_state(page, NR_FILE_PMDMAPPED);
+ 	} else {
+ 		if (!atomic_add_negative(-1, &page->_mapcount))
+ 			goto out;
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 604f26a4f696..04dc6bd8ee43 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -967,6 +967,8 @@ const char * const vmstat_text[] = {
+ 	"nr_shmem",
+ 	"nr_shmem_hugepages",
+ 	"nr_shmem_pmdmapped",
++	"nr_file_hugepaged",
++	"nr_file_pmdmapped",
+ 	"nr_anon_transparent_hugepages",
+ 	"nr_unstable",
+ 	"nr_vmscan_write",
 -- 
 2.9.3
 
