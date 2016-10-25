@@ -1,94 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D32EB6B0253
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 03:26:09 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id i85so136352940pfa.5
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 00:26:09 -0700 (PDT)
-Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
-        by mx.google.com with ESMTPS id v5si19297553pgj.193.2016.10.25.00.26.09
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AFDA96B0253
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 03:52:06 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id t25so136698349pfg.3
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 00:52:06 -0700 (PDT)
+Received: from mail-pf0-f194.google.com (mail-pf0-f194.google.com. [209.85.192.194])
+        by mx.google.com with ESMTPS id h7si9601571pgf.209.2016.10.25.00.52.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Oct 2016 00:26:09 -0700 (PDT)
-Received: by mail-pf0-x244.google.com with SMTP id i85so18793354pfa.0
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 00:26:09 -0700 (PDT)
-Subject: Re: [RFC 3/8] mm: Isolate coherent device memory nodes from HugeTLB
- allocation paths
-References: <1477283517-2504-1-git-send-email-khandual@linux.vnet.ibm.com>
- <1477283517-2504-4-git-send-email-khandual@linux.vnet.ibm.com>
- <580E41F0.20601@intel.com> <87d1ipawsm.fsf@linux.vnet.ibm.com>
- <5f9f43c1-115f-e3fe-fca2-37e6c1eed73f@gmail.com>
-From: Balbir Singh <bsingharora@gmail.com>
-Message-ID: <96132402-e934-02ef-525f-636e4e132e9a@gmail.com>
-Date: Tue, 25 Oct 2016 18:25:49 +1100
-MIME-Version: 1.0
-In-Reply-To: <5f9f43c1-115f-e3fe-fca2-37e6c1eed73f@gmail.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+        Tue, 25 Oct 2016 00:52:05 -0700 (PDT)
+Received: by mail-pf0-f194.google.com with SMTP id i85so18856998pfa.0
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 00:52:05 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH stable 4.4 0/4] mm: workingset backports
+Date: Tue, 25 Oct 2016 09:51:44 +0200
+Message-Id: <20161025075148.31661-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: mhocko@suse.com, js1304@gmail.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, akpm@linux-foundation.org
+To: Stable tree <stable@vger.kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Antonio SJ Musumeci <trapexit@spawn.link>, Jan Kara <jack@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Miklos Szeredi <miklos@szeredi.hu>
 
-
-
-On 25/10/16 18:17, Balbir Singh wrote:
-> 
-> 
-> On 25/10/16 15:15, Aneesh Kumar K.V wrote:
->> Dave Hansen <dave.hansen@intel.com> writes:
->>
->>> On 10/23/2016 09:31 PM, Anshuman Khandual wrote:
->>>> This change is part of the isolation requiring coherent device memory nodes
->>>> implementation.
->>>>
->>>> Isolation seeking coherent device memory node requires allocation isolation
->>>> from implicit memory allocations from user space. Towards that effect, the
->>>> memory should not be used for generic HugeTLB page pool allocations. This
->>>> modifies relevant functions to skip all coherent memory nodes present on
->>>> the system during allocation, freeing and auditing for HugeTLB pages.
->>>
->>> This seems really fragile.  You had to hit, what, 18 call sites?  What
->>> are the odds that this is going to stay working?
->>
->>
->> I guess a better approach is to introduce new node_states entry such
->> that we have one that excludes coherent device memory numa nodes. One
->> possibility is to add N_SYSTEM_MEMORY and N_MEMORY.
->>
->> Current N_MEMORY becomes N_SYSTEM_MEMORY and N_MEMORY includes
->> system and device/any other memory which is coherent.
->>
-> 
-> I thought of this as well, but I would rather see N_COHERENT_MEMORY
-> as a flag. The idea being that some device memory is a part of
-> N_MEMORY, but N_COHERENT_MEMORY gives it additional attributes
-> 
->> All the isolation can then be achieved based on the nodemask_t used for
->> allocation. So for allocations we want to avoid from coherent device we
->> use N_SYSTEM_MEMORY mask or a derivative of that and where we are ok to
->> allocate from CDM with fallbacks we use N_MEMORY.
->>
-> 
-> I suspect its going to be easier to exclude N_COHERENT_MEMORY.
-> 
->> All nodes zonelist will have zones from the coherent device nodes but we
->> will not end up allocating from coherent device node zone due to the
->> node mask used.
->>
->>
->> This will also make sure we end up allocating from the correct coherent
->> device numa node in the presence of multiple of them based on the
->> distance of the coherent device node from the current executing numa
->> node.
->>
-> 
-> The idea is good overall, but I think its going to be good to document
-> the exclusions with the flags
-> 
-
-FWIW,, some of this is present in 8/8
-
-Balbir
+Hi,
+here is the backport of (hopefully) all workingset related fixes for
+4.4 kernel. The series has been reviewed by Johannes [1]. The main
+motivation for the backport is 22f2ac51b6d6 ("mm: workingset: fix crash
+in shadow node shrinker caused by replace_page_cache_page()") which is
+a fix for a triggered BUG_ON. This is not sufficient because there are
+follow up fixes which were introduced later.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
