@@ -1,68 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EA5F6B0261
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 03:52:13 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 128so138320540pfz.1
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 00:52:13 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 166556B0261
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 03:52:17 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id t25so136701395pfg.3
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 00:52:17 -0700 (PDT)
 Received: from mail-pf0-f194.google.com (mail-pf0-f194.google.com. [209.85.192.194])
-        by mx.google.com with ESMTPS id f71si19415720pgc.31.2016.10.25.00.52.12
+        by mx.google.com with ESMTPS id q4si1058962pfb.41.2016.10.25.00.52.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Oct 2016 00:52:12 -0700 (PDT)
-Received: by mail-pf0-f194.google.com with SMTP id i85so18857306pfa.0
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 00:52:12 -0700 (PDT)
+        Tue, 25 Oct 2016 00:52:15 -0700 (PDT)
+Received: by mail-pf0-f194.google.com with SMTP id i85so18857403pfa.0
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 00:52:15 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH stable 4.4 3/4] mm: filemap: fix mapping->nrpages double accounting in fuse
-Date: Tue, 25 Oct 2016 09:51:47 +0200
-Message-Id: <20161025075148.31661-4-mhocko@kernel.org>
+Subject: [PATCH stable 4.4 4/4] Using BUG_ON() as an assert() is _never_ acceptable
+Date: Tue, 25 Oct 2016 09:51:48 +0200
+Message-Id: <20161025075148.31661-5-mhocko@kernel.org>
 In-Reply-To: <20161025075148.31661-1-mhocko@kernel.org>
 References: <20161025075148.31661-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Stable tree <stable@vger.kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Miklos Szeredi <miklos@szeredi.hu>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Miklos Szeredi <miklos@szeredi.hu>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
 
-From: Johannes Weiner <hannes@cmpxchg.org>
+From: Linus Torvalds <torvalds@linux-foundation.org>
 
-Commit 3ddf40e8c31964b744ff10abb48c8e36a83ec6e7 upstream.
+Commit 21f54ddae449f4bdd9f1498124901d67202243d9 upstream.
 
-Commit 22f2ac51b6d6 ("mm: workingset: fix crash in shadow node shrinker
-caused by replace_page_cache_page()") switched replace_page_cache() from
-raw radix tree operations to page_cache_tree_insert() but didn't take
-into account that the latter function, unlike the raw radix tree op,
-handles mapping->nrpages.  As a result, that counter is bumped for each
-page replacement rather than balanced out even.
+That just generally kills the machine, and makes debugging only much
+harder, since the traces may long be gone.
 
-The mapping->nrpages counter is used to skip needless radix tree walks
-when invalidating, truncating, syncing inodes without pages, as well as
-statistics for userspace.  Since the error is positive, we'll do more
-page cache tree walks than necessary; we won't miss a necessary one.
-And we'll report more buffer pages to userspace than there are.  The
-error is limited to fuse inodes.
+Debugging by assert() is a disease.  Don't do it.  If you can continue,
+you're much better off doing so with a live machine where you have a
+much higher chance that the report actually makes it to the system logs,
+rather than result in a machine that is just completely dead.
+
+The only valid situation for BUG_ON() is when continuing is not an
+option, because there is massive corruption.  But if you are just
+verifying that something is true, you warn about your broken assumptions
+(preferably just once), and limp on.
 
 Fixes: 22f2ac51b6d6 ("mm: workingset: fix crash in shadow node shrinker caused by replace_page_cache_page()")
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Miklos Szeredi <miklos@szeredi.hu>
-Cc: stable@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/filemap.c | 1 -
- 1 file changed, 1 deletion(-)
+ include/linux/swap.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 7ad648c9780c..c588d1222b2a 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -590,7 +590,6 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
- 		__delete_from_page_cache(old, NULL, memcg);
- 		error = page_cache_tree_insert(mapping, new, NULL);
- 		BUG_ON(error);
--		mapping->nrpages++;
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index b28de19aadbf..d8ca2eaa3a8b 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -266,7 +266,7 @@ static inline void workingset_node_pages_inc(struct radix_tree_node *node)
  
- 		/*
- 		 * hugetlb pages do not participate in page cache accounting.
+ static inline void workingset_node_pages_dec(struct radix_tree_node *node)
+ {
+-	VM_BUG_ON(!workingset_node_pages(node));
++	VM_WARN_ON_ONCE(!workingset_node_pages(node));
+ 	node->count--;
+ }
+ 
+@@ -282,7 +282,7 @@ static inline void workingset_node_shadows_inc(struct radix_tree_node *node)
+ 
+ static inline void workingset_node_shadows_dec(struct radix_tree_node *node)
+ {
+-	VM_BUG_ON(!workingset_node_shadows(node));
++	VM_WARN_ON_ONCE(!workingset_node_shadows(node));
+ 	node->count -= 1U << RADIX_TREE_COUNT_SHIFT;
+ }
+ 
 -- 
 2.9.3
 
