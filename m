@@ -1,62 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5792E6B0287
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 19:00:01 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id fn5so8065459pab.3
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 16:00:01 -0700 (PDT)
-Received: from mail-pf0-x22f.google.com (mail-pf0-x22f.google.com. [2607:f8b0:400e:c00::22f])
-        by mx.google.com with ESMTPS id z82si23129275pff.218.2016.10.25.16.00.00
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 55E1B6B027C
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 19:34:39 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id m83so8997407wmc.1
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 16:34:39 -0700 (PDT)
+Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
+        by mx.google.com with ESMTPS id 69si6751534wms.141.2016.10.25.16.34.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Oct 2016 16:00:00 -0700 (PDT)
-Received: by mail-pf0-x22f.google.com with SMTP id s8so126903898pfj.2
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 16:00:00 -0700 (PDT)
-Subject: Re: [PATCH v4 4/5] mm: make processing of movable_node arch-specific
-References: <1475778995-1420-1-git-send-email-arbab@linux.vnet.ibm.com>
- <1475778995-1420-5-git-send-email-arbab@linux.vnet.ibm.com>
- <235f2d20-cf84-08df-1fb4-08ee258fdc52@gmail.com>
- <dcfc8ace-e59e-6b4b-0f2f-4eff9f08f3c1@gmail.com>
- <20161025155507.37kv5akdlgo6m2be@arbab-laptop.austin.ibm.com>
-From: Balbir Singh <bsingharora@gmail.com>
-Message-ID: <13f4f7fa-77b7-0924-f47c-5e55af8269d0@gmail.com>
-Date: Wed, 26 Oct 2016 09:59:40 +1100
-MIME-Version: 1.0
-In-Reply-To: <20161025155507.37kv5akdlgo6m2be@arbab-laptop.austin.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 8bit
+        Tue, 25 Oct 2016 16:34:38 -0700 (PDT)
+Received: by mail-wm0-x244.google.com with SMTP id y138so2156896wme.1
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 16:34:37 -0700 (PDT)
+From: Lorenzo Stoakes <lstoakes@gmail.com>
+Subject: [PATCH] mm: fixup get_user_pages* comments
+Date: Wed, 26 Oct 2016 00:34:35 +0100
+Message-Id: <20161025233435.5338-1-lstoakes@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Reza Arbab <arbab@linux.vnet.ibm.com>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, devicetree@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Lorenzo Stoakes <lstoakes@gmail.com>
 
+In the previous round of get_user_pages* changes comments attached to
+__get_user_pages_unlocked() and get_user_pages_unlocked() were rendered
+incorrect, this patch corrects them.
 
+In addition the get_user_pages_unlocked() comment seems to have already been
+outdated as it referred to tsk, mm parameters which were removed in c12d2da5
+("mm/gup: Remove the macro overload API migration helpers from the get_user*()
+APIs"), this patch fixes this also.
 
-On 26/10/16 02:55, Reza Arbab wrote:
-> On Tue, Oct 25, 2016 at 11:15:40PM +1100, Balbir Singh wrote:
->> After the ack, I realized there were some more checks needed, IOW
->> questions for you :)
-> 
-> Hey! No takebacks!
-> 
+Signed-off-by: Lorenzo Stoakes <lstoakes@gmail.com>
+---
+ mm/gup.c | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)
 
-I still believe we need your changes, I was wondering if we've tested
-it against normal memory nodes and checked if any memblock
-allocations end up there. Michael showed me some memblock
-allocations on node 1 of a two node machine with movable_node
-I'll double check at my end. See my question below
-
-
-> The short answer is that neither of these is a concern.
-> 
-> Longer; if you use "movable_node", x86 can identify these nodes at boot. They call memblock_mark_hotplug() while parsing the SRAT. Then, when the zones are initialized, those markings are used to determine ZONE_MOVABLE.
-> 
-> We have no analog of this SRAT information, so our movable nodes can only be created post boot, by hotplugging and explicitly onlining with online_movable.
->
-
-Is this true for all of system memory as well or only for nodes
-hotplugged later?
-
-Balbir Singh.
+diff --git a/mm/gup.c b/mm/gup.c
+index ec4f827..e6147f1 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -857,14 +857,12 @@ long get_user_pages_locked(unsigned long start, unsigned long nr_pages,
+ EXPORT_SYMBOL(get_user_pages_locked);
+ 
+ /*
+- * Same as get_user_pages_unlocked(...., FOLL_TOUCH) but it allows to
+- * pass additional gup_flags as last parameter (like FOLL_HWPOISON).
++ * Same as get_user_pages_unlocked(...., FOLL_TOUCH) but it allows for
++ * tsk, mm to be specified.
+  *
+  * NOTE: here FOLL_TOUCH is not set implicitly and must be set by the
+- * caller if required (just like with __get_user_pages). "FOLL_GET",
+- * "FOLL_WRITE" and "FOLL_FORCE" are set implicitly as needed
+- * according to the parameters "pages", "write", "force"
+- * respectively.
++ * caller if required (just like with __get_user_pages). "FOLL_GET"
++ * is set implicitly if "pages" is non-NULL.
+  */
+ __always_inline long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
+ 					       unsigned long start, unsigned long nr_pages,
+@@ -894,10 +892,8 @@ EXPORT_SYMBOL(__get_user_pages_unlocked);
+  *      get_user_pages_unlocked(tsk, mm, ..., pages);
+  *
+  * It is functionally equivalent to get_user_pages_fast so
+- * get_user_pages_fast should be used instead, if the two parameters
+- * "tsk" and "mm" are respectively equal to current and current->mm,
+- * or if "force" shall be set to 1 (get_user_pages_fast misses the
+- * "force" parameter).
++ * get_user_pages_fast should be used instead if specific gup_flags
++ * (e.g. FOLL_FORCE) are not required.
+  */
+ long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
+ 			     struct page **pages, unsigned int gup_flags)
+-- 
+2.10.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
