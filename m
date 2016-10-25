@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 112AB6B0261
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 20:14:06 -0400 (EDT)
-Received: by mail-pa0-f69.google.com with SMTP id gg9so20165493pac.6
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 17:14:06 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B3416B0262
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 20:14:09 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e6so131293848pfk.2
+        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 17:14:09 -0700 (PDT)
 Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id p187si17912762pfg.145.2016.10.24.17.14.04
+        by mx.google.com with ESMTPS id p187si17912762pfg.145.2016.10.24.17.14.08
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 24 Oct 2016 17:14:04 -0700 (PDT)
+        Mon, 24 Oct 2016 17:14:08 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 10/43] thp: try to free page's buffers before attempt split
-Date: Tue, 25 Oct 2016 03:13:09 +0300
-Message-Id: <20161025001342.76126-11-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 12/43] truncate: make sure invalidate_mapping_pages() can discard huge pages
+Date: Tue, 25 Oct 2016 03:13:11 +0300
+Message-Id: <20161025001342.76126-13-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20161025001342.76126-1-kirill.shutemov@linux.intel.com>
 References: <20161025001342.76126-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,78 +20,45 @@ List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-We want page to be isolated from the rest of the system before spliting
-it. We rely on page count to be 2 for file pages to make sure nobody
-uses the page: one pin to caller, one to radix-tree.
+invalidate_inode_page() has expectation about page_count() of the page
+-- if it's not 2 (one to caller, one to radix-tree), it will not be
+dropped. That condition almost never met for THPs -- tail pages are
+pinned to the pagevec.
 
-Filesystems with backing storage can have page count increased if it has
-buffers.
-
-Let's try to free them, before attempt split. And remove one guarding
-VM_BUG_ON_PAGE().
+Let's drop them, before calling invalidate_inode_page().
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/buffer_head.h |  1 +
- mm/huge_memory.c            | 19 ++++++++++++++++++-
- 2 files changed, 19 insertions(+), 1 deletion(-)
+ mm/truncate.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
 
-diff --git a/include/linux/buffer_head.h b/include/linux/buffer_head.h
-index ebbacd14d450..006a8a42acfb 100644
---- a/include/linux/buffer_head.h
-+++ b/include/linux/buffer_head.h
-@@ -395,6 +395,7 @@ extern int __set_page_dirty_buffers(struct page *page);
- #else /* CONFIG_BLOCK */
+diff --git a/mm/truncate.c b/mm/truncate.c
+index a01cce450a26..393bf9447231 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -504,10 +504,22 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
+ 				/* 'end' is in the middle of THP */
+ 				if (index ==  round_down(end, HPAGE_PMD_NR))
+ 					continue;
++				/*
++				 * invalidate_inode_page() expects
++				 * page_count(page) == 2 to drop page from page
++				 * cache -- drop tail pages references.
++				 */
++				get_page(page);
++				pagevec_remove_exceptionals(&pvec);
++				pagevec_release(&pvec);
+ 			}
  
- static inline void buffer_init(void) {}
-+static inline int page_has_buffers(struct page *page) { return 0; }
- static inline int try_to_free_buffers(struct page *page) { return 1; }
- static inline int inode_has_buffers(struct inode *inode) { return 0; }
- static inline void invalidate_inode_buffers(struct inode *inode) {}
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index e7cda8e86f2c..40fe91ac383c 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -30,6 +30,7 @@
- #include <linux/userfaultfd_k.h>
- #include <linux/page_idle.h>
- #include <linux/shmem_fs.h>
-+#include <linux/buffer_head.h>
- 
- #include <asm/tlb.h>
- #include <asm/pgalloc.h>
-@@ -2066,7 +2067,6 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
- 
- 	VM_BUG_ON_PAGE(is_huge_zero_page(page), page);
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
--	VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
- 	VM_BUG_ON_PAGE(!PageCompound(page), page);
- 
- 	if (PageAnon(head)) {
-@@ -2095,6 +2095,23 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
- 			goto out;
- 		}
- 
-+		/* Try to free buffers before attempt split */
-+		if (!PageSwapBacked(head) && PagePrivate(page)) {
-+			/*
-+			 * We cannot trigger writeback from here due possible
-+			 * recursion if triggered from vmscan, only wait.
-+			 *
-+			 * Caller can trigger writeback it on its own, if safe.
-+			 */
-+			wait_on_page_writeback(head);
+ 			ret = invalidate_inode_page(page);
+ 			unlock_page(page);
 +
-+			if (page_has_buffers(head) && !try_to_release_page(head,
-+						GFP_KERNEL)) {
-+				ret = -EBUSY;
-+				goto out;
-+			}
-+		}
++			if (PageTransHuge(page))
++				put_page(page);
 +
- 		/* Addidional pin from radix tree */
- 		extra_pins = 1;
- 		anon_vma = NULL;
+ 			/*
+ 			 * Invalidation is a hint that the page is no longer
+ 			 * of interest and try to speed up its reclaim.
 -- 
 2.9.3
 
