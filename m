@@ -1,68 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 517FD6B02B5
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 20:15:57 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id x70so87518057pfk.0
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 17:15:57 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id q1si17988663pgf.264.2016.10.24.17.15.56
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3664D6B0282
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 21:14:09 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id fl2so5747043pad.7
+        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 18:14:09 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id i89si18053251pfj.295.2016.10.24.18.14.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Oct 2016 17:15:56 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 36/43] ext4: handle huge pages in ext4_da_write_end()
-Date: Tue, 25 Oct 2016 03:13:35 +0300
-Message-Id: <20161025001342.76126-37-kirill.shutemov@linux.intel.com>
-In-Reply-To: <20161025001342.76126-1-kirill.shutemov@linux.intel.com>
-References: <20161025001342.76126-1-kirill.shutemov@linux.intel.com>
+        Mon, 24 Oct 2016 18:14:08 -0700 (PDT)
+From: "Li, Liang Z" <liang.z.li@intel.com>
+Subject: RE: [RESEND PATCH v3 kernel 1/7] virtio-balloon: rework deflate to
+ add page to a list
+Date: Tue, 25 Oct 2016 01:14:04 +0000
+Message-ID: <F2CBF3009FA73547804AE4C663CAB28E3A0FB4D6@shsmsx102.ccr.corp.intel.com>
+References: <1477031080-12616-1-git-send-email-liang.z.li@intel.com>
+ <1477031080-12616-2-git-send-email-liang.z.li@intel.com>
+ <580E3ACD.1080906@intel.com>
+In-Reply-To: <580E3ACD.1080906@intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: "Hansen, Dave" <dave.hansen@intel.com>, "mst@redhat.com" <mst@redhat.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "quintela@redhat.com" <quintela@redhat.com>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>
 
-Call ext4_da_should_update_i_disksize() for head page with offset
-relative to head page.
+> On 10/20/2016 11:24 PM, Liang Li wrote:
+> > Will allow faster notifications using a bitmap down the road.
+> > balloon_pfn_to_page() can be removed because it's useless.
+>=20
+> This is a pretty terse description of what's going on here.  Could you tr=
+y to
+> elaborate a bit?  What *is* the current approach?  Why does it not work
+> going forward?  What do you propose instead?  Why is it better?
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- fs/ext4/inode.c | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+Sure. The description will be more clear if it's described as you suggest. =
+Thanks!
 
-diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index 1eae6801846c..59cd2b113eb2 100644
---- a/fs/ext4/inode.c
-+++ b/fs/ext4/inode.c
-@@ -3015,7 +3015,6 @@ static int ext4_da_write_end(struct file *file,
- 	int ret = 0, ret2;
- 	handle_t *handle = ext4_journal_current_handle();
- 	loff_t new_i_size;
--	unsigned long start, end;
- 	int write_mode = (int)(unsigned long)fsdata;
- 
- 	if (write_mode == FALL_BACK_TO_NONDELALLOC)
-@@ -3023,8 +3022,6 @@ static int ext4_da_write_end(struct file *file,
- 				      len, copied, page, fsdata);
- 
- 	trace_ext4_da_write_end(inode, pos, len, copied);
--	start = pos & (PAGE_SIZE - 1);
--	end = start + copied - 1;
- 
- 	/*
- 	 * generic_write_end() will run mark_inode_dirty() if i_size
-@@ -3033,8 +3030,10 @@ static int ext4_da_write_end(struct file *file,
- 	 */
- 	new_i_size = pos + copied;
- 	if (copied && new_i_size > EXT4_I(inode)->i_disksize) {
-+		struct page *head = compound_head(page);
-+		unsigned long end = (pos & ~hpage_mask(head)) + copied - 1;
- 		if (ext4_has_inline_data(inode) ||
--		    ext4_da_should_update_i_disksize(page, end)) {
-+		    ext4_da_should_update_i_disksize(head, end)) {
- 			ext4_update_i_disksize(inode, new_i_size);
- 			/* We need to mark inode dirty even if
- 			 * new_i_size is less that inode->i_size
--- 
-2.9.3
+Liang=20
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
