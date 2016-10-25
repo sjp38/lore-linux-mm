@@ -1,149 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DCAAC6B0261
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 23:02:43 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id f78so2321691oih.7
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 20:02:43 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id f20si6906744otc.75.2016.10.24.20.02.42
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C5166B0253
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 23:52:17 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id n189so196726626qke.0
+        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 20:52:17 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 17si12284261qto.35.2016.10.24.20.52.16
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 24 Oct 2016 20:02:43 -0700 (PDT)
-From: Zhen Lei <thunder.leizhen@huawei.com>
-Subject: [PATCH 1/2] mm/memblock: prepare a capability to support memblock near alloc
-Date: Tue, 25 Oct 2016 10:59:17 +0800
-Message-ID: <1477364358-10620-2-git-send-email-thunder.leizhen@huawei.com>
-In-Reply-To: <1477364358-10620-1-git-send-email-thunder.leizhen@huawei.com>
-References: <1477364358-10620-1-git-send-email-thunder.leizhen@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Oct 2016 20:52:16 -0700 (PDT)
+Date: Tue, 25 Oct 2016 06:52:13 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [RESEND PATCH v3 kernel 0/7] Extend virtio-balloon for fast
+ (de)inflating & fast live migration
+Message-ID: <20161025065143-mutt-send-email-mst@kernel.org>
+References: <1477031080-12616-1-git-send-email-liang.z.li@intel.com>
+ <580A4F81.60201@intel.com>
+ <20161021224428-mutt-send-email-mst@kernel.org>
+ <F2CBF3009FA73547804AE4C663CAB28E3A0F9FA3@shsmsx102.ccr.corp.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E3A0F9FA3@shsmsx102.ccr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
-Cc: Zefan Li <lizefan@huawei.com>, Xinwei Hu <huxinwei@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Zhen Lei <thunder.leizhen@huawei.com>
+To: "Li, Liang Z" <liang.z.li@intel.com>
+Cc: "Hansen, Dave" <dave.hansen@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "quintela@redhat.com" <quintela@redhat.com>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>
 
-If HAVE_MEMORYLESS_NODES is selected, and some memoryless numa nodes are
-actually exist. The percpu variable areas and numa control blocks of that
-memoryless numa nodes need to be allocated from the nearest available
-node to improve performance.
+On Sun, Oct 23, 2016 at 11:29:25AM +0000, Li, Liang Z wrote:
+> > On Fri, Oct 21, 2016 at 10:25:21AM -0700, Dave Hansen wrote:
+> > > On 10/20/2016 11:24 PM, Liang Li wrote:
+> > > > Dave Hansen suggested a new scheme to encode the data structure,
+> > > > because of additional complexity, it's not implemented in v3.
+> > >
+> > > So, what do you want done with this patch set?  Do you want it applied
+> > > as-is so that we can introduce a new host/guest ABI that we must
+> > > support until the end of time?  Then, we go back in a year or two and
+> > > add the newer format that addresses the deficiencies that this ABI has
+> > > with a third version?
+> > >
+> > 
+> > Exactly my questions.
+> 
+> Hi Dave & Michael,
+> 
+> In the V2, both of you thought that the memory I allocated for the bitmap is too large, and gave some
+>  suggestions about the solution, so I changed the implementation and used  scattered pages for the bitmap
+> instead of a large physical continued memory. I didn't get the comments about the changes, so I am not 
+> sure whether that is OK or not, that's the why I resend the V3, I just want your opinions about that part. 
+> 
+> I will implement the new schema as Dave suggested in V4. Before that, could you take a look at this version and
+> give some comments? 
+> 
+> Thanks!
+> Liang
 
-Although memblock_alloc_try_nid and memblock_virt_alloc_try_nid try the
-specified nid at the first time, but if that allocation failed it will
-directly drop to use NUMA_NO_NODE. This mean any nodes maybe possible at
-the second time.
-
-To compatible the above old scene, I use a marco node_distance_ready to
-control it. By default, the marco node_distance_ready is not defined in
-any platforms, the above mentioned functions will work as normal as
-before. Otherwise, they will try the nearest node first.
-
-Signed-off-by: Zhen Lei <thunder.leizhen@huawei.com>
----
- mm/memblock.c | 76 ++++++++++++++++++++++++++++++++++++++++++++++++++---------
- 1 file changed, 65 insertions(+), 11 deletions(-)
-
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 7608bc3..556bbd2 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1213,9 +1213,71 @@ phys_addr_t __init memblock_alloc(phys_addr_t size, phys_addr_t align)
- 	return memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ACCESSIBLE);
- }
-
-+#ifndef node_distance_ready
-+#define node_distance_ready()		0
-+#endif
-+
-+static phys_addr_t __init memblock_alloc_near_nid(phys_addr_t size,
-+					phys_addr_t align, phys_addr_t start,
-+					phys_addr_t end, int nid, ulong flags,
-+					int alloc_func_type)
-+{
-+	int nnid, round = 0;
-+	u64 pa;
-+	DECLARE_BITMAP(nodes_map, MAX_NUMNODES);
-+
-+	bitmap_zero(nodes_map, MAX_NUMNODES);
-+
-+again:
-+	/*
-+	 * There are total 4 cases:
-+	 * <nid == NUMA_NO_NODE>
-+	 *   1)2) node_distance_ready || !node_distance_ready
-+	 *	Round 1, nnid = nid = NUMA_NO_NODE;
-+	 * <nid != NUMA_NO_NODE>
-+	 *   3) !node_distance_ready
-+	 *	Round 1, nnid = nid;
-+	 *    ::Round 2, currently only applicable for alloc_func_type = <0>
-+	 *	Round 2, nnid = NUMA_NO_NODE;
-+	 *   4) node_distance_ready
-+	 *	Round 1, LOCAL_DISTANCE, nnid = nid;
-+	 *	Round ?, nnid = nearest nid;
-+	 */
-+	if (!node_distance_ready() || (nid == NUMA_NO_NODE)) {
-+		nnid = (++round == 1) ? nid : NUMA_NO_NODE;
-+	} else {
-+		int i, distance = INT_MAX;
-+
-+		for_each_clear_bit(i, nodes_map, MAX_NUMNODES)
-+			if (node_distance(nid, i) < distance) {
-+				nnid = i;
-+				distance = node_distance(nid, i);
-+			}
-+	}
-+
-+	switch (alloc_func_type) {
-+	case 0:
-+		pa = memblock_find_in_range_node(size, align, start, end, nnid, flags);
-+		break;
-+
-+	case 1:
-+	default:
-+		pa = memblock_alloc_nid(size, align, nnid);
-+		if (!node_distance_ready())
-+			return pa;
-+	}
-+
-+	if (!pa && (nnid != NUMA_NO_NODE)) {
-+		bitmap_set(nodes_map, nnid, 1);
-+		goto again;
-+	}
-+
-+	return pa;
-+}
-+
- phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, int nid)
- {
--	phys_addr_t res = memblock_alloc_nid(size, align, nid);
-+	phys_addr_t res = memblock_alloc_near_nid(size, align, 0, 0, nid, 0, 1);
-
- 	if (res)
- 		return res;
-@@ -1276,19 +1338,11 @@ static void * __init memblock_virt_alloc_internal(
- 		max_addr = memblock.current_limit;
-
- again:
--	alloc = memblock_find_in_range_node(size, align, min_addr, max_addr,
--					    nid, flags);
-+	alloc = memblock_alloc_near_nid(size, align, min_addr, max_addr,
-+					    nid, flags, 0);
- 	if (alloc)
- 		goto done;
-
--	if (nid != NUMA_NO_NODE) {
--		alloc = memblock_find_in_range_node(size, align, min_addr,
--						    max_addr, NUMA_NO_NODE,
--						    flags);
--		if (alloc)
--			goto done;
--	}
--
- 	if (min_addr) {
- 		min_addr = 0;
- 		goto again;
---
-2.5.0
-
+Sure, I'll try to review just that part.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
