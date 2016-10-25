@@ -1,70 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 01B3A6B0253
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 08:16:01 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id i85so139832778pfa.5
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 05:16:00 -0700 (PDT)
+Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2648F6B0260
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 08:36:56 -0400 (EDT)
+Received: by mail-yw0-f200.google.com with SMTP id t192so10440472ywf.4
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 05:36:56 -0700 (PDT)
 Received: from mail-pf0-x244.google.com (mail-pf0-x244.google.com. [2607:f8b0:400e:c00::244])
-        by mx.google.com with ESMTPS id e5si20449221pga.8.2016.10.25.05.16.00
+        by mx.google.com with ESMTPS id n128si1242548itg.92.2016.10.25.05.36.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Oct 2016 05:16:00 -0700 (PDT)
-Received: by mail-pf0-x244.google.com with SMTP id 128so19503557pfz.1
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 05:16:00 -0700 (PDT)
-Subject: Re: [PATCH v4 4/5] mm: make processing of movable_node arch-specific
-References: <1475778995-1420-1-git-send-email-arbab@linux.vnet.ibm.com>
- <1475778995-1420-5-git-send-email-arbab@linux.vnet.ibm.com>
- <235f2d20-cf84-08df-1fb4-08ee258fdc52@gmail.com>
+        Tue, 25 Oct 2016 05:36:55 -0700 (PDT)
+Received: by mail-pf0-x244.google.com with SMTP id i85so19533679pfa.0
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 05:36:55 -0700 (PDT)
+Subject: Re: [RFC 5/8] mm: Add new flag VM_CDM for coherent device memory
+References: <1477283517-2504-1-git-send-email-khandual@linux.vnet.ibm.com>
+ <1477283517-2504-6-git-send-email-khandual@linux.vnet.ibm.com>
+ <580E4704.1040104@intel.com>
 From: Balbir Singh <bsingharora@gmail.com>
-Message-ID: <dcfc8ace-e59e-6b4b-0f2f-4eff9f08f3c1@gmail.com>
-Date: Tue, 25 Oct 2016 23:15:40 +1100
+Message-ID: <2a9819b8-0d2d-fb2a-e9d1-094f7f3cf54c@gmail.com>
+Date: Tue, 25 Oct 2016 23:36:34 +1100
 MIME-Version: 1.0
-In-Reply-To: <235f2d20-cf84-08df-1fb4-08ee258fdc52@gmail.com>
+In-Reply-To: <580E4704.1040104@intel.com>
 Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Reza Arbab <arbab@linux.vnet.ibm.com>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, devicetree@vger.kernel.org, linux-mm@kvack.org
+To: Dave Hansen <dave.hansen@intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: mhocko@suse.com, js1304@gmail.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com
 
 
 
-On 11/10/16 23:26, Balbir Singh wrote:
+On 25/10/16 04:38, Dave Hansen wrote:
+> On 10/23/2016 09:31 PM, Anshuman Khandual wrote:
+>> VMAs containing coherent device memory should be marked with VM_CDM. These
+>> VMAs need to be identified in various core kernel paths and this new flag
+>> will help in this regard.
 > 
+> ... and it's sticky?  So if a VMA *ever* has one of these funky pages in
+> it, it's stuck being VM_CDM forever?  Never to be merged with other
+> VMAs?  Never to see the light of autonuma ever again?
 > 
-> On 07/10/16 05:36, Reza Arbab wrote:
->> Currently, CONFIG_MOVABLE_NODE depends on X86_64. In preparation to
->> enable it for other arches, we need to factor a detail which is unique
->> to x86 out of the generic mm code.
->>
->> Specifically, as documented in kernel-parameters.txt, the use of
->> "movable_node" should remain restricted to x86:
->>
->> movable_node    [KNL,X86] Boot-time switch to enable the effects
->>                 of CONFIG_MOVABLE_NODE=y. See mm/Kconfig for details.
->>
->> This option tells x86 to find movable nodes identified by the ACPI SRAT.
->> On other arches, it would have no benefit, only the undesired side
->> effect of setting bottom-up memblock allocation.
->>
->> Since #ifdef CONFIG_MOVABLE_NODE will no longer be enough to restrict
->> this option to x86, move it to an arch-specific compilation unit
->> instead.
->>
->> Signed-off-by: Reza Arbab <arbab@linux.vnet.ibm.com>
-> 
-> Acked-by: Balbir Singh <bsingharora@gmail.com>
+> What if a 100TB VMA has one page of fancy pants device memory, and the
+> rest normal vanilla memory?  Do we really want to consider the whole
+> thing fancy?
 > 
 
-After the ack, I realized there were some more checks needed, IOW
-questions for you :)
+Those are good review comments to improve the patchset.
 
-1. Have you checked to see if our memblock allocations spill
-over to probably hotpluggable nodes?
-2. Shouldn't we be marking nodes discovered as movable via
-memblock_mark_hotplug()?
+> This whole patch set is looking really hackish.  If you want things to
+> be isolated from the VM, them it should probably *actually* be isolated
+> from the VM.  As Jerome mentioned, ZONE_DEVICE is probably a better
+> thing to use here than to try what you're attempting.
+> 
 
-Balbir Singh.
+The RFC explains the motivation, this is not fancy pants, it is regular
+memory from the systems perspective, with some changes as described
+
+Thanks for the review!
+Balbir Singh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
