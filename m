@@ -1,76 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 41A2D6B026F
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 16:01:44 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id gg9so30306546pac.6
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 13:01:44 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id i84si22338875pfi.299.2016.10.25.13.01.42
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 25 Oct 2016 13:01:43 -0700 (PDT)
-Subject: Re: [RFC 5/8] mm: Add new flag VM_CDM for coherent device memory
-References: <1477283517-2504-1-git-send-email-khandual@linux.vnet.ibm.com>
- <1477283517-2504-6-git-send-email-khandual@linux.vnet.ibm.com>
- <580E4704.1040104@intel.com> <87pomojkvu.fsf@linux.vnet.ibm.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <580FBA19.9050504@intel.com>
-Date: Tue, 25 Oct 2016 13:01:29 -0700
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D0CBA6B026F
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 17:19:08 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id n85so7153972pfi.4
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 14:19:08 -0700 (PDT)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id fe8si18948981pad.192.2016.10.25.14.19.06
+        for <linux-mm@kvack.org>;
+        Tue, 25 Oct 2016 14:19:07 -0700 (PDT)
+Date: Wed, 26 Oct 2016 08:19:03 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 0/3] iopmem : A block device for PCIe memory
+Message-ID: <20161025211903.GD14023@dastard>
+References: <1476826937-20665-1-git-send-email-sbates@raithlin.com>
+ <CAPcyv4gJ_c-6s2BUjsu6okR1EF53R+KNuXnOc5jv0fuwJaa3cQ@mail.gmail.com>
+ <20161019184814.GC16550@cgy1-donard.priv.deltatee.com>
+ <20161020232239.GQ23194@dastard>
+ <20161021095714.GA12209@infradead.org>
+ <20161021111253.GQ14023@dastard>
+ <20161025115043.GA14986@cgy1-donard.priv.deltatee.com>
 MIME-Version: 1.0
-In-Reply-To: <87pomojkvu.fsf@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161025115043.GA14986@cgy1-donard.priv.deltatee.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: mhocko@suse.com, js1304@gmail.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, akpm@linux-foundation.org, bsingharora@gmail.com
+To: Stephen Bates <sbates@raithlin.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Dan Williams <dan.j.williams@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@ml01.01.org>, linux-rdma@vger.kernel.org, linux-block@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, jgunthorpe@obsidianresearch.com, haggaie@mellanox.com, Jens Axboe <axboe@fb.com>, Jonathan Corbet <corbet@lwn.net>, jim.macdonald@everspin.com, sbates@raithin.com, Logan Gunthorpe <logang@deltatee.com>, David Woodhouse <dwmw2@infradead.org>, "Raj, Ashok" <ashok.raj@intel.com>
 
-On 10/25/2016 12:20 PM, Aneesh Kumar K.V wrote:
-> Dave Hansen <dave.hansen@intel.com> writes:
->> On 10/23/2016 09:31 PM, Anshuman Khandual wrote:
->>> VMAs containing coherent device memory should be marked with VM_CDM. These
->>> VMAs need to be identified in various core kernel paths and this new flag
->>> will help in this regard.
->>
->> ... and it's sticky?  So if a VMA *ever* has one of these funky pages in
->> it, it's stuck being VM_CDM forever?  Never to be merged with other
->> VMAs?  Never to see the light of autonuma ever again?
->>
->> What if a 100TB VMA has one page of fancy pants device memory, and the
->> rest normal vanilla memory?  Do we really want to consider the whole
->> thing fancy?
+On Tue, Oct 25, 2016 at 05:50:43AM -0600, Stephen Bates wrote:
+> Hi Dave and Christoph
 > 
-> This definitely needs fine tuning. I guess we should look at this as
-> possibly stating that, coherent device would like to not participate in
-> auto numa balancing
-...
+> On Fri, Oct 21, 2016 at 10:12:53PM +1100, Dave Chinner wrote:
+> > On Fri, Oct 21, 2016 at 02:57:14AM -0700, Christoph Hellwig wrote:
+> > > On Fri, Oct 21, 2016 at 10:22:39AM +1100, Dave Chinner wrote:
+> > > > You do realise that local filesystems can silently change the
+> > > > location of file data at any point in time, so there is no such
+> > > > thing as a "stable mapping" of file data to block device addresses
+> > > > in userspace?
+> > > >
+> > > > If you want remote access to the blocks owned and controlled by a
+> > > > filesystem, then you need to use a filesystem with a remote locking
+> > > > mechanism to allow co-ordinated, coherent access to the data in
+> > > > those blocks. Anything else is just asking for ongoing, unfixable
+> > > > filesystem corruption or data leakage problems (i.e.  security
+> > > > issues).
+> > >
+> 
+> Dave are you saying that even for local mappings of files on a DAX
+> capable system it is possible for the mappings to move on you unless
+> the FS supports locking?
 
-Right, in this one, particular case you don't want NUMA balancing.  But,
-if you have to take an _explicit_ action to even get access to this
-coherent memory (setting a NUMA policy), why keeps that explicit action
-from also explicitly disabling NUMA migration?
+Yes.
 
-I really don't think we should tie together the isolation aspect with
-anything else, including NUMA balancing.
+> Does that not mean DAX on such FS is
+> inherently broken?
 
-For instance, on x86, we have the ability for devices to grok the CPU's
-page tables, including doing faults.  There's very little to stop us
-from doing things like autonuma.
+No. DAX is accessed through a virtual mapping layer that abstracts
+the physical location from userspace applications.
 
-> One possible option is to use a software pte bit (may be steal
-> _PAGE_DEVMAP) and prevent a numa pte setup from change_prot_numa().
-> ie, if the pfn backing the pte is from coherent device we don't allow
-> that to be converted to a prot none pte for numa faults ?
+Example: think copy-on-write overwrites. It occurs atomically from
+the perspective of userspace and starts by invalidating any current
+mappings userspace has of that physical location. The location is
+changes, the data copied in, and then when the locks are released
+userspace can fault in a new page table mapping on the next
+access....
 
-Why would you need to tag individual pages, especially if the VMA has a
-policy set on it that disallows migration?
+> > > And at least for XFS we have such a mechanism :)  E.g. I have a
+> > > prototype of a pNFS layout that uses XFS+DAX to allow clients to do
+> > > RDMA directly to XFS files, with the same locking mechanism we use
+> > > for the current block and scsi layout in xfs_pnfs.c.
+> 
+> Thanks for fixing this issue on XFS Christoph! I assume this problem
+> continues to exist on the other DAX capable FS?
 
-But, even if you did need to identify individual pages from the PTE, you
-can easily do:
+Yes, but it they implement the exportfs API that supplies this
+capability, they'll be able to use pNFS, too.
 
-	page_to_nid(pfn_to_page(pte_pfn(pte)))
+> One more reason to consider a move to /dev/dax I guess ;-)...
 
-and then tell if the node is a fancy-pants device node.
+That doesn't get rid of the need for sane access control arbitration
+across all machines that are directly accessing the storage. That's
+the problem pNFS solves, regardless of whether your direct access
+target is a filesystem, a block device or object storage...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
