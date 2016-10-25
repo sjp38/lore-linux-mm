@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 99D6C6B0297
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 20:15:25 -0400 (EDT)
-Received: by mail-pa0-f72.google.com with SMTP id fl2so5233669pad.7
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 17:15:25 -0700 (PDT)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id x127si17925264pfd.41.2016.10.24.17.15.24
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 517FD6B02B5
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 20:15:57 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id x70so87518057pfk.0
+        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 17:15:57 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id q1si17988663pgf.264.2016.10.24.17.15.56
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 24 Oct 2016 17:15:24 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 24 Oct 2016 17:15:56 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 34/43] ext4: handle huge pages in __ext4_block_zero_page_range()
-Date: Tue, 25 Oct 2016 03:13:33 +0300
-Message-Id: <20161025001342.76126-35-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 36/43] ext4: handle huge pages in ext4_da_write_end()
+Date: Tue, 25 Oct 2016 03:13:35 +0300
+Message-Id: <20161025001342.76126-37-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20161025001342.76126-1-kirill.shutemov@linux.intel.com>
 References: <20161025001342.76126-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,46 +20,47 @@ List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-As the function handles zeroing range only within one block, the
-required changes are trivial, just remove assuption on page size.
+Call ext4_da_should_update_i_disksize() for head page with offset
+relative to head page.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- fs/ext4/inode.c | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ fs/ext4/inode.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
 
 diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index 5ceb72c7bac1..c1728d2bf47b 100644
+index 1eae6801846c..59cd2b113eb2 100644
 --- a/fs/ext4/inode.c
 +++ b/fs/ext4/inode.c
-@@ -3685,7 +3685,7 @@ static int __ext4_block_zero_page_range(handle_t *handle,
- 		struct address_space *mapping, loff_t from, loff_t length)
- {
- 	ext4_fsblk_t index = from >> PAGE_SHIFT;
--	unsigned offset = from & (PAGE_SIZE-1);
-+	unsigned offset;
- 	unsigned blocksize, pos;
- 	ext4_lblk_t iblock;
- 	struct inode *inode = mapping->host;
-@@ -3698,6 +3698,9 @@ static int __ext4_block_zero_page_range(handle_t *handle,
- 	if (!page)
- 		return -ENOMEM;
+@@ -3015,7 +3015,6 @@ static int ext4_da_write_end(struct file *file,
+ 	int ret = 0, ret2;
+ 	handle_t *handle = ext4_journal_current_handle();
+ 	loff_t new_i_size;
+-	unsigned long start, end;
+ 	int write_mode = (int)(unsigned long)fsdata;
  
-+	page = compound_head(page);
-+	offset = from & ~hpage_mask(page);
-+
- 	blocksize = inode->i_sb->s_blocksize;
+ 	if (write_mode == FALL_BACK_TO_NONDELALLOC)
+@@ -3023,8 +3022,6 @@ static int ext4_da_write_end(struct file *file,
+ 				      len, copied, page, fsdata);
  
- 	iblock = index << (PAGE_SHIFT - inode->i_sb->s_blocksize_bits);
-@@ -3752,7 +3755,7 @@ static int __ext4_block_zero_page_range(handle_t *handle,
- 		if (err)
- 			goto unlock;
- 	}
--	zero_user(page, offset, length);
-+	zero_user(page + offset / PAGE_SIZE, offset % PAGE_SIZE, length);
- 	BUFFER_TRACE(bh, "zeroed end of block");
+ 	trace_ext4_da_write_end(inode, pos, len, copied);
+-	start = pos & (PAGE_SIZE - 1);
+-	end = start + copied - 1;
  
- 	if (ext4_should_journal_data(inode)) {
+ 	/*
+ 	 * generic_write_end() will run mark_inode_dirty() if i_size
+@@ -3033,8 +3030,10 @@ static int ext4_da_write_end(struct file *file,
+ 	 */
+ 	new_i_size = pos + copied;
+ 	if (copied && new_i_size > EXT4_I(inode)->i_disksize) {
++		struct page *head = compound_head(page);
++		unsigned long end = (pos & ~hpage_mask(head)) + copied - 1;
+ 		if (ext4_has_inline_data(inode) ||
+-		    ext4_da_should_update_i_disksize(page, end)) {
++		    ext4_da_should_update_i_disksize(head, end)) {
+ 			ext4_update_i_disksize(inode, new_i_size);
+ 			/* We need to mark inode dirty even if
+ 			 * new_i_size is less that inode->i_size
 -- 
 2.9.3
 
