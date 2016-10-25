@@ -1,74 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A76E76B0263
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 21:22:55 -0400 (EDT)
-Received: by mail-ua0-f199.google.com with SMTP id 20so10201041uak.0
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 18:22:55 -0700 (PDT)
-Received: from mail-qk0-x244.google.com (mail-qk0-x244.google.com. [2607:f8b0:400d:c09::244])
-        by mx.google.com with ESMTPS id 89si6687777uab.202.2016.10.24.18.22.54
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 08C3D6B0263
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 21:24:56 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id gg9so20776367pac.6
+        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 18:24:55 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id y63si18216463pfd.11.2016.10.24.18.24.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Oct 2016 18:22:55 -0700 (PDT)
-Received: by mail-qk0-x244.google.com with SMTP id x11so3196062qka.0
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 18:22:54 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 24 Oct 2016 18:24:55 -0700 (PDT)
+From: "Li, Liang Z" <liang.z.li@intel.com>
+Subject: RE: [RESEND PATCH v3 kernel 3/7] mm: add a function to get the max
+ pfn
+Date: Tue, 25 Oct 2016 01:24:47 +0000
+Message-ID: <F2CBF3009FA73547804AE4C663CAB28E3A0FB527@shsmsx102.ccr.corp.intel.com>
+References: <1477031080-12616-1-git-send-email-liang.z.li@intel.com>
+ <1477031080-12616-4-git-send-email-liang.z.li@intel.com>
+ <580E3C76.3010205@intel.com>
+In-Reply-To: <580E3C76.3010205@intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Reply-To: konrad@darnok.org
-In-Reply-To: <CAKgT0UfTSmWGBqE0uDG40sAm-LVwCJ6zM1AFJ8o_tWu+XJvfVw@mail.gmail.com>
-References: <20161024115737.16276.71059.stgit@ahduyck-blue-test.jf.intel.com>
- <20161024120437.16276.68349.stgit@ahduyck-blue-test.jf.intel.com>
- <20161024180934.GA24840@char.us.oracle.com> <CAKgT0UfTSmWGBqE0uDG40sAm-LVwCJ6zM1AFJ8o_tWu+XJvfVw@mail.gmail.com>
-From: Konrad Rzeszutek Wilk <konrad@darnok.org>
-Date: Mon, 24 Oct 2016 21:22:34 -0400
-Message-ID: <CAPbh3rsuPWkOHmGK1BM01GeA-5GtZHNVqYALhXxdsPkTqKogLw@mail.gmail.com>
-Subject: Re: [net-next PATCH RFC 02/26] swiotlb: Add support for DMA_ATTR_SKIP_CPU_SYNC
-Content-Type: multipart/alternative; boundary=94eb2c05b31c0dd7f2053fa6590d
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Alexander Duyck <alexander.h.duyck@intel.com>, Netdev <netdev@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Jesper Dangaard Brouer <brouer@redhat.com>, David Miller <davem@davemloft.net>
+To: "Hansen, Dave" <dave.hansen@intel.com>, "mst@redhat.com" <mst@redhat.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "quintela@redhat.com" <quintela@redhat.com>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>
 
---94eb2c05b31c0dd7f2053fa6590d
-Content-Type: text/plain; charset=UTF-8
+> On 10/20/2016 11:24 PM, Liang Li wrote:
+> > Expose the function to get the max pfn, so it can be used in the
+> > virtio-balloon device driver. Simply include the 'linux/bootmem.h'
+> > is not enough, if the device driver is built to a module, directly
+> > refer the max_pfn lead to build failed.
+>=20
+> I'm not sure the rest of the set is worth reviewing.  I think a lot of it=
+ will
+> change pretty fundamentally once you have those improved data structures
+> in place.
 
->
->
-> >
-> > This too. Why can't that be part of the existing code that was there?
->
-> Once again it was a formatting thing.  I was indented too far and
-> adding the attribute pushed me over 80 characters so I broke it out to
-> a label to avoid the problem.
->
+That's true. I will send out the v4 as soon as possible.
 
-Aah. It is OK to go over the 80 characters. I am not that nit picky.
-
-
-> - Alex
->
-
---94eb2c05b31c0dd7f2053fa6590d
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr"><div class=3D"gmail_extra"><div class=3D"gmail_quote"><blo=
-ckquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #c=
-cc solid;padding-left:1ex"><div><div class=3D"h5"><br>
-&gt;<br>
-&gt; This too. Why can&#39;t that be part of the existing code that was the=
-re?<br>
-<br>
-</div></div>Once again it was a formatting thing.=C2=A0 I was indented too =
-far and<br>
-adding the attribute pushed me over 80 characters so I broke it out to<br>
-a label to avoid the problem.<br></blockquote><div><br></div><div>Aah. It i=
-s OK to go over the 80 characters. I am not that nit picky.</div><div><br><=
-/div><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-le=
-ft:1px #ccc solid;padding-left:1ex">
-<br>
-- Alex<br>
-</blockquote></div><br></div></div>
-
---94eb2c05b31c0dd7f2053fa6590d--
+Liang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
