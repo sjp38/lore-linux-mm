@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CFDC6B0278
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 20:14:25 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id 128so133710376pfz.1
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 17:14:25 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id k13si17908012pfb.249.2016.10.24.17.14.24
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DEAF46B027A
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 20:14:26 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id r16so132112763pfg.4
+        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 17:14:26 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id m8si17919501pfa.203.2016.10.24.17.14.26
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 24 Oct 2016 17:14:24 -0700 (PDT)
+        Mon, 24 Oct 2016 17:14:26 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 33/43] ext4: handle huge pages in ext4_page_mkwrite()
-Date: Tue, 25 Oct 2016 03:13:32 +0300
-Message-Id: <20161025001342.76126-34-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 37/43] ext4: make ext4_da_page_release_reservation() aware about huge pages
+Date: Tue, 25 Oct 2016 03:13:36 +0300
+Message-Id: <20161025001342.76126-38-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20161025001342.76126-1-kirill.shutemov@linux.intel.com>
 References: <20161025001342.76126-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,51 +20,39 @@ List-ID: <linux-mm.kvack.org>
 To: Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Trivial: remove assumption on page size.
+For huge pages 'stop' must be within HPAGE_PMD_SIZE.
+Let's use hpage_size() in the BUG_ON().
+
+We also need to change how we calculate lblk for cluster deallocation.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- fs/ext4/inode.c | 13 +++++++------
- 1 file changed, 7 insertions(+), 6 deletions(-)
+ fs/ext4/inode.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index c36296fbaa23..5ceb72c7bac1 100644
+index 59cd2b113eb2..869df0504174 100644
 --- a/fs/ext4/inode.c
 +++ b/fs/ext4/inode.c
-@@ -5649,7 +5649,7 @@ static int ext4_bh_unmapped(handle_t *handle, struct buffer_head *bh)
+@@ -1565,7 +1565,7 @@ static void ext4_da_page_release_reservation(struct page *page,
+ 	int num_clusters;
+ 	ext4_fsblk_t lblk;
  
- int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- {
--	struct page *page = vmf->page;
-+	struct page *page = compound_head(vmf->page);
- 	loff_t size;
- 	unsigned long len;
- 	int ret;
-@@ -5685,10 +5685,10 @@ int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- 		goto out;
- 	}
+-	BUG_ON(stop > PAGE_SIZE || stop < length);
++	BUG_ON(stop > hpage_size(page) || stop < length);
  
--	if (page->index == size >> PAGE_SHIFT)
--		len = size & ~PAGE_MASK;
--	else
--		len = PAGE_SIZE;
-+	len = hpage_size(page);
-+	if (page->index + hpage_nr_pages(page) - 1 == size >> PAGE_SHIFT)
-+		len = size & ~hpage_mask(page);
-+
- 	/*
- 	 * Return if we have all the buffers mapped. This avoids the need to do
- 	 * journal_start/journal_stop which can block and take a long time
-@@ -5719,7 +5719,8 @@ int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- 	ret = block_page_mkwrite(vma, vmf, get_block);
- 	if (!ret && ext4_should_journal_data(inode)) {
- 		if (ext4_walk_page_buffers(handle, page_buffers(page), 0,
--			  PAGE_SIZE, NULL, do_journal_get_write_access)) {
-+			  hpage_size(page), NULL,
-+			  do_journal_get_write_access)) {
- 			unlock_page(page);
- 			ret = VM_FAULT_SIGBUS;
- 			ext4_journal_stop(handle);
+ 	head = page_buffers(page);
+ 	bh = head;
+@@ -1600,7 +1600,8 @@ static void ext4_da_page_release_reservation(struct page *page,
+ 	 * need to release the reserved space for that cluster. */
+ 	num_clusters = EXT4_NUM_B2C(sbi, to_release);
+ 	while (num_clusters > 0) {
+-		lblk = (page->index << (PAGE_SHIFT - inode->i_blkbits)) +
++		lblk = ((page->index + offset / PAGE_SIZE) <<
++				(PAGE_SHIFT - inode->i_blkbits)) +
+ 			((num_clusters - 1) << sbi->s_cluster_bits);
+ 		if (sbi->s_cluster_ratio == 1 ||
+ 		    !ext4_find_delalloc_cluster(inode, lblk))
 -- 
 2.9.3
 
