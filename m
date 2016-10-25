@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AB196B029B
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 17:39:29 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id n18so38061775pfe.7
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 14:39:29 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id c17si13724747pgh.177.2016.10.25.14.39.28
+Received: from mail-pa0-f69.google.com (mail-pa0-f69.google.com [209.85.220.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AB7DD6B029E
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 17:39:34 -0400 (EDT)
+Received: by mail-pa0-f69.google.com with SMTP id r13so12047488pag.1
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 14:39:34 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id a65si3685004pfb.18.2016.10.25.14.39.33
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 25 Oct 2016 14:39:28 -0700 (PDT)
-Subject: [net-next PATCH 23/27] dma: Add calls for dma_map_page_attrs and
- dma_unmap_page_attrs
+        Tue, 25 Oct 2016 14:39:34 -0700 (PDT)
+Subject: [net-next PATCH 24/27] mm: Add support for releasing multiple
+ instances of a page
 From: Alexander Duyck <alexander.h.duyck@intel.com>
-Date: Tue, 25 Oct 2016 11:38:50 -0400
-Message-ID: <20161025153850.4815.92123.stgit@ahduyck-blue-test.jf.intel.com>
+Date: Tue, 25 Oct 2016 11:38:55 -0400
+Message-ID: <20161025153855.4815.81208.stgit@ahduyck-blue-test.jf.intel.com>
 In-Reply-To: <20161025153220.4815.61239.stgit@ahduyck-blue-test.jf.intel.com>
 References: <20161025153220.4815.61239.stgit@ahduyck-blue-test.jf.intel.com>
 MIME-Version: 1.0
@@ -24,73 +24,58 @@ List-ID: <linux-mm.kvack.org>
 To: netdev@vger.kernel.org, intel-wired-lan@lists.osuosl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 Cc: davem@davemloft.net, brouer@redhat.com
 
-Add support for mapping and unmapping a page with attributes.  The primary
-use for this is currently to allow for us to pass the
-DMA_ATTR_SKIP_CPU_SYNC attribute when mapping and unmapping a page.  On
-some architectures such as ARM the synchronization has significant overhead
-and if we are already taking care of the sync_for_cpu and sync_for_device
-from the driver there isn't much need to handle this in the map/unmap calls
-as well.
+This patch adds a function that allows us to batch free a page that has
+multiple references outstanding.  Specifically this function can be used to
+drop a page being used in the page frag alloc cache.  With this drivers can
+make use of functionality similar to the page frag alloc cache without
+having to do any workarounds for the fact that there is no function that
+frees multiple references.
 
+Cc: linux-mm@kvack.org
 Signed-off-by: Alexander Duyck <alexander.h.duyck@intel.com>
 ---
- include/linux/dma-mapping.h |   20 +++++++++++++-------
- 1 file changed, 13 insertions(+), 7 deletions(-)
+ include/linux/gfp.h |    2 ++
+ mm/page_alloc.c     |   14 ++++++++++++++
+ 2 files changed, 16 insertions(+)
 
-diff --git a/include/linux/dma-mapping.h b/include/linux/dma-mapping.h
-index 08528af..10c5a17 100644
---- a/include/linux/dma-mapping.h
-+++ b/include/linux/dma-mapping.h
-@@ -243,29 +243,33 @@ static inline void dma_unmap_sg_attrs(struct device *dev, struct scatterlist *sg
- 		ops->unmap_sg(dev, sg, nents, dir, attrs);
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index f8041f9de..4175dca 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -506,6 +506,8 @@ extern struct page *alloc_pages_vma(gfp_t gfp_mask, int order,
+ extern void free_hot_cold_page_list(struct list_head *list, bool cold);
+ 
+ struct page_frag_cache;
++extern void __page_frag_drain(struct page *page, unsigned int order,
++			      unsigned int count);
+ extern void *__alloc_page_frag(struct page_frag_cache *nc,
+ 			       unsigned int fragsz, gfp_t gfp_mask);
+ extern void __free_page_frag(void *addr);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index ca423cc..253046a 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3883,6 +3883,20 @@ static struct page *__page_frag_refill(struct page_frag_cache *nc,
+ 	return page;
  }
  
--static inline dma_addr_t dma_map_page(struct device *dev, struct page *page,
--				      size_t offset, size_t size,
--				      enum dma_data_direction dir)
-+static inline dma_addr_t dma_map_page_attrs(struct device *dev,
-+					    struct page *page,
-+					    size_t offset, size_t size,
-+					    enum dma_data_direction dir,
-+					    unsigned long attrs)
++void __page_frag_drain(struct page *page, unsigned int order,
++		       unsigned int count)
++{
++	VM_BUG_ON_PAGE(page_ref_count(page) == 0, page);
++
++	if (page_ref_sub_and_test(page, count)) {
++		if (order == 0)
++			free_hot_cold_page(page, false);
++		else
++			__free_pages_ok(page, order);
++	}
++}
++EXPORT_SYMBOL(__page_frag_drain);
++
+ void *__alloc_page_frag(struct page_frag_cache *nc,
+ 			unsigned int fragsz, gfp_t gfp_mask)
  {
- 	struct dma_map_ops *ops = get_dma_ops(dev);
- 	dma_addr_t addr;
- 
- 	kmemcheck_mark_initialized(page_address(page) + offset, size);
- 	BUG_ON(!valid_dma_direction(dir));
--	addr = ops->map_page(dev, page, offset, size, dir, 0);
-+	addr = ops->map_page(dev, page, offset, size, dir, attrs);
- 	debug_dma_map_page(dev, page, offset, size, dir, addr, false);
- 
- 	return addr;
- }
- 
--static inline void dma_unmap_page(struct device *dev, dma_addr_t addr,
--				  size_t size, enum dma_data_direction dir)
-+static inline void dma_unmap_page_attrs(struct device *dev,
-+					dma_addr_t addr, size_t size,
-+					enum dma_data_direction dir,
-+					unsigned long attrs)
- {
- 	struct dma_map_ops *ops = get_dma_ops(dev);
- 
- 	BUG_ON(!valid_dma_direction(dir));
- 	if (ops->unmap_page)
--		ops->unmap_page(dev, addr, size, dir, 0);
-+		ops->unmap_page(dev, addr, size, dir, attrs);
- 	debug_dma_unmap_page(dev, addr, size, dir, false);
- }
- 
-@@ -385,6 +389,8 @@ static inline void dma_sync_single_range_for_device(struct device *dev,
- #define dma_unmap_single(d, a, s, r) dma_unmap_single_attrs(d, a, s, r, 0)
- #define dma_map_sg(d, s, n, r) dma_map_sg_attrs(d, s, n, r, 0)
- #define dma_unmap_sg(d, s, n, r) dma_unmap_sg_attrs(d, s, n, r, 0)
-+#define dma_map_page(d, p, o, s, r) dma_map_page_attrs(d, p, o, s, r, 0)
-+#define dma_unmap_page(d, a, s, r) dma_unmap_page_attrs(d, a, s, r, 0)
- 
- extern int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,
- 			   void *cpu_addr, dma_addr_t dma_addr, size_t size);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
