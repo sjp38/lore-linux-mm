@@ -1,111 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DBCD26B0263
-	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 22:05:44 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id xx10so6155303pac.2
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 19:05:44 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id c4si3340409paz.118.2016.10.24.19.05.43
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 94C006B025E
+	for <linux-mm@kvack.org>; Mon, 24 Oct 2016 23:02:43 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id d185so117306504oig.1
+        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 20:02:43 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id v123si7337483oia.241.2016.10.24.20.02.41
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 24 Oct 2016 19:05:44 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH v2 2/8] mm/swap: Add cluster lock
-References: <cover.1477004978.git.tim.c.chen@linux.intel.com>
-	<f399f0381db2e6d6bba804d139f5f41725137337.1477004978.git.tim.c.chen@linux.intel.com>
-	<20161024103133.7c1a8f83@lwn.net>
-Date: Tue, 25 Oct 2016 10:05:39 +0800
-In-Reply-To: <20161024103133.7c1a8f83@lwn.net> (Jonathan Corbet's message of
-	"Mon, 24 Oct 2016 10:31:33 -0600")
-Message-ID: <87k2cxkwss.fsf@yhuang-dev.intel.com>
+        Mon, 24 Oct 2016 20:02:43 -0700 (PDT)
+From: Zhen Lei <thunder.leizhen@huawei.com>
+Subject: [PATCH 2/2] arm64/numa: support HAVE_MEMORYLESS_NODES
+Date: Tue, 25 Oct 2016 10:59:18 +0800
+Message-ID: <1477364358-10620-3-git-send-email-thunder.leizhen@huawei.com>
+In-Reply-To: <1477364358-10620-1-git-send-email-thunder.leizhen@huawei.com>
+References: <1477364358-10620-1-git-send-email-thunder.leizhen@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan Corbet <corbet@lwn.net>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Huang, Ying" <ying.huang@intel.com>, dave.hansen@intel.com, ak@linux.intel.com, aaron.lu@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Shaohua Li <shli@kernel.org>, Minchan Kim <minchan@kernel.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Hillf Danton <hillf.zj@alibaba-inc.com>
+To: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+Cc: Zefan Li <lizefan@huawei.com>, Xinwei Hu <huxinwei@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Zhen Lei <thunder.leizhen@huawei.com>
 
-Hi, Jonathan,
+Some numa nodes may have no memory. For example:
+1) a node has no memory bank plugged.
+2) a node has no memory bank slots.
 
-Thanks for review.
+To ensure percpu variable areas and numa control blocks of the
+memoryless numa nodes to be allocated from the nearest available node to
+improve performance, defined node_distance_ready. And make its value to be
+true immediately after node distances have been initialized.
 
-Jonathan Corbet <corbet@lwn.net> writes:
+Signed-off-by: Zhen Lei <thunder.leizhen@huawei.com>
+---
+ arch/arm64/Kconfig            | 4 ++++
+ arch/arm64/include/asm/numa.h | 3 +++
+ arch/arm64/mm/numa.c          | 6 +++++-
+ 3 files changed, 12 insertions(+), 1 deletion(-)
 
-> On Thu, 20 Oct 2016 16:31:41 -0700
-> Tim Chen <tim.c.chen@linux.intel.com> wrote:
->
->> From: "Huang, Ying" <ying.huang@intel.com>
->> 
->> This patch is to reduce the lock contention of swap_info_struct->lock
->> via using a more fine grained lock in swap_cluster_info for some swap
->> operations.  swap_info_struct->lock is heavily contended if multiple
->> processes reclaim pages simultaneously.  Because there is only one lock
->> for each swap device.  While in common configuration, there is only one
->> or several swap devices in the system.  The lock protects almost all
->> swap related operations.
->
-> So I'm looking at this a bit.  Overall it seems like a good thing to do
-> (from my limited understanding of this area) but I have a probably silly
-> question... 
->
->>  struct swap_cluster_info {
->> -	unsigned int data:24;
->> -	unsigned int flags:8;
->> +	unsigned long data;
->>  };
->> -#define CLUSTER_FLAG_FREE 1 /* This cluster is free */
->> -#define CLUSTER_FLAG_NEXT_NULL 2 /* This cluster has no next cluster */
->> +#define CLUSTER_COUNT_SHIFT		8
->> +#define CLUSTER_FLAG_MASK		((1UL << CLUSTER_COUNT_SHIFT) - 1)
->> +#define CLUSTER_COUNT_MASK		(~CLUSTER_FLAG_MASK)
->> +#define CLUSTER_FLAG_FREE		1 /* This cluster is free */
->> +#define CLUSTER_FLAG_NEXT_NULL		2 /* This cluster has no next cluster */
->> +/* cluster lock, protect cluster_info contents and sis->swap_map */
->> +#define CLUSTER_FLAG_LOCK_BIT		2
->> +#define CLUSTER_FLAG_LOCK		(1 << CLUSTER_FLAG_LOCK_BIT)
->
-> Why the roll-your-own locking and data structures here?  To my naive
-> understanding, it seems like you could do something like:
->
->   struct swap_cluster_info {
->   	spinlock_t lock;
-> 	atomic_t count;
-> 	unsigned int flags;
->   };
->
-> Then you could use proper spinlock operations which, among other things,
-> would make the realtime folks happier.  That might well help with the
-> cache-line sharing issues as well.  Some of the count manipulations could
-> perhaps be done without the lock entirely; similarly, atomic bitops might
-> save you the locking for some of the flag tweaks - though I'd have to look
-> more closely to be really sure of that.
->
-> The cost, of course, is the growth of this structure, but you've already
-> noted that the overhead isn't all that high; seems like it could be worth
-> it.
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index 30398db..648dd13 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -609,6 +609,10 @@ config NEED_PER_CPU_EMBED_FIRST_CHUNK
+ 	def_bool y
+ 	depends on NUMA
 
-Yes.  The data structure you proposed is much easier to be used than the
-current one.  The main concern is the RAM usage.  The size of the data
-structure you proposed is about 80 bytes, while that of the current one
-is about 8 bytes.  There will be one struct swap_cluster_info for every
-1MB swap space, so for 1TB swap space, the total size will be 80M
-compared with 8M of current implementation.
++config HAVE_MEMORYLESS_NODES
++	def_bool y
++	depends on NUMA
++
+ source kernel/Kconfig.preempt
+ source kernel/Kconfig.hz
 
-In the other hand, the return of the increased size is not overwhelming.
-The bit spinlock on cluster will not be heavy contended because it is a
-quite fine-grained lock.  So the benefit will be little to use lockless
-operations.  I guess the realtime issue isn't serious given the lock is
-not heavy contended and the operations protected by the lock is
-light-weight too.
+diff --git a/arch/arm64/include/asm/numa.h b/arch/arm64/include/asm/numa.h
+index 600887e..9d068bf 100644
+--- a/arch/arm64/include/asm/numa.h
++++ b/arch/arm64/include/asm/numa.h
+@@ -13,6 +13,9 @@
+ int __node_distance(int from, int to);
+ #define node_distance(a, b) __node_distance(a, b)
 
-Best Regards,
-Huang, Ying
++extern int __initdata arch_node_distance_ready;
++#define node_distance_ready()	arch_node_distance_ready
++
+ extern nodemask_t numa_nodes_parsed __initdata;
 
-> I assume that I'm missing something obvious here?
->
-> Thanks,
->
-> jon
+ /* Mappings between node number and cpus on that node. */
+diff --git a/arch/arm64/mm/numa.c b/arch/arm64/mm/numa.c
+index 9a71d06..5db9765 100644
+--- a/arch/arm64/mm/numa.c
++++ b/arch/arm64/mm/numa.c
+@@ -36,6 +36,7 @@ static int cpu_to_node_map[NR_CPUS] = { [0 ... NR_CPUS-1] = NUMA_NO_NODE };
+ static int numa_distance_cnt;
+ static u8 *numa_distance;
+ static bool numa_off;
++int __initdata arch_node_distance_ready;
+
+ static __init int numa_parse_early_param(char *opt)
+ {
+@@ -395,9 +396,12 @@ static int __init numa_init(int (*init_func)(void))
+ 		return -EINVAL;
+ 	}
+
++	arch_node_distance_ready = 1;
+ 	ret = numa_register_nodes();
+-	if (ret < 0)
++	if (ret < 0) {
++		arch_node_distance_ready = 0;
+ 		return ret;
++	}
+
+ 	setup_node_to_cpumask_map();
+
+--
+2.5.0
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
