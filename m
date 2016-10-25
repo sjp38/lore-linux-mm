@@ -1,33 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 967B46B0253
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 00:26:48 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id t25so134213235pfg.3
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 21:26:48 -0700 (PDT)
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CC0096B0253
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 00:59:49 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id tz10so22583039pab.3
+        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 21:59:49 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id fl4si15619682pab.94.2016.10.24.21.26.47
+        by mx.google.com with ESMTPS id e15si9172961pga.261.2016.10.24.21.59.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Oct 2016 21:26:47 -0700 (PDT)
+        Mon, 24 Oct 2016 21:59:48 -0700 (PDT)
 Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u9P4Na4H099985
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 00:26:47 -0400
-Received: from e19.ny.us.ibm.com (e19.ny.us.ibm.com [129.33.205.209])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 269y01k3d8-1
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u9P4x6MK019370
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 00:59:48 -0400
+Received: from e38.co.us.ibm.com (e38.co.us.ibm.com [32.97.110.159])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 269y01m5x2-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 00:26:46 -0400
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 00:59:48 -0400
 Received: from localhost
-	by e19.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 25 Oct 2016 00:26:45 -0400
+	Mon, 24 Oct 2016 22:59:47 -0600
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 Subject: Re: [RFC 0/8] Define coherent device memory node
 In-Reply-To: <20161024170902.GA5521@gmail.com>
 References: <1477283517-2504-1-git-send-email-khandual@linux.vnet.ibm.com> <20161024170902.GA5521@gmail.com>
-Date: Tue, 25 Oct 2016 09:56:35 +0530
+Date: Tue, 25 Oct 2016 10:29:38 +0530
 MIME-Version: 1.0
 Content-Type: text/plain
-Message-Id: <87a8dtawas.fsf@linux.vnet.ibm.com>
+Message-Id: <877f8xaurp.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jerome Glisse <j.glisse@gmail.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
@@ -78,25 +78,12 @@ Jerome Glisse <j.glisse@gmail.com> writes:
 > So if you accept this intermediary step you can easily use ZONE_DEVICE for
 > device memory. This way no lru, no complex dance to make the memory out of
 > reach from regular memory allocator.
-
-One of the reason to look at this as a NUMA node is to allow things like
-over-commit of coherent device memory. The pages backing CDM being part of
-lru and considering the coherent device as a numa node makes that really
-simpler (we can run kswapd for that node).
-
-
 >
 > I think we would have much to gain if we pool our effort on a single common
 > solution for device memory. In my case the device memory is not accessible
 > by the CPU (because PCIE restrictions), in your case it is. Thus the only
 > difference is that in my case it can not be map inside the CPU page table
 > while in yours it can.
-
-IMHO, we should be able to share the HMM migration approach. We
-definitely won't need the mirror page table part. That is one of the
-reson I requested HMM mirror page table to be a seperate patchset.
-
-
 >
 >> 
 >> (1) Traditional ioremap
@@ -180,15 +167,14 @@ reson I requested HMM mirror page table to be a seperate patchset.
 > If you think i missed anything about lru and page cache please point it to
 > me. Because when i audited code for that i didn't see any road block with
 > the few fs i was looking at (ext4, xfs and core page cache code).
+>
 
-I looked at the hmm-v13 w.r.t migration and I guess some form of device
-callback/acceleration during migration is something we should definitely
-have. I still haven't figured out how non addressable and coherent device
-memory can fit together there. I was waiting for the page cache
-migration support to be pushed to the repository before I start looking
-at this closely.
+The other restriction around ZONE_DEVICE is, it is not a managed zone.
+That prevents any direct allocation from coherent device by application.
+ie, we would like to force allocation from coherent device using
+interface like mbind(MPOL_BIND..) . Is that possible with ZONE_DEVICE ?
 
--aneesh
+-aneeesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
