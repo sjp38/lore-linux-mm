@@ -1,140 +1,192 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A100C6B0253
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 00:16:05 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id fl2so7311628pad.7
-        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 21:16:05 -0700 (PDT)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 967B46B0253
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 00:26:48 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id t25so134213235pfg.3
+        for <linux-mm@kvack.org>; Mon, 24 Oct 2016 21:26:48 -0700 (PDT)
 Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id d6si15586413pao.101.2016.10.24.21.16.04
+        by mx.google.com with ESMTPS id fl4si15619682pab.94.2016.10.24.21.26.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 24 Oct 2016 21:16:04 -0700 (PDT)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u9P4Dkgd116600
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 00:16:04 -0400
-Received: from e33.co.us.ibm.com (e33.co.us.ibm.com [32.97.110.151])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 269yh19feh-1
+        Mon, 24 Oct 2016 21:26:47 -0700 (PDT)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u9P4Na4H099985
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 00:26:47 -0400
+Received: from e19.ny.us.ibm.com (e19.ny.us.ibm.com [129.33.205.209])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 269y01k3d8-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 00:16:03 -0400
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 00:26:46 -0400
 Received: from localhost
-	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e19.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 24 Oct 2016 22:16:02 -0600
+	Tue, 25 Oct 2016 00:26:45 -0400
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [RFC 3/8] mm: Isolate coherent device memory nodes from HugeTLB allocation paths
-In-Reply-To: <580E41F0.20601@intel.com>
-References: <1477283517-2504-1-git-send-email-khandual@linux.vnet.ibm.com> <1477283517-2504-4-git-send-email-khandual@linux.vnet.ibm.com> <580E41F0.20601@intel.com>
-Date: Tue, 25 Oct 2016 09:45:53 +0530
+Subject: Re: [RFC 0/8] Define coherent device memory node
+In-Reply-To: <20161024170902.GA5521@gmail.com>
+References: <1477283517-2504-1-git-send-email-khandual@linux.vnet.ibm.com> <20161024170902.GA5521@gmail.com>
+Date: Tue, 25 Oct 2016 09:56:35 +0530
 MIME-Version: 1.0
 Content-Type: text/plain
-Message-Id: <87d1ipawsm.fsf@linux.vnet.ibm.com>
+Message-Id: <87a8dtawas.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: mhocko@suse.com, js1304@gmail.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, akpm@linux-foundation.org, bsingharora@gmail.com
+To: Jerome Glisse <j.glisse@gmail.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, js1304@gmail.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, akpm@linux-foundation.org, bsingharora@gmail.com
 
-Dave Hansen <dave.hansen@intel.com> writes:
+Jerome Glisse <j.glisse@gmail.com> writes:
 
-> On 10/23/2016 09:31 PM, Anshuman Khandual wrote:
->> This change is part of the isolation requiring coherent device memory nodes
->> implementation.
+> On Mon, Oct 24, 2016 at 10:01:49AM +0530, Anshuman Khandual wrote:
+>
+>> [...]
+>
+>> 	Core kernel memory features like reclamation, evictions etc. might
+>> need to be restricted or modified on the coherent device memory node as
+>> they can be performance limiting. The RFC does not propose anything on this
+>> yet but it can be looked into later on. For now it just disables Auto NUMA
+>> for any VMA which has coherent device memory.
 >> 
->> Isolation seeking coherent device memory node requires allocation isolation
->> from implicit memory allocations from user space. Towards that effect, the
->> memory should not be used for generic HugeTLB page pool allocations. This
->> modifies relevant functions to skip all coherent memory nodes present on
->> the system during allocation, freeing and auditing for HugeTLB pages.
+>> 	Seamless integration of coherent device memory with system memory
+>> will enable various other features, some of which can be listed as follows.
+>> 
+>> 	a. Seamless migrations between system RAM and the coherent memory
+>> 	b. Will have asynchronous and high throughput migrations
+>> 	c. Be able to allocate huge order pages from these memory regions
+>> 	d. Restrict allocations to a large extent to the tasks using the
+>> 	   device for workload acceleration
+>> 
+>> 	Before concluding, will look into the reasons why the existing
+>> solutions don't work. There are two basic requirements which have to be
+>> satisfies before the coherent device memory can be integrated with core
+>> kernel seamlessly.
+>> 
+>> 	a. PFN must have struct page
+>> 	b. Struct page must able to be inside standard LRU lists
+>> 
+>> 	The above two basic requirements discard the existing method of
+>> device memory representation approaches like these which then requires the
+>> need of creating a new framework.
 >
-> This seems really fragile.  You had to hit, what, 18 call sites?  What
-> are the odds that this is going to stay working?
+> I do not believe the LRU list is a hard requirement, yes when faulting in
+> a page inside the page cache it assumes it needs to be added to lru list.
+> But i think this can easily be work around.
+>
+> In HMM i am using ZONE_DEVICE and because memory is not accessible from CPU
+> (not everyone is bless with decent system bus like CAPI, CCIX, Gen-Z, ...)
+> so in my case a file back page must always be spawn first from a regular
+> page and once read from disk then i can migrate to GPU page.
+>
+> So if you accept this intermediary step you can easily use ZONE_DEVICE for
+> device memory. This way no lru, no complex dance to make the memory out of
+> reach from regular memory allocator.
 
-
-I guess a better approach is to introduce new node_states entry such
-that we have one that excludes coherent device memory numa nodes. One
-possibility is to add N_SYSTEM_MEMORY and N_MEMORY.
-
-Current N_MEMORY becomes N_SYSTEM_MEMORY and N_MEMORY includes
-system and device/any other memory which is coherent.
-
-All the isolation can then be achieved based on the nodemask_t used for
-allocation. So for allocations we want to avoid from coherent device we
-use N_SYSTEM_MEMORY mask or a derivative of that and where we are ok to
-allocate from CDM with fallbacks we use N_MEMORY.
-
-All nodes zonelist will have zones from the coherent device nodes but we
-will not end up allocating from coherent device node zone due to the
-node mask used.
-
-
-This will also make sure we end up allocating from the correct coherent
-device numa node in the presence of multiple of them based on the
-distance of the coherent device node from the current executing numa
-node.
-
+One of the reason to look at this as a NUMA node is to allow things like
+over-commit of coherent device memory. The pages backing CDM being part of
+lru and considering the coherent device as a numa node makes that really
+simpler (we can run kswapd for that node).
 
 
 >
->> @@ -2666,6 +2688,10 @@ static void __init hugetlb_register_all_nodes(void)
->>  
->>  	for_each_node_state(nid, N_MEMORY) {
->>  		struct node *node = node_devices[nid];
->> +
->> +		if (isolated_cdm_node(nid))
->> +			continue;
->> +
->>  		if (node->dev.id == nid)
->>  			hugetlb_register_node(node);
->>  	}
+> I think we would have much to gain if we pool our effort on a single common
+> solution for device memory. In my case the device memory is not accessible
+> by the CPU (because PCIE restrictions), in your case it is. Thus the only
+> difference is that in my case it can not be map inside the CPU page table
+> while in yours it can.
+
+IMHO, we should be able to share the HMM migration approach. We
+definitely won't need the mirror page table part. That is one of the
+reson I requested HMM mirror page table to be a seperate patchset.
+
+
 >
-> This looks to be completely kneecapping hugetlbfs on these cdm nodes.
-> Is that really what you want?
+>> 
+>> (1) Traditional ioremap
+>> 
+>> 	a. Memory is mapped into kernel (linear and virtual) and user space
+>> 	b. These PFNs do not have struct pages associated with it
+>> 	c. These special PFNs are marked with special flags inside the PTE
+>> 	d. Cannot participate in core VM functions much because of this
+>> 	e. Cannot do easy user space migrations
+>> 
+>> (2) Zone ZONE_DEVICE
+>> 
+>> 	a. Memory is mapped into kernel and user space
+>> 	b. PFNs do have struct pages associated with it
+>> 	c. These struct pages are allocated inside it's own memory range
+>> 	d. Unfortunately the struct page's union containing LRU has been
+>> 	   used for struct dev_pagemap pointer
+>> 	e. Hence it cannot be part of any LRU (like Page cache)
+>> 	f. Hence file cached mapping cannot reside on these PFNs
+>> 	g. Cannot do easy migrations
+>> 
+>> 	I had also explored non LRU representation of this coherent device
+>> memory where the integration with system RAM in the core VM is limited only
+>> to the following functions. Not being inside LRU is definitely going to
+>> reduce the scope of tight integration with system RAM.
+>> 
+>> (1) Migration support between system RAM and coherent memory
+>> (2) Migration support between various coherent memory nodes
+>> (3) Isolation of the coherent memory
+>> (4) Mapping the coherent memory into user space through driver's
+>>     struct vm_operations
+>> (5) HW poisoning of the coherent memory
+>> 
+>> 	Allocating the entire memory of the coherent device node right
+>> after hot plug into ZONE_MOVABLE (where the memory is already inside the
+>> buddy system) will still expose a time window where other user space
+>> allocations can come into the coherent device memory node and prevent the
+>> intended isolation. So traditional hot plug is not the solution. Hence
+>> started looking into CMA based non LRU solution but then hit the following
+>> roadblocks.
+>> 
+>> (1) CMA does not support hot plugging of new memory node
+>> 	a. CMA area needs to be marked during boot before buddy is
+>> 	   initialized
+>> 	b. cma_alloc()/cma_release() can happen on the marked area
+>> 	c. Should be able to mark the CMA areas just after memory hot plug
+>> 	d. cma_alloc()/cma_release() can happen later after the hot plug
+>> 	e. This is not currently supported right now
+>> 
+>> (2) Mapped non LRU migration of pages
+>> 	a. Recent work from Michan Kim makes non LRU page migratable
+>> 	b. But it still does not support migration of mapped non LRU pages
+>> 	c. With non LRU CMA reserved, again there are some additional
+>> 	   challenges
+>> 
+>> 	With hot pluggable CMA and non LRU mapped migration support there
+>> may be an alternate approach to represent coherent device memory. Please
+>> do review this RFC proposal and let me know your comments or suggestions.
+>> Thank you.
 >
->> @@ -2819,8 +2845,12 @@ static unsigned int cpuset_mems_nr(unsigned int *array)
->>  	int node;
->>  	unsigned int nr = 0;
->>  
->> -	for_each_node_mask(node, cpuset_current_mems_allowed)
->> +	for_each_node_mask(node, cpuset_current_mems_allowed) {
->> +		if (isolated_cdm_node(node))
->> +			continue;
->> +
->>  		nr += array[node];
->> +	}
->>  
->>  	return nr;
->>  }
->> @@ -2940,7 +2970,10 @@ void hugetlb_show_meminfo(void)
->>  	if (!hugepages_supported())
->>  		return;
->>  
->> -	for_each_node_state(nid, N_MEMORY)
->> +	for_each_node_state(nid, N_MEMORY) {
->> +		if (isolated_cdm_node(nid))
->> +			continue;
->> +
->>  		for_each_hstate(h)
->>  			pr_info("Node %d hugepages_total=%u hugepages_free=%u hugepages_surp=%u hugepages_size=%lukB\n",
->>  				nid,
->> @@ -2948,6 +2981,7 @@ void hugetlb_show_meminfo(void)
->>  				h->free_huge_pages_node[nid],
->>  				h->surplus_huge_pages_node[nid],
->>  				1UL << (huge_page_order(h) + PAGE_SHIFT - 10));
->> +	}
->>  }
+> You can take a look at hmm-v13 if you want to see how i do non LRU page
+> migration. While i put most of the migration code inside hmm_migrate.c it
+> could easily be move to migrate.c without hmm_ prefix.
 >
-> Your patch description talks about removing *implicit* memory
-> allocations.  But, this removes even the ability to gather *stats* about
-> huge pages sitting on one of these nodes.  That's a lot more drastic
-> than just changing implicit policies.
+> There is 2 missing piece with existing migrate code. First is to put memory
+> allocation for destination under control of who call the migrate code. Second
+> is to allow offloading the copy operation to device (ie not use the CPU to
+> copy data).
 >
-> Is that patch description accurate?
+> I believe same requirement also make sense for platform you are targeting.
+> Thus same code can be use.
 >
-> It looks to me like you just went through all the for_each_node*() loops
-> in hugetlb.c and hacked your node check into them indiscriminately.
-> This totally removes the ability to *do* hugetlb on this nodes.
+> hmm-v13 https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-v13
 >
-> Isn't there some simpler way to do all this, like maybe changing the
-> root cpuset to disallow allocations to these nodes?
+> I haven't posted this patchset yet because we are doing some modifications
+> to the device driver API to accomodate some new features. But the ZONE_DEVICE
+> changes and the overall migration code will stay the same more or less (i have
+> patches that move it to migrate.c and share more code with existing migrate
+> code).
+>
+> If you think i missed anything about lru and page cache please point it to
+> me. Because when i audited code for that i didn't see any road block with
+> the few fs i was looking at (ext4, xfs and core page cache code).
+
+I looked at the hmm-v13 w.r.t migration and I guess some form of device
+callback/acceleration during migration is something we should definitely
+have. I still haven't figured out how non addressable and coherent device
+memory can fit together there. I was waiting for the page cache
+migration support to be pushed to the repository before I start looking
+at this closely.
 
 -aneesh
 
