@@ -1,16 +1,16 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C277C6B0287
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 18:34:38 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id n18so38510217pfe.7
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 15:34:38 -0700 (PDT)
-Received: from mail-pf0-x22c.google.com (mail-pf0-x22c.google.com. [2607:f8b0:400e:c00::22c])
-        by mx.google.com with ESMTPS id o13si22994652pgc.285.2016.10.25.15.34.37
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5792E6B0287
+	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 19:00:01 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id fn5so8065459pab.3
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 16:00:01 -0700 (PDT)
+Received: from mail-pf0-x22f.google.com (mail-pf0-x22f.google.com. [2607:f8b0:400e:c00::22f])
+        by mx.google.com with ESMTPS id z82si23129275pff.218.2016.10.25.16.00.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Oct 2016 15:34:38 -0700 (PDT)
-Received: by mail-pf0-x22c.google.com with SMTP id e6so126404648pfk.3
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 15:34:37 -0700 (PDT)
+        Tue, 25 Oct 2016 16:00:00 -0700 (PDT)
+Received: by mail-pf0-x22f.google.com with SMTP id s8so126903898pfj.2
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 16:00:00 -0700 (PDT)
 Subject: Re: [PATCH v4 4/5] mm: make processing of movable_node arch-specific
 References: <1475778995-1420-1-git-send-email-arbab@linux.vnet.ibm.com>
  <1475778995-1420-5-git-send-email-arbab@linux.vnet.ibm.com>
@@ -18,8 +18,8 @@ References: <1475778995-1420-1-git-send-email-arbab@linux.vnet.ibm.com>
  <dcfc8ace-e59e-6b4b-0f2f-4eff9f08f3c1@gmail.com>
  <20161025155507.37kv5akdlgo6m2be@arbab-laptop.austin.ibm.com>
 From: Balbir Singh <bsingharora@gmail.com>
-Message-ID: <112504e9-561d-e0da-7a40-73996c678b56@gmail.com>
-Date: Wed, 26 Oct 2016 09:34:18 +1100
+Message-ID: <13f4f7fa-77b7-0924-f47c-5e55af8269d0@gmail.com>
+Date: Wed, 26 Oct 2016 09:59:40 +1100
 MIME-Version: 1.0
 In-Reply-To: <20161025155507.37kv5akdlgo6m2be@arbab-laptop.austin.ibm.com>
 Content-Type: text/plain; charset=windows-1252
