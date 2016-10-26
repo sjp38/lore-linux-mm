@@ -1,104 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E3C56B0276
-	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 09:42:31 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id q6so14622464wmg.15
-        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 06:42:31 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a10si2563856wjd.63.2016.10.26.06.42.30
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D0A046B0265
+	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 11:35:58 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id i34so6288933qkh.1
+        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 08:35:58 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r190si1699904qkd.122.2016.10.26.08.35.57
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 26 Oct 2016 06:42:30 -0700 (PDT)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH] mm, frontswap: make sure allocated frontswap map is assigned
-Date: Wed, 26 Oct 2016 15:42:20 +0200
-Message-Id: <20161026134220.2566-1-vbabka@suse.cz>
-In-Reply-To: <633c9485-d150-03ac-d0d3-827ad24c514d@de.ibm.com>
-References: <633c9485-d150-03ac-d0d3-827ad24c514d@de.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Oct 2016 08:35:58 -0700 (PDT)
+Date: Wed, 26 Oct 2016 18:35:54 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [RESEND PATCH v3 kernel 2/7] virtio-balloon: define new feature
+ bit and page bitmap head
+Message-ID: <20161026162123-mutt-send-email-mst@kernel.org>
+References: <1477031080-12616-1-git-send-email-liang.z.li@intel.com>
+ <1477031080-12616-3-git-send-email-liang.z.li@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1477031080-12616-3-git-send-email-liang.z.li@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Christian Borntraeger <borntraeger@de.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, stable@vger.kernel.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Vrabel <david.vrabel@citrix.com>, Juergen Gross <jgross@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Liang Li <liang.z.li@intel.com>
+Cc: linux-kernel@vger.kernel.org, virtualization@lists.linux-foundation.org, linux-mm@kvack.org, virtio-dev@lists.oasis-open.org, kvm@vger.kernel.org, qemu-devel@nongnu.org, quintela@redhat.com, dgilbert@redhat.com, dave.hansen@intel.com, pbonzini@redhat.com, cornelia.huck@de.ibm.com, amit.shah@redhat.com
 
-Christian Borntraeger reports:
+On Fri, Oct 21, 2016 at 02:24:35PM +0800, Liang Li wrote:
+> Add a new feature which supports sending the page information with
+> a bitmap. The current implementation uses PFNs array, which is not
+> very efficient. Using bitmap can improve the performance of
+> inflating/deflating significantly
+> 
+> The page bitmap header will used to tell the host some information
+> about the page bitmap. e.g. the page size, page bitmap length and
+> start pfn.
+> 
+> Signed-off-by: Liang Li <liang.z.li@intel.com>
+> Cc: Michael S. Tsirkin <mst@redhat.com>
+> Cc: Paolo Bonzini <pbonzini@redhat.com>
+> Cc: Cornelia Huck <cornelia.huck@de.ibm.com>
+> Cc: Amit Shah <amit.shah@redhat.com>
+> ---
+>  include/uapi/linux/virtio_balloon.h | 19 +++++++++++++++++++
+>  1 file changed, 19 insertions(+)
+> 
+> diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
+> index 343d7dd..d3b182a 100644
+> --- a/include/uapi/linux/virtio_balloon.h
+> +++ b/include/uapi/linux/virtio_balloon.h
+> @@ -34,6 +34,7 @@
+>  #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0 /* Tell before reclaiming pages */
+>  #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
+>  #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
+> +#define VIRTIO_BALLOON_F_PAGE_BITMAP	3 /* Send page info with bitmap */
+>  
+>  /* Size of a PFN in the balloon interface. */
+>  #define VIRTIO_BALLOON_PFN_SHIFT 12
+> @@ -82,4 +83,22 @@ struct virtio_balloon_stat {
+>  	__virtio64 val;
+>  } __attribute__((packed));
+>  
+> +/* Page bitmap header structure */
+> +struct balloon_bmap_hdr {
 
-with commit 8ea1d2a1985a7ae096e ("mm, frontswap: convert frontswap_enabled to
-static key") kmemleak complains about a memory leak in swapon
+Should be virtio_balloon.
 
-unreferenced object 0x3e09ba56000 (size 32112640):
-  comm "swapon", pid 7852, jiffies 4294968787 (age 1490.770s)
-  hex dump (first 32 bytes):
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<00000000003a2504>] __vmalloc_node_range+0x194/0x2d8
-    [<00000000003a2918>] vzalloc+0x58/0x68
-    [<00000000003b0af0>] SyS_swapon+0xd60/0x12f8
-    [<0000000000a3dc2e>] system_call+0xd6/0x270
-    [<ffffffffffffffff>] 0xffffffffffffffff
+> +	/* Used to distinguish different request */
 
-Turns out kmemleak is right. We now allocate the frontswap map depending on the
-kernel config (and no longer on the enablement)
+different requests? what are the legal values?
 
-swapfile.c:
-[...]
-      if (IS_ENABLED(CONFIG_FRONTSWAP))
-                frontswap_map = vzalloc(BITS_TO_LONGS(maxpages) * sizeof(long));
+> +	__virtio16 cmd;
+> +	/* Shift width of page in the bitmap */
 
-but later on this is passed along
---> enable_swap_info(p, prio, swap_map, cluster_info, frontswap_map);
+In which units?
 
-and ignored if frontswap is disabled
---> frontswap_init(p->type, frontswap_map);
-static inline void frontswap_init(unsigned type, unsigned long *map)
-{
-        if (frontswap_enabled())
-                __frontswap_init(type, map);
-}
+> +	__virtio16 page_shift;
+> +	/* flag used to identify different status */
 
-Thing is, that frontswap map is never freed.
+this comment does not seem to add any value.
 
-===
+> +	__virtio16 flag;
+> +	/* Reserved */
 
-The leakage is relatively not that bad, because swapon is an infrequent and
-privileged operation. However, if the first frontswap backend is registered
-after a swap type has been already enabled, it will WARN_ON in
-frontswap_register_ops() and frontswap will not be available for the swap type.
+this too
 
-Fix this by making sure the map is assigned by frontswap_init() as long as
-CONFIG_FRONTSWAP is enabled.
+> +	__virtio16 reserved;
+> +	/* ID of the request */
+> +	__virtio64 req_id;
+> +	/* The pfn of 0 bit in the bitmap */
+> +	__virtio64 start_pfn;
+> +	/* The length of the bitmap, in bytes */
 
-Reported-by: Christian Borntraeger <borntraeger@de.ibm.com>
-Fixes: 8ea1d2a1985a ("mm, frontswap: convert frontswap_enabled to static key")
-Cc: stable@vger.kernel.org
-Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Cc: David Vrabel <david.vrabel@citrix.com>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- include/linux/frontswap.h | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
+Why not in bits?
 
-diff --git a/include/linux/frontswap.h b/include/linux/frontswap.h
-index c46d2aa16d81..1d18af034554 100644
---- a/include/linux/frontswap.h
-+++ b/include/linux/frontswap.h
-@@ -106,8 +106,9 @@ static inline void frontswap_invalidate_area(unsigned type)
- 
- static inline void frontswap_init(unsigned type, unsigned long *map)
- {
--	if (frontswap_enabled())
--		__frontswap_init(type, map);
-+#ifdef CONFIG_FRONTSWAP
-+	__frontswap_init(type, map);
-+#endif
- }
- 
- #endif /* _LINUX_FRONTSWAP_H */
--- 
-2.10.1
+> +	__virtio64 bmap_len;
+> +};
+> +
+>  #endif /* _LINUX_VIRTIO_BALLOON_H */
+> -- 
+> 1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
