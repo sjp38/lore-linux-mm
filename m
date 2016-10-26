@@ -1,71 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DC9E76B0268
-	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 12:32:17 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id e12so11935348oib.5
-        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 09:32:17 -0700 (PDT)
-Received: from mail-oi0-x22c.google.com (mail-oi0-x22c.google.com. [2607:f8b0:4003:c06::22c])
-        by mx.google.com with ESMTPS id c58si2055933ote.227.2016.10.26.09.32.16
+Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 786EE6B0273
+	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 13:03:56 -0400 (EDT)
+Received: by mail-yw0-f198.google.com with SMTP id n68so14645565ywn.5
+        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 10:03:56 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id bg13si3084258pad.65.2016.10.26.10.03.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Oct 2016 09:32:16 -0700 (PDT)
-Received: by mail-oi0-x22c.google.com with SMTP id n202so24890281oig.3
-        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 09:32:16 -0700 (PDT)
+        Wed, 26 Oct 2016 10:03:54 -0700 (PDT)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u9QH3r1C147019
+	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 13:03:53 -0400
+Received: from e19.ny.us.ibm.com (e19.ny.us.ibm.com [129.33.205.209])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 26ay9ucjjv-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 13:03:53 -0400
+Received: from localhost
+	by e19.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
+	Wed, 26 Oct 2016 13:03:51 -0400
+Date: Wed, 26 Oct 2016 12:03:44 -0500
+From: Reza Arbab <arbab@linux.vnet.ibm.com>
+Subject: Re: [PATCH v4 4/5] mm: make processing of movable_node arch-specific
+References: <1475778995-1420-1-git-send-email-arbab@linux.vnet.ibm.com>
+ <1475778995-1420-5-git-send-email-arbab@linux.vnet.ibm.com>
+ <235f2d20-cf84-08df-1fb4-08ee258fdc52@gmail.com>
+ <dcfc8ace-e59e-6b4b-0f2f-4eff9f08f3c1@gmail.com>
+ <20161025155507.37kv5akdlgo6m2be@arbab-laptop.austin.ibm.com>
+ <112504e9-561d-e0da-7a40-73996c678b56@gmail.com>
+ <20161026004929.h6v54dhehk4yvmwm@arbab-vm>
+ <87vawfwfei.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-In-Reply-To: <CALCETrUt+4ojyscJT1AFN5Zt3mKY0rrxcXMBOUUJzzLMWXFXHg@mail.gmail.com>
-References: <CAHc6FU4e5sueLi7pfeXnSbuuvnc5PaU3xo5Hnn=SvzmQ+ZOEeg@mail.gmail.com>
- <CALCETrUt+4ojyscJT1AFN5Zt3mKY0rrxcXMBOUUJzzLMWXFXHg@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 26 Oct 2016 09:32:16 -0700
-Message-ID: <CA+55aFzB2C0aktFZW3GquJF6dhM1904aDPrv4vdQ8=+mWO7jcg@mail.gmail.com>
-Subject: Re: CONFIG_VMAP_STACK, on-stack struct, and wake_up_bit
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <87vawfwfei.fsf@concordia.ellerman.id.au>
+Message-Id: <20161026170343.2sf6qkhetfzygqya@arbab-laptop.austin.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Andreas Gruenbacher <agruenba@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Bob Peterson <rpeterso@redhat.com>, Steven Whitehouse <swhiteho@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>
+To: Michael Ellerman <mpe@ellerman.id.au>
+Cc: Balbir Singh <bsingharora@gmail.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, devicetree@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Oct 26, 2016 at 8:51 AM, Andy Lutomirski <luto@amacapital.net> wrote:
->>
->> I get the following BUG with 4.9-rc2, CONFIG_VMAP_STACK and
->> CONFIG_DEBUG_VIRTUAL turned on:
->>
->>   kernel BUG at arch/x86/mm/physaddr.c:26!
+On Wed, Oct 26, 2016 at 09:52:53PM +1100, Michael Ellerman wrote:
+>> As far as I know, power has nothing like the SRAT that tells us, at
+>> boot, which memory is hotpluggable.
 >
-> const struct zone *zone = page_zone(virt_to_page(word));
+>On pseries we have the ibm,dynamic-memory device tree property, which
+>can contain ranges of memory that are not yet "assigned to the
+>partition" - ie. can be hotplugged later.
 >
-> If the stack is vmalloced, then you can't find the page's zone like
-> that.  We could look it up the slow way (ick!), but maybe another
-> solution would be to do:
+>So in general that statement is not true.
+>
+>But I think you're focused on bare-metal, in which case you might be
+>right. But that doesn't mean we couldn't have a similar property, if
+>skiboot/hostboot knew what the ranges of memory were going to be.
 
-Christ. It's that damn bit-wait craziness again with the idiotic zone lookup.
+Yes, sorry, I should have qualified that statement to say I wasn't 
+talking about pseries.
 
-I complained about it a couple of weeks ago for entirely unrelated
-reasons: it absolutely sucks donkey ass through a straw from a cache
-standpoint too. It makes the page_waitqueue() thing very expensive, to
-the point where it shows up as taking up 3% of CPU time on a real
-load.,
+I can amend this set to actually implement movable_node on power too, 
+but we'd have to settle on a name for the dt property. Is 
+"linux,movable-node" too on the nose?
 
-PeterZ had a patch that fixed most of the performance trouble because
-the page_waitqueue is actually never realistically contested, and by
-making the bit-waiting use *two* bits you can avoid the slow-path cost
-entirely.
-
-But here we have a totally different issue, namely that we want to
-wait on a virtual address.
-
-Quite frankly, I think the solution is to just rip out all the insane
-zone crap. The most important use (by far) for the bit-waitqueue is
-for the page locking, and with the "use a second bit to show
-contention", there is absolutely no reason to try to do some crazy
-per-zone thing. It's a slow-path that never matters, and rather than
-make things scale well, the only thing it does is to pretty much
-guarantee at least one extra cache miss.
-
-Adding MelG and the mm list to the cc (PeterZ was already there) here
-just for the heads up.
-
-                   Linus
+-- 
+Reza Arbab
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
