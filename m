@@ -1,188 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E84916B0268
-	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 12:28:46 -0400 (EDT)
-Received: by mail-qt0-f199.google.com with SMTP id l20so3765388qta.12
-        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 09:28:46 -0700 (PDT)
-Received: from mail-qk0-x242.google.com (mail-qk0-x242.google.com. [2607:f8b0:400d:c09::242])
-        by mx.google.com with ESMTPS id f14si104121qte.33.2016.10.26.09.28.45
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DC9E76B0268
+	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 12:32:17 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id e12so11935348oib.5
+        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 09:32:17 -0700 (PDT)
+Received: from mail-oi0-x22c.google.com (mail-oi0-x22c.google.com. [2607:f8b0:4003:c06::22c])
+        by mx.google.com with ESMTPS id c58si2055933ote.227.2016.10.26.09.32.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Oct 2016 09:28:45 -0700 (PDT)
-Received: by mail-qk0-x242.google.com with SMTP id z82so574766qkb.7
-        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 09:28:45 -0700 (PDT)
-Date: Wed, 26 Oct 2016 12:28:42 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [RFC 0/8] Define coherent device memory node
-Message-ID: <20161026162842.GB13638@gmail.com>
-References: <1477283517-2504-1-git-send-email-khandual@linux.vnet.ibm.com>
- <20161024170902.GA5521@gmail.com>
- <877f8xaurp.fsf@linux.vnet.ibm.com>
- <20161025153256.GB6131@gmail.com>
- <87shrkjpyb.fsf@linux.vnet.ibm.com>
- <20161025185247.GA7188@gmail.com>
- <5810A7E2.9070901@linux.vnet.ibm.com>
+        Wed, 26 Oct 2016 09:32:16 -0700 (PDT)
+Received: by mail-oi0-x22c.google.com with SMTP id n202so24890281oig.3
+        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 09:32:16 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <5810A7E2.9070901@linux.vnet.ibm.com>
+In-Reply-To: <CALCETrUt+4ojyscJT1AFN5Zt3mKY0rrxcXMBOUUJzzLMWXFXHg@mail.gmail.com>
+References: <CAHc6FU4e5sueLi7pfeXnSbuuvnc5PaU3xo5Hnn=SvzmQ+ZOEeg@mail.gmail.com>
+ <CALCETrUt+4ojyscJT1AFN5Zt3mKY0rrxcXMBOUUJzzLMWXFXHg@mail.gmail.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 26 Oct 2016 09:32:16 -0700
+Message-ID: <CA+55aFzB2C0aktFZW3GquJF6dhM1904aDPrv4vdQ8=+mWO7jcg@mail.gmail.com>
+Subject: Re: CONFIG_VMAP_STACK, on-stack struct, and wake_up_bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, js1304@gmail.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, akpm@linux-foundation.org, bsingharora@gmail.com
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Andreas Gruenbacher <agruenba@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Bob Peterson <rpeterso@redhat.com>, Steven Whitehouse <swhiteho@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>
 
-On Wed, Oct 26, 2016 at 06:26:02PM +0530, Anshuman Khandual wrote:
-> On 10/26/2016 12:22 AM, Jerome Glisse wrote:
-> > On Tue, Oct 25, 2016 at 11:01:08PM +0530, Aneesh Kumar K.V wrote:
-> >> Jerome Glisse <j.glisse@gmail.com> writes:
-> >>
-> >>> On Tue, Oct 25, 2016 at 10:29:38AM +0530, Aneesh Kumar K.V wrote:
-> >>>> Jerome Glisse <j.glisse@gmail.com> writes:
-> >>>>> On Mon, Oct 24, 2016 at 10:01:49AM +0530, Anshuman Khandual wrote:
-> >>>
-> >>> [...]
-> >>>
-> >>>>> You can take a look at hmm-v13 if you want to see how i do non LRU page
-> >>>>> migration. While i put most of the migration code inside hmm_migrate.c it
-> >>>>> could easily be move to migrate.c without hmm_ prefix.
-> >>>>>
-> >>>>> There is 2 missing piece with existing migrate code. First is to put memory
-> >>>>> allocation for destination under control of who call the migrate code. Second
-> >>>>> is to allow offloading the copy operation to device (ie not use the CPU to
-> >>>>> copy data).
-> >>>>>
-> >>>>> I believe same requirement also make sense for platform you are targeting.
-> >>>>> Thus same code can be use.
-> >>>>>
-> >>>>> hmm-v13 https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-v13
-> >>>>>
-> >>>>> I haven't posted this patchset yet because we are doing some modifications
-> >>>>> to the device driver API to accomodate some new features. But the ZONE_DEVICE
-> >>>>> changes and the overall migration code will stay the same more or less (i have
-> >>>>> patches that move it to migrate.c and share more code with existing migrate
-> >>>>> code).
-> >>>>>
-> >>>>> If you think i missed anything about lru and page cache please point it to
-> >>>>> me. Because when i audited code for that i didn't see any road block with
-> >>>>> the few fs i was looking at (ext4, xfs and core page cache code).
-> >>>>>
-> >>>>
-> >>>> The other restriction around ZONE_DEVICE is, it is not a managed zone.
-> >>>> That prevents any direct allocation from coherent device by application.
-> >>>> ie, we would like to force allocation from coherent device using
-> >>>> interface like mbind(MPOL_BIND..) . Is that possible with ZONE_DEVICE ?
-> >>>
-> >>> To achieve this we rely on device fault code path ie when device take a page fault
-> >>> with help of HMM it will use existing memory if any for fault address but if CPU
-> >>> page table is empty (and it is not file back vma because of readback) then device
-> >>> can directly allocate device memory and HMM will update CPU page table to point to
-> >>> newly allocated device memory.
-> >>>
-> >>
-> >> That is ok if the device touch the page first. What if we want the
-> >> allocation touched first by cpu to come from GPU ?. Should we always
-> >> depend on GPU driver to migrate such pages later from system RAM to GPU
-> >> memory ?
-> >>
-> > 
-> > I am not sure what kind of workload would rather have every first CPU access for
-> > a range to use device memory. So no my code does not handle that and it is pointless
-> > for it as CPU can not access device memory for me.
-> 
-> If the user space application can explicitly allocate device memory directly, we
-> can save one round of migration when the device start accessing it. But then one
-> can argue what problem statement the device would work on on a freshly allocated
-> memory which has not been accessed by CPU for loading the data yet. Will look into
-> this scenario in more detail.
-> 
-> > 
-> > That said nothing forbid to add support for ZONE_DEVICE with mbind() like syscall.
-> > Thought my personnal preference would still be to avoid use of such generic syscall
-> > but have device driver set allocation policy through its own userspace API (device
-> > driver could reuse internal of mbind() to achieve the end result).
-> 
-> Okay, the basic premise of CDM node is to have a LRU based design where we can
-> avoid use of driver specific user space memory management code altogether.
+On Wed, Oct 26, 2016 at 8:51 AM, Andy Lutomirski <luto@amacapital.net> wrote:
+>>
+>> I get the following BUG with 4.9-rc2, CONFIG_VMAP_STACK and
+>> CONFIG_DEBUG_VIRTUAL turned on:
+>>
+>>   kernel BUG at arch/x86/mm/physaddr.c:26!
+>
+> const struct zone *zone = page_zone(virt_to_page(word));
+>
+> If the stack is vmalloced, then you can't find the page's zone like
+> that.  We could look it up the slow way (ick!), but maybe another
+> solution would be to do:
 
-And i think it is not a good fit, at least not for GPU. GPU device driver have a
-big chunk of code dedicated to memory management. You can look at drm/ttm and at
-userspace (most is in userspace). It is not because we want to reinvent the wheel
-it is because they are some unique constraint.
+Christ. It's that damn bit-wait craziness again with the idiotic zone lookup.
 
+I complained about it a couple of weeks ago for entirely unrelated
+reasons: it absolutely sucks donkey ass through a straw from a cache
+standpoint too. It makes the page_waitqueue() thing very expensive, to
+the point where it shows up as taking up 3% of CPU time on a real
+load.,
 
-> > 
-> > I am not saying that eveything you want to do is doable now with HMM but, nothing
-> > preclude achieving what you want to achieve using ZONE_DEVICE. I really don't think
-> > any of the existing mm mechanism (kswapd, lru, numa, ...) are nice fit and can be reuse
-> > with device memory.
-> 
-> With CDM node based design, the expectation is to get all/maximum core VM mechanism
-> working so that, driver has to do less device specific optimization.
+PeterZ had a patch that fixed most of the performance trouble because
+the page_waitqueue is actually never realistically contested, and by
+making the bit-waiting use *two* bits you can avoid the slow-path cost
+entirely.
 
-I think this is a bad idea, today, for GPU but i might be wrong.
- 
-> > 
-> > Each device is so different from the other that i don't believe in a one API fit all.
-> 
-> Right, so as I had mentioned in the cover letter, pglist_data->coherent_device actually
-> can become a bit mask indicating the type of coherent device the node is and that can
-> be used to implement multiple types of requirement in core mm for various kinds of
-> devices in the future.
+But here we have a totally different issue, namely that we want to
+wait on a virtual address.
 
-I really don't want to move GPU memory management into core mm, if you only concider GPGPU
-then it _might_ make sense but for graphic side i definitly don't think so. There are way
-to much device specific consideration to have in respect of memory management for GPU
-(not only in between different vendor but difference between different generation).
+Quite frankly, I think the solution is to just rip out all the insane
+zone crap. The most important use (by far) for the bit-waitqueue is
+for the page locking, and with the "use a second bit to show
+contention", there is absolutely no reason to try to do some crazy
+per-zone thing. It's a slow-path that never matters, and rather than
+make things scale well, the only thing it does is to pretty much
+guarantee at least one extra cache miss.
 
- 
-> > The drm GPU subsystem of the kernel is a testimony of how little can be share when it
-> > comes to GPU. The only common code is modesetting. Everything that deals with how to
-> > use GPU to compute stuff is per device and most of the logic is in userspace. So i do
-> 
-> Whats the basic reason which prevents such code/functionality sharing ?
+Adding MelG and the mm list to the cc (PeterZ was already there) here
+just for the heads up.
 
-While the higher level API (OpenGL, OpenCL, Vulkan, Cuda, ...) offer an abstraction model,
-they are all different abstractions. They are just no way to have kernel expose a common
-API that would allow all of the above to be implemented.
-
-Each GPU have complex memory management and requirement (not only differ between vendor
-but also between generation of same vendor). They have different isa for each generation.
-They have different way to schedule job for each generation. They offer different sync
-mechanism. They have different page table format, mmu, ...
-
-Basicly each GPU generation is a platform on it is own, like arm, ppc, x86, ... so i do
-not see a way to expose a common API and i don't think anyone who as work on any number
-of GPU see one either. I wish but it is just not the case.
-
- 
-> > not see any commonality that could be abstracted at syscall level. I would rather let
-> > device driver stack (kernel and userspace) take such decision and have the higher level
-> > API (OpenCL, Cuda, C++17, ...) expose something that make sense for each of them.
-> > Programmer target those high level API and they intend to use the mechanism each offer
-> > to manage memory and memory placement. I would say forcing them to use a second linux
-> > specific API to achieve the latter is wrong, at lest for now.
-> 
-> But going forward dont we want a more closely integrated coherent device solution
-> which does not depend too much on a device driver stack ? and can be used from a
-> basic user space program ?
-
-That is something i want, but i strongly believe we are not there yet, we have no real
-world experience. All we have in the open source community is the graphic stack (drm)
-and the graphic stack clearly shows that today there is no common denominator between
-GPU outside of modesetting.
-
-So while i share the same aim, i think for now we need to have real experience. Once we
-have something like OpenCL >= 2.0, C++17 and couple other userspace API being actively
-use on linux with different coherent devices then we can start looking at finding a
-common denominator that make sense for enough devices.
-
-I am sure device driver would like to get rid of their custom memory management but i
-don't think this is applicable now. I fear existing mm code would always make the worst
-decision when it comes to memory placement, migration and reclaim.
-
-Cheers,
-Jerome
+                   Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
