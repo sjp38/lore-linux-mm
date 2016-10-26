@@ -1,69 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A7546B0275
-	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 13:41:40 -0400 (EDT)
-Received: by mail-pa0-f71.google.com with SMTP id ml10so1786562pab.5
-        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 10:41:40 -0700 (PDT)
-Received: from mail-pf0-x22a.google.com (mail-pf0-x22a.google.com. [2607:f8b0:400e:c00::22a])
-        by mx.google.com with ESMTPS id v78si3913140pfk.64.2016.10.26.10.41.38
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 584186B0278
+	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 13:58:03 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id p136so3687560oic.2
+        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 10:58:03 -0700 (PDT)
+Received: from mail-oi0-x244.google.com (mail-oi0-x244.google.com. [2607:f8b0:4003:c06::244])
+        by mx.google.com with ESMTPS id x51si2323011otd.282.2016.10.26.10.58.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Oct 2016 10:41:38 -0700 (PDT)
-Received: by mail-pf0-x22a.google.com with SMTP id s8so614319pfj.2
-        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 10:41:38 -0700 (PDT)
-From: Thomas Garnier <thgarnie@google.com>
-Subject: [PATCH v1] memcg: Prevent caches to be both OFF_SLAB & OBJFREELIST_SLAB
-Date: Wed, 26 Oct 2016 10:41:28 -0700
-Message-Id: <1477503688-69191-1-git-send-email-thgarnie@google.com>
+        Wed, 26 Oct 2016 10:58:02 -0700 (PDT)
+Received: by mail-oi0-x244.google.com with SMTP id n202so260232oig.2
+        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 10:58:02 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CA+55aFww1iLuuhHw=iYF8xjfjGj8L+3oh33xxUHjnKKnsR-oHg@mail.gmail.com>
+References: <CAHc6FU4e5sueLi7pfeXnSbuuvnc5PaU3xo5Hnn=SvzmQ+ZOEeg@mail.gmail.com>
+ <CALCETrUt+4ojyscJT1AFN5Zt3mKY0rrxcXMBOUUJzzLMWXFXHg@mail.gmail.com>
+ <CA+55aFzB2C0aktFZW3GquJF6dhM1904aDPrv4vdQ8=+mWO7jcg@mail.gmail.com> <CA+55aFww1iLuuhHw=iYF8xjfjGj8L+3oh33xxUHjnKKnsR-oHg@mail.gmail.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 26 Oct 2016 10:58:01 -0700
+Message-ID: <CA+55aFyRv0YttbLUYwDem=-L5ZAET026umh6LOUQ6hWaRur_VA@mail.gmail.com>
+Subject: Re: CONFIG_VMAP_STACK, on-stack struct, and wake_up_bit
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, gthelen@google.com, Thomas Garnier <thgarnie@google.com>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Andreas Gruenbacher <agruenba@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Bob Peterson <rpeterso@redhat.com>, Steven Whitehouse <swhiteho@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>
 
-While testing OBJFREELIST_SLAB integration with pagealloc, we found a
-bug where kmem_cache(sys) would be created with both CFLGS_OFF_SLAB &
-CFLGS_OBJFREELIST_SLAB.
+On Wed, Oct 26, 2016 at 10:15 AM, Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
+>
+> Oh, and the patch is obviously entirely untested. I wouldn't want to
+> ruin my reputation by *testing* the patches I send out. What would be
+> the fun in that?
 
-The original kmem_cache is created early making OFF_SLAB not possible.
-When kmem_cache(sys) is created, OFF_SLAB is possible and if pagealloc
-is enabled it will try to enable it first under certain conditions.
-Given kmem_cache(sys) reuses the original flag, you can have both flags
-at the same time resulting in allocation failures and odd behaviors.
+So I tested it. It compiles, and it actually also solves the
+performance problem I was complaining about a couple of weeks ago with
+"unlock_page()" having an insane 3% CPU overhead when doing lots of
+small script ("make -j16 test" in the git tree for those that weren't
+involved in the original thread three weeks ago).
 
-The proposed fix removes these flags by default at the entrance of
-__kmem_cache_create. This way the function will define which way the
-freelist should be handled at this stage for the new cache.
+So quite frankly, I'll just commit it. It should fix the new problem
+with gfs2 and CONFIG_VMAP_STACK, and I see no excuse for the crazy
+zone stuff considering how harmful it is to everybody else.
 
-Fixes: b03a017bebc4 ("mm/slab: introduce new slab management type, OBJFREELIST_SLAB")
-Signed-off-by: Thomas Garnier <thgarnie@google.com>
-Signed-off-by: Greg Thelen <gthelen@google.com>
----
-Based on next-20161025
----
- mm/slab.c | 8 ++++++++
- 1 file changed, 8 insertions(+)
+I expect that when the NUMA people complain about page locking (if
+they ever even notice), PeterZ will stand up like the hero he is, and
+say "look here, I can solve this for you".
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 3c83c29..efe280a 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2027,6 +2027,14 @@ __kmem_cache_create (struct kmem_cache *cachep, unsigned long flags)
- 	int err;
- 	size_t size = cachep->size;
- 
-+	/*
-+	 * memcg re-creates caches with the flags of the originals. Remove
-+	 * the freelist related flags to ensure they are re-defined at this
-+	 * stage. Prevent having both flags on edge cases like with pagealloc
-+	 * if the original cache was created too early to be OFF_SLAB.
-+	 */
-+	flags &= ~(CFLGS_OBJFREELIST_SLAB|CFLGS_OFF_SLAB);
-+
- #if DEBUG
- #if FORCED_DEBUG
- 	/*
--- 
-2.8.0.rc3.226.g39d4020
+                    Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
