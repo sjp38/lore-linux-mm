@@ -1,51 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BE486B0275
-	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 14:29:49 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id b80so17234294wme.5
-        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 11:29:49 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id f196si12041463wme.70.2016.10.26.11.29.47
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Oct 2016 11:29:47 -0700 (PDT)
-Date: Wed, 26 Oct 2016 14:29:42 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 0/5] mm: workingset: radix tree subtleties & single-page
- file refaults
-Message-ID: <20161026182942.GA18258@cmpxchg.org>
-References: <20161019172428.7649-1-hannes@cmpxchg.org>
- <CA+55aFzRZCt-t_HJ_40mkuvR4qXj71BoW-Tt6hYOKNpT2yj6cw@mail.gmail.com>
- <20161024184739.GB2125@cmpxchg.org>
- <CA+55aFwZR=5XF4fU2PNp4Demyinxqd4JGSqfG14SyBaz9CW9aQ@mail.gmail.com>
+Received: from mail-pa0-f72.google.com (mail-pa0-f72.google.com [209.85.220.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 04A7F6B027A
+	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 14:36:17 -0400 (EDT)
+Received: by mail-pa0-f72.google.com with SMTP id hm5so6476621pac.4
+        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 11:36:16 -0700 (PDT)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id l2si4045706pga.245.2016.10.26.11.36.16
+        for <linux-mm@kvack.org>;
+        Wed, 26 Oct 2016 11:36:16 -0700 (PDT)
+Date: Wed, 26 Oct 2016 19:36:14 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH 2/2] arm64/numa: support HAVE_MEMORYLESS_NODES
+Message-ID: <20161026183614.GJ15216@arm.com>
+References: <1477364358-10620-1-git-send-email-thunder.leizhen@huawei.com>
+ <1477364358-10620-3-git-send-email-thunder.leizhen@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+55aFwZR=5XF4fU2PNp4Demyinxqd4JGSqfG14SyBaz9CW9aQ@mail.gmail.com>
+In-Reply-To: <1477364358-10620-3-git-send-email-thunder.leizhen@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Dave Jones <davej@codemonkey.org.uk>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, kernel-team <kernel-team@fb.com>
+To: Zhen Lei <thunder.leizhen@huawei.com>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Zefan Li <lizefan@huawei.com>, Xinwei Hu <huxinwei@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
 
-On Wed, Oct 26, 2016 at 11:18:52AM -0700, Linus Torvalds wrote:
-> On Mon, Oct 24, 2016 at 11:47 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> >
-> > How about this instead: given that we already mark the shadow entries
-> > exceptional, and the exceptional bit is part of the radix tree API,
-> > can we just introduce a node->exceptional counter for those entries
-> > and have the radix tree code assist us with that instead? It adds the
-> > counting for non-shadow exceptional entries as well (shmem swap slots,
-> > and DAX non-page entries), unfortunately, but this is way cleaner. It
-> > also makes mapping->nrexceptional and node->exceptional consistent in
-> > DAX (Jan, could you please double check the accounting there?)
-> >
-> > What do you think? Lightly tested patch below.
+On Tue, Oct 25, 2016 at 10:59:18AM +0800, Zhen Lei wrote:
+> Some numa nodes may have no memory. For example:
+> 1) a node has no memory bank plugged.
+> 2) a node has no memory bank slots.
 > 
-> This certainly looks way better to me. I didn't *test* it, but it
-> doesn't make me scratch my head the way your previous patch did.
+> To ensure percpu variable areas and numa control blocks of the
+> memoryless numa nodes to be allocated from the nearest available node to
+> improve performance, defined node_distance_ready. And make its value to be
+> true immediately after node distances have been initialized.
+> 
+> Signed-off-by: Zhen Lei <thunder.leizhen@huawei.com>
+> ---
+>  arch/arm64/Kconfig            | 4 ++++
+>  arch/arm64/include/asm/numa.h | 3 +++
+>  arch/arm64/mm/numa.c          | 6 +++++-
+>  3 files changed, 12 insertions(+), 1 deletion(-)
+> 
+> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+> index 30398db..648dd13 100644
+> --- a/arch/arm64/Kconfig
+> +++ b/arch/arm64/Kconfig
+> @@ -609,6 +609,10 @@ config NEED_PER_CPU_EMBED_FIRST_CHUNK
+>  	def_bool y
+>  	depends on NUMA
+> 
+> +config HAVE_MEMORYLESS_NODES
+> +	def_bool y
+> +	depends on NUMA
 
-Awesome, thanks. I'll continue to beat on this for a while and then
-send it on to Andrew.
+Given that patch 1 and the associated node_distance_ready stuff is all
+an unqualified performance optimisation, is there any merit in just
+enabling HAVE_MEMORYLESS_NODES in Kconfig and then optimising things as
+a separate series when you have numbers to back it up?
+
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
