@@ -1,67 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 594A56B0275
-	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 19:07:30 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id b80so20350198wme.5
-        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 16:07:30 -0700 (PDT)
-Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
-        by mx.google.com with ESMTPS id fc4si5198959wjd.5.2016.10.26.16.07.28
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Oct 2016 16:07:29 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id 85AAD1C1812
-	for <linux-mm@kvack.org>; Thu, 27 Oct 2016 00:07:28 +0100 (IST)
-Date: Thu, 27 Oct 2016 00:07:26 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B9CBB6B0275
+	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 19:14:02 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id 2so19824174wmj.0
+        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 16:14:02 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
+        by mx.google.com with ESMTP id 15si9594996wml.101.2016.10.26.16.14.01
+        for <linux-mm@kvack.org>;
+        Wed, 26 Oct 2016 16:14:01 -0700 (PDT)
+Date: Thu, 27 Oct 2016 01:13:58 +0200
+From: Borislav Petkov <bp@alien8.de>
 Subject: Re: CONFIG_VMAP_STACK, on-stack struct, and wake_up_bit
-Message-ID: <20161026230726.GF2699@techsingularity.net>
+Message-ID: <20161026231358.36jysz2wycdf4anf@pd.tnic>
 References: <CAHc6FU4e5sueLi7pfeXnSbuuvnc5PaU3xo5Hnn=SvzmQ+ZOEeg@mail.gmail.com>
  <CALCETrUt+4ojyscJT1AFN5Zt3mKY0rrxcXMBOUUJzzLMWXFXHg@mail.gmail.com>
  <CA+55aFzB2C0aktFZW3GquJF6dhM1904aDPrv4vdQ8=+mWO7jcg@mail.gmail.com>
  <CA+55aFww1iLuuhHw=iYF8xjfjGj8L+3oh33xxUHjnKKnsR-oHg@mail.gmail.com>
- <20161026203158.GD2699@techsingularity.net>
- <CA+55aFy21NqcYTeLVVz4x4kfQ7A+o4HEv7srone6ppKAjCwn7g@mail.gmail.com>
- <20161026220339.GE2699@techsingularity.net>
- <CA+55aFwgZ6rUL2-KD7A38xEkALJcvk8foT2TBjLrvy8caj7k9w@mail.gmail.com>
+ <CA+55aFyRv0YttbLUYwDem=-L5ZAET026umh6LOUQ6hWaRur_VA@mail.gmail.com>
+ <996124132.13035408.1477505043741.JavaMail.zimbra@redhat.com>
+ <CA+55aFzVmppmua4U0pesp2moz7vVPbH1NP264EKeW3YqOzFc3A@mail.gmail.com>
+ <1731570270.13088320.1477515684152.JavaMail.zimbra@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <CA+55aFwgZ6rUL2-KD7A38xEkALJcvk8foT2TBjLrvy8caj7k9w@mail.gmail.com>
+In-Reply-To: <1731570270.13088320.1477515684152.JavaMail.zimbra@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andy Lutomirski <luto@amacapital.net>, Andreas Gruenbacher <agruenba@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Bob Peterson <rpeterso@redhat.com>, Steven Whitehouse <swhiteho@redhat.com>, linux-mm <linux-mm@kvack.org>
+To: Bob Peterson <rpeterso@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Andreas Gruenbacher <agruenba@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Steven Whitehouse <swhiteho@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>
 
-On Wed, Oct 26, 2016 at 03:09:41PM -0700, Linus Torvalds wrote:
-> On Wed, Oct 26, 2016 at 3:03 PM, Mel Gorman <mgorman@techsingularity.net> wrote:
-> >
-> > To be clear, are you referring to PeterZ's patch that avoids the lookup? If
-> > so, I see your point.
-> 
-> Yup, that's the one. I think you tested it. In fact, I'm sure you did,
-> because I remember seeing performance numbers from  you ;)
-> 
+On Wed, Oct 26, 2016 at 05:01:24PM -0400, Bob Peterson wrote:
+> Hm. It didn't even boot, at least on my amd box in the lab.
+> I've made no attempt to debug this.
 
-Yeah and the figures were fine. IIRC, 32-bit support was the main thing
-that was missing but who cares, 32-bit is not going to have the NUMA issues
-in any way that matters.
+Btw, can you send me your .config so that I can try to reproduce?
 
-> So yes, I'd expect my patch on its own to quite possibly regress on
-> NUMA systems (although I wonder how much),
+I'm assuming you're booting latest Linus' tree on it?
 
-I doubt it's a lot. Even if it does, it's doesn't matter because it's a
-functional fix.
+I'd need to take care of this for 4.9.
 
-> but I consider PeterZ's
-> patch the fix to that, so I wouldn't worry about it.
-> 
-
-Agreed. Peter, do you plan to finish that patch?
+Thanks.
 
 -- 
-Mel Gorman
-SUSE Labs
+Regards/Gruss,
+    Boris.
+
+ECO tip #101: Trim your mails when you reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
