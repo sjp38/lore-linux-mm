@@ -1,54 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D54796B0278
-	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 14:10:54 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id p136so4510487oic.2
-        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 11:10:54 -0700 (PDT)
-Received: from mail-oi0-x233.google.com (mail-oi0-x233.google.com. [2607:f8b0:4003:c06::233])
-        by mx.google.com with ESMTPS id p133si2495737oih.262.2016.10.26.11.10.54
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 091216B027B
+	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 14:11:21 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id c84so597268pfb.1
+        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 11:11:21 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id y66si4017818pgb.94.2016.10.26.11.11.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Oct 2016 11:10:54 -0700 (PDT)
-Received: by mail-oi0-x233.google.com with SMTP id y2so3718531oie.0
-        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 11:10:54 -0700 (PDT)
+        Wed, 26 Oct 2016 11:11:20 -0700 (PDT)
+Subject: Re: [RESEND PATCH v3 kernel 0/7] Extend virtio-balloon for fast
+ (de)inflating & fast live migration
+References: <1477031080-12616-1-git-send-email-liang.z.li@intel.com>
+ <580A4F81.60201@intel.com>
+ <F2CBF3009FA73547804AE4C663CAB28E3A0FD034@shsmsx102.ccr.corp.intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <5810F1C7.4060807@intel.com>
+Date: Wed, 26 Oct 2016 11:11:19 -0700
 MIME-Version: 1.0
-In-Reply-To: <996124132.13035408.1477505043741.JavaMail.zimbra@redhat.com>
-References: <CAHc6FU4e5sueLi7pfeXnSbuuvnc5PaU3xo5Hnn=SvzmQ+ZOEeg@mail.gmail.com>
- <CALCETrUt+4ojyscJT1AFN5Zt3mKY0rrxcXMBOUUJzzLMWXFXHg@mail.gmail.com>
- <CA+55aFzB2C0aktFZW3GquJF6dhM1904aDPrv4vdQ8=+mWO7jcg@mail.gmail.com>
- <CA+55aFww1iLuuhHw=iYF8xjfjGj8L+3oh33xxUHjnKKnsR-oHg@mail.gmail.com>
- <CA+55aFyRv0YttbLUYwDem=-L5ZAET026umh6LOUQ6hWaRur_VA@mail.gmail.com> <996124132.13035408.1477505043741.JavaMail.zimbra@redhat.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 26 Oct 2016 11:10:53 -0700
-Message-ID: <CA+55aFzVmppmua4U0pesp2moz7vVPbH1NP264EKeW3YqOzFc3A@mail.gmail.com>
-Subject: Re: CONFIG_VMAP_STACK, on-stack struct, and wake_up_bit
-Content-Type: text/plain; charset=UTF-8
+In-Reply-To: <F2CBF3009FA73547804AE4C663CAB28E3A0FD034@shsmsx102.ccr.corp.intel.com>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Peterson <rpeterso@redhat.com>
-Cc: Andy Lutomirski <luto@amacapital.net>, Andreas Gruenbacher <agruenba@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Steven Whitehouse <swhiteho@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>
+To: "Li, Liang Z" <liang.z.li@intel.com>, "mst@redhat.com" <mst@redhat.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "quintela@redhat.com" <quintela@redhat.com>, "dgilbert@redhat.com" <dgilbert@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>
 
-On Wed, Oct 26, 2016 at 11:04 AM, Bob Peterson <rpeterso@redhat.com> wrote:
->
-> I can test it for you, if you give me about an hour.
+On 10/26/2016 03:06 AM, Li, Liang Z wrote:
+> I am working on Dave's new bitmap schema, I have finished the part of
+> getting the 'hybrid scheme bitmap' and found the complexity was more
+> than I expected. The main issue is more memory is required to save
+> the 'hybrid scheme bitmap' beside that used to save the raw page
+> bitmap, for the worst case, the memory required is 3 times than that
+> in the previous implementation.
 
-I can definitely wait an hour, it would be lovely to see more testing.
-Especially if you have a NUMA machine and an interesting workload.
+Really?  Could you please describe the scenario where this occurs?
 
-And if you actually have that NUMA machine and a load that shows the
-page_waietutu effects, it would also be lovely if you can then
-_additionally_ test the patch that PeterZ wrote a few weeks ago, it
-was on the mm list about a month ago:
+> I am wondering if I should continue, as an alternative solution, how about using PFNs array when
+> inflating/deflating only a few pages? Things will be much more
+> simple.
 
-  Date: Thu, 29 Sep 2016 15:08:27 +0200
-  From: Peter Zijlstra <peterz@infradead.org>
-  Subject: Re: page_waitqueue() considered harmful
-  Message-ID: <20160929130827.GX5016@twins.programming.kicks-ass.net>
+Yes, using pfn lists is more efficient than using bitmaps for sparse
+bitmaps.  Yes, there will be cases where it is preferable to just use
+pfn lists vs. any kind of bitmap.
 
-and if you don't find it I can forward it to you (Peter had a few
-versions, that latest one is the one that looked best).
+But, what does it matter?  At least with your current scheme where we go
+out and collect get_unused_pages(), we do the allocation up front.  The
+space efficiency doesn't matter at all for small sizes since we do the
+constant-size allocation *anyway*.
 
-                Linus
+I'm also pretty sure you can pack the pfn and page order into a single
+64-bit word and have no bitmap for a given record.  That would make it
+pack just as well as the old pfns alone.  Right?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
