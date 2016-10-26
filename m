@@ -1,46 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3769E6B027A
-	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 09:10:46 -0400 (EDT)
-Received: by mail-it0-f70.google.com with SMTP id h129so18902466ith.12
-        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 06:10:46 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id o195si2407593ioe.62.2016.10.26.06.10.45
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DB36E6B0276
+	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 09:39:07 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id f78so29233128oih.7
+        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 06:39:07 -0700 (PDT)
+Received: from mail-oi0-x233.google.com (mail-oi0-x233.google.com. [2607:f8b0:4003:c06::233])
+        by mx.google.com with ESMTPS id x9si1491768otx.18.2016.10.26.06.39.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Oct 2016 06:10:45 -0700 (PDT)
-Date: Wed, 26 Oct 2016 15:10:49 +0200
-From: Greg KH <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH stable 4.4 2/4] mm: filemap: don't plant shadow entries
- without radix tree node
-Message-ID: <20161026131049.GA7657@kroah.com>
-References: <20161025075148.31661-1-mhocko@kernel.org>
- <20161025075148.31661-3-mhocko@kernel.org>
- <20161026124553.GA25683@dhcp22.suse.cz>
- <20161026124753.GG18382@dhcp22.suse.cz>
+        Wed, 26 Oct 2016 06:39:06 -0700 (PDT)
+Received: by mail-oi0-x233.google.com with SMTP id a195so1612576oib.1
+        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 06:39:06 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20161026124753.GG18382@dhcp22.suse.cz>
+In-Reply-To: <a5418089-2615-8c04-aca8-50ceb43978f1@mellanox.com>
+References: <1476826937-20665-1-git-send-email-sbates@raithlin.com>
+ <CAPcyv4gJ_c-6s2BUjsu6okR1EF53R+KNuXnOc5jv0fuwJaa3cQ@mail.gmail.com> <a5418089-2615-8c04-aca8-50ceb43978f1@mellanox.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 26 Oct 2016 06:39:05 -0700
+Message-ID: <CAPcyv4h9Ubgiv1B8FPqes-zUXMckzfEi6uqtfc4GrLc_8BeSLg@mail.gmail.com>
+Subject: Re: [PATCH 0/3] iopmem : A block device for PCIe memory
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Stable tree <stable@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>
+To: Haggai Eran <haggaie@mellanox.com>
+Cc: Stephen Bates <sbates@raithlin.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-rdma@vger.kernel.org, linux-block@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Christoph Hellwig <hch@infradead.org>, Jens Axboe <axboe@fb.com>, Jonathan Corbet <corbet@lwn.net>, jim.macdonald@everspin.com, sbates@raithin.com, Logan Gunthorpe <logang@deltatee.com>, David Woodhouse <dwmw2@infradead.org>, "Raj, Ashok" <ashok.raj@intel.com>
 
-On Wed, Oct 26, 2016 at 02:47:53PM +0200, Michal Hocko wrote:
-> On Wed 26-10-16 14:45:53, Michal Hocko wrote:
-> > Greg,
-> > I do not see this one in the 4.4 queue you have just sent today.
-> 
-> Scratch that. I can see it now on lkml. I just wasn't on the CC so it
-> hasn't shown up in my inbox.
+On Wed, Oct 26, 2016 at 1:24 AM, Haggai Eran <haggaie@mellanox.com> wrote:
+[..]
+>> I wonder if we could (ab)use a
+>> software-defined 'pasid' as the requester id for a peer-to-peer
+>> mapping that needs address translation.
+> Why would you need that? Isn't it enough to map the peer-to-peer
+> addresses correctly in the iommu driver?
+>
 
-Sorry about that, I had applied it earlier in the sequence due to it
-being part of the "normal" stable request process.
+You're right, we might already have enough...
 
-thanks,
-
-greg k-h
+We would just need to audit iommu drivers to undo any assumptions that
+the page being mapped is always in host memory and apply any bus
+address translations between source device and target device.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
