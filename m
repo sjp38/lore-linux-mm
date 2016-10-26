@@ -1,115 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 50FBA6B0275
-	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 17:26:59 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id f78so16299853oih.7
-        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 14:26:59 -0700 (PDT)
-Received: from mail-oi0-x243.google.com (mail-oi0-x243.google.com. [2607:f8b0:4003:c06::243])
-        by mx.google.com with ESMTPS id a38si2885334oic.175.2016.10.26.14.26.58
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 65BC56B0275
+	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 17:30:51 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id f78so16569964oih.7
+        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 14:30:51 -0700 (PDT)
+Received: from mail-oi0-x234.google.com (mail-oi0-x234.google.com. [2607:f8b0:4003:c06::234])
+        by mx.google.com with ESMTPS id g41si2720069otc.179.2016.10.26.14.30.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Oct 2016 14:26:58 -0700 (PDT)
-Received: by mail-oi0-x243.google.com with SMTP id i127so1174576oia.0
-        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 14:26:58 -0700 (PDT)
+        Wed, 26 Oct 2016 14:30:50 -0700 (PDT)
+Received: by mail-oi0-x234.google.com with SMTP id y2so12992647oie.0
+        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 14:30:50 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20161026203158.GD2699@techsingularity.net>
+In-Reply-To: <1731570270.13088320.1477515684152.JavaMail.zimbra@redhat.com>
 References: <CAHc6FU4e5sueLi7pfeXnSbuuvnc5PaU3xo5Hnn=SvzmQ+ZOEeg@mail.gmail.com>
  <CALCETrUt+4ojyscJT1AFN5Zt3mKY0rrxcXMBOUUJzzLMWXFXHg@mail.gmail.com>
  <CA+55aFzB2C0aktFZW3GquJF6dhM1904aDPrv4vdQ8=+mWO7jcg@mail.gmail.com>
- <CA+55aFww1iLuuhHw=iYF8xjfjGj8L+3oh33xxUHjnKKnsR-oHg@mail.gmail.com> <20161026203158.GD2699@techsingularity.net>
+ <CA+55aFww1iLuuhHw=iYF8xjfjGj8L+3oh33xxUHjnKKnsR-oHg@mail.gmail.com>
+ <CA+55aFyRv0YttbLUYwDem=-L5ZAET026umh6LOUQ6hWaRur_VA@mail.gmail.com>
+ <996124132.13035408.1477505043741.JavaMail.zimbra@redhat.com>
+ <CA+55aFzVmppmua4U0pesp2moz7vVPbH1NP264EKeW3YqOzFc3A@mail.gmail.com> <1731570270.13088320.1477515684152.JavaMail.zimbra@redhat.com>
 From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 26 Oct 2016 14:26:57 -0700
-Message-ID: <CA+55aFy21NqcYTeLVVz4x4kfQ7A+o4HEv7srone6ppKAjCwn7g@mail.gmail.com>
+Date: Wed, 26 Oct 2016 14:30:49 -0700
+Message-ID: <CA+55aFxfb-kY40P4HgYnhehx--TuwV7K7C4J4jdx9nan7u0s1A@mail.gmail.com>
 Subject: Re: CONFIG_VMAP_STACK, on-stack struct, and wake_up_bit
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andy Lutomirski <luto@amacapital.net>, Andreas Gruenbacher <agruenba@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Bob Peterson <rpeterso@redhat.com>, Steven Whitehouse <swhiteho@redhat.com>, linux-mm <linux-mm@kvack.org>
+To: Bob Peterson <rpeterso@redhat.com>, Borislav Petkov <bp@suse.de>
+Cc: Andy Lutomirski <luto@amacapital.net>, Andreas Gruenbacher <agruenba@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Steven Whitehouse <swhiteho@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>
 
-On Wed, Oct 26, 2016 at 1:31 PM, Mel Gorman <mgorman@techsingularity.net> wrote:
+On Wed, Oct 26, 2016 at 2:01 PM, Bob Peterson <rpeterso@redhat.com> wrote:
 >
-> IO wait activity is not all that matters. We hit the lock/unlock paths
-> during a lot of operations like reclaim.
+> Hm. It didn't even boot, at least on my amd box in the lab.
+> I've made no attempt to debug this.
 
-I doubt we do.
+Hmm. Looks like a completely independent issue from the patch. Did you
+try booting that machine without the patch?
 
-Yes, we hit the lock/unlock itself, but do we hit the *contention*?
+> [    2.378877] kernel BUG at arch/x86/mm/physaddr.c:26!
 
-The current code is nasty, and always ends up touching the wait-queue
-regardless of whether it needs to or not, but we have a fix for that.
+Ok, similar issue, I think - passing a non-1:1 address to __phys_addr().
 
-With that fixed, do we actually get contention on a per-page basis?
-Because without contention, we'd never actually look up the wait-queue
-at all.
+But the call trace has nothing to do with gfs2 or the bitlocks:
 
-I suspect that without IO, it's really really hard to actually get
-that contention, because things like reclaim end up looking at the LRU
-queue etc wioth their own locking, so it should look at various
-individual pages one at a time, not have multiple queues look at the
-same page.
+> [    2.504561] Call Trace:
+> [    2.507005]   save_microcode_in_initrd_amd+0x31/0x106
+> [    2.513778]   save_microcode_in_initrd+0x3c/0x45
+> [    2.526110]   do_one_initcall+0x50/0x180
+> [    2.531756]   ? set_debug_rodata+0x12/0x12
+> [    2.537573]   kernel_init_freeable+0x194/0x230
+> [    2.543740]   ? rest_init+0x80/0x80
+> [    2.548952]   kernel_init+0xe/0x100
+> [    2.554164]   ret_from_fork+0x25/0x30
 
->> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
->> index 7f2ae99e5daf..0f088f3a2fed 100644
->> --- a/include/linux/mmzone.h
->> +++ b/include/linux/mmzone.h
->> @@ -440,33 +440,7 @@ struct zone {
->> +     int initialized;
->>
->>       /* Write-intensive fields used from the page allocator */
->>       ZONE_PADDING(_pad1_)
->
-> zone_is_initialized is mostly the domain of hotplug. A potential cleanup
-> is to use a page flag and shrink the size of zone slightly. Nothing to
-> panic over.
+I think this might be the
 
-I really did that to make it very obvious that there was no semantic
-change. I just set the "initialized" flag in the same place where it
-used to initialize the wait_table, so that this:
+        cont    = __pa(container);
 
->>  static inline bool zone_is_initialized(struct zone *zone)
->>  {
->> -     return !!zone->wait_table;
->> +     return zone->initialized;
->>  }
+line in save_microcode_in_initrd_amd().
 
-ends up being obviously equivalent.
+I see that Borislav is busy with some x86/microcode patches, I suspect
+he already hit this. Adding Borislav to the cc.
 
-Admittedly I didn't clear it when the code cleared the wait_table
-pointer, because that _seemed_ a non-issue - the zone will remain
-initialized until it can't be reached any more, so there didn't seem
-to be an actual problem there.
+Can you re-try without the AMD microcode driver for now? This seems to
+be a separate issue from the gfs2 one.
 
->> +#define WAIT_TABLE_BITS 8
->> +#define WAIT_TABLE_SIZE (1 << WAIT_TABLE_BITS)
->> +static wait_queue_head_t bit_wait_table[WAIT_TABLE_SIZE] __cacheline_aligned;
->> +
->> +wait_queue_head_t *bit_waitqueue(void *word, int bit)
->> +{
->> +     const int shift = BITS_PER_LONG == 32 ? 5 : 6;
->> +     unsigned long val = (unsigned long)word << shift | bit;
->> +
->> +     return bit_wait_table + hash_long(val, WAIT_TABLE_BITS);
->> +}
->> +EXPORT_SYMBOL(bit_waitqueue);
->> +
->
-> Minor nit that it's unfortunate this moved to the scheduler core. It
-> wouldn't have been a complete disaster to add a page_waitqueue_init() or
-> something similar after sched_init.
-
-I considered that, but decided that "minimal patch" was better. Plus,
-with that bit_waitqueue() actually also being used for the page
-locking queues (which act _kind of_ but not quite, like a bitlock),
-the bit_wait_table is actually more core than just the bit-wait code.
-
-In fact, I considered just renaming it to "hashed_wait_queue", because
-that's effectively how we use it now, rather than being particularly
-specific to the bit-waiting. But again, that would have made the patch
-bigger, which I wanted to avoid since this is a post-rc2 thing due to
-the gfs2 breakage.
-
-            Linus
+               Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
