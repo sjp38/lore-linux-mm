@@ -1,40 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C855B6B0274
-	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 05:34:11 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id k62so2211425qkl.15
-        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 02:34:11 -0700 (PDT)
-Received: from out2-smtp.messagingengine.com (out2-smtp.messagingengine.com. [66.111.4.26])
-        by mx.google.com with ESMTPS id m76si760865qkh.259.2016.10.26.02.34.11
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 94F8E6B0274
+	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 05:39:17 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id l124so2021071wml.4
+        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 02:39:17 -0700 (PDT)
+Received: from mail-wm0-x234.google.com (mail-wm0-x234.google.com. [2a00:1450:400c:c09::234])
+        by mx.google.com with ESMTPS id lz10si1405860wjb.276.2016.10.26.02.39.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Oct 2016 02:34:11 -0700 (PDT)
-Date: Wed, 26 Oct 2016 11:34:19 +0200
-From: Greg KH <greg@kroah.com>
-Subject: Re: [PATCH stable 4.4 0/4] mm: workingset backports
-Message-ID: <20161026093419.GA4974@kroah.com>
-References: <20161025075148.31661-1-mhocko@kernel.org>
+        Wed, 26 Oct 2016 02:39:16 -0700 (PDT)
+Received: by mail-wm0-x234.google.com with SMTP id d128so75185850wmf.1
+        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 02:39:16 -0700 (PDT)
+Date: Wed, 26 Oct 2016 10:39:13 +0100
+From: Lorenzo Stoakes <lstoakes@gmail.com>
+Subject: Re: [PATCH] mm: remove unnecessary __get_user_pages_unlocked() calls
+Message-ID: <20161026093913.GA12814@lucifer>
+References: <20161025233609.5601-1-lstoakes@gmail.com>
+ <20161025234631.GA5946@lucifer>
+ <20161026091542.GD18382@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20161025075148.31661-1-mhocko@kernel.org>
+In-Reply-To: <20161026091542.GD18382@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Stable tree <stable@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Antonio SJ Musumeci <trapexit@spawn.link>, Jan Kara <jack@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Miklos Szeredi <miklos@szeredi.hu>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Oct 25, 2016 at 09:51:44AM +0200, Michal Hocko wrote:
-> Hi,
-> here is the backport of (hopefully) all workingset related fixes for
-> 4.4 kernel. The series has been reviewed by Johannes [1]. The main
-> motivation for the backport is 22f2ac51b6d6 ("mm: workingset: fix crash
-> in shadow node shrinker caused by replace_page_cache_page()") which is
-> a fix for a triggered BUG_ON. This is not sufficient because there are
-> follow up fixes which were introduced later.
+On Wed, Oct 26, 2016 at 11:15:43AM +0200, Michal Hocko wrote:
+> On Wed 26-10-16 00:46:31, Lorenzo Stoakes wrote:
+> > The holdout for unexporting __get_user_pages_unlocked() is its invocation in
+> > mm/process_vm_access.c: process_vm_rw_single_vec(), as this definitely _does_
+> > seem to invoke VM_FAULT_RETRY behaviour which get_user_pages_remote() will not
+> > trigger if we were to replace it with the latter.
+>
+> I am not sure I understand. Prior to 1e9877902dc7e this used
+> get_user_pages_unlocked. What prevents us from reintroducing it with
+> FOLL_REMOVE which was meant to be added by the above commit?
+>
+> Or am I missing your point?
 
-Thanks for these, all now queued up.
+The issue isn't the flags being passed, rather that in this case:
 
-greg k-h
+a. Replacing __get_user_pages_unlocked() with get_user_pages_unlocked() won't
+   work as the latter assumes task = current and mm = current->mm but
+   process_vm_rw_single_vec() needs to pass different task, mm.
+
+b. Moving to get_user_pages_remote() _will_ allow us to pass different task, mm
+   but won't however match existing behaviour precisely, since
+   __get_user_pages_unlocked() acquires mmap_sem then passes a pointer to a
+   local 'locked' variable to __get_user_pages_locked() which allows
+   VM_FAULT_RETRY to trigger.
+
+The main issue I had here was not being sure whether we care about the
+VM_FAULT_RETRY functionality being used here or not, if we don't care then we
+can just move to get_user_pages_remote(), otherwise perhaps this should be left
+alone or maybe we need to consider adjusting the API to allow for remote access
+with VM_FAULT_RETRY functionality.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
