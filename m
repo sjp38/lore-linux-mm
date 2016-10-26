@@ -1,64 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 491806B0274
-	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 06:53:02 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id c84so4733471pfb.1
-        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 03:53:02 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id qj8si1629655pac.114.2016.10.26.03.53.00
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 599556B0274
+	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 07:09:31 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id i85so150540767pfa.5
+        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 04:09:31 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id s6si1699653pax.104.2016.10.26.04.09.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Oct 2016 03:53:01 -0700 (PDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH v4 4/5] mm: make processing of movable_node arch-specific
-In-Reply-To: <20161026004929.h6v54dhehk4yvmwm@arbab-vm>
-References: <1475778995-1420-1-git-send-email-arbab@linux.vnet.ibm.com> <1475778995-1420-5-git-send-email-arbab@linux.vnet.ibm.com> <235f2d20-cf84-08df-1fb4-08ee258fdc52@gmail.com> <dcfc8ace-e59e-6b4b-0f2f-4eff9f08f3c1@gmail.com> <20161025155507.37kv5akdlgo6m2be@arbab-laptop.austin.ibm.com> <112504e9-561d-e0da-7a40-73996c678b56@gmail.com> <20161026004929.h6v54dhehk4yvmwm@arbab-vm>
-Date: Wed, 26 Oct 2016 21:52:53 +1100
-Message-ID: <87vawfwfei.fsf@concordia.ellerman.id.au>
+        Wed, 26 Oct 2016 04:09:30 -0700 (PDT)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id u9QB92GJ076511
+	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 07:09:29 -0400
+Received: from e34.co.us.ibm.com (e34.co.us.ibm.com [32.97.110.152])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 26aqjw3u6u-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 07:09:29 -0400
+Received: from localhost
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 26 Oct 2016 05:09:28 -0600
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [RFC 0/8] Define coherent device memory node
+In-Reply-To: <20161025151637.GA6072@gmail.com>
+References: <1477283517-2504-1-git-send-email-khandual@linux.vnet.ibm.com> <20161024170902.GA5521@gmail.com> <87a8dtawas.fsf@linux.vnet.ibm.com> <20161025151637.GA6072@gmail.com>
+Date: Wed, 26 Oct 2016 16:39:19 +0530
 MIME-Version: 1.0
 Content-Type: text/plain
+Message-Id: <87y41bcqow.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Reza Arbab <arbab@linux.vnet.ibm.com>, Balbir Singh <bsingharora@gmail.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Rob Herring <robh+dt@kernel.org>, Frank Rowand <frowand.list@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Bharata B Rao <bharata@linux.vnet.ibm.com>, Nathan Fontenot <nfont@linux.vnet.ibm.com>, Stewart Smith <stewart@linux.vnet.ibm.com>, Alistair Popple <apopple@au1.ibm.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Tang Chen <tangchen@cn.fujitsu.com>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, devicetree@vger.kernel.org, linux-mm@kvack.org
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, js1304@gmail.com, vbabka@suse.cz, mgorman@suse.de, minchan@kernel.org, akpm@linux-foundation.org, bsingharora@gmail.com
 
-Reza Arbab <arbab@linux.vnet.ibm.com> writes:
+Jerome Glisse <j.glisse@gmail.com> writes:
 
-> On Wed, Oct 26, 2016 at 09:34:18AM +1100, Balbir Singh wrote:
->>I still believe we need your changes, I was wondering if we've tested
->>it against normal memory nodes and checked if any memblock
->>allocations end up there. Michael showed me some memblock
->>allocations on node 1 of a two node machine with movable_node
+> On Tue, Oct 25, 2016 at 09:56:35AM +0530, Aneesh Kumar K.V wrote:
+>> Jerome Glisse <j.glisse@gmail.com> writes:
+>> 
+>> > On Mon, Oct 24, 2016 at 10:01:49AM +0530, Anshuman Khandual wrote:
+>> >
+>> I looked at the hmm-v13 w.r.t migration and I guess some form of device
+>> callback/acceleration during migration is something we should definitely
+>> have. I still haven't figured out how non addressable and coherent device
+>> memory can fit together there. I was waiting for the page cache
+>> migration support to be pushed to the repository before I start looking
+>> at this closely.
+>> 
 >
-> The movable_node option is x86-only. Both of those nodes contain normal 
-> memory, so allocations on both are allowed.
+> The page cache migration does not touch the migrate code path. My issue with
+> page cache is writeback. The only difference with existing migrate code is
+> refcount check for ZONE_DEVICE page. Everything else is the same.
+
+What about the radix tree ? does file system migrate_page callback handle
+replacing normal page with ZONE_DEVICE page/exceptional entries ?
+
 >
->>> Longer; if you use "movable_node", x86 can identify these nodes at 
->>> boot. They call memblock_mark_hotplug() while parsing the SRAT. Then, 
->>> when the zones are initialized, those markings are used to determine 
->>> ZONE_MOVABLE.
->>>
->>> We have no analog of this SRAT information, so our movable nodes can 
->>> only be created post boot, by hotplugging and explicitly onlining 
->>> with online_movable.
->>
->>Is this true for all of system memory as well or only for nodes
->>hotplugged later?
+> For writeback i need to use a bounce page so basicly i am trying to hook myself
+> along the ISA bounce infrastructure for bio and i think it is the easiest path
+> to solve this in my case.
 >
-> As far as I know, power has nothing like the SRAT that tells us, at 
-> boot, which memory is hotpluggable.
+> In your case where block device can also access the device memory you don't
+> even need to use bounce page for writeback.
+>
 
-On pseries we have the ibm,dynamic-memory device tree property, which
-can contain ranges of memory that are not yet "assigned to the
-partition" - ie. can be hotplugged later.
-
-So in general that statement is not true.
-
-But I think you're focused on bare-metal, in which case you might be
-right. But that doesn't mean we couldn't have a similar property, if
-skiboot/hostboot knew what the ranges of memory were going to be.
-
-cheers
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
