@@ -1,217 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 41A726B0273
-	for <linux-mm@kvack.org>; Tue, 25 Oct 2016 23:14:20 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id d185so62785380oig.1
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 20:14:20 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id t197si10342925oie.275.2016.10.25.20.14.17
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BBE7B6B0274
+	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 00:14:16 -0400 (EDT)
+Received: by mail-it0-f69.google.com with SMTP id t132so5692360itb.11
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 21:14:16 -0700 (PDT)
+Received: from mail-it0-x229.google.com (mail-it0-x229.google.com. [2607:f8b0:4001:c0b::229])
+        by mx.google.com with ESMTPS id h134si763053iof.237.2016.10.25.21.14.16
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 25 Oct 2016 20:14:19 -0700 (PDT)
-Subject: Re: [PATCH 1/2] mm/memblock: prepare a capability to support memblock
- near alloc
-References: <1477364358-10620-1-git-send-email-thunder.leizhen@huawei.com>
- <1477364358-10620-2-git-send-email-thunder.leizhen@huawei.com>
- <20161025132338.GA31239@dhcp22.suse.cz>
-From: "Leizhen (ThunderTown)" <thunder.leizhen@huawei.com>
-Message-ID: <58101EB4.2080305@huawei.com>
-Date: Wed, 26 Oct 2016 11:10:44 +0800
-MIME-Version: 1.0
-In-Reply-To: <20161025132338.GA31239@dhcp22.suse.cz>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 25 Oct 2016 21:14:16 -0700 (PDT)
+Received: by mail-it0-x229.google.com with SMTP id m138so7256169itm.1
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 21:14:16 -0700 (PDT)
+Subject: Re: [PATCHv4 18/43] block: define BIO_MAX_PAGES to HPAGE_PMD_NR if huge page cache enabled
+Mime-Version: 1.0 (Mac OS X Mail 9.3 \(3124\))
+Content-Type: multipart/signed; boundary="Apple-Mail=_5A8DFCBE-21B1-4B71-A2A9-6CB060976717"; protocol="application/pgp-signature"; micalg=pgp-sha256
+From: Andreas Dilger <adilger@dilger.ca>
+In-Reply-To: <20161025125431.GA22787@node.shutemov.name>
+Date: Tue, 25 Oct 2016 22:13:13 -0600
+Message-Id: <BD27B76A-AF34-48B9-8D4F-F69AD2C17C66@dilger.ca>
+References: <20161025001342.76126-1-kirill.shutemov@linux.intel.com> <20161025001342.76126-19-kirill.shutemov@linux.intel.com> <20161025072122.GA21708@infradead.org> <20161025125431.GA22787@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Zefan Li <lizefan@huawei.com>, Xinwei Hu <huxinwei@huawei.com>, Hanjun Guo <guohanjun@huawei.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Christoph Hellwig <hch@infradead.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org
 
 
+--Apple-Mail=_5A8DFCBE-21B1-4B71-A2A9-6CB060976717
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;
+	charset=us-ascii
 
-On 2016/10/25 21:23, Michal Hocko wrote:
-> On Tue 25-10-16 10:59:17, Zhen Lei wrote:
->> If HAVE_MEMORYLESS_NODES is selected, and some memoryless numa nodes are
->> actually exist. The percpu variable areas and numa control blocks of that
->> memoryless numa nodes need to be allocated from the nearest available
->> node to improve performance.
->>
->> Although memblock_alloc_try_nid and memblock_virt_alloc_try_nid try the
->> specified nid at the first time, but if that allocation failed it will
->> directly drop to use NUMA_NO_NODE. This mean any nodes maybe possible at
->> the second time.
->>
->> To compatible the above old scene, I use a marco node_distance_ready to
->> control it. By default, the marco node_distance_ready is not defined in
->> any platforms, the above mentioned functions will work as normal as
->> before. Otherwise, they will try the nearest node first.
+On Oct 25, 2016, at 6:54 AM, Kirill A. Shutemov <kirill@shutemov.name> wrote:
 > 
-> I am sorry but it is absolutely unclear to me _what_ is the motivation
-> of the patch. Is this a performance optimization, correctness issue or
-> something else? Could you please restate what is the problem, why do you
-> think it has to be fixed at memblock layer and describe what the actual
-> fix is please?
-This is a performance optimization. The problem is if some memoryless numa nodes are
-actually exist, for example: there are total 4 nodes, 0,1,2,3, node 1 has no memory,
-and the node distances is as below:
-                    ---------board-------
-		    |                   |
-                    |                   |
-                 socket0             socket1
-                   / \                 / \
-                  /   \               /   \
-               node0 node1         node2 node3
-distance[1][0] is nearer than distance[1][2] and distance[1][3]. CPUs on node1 access
-the memory of node0 is faster than node2 or node3.
-
-Linux defines a lot of percpu variables, each cpu has a copy of it and most of the time
-only to access their own percpu area. In this example, we hope the percpu area of CPUs
-on node1 allocated from node0. But without these patches, it's not sure that.
-
-If each node has their own memory, we can directly use below functions to allocate memory
-from its local node:
-1. memblock_alloc_nid
-2. memblock_alloc_try_nid
-3. memblock_virt_alloc_try_nid_nopanic
-4. memblock_virt_alloc_try_nid
-
-So, these patches is only used for numa memoryless scenario.
-
-Another use case is the control block "extern pg_data_t *node_data[]",
-Here is an example of x86 numa in arch/x86/mm/numa.c:
-static void __init alloc_node_data(int nid)
-{
-	... ...
-        /*
-         * Allocate node data.  Try node-local memory and then any node.	//==>But the nearest node is the best
-         * Never allocate in DMA zone.
-         */
-        nd_pa = memblock_alloc_nid(nd_size, SMP_CACHE_BYTES, nid);
-        if (!nd_pa) {
-                nd_pa = __memblock_alloc_base(nd_size, SMP_CACHE_BYTES,
-                                              MEMBLOCK_ALLOC_ACCESSIBLE);
-                if (!nd_pa) {
-                        pr_err("Cannot find %zu bytes in node %d\n",
-                               nd_size, nid);
-                        return;
-                }
-        }
-        nd = __va(nd_pa);
-        ... ...
-        node_data[nid] = nd;
-
+> On Tue, Oct 25, 2016 at 12:21:22AM -0700, Christoph Hellwig wrote:
+>> On Tue, Oct 25, 2016 at 03:13:17AM +0300, Kirill A. Shutemov wrote:
+>>> We are going to do IO a huge page a time. So we need BIO_MAX_PAGES to be
+>>> at least HPAGE_PMD_NR. For x86-64, it's 512 pages.
+>> 
+>> NAK.  The maximum bio size should not depend on an obscure vm config,
+>> please send a standalone patch increasing the size to the block list,
+>> with a much long explanation.  Also you can't simply increase the size
+>> of the largers pool, we'll probably need more pools instead, or maybe
+>> even implement a similar chaining scheme as we do for struct
+>> scatterlist.
 > 
->>From a quick glance you are trying to bend over the memblock API for
-> something that should be handled on a different layer.
+> The size of required pool depends on architecture: different architectures
+> has different (huge page size)/(base page size).
 > 
->>
->> Signed-off-by: Zhen Lei <thunder.leizhen@huawei.com>
->> ---
->>  mm/memblock.c | 76 ++++++++++++++++++++++++++++++++++++++++++++++++++---------
->>  1 file changed, 65 insertions(+), 11 deletions(-)
->>
->> diff --git a/mm/memblock.c b/mm/memblock.c
->> index 7608bc3..556bbd2 100644
->> --- a/mm/memblock.c
->> +++ b/mm/memblock.c
->> @@ -1213,9 +1213,71 @@ phys_addr_t __init memblock_alloc(phys_addr_t size, phys_addr_t align)
->>  	return memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ACCESSIBLE);
->>  }
->>
->> +#ifndef node_distance_ready
->> +#define node_distance_ready()		0
->> +#endif
->> +
->> +static phys_addr_t __init memblock_alloc_near_nid(phys_addr_t size,
->> +					phys_addr_t align, phys_addr_t start,
->> +					phys_addr_t end, int nid, ulong flags,
->> +					int alloc_func_type)
->> +{
->> +	int nnid, round = 0;
->> +	u64 pa;
->> +	DECLARE_BITMAP(nodes_map, MAX_NUMNODES);
->> +
->> +	bitmap_zero(nodes_map, MAX_NUMNODES);
->> +
->> +again:
->> +	/*
->> +	 * There are total 4 cases:
->> +	 * <nid == NUMA_NO_NODE>
->> +	 *   1)2) node_distance_ready || !node_distance_ready
->> +	 *	Round 1, nnid = nid = NUMA_NO_NODE;
->> +	 * <nid != NUMA_NO_NODE>
->> +	 *   3) !node_distance_ready
->> +	 *	Round 1, nnid = nid;
->> +	 *    ::Round 2, currently only applicable for alloc_func_type = <0>
->> +	 *	Round 2, nnid = NUMA_NO_NODE;
->> +	 *   4) node_distance_ready
->> +	 *	Round 1, LOCAL_DISTANCE, nnid = nid;
->> +	 *	Round ?, nnid = nearest nid;
->> +	 */
->> +	if (!node_distance_ready() || (nid == NUMA_NO_NODE)) {
->> +		nnid = (++round == 1) ? nid : NUMA_NO_NODE;
->> +	} else {
->> +		int i, distance = INT_MAX;
->> +
->> +		for_each_clear_bit(i, nodes_map, MAX_NUMNODES)
->> +			if (node_distance(nid, i) < distance) {
->> +				nnid = i;
->> +				distance = node_distance(nid, i);
->> +			}
->> +	}
->> +
->> +	switch (alloc_func_type) {
->> +	case 0:
->> +		pa = memblock_find_in_range_node(size, align, start, end, nnid, flags);
->> +		break;
->> +
->> +	case 1:
->> +	default:
->> +		pa = memblock_alloc_nid(size, align, nnid);
->> +		if (!node_distance_ready())
->> +			return pa;
->> +	}
->> +
->> +	if (!pa && (nnid != NUMA_NO_NODE)) {
->> +		bitmap_set(nodes_map, nnid, 1);
->> +		goto again;
->> +	}
->> +
->> +	return pa;
->> +}
->> +
->>  phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, int nid)
->>  {
->> -	phys_addr_t res = memblock_alloc_nid(size, align, nid);
->> +	phys_addr_t res = memblock_alloc_near_nid(size, align, 0, 0, nid, 0, 1);
->>
->>  	if (res)
->>  		return res;
->> @@ -1276,19 +1338,11 @@ static void * __init memblock_virt_alloc_internal(
->>  		max_addr = memblock.current_limit;
->>
->>  again:
->> -	alloc = memblock_find_in_range_node(size, align, min_addr, max_addr,
->> -					    nid, flags);
->> +	alloc = memblock_alloc_near_nid(size, align, min_addr, max_addr,
->> +					    nid, flags, 0);
->>  	if (alloc)
->>  		goto done;
->>
->> -	if (nid != NUMA_NO_NODE) {
->> -		alloc = memblock_find_in_range_node(size, align, min_addr,
->> -						    max_addr, NUMA_NO_NODE,
->> -						    flags);
->> -		if (alloc)
->> -			goto done;
->> -	}
->> -
->>  	if (min_addr) {
->>  		min_addr = 0;
->>  		goto again;
->> --
->> 2.5.0
->>
-> 
+> Would it be okay if I add one more pool with size equal to HPAGE_PMD_NR,
+> if it's bigger than than BIO_MAX_PAGES and huge pages are enabled?
+
+Why wouldn't you have all the pool sizes in between?  Definitely 1MB has
+been too small already for high-bandwidth IO.  I wouldn't mind BIOs up to
+4MB or larger since most high-end RAID hardware does best with 4MB IOs.
+
+Cheers, Andreas
+
+
+
+
+
+
+--Apple-Mail=_5A8DFCBE-21B1-4B71-A2A9-6CB060976717
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+	filename=signature.asc
+Content-Type: application/pgp-signature;
+	name=signature.asc
+Content-Description: Message signed with OpenPGP using GPGMail
+
+-----BEGIN PGP SIGNATURE-----
+Comment: GPGTools - http://gpgtools.org
+
+iQIVAwUBWBAtWnKl2rkXzB/gAQi8tA/+IKGZ0QC1GIU3Y5HRATtiqNxImtCde9PD
+IzQe3/7A+ohno8h3xarTqHJhTNLDKnd6u+ARqcbjaqxWQkDfee8QHVU5T/R5GLU/
+TWmdYeBKGYffejgBBNy1MCuU7l72gUlHiCS0+m5kY0YhMoNwarRyb5hVLJk6y1Og
+uTWwlCJV9kz+GVz/Nc+Tk83v3oJy6Zon2o19L6iP/PrcRGTqHXhbvyJ8zdbs4aDc
+MM34IBv585W961LF9VWBfCd0+cDtv/Q0Smsjv9p67xQZoWMfC9R2QzPAu5tWpawa
+Q49D7sh9LXnRcqVXgHmt/4oCUcw/f1bLZ7I8pfaT0sooIC7hcsu1XpempADDQBWI
+ghE1Gx1eMCWGreY5VfJ7bqjadh86LrtNpjHHtMUj1VmC7lwGiBnMMvIr+iFLve9q
+W3VxsIZC6c1Vl7O7PbKGuc2804c0zXbSNSsZg39xbjnAh1ZMeR4NqHYIpR/BXUhg
+nKrfWU/dLmn9j3niF6mrEmThhEgLnqqWJhVtd8X7L/ahxGVjcFlD0HnfpOB7MqKK
+Sh5X5lgNKrsrfkFPbLd9FWGc9NQMAq5qK1kKof1AJhLtXg3nfkV6sRon/Gzio584
+7zZNi6l69kjvMRbvxKw8LTi1Mqk0k5Fohp2ljAIYZDs9E6Qk7kBTYqIPN1I/BrqP
+vcDB7Jjn88A=
+=sSD6
+-----END PGP SIGNATURE-----
+
+--Apple-Mail=_5A8DFCBE-21B1-4B71-A2A9-6CB060976717--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
