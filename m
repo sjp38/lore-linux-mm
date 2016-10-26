@@ -1,131 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 65A3D6B0274
-	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 02:10:34 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id a195so9721381oib.0
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 23:10:34 -0700 (PDT)
-Received: from szxga01-in.huawei.com ([58.251.152.64])
-        by mx.google.com with ESMTPS id o10si563232oih.127.2016.10.25.23.10.32
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0920B6B0274
+	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 03:27:42 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id l124so953224wml.4
+        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 00:27:41 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f4si1632001wmf.0.2016.10.26.00.27.40
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 25 Oct 2016 23:10:33 -0700 (PDT)
-Message-ID: <5810487A.6060206@huawei.com>
-Date: Wed, 26 Oct 2016 14:08:58 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+        Wed, 26 Oct 2016 00:27:40 -0700 (PDT)
+Subject: Re: [PATCH v6 3/6] mm/cma: populate ZONE_CMA
+References: <1476414196-3514-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1476414196-3514-4-git-send-email-iamjoonsoo.kim@lge.com>
+ <33f0a8f3-38d1-e527-f71f-839afe0b2ed9@suse.cz>
+ <20161018082730.GA20442@js1304-P5Q-DELUXE>
+ <20161026043123.GA2901@js1304-P5Q-DELUXE>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <49fde512-15dd-33dc-2120-a6ac1491a165@suse.cz>
+Date: Wed, 26 Oct 2016 09:27:33 +0200
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 1/5] mm/page_alloc: always add freeing page at the
- tail of the buddy list
-References: <1476346102-26928-1-git-send-email-iamjoonsoo.kim@lge.com> <1476346102-26928-2-git-send-email-iamjoonsoo.kim@lge.com> <58049832.6000007@huawei.com> <20161026043740.GB2901@js1304-P5Q-DELUXE> <5810442D.2090903@huawei.com> <20161026055929.GD2901@js1304-P5Q-DELUXE>
-In-Reply-To: <20161026055929.GD2901@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset="ISO-8859-1"
+In-Reply-To: <20161026043123.GA2901@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 2016/10/26 13:59, Joonsoo Kim wrote:
+On 10/26/2016 06:31 AM, Joonsoo Kim wrote:
+> Hello,
+>
+> Here comes fixed one.
+>
+> ----------->8------------
+> From 93fb05a83d74f9e2c8caebc2fa6d1a8807c9ffb6 Mon Sep 17 00:00:00 2001
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Date: Thu, 24 Mar 2016 22:29:10 +0900
+> Subject: [PATCH] mm/cma: populate ZONE_CMA
+>
+> Until now, reserved pages for CMA are managed in the ordinary zones
+> where page's pfn are belong to. This approach has numorous problems
+> and fixing them isn't easy. (It is mentioned on previous patch.)
+> To fix this situation, ZONE_CMA is introduced in previous patch, but,
+> not yet populated. This patch implement population of ZONE_CMA
+> by stealing reserved pages from the ordinary zones.
+>
+> Unlike previous implementation that kernel allocation request with
+> __GFP_MOVABLE could be serviced from CMA region, allocation request only
+> with GFP_HIGHUSER_MOVABLE can be serviced from CMA region in the new
+> approach. This is an inevitable design decision to use the zone
+> implementation because ZONE_CMA could contain highmem. Due to this
+> decision, ZONE_CMA will work like as ZONE_HIGHMEM or ZONE_MOVABLE.
+>
+> I don't think it would be a problem because most of file cache pages
+> and anonymous pages are requested with GFP_HIGHUSER_MOVABLE. It could
+> be proved by the fact that there are many systems with ZONE_HIGHMEM and
+> they work fine. Notable disadvantage is that we cannot use these pages
+> for blockdev file cache page, because it usually has __GFP_MOVABLE but
+> not __GFP_HIGHMEM and __GFP_USER. But, in this case, there is pros and
+> cons. In my experience, blockdev file cache pages are one of the top
+> reason that causes cma_alloc() to fail temporarily. So, we can get more
+> guarantee of cma_alloc() success by discarding that case.
+>
+> Implementation itself is very easy to understand. Steal when cma area is
+> initialized and recalculate various per zone stat/threshold.
+>
+> Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-> On Wed, Oct 26, 2016 at 01:50:37PM +0800, Xishi Qiu wrote:
->> On 2016/10/26 12:37, Joonsoo Kim wrote:
->>
->>> On Mon, Oct 17, 2016 at 05:21:54PM +0800, Xishi Qiu wrote:
->>>> On 2016/10/13 16:08, js1304@gmail.com wrote:
->>>>
->>>>> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->>>>>
->>>>> Currently, freeing page can stay longer in the buddy list if next higher
->>>>> order page is in the buddy list in order to help coalescence. However,
->>>>> it doesn't work for the simplest sequential free case. For example, think
->>>>> about the situation that 8 consecutive pages are freed in sequential
->>>>> order.
->>>>>
->>>>> page 0: attached at the head of order 0 list
->>>>> page 1: merged with page 0, attached at the head of order 1 list
->>>>> page 2: attached at the tail of order 0 list
->>>>> page 3: merged with page 2 and then merged with page 0, attached at
->>>>>  the head of order 2 list
->>>>> page 4: attached at the head of order 0 list
->>>>> page 5: merged with page 4, attached at the tail of order 1 list
->>>>> page 6: attached at the tail of order 0 list
->>>>> page 7: merged with page 6 and then merged with page 4. Lastly, merged
->>>>>  with page 0 and we get order 3 freepage.
->>>>>
->>>>> With excluding page 0 case, there are three cases that freeing page is
->>>>> attached at the head of buddy list in this example and if just one
->>>>> corresponding ordered allocation request comes at that moment, this page
->>>>> in being a high order page will be allocated and we would fail to make
->>>>> order-3 freepage.
->>>>>
->>>>> Allocation usually happens in sequential order and free also does. So, it
->>>>> would be important to detect such a situation and to give some chance
->>>>> to be coalesced.
->>>>>
->>>>> I think that simple and effective heuristic about this case is just
->>>>> attaching freeing page at the tail of the buddy list unconditionally.
->>>>> If freeing isn't merged during one rotation, it would be actual
->>>>> fragmentation and we don't need to care about it for coalescence.
->>>>>
->>>>
->>>> Hi Joonsoo,
->>>>
->>>> I find another two places to reduce fragmentation.
->>>>
->>>> 1)
->>>> __rmqueue_fallback
->>>> 	steal_suitable_fallback
->>>> 		move_freepages_block
->>>> 			move_freepages
->>>> 				list_move
->>>> If we steal some free pages, we will add these page at the head of start_migratetype list,
->>>> this will cause more fixed migratetype, because this pages will be allocated more easily.
->>>> So how about use list_move_tail instead of list_move?
->>>
->>> Yeah... I don't think deeply but, at a glance, it would be helpful.
->>>
->>>>
->>>> 2)
->>>> __rmqueue_fallback
->>>> 	expand
->>>> 		list_add
->>>> How about use list_add_tail instead of list_add? If add the tail, then the rest of pages
->>>> will be hard to be allocated and we can merge them again as soon as the page freed.
->>>
->>> I guess that it has no effect. When we do __rmqueue_fallback() and
->>> expand(), we don't have any freepage on this or more order. So,
->>> list_add or list_add_tail will show the same result.
->>>
->>
->> Hi Joonsoo,
->>
->> Usually this list is empty, but in the following case, the list is not empty.
->>
->> __rmqueue_fallback
->> 	steal_suitable_fallback
->> 		move_freepages_block  // move to the list of start_migratetype
->> 	expand  // split the largest order first
->> 		list_add  // add to the list of start_migratetype
-> 
-> In this case, stealed freepage on steal_suitable_fallback() and
-> splitted freepage would come from the same pageblock. So, it doen't
-> matter to use whatever list_add* function.
-> 
-
-Yes, they are from the same pageblock, stealed freepage will move to the
-start_migratetype, and expand will move to the same migratetype too,
-but the list may be not empty because of the stealed freepage.
-So when we split the largest order, add to the tail will be allocated
-less easily, right?
-
-Thanks,
-Xishi Qiu
-
-> Thanks.
-> 
-> .
-> 
-
-
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
