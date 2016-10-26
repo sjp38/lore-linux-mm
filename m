@@ -1,44 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DB36E6B0276
-	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 09:39:07 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id f78so29233128oih.7
-        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 06:39:07 -0700 (PDT)
-Received: from mail-oi0-x233.google.com (mail-oi0-x233.google.com. [2607:f8b0:4003:c06::233])
-        by mx.google.com with ESMTPS id x9si1491768otx.18.2016.10.26.06.39.06
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E3C56B0276
+	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 09:42:31 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id q6so14622464wmg.15
+        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 06:42:31 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a10si2563856wjd.63.2016.10.26.06.42.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Oct 2016 06:39:06 -0700 (PDT)
-Received: by mail-oi0-x233.google.com with SMTP id a195so1612576oib.1
-        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 06:39:06 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <a5418089-2615-8c04-aca8-50ceb43978f1@mellanox.com>
-References: <1476826937-20665-1-git-send-email-sbates@raithlin.com>
- <CAPcyv4gJ_c-6s2BUjsu6okR1EF53R+KNuXnOc5jv0fuwJaa3cQ@mail.gmail.com> <a5418089-2615-8c04-aca8-50ceb43978f1@mellanox.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 26 Oct 2016 06:39:05 -0700
-Message-ID: <CAPcyv4h9Ubgiv1B8FPqes-zUXMckzfEi6uqtfc4GrLc_8BeSLg@mail.gmail.com>
-Subject: Re: [PATCH 0/3] iopmem : A block device for PCIe memory
-Content-Type: text/plain; charset=UTF-8
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 26 Oct 2016 06:42:30 -0700 (PDT)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH] mm, frontswap: make sure allocated frontswap map is assigned
+Date: Wed, 26 Oct 2016 15:42:20 +0200
+Message-Id: <20161026134220.2566-1-vbabka@suse.cz>
+In-Reply-To: <633c9485-d150-03ac-d0d3-827ad24c514d@de.ibm.com>
+References: <633c9485-d150-03ac-d0d3-827ad24c514d@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Haggai Eran <haggaie@mellanox.com>
-Cc: Stephen Bates <sbates@raithlin.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-rdma@vger.kernel.org, linux-block@vger.kernel.org, Linux MM <linux-mm@kvack.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Christoph Hellwig <hch@infradead.org>, Jens Axboe <axboe@fb.com>, Jonathan Corbet <corbet@lwn.net>, jim.macdonald@everspin.com, sbates@raithin.com, Logan Gunthorpe <logang@deltatee.com>, David Woodhouse <dwmw2@infradead.org>, "Raj, Ashok" <ashok.raj@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Christian Borntraeger <borntraeger@de.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, stable@vger.kernel.org, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, David Vrabel <david.vrabel@citrix.com>, Juergen Gross <jgross@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Wed, Oct 26, 2016 at 1:24 AM, Haggai Eran <haggaie@mellanox.com> wrote:
-[..]
->> I wonder if we could (ab)use a
->> software-defined 'pasid' as the requester id for a peer-to-peer
->> mapping that needs address translation.
-> Why would you need that? Isn't it enough to map the peer-to-peer
-> addresses correctly in the iommu driver?
->
+Christian Borntraeger reports:
 
-You're right, we might already have enough...
+with commit 8ea1d2a1985a7ae096e ("mm, frontswap: convert frontswap_enabled to
+static key") kmemleak complains about a memory leak in swapon
 
-We would just need to audit iommu drivers to undo any assumptions that
-the page being mapped is always in host memory and apply any bus
-address translations between source device and target device.
+unreferenced object 0x3e09ba56000 (size 32112640):
+  comm "swapon", pid 7852, jiffies 4294968787 (age 1490.770s)
+  hex dump (first 32 bytes):
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+    00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+  backtrace:
+    [<00000000003a2504>] __vmalloc_node_range+0x194/0x2d8
+    [<00000000003a2918>] vzalloc+0x58/0x68
+    [<00000000003b0af0>] SyS_swapon+0xd60/0x12f8
+    [<0000000000a3dc2e>] system_call+0xd6/0x270
+    [<ffffffffffffffff>] 0xffffffffffffffff
+
+Turns out kmemleak is right. We now allocate the frontswap map depending on the
+kernel config (and no longer on the enablement)
+
+swapfile.c:
+[...]
+      if (IS_ENABLED(CONFIG_FRONTSWAP))
+                frontswap_map = vzalloc(BITS_TO_LONGS(maxpages) * sizeof(long));
+
+but later on this is passed along
+--> enable_swap_info(p, prio, swap_map, cluster_info, frontswap_map);
+
+and ignored if frontswap is disabled
+--> frontswap_init(p->type, frontswap_map);
+static inline void frontswap_init(unsigned type, unsigned long *map)
+{
+        if (frontswap_enabled())
+                __frontswap_init(type, map);
+}
+
+Thing is, that frontswap map is never freed.
+
+===
+
+The leakage is relatively not that bad, because swapon is an infrequent and
+privileged operation. However, if the first frontswap backend is registered
+after a swap type has been already enabled, it will WARN_ON in
+frontswap_register_ops() and frontswap will not be available for the swap type.
+
+Fix this by making sure the map is assigned by frontswap_init() as long as
+CONFIG_FRONTSWAP is enabled.
+
+Reported-by: Christian Borntraeger <borntraeger@de.ibm.com>
+Fixes: 8ea1d2a1985a ("mm, frontswap: convert frontswap_enabled to static key")
+Cc: stable@vger.kernel.org
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Cc: David Vrabel <david.vrabel@citrix.com>
+Cc: Juergen Gross <jgross@suse.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ include/linux/frontswap.h | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/include/linux/frontswap.h b/include/linux/frontswap.h
+index c46d2aa16d81..1d18af034554 100644
+--- a/include/linux/frontswap.h
++++ b/include/linux/frontswap.h
+@@ -106,8 +106,9 @@ static inline void frontswap_invalidate_area(unsigned type)
+ 
+ static inline void frontswap_init(unsigned type, unsigned long *map)
+ {
+-	if (frontswap_enabled())
+-		__frontswap_init(type, map);
++#ifdef CONFIG_FRONTSWAP
++	__frontswap_init(type, map);
++#endif
+ }
+ 
+ #endif /* _LINUX_FRONTSWAP_H */
+-- 
+2.10.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
