@@ -1,96 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BBE7B6B0274
-	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 00:14:16 -0400 (EDT)
-Received: by mail-it0-f69.google.com with SMTP id t132so5692360itb.11
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 21:14:16 -0700 (PDT)
-Received: from mail-it0-x229.google.com (mail-it0-x229.google.com. [2607:f8b0:4001:c0b::229])
-        by mx.google.com with ESMTPS id h134si763053iof.237.2016.10.25.21.14.16
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 25 Oct 2016 21:14:16 -0700 (PDT)
-Received: by mail-it0-x229.google.com with SMTP id m138so7256169itm.1
-        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 21:14:16 -0700 (PDT)
-Subject: Re: [PATCHv4 18/43] block: define BIO_MAX_PAGES to HPAGE_PMD_NR if huge page cache enabled
-Mime-Version: 1.0 (Mac OS X Mail 9.3 \(3124\))
-Content-Type: multipart/signed; boundary="Apple-Mail=_5A8DFCBE-21B1-4B71-A2A9-6CB060976717"; protocol="application/pgp-signature"; micalg=pgp-sha256
-From: Andreas Dilger <adilger@dilger.ca>
-In-Reply-To: <20161025125431.GA22787@node.shutemov.name>
-Date: Tue, 25 Oct 2016 22:13:13 -0600
-Message-Id: <BD27B76A-AF34-48B9-8D4F-F69AD2C17C66@dilger.ca>
-References: <20161025001342.76126-1-kirill.shutemov@linux.intel.com> <20161025001342.76126-19-kirill.shutemov@linux.intel.com> <20161025072122.GA21708@infradead.org> <20161025125431.GA22787@node.shutemov.name>
+Received: from mail-pa0-f71.google.com (mail-pa0-f71.google.com [209.85.220.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C70BC6B0274
+	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 00:30:16 -0400 (EDT)
+Received: by mail-pa0-f71.google.com with SMTP id py6so329409pab.0
+        for <linux-mm@kvack.org>; Tue, 25 Oct 2016 21:30:16 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id g6si232498pag.264.2016.10.25.21.30.15
+        for <linux-mm@kvack.org>;
+        Tue, 25 Oct 2016 21:30:15 -0700 (PDT)
+Date: Wed, 26 Oct 2016 13:31:24 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v6 3/6] mm/cma: populate ZONE_CMA
+Message-ID: <20161026043123.GA2901@js1304-P5Q-DELUXE>
+References: <1476414196-3514-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1476414196-3514-4-git-send-email-iamjoonsoo.kim@lge.com>
+ <33f0a8f3-38d1-e527-f71f-839afe0b2ed9@suse.cz>
+ <20161018082730.GA20442@js1304-P5Q-DELUXE>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161018082730.GA20442@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Christoph Hellwig <hch@infradead.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Theodore Ts'o <tytso@mit.edu>, Andreas Dilger <adilger.kernel@dilger.ca>, Jan Kara <jack@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Vlastimil Babka <vbabka@suse.cz>, Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, mgorman@techsingularity.net, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-
---Apple-Mail=_5A8DFCBE-21B1-4B71-A2A9-6CB060976717
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain;
-	charset=us-ascii
-
-On Oct 25, 2016, at 6:54 AM, Kirill A. Shutemov <kirill@shutemov.name> wrote:
+On Tue, Oct 18, 2016 at 05:27:30PM +0900, Joonsoo Kim wrote:
+> On Tue, Oct 18, 2016 at 09:42:57AM +0200, Vlastimil Babka wrote:
+> > On 10/14/2016 05:03 AM, js1304@gmail.com wrote:
+> > >@@ -145,6 +145,35 @@ static int __init cma_activate_area(struct cma *cma)
+> > > static int __init cma_init_reserved_areas(void)
+> > > {
+> > > 	int i;
+> > >+	struct zone *zone;
+> > >+	pg_data_t *pgdat;
+> > >+
+> > >+	if (!cma_area_count)
+> > >+		return 0;
+> > >+
+> > >+	for_each_online_pgdat(pgdat) {
+> > >+		unsigned long start_pfn = UINT_MAX, end_pfn = 0;
+> > >+
+> > >+		for (i = 0; i < cma_area_count; i++) {
+> > >+			if (pfn_to_nid(cma_areas[i].base_pfn) !=
+> > >+				pgdat->node_id)
+> > >+				continue;
+> > >+
+> > >+			start_pfn = min(start_pfn, cma_areas[i].base_pfn);
+> > >+			end_pfn = max(end_pfn, cma_areas[i].base_pfn +
+> > >+						cma_areas[i].count);
+> > >+		}
+> > >+
+> > >+		if (!end_pfn)
+> > >+			continue;
+> > >+
+> > >+		zone = &pgdat->node_zones[ZONE_CMA];
+> > >+
+> > >+		/* ZONE_CMA doesn't need to exceed CMA region */
+> > >+		zone->zone_start_pfn = max(zone->zone_start_pfn, start_pfn);
+> > >+		zone->spanned_pages = min(zone_end_pfn(zone), end_pfn) -
+> > >+					zone->zone_start_pfn;
+> > 
+> > Hmm, do the max/min here work as intended? IIUC the initial
 > 
-> On Tue, Oct 25, 2016 at 12:21:22AM -0700, Christoph Hellwig wrote:
->> On Tue, Oct 25, 2016 at 03:13:17AM +0300, Kirill A. Shutemov wrote:
->>> We are going to do IO a huge page a time. So we need BIO_MAX_PAGES to be
->>> at least HPAGE_PMD_NR. For x86-64, it's 512 pages.
->> 
->> NAK.  The maximum bio size should not depend on an obscure vm config,
->> please send a standalone patch increasing the size to the block list,
->> with a much long explanation.  Also you can't simply increase the size
->> of the largers pool, we'll probably need more pools instead, or maybe
->> even implement a similar chaining scheme as we do for struct
->> scatterlist.
+> Yeap.
 > 
-> The size of required pool depends on architecture: different architectures
-> has different (huge page size)/(base page size).
+> > zone_start_pfn is UINT_MAX and zone->spanned_pages is 1? So at least
+> > the max/min should be swapped?
 > 
-> Would it be okay if I add one more pool with size equal to HPAGE_PMD_NR,
-> if it's bigger than than BIO_MAX_PAGES and huge pages are enabled?
+> No. CMA zone's start/end pfn are updated as node's start/end pfn.
+> 
+> > Also the zone_end_pfn(zone) on the second line already sees the
+> > changes to zone->zone_start_pfn in the first line, so it's kind of a
+> > mess. You should probably cache zone_end_pfn() to a temporary
+> > variable before changing zone_start_pfn.
+> 
+> You're right although it doesn't cause any problem. I look at the code
+> again and find that max/min isn't needed. Calculated start/end pfn
+> should be inbetween node's start/end pfn so max(zone->zone_start_pfn,
+> start_pfn) will return start_pfn and messed up min(zone_end_pfn(zone),
+> end_pfn) will return end_pfn in all the cases.
+> 
+> Anyway, I will fix it as following.
+> 
+> zone->zone_start_pfn = start_pfn
+> zone->spanned_pages = end_pfn - start_pfn
 
-Why wouldn't you have all the pool sizes in between?  Definitely 1MB has
-been too small already for high-bandwidth IO.  I wouldn't mind BIOs up to
-4MB or larger since most high-end RAID hardware does best with 4MB IOs.
+Hello,
 
-Cheers, Andreas
+Here comes fixed one.
 
-
-
-
-
-
---Apple-Mail=_5A8DFCBE-21B1-4B71-A2A9-6CB060976717
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
-	filename=signature.asc
-Content-Type: application/pgp-signature;
-	name=signature.asc
-Content-Description: Message signed with OpenPGP using GPGMail
-
------BEGIN PGP SIGNATURE-----
-Comment: GPGTools - http://gpgtools.org
-
-iQIVAwUBWBAtWnKl2rkXzB/gAQi8tA/+IKGZ0QC1GIU3Y5HRATtiqNxImtCde9PD
-IzQe3/7A+ohno8h3xarTqHJhTNLDKnd6u+ARqcbjaqxWQkDfee8QHVU5T/R5GLU/
-TWmdYeBKGYffejgBBNy1MCuU7l72gUlHiCS0+m5kY0YhMoNwarRyb5hVLJk6y1Og
-uTWwlCJV9kz+GVz/Nc+Tk83v3oJy6Zon2o19L6iP/PrcRGTqHXhbvyJ8zdbs4aDc
-MM34IBv585W961LF9VWBfCd0+cDtv/Q0Smsjv9p67xQZoWMfC9R2QzPAu5tWpawa
-Q49D7sh9LXnRcqVXgHmt/4oCUcw/f1bLZ7I8pfaT0sooIC7hcsu1XpempADDQBWI
-ghE1Gx1eMCWGreY5VfJ7bqjadh86LrtNpjHHtMUj1VmC7lwGiBnMMvIr+iFLve9q
-W3VxsIZC6c1Vl7O7PbKGuc2804c0zXbSNSsZg39xbjnAh1ZMeR4NqHYIpR/BXUhg
-nKrfWU/dLmn9j3niF6mrEmThhEgLnqqWJhVtd8X7L/ahxGVjcFlD0HnfpOB7MqKK
-Sh5X5lgNKrsrfkFPbLd9FWGc9NQMAq5qK1kKof1AJhLtXg3nfkV6sRon/Gzio584
-7zZNi6l69kjvMRbvxKw8LTi1Mqk0k5Fohp2ljAIYZDs9E6Qk7kBTYqIPN1I/BrqP
-vcDB7Jjn88A=
-=sSD6
------END PGP SIGNATURE-----
-
---Apple-Mail=_5A8DFCBE-21B1-4B71-A2A9-6CB060976717--
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+----------->8------------
