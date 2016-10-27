@@ -1,66 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1ABBA6B027E
-	for <linux-mm@kvack.org>; Thu, 27 Oct 2016 05:35:34 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id b80so6634486wme.5
-        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 02:35:34 -0700 (PDT)
-Received: from mail-wm0-x241.google.com (mail-wm0-x241.google.com. [2a00:1450:400c:c09::241])
-        by mx.google.com with ESMTPS id q4si7349408wjo.250.2016.10.27.02.35.32
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 385506B0280
+	for <linux-mm@kvack.org>; Thu, 27 Oct 2016 05:44:52 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id e12so9492327oib.5
+        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 02:44:52 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id o18si1192195ita.0.2016.10.27.02.44.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Oct 2016 02:35:32 -0700 (PDT)
-Received: by mail-wm0-x241.google.com with SMTP id b80so1723906wme.2
-        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 02:35:32 -0700 (PDT)
-Subject: Re: [PATCH v2] mm: remove unnecessary __get_user_pages_unlocked()
- calls
-References: <20161025233609.5601-1-lstoakes@gmail.com>
- <20161026092548.12712-1-lstoakes@gmail.com>
- <20161026171207.e76e4420dd95afcf16cc7c59@linux-foundation.org>
- <1019451e-1f91-57d4-11c8-79e08c86afe1@redhat.com>
- <20161027093259.GA1135@lucifer>
-From: Paolo Bonzini <pbonzini@redhat.com>
-Message-ID: <9977f8b1-2781-4325-fc07-29a282f7908b@redhat.com>
-Date: Thu, 27 Oct 2016 11:35:30 +0200
+        Thu, 27 Oct 2016 02:44:50 -0700 (PDT)
+Date: Thu, 27 Oct 2016 11:44:49 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: CONFIG_VMAP_STACK, on-stack struct, and wake_up_bit
+Message-ID: <20161027094449.GL3102@twins.programming.kicks-ass.net>
+References: <CALCETrUt+4ojyscJT1AFN5Zt3mKY0rrxcXMBOUUJzzLMWXFXHg@mail.gmail.com>
+ <CA+55aFzB2C0aktFZW3GquJF6dhM1904aDPrv4vdQ8=+mWO7jcg@mail.gmail.com>
+ <CA+55aFww1iLuuhHw=iYF8xjfjGj8L+3oh33xxUHjnKKnsR-oHg@mail.gmail.com>
+ <20161026203158.GD2699@techsingularity.net>
+ <CA+55aFy21NqcYTeLVVz4x4kfQ7A+o4HEv7srone6ppKAjCwn7g@mail.gmail.com>
+ <20161026220339.GE2699@techsingularity.net>
+ <CA+55aFwgZ6rUL2-KD7A38xEkALJcvk8foT2TBjLrvy8caj7k9w@mail.gmail.com>
+ <20161026230726.GF2699@techsingularity.net>
+ <20161027080852.GC3568@worktop.programming.kicks-ass.net>
+ <20161027090742.GG2699@techsingularity.net>
 MIME-Version: 1.0
-In-Reply-To: <20161027093259.GA1135@lucifer>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20161027090742.GG2699@techsingularity.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lorenzo Stoakes <lstoakes@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Andreas Gruenbacher <agruenba@redhat.com>, Andy Lutomirski <luto@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Bob Peterson <rpeterso@redhat.com>, Steven Whitehouse <swhiteho@redhat.com>, linux-mm <linux-mm@kvack.org>
 
-
-
-On 27/10/2016 11:32, Lorenzo Stoakes wrote:
-> On Thu, Oct 27, 2016 at 11:27:24AM +0200, Paolo Bonzini wrote:
->>
->>
->> On 27/10/2016 02:12, Andrew Morton wrote:
->>>
->>>
->>>> Subject: [PATCH v2] mm: remove unnecessary __get_user_pages_unlocked() calls
->>>
->>> The patch is rather misidentified.
->>>
->>>>  virt/kvm/async_pf.c | 7 ++++---
->>>>  virt/kvm/kvm_main.c | 5 ++---
->>>>  2 files changed, 6 insertions(+), 6 deletions(-)
->>>
->>> It's a KVM patch and should have been called "kvm: remove ...".
->>> Possibly the KVM maintainers will miss it for this reason.
->>
->> I noticed it, but I confused it with "mm: unexport __get_user_pages()".
->>
->> I'll merge this through the KVM tree for -rc3.
+On Thu, Oct 27, 2016 at 10:07:42AM +0100, Mel Gorman wrote:
+> > Something like so could work I suppose, but then there's a slight
+> > regression in the page_unlock() path, where we now do an unconditional
+> > spinlock; iow. we loose the unlocked waitqueue_active() test.
+> > 
 > 
-> Actually Paolo could you hold off on this? As I think on reflection it'd make
-> more sense to batch this change up with a change to get_user_pages_remote() as
-> suggested by Michal.
+> I can't convince myself it's worthwhile. At least, I can't see a penalty
+> of potentially moving one of the two bits to the high word. It's the
+> same cache line and the same op when it matters.
 
-Okay.
+I'm having trouble connecting these here two paragraphs. Or were you
+replying to something else?
 
-Paolo
+So the current unlock code does:
+
+  wake_up_page()
+    if (waitqueue_active())
+      __wake_up() /* takes waitqueue spinlocks here */
+
+While the new one does:
+
+  spin_lock(&q->lock);
+  if (waitqueue_active()) {
+    __wake_up_common()
+  }
+  spin_unlock(&q->lock);
+
+Which is an unconditional atomic op (which go for about ~20 cycles each,
+when uncontended).
+
+
+> > +++ b/include/linux/page-flags.h
+> > @@ -73,6 +73,14 @@
+> >   */
+> >  enum pageflags {
+> >  	PG_locked,		/* Page is locked. Don't touch. */
+> > +#ifdef CONFIG_NUMA
+> > +	/*
+> > +	 * This bit must end up in the same word as PG_locked (or any other bit
+> > +	 * we're waiting on), as per all architectures their bitop
+> > +	 * implementations.
+> > +	 */
+> > +	PG_waiters,		/* The hashed waitqueue has waiters */
+> > +#endif
+> >  	PG_error,
+> >  	PG_referenced,
+> >  	PG_uptodate,
+> 
+> I don't see why it should be NUMA-specific even though with Linus'
+> patch, NUMA is a concern. Even then, you still need a 64BIT check
+> because 32BIT && NUMA is allowed on a number of architectures.
+
+Oh, I thought we killed 32bit NUMA and didn't check. I can make it
+CONFIG_64BIT and be done with it. s/CONFIG_NUMA/CONFIG_64BIT/ on the
+patch should do :-)
+
+> Otherwise, nothing jumped out at me but glancing through it looked very
+> similar to the previous patch.
+
+Right, all the difference was in the bit being conditional and having a
+different name.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
