@@ -1,20 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D92516B0270
-	for <linux-mm@kvack.org>; Thu, 27 Oct 2016 07:06:56 -0400 (EDT)
-Received: by mail-lf0-f69.google.com with SMTP id x79so8114452lff.2
-        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 04:06:56 -0700 (PDT)
-Received: from mail-lf0-x241.google.com (mail-lf0-x241.google.com. [2a00:1450:4010:c07::241])
-        by mx.google.com with ESMTPS id u3si4127697lfi.19.2016.10.27.04.06.54
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CB6026B0276
+	for <linux-mm@kvack.org>; Thu, 27 Oct 2016 07:08:06 -0400 (EDT)
+Received: by mail-lf0-f71.google.com with SMTP id i187so8098512lfe.4
+        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 04:08:06 -0700 (PDT)
+Received: from mail-lf0-x242.google.com (mail-lf0-x242.google.com. [2a00:1450:4010:c07::242])
+        by mx.google.com with ESMTPS id o194si4123925lfe.16.2016.10.27.04.08.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Oct 2016 04:06:54 -0700 (PDT)
-Received: by mail-lf0-x241.google.com with SMTP id n3so1751171lfn.0
-        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 04:06:54 -0700 (PDT)
-Date: Thu, 27 Oct 2016 13:06:47 +0200
+        Thu, 27 Oct 2016 04:08:05 -0700 (PDT)
+Received: by mail-lf0-x242.google.com with SMTP id n3so1752722lfn.0
+        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 04:08:05 -0700 (PDT)
+Date: Thu, 27 Oct 2016 13:08:03 +0200
 From: Vitaly Wool <vitalywool@gmail.com>
-Subject: [PATCHv3 0/3] z3fold: background page compaction
-Message-Id: <20161027130647.782b8ab1f71555200ba15605@gmail.com>
+Subject: [PATCHv3 1/3] z3fold: make counters atomic
+Message-Id: <20161027130803.82fa7db8f649b5977190208b@gmail.com>
+In-Reply-To: <20161027130647.782b8ab1f71555200ba15605@gmail.com>
+References: <20161027130647.782b8ab1f71555200ba15605@gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -23,25 +25,154 @@ List-ID: <linux-mm.kvack.org>
 To: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 Cc: Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>
 
-The coming patchset is another take on z3fold page layout
-optimization problem. The previous solution [1] used
-shrinker to solve the issue of in-page space fragmentation
-but after some discussions the decision was made to rewrite
-background page layout optimization using good old work
-queues.
-
-The patchset thus implements in-page compaction worker for
-z3fold, preceded by some code optimizations and preparations
-which, again, deserved to be separate patches.
-
-Changes compared to v2:
-- more accurate accounting of unbuddied_nr, per Dan's
-  comments
-- various cleanups.
+This patch converts pages_nr per-pool counter to atomic64_t.
+It also introduces a new counter, unbuddied_nr, which is
+atomic64_t, too, to track the number of unbuddied (compactable)
+z3fold pages.
 
 Signed-off-by: Vitaly Wool <vitalywool@gmail.com>
+---
+ mm/z3fold.c | 33 +++++++++++++++++++++++++--------
+ 1 file changed, 25 insertions(+), 8 deletions(-)
 
-[1] https://lkml.org/lkml/2016/10/15/31
+diff --git a/mm/z3fold.c b/mm/z3fold.c
+index 8f9e89c..5ac325a 100644
+--- a/mm/z3fold.c
++++ b/mm/z3fold.c
+@@ -69,6 +69,7 @@ struct z3fold_ops {
+  * @lru:	list tracking the z3fold pages in LRU order by most recently
+  *		added buddy.
+  * @pages_nr:	number of z3fold pages in the pool.
++ * @unbuddied_nr:	number of unbuddied z3fold pages in the pool.
+  * @ops:	pointer to a structure of user defined operations specified at
+  *		pool creation time.
+  *
+@@ -80,7 +81,8 @@ struct z3fold_pool {
+ 	struct list_head unbuddied[NCHUNKS];
+ 	struct list_head buddied;
+ 	struct list_head lru;
+-	u64 pages_nr;
++	atomic64_t pages_nr;
++	atomic64_t unbuddied_nr;
+ 	const struct z3fold_ops *ops;
+ 	struct zpool *zpool;
+ 	const struct zpool_ops *zpool_ops;
+@@ -234,7 +236,8 @@ static struct z3fold_pool *z3fold_create_pool(gfp_t gfp,
+ 		INIT_LIST_HEAD(&pool->unbuddied[i]);
+ 	INIT_LIST_HEAD(&pool->buddied);
+ 	INIT_LIST_HEAD(&pool->lru);
+-	pool->pages_nr = 0;
++	atomic64_set(&pool->pages_nr, 0);
++	atomic64_set(&pool->unbuddied_nr, 0);
+ 	pool->ops = ops;
+ 	return pool;
+ }
+@@ -334,6 +337,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
+ 					continue;
+ 				}
+ 				list_del(&zhdr->buddy);
++				atomic64_dec(&pool->unbuddied_nr);
+ 				goto found;
+ 			}
+ 		}
+@@ -346,7 +350,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
+ 	if (!page)
+ 		return -ENOMEM;
+ 	spin_lock(&pool->lock);
+-	pool->pages_nr++;
++	atomic64_inc(&pool->pages_nr);
+ 	zhdr = init_z3fold_page(page);
+ 
+ 	if (bud == HEADLESS) {
+@@ -369,6 +373,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
+ 		/* Add to unbuddied list */
+ 		freechunks = num_free_chunks(zhdr);
+ 		list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
++		atomic64_inc(&pool->unbuddied_nr);
+ 	} else {
+ 		/* Add to buddied list */
+ 		list_add(&zhdr->buddy, &pool->buddied);
+@@ -412,6 +417,10 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
+ 		/* HEADLESS page stored */
+ 		bud = HEADLESS;
+ 	} else {
++		bool is_unbuddied = zhdr->first_chunks == 0 ||
++				zhdr->middle_chunks == 0 ||
++				zhdr->last_chunks == 0;
++
+ 		bud = handle_to_buddy(handle);
+ 
+ 		switch (bud) {
+@@ -431,6 +440,8 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
+ 			spin_unlock(&pool->lock);
+ 			return;
+ 		}
++		if (is_unbuddied)
++			atomic64_dec(&pool->unbuddied_nr);
+ 	}
+ 
+ 	if (test_bit(UNDER_RECLAIM, &page->private)) {
+@@ -451,12 +462,13 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
+ 		list_del(&page->lru);
+ 		clear_bit(PAGE_HEADLESS, &page->private);
+ 		free_z3fold_page(zhdr);
+-		pool->pages_nr--;
++		atomic64_dec(&pool->pages_nr);
+ 	} else {
+ 		z3fold_compact_page(zhdr);
+ 		/* Add to the unbuddied list */
+ 		freechunks = num_free_chunks(zhdr);
+ 		list_add(&zhdr->buddy, &pool->unbuddied[freechunks]);
++		atomic64_inc(&pool->unbuddied_nr);
+ 	}
+ 
+ 	spin_unlock(&pool->lock);
+@@ -520,6 +532,11 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
+ 		zhdr = page_address(page);
+ 		if (!test_bit(PAGE_HEADLESS, &page->private)) {
+ 			list_del(&zhdr->buddy);
++			if (zhdr->first_chunks == 0 ||
++			    zhdr->middle_chunks == 0 ||
++			    zhdr->last_chunks == 0)
++				atomic64_dec(&pool->unbuddied_nr);
++
+ 			/*
+ 			 * We need encode the handles before unlocking, since
+ 			 * we can race with free that will set
+@@ -569,7 +586,7 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
+ 			 */
+ 			clear_bit(PAGE_HEADLESS, &page->private);
+ 			free_z3fold_page(zhdr);
+-			pool->pages_nr--;
++			atomic64_dec(&pool->pages_nr);
+ 			spin_unlock(&pool->lock);
+ 			return 0;
+ 		}  else if (!test_bit(PAGE_HEADLESS, &page->private)) {
+@@ -584,6 +601,7 @@ static int z3fold_reclaim_page(struct z3fold_pool *pool, unsigned int retries)
+ 				freechunks = num_free_chunks(zhdr);
+ 				list_add(&zhdr->buddy,
+ 					 &pool->unbuddied[freechunks]);
++				atomic64_inc(&pool->unbuddied_nr);
+ 			}
+ 		}
+ 
+@@ -672,12 +690,11 @@ static void z3fold_unmap(struct z3fold_pool *pool, unsigned long handle)
+  * z3fold_get_pool_size() - gets the z3fold pool size in pages
+  * @pool:	pool whose size is being queried
+  *
+- * Returns: size in pages of the given pool.  The pool lock need not be
+- * taken to access pages_nr.
++ * Returns: size in pages of the given pool.
+  */
+ static u64 z3fold_get_pool_size(struct z3fold_pool *pool)
+ {
+-	return pool->pages_nr;
++	return atomic64_read(&pool->pages_nr);
+ }
+ 
+ /*****************
+-- 
+2.4.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
