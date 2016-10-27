@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 65E0B6B027B
-	for <linux-mm@kvack.org>; Thu, 27 Oct 2016 16:34:13 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id i128so17525515wme.2
-        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 13:34:13 -0700 (PDT)
-Received: from mail-wm0-x244.google.com (mail-wm0-x244.google.com. [2a00:1450:400c:c09::244])
-        by mx.google.com with ESMTPS id e5si10713104wjt.179.2016.10.27.13.34.12
+	by kanga.kvack.org (Postfix) with ESMTP id 043D36B027D
+	for <linux-mm@kvack.org>; Thu, 27 Oct 2016 16:34:15 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id m83so17718551wmc.1
+        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 13:34:14 -0700 (PDT)
+Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
+        by mx.google.com with ESMTPS id z1si10718083wjk.104.2016.10.27.13.34.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Oct 2016 13:34:12 -0700 (PDT)
-Received: by mail-wm0-x244.google.com with SMTP id b80so4377172wme.2
-        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 13:34:12 -0700 (PDT)
+        Thu, 27 Oct 2016 13:34:13 -0700 (PDT)
+Received: by mail-wm0-x243.google.com with SMTP id b80so4377288wme.2
+        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 13:34:13 -0700 (PDT)
 From: Lorenzo Stoakes <lstoakes@gmail.com>
-Subject: [PATCH v2 1/2] mm: add locked parameter to get_user_pages_remote()
-Date: Thu, 27 Oct 2016 21:34:02 +0100
-Message-Id: <20161027203403.31708-2-lstoakes@gmail.com>
+Subject: [PATCH v2 2/2] mm: unexport __get_user_pages_unlocked()
+Date: Thu, 27 Oct 2016 21:34:03 +0100
+Message-Id: <20161027203403.31708-3-lstoakes@gmail.com>
 In-Reply-To: <20161027203403.31708-1-lstoakes@gmail.com>
 References: <20161027203403.31708-1-lstoakes@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,184 +22,182 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-security-module@vger.kernel.org, linux-rdma@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-fsdevel@vger.kernel.org, Lorenzo Stoakes <lstoakes@gmail.com>
 
-This patch adds an int *locked parameter to get_user_pages_remote() to allow
-VM_FAULT_RETRY faulting behaviour similar to get_user_pages_[un]locked().
+This patch unexports the low-level __get_user_pages_unlocked() function and
+replaces invocations with calls to more appropriate higher-level functions.
 
-It additionally clears the way for __get_user_pages_unlocked() to be unexported
-as its sole remaining useful characteristic was to allow for VM_FAULT_RETRY
-behaviour when faulting in pages.
+In hva_to_pfn_slow() we are able to replace __get_user_pages_unlocked() with
+get_user_pages_unlocked() since we can now pass gup_flags.
 
-It should not introduce any functional changes, however it does allow for
-subsequent changes to get_user_pages_remote() callers to take advantage of
-VM_FAULT_RETRY.
+In async_pf_execute() and process_vm_rw_single_vec() we need to pass different
+tsk, mm arguments so get_user_pages_remote() is the sane replacement in these
+cases (having added manual acquisition and release of mmap_sem.)
+
+Additionally get_user_pages_remote() reintroduces use of the FOLL_TOUCH
+flag. However, this flag was originally silently dropped by 1e9877902dc7e
+("mm/gup: Introduce get_user_pages_remote()"), so this appears to have been
+unintentional and reintroducing it is therefore not an issue.
 
 Signed-off-by: Lorenzo Stoakes <lstoakes@gmail.com>
 ---
-v2: updated description
+v2: updated patch to apply against mainline rather than -mmots
 
- drivers/gpu/drm/etnaviv/etnaviv_gem.c   |  2 +-
- drivers/gpu/drm/i915/i915_gem_userptr.c |  2 +-
- drivers/infiniband/core/umem_odp.c      |  2 +-
- fs/exec.c                               |  2 +-
- include/linux/mm.h                      |  2 +-
- kernel/events/uprobes.c                 |  4 ++--
- mm/gup.c                                | 12 ++++++++----
- mm/memory.c                             |  2 +-
- security/tomoyo/domain.c                |  2 +-
- 9 files changed, 17 insertions(+), 13 deletions(-)
-
-diff --git a/drivers/gpu/drm/etnaviv/etnaviv_gem.c b/drivers/gpu/drm/etnaviv/etnaviv_gem.c
-index 0370b84..0c69a97f 100644
---- a/drivers/gpu/drm/etnaviv/etnaviv_gem.c
-+++ b/drivers/gpu/drm/etnaviv/etnaviv_gem.c
-@@ -763,7 +763,7 @@ static struct page **etnaviv_gem_userptr_do_get_pages(
- 	down_read(&mm->mmap_sem);
- 	while (pinned < npages) {
- 		ret = get_user_pages_remote(task, mm, ptr, npages - pinned,
--					    flags, pvec + pinned, NULL);
-+					    flags, pvec + pinned, NULL, NULL);
- 		if (ret < 0)
- 			break;
-
-diff --git a/drivers/gpu/drm/i915/i915_gem_userptr.c b/drivers/gpu/drm/i915/i915_gem_userptr.c
-index c6f780f..836b525 100644
---- a/drivers/gpu/drm/i915/i915_gem_userptr.c
-+++ b/drivers/gpu/drm/i915/i915_gem_userptr.c
-@@ -522,7 +522,7 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
- 					 obj->userptr.ptr + pinned * PAGE_SIZE,
- 					 npages - pinned,
- 					 flags,
--					 pvec + pinned, NULL);
-+					 pvec + pinned, NULL, NULL);
- 				if (ret < 0)
- 					break;
-
-diff --git a/drivers/infiniband/core/umem_odp.c b/drivers/infiniband/core/umem_odp.c
-index 1f0fe32..6b079a3 100644
---- a/drivers/infiniband/core/umem_odp.c
-+++ b/drivers/infiniband/core/umem_odp.c
-@@ -578,7 +578,7 @@ int ib_umem_odp_map_dma_pages(struct ib_umem *umem, u64 user_virt, u64 bcnt,
- 		 */
- 		npages = get_user_pages_remote(owning_process, owning_mm,
- 				user_virt, gup_num_pages,
--				flags, local_page_list, NULL);
-+				flags, local_page_list, NULL, NULL);
- 		up_read(&owning_mm->mmap_sem);
-
- 		if (npages < 0)
-diff --git a/fs/exec.c b/fs/exec.c
-index 4e497b9..2cf049d 100644
---- a/fs/exec.c
-+++ b/fs/exec.c
-@@ -209,7 +209,7 @@ static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
- 	 * doing the exec and bprm->mm is the new process's mm.
- 	 */
- 	ret = get_user_pages_remote(current, bprm->mm, pos, 1, gup_flags,
--			&page, NULL);
-+			&page, NULL, NULL);
- 	if (ret <= 0)
- 		return NULL;
+ include/linux/mm.h     |  3 ---
+ mm/gup.c               |  8 ++++----
+ mm/nommu.c             |  7 +++----
+ mm/process_vm_access.c | 12 ++++++++----
+ virt/kvm/async_pf.c    | 10 +++++++---
+ virt/kvm/kvm_main.c    |  5 ++---
+ 6 files changed, 24 insertions(+), 21 deletions(-)
 
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index a92c8d7..cc15445 100644
+index cc15445..7b2d14e 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -1274,7 +1274,7 @@ extern int access_remote_vm(struct mm_struct *mm, unsigned long addr,
- long get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
- 			    unsigned long start, unsigned long nr_pages,
- 			    unsigned int gup_flags, struct page **pages,
--			    struct vm_area_struct **vmas);
-+			    struct vm_area_struct **vmas, int *locked);
- long get_user_pages(unsigned long start, unsigned long nr_pages,
- 			    unsigned int gup_flags, struct page **pages,
+@@ -1280,9 +1280,6 @@ long get_user_pages(unsigned long start, unsigned long nr_pages,
  			    struct vm_area_struct **vmas);
-diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-index f9ec9ad..215871b 100644
---- a/kernel/events/uprobes.c
-+++ b/kernel/events/uprobes.c
-@@ -301,7 +301,7 @@ int uprobe_write_opcode(struct mm_struct *mm, unsigned long vaddr,
- retry:
- 	/* Read the page with vaddr into memory */
- 	ret = get_user_pages_remote(NULL, mm, vaddr, 1, FOLL_FORCE, &old_page,
--			&vma);
-+			&vma, NULL);
- 	if (ret <= 0)
- 		return ret;
-
-@@ -1712,7 +1712,7 @@ static int is_trap_at_addr(struct mm_struct *mm, unsigned long vaddr)
- 	 * essentially a kernel access to the memory.
- 	 */
- 	result = get_user_pages_remote(NULL, mm, vaddr, 1, FOLL_FORCE, &page,
--			NULL);
-+			NULL, NULL);
- 	if (result < 0)
- 		return result;
-
+ long get_user_pages_locked(unsigned long start, unsigned long nr_pages,
+ 		    unsigned int gup_flags, struct page **pages, int *locked);
+-long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
+-			       unsigned long start, unsigned long nr_pages,
+-			       struct page **pages, unsigned int gup_flags);
+ long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
+ 		    struct page **pages, unsigned int gup_flags);
+ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 diff --git a/mm/gup.c b/mm/gup.c
-index ec4f827..0567851 100644
+index 0567851..8028af1 100644
 --- a/mm/gup.c
 +++ b/mm/gup.c
-@@ -920,6 +920,9 @@ EXPORT_SYMBOL(get_user_pages_unlocked);
-  *		only intends to ensure the pages are faulted in.
-  * @vmas:	array of pointers to vmas corresponding to each page.
-  *		Or NULL if the caller does not require them.
-+ * @locked:	pointer to lock flag indicating whether lock is held and
-+ *		subsequently whether VM_FAULT_RETRY functionality can be
-+ *		utilised. Lock must initially be held.
-  *
-  * Returns number of pages pinned. This may be fewer than the number
-  * requested. If nr_pages is 0 or negative, returns 0. If no pages
-@@ -963,10 +966,10 @@ EXPORT_SYMBOL(get_user_pages_unlocked);
- long get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
- 		unsigned long start, unsigned long nr_pages,
- 		unsigned int gup_flags, struct page **pages,
--		struct vm_area_struct **vmas)
-+		struct vm_area_struct **vmas, int *locked)
- {
- 	return __get_user_pages_locked(tsk, mm, start, nr_pages, pages, vmas,
--				       NULL, false,
-+				       locked, true,
- 				       gup_flags | FOLL_TOUCH | FOLL_REMOTE);
- }
- EXPORT_SYMBOL(get_user_pages_remote);
-@@ -974,8 +977,9 @@ EXPORT_SYMBOL(get_user_pages_remote);
- /*
-  * This is the same as get_user_pages_remote(), just with a
-  * less-flexible calling convention where we assume that the task
-- * and mm being operated on are the current task's.  We also
-- * obviously don't pass FOLL_REMOTE in here.
-+ * and mm being operated on are the current task's and don't allow
-+ * passing of a locked parameter.  We also obviously don't pass
-+ * FOLL_REMOTE in here.
+@@ -866,9 +866,10 @@ EXPORT_SYMBOL(get_user_pages_locked);
+  * according to the parameters "pages", "write", "force"
+  * respectively.
   */
- long get_user_pages(unsigned long start, unsigned long nr_pages,
- 		unsigned int gup_flags, struct page **pages,
-diff --git a/mm/memory.c b/mm/memory.c
-index e18c57b..2f3949b 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3883,7 +3883,7 @@ static int __access_remote_vm(struct task_struct *tsk, struct mm_struct *mm,
- 		struct page *page = NULL;
+-__always_inline long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
+-					       unsigned long start, unsigned long nr_pages,
+-					       struct page **pages, unsigned int gup_flags)
++static __always_inline long __get_user_pages_unlocked(struct task_struct *tsk,
++		struct mm_struct *mm, unsigned long start,
++		unsigned long nr_pages, struct page **pages,
++		unsigned int gup_flags)
+ {
+ 	long ret;
+ 	int locked = 1;
+@@ -880,7 +881,6 @@ __always_inline long __get_user_pages_unlocked(struct task_struct *tsk, struct m
+ 		up_read(&mm->mmap_sem);
+ 	return ret;
+ }
+-EXPORT_SYMBOL(__get_user_pages_unlocked);
 
- 		ret = get_user_pages_remote(tsk, mm, addr, 1,
--				gup_flags, &page, &vma);
-+				gup_flags, &page, &vma, NULL);
- 		if (ret <= 0) {
- #ifndef CONFIG_HAVE_IOREMAP_PROT
- 			break;
-diff --git a/security/tomoyo/domain.c b/security/tomoyo/domain.c
-index 682b73a..838ffa7 100644
---- a/security/tomoyo/domain.c
-+++ b/security/tomoyo/domain.c
-@@ -881,7 +881,7 @@ bool tomoyo_dump_page(struct linux_binprm *bprm, unsigned long pos,
- 	 * the execve().
+ /*
+  * get_user_pages_unlocked() is suitable to replace the form:
+diff --git a/mm/nommu.c b/mm/nommu.c
+index 8b8faaf..669437b 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -176,9 +176,9 @@ long get_user_pages_locked(unsigned long start, unsigned long nr_pages,
+ }
+ EXPORT_SYMBOL(get_user_pages_locked);
+
+-long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
+-			       unsigned long start, unsigned long nr_pages,
+-			       struct page **pages, unsigned int gup_flags)
++static long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
++				      unsigned long start, unsigned long nr_pages,
++			              struct page **pages, unsigned int gup_flags)
+ {
+ 	long ret;
+ 	down_read(&mm->mmap_sem);
+@@ -187,7 +187,6 @@ long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
+ 	up_read(&mm->mmap_sem);
+ 	return ret;
+ }
+-EXPORT_SYMBOL(__get_user_pages_unlocked);
+
+ long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
+ 			     struct page **pages, unsigned int gup_flags)
+diff --git a/mm/process_vm_access.c b/mm/process_vm_access.c
+index be8dc8d..84d0c7e 100644
+--- a/mm/process_vm_access.c
++++ b/mm/process_vm_access.c
+@@ -88,7 +88,7 @@ static int process_vm_rw_single_vec(unsigned long addr,
+ 	ssize_t rc = 0;
+ 	unsigned long max_pages_per_loop = PVM_MAX_KMALLOC_PAGES
+ 		/ sizeof(struct pages *);
+-	unsigned int flags = FOLL_REMOTE;
++	unsigned int flags = 0;
+
+ 	/* Work out address and page range required */
+ 	if (len == 0)
+@@ -100,15 +100,19 @@ static int process_vm_rw_single_vec(unsigned long addr,
+
+ 	while (!rc && nr_pages && iov_iter_count(iter)) {
+ 		int pages = min(nr_pages, max_pages_per_loop);
++		int locked = 1;
+ 		size_t bytes;
+
+ 		/*
+ 		 * Get the pages we're interested in.  We must
+-		 * add FOLL_REMOTE because task/mm might not
++		 * access remotely because task/mm might not
+ 		 * current/current->mm
+ 		 */
+-		pages = __get_user_pages_unlocked(task, mm, pa, pages,
+-						  process_pages, flags);
++		down_read(&mm->mmap_sem);
++		pages = get_user_pages_remote(task, mm, pa, pages, flags,
++					      process_pages, NULL, &locked);
++		if (locked)
++			up_read(&mm->mmap_sem);
+ 		if (pages <= 0)
+ 			return -EFAULT;
+
+diff --git a/virt/kvm/async_pf.c b/virt/kvm/async_pf.c
+index 8035cc1..dab8b19 100644
+--- a/virt/kvm/async_pf.c
++++ b/virt/kvm/async_pf.c
+@@ -76,16 +76,20 @@ static void async_pf_execute(struct work_struct *work)
+ 	struct kvm_vcpu *vcpu = apf->vcpu;
+ 	unsigned long addr = apf->addr;
+ 	gva_t gva = apf->gva;
++	int locked = 1;
+
+ 	might_sleep();
+
+ 	/*
+ 	 * This work is run asynchromously to the task which owns
+ 	 * mm and might be done in another context, so we must
+-	 * use FOLL_REMOTE.
++	 * access remotely.
  	 */
- 	if (get_user_pages_remote(current, bprm->mm, pos, 1,
--				FOLL_FORCE, &page, NULL) <= 0)
-+				FOLL_FORCE, &page, NULL, NULL) <= 0)
- 		return false;
- #else
- 	page = bprm->page[pos / PAGE_SIZE];
+-	__get_user_pages_unlocked(NULL, mm, addr, 1, NULL,
+-			FOLL_WRITE | FOLL_REMOTE);
++	down_read(&mm->mmap_sem);
++	get_user_pages_remote(NULL, mm, addr, 1, FOLL_WRITE, NULL, NULL,
++			&locked);
++	if (locked)
++		up_read(&mm->mmap_sem);
+
+ 	kvm_async_page_present_sync(vcpu, apf);
+
+diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+index 2907b7b..c45d951 100644
+--- a/virt/kvm/kvm_main.c
++++ b/virt/kvm/kvm_main.c
+@@ -1415,13 +1415,12 @@ static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
+ 		npages = get_user_page_nowait(addr, write_fault, page);
+ 		up_read(&current->mm->mmap_sem);
+ 	} else {
+-		unsigned int flags = FOLL_TOUCH | FOLL_HWPOISON;
++		unsigned int flags = FOLL_HWPOISON;
+
+ 		if (write_fault)
+ 			flags |= FOLL_WRITE;
+
+-		npages = __get_user_pages_unlocked(current, current->mm, addr, 1,
+-						   page, flags);
++		npages = get_user_pages_unlocked(addr, 1, page, flags);
+ 	}
+ 	if (npages != 1)
+ 		return npages;
 --
 2.10.1
 
