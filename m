@@ -1,51 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B9CBB6B0275
-	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 19:14:02 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id 2so19824174wmj.0
-        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 16:14:02 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id 15si9594996wml.101.2016.10.26.16.14.01
-        for <linux-mm@kvack.org>;
-        Wed, 26 Oct 2016 16:14:01 -0700 (PDT)
-Date: Thu, 27 Oct 2016 01:13:58 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: CONFIG_VMAP_STACK, on-stack struct, and wake_up_bit
-Message-ID: <20161026231358.36jysz2wycdf4anf@pd.tnic>
-References: <CAHc6FU4e5sueLi7pfeXnSbuuvnc5PaU3xo5Hnn=SvzmQ+ZOEeg@mail.gmail.com>
- <CALCETrUt+4ojyscJT1AFN5Zt3mKY0rrxcXMBOUUJzzLMWXFXHg@mail.gmail.com>
- <CA+55aFzB2C0aktFZW3GquJF6dhM1904aDPrv4vdQ8=+mWO7jcg@mail.gmail.com>
- <CA+55aFww1iLuuhHw=iYF8xjfjGj8L+3oh33xxUHjnKKnsR-oHg@mail.gmail.com>
- <CA+55aFyRv0YttbLUYwDem=-L5ZAET026umh6LOUQ6hWaRur_VA@mail.gmail.com>
- <996124132.13035408.1477505043741.JavaMail.zimbra@redhat.com>
- <CA+55aFzVmppmua4U0pesp2moz7vVPbH1NP264EKeW3YqOzFc3A@mail.gmail.com>
- <1731570270.13088320.1477515684152.JavaMail.zimbra@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <1731570270.13088320.1477515684152.JavaMail.zimbra@redhat.com>
+Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AD63C6B0275
+	for <linux-mm@kvack.org>; Wed, 26 Oct 2016 20:12:09 -0400 (EDT)
+Received: by mail-pa0-f70.google.com with SMTP id py6so11359811pab.0
+        for <linux-mm@kvack.org>; Wed, 26 Oct 2016 17:12:09 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id t82si5090677pgb.161.2016.10.26.17.12.08
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Oct 2016 17:12:08 -0700 (PDT)
+Date: Wed, 26 Oct 2016 17:12:07 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] mm: remove unnecessary __get_user_pages_unlocked()
+ calls
+Message-Id: <20161026171207.e76e4420dd95afcf16cc7c59@linux-foundation.org>
+In-Reply-To: <20161026092548.12712-1-lstoakes@gmail.com>
+References: <20161025233609.5601-1-lstoakes@gmail.com>
+	<20161026092548.12712-1-lstoakes@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Peterson <rpeterso@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Andreas Gruenbacher <agruenba@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Steven Whitehouse <swhiteho@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>
+To: Lorenzo Stoakes <lstoakes@gmail.com>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?UTF-8?Q?Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, Oct 26, 2016 at 05:01:24PM -0400, Bob Peterson wrote:
-> Hm. It didn't even boot, at least on my amd box in the lab.
-> I've made no attempt to debug this.
 
-Btw, can you send me your .config so that I can try to reproduce?
 
-I'm assuming you're booting latest Linus' tree on it?
+> Subject: [PATCH v2] mm: remove unnecessary __get_user_pages_unlocked() calls
 
-I'd need to take care of this for 4.9.
+The patch is rather misidentified.
 
-Thanks.
+>  virt/kvm/async_pf.c | 7 ++++---
+>  virt/kvm/kvm_main.c | 5 ++---
+>  2 files changed, 6 insertions(+), 6 deletions(-)
 
--- 
-Regards/Gruss,
-    Boris.
-
-ECO tip #101: Trim your mails when you reply.
+It's a KVM patch and should have been called "kvm: remove ...". 
+Possibly the KVM maintainers will miss it for this reason.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
