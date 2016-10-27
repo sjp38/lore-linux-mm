@@ -1,94 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f70.google.com (mail-pa0-f70.google.com [209.85.220.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F5CD280256
-	for <linux-mm@kvack.org>; Thu, 27 Oct 2016 13:11:58 -0400 (EDT)
-Received: by mail-pa0-f70.google.com with SMTP id ml10so23429478pab.5
-        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 10:11:58 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0134.outbound.protection.outlook.com. [104.47.1.134])
-        by mx.google.com with ESMTPS id b190si8872791pfa.34.2016.10.27.10.11.57
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C8FA280258
+	for <linux-mm@kvack.org>; Thu, 27 Oct 2016 13:15:16 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id m83so14835755wmc.1
+        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 10:15:16 -0700 (PDT)
+Received: from mail-wm0-x234.google.com (mail-wm0-x234.google.com. [2a00:1450:400c:c09::234])
+        by mx.google.com with ESMTPS id fk10si9676836wjb.155.2016.10.27.10.15.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 27 Oct 2016 10:11:57 -0700 (PDT)
-From: Dmitry Safonov <dsafonov@virtuozzo.com>
-Subject: [PATCHv3 8/8] powerpc/vdso: remove arch_vma_name
-Date: Thu, 27 Oct 2016 20:09:48 +0300
-Message-ID: <20161027170948.8279-9-dsafonov@virtuozzo.com>
-In-Reply-To: <20161027170948.8279-1-dsafonov@virtuozzo.com>
-References: <20161027170948.8279-1-dsafonov@virtuozzo.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 27 Oct 2016 10:15:15 -0700 (PDT)
+Received: by mail-wm0-x234.google.com with SMTP id n67so60401687wme.1
+        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 10:15:15 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20161025155106.29946-1-dsafonov@virtuozzo.com>
+References: <20161025155106.29946-1-dsafonov@virtuozzo.com>
+From: Dmitry Safonov <0x7f454c46@gmail.com>
+Date: Thu, 27 Oct 2016 20:14:54 +0300
+Message-ID: <CAJwJo6ZC=Z0RsjRgt8W1USuk0fp5_bJJHeQuKXHH50bBSNbd3g@mail.gmail.com>
+Subject: Re: [PATCH 0/7] powerpc/mm: refactor vDSO mapping code
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Dmitry Safonov <dsafonov@virtuozzo.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Andy Lutomirski <luto@amacapital.net>, Oleg Nesterov <oleg@redhat.com>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Dmitry Safonov <dsafonov@virtuozzo.com>
+Cc: open list <linux-kernel@vger.kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Andy Lutomirski <luto@amacapital.net>, Oleg Nesterov <oleg@redhat.com>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, Laurent Dufour <ldufour@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
 
-It's not needed since vdso is inserted with vm_special_mapping
-which contains vma name.
-This also reverts commit f2053f1a7bf6 ("powerpc/perf_counter: Fix vdso
-detection") as not needed anymore.
-See also commit f7b6eb3fa072 ("x86: Set context.vdso before installing
-the mapping").
+2016-10-25 18:50 GMT+03:00 Dmitry Safonov <dsafonov@virtuozzo.com>:
+> Cleanup patches for vDSO on powerpc.
+> Originally, I wanted to add vDSO remapping on arm/aarch64 and
+> I decided to cleanup that part on powerpc.
+> I've add a hook for vm_ops for vDSO just like I did for x86.
+> Other changes - reduce exhaustive code duplication.
+> No visible to userspace changes expected.
+>
+> Tested on qemu with buildroot rootfs.
+>
+> Dmitry Safonov (7):
+>   powerpc/vdso: unify return paths in setup_additional_pages
+>   powerpc/vdso: remove unused params in vdso_do_func_patch{32,64}
+>   powerpc/vdso: separate common code in vdso_common
+>   powerpc/vdso: introduce init_vdso{32,64}_pagelist
+>   powerpc/vdso: split map_vdso from arch_setup_additional_pages
+>   powerpc/vdso: switch from legacy_special_mapping_vmops
+>   mm: kill arch_mremap
 
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Paul Mackerras <paulus@samba.org>
-Cc: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Oleg Nesterov <oleg@redhat.com>
-Cc: linuxppc-dev@lists.ozlabs.org
-Cc: linux-mm@kvack.org
-Signed-off-by: Dmitry Safonov <dsafonov@virtuozzo.com>
----
- arch/powerpc/kernel/vdso.c | 20 +++-----------------
- 1 file changed, 3 insertions(+), 17 deletions(-)
-
-diff --git a/arch/powerpc/kernel/vdso.c b/arch/powerpc/kernel/vdso.c
-index 431bdf7ec68e..f66f52aa94de 100644
---- a/arch/powerpc/kernel/vdso.c
-+++ b/arch/powerpc/kernel/vdso.c
-@@ -208,13 +208,6 @@ static int map_vdso(struct vm_special_mapping *vsm, unsigned long vdso_pages,
- 	vdso_base = ALIGN(vdso_base, VDSO_ALIGNMENT);
- 
- 	/*
--	 * Put vDSO base into mm struct. We need to do this before calling
--	 * install_special_mapping or the perf counter mmap tracking code
--	 * will fail to recognise it as a vDSO (since arch_vma_name fails).
--	 */
--	current->mm->context.vdso_base = vdso_base;
--
--	/*
- 	 * our vma flags don't have VM_WRITE so by default, the process isn't
- 	 * allowed to write those pages.
- 	 * gdb can break that with ptrace interface, and thus trigger COW on
-@@ -228,10 +221,10 @@ static int map_vdso(struct vm_special_mapping *vsm, unsigned long vdso_pages,
- 				     VM_READ|VM_EXEC|
- 				     VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
- 				     vsm);
--	if (IS_ERR(vma)) {
-+	if (IS_ERR(vma))
- 		ret = PTR_ERR(vma);
--		current->mm->context.vdso_base = 0;
--	}
-+	else
-+		current->mm->context.vdso_base = vdso_base;
- 
- out_up_mmap_sem:
- 	up_write(&mm->mmap_sem);
-@@ -262,13 +255,6 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
- 	return -1;
- }
- 
--const char *arch_vma_name(struct vm_area_struct *vma)
--{
--	if (vma->vm_mm && vma->vm_start == vma->vm_mm->context.vdso_base)
--		return "[vdso]";
--	return NULL;
--}
--
- #ifdef CONFIG_VDSO32
- #include "vdso_common.c"
- #endif /* CONFIG_VDSO32 */
--- 
-2.10.1
+Ignore this version, please - I've just sent v3 with some new fixes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
