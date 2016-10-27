@@ -1,47 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AF486B027A
-	for <linux-mm@kvack.org>; Thu, 27 Oct 2016 17:19:33 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id y138so18218582wme.7
-        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 14:19:33 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id v126si5686876wmf.37.2016.10.27.14.19.32
-        for <linux-mm@kvack.org>;
-        Thu, 27 Oct 2016 14:19:32 -0700 (PDT)
-Date: Thu, 27 Oct 2016 23:19:30 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: CONFIG_VMAP_STACK, on-stack struct, and wake_up_bit
-Message-ID: <20161027211930.2d2wc7tjbe3kfaxk@pd.tnic>
-References: <CAHc6FU4e5sueLi7pfeXnSbuuvnc5PaU3xo5Hnn=SvzmQ+ZOEeg@mail.gmail.com>
- <CA+55aFzVmppmua4U0pesp2moz7vVPbH1NP264EKeW3YqOzFc3A@mail.gmail.com>
- <1731570270.13088320.1477515684152.JavaMail.zimbra@redhat.com>
- <20161026231358.36jysz2wycdf4anf@pd.tnic>
- <624629879.13118306.1477528645189.JavaMail.zimbra@redhat.com>
- <20161027123623.j2jri5bandimboff@pd.tnic>
- <411894642.13576957.1477594290544.JavaMail.zimbra@redhat.com>
- <20161027191951.zgcrcmvmla7ayeon@pd.tnic>
- <1932557416.13613945.1477602193309.JavaMail.zimbra@redhat.com>
+Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 891316B027A
+	for <linux-mm@kvack.org>; Thu, 27 Oct 2016 18:26:15 -0400 (EDT)
+Received: by mail-ua0-f197.google.com with SMTP id b35so39232099uaa.1
+        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 15:26:15 -0700 (PDT)
+Received: from mail-vk0-x22c.google.com (mail-vk0-x22c.google.com. [2607:f8b0:400c:c05::22c])
+        by mx.google.com with ESMTPS id h201si1167190vkd.78.2016.10.27.15.26.14
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 27 Oct 2016 15:26:14 -0700 (PDT)
+Received: by mail-vk0-x22c.google.com with SMTP id y123so40974446vka.3
+        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 15:26:14 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <1932557416.13613945.1477602193309.JavaMail.zimbra@redhat.com>
+In-Reply-To: <20161027141516.28447-3-dsafonov@virtuozzo.com>
+References: <20161027141516.28447-1-dsafonov@virtuozzo.com> <20161027141516.28447-3-dsafonov@virtuozzo.com>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Thu, 27 Oct 2016 15:25:53 -0700
+Message-ID: <CALCETrW=qxgd3UpimGFCjHLVb1sgRjqOE1KNps=CT4cmVo7B_w@mail.gmail.com>
+Subject: Re: [PATCH 2/2] x86/vdso: set vdso pointer only after success
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Peterson <rpeterso@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Andreas Gruenbacher <agruenba@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Steven Whitehouse <swhiteho@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>
+To: Dmitry Safonov <dsafonov@virtuozzo.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dmitry Safonov <0x7f454c46@gmail.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Andy Lutomirski <luto@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>
 
-On Thu, Oct 27, 2016 at 05:03:13PM -0400, Bob Peterson wrote:
-> I rebooted the machine with and without your patch, about 15 times
-> each, and no failures. Not sure why I got it the first time. Must have
-> been a one-off.
+On Thu, Oct 27, 2016 at 7:15 AM, Dmitry Safonov <dsafonov@virtuozzo.com> wrote:
+> Those pointers were initialized before call to _install_special_mapping
+> after the commit f7b6eb3fa072 ("x86: Set context.vdso before installing
+> the mapping"). This is not required anymore as special mappings have
+> their vma name and don't use arch_vma_name() after commit a62c34bd2a8a
+> ("x86, mm: Improve _install_special_mapping and fix x86 vdso naming").
+> So, this way to init looks less entangled.
+> I even belive, we can remove null initializers:
+> - on failure load_elf_binary() will not start a new thread;
+> - arch_prctl will have the same pointers as before syscall.
 
-Ok, thanks for giving it a try!
-
--- 
-Regards/Gruss,
-    Boris.
-
-ECO tip #101: Trim your mails when you reply.
+Acked-by: Andy Lutomirski <luto@kernel.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
