@@ -1,63 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C298D6B027A
-	for <linux-mm@kvack.org>; Thu, 27 Oct 2016 15:19:54 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id b80so16416387wme.5
-        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 12:19:54 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:120:8448::d00d])
-        by mx.google.com with ESMTP id g125si4954309wma.144.2016.10.27.12.19.53
-        for <linux-mm@kvack.org>;
-        Thu, 27 Oct 2016 12:19:53 -0700 (PDT)
-Date: Thu, 27 Oct 2016 21:19:51 +0200
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: CONFIG_VMAP_STACK, on-stack struct, and wake_up_bit
-Message-ID: <20161027191951.zgcrcmvmla7ayeon@pd.tnic>
-References: <CAHc6FU4e5sueLi7pfeXnSbuuvnc5PaU3xo5Hnn=SvzmQ+ZOEeg@mail.gmail.com>
- <CA+55aFyRv0YttbLUYwDem=-L5ZAET026umh6LOUQ6hWaRur_VA@mail.gmail.com>
- <996124132.13035408.1477505043741.JavaMail.zimbra@redhat.com>
- <CA+55aFzVmppmua4U0pesp2moz7vVPbH1NP264EKeW3YqOzFc3A@mail.gmail.com>
- <1731570270.13088320.1477515684152.JavaMail.zimbra@redhat.com>
- <20161026231358.36jysz2wycdf4anf@pd.tnic>
- <624629879.13118306.1477528645189.JavaMail.zimbra@redhat.com>
- <20161027123623.j2jri5bandimboff@pd.tnic>
- <411894642.13576957.1477594290544.JavaMail.zimbra@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <411894642.13576957.1477594290544.JavaMail.zimbra@redhat.com>
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 40ABA6B027A
+	for <linux-mm@kvack.org>; Thu, 27 Oct 2016 16:34:11 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id m83so17717787wmc.1
+        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 13:34:11 -0700 (PDT)
+Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
+        by mx.google.com with ESMTPS id k10si10720232wjy.47.2016.10.27.13.34.09
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 27 Oct 2016 13:34:09 -0700 (PDT)
+Received: by mail-wm0-x243.google.com with SMTP id y138so4409409wme.1
+        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 13:34:09 -0700 (PDT)
+From: Lorenzo Stoakes <lstoakes@gmail.com>
+Subject: [PATCH v2 0/2] mm: unexport __get_user_pages_unlocked()
+Date: Thu, 27 Oct 2016 21:34:01 +0100
+Message-Id: <20161027203403.31708-1-lstoakes@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Peterson <rpeterso@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Andreas Gruenbacher <agruenba@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Steven Whitehouse <swhiteho@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-security-module@vger.kernel.org, linux-rdma@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-fsdevel@vger.kernel.org
 
-On Thu, Oct 27, 2016 at 02:51:30PM -0400, Bob Peterson wrote:
-> I couldn't recreate that first boot failure, even using .config.old,
-> and even after removing (rm -fR) my linux.git and untarring it from the
-> original tarball, doing a make clean, etc.
+This patch series continues the cleanup of get_user_pages*() functions taking
+advantage of the fact we can now pass gup_flags as we please.
 
-Hmm, so it could also depend on the randomized offset as it is getting
-generated anew each boot. So you could try to boot a couple of times
-to see if the randomized offset is generated just right for the bug
-condition to match.
+It firstly adds an additional 'locked' parameter to get_user_pages_remote() to
+allow for its callers to utilise VM_FAULT_RETRY functionality. This is necessary
+as the invocation of __get_user_pages_unlocked() in process_vm_rw_single_vec()
+makes use of this and no other existing higher level function would allow it to
+do so.
 
-I mean, it would be great if you try a couple times but even if you're
-unsuccessful, that's fine too - the fix is obviously correct and I've
-confirmed that it boots fine in my VM here.
+Secondly existing callers of __get_user_pages_unlocked() are replaced with the
+appropriate higher-level replacement - get_user_pages_unlocked() if the current
+task and memory descriptor are referenced, or get_user_pages_remote() if other
+task/memory descriptors are referenced (having acquiring mmap_sem.)
 
-> The output before and after your new patch are the same (except for the times):
-> 
-> # dmesg | grep -i microcode
-> [    5.291679] microcode: microcode updated early to new patch_level=0x010000d9
+Lorenzo Stoakes (2):
+  mm: add locked parameter to get_user_pages_remote()
+  mm: unexport __get_user_pages_unlocked()
 
-That looks good.
+ drivers/gpu/drm/etnaviv/etnaviv_gem.c   |  2 +-
+ drivers/gpu/drm/i915/i915_gem_userptr.c |  2 +-
+ drivers/infiniband/core/umem_odp.c      |  2 +-
+ fs/exec.c                               |  2 +-
+ include/linux/mm.h                      |  5 +----
+ kernel/events/uprobes.c                 |  4 ++--
+ mm/gup.c                                | 20 ++++++++++++--------
+ mm/memory.c                             |  2 +-
+ mm/nommu.c                              |  7 +++----
+ mm/process_vm_access.c                  | 12 ++++++++----
+ security/tomoyo/domain.c                |  2 +-
+ virt/kvm/async_pf.c                     | 10 +++++++---
+ virt/kvm/kvm_main.c                     |  5 ++---
+ 13 files changed, 41 insertions(+), 34 deletions(-)
 
-Thanks!
-
--- 
-Regards/Gruss,
-    Boris.
-
-ECO tip #101: Trim your mails when you reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
