@@ -1,205 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 043D36B027D
-	for <linux-mm@kvack.org>; Thu, 27 Oct 2016 16:34:15 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id m83so17718551wmc.1
-        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 13:34:14 -0700 (PDT)
-Received: from mail-wm0-x243.google.com (mail-wm0-x243.google.com. [2a00:1450:400c:c09::243])
-        by mx.google.com with ESMTPS id z1si10718083wjk.104.2016.10.27.13.34.13
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E2666B027A
+	for <linux-mm@kvack.org>; Thu, 27 Oct 2016 17:04:09 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id m83so18069619wmc.1
+        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 14:04:09 -0700 (PDT)
+Received: from mx6-phx2.redhat.com (mx6-phx2.redhat.com. [209.132.183.39])
+        by mx.google.com with ESMTPS id cw8si10888623wjb.50.2016.10.27.14.04.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 27 Oct 2016 13:34:13 -0700 (PDT)
-Received: by mail-wm0-x243.google.com with SMTP id b80so4377288wme.2
-        for <linux-mm@kvack.org>; Thu, 27 Oct 2016 13:34:13 -0700 (PDT)
-From: Lorenzo Stoakes <lstoakes@gmail.com>
-Subject: [PATCH v2 2/2] mm: unexport __get_user_pages_unlocked()
-Date: Thu, 27 Oct 2016 21:34:03 +0100
-Message-Id: <20161027203403.31708-3-lstoakes@gmail.com>
-In-Reply-To: <20161027203403.31708-1-lstoakes@gmail.com>
-References: <20161027203403.31708-1-lstoakes@gmail.com>
+        Thu, 27 Oct 2016 14:04:08 -0700 (PDT)
+Date: Thu, 27 Oct 2016 17:03:13 -0400 (EDT)
+From: Bob Peterson <rpeterso@redhat.com>
+Message-ID: <1932557416.13613945.1477602193309.JavaMail.zimbra@redhat.com>
+In-Reply-To: <20161027191951.zgcrcmvmla7ayeon@pd.tnic>
+References: <CAHc6FU4e5sueLi7pfeXnSbuuvnc5PaU3xo5Hnn=SvzmQ+ZOEeg@mail.gmail.com> <CA+55aFzVmppmua4U0pesp2moz7vVPbH1NP264EKeW3YqOzFc3A@mail.gmail.com> <1731570270.13088320.1477515684152.JavaMail.zimbra@redhat.com> <20161026231358.36jysz2wycdf4anf@pd.tnic> <624629879.13118306.1477528645189.JavaMail.zimbra@redhat.com> <20161027123623.j2jri5bandimboff@pd.tnic> <411894642.13576957.1477594290544.JavaMail.zimbra@redhat.com> <20161027191951.zgcrcmvmla7ayeon@pd.tnic>
+Subject: Re: CONFIG_VMAP_STACK, on-stack struct, and wake_up_bit
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Michal Hocko <mhocko@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@linux.intel.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-security-module@vger.kernel.org, linux-rdma@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-fsdevel@vger.kernel.org, Lorenzo Stoakes <lstoakes@gmail.com>
+To: Borislav Petkov <bp@alien8.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Andreas Gruenbacher <agruenba@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Steven Whitehouse <swhiteho@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, linux-mm <linux-mm@kvack.org>
 
-This patch unexports the low-level __get_user_pages_unlocked() function and
-replaces invocations with calls to more appropriate higher-level functions.
+----- Original Message -----
+| I mean, it would be great if you try a couple times but even if you're
+| unsuccessful, that's fine too - the fix is obviously correct and I've
+| confirmed that it boots fine in my VM here.
 
-In hva_to_pfn_slow() we are able to replace __get_user_pages_unlocked() with
-get_user_pages_unlocked() since we can now pass gup_flags.
+Hi Boris,
 
-In async_pf_execute() and process_vm_rw_single_vec() we need to pass different
-tsk, mm arguments so get_user_pages_remote() is the sane replacement in these
-cases (having added manual acquisition and release of mmap_sem.)
+I rebooted the machine with and without your patch, about 15 times each,
+and no failures. Not sure why I got it the first time. Must have been a one-off.
 
-Additionally get_user_pages_remote() reintroduces use of the FOLL_TOUCH
-flag. However, this flag was originally silently dropped by 1e9877902dc7e
-("mm/gup: Introduce get_user_pages_remote()"), so this appears to have been
-unintentional and reintroducing it is therefore not an issue.
-
-Signed-off-by: Lorenzo Stoakes <lstoakes@gmail.com>
----
-v2: updated patch to apply against mainline rather than -mmots
-
- include/linux/mm.h     |  3 ---
- mm/gup.c               |  8 ++++----
- mm/nommu.c             |  7 +++----
- mm/process_vm_access.c | 12 ++++++++----
- virt/kvm/async_pf.c    | 10 +++++++---
- virt/kvm/kvm_main.c    |  5 ++---
- 6 files changed, 24 insertions(+), 21 deletions(-)
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index cc15445..7b2d14e 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1280,9 +1280,6 @@ long get_user_pages(unsigned long start, unsigned long nr_pages,
- 			    struct vm_area_struct **vmas);
- long get_user_pages_locked(unsigned long start, unsigned long nr_pages,
- 		    unsigned int gup_flags, struct page **pages, int *locked);
--long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
--			       unsigned long start, unsigned long nr_pages,
--			       struct page **pages, unsigned int gup_flags);
- long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
- 		    struct page **pages, unsigned int gup_flags);
- int get_user_pages_fast(unsigned long start, int nr_pages, int write,
-diff --git a/mm/gup.c b/mm/gup.c
-index 0567851..8028af1 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -866,9 +866,10 @@ EXPORT_SYMBOL(get_user_pages_locked);
-  * according to the parameters "pages", "write", "force"
-  * respectively.
-  */
--__always_inline long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
--					       unsigned long start, unsigned long nr_pages,
--					       struct page **pages, unsigned int gup_flags)
-+static __always_inline long __get_user_pages_unlocked(struct task_struct *tsk,
-+		struct mm_struct *mm, unsigned long start,
-+		unsigned long nr_pages, struct page **pages,
-+		unsigned int gup_flags)
- {
- 	long ret;
- 	int locked = 1;
-@@ -880,7 +881,6 @@ __always_inline long __get_user_pages_unlocked(struct task_struct *tsk, struct m
- 		up_read(&mm->mmap_sem);
- 	return ret;
- }
--EXPORT_SYMBOL(__get_user_pages_unlocked);
-
- /*
-  * get_user_pages_unlocked() is suitable to replace the form:
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 8b8faaf..669437b 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -176,9 +176,9 @@ long get_user_pages_locked(unsigned long start, unsigned long nr_pages,
- }
- EXPORT_SYMBOL(get_user_pages_locked);
-
--long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
--			       unsigned long start, unsigned long nr_pages,
--			       struct page **pages, unsigned int gup_flags)
-+static long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
-+				      unsigned long start, unsigned long nr_pages,
-+			              struct page **pages, unsigned int gup_flags)
- {
- 	long ret;
- 	down_read(&mm->mmap_sem);
-@@ -187,7 +187,6 @@ long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
- 	up_read(&mm->mmap_sem);
- 	return ret;
- }
--EXPORT_SYMBOL(__get_user_pages_unlocked);
-
- long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
- 			     struct page **pages, unsigned int gup_flags)
-diff --git a/mm/process_vm_access.c b/mm/process_vm_access.c
-index be8dc8d..84d0c7e 100644
---- a/mm/process_vm_access.c
-+++ b/mm/process_vm_access.c
-@@ -88,7 +88,7 @@ static int process_vm_rw_single_vec(unsigned long addr,
- 	ssize_t rc = 0;
- 	unsigned long max_pages_per_loop = PVM_MAX_KMALLOC_PAGES
- 		/ sizeof(struct pages *);
--	unsigned int flags = FOLL_REMOTE;
-+	unsigned int flags = 0;
-
- 	/* Work out address and page range required */
- 	if (len == 0)
-@@ -100,15 +100,19 @@ static int process_vm_rw_single_vec(unsigned long addr,
-
- 	while (!rc && nr_pages && iov_iter_count(iter)) {
- 		int pages = min(nr_pages, max_pages_per_loop);
-+		int locked = 1;
- 		size_t bytes;
-
- 		/*
- 		 * Get the pages we're interested in.  We must
--		 * add FOLL_REMOTE because task/mm might not
-+		 * access remotely because task/mm might not
- 		 * current/current->mm
- 		 */
--		pages = __get_user_pages_unlocked(task, mm, pa, pages,
--						  process_pages, flags);
-+		down_read(&mm->mmap_sem);
-+		pages = get_user_pages_remote(task, mm, pa, pages, flags,
-+					      process_pages, NULL, &locked);
-+		if (locked)
-+			up_read(&mm->mmap_sem);
- 		if (pages <= 0)
- 			return -EFAULT;
-
-diff --git a/virt/kvm/async_pf.c b/virt/kvm/async_pf.c
-index 8035cc1..dab8b19 100644
---- a/virt/kvm/async_pf.c
-+++ b/virt/kvm/async_pf.c
-@@ -76,16 +76,20 @@ static void async_pf_execute(struct work_struct *work)
- 	struct kvm_vcpu *vcpu = apf->vcpu;
- 	unsigned long addr = apf->addr;
- 	gva_t gva = apf->gva;
-+	int locked = 1;
-
- 	might_sleep();
-
- 	/*
- 	 * This work is run asynchromously to the task which owns
- 	 * mm and might be done in another context, so we must
--	 * use FOLL_REMOTE.
-+	 * access remotely.
- 	 */
--	__get_user_pages_unlocked(NULL, mm, addr, 1, NULL,
--			FOLL_WRITE | FOLL_REMOTE);
-+	down_read(&mm->mmap_sem);
-+	get_user_pages_remote(NULL, mm, addr, 1, FOLL_WRITE, NULL, NULL,
-+			&locked);
-+	if (locked)
-+		up_read(&mm->mmap_sem);
-
- 	kvm_async_page_present_sync(vcpu, apf);
-
-diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-index 2907b7b..c45d951 100644
---- a/virt/kvm/kvm_main.c
-+++ b/virt/kvm/kvm_main.c
-@@ -1415,13 +1415,12 @@ static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
- 		npages = get_user_page_nowait(addr, write_fault, page);
- 		up_read(&current->mm->mmap_sem);
- 	} else {
--		unsigned int flags = FOLL_TOUCH | FOLL_HWPOISON;
-+		unsigned int flags = FOLL_HWPOISON;
-
- 		if (write_fault)
- 			flags |= FOLL_WRITE;
-
--		npages = __get_user_pages_unlocked(current, current->mm, addr, 1,
--						   page, flags);
-+		npages = get_user_pages_unlocked(addr, 1, page, flags);
- 	}
- 	if (npages != 1)
- 		return npages;
---
-2.10.1
+Bob Peterson
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
